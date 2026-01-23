@@ -15,7 +15,7 @@ export const ProgressDots = ({ total, current, gradient }: ProgressDotsProps) =>
           className={cn(
             "transition-all duration-300 rounded-full",
             index === current
-              ? cn("w-8 h-3", gradient)
+              ? `w-8 h-3 bg-gradient-to-br ${gradient}`
               : "w-3 h-3 bg-muted"
           )}
         />

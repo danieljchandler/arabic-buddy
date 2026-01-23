@@ -1,10 +1,17 @@
 import { useState, useRef } from "react";
 import { Volume2, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { VocabularyWord } from "@/data/vocabulary";
+
+interface FlashcardWord {
+  id: string;
+  word_arabic: string;
+  word_english: string;
+  image_url: string | null;
+  audio_url: string | null;
+}
 
 interface FlashcardProps {
-  word: VocabularyWord;
+  word: FlashcardWord;
   gradient: string;
 }
 
@@ -16,7 +23,7 @@ export const Flashcard = ({ word, gradient }: FlashcardProps) => {
   const playAudio = () => {
     setShowTapHint(false);
     
-    if (word.audioUrl) {
+    if (word.audio_url) {
       if (audioRef.current) {
         audioRef.current.currentTime = 0;
         audioRef.current.play();
@@ -46,12 +53,16 @@ export const Flashcard = ({ word, gradient }: FlashcardProps) => {
         )}
       >
         {/* Image Container */}
-        <div className="absolute inset-4 rounded-2xl overflow-hidden bg-muted">
-          <img
-            src={word.imageUrl}
-            alt=""
-            className="w-full h-full object-cover"
-          />
+        <div className="absolute inset-4 rounded-2xl overflow-hidden bg-muted flex items-center justify-center">
+          {word.image_url ? (
+            <img
+              src={word.image_url}
+              alt=""
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <span className="text-8xl opacity-50">📷</span>
+          )}
         </div>
 
         {/* Playing indicator overlay */}
@@ -59,7 +70,7 @@ export const Flashcard = ({ word, gradient }: FlashcardProps) => {
           <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
             <div className={cn(
               "w-24 h-24 rounded-full flex items-center justify-center",
-              gradient,
+              `bg-gradient-to-br ${gradient}`,
               "animate-pulse-glow"
             )}>
               <Volume2 className="w-12 h-12 text-white" />
@@ -72,7 +83,7 @@ export const Flashcard = ({ word, gradient }: FlashcardProps) => {
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <div className={cn(
               "px-6 py-3 rounded-full",
-              gradient,
+              `bg-gradient-to-br ${gradient}`,
               "shadow-lg animate-bounce-gentle"
             )}>
               <span className="text-white font-bold text-lg flex items-center gap-2">
@@ -87,7 +98,7 @@ export const Flashcard = ({ word, gradient }: FlashcardProps) => {
         <div className={cn(
           "absolute top-4 right-4 w-14 h-14 rounded-2xl",
           "flex items-center justify-center",
-          gradient,
+          `bg-gradient-to-br ${gradient}`,
           "shadow-lg"
         )}>
           <Volume2 className="w-7 h-7 text-white" />
@@ -101,7 +112,7 @@ export const Flashcard = ({ word, gradient }: FlashcardProps) => {
           "absolute -bottom-6 left-1/2 transform -translate-x-1/2",
           "w-16 h-16 rounded-full",
           "flex items-center justify-center",
-          gradient,
+          `bg-gradient-to-br ${gradient}`,
           "shadow-button",
           "transition-all duration-300",
           "hover:scale-110 active:scale-95",
@@ -112,10 +123,10 @@ export const Flashcard = ({ word, gradient }: FlashcardProps) => {
       </button>
 
       {/* Hidden Audio Element */}
-      {word.audioUrl && (
+      {word.audio_url && (
         <audio
           ref={audioRef}
-          src={word.audioUrl}
+          src={word.audio_url}
           onPlay={handleAudioPlay}
           onEnded={handleAudioEnded}
           preload="auto"

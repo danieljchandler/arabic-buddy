@@ -1,8 +1,16 @@
 import { cn } from "@/lib/utils";
-import type { Topic } from "@/data/vocabulary";
+
+interface TopicCardTopic {
+  id: string;
+  name: string;
+  nameArabic: string;
+  icon: string;
+  gradient: string;
+  wordCount?: number;
+}
 
 interface TopicCardProps {
-  topic: Topic;
+  topic: TopicCardTopic;
   onClick: () => void;
 }
 
@@ -16,7 +24,7 @@ export const TopicCard = ({ topic, onClick }: TopicCardProps) => {
         "transform transition-all duration-300",
         "hover:scale-105 active:scale-95",
         "shadow-card hover:shadow-button",
-        topic.gradient
+        `bg-gradient-to-br ${topic.gradient}`
       )}
     >
       <span className="text-6xl md:text-7xl animate-bounce-gentle">
@@ -30,11 +38,13 @@ export const TopicCard = ({ topic, onClick }: TopicCardProps) => {
           {topic.name}
         </p>
       </div>
-      <div className="absolute bottom-4 right-4 bg-white/30 backdrop-blur-sm rounded-full px-3 py-1">
-        <span className="text-sm font-bold text-white">
-          {topic.words.length}
-        </span>
-      </div>
+      {topic.wordCount !== undefined && (
+        <div className="absolute bottom-4 right-4 bg-white/30 backdrop-blur-sm rounded-full px-3 py-1">
+          <span className="text-sm font-bold text-white">
+            {topic.wordCount}
+          </span>
+        </div>
+      )}
     </button>
   );
 };

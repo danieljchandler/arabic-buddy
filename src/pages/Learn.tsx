@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { useTopic } from "@/hooks/useTopic";
 import { Flashcard } from "@/components/Flashcard";
 import { NavigationArrow } from "@/components/NavigationArrow";
 import { ProgressDots } from "@/components/ProgressDots";
 import { HomeButton } from "@/components/HomeButton";
 import { cn } from "@/lib/utils";
-import { Loader2 } from "lucide-react";
+import { Loader2, GraduationCap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const Learn = () => {
@@ -124,7 +124,16 @@ const Learn = () => {
           <span className="text-2xl mr-2">{topic.icon}</span>
           <span className="text-xl font-bold text-white">{topic.name_arabic}</span>
         </div>
-        <div className="w-14" /> {/* Spacer for alignment */}
+        <Link to={`/quiz/${topicId}`}>
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-14 w-14 rounded-full border-2 hover:bg-primary/10"
+            title="Take Quiz"
+          >
+            <GraduationCap className="h-6 w-6" />
+          </Button>
+        </Link>
       </div>
 
       {/* Main Content */}

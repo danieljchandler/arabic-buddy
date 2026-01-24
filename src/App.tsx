@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import Learn from "./pages/Learn";
 import NotFound from "./pages/NotFound";
+import Quiz from "./pages/Quiz";
 
 // Admin pages
 import AdminLogin from "./pages/admin/AdminLogin";
@@ -28,6 +29,7 @@ const App = () => (
           {/* Public learning app */}
           <Route path="/" element={<Index />} />
           <Route path="/learn/:topicId" element={<Learn />} />
+          <Route path="/quiz/:topicId" element={<Quiz />} />
 
           {/* Admin routes */}
           <Route path="/admin/login" element={<AdminLogin />} />

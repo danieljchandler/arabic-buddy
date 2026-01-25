@@ -7,6 +7,8 @@ import Index from "./pages/Index";
 import Learn from "./pages/Learn";
 import NotFound from "./pages/NotFound";
 import Quiz from "./pages/Quiz";
+import Auth from "./pages/Auth";
+import Review from "./pages/Review";
 
 // Admin pages
 import AdminLogin from "./pages/admin/AdminLogin";
@@ -28,6 +30,8 @@ const App = () => (
         <Routes>
           {/* Public learning app */}
           <Route path="/" element={<Index />} />
+          <Route path="/auth" element={<Auth />} />
+          <Route path="/review" element={<Review />} />
           <Route path="/learn/:topicId" element={<Learn />} />
           <Route path="/quiz/:topicId" element={<Quiz />} />
 

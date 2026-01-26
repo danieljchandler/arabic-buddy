@@ -3,13 +3,13 @@ import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { useTopics } from '@/hooks/useTopics';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, LogOut, BookOpen, Plus, Settings } from 'lucide-react';
+import { Loader2, LogOut, BookOpen, Plus, Settings, Mic } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const { user, signOut, loading: authLoading } = useAdminAuth();
+  const { user, isAdmin, isRecorder, role, signOut, loading: authLoading } = useAdminAuth();
   const { data: topics, isLoading: topicsLoading } = useTopics();
 
   // Get word counts for each topic
@@ -44,6 +44,7 @@ const Dashboard = () => {
   }
 
   const totalWords = wordCounts ? Object.values(wordCounts).reduce((a, b) => a + b, 0) : 0;
+  const roleLabel = isAdmin ? 'Admin' : isRecorder ? 'Recorder' : '';
 
   return (
     <div className="min-h-screen bg-background">
@@ -51,9 +52,14 @@ const Dashboard = () => {
       <header className="border-b bg-card">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <span className="text-3xl">📚</span>
+            <span className="text-3xl">{isAdmin ? '📚' : '🎙️'}</span>
             <div>
-              <h1 className="text-xl font-bold">Admin Dashboard</h1>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl font-bold">{roleLabel} Dashboard</h1>
+                <span className={`text-xs px-2 py-0.5 rounded-full ${isAdmin ? 'bg-primary/20 text-primary' : 'bg-accent/20 text-accent-foreground'}`}>
+                  {roleLabel}
+                </span>
+              </div>
               <p className="text-sm text-muted-foreground">{user?.email}</p>
             </div>
           </div>
@@ -95,42 +101,68 @@ const Dashboard = () => {
           </Card>
         </div>
 
-        {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-          <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/admin/topics')}>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-4">
-                <div className="bg-primary/10 rounded-full p-4">
-                  <Settings className="h-8 w-8 text-primary" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-lg">Manage Topics</h3>
-                  <p className="text-muted-foreground">Add, edit, or remove vocabulary topics</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        {/* Quick Actions - Different for admin vs recorder */}
+        <div className={`grid grid-cols-1 ${isAdmin ? 'md:grid-cols-2' : ''} gap-4 mb-8`}>
+          {isAdmin && (
+            <>
+              <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/admin/topics')}>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-4">
+                    <div className="bg-primary/10 rounded-full p-4">
+                      <Settings className="h-8 w-8 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-lg">Manage Topics</h3>
+                      <p className="text-muted-foreground">Add, edit, or remove vocabulary topics</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
 
-          <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/admin/topics/new')}>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-4">
-                <div className="bg-accent/10 rounded-full p-4">
-                  <Plus className="h-8 w-8 text-accent" />
+              <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/admin/topics/new')}>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-4">
+                    <div className="bg-accent/10 rounded-full p-4">
+                      <Plus className="h-8 w-8 text-accent" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-lg">Add New Topic</h3>
+                      <p className="text-muted-foreground">Create a new vocabulary category</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </>
+          )}
+
+          {isRecorder && !isAdmin && (
+            <Card className="bg-accent/5 border-accent/20">
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-4">
+                  <div className="bg-accent/10 rounded-full p-4">
+                    <Mic className="h-8 w-8 text-accent" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-lg">Recorder Access</h3>
+                    <p className="text-muted-foreground">
+                      You can add new words and record audio. Click any topic below to add or edit words.
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-semibold text-lg">Add New Topic</h3>
-                  <p className="text-muted-foreground">Create a new vocabulary category</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Topics List */}
         <Card>
           <CardHeader>
             <CardTitle>Topics Overview</CardTitle>
-            <CardDescription>Click a topic to manage its vocabulary words</CardDescription>
+            <CardDescription>
+              {isAdmin 
+                ? 'Click a topic to manage its vocabulary words' 
+                : 'Click a topic to add words or record audio'}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             {topics && topics.length > 0 ? (
@@ -158,11 +190,17 @@ const Dashboard = () => {
               </div>
             ) : (
               <div className="text-center py-8 text-muted-foreground">
-                <p>No topics yet. Create your first topic to get started!</p>
-                <Button className="mt-4" onClick={() => navigate('/admin/topics/new')}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Topic
-                </Button>
+                {isAdmin ? (
+                  <>
+                    <p>No topics yet. Create your first topic to get started!</p>
+                    <Button className="mt-4" onClick={() => navigate('/admin/topics/new')}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Topic
+                    </Button>
+                  </>
+                ) : (
+                  <p>No topics available. Ask an admin to create topics first.</p>
+                )}
               </div>
             )}
           </CardContent>

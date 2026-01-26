@@ -2,10 +2,14 @@ import { useState, useEffect } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
+export type UserRole = 'admin' | 'recorder' | null;
+
 export const useAdminAuth = () => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isRecorder, setIsRecorder] = useState(false);
+  const [role, setRole] = useState<UserRole>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -15,13 +19,15 @@ export const useAdminAuth = () => {
         setSession(session);
         setUser(session?.user ?? null);
         
-        // Defer admin check with setTimeout to prevent deadlock
+        // Defer role check with setTimeout to prevent deadlock
         if (session?.user) {
           setTimeout(() => {
-            checkAdminRole(session.user.id);
+            checkRoles(session.user.id);
           }, 0);
         } else {
           setIsAdmin(false);
+          setIsRecorder(false);
+          setRole(null);
           setLoading(false);
         }
       }
@@ -33,7 +39,7 @@ export const useAdminAuth = () => {
       setUser(session?.user ?? null);
       
       if (session?.user) {
-        checkAdminRole(session.user.id);
+        checkRoles(session.user.id);
       } else {
         setLoading(false);
       }
@@ -42,22 +48,32 @@ export const useAdminAuth = () => {
     return () => subscription.unsubscribe();
   }, []);
 
-  const checkAdminRole = async (userId: string) => {
+  const checkRoles = async (userId: string) => {
     try {
-      const { data, error } = await supabase.rpc('has_role', {
-        _user_id: userId,
-        _role: 'admin'
-      });
+      // Check both roles in parallel
+      const [adminResult, recorderResult] = await Promise.all([
+        supabase.rpc('has_role', { _user_id: userId, _role: 'admin' }),
+        supabase.rpc('has_role', { _user_id: userId, _role: 'recorder' }),
+      ]);
 
-      if (error) {
-        console.error('Error checking admin role:', error);
-        setIsAdmin(false);
+      const adminRole = adminResult.data === true;
+      const recorderRole = recorderResult.data === true;
+
+      setIsAdmin(adminRole);
+      setIsRecorder(recorderRole);
+      
+      if (adminRole) {
+        setRole('admin');
+      } else if (recorderRole) {
+        setRole('recorder');
       } else {
-        setIsAdmin(data === true);
+        setRole(null);
       }
     } catch (err) {
-      console.error('Error checking admin role:', err);
+      console.error('Error checking roles:', err);
       setIsAdmin(false);
+      setIsRecorder(false);
+      setRole(null);
     } finally {
       setLoading(false);
     }
@@ -90,6 +106,8 @@ export const useAdminAuth = () => {
       setUser(null);
       setSession(null);
       setIsAdmin(false);
+      setIsRecorder(false);
+      setRole(null);
     }
     return { error };
   };
@@ -98,6 +116,8 @@ export const useAdminAuth = () => {
     user,
     session,
     isAdmin,
+    isRecorder,
+    role,
     loading,
     signIn,
     signUp,

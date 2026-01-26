@@ -91,9 +91,9 @@ const AdminLogin = () => {
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="text-5xl mb-4">🔐</div>
-          <CardTitle className="text-2xl font-bold">Admin Panel</CardTitle>
+          <CardTitle className="text-2xl font-bold">Content Panel</CardTitle>
           <CardDescription>
-            {isSignUp ? 'Create an admin account' : 'Sign in to manage vocabulary content'}
+            {isSignUp ? 'Create an account' : 'Sign in to manage vocabulary content'}
           </CardDescription>
         </CardHeader>
         <CardContent>

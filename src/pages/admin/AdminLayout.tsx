@@ -6,23 +6,23 @@ import { useToast } from '@/hooks/use-toast';
 
 const AdminLayout = () => {
   const navigate = useNavigate();
-  const { user, isAdmin, loading } = useAdminAuth();
+  const { user, isAdmin, isRecorder, loading } = useAdminAuth();
   const { toast } = useToast();
 
   useEffect(() => {
     if (!loading) {
       if (!user) {
         navigate('/admin/login');
-      } else if (!isAdmin) {
+      } else if (!isAdmin && !isRecorder) {
         toast({
           variant: 'destructive',
           title: 'Access Denied',
-          description: 'You need admin privileges to access this area.',
+          description: 'You need admin or recorder privileges to access this area.',
         });
         navigate('/admin/login');
       }
     }
-  }, [user, isAdmin, loading, navigate, toast]);
+  }, [user, isAdmin, isRecorder, loading, navigate, toast]);
 
   if (loading) {
     return (
@@ -35,7 +35,7 @@ const AdminLayout = () => {
     );
   }
 
-  if (!user || !isAdmin) {
+  if (!user || (!isAdmin && !isRecorder)) {
     return null;
   }
 

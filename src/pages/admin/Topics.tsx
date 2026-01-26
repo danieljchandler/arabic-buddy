@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTopics } from '@/hooks/useTopics';
+import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -22,6 +23,7 @@ const Topics = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { isAdmin } = useAdminAuth();
   const { data: topics, isLoading } = useTopics();
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
@@ -67,10 +69,12 @@ const Topics = () => {
             </Button>
             <h1 className="text-xl font-bold">Manage Topics</h1>
           </div>
-          <Button onClick={() => navigate('/admin/topics/new')}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Topic
-          </Button>
+          {isAdmin && (
+            <Button onClick={() => navigate('/admin/topics/new')}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Topic
+            </Button>
+          )}
         </div>
       </header>
 
@@ -98,21 +102,25 @@ const Topics = () => {
                     >
                       Manage Words
                     </Button>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => navigate(`/admin/topics/${topic.id}/edit`)}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="text-destructive hover:text-destructive"
-                      onClick={() => setDeleteId(topic.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    {isAdmin && (
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => navigate(`/admin/topics/${topic.id}/edit`)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                    )}
+                    {isAdmin && (
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="text-destructive hover:text-destructive"
+                        onClick={() => setDeleteId(topic.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -121,11 +129,15 @@ const Topics = () => {
         ) : (
           <Card>
             <CardContent className="py-12 text-center">
-              <p className="text-muted-foreground mb-4">No topics yet. Create your first topic!</p>
-              <Button onClick={() => navigate('/admin/topics/new')}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Topic
-              </Button>
+              <p className="text-muted-foreground mb-4">
+                {isAdmin ? 'No topics yet. Create your first topic!' : 'No topics available.'}
+              </p>
+              {isAdmin && (
+                <Button onClick={() => navigate('/admin/topics/new')}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Topic
+                </Button>
+              )}
             </CardContent>
           </Card>
         )}

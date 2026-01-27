@@ -1,26 +1,127 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useTopic } from "@/hooks/useTopic";
-import { Flashcard } from "@/components/Flashcard";
-import { NavigationArrow } from "@/components/NavigationArrow";
+import { useAuth } from "@/hooks/useAuth";
+import { useSubmitReview } from "@/hooks/useReview";
+import { IntroCard } from "@/components/learn/IntroCard";
+import { QuizCard } from "@/components/learn/QuizCard";
 import { ProgressDots } from "@/components/ProgressDots";
 import { HomeButton } from "@/components/HomeButton";
 import { cn } from "@/lib/utils";
-import { Loader2, GraduationCap } from "lucide-react";
+import { Loader2, Trophy, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
+
+type Phase = "intro" | "quiz";
+
+interface WordProgress {
+  wordId: string;
+  phase: Phase;
+  answered: boolean;
+  wasCorrect: boolean | null;
+}
 
 const Learn = () => {
   const { topicId } = useParams<{ topicId: string }>();
   const navigate = useNavigate();
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const { user, isAuthenticated } = useAuth();
+  const submitReview = useSubmitReview();
 
   const { data: topic, isLoading, error } = useTopic(topicId);
 
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [phase, setPhase] = useState<Phase>("intro");
+  const [sessionResults, setSessionResults] = useState<{ correct: number; total: number }>({
+    correct: 0,
+    total: 0,
+  });
+  const [isComplete, setIsComplete] = useState(false);
+  const [userReviews, setUserReviews] = useState<Map<string, { id: string }>>(new Map());
+
+  // Fetch existing reviews for SRS integration
   useEffect(() => {
-    // Reset index when topic changes
+    if (user && topic?.words) {
+      const fetchReviews = async () => {
+        const wordIds = topic.words.map(w => w.id);
+        const { data: reviews } = await supabase
+          .from('word_reviews')
+          .select('id, word_id')
+          .eq('user_id', user.id)
+          .in('word_id', wordIds);
+
+        if (reviews) {
+          const reviewMap = new Map(reviews.map(r => [r.word_id, { id: r.id }]));
+          setUserReviews(reviewMap);
+        }
+      };
+      fetchReviews();
+    }
+  }, [user, topic?.words]);
+
+  // Reset when topic changes
+  useEffect(() => {
     setCurrentIndex(0);
+    setPhase("intro");
+    setSessionResults({ correct: 0, total: 0 });
+    setIsComplete(false);
   }, [topicId]);
+
+  const handleContinueToQuiz = () => {
+    setPhase("quiz");
+  };
+
+  const handleQuizAnswer = async (isCorrect: boolean) => {
+    if (!topic) return;
+
+    const currentWord = topic.words[currentIndex];
+
+    // Update session stats
+    setSessionResults(prev => ({
+      correct: prev.correct + (isCorrect ? 1 : 0),
+      total: prev.total + 1,
+    }));
+
+    // Submit to SRS if logged in
+    if (isAuthenticated && user) {
+      const existingReview = userReviews.get(currentWord.id);
+      
+      try {
+        await submitReview.mutateAsync({
+          wordId: currentWord.id,
+          rating: isCorrect ? "good" : "again",
+          currentReview: existingReview ? {
+            id: existingReview.id,
+            user_id: user.id,
+            word_id: currentWord.id,
+            ease_factor: 2.5,
+            interval_days: 0,
+            repetitions: 0,
+            last_reviewed_at: null,
+            next_review_at: new Date().toISOString(),
+          } : null,
+        });
+      } catch (err) {
+        console.error("Failed to submit review:", err);
+      }
+    }
+
+    // Move to next word or complete session
+    setTimeout(() => {
+      if (currentIndex < topic.words.length - 1) {
+        setCurrentIndex(prev => prev + 1);
+        setPhase("intro");
+      } else {
+        setIsComplete(true);
+      }
+    }, 500);
+  };
+
+  const handleRestartSession = () => {
+    setCurrentIndex(0);
+    setPhase("intro");
+    setSessionResults({ correct: 0, total: 0 });
+    setIsComplete(false);
+  };
 
   if (isLoading) {
     return (
@@ -71,49 +172,94 @@ const Learn = () => {
     );
   }
 
+  // Session complete screen
+  if (isComplete) {
+    const percentage = Math.round((sessionResults.correct / sessionResults.total) * 100);
+    const isGreatScore = percentage >= 80;
+
+    return (
+      <div className="min-h-screen bg-background flex flex-col">
+        <div className="flex items-center justify-between p-4">
+          <HomeButton />
+          <div className={cn(
+            "px-6 py-3 rounded-2xl",
+            `bg-gradient-to-br ${topic.gradient}`
+          )}>
+            <span className="text-2xl mr-2">{topic.icon}</span>
+            <span className="text-xl font-bold text-white">{topic.name_arabic}</span>
+          </div>
+          <div className="w-14" />
+        </div>
+
+        <div className="flex-1 flex items-center justify-center px-4">
+          <div className="text-center max-w-md w-full">
+            {/* Celebration emoji */}
+            <div className="text-8xl mb-6 animate-bounce-gentle">
+              {isGreatScore ? "🎉" : "💪"}
+            </div>
+
+            {/* Score display */}
+            <h1 className="text-4xl font-black text-foreground mb-2">
+              {isGreatScore ? "Amazing!" : "Good effort!"}
+            </h1>
+            <p className="text-xl text-muted-foreground mb-8">
+              {isGreatScore ? "أحسنت! You're doing great!" : "Keep practicing!"}
+            </p>
+
+            {/* Stats card */}
+            <div className={cn(
+              "p-6 rounded-3xl mb-8",
+              `bg-gradient-to-br ${topic.gradient}`,
+              "shadow-card"
+            )}>
+              <div className="flex items-center justify-center gap-3 mb-4">
+                <Trophy className="h-8 w-8 text-white" />
+                <span className="text-5xl font-black text-white">{percentage}%</span>
+              </div>
+              <p className="text-white/90 text-lg">
+                {sessionResults.correct} / {sessionResults.total} correct
+              </p>
+            </div>
+
+            {/* Action buttons */}
+            <div className="space-y-3">
+              <Button
+                onClick={handleRestartSession}
+                className={cn(
+                  "w-full h-14 text-lg font-bold rounded-2xl",
+                  `bg-gradient-to-r ${topic.gradient}`,
+                  "text-white shadow-button"
+                )}
+              >
+                <RotateCcw className="h-5 w-5 mr-2" />
+                Practice Again
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => navigate("/")}
+                className="w-full h-12 text-lg font-semibold rounded-xl"
+              >
+                Back to Topics
+              </Button>
+            </div>
+
+            {/* SRS hint for non-logged in users */}
+            {!isAuthenticated && (
+              <p className="mt-6 text-sm text-muted-foreground">
+                <Link to="/auth" className="text-primary underline">Login</Link> to save your progress with spaced repetition!
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const currentWord = topic.words[currentIndex];
-  const isFirst = currentIndex === 0;
-  const isLast = currentIndex === topic.words.length - 1;
-
-  const goNext = () => {
-    if (!isLast) {
-      setCurrentIndex((prev) => prev + 1);
-    }
-  };
-
-  const goPrevious = () => {
-    if (!isFirst) {
-      setCurrentIndex((prev) => prev - 1);
-    }
-  };
-
-  const handleTouchStart = (e: React.TouchEvent) => {
-    setTouchStart(e.touches[0].clientX);
-  };
-
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    if (touchStart === null) return;
-    
-    const touchEnd = e.changedTouches[0].clientX;
-    const diff = touchStart - touchEnd;
-
-    if (Math.abs(diff) > 50) {
-      if (diff > 0 && !isLast) {
-        goNext();
-      } else if (diff < 0 && !isFirst) {
-        goPrevious();
-      }
-    }
-
-    setTouchStart(null);
-  };
+  const otherWords = topic.words.filter(w => w.id !== currentWord.id);
 
   return (
-    <div
-      className="min-h-screen bg-background flex flex-col"
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
-    >
+    <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between p-4">
         <HomeButton />
@@ -124,66 +270,58 @@ const Learn = () => {
           <span className="text-2xl mr-2">{topic.icon}</span>
           <span className="text-xl font-bold text-white">{topic.name_arabic}</span>
         </div>
-        <Link to={`/quiz/${topicId}`}>
-          <Button
-            variant="outline"
-            size="icon"
-            className="h-14 w-14 rounded-full border-2 hover:bg-primary/10"
-            title="Take Quiz"
-          >
-            <GraduationCap className="h-6 w-6" />
-          </Button>
-        </Link>
+        <div className="w-14" />
+      </div>
+
+      {/* Phase indicator */}
+      <div className="flex justify-center gap-2 mb-4">
+        <div className={cn(
+          "px-4 py-1 rounded-full text-sm font-semibold transition-all",
+          phase === "intro" 
+            ? `bg-gradient-to-r ${topic.gradient} text-white` 
+            : "bg-muted text-muted-foreground"
+        )}>
+          Learn
+        </div>
+        <div className={cn(
+          "px-4 py-1 rounded-full text-sm font-semibold transition-all",
+          phase === "quiz" 
+            ? `bg-gradient-to-r ${topic.gradient} text-white` 
+            : "bg-muted text-muted-foreground"
+        )}>
+          Quiz
+        </div>
       </div>
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col items-center justify-center px-4 pb-8">
-        {/* Flashcard */}
-        <div className="w-full max-w-md mb-12">
-          <Flashcard word={currentWord} gradient={topic.gradient} />
-        </div>
-
-        {/* Navigation */}
-        <div className="flex items-center justify-center gap-6 mb-8">
-          <NavigationArrow
-            direction="left"
-            onClick={goPrevious}
-            disabled={isFirst}
+        {phase === "intro" ? (
+          <IntroCard
+            word={currentWord}
+            gradient={topic.gradient}
+            onContinue={handleContinueToQuiz}
           />
-          <NavigationArrow
-            direction="right"
-            onClick={goNext}
-            disabled={isLast}
+        ) : (
+          <QuizCard
+            word={currentWord}
+            otherWords={otherWords}
+            gradient={topic.gradient}
+            onAnswer={handleQuizAnswer}
           />
-        </div>
+        )}
+      </div>
 
-        {/* Progress */}
+      {/* Progress */}
+      <div className="pb-6">
         <ProgressDots
           total={topic.words.length}
           current={currentIndex}
           gradient={topic.gradient}
         />
-
-        {/* Card counter */}
-        <p className="mt-4 text-muted-foreground font-semibold text-lg">
+        <p className="mt-2 text-center text-muted-foreground font-semibold">
           {currentIndex + 1} / {topic.words.length}
         </p>
       </div>
-
-      {/* Celebration when finished */}
-      {isLast && (
-        <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2">
-          <div className={cn(
-            "px-8 py-4 rounded-2xl",
-            `bg-gradient-to-br ${topic.gradient}`,
-            "shadow-button animate-bounce-gentle"
-          )}>
-            <span className="text-xl font-bold text-white">
-              🎉 أحسنت! Great job! 🎉
-            </span>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

@@ -7,7 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ArrowLeft, Plus, Edit, Trash2, Volume2 } from 'lucide-react';
+import { Loader2, ArrowLeft, Plus, Edit, Trash2, Volume2, Upload } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -109,10 +109,16 @@ const Words = () => {
               </div>
             </div>
           </div>
-          <Button onClick={() => navigate(`/admin/topics/${topicId}/words/new`)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Word
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => navigate(`/admin/topics/${topicId}/words/bulk`)}>
+              <Upload className="h-4 w-4 mr-2" />
+              Bulk Import
+            </Button>
+            <Button onClick={() => navigate(`/admin/topics/${topicId}/words/new`)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Word
+            </Button>
+          </div>
         </div>
       </header>
 

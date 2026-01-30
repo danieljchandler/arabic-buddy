@@ -89,7 +89,7 @@ const Index = () => {
           alt="Lahja - Learn Arabic the way it's spoken" 
           className="h-24 md:h-32 mx-auto mb-4"
         />
-        <p className="text-lg text-muted-foreground font-medium">
+        <p className="text-lg text-muted-foreground font-heading font-semibold">
           Learn Arabic the way it's spoken
         </p>
       </div>

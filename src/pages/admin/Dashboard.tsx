@@ -56,7 +56,7 @@ const Dashboard = () => {
             <img src={lahjaIcon} alt="Lahja" className="h-10 w-10" />
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-xl font-bold">{roleLabel} Dashboard</h1>
+                <h1 className="text-xl font-bold font-heading">{roleLabel} Dashboard</h1>
                 <span className={`text-xs px-2 py-0.5 rounded-full ${isAdmin ? 'bg-primary/20 text-primary' : 'bg-accent/20 text-accent-foreground'}`}>
                   {roleLabel}
                 </span>

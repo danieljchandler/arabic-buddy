@@ -120,7 +120,7 @@ const Auth = () => {
               alt="Lahja" 
               className="h-16 w-16 mx-auto mb-4"
             />
-            <h1 className="text-3xl font-bold text-foreground mb-2">
+            <h1 className="text-3xl font-bold text-foreground mb-2 font-heading">
               {isLogin ? "Welcome Back" : "Join Lahja"}
             </h1>
             <p className="text-muted-foreground text-lg">

@@ -31,7 +31,7 @@ export const TopicCard = ({ topic, onClick }: TopicCardProps) => {
         {topic.icon}
       </span>
       <div className="text-center">
-        <p className="text-xl md:text-2xl font-bold text-white drop-shadow-md font-arabic">
+        <p className="text-xl md:text-2xl font-semibold text-white drop-shadow-md font-arabic">
           {topic.nameArabic}
         </p>
         <p className="text-sm md:text-base font-medium text-white/80">

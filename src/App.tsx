@@ -18,6 +18,7 @@ import Topics from "./pages/admin/Topics";
 import TopicForm from "./pages/admin/TopicForm";
 import Words from "./pages/admin/Words";
 import WordForm from "./pages/admin/WordForm";
+import BulkWordImport from "./pages/admin/BulkWordImport";
 
 const queryClient = new QueryClient();
 
@@ -45,6 +46,7 @@ const App = () => (
             <Route path="topics/:topicId/words" element={<Words />} />
             <Route path="topics/:topicId/words/new" element={<WordForm />} />
             <Route path="topics/:topicId/words/:wordId/edit" element={<WordForm />} />
+            <Route path="topics/:topicId/words/bulk" element={<BulkWordImport />} />
           </Route>
 
           <Route path="*" element={<NotFound />} />

@@ -19,7 +19,8 @@ export default {
     },
     extend: {
       fontFamily: {
-        nunito: ["Nunito", "sans-serif"],
+        sans: ["Inter", "IBM Plex Sans Arabic", "sans-serif"],
+        arabic: ["IBM Plex Sans Arabic", "Inter", "sans-serif"],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -59,26 +60,6 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        info: {
-          DEFAULT: "hsl(var(--info))",
-          foreground: "hsl(var(--info-foreground))",
-        },
-        purple: {
-          DEFAULT: "hsl(var(--purple))",
-          foreground: "hsl(var(--purple-foreground))",
-        },
-        pink: {
-          DEFAULT: "hsl(var(--pink))",
-          foreground: "hsl(var(--pink-foreground))",
-        },
-        topic: {
-          colors: "hsl(var(--topic-colors))",
-          animals: "hsl(var(--topic-animals))",
-          household: "hsl(var(--topic-household))",
-          tools: "hsl(var(--topic-tools))",
-          food: "hsl(var(--topic-food))",
-          nature: "hsl(var(--topic-nature))",
-        },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
@@ -96,7 +77,7 @@ export default {
         sm: "calc(var(--radius) - 4px)",
         xl: "calc(var(--radius) + 4px)",
         "2xl": "calc(var(--radius) + 8px)",
-        "3xl": "calc(var(--radius) + 16px)",
+        "3xl": "calc(var(--radius) + 12px)",
       },
       boxShadow: {
         soft: "var(--shadow-soft)",

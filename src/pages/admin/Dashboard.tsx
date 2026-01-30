@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Loader2, LogOut, BookOpen, Plus, Settings, Mic } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
+import lahjaIcon from '@/assets/lahja-icon.png';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -52,7 +53,7 @@ const Dashboard = () => {
       <header className="border-b bg-card">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <span className="text-3xl">{isAdmin ? '📚' : '🎙️'}</span>
+            <img src={lahjaIcon} alt="Lahja" className="h-10 w-10" />
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl font-bold">{roleLabel} Dashboard</h1>
@@ -178,7 +179,7 @@ const Dashboard = () => {
                         <span className="text-3xl">{topic.icon}</span>
                         <div>
                           <h4 className="font-semibold">{topic.name}</h4>
-                          <p className="text-sm text-muted-foreground">{topic.name_arabic}</p>
+                          <p className="text-sm text-muted-foreground font-arabic">{topic.name_arabic}</p>
                           <p className="text-xs text-muted-foreground mt-1">
                             {wordCounts?.[topic.id] || 0} words
                           </p>
@@ -192,7 +193,7 @@ const Dashboard = () => {
               <div className="text-center py-8 text-muted-foreground">
                 {isAdmin ? (
                   <>
-                    <p>No topics yet. Create your first topic to get started!</p>
+                    <p>No topics yet. Create your first topic to get started.</p>
                     <Button className="mt-4" onClick={() => navigate('/admin/topics/new')}>
                       <Plus className="h-4 w-4 mr-2" />
                       Add Topic

@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Eye, EyeOff } from 'lucide-react';
 import { z } from 'zod';
+import lahjaIcon from '@/assets/lahja-icon.png';
 
 const authSchema = z.object({
   email: z.string().email('Please enter a valid email'),
@@ -55,7 +56,7 @@ const AdminLogin = () => {
           }
         } else {
           toast({
-            title: 'Account created!',
+            title: 'Account created',
             description: 'Please contact an admin to grant you admin access.',
           });
         }
@@ -90,10 +91,10 @@ const AdminLogin = () => {
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <div className="text-5xl mb-4">🔐</div>
-          <CardTitle className="text-2xl font-bold">Content Panel</CardTitle>
+          <img src={lahjaIcon} alt="Lahja" className="h-14 w-14 mx-auto mb-4" />
+          <CardTitle className="text-2xl font-bold">Admin Panel</CardTitle>
           <CardDescription>
-            {isSignUp ? 'Create an account' : 'Sign in to manage vocabulary content'}
+            {isSignUp ? 'Create an account' : 'Sign in to manage content'}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -161,7 +162,7 @@ const AdminLogin = () => {
               onClick={() => navigate('/')}
               className="text-muted-foreground"
             >
-              ← Back to Learning App
+              ← Back to Lahja
             </Button>
           </div>
         </CardContent>

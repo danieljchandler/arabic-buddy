@@ -2,107 +2,95 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap');
 
 @layer base {
   :root {
-    /* Kid-friendly bright color palette */
-    --background: 45 100% 97%;
-    --foreground: 240 20% 20%;
+    /* Lahja sophisticated color palette */
+    --background: 40 33% 97%;
+    --foreground: 0 0% 24%;
 
     --card: 0 0% 100%;
-    --card-foreground: 240 20% 20%;
+    --card-foreground: 0 0% 24%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 240 20% 20%;
+    --popover-foreground: 0 0% 24%;
 
-    /* Sunny yellow primary */
-    --primary: 45 100% 55%;
-    --primary-foreground: 240 20% 15%;
+    /* Deep Maroon primary */
+    --primary: 0 41% 39%;
+    --primary-foreground: 40 33% 97%;
 
-    /* Soft coral secondary */
-    --secondary: 15 90% 65%;
-    --secondary-foreground: 0 0% 100%;
+    /* Warm Beige secondary */
+    --secondary: 34 41% 72%;
+    --secondary-foreground: 0 0% 24%;
 
-    /* Mint green accent */
-    --accent: 160 60% 50%;
+    /* Olive Green accent */
+    --accent: 78 22% 40%;
     --accent-foreground: 0 0% 100%;
 
-    /* Sky blue */
-    --info: 200 90% 60%;
-    --info-foreground: 0 0% 100%;
+    --muted: 40 20% 92%;
+    --muted-foreground: 0 0% 45%;
 
-    /* Lavender purple */
-    --purple: 270 70% 65%;
-    --purple-foreground: 0 0% 100%;
-
-    /* Coral pink */
-    --pink: 340 80% 65%;
-    --pink-foreground: 0 0% 100%;
-
-    --muted: 45 30% 90%;
-    --muted-foreground: 240 10% 40%;
-
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
 
     --success: 142 76% 36%;
     --success-foreground: 0 0% 100%;
 
-    --border: 45 30% 85%;
-    --input: 45 30% 85%;
-    --ring: 45 100% 55%;
+    --border: 40 20% 88%;
+    --input: 40 20% 88%;
+    --ring: 0 41% 39%;
 
-    --radius: 1.5rem;
+    --radius: 1rem;
 
-    /* Topic colors */
-    --topic-colors: 45 100% 60%;
-    --topic-animals: 25 90% 60%;
-    --topic-household: 160 60% 50%;
-    --topic-tools: 200 90% 55%;
-    --topic-food: 340 80% 65%;
-    --topic-nature: 120 50% 50%;
+    /* Topic gradients - more sophisticated */
+    --topic-colors: 0 41% 39%;
+    --topic-animals: 34 41% 55%;
+    --topic-household: 78 22% 40%;
+    --topic-tools: 0 0% 35%;
+    --topic-food: 0 41% 45%;
+    --topic-nature: 78 30% 35%;
 
-    /* Shadows */
-    --shadow-soft: 0 4px 20px -4px hsl(45 100% 50% / 0.3);
-    --shadow-card: 0 8px 30px -8px hsl(240 20% 20% / 0.15);
-    --shadow-button: 0 6px 20px -6px hsl(45 100% 50% / 0.4);
+    /* Shadows - more subtle */
+    --shadow-soft: 0 4px 20px -4px hsl(0 0% 24% / 0.1);
+    --shadow-card: 0 8px 30px -8px hsl(0 0% 24% / 0.12);
+    --shadow-button: 0 6px 20px -6px hsl(0 41% 39% / 0.3);
 
     --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-foreground: 0 0% 26%;
+    --sidebar-primary: 0 0% 10%;
     --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-accent: 0 0% 96%;
+    --sidebar-accent-foreground: 0 0% 10%;
+    --sidebar-border: 0 0% 91%;
+    --sidebar-ring: 0 41% 39%;
   }
 
   .dark {
-    --background: 240 20% 12%;
-    --foreground: 45 100% 97%;
+    --background: 0 0% 12%;
+    --foreground: 40 33% 97%;
 
-    --card: 240 20% 16%;
-    --card-foreground: 45 100% 97%;
+    --card: 0 0% 16%;
+    --card-foreground: 40 33% 97%;
 
-    --popover: 240 20% 16%;
-    --popover-foreground: 45 100% 97%;
+    --popover: 0 0% 16%;
+    --popover-foreground: 40 33% 97%;
 
-    --primary: 45 100% 55%;
-    --primary-foreground: 240 20% 15%;
+    --primary: 0 41% 45%;
+    --primary-foreground: 40 33% 97%;
 
-    --secondary: 15 80% 55%;
+    --secondary: 34 30% 45%;
     --secondary-foreground: 0 0% 100%;
 
-    --accent: 160 50% 45%;
+    --accent: 78 20% 35%;
     --accent-foreground: 0 0% 100%;
 
-    --muted: 240 15% 25%;
-    --muted-foreground: 45 20% 70%;
+    --muted: 0 0% 22%;
+    --muted-foreground: 40 15% 70%;
 
-    --border: 240 15% 25%;
-    --input: 240 15% 25%;
-    --ring: 45 100% 55%;
+    --border: 0 0% 22%;
+    --input: 0 0% 22%;
+    --ring: 0 41% 45%;
 
     --success: 142 76% 46%;
     --success-foreground: 0 0% 100%;
@@ -115,8 +103,8 @@
   }
 
   body {
-    @apply bg-background text-foreground font-nunito;
-    font-family: 'Nunito', sans-serif;
+    @apply bg-background text-foreground;
+    font-family: 'Inter', 'IBM Plex Sans Arabic', sans-serif;
   }
 
   html {
@@ -125,21 +113,25 @@
 }
 
 @layer utilities {
-  .font-nunito {
-    font-family: 'Nunito', sans-serif;
+  .font-sans {
+    font-family: 'Inter', 'IBM Plex Sans Arabic', sans-serif;
   }
 
-  /* Bounce animation for buttons */
-  .animate-bounce-gentle {
-    animation: bounce-gentle 2s ease-in-out infinite;
+  .font-arabic {
+    font-family: 'IBM Plex Sans Arabic', 'Inter', sans-serif;
   }
 
-  @keyframes bounce-gentle {
+  /* Subtle float animation for icons */
+  .animate-float {
+    animation: float 3s ease-in-out infinite;
+  }
+
+  @keyframes float {
     0%, 100% {
       transform: translateY(0);
     }
     50% {
-      transform: translateY(-8px);
+      transform: translateY(-4px);
     }
   }
 
@@ -160,23 +152,6 @@
     }
   }
 
-  /* Wiggle animation for attention */
-  .animate-wiggle {
-    animation: wiggle 0.5s ease-in-out;
-  }
-
-  @keyframes wiggle {
-    0%, 100% {
-      transform: rotate(0deg);
-    }
-    25% {
-      transform: rotate(-3deg);
-    }
-    75% {
-      transform: rotate(3deg);
-    }
-  }
-
   /* Pulse glow for audio playing */
   .animate-pulse-glow {
     animation: pulse-glow 1s ease-in-out infinite;
@@ -187,32 +162,41 @@
       box-shadow: 0 0 0 0 hsl(var(--primary) / 0.4);
     }
     50% {
-      box-shadow: 0 0 0 20px hsl(var(--primary) / 0);
+      box-shadow: 0 0 0 16px hsl(var(--primary) / 0);
     }
   }
 
-  /* Gradient backgrounds */
-  .bg-gradient-sunny {
-    background: linear-gradient(135deg, hsl(45 100% 70%) 0%, hsl(35 100% 60%) 100%);
+  /* Heritage-inspired gradients */
+  .bg-gradient-heritage {
+    background: linear-gradient(135deg, hsl(0 41% 39%) 0%, hsl(34 41% 65%) 100%);
   }
 
-  .bg-gradient-coral {
-    background: linear-gradient(135deg, hsl(15 90% 70%) 0%, hsl(5 85% 60%) 100%);
+  .bg-gradient-earth {
+    background: linear-gradient(135deg, hsl(78 22% 40%) 0%, hsl(0 0% 30%) 100%);
   }
 
-  .bg-gradient-mint {
-    background: linear-gradient(135deg, hsl(160 60% 60%) 0%, hsl(150 55% 50%) 100%);
+  .bg-gradient-warm {
+    background: linear-gradient(135deg, hsl(34 41% 72%) 0%, hsl(0 41% 45%) 100%);
   }
 
-  .bg-gradient-sky {
-    background: linear-gradient(135deg, hsl(200 90% 65%) 0%, hsl(210 85% 55%) 100%);
+  .bg-gradient-subtle {
+    background: linear-gradient(135deg, hsl(40 33% 97%) 0%, hsl(34 30% 90%) 100%);
   }
 
-  .bg-gradient-lavender {
-    background: linear-gradient(135deg, hsl(270 70% 70%) 0%, hsl(280 65% 60%) 100%);
+  /* Topic gradients - refined */
+  .bg-gradient-maroon {
+    background: linear-gradient(135deg, hsl(0 41% 42%) 0%, hsl(0 35% 35%) 100%);
   }
 
-  .bg-gradient-pink {
-    background: linear-gradient(135deg, hsl(340 80% 70%) 0%, hsl(350 75% 60%) 100%);
+  .bg-gradient-beige {
+    background: linear-gradient(135deg, hsl(34 41% 65%) 0%, hsl(34 35% 55%) 100%);
+  }
+
+  .bg-gradient-olive {
+    background: linear-gradient(135deg, hsl(78 25% 45%) 0%, hsl(78 20% 35%) 100%);
+  }
+
+  .bg-gradient-charcoal {
+    background: linear-gradient(135deg, hsl(0 0% 35%) 0%, hsl(0 0% 25%) 100%);
   }
 }

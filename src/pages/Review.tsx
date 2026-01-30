@@ -77,18 +77,18 @@ const Review = () => {
         </div>
         <div className="flex-1 flex items-center justify-center px-4">
           <div className="text-center max-w-md">
-            <div className="text-8xl mb-6">🔐</div>
-            <h1 className="text-3xl font-black text-foreground mb-4">
+            <div className="text-6xl mb-6 opacity-50">🔐</div>
+            <h1 className="text-2xl font-bold text-foreground mb-4">
               Login Required
             </h1>
             <p className="text-lg text-muted-foreground mb-8">
-              Sign in to track your progress with spaced repetition. Your learning data will be saved across all your devices!
+              Sign in to track your progress with spaced repetition. Your learning data will be saved across all your devices.
             </p>
             <Button
               onClick={() => navigate("/auth")}
-              className="h-14 px-8 text-lg font-bold rounded-xl bg-gradient-to-br from-primary to-secondary"
+              className="h-12 px-8 text-base font-semibold rounded-xl bg-primary"
             >
-              <LogIn className="h-5 w-5 mr-2" />
+              <LogIn className="h-4 w-4 mr-2" />
               Login to Review
             </Button>
           </div>
@@ -105,14 +105,14 @@ const Review = () => {
           <HomeButton />
           <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-card shadow-card">
             <Trophy className="h-5 w-5 text-primary" />
-            <span className="font-bold text-foreground">{sessionCount} reviewed</span>
+            <span className="font-semibold text-foreground">{sessionCount} reviewed</span>
           </div>
         </div>
         <div className="flex-1 flex items-center justify-center px-4">
           <div className="text-center max-w-md">
-            <div className="text-8xl mb-6">🎉</div>
-            <h1 className="text-3xl font-black text-foreground mb-4">
-              All Caught Up!
+            <Trophy className="h-16 w-16 mx-auto mb-6 text-primary" />
+            <h1 className="text-2xl font-bold text-foreground mb-4">
+              All Caught Up
             </h1>
             <p className="text-lg text-muted-foreground mb-6">
               You've reviewed all your due words. Great job! Come back later for more practice.
@@ -121,14 +121,14 @@ const Review = () => {
             {/* Stats */}
             {stats && (
               <div className="grid grid-cols-2 gap-4 mb-8">
-                <div className="bg-card rounded-2xl p-4 shadow-card">
-                  <Brain className="h-8 w-8 text-info mx-auto mb-2" />
-                  <p className="text-2xl font-black text-foreground">{stats.learnedCount}</p>
+                <div className="bg-card rounded-xl p-4 shadow-card">
+                  <Brain className="h-8 w-8 text-primary mx-auto mb-2" />
+                  <p className="text-2xl font-bold text-foreground">{stats.learnedCount}</p>
                   <p className="text-sm text-muted-foreground">Learning</p>
                 </div>
-                <div className="bg-card rounded-2xl p-4 shadow-card">
+                <div className="bg-card rounded-xl p-4 shadow-card">
                   <Sparkles className="h-8 w-8 text-accent mx-auto mb-2" />
-                  <p className="text-2xl font-black text-foreground">{stats.masteredCount}</p>
+                  <p className="text-2xl font-bold text-foreground">{stats.masteredCount}</p>
                   <p className="text-sm text-muted-foreground">Mastered</p>
                 </div>
               </div>
@@ -136,7 +136,7 @@ const Review = () => {
             
             <Button
               onClick={() => navigate("/")}
-              className="h-14 px-8 text-lg font-bold rounded-xl bg-gradient-to-br from-primary to-secondary"
+              className="h-12 px-8 text-base font-semibold rounded-xl bg-primary"
             >
               Back to Topics
             </Button>
@@ -162,12 +162,12 @@ const Review = () => {
             "shadow-lg"
           )}>
             <span className="text-lg mr-2">{currentWord.topic.icon}</span>
-            <span className="text-sm font-bold text-white">{currentWord.topic.name}</span>
+            <span className="text-sm font-semibold text-white">{currentWord.topic.name}</span>
           </div>
           {/* Session count */}
           <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-card shadow-card">
             <Trophy className="h-5 w-5 text-primary" />
-            <span className="font-bold text-foreground">{sessionCount}</span>
+            <span className="font-semibold text-foreground">{sessionCount}</span>
           </div>
         </div>
       </div>
@@ -176,11 +176,11 @@ const Review = () => {
       <div className="px-4 mb-4">
         <div className="h-2 bg-muted rounded-full overflow-hidden">
           <div
-            className="h-full bg-gradient-to-r from-primary to-secondary transition-all duration-300"
+            className="h-full bg-gradient-heritage transition-all duration-300"
             style={{ width: `${progress}%` }}
           />
         </div>
-        <p className="text-center text-muted-foreground text-sm mt-2 font-semibold">
+        <p className="text-center text-muted-foreground text-sm mt-2 font-medium">
           {currentIndex + 1} / {dueWords.length} due
         </p>
       </div>

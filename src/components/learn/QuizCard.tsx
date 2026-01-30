@@ -1,7 +1,6 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import { CheckCircle2, XCircle, Volume2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 
 interface QuizCardWord {
   id: string;
@@ -79,7 +78,7 @@ export const QuizCard = ({ word, otherWords, gradient, onAnswer }: QuizCardProps
     <div className="w-full max-w-md mx-auto">
       {/* Question Header */}
       <div className="text-center mb-6">
-        <p className="text-muted-foreground text-lg mb-2">
+        <p className="text-muted-foreground text-lg">
           Which word matches the picture?
         </p>
       </div>
@@ -90,14 +89,14 @@ export const QuizCard = ({ word, otherWords, gradient, onAnswer }: QuizCardProps
           onClick={playAudio}
           disabled={showResult}
           className={cn(
-            "w-full aspect-video rounded-3xl overflow-hidden",
+            "w-full aspect-video rounded-2xl overflow-hidden",
             "bg-card shadow-card",
             "transition-all duration-200",
             !showResult && "hover:scale-[1.02] active:scale-[0.98]",
             "focus:outline-none focus:ring-4 focus:ring-primary/50"
           )}
         >
-          <div className="absolute inset-4 rounded-2xl overflow-hidden bg-muted flex items-center justify-center">
+          <div className="absolute inset-4 rounded-xl overflow-hidden bg-muted flex items-center justify-center">
             {word.image_url ? (
               <img
                 src={word.image_url}
@@ -105,13 +104,13 @@ export const QuizCard = ({ word, otherWords, gradient, onAnswer }: QuizCardProps
                 className="w-full h-full object-cover"
               />
             ) : (
-              <span className="text-6xl opacity-50">📷</span>
+              <span className="text-6xl opacity-30">📷</span>
             )}
           </div>
 
           {/* Playing indicator */}
           {isPlaying && (
-            <div className="absolute inset-0 bg-primary/20 flex items-center justify-center rounded-3xl">
+            <div className="absolute inset-0 bg-primary/20 flex items-center justify-center rounded-2xl">
               <div className={cn(
                 "w-16 h-16 rounded-full flex items-center justify-center",
                 `bg-gradient-to-br ${gradient}`,
@@ -124,12 +123,12 @@ export const QuizCard = ({ word, otherWords, gradient, onAnswer }: QuizCardProps
 
           {/* Audio button badge */}
           <div className={cn(
-            "absolute top-4 right-4 w-12 h-12 rounded-xl",
+            "absolute top-4 right-4 w-10 h-10 rounded-lg",
             "flex items-center justify-center",
             `bg-gradient-to-br ${gradient}`,
             "shadow-lg"
           )}>
-            <Volume2 className="w-6 h-6 text-white" />
+            <Volume2 className="w-5 h-5 text-white" />
           </div>
         </button>
 
@@ -140,7 +139,7 @@ export const QuizCard = ({ word, otherWords, gradient, onAnswer }: QuizCardProps
           `bg-gradient-to-br ${gradient}`,
           "shadow-lg"
         )}>
-          <p className="text-xl font-bold text-white" dir="rtl">
+          <p className="text-lg font-bold text-white font-arabic" dir="rtl">
             {word.word_arabic}
           </p>
         </div>
@@ -168,7 +167,7 @@ export const QuizCard = ({ word, otherWords, gradient, onAnswer }: QuizCardProps
               onClick={() => handleSelect(option)}
               disabled={showResult}
               className={cn(
-                "p-4 rounded-2xl font-semibold text-lg transition-all duration-200",
+                "p-4 rounded-xl font-medium text-base transition-all duration-200",
                 "flex items-center justify-center gap-2",
                 buttonStyle,
                 !showResult && "hover:scale-[1.02] active:scale-[0.98]"
@@ -189,13 +188,13 @@ export const QuizCard = ({ word, otherWords, gradient, onAnswer }: QuizCardProps
       {/* Result feedback */}
       {showResult && (
         <div className={cn(
-          "mt-6 p-4 rounded-2xl text-center text-xl font-bold",
+          "mt-6 p-4 rounded-xl text-center text-lg font-semibold",
           "animate-in fade-in zoom-in-95 duration-300",
           isCorrect 
             ? "bg-success/20 text-success-foreground" 
             : "bg-destructive/20 text-destructive-foreground"
         )}>
-          {isCorrect ? "🎉 Correct! أحسنت!" : "❌ Not quite! Try again next time"}
+          {isCorrect ? "Correct! أحسنت" : "Not quite — keep practicing"}
         </div>
       )}
 

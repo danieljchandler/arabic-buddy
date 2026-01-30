@@ -53,7 +53,7 @@ export const IntroCard = ({ word, gradient, onContinue }: IntroCardProps) => {
       <button
         onClick={playAudio}
         className={cn(
-          "relative w-full aspect-square rounded-3xl overflow-hidden mb-6",
+          "relative w-full aspect-square rounded-2xl overflow-hidden mb-6",
           "transform transition-all duration-300",
           "hover:scale-[1.02] active:scale-95",
           "shadow-card bg-card",
@@ -61,7 +61,7 @@ export const IntroCard = ({ word, gradient, onContinue }: IntroCardProps) => {
         )}
       >
         {/* Image Container */}
-        <div className="absolute inset-4 rounded-2xl overflow-hidden bg-muted flex items-center justify-center">
+        <div className="absolute inset-4 rounded-xl overflow-hidden bg-muted flex items-center justify-center">
           {word.image_url ? (
             <img
               src={word.image_url}
@@ -69,7 +69,7 @@ export const IntroCard = ({ word, gradient, onContinue }: IntroCardProps) => {
               className="w-full h-full object-cover"
             />
           ) : (
-            <span className="text-8xl opacity-50">📷</span>
+            <span className="text-8xl opacity-30">📷</span>
           )}
         </div>
 
@@ -88,22 +88,22 @@ export const IntroCard = ({ word, gradient, onContinue }: IntroCardProps) => {
 
         {/* Sound icon badge */}
         <div className={cn(
-          "absolute top-4 right-4 w-14 h-14 rounded-2xl",
+          "absolute top-4 right-4 w-12 h-12 rounded-xl",
           "flex items-center justify-center",
           `bg-gradient-to-br ${gradient}`,
           "shadow-lg"
         )}>
-          <Volume2 className="w-7 h-7 text-white" />
+          <Volume2 className="w-6 h-6 text-white" />
         </div>
       </button>
 
       {/* Arabic Word Display */}
       <div className={cn(
-        "mb-4 py-4 px-6 rounded-2xl",
+        "mb-4 py-4 px-6 rounded-xl",
         `bg-gradient-to-br ${gradient}`,
         "shadow-lg"
       )}>
-        <p className="text-4xl font-bold text-white" dir="rtl">
+        <p className="text-3xl font-bold text-white font-arabic" dir="rtl">
           {word.word_arabic}
         </p>
       </div>
@@ -111,27 +111,27 @@ export const IntroCard = ({ word, gradient, onContinue }: IntroCardProps) => {
       {/* English Translation */}
       <div className="mb-6 py-3 px-6 rounded-xl bg-card shadow-card">
         <p className="text-sm text-muted-foreground mb-1">English</p>
-        <p className="text-2xl font-bold text-foreground">
+        <p className="text-xl font-semibold text-foreground">
           {word.word_english}
         </p>
       </div>
 
       {/* Tap to hear again hint */}
       <p className="text-muted-foreground mb-6 text-sm">
-        👆 Tap the card to hear again
+        Tap the card to hear again
       </p>
 
       {/* Continue Button */}
       <Button
         onClick={onContinue}
         className={cn(
-          "w-full h-14 text-xl font-bold rounded-2xl",
+          "w-full h-12 text-lg font-semibold rounded-xl",
           `bg-gradient-to-r ${gradient}`,
           "text-white shadow-button",
           "transition-all duration-200 hover:scale-[1.02]"
         )}
       >
-        I know it! Quiz me 🎯
+        Continue to Quiz
       </Button>
 
       {/* Hidden Audio Element */}

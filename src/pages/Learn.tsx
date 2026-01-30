@@ -138,7 +138,7 @@ const Learn = () => {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <p className="text-6xl mb-4">😕</p>
+          <p className="text-4xl mb-4 opacity-50">📚</p>
           <p className="text-xl text-muted-foreground mb-4">Topic not found</p>
           <Button onClick={() => navigate("/")}>Go Home</Button>
         </div>
@@ -152,18 +152,18 @@ const Learn = () => {
         <div className="flex items-center justify-between p-4">
           <HomeButton />
           <div className={cn(
-            "px-6 py-3 rounded-2xl",
+            "px-6 py-3 rounded-xl",
             `bg-gradient-to-br ${topic.gradient}`
           )}>
             <span className="text-2xl mr-2">{topic.icon}</span>
-            <span className="text-xl font-bold text-white">{topic.name_arabic}</span>
+            <span className="text-xl font-bold text-white font-arabic">{topic.name_arabic}</span>
           </div>
           <div className="w-14" />
         </div>
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
-            <p className="text-6xl mb-4">📝</p>
-            <p className="text-xl text-muted-foreground mb-2">No words yet!</p>
+            <p className="text-4xl mb-4 opacity-50">📝</p>
+            <p className="text-xl text-muted-foreground mb-2">No words yet</p>
             <p className="text-muted-foreground mb-6">Add vocabulary in the admin panel.</p>
             <Button onClick={() => navigate("/")}>Go Home</Button>
           </div>
@@ -182,39 +182,41 @@ const Learn = () => {
         <div className="flex items-center justify-between p-4">
           <HomeButton />
           <div className={cn(
-            "px-6 py-3 rounded-2xl",
+            "px-6 py-3 rounded-xl",
             `bg-gradient-to-br ${topic.gradient}`
           )}>
             <span className="text-2xl mr-2">{topic.icon}</span>
-            <span className="text-xl font-bold text-white">{topic.name_arabic}</span>
+            <span className="text-xl font-bold text-white font-arabic">{topic.name_arabic}</span>
           </div>
           <div className="w-14" />
         </div>
 
         <div className="flex-1 flex items-center justify-center px-4">
           <div className="text-center max-w-md w-full">
-            {/* Celebration emoji */}
-            <div className="text-8xl mb-6 animate-bounce-gentle">
-              {isGreatScore ? "🎉" : "💪"}
+            {/* Trophy icon */}
+            <div className="mb-6">
+              <Trophy className={cn(
+                "h-20 w-20 mx-auto",
+                isGreatScore ? "text-primary" : "text-muted-foreground"
+              )} />
             </div>
 
             {/* Score display */}
-            <h1 className="text-4xl font-black text-foreground mb-2">
-              {isGreatScore ? "Amazing!" : "Good effort!"}
+            <h1 className="text-3xl font-bold text-foreground mb-2">
+              {isGreatScore ? "Excellent work!" : "Good effort"}
             </h1>
-            <p className="text-xl text-muted-foreground mb-8">
-              {isGreatScore ? "أحسنت! You're doing great!" : "Keep practicing!"}
+            <p className="text-lg text-muted-foreground mb-8">
+              {isGreatScore ? "أحسنت — You're making great progress" : "Keep practicing to improve"}
             </p>
 
             {/* Stats card */}
             <div className={cn(
-              "p-6 rounded-3xl mb-8",
+              "p-6 rounded-2xl mb-8",
               `bg-gradient-to-br ${topic.gradient}`,
               "shadow-card"
             )}>
               <div className="flex items-center justify-center gap-3 mb-4">
-                <Trophy className="h-8 w-8 text-white" />
-                <span className="text-5xl font-black text-white">{percentage}%</span>
+                <span className="text-5xl font-bold text-white">{percentage}%</span>
               </div>
               <p className="text-white/90 text-lg">
                 {sessionResults.correct} / {sessionResults.total} correct
@@ -226,7 +228,7 @@ const Learn = () => {
               <Button
                 onClick={handleRestartSession}
                 className={cn(
-                  "w-full h-14 text-lg font-bold rounded-2xl",
+                  "w-full h-12 text-base font-semibold rounded-xl",
                   `bg-gradient-to-r ${topic.gradient}`,
                   "text-white shadow-button"
                 )}
@@ -237,7 +239,7 @@ const Learn = () => {
               <Button
                 variant="outline"
                 onClick={() => navigate("/")}
-                className="w-full h-12 text-lg font-semibold rounded-xl"
+                className="w-full h-11 text-base font-medium rounded-xl"
               >
                 Back to Topics
               </Button>
@@ -246,7 +248,7 @@ const Learn = () => {
             {/* SRS hint for non-logged in users */}
             {!isAuthenticated && (
               <p className="mt-6 text-sm text-muted-foreground">
-                <Link to="/auth" className="text-primary underline">Login</Link> to save your progress with spaced repetition!
+                <Link to="/auth" className="text-primary underline">Login</Link> to save your progress with spaced repetition
               </p>
             )}
           </div>
@@ -264,11 +266,11 @@ const Learn = () => {
       <div className="flex items-center justify-between p-4">
         <HomeButton />
         <div className={cn(
-          "px-6 py-3 rounded-2xl",
+          "px-6 py-3 rounded-xl",
           `bg-gradient-to-br ${topic.gradient}`
         )}>
           <span className="text-2xl mr-2">{topic.icon}</span>
-          <span className="text-xl font-bold text-white">{topic.name_arabic}</span>
+          <span className="text-xl font-bold text-white font-arabic">{topic.name_arabic}</span>
         </div>
         <div className="w-14" />
       </div>
@@ -276,7 +278,7 @@ const Learn = () => {
       {/* Phase indicator */}
       <div className="flex justify-center gap-2 mb-4">
         <div className={cn(
-          "px-4 py-1 rounded-full text-sm font-semibold transition-all",
+          "px-4 py-1 rounded-full text-sm font-medium transition-all",
           phase === "intro" 
             ? `bg-gradient-to-r ${topic.gradient} text-white` 
             : "bg-muted text-muted-foreground"
@@ -284,7 +286,7 @@ const Learn = () => {
           Learn
         </div>
         <div className={cn(
-          "px-4 py-1 rounded-full text-sm font-semibold transition-all",
+          "px-4 py-1 rounded-full text-sm font-medium transition-all",
           phase === "quiz" 
             ? `bg-gradient-to-r ${topic.gradient} text-white` 
             : "bg-muted text-muted-foreground"
@@ -318,7 +320,7 @@ const Learn = () => {
           current={currentIndex}
           gradient={topic.gradient}
         />
-        <p className="mt-2 text-center text-muted-foreground font-semibold">
+        <p className="mt-2 text-center text-muted-foreground font-medium">
           {currentIndex + 1} / {topic.words.length}
         </p>
       </div>

@@ -8,6 +8,7 @@ import { HomeButton } from "@/components/HomeButton";
 import { Loader2, Mail, Lock, UserPlus, LogIn } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
+import lahjaIcon from "@/assets/lahja-icon.png";
 
 const authSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -62,14 +63,14 @@ const Auth = () => {
           toast({
             title: "Login Failed",
             description: error.message === "Invalid login credentials" 
-              ? "Wrong email or password. Try again!" 
+              ? "Wrong email or password. Please try again." 
               : error.message,
             variant: "destructive",
           });
         } else {
           toast({
-            title: "Welcome back! 🎉",
-            description: "Ready to learn more Arabic?",
+            title: "Welcome back",
+            description: "Ready to continue learning?",
           });
         }
       } else {
@@ -78,14 +79,14 @@ const Auth = () => {
           toast({
             title: "Sign Up Failed",
             description: error.message.includes("already registered") 
-              ? "This email is already registered. Try logging in!" 
+              ? "This email is already registered. Try logging in." 
               : error.message,
             variant: "destructive",
           });
         } else {
           toast({
-            title: "Account created! 🌟",
-            description: "You're all set to start learning!",
+            title: "Account created",
+            description: "You're all set to start learning.",
           });
         }
       }
@@ -112,10 +113,15 @@ const Auth = () => {
       {/* Main Content */}
       <div className="flex-1 flex items-center justify-center px-4 pb-8">
         <div className="w-full max-w-md">
-          {/* Title */}
+          {/* Logo and Title */}
           <div className="text-center mb-8">
-            <h1 className="text-4xl font-black text-foreground mb-2">
-              {isLogin ? "Welcome Back! 👋" : "Join Us! 🌟"}
+            <img 
+              src={lahjaIcon} 
+              alt="Lahja" 
+              className="h-16 w-16 mx-auto mb-4"
+            />
+            <h1 className="text-3xl font-bold text-foreground mb-2">
+              {isLogin ? "Welcome Back" : "Join Lahja"}
             </h1>
             <p className="text-muted-foreground text-lg">
               {isLogin
@@ -125,12 +131,12 @@ const Auth = () => {
           </div>
 
           {/* Form Card */}
-          <div className="bg-card rounded-3xl p-8 shadow-card">
+          <div className="bg-card rounded-2xl p-8 shadow-card">
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Email */}
               <div className="space-y-2">
-                <Label htmlFor="email" className="text-lg font-semibold flex items-center gap-2">
-                  <Mail className="h-5 w-5 text-primary" />
+                <Label htmlFor="email" className="text-base font-semibold flex items-center gap-2">
+                  <Mail className="h-4 w-4 text-primary" />
                   Email
                 </Label>
                 <Input
@@ -139,7 +145,7 @@ const Auth = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="your@email.com"
-                  className="h-14 text-lg rounded-xl"
+                  className="h-12 text-base rounded-xl"
                   disabled={isSubmitting}
                 />
                 {errors.email && (
@@ -149,8 +155,8 @@ const Auth = () => {
 
               {/* Password */}
               <div className="space-y-2">
-                <Label htmlFor="password" className="text-lg font-semibold flex items-center gap-2">
-                  <Lock className="h-5 w-5 text-primary" />
+                <Label htmlFor="password" className="text-base font-semibold flex items-center gap-2">
+                  <Lock className="h-4 w-4 text-primary" />
                   Password
                 </Label>
                 <Input
@@ -159,7 +165,7 @@ const Auth = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="h-14 text-lg rounded-xl"
+                  className="h-12 text-base rounded-xl"
                   disabled={isSubmitting}
                 />
                 {errors.password && (
@@ -170,19 +176,19 @@ const Auth = () => {
               {/* Submit Button */}
               <Button
                 type="submit"
-                className="w-full h-14 text-lg font-bold rounded-xl bg-gradient-to-br from-primary to-secondary hover:opacity-90"
+                className="w-full h-12 text-base font-semibold rounded-xl bg-primary hover:bg-primary/90"
                 disabled={isSubmitting}
               >
                 {isSubmitting ? (
-                  <Loader2 className="h-6 w-6 animate-spin" />
+                  <Loader2 className="h-5 w-5 animate-spin" />
                 ) : isLogin ? (
                   <>
-                    <LogIn className="h-5 w-5 mr-2" />
+                    <LogIn className="h-4 w-4 mr-2" />
                     Log In
                   </>
                 ) : (
                   <>
-                    <UserPlus className="h-5 w-5 mr-2" />
+                    <UserPlus className="h-4 w-4 mr-2" />
                     Sign Up
                   </>
                 )}
@@ -197,17 +203,17 @@ const Auth = () => {
                   setIsLogin(!isLogin);
                   setErrors({});
                 }}
-                className="text-muted-foreground hover:text-foreground transition-colors text-lg"
+                className="text-muted-foreground hover:text-foreground transition-colors"
               >
                 {isLogin ? (
                   <>
                     New here?{" "}
-                    <span className="font-bold text-primary">Create an account</span>
+                    <span className="font-semibold text-primary">Create an account</span>
                   </>
                 ) : (
                   <>
                     Already have an account?{" "}
-                    <span className="font-bold text-primary">Log in</span>
+                    <span className="font-semibold text-primary">Log in</span>
                   </>
                 )}
               </button>

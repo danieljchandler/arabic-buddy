@@ -19,7 +19,7 @@ export const TopicCard = ({ topic, onClick }: TopicCardProps) => {
     <button
       onClick={onClick}
       className={cn(
-        "relative w-full aspect-square rounded-3xl p-6",
+        "relative w-full aspect-square rounded-2xl p-6",
         "flex flex-col items-center justify-center gap-3",
         "transform transition-all duration-300",
         "hover:scale-105 active:scale-95",
@@ -27,20 +27,20 @@ export const TopicCard = ({ topic, onClick }: TopicCardProps) => {
         `bg-gradient-to-br ${topic.gradient}`
       )}
     >
-      <span className="text-6xl md:text-7xl animate-bounce-gentle">
+      <span className="text-5xl md:text-6xl animate-float">
         {topic.icon}
       </span>
       <div className="text-center">
-        <p className="text-2xl md:text-3xl font-bold text-white drop-shadow-md">
+        <p className="text-xl md:text-2xl font-bold text-white drop-shadow-md font-arabic">
           {topic.nameArabic}
         </p>
-        <p className="text-sm md:text-base font-semibold text-white/80">
+        <p className="text-sm md:text-base font-medium text-white/80">
           {topic.name}
         </p>
       </div>
       {topic.wordCount !== undefined && (
-        <div className="absolute bottom-4 right-4 bg-white/30 backdrop-blur-sm rounded-full px-3 py-1">
-          <span className="text-sm font-bold text-white">
+        <div className="absolute bottom-4 right-4 bg-white/20 backdrop-blur-sm rounded-full px-3 py-1">
+          <span className="text-sm font-semibold text-white">
             {topic.wordCount}
           </span>
         </div>

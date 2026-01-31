@@ -56,7 +56,7 @@ export const IntroCard = ({ word, gradient, onContinue }: IntroCardProps) => {
           "relative w-full aspect-square rounded-2xl overflow-hidden mb-6",
           "transform transition-all duration-300",
           "hover:scale-[1.02] active:scale-95",
-          "shadow-card bg-card",
+          "shadow-card bg-card border border-border",
           "focus:outline-none focus:ring-4 focus:ring-primary/50"
         )}
       >
@@ -109,7 +109,7 @@ export const IntroCard = ({ word, gradient, onContinue }: IntroCardProps) => {
       </div>
 
       {/* English Translation */}
-      <div className="mb-6 py-3 px-6 rounded-xl bg-card shadow-card">
+      <div className="mb-6 py-3 px-6 rounded-xl bg-card border border-border shadow-card">
         <p className="text-sm text-muted-foreground mb-1">English</p>
         <p className="text-xl font-semibold text-foreground">
           {word.word_english}

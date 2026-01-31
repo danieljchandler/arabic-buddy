@@ -53,7 +53,7 @@ export const ReviewCard = ({ word, gradient, showAnswer, onReveal }: ReviewCardP
           "transform transition-all duration-300",
           "hover:scale-[1.02] active:scale-95",
           "shadow-card",
-          "bg-card",
+          "bg-card border border-border",
           "focus:outline-none focus:ring-4 focus:ring-primary/50"
         )}
       >

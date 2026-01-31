@@ -134,27 +134,32 @@ const Learn = () => {
     setIsComplete(false);
   };
   if (isLoading) {
-    return <div className="min-h-screen bg-background flex items-center justify-center">
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
           <p className="text-xl text-muted-foreground">Loading...</p>
         </div>
-      </div>;
+      </div>
+    );
   }
   if (error || !topic) {
-    return <div className="min-h-screen bg-background flex items-center justify-center">
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <p className="text-4xl mb-4 opacity-50">📚</p>
           <p className="text-xl text-muted-foreground mb-4">Topic not found</p>
           <Button onClick={() => navigate("/")}>Go Home</Button>
         </div>
-      </div>;
+      </div>
+    );
   }
   if (topic.words.length === 0) {
-    return <div className="min-h-screen bg-background flex flex-col">
+    return (
+      <div className="min-h-screen bg-background flex flex-col">
         <div className="flex items-center justify-between p-4">
           <HomeButton />
-          <div className={cn("px-6 py-3 rounded-xl bg-primary", `bg-gradient-to-br ${topic.gradient}`)}>
+          <div className={cn("px-6 py-3 rounded-xl", `bg-gradient-to-br ${topic.gradient}`)}>
             <span className="text-2xl mr-2">{topic.icon}</span>
             <span className="text-xl font-bold text-white font-arabic">{topic.name_arabic}</span>
           </div>
@@ -168,14 +173,16 @@ const Learn = () => {
             <Button onClick={() => navigate("/")}>Go Home</Button>
           </div>
         </div>
-      </div>;
+      </div>
+    );
   }
 
   // Session complete screen
   if (isComplete) {
     const percentage = Math.round(sessionResults.correct / sessionResults.total * 100);
     const isGreatScore = percentage >= 80;
-    return <div className="min-h-screen bg-background flex flex-col">
+    return (
+      <div className="min-h-screen bg-background flex flex-col">
         <div className="flex items-center justify-between p-4">
           <HomeButton />
           <div className={cn("px-6 py-3 rounded-xl", `bg-gradient-to-br ${topic.gradient}`)}>
@@ -201,18 +208,18 @@ const Learn = () => {
             </p>
 
             {/* Stats card */}
-            <div className={cn("p-6 rounded-2xl mb-8", `bg-gradient-to-br ${topic.gradient}`, "shadow-card")}>
+            <div className="p-6 rounded-2xl mb-8 bg-card shadow-card border border-border">
               <div className="flex items-center justify-center gap-3 mb-4">
-                <span className="text-5xl font-bold text-white">{percentage}%</span>
+                <span className="text-5xl font-bold text-foreground">{percentage}%</span>
               </div>
-              <p className="text-white/90 text-lg">
+              <p className="text-muted-foreground text-lg">
                 {sessionResults.correct} / {sessionResults.total} correct
               </p>
             </div>
 
             {/* Action buttons */}
             <div className="space-y-3">
-              <Button onClick={handleRestartSession} className={cn("w-full h-12 text-base font-semibold rounded-xl", `bg-gradient-to-r ${topic.gradient}`, "text-white shadow-button")}>
+              <Button onClick={handleRestartSession} className="w-full h-12 text-base font-semibold rounded-xl bg-primary text-primary-foreground shadow-button">
                 <RotateCcw className="h-5 w-5 mr-2" />
                 Practice Again
               </Button>
@@ -222,12 +229,15 @@ const Learn = () => {
             </div>
 
             {/* SRS hint for non-logged in users */}
-            {!isAuthenticated && <p className="mt-6 text-sm text-muted-foreground">
+            {!isAuthenticated && (
+              <p className="mt-6 text-sm text-muted-foreground">
                 <Link to="/auth" className="text-primary underline">Login</Link> to save your progress with spaced repetition
-              </p>}
+              </p>
+            )}
           </div>
         </div>
-      </div>;
+      </div>
+    );
   }
   const currentWord = topic.words[currentIndex];
   const otherWords = topic.words.filter(w => w.id !== currentWord.id);

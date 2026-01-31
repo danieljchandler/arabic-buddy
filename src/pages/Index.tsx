@@ -99,26 +99,26 @@ const Index = () => {
             onClick={() => navigate("/review")}
             className={cn(
               "w-full p-4 rounded-2xl",
-              "bg-gradient-heritage",
-              "shadow-lg",
+              "bg-card border-2 border-primary",
+              "shadow-card",
               "flex items-center justify-between",
               "transform transition-all duration-200",
               "hover:scale-[1.02] active:scale-[0.98]",
             )}
           >
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
-                <Brain className="h-6 w-6 text-white" />
+              <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center">
+                <Brain className="h-6 w-6 text-primary-foreground" />
               </div>
               <div className="text-left">
-                <p className="text-lg font-bold text-white">Review Time</p>
-                <p className="text-sm text-white/80">
+                <p className="text-lg font-bold text-foreground">Review Time</p>
+                <p className="text-sm text-muted-foreground">
                   {stats.dueCount} {stats.dueCount === 1 ? "word" : "words"} due for practice
                 </p>
               </div>
             </div>
-            <div className="px-4 py-2 bg-white/20 rounded-full">
-              <span className="text-xl font-bold text-white">{stats.dueCount}</span>
+            <div className="px-4 py-2 bg-primary rounded-full">
+              <span className="text-xl font-bold text-primary-foreground">{stats.dueCount}</span>
             </div>
           </button>
         </div>
@@ -131,7 +131,7 @@ const Index = () => {
             onClick={() => navigate("/review")}
             className={cn(
               "w-full p-4 rounded-2xl",
-              "bg-card border-2 border-border",
+              "bg-card border border-border",
               "shadow-card",
               "flex items-center justify-between",
               "transform transition-all duration-200",
@@ -139,8 +139,8 @@ const Index = () => {
             )}
           >
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-xl bg-accent/20 flex items-center justify-center">
-                <Brain className="h-6 w-6 text-accent" />
+              <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center">
+                <Brain className="h-6 w-6 text-primary" />
               </div>
               <div className="text-left">
                 <p className="text-lg font-bold text-foreground">All caught up</p>

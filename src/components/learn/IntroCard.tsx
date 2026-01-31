@@ -76,34 +76,21 @@ export const IntroCard = ({ word, gradient, onContinue }: IntroCardProps) => {
         {/* Playing indicator overlay */}
         {isPlaying && (
           <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
-            <div className={cn(
-              "w-24 h-24 rounded-full flex items-center justify-center",
-              `bg-gradient-to-br ${gradient}`,
-              "animate-pulse-glow"
-            )}>
-              <Volume2 className="w-12 h-12 text-white" />
+            <div className="w-24 h-24 rounded-full flex items-center justify-center bg-primary animate-pulse-glow">
+              <Volume2 className="w-12 h-12 text-primary-foreground" />
             </div>
           </div>
         )}
 
         {/* Sound icon badge */}
-        <div className={cn(
-          "absolute top-4 right-4 w-12 h-12 rounded-xl",
-          "flex items-center justify-center",
-          `bg-gradient-to-br ${gradient}`,
-          "shadow-lg"
-        )}>
-          <Volume2 className="w-6 h-6 text-white" />
+        <div className="absolute top-4 right-4 w-12 h-12 rounded-xl flex items-center justify-center bg-primary shadow-lg">
+          <Volume2 className="w-6 h-6 text-primary-foreground" />
         </div>
       </button>
 
       {/* Arabic Word Display */}
-      <div className={cn(
-        "mb-4 py-4 px-6 rounded-xl",
-        `bg-gradient-to-br ${gradient}`,
-        "shadow-lg"
-      )}>
-        <p className="text-3xl font-bold text-white font-arabic" dir="rtl">
+      <div className="mb-4 py-4 px-6 rounded-xl bg-card border border-border shadow-card">
+        <p className="text-3xl font-bold text-foreground font-arabic" dir="rtl">
           {word.word_arabic}
         </p>
       </div>
@@ -124,12 +111,7 @@ export const IntroCard = ({ word, gradient, onContinue }: IntroCardProps) => {
       {/* Continue Button */}
       <Button
         onClick={onContinue}
-        className={cn(
-          "w-full h-12 text-lg font-semibold rounded-xl",
-          `bg-gradient-to-r ${gradient}`,
-          "text-white shadow-button",
-          "transition-all duration-200 hover:scale-[1.02]"
-        )}
+        className="w-full h-12 text-lg font-semibold rounded-xl bg-primary text-primary-foreground shadow-button transition-all duration-200 hover:scale-[1.02]"
       >
         Continue to Quiz
       </Button>

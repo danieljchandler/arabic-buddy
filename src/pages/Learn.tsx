@@ -159,9 +159,9 @@ const Learn = () => {
       <div className="min-h-screen bg-background flex flex-col">
         <div className="flex items-center justify-between p-4">
           <HomeButton />
-          <div className={cn("px-6 py-3 rounded-xl", `bg-gradient-to-br ${topic.gradient}`)}>
+          <div className="px-6 py-3 rounded-xl bg-card border border-border shadow-card">
             <span className="text-2xl mr-2">{topic.icon}</span>
-            <span className="text-xl font-bold text-white font-arabic">{topic.name_arabic}</span>
+            <span className="text-xl font-bold text-foreground font-arabic">{topic.name_arabic}</span>
           </div>
           <div className="w-14" />
         </div>
@@ -185,9 +185,9 @@ const Learn = () => {
       <div className="min-h-screen bg-background flex flex-col">
         <div className="flex items-center justify-between p-4">
           <HomeButton />
-          <div className={cn("px-6 py-3 rounded-xl", `bg-gradient-to-br ${topic.gradient}`)}>
+          <div className="px-6 py-3 rounded-xl bg-card border border-border shadow-card">
             <span className="text-2xl mr-2">{topic.icon}</span>
-            <span className="text-xl font-bold text-white font-arabic">{topic.name_arabic}</span>
+            <span className="text-xl font-bold text-foreground font-arabic">{topic.name_arabic}</span>
           </div>
           <div className="w-14" />
         </div>
@@ -245,19 +245,19 @@ const Learn = () => {
       {/* Header */}
       <div className="flex items-center justify-between p-4">
         <HomeButton />
-        <div className={cn("px-6 py-3 rounded-xl", `bg-gradient-to-br ${topic.gradient}`)}>
+        <div className="px-6 py-3 rounded-xl bg-card border border-border shadow-card">
           <span className="text-2xl mr-2">{topic.icon}</span>
-          <span className="text-xl font-bold text-white font-arabic">{topic.name_arabic}</span>
+          <span className="text-xl font-bold text-foreground font-arabic">{topic.name_arabic}</span>
         </div>
         <div className="w-14" />
       </div>
 
       {/* Phase indicator */}
       <div className="flex justify-center gap-2 mb-4">
-        <div className={cn("px-4 py-1 rounded-full text-sm font-medium transition-all", phase === "intro" ? `bg-gradient-to-r ${topic.gradient} text-white` : "bg-muted text-muted-foreground")}>
+        <div className={cn("px-4 py-1 rounded-full text-sm font-medium transition-all", phase === "intro" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground")}>
           Learn
         </div>
-        <div className={cn("px-4 py-1 rounded-full text-sm font-medium transition-all", phase === "quiz" ? `bg-gradient-to-r ${topic.gradient} text-white` : "bg-muted text-muted-foreground")}>
+        <div className={cn("px-4 py-1 rounded-full text-sm font-medium transition-all", phase === "quiz" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground")}>
           Quiz
         </div>
       </div>

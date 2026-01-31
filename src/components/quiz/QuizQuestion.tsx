@@ -114,10 +114,7 @@ export const QuizQuestion = ({
             )}
           </div>
         ) : (
-          <div className={cn(
-            "w-48 h-48 rounded-3xl mx-auto mb-4 flex items-center justify-center",
-            `bg-gradient-to-br ${gradient}`
-          )}>
+          <div className="w-48 h-48 rounded-3xl mx-auto mb-4 flex items-center justify-center bg-muted border border-border">
             <span className="text-6xl">❓</span>
           </div>
         )}
@@ -206,11 +203,7 @@ export const QuizQuestion = ({
             <Button
               type="submit"
               disabled={!typedAnswer.trim()}
-              className={cn(
-                "w-full py-6 text-xl font-bold rounded-2xl",
-                `bg-gradient-to-r ${gradient}`,
-                "text-white shadow-button"
-              )}
+              className="w-full py-6 text-xl font-bold rounded-2xl bg-primary text-primary-foreground shadow-button"
             >
               Check Answer ✓
             </Button>

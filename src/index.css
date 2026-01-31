@@ -177,45 +177,37 @@
     }
   }
 
-  /* Heritage-inspired gradients - softer and more refined */
-  .bg-gradient-heritage {
-    background: linear-gradient(135deg, hsl(160 57% 32%) 0%, hsl(160 45% 24%) 100%);
-  }
-
-  .bg-gradient-earth {
-    background: linear-gradient(135deg, hsl(192 22% 28%) 0%, hsl(192 22% 20%) 100%);
-  }
-
+  /* Background gradients - for large areas only */
   .bg-gradient-warm {
-    background: linear-gradient(135deg, hsl(38 47% 94%) 0%, hsl(38 40% 88%) 100%);
+    background: linear-gradient(180deg, hsl(38 45% 90%) 0%, hsl(38 40% 86%) 100%);
   }
 
   .bg-gradient-subtle {
-    background: linear-gradient(135deg, hsl(38 47% 94%) 0%, hsl(38 40% 90%) 100%);
+    background: linear-gradient(180deg, hsl(38 45% 92%) 0%, hsl(38 40% 88%) 100%);
   }
 
-  /* Topic gradients - aligned with new brand */
+  /* Topic accent colors - for small accent stripes only */
   .bg-gradient-green {
-    background: linear-gradient(135deg, hsl(160 57% 32%) 0%, hsl(160 50% 24%) 100%);
+    background: hsl(160 57% 28%);
   }
 
   .bg-gradient-sand {
-    background: linear-gradient(135deg, hsl(38 47% 75%) 0%, hsl(38 40% 65%) 100%);
+    background: hsl(38 45% 65%);
   }
 
   .bg-gradient-olive {
-    background: linear-gradient(135deg, hsl(97 20% 42%) 0%, hsl(97 17% 32%) 100%);
+    background: hsl(97 20% 38%);
   }
 
   .bg-gradient-indigo {
-    background: linear-gradient(135deg, hsl(192 22% 28%) 0%, hsl(192 22% 18%) 100%);
+    background: hsl(192 22% 25%);
   }
 
   .bg-gradient-charcoal {
-    background: linear-gradient(135deg, hsl(0 0% 20%) 0%, hsl(0 0% 12%) 100%);
+    background: hsl(0 0% 18%);
   }
 
   .bg-gradient-red {
-    background: linear-gradient(135deg, hsl(7 52% 40%) 0%, hsl(7 52% 30%) 100%);
+    background: hsl(7 52% 36%);
   }
 }

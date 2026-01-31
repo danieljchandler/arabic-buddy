@@ -103,9 +103,9 @@ const Quiz = () => {
       <div className="min-h-screen bg-background flex flex-col">
         <div className="flex items-center justify-between p-4">
           <HomeButton />
-          <div className={cn("px-6 py-3 rounded-2xl", `bg-gradient-to-br ${topic.gradient}`)}>
+          <div className="px-6 py-3 rounded-2xl bg-card border border-border shadow-card">
             <span className="text-2xl mr-2">{topic.icon}</span>
-            <span className="text-xl font-bold text-white">{topic.name_arabic}</span>
+            <span className="text-xl font-bold text-foreground">{topic.name_arabic}</span>
           </div>
           <div className="w-14" />
         </div>
@@ -129,9 +129,9 @@ const Quiz = () => {
       <div className="min-h-screen bg-background flex flex-col">
         <div className="flex items-center justify-between p-4">
           <HomeButton />
-          <div className={cn("px-6 py-3 rounded-2xl", `bg-gradient-to-br ${topic.gradient}`)}>
+          <div className="px-6 py-3 rounded-2xl bg-card border border-border shadow-card">
             <span className="text-2xl mr-2">{topic.icon}</span>
-            <span className="text-xl font-bold text-white">{topic.name_arabic}</span>
+            <span className="text-xl font-bold text-foreground">{topic.name_arabic}</span>
           </div>
           <div className="w-14" />
         </div>
@@ -206,9 +206,9 @@ const Quiz = () => {
     <div className="min-h-screen bg-background flex flex-col">
       <div className="flex items-center justify-between p-4">
         <HomeButton />
-        <div className={cn("px-6 py-3 rounded-2xl", `bg-gradient-to-br ${topic.gradient}`)}>
+        <div className="px-6 py-3 rounded-2xl bg-card border border-border shadow-card">
           <span className="text-2xl mr-2">{topic.icon}</span>
-          <span className="text-xl font-bold text-white">{topic.name_arabic}</span>
+          <span className="text-xl font-bold text-foreground">{topic.name_arabic}</span>
         </div>
         <div className="w-14" />
       </div>
@@ -217,7 +217,7 @@ const Quiz = () => {
       <div className="px-4 mb-4">
         <div className="h-3 bg-muted rounded-full overflow-hidden">
           <div
-            className={cn("h-full transition-all duration-500", `bg-gradient-to-r ${topic.gradient}`)}
+            className="h-full transition-all duration-500 bg-primary"
             style={{ width: `${((quizState.currentIndex) / shuffledWords.length) * 100}%` }}
           />
         </div>

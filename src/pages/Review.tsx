@@ -156,13 +156,9 @@ const Review = () => {
         <HomeButton />
         <div className="flex items-center gap-4">
           {/* Topic badge */}
-          <div className={cn(
-            "px-4 py-2 rounded-full",
-            `bg-gradient-to-br ${currentWord.topic.gradient}`,
-            "shadow-lg"
-          )}>
+          <div className="px-4 py-2 rounded-full bg-card border border-border shadow-card">
             <span className="text-lg mr-2">{currentWord.topic.icon}</span>
-            <span className="text-sm font-semibold text-white">{currentWord.topic.name}</span>
+            <span className="text-sm font-semibold text-foreground">{currentWord.topic.name}</span>
           </div>
           {/* Session count */}
           <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-card shadow-card">

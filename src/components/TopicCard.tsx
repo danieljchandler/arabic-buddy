@@ -14,27 +14,31 @@ interface TopicCardProps {
   onClick: () => void;
 }
 
-// Brand-aligned gradient mapping
+// Brand-aligned gradient mapping for legacy gradients
 const brandGradients: Record<string, string> = {
-  // Primary green variations
+  // Map old Tailwind gradients to brand gradients
+  "from-yellow-400 to-orange-500": "bg-gradient-sand",
+  "from-orange-400 to-red-500": "bg-gradient-red",
+  "from-green-400 to-emerald-600": "bg-gradient-green",
+  "from-blue-400 to-cyan-500": "bg-gradient-indigo",
+  "from-purple-400 to-pink-500": "bg-gradient-indigo",
+  "from-pink-400 to-rose-500": "bg-gradient-red",
+  "from-teal-400 to-green-500": "bg-gradient-olive",
+  "from-indigo-400 to-purple-500": "bg-gradient-indigo",
+  // Additional legacy mappings
   "from-green-500 to-green-700": "bg-gradient-green",
   "from-emerald-500 to-emerald-700": "bg-gradient-green",
   "from-teal-500 to-teal-700": "bg-gradient-green",
-  // Sand/beige variations  
   "from-yellow-500 to-yellow-700": "bg-gradient-sand",
   "from-amber-500 to-amber-700": "bg-gradient-sand",
   "from-orange-400 to-orange-600": "bg-gradient-sand",
-  // Olive variations
   "from-lime-500 to-lime-700": "bg-gradient-olive",
-  // Indigo/dark variations
   "from-blue-500 to-blue-700": "bg-gradient-indigo",
   "from-slate-500 to-slate-700": "bg-gradient-indigo",
   "from-gray-500 to-gray-700": "bg-gradient-charcoal",
-  // Red accent variations
   "from-red-500 to-red-700": "bg-gradient-red",
   "from-rose-500 to-rose-700": "bg-gradient-red",
   "from-pink-500 to-pink-700": "bg-gradient-red",
-  // Purple -> indigo
   "from-purple-500 to-purple-700": "bg-gradient-indigo",
   "from-violet-500 to-violet-700": "bg-gradient-indigo",
   "from-indigo-500 to-indigo-700": "bg-gradient-indigo",

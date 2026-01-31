@@ -111,13 +111,13 @@ export const QuizResults = ({ topic, quizState, onRestart, onHome }: QuizResults
                 key={index}
                 className={cn(
                   "flex items-center gap-3 p-3 rounded-2xl",
-                  answer.correct ? "bg-green-50" : "bg-red-50"
+                  answer.correct ? "bg-success/10" : "bg-destructive/10"
                 )}
               >
                 {answer.correct ? (
-                  <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0" />
+                  <CheckCircle2 className="h-5 w-5 text-success shrink-0" />
                 ) : (
-                  <XCircle className="h-5 w-5 text-red-600 shrink-0" />
+                  <XCircle className="h-5 w-5 text-destructive shrink-0" />
                 )}
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold truncate" dir="rtl">
@@ -128,9 +128,9 @@ export const QuizResults = ({ topic, quizState, onRestart, onHome }: QuizResults
                       answer.word.word_english
                     ) : (
                       <>
-                        <span className="text-red-600 line-through">{answer.userAnswer}</span>
+                        <span className="text-destructive line-through">{answer.userAnswer}</span>
                         {" → "}
-                        <span className="text-green-600">{answer.word.word_english}</span>
+                        <span className="text-success">{answer.word.word_english}</span>
                       </>
                     )}
                   </p>

@@ -10,14 +10,12 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, ArrowLeft } from 'lucide-react';
 
 const GRADIENT_OPTIONS = [
-  { value: 'from-yellow-400 to-orange-500', label: 'Sunny Yellow' },
-  { value: 'from-orange-400 to-red-500', label: 'Coral Orange' },
-  { value: 'from-green-400 to-emerald-600', label: 'Mint Green' },
-  { value: 'from-blue-400 to-cyan-500', label: 'Sky Blue' },
-  { value: 'from-purple-400 to-pink-500', label: 'Lavender' },
-  { value: 'from-pink-400 to-rose-500', label: 'Pink Rose' },
-  { value: 'from-teal-400 to-green-500', label: 'Teal' },
-  { value: 'from-indigo-400 to-purple-500', label: 'Indigo' },
+  { value: 'bg-gradient-green', label: 'Desert Green' },
+  { value: 'bg-gradient-sand', label: 'Warm Sand' },
+  { value: 'bg-gradient-olive', label: 'Olive Green' },
+  { value: 'bg-gradient-indigo', label: 'Muted Indigo' },
+  { value: 'bg-gradient-red', label: 'Desert Red' },
+  { value: 'bg-gradient-charcoal', label: 'Charcoal' },
 ];
 
 const ICON_OPTIONS = ['🎨', '🐾', '🏠', '🔧', '🍎', '🌿', '📚', '⭐', '🎵', '🚗', '👕', '🔢', '✏️', '🎮'];
@@ -32,7 +30,7 @@ const TopicForm = () => {
   const [name, setName] = useState('');
   const [nameArabic, setNameArabic] = useState('');
   const [icon, setIcon] = useState('📚');
-  const [gradient, setGradient] = useState('from-yellow-400 to-orange-500');
+  const [gradient, setGradient] = useState('bg-gradient-green');
 
   // Fetch existing topic if editing
   const { data: existingTopic, isLoading: loadingTopic } = useQuery({
@@ -154,7 +152,7 @@ const TopicForm = () => {
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Preview */}
               <div className="flex justify-center">
-                <div className={`bg-gradient-to-br ${gradient} rounded-3xl p-6 shadow-lg`}>
+                <div className={`${gradient} rounded-3xl p-6 shadow-lg`}>
                   <span className="text-5xl">{icon}</span>
                 </div>
               </div>
@@ -213,7 +211,7 @@ const TopicForm = () => {
                     <button
                       key={opt.value}
                       type="button"
-                      className={`h-12 rounded-lg bg-gradient-to-br ${opt.value} transition-all ${
+                      className={`h-12 rounded-lg ${opt.value} transition-all ${
                         gradient === opt.value
                           ? 'ring-2 ring-primary ring-offset-2'
                           : 'opacity-70 hover:opacity-100'

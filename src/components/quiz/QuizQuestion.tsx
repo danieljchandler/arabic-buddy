@@ -141,9 +141,9 @@ export const QuizQuestion = ({
             
             if (showResult) {
               if (isCorrectAnswer) {
-                buttonStyle = "bg-green-100 border-2 border-green-500 text-green-800";
+                buttonStyle = "bg-success/20 border-2 border-success text-success-foreground";
               } else if (isSelected && !isCorrectAnswer) {
-                buttonStyle = "bg-red-100 border-2 border-red-500 text-red-800";
+                buttonStyle = "bg-destructive/20 border-2 border-destructive text-destructive-foreground";
               }
             } else if (isSelected) {
               buttonStyle = "bg-primary/20 border-2 border-primary";
@@ -162,10 +162,10 @@ export const QuizQuestion = ({
                 )}
               >
                 {showResult && isCorrectAnswer && (
-                  <CheckCircle2 className="h-5 w-5 text-green-600" />
+                  <CheckCircle2 className="h-5 w-5 text-success" />
                 )}
                 {showResult && isSelected && !isCorrectAnswer && (
-                  <XCircle className="h-5 w-5 text-red-600" />
+                  <XCircle className="h-5 w-5 text-destructive" />
                 )}
                 {option}
               </button>
@@ -187,16 +187,16 @@ export const QuizQuestion = ({
               autoFocus
               className={cn(
                 "text-xl text-center py-6 rounded-2xl",
-                showResult && isCorrect && "border-green-500 bg-green-50",
-                showResult && !isCorrect && "border-red-500 bg-red-50"
+                showResult && isCorrect && "border-success bg-success/10",
+                showResult && !isCorrect && "border-destructive bg-destructive/10"
               )}
             />
             {showResult && (
               <div className="absolute right-4 top-1/2 -translate-y-1/2">
                 {isCorrect ? (
-                  <CheckCircle2 className="h-6 w-6 text-green-600" />
+                  <CheckCircle2 className="h-6 w-6 text-success" />
                 ) : (
-                  <XCircle className="h-6 w-6 text-red-600" />
+                  <XCircle className="h-6 w-6 text-destructive" />
                 )}
               </div>
             )}
@@ -219,7 +219,7 @@ export const QuizQuestion = ({
           {showResult && !isCorrect && (
             <div className="text-center p-4 bg-card rounded-2xl">
               <p className="text-muted-foreground mb-1">Correct answer:</p>
-              <p className="text-2xl font-bold text-green-600">
+              <p className="text-2xl font-bold text-success">
                 {currentWord.word_english}
               </p>
             </div>
@@ -232,7 +232,7 @@ export const QuizQuestion = ({
         <div className={cn(
           "mt-6 p-4 rounded-2xl text-center text-xl font-bold",
           "animate-pop",
-          isCorrect ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+          isCorrect ? "bg-success/20 text-success-foreground" : "bg-destructive/20 text-destructive-foreground"
         )}>
           {isCorrect ? "🎉 Correct! أحسنت!" : "❌ Not quite! حاول مرة أخرى"}
         </div>

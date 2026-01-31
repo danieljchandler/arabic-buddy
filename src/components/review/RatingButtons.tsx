@@ -22,25 +22,25 @@ export const RatingButtons = ({
       rating: 'again', 
       label: 'Again', 
       icon: <RotateCcw className="w-5 h-5" />,
-      color: 'from-red-400 to-red-600'
+      color: 'bg-gradient-red'
     },
     { 
       rating: 'hard', 
       label: 'Hard', 
       icon: <ThumbsDown className="w-5 h-5" />,
-      color: 'from-orange-400 to-orange-600'
+      color: 'bg-gradient-sand'
     },
     { 
       rating: 'good', 
       label: 'Good', 
       icon: <ThumbsUp className="w-5 h-5" />,
-      color: 'from-green-400 to-green-600'
+      color: 'bg-gradient-green'
     },
     { 
       rating: 'easy', 
       label: 'Easy', 
       icon: <Sparkles className="w-5 h-5" />,
-      color: 'from-blue-400 to-blue-600'
+      color: 'bg-gradient-indigo'
     },
   ];
 
@@ -61,7 +61,7 @@ export const RatingButtons = ({
               className={cn(
                 "flex flex-col items-center justify-center",
                 "py-4 px-2 rounded-2xl",
-                `bg-gradient-to-br ${color}`,
+                color,
                 "text-white font-bold",
                 "shadow-lg",
                 "transform transition-all duration-200",

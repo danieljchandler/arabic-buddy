@@ -73,12 +73,8 @@ export const ReviewCard = ({ word, gradient, showAnswer, onReveal }: ReviewCardP
         {/* Playing indicator overlay */}
         {isPlaying && (
           <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
-            <div className={cn(
-              "w-24 h-24 rounded-full flex items-center justify-center",
-              `bg-gradient-to-br ${gradient}`,
-              "animate-pulse-glow"
-            )}>
-              <Volume2 className="w-12 h-12 text-white" />
+            <div className="w-24 h-24 rounded-full flex items-center justify-center bg-primary animate-pulse-glow">
+              <Volume2 className="w-12 h-12 text-primary-foreground" />
             </div>
           </div>
         )}
@@ -86,12 +82,8 @@ export const ReviewCard = ({ word, gradient, showAnswer, onReveal }: ReviewCardP
         {/* Reveal hint */}
         {!showAnswer && !isPlaying && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className={cn(
-              "px-6 py-3 rounded-full",
-              `bg-gradient-to-br ${gradient}`,
-              "shadow-lg animate-bounce-gentle"
-            )}>
-              <span className="text-white font-bold text-lg flex items-center gap-2">
+            <div className="px-6 py-3 rounded-full bg-primary shadow-lg animate-bounce-gentle">
+              <span className="text-primary-foreground font-bold text-lg flex items-center gap-2">
                 <Volume2 className="w-5 h-5" />
                 Tap to reveal!
               </span>
@@ -100,13 +92,8 @@ export const ReviewCard = ({ word, gradient, showAnswer, onReveal }: ReviewCardP
         )}
 
         {/* Sound icon badge */}
-        <div className={cn(
-          "absolute top-4 right-4 w-14 h-14 rounded-2xl",
-          "flex items-center justify-center",
-          `bg-gradient-to-br ${gradient}`,
-          "shadow-lg"
-        )}>
-          <Volume2 className="w-7 h-7 text-white" />
+        <div className="absolute top-4 right-4 w-14 h-14 rounded-2xl flex items-center justify-center bg-primary shadow-lg">
+          <Volume2 className="w-7 h-7 text-primary-foreground" />
         </div>
       </button>
 
@@ -130,14 +117,13 @@ export const ReviewCard = ({ word, gradient, showAnswer, onReveal }: ReviewCardP
             "absolute -bottom-6 left-1/2 transform -translate-x-1/2",
             "w-16 h-16 rounded-full",
             "flex items-center justify-center",
-            `bg-gradient-to-br ${gradient}`,
-            "shadow-button",
+            "bg-primary shadow-button",
             "transition-all duration-300",
             "hover:scale-110 active:scale-95",
             isPlaying && "animate-wiggle"
           )}
         >
-          <RotateCcw className="w-8 h-8 text-white" />
+          <RotateCcw className="w-8 h-8 text-primary-foreground" />
         </button>
       )}
 

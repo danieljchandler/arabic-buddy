@@ -40,9 +40,9 @@ export const QuizResults = ({ topic, quizState, onRestart, onHome }: QuizResults
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-center p-4">
-        <div className={cn("px-6 py-3 rounded-2xl", `bg-gradient-to-br ${topic.gradient}`)}>
+        <div className="px-6 py-3 rounded-2xl bg-card border border-border shadow-card">
           <span className="text-2xl mr-2">{topic.icon}</span>
-          <span className="text-xl font-bold text-white">{topic.name_arabic}</span>
+          <span className="text-xl font-bold text-foreground">{topic.name_arabic}</span>
         </div>
       </div>
 
@@ -55,10 +55,7 @@ export const QuizResults = ({ topic, quizState, onRestart, onHome }: QuizResults
           <p className="text-6xl mb-4">{emoji}</p>
           <h2 className="text-2xl font-bold mb-2">{message}</h2>
           
-          <div className={cn(
-            "text-6xl font-black my-6",
-            `bg-gradient-to-r ${topic.gradient} bg-clip-text text-transparent`
-          )}>
+          <div className="text-6xl font-black my-6 text-primary">
             {quizState.score} / {quizState.answers.length}
           </div>
           
@@ -152,11 +149,7 @@ export const QuizResults = ({ topic, quizState, onRestart, onHome }: QuizResults
           </Button>
           <Button
             onClick={onHome}
-            className={cn(
-              "flex-1 py-6 text-lg font-bold rounded-2xl",
-              `bg-gradient-to-r ${topic.gradient}`,
-              "text-white"
-            )}
+            className="flex-1 py-6 text-lg font-bold rounded-2xl bg-primary text-primary-foreground"
           >
             <Home className="h-5 w-5 mr-2" />
             Home

@@ -111,35 +111,21 @@ export const QuizCard = ({ word, otherWords, gradient, onAnswer }: QuizCardProps
           {/* Playing indicator */}
           {isPlaying && (
             <div className="absolute inset-0 bg-primary/20 flex items-center justify-center rounded-2xl">
-              <div className={cn(
-                "w-16 h-16 rounded-full flex items-center justify-center",
-                `bg-gradient-to-br ${gradient}`,
-                "animate-pulse-glow"
-              )}>
-                <Volume2 className="w-8 h-8 text-white" />
+              <div className="w-16 h-16 rounded-full flex items-center justify-center bg-primary animate-pulse-glow">
+                <Volume2 className="w-8 h-8 text-primary-foreground" />
               </div>
             </div>
           )}
 
           {/* Audio button badge */}
-          <div className={cn(
-            "absolute top-4 right-4 w-10 h-10 rounded-lg",
-            "flex items-center justify-center",
-            `bg-gradient-to-br ${gradient}`,
-            "shadow-lg"
-          )}>
-            <Volume2 className="w-5 h-5 text-white" />
+          <div className="absolute top-4 right-4 w-10 h-10 rounded-lg flex items-center justify-center bg-primary shadow-lg">
+            <Volume2 className="w-5 h-5 text-primary-foreground" />
           </div>
         </button>
 
         {/* Arabic word badge */}
-        <div className={cn(
-          "absolute -bottom-3 left-1/2 transform -translate-x-1/2",
-          "px-6 py-2 rounded-full",
-          `bg-gradient-to-br ${gradient}`,
-          "shadow-lg"
-        )}>
-          <p className="text-lg font-bold text-white font-arabic" dir="rtl">
+        <div className="absolute -bottom-3 left-1/2 transform -translate-x-1/2 px-6 py-2 rounded-full bg-card border border-border shadow-card">
+          <p className="text-lg font-bold text-foreground font-arabic" dir="rtl">
             {word.word_arabic}
           </p>
         </div>

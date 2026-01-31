@@ -176,7 +176,7 @@ const Review = () => {
       <div className="px-4 mb-4">
         <div className="h-2 bg-muted rounded-full overflow-hidden">
           <div
-            className="h-full bg-gradient-heritage transition-all duration-300"
+            className="h-full bg-primary transition-all duration-300"
             style={{ width: `${progress}%` }}
           />
         </div>

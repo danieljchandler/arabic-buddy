@@ -90,7 +90,7 @@ export const QuizCard = ({ word, otherWords, gradient, onAnswer }: QuizCardProps
           disabled={showResult}
           className={cn(
             "w-full aspect-video rounded-2xl overflow-hidden",
-            "bg-card shadow-card",
+            "bg-card border border-border shadow-card",
             "transition-all duration-200",
             !showResult && "hover:scale-[1.02] active:scale-[0.98]",
             "focus:outline-none focus:ring-4 focus:ring-primary/50"
@@ -151,7 +151,7 @@ export const QuizCard = ({ word, otherWords, gradient, onAnswer }: QuizCardProps
           const isSelected = selectedAnswer === option;
           const isCorrectAnswer = option === word.word_english;
 
-          let buttonStyle = "bg-card border-2 border-border hover:border-primary";
+          let buttonStyle = "bg-card border border-border hover:border-primary/50";
 
           if (showResult) {
             if (isCorrectAnswer) {

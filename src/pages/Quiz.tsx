@@ -145,15 +145,15 @@ const Quiz = () => {
               <button
                 onClick={() => setMode("multiple-choice")}
                 className={cn(
-                  "w-full p-6 rounded-3xl text-left transition-all duration-300",
-                  "bg-card shadow-card hover:shadow-lg hover:scale-[1.02]",
-                  "border-4 border-transparent hover:border-primary"
+                  "w-full p-6 rounded-2xl text-left transition-all duration-300",
+                  "bg-card border border-border shadow-card",
+                  "hover:border-primary/40 hover:scale-[1.01]"
                 )}
               >
                 <div className="flex items-center gap-4">
                   <span className="text-4xl">🔘</span>
                   <div>
-                    <p className="text-xl font-bold">Multiple Choice</p>
+                    <p className="text-xl font-bold text-foreground">Multiple Choice</p>
                     <p className="text-muted-foreground">Pick the correct answer</p>
                   </div>
                 </div>
@@ -162,15 +162,15 @@ const Quiz = () => {
               <button
                 onClick={() => setMode("typing")}
                 className={cn(
-                  "w-full p-6 rounded-3xl text-left transition-all duration-300",
-                  "bg-card shadow-card hover:shadow-lg hover:scale-[1.02]",
-                  "border-4 border-transparent hover:border-primary"
+                  "w-full p-6 rounded-2xl text-left transition-all duration-300",
+                  "bg-card border border-border shadow-card",
+                  "hover:border-primary/40 hover:scale-[1.01]"
                 )}
               >
                 <div className="flex items-center gap-4">
                   <span className="text-4xl">⌨️</span>
                   <div>
-                    <p className="text-xl font-bold">Type Answer</p>
+                    <p className="text-xl font-bold text-foreground">Type Answer</p>
                     <p className="text-muted-foreground">Write the English word</p>
                   </div>
                 </div>

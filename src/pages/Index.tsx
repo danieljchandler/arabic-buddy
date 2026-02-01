@@ -6,7 +6,6 @@ import { TopicCard } from "@/components/TopicCard";
 import { Loader2, Settings, Brain, LogIn, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import lahjaLogo from "@/assets/lahja-logo.png";
 import { AppShell } from "@/components/layout/AppShell";
 
 const Index = () => {
@@ -86,9 +85,9 @@ const Index = () => {
         </Button>
       </div>
 
-      {/* Header with Logo */}
+      {/* Header */}
       <div className="text-center mb-10">
-        <img src={lahjaLogo} alt="Lahja - Learn Arabic the way it's spoken" className="h-24 md:h-32 mx-auto mb-4" />
+        <h1 className="text-3xl md:text-4xl font-bold font-heading text-foreground mb-2">Lahja</h1>
         <p className="text-lg text-muted-foreground font-heading font-semibold">Learn Arabic the way it's spoken</p>
       </div>
 

@@ -46,10 +46,10 @@ export const RatingButtons = ({
 
   return (
     <div className="w-full max-w-md mx-auto">
-      <p className="text-center text-muted-foreground mb-4 font-semibold">
+      <p className="text-center text-muted-foreground mb-3 font-medium text-sm">
         How well did you remember?
       </p>
-      <div className="grid grid-cols-4 gap-2">
+      <div className="grid grid-cols-4 gap-2.5">
         {buttons.map(({ rating, label, icon, variant }) => {
           const nextInterval = estimateNextInterval(rating, easeFactor, intervalDays, repetitions);
           
@@ -60,9 +60,9 @@ export const RatingButtons = ({
               disabled={disabled}
               className={cn(
                 "flex flex-col items-center justify-center",
-                "py-4 px-2 rounded-2xl",
+                "py-3 px-2 rounded-xl",
                 variant,
-                "font-semibold",
+                "font-medium",
                 "shadow-card",
                 "transform transition-all duration-200",
                 "hover:scale-105 active:scale-95",
@@ -70,8 +70,8 @@ export const RatingButtons = ({
               )}
             >
               {icon}
-              <span className="text-sm mt-1">{label}</span>
-              <span className="text-xs text-muted-foreground mt-1">{nextInterval}</span>
+              <span className="text-xs mt-1">{label}</span>
+              <span className="text-[10px] text-muted-foreground mt-0.5">{nextInterval}</span>
             </button>
           );
         })}

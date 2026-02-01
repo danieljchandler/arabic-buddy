@@ -77,26 +77,26 @@ export const QuizCard = ({ word, otherWords, gradient, onAnswer }: QuizCardProps
   return (
     <div className="w-full max-w-md mx-auto">
       {/* Question Header */}
-      <div className="text-center mb-6">
-        <p className="text-muted-foreground text-lg">
+      <div className="text-center mb-5">
+        <p className="text-muted-foreground text-base">
           Which word matches the picture?
         </p>
       </div>
 
       {/* Image with Audio */}
-      <div className="relative mb-6">
+      <div className="relative mb-5">
         <button
           onClick={playAudio}
           disabled={showResult}
           className={cn(
-            "w-full aspect-video rounded-2xl overflow-hidden",
+            "w-full aspect-[4/3] rounded-xl overflow-hidden",
             "bg-card border border-border shadow-card",
             "transition-all duration-200",
             !showResult && "hover:scale-[1.02] active:scale-[0.98]",
-            "focus:outline-none focus:ring-4 focus:ring-primary/50"
+            "focus:outline-none focus:ring-2 focus:ring-primary/50"
           )}
         >
-          <div className="absolute inset-4 rounded-xl overflow-hidden bg-muted flex items-center justify-center">
+          <div className="absolute inset-3 rounded-lg overflow-hidden bg-muted flex items-center justify-center">
             {word.image_url ? (
               <img
                 src={word.image_url}
@@ -104,35 +104,37 @@ export const QuizCard = ({ word, otherWords, gradient, onAnswer }: QuizCardProps
                 className="w-full h-full object-cover"
               />
             ) : (
-              <span className="text-6xl opacity-30">📷</span>
+              <div className="w-12 h-12 rounded-full bg-muted-foreground/10 flex items-center justify-center">
+                <Volume2 className="w-6 h-6 text-muted-foreground/40" />
+              </div>
             )}
           </div>
 
           {/* Playing indicator */}
           {isPlaying && (
-            <div className="absolute inset-0 bg-primary/20 flex items-center justify-center rounded-2xl">
-              <div className="w-16 h-16 rounded-full flex items-center justify-center bg-primary animate-pulse-glow">
-                <Volume2 className="w-8 h-8 text-primary-foreground" />
+            <div className="absolute inset-0 bg-primary/20 flex items-center justify-center rounded-xl">
+              <div className="w-14 h-14 rounded-full flex items-center justify-center bg-primary animate-pulse-glow">
+                <Volume2 className="w-7 h-7 text-primary-foreground" />
               </div>
             </div>
           )}
 
           {/* Audio button badge */}
-          <div className="absolute top-4 right-4 w-10 h-10 rounded-lg flex items-center justify-center bg-primary shadow-lg">
-            <Volume2 className="w-5 h-5 text-primary-foreground" />
+          <div className="absolute top-3 right-3 w-8 h-8 rounded-lg flex items-center justify-center bg-primary shadow-lg">
+            <Volume2 className="w-4 h-4 text-primary-foreground" />
           </div>
         </button>
 
         {/* Arabic word badge */}
-        <div className="absolute -bottom-3 left-1/2 transform -translate-x-1/2 px-6 py-2.5 rounded-full bg-card border border-border shadow-card">
-          <p className="text-xl font-bold text-foreground font-arabic leading-relaxed" dir="rtl">
+        <div className="absolute -bottom-2.5 left-1/2 transform -translate-x-1/2 px-5 py-2 rounded-full bg-card border border-border shadow-card">
+          <p className="text-lg font-bold text-foreground font-arabic leading-relaxed" dir="rtl">
             {word.word_arabic}
           </p>
         </div>
       </div>
 
       {/* Multiple Choice Options */}
-      <div className="grid grid-cols-2 gap-3 mt-8">
+      <div className="grid grid-cols-2 gap-3 mt-7">
         {options.map((option, index) => {
           const isSelected = selectedAnswer === option;
           const isCorrectAnswer = option === word.word_english;
@@ -153,17 +155,17 @@ export const QuizCard = ({ word, otherWords, gradient, onAnswer }: QuizCardProps
                 onClick={() => handleSelect(option)}
                 disabled={showResult}
                 className={cn(
-                  "p-4 rounded-xl font-sans text-base transition-all duration-200",
+                  "p-3 rounded-xl font-sans text-sm transition-all duration-200",
                   "flex items-center justify-center gap-2",
                   buttonStyle,
                   !showResult && "hover:scale-[1.02] active:scale-[0.98]"
                 )}
               >
                 {showResult && isCorrectAnswer && (
-                  <CheckCircle2 className="h-5 w-5 text-success" />
+                  <CheckCircle2 className="h-4 w-4 text-success" />
                 )}
                 {showResult && isSelected && !isCorrectAnswer && (
-                  <XCircle className="h-5 w-5 text-destructive" />
+                  <XCircle className="h-4 w-4 text-destructive" />
                 )}
                 {option}
               </button>
@@ -174,7 +176,7 @@ export const QuizCard = ({ word, otherWords, gradient, onAnswer }: QuizCardProps
       {/* Result feedback */}
       {showResult && (
         <div className={cn(
-          "mt-6 p-4 rounded-xl text-center text-lg font-semibold",
+          "mt-5 p-3 rounded-xl text-center text-base font-semibold",
           "animate-in fade-in zoom-in-95 duration-300",
           isCorrect 
             ? "bg-success/20 text-success-foreground" 

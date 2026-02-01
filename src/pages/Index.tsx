@@ -154,7 +154,7 @@ const Index = () => {
 
       {/* Topic Grid */}
       {topics && topics.length > 0 ? (
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-5 md:gap-8">
           {topics.map((topic) => (
             <TopicCard
               key={topic.id}
@@ -171,7 +171,6 @@ const Index = () => {
         </div>
       ) : (
         <div className="text-center py-12">
-          <p className="text-4xl mb-4 opacity-50">📚</p>
           <p className="text-xl text-muted-foreground mb-4">No topics yet</p>
           <p className="text-muted-foreground mb-6">Add vocabulary topics in the admin panel to get started.</p>
           <Button onClick={() => navigate("/admin")}>

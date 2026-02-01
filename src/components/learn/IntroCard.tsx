@@ -53,15 +53,15 @@ export const IntroCard = ({ word, gradient, onContinue }: IntroCardProps) => {
       <button
         onClick={playAudio}
         className={cn(
-          "relative w-full aspect-square rounded-2xl overflow-hidden mb-6",
-          "transform transition-all duration-300",
+          "relative w-full aspect-[4/3] rounded-xl overflow-hidden mb-5",
+          "transform transition-all duration-200",
           "hover:scale-[1.02] active:scale-95",
           "shadow-card bg-card border border-border",
-          "focus:outline-none focus:ring-4 focus:ring-primary/50"
+          "focus:outline-none focus:ring-2 focus:ring-primary/50"
         )}
       >
         {/* Image Container */}
-        <div className="absolute inset-4 rounded-xl overflow-hidden bg-muted flex items-center justify-center">
+        <div className="absolute inset-3 rounded-lg overflow-hidden bg-muted flex items-center justify-center">
           {word.image_url ? (
             <img
               src={word.image_url}
@@ -69,49 +69,51 @@ export const IntroCard = ({ word, gradient, onContinue }: IntroCardProps) => {
               className="w-full h-full object-cover"
             />
           ) : (
-            <span className="text-8xl opacity-30">📷</span>
+            <div className="w-16 h-16 rounded-full bg-muted-foreground/10 flex items-center justify-center">
+              <Volume2 className="w-8 h-8 text-muted-foreground/40" />
+            </div>
           )}
         </div>
 
         {/* Playing indicator overlay */}
         {isPlaying && (
           <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
-            <div className="w-24 h-24 rounded-full flex items-center justify-center bg-primary animate-pulse-glow">
-              <Volume2 className="w-12 h-12 text-primary-foreground" />
+            <div className="w-20 h-20 rounded-full flex items-center justify-center bg-primary animate-pulse-glow">
+              <Volume2 className="w-10 h-10 text-primary-foreground" />
             </div>
           </div>
         )}
 
         {/* Sound icon badge */}
-        <div className="absolute top-4 right-4 w-12 h-12 rounded-xl flex items-center justify-center bg-primary shadow-lg">
-          <Volume2 className="w-6 h-6 text-primary-foreground" />
+        <div className="absolute top-3 right-3 w-10 h-10 rounded-lg flex items-center justify-center bg-primary shadow-lg">
+          <Volume2 className="w-5 h-5 text-primary-foreground" />
         </div>
       </button>
 
       {/* Arabic Word Display */}
-      <div className="mb-4 py-5 px-6 rounded-xl bg-card border border-border shadow-card">
-        <p className="text-4xl font-bold text-foreground font-arabic leading-relaxed" dir="rtl">
+      <div className="mb-3 py-4 px-5 rounded-xl bg-card border border-border shadow-card">
+        <p className="text-3xl font-bold text-foreground font-arabic leading-relaxed" dir="rtl">
           {word.word_arabic}
         </p>
       </div>
 
       {/* English Translation */}
-      <div className="mb-6 py-3 px-6 rounded-xl bg-card border border-border shadow-card">
-        <p className="text-xs text-muted-foreground/70 mb-1 uppercase tracking-wide font-heading">English</p>
-        <p className="text-lg text-muted-foreground font-sans">
+      <div className="mb-5 py-2.5 px-5 rounded-xl bg-card border border-border shadow-card">
+        <p className="text-xs text-muted-foreground/70 mb-0.5 uppercase tracking-wide font-heading">English</p>
+        <p className="text-base text-muted-foreground font-sans">
           {word.word_english}
         </p>
       </div>
 
       {/* Tap to hear again hint */}
-      <p className="text-muted-foreground mb-6 text-sm">
+      <p className="text-muted-foreground mb-5 text-sm">
         Tap the card to hear again
       </p>
 
       {/* Continue Button */}
       <Button
         onClick={onContinue}
-        className="w-full h-12 text-lg font-semibold rounded-xl bg-primary text-primary-foreground shadow-button transition-all duration-200 hover:scale-[1.02]"
+        className="w-full h-11 text-base font-semibold rounded-xl bg-primary text-primary-foreground shadow-button transition-all duration-200 hover:scale-[1.02]"
       >
         Continue to Quiz
       </Button>

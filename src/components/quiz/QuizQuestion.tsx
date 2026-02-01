@@ -88,41 +88,41 @@ export const QuizQuestion = ({
   return (
     <div className="w-full max-w-md">
       {/* Image and Arabic word display */}
-      <div className="text-center mb-8">
+      <div className="text-center mb-6">
         {currentWord.image_url ? (
           <div className="relative inline-block">
             <img
               src={currentWord.image_url}
               alt={currentWord.word_english}
               className={cn(
-                "w-48 h-48 object-cover rounded-3xl shadow-card mx-auto mb-4",
-                "border-4 border-card"
+                "w-44 h-32 object-cover rounded-xl shadow-card mx-auto mb-4",
+                "border border-border"
               )}
             />
             {currentWord.audio_url && (
               <button
                 onClick={playAudio}
                 className={cn(
-                  "absolute -bottom-2 -right-2 p-3 rounded-full",
+                  "absolute -bottom-2 -right-2 p-2.5 rounded-full",
                   "bg-primary text-primary-foreground shadow-button",
                   "transition-all duration-200 hover:scale-110",
                   isPlaying && "animate-pulse-glow"
                 )}
               >
-                <Volume2 className="h-5 w-5" />
+                <Volume2 className="h-4 w-4" />
               </button>
             )}
           </div>
         ) : (
-          <div className="w-48 h-48 rounded-3xl mx-auto mb-4 flex items-center justify-center bg-muted border border-border">
-            <span className="text-6xl">❓</span>
+          <div className="w-44 h-32 rounded-xl mx-auto mb-4 flex items-center justify-center bg-muted border border-border">
+            <Volume2 className="w-8 h-8 text-muted-foreground/40" />
           </div>
         )}
         
-        <p className="text-5xl font-bold mb-3 font-arabic leading-relaxed" dir="rtl">
+        <p className="text-4xl font-bold mb-2 font-arabic leading-relaxed" dir="rtl">
           {currentWord.word_arabic}
         </p>
-        <p className="text-muted-foreground text-base font-sans">
+        <p className="text-muted-foreground text-sm font-sans">
           What is this in English?
         </p>
       </div>
@@ -134,7 +134,7 @@ export const QuizQuestion = ({
             const isSelected = selectedAnswer === option;
             const isCorrectAnswer = option === currentWord.word_english;
             
-            let buttonStyle = "bg-card border-2 border-border hover:border-primary";
+            let buttonStyle = "bg-card border border-border hover:border-primary";
             
             if (showResult) {
               if (isCorrectAnswer) {
@@ -152,17 +152,17 @@ export const QuizQuestion = ({
                 onClick={() => handleMultipleChoiceSelect(option)}
                 disabled={showResult}
                 className={cn(
-                  "p-4 rounded-2xl font-sans text-base transition-all duration-200",
+                  "p-3 rounded-xl font-sans text-sm transition-all duration-200",
                   "flex items-center justify-center gap-2",
                   buttonStyle,
                   !showResult && "hover:scale-[1.02] active:scale-[0.98]"
                 )}
               >
                 {showResult && isCorrectAnswer && (
-                  <CheckCircle2 className="h-5 w-5 text-success" />
+                  <CheckCircle2 className="h-4 w-4 text-success" />
                 )}
                 {showResult && isSelected && !isCorrectAnswer && (
-                  <XCircle className="h-5 w-5 text-destructive" />
+                  <XCircle className="h-4 w-4 text-destructive" />
                 )}
                 {option}
               </button>
@@ -173,7 +173,7 @@ export const QuizQuestion = ({
 
       {/* Typing Mode */}
       {mode === "typing" && (
-        <form onSubmit={handleTypingSubmit} className="space-y-4">
+        <form onSubmit={handleTypingSubmit} className="space-y-3">
           <div className="relative">
             <Input
               type="text"
@@ -183,17 +183,17 @@ export const QuizQuestion = ({
               disabled={showResult}
               autoFocus
               className={cn(
-                "text-xl text-center py-6 rounded-2xl",
+                "text-lg text-center py-5 rounded-xl",
                 showResult && isCorrect && "border-success bg-success/10",
                 showResult && !isCorrect && "border-destructive bg-destructive/10"
               )}
             />
             {showResult && (
-              <div className="absolute right-4 top-1/2 -translate-y-1/2">
+              <div className="absolute right-3 top-1/2 -translate-y-1/2">
                 {isCorrect ? (
-                  <CheckCircle2 className="h-6 w-6 text-success" />
+                  <CheckCircle2 className="h-5 w-5 text-success" />
                 ) : (
-                  <XCircle className="h-6 w-6 text-destructive" />
+                  <XCircle className="h-5 w-5 text-destructive" />
                 )}
               </div>
             )}
@@ -203,16 +203,16 @@ export const QuizQuestion = ({
             <Button
               type="submit"
               disabled={!typedAnswer.trim()}
-              className="w-full py-6 text-xl font-bold rounded-2xl bg-primary text-primary-foreground shadow-button"
+              className="w-full py-5 text-lg font-semibold rounded-xl bg-primary text-primary-foreground shadow-button"
             >
-              Check Answer ✓
+              Check Answer
             </Button>
           )}
           
           {showResult && !isCorrect && (
-            <div className="text-center p-4 bg-card rounded-2xl">
-              <p className="text-muted-foreground mb-1">Correct answer:</p>
-              <p className="text-2xl font-bold text-success">
+            <div className="text-center p-3 bg-card rounded-xl border border-border">
+              <p className="text-muted-foreground text-sm mb-1">Correct answer:</p>
+              <p className="text-xl font-bold text-success">
                 {currentWord.word_english}
               </p>
             </div>
@@ -223,11 +223,11 @@ export const QuizQuestion = ({
       {/* Result feedback */}
       {showResult && (
         <div className={cn(
-          "mt-6 p-4 rounded-2xl text-center text-xl font-bold",
+          "mt-5 p-3 rounded-xl text-center text-base font-semibold",
           "animate-pop",
           isCorrect ? "bg-success/20 text-success-foreground" : "bg-destructive/20 text-destructive-foreground"
         )}>
-          {isCorrect ? "🎉 Correct! أحسنت!" : "❌ Not quite! حاول مرة أخرى"}
+          {isCorrect ? "Correct! أحسنت" : "Not quite — keep practicing"}
         </div>
       )}
     </div>

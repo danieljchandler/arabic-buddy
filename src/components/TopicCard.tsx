@@ -77,9 +77,9 @@ export const TopicCard = ({ topic, onClick }: TopicCardProps) => {
     <button
       onClick={onClick}
       className={cn(
-        "relative w-full aspect-square rounded-2xl p-6",
-        "flex flex-col items-center justify-center gap-3",
-        "transform transition-all duration-300",
+        "relative w-full aspect-[4/3] rounded-xl p-5",
+        "flex flex-col items-center justify-center gap-2",
+        "transform transition-all duration-200",
         "hover:scale-[1.02] active:scale-[0.98]",
         "bg-card border border-border",
         "shadow-card hover:shadow-soft hover:border-primary/30"
@@ -87,24 +87,21 @@ export const TopicCard = ({ topic, onClick }: TopicCardProps) => {
     >
       {/* Gradient accent stripe at top */}
       <div className={cn(
-        "absolute top-0 left-0 right-0 h-1.5 rounded-t-2xl",
+        "absolute top-0 left-0 right-0 h-1 rounded-t-xl",
         gradientClass
       )} />
       
-      <span className="text-5xl md:text-6xl mt-2">
-        {topic.icon}
-      </span>
       <div className="text-center">
-        <p className="text-2xl md:text-3xl font-bold text-foreground font-arabic leading-relaxed">
+        <p className="text-xl md:text-2xl font-bold text-foreground font-arabic leading-relaxed">
           {topic.nameArabic}
         </p>
-        <p className="text-sm md:text-base text-muted-foreground font-sans mt-1">
+        <p className="text-sm text-muted-foreground font-sans mt-1">
           {topic.name}
         </p>
       </div>
       {topic.wordCount !== undefined && (
-        <div className="absolute bottom-4 right-4 bg-muted rounded-full px-3 py-1 border border-border">
-          <span className="text-sm font-semibold text-muted-foreground">
+        <div className="absolute bottom-3 right-3 bg-muted rounded-full px-2.5 py-0.5 border border-border">
+          <span className="text-xs font-semibold text-muted-foreground">
             {topic.wordCount}
           </span>
         </div>

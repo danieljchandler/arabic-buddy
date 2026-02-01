@@ -95,10 +95,10 @@ export const TopicCard = ({ topic, onClick }: TopicCardProps) => {
         {topic.icon}
       </span>
       <div className="text-center">
-        <p className="text-xl md:text-2xl font-semibold text-foreground font-arabic">
+        <p className="text-2xl md:text-3xl font-bold text-foreground font-arabic leading-relaxed">
           {topic.nameArabic}
         </p>
-        <p className="text-sm md:text-base font-medium text-muted-foreground font-heading">
+        <p className="text-sm md:text-base text-muted-foreground font-sans mt-1">
           {topic.name}
         </p>
       </div>

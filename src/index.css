@@ -130,6 +130,20 @@
 
   .font-arabic {
     font-family: 'Cairo', 'Open Sans', sans-serif;
+    line-height: 1.6;
+  }
+
+  /* Typography hierarchy: Arabic primary, English secondary */
+  .text-arabic-primary {
+    font-family: 'Cairo', 'Open Sans', sans-serif;
+    line-height: 1.6;
+    font-weight: 700;
+  }
+
+  .text-english-secondary {
+    font-family: 'Open Sans', 'Cairo', sans-serif;
+    font-weight: 500;
+    color: hsl(var(--muted-foreground));
   }
 
   /* Subtle float animation for icons */

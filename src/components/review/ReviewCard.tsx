@@ -100,10 +100,10 @@ export const ReviewCard = ({ word, gradient, showAnswer, onReveal }: ReviewCardP
       {/* Answer Display */}
       {showAnswer && (
         <div className="mt-6 text-center animate-in fade-in slide-in-from-bottom-4 duration-300">
-          <p className="text-4xl font-black text-foreground mb-2" dir="rtl">
+          <p className="text-5xl font-bold text-foreground mb-3 font-arabic leading-relaxed" dir="rtl">
             {word.word_arabic}
           </p>
-          <p className="text-xl text-muted-foreground font-semibold">
+          <p className="text-lg text-muted-foreground font-sans">
             {word.word_english}
           </p>
         </div>

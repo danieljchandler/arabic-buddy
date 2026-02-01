@@ -119,10 +119,10 @@ export const QuizQuestion = ({
           </div>
         )}
         
-        <p className="text-4xl font-bold mb-2" dir="rtl">
+        <p className="text-5xl font-bold mb-3 font-arabic leading-relaxed" dir="rtl">
           {currentWord.word_arabic}
         </p>
-        <p className="text-muted-foreground text-lg">
+        <p className="text-muted-foreground text-base font-sans">
           What is this in English?
         </p>
       </div>
@@ -152,7 +152,7 @@ export const QuizQuestion = ({
                 onClick={() => handleMultipleChoiceSelect(option)}
                 disabled={showResult}
                 className={cn(
-                  "p-4 rounded-2xl font-semibold text-lg transition-all duration-200",
+                  "p-4 rounded-2xl font-sans text-base transition-all duration-200",
                   "flex items-center justify-center gap-2",
                   buttonStyle,
                   !showResult && "hover:scale-[1.02] active:scale-[0.98]"

@@ -89,16 +89,16 @@ export const IntroCard = ({ word, gradient, onContinue }: IntroCardProps) => {
       </button>
 
       {/* Arabic Word Display */}
-      <div className="mb-4 py-4 px-6 rounded-xl bg-card border border-border shadow-card">
-        <p className="text-3xl font-bold text-foreground font-arabic" dir="rtl">
+      <div className="mb-4 py-5 px-6 rounded-xl bg-card border border-border shadow-card">
+        <p className="text-4xl font-bold text-foreground font-arabic leading-relaxed" dir="rtl">
           {word.word_arabic}
         </p>
       </div>
 
       {/* English Translation */}
       <div className="mb-6 py-3 px-6 rounded-xl bg-card border border-border shadow-card">
-        <p className="text-sm text-muted-foreground mb-1">English</p>
-        <p className="text-xl font-semibold text-foreground">
+        <p className="text-xs text-muted-foreground/70 mb-1 uppercase tracking-wide font-heading">English</p>
+        <p className="text-lg text-muted-foreground font-sans">
           {word.word_english}
         </p>
       </div>

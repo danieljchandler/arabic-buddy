@@ -124,8 +124,8 @@ export const QuizCard = ({ word, otherWords, gradient, onAnswer }: QuizCardProps
         </button>
 
         {/* Arabic word badge */}
-        <div className="absolute -bottom-3 left-1/2 transform -translate-x-1/2 px-6 py-2 rounded-full bg-card border border-border shadow-card">
-          <p className="text-lg font-bold text-foreground font-arabic" dir="rtl">
+        <div className="absolute -bottom-3 left-1/2 transform -translate-x-1/2 px-6 py-2.5 rounded-full bg-card border border-border shadow-card">
+          <p className="text-xl font-bold text-foreground font-arabic leading-relaxed" dir="rtl">
             {word.word_arabic}
           </p>
         </div>
@@ -147,27 +147,27 @@ export const QuizCard = ({ word, otherWords, gradient, onAnswer }: QuizCardProps
             }
           }
 
-          return (
-            <button
-              key={index}
-              onClick={() => handleSelect(option)}
-              disabled={showResult}
-              className={cn(
-                "p-4 rounded-xl font-medium text-base transition-all duration-200",
-                "flex items-center justify-center gap-2",
-                buttonStyle,
-                !showResult && "hover:scale-[1.02] active:scale-[0.98]"
-              )}
-            >
-              {showResult && isCorrectAnswer && (
-                <CheckCircle2 className="h-5 w-5 text-success" />
-              )}
-              {showResult && isSelected && !isCorrectAnswer && (
-                <XCircle className="h-5 w-5 text-destructive" />
-              )}
-              {option}
-            </button>
-          );
+            return (
+              <button
+                key={index}
+                onClick={() => handleSelect(option)}
+                disabled={showResult}
+                className={cn(
+                  "p-4 rounded-xl font-sans text-base transition-all duration-200",
+                  "flex items-center justify-center gap-2",
+                  buttonStyle,
+                  !showResult && "hover:scale-[1.02] active:scale-[0.98]"
+                )}
+              >
+                {showResult && isCorrectAnswer && (
+                  <CheckCircle2 className="h-5 w-5 text-success" />
+                )}
+                {showResult && isSelected && !isCorrectAnswer && (
+                  <XCircle className="h-5 w-5 text-destructive" />
+                )}
+                {option}
+              </button>
+            );
         })}
       </div>
 

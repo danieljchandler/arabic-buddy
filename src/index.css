@@ -7,8 +7,8 @@
 @layer base {
   :root {
     /* Lahja Brand Color Palette */
-    /* Background: Warm Sand (dominant) - light, calm, breathable */
-    --background: 38 45% 88%;
+    /* Background: Warm Sand Beige #E2C5A6 - light, calm, breathable */
+    --background: 32 50% 77%;
     --foreground: 0 0% 12%;
 
     /* Cards: Off-white surface - slightly lighter than warm sand */

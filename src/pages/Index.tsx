@@ -65,7 +65,7 @@ const Index = () => {
       />
       
       {/* Top bar with logo and auth */}
-      <div className="flex items-center justify-between mb-10 mt-[84px]">
+      <div className="flex items-center justify-between mb-10 mt-[104px]">
         <img src={lahjaLogo} alt="Lahja" className="h-12" />
         
         <div className="flex items-center gap-3">

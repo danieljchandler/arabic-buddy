@@ -56,6 +56,13 @@ const Index = () => {
           backgroundRepeat: "repeat-x",
         }}
       />
+      {/* Soft fade from header into background */}
+      <div 
+        className="absolute top-14 left-0 right-0 h-6 w-full pointer-events-none"
+        style={{
+          background: "linear-gradient(to bottom, rgba(226, 197, 166, 0.6) 0%, rgba(226, 197, 166, 0) 100%)",
+        }}
+      />
       
       {/* Top bar with logo and auth */}
       <div className="flex items-center justify-between mb-10 mt-[76px]">

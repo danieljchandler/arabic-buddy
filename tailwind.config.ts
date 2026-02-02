@@ -60,7 +60,9 @@ export default {
         card: {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
+          cream: "hsl(var(--card-cream))",
         },
+        "desert-red": "hsl(var(--desert-red))",
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
@@ -84,6 +86,8 @@ export default {
         soft: "var(--shadow-soft)",
         card: "var(--shadow-card)",
         button: "var(--shadow-button)",
+        topic: "var(--shadow-topic)",
+        "topic-hover": "var(--shadow-topic-hover)",
       },
       keyframes: {
         "accordion-down": {

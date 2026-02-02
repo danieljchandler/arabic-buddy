@@ -85,8 +85,8 @@ export const TopicCard = ({ topic, onClick, className }: TopicCardProps) => {
         "flex flex-col items-center justify-center gap-2",
         "transform transition-all duration-200",
         "hover:scale-[1.02] active:scale-[0.98]",
-        "bg-card border border-border",
-        "shadow-card hover:shadow-soft hover:border-primary/30",
+        "bg-card-cream border border-desert-red/20",
+        "shadow-topic hover:shadow-topic-hover hover:border-desert-red/40",
         className
       )}
     >

@@ -58,10 +58,19 @@
     --topic-food: 7 52% 36%;
     --topic-nature: 160 45% 35%;
 
+    /* Desert Red border color #5C3A46 */
+    --desert-red: 340 23% 29%;
+    
+    /* Card cream - white/cream for cards */
+    --card-cream: 40 50% 97%;
+
     /* Shadows - very subtle, borders do the work */
     --shadow-soft: 0 2px 8px -2px hsl(38 30% 50% / 0.08);
     --shadow-card: 0 2px 12px -4px hsl(38 30% 40% / 0.1);
     --shadow-button: 0 4px 12px -4px hsl(160 57% 28% / 0.2);
+    /* Topic card shadows - subtle depth */
+    --shadow-topic: 0 2px 8px -2px hsl(340 23% 29% / 0.08), 0 4px 16px -4px hsl(38 30% 40% / 0.06);
+    --shadow-topic-hover: 0 4px 12px -2px hsl(340 23% 29% / 0.12), 0 8px 24px -6px hsl(38 30% 40% / 0.1);
 
     --sidebar-background: 38 35% 96%;
     --sidebar-foreground: 0 0% 12%;

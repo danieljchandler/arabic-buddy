@@ -51,9 +51,9 @@ const Index = () => {
         className="absolute top-0 left-0 right-0 h-14 w-full"
         style={{
           backgroundImage: "url('/assets/lahja-header-pattern.png')",
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          backgroundRepeat: "no-repeat",
+          backgroundSize: "auto 100%",
+          backgroundPosition: "center top",
+          backgroundRepeat: "repeat-x",
         }}
       />
       

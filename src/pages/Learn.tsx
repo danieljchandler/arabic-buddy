@@ -12,6 +12,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { cn } from "@/lib/utils";
 import { Loader2, Trophy, RotateCcw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import lahjaLogo from "@/assets/lahja-logo.png";
 
 type Phase = "intro" | "quiz";
 
@@ -215,12 +216,10 @@ const Learn = () => {
       <div className="flex items-center justify-between mb-6">
         <HomeButton />
         
-        {/* Topic indicator - minimal */}
-        <div className="px-4 py-2 rounded-lg bg-card border border-border">
-          <span className="text-sm font-semibold text-foreground font-arabic">
-            {topic.name_arabic}
-          </span>
-        </div>
+        {/* Lahja Logo */}
+        <Link to="/" className="flex items-center">
+          <img src={lahjaLogo} alt="Lahja" className="h-8" />
+        </Link>
         
         <div className="w-11" /> {/* Spacer for balance */}
       </div>

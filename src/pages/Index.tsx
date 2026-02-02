@@ -46,51 +46,54 @@ const Index = () => {
 
   return (
     <AppShell>
-      {/* Top bar - minimal, unobtrusive */}
-      <div className="flex items-center justify-end gap-3 mb-8">
-        {!authLoading && (
-          isAuthenticated ? (
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground hidden sm:inline">
-                {user?.email?.split("@")[0]}
-              </span>
+      {/* Top bar with logo and auth */}
+      <div className="flex items-center justify-between mb-10">
+        <img src={lahjaLogo} alt="Lahja" className="h-10" />
+        
+        <div className="flex items-center gap-3">
+          {!authLoading && (
+            isAuthenticated ? (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground hidden sm:inline">
+                  {user?.email?.split("@")[0]}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleSignOut}
+                  className="text-muted-foreground hover:text-foreground"
+                  title="Sign out"
+                >
+                  <LogOut className="h-4 w-4" />
+                </Button>
+              </div>
+            ) : (
               <Button
                 variant="ghost"
-                size="icon"
-                onClick={handleSignOut}
+                size="sm"
+                onClick={() => navigate("/auth")}
                 className="text-muted-foreground hover:text-foreground"
-                title="Sign out"
               >
-                <LogOut className="h-4 w-4" />
+                <LogIn className="h-4 w-4 mr-1.5" />
+                Login
               </Button>
-            </div>
-          ) : (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => navigate("/auth")}
-              className="text-muted-foreground hover:text-foreground"
-            >
-              <LogIn className="h-4 w-4 mr-1.5" />
-              Login
-            </Button>
-          )
-        )}
+            )
+          )}
 
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => navigate("/admin")}
-          className="text-muted-foreground/50 hover:text-muted-foreground"
-          title="Admin"
-        >
-          <Settings className="h-4 w-4" />
-        </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate("/admin")}
+            className="text-muted-foreground/50 hover:text-muted-foreground"
+            title="Admin"
+          >
+            <Settings className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
-      {/* Header - Logo and tagline */}
-      <div className="mb-12 text-center">
-        <img src={lahjaLogo} alt="Lahja" className="h-12 mx-auto mb-3" />
+      {/* Tagline */}
+      <div className="mb-10 text-center">
         <p className="text-muted-foreground">Learn Arabic the way it's spoken</p>
       </div>
 

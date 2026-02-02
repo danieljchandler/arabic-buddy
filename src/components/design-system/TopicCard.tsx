@@ -1,10 +1,10 @@
 import { cn } from "@/lib/utils";
 
-interface TopicCardTopic {
+export interface TopicCardTopic {
   id: string;
   name: string;
   nameArabic: string;
-  icon: string;
+  icon?: string;
   gradient: string;
   wordCount?: number;
 }
@@ -12,11 +12,12 @@ interface TopicCardTopic {
 interface TopicCardProps {
   topic: TopicCardTopic;
   onClick: () => void;
+  /** Additional className */
+  className?: string;
 }
 
 // Brand-aligned gradient mapping for legacy gradients
 const brandGradients: Record<string, string> = {
-  // Map old Tailwind gradients to brand gradients
   "from-yellow-400 to-orange-500": "bg-gradient-sand",
   "from-orange-400 to-red-500": "bg-gradient-red",
   "from-green-400 to-emerald-600": "bg-gradient-green",
@@ -25,7 +26,6 @@ const brandGradients: Record<string, string> = {
   "from-pink-400 to-rose-500": "bg-gradient-red",
   "from-teal-400 to-green-500": "bg-gradient-olive",
   "from-indigo-400 to-purple-500": "bg-gradient-indigo",
-  // Additional legacy mappings
   "from-green-500 to-green-700": "bg-gradient-green",
   "from-emerald-500 to-emerald-700": "bg-gradient-green",
   "from-teal-500 to-teal-700": "bg-gradient-green",
@@ -54,15 +54,19 @@ const brandGradientCycle = [
   "bg-gradient-charcoal",
 ];
 
-export const TopicCard = ({ topic, onClick }: TopicCardProps) => {
+/**
+ * TopicCard - Consistent topic selection card
+ * 
+ * Use this component for all topic displays across the app.
+ * Features a subtle top accent stripe using the brand gradient.
+ */
+export const TopicCard = ({ topic, onClick, className }: TopicCardProps) => {
   // Try to map existing gradient to brand gradient, or use cycle based on name hash
   const getBrandGradient = () => {
-    // Check if it's already a brand gradient
     if (topic.gradient.startsWith("bg-gradient-")) {
       return topic.gradient;
     }
     
-    // Try to map from old gradient
     const mapped = brandGradients[topic.gradient];
     if (mapped) return mapped;
     
@@ -82,7 +86,8 @@ export const TopicCard = ({ topic, onClick }: TopicCardProps) => {
         "transform transition-all duration-200",
         "hover:scale-[1.02] active:scale-[0.98]",
         "bg-card border border-border",
-        "shadow-card hover:shadow-soft hover:border-primary/30"
+        "shadow-card hover:shadow-soft hover:border-primary/30",
+        className
       )}
     >
       {/* Gradient accent stripe at top */}
@@ -99,6 +104,7 @@ export const TopicCard = ({ topic, onClick }: TopicCardProps) => {
           {topic.name}
         </p>
       </div>
+      
       {topic.wordCount !== undefined && (
         <div className="absolute bottom-3 right-3 bg-muted rounded-full px-2.5 py-0.5 border border-border">
           <span className="text-xs font-semibold text-muted-foreground">

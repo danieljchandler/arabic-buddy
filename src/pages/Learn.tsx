@@ -7,9 +7,9 @@ import { IntroCard } from "@/components/learn/IntroCard";
 import { QuizCard } from "@/components/learn/QuizCard";
 import { ProgressDots } from "@/components/ProgressDots";
 import { HomeButton } from "@/components/HomeButton";
+import { Button, SectionHeader } from "@/components/design-system";
 import { cn } from "@/lib/utils";
 import { Loader2, Trophy, RotateCcw } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 type Phase = "intro" | "quiz";
 interface WordProgress {

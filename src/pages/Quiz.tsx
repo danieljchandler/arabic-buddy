@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useTopic, VocabularyWord } from "@/hooks/useTopic";
 import { HomeButton } from "@/components/HomeButton";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/design-system";
 import { cn } from "@/lib/utils";
 import { Loader2, CheckCircle2, XCircle, RotateCcw, Trophy } from "lucide-react";
 import { QuizQuestion } from "@/components/quiz/QuizQuestion";

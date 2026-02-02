@@ -19,7 +19,15 @@ interface AppShellProps {
  */
 export function AppShell({ children, className, compact = false, hidePattern = false }: AppShellProps) {
   return (
-    <div className={cn("min-h-screen bg-background relative", className)}>
+    <div 
+      className={cn("min-h-screen bg-background relative", className)}
+      style={{
+        backgroundImage: "url('/assets/lahja-watercolor-bg-subtle.svg')",
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundRepeat: "no-repeat",
+      }}
+    >
       {/* Subtle majlis-inspired background patterns */}
       {!hidePattern && <MajlisPattern />}
       

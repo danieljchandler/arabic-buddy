@@ -46,26 +46,8 @@ const Index = () => {
 
   return (
     <AppShell>
-      {/* Decorative header pattern */}
-      <div 
-        className="absolute top-0 left-0 right-0 h-16 w-full"
-        style={{
-          backgroundImage: "url('/assets/lahja-header-pattern.png')",
-          backgroundSize: "auto 100%",
-          backgroundPosition: "center top",
-          backgroundRepeat: "repeat-x",
-        }}
-      />
-      {/* Soft fade from header into background */}
-      <div 
-        className="absolute top-16 left-0 right-0 h-8 w-full pointer-events-none"
-        style={{
-          background: "linear-gradient(to bottom, rgba(226, 197, 166, 0.85) 0%, rgba(226, 197, 166, 0.4) 40%, rgba(226, 197, 166, 0) 100%)",
-        }}
-      />
-      
       {/* Top bar with logo and auth */}
-      <div className="flex items-center justify-between mb-10 mt-[104px]">
+      <div className="flex items-center justify-between mb-10 pt-6">
         <img src={lahjaLogo} alt="Lahja" className="h-12" />
         
         <div className="flex items-center gap-3">

@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/design-system";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { HomeButton } from "@/components/HomeButton";
+import { AppShell } from "@/components/layout/AppShell";
 import { Loader2, Mail, Lock, UserPlus, LogIn } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
@@ -97,131 +98,131 @@ const Auth = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="h-12 w-12 animate-spin text-primary" />
-      </div>
+      <AppShell>
+        <div className="flex items-center justify-center py-24">
+          <Loader2 className="h-10 w-10 animate-spin text-primary" />
+        </div>
+      </AppShell>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <AppShell>
       {/* Header */}
-      <div className="flex items-center p-4">
+      <div className="mb-8">
         <HomeButton />
       </div>
 
-      {/* Main Content */}
-      <div className="flex-1 flex items-center justify-center px-4 pb-8">
-        <div className="w-full max-w-md">
-          {/* Logo and Title */}
-          <div className="text-center mb-8">
-            <img 
-              src={lahjaIcon} 
-              alt="Lahja" 
-              className="h-16 w-16 mx-auto mb-4"
-            />
-            <h1 className="text-3xl font-bold text-foreground mb-2 font-heading">
-              {isLogin ? "Welcome Back" : "Join Lahja"}
-            </h1>
-            <p className="text-muted-foreground text-lg">
-              {isLogin
-                ? "Log in to continue your learning journey"
-                : "Create an account to track your progress"}
-            </p>
-          </div>
+      {/* Main Content - centered with generous spacing */}
+      <div className="max-w-sm mx-auto">
+        {/* Logo and Title */}
+        <div className="text-center mb-10">
+          <img 
+            src={lahjaIcon} 
+            alt="Lahja" 
+            className="h-14 w-14 mx-auto mb-5"
+          />
+          <h1 className="text-2xl font-bold text-foreground mb-2 font-heading">
+            {isLogin ? "Welcome Back" : "Join Lahja"}
+          </h1>
+          <p className="text-muted-foreground">
+            {isLogin
+              ? "Log in to continue your learning journey"
+              : "Create an account to track your progress"}
+          </p>
+        </div>
 
-          {/* Form Card */}
-          <div className="bg-card rounded-2xl p-8 shadow-card">
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Email */}
-              <div className="space-y-2">
-                <Label htmlFor="email" className="text-base font-semibold flex items-center gap-2">
-                  <Mail className="h-4 w-4 text-primary" />
-                  Email
-                </Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="your@email.com"
-                  className="h-12 text-base rounded-xl"
-                  disabled={isSubmitting}
-                />
-                {errors.email && (
-                  <p className="text-destructive text-sm">{errors.email}</p>
-                )}
-              </div>
-
-              {/* Password */}
-              <div className="space-y-2">
-                <Label htmlFor="password" className="text-base font-semibold flex items-center gap-2">
-                  <Lock className="h-4 w-4 text-primary" />
-                  Password
-                </Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="h-12 text-base rounded-xl"
-                  disabled={isSubmitting}
-                />
-                {errors.password && (
-                  <p className="text-destructive text-sm">{errors.password}</p>
-                )}
-              </div>
-
-              {/* Submit Button */}
-              <Button
-                type="submit"
-                className="w-full h-12 text-base font-semibold rounded-xl bg-primary hover:bg-primary/90"
+        {/* Form Card */}
+        <div className="bg-card rounded-xl p-6 border border-border">
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {/* Email */}
+            <div className="space-y-2">
+              <Label htmlFor="email" className="text-sm font-medium flex items-center gap-2">
+                <Mail className="h-4 w-4 text-muted-foreground" />
+                Email
+              </Label>
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="your@email.com"
+                className="h-11 rounded-lg"
                 disabled={isSubmitting}
-              >
-                {isSubmitting ? (
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                ) : isLogin ? (
-                  <>
-                    <LogIn className="h-4 w-4 mr-2" />
-                    Log In
-                  </>
-                ) : (
-                  <>
-                    <UserPlus className="h-4 w-4 mr-2" />
-                    Sign Up
-                  </>
-                )}
-              </Button>
-            </form>
-
-            {/* Toggle Login/Signup */}
-            <div className="mt-6 text-center">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsLogin(!isLogin);
-                  setErrors({});
-                }}
-                className="text-muted-foreground hover:text-foreground transition-colors"
-              >
-                {isLogin ? (
-                  <>
-                    New here?{" "}
-                    <span className="font-semibold text-primary">Create an account</span>
-                  </>
-                ) : (
-                  <>
-                    Already have an account?{" "}
-                    <span className="font-semibold text-primary">Log in</span>
-                  </>
-                )}
-              </button>
+              />
+              {errors.email && (
+                <p className="text-destructive text-sm">{errors.email}</p>
+              )}
             </div>
+
+            {/* Password */}
+            <div className="space-y-2">
+              <Label htmlFor="password" className="text-sm font-medium flex items-center gap-2">
+                <Lock className="h-4 w-4 text-muted-foreground" />
+                Password
+              </Label>
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="h-11 rounded-lg"
+                disabled={isSubmitting}
+              />
+              {errors.password && (
+                <p className="text-destructive text-sm">{errors.password}</p>
+              )}
+            </div>
+
+            {/* Submit Button */}
+            <Button
+              type="submit"
+              className="w-full h-11"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : isLogin ? (
+                <>
+                  <LogIn className="h-4 w-4 mr-2" />
+                  Log In
+                </>
+              ) : (
+                <>
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Sign Up
+                </>
+              )}
+            </Button>
+          </form>
+
+          {/* Toggle Login/Signup */}
+          <div className="mt-5 text-center">
+            <button
+              type="button"
+              onClick={() => {
+                setIsLogin(!isLogin);
+                setErrors({});
+              }}
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {isLogin ? (
+                <>
+                  New here?{" "}
+                  <span className="font-medium text-primary">Create an account</span>
+                </>
+              ) : (
+                <>
+                  Already have an account?{" "}
+                  <span className="font-medium text-primary">Log in</span>
+                </>
+              )}
+            </button>
           </div>
         </div>
       </div>
-    </div>
+    </AppShell>
   );
 };
 

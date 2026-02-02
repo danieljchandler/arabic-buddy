@@ -13,7 +13,7 @@ interface QuizCardWord {
 interface QuizCardProps {
   word: QuizCardWord;
   otherWords: QuizCardWord[];
-  gradient: string;
+  gradient?: string;
   onAnswer: (isCorrect: boolean) => void;
 }
 
@@ -26,7 +26,12 @@ const shuffleArray = <T,>(array: T[]): T[] => {
   return shuffled;
 };
 
-export const QuizCard = ({ word, otherWords, gradient, onAnswer }: QuizCardProps) => {
+/**
+ * QuizCard - Learning quiz with multiple choice
+ * 
+ * Clean, focused design for vocabulary testing.
+ */
+export const QuizCard = ({ word, otherWords, onAnswer }: QuizCardProps) => {
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [showResult, setShowResult] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
@@ -68,32 +73,31 @@ export const QuizCard = ({ word, otherWords, gradient, onAnswer }: QuizCardProps
     setIsCorrect(correct);
     setShowResult(true);
 
-    // Delay before continuing to next word
     setTimeout(() => {
       onAnswer(correct);
     }, 1500);
   };
 
   return (
-    <div className="w-full max-w-md mx-auto">
+    <div className="w-full max-w-sm mx-auto">
       {/* Question Header */}
-      <div className="text-center mb-5">
-        <p className="text-muted-foreground text-base">
-          Which word matches the picture?
+      <div className="text-center mb-4">
+        <p className="text-sm text-muted-foreground">
+          Which word matches?
         </p>
       </div>
 
       {/* Image with Audio */}
-      <div className="relative mb-5">
+      <div className="relative mb-6">
         <button
           onClick={playAudio}
           disabled={showResult}
           className={cn(
             "w-full aspect-[4/3] rounded-xl overflow-hidden",
-            "bg-card border border-border shadow-card",
+            "bg-card border border-border",
             "transition-all duration-200",
-            !showResult && "hover:scale-[1.02] active:scale-[0.98]",
-            "focus:outline-none focus:ring-2 focus:ring-primary/50"
+            !showResult && "hover:border-primary/30",
+            "focus:outline-none focus:ring-2 focus:ring-primary/30"
           )}
         >
           <div className="absolute inset-3 rounded-lg overflow-hidden bg-muted flex items-center justify-center">
@@ -112,75 +116,74 @@ export const QuizCard = ({ word, otherWords, gradient, onAnswer }: QuizCardProps
 
           {/* Playing indicator */}
           {isPlaying && (
-            <div className="absolute inset-0 bg-primary/20 flex items-center justify-center rounded-xl">
-              <div className="w-14 h-14 rounded-full flex items-center justify-center bg-primary animate-pulse-glow">
-                <Volume2 className="w-7 h-7 text-primary-foreground" />
+            <div className="absolute inset-0 bg-primary/10 flex items-center justify-center rounded-xl">
+              <div className="w-12 h-12 rounded-full flex items-center justify-center bg-primary animate-pulse-glow">
+                <Volume2 className="w-6 h-6 text-primary-foreground" />
               </div>
             </div>
           )}
 
           {/* Audio button badge */}
-          <div className="absolute top-3 right-3 w-8 h-8 rounded-lg flex items-center justify-center bg-primary shadow-lg">
+          <div className="absolute top-3 right-3 w-8 h-8 rounded-lg flex items-center justify-center bg-primary/90">
             <Volume2 className="w-4 h-4 text-primary-foreground" />
           </div>
         </button>
 
         {/* Arabic word badge */}
-        <div className="absolute -bottom-2.5 left-1/2 transform -translate-x-1/2 px-5 py-2 rounded-full bg-card border border-border shadow-card">
-          <p className="text-lg font-bold text-foreground font-arabic leading-relaxed" dir="rtl">
+        <div className="absolute -bottom-3 left-1/2 transform -translate-x-1/2 px-4 py-1.5 rounded-full bg-card border border-border">
+          <p className="text-sm font-bold text-foreground font-arabic" dir="rtl">
             {word.word_arabic}
           </p>
         </div>
       </div>
 
       {/* Multiple Choice Options */}
-      <div className="grid grid-cols-2 gap-3 mt-7">
+      <div className="grid grid-cols-2 gap-2 mt-6">
         {options.map((option, index) => {
           const isSelected = selectedAnswer === option;
           const isCorrectAnswer = option === word.word_english;
 
-          let buttonStyle = "bg-card border border-border hover:border-primary/50";
+          let buttonStyle = "bg-card border border-border hover:border-primary/30";
 
           if (showResult) {
             if (isCorrectAnswer) {
-              buttonStyle = "bg-success/20 border-2 border-success text-success-foreground";
+              buttonStyle = "bg-success/10 border border-success";
             } else if (isSelected && !isCorrectAnswer) {
-              buttonStyle = "bg-destructive/20 border-2 border-destructive text-destructive-foreground";
+              buttonStyle = "bg-destructive/10 border border-destructive";
             }
           }
 
-            return (
-              <button
-                key={index}
-                onClick={() => handleSelect(option)}
-                disabled={showResult}
-                className={cn(
-                  "p-3 rounded-xl font-sans text-sm transition-all duration-200",
-                  "flex items-center justify-center gap-2",
-                  buttonStyle,
-                  !showResult && "hover:scale-[1.02] active:scale-[0.98]"
-                )}
-              >
-                {showResult && isCorrectAnswer && (
-                  <CheckCircle2 className="h-4 w-4 text-success" />
-                )}
-                {showResult && isSelected && !isCorrectAnswer && (
-                  <XCircle className="h-4 w-4 text-destructive" />
-                )}
-                {option}
-              </button>
-            );
+          return (
+            <button
+              key={index}
+              onClick={() => handleSelect(option)}
+              disabled={showResult}
+              className={cn(
+                "p-3 rounded-lg text-sm transition-all duration-200",
+                "flex items-center justify-center gap-2",
+                buttonStyle
+              )}
+            >
+              {showResult && isCorrectAnswer && (
+                <CheckCircle2 className="h-4 w-4 text-success" />
+              )}
+              {showResult && isSelected && !isCorrectAnswer && (
+                <XCircle className="h-4 w-4 text-destructive" />
+              )}
+              <span className="text-foreground">{option}</span>
+            </button>
+          );
         })}
       </div>
 
       {/* Result feedback */}
       {showResult && (
         <div className={cn(
-          "mt-5 p-3 rounded-xl text-center text-base font-semibold",
+          "mt-4 p-3 rounded-lg text-center text-sm font-medium",
           "animate-in fade-in zoom-in-95 duration-300",
           isCorrect 
-            ? "bg-success/20 text-success-foreground" 
-            : "bg-destructive/20 text-destructive-foreground"
+            ? "bg-success/10 text-success" 
+            : "bg-destructive/10 text-destructive"
         )}>
           {isCorrect ? "Correct! أحسنت" : "Not quite — keep practicing"}
         </div>

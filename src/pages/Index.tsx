@@ -20,10 +20,10 @@ const Index = () => {
   if (isLoading) {
     return (
       <AppShell>
-        <div className="flex items-center justify-center py-20">
+        <div className="flex items-center justify-center py-24">
           <div className="text-center">
-            <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
-            <p className="text-xl text-muted-foreground">Loading...</p>
+            <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto mb-4" />
+            <p className="text-muted-foreground">Loading...</p>
           </div>
         </div>
       </AppShell>
@@ -33,9 +33,9 @@ const Index = () => {
   if (error) {
     return (
       <AppShell>
-        <div className="flex items-center justify-center py-20">
+        <div className="flex items-center justify-center py-24">
           <div className="text-center">
-            <p className="text-xl text-destructive mb-4">Error loading topics</p>
+            <p className="text-lg text-destructive mb-4">Error loading topics</p>
             <Button onClick={() => window.location.reload()}>Try Again</Button>
           </div>
         </div>
@@ -45,20 +45,22 @@ const Index = () => {
 
   return (
     <AppShell>
-      {/* Top bar */}
-      <div className="flex items-center justify-end gap-2 mb-6">
-        {!authLoading &&
-          (isAuthenticated ? (
+      {/* Top bar - minimal, unobtrusive */}
+      <div className="flex items-center justify-end gap-3 mb-8">
+        {!authLoading && (
+          isAuthenticated ? (
             <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground hidden sm:inline">{user?.email?.split("@")[0]}</span>
+              <span className="text-sm text-muted-foreground hidden sm:inline">
+                {user?.email?.split("@")[0]}
+              </span>
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={handleSignOut}
-                className="opacity-70 hover:opacity-100 transition-opacity"
+                className="text-muted-foreground hover:text-foreground"
                 title="Sign out"
               >
-                <LogOut className="h-5 w-5" />
+                <LogOut className="h-4 w-4" />
               </Button>
             </div>
           ) : (
@@ -66,96 +68,90 @@ const Index = () => {
               variant="ghost"
               size="sm"
               onClick={() => navigate("/auth")}
-              className="opacity-70 hover:opacity-100 transition-opacity"
+              className="text-muted-foreground hover:text-foreground"
             >
-              <LogIn className="h-4 w-4 mr-1" />
+              <LogIn className="h-4 w-4 mr-1.5" />
               Login
             </Button>
-          ))}
+          )
+        )}
 
         <Button
           variant="ghost"
           size="icon"
           onClick={() => navigate("/admin")}
-          className="opacity-40 hover:opacity-100 transition-opacity"
+          className="text-muted-foreground/50 hover:text-muted-foreground"
           title="Admin"
         >
-          <Settings className="h-5 w-5" />
+          <Settings className="h-4 w-4" />
         </Button>
       </div>
 
-      {/* Header */}
-      <SectionHeader
-        title="Lahja"
-        subtitle="Learn Arabic the way it's spoken"
-        size="lg"
-        className="mb-10"
-      />
+      {/* Header - generous whitespace */}
+      <div className="mb-12">
+        <SectionHeader
+          title="Lahja"
+          subtitle="Learn Arabic the way it's spoken"
+          size="lg"
+        />
+      </div>
 
-      {/* Review Button - shows when logged in with due words */}
+      {/* Review prompt - when logged in with due words */}
       {isAuthenticated && stats && stats.dueCount > 0 && (
-        <div className="mb-6">
-          <button
-            onClick={() => navigate("/review")}
-            className={cn(
-              "w-full p-4 rounded-2xl",
-              "bg-card border-2 border-primary",
-              "shadow-card",
-              "flex items-center justify-between",
-              "transform transition-all duration-200",
-              "hover:scale-[1.02] active:scale-[0.98]",
-            )}
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center">
-                <Brain className="h-6 w-6 text-primary-foreground" />
-              </div>
-              <div className="text-left">
-                <p className="text-lg font-bold text-foreground">Review Time</p>
-                <p className="text-sm text-muted-foreground">
-                  {stats.dueCount} {stats.dueCount === 1 ? "word" : "words"} due for practice
-                </p>
-              </div>
+        <button
+          onClick={() => navigate("/review")}
+          className={cn(
+            "w-full mb-8 p-5 rounded-xl",
+            "bg-card border border-primary/20",
+            "flex items-center justify-between",
+            "transition-all duration-200",
+            "hover:border-primary/40"
+          )}
+        >
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+              <Brain className="h-5 w-5 text-primary" />
             </div>
-            <div className="px-4 py-2 bg-primary rounded-full">
-              <span className="text-xl font-bold text-primary-foreground">{stats.dueCount}</span>
+            <div className="text-left">
+              <p className="font-semibold text-foreground">Review Time</p>
+              <p className="text-sm text-muted-foreground">
+                {stats.dueCount} {stats.dueCount === 1 ? "word" : "words"} due
+              </p>
             </div>
-          </button>
-        </div>
+          </div>
+          <div className="px-3 py-1.5 bg-primary/10 rounded-full">
+            <span className="text-sm font-semibold text-primary">{stats.dueCount}</span>
+          </div>
+        </button>
       )}
 
-      {/* Review Link - shows when logged in with no due words */}
+      {/* Review status - when caught up */}
       {isAuthenticated && stats && stats.dueCount === 0 && stats.learnedCount > 0 && (
-        <div className="mb-6">
-          <button
-            onClick={() => navigate("/review")}
-            className={cn(
-              "w-full p-4 rounded-2xl",
-              "bg-card border border-border",
-              "shadow-card",
-              "flex items-center justify-between",
-              "transform transition-all duration-200",
-              "hover:scale-[1.02] active:scale-[0.98]",
-            )}
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center">
-                <Brain className="h-6 w-6 text-primary" />
-              </div>
-              <div className="text-left">
-                <p className="text-lg font-bold text-foreground">All caught up</p>
-                <p className="text-sm text-muted-foreground">
-                  {stats.learnedCount} words learned • {stats.masteredCount} mastered
-                </p>
-              </div>
-            </div>
-          </button>
-        </div>
+        <button
+          onClick={() => navigate("/review")}
+          className={cn(
+            "w-full mb-8 p-5 rounded-xl",
+            "bg-card border border-border",
+            "flex items-center gap-4",
+            "transition-all duration-200",
+            "hover:border-primary/20"
+          )}
+        >
+          <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
+            <Brain className="h-5 w-5 text-muted-foreground" />
+          </div>
+          <div className="text-left">
+            <p className="font-semibold text-foreground">All caught up</p>
+            <p className="text-sm text-muted-foreground">
+              {stats.learnedCount} learned · {stats.masteredCount} mastered
+            </p>
+          </div>
+        </button>
       )}
 
-      {/* Topic Grid */}
+      {/* Topic Grid - increased spacing for calm feel */}
       {topics && topics.length > 0 ? (
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-5 md:gap-8">
+        <div className="grid grid-cols-2 gap-4 md:gap-6">
           {topics.map((topic) => (
             <TopicCard
               key={topic.id}
@@ -171,12 +167,14 @@ const Index = () => {
           ))}
         </div>
       ) : (
-        <div className="text-center py-12">
-          <p className="text-xl text-muted-foreground mb-4">No topics yet</p>
-          <p className="text-muted-foreground mb-6">Add vocabulary topics in the admin panel to get started.</p>
-          <Button onClick={() => navigate("/admin")}>
+        <div className="text-center py-16">
+          <p className="text-lg text-muted-foreground mb-3">No topics yet</p>
+          <p className="text-sm text-muted-foreground mb-6">
+            Add vocabulary topics in the admin panel to get started.
+          </p>
+          <Button onClick={() => navigate("/admin")} variant="outline">
             <Settings className="h-4 w-4 mr-2" />
-            Go to Admin Panel
+            Go to Admin
           </Button>
         </div>
       )}

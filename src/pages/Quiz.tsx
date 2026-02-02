@@ -3,8 +3,9 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useTopic, VocabularyWord } from "@/hooks/useTopic";
 import { HomeButton } from "@/components/HomeButton";
 import { Button } from "@/components/design-system";
+import { AppShell } from "@/components/layout/AppShell";
 import { cn } from "@/lib/utils";
-import { Loader2, CheckCircle2, XCircle, RotateCcw, Trophy } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { QuizQuestion } from "@/components/quiz/QuizQuestion";
 import { QuizResults } from "@/components/quiz/QuizResults";
 
@@ -77,112 +78,112 @@ const Quiz = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
-          <p className="text-xl text-muted-foreground">Loading quiz...</p>
+      <AppShell compact>
+        <div className="flex items-center justify-center py-24">
+          <div className="text-center">
+            <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto mb-4" />
+            <p className="text-muted-foreground">Loading quiz...</p>
+          </div>
         </div>
-      </div>
+      </AppShell>
     );
   }
 
   if (error || !topic) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-6xl mb-4">😕</p>
-          <p className="text-xl text-muted-foreground mb-4">Topic not found</p>
-          <Button onClick={() => navigate("/")}>Go Home</Button>
+      <AppShell compact>
+        <div className="flex items-center justify-center py-24">
+          <div className="text-center">
+            <p className="text-lg text-muted-foreground mb-4">Topic not found</p>
+            <Button onClick={() => navigate("/")}>Go Home</Button>
+          </div>
         </div>
-      </div>
+      </AppShell>
     );
   }
 
   if (topic.words.length < 4) {
     return (
-      <div className="min-h-screen bg-background flex flex-col">
-        <div className="flex items-center justify-between p-4">
+      <AppShell compact>
+        <div className="mb-6">
           <HomeButton />
-          <div className="px-6 py-3 rounded-2xl bg-card border border-border shadow-card">
-            <span className="text-2xl mr-2">{topic.icon}</span>
-            <span className="text-xl font-bold text-foreground">{topic.name_arabic}</span>
-          </div>
-          <div className="w-14" />
         </div>
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center px-4">
-            <p className="text-6xl mb-4">📝</p>
-            <p className="text-xl text-muted-foreground mb-2">Need more words!</p>
-            <p className="text-muted-foreground mb-6">
-              Quiz requires at least 4 words. Add more vocabulary in the admin panel.
-            </p>
-            <Button onClick={() => navigate("/")}>Go Home</Button>
-          </div>
+        <div className="text-center py-12">
+          <p className="text-lg text-muted-foreground mb-2">Need more words</p>
+          <p className="text-sm text-muted-foreground mb-6">
+            Quiz requires at least 4 words.
+          </p>
+          <Button onClick={() => navigate("/")}>Go Home</Button>
         </div>
-      </div>
+      </AppShell>
     );
   }
 
   // Mode selection screen
   if (!mode) {
     return (
-      <div className="min-h-screen bg-background flex flex-col">
-        <div className="flex items-center justify-between p-4">
+      <AppShell compact>
+        <div className="flex items-center justify-between mb-8">
           <HomeButton />
-          <div className="px-6 py-3 rounded-2xl bg-card border border-border shadow-card">
-            <span className="text-2xl mr-2">{topic.icon}</span>
-            <span className="text-xl font-bold text-foreground">{topic.name_arabic}</span>
+          <div className="px-4 py-2 rounded-lg bg-card border border-border">
+            <span className="text-sm font-semibold text-foreground font-arabic">
+              {topic.name_arabic}
+            </span>
           </div>
-          <div className="w-14" />
+          <div className="w-11" />
         </div>
         
-        <div className="flex-1 flex items-center justify-center px-4">
-          <div className="w-full max-w-md text-center">
-            <h2 className="text-3xl font-bold mb-2">اختبار 🎯</h2>
-            <p className="text-xl text-muted-foreground mb-8">Choose quiz mode</p>
-            
-            <div className="space-y-4">
-              <button
-                onClick={() => setMode("multiple-choice")}
-                className={cn(
-                  "w-full p-6 rounded-2xl text-left transition-all duration-300",
-                  "bg-card border border-border shadow-card",
-                  "hover:border-primary/40 hover:scale-[1.01]"
-                )}
-              >
-                <div className="flex items-center gap-4">
-                  <span className="text-4xl">🔘</span>
-                  <div>
-                    <p className="text-xl font-bold text-foreground">Multiple Choice</p>
-                    <p className="text-muted-foreground">Pick the correct answer</p>
-                  </div>
+        <div className="max-w-sm mx-auto text-center py-8">
+          <h2 className="text-xl font-bold text-foreground mb-2 font-arabic">اختبار</h2>
+          <p className="text-muted-foreground mb-8">Choose quiz mode</p>
+          
+          <div className="space-y-3">
+            <button
+              onClick={() => setMode("multiple-choice")}
+              className={cn(
+                "w-full p-5 rounded-xl text-left",
+                "bg-card border border-border",
+                "transition-all duration-200",
+                "hover:border-primary/30"
+              )}
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center text-lg">
+                  ○
                 </div>
-              </button>
-              
-              <button
-                onClick={() => setMode("typing")}
-                className={cn(
-                  "w-full p-6 rounded-2xl text-left transition-all duration-300",
-                  "bg-card border border-border shadow-card",
-                  "hover:border-primary/40 hover:scale-[1.01]"
-                )}
-              >
-                <div className="flex items-center gap-4">
-                  <span className="text-4xl">⌨️</span>
-                  <div>
-                    <p className="text-xl font-bold text-foreground">Type Answer</p>
-                    <p className="text-muted-foreground">Write the English word</p>
-                  </div>
+                <div>
+                  <p className="font-semibold text-foreground">Multiple Choice</p>
+                  <p className="text-sm text-muted-foreground">Pick the correct answer</p>
                 </div>
-              </button>
-            </div>
+              </div>
+            </button>
             
-            <p className="mt-8 text-muted-foreground">
-              {shuffledWords.length} questions
-            </p>
+            <button
+              onClick={() => setMode("typing")}
+              className={cn(
+                "w-full p-5 rounded-xl text-left",
+                "bg-card border border-border",
+                "transition-all duration-200",
+                "hover:border-primary/30"
+              )}
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center text-lg">
+                  ⌨
+                </div>
+                <div>
+                  <p className="font-semibold text-foreground">Type Answer</p>
+                  <p className="text-sm text-muted-foreground">Write the English word</p>
+                </div>
+              </div>
+            </button>
           </div>
+          
+          <p className="mt-8 text-sm text-muted-foreground">
+            {shuffledWords.length} questions
+          </p>
         </div>
-      </div>
+      </AppShell>
     );
   }
 
@@ -201,32 +202,34 @@ const Quiz = () => {
   // Active quiz
   const currentWord = shuffledWords[quizState.currentIndex];
   const otherWords = shuffledWords.filter((_, i) => i !== quizState.currentIndex);
+  const progress = (quizState.currentIndex / shuffledWords.length) * 100;
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <div className="flex items-center justify-between p-4">
+    <AppShell compact>
+      <div className="flex items-center justify-between mb-6">
         <HomeButton />
-        <div className="px-6 py-3 rounded-2xl bg-card border border-border shadow-card">
-          <span className="text-2xl mr-2">{topic.icon}</span>
-          <span className="text-xl font-bold text-foreground">{topic.name_arabic}</span>
+        <div className="px-4 py-2 rounded-lg bg-card border border-border">
+          <span className="text-sm font-semibold text-foreground font-arabic">
+            {topic.name_arabic}
+          </span>
         </div>
-        <div className="w-14" />
+        <div className="w-11" />
       </div>
 
       {/* Progress bar */}
-      <div className="px-4 mb-4">
-        <div className="h-3 bg-muted rounded-full overflow-hidden">
+      <div className="mb-6">
+        <div className="h-1.5 bg-muted rounded-full overflow-hidden">
           <div
             className="h-full transition-all duration-500 bg-primary"
-            style={{ width: `${((quizState.currentIndex) / shuffledWords.length) * 100}%` }}
+            style={{ width: `${progress}%` }}
           />
         </div>
-        <p className="text-center mt-2 text-muted-foreground font-semibold">
+        <p className="text-center mt-2 text-xs text-muted-foreground">
           {quizState.currentIndex + 1} / {shuffledWords.length}
         </p>
       </div>
 
-      <div className="flex-1 flex items-center justify-center px-4 pb-8">
+      <div className="py-4">
         <QuizQuestion
           mode={mode}
           currentWord={currentWord}
@@ -235,7 +238,7 @@ const Quiz = () => {
           onAnswer={handleAnswer}
         />
       </div>
-    </div>
+    </AppShell>
   );
 };
 

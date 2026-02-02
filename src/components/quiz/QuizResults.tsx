@@ -1,5 +1,6 @@
 import { TopicWithWords, VocabularyWord } from "@/hooks/useTopic";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/design-system";
+import { AppShell } from "@/components/layout/AppShell";
 import { cn } from "@/lib/utils";
 import { Trophy, RotateCcw, Home, CheckCircle2, XCircle } from "lucide-react";
 
@@ -17,110 +18,73 @@ export const QuizResults = ({ topic, quizState, onRestart, onHome }: QuizResults
   const percentage = Math.round((quizState.score / quizState.answers.length) * 100);
   
   let message = "";
-  let emoji = "";
   
   if (percentage === 100) {
-    message = "Perfect! ممتاز!";
-    emoji = "🏆";
+    message = "Perfect! ممتاز";
   } else if (percentage >= 80) {
-    message = "Great job! أحسنت!";
-    emoji = "🌟";
+    message = "Great job! أحسنت";
   } else if (percentage >= 60) {
-    message = "Good effort! جيد!";
-    emoji = "👍";
+    message = "Good effort! جيد";
   } else if (percentage >= 40) {
-    message = "Keep practicing! استمر!";
-    emoji = "💪";
+    message = "Keep practicing! استمر";
   } else {
-    message = "Try again! حاول مرة أخرى!";
-    emoji = "📚";
+    message = "Try again! حاول مرة أخرى";
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <AppShell compact>
       {/* Header */}
-      <div className="flex items-center justify-center p-4">
-        <div className="px-6 py-3 rounded-2xl bg-card border border-border shadow-card">
-          <span className="text-2xl mr-2">{topic.icon}</span>
-          <span className="text-xl font-bold text-foreground">{topic.name_arabic}</span>
+      <div className="text-center mb-8">
+        <div className="inline-block px-4 py-2 rounded-lg bg-card border border-border">
+          <span className="text-sm font-semibold text-foreground font-arabic">
+            {topic.name_arabic}
+          </span>
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col items-center justify-start px-4 py-8 overflow-auto">
+      <div className="max-w-sm mx-auto">
         {/* Score card */}
-        <div className={cn(
-          "w-full max-w-md p-8 rounded-3xl text-center mb-8",
-          "bg-card shadow-card"
-        )}>
-          <p className="text-6xl mb-4">{emoji}</p>
-          <h2 className="text-2xl font-bold mb-2">{message}</h2>
+        <div className="text-center mb-8">
+          <Trophy className={cn(
+            "h-14 w-14 mx-auto mb-4",
+            percentage >= 80 ? "text-primary" : "text-muted-foreground"
+          )} />
           
-          <div className="text-6xl font-black my-6 text-primary">
+          <h2 className="text-xl font-bold mb-2 text-foreground">{message}</h2>
+          
+          <div className="text-4xl font-bold my-4 text-foreground">
             {quizState.score} / {quizState.answers.length}
           </div>
           
-          <p className="text-xl text-muted-foreground">
+          <p className="text-muted-foreground">
             {percentage}% correct
           </p>
-          
-          {/* Progress ring */}
-          <div className="relative w-32 h-32 mx-auto mt-6">
-            <svg className="w-full h-full transform -rotate-90">
-              <circle
-                cx="64"
-                cy="64"
-                r="56"
-                stroke="currentColor"
-                strokeWidth="12"
-                fill="none"
-                className="text-muted"
-              />
-              <circle
-                cx="64"
-                cy="64"
-                r="56"
-                stroke="url(#gradient)"
-                strokeWidth="12"
-                fill="none"
-                strokeLinecap="round"
-                strokeDasharray={`${percentage * 3.52} 352`}
-                className="transition-all duration-1000"
-              />
-              <defs>
-                <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                  <stop offset="0%" stopColor="hsl(var(--primary))" />
-                  <stop offset="100%" stopColor="hsl(var(--secondary))" />
-                </linearGradient>
-              </defs>
-            </svg>
-            <div className="absolute inset-0 flex items-center justify-center">
-              <Trophy className="h-10 w-10 text-primary" />
-            </div>
-          </div>
         </div>
 
         {/* Answer review */}
-        <div className="w-full max-w-md mb-8">
-          <h3 className="text-lg font-bold mb-4 text-center">Review Answers</h3>
+        <div className="mb-8">
+          <h3 className="text-sm font-medium text-muted-foreground mb-3 text-center">
+            Review Answers
+          </h3>
           <div className="space-y-2">
             {quizState.answers.map((answer, index) => (
               <div
                 key={index}
                 className={cn(
-                  "flex items-center gap-3 p-3 rounded-2xl",
-                  answer.correct ? "bg-success/10" : "bg-destructive/10"
+                  "flex items-center gap-3 p-3 rounded-lg",
+                  answer.correct ? "bg-success/5" : "bg-destructive/5"
                 )}
               >
                 {answer.correct ? (
-                  <CheckCircle2 className="h-5 w-5 text-success shrink-0" />
+                  <CheckCircle2 className="h-4 w-4 text-success shrink-0" />
                 ) : (
-                  <XCircle className="h-5 w-5 text-destructive shrink-0" />
+                  <XCircle className="h-4 w-4 text-destructive shrink-0" />
                 )}
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold truncate" dir="rtl">
+                  <p className="text-sm font-semibold truncate text-foreground font-arabic" dir="rtl">
                     {answer.word.word_arabic}
                   </p>
-                  <p className="text-sm text-muted-foreground truncate">
+                  <p className="text-xs text-muted-foreground truncate">
                     {answer.correct ? (
                       answer.word.word_english
                     ) : (
@@ -138,24 +102,17 @@ export const QuizResults = ({ topic, quizState, onRestart, onHome }: QuizResults
         </div>
 
         {/* Action buttons */}
-        <div className="w-full max-w-md flex gap-4">
-          <Button
-            onClick={onRestart}
-            variant="outline"
-            className="flex-1 py-6 text-lg font-bold rounded-2xl"
-          >
-            <RotateCcw className="h-5 w-5 mr-2" />
+        <div className="space-y-3">
+          <Button onClick={onRestart} variant="outline" className="w-full">
+            <RotateCcw className="h-4 w-4 mr-2" />
             Try Again
           </Button>
-          <Button
-            onClick={onHome}
-            className="flex-1 py-6 text-lg font-bold rounded-2xl bg-primary text-primary-foreground"
-          >
-            <Home className="h-5 w-5 mr-2" />
-            Home
+          <Button onClick={onHome} className="w-full">
+            <Home className="h-4 w-4 mr-2" />
+            Back to Topics
           </Button>
         </div>
       </div>
-    </div>
+    </AppShell>
   );
 };

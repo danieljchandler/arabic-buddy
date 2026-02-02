@@ -46,6 +46,17 @@ const Index = () => {
 
   return (
     <AppShell>
+      {/* Decorative header pattern */}
+      <div 
+        className="absolute top-0 left-0 right-0 h-14 w-full"
+        style={{
+          backgroundImage: "url('/assets/lahja-header-pattern.png')",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundRepeat: "no-repeat",
+        }}
+      />
+      
       {/* Top bar with logo and auth */}
       <div className="flex items-center justify-between mb-10">
         <img src={lahjaLogo} alt="Lahja" className="h-12" />

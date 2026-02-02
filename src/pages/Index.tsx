@@ -2,10 +2,11 @@ import { useNavigate } from "react-router-dom";
 import { useTopics } from "@/hooks/useTopics";
 import { useAuth } from "@/hooks/useAuth";
 import { useReviewStats } from "@/hooks/useReview";
-import { TopicCard, Button, SectionHeader, SectionFrame } from "@/components/design-system";
+import { TopicCard, Button, SectionFrame } from "@/components/design-system";
 import { Loader2, Settings, Brain, LogIn, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AppShell } from "@/components/layout/AppShell";
+import lahjaLogo from "@/assets/lahja-logo.png";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -87,13 +88,10 @@ const Index = () => {
         </Button>
       </div>
 
-      {/* Header - generous whitespace */}
-      <div className="mb-12">
-        <SectionHeader
-          title="Lahja"
-          subtitle="Learn Arabic the way it's spoken"
-          size="lg"
-        />
+      {/* Header - Logo and tagline */}
+      <div className="mb-12 text-center">
+        <img src={lahjaLogo} alt="Lahja" className="h-12 mx-auto mb-3" />
+        <p className="text-muted-foreground">Learn Arabic the way it's spoken</p>
       </div>
 
       {/* Review prompt - when logged in with due words */}

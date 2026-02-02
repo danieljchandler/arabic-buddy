@@ -2,9 +2,8 @@ import { useNavigate } from "react-router-dom";
 import { useTopics } from "@/hooks/useTopics";
 import { useAuth } from "@/hooks/useAuth";
 import { useReviewStats } from "@/hooks/useReview";
-import { TopicCard } from "@/components/TopicCard";
+import { TopicCard, Button, SectionHeader } from "@/components/design-system";
 import { Loader2, Settings, Brain, LogIn, LogOut } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { AppShell } from "@/components/layout/AppShell";
 
@@ -86,10 +85,12 @@ const Index = () => {
       </div>
 
       {/* Header */}
-      <div className="text-center mb-10">
-        <h1 className="text-3xl md:text-4xl font-bold font-heading text-foreground mb-2">Lahja</h1>
-        <p className="text-lg text-muted-foreground font-heading font-semibold">Learn Arabic the way it's spoken</p>
-      </div>
+      <SectionHeader
+        title="Lahja"
+        subtitle="Learn Arabic the way it's spoken"
+        size="lg"
+        className="mb-10"
+      />
 
       {/* Review Button - shows when logged in with due words */}
       {isAuthenticated && stats && stats.dueCount > 0 && (

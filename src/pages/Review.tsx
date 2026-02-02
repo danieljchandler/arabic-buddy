@@ -5,7 +5,7 @@ import { useDueWords, useReviewStats, useSubmitReview } from "@/hooks/useReview"
 import { ReviewCard } from "@/components/review/ReviewCard";
 import { RatingButtons } from "@/components/review/RatingButtons";
 import { HomeButton } from "@/components/HomeButton";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/design-system";
 import { Loader2, Trophy, Brain, Sparkles, LogIn } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Rating } from "@/lib/spacedRepetition";

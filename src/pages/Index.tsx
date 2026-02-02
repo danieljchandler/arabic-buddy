@@ -2,7 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { useTopics } from "@/hooks/useTopics";
 import { useAuth } from "@/hooks/useAuth";
 import { useReviewStats } from "@/hooks/useReview";
-import { TopicCard, Button, SectionHeader } from "@/components/design-system";
+import { TopicCard, Button, SectionHeader, SectionFrame } from "@/components/design-system";
 import { Loader2, Settings, Brain, LogIn, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AppShell } from "@/components/layout/AppShell";
@@ -149,23 +149,25 @@ const Index = () => {
         </button>
       )}
 
-      {/* Topic Grid - increased spacing for calm feel */}
+      {/* Topic Grid - with subtle watercolor frame */}
       {topics && topics.length > 0 ? (
-        <div className="grid grid-cols-2 gap-4 md:gap-6">
-          {topics.map((topic) => (
-            <TopicCard
-              key={topic.id}
-              topic={{
-                id: topic.id,
-                name: topic.name,
-                nameArabic: topic.name_arabic,
-                icon: topic.icon,
-                gradient: topic.gradient,
-              }}
-              onClick={() => navigate(`/learn/${topic.id}`)}
-            />
-          ))}
-        </div>
+        <SectionFrame className="py-4">
+          <div className="grid grid-cols-2 gap-4 md:gap-6">
+            {topics.map((topic) => (
+              <TopicCard
+                key={topic.id}
+                topic={{
+                  id: topic.id,
+                  name: topic.name,
+                  nameArabic: topic.name_arabic,
+                  icon: topic.icon,
+                  gradient: topic.gradient,
+                }}
+                onClick={() => navigate(`/learn/${topic.id}`)}
+              />
+            ))}
+          </div>
+        </SectionFrame>
       ) : (
         <div className="text-center py-16">
           <p className="text-lg text-muted-foreground mb-3">No topics yet</p>

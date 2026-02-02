@@ -10,6 +10,9 @@
 export { TopicCard, type TopicCardTopic } from './TopicCard';
 export { VocabularyCard, type VocabularyWord } from './VocabularyCard';
 
+// Layout
+export { SectionFrame } from './SectionFrame';
+
 // Typography
 export { SectionHeader } from './SectionHeader';
 

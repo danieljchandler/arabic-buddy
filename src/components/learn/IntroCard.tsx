@@ -11,7 +11,9 @@ interface IntroCardProps {
 }
 
 /**
- * IntroCard - Uses VocabularyCard for consistent styling with additional info display
+ * IntroCard - Word introduction before quiz
+ * 
+ * Clean, focused presentation of vocabulary with audio.
  */
 export const IntroCard = ({ word, onContinue }: IntroCardProps) => {
   const [hasPlayed, setHasPlayed] = useState(false);
@@ -29,9 +31,9 @@ export const IntroCard = ({ word, onContinue }: IntroCardProps) => {
   }, [word.id, word.audio_url]);
 
   return (
-    <div className="w-full max-w-md mx-auto text-center">
-      {/* Word Card - using VocabularyCard */}
-      <div className="mb-5">
+    <div className="w-full max-w-sm mx-auto text-center">
+      {/* Word Card */}
+      <div className="mb-6">
         <VocabularyCard
           word={word}
           showTapHint={false}
@@ -40,35 +42,33 @@ export const IntroCard = ({ word, onContinue }: IntroCardProps) => {
       </div>
 
       {/* Arabic Word Display */}
-      <div className="mb-3 py-4 px-5 rounded-xl bg-card border border-border shadow-card">
-        <p className="text-3xl font-bold text-foreground font-arabic leading-relaxed" dir="rtl">
+      <div className="mb-3 py-4 px-5 rounded-xl bg-card border border-border">
+        <p className="text-2xl font-bold text-foreground font-arabic leading-relaxed" dir="rtl">
           {word.word_arabic}
         </p>
       </div>
 
       {/* English Translation */}
-      <div className="mb-5 py-2.5 px-5 rounded-xl bg-card border border-border shadow-card">
-        <p className="text-xs text-muted-foreground/70 mb-0.5 uppercase tracking-wide font-heading">English</p>
-        <p className="text-base text-muted-foreground font-sans">
+      <div className="mb-6 py-3 px-5 rounded-xl bg-card border border-border">
+        <p className="text-xs text-muted-foreground/70 mb-1 uppercase tracking-wide">
+          English
+        </p>
+        <p className="text-sm text-muted-foreground">
           {word.word_english}
         </p>
       </div>
 
-      {/* Tap to hear again hint */}
-      <p className="text-muted-foreground mb-5 text-sm">
+      {/* Tap hint */}
+      <p className="text-sm text-muted-foreground mb-6">
         Tap the card to hear again
       </p>
 
-      {/* Continue Button - using design system button */}
-      <Button
-        onClick={onContinue}
-        size="lg"
-        className="w-full"
-      >
+      {/* Continue Button */}
+      <Button onClick={onContinue} className="w-full">
         Continue to Quiz
       </Button>
 
-      {/* Hidden Audio Element for auto-play */}
+      {/* Hidden Audio Element */}
       {word.audio_url && (
         <audio
           ref={audioRef}

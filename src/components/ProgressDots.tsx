@@ -3,20 +3,27 @@ import { cn } from "@/lib/utils";
 interface ProgressDotsProps {
   total: number;
   current: number;
-  gradient: string;
+  gradient?: string;
 }
 
-export const ProgressDots = ({ total, current, gradient }: ProgressDotsProps) => {
+/**
+ * ProgressDots - Minimal progress indicator
+ * 
+ * Clean dots that show learning progress without visual clutter.
+ */
+export const ProgressDots = ({ total, current }: ProgressDotsProps) => {
   return (
-    <div className="flex items-center justify-center gap-2">
+    <div className="flex items-center justify-center gap-1.5">
       {Array.from({ length: total }).map((_, index) => (
         <div
           key={index}
           className={cn(
             "transition-all duration-300 rounded-full",
             index === current
-              ? "w-8 h-3 bg-primary"
-              : "w-3 h-3 bg-muted"
+              ? "w-6 h-2 bg-primary"
+              : index < current
+                ? "w-2 h-2 bg-primary/40"
+                : "w-2 h-2 bg-muted"
           )}
         />
       ))}

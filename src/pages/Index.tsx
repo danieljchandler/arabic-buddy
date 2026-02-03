@@ -2,7 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { useTopics } from "@/hooks/useTopics";
 import { useAuth } from "@/hooks/useAuth";
 import { useReviewStats } from "@/hooks/useReview";
-import { TopicCard, Button, SectionFrame } from "@/components/design-system";
+import { TopicCard, Button, SectionFrame, ArabicGeometricHeader } from "@/components/design-system";
 import { Loader2, Settings, Brain, LogIn, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AppShell } from "@/components/layout/AppShell";
@@ -46,31 +46,11 @@ const Index = () => {
 
   return (
     <AppShell>
-      {/* Decorative header border pattern */}
-      <div 
-        className="fixed top-0 left-0 right-0 w-full pointer-events-none z-10 animate-fade-in"
-        style={{
-          height: "64px",
-          backgroundImage: "url('/assets/lahja-border-primary.png')",
-          backgroundPosition: "center center",
-          backgroundRepeat: "repeat-x",
-          backgroundSize: "auto 64px",
-        }}
-      />
-      
-      {/* Subtle fade beneath header */}
-      <div 
-        className="fixed left-0 right-0 w-full pointer-events-none z-10"
-        style={{
-          top: "64px",
-          height: "24px",
-          background:
-            "linear-gradient(to bottom, hsl(var(--foreground) / 0.05) 0%, transparent 100%)",
-        }}
-      />
+      {/* Arabic geometric header pattern */}
+      <ArabicGeometricHeader />
       
       {/* Top bar with logo and auth */}
-      <div className="flex items-center justify-between mb-10 mt-24">
+      <div className="flex items-center justify-between mb-10 mt-28">
         <img src={lahjaLogo} alt="Lahja" className="h-12" />
         
         <div className="flex items-center gap-3">

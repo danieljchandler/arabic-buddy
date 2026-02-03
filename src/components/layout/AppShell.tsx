@@ -17,9 +17,12 @@ interface AppShellProps {
 export function AppShell({ children, className, compact = false }: AppShellProps) {
   return (
     <div 
-      className={cn("min-h-screen relative", className)}
+      className={cn("min-h-screen bg-background relative", className)}
       style={{
-        backgroundColor: "#E2C5A6",
+        backgroundImage: "url('/assets/lahja-watercolor-bg-subtle.svg')",
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundRepeat: "no-repeat",
       }}
     >
       <div className={cn(

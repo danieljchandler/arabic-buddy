@@ -2,7 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { useTopics } from "@/hooks/useTopics";
 import { useAuth } from "@/hooks/useAuth";
 import { useReviewStats } from "@/hooks/useReview";
-import { TopicCard, Button, SectionFrame, ArabicGeometricHeader } from "@/components/design-system";
+import { TopicCard, Button, SectionFrame } from "@/components/design-system";
 import { Loader2, Settings, Brain, LogIn, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AppShell } from "@/components/layout/AppShell";
@@ -46,11 +46,8 @@ const Index = () => {
 
   return (
     <AppShell>
-      {/* Arabic geometric header pattern */}
-      <ArabicGeometricHeader />
-      
       {/* Top bar with logo and auth */}
-      <div className="flex items-center justify-between mb-10 mt-28">
+      <div className="flex items-center justify-between mb-10">
         <img src={lahjaLogo} alt="Lahja" className="h-12" />
         
         <div className="flex items-center gap-3">

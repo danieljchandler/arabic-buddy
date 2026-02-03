@@ -7,7 +7,6 @@ import { Loader2, Settings, Brain, LogIn, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AppShell } from "@/components/layout/AppShell";
 import lahjaLogo from "@/assets/lahja-logo.png";
-import lahjaBorderPattern from "../../public/assets/lahja-border-primary.png";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -51,10 +50,12 @@ const Index = () => {
       <div 
         className="fixed top-0 left-0 right-0 w-full pointer-events-none z-10"
         style={{
-          height: "56px",
-          backgroundImage: `url(${lahjaBorderPattern})`,
+          height: "32px",
+          backgroundImage: "url('/assets/lahja-border-primary.png')",
           backgroundPosition: "top center",
           backgroundRepeat: "repeat-x",
+          // The PNG contains extra transparent padding; scale it so the patterned strip is visible.
+          backgroundSize: "auto 32px",
         }}
       />
       
@@ -62,14 +63,15 @@ const Index = () => {
       <div 
         className="fixed left-0 right-0 w-full pointer-events-none z-10"
         style={{
-          top: "56px",
+          top: "32px",
           height: "20px",
-          background: "linear-gradient(to bottom, rgba(0,0,0,0.03) 0%, transparent 100%)",
+          background:
+            "linear-gradient(to bottom, hsl(var(--foreground) / 0.04) 0%, transparent 100%)",
         }}
       />
       
       {/* Top bar with logo and auth */}
-      <div className="flex items-center justify-between mb-10 mt-[72px]">
+      <div className="flex items-center justify-between mb-10 mt-14">
         <img src={lahjaLogo} alt="Lahja" className="h-12" />
         
         <div className="flex items-center gap-3">

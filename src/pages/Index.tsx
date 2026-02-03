@@ -7,6 +7,7 @@ import { Loader2, Settings, Brain, LogIn, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AppShell } from "@/components/layout/AppShell";
 import lahjaLogo from "@/assets/lahja-logo.png";
+import lahjaBorderPattern from "../../public/assets/lahja-border-primary.png";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -51,7 +52,7 @@ const Index = () => {
         className="fixed top-0 left-0 right-0 w-full pointer-events-none z-10"
         style={{
           height: "56px",
-          backgroundImage: "url('/assets/lahja-border-primary.png')",
+          backgroundImage: `url(${lahjaBorderPattern})`,
           backgroundPosition: "top center",
           backgroundRepeat: "repeat-x",
         }}

@@ -48,17 +48,17 @@ const Index = () => {
     <AppShell>
       {/* Decorative header border pattern */}
       <div 
-        className="absolute top-0 left-0 right-0 h-8 w-full"
+        className="absolute top-0 left-0 right-0 w-full"
         style={{
+          height: "56px",
           backgroundImage: "url('/assets/lahja-border-primary.png')",
-          backgroundSize: "auto 100%",
-          backgroundPosition: "center top",
+          backgroundPosition: "top center",
           backgroundRepeat: "repeat-x",
         }}
       />
       
       {/* Top bar with logo and auth */}
-      <div className="flex items-center justify-between mb-10 mt-14">
+      <div className="flex items-center justify-between mb-10 mt-[72px]">
         <img src={lahjaLogo} alt="Lahja" className="h-12" />
         
         <div className="flex items-center gap-3">

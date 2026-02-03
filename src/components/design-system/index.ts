@@ -12,6 +12,7 @@ export { VocabularyCard, type VocabularyWord } from './VocabularyCard';
 
 // Layout
 export { SectionFrame } from './SectionFrame';
+export { ArabicGeometricHeader } from './ArabicGeometricHeader';
 
 // Typography
 export { SectionHeader } from './SectionHeader';

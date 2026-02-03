@@ -48,19 +48,18 @@ const Index = () => {
     <AppShell>
       {/* Decorative header border pattern */}
       <div 
-        className="absolute top-0 left-0 right-0 w-full pointer-events-none"
+        className="fixed top-0 left-0 right-0 w-full pointer-events-none z-10"
         style={{
           height: "56px",
           backgroundImage: "url('/assets/lahja-border-primary.png')",
           backgroundPosition: "top center",
           backgroundRepeat: "repeat-x",
-          backgroundColor: "transparent",
         }}
       />
       
       {/* Subtle fade beneath header */}
       <div 
-        className="absolute left-0 right-0 w-full pointer-events-none"
+        className="fixed left-0 right-0 w-full pointer-events-none z-10"
         style={{
           top: "56px",
           height: "20px",

@@ -58,6 +58,16 @@ const Index = () => {
         }}
       />
       
+      {/* Subtle fade beneath header */}
+      <div 
+        className="absolute left-0 right-0 w-full pointer-events-none"
+        style={{
+          top: "56px",
+          height: "20px",
+          background: "linear-gradient(to bottom, rgba(0,0,0,0.03) 0%, transparent 100%)",
+        }}
+      />
+      
       {/* Top bar with logo and auth */}
       <div className="flex items-center justify-between mb-10 mt-[72px]">
         <img src={lahjaLogo} alt="Lahja" className="h-12" />

@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, ArrowLeft } from 'lucide-react';
 import { ImageUploader } from '@/components/admin/ImageUploader';
 import { AudioUploader } from '@/components/admin/AudioUploader';
+import { ImagePositionEditor } from '@/components/admin/ImagePositionEditor';
 
 const WordForm = () => {
   const navigate = useNavigate();
@@ -22,6 +23,7 @@ const WordForm = () => {
   const [wordEnglish, setWordEnglish] = useState('');
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [imagePosition, setImagePosition] = useState('50 50');
 
   // Fetch topic info
   const { data: topic } = useQuery({
@@ -61,6 +63,7 @@ const WordForm = () => {
       setWordEnglish(existingWord.word_english);
       setImageUrl(existingWord.image_url);
       setAudioUrl(existingWord.audio_url);
+      setImagePosition((existingWord as any).image_position || '50 50');
     }
   }, [existingWord]);
 
@@ -74,7 +77,8 @@ const WordForm = () => {
             word_english: wordEnglish,
             image_url: imageUrl,
             audio_url: audioUrl,
-          })
+            image_position: imagePosition,
+          } as any)
           .eq('id', wordId);
 
         if (error) throw error;
@@ -98,8 +102,9 @@ const WordForm = () => {
             word_english: wordEnglish,
             image_url: imageUrl,
             audio_url: audioUrl,
+            image_position: imagePosition,
             display_order: nextOrder,
-          });
+          } as any);
 
         if (error) throw error;
       }
@@ -197,6 +202,18 @@ const WordForm = () => {
                   onRemove={() => setImageUrl(null)}
                 />
               </div>
+
+              {/* Image position editor - only show when image is uploaded */}
+              {imageUrl && (
+                <div className="space-y-2">
+                  <Label>Image Position</Label>
+                  <ImagePositionEditor
+                    imageUrl={imageUrl}
+                    position={imagePosition}
+                    onPositionChange={setImagePosition}
+                  />
+                </div>
+              )}
 
               {/* Audio upload */}
               <div className="space-y-2">

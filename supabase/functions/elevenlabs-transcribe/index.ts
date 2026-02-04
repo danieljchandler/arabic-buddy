@@ -41,9 +41,10 @@ serve(async (req) => {
     
     // Keyterm prompting for Gulf Arabic (Khaleeji) terms
     // These terms help bias the model for better accuracy with common Gulf Arabic expressions
+    // Each keyterm must be appended individually, not as a JSON array
     const keyterms = [
       "شلونك",    // How are you (Khaleeji)
-      "يا ريّال", // Hey man (Khaleeji)
+      "يا ريال",  // Hey man (Khaleeji) - simplified spelling
       "شسوي",     // What am I doing (Khaleeji)
       "الحين",    // Now (Khaleeji)
       "وش",       // What (Khaleeji)
@@ -51,11 +52,14 @@ serve(async (req) => {
       "وين",      // Where (Khaleeji)
       "حلو",      // Nice/Good
       "زين",      // Good (Khaleeji)
-      "ما شاء الله", // MashaAllah
-      "إن شاء الله", // InshaAllah
+      "ماشاءالله", // MashaAllah (no spaces)
+      "انشاءالله", // InshaAllah (no spaces)
     ];
     
-    apiFormData.append("keyterms", JSON.stringify(keyterms));
+    // Append each keyterm individually
+    keyterms.forEach(term => {
+      apiFormData.append("keyterms", term);
+    });
 
     console.log("Sending request to ElevenLabs Scribe v2 API...");
 

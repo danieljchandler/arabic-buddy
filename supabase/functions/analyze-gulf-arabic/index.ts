@@ -55,7 +55,6 @@ serve(async (req) => {
           { role: 'system', content: systemPrompt },
           { role: 'user', content: transcript }
         ],
-        temperature: 0.3, // Lower temperature for more consistent JSON output
       }),
     });
 

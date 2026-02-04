@@ -3,7 +3,7 @@ import { useTopics } from "@/hooks/useTopics";
 import { useAuth } from "@/hooks/useAuth";
 import { useReviewStats } from "@/hooks/useReview";
 import { TopicCard, Button, SectionFrame } from "@/components/design-system";
-import { Loader2, Settings, Brain, LogIn, LogOut } from "lucide-react";
+import { Loader2, Settings, Brain, LogIn, LogOut, Mic } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AppShell } from "@/components/layout/AppShell";
 import lahjaLogo from "@/assets/lahja-logo.png";
@@ -105,6 +105,28 @@ const Index = () => {
             </p>
           </div>
         </button>}
+
+      {/* Transcription Tool */}
+      <button
+        onClick={() => navigate("/transcribe")}
+        className={cn(
+          "w-full mb-8 p-5 rounded-xl",
+          "bg-card border border-border",
+          "flex items-center gap-4",
+          "transition-all duration-200",
+          "hover:border-primary/20"
+        )}
+      >
+        <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+          <Mic className="h-5 w-5 text-primary" />
+        </div>
+        <div className="text-left">
+          <p className="font-semibold text-foreground">Transcribe Audio</p>
+          <p className="text-sm text-muted-foreground">
+            Convert Arabic audio to text
+          </p>
+        </div>
+      </button>
 
       {/* Topic Grid - with subtle watercolor frame */}
       {topics && topics.length > 0 ? <SectionFrame className="py-4">

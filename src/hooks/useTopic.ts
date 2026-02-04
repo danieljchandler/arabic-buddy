@@ -8,6 +8,7 @@ export interface VocabularyWord {
   word_english: string;
   image_url: string | null;
   audio_url: string | null;
+  image_position: string | null;
   display_order: number;
   created_at: string;
   updated_at: string;

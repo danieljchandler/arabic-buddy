@@ -9,6 +9,7 @@ import NotFound from "./pages/NotFound";
 import Quiz from "./pages/Quiz";
 import Auth from "./pages/Auth";
 import Review from "./pages/Review";
+import Transcribe from "./pages/Transcribe";
 
 // Admin pages
 import AdminLogin from "./pages/admin/AdminLogin";
@@ -33,6 +34,7 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/review" element={<Review />} />
+          <Route path="/transcribe" element={<Transcribe />} />
           <Route path="/learn/:topicId" element={<Learn />} />
           <Route path="/quiz/:topicId" element={<Quiz />} />
 

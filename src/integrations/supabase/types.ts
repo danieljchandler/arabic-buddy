@@ -74,6 +74,7 @@ export type Database = {
           created_at: string
           display_order: number
           id: string
+          image_position: string | null
           image_url: string | null
           topic_id: string
           updated_at: string
@@ -85,6 +86,7 @@ export type Database = {
           created_at?: string
           display_order?: number
           id?: string
+          image_position?: string | null
           image_url?: string | null
           topic_id: string
           updated_at?: string
@@ -96,6 +98,7 @@ export type Database = {
           created_at?: string
           display_order?: number
           id?: string
+          image_position?: string | null
           image_url?: string | null
           topic_id?: string
           updated_at?: string

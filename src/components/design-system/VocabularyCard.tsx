@@ -8,6 +8,7 @@ export interface VocabularyWord {
   word_english: string;
   image_url: string | null;
   audio_url: string | null;
+  image_position?: string | null;
 }
 
 interface VocabularyCardProps {
@@ -87,6 +88,11 @@ export const VocabularyCard = ({
               src={word.image_url}
               alt=""
               className="w-full h-full object-cover"
+              style={{ 
+                objectPosition: word.image_position 
+                  ? `${word.image_position.split(' ')[0]}% ${word.image_position.split(' ')[1]}%`
+                  : '50% 50%' 
+              }}
             />
           ) : (
             <div className="w-16 h-16 rounded-full bg-muted-foreground/10 flex items-center justify-center">

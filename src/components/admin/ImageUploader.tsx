@@ -10,6 +10,74 @@ interface ImageUploaderProps {
   onRemove: () => void;
 }
 
+// Target dimensions for 4:3 aspect ratio cards
+const TARGET_WIDTH = 800;
+const TARGET_HEIGHT = 600;
+
+/**
+ * Resizes an image to fit within the target dimensions while maintaining aspect ratio
+ * and crops to fill the 4:3 frame
+ */
+const resizeImage = (file: File): Promise<Blob> => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+
+    img.onload = () => {
+      if (!ctx) {
+        reject(new Error('Could not get canvas context'));
+        return;
+      }
+
+      // Calculate scaling to cover the target area (crop to fill)
+      const sourceRatio = img.width / img.height;
+      const targetRatio = TARGET_WIDTH / TARGET_HEIGHT;
+
+      let sourceWidth = img.width;
+      let sourceHeight = img.height;
+      let sourceX = 0;
+      let sourceY = 0;
+
+      if (sourceRatio > targetRatio) {
+        // Image is wider than target - crop sides
+        sourceWidth = img.height * targetRatio;
+        sourceX = (img.width - sourceWidth) / 2;
+      } else {
+        // Image is taller than target - crop top/bottom
+        sourceHeight = img.width / targetRatio;
+        sourceY = (img.height - sourceHeight) / 2;
+      }
+
+      // Set canvas to target size
+      canvas.width = TARGET_WIDTH;
+      canvas.height = TARGET_HEIGHT;
+
+      // Draw the cropped and resized image
+      ctx.drawImage(
+        img,
+        sourceX, sourceY, sourceWidth, sourceHeight,
+        0, 0, TARGET_WIDTH, TARGET_HEIGHT
+      );
+
+      canvas.toBlob(
+        (blob) => {
+          if (blob) {
+            resolve(blob);
+          } else {
+            reject(new Error('Failed to create blob'));
+          }
+        },
+        'image/jpeg',
+        0.9 // Quality
+      );
+    };
+
+    img.onerror = () => reject(new Error('Failed to load image'));
+    img.src = URL.createObjectURL(file);
+  });
+};
+
 export const ImageUploader = ({ currentUrl, onUpload, onRemove }: ImageUploaderProps) => {
   const [uploading, setUploading] = useState(false);
   const [preview, setPreview] = useState<string | null>(currentUrl || null);
@@ -30,12 +98,12 @@ export const ImageUploader = ({ currentUrl, onUpload, onRemove }: ImageUploaderP
       return;
     }
 
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
+    // Validate file size (max 10MB before resize)
+    if (file.size > 10 * 1024 * 1024) {
       toast({
         variant: 'destructive',
         title: 'File too large',
-        description: 'Please select an image under 5MB.',
+        description: 'Please select an image under 10MB.',
       });
       return;
     }
@@ -43,12 +111,17 @@ export const ImageUploader = ({ currentUrl, onUpload, onRemove }: ImageUploaderP
     setUploading(true);
 
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${crypto.randomUUID()}.${fileExt}`;
+      // Resize image to fit 4:3 aspect ratio
+      toast({ title: 'Resizing image...' });
+      const resizedBlob = await resizeImage(file);
+      
+      const fileName = `${crypto.randomUUID()}.jpg`;
 
       const { error: uploadError } = await supabase.storage
         .from('flashcard-images')
-        .upload(fileName, file);
+        .upload(fileName, resizedBlob, {
+          contentType: 'image/jpeg',
+        });
 
       if (uploadError) throw uploadError;
 
@@ -58,7 +131,7 @@ export const ImageUploader = ({ currentUrl, onUpload, onRemove }: ImageUploaderP
 
       setPreview(publicUrl);
       onUpload(publicUrl);
-      toast({ title: 'Image uploaded!' });
+      toast({ title: 'Image uploaded and resized to 800×600!' });
     } catch (error: any) {
       toast({
         variant: 'destructive',
@@ -90,7 +163,7 @@ export const ImageUploader = ({ currentUrl, onUpload, onRemove }: ImageUploaderP
       />
 
       {preview ? (
-        <div className="relative aspect-square w-full max-w-xs mx-auto rounded-xl overflow-hidden bg-muted">
+        <div className="relative aspect-[4/3] w-full max-w-xs mx-auto rounded-xl overflow-hidden bg-muted">
           <img
             src={preview}
             alt="Preview"
@@ -109,7 +182,7 @@ export const ImageUploader = ({ currentUrl, onUpload, onRemove }: ImageUploaderP
       ) : (
         <label
           htmlFor="image-upload"
-          className="flex flex-col items-center justify-center aspect-square w-full max-w-xs mx-auto rounded-xl border-2 border-dashed border-muted-foreground/25 bg-muted/50 cursor-pointer hover:bg-muted transition-colors"
+          className="flex flex-col items-center justify-center aspect-[4/3] w-full max-w-xs mx-auto rounded-xl border-2 border-dashed border-muted-foreground/25 bg-muted/50 cursor-pointer hover:bg-muted transition-colors"
         >
           {uploading ? (
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -117,7 +190,7 @@ export const ImageUploader = ({ currentUrl, onUpload, onRemove }: ImageUploaderP
             <>
               <Upload className="h-8 w-8 text-muted-foreground mb-2" />
               <span className="text-sm text-muted-foreground">Click to upload image</span>
-              <span className="text-xs text-muted-foreground mt-1">PNG, JPG up to 5MB</span>
+              <span className="text-xs text-muted-foreground mt-1">Auto-resized to 800×600 (4:3)</span>
             </>
           )}
         </label>

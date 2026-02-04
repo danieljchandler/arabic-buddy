@@ -3,9 +3,10 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Upload, FileAudio, Download, Loader2, X } from "lucide-react";
+import { Upload, FileAudio, Download, Loader2, X, BookOpen, Languages, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { HomeButton } from "@/components/HomeButton";
+import { Badge } from "@/components/ui/badge";
 
 interface TranscriptionResult {
   text: string;
@@ -22,11 +23,30 @@ interface TranscriptionResult {
   }>;
 }
 
+interface VocabularyItem {
+  word: string;
+  meaning: string;
+  root: string;
+}
+
+interface GrammarPoint {
+  point: string;
+  explanation: string;
+}
+
+interface AnalysisResult {
+  vocabulary: VocabularyItem[];
+  grammar: GrammarPoint[];
+  culture: string;
+}
+
 const Transcribe = () => {
   const [file, setFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [transcript, setTranscript] = useState<string>("");
+  const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -47,6 +67,7 @@ const Transcribe = () => {
       
       setFile(selectedFile);
       setTranscript("");
+      setAnalysis(null);
     }
   };
 
@@ -56,6 +77,7 @@ const Transcribe = () => {
     if (droppedFile) {
       setFile(droppedFile);
       setTranscript("");
+      setAnalysis(null);
     }
   };
 
@@ -66,8 +88,47 @@ const Transcribe = () => {
   const clearFile = () => {
     setFile(null);
     setTranscript("");
+    setAnalysis(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
+    }
+  };
+
+  const analyzeTranscript = async (text: string) => {
+    setIsAnalyzing(true);
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-gulf-arabic`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({ transcript: text }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "فشل التحليل");
+      }
+
+      const result = await response.json();
+      if (result.success && result.analysis) {
+        setAnalysis(result.analysis);
+        toast.success("تم التحليل بنجاح!", {
+          description: `تم استخراج ${result.analysis.vocabulary?.length || 0} كلمات`
+        });
+      }
+    } catch (error) {
+      console.error("Analysis error:", error);
+      toast.error("فشل التحليل", {
+        description: error instanceof Error ? error.message : "حدث خطأ غير متوقع"
+      });
+    } finally {
+      setIsAnalyzing(false);
     }
   };
 
@@ -115,8 +176,11 @@ const Transcribe = () => {
       setProgress(100);
       setTranscript(result.text);
       toast.success("تم التحويل بنجاح!", {
-        description: `تم تحويل ${file.name}`
+        description: `تم تحويل ${file.name}، جاري التحليل...`
       });
+      
+      // Automatically analyze the transcript
+      await analyzeTranscript(result.text);
     } catch (error) {
       console.error("Transcription error:", error);
       toast.error("فشل التحويل", {
@@ -277,6 +341,96 @@ const Transcribe = () => {
                 dir="rtl"
                 style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
               />
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Analysis Loading */}
+        {isAnalyzing && (
+          <Card>
+            <CardContent className="py-8">
+              <div className="flex flex-col items-center gap-4">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <p className="text-muted-foreground">جاري تحليل المفردات والقواعد...</p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Vocabulary Section */}
+        {analysis?.vocabulary && analysis.vocabulary.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BookOpen className="h-5 w-5 text-primary" />
+                المفردات الرئيسية
+              </CardTitle>
+              <CardDescription>
+                {analysis.vocabulary.length} كلمات مستخرجة من النص
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-3">
+                {analysis.vocabulary.map((item, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center justify-between p-3 rounded-lg bg-muted/50 border"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span
+                        className="text-2xl font-bold text-foreground"
+                        style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
+                      >
+                        {item.word}
+                      </span>
+                      <Badge variant="outline" className="font-mono text-xs">
+                        {item.root}
+                      </Badge>
+                    </div>
+                    <span className="text-muted-foreground">{item.meaning}</span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Grammar Section */}
+        {analysis?.grammar && analysis.grammar.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Languages className="h-5 w-5 text-primary" />
+                نقاط القواعد
+              </CardTitle>
+              <CardDescription>
+                قواعد اللهجة الخليجية المستخدمة في النص
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {analysis.grammar.map((item, index) => (
+                  <div key={index} className="p-4 rounded-lg bg-muted/50 border">
+                    <h4 className="font-semibold text-foreground mb-2">{item.point}</h4>
+                    <p className="text-muted-foreground text-sm">{item.explanation}</p>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Cultural Context */}
+        {analysis?.culture && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-primary" />
+                السياق الثقافي
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground leading-relaxed">{analysis.culture}</p>
             </CardContent>
           </Card>
         )}

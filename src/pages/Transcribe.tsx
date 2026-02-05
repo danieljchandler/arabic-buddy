@@ -1,4 +1,4 @@
- import { useState, useRef, useMemo } from "react";
+ import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
@@ -24,11 +24,6 @@ import { HomeButton } from "@/components/HomeButton";
    }>;
  }
  
- interface AnalysisApiResponse {
-   vocabulary: Array<{ word: string; meaning: string; root: string }>;
-   grammar: Array<{ point: string; explanation: string }>;
-   culture: string;
- }
 
 const Transcribe = () => {
   const [file, setFile] = useState<File | null>(null);
@@ -86,62 +81,51 @@ const Transcribe = () => {
     }
   };
 
-   const analyzeTranscript = async (rawText: string): Promise<{ vocabulary: VocabItem[]; grammarPoints: GrammarPoint[]; culturalContext?: string } | null> => {
-    setIsAnalyzing(true);
-    try {
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-gulf-arabic`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-          },
+   const analyzeTranscript = async (rawText: string): Promise<{ vocabulary: VocabItem[]; grammarPoints: GrammarPoint[]; culturalContext?: string; lines?: TranscriptResult['lines'] } | null> => {
+     setIsAnalyzing(true);
+     try {
+       const response = await fetch(
+         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-gulf-arabic`,
+         {
+           method: "POST",
+           headers: {
+             "Content-Type": "application/json",
+             apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+             Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+           },
            body: JSON.stringify({ transcript: rawText }),
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "فشل التحليل");
-      }
-
-       const result: { success: boolean; analysis?: AnalysisApiResponse } = await response.json();
-      if (result.success && result.analysis) {
-         // Transform API response to our types
-         const transformedVocab: VocabItem[] = result.analysis.vocabulary.map(v => ({
-           arabic: v.word,
-           english: v.meaning,
-           root: v.root,
-         }));
-         
-         const transformedGrammar: GrammarPoint[] = result.analysis.grammar.map(g => ({
-           title: g.point,
-           explanation: g.explanation,
-         }));
+         }
+       );
  
-        toast.success("تم التحليل بنجاح!", {
-           description: `تم استخراج ${transformedVocab.length} كلمات`
-        });
+       if (!response.ok) {
+         const errorData = await response.json();
+         throw new Error(errorData.error || "فشل التحليل");
+       }
+ 
+       const apiResponse: { success: boolean; result?: TranscriptResult; error?: string } = await response.json();
+       if (apiResponse.success && apiResponse.result) {
+         toast.success("تم التحليل بنجاح!", {
+           description: `تم استخراج ${apiResponse.result.vocabulary.length} كلمات و ${apiResponse.result.lines.length} جمل`
+         });
  
          return {
-           vocabulary: transformedVocab,
-           grammarPoints: transformedGrammar,
-           culturalContext: result.analysis.culture,
+           vocabulary: apiResponse.result.vocabulary,
+           grammarPoints: apiResponse.result.grammarPoints,
+           culturalContext: apiResponse.result.culturalContext,
+           lines: apiResponse.result.lines,
          };
-      }
+       }
        return null;
-    } catch (error) {
-      console.error("Analysis error:", error);
-      toast.error("فشل التحليل", {
-        description: error instanceof Error ? error.message : "حدث خطأ غير متوقع"
-      });
+     } catch (error) {
+       console.error("Analysis error:", error);
+       toast.error("فشل التحليل", {
+         description: error instanceof Error ? error.message : "حدث خطأ غير متوقع"
+       });
        return null;
-    } finally {
-      setIsAnalyzing(false);
-    }
-  };
+     } finally {
+       setIsAnalyzing(false);
+     }
+   };
 
   const transcribeFile = async () => {
     if (!file) return;
@@ -207,6 +191,7 @@ const Transcribe = () => {
            vocabulary: analysisData.vocabulary,
            grammarPoints: analysisData.grammarPoints,
            culturalContext: analysisData.culturalContext,
+           lines: analysisData.lines || [],
          } : null);
        }
     } catch (error) {

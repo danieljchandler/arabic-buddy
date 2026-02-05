@@ -40,88 +40,94 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
- const getSystemPrompt = (isRetry: boolean = false) => {
-   const strictPrefix = isRetry ? "CRITICAL: Return ONLY valid JSON. No commentary, no markdown, no explanation. Just the JSON object.\n\n" : "";
-   
-   return `${strictPrefix}You are an expert Gulf Arabic linguist analyzing spoken dialect transcripts for language learners.
+  const getSystemPrompt = (isRetry: boolean = false) => {
+    const strictPrefix = isRetry
+      ? "CRITICAL: Return ONLY valid JSON. No commentary, no markdown, no explanation. Just the JSON object.\n\n"
+      : "";
+
+    return `${strictPrefix}You are processing Gulf Arabic transcript text for language learners.
+
+Output ONLY valid JSON matching this schema:
+{
+  "rawTranscriptArabic": string,
+  "lines": [{
+    "id": string,
+    "arabic": string,
+    "translation": string,
+    "tokens": [{
+      "id": string,
+      "surface": string,
+      "standard"?: string,
+      "gloss"?: string
+    }]
+  }],
+  "vocabulary": [{"arabic": string, "english": string, "root"?: string}],
+  "grammarPoints": [{"title": string, "explanation": string, "examples"?: string[]}]
+}
+
+Rules:
+- Split into natural sentence-by-sentence lines; translation must be sentence-by-sentence.
+- Keep dialect spelling exactly as spoken (do NOT normalize).
+- Tokens must preserve spoken form in surface.
+- Provide standard only when an MSA spelling is clearly different and helpful.
+- Provide gloss for content words (verbs/nouns/adjectives); skip if unsure.
+- Keep punctuation attached to the preceding word.
+- Vocabulary: 5–8 useful words with English meaning and root when applicable.
+- GrammarPoints: 2–4 dialect-specific points with brief examples from the transcript.
+
+No additional text outside JSON.`;
+  };
  
- OUTPUT FORMAT: Return ONLY valid JSON matching this exact schema:
- {
-   "rawTranscriptArabic": string,
-   "lines": [{
-     "id": string (e.g. "line-1", "line-2"),
-     "arabic": string (full sentence as spoken),
-     "translation": string (natural English translation),
-     "tokens": [{
-       "id": string (e.g. "line-1-tok-1"),
-       "surface": string (word as spoken in dialect),
-       "standard": string | null (MSA spelling if different, e.g. "كيف" for Gulf "شلون"),
-       "gloss": string | null (short English meaning, 1-3 words)
-     }]
-   }],
-   "vocabulary": [{"arabic": string, "english": string, "root": string | null}],
-   "grammarPoints": [{"title": string, "explanation": string, "examples": string[]}]
- }
+  async function callAI(
+    transcript: string,
+    apiKey: string,
+    isRetry: boolean = false,
+  ): Promise<{ content: string | null; error?: string; status?: number }> {
+    const controller = new AbortController();
+    // Keep under typical serverless limits; prevents UI from hanging indefinitely.
+    const timeoutMs = 25_000;
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+    const startedAt = Date.now();
+    let response: Response;
+    try {
+      response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        method: 'POST',
+        signal: controller.signal,
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          // Faster + cheaper by default; good enough for structured extraction.
+          model: 'google/gemini-3-flash-preview',
+          messages: [
+            { role: 'system', content: getSystemPrompt(isRetry) },
+            { role: 'user', content: transcript },
+          ],
+        }),
+      });
+    } catch (e) {
+      const elapsedMs = Date.now() - startedAt;
+      const isAbort = e instanceof DOMException && e.name === 'AbortError';
+      console.error('AI fetch failed:', { isRetry, elapsedMs, isAbort, error: String(e) });
+      return {
+        content: null,
+        error: isAbort ? `AI request timed out after ${timeoutMs}ms` : String(e),
+        status: isAbort ? 504 : 500,
+      };
+    } finally {
+      clearTimeout(timeout);
+    }
+
+    const elapsedMs = Date.now() - startedAt;
+    console.log('AI gateway response:', { status: response.status, ok: response.ok, isRetry, elapsedMs });
  
- TOKENIZATION RULES:
- 1. Split transcript into natural sentence-by-sentence lines
- 2. Keep dialect spelling exactly as spoken (e.g. شلون not كيف, ليش not لماذا)
- 3. Provide "standard" ONLY when MSA spelling differs meaningfully from dialect
- 4. Provide "gloss" for ALL content words (nouns, verbs, adjectives, key adverbs)
- 5. Skip gloss for common particles (و، في، من) unless meaning is unclear
- 6. Attach punctuation to the preceding word token
- 
- VOCABULARY EXTRACTION:
- - Extract 5-8 key vocabulary words that are most useful for learners
- - Include trilateral roots when applicable (e.g. ك-ت-ب for كتب)
- - Focus on dialect-specific words and expressions
- 
- GRAMMAR POINTS:
- - Identify 2-4 dialect-specific grammar patterns
- - Explain how Gulf Arabic differs from MSA
- - Provide 1-2 examples from the transcript
- 
- EXAMPLE OUTPUT:
- {
-   "rawTranscriptArabic": "شلون حالك؟ الحمد لله",
-   "lines": [
-     {
-       "id": "line-1",
-       "arabic": "شلون حالك؟",
-       "translation": "How are you?",
-       "tokens": [
-         {"id": "line-1-tok-1", "surface": "شلون", "standard": "كيف", "gloss": "how"},
-         {"id": "line-1-tok-2", "surface": "حالك؟", "standard": null, "gloss": "your condition"}
-       ]
-     }
-   ],
-   "vocabulary": [{"arabic": "شلون", "english": "how (Gulf)", "root": null}],
-   "grammarPoints": [{"title": "Question word شلون", "explanation": "Gulf Arabic uses شلون instead of MSA كيف for 'how'", "examples": ["شلون حالك؟"]}]
- }
- 
- NO additional text outside JSON. Return ONLY the JSON object.`;
- };
- 
- async function callAI(transcript: string, apiKey: string, isRetry: boolean = false): Promise<{ content: string | null; error?: string; status?: number }> {
-   const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-     method: 'POST',
-     headers: {
-       'Authorization': `Bearer ${apiKey}`,
-       'Content-Type': 'application/json',
-     },
-     body: JSON.stringify({
-       model: 'openai/gpt-5-mini',
-       messages: [
-         { role: 'system', content: getSystemPrompt(isRetry) },
-         { role: 'user', content: transcript }
-       ],
-     }),
-   });
- 
-   if (!response.ok) {
-     const errorText = await response.text();
-     return { content: null, error: errorText, status: response.status };
-   }
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('AI gateway error body (first 800 chars):', errorText?.slice?.(0, 800) ?? errorText);
+      return { content: null, error: errorText, status: response.status };
+    }
  
    const data = await response.json();
    const content = data.choices?.[0]?.message?.content;

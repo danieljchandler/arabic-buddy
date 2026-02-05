@@ -7,6 +7,7 @@ import { Upload, FileAudio, Download, Loader2, X, BookOpen, Languages, Sparkles 
 import { toast } from "sonner";
 import { HomeButton } from "@/components/HomeButton";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { supabase } from "@/integrations/supabase/client";
  import { Badge } from "@/components/ui/badge";
  import type { TranscriptResult, VocabItem, GrammarPoint } from "@/types/transcript";
   import { LineByLineTranscript } from "@/components/transcript/LineByLineTranscript";
@@ -148,45 +149,60 @@ const Transcribe = () => {
     }
   };
 
-   const analyzeTranscript = async (rawText: string): Promise<{ vocabulary: VocabItem[]; grammarPoints: GrammarPoint[]; culturalContext?: string; lines?: TranscriptResult['lines'] } | null> => {
+   const analyzeTranscript = async (
+     rawText: string,
+   ): Promise<{
+     vocabulary: VocabItem[];
+     grammarPoints: GrammarPoint[];
+     culturalContext?: string;
+     lines?: TranscriptResult["lines"];
+   } | null> => {
      setIsAnalyzing(true);
      try {
-       const response = await fetch(
-         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyze-gulf-arabic`,
-         {
-           method: "POST",
-           headers: {
-             "Content-Type": "application/json",
-             apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-             Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-           },
-           body: JSON.stringify({ transcript: rawText }),
-         }
-       );
- 
-       if (!response.ok) {
-         const errorData = await response.json();
-         throw new Error(errorData.error || "فشل التحليل");
+       setDebugTrace({ phase: "request:analyze", at: new Date().toISOString() });
+
+       const { data, error } = await supabase.functions.invoke<{
+         success: boolean;
+         result?: TranscriptResult;
+         error?: string;
+         details?: unknown;
+       }>("analyze-gulf-arabic", {
+         body: { transcript: rawText },
+       });
+
+       if (error) {
+         throw new Error(error.message || "فشل التحليل");
        }
- 
-       const apiResponse: { success: boolean; result?: TranscriptResult; error?: string } = await response.json();
-       if (apiResponse.success && apiResponse.result) {
-         toast.success("تم التحليل بنجاح!", {
-           description: `تم استخراج ${apiResponse.result.vocabulary.length} كلمات و ${apiResponse.result.lines.length} جمل`
-         });
- 
-         return {
-           vocabulary: apiResponse.result.vocabulary,
-           grammarPoints: apiResponse.result.grammarPoints,
-           culturalContext: apiResponse.result.culturalContext,
-           lines: apiResponse.result.lines,
-         };
+
+       if (!data?.success || !data.result) {
+         throw new Error(data?.error || "فشل التحليل");
        }
-       return null;
+
+       toast.success("تم التحليل بنجاح!", {
+         description: `تم استخراج ${data.result.vocabulary.length} كلمات و ${data.result.lines.length} جمل`,
+       });
+
+       setDebugTrace({
+         phase: "response:analyze",
+         at: new Date().toISOString(),
+         details: { lines: data.result.lines.length, vocab: data.result.vocabulary.length },
+       });
+
+       return {
+         vocabulary: data.result.vocabulary,
+         grammarPoints: data.result.grammarPoints,
+         culturalContext: data.result.culturalContext,
+         lines: data.result.lines,
+       };
      } catch (error) {
        console.error("Analysis error:", error);
+       setDebugTrace({
+         phase: "error:analyze",
+         at: new Date().toISOString(),
+         message: error instanceof Error ? error.message : String(error),
+       });
        toast.error("فشل التحليل", {
-         description: error instanceof Error ? error.message : "حدث خطأ غير متوقع"
+         description: error instanceof Error ? error.message : "حدث خطأ غير متوقع",
        });
        return null;
      } finally {
@@ -224,33 +240,24 @@ const Transcribe = () => {
          details: { name: file.name, size: file.size, type: file.type },
        });
 
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-
-      if (!supabaseUrl || !supabaseKey) {
-        throw new Error("Backend not configured");
-      }
-
-      const response = await fetch(
-        `${supabaseUrl}/functions/v1/elevenlabs-transcribe`,
+      const { data, error } = await supabase.functions.invoke<ElevenLabsTranscriptionResult>(
+        "elevenlabs-transcribe",
         {
-          method: "POST",
-          headers: {
-            apikey: supabaseKey,
-            Authorization: `Bearer ${supabaseKey}`,
-          },
           body: formData,
-        }
+        },
       );
 
       if (progressInterval) clearInterval(progressInterval);
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || "فشل التحويل");
+      if (error) {
+        throw new Error(error.message || "فشل التحويل");
       }
 
-       const result: ElevenLabsTranscriptionResult = await response.json();
+      if (!data?.text) {
+        throw new Error("فشل التحويل: لا يوجد نص في الاستجابة");
+      }
+
+      const result = data;
       setProgress(100);
        
        // Initialize TranscriptResult with raw transcript

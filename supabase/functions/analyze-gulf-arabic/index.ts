@@ -43,31 +43,63 @@ const corsHeaders = {
  const getSystemPrompt = (isRetry: boolean = false) => {
    const strictPrefix = isRetry ? "CRITICAL: Return ONLY valid JSON. No commentary, no markdown, no explanation. Just the JSON object.\n\n" : "";
    
-   return `${strictPrefix}You are processing Gulf Arabic transcript text. Output ONLY valid JSON matching this schema:
+   return `${strictPrefix}You are an expert Gulf Arabic linguist analyzing spoken dialect transcripts for language learners.
  
+ OUTPUT FORMAT: Return ONLY valid JSON matching this exact schema:
  {
    "rawTranscriptArabic": string,
    "lines": [{
-     "id": string,
-     "arabic": string,
-     "translation": string,
+     "id": string (e.g. "line-1", "line-2"),
+     "arabic": string (full sentence as spoken),
+     "translation": string (natural English translation),
      "tokens": [{
-       "id": string,
-       "surface": string,
-       "standard"?: string,
-       "gloss"?: string
+       "id": string (e.g. "line-1-tok-1"),
+       "surface": string (word as spoken in dialect),
+       "standard": string | null (MSA spelling if different, e.g. "كيف" for Gulf "شلون"),
+       "gloss": string | null (short English meaning, 1-3 words)
      }]
    }],
-   "vocabulary": [{"arabic": string, "english": string, "root"?: string}],
-   "grammarPoints": [{"title": string, "explanation": string, "examples"?: string[]}]
+   "vocabulary": [{"arabic": string, "english": string, "root": string | null}],
+   "grammarPoints": [{"title": string, "explanation": string, "examples": string[]}]
  }
  
- Rules:
- - Split into sentence-by-sentence lines.
- - Keep dialect spelling as spoken.
- - For tokens, provide standard only when clearly different and helpful.
- - Provide gloss for meaningful words; skip if unsure.
- - No additional text outside JSON.`;
+ TOKENIZATION RULES:
+ 1. Split transcript into natural sentence-by-sentence lines
+ 2. Keep dialect spelling exactly as spoken (e.g. شلون not كيف, ليش not لماذا)
+ 3. Provide "standard" ONLY when MSA spelling differs meaningfully from dialect
+ 4. Provide "gloss" for ALL content words (nouns, verbs, adjectives, key adverbs)
+ 5. Skip gloss for common particles (و، في، من) unless meaning is unclear
+ 6. Attach punctuation to the preceding word token
+ 
+ VOCABULARY EXTRACTION:
+ - Extract 5-8 key vocabulary words that are most useful for learners
+ - Include trilateral roots when applicable (e.g. ك-ت-ب for كتب)
+ - Focus on dialect-specific words and expressions
+ 
+ GRAMMAR POINTS:
+ - Identify 2-4 dialect-specific grammar patterns
+ - Explain how Gulf Arabic differs from MSA
+ - Provide 1-2 examples from the transcript
+ 
+ EXAMPLE OUTPUT:
+ {
+   "rawTranscriptArabic": "شلون حالك؟ الحمد لله",
+   "lines": [
+     {
+       "id": "line-1",
+       "arabic": "شلون حالك؟",
+       "translation": "How are you?",
+       "tokens": [
+         {"id": "line-1-tok-1", "surface": "شلون", "standard": "كيف", "gloss": "how"},
+         {"id": "line-1-tok-2", "surface": "حالك؟", "standard": null, "gloss": "your condition"}
+       ]
+     }
+   ],
+   "vocabulary": [{"arabic": "شلون", "english": "how (Gulf)", "root": null}],
+   "grammarPoints": [{"title": "Question word شلون", "explanation": "Gulf Arabic uses شلون instead of MSA كيف for 'how'", "examples": ["شلون حالك؟"]}]
+ }
+ 
+ NO additional text outside JSON. Return ONLY the JSON object.`;
  };
  
  async function callAI(transcript: string, apiKey: string, isRetry: boolean = false): Promise<{ content: string | null; error?: string; status?: number }> {

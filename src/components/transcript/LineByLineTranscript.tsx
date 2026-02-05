@@ -13,13 +13,15 @@
  interface LineByLineTranscriptProps {
    lines: TranscriptLine[];
    audioUrl?: string;
+  currentTimeMs?: number;
  }
  
  interface InlineTokenProps {
    token: WordToken;
+  isHighlighted?: boolean;
  }
  
- const InlineToken = ({ token }: InlineTokenProps) => {
+ const InlineToken = ({ token, isHighlighted }: InlineTokenProps) => {
    const hasGloss = !!token.gloss;
    const hasStandard = !!token.standard;
  
@@ -30,7 +32,8 @@
            className={cn(
              "cursor-pointer transition-colors duration-150",
              "hover:text-primary hover:underline hover:decoration-primary/40 hover:underline-offset-4",
-             "active:text-primary active:underline active:decoration-primary/60"
+            "active:text-primary active:underline active:decoration-primary/60",
+            isHighlighted && "bg-primary/20 text-primary rounded px-0.5"
            )}
            role="button"
            tabIndex={0}
@@ -90,6 +93,7 @@
    onToggle: () => void;
    onPlay: () => void;
    hasAudio: boolean;
+  currentTimeMs?: number;
  }
  
  const TranscriptLineCard = ({
@@ -100,7 +104,16 @@
    onToggle,
    onPlay,
    hasAudio,
+  currentTimeMs,
  }: TranscriptLineCardProps) => {
+  // Determine if a token should be highlighted based on current playback time
+  const isTokenHighlighted = (token: WordToken, index: number): boolean => {
+    if (!isActive || !isPlaying || currentTimeMs === undefined) return false;
+    // Future: check token.startMs and token.endMs when available
+    // For now, return false until timestamps are mapped
+    return false;
+  };
+
    return (
      <div
        className={cn(
@@ -149,7 +162,7 @@
            {line.tokens && line.tokens.length > 0 ? (
              line.tokens.map((token, index) => (
                <span key={token.id} data-token className="inline">
-                 <InlineToken token={token} />
+                  <InlineToken token={token} isHighlighted={isTokenHighlighted(token, index)} />
                  {/* Add space between words, but not after punctuation-only tokens */}
                  {index < line.tokens.length - 1 &&
                    !/^[،؟.!:؛]+$/.test(token.surface) && " "}
@@ -199,11 +212,13 @@
  export const LineByLineTranscript = ({
    lines,
    audioUrl,
+  currentTimeMs,
  }: LineByLineTranscriptProps) => {
    const [showAllTranslations, setShowAllTranslations] = useState(false);
    const [expandedLines, setExpandedLines] = useState<Set<string>>(new Set());
    const [activeLineId, setActiveLineId] = useState<string | null>(null);
    const [isPlaying, setIsPlaying] = useState(false);
+  const [internalCurrentTimeMs, setInternalCurrentTimeMs] = useState<number>(0);
    const audioRef = useRef<HTMLAudioElement | null>(null);
  
    // Initialize audio element
@@ -223,6 +238,12 @@
        audioRef.current.addEventListener('play', () => {
          setIsPlaying(true);
        });
+      
+      audioRef.current.addEventListener('timeupdate', () => {
+        if (audioRef.current) {
+          setInternalCurrentTimeMs(audioRef.current.currentTime * 1000);
+        }
+      });
      }
      
      return () => {
@@ -240,6 +261,9 @@
      }
    }, [audioUrl]);
  
+  // Use external currentTimeMs if provided, otherwise use internal
+  const effectiveCurrentTimeMs = currentTimeMs ?? internalCurrentTimeMs;
+
    const handlePlayLine = (line: TranscriptLine) => {
      if (!audioRef.current || !audioUrl) return;
  
@@ -330,6 +354,7 @@
              onToggle={() => toggleLine(line.id)}
              onPlay={() => handlePlayLine(line)}
              hasAudio={!!audioUrl}
+            currentTimeMs={effectiveCurrentTimeMs}
            />
          ))}
        </div>

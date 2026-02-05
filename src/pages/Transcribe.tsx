@@ -1,4 +1,4 @@
-  import { useMemo, useState, useRef } from "react";
+  import { useEffect, useMemo, useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
@@ -57,6 +57,55 @@ const Transcribe = () => {
        return false;
      }
    }, []);
+
+   // Persist debugTrace across reloads so we can tell if this is a page reload vs a React render crash.
+   useEffect(() => {
+     if (!debugTrace) return;
+     try {
+       sessionStorage.setItem("__transcribe_debug_trace", JSON.stringify(debugTrace));
+     } catch {
+       // ignore
+     }
+   }, [debugTrace]);
+
+   useEffect(() => {
+     try {
+       const storedTrace = sessionStorage.getItem("__transcribe_debug_trace");
+       const unloadAt = sessionStorage.getItem("__transcribe_unload_at");
+       const unloadPhase = sessionStorage.getItem("__transcribe_unload_phase");
+
+       if (storedTrace && !debugTrace) {
+         setDebugTrace(JSON.parse(storedTrace));
+       }
+
+       if (unloadAt) {
+         // Show a toast after a reload so it's visible even if the UI flashes white.
+         toast.error("تمت إعادة تحميل الصفحة أثناء الرفع", {
+           description: unloadPhase
+             ? `آخر مرحلة: ${unloadPhase}`
+             : "تم اكتشاف إعادة تحميل غير متوقعة.",
+         });
+         sessionStorage.removeItem("__transcribe_unload_at");
+         sessionStorage.removeItem("__transcribe_unload_phase");
+       }
+     } catch (err) {
+       console.error("Failed to restore transcribe debug state:", err);
+     }
+     // eslint-disable-next-line react-hooks/exhaustive-deps
+   }, []);
+
+   useEffect(() => {
+     const onBeforeUnload = () => {
+       try {
+         sessionStorage.setItem("__transcribe_unload_at", new Date().toISOString());
+         sessionStorage.setItem("__transcribe_unload_phase", debugTrace?.phase ?? "unknown");
+       } catch {
+         // ignore
+       }
+     };
+     window.addEventListener("beforeunload", onBeforeUnload);
+     return () => window.removeEventListener("beforeunload", onBeforeUnload);
+   }, [debugTrace?.phase]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
      try {

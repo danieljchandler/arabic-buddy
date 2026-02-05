@@ -87,7 +87,7 @@ export const VocabularyCard = ({
             <img
               src={word.image_url}
               alt=""
-              className="w-full h-full object-cover"
+              className="w-full h-full object-contain"
               style={{ 
                 objectPosition: word.image_position 
                   ? `${word.image_position.split(' ')[0]}% ${word.image_position.split(' ')[1]}%`

@@ -334,13 +334,13 @@ const Transcribe = () => {
         </Card>
 
         {/* Transcript Display */}
-        {transcript && (
+         {lines.length > 0 ? (
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
                 <CardTitle>النص المحوّل</CardTitle>
                 <CardDescription>
-                  {transcript.length} حرف
+                   {lines.length} جملة
                 </CardDescription>
               </div>
               <Button onClick={exportTranscript} variant="outline">
@@ -349,25 +349,34 @@ const Transcribe = () => {
               </Button>
             </CardHeader>
             <CardContent>
-              <Textarea
-                value={transcript}
-                readOnly
-                className="min-h-[200px] text-right font-arabic text-lg leading-relaxed"
-                dir="rtl"
-                style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
-              />
+               <LineByLineTranscript lines={lines} />
             </CardContent>
           </Card>
-        )}
-
-         {/* Line-by-Line Transcript */}
-         {lines.length > 0 && (
+         ) : transcript ? (
            <Card>
-             <CardContent className="pt-6">
-               <LineByLineTranscript lines={lines} />
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>النص المحوّل</CardTitle>
+                  <CardDescription>
+                    {transcript.length} حرف
+                  </CardDescription>
+                </div>
+                <Button onClick={exportTranscript} variant="outline">
+                  <Download className="ml-2 h-4 w-4" />
+                  تصدير
+                </Button>
+              </CardHeader>
+              <CardContent>
+                <p
+                  className="text-right text-lg leading-relaxed text-foreground"
+                  dir="rtl"
+                  style={{ fontFamily: "'Cairo', 'Traditional Arabic', sans-serif" }}
+                >
+                  {transcript}
+                </p>
              </CardContent>
            </Card>
-         )}
+         ) : null}
  
         {/* Analysis Loading */}
         {isAnalyzing && (

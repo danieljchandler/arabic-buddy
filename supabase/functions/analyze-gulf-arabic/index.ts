@@ -1,5 +1,10 @@
  import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
  
+// Helper to generate unique IDs
+function generateId(): string {
+  return crypto.randomUUID().slice(0, 8);
+}
+
  // Types matching src/types/transcript.ts
  interface WordToken {
    id: string;
@@ -86,15 +91,14 @@ No additional text outside JSON.`;
     isRetry: boolean = false,
   ): Promise<{ content: string | null; error?: string; status?: number }> {
     const controller = new AbortController();
-    // Keep under typical serverless limits; prevents UI from hanging indefinitely.
-    const timeoutMs = 25_000;
+    // Allow longer timeout for complex transcripts - edge functions can run up to 60s
+    const timeoutMs = 55_000;
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
-       // Estimate output tokens needed: ~10 tokens per sentence, assume ~50 sentences max
-       // Plus vocabulary, grammar, etc. Request generous output limit.
-       const maxOutputTokens = 8192;
- 
-       const startedAt = Date.now();
+    // Use higher token limit for long transcripts
+    const maxOutputTokens = 16384;
+
+    const startedAt = Date.now();
     let response: Response;
     try {
       response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
@@ -105,8 +109,8 @@ No additional text outside JSON.`;
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          // Use gemini-2.5-flash for better output handling and longer context
-          model: 'google/gemini-2.5-flash',
+          // Use gemini-2.5-pro for complex structured output with long transcripts
+          model: 'google/gemini-2.5-pro',
           messages: [
             { role: 'system', content: getSystemPrompt(isRetry) },
             { role: 'user', content: transcript },
@@ -141,6 +145,32 @@ No additional text outside JSON.`;
    return { content };
  }
  
+// Create a simple fallback result when AI parsing fails
+function createFallbackResult(transcript: string): TranscriptResult {
+  // Split by common Arabic sentence endings and newlines
+  const sentences = transcript
+    .split(/[.،؟!؛\n]+/)
+    .map(s => s.trim())
+    .filter(s => s.length > 0);
+
+  const lines: TranscriptLine[] = sentences.map((sentence, index) => ({
+    id: `line-${generateId()}-${index}`,
+    arabic: sentence,
+    translation: '',
+    tokens: sentence.split(/\s+/).filter(Boolean).map((word, wordIndex) => ({
+      id: `token-${generateId()}-${index}-${wordIndex}`,
+      surface: word,
+    })),
+  }));
+
+  return {
+    rawTranscriptArabic: transcript,
+    lines,
+    vocabulary: [],
+    grammarPoints: [],
+  };
+}
+
  function parseAIResponse(content: string): TranscriptResult | null {
    // Clean the response in case there's any markdown formatting
    const cleanedContent = content
@@ -245,12 +275,11 @@ serve(async (req) => {
        
        if (!analysis) {
          console.error('Failed to parse AI response after retry');
+          console.log('Using fallback: splitting transcript into basic lines');
+          const fallback = createFallbackResult(transcript);
          return new Response(
-           JSON.stringify({ 
-             error: 'Failed to parse AI analysis after retry', 
-             rawContent: result.content 
-           }),
-           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            JSON.stringify({ success: true, result: fallback, partial: true }),
+            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
          );
        }
     }

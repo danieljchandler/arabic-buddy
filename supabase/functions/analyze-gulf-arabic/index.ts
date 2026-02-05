@@ -43,52 +43,31 @@ const corsHeaders = {
  const getSystemPrompt = (isRetry: boolean = false) => {
    const strictPrefix = isRetry ? "CRITICAL: Return ONLY valid JSON. No commentary, no markdown, no explanation. Just the JSON object.\n\n" : "";
    
-   return `${strictPrefix}You are an expert Khaleeji Arabic linguist and language teacher. Your task is to analyze the provided Gulf Arabic transcript and return structured pedagogical data.
+   return `${strictPrefix}You are processing Gulf Arabic transcript text. Output ONLY valid JSON matching this schema:
  
- TASK:
- 1. Split the transcript into natural sentence-by-sentence lines (if a sentence is very long, split into 2 clauses).
- 2. For each line, provide:
-    - arabic: the sentence as spoken (keep dialect spellings like ماي, واجد, ترى)
-    - translation: English translation
-    - tokens: tokenize the Arabic into individual words/particles, each with:
-      - id: unique identifier like "line1_token1"
-      - surface: the token as shown in the line
-      - standard: (optional) more standard/MSA spelling if different (e.g., ماي → ماء)
-      - gloss: (optional) short English meaning for meaningful tokens (skip very common particles)
- 
- 3. Identify 5-8 key vocabulary words with:
-    - arabic: the word
-    - english: meaning
-    - root: 3-letter trilateral root (optional if unclear)
- 
- 4. Identify 2-3 grammar points specific to Gulf dialect:
-    - title: the grammar point name
-    - explanation: how it works
-    - examples: (optional) 1-2 example usages
- 
- 5. Provide one cultural context tip as culturalContext string.
- 
- OUTPUT FORMAT - Return ONLY this JSON structure, no markdown or commentary:
  {
-   "lines": [
-     {
-       "id": "line1",
-       "arabic": "شلونك اليوم؟",
-       "translation": "How are you today?",
-       "tokens": [
-         {"id": "line1_t1", "surface": "شلونك", "standard": "كيف حالك", "gloss": "how are you"},
-         {"id": "line1_t2", "surface": "اليوم", "gloss": "today"}
-       ]
-     }
-   ],
-   "vocabulary": [
-     {"arabic": "شلونك", "english": "how are you", "root": "ل-و-ن"}
-   ],
-   "grammarPoints": [
-     {"title": "شلون construction", "explanation": "Gulf Arabic uses شلون (from شو + لون) for 'how'", "examples": ["شلونك؟", "شلون الجو؟"]}
-   ],
-   "culturalContext": "Asking about someone's wellbeing is an important social greeting in Gulf culture."
- }`;
+   "rawTranscriptArabic": string,
+   "lines": [{
+     "id": string,
+     "arabic": string,
+     "translation": string,
+     "tokens": [{
+       "id": string,
+       "surface": string,
+       "standard"?: string,
+       "gloss"?: string
+     }]
+   }],
+   "vocabulary": [{"arabic": string, "english": string, "root"?: string}],
+   "grammarPoints": [{"title": string, "explanation": string, "examples"?: string[]}]
+ }
+ 
+ Rules:
+ - Split into sentence-by-sentence lines.
+ - Keep dialect spelling as spoken.
+ - For tokens, provide standard only when clearly different and helpful.
+ - Provide gloss for meaningful words; skip if unsure.
+ - No additional text outside JSON.`;
  };
  
  async function callAI(transcript: string, apiKey: string, isRetry: boolean = false): Promise<{ content: string | null; error?: string; status?: number }> {

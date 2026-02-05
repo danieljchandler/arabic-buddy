@@ -16,7 +16,7 @@ const TARGET_HEIGHT = 600;
 
 /**
  * Resizes an image to fit within the target dimensions while maintaining aspect ratio
- * and crops to fill the 4:3 frame
+ * NO CROPPING - the entire image is preserved, with letterboxing if needed
  */
 const resizeImage = (file: File): Promise<Blob> => {
   return new Promise((resolve, reject) => {
@@ -30,34 +30,42 @@ const resizeImage = (file: File): Promise<Blob> => {
         return;
       }
 
-      // Calculate scaling to cover the target area (crop to fill)
+      // Calculate scaling to fit entire image (no cropping)
       const sourceRatio = img.width / img.height;
       const targetRatio = TARGET_WIDTH / TARGET_HEIGHT;
 
-      let sourceWidth = img.width;
-      let sourceHeight = img.height;
-      let sourceX = 0;
-      let sourceY = 0;
+      let destWidth: number;
+      let destHeight: number;
+      let destX: number;
+      let destY: number;
 
       if (sourceRatio > targetRatio) {
-        // Image is wider than target - crop sides
-        sourceWidth = img.height * targetRatio;
-        sourceX = (img.width - sourceWidth) / 2;
+        // Image is wider - fit to width, letterbox top/bottom
+        destWidth = TARGET_WIDTH;
+        destHeight = TARGET_WIDTH / sourceRatio;
+        destX = 0;
+        destY = (TARGET_HEIGHT - destHeight) / 2;
       } else {
-        // Image is taller than target - crop top/bottom
-        sourceHeight = img.width / targetRatio;
-        sourceY = (img.height - sourceHeight) / 2;
+        // Image is taller - fit to height, letterbox left/right
+        destHeight = TARGET_HEIGHT;
+        destWidth = TARGET_HEIGHT * sourceRatio;
+        destX = (TARGET_WIDTH - destWidth) / 2;
+        destY = 0;
       }
 
       // Set canvas to target size
       canvas.width = TARGET_WIDTH;
       canvas.height = TARGET_HEIGHT;
 
-      // Draw the cropped and resized image
+      // Fill with warm sand background to match the app theme
+      ctx.fillStyle = '#F5F0E8';
+      ctx.fillRect(0, 0, TARGET_WIDTH, TARGET_HEIGHT);
+
+      // Draw the entire image (no cropping)
       ctx.drawImage(
         img,
-        sourceX, sourceY, sourceWidth, sourceHeight,
-        0, 0, TARGET_WIDTH, TARGET_HEIGHT
+        0, 0, img.width, img.height,
+        destX, destY, destWidth, destHeight
       );
 
       canvas.toBlob(

@@ -150,38 +150,46 @@ const Transcribe = () => {
 
     setIsProcessing(true);
     setProgress(0);
-
-    // Simulate progress while waiting for API response
-    const progressInterval = setInterval(() => {
-      setProgress(prev => {
-        if (prev >= 90) {
-          clearInterval(progressInterval);
-          return 90;
-        }
-        return prev + Math.random() * 10;
-      });
-    }, 500);
+    let progressInterval: ReturnType<typeof setInterval> | null = null;
 
     try {
+      // Simulate progress while waiting for API response
+      progressInterval = setInterval(() => {
+        setProgress(prev => {
+          if (prev >= 90) {
+            if (progressInterval) clearInterval(progressInterval);
+            return 90;
+          }
+          return prev + Math.random() * 10;
+        });
+      }, 500);
+
       const formData = new FormData();
       formData.append("audio", file);
 
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+      if (!supabaseUrl || !supabaseKey) {
+        throw new Error("Backend not configured");
+      }
+
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/elevenlabs-transcribe`,
+        `${supabaseUrl}/functions/v1/elevenlabs-transcribe`,
         {
           method: "POST",
           headers: {
-            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            apikey: supabaseKey,
+            Authorization: `Bearer ${supabaseKey}`,
           },
           body: formData,
         }
       );
 
-      clearInterval(progressInterval);
+      if (progressInterval) clearInterval(progressInterval);
 
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.error || "فشل التحويل");
       }
 
@@ -218,7 +226,7 @@ const Transcribe = () => {
         description: error instanceof Error ? error.message : "حدث خطأ غير متوقع"
       });
     } finally {
-      clearInterval(progressInterval);
+      if (progressInterval) clearInterval(progressInterval);
       setIsProcessing(false);
       setProgress(0);
     }

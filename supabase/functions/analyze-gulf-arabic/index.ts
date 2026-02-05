@@ -127,13 +127,15 @@ async function callAI({
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          // Prefer OpenAI models here for more reliable strict-JSON output.
-          model: 'openai/gpt-5-mini',
+          // Gemini tends to follow "return ONLY JSON" well, and now our schema is small enough
+          // to avoid truncation.
+          model: 'google/gemini-2.5-flash',
           messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userContent },
           ],
           max_tokens: maxTokens,
+          temperature: 0.2,
         }),
       });
     } catch (e) {

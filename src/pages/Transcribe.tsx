@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+ import { useState, useRef, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
@@ -6,48 +6,43 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Upload, FileAudio, Download, Loader2, X, BookOpen, Languages, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { HomeButton } from "@/components/HomeButton";
-import { Badge } from "@/components/ui/badge";
+ import { Badge } from "@/components/ui/badge";
+ import type { TranscriptResult, VocabItem, GrammarPoint } from "@/types/transcript";
 
-interface TranscriptionResult {
-  text: string;
-  words?: Array<{
-    text: string;
-    start: number;
-    end: number;
-    speaker?: string;
-  }>;
-  audio_events?: Array<{
-    type: string;
-    start: number;
-    end: number;
-  }>;
-}
-
-interface VocabularyItem {
-  word: string;
-  meaning: string;
-  root: string;
-}
-
-interface GrammarPoint {
-  point: string;
-  explanation: string;
-}
-
-interface AnalysisResult {
-  vocabulary: VocabularyItem[];
-  grammar: GrammarPoint[];
-  culture: string;
-}
+ interface ElevenLabsTranscriptionResult {
+   text: string;
+   words?: Array<{
+     text: string;
+     start: number;
+     end: number;
+     speaker?: string;
+   }>;
+   audio_events?: Array<{
+     type: string;
+     start: number;
+     end: number;
+   }>;
+ }
+ 
+ interface AnalysisApiResponse {
+   vocabulary: Array<{ word: string; meaning: string; root: string }>;
+   grammar: Array<{ point: string; explanation: string }>;
+   culture: string;
+ }
 
 const Transcribe = () => {
   const [file, setFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [transcript, setTranscript] = useState<string>("");
-  const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
+   const [transcriptResult, setTranscriptResult] = useState<TranscriptResult | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+ 
+   // Derived state for backwards compatibility
+   const transcript = transcriptResult?.rawTranscriptArabic ?? "";
+   const vocabulary = transcriptResult?.vocabulary ?? [];
+   const grammarPoints = transcriptResult?.grammarPoints ?? [];
+   const culturalContext = transcriptResult?.culturalContext;
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -66,8 +61,7 @@ const Transcribe = () => {
       }
       
       setFile(selectedFile);
-      setTranscript("");
-      setAnalysis(null);
+       setTranscriptResult(null);
     }
   };
 
@@ -76,8 +70,7 @@ const Transcribe = () => {
     const droppedFile = e.dataTransfer.files?.[0];
     if (droppedFile) {
       setFile(droppedFile);
-      setTranscript("");
-      setAnalysis(null);
+       setTranscriptResult(null);
     }
   };
 
@@ -87,14 +80,13 @@ const Transcribe = () => {
 
   const clearFile = () => {
     setFile(null);
-    setTranscript("");
-    setAnalysis(null);
+     setTranscriptResult(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
   };
 
-  const analyzeTranscript = async (text: string) => {
+   const analyzeTranscript = async (rawText: string): Promise<{ vocabulary: VocabItem[]; grammarPoints: GrammarPoint[]; culturalContext?: string } | null> => {
     setIsAnalyzing(true);
     try {
       const response = await fetch(
@@ -106,7 +98,7 @@ const Transcribe = () => {
             apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
             Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
           },
-          body: JSON.stringify({ transcript: text }),
+           body: JSON.stringify({ transcript: rawText }),
         }
       );
 
@@ -115,18 +107,37 @@ const Transcribe = () => {
         throw new Error(errorData.error || "فشل التحليل");
       }
 
-      const result = await response.json();
+       const result: { success: boolean; analysis?: AnalysisApiResponse } = await response.json();
       if (result.success && result.analysis) {
-        setAnalysis(result.analysis);
+         // Transform API response to our types
+         const transformedVocab: VocabItem[] = result.analysis.vocabulary.map(v => ({
+           arabic: v.word,
+           english: v.meaning,
+           root: v.root,
+         }));
+         
+         const transformedGrammar: GrammarPoint[] = result.analysis.grammar.map(g => ({
+           title: g.point,
+           explanation: g.explanation,
+         }));
+ 
         toast.success("تم التحليل بنجاح!", {
-          description: `تم استخراج ${result.analysis.vocabulary?.length || 0} كلمات`
+           description: `تم استخراج ${transformedVocab.length} كلمات`
         });
+ 
+         return {
+           vocabulary: transformedVocab,
+           grammarPoints: transformedGrammar,
+           culturalContext: result.analysis.culture,
+         };
       }
+       return null;
     } catch (error) {
       console.error("Analysis error:", error);
       toast.error("فشل التحليل", {
         description: error instanceof Error ? error.message : "حدث خطأ غير متوقع"
       });
+       return null;
     } finally {
       setIsAnalyzing(false);
     }
@@ -172,15 +183,32 @@ const Transcribe = () => {
         throw new Error(errorData.error || "فشل التحويل");
       }
 
-      const result: TranscriptionResult = await response.json();
+       const result: ElevenLabsTranscriptionResult = await response.json();
       setProgress(100);
-      setTranscript(result.text);
+       
+       // Initialize TranscriptResult with raw transcript
+       const initialResult: TranscriptResult = {
+         rawTranscriptArabic: result.text,
+         lines: [], // Will be populated by future sentence parsing
+         vocabulary: [],
+         grammarPoints: [],
+       };
+       setTranscriptResult(initialResult);
+ 
       toast.success("تم التحويل بنجاح!", {
         description: `تم تحويل ${file.name}، جاري التحليل...`
       });
       
       // Automatically analyze the transcript
-      await analyzeTranscript(result.text);
+       const analysisData = await analyzeTranscript(result.text);
+       if (analysisData) {
+         setTranscriptResult(prev => prev ? {
+           ...prev,
+           vocabulary: analysisData.vocabulary,
+           grammarPoints: analysisData.grammarPoints,
+           culturalContext: analysisData.culturalContext,
+         } : null);
+       }
     } catch (error) {
       console.error("Transcription error:", error);
       toast.error("فشل التحويل", {
@@ -358,7 +386,7 @@ const Transcribe = () => {
         )}
 
         {/* Vocabulary Section */}
-        {analysis?.vocabulary && analysis.vocabulary.length > 0 && (
+         {vocabulary.length > 0 && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -366,12 +394,12 @@ const Transcribe = () => {
                 المفردات الرئيسية
               </CardTitle>
               <CardDescription>
-                {analysis.vocabulary.length} كلمات مستخرجة من النص
+                 {vocabulary.length} كلمات مستخرجة من النص
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid gap-3">
-                {analysis.vocabulary.map((item, index) => (
+                 {vocabulary.map((item, index) => (
                   <div
                     key={index}
                     className="flex items-center justify-between p-3 rounded-lg bg-muted/50 border"
@@ -381,13 +409,15 @@ const Transcribe = () => {
                         className="text-2xl font-bold text-foreground"
                         style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
                       >
-                        {item.word}
+                         {item.arabic}
                       </span>
-                      <Badge variant="outline" className="font-mono text-xs">
-                        {item.root}
-                      </Badge>
+                       {item.root && (
+                         <Badge variant="outline" className="font-mono text-xs">
+                           {item.root}
+                         </Badge>
+                       )}
                     </div>
-                    <span className="text-muted-foreground">{item.meaning}</span>
+                     <span className="text-muted-foreground">{item.english}</span>
                   </div>
                 ))}
               </div>
@@ -396,7 +426,7 @@ const Transcribe = () => {
         )}
 
         {/* Grammar Section */}
-        {analysis?.grammar && analysis.grammar.length > 0 && (
+         {grammarPoints.length > 0 && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -409,10 +439,17 @@ const Transcribe = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {analysis.grammar.map((item, index) => (
+                 {grammarPoints.map((item, index) => (
                   <div key={index} className="p-4 rounded-lg bg-muted/50 border">
-                    <h4 className="font-semibold text-foreground mb-2">{item.point}</h4>
+                     <h4 className="font-semibold text-foreground mb-2">{item.title}</h4>
                     <p className="text-muted-foreground text-sm">{item.explanation}</p>
+                     {item.examples && item.examples.length > 0 && (
+                       <ul className="mt-2 text-sm text-muted-foreground list-disc list-inside">
+                         {item.examples.map((ex, i) => (
+                           <li key={i}>{ex}</li>
+                         ))}
+                       </ul>
+                     )}
                   </div>
                 ))}
               </div>
@@ -421,7 +458,7 @@ const Transcribe = () => {
         )}
 
         {/* Cultural Context */}
-        {analysis?.culture && (
+         {culturalContext && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -430,7 +467,7 @@ const Transcribe = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-muted-foreground leading-relaxed">{analysis.culture}</p>
+               <p className="text-muted-foreground leading-relaxed">{culturalContext}</p>
             </CardContent>
           </Card>
         )}

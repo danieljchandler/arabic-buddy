@@ -2,7 +2,11 @@
  import { ChevronDown, ChevronUp, Eye, EyeOff, Play, Pause } from "lucide-react";
  import { cn } from "@/lib/utils";
  import { Switch } from "@/components/ui/switch";
- import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+ import {
+   Popover,
+   PopoverContent,
+   PopoverTrigger,
+ } from "@/components/ui/popover";
  import { Button } from "@/components/ui/button";
  import type { TranscriptLine, WordToken } from "@/types/transcript";
  
@@ -11,61 +15,60 @@
    audioUrl?: string;
  }
  
- interface TokenChipProps {
+ interface InlineTokenProps {
    token: WordToken;
  }
  
- const TokenChip = ({ token }: TokenChipProps) => {
+ const InlineToken = ({ token }: InlineTokenProps) => {
    const hasGloss = !!token.gloss;
    const hasStandard = !!token.standard;
-   const hasInfo = hasGloss || hasStandard;
  
    return (
      <Popover>
        <PopoverTrigger asChild>
-         <button
-           type="button"
+         <span
            className={cn(
-             "inline-block px-1.5 py-0.5 rounded-md text-lg transition-colors",
-             "font-semibold",
-             hasInfo
-               ? "bg-primary/10 hover:bg-primary/20 text-foreground cursor-pointer"
-               : "bg-muted/50 text-foreground/80 cursor-default"
+             "cursor-pointer transition-colors duration-150",
+             "hover:text-primary hover:underline hover:decoration-primary/40 hover:underline-offset-4",
+             "active:text-primary active:underline active:decoration-primary/60"
            )}
-           style={{ fontFamily: "'Cairo', 'Traditional Arabic', sans-serif" }}
+           role="button"
+           tabIndex={0}
          >
            {token.surface}
-         </button>
+         </span>
        </PopoverTrigger>
        <PopoverContent
-         className="w-auto min-w-[160px] max-w-[250px] p-3 bg-card border-border z-50"
+         className="w-auto min-w-[120px] max-w-[200px] p-2.5 bg-card border-border shadow-lg z-[100]"
          side="top"
          align="center"
+         sideOffset={8}
+         collisionPadding={16}
        >
-         <div className="space-y-2 text-sm" dir="ltr">
+         <div className="space-y-1.5" dir="ltr">
            <div
-             className="text-lg font-bold text-foreground text-center"
+             className="text-base font-bold text-foreground text-center pb-1"
              dir="rtl"
              style={{ fontFamily: "'Cairo', 'Traditional Arabic', sans-serif" }}
            >
              {token.surface}
            </div>
-           
+ 
            {hasGloss ? (
-             <div className="text-center text-muted-foreground">
+             <div className="text-sm text-center text-muted-foreground">
                {token.gloss}
              </div>
            ) : (
-             <div className="text-center text-muted-foreground/70 italic text-xs">
-               No gloss available yet
+             <div className="text-xs text-center text-muted-foreground/60 italic">
+               No gloss yet
              </div>
            )}
-           
+ 
            {hasStandard && (
-             <div className="text-xs text-muted-foreground border-t border-border pt-2 mt-2">
-               <span className="text-muted-foreground/70">Standard: </span>
+             <div className="text-xs text-muted-foreground border-t border-border/50 pt-1.5 mt-1">
+               <span className="text-muted-foreground/60">Std: </span>
                <span
-                 className="font-semibold"
+                 className="font-medium"
                  dir="rtl"
                  style={{ fontFamily: "'Cairo', sans-serif" }}
                >
@@ -134,24 +137,26 @@
  
          {/* Arabic sentence with tokens */}
          <div
-           className="flex-1 flex flex-wrap gap-1.5 justify-end leading-relaxed cursor-pointer"
+           className="flex-1 text-lg leading-loose cursor-pointer"
            dir="rtl"
+           style={{ fontFamily: "'Cairo', 'Traditional Arabic', sans-serif" }}
            onClick={(e) => {
-             if ((e.target as HTMLElement).closest('[data-token]')) return;
+             // Don't toggle if clicking on a token
+             if ((e.target as HTMLElement).closest("[data-token]")) return;
              onToggle();
            }}
          >
            {line.tokens && line.tokens.length > 0 ? (
-             line.tokens.map((token) => (
-               <span key={token.id} data-token>
-                 <TokenChip token={token} />
+             line.tokens.map((token, index) => (
+               <span key={token.id} data-token className="inline">
+                 <InlineToken token={token} />
+                 {/* Add space between words, but not after punctuation-only tokens */}
+                 {index < line.tokens.length - 1 &&
+                   !/^[،؟.!:؛]+$/.test(token.surface) && " "}
                </span>
              ))
            ) : (
-             <span
-               className="text-lg text-foreground"
-               style={{ fontFamily: "'Cairo', 'Traditional Arabic', sans-serif" }}
-             >
+             <span className="text-foreground">
                {line.arabic}
              </span>
            )}

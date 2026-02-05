@@ -66,7 +66,9 @@ Output ONLY valid JSON matching this schema:
 }
 
 Rules:
-- Split into natural sentence-by-sentence lines; translation must be sentence-by-sentence.
+- Split the ENTIRE transcript into natural sentence-by-sentence lines. Include ALL sentences from the transcript, not a summary or subset.
+- Do NOT limit or truncate the number of lines. If the transcript has 20 sentences, output 20 lines.
+- Translation must be sentence-by-sentence matching each Arabic line.
 - Keep dialect spelling exactly as spoken (do NOT normalize).
 - Tokens must preserve spoken form in surface.
 - Provide standard only when an MSA spelling is clearly different and helpful.

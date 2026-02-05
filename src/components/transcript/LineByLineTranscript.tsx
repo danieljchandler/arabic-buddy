@@ -1,12 +1,12 @@
- import { useState, useRef, useEffect } from "react";
+ import { useState, useRef, useEffect, forwardRef } from "react";
  import { ChevronDown, ChevronUp, Eye, EyeOff, Play, Pause } from "lucide-react";
  import { cn } from "@/lib/utils";
  import { Switch } from "@/components/ui/switch";
  import {
-   Popover,
-   PopoverContent,
-   PopoverTrigger,
- } from "@/components/ui/popover";
+   Tooltip,
+   TooltipContent,
+   TooltipTrigger,
+ } from "@/components/ui/tooltip";
  import { Button } from "@/components/ui/button";
  import type { TranscriptLine, WordToken } from "@/types/transcript";
  
@@ -24,10 +24,25 @@
  const InlineToken = ({ token, isHighlighted }: InlineTokenProps) => {
    const hasGloss = !!token.gloss;
    const hasStandard = !!token.standard;
+  const hasExtra = hasGloss || hasStandard;
  
+  // If no extra info, just render the word without tooltip
+  if (!hasExtra) {
+    return (
+      <span
+        className={cn(
+          "transition-colors duration-150",
+          isHighlighted && "bg-primary/20 text-primary rounded px-0.5"
+        )}
+      >
+        {token.surface}
+      </span>
+    );
+  }
+
    return (
-     <Popover>
-       <PopoverTrigger asChild>
+    <Tooltip delayDuration={100}>
+      <TooltipTrigger asChild>
          <span
            className={cn(
              "cursor-pointer transition-colors duration-150",
@@ -40,48 +55,23 @@
          >
            {token.surface}
          </span>
-       </PopoverTrigger>
-       <PopoverContent
-         className="w-auto min-w-[120px] max-w-[200px] p-2.5 bg-card border-border shadow-lg z-[100]"
-         side="top"
-         align="center"
-         sideOffset={8}
-         collisionPadding={16}
-       >
-         <div className="space-y-1.5" dir="ltr">
-           <div
-             className="text-base font-bold text-foreground text-center pb-1"
-             dir="rtl"
-             style={{ fontFamily: "'Cairo', 'Traditional Arabic', sans-serif" }}
-           >
-             {token.surface}
-           </div>
- 
-           {hasGloss ? (
-             <div className="text-sm text-center text-muted-foreground">
-               {token.gloss}
-             </div>
-           ) : (
-             <div className="text-xs text-center text-muted-foreground/60 italic">
-               No gloss yet
-             </div>
-           )}
- 
-           {hasStandard && (
-             <div className="text-xs text-muted-foreground border-t border-border/50 pt-1.5 mt-1">
-               <span className="text-muted-foreground/60">Std: </span>
-               <span
-                 className="font-medium"
-                 dir="rtl"
-                 style={{ fontFamily: "'Cairo', sans-serif" }}
-               >
-                 {token.standard}
-               </span>
-             </div>
-           )}
-         </div>
-       </PopoverContent>
-     </Popover>
+      </TooltipTrigger>
+      <TooltipContent
+        side="top"
+        align="center"
+        className="bg-card border-border shadow-lg z-[100] px-2 py-1.5"
+      >
+        <div className="text-sm text-center" dir="ltr">
+          {hasGloss && <span className="text-foreground">{token.gloss}</span>}
+          {hasGloss && hasStandard && <span className="text-muted-foreground mx-1">·</span>}
+          {hasStandard && (
+            <span className="text-muted-foreground text-xs" dir="rtl">
+              {token.standard}
+            </span>
+          )}
+        </div>
+      </TooltipContent>
+    </Tooltip>
    );
  };
  

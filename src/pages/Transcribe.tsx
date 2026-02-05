@@ -124,12 +124,14 @@ const Transcribe = () => {
        const storedTrace = sessionStorage.getItem("__transcribe_debug_trace");
        const unloadAt = sessionStorage.getItem("__transcribe_unload_at");
        const unloadPhase = sessionStorage.getItem("__transcribe_unload_phase");
+        const unloadActive = sessionStorage.getItem("__transcribe_unload_active");
 
        if (storedTrace && !debugTrace) {
          setDebugTrace(JSON.parse(storedTrace));
        }
 
-       if (unloadAt) {
+        // Only show reload/crash toast if we previously recorded that work was in progress.
+        if (unloadAt && unloadActive === "1") {
          // Show a toast after a reload so it's visible even if the UI flashes white.
          toast.error("تمت إعادة تحميل الصفحة أثناء الرفع", {
            description: unloadPhase
@@ -138,6 +140,12 @@ const Transcribe = () => {
          });
          sessionStorage.removeItem("__transcribe_unload_at");
          sessionStorage.removeItem("__transcribe_unload_phase");
+          sessionStorage.removeItem("__transcribe_unload_active");
+        } else if (unloadAt) {
+          // Clean up stale markers from normal navigation.
+          sessionStorage.removeItem("__transcribe_unload_at");
+          sessionStorage.removeItem("__transcribe_unload_phase");
+          sessionStorage.removeItem("__transcribe_unload_active");
        }
      } catch (err) {
        console.error("Failed to restore transcribe debug state:", err);
@@ -148,15 +156,18 @@ const Transcribe = () => {
    useEffect(() => {
      const onBeforeUnload = () => {
        try {
+          // Only record unload markers if we were actively processing.
+          if (!isProcessing && !isAnalyzing) return;
          sessionStorage.setItem("__transcribe_unload_at", new Date().toISOString());
          sessionStorage.setItem("__transcribe_unload_phase", debugTrace?.phase ?? "unknown");
+          sessionStorage.setItem("__transcribe_unload_active", "1");
        } catch {
          // ignore
        }
      };
      window.addEventListener("beforeunload", onBeforeUnload);
      return () => window.removeEventListener("beforeunload", onBeforeUnload);
-   }, [debugTrace?.phase]);
+    }, [debugTrace?.phase, isAnalyzing, isProcessing]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
      try {

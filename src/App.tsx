@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { toast } from "sonner";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import Index from "./pages/Index";
 import Learn from "./pages/Learn";
 import NotFound from "./pages/NotFound";
@@ -27,8 +28,44 @@ const queryClient = new QueryClient();
 
 const App = () => {
   useEffect(() => {
+    const CRASH_KEY = "__app_last_crash";
+
+    const persistCrash = (payload: unknown) => {
+      try {
+        sessionStorage.setItem(
+          CRASH_KEY,
+          JSON.stringify({ at: new Date().toISOString(), url: window.location.href, payload }),
+        );
+      } catch {
+        // ignore
+      }
+    };
+
+    // If the runtime hard-reloaded due to an error, surface the reason after boot.
+    try {
+      const raw = sessionStorage.getItem(CRASH_KEY);
+      if (raw) {
+        sessionStorage.removeItem(CRASH_KEY);
+        const parsed = JSON.parse(raw) as { at?: string; url?: string; payload?: unknown };
+        const msg =
+          parsed?.payload instanceof Error
+            ? parsed.payload.message
+            : typeof parsed?.payload === "string"
+              ? parsed.payload
+              : "";
+
+        toast.error("تعطّل التطبيق قبل قليل", {
+          description: msg || "تم تسجيل التفاصيل في الكونسول. جرّب مرة ثانية.",
+        });
+        console.error("Recovered last crash:", parsed);
+      }
+    } catch (e) {
+      console.error("Failed to restore last crash:", e);
+    }
+
     const onUnhandledRejection = (event: PromiseRejectionEvent) => {
       console.error("Unhandled promise rejection:", event.reason);
+      persistCrash(event.reason);
       toast.error("حدث خطأ غير متوقع", {
         description: "حاول مرة أخرى. إذا استمرت المشكلة، أخبرني بما فعلته بالضبط.",
       });
@@ -38,17 +75,22 @@ const App = () => {
 
     const onError = (event: ErrorEvent) => {
       console.error("Global error:", event.error ?? event.message);
+      persistCrash(event.error ?? event.message);
       // Don't spam toasts for every error; but make crashes visible.
       toast.error("حدث خطأ في الصفحة", {
         description: "تم تسجيل الخطأ في الكونسول. حاول إعادة المحاولة.",
       });
+
+      // In some hosted runtimes, letting this bubble can trigger a hard reload.
+      event.preventDefault();
+      (event as unknown as { stopImmediatePropagation?: () => void }).stopImmediatePropagation?.();
     };
 
     window.addEventListener("unhandledrejection", onUnhandledRejection);
-    window.addEventListener("error", onError);
+    window.addEventListener("error", onError, true);
     return () => {
       window.removeEventListener("unhandledrejection", onUnhandledRejection);
-      window.removeEventListener("error", onError);
+      window.removeEventListener("error", onError, true);
     };
   }, []);
 
@@ -63,7 +105,14 @@ const App = () => {
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/review" element={<Review />} />
-            <Route path="/transcribe" element={<Transcribe />} />
+            <Route
+              path="/transcribe"
+              element={
+                <ErrorBoundary name="TranscribeRoute">
+                  <Transcribe />
+                </ErrorBoundary>
+              }
+            />
             <Route path="/learn/:topicId" element={<Learn />} />
             <Route path="/quiz/:topicId" element={<Quiz />} />
 

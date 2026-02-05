@@ -90,7 +90,11 @@ No additional text outside JSON.`;
     const timeoutMs = 25_000;
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
-    const startedAt = Date.now();
+       // Estimate output tokens needed: ~10 tokens per sentence, assume ~50 sentences max
+       // Plus vocabulary, grammar, etc. Request generous output limit.
+       const maxOutputTokens = 8192;
+ 
+       const startedAt = Date.now();
     let response: Response;
     try {
       response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
@@ -101,12 +105,13 @@ No additional text outside JSON.`;
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          // Faster + cheaper by default; good enough for structured extraction.
-          model: 'google/gemini-3-flash-preview',
+          // Use gemini-2.5-flash for better output handling and longer context
+          model: 'google/gemini-2.5-flash',
           messages: [
             { role: 'system', content: getSystemPrompt(isRetry) },
             { role: 'user', content: transcript },
           ],
+          max_tokens: maxOutputTokens,
         }),
       });
     } catch (e) {

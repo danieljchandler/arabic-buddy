@@ -1,4 +1,4 @@
- import { useState, useRef } from "react";
+  import { useMemo, useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Upload, FileAudio, Download, Loader2, X, BookOpen, Languages, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { HomeButton } from "@/components/HomeButton";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
  import { Badge } from "@/components/ui/badge";
  import type { TranscriptResult, VocabItem, GrammarPoint } from "@/types/transcript";
   import { LineByLineTranscript } from "@/components/transcript/LineByLineTranscript";
@@ -33,6 +34,12 @@ const Transcribe = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [progress, setProgress] = useState(0);
    const [transcriptResult, setTranscriptResult] = useState<TranscriptResult | null>(null);
+   const [debugTrace, setDebugTrace] = useState<{
+     phase: string;
+     at: string;
+     message?: string;
+     details?: unknown;
+   } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
  
    // Derived state for backwards compatibility
@@ -42,44 +49,86 @@ const Transcribe = () => {
    const culturalContext = transcriptResult?.culturalContext;
    const lines = transcriptResult?.lines ?? [];
 
+   const debugEnabled = useMemo(() => {
+     try {
+       return new URLSearchParams(window.location.search).has("debug");
+     } catch {
+       return false;
+     }
+   }, []);
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0];
-    if (selectedFile) {
-      // Validate file type
-      const validTypes = [
-        'audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/m4a', 'audio/ogg',
-        'video/mp4', 'video/webm', 'video/quicktime', 'audio/mp4'
-      ];
-      
-      if (!validTypes.includes(selectedFile.type) && !selectedFile.name.match(/\.(mp3|wav|m4a|ogg|mp4|webm|mov)$/i)) {
-        toast.error("نوع الملف غير مدعوم", {
-          description: "يرجى تحميل ملف صوتي أو فيديو"
-        });
-        return;
-      }
-      
-      setFile(selectedFile);
-       setTranscriptResult(null);
-       // Create blob URL for audio playback
-       if (audioUrl) {
-         URL.revokeObjectURL(audioUrl);
+     try {
+       const selectedFile = e.target.files?.[0];
+       if (selectedFile) {
+         // Validate file type
+         const validTypes = [
+           "audio/mpeg",
+           "audio/mp3",
+           "audio/wav",
+           "audio/m4a",
+           "audio/ogg",
+           "video/mp4",
+           "video/webm",
+           "video/quicktime",
+           "audio/mp4",
+         ];
+
+         if (
+           !validTypes.includes(selectedFile.type) &&
+           !selectedFile.name.match(/\.(mp3|wav|m4a|ogg|mp4|webm|mov)$/i)
+         ) {
+           toast.error("نوع الملف غير مدعوم", {
+             description: "يرجى تحميل ملف صوتي أو فيديو",
+           });
+           return;
+         }
+
+         setFile(selectedFile);
+         setTranscriptResult(null);
+         // Create blob URL for audio playback
+         if (audioUrl) {
+           URL.revokeObjectURL(audioUrl);
+         }
+         setAudioUrl(URL.createObjectURL(selectedFile));
        }
-       setAudioUrl(URL.createObjectURL(selectedFile));
-    }
+     } catch (err) {
+       console.error("handleFileSelect error:", err);
+       setDebugTrace({
+         phase: "fileSelectError",
+         at: new Date().toISOString(),
+         message: err instanceof Error ? err.message : String(err),
+       });
+       toast.error("تعذر اختيار الملف", {
+         description: "حدث خطأ غير متوقع أثناء اختيار الملف.",
+       });
+     }
   };
 
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    const droppedFile = e.dataTransfer.files?.[0];
-    if (droppedFile) {
-      setFile(droppedFile);
-       setTranscriptResult(null);
-       // Create blob URL for audio playback
-       if (audioUrl) {
-         URL.revokeObjectURL(audioUrl);
+     try {
+       e.preventDefault();
+       const droppedFile = e.dataTransfer.files?.[0];
+       if (droppedFile) {
+         setFile(droppedFile);
+         setTranscriptResult(null);
+         // Create blob URL for audio playback
+         if (audioUrl) {
+           URL.revokeObjectURL(audioUrl);
+         }
+         setAudioUrl(URL.createObjectURL(droppedFile));
        }
-       setAudioUrl(URL.createObjectURL(droppedFile));
-    }
+     } catch (err) {
+       console.error("handleDrop error:", err);
+       setDebugTrace({
+         phase: "dropError",
+         at: new Date().toISOString(),
+         message: err instanceof Error ? err.message : String(err),
+       });
+       toast.error("تعذر تحميل الملف", {
+         description: "حدث خطأ غير متوقع أثناء السحب والإفلات.",
+       });
+     }
   };
 
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
@@ -148,11 +197,13 @@ const Transcribe = () => {
   const transcribeFile = async () => {
     if (!file) return;
 
+     setDebugTrace({ phase: "start", at: new Date().toISOString() });
     setIsProcessing(true);
     setProgress(0);
     let progressInterval: ReturnType<typeof setInterval> | null = null;
 
     try {
+       setDebugTrace({ phase: "progressTimer", at: new Date().toISOString() });
       // Simulate progress while waiting for API response
       progressInterval = setInterval(() => {
         setProgress(prev => {
@@ -166,6 +217,12 @@ const Transcribe = () => {
 
       const formData = new FormData();
       formData.append("audio", file);
+
+       setDebugTrace({
+         phase: "request:transcribe",
+         at: new Date().toISOString(),
+         details: { name: file.name, size: file.size, type: file.type },
+       });
 
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
@@ -222,6 +279,11 @@ const Transcribe = () => {
        }
     } catch (error) {
       console.error("Transcription error:", error);
+       setDebugTrace({
+         phase: "error",
+         at: new Date().toISOString(),
+         message: error instanceof Error ? error.message : String(error),
+       });
       toast.error("فشل التحويل", {
         description: error instanceof Error ? error.message : "حدث خطأ غير متوقع"
       });
@@ -229,6 +291,11 @@ const Transcribe = () => {
       if (progressInterval) clearInterval(progressInterval);
       setIsProcessing(false);
       setProgress(0);
+       setDebugTrace((prev) =>
+         prev?.phase === "error"
+           ? prev
+           : { phase: "done", at: new Date().toISOString() }
+       );
     }
   };
 
@@ -257,6 +324,7 @@ const Transcribe = () => {
   };
 
   return (
+    <ErrorBoundary name="Transcribe">
     <div className="min-h-screen bg-background p-4 md:p-8" dir="rtl">
       <div className="max-w-2xl mx-auto space-y-6">
         <div className="flex items-center gap-4">
@@ -318,7 +386,21 @@ const Transcribe = () => {
                   </div>
                   
                   <Button
-                    onClick={transcribeFile}
+                    onClick={() => {
+                      try {
+                        void transcribeFile();
+                      } catch (err) {
+                        console.error("transcribeFile handler error:", err);
+                        setDebugTrace({
+                          phase: "clickHandlerError",
+                          at: new Date().toISOString(),
+                          message: err instanceof Error ? err.message : String(err),
+                        });
+                        toast.error("حدث خطأ غير متوقع", {
+                          description: "حاول مرة أخرى.",
+                        });
+                      }
+                    }}
                     disabled={isProcessing}
                     className="w-full"
                   >
@@ -500,8 +582,40 @@ const Transcribe = () => {
             </CardContent>
           </Card>
         )}
+
+        {debugEnabled && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Debug</CardTitle>
+              <CardDescription>
+                حالة الصفحة (أضف <span className="font-mono">?debug</span> للرابط)
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <pre className="text-xs whitespace-pre-wrap rounded-md bg-muted p-3 border">
+                {JSON.stringify(
+                  {
+                    debugTrace,
+                    state: {
+                      hasFile: Boolean(file),
+                      isProcessing,
+                      isAnalyzing,
+                      progress,
+                      hasAudioUrl: Boolean(audioUrl),
+                      transcriptChars: transcript.length,
+                      lines: lines.length,
+                    },
+                  },
+                  null,
+                  2
+                )}
+              </pre>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
+    </ErrorBoundary>
   );
 };
 

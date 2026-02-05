@@ -28,6 +28,7 @@ import { HomeButton } from "@/components/HomeButton";
 
 const Transcribe = () => {
   const [file, setFile] = useState<File | null>(null);
+   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -59,6 +60,11 @@ const Transcribe = () => {
       
       setFile(selectedFile);
        setTranscriptResult(null);
+       // Create blob URL for audio playback
+       if (audioUrl) {
+         URL.revokeObjectURL(audioUrl);
+       }
+       setAudioUrl(URL.createObjectURL(selectedFile));
     }
   };
 
@@ -68,6 +74,11 @@ const Transcribe = () => {
     if (droppedFile) {
       setFile(droppedFile);
        setTranscriptResult(null);
+       // Create blob URL for audio playback
+       if (audioUrl) {
+         URL.revokeObjectURL(audioUrl);
+       }
+       setAudioUrl(URL.createObjectURL(droppedFile));
     }
   };
 
@@ -78,6 +89,11 @@ const Transcribe = () => {
   const clearFile = () => {
     setFile(null);
      setTranscriptResult(null);
+     // Clean up blob URL
+     if (audioUrl) {
+       URL.revokeObjectURL(audioUrl);
+       setAudioUrl(null);
+     }
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -349,7 +365,7 @@ const Transcribe = () => {
               </Button>
             </CardHeader>
             <CardContent>
-               <LineByLineTranscript lines={lines} />
+               <LineByLineTranscript lines={lines} audioUrl={audioUrl || undefined} />
             </CardContent>
           </Card>
          ) : transcript ? (

@@ -1,13 +1,14 @@
- import { useState } from "react";
- import { ChevronDown, ChevronUp, Eye, EyeOff } from "lucide-react";
+ import { useState, useRef, useEffect } from "react";
+ import { ChevronDown, ChevronUp, Eye, EyeOff, Play, Pause } from "lucide-react";
  import { cn } from "@/lib/utils";
  import { Switch } from "@/components/ui/switch";
  import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+ import { Button } from "@/components/ui/button";
  import type { TranscriptLine, WordToken } from "@/types/transcript";
  
  interface LineByLineTranscriptProps {
    lines: TranscriptLine[];
-   onPlaySegment?: (line: TranscriptLine) => void;
+   audioUrl?: string;
  }
  
  interface TokenChipProps {
@@ -80,48 +81,81 @@
  
  interface TranscriptLineCardProps {
    line: TranscriptLine;
+   isActive: boolean;
+   isPlaying: boolean;
    showTranslation: boolean;
    onToggle: () => void;
-   onPlaySegment?: (line: TranscriptLine) => void;
+   onPlay: () => void;
+   hasAudio: boolean;
  }
  
  const TranscriptLineCard = ({
    line,
+   isActive,
+   isPlaying,
    showTranslation,
    onToggle,
-   onPlaySegment,
+   onPlay,
+   hasAudio,
  }: TranscriptLineCardProps) => {
    return (
      <div
        className={cn(
          "rounded-xl bg-card border border-border p-4 transition-all duration-200",
-         "hover:shadow-md cursor-pointer"
+         "hover:shadow-md",
+         isActive && "ring-2 ring-primary/50 border-primary bg-primary/5"
        )}
-       onClick={(e) => {
-         // Only toggle if clicking the card itself, not a token
-         if ((e.target as HTMLElement).closest('[data-token]')) return;
-         onToggle();
-       }}
      >
-       {/* Arabic sentence with tokens */}
-       <div
-         className="flex flex-wrap gap-1.5 justify-end leading-relaxed"
-         dir="rtl"
-       >
-         {line.tokens && line.tokens.length > 0 ? (
-           line.tokens.map((token) => (
-             <span key={token.id} data-token>
-               <TokenChip token={token} />
-             </span>
-           ))
-         ) : (
-           <span
-             className="text-lg text-foreground"
-             style={{ fontFamily: "'Cairo', 'Traditional Arabic', sans-serif" }}
+       {/* Header row with play button */}
+       <div className="flex items-start gap-3">
+         {/* Play button */}
+         {hasAudio && (
+           <Button
+             variant="ghost"
+             size="icon"
+             className={cn(
+               "h-8 w-8 shrink-0 rounded-full transition-colors",
+               isActive 
+                 ? "bg-primary text-primary-foreground hover:bg-primary/90" 
+                 : "bg-muted hover:bg-muted/80"
+             )}
+             onClick={(e) => {
+               e.stopPropagation();
+               onPlay();
+             }}
            >
-             {line.arabic}
-           </span>
+             {isActive && isPlaying ? (
+               <Pause className="h-4 w-4" />
+             ) : (
+               <Play className="h-4 w-4 ml-0.5" />
+             )}
+           </Button>
          )}
+ 
+         {/* Arabic sentence with tokens */}
+         <div
+           className="flex-1 flex flex-wrap gap-1.5 justify-end leading-relaxed cursor-pointer"
+           dir="rtl"
+           onClick={(e) => {
+             if ((e.target as HTMLElement).closest('[data-token]')) return;
+             onToggle();
+           }}
+         >
+           {line.tokens && line.tokens.length > 0 ? (
+             line.tokens.map((token) => (
+               <span key={token.id} data-token>
+                 <TokenChip token={token} />
+               </span>
+             ))
+           ) : (
+             <span
+               className="text-lg text-foreground"
+               style={{ fontFamily: "'Cairo', 'Traditional Arabic', sans-serif" }}
+             >
+               {line.arabic}
+             </span>
+           )}
+         </div>
        </div>
  
        {/* English translation (collapsible) */}
@@ -143,7 +177,10 @@
        </div>
  
        {/* Expand indicator */}
-       <div className="flex justify-center mt-2">
+       <div 
+         className="flex justify-center mt-2 cursor-pointer"
+         onClick={onToggle}
+       >
          {showTranslation ? (
            <ChevronUp className="h-4 w-4 text-muted-foreground/50" />
          ) : (
@@ -156,10 +193,79 @@
  
  export const LineByLineTranscript = ({
    lines,
-   onPlaySegment,
+   audioUrl,
  }: LineByLineTranscriptProps) => {
    const [showAllTranslations, setShowAllTranslations] = useState(false);
    const [expandedLines, setExpandedLines] = useState<Set<string>>(new Set());
+   const [activeLineId, setActiveLineId] = useState<string | null>(null);
+   const [isPlaying, setIsPlaying] = useState(false);
+   const audioRef = useRef<HTMLAudioElement | null>(null);
+ 
+   // Initialize audio element
+   useEffect(() => {
+     if (audioUrl && !audioRef.current) {
+       audioRef.current = new Audio(audioUrl);
+       
+       audioRef.current.addEventListener('ended', () => {
+         setIsPlaying(false);
+         setActiveLineId(null);
+       });
+       
+       audioRef.current.addEventListener('pause', () => {
+         setIsPlaying(false);
+       });
+       
+       audioRef.current.addEventListener('play', () => {
+         setIsPlaying(true);
+       });
+     }
+     
+     return () => {
+       if (audioRef.current) {
+         audioRef.current.pause();
+         audioRef.current = null;
+       }
+     };
+   }, [audioUrl]);
+ 
+   // Update audio source when URL changes
+   useEffect(() => {
+     if (audioRef.current && audioUrl) {
+       audioRef.current.src = audioUrl;
+     }
+   }, [audioUrl]);
+ 
+   const handlePlayLine = (line: TranscriptLine) => {
+     if (!audioRef.current || !audioUrl) return;
+ 
+     // If clicking the same line that's playing, toggle pause
+     if (activeLineId === line.id && isPlaying) {
+       audioRef.current.pause();
+       return;
+     }
+ 
+     // TODO: If startMs/endMs exist, seek to startMs and schedule stop at endMs
+     // if (line.startMs !== undefined && line.endMs !== undefined) {
+     //   audioRef.current.currentTime = line.startMs / 1000;
+     //   const duration = (line.endMs - line.startMs) / 1000;
+     //   // Schedule pause at endMs
+     //   const checkTime = () => {
+     //     if (audioRef.current && audioRef.current.currentTime * 1000 >= line.endMs!) {
+     //       audioRef.current.pause();
+     //       return;
+     //     }
+     //     if (isPlaying && activeLineId === line.id) {
+     //       requestAnimationFrame(checkTime);
+     //     }
+     //   };
+     //   requestAnimationFrame(checkTime);
+     // }
+ 
+     // For now, play from the beginning
+     audioRef.current.currentTime = 0;
+     setActiveLineId(line.id);
+     audioRef.current.play().catch(console.error);
+   };
  
    const toggleLine = (lineId: string) => {
      setExpandedLines((prev) => {
@@ -213,9 +319,12 @@
            <TranscriptLineCard
              key={line.id}
              line={line}
+             isActive={activeLineId === line.id}
+             isPlaying={isPlaying && activeLineId === line.id}
              showTranslation={isLineExpanded(line.id)}
              onToggle={() => toggleLine(line.id)}
-             onPlaySegment={onPlaySegment}
+             onPlay={() => handlePlayLine(line)}
+             hasAudio={!!audioUrl}
            />
          ))}
        </div>

@@ -45,58 +45,76 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-  const getSystemPrompt = (isRetry: boolean = false) => {
-    const strictPrefix = isRetry
-      ? "CRITICAL: Return ONLY valid JSON. No commentary, no markdown, no explanation. Just the JSON object.\n\n"
-      : "";
+const strictJsonPrefix = (isRetry: boolean) =>
+  isRetry
+    ? "CRITICAL: Return ONLY valid JSON. No commentary, no markdown, no explanation. Just the JSON object.\n\n"
+    : "";
 
-    return `${strictPrefix}You are processing Gulf Arabic transcript text for language learners.
+/**
+ * IMPORTANT: We intentionally do NOT ask the model to output per-word tokens.
+ * That payload explodes in size and often gets truncated, yielding invalid JSON.
+ * We generate tokens server-side from the Arabic sentence text.
+ */
+const getLinesSystemPrompt = (isRetry: boolean = false) => {
+  const strictPrefix = strictJsonPrefix(isRetry);
+  return `${strictPrefix}You are processing Gulf Arabic transcript text for language learners.
 
 Output ONLY valid JSON matching this schema:
 {
-  "rawTranscriptArabic": string,
   "lines": [{
-    "id": string,
     "arabic": string,
-    "translation": string,
-    "tokens": [{
-      "id": string,
-      "surface": string,
-      "standard"?: string,
-      "gloss"?: string
-    }]
-  }],
-  "vocabulary": [{"arabic": string, "english": string, "root"?: string}],
-  "grammarPoints": [{"title": string, "explanation": string, "examples"?: string[]}]
+    "translation": string
+  }]
 }
 
 Rules:
-- Split the ENTIRE transcript into natural sentence-by-sentence lines. Include ALL sentences from the transcript, not a summary or subset.
-- Do NOT limit or truncate the number of lines. If the transcript has 20 sentences, output 20 lines.
+- Split the ENTIRE transcript into natural sentence-by-sentence lines. Include ALL sentences.
+- Do NOT summarize. Do NOT drop sentences.
 - Translation must be sentence-by-sentence matching each Arabic line.
 - Keep dialect spelling exactly as spoken (do NOT normalize).
-- Tokens must preserve spoken form in surface.
-- Provide standard only when an MSA spelling is clearly different and helpful.
-- Provide gloss for content words (verbs/nouns/adjectives); skip if unsure.
-- Keep punctuation attached to the preceding word.
-- Vocabulary: 5–8 useful words with English meaning and root when applicable.
-- GrammarPoints: 2–4 dialect-specific points with brief examples from the transcript.
+- Keep punctuation as spoken.
 
 No additional text outside JSON.`;
-  };
+};
+
+const getMetaSystemPrompt = (isRetry: boolean = false) => {
+  const strictPrefix = strictJsonPrefix(isRetry);
+  return `${strictPrefix}You are processing Gulf Arabic transcript text for language learners.
+
+Output ONLY valid JSON matching this schema:
+{
+  "vocabulary": [{"arabic": string, "english": string, "root"?: string}],
+  "grammarPoints": [{"title": string, "explanation": string, "examples"?: string[]}],
+  "culturalContext"?: string
+}
+
+Rules:
+- Vocabulary: 5–8 useful words with English meaning and root when applicable.
+- GrammarPoints: 2–4 dialect-specific points with brief examples from the transcript.
+- Keep it concise.
+
+No additional text outside JSON.`;
+};
  
-  async function callAI(
-    transcript: string,
-    apiKey: string,
-    isRetry: boolean = false,
-  ): Promise<{ content: string | null; error?: string; status?: number }> {
+type CallAIArgs = {
+  systemPrompt: string;
+  userContent: string;
+  apiKey: string;
+  isRetry?: boolean;
+  maxTokens?: number;
+};
+
+async function callAI({
+  systemPrompt,
+  userContent,
+  apiKey,
+  isRetry = false,
+  maxTokens = 4096,
+}: CallAIArgs): Promise<{ content: string | null; error?: string; status?: number }> {
     const controller = new AbortController();
     // Allow longer timeout for complex transcripts - edge functions can run up to 60s
     const timeoutMs = 55_000;
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
-
-    // Use higher token limit for long transcripts
-    const maxOutputTokens = 16384;
 
     const startedAt = Date.now();
     let response: Response;
@@ -109,13 +127,13 @@ No additional text outside JSON.`;
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          // Use gemini-2.5-pro for complex structured output with long transcripts
-          model: 'google/gemini-2.5-pro',
+          // Prefer OpenAI models here for more reliable strict-JSON output.
+          model: 'openai/gpt-5-mini',
           messages: [
-            { role: 'system', content: getSystemPrompt(isRetry) },
-            { role: 'user', content: transcript },
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userContent },
           ],
-          max_tokens: maxOutputTokens,
+          max_tokens: maxTokens,
         }),
       });
     } catch (e) {
@@ -140,11 +158,34 @@ No additional text outside JSON.`;
       return { content: null, error: errorText, status: response.status };
     }
  
-   const data = await response.json();
-   const content = data.choices?.[0]?.message?.content;
-   return { content };
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content;
+    return { content };
  }
  
+function extractJsonObject(text: string): string {
+  const cleaned = text
+    .replace(/```json\n?/g, '')
+    .replace(/```\n?/g, '')
+    .trim();
+
+  const firstBrace = cleaned.indexOf('{');
+  const lastBrace = cleaned.lastIndexOf('}');
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    return cleaned.slice(firstBrace, lastBrace + 1);
+  }
+  return cleaned;
+}
+
+function safeJsonParse<T>(content: string): T | null {
+  try {
+    return JSON.parse(extractJsonObject(content)) as T;
+  } catch (e) {
+    console.error('JSON parse error:', e);
+    return null;
+  }
+}
+
 // Create a simple fallback result when AI parsing fails
 function createFallbackResult(transcript: string): TranscriptResult {
   // Split by common Arabic sentence endings and newlines
@@ -171,28 +212,29 @@ function createFallbackResult(transcript: string): TranscriptResult {
   };
 }
 
- function parseAIResponse(content: string): TranscriptResult | null {
-   // Clean the response in case there's any markdown formatting
-   const cleanedContent = content
-     .replace(/```json\n?/g, '')
-     .replace(/```\n?/g, '')
-     .trim();
-   
-   try {
-     const parsed = JSON.parse(cleanedContent);
-     
-     // Validate structure
-     if (!parsed.lines || !Array.isArray(parsed.lines)) {
-       console.error('Missing or invalid lines array');
-       return null;
-     }
-     
-     return parsed as TranscriptResult;
-   } catch (e) {
-     console.error('JSON parse error:', e);
-     return null;
-   }
- }
+function toWordTokens(arabic: string, vocabulary: VocabItem[]): WordToken[] {
+  const vocabMap = new Map(vocabulary.map((v) => [v.arabic, v] as const));
+  const words = arabic.split(/\s+/).filter(Boolean);
+
+  return words.map((surface, idx) => {
+    const match = vocabMap.get(surface);
+    return {
+      id: `tok-${generateId()}-${idx}`,
+      surface,
+      gloss: match?.english,
+    };
+  });
+}
+
+type LinesAI = {
+  lines: Array<{ arabic: string; translation: string }>;
+};
+
+type MetaAI = {
+  vocabulary: VocabItem[];
+  grammarPoints: GrammarPoint[];
+  culturalContext?: string;
+};
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -219,86 +261,169 @@ serve(async (req) => {
       );
     }
 
-     console.log('Sending transcript to GPT-5-mini for structured analysis...');
-    console.log('Transcript length:', transcript.length);
+     console.log('Analyzing transcript (lines + meta)...');
+     console.log('Transcript length:', transcript.length);
 
-     // First attempt
-     let result = await callAI(transcript, LOVABLE_API_KEY, false);
-     
-     if (!result.content && result.status) {
-       if (result.status === 429) {
-        return new Response(
-          JSON.stringify({ error: 'Rate limit exceeded. Please try again later.' }),
-          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-       if (result.status === 402) {
-        return new Response(
-          JSON.stringify({ error: 'AI credits exhausted. Please add credits to continue.' }),
-          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      return new Response(
-         JSON.stringify({ error: 'AI analysis failed', details: result.error }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+     let partial = false;
 
-     if (!result.content) {
-       console.error('No content in AI response');
-      return new Response(
-        JSON.stringify({ error: 'No analysis returned from AI' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+     // -----------------------------
+     // 1) Sentence split + translation
+     // -----------------------------
+     let linesAi: LinesAI | null = null;
 
-     console.log('Raw AI response (first 500 chars):', result.content.substring(0, 500));
+     let linesResp = await callAI({
+       systemPrompt: getLinesSystemPrompt(false),
+       userContent: transcript,
+       apiKey: LOVABLE_API_KEY,
+       isRetry: false,
+       // Lines can be the largest part of the response.
+       maxTokens: 8192,
+     });
 
-     // Try to parse the response
-     let analysis = parseAIResponse(result.content);
-     
-     // If parsing fails, retry with stricter prompt
-     if (!analysis) {
-       console.log('First parse failed, retrying with stricter prompt...');
-       
-       result = await callAI(transcript, LOVABLE_API_KEY, true);
-       
-       if (!result.content) {
+     if (!linesResp.content && linesResp.status) {
+       if (linesResp.status === 429) {
          return new Response(
-           JSON.stringify({ error: 'AI retry failed', details: result.error }),
-           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+           JSON.stringify({ error: 'Rate limit exceeded. Please try again later.' }),
+           { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
          );
        }
-       
-       console.log('Retry AI response (first 500 chars):', result.content.substring(0, 500));
-       analysis = parseAIResponse(result.content);
-       
-       if (!analysis) {
-         console.error('Failed to parse AI response after retry');
-          console.log('Using fallback: splitting transcript into basic lines');
-          const fallback = createFallbackResult(transcript);
+       if (linesResp.status === 402) {
          return new Response(
-            JSON.stringify({ success: true, result: fallback, partial: true }),
-            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+           JSON.stringify({ error: 'AI credits exhausted. Please add credits to continue.' }),
+           { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
          );
        }
-    }
+     }
+
+     if (linesResp.content) {
+       linesAi = safeJsonParse<LinesAI>(linesResp.content);
+     }
+
+     if (!linesAi?.lines || !Array.isArray(linesAi.lines) || linesAi.lines.length === 0) {
+       console.log('Lines parse failed, retrying with stricter prompt...');
+       const retry = await callAI({
+         systemPrompt: getLinesSystemPrompt(true),
+         userContent: transcript,
+         apiKey: LOVABLE_API_KEY,
+         isRetry: true,
+         maxTokens: 8192,
+       });
+       if (retry.content) {
+         linesAi = safeJsonParse<LinesAI>(retry.content);
+       }
+     }
+
+     // Fallback if we still can't parse
+     if (!linesAi?.lines || !Array.isArray(linesAi.lines) || linesAi.lines.length === 0) {
+       console.error('Failed to parse lines JSON; using fallback splitting');
+       partial = true;
+       const fallback = createFallbackResult(transcript);
+
+       // Still attempt meta extraction (best effort)
+       const meta = await (async () => {
+         let metaResp = await callAI({
+           systemPrompt: getMetaSystemPrompt(false),
+           userContent: transcript,
+           apiKey: LOVABLE_API_KEY,
+           isRetry: false,
+           maxTokens: 2048,
+         });
+         let metaAi = metaResp.content ? safeJsonParse<MetaAI>(metaResp.content) : null;
+         if (!metaAi) {
+           const metaRetry = await callAI({
+             systemPrompt: getMetaSystemPrompt(true),
+             userContent: transcript,
+             apiKey: LOVABLE_API_KEY,
+             isRetry: true,
+             maxTokens: 2048,
+           });
+           metaAi = metaRetry.content ? safeJsonParse<MetaAI>(metaRetry.content) : null;
+         }
+         if (!metaAi) {
+           return { vocabulary: [], grammarPoints: [], culturalContext: undefined } as MetaAI;
+         }
+         return metaAi;
+       })();
+
+       const withMeta: TranscriptResult = {
+         ...fallback,
+         vocabulary: Array.isArray(meta.vocabulary) ? meta.vocabulary : [],
+         grammarPoints: Array.isArray(meta.grammarPoints) ? meta.grammarPoints : [],
+         culturalContext: meta.culturalContext,
+         // Update tokens with vocab glosses if available
+         lines: fallback.lines.map((l) => ({
+           ...l,
+           tokens: toWordTokens(l.arabic, Array.isArray(meta.vocabulary) ? meta.vocabulary : []),
+         })),
+       };
+
+       return new Response(
+         JSON.stringify({ success: true, result: withMeta, partial }),
+         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+       );
+     }
+
+     // -----------------------------
+     // 2) Vocabulary + grammar + culture (small JSON)
+     // -----------------------------
+     let metaAi: MetaAI | null = null;
+     let metaResp = await callAI({
+       systemPrompt: getMetaSystemPrompt(false),
+       userContent: transcript,
+       apiKey: LOVABLE_API_KEY,
+       isRetry: false,
+       maxTokens: 2048,
+     });
+     if (metaResp.content) {
+       metaAi = safeJsonParse<MetaAI>(metaResp.content);
+     }
+     if (!metaAi) {
+       const metaRetry = await callAI({
+         systemPrompt: getMetaSystemPrompt(true),
+         userContent: transcript,
+         apiKey: LOVABLE_API_KEY,
+         isRetry: true,
+         maxTokens: 2048,
+       });
+       if (metaRetry.content) {
+         metaAi = safeJsonParse<MetaAI>(metaRetry.content);
+       }
+     }
+     if (!metaAi) {
+       partial = true;
+       metaAi = { vocabulary: [], grammarPoints: [] };
+     }
+
+     const vocab = Array.isArray(metaAi.vocabulary) ? metaAi.vocabulary : [];
+     const grammarPoints = Array.isArray(metaAi.grammarPoints) ? metaAi.grammarPoints : [];
 
      // Build the full TranscriptResult
      const transcriptResult: TranscriptResult = {
        rawTranscriptArabic: transcript,
-       lines: analysis.lines || [],
-       vocabulary: analysis.vocabulary || [],
-       grammarPoints: analysis.grammarPoints || [],
-       culturalContext: analysis.culturalContext,
+       lines: linesAi.lines.map((l, idx) => ({
+         id: `line-${generateId()}-${idx}`,
+         arabic: String(l.arabic ?? '').trim(),
+         translation: String(l.translation ?? '').trim(),
+         tokens: toWordTokens(String(l.arabic ?? '').trim(), vocab),
+       })),
+       vocabulary: vocab,
+       grammarPoints,
+       culturalContext: metaAi.culturalContext,
      };
- 
-     console.log('Analysis complete:', transcriptResult.lines.length, 'lines,', transcriptResult.vocabulary.length, 'vocab items');
 
-    return new Response(
-       JSON.stringify({ success: true, result: transcriptResult }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+     console.log(
+       'Analysis complete:',
+       transcriptResult.lines.length,
+       'lines,',
+       transcriptResult.vocabulary.length,
+       'vocab items',
+       partial ? '(partial)' : ''
+     );
+
+     return new Response(
+       JSON.stringify({ success: true, result: transcriptResult, partial }),
+       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+     );
 
   } catch (error) {
     console.error('Error in analyze-gulf-arabic function:', error);

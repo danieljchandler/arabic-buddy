@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { HomeButton } from "@/components/HomeButton";
  import { Badge } from "@/components/ui/badge";
  import type { TranscriptResult, VocabItem, GrammarPoint } from "@/types/transcript";
+  import { LineByLineTranscript } from "@/components/transcript/LineByLineTranscript";
 
  interface ElevenLabsTranscriptionResult {
    text: string;
@@ -38,6 +39,7 @@ const Transcribe = () => {
    const vocabulary = transcriptResult?.vocabulary ?? [];
    const grammarPoints = transcriptResult?.grammarPoints ?? [];
    const culturalContext = transcriptResult?.culturalContext;
+   const lines = transcriptResult?.lines ?? [];
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -358,6 +360,15 @@ const Transcribe = () => {
           </Card>
         )}
 
+         {/* Line-by-Line Transcript */}
+         {lines.length > 0 && (
+           <Card>
+             <CardContent className="pt-6">
+               <LineByLineTranscript lines={lines} />
+             </CardContent>
+           </Card>
+         )}
+ 
         {/* Analysis Loading */}
         {isAnalyzing && (
           <Card>

@@ -68,7 +68,10 @@ Output ONLY valid JSON matching this schema:
 }
 
 Rules:
-- Split the ENTIRE transcript into natural sentence-by-sentence lines. Include ALL sentences.
+- Split the ENTIRE transcript into SHORT, SINGLE SENTENCES. Each line should be ONE sentence only (roughly 5-15 words).
+- Do NOT group multiple sentences together. If in doubt, split more aggressively.
+- A sentence ends at natural pauses: periods, question marks, or strong intonation breaks.
+- Include ALL sentences from the transcript. Do NOT summarize or skip any content.
 - Do NOT summarize. Do NOT drop sentences.
 - Translation must be sentence-by-sentence matching each Arabic line.
 - Keep dialect spelling exactly as spoken (do NOT normalize).

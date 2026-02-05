@@ -1,19 +1,144 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+ 
+ // Types matching src/types/transcript.ts
+ interface WordToken {
+   id: string;
+   surface: string;
+   standard?: string;
+   gloss?: string;
+ }
+ 
+ interface TranscriptLine {
+   id: string;
+   arabic: string;
+   translation: string;
+   tokens: WordToken[];
+ }
+ 
+ interface VocabItem {
+   arabic: string;
+   english: string;
+   root?: string;
+ }
+ 
+ interface GrammarPoint {
+   title: string;
+   explanation: string;
+   examples?: string[];
+ }
+ 
+ interface TranscriptResult {
+   rawTranscriptArabic: string;
+   lines: TranscriptLine[];
+   vocabulary: VocabItem[];
+   grammarPoints: GrammarPoint[];
+   culturalContext?: string;
+ }
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-const systemPrompt = `You are an expert Khaleeji Arabic linguist and language teacher. Your task is to analyze the provided Gulf Arabic transcript and extract pedagogical data.
-
-Identify 5-8 key vocabulary words. For each, provide the word in Arabic script, English meaning, and its 3-letter trilateral root.
-
-Identify 2-3 grammar points specific to the Gulf dialect (e.g., usage of 'shlonak', future marker 'bi-', or object pronouns).
-
-Provide one cultural context tip related to the content of the transcript.
-
-Output Format: Return ONLY a valid JSON object with this structure: { "vocabulary": [{"word": "...", "meaning": "...", "root": "..."}], "grammar": [{"point": "...", "explanation": "..."}], "culture": "..." } Do not include any conversational filler or markdown in the response.`;
+ const getSystemPrompt = (isRetry: boolean = false) => {
+   const strictPrefix = isRetry ? "CRITICAL: Return ONLY valid JSON. No commentary, no markdown, no explanation. Just the JSON object.\n\n" : "";
+   
+   return `${strictPrefix}You are an expert Khaleeji Arabic linguist and language teacher. Your task is to analyze the provided Gulf Arabic transcript and return structured pedagogical data.
+ 
+ TASK:
+ 1. Split the transcript into natural sentence-by-sentence lines (if a sentence is very long, split into 2 clauses).
+ 2. For each line, provide:
+    - arabic: the sentence as spoken (keep dialect spellings like ماي, واجد, ترى)
+    - translation: English translation
+    - tokens: tokenize the Arabic into individual words/particles, each with:
+      - id: unique identifier like "line1_token1"
+      - surface: the token as shown in the line
+      - standard: (optional) more standard/MSA spelling if different (e.g., ماي → ماء)
+      - gloss: (optional) short English meaning for meaningful tokens (skip very common particles)
+ 
+ 3. Identify 5-8 key vocabulary words with:
+    - arabic: the word
+    - english: meaning
+    - root: 3-letter trilateral root (optional if unclear)
+ 
+ 4. Identify 2-3 grammar points specific to Gulf dialect:
+    - title: the grammar point name
+    - explanation: how it works
+    - examples: (optional) 1-2 example usages
+ 
+ 5. Provide one cultural context tip as culturalContext string.
+ 
+ OUTPUT FORMAT - Return ONLY this JSON structure, no markdown or commentary:
+ {
+   "lines": [
+     {
+       "id": "line1",
+       "arabic": "شلونك اليوم؟",
+       "translation": "How are you today?",
+       "tokens": [
+         {"id": "line1_t1", "surface": "شلونك", "standard": "كيف حالك", "gloss": "how are you"},
+         {"id": "line1_t2", "surface": "اليوم", "gloss": "today"}
+       ]
+     }
+   ],
+   "vocabulary": [
+     {"arabic": "شلونك", "english": "how are you", "root": "ل-و-ن"}
+   ],
+   "grammarPoints": [
+     {"title": "شلون construction", "explanation": "Gulf Arabic uses شلون (from شو + لون) for 'how'", "examples": ["شلونك؟", "شلون الجو؟"]}
+   ],
+   "culturalContext": "Asking about someone's wellbeing is an important social greeting in Gulf culture."
+ }`;
+ };
+ 
+ async function callAI(transcript: string, apiKey: string, isRetry: boolean = false): Promise<{ content: string | null; error?: string; status?: number }> {
+   const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+     method: 'POST',
+     headers: {
+       'Authorization': `Bearer ${apiKey}`,
+       'Content-Type': 'application/json',
+     },
+     body: JSON.stringify({
+       model: 'openai/gpt-5-mini',
+       messages: [
+         { role: 'system', content: getSystemPrompt(isRetry) },
+         { role: 'user', content: transcript }
+       ],
+     }),
+   });
+ 
+   if (!response.ok) {
+     const errorText = await response.text();
+     return { content: null, error: errorText, status: response.status };
+   }
+ 
+   const data = await response.json();
+   const content = data.choices?.[0]?.message?.content;
+   return { content };
+ }
+ 
+ function parseAIResponse(content: string): TranscriptResult | null {
+   // Clean the response in case there's any markdown formatting
+   const cleanedContent = content
+     .replace(/```json\n?/g, '')
+     .replace(/```\n?/g, '')
+     .trim();
+   
+   try {
+     const parsed = JSON.parse(cleanedContent);
+     
+     // Validate structure
+     if (!parsed.lines || !Array.isArray(parsed.lines)) {
+       console.error('Missing or invalid lines array');
+       return null;
+     }
+     
+     return parsed as TranscriptResult;
+   } catch (e) {
+     console.error('JSON parse error:', e);
+     return null;
+   }
+ }
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -40,83 +165,85 @@ serve(async (req) => {
       );
     }
 
-    console.log('Sending transcript to GPT-5-mini for analysis...');
+     console.log('Sending transcript to GPT-5-mini for structured analysis...');
     console.log('Transcript length:', transcript.length);
 
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'openai/gpt-5-mini',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: transcript }
-        ],
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('AI Gateway error:', response.status, errorText);
-      
-      if (response.status === 429) {
+     // First attempt
+     let result = await callAI(transcript, LOVABLE_API_KEY, false);
+     
+     if (!result.content && result.status) {
+       if (result.status === 429) {
         return new Response(
           JSON.stringify({ error: 'Rate limit exceeded. Please try again later.' }),
           { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-      
-      if (response.status === 402) {
+       if (result.status === 402) {
         return new Response(
           JSON.stringify({ error: 'AI credits exhausted. Please add credits to continue.' }),
           { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-
       return new Response(
-        JSON.stringify({ error: 'AI analysis failed', details: errorText }),
+         JSON.stringify({ error: 'AI analysis failed', details: result.error }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
-
-    if (!content) {
-      console.error('No content in AI response:', data);
+     if (!result.content) {
+       console.error('No content in AI response');
       return new Response(
         JSON.stringify({ error: 'No analysis returned from AI' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log('Raw AI response:', content);
+     console.log('Raw AI response (first 500 chars):', result.content.substring(0, 500));
 
-    // Parse the JSON response from the AI
-    let analysis;
-    try {
-      // Clean the response in case there's any markdown formatting
-      const cleanedContent = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-      analysis = JSON.parse(cleanedContent);
-    } catch (parseError) {
-      console.error('Failed to parse AI response as JSON:', parseError);
-      console.error('Content was:', content);
-      return new Response(
-        JSON.stringify({ 
-          error: 'Failed to parse AI analysis', 
-          rawContent: content 
-        }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+     // Try to parse the response
+     let analysis = parseAIResponse(result.content);
+     
+     // If parsing fails, retry with stricter prompt
+     if (!analysis) {
+       console.log('First parse failed, retrying with stricter prompt...');
+       
+       result = await callAI(transcript, LOVABLE_API_KEY, true);
+       
+       if (!result.content) {
+         return new Response(
+           JSON.stringify({ error: 'AI retry failed', details: result.error }),
+           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+         );
+       }
+       
+       console.log('Retry AI response (first 500 chars):', result.content.substring(0, 500));
+       analysis = parseAIResponse(result.content);
+       
+       if (!analysis) {
+         console.error('Failed to parse AI response after retry');
+         return new Response(
+           JSON.stringify({ 
+             error: 'Failed to parse AI analysis after retry', 
+             rawContent: result.content 
+           }),
+           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+         );
+       }
     }
 
-    console.log('Analysis complete:', JSON.stringify(analysis).substring(0, 200));
+     // Build the full TranscriptResult
+     const transcriptResult: TranscriptResult = {
+       rawTranscriptArabic: transcript,
+       lines: analysis.lines || [],
+       vocabulary: analysis.vocabulary || [],
+       grammarPoints: analysis.grammarPoints || [],
+       culturalContext: analysis.culturalContext,
+     };
+ 
+     console.log('Analysis complete:', transcriptResult.lines.length, 'lines,', transcriptResult.vocabulary.length, 'vocab items');
 
     return new Response(
-      JSON.stringify({ success: true, analysis }),
+       JSON.stringify({ success: true, result: transcriptResult }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 

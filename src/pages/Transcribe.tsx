@@ -12,6 +12,57 @@ import { supabase } from "@/integrations/supabase/client";
  import type { TranscriptResult, VocabItem, GrammarPoint } from "@/types/transcript";
   import { LineByLineTranscript } from "@/components/transcript/LineByLineTranscript";
 
+function normalizeTranscriptResult(input: TranscriptResult): TranscriptResult {
+  const safeLines = Array.isArray(input.lines) ? input.lines : [];
+  const safeVocab = Array.isArray(input.vocabulary) ? input.vocabulary : [];
+  const safeGrammar = Array.isArray(input.grammarPoints) ? input.grammarPoints : [];
+
+  return {
+    rawTranscriptArabic: String(input.rawTranscriptArabic ?? ""),
+    culturalContext:
+      input.culturalContext === undefined ? undefined : String(input.culturalContext),
+    vocabulary: safeVocab
+      .filter((v) => v && typeof v === "object")
+      .map((v) => ({
+        arabic: String((v as VocabItem).arabic ?? ""),
+        english: String((v as VocabItem).english ?? ""),
+        root: (v as VocabItem).root ? String((v as VocabItem).root) : undefined,
+      }))
+      .filter((v) => v.arabic.length > 0),
+    grammarPoints: safeGrammar
+      .filter((g) => g && typeof g === "object")
+      .map((g) => ({
+        title: String((g as GrammarPoint).title ?? ""),
+        explanation: String((g as GrammarPoint).explanation ?? ""),
+        examples: Array.isArray((g as GrammarPoint).examples)
+          ? (g as GrammarPoint).examples!.map(String)
+          : undefined,
+      }))
+      .filter((g) => g.title.length > 0),
+    lines: safeLines
+      .filter((l) => l && typeof l === "object")
+      .map((l, idx) => {
+        const line = l as TranscriptResult["lines"][number];
+        const tokens = Array.isArray(line.tokens) ? line.tokens : [];
+        return {
+          id: typeof line.id === "string" && line.id ? line.id : `line-${idx}`,
+          arabic: String(line.arabic ?? ""),
+          translation: String(line.translation ?? ""),
+          tokens: tokens
+            .filter((t) => t && typeof t === "object")
+            .map((t, tIdx) => ({
+              id: typeof t.id === "string" && t.id ? t.id : `tok-${idx}-${tIdx}`,
+              surface: String(t.surface ?? ""),
+              standard: t.standard ? String(t.standard) : undefined,
+              gloss: t.gloss ? String(t.gloss) : undefined,
+            }))
+            .filter((t) => t.surface.length > 0),
+        };
+      })
+      .filter((l) => l.arabic.length > 0),
+  };
+}
+
  interface ElevenLabsTranscriptionResult {
    text: string;
    words?: Array<{
@@ -227,21 +278,23 @@ const Transcribe = () => {
          throw new Error(data?.error || "فشل التحليل");
        }
 
+        const normalized = normalizeTranscriptResult(data.result);
+
        toast.success("تم التحليل بنجاح!", {
-         description: `تم استخراج ${data.result.vocabulary.length} كلمات و ${data.result.lines.length} جمل`,
+          description: `تم استخراج ${normalized.vocabulary.length} كلمات و ${normalized.lines.length} جمل`,
        });
 
        setDebugTrace({
          phase: "response:analyze",
          at: new Date().toISOString(),
-         details: { lines: data.result.lines.length, vocab: data.result.vocabulary.length },
+          details: { lines: normalized.lines.length, vocab: normalized.vocabulary.length },
        });
 
        return {
-         vocabulary: data.result.vocabulary,
-         grammarPoints: data.result.grammarPoints,
-         culturalContext: data.result.culturalContext,
-         lines: data.result.lines,
+          vocabulary: normalized.vocabulary,
+          grammarPoints: normalized.grammarPoints,
+          culturalContext: normalized.culturalContext,
+          lines: normalized.lines,
        };
      } catch (error) {
        console.error("Analysis error:", error);

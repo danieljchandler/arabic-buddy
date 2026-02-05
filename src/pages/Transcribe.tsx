@@ -1,4 +1,4 @@
-  import { useEffect, useMemo, useState, useRef } from "react";
+ import { useEffect, useMemo, useState, useRef, forwardRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
@@ -79,7 +79,7 @@ function normalizeTranscriptResult(input: TranscriptResult): TranscriptResult {
  }
  
 
-const Transcribe = () => {
+const Transcribe = forwardRef<HTMLDivElement>(function Transcribe(_props, ref) {
   const [file, setFile] = useState<File | null>(null);
    const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -726,6 +726,6 @@ const Transcribe = () => {
     </div>
     </ErrorBoundary>
   );
-};
+});
 
 export default Transcribe;

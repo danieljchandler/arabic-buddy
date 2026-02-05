@@ -254,37 +254,54 @@
   // Use external currentTimeMs if provided, otherwise use internal
   const effectiveCurrentTimeMs = currentTimeMs ?? internalCurrentTimeMs;
 
-   const handlePlayLine = (line: TranscriptLine) => {
-     if (!audioRef.current || !audioUrl) return;
- 
-     // If clicking the same line that's playing, toggle pause
-     if (activeLineId === line.id && isPlaying) {
-       audioRef.current.pause();
-       return;
-     }
- 
-     // TODO: If startMs/endMs exist, seek to startMs and schedule stop at endMs
-     // if (line.startMs !== undefined && line.endMs !== undefined) {
-     //   audioRef.current.currentTime = line.startMs / 1000;
-     //   const duration = (line.endMs - line.startMs) / 1000;
-     //   // Schedule pause at endMs
-     //   const checkTime = () => {
-     //     if (audioRef.current && audioRef.current.currentTime * 1000 >= line.endMs!) {
-     //       audioRef.current.pause();
-     //       return;
-     //     }
-     //     if (isPlaying && activeLineId === line.id) {
-     //       requestAnimationFrame(checkTime);
-     //     }
-     //   };
-     //   requestAnimationFrame(checkTime);
-     // }
- 
-     // For now, play from the beginning
-     audioRef.current.currentTime = 0;
-     setActiveLineId(line.id);
-     audioRef.current.play().catch(console.error);
-   };
+  const stopAtEndRef = useRef<number | null>(null);
+
+  const handlePlayLine = (line: TranscriptLine) => {
+    if (!audioRef.current || !audioUrl) return;
+
+    // Clear any pending stop timer
+    if (stopAtEndRef.current !== null) {
+      cancelAnimationFrame(stopAtEndRef.current);
+      stopAtEndRef.current = null;
+    }
+
+    // If clicking the same line that's playing, toggle pause
+    if (activeLineId === line.id && isPlaying) {
+      audioRef.current.pause();
+      return;
+    }
+
+    setActiveLineId(line.id);
+
+    // If startMs/endMs exist, seek to startMs and schedule stop at endMs
+    if (line.startMs !== undefined && line.endMs !== undefined) {
+      audioRef.current.currentTime = line.startMs / 1000;
+      
+      const checkTime = () => {
+        if (!audioRef.current) return;
+        
+        const currentMs = audioRef.current.currentTime * 1000;
+        if (currentMs >= line.endMs!) {
+          audioRef.current.pause();
+          setIsPlaying(false);
+          stopAtEndRef.current = null;
+          return;
+        }
+        
+        if (!audioRef.current.paused) {
+          stopAtEndRef.current = requestAnimationFrame(checkTime);
+        }
+      };
+      
+      audioRef.current.play().then(() => {
+        stopAtEndRef.current = requestAnimationFrame(checkTime);
+      }).catch(console.error);
+    } else {
+      // No timestamps - play from beginning (fallback)
+      audioRef.current.currentTime = 0;
+      audioRef.current.play().catch(console.error);
+    }
+  };
  
    const toggleLine = (lineId: string) => {
      setExpandedLines((prev) => {

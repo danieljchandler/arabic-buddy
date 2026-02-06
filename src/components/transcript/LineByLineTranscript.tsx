@@ -1,81 +1,156 @@
- import { useState, useRef, useEffect, forwardRef } from "react";
- import { ChevronDown, ChevronUp, Eye, EyeOff, Play, Pause } from "lucide-react";
+ import { useState, useRef, useEffect } from "react";
+ import { ChevronDown, ChevronUp, Eye, EyeOff, Play, Pause, Plus, BookOpen, Check } from "lucide-react";
  import { cn } from "@/lib/utils";
  import { Switch } from "@/components/ui/switch";
  import {
-   Tooltip,
-   TooltipContent,
-   TooltipTrigger,
- } from "@/components/ui/tooltip";
+   Popover,
+   PopoverContent,
+   PopoverTrigger,
+ } from "@/components/ui/popover";
  import { Button } from "@/components/ui/button";
- import type { TranscriptLine, WordToken } from "@/types/transcript";
+ import type { TranscriptLine, WordToken, VocabItem } from "@/types/transcript";
  
  interface LineByLineTranscriptProps {
    lines: TranscriptLine[];
    audioUrl?: string;
-  currentTimeMs?: number;
+   currentTimeMs?: number;
+   onAddToVocabSection?: (word: VocabItem) => void;
+   onSaveToMyWords?: (word: VocabItem) => void;
+   savedWords?: Set<string>;
+   vocabSectionWords?: Set<string>;
  }
  
  interface InlineTokenProps {
    token: WordToken;
-  isHighlighted?: boolean;
+   isHighlighted?: boolean;
+   onAddToVocabSection?: (word: VocabItem) => void;
+   onSaveToMyWords?: (word: VocabItem) => void;
+   isSavedToMyWords?: boolean;
+   isInVocabSection?: boolean;
  }
  
- const InlineToken = ({ token, isHighlighted }: InlineTokenProps) => {
+ const InlineToken = ({ 
+   token, 
+   isHighlighted, 
+   onAddToVocabSection,
+   onSaveToMyWords,
+   isSavedToMyWords,
+   isInVocabSection,
+ }: InlineTokenProps) => {
+   const [open, setOpen] = useState(false);
    const hasGloss = !!token.gloss;
-   const hasStandard = !!token.standard;
-  const hasExtra = hasGloss || hasStandard;
- 
-  // If no extra info, just render the word without tooltip
-  if (!hasExtra) {
-    return (
-      <span
-        className={cn(
-          "transition-colors duration-150",
-          isHighlighted && "bg-primary/20 text-primary rounded px-0.5"
-        )}
-      >
-        {token.surface}
-      </span>
-    );
-  }
+   
+   const vocabItem: VocabItem = {
+     arabic: token.surface,
+     english: token.gloss || "",
+   };
 
    return (
-    <Tooltip delayDuration={100}>
-      <TooltipTrigger asChild>
+     <Popover open={open} onOpenChange={setOpen}>
+       <PopoverTrigger asChild>
          <span
            className={cn(
              "cursor-pointer transition-colors duration-150",
              "hover:text-primary hover:underline hover:decoration-primary/40 hover:underline-offset-4",
-            "active:text-primary active:underline active:decoration-primary/60",
-            isHighlighted && "bg-primary/20 text-primary rounded px-0.5"
+             "active:text-primary active:underline active:decoration-primary/60",
+             isHighlighted && "bg-primary/20 text-primary rounded px-0.5"
            )}
            role="button"
            tabIndex={0}
          >
            {token.surface}
          </span>
-      </TooltipTrigger>
-      <TooltipContent
-        side="top"
-        align="center"
-        className="bg-card border-border shadow-lg z-[100] px-2 py-1.5"
-      >
-        <div className="text-sm text-center" dir="ltr">
-          {hasGloss && <span className="text-foreground">{token.gloss}</span>}
-          {hasGloss && hasStandard && <span className="text-muted-foreground mx-1">·</span>}
-          {hasStandard && (
-            <span className="text-muted-foreground text-xs" dir="rtl">
-              {token.standard}
-            </span>
-          )}
-        </div>
-      </TooltipContent>
-    </Tooltip>
+       </PopoverTrigger>
+       <PopoverContent
+         side="top"
+         align="center"
+         className="w-auto min-w-[200px] p-3 z-[100]"
+         onClick={(e) => e.stopPropagation()}
+       >
+         <div className="space-y-3">
+           {/* Word display */}
+           <div className="text-center border-b border-border pb-2">
+             <p 
+               className="text-xl font-bold text-foreground mb-1"
+               style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
+               dir="rtl"
+             >
+               {token.surface}
+             </p>
+             {hasGloss && (
+               <p className="text-sm text-muted-foreground">{token.gloss}</p>
+             )}
+             {token.standard && (
+               <p className="text-xs text-muted-foreground/70" dir="rtl">
+                 (فصحى: {token.standard})
+               </p>
+             )}
+             {!hasGloss && (
+               <p className="text-xs text-muted-foreground italic">
+                 No definition available
+               </p>
+             )}
+           </div>
+           
+           {/* Action buttons */}
+           <div className="flex flex-col gap-2">
+             {onAddToVocabSection && (
+               <Button
+                 variant="outline"
+                 size="sm"
+                 className="w-full justify-start gap-2"
+                 onClick={() => {
+                   onAddToVocabSection(vocabItem);
+                   setOpen(false);
+                 }}
+                 disabled={isInVocabSection}
+               >
+                 {isInVocabSection ? (
+                   <>
+                     <Check className="h-4 w-4 text-primary" />
+                     In vocab section
+                   </>
+                 ) : (
+                   <>
+                     <Plus className="h-4 w-4" />
+                     Add to vocab section
+                   </>
+                 )}
+               </Button>
+             )}
+             
+             {onSaveToMyWords && (
+               <Button
+                 variant="default"
+                 size="sm"
+                 className="w-full justify-start gap-2"
+                 onClick={() => {
+                   onSaveToMyWords(vocabItem);
+                   setOpen(false);
+                 }}
+                 disabled={isSavedToMyWords}
+               >
+                 {isSavedToMyWords ? (
+                   <>
+                     <Check className="h-4 w-4" />
+                     Saved to My Words
+                   </>
+                 ) : (
+                   <>
+                     <BookOpen className="h-4 w-4" />
+                     Save to My Words
+                   </>
+                 )}
+               </Button>
+             )}
+           </div>
+         </div>
+       </PopoverContent>
+     </Popover>
    );
  };
  
- interface TranscriptLineCardProps {
+interface TranscriptLineCardProps {
    line: TranscriptLine;
    isActive: boolean;
    isPlaying: boolean;
@@ -83,7 +158,11 @@
    onToggle: () => void;
    onPlay: () => void;
    hasAudio: boolean;
-  currentTimeMs?: number;
+   currentTimeMs?: number;
+   onAddToVocabSection?: (word: VocabItem) => void;
+   onSaveToMyWords?: (word: VocabItem) => void;
+   savedWords?: Set<string>;
+   vocabSectionWords?: Set<string>;
  }
  
  const TranscriptLineCard = ({
@@ -94,15 +173,19 @@
    onToggle,
    onPlay,
    hasAudio,
-  currentTimeMs,
+   currentTimeMs,
+   onAddToVocabSection,
+   onSaveToMyWords,
+   savedWords,
+   vocabSectionWords,
  }: TranscriptLineCardProps) => {
-  // Determine if a token should be highlighted based on current playback time
-  const isTokenHighlighted = (token: WordToken, index: number): boolean => {
-    if (!isActive || !isPlaying || currentTimeMs === undefined) return false;
-    // Future: check token.startMs and token.endMs when available
-    // For now, return false until timestamps are mapped
-    return false;
-  };
+   // Determine if a token should be highlighted based on current playback time
+   const isTokenHighlighted = (token: WordToken, index: number): boolean => {
+     if (!isActive || !isPlaying || currentTimeMs === undefined) return false;
+     // Future: check token.startMs and token.endMs when available
+     // For now, return false until timestamps are mapped
+     return false;
+   };
 
    return (
      <div
@@ -149,10 +232,17 @@
              onToggle();
            }}
          >
-           {line.tokens && line.tokens.length > 0 ? (
+          {line.tokens && line.tokens.length > 0 ? (
              line.tokens.map((token, index) => (
                <span key={token.id} data-token className="inline">
-                  <InlineToken token={token} isHighlighted={isTokenHighlighted(token, index)} />
+                  <InlineToken 
+                    token={token} 
+                    isHighlighted={isTokenHighlighted(token, index)}
+                    onAddToVocabSection={onAddToVocabSection}
+                    onSaveToMyWords={onSaveToMyWords}
+                    isSavedToMyWords={savedWords?.has(token.surface)}
+                    isInVocabSection={vocabSectionWords?.has(token.surface)}
+                  />
                  {/* Add space between words, but not after punctuation-only tokens */}
                  {index < line.tokens.length - 1 &&
                    !/^[،؟.!:؛]+$/.test(token.surface) && " "}
@@ -199,10 +289,14 @@
    );
  };
  
- export const LineByLineTranscript = ({
+export const LineByLineTranscript = ({
    lines,
    audioUrl,
-  currentTimeMs,
+   currentTimeMs,
+   onAddToVocabSection,
+   onSaveToMyWords,
+   savedWords,
+   vocabSectionWords,
  }: LineByLineTranscriptProps) => {
    const [showAllTranslations, setShowAllTranslations] = useState(false);
    const [expandedLines, setExpandedLines] = useState<Set<string>>(new Set());
@@ -361,7 +455,11 @@
              onToggle={() => toggleLine(line.id)}
              onPlay={() => handlePlayLine(line)}
              hasAudio={!!audioUrl}
-            currentTimeMs={effectiveCurrentTimeMs}
+             currentTimeMs={effectiveCurrentTimeMs}
+             onAddToVocabSection={onAddToVocabSection}
+             onSaveToMyWords={onSaveToMyWords}
+             savedWords={savedWords}
+             vocabSectionWords={vocabSectionWords}
            />
          ))}
        </div>

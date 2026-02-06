@@ -152,6 +152,7 @@ const Transcribe = () => {
   const { user, isAuthenticated } = useAuth();
   const addUserVocabulary = useAddUserVocabulary();
   const [savedWords, setSavedWords] = useState<Set<string>>(new Set());
+  const [vocabSectionWords, setVocabSectionWords] = useState<Set<string>>(new Set());
   const [file, setFile] = useState<File | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -567,10 +568,71 @@ const Transcribe = () => {
     }
   };
 
+  // Handler to add a word to the vocab section at the bottom
+  const handleAddToVocabSection = (word: VocabItem) => {
+    if (!transcriptResult) return;
+    
+    // Check if already in vocab section
+    if (vocabSectionWords.has(word.arabic)) {
+      toast.info("الكلمة موجودة بالفعل في قسم المفردات");
+      return;
+    }
+    
+    // Add to vocabulary array
+    setTranscriptResult(prev => {
+      if (!prev) return prev;
+      const exists = prev.vocabulary.some(v => v.arabic === word.arabic);
+      if (exists) return prev;
+      return {
+        ...prev,
+        vocabulary: [...prev.vocabulary, word],
+      };
+    });
+    
+    setVocabSectionWords(prev => new Set(prev).add(word.arabic));
+    toast.success("تمت إضافة الكلمة إلى قسم المفردات");
+  };
+  
+  // Handler to save a word directly to My Words
+  const handleSaveToMyWords = async (word: VocabItem) => {
+    if (!isAuthenticated) {
+      toast.error("يرجى تسجيل الدخول أولاً", {
+        description: "تحتاج إلى حساب لحفظ الكلمات",
+      });
+      return;
+    }
+    
+    if (savedWords.has(word.arabic)) {
+      toast.info("الكلمة محفوظة بالفعل");
+      return;
+    }
+    
+    try {
+      await addUserVocabulary.mutateAsync({
+        word_arabic: word.arabic,
+        word_english: word.english,
+        root: word.root,
+        source: "transcription",
+      });
+      setSavedWords(prev => new Set(prev).add(word.arabic));
+      toast.success("تم حفظ الكلمة في كلماتي");
+    } catch (error: unknown) {
+      if (error instanceof Error && error.message?.includes("duplicate")) {
+        setSavedWords(prev => new Set(prev).add(word.arabic));
+        toast.info("الكلمة محفوظة بالفعل");
+      } else {
+        toast.error("فشل حفظ الكلمة");
+      }
+    }
+  };
+
   // Reset saved state when new transcription is created
   useEffect(() => {
     if (transcriptResult) {
       setIsSaved(false);
+      // Build vocabSectionWords set from existing vocabulary
+      const existingVocab = new Set(transcriptResult.vocabulary.map(v => v.arabic));
+      setVocabSectionWords(existingVocab);
     }
   }, [transcriptResult?.rawTranscriptArabic]);
 
@@ -771,7 +833,14 @@ const Transcribe = () => {
               </div>
             </CardHeader>
             <CardContent>
-              <LineByLineTranscript lines={lines} audioUrl={audioUrl || undefined} />
+              <LineByLineTranscript 
+                lines={lines} 
+                audioUrl={audioUrl || undefined}
+                onAddToVocabSection={handleAddToVocabSection}
+                onSaveToMyWords={handleSaveToMyWords}
+                savedWords={savedWords}
+                vocabSectionWords={vocabSectionWords}
+              />
             </CardContent>
           </Card>
         ) : transcript ? (

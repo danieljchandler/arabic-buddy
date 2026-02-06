@@ -165,14 +165,36 @@ async function callAI({
     const elapsedMs = Date.now() - startedAt;
     console.log('AI gateway response:', { status: response.status, ok: response.ok, isRetry, elapsedMs });
  
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('AI gateway error body (first 800 chars):', errorText?.slice?.(0, 800) ?? errorText);
-      return { content: null, error: errorText, status: response.status };
-    }
+   if (!response.ok) {
+     const errorText = await response.text();
+     console.error('AI gateway error body (first 800 chars):', errorText?.slice?.(0, 800) ?? errorText);
+     return { content: null, error: errorText, status: response.status };
+   }
  
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
+   // Safely read and parse the response body
+   let responseText: string;
+   try {
+     responseText = await response.text();
+   } catch (e) {
+     console.error('Failed to read response body:', e);
+     return { content: null, error: 'Failed to read AI response body', status: 500 };
+   }
+   
+   if (!responseText || responseText.trim().length === 0) {
+     console.error('AI gateway returned empty response body');
+     return { content: null, error: 'AI returned empty response', status: 500 };
+   }
+   
+   let data;
+   try {
+     data = JSON.parse(responseText);
+   } catch (e) {
+     console.error('Failed to parse AI response JSON:', e);
+     console.error('Response text (first 500 chars):', responseText.slice(0, 500));
+     return { content: null, error: 'Failed to parse AI response as JSON', status: 500 };
+   }
+   
+   const content = data.choices?.[0]?.message?.content;
     return { content };
  }
  

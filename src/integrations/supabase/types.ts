@@ -110,6 +110,54 @@ export type Database = {
         }
         Relationships: []
       }
+      user_vocabulary: {
+        Row: {
+          created_at: string
+          ease_factor: number
+          id: string
+          interval_days: number
+          last_reviewed_at: string | null
+          next_review_at: string
+          repetitions: number
+          root: string | null
+          source: string | null
+          updated_at: string
+          user_id: string
+          word_arabic: string
+          word_english: string
+        }
+        Insert: {
+          created_at?: string
+          ease_factor?: number
+          id?: string
+          interval_days?: number
+          last_reviewed_at?: string | null
+          next_review_at?: string
+          repetitions?: number
+          root?: string | null
+          source?: string | null
+          updated_at?: string
+          user_id: string
+          word_arabic: string
+          word_english: string
+        }
+        Update: {
+          created_at?: string
+          ease_factor?: number
+          id?: string
+          interval_days?: number
+          last_reviewed_at?: string | null
+          next_review_at?: string
+          repetitions?: number
+          root?: string | null
+          source?: string | null
+          updated_at?: string
+          user_id?: string
+          word_arabic?: string
+          word_english?: string
+        }
+        Relationships: []
+      }
       vocabulary_words: {
         Row: {
           audio_url: string | null

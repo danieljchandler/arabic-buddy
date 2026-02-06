@@ -1,5 +1,5 @@
-import { useState, useRef } from "react";
-import { Volume2, RotateCcw } from "lucide-react";
+import { useState, useRef, useCallback } from "react";
+import { Volume2, RotateCcw, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface VocabularyWord {
@@ -46,18 +46,74 @@ export const VocabularyCard = ({
   className,
 }: VocabularyCardProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const ttsAudioRef = useRef<HTMLAudioElement | null>(null);
 
-  const playAudio = () => {
+  const playTTS = useCallback(async () => {
+    if (isLoading || isPlaying) return;
+    
+    setIsLoading(true);
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/elevenlabs-tts`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({ text: word.word_arabic }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`TTS request failed: ${response.status}`);
+      }
+
+      const audioBlob = await response.blob();
+      const audioUrl = URL.createObjectURL(audioBlob);
+      
+      // Clean up previous TTS audio
+      if (ttsAudioRef.current) {
+        URL.revokeObjectURL(ttsAudioRef.current.src);
+      }
+      
+      const audio = new Audio(audioUrl);
+      ttsAudioRef.current = audio;
+      
+      audio.onplay = () => setIsPlaying(true);
+      audio.onended = () => {
+        setIsPlaying(false);
+        URL.revokeObjectURL(audioUrl);
+      };
+      audio.onerror = () => {
+        setIsPlaying(false);
+        URL.revokeObjectURL(audioUrl);
+      };
+      
+      await audio.play();
+    } catch (error) {
+      console.error("TTS playback error:", error);
+      // Visual feedback on error
+      setIsPlaying(true);
+      setTimeout(() => setIsPlaying(false), 500);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [word.word_arabic, isLoading, isPlaying]);
+
+  const playAudio = useCallback(() => {
     if (word.audio_url && audioRef.current) {
+      // Use stored audio if available
       audioRef.current.currentTime = 0;
       audioRef.current.play().catch(() => {});
     } else {
-      // Visual feedback when no audio
-      setIsPlaying(true);
-      setTimeout(() => setIsPlaying(false), 1000);
+      // Fall back to ElevenLabs TTS
+      playTTS();
     }
-  };
+  }, [word.audio_url, playTTS]);
 
   const handleAudioPlay = () => setIsPlaying(true);
   const handleAudioEnded = () => setIsPlaying(false);
@@ -101,8 +157,17 @@ export const VocabularyCard = ({
           )}
         </div>
 
+        {/* Loading indicator overlay */}
+        {isLoading && (
+          <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
+            <div className="w-20 h-20 rounded-full flex items-center justify-center bg-primary">
+              <Loader2 className="w-10 h-10 text-primary-foreground animate-spin" />
+            </div>
+          </div>
+        )}
+
         {/* Playing indicator overlay */}
-        {isPlaying && (
+        {isPlaying && !isLoading && (
           <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
             <div className="w-20 h-20 rounded-full flex items-center justify-center bg-primary animate-pulse-glow">
               <Volume2 className="w-10 h-10 text-primary-foreground" />

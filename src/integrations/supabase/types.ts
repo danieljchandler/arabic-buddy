@@ -14,6 +14,48 @@ export type Database = {
   }
   public: {
     Tables: {
+      saved_transcriptions: {
+        Row: {
+          audio_url: string | null
+          created_at: string
+          cultural_context: string | null
+          grammar_points: Json
+          id: string
+          lines: Json
+          raw_transcript_arabic: string
+          title: string
+          updated_at: string
+          user_id: string
+          vocabulary: Json
+        }
+        Insert: {
+          audio_url?: string | null
+          created_at?: string
+          cultural_context?: string | null
+          grammar_points?: Json
+          id?: string
+          lines?: Json
+          raw_transcript_arabic: string
+          title: string
+          updated_at?: string
+          user_id: string
+          vocabulary?: Json
+        }
+        Update: {
+          audio_url?: string | null
+          created_at?: string
+          cultural_context?: string | null
+          grammar_points?: Json
+          id?: string
+          lines?: Json
+          raw_transcript_arabic?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+          vocabulary?: Json
+        }
+        Relationships: []
+      }
       topics: {
         Row: {
           created_at: string

@@ -1,17 +1,26 @@
- import { useEffect, useMemo, useState, useRef } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Upload, FileAudio, Download, Loader2, X, BookOpen, Languages, Sparkles } from "lucide-react";
+import { Upload, FileAudio, Download, Loader2, X, BookOpen, Languages, Sparkles, Save, Check } from "lucide-react";
 import { toast } from "sonner";
 import { HomeButton } from "@/components/HomeButton";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { supabase } from "@/integrations/supabase/client";
- import { Badge } from "@/components/ui/badge";
- import type { TranscriptResult, VocabItem, GrammarPoint } from "@/types/transcript";
-  import { LineByLineTranscript } from "@/components/transcript/LineByLineTranscript";
-
+import { Badge } from "@/components/ui/badge";
+import type { TranscriptResult, VocabItem, GrammarPoint } from "@/types/transcript";
+import { LineByLineTranscript } from "@/components/transcript/LineByLineTranscript";
+import { useAuth } from "@/hooks/useAuth";
+import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 function normalizeTranscriptResult(input: TranscriptResult): TranscriptResult {
   const safeLines = Array.isArray(input.lines) ? input.lines : [];
   const safeVocab = Array.isArray(input.vocabulary) ? input.vocabulary : [];
@@ -80,26 +89,31 @@ function normalizeTranscriptResult(input: TranscriptResult): TranscriptResult {
  
 
 const Transcribe = () => {
+  const { user, isAuthenticated } = useAuth();
   const [file, setFile] = useState<File | null>(null);
-   const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [saveTitle, setSaveTitle] = useState("");
   const [progress, setProgress] = useState(0);
-   const [transcriptResult, setTranscriptResult] = useState<TranscriptResult | null>(null);
-   const [debugTrace, setDebugTrace] = useState<{
-     phase: string;
-     at: string;
-     message?: string;
-     details?: unknown;
-   } | null>(null);
+  const [transcriptResult, setTranscriptResult] = useState<TranscriptResult | null>(null);
+  const [debugTrace, setDebugTrace] = useState<{
+    phase: string;
+    at: string;
+    message?: string;
+    details?: unknown;
+  } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
- 
-   // Derived state for backwards compatibility
-   const transcript = transcriptResult?.rawTranscriptArabic ?? "";
-   const vocabulary = transcriptResult?.vocabulary ?? [];
-   const grammarPoints = transcriptResult?.grammarPoints ?? [];
-   const culturalContext = transcriptResult?.culturalContext;
-   const lines = transcriptResult?.lines ?? [];
+
+  // Derived state for backwards compatibility
+  const transcript = transcriptResult?.rawTranscriptArabic ?? "";
+  const vocabulary = transcriptResult?.vocabulary ?? [];
+  const grammarPoints = transcriptResult?.grammarPoints ?? [];
+  const culturalContext = transcriptResult?.culturalContext;
+  const lines = transcriptResult?.lines ?? [];
 
    const debugEnabled = useMemo(() => {
      try {
@@ -435,6 +449,60 @@ const Transcribe = () => {
     toast.success("تم التصدير بنجاح!");
   };
 
+  const handleSaveClick = () => {
+    if (!isAuthenticated) {
+      toast.error("يرجى تسجيل الدخول أولاً", {
+        description: "تحتاج إلى حساب لحفظ النصوص المحولة",
+      });
+      return;
+    }
+    // Generate default title from file name or date
+    const defaultTitle = file?.name?.replace(/\.[^/.]+$/, "") || 
+      `تحويل ${new Date().toLocaleDateString('ar-SA')}`;
+    setSaveTitle(defaultTitle);
+    setShowSaveDialog(true);
+  };
+
+  const saveTranscription = async () => {
+    if (!transcriptResult || !user) return;
+
+    setIsSaving(true);
+    try {
+      const { error } = await supabase.from("saved_transcriptions").insert({
+        user_id: user.id,
+        title: saveTitle.trim() || `تحويل ${new Date().toLocaleDateString('ar-SA')}`,
+        raw_transcript_arabic: transcriptResult.rawTranscriptArabic,
+        lines: JSON.parse(JSON.stringify(transcriptResult.lines)),
+        vocabulary: JSON.parse(JSON.stringify(transcriptResult.vocabulary)),
+        grammar_points: JSON.parse(JSON.stringify(transcriptResult.grammarPoints)),
+        cultural_context: transcriptResult.culturalContext || null,
+        audio_url: audioUrl || null,
+      });
+
+      if (error) throw error;
+
+      setIsSaved(true);
+      setShowSaveDialog(false);
+      toast.success("تم حفظ النص بنجاح!", {
+        description: "يمكنك الوصول إليه من صفحة النصوص المحفوظة",
+      });
+    } catch (error) {
+      console.error("Save error:", error);
+      toast.error("فشل الحفظ", {
+        description: error instanceof Error ? error.message : "حدث خطأ غير متوقع",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Reset saved state when new transcription is created
+  useEffect(() => {
+    if (transcriptResult) {
+      setIsSaved(false);
+    }
+  }, [transcriptResult?.rawTranscriptArabic]);
+
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return "0 Bytes";
     const k = 1024;
@@ -559,50 +627,126 @@ const Transcribe = () => {
           </CardContent>
         </Card>
 
+        {/* Save Dialog */}
+        <Dialog open={showSaveDialog} onOpenChange={setShowSaveDialog}>
+          <DialogContent dir="rtl">
+            <DialogHeader>
+              <DialogTitle>حفظ النص المحوّل</DialogTitle>
+              <DialogDescription>
+                أدخل عنواناً للنص المحوّل لحفظه في حسابك
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+              <Input
+                value={saveTitle}
+                onChange={(e) => setSaveTitle(e.target.value)}
+                placeholder="عنوان النص..."
+                dir="rtl"
+              />
+            </div>
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button variant="outline" onClick={() => setShowSaveDialog(false)}>
+                إلغاء
+              </Button>
+              <Button onClick={saveTranscription} disabled={isSaving}>
+                {isSaving ? (
+                  <>
+                    <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                    جاري الحفظ...
+                  </>
+                ) : (
+                  <>
+                    <Save className="ml-2 h-4 w-4" />
+                    حفظ
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         {/* Transcript Display */}
-         {lines.length > 0 ? (
+        {lines.length > 0 ? (
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
                 <CardTitle>النص المحوّل</CardTitle>
                 <CardDescription>
-                   {lines.length} جملة
+                  {lines.length} جملة
                 </CardDescription>
               </div>
-              <Button onClick={exportTranscript} variant="outline">
-                <Download className="ml-2 h-4 w-4" />
-                تصدير
-              </Button>
-            </CardHeader>
-            <CardContent>
-               <LineByLineTranscript lines={lines} audioUrl={audioUrl || undefined} />
-            </CardContent>
-          </Card>
-         ) : transcript ? (
-           <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle>النص المحوّل</CardTitle>
-                  <CardDescription>
-                    {transcript.length} حرف
-                  </CardDescription>
-                </div>
+              <div className="flex gap-2">
+                <Button 
+                  onClick={handleSaveClick} 
+                  variant={isSaved ? "secondary" : "default"}
+                  disabled={isSaved}
+                >
+                  {isSaved ? (
+                    <>
+                      <Check className="ml-2 h-4 w-4" />
+                      تم الحفظ
+                    </>
+                  ) : (
+                    <>
+                      <Save className="ml-2 h-4 w-4" />
+                      حفظ
+                    </>
+                  )}
+                </Button>
                 <Button onClick={exportTranscript} variant="outline">
                   <Download className="ml-2 h-4 w-4" />
                   تصدير
                 </Button>
-              </CardHeader>
-              <CardContent>
-                <p
-                  className="text-right text-lg leading-relaxed text-foreground"
-                  dir="rtl"
-                  style={{ fontFamily: "'Cairo', 'Traditional Arabic', sans-serif" }}
+              </div>
+            </CardHeader>
+            <CardContent>
+              <LineByLineTranscript lines={lines} audioUrl={audioUrl || undefined} />
+            </CardContent>
+          </Card>
+        ) : transcript ? (
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>النص المحوّل</CardTitle>
+                <CardDescription>
+                  {transcript.length} حرف
+                </CardDescription>
+              </div>
+              <div className="flex gap-2">
+                <Button 
+                  onClick={handleSaveClick} 
+                  variant={isSaved ? "secondary" : "default"}
+                  disabled={isSaved}
                 >
-                  {transcript}
-                </p>
-             </CardContent>
-           </Card>
-         ) : null}
+                  {isSaved ? (
+                    <>
+                      <Check className="ml-2 h-4 w-4" />
+                      تم الحفظ
+                    </>
+                  ) : (
+                    <>
+                      <Save className="ml-2 h-4 w-4" />
+                      حفظ
+                    </>
+                  )}
+                </Button>
+                <Button onClick={exportTranscript} variant="outline">
+                  <Download className="ml-2 h-4 w-4" />
+                  تصدير
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <p
+                className="text-right text-lg leading-relaxed text-foreground"
+                dir="rtl"
+                style={{ fontFamily: "'Cairo', 'Traditional Arabic', sans-serif" }}
+              >
+                {transcript}
+              </p>
+            </CardContent>
+          </Card>
+        ) : null}
  
         {/* Analysis Loading */}
         {isAnalyzing && (

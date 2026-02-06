@@ -73,19 +73,78 @@ function normalizeTranscriptResult(input: TranscriptResult): TranscriptResult {
   };
 }
 
+ interface ElevenLabsWord {
+   text: string;
+   start: number;  // in seconds
+   end: number;    // in seconds
+   speaker?: string;
+ }
+ 
  interface ElevenLabsTranscriptionResult {
    text: string;
-   words?: Array<{
-     text: string;
-     start: number;
-     end: number;
-     speaker?: string;
-   }>;
+   words?: ElevenLabsWord[];
    audio_events?: Array<{
      type: string;
      start: number;
      end: number;
    }>;
+ }
+ 
+ /**
+  * Maps word-level timestamps from ElevenLabs to sentence-level timestamps.
+  * For each line, finds the first and last matching words to get startMs/endMs.
+  */
+ function mapTimestampsToLines(
+   lines: TranscriptResult["lines"],
+   words: ElevenLabsWord[]
+ ): TranscriptResult["lines"] {
+   if (!words || words.length === 0) return lines;
+   
+   // Build a simple word index by normalizing Arabic text
+   const normalizeArabic = (text: string) => 
+     text.replace(/[\u064B-\u0652\u0670]/g, '') // Remove tashkeel
+         .replace(/[^\u0600-\u06FF]/g, '')       // Keep only Arabic
+         .trim();
+   
+   let wordIndex = 0;
+   
+   return lines.map(line => {
+     const lineWords = line.arabic.split(/\s+/).filter(Boolean);
+     if (lineWords.length === 0) return line;
+     
+     let startMs: number | undefined;
+     let endMs: number | undefined;
+     
+     // Try to find matching words in sequence
+     const startSearchIndex = wordIndex;
+     let matchedFirst = false;
+     
+     for (let i = 0; i < lineWords.length; i++) {
+       const lineWord = normalizeArabic(lineWords[i]);
+       if (!lineWord) continue;
+       
+       // Search for this word starting from current index
+       for (let j = matchedFirst ? wordIndex : startSearchIndex; j < words.length; j++) {
+         const elevenWord = normalizeArabic(words[j].text);
+         if (elevenWord === lineWord || elevenWord.includes(lineWord) || lineWord.includes(elevenWord)) {
+           if (!matchedFirst) {
+             startMs = Math.round(words[j].start * 1000);
+             matchedFirst = true;
+           }
+           endMs = Math.round(words[j].end * 1000);
+           wordIndex = j + 1;
+           break;
+         }
+       }
+     }
+     
+     // If we found timestamps, add them to the line
+     if (startMs !== undefined && endMs !== undefined) {
+       return { ...line, startMs, endMs };
+     }
+     
+     return line;
+   });
  }
  
 
@@ -388,6 +447,7 @@ const Transcribe = () => {
       }
 
       const result = data;
+      const elevenLabsWords = result.words || [];
       setProgress(100);
        
        // Initialize TranscriptResult with raw transcript
@@ -406,12 +466,20 @@ const Transcribe = () => {
       // Automatically analyze the transcript
        const analysisData = await analyzeTranscript(result.text);
        if (analysisData) {
+         // Map timestamps from ElevenLabs words to the analyzed lines
+         const linesWithTimestamps = mapTimestampsToLines(
+           analysisData.lines || [],
+           elevenLabsWords
+         );
+         
+         console.log('Mapped timestamps to lines:', linesWithTimestamps.filter(l => l.startMs !== undefined).length, '/', linesWithTimestamps.length);
+         
          setTranscriptResult(prev => prev ? {
            ...prev,
            vocabulary: analysisData.vocabulary,
            grammarPoints: analysisData.grammarPoints,
            culturalContext: analysisData.culturalContext,
-           lines: analysisData.lines || [],
+           lines: linesWithTimestamps,
          } : null);
        }
     } catch (error) {

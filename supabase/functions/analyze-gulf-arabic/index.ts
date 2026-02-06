@@ -106,6 +106,34 @@ Rules:
 
 No additional text outside JSON.`;
 };
+
+const getWordGlossesPrompt = (isRetry: boolean = false) => {
+  const strictPrefix = strictJsonPrefix(isRetry);
+  return `${strictPrefix}You are a Gulf Arabic linguist providing word-by-word English glosses for language learners.
+
+Output ONLY valid JSON matching this schema:
+{
+  "glosses": {
+    "arabicWord": "english meaning",
+    ...
+  }
+}
+
+Rules:
+- Provide an English gloss for EVERY unique Arabic word in the transcript.
+- Include common particles: و = and, في = in, من = from, على = on, إلى/لـ = to, ما = not/what, هذا/هاذا = this, إذا/لو = if, etc.
+- Include pronouns: أنا = I, إنت/أنت = you, هو = he, هي = she, إحنا/نحن = we, هم = they, etc.
+- Include verbs in context: provide the meaning as used (e.g., راح = went/will, يبي = wants, أبي = I want).
+- For words with multiple meanings, use the contextual meaning from the transcript.
+- Keep glosses short (1-4 words).
+- Preserve Gulf dialect spellings as keys (do not normalize to MSA).
+
+No additional text outside JSON.`;
+};
+
+type GlossesAI = {
+  glosses: Record<string, string>;
+};
  
 type CallAIArgs = {
   systemPrompt: string;
@@ -247,16 +275,22 @@ function createFallbackResult(transcript: string): TranscriptResult {
   };
 }
 
-function toWordTokens(arabic: string, vocabulary: VocabItem[]): WordToken[] {
-  const vocabMap = new Map(vocabulary.map((v) => [v.arabic, v] as const));
+function toWordTokens(
+  arabic: string,
+  vocabulary: VocabItem[],
+  wordGlosses: Record<string, string> = {}
+): WordToken[] {
+  // Build a map from key vocabulary (higher priority)
+  const vocabMap = new Map(vocabulary.map((v) => [v.arabic, v.english] as const));
   const words = arabic.split(/\s+/).filter(Boolean);
 
   return words.map((surface, idx) => {
-    const match = vocabMap.get(surface);
+    // Priority: key vocabulary > word glosses map
+    const gloss = vocabMap.get(surface) ?? wordGlosses[surface];
     return {
       id: `tok-${generateId()}-${idx}`,
       surface,
-      gloss: match?.english,
+      gloss,
     };
   });
 }
@@ -388,7 +422,7 @@ serve(async (req) => {
          // Update tokens with vocab glosses if available
          lines: fallback.lines.map((l) => ({
            ...l,
-           tokens: toWordTokens(l.arabic, Array.isArray(meta.vocabulary) ? meta.vocabulary : []),
+           tokens: toWordTokens(l.arabic, Array.isArray(meta.vocabulary) ? meta.vocabulary : [], {}),
          })),
        };
 
@@ -432,6 +466,55 @@ serve(async (req) => {
      const vocab = Array.isArray(metaAi.vocabulary) ? metaAi.vocabulary : [];
      const grammarPoints = Array.isArray(metaAi.grammarPoints) ? metaAi.grammarPoints : [];
 
+     // -----------------------------
+     // 3) Comprehensive word glosses for every word
+     // -----------------------------
+     let wordGlosses: Record<string, string> = {};
+     
+     // Extract all unique words from all lines
+     const allWords = new Set<string>();
+     for (const line of linesAi.lines) {
+       const words = String(line.arabic ?? '').split(/\s+/).filter(Boolean);
+       words.forEach(w => allWords.add(w));
+     }
+     
+     console.log('Fetching glosses for', allWords.size, 'unique words...');
+     
+     let glossesResp = await callAI({
+       systemPrompt: getWordGlossesPrompt(false),
+       userContent: `Provide English glosses for these Gulf Arabic words:\n\n${Array.from(allWords).join(' ')}`,
+       apiKey: LOVABLE_API_KEY,
+       isRetry: false,
+       maxTokens: 4096,
+     });
+     
+     if (glossesResp.content) {
+       const glossesAi = safeJsonParse<GlossesAI>(glossesResp.content);
+       if (glossesAi?.glosses && typeof glossesAi.glosses === 'object') {
+         wordGlosses = glossesAi.glosses;
+         console.log('Parsed', Object.keys(wordGlosses).length, 'word glosses');
+       }
+     }
+     
+     // Retry if we got no glosses
+     if (Object.keys(wordGlosses).length === 0) {
+       console.log('Word glosses parse failed, retrying...');
+       const glossesRetry = await callAI({
+         systemPrompt: getWordGlossesPrompt(true),
+         userContent: `Provide English glosses for these Gulf Arabic words:\n\n${Array.from(allWords).join(' ')}`,
+         apiKey: LOVABLE_API_KEY,
+         isRetry: true,
+         maxTokens: 4096,
+       });
+       if (glossesRetry.content) {
+         const glossesAi = safeJsonParse<GlossesAI>(glossesRetry.content);
+         if (glossesAi?.glosses && typeof glossesAi.glosses === 'object') {
+           wordGlosses = glossesAi.glosses;
+           console.log('Retry: parsed', Object.keys(wordGlosses).length, 'word glosses');
+         }
+       }
+     }
+
      // Build the full TranscriptResult
      const transcriptResult: TranscriptResult = {
        rawTranscriptArabic: transcript,
@@ -439,7 +522,7 @@ serve(async (req) => {
          id: `line-${generateId()}-${idx}`,
          arabic: String(l.arabic ?? '').trim(),
          translation: String(l.translation ?? '').trim(),
-         tokens: toWordTokens(String(l.arabic ?? '').trim(), vocab),
+         tokens: toWordTokens(String(l.arabic ?? '').trim(), vocab, wordGlosses),
        })),
        vocabulary: vocab,
        grammarPoints,

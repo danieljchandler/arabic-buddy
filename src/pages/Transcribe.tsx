@@ -1,16 +1,17 @@
-import { useEffect, useMemo, useState, useRef } from "react";
+import { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Upload, FileAudio, Download, Loader2, X, BookOpen, Languages, Sparkles, Save, Check, Plus } from "lucide-react";
+import { Upload, FileAudio, Download, Loader2, X, BookOpen, Languages, Sparkles, Save, Check, Plus, Link2 } from "lucide-react";
 import { toast } from "sonner";
 import { HomeButton } from "@/components/HomeButton";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { TranscriptResult, VocabItem, GrammarPoint } from "@/types/transcript";
 import { LineByLineTranscript } from "@/components/transcript/LineByLineTranscript";
+import { TimeRangeSelector } from "@/components/transcript/TimeRangeSelector";
 import { useAuth } from "@/hooks/useAuth";
 import { useAddUserVocabulary } from "@/hooks/useUserVocabulary";
 import { Input } from "@/components/ui/input";
@@ -22,6 +23,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+
 function normalizeTranscriptResult(input: TranscriptResult): TranscriptResult {
   const safeLines = Array.isArray(input.lines) ? input.lines : [];
   const safeVocab = Array.isArray(input.vocabulary) ? input.vocabulary : [];
@@ -73,80 +75,98 @@ function normalizeTranscriptResult(input: TranscriptResult): TranscriptResult {
   };
 }
 
- interface ElevenLabsWord {
-   text: string;
-   start: number;  // in seconds
-   end: number;    // in seconds
-   speaker?: string;
- }
- 
- interface ElevenLabsTranscriptionResult {
-   text: string;
-   words?: ElevenLabsWord[];
-   audio_events?: Array<{
-     type: string;
-     start: number;
-     end: number;
-   }>;
- }
- 
- /**
-  * Maps word-level timestamps from ElevenLabs to sentence-level timestamps.
-  * For each line, finds the first and last matching words to get startMs/endMs.
-  */
- function mapTimestampsToLines(
-   lines: TranscriptResult["lines"],
-   words: ElevenLabsWord[]
- ): TranscriptResult["lines"] {
-   if (!words || words.length === 0) return lines;
-   
-   // Build a simple word index by normalizing Arabic text
-   const normalizeArabic = (text: string) => 
-     text.replace(/[\u064B-\u0652\u0670]/g, '') // Remove tashkeel
-         .replace(/[^\u0600-\u06FF]/g, '')       // Keep only Arabic
-         .trim();
-   
-   let wordIndex = 0;
-   
-   return lines.map(line => {
-     const lineWords = line.arabic.split(/\s+/).filter(Boolean);
-     if (lineWords.length === 0) return line;
-     
-     let startMs: number | undefined;
-     let endMs: number | undefined;
-     
-     // Try to find matching words in sequence
-     const startSearchIndex = wordIndex;
-     let matchedFirst = false;
-     
-     for (let i = 0; i < lineWords.length; i++) {
-       const lineWord = normalizeArabic(lineWords[i]);
-       if (!lineWord) continue;
-       
-       // Search for this word starting from current index
-       for (let j = matchedFirst ? wordIndex : startSearchIndex; j < words.length; j++) {
-         const elevenWord = normalizeArabic(words[j].text);
-         if (elevenWord === lineWord || elevenWord.includes(lineWord) || lineWord.includes(elevenWord)) {
-           if (!matchedFirst) {
-             startMs = Math.round(words[j].start * 1000);
-             matchedFirst = true;
-           }
-           endMs = Math.round(words[j].end * 1000);
-           wordIndex = j + 1;
-           break;
-         }
-       }
-     }
-     
-     // If we found timestamps, add them to the line
-     if (startMs !== undefined && endMs !== undefined) {
-       return { ...line, startMs, endMs };
-     }
-     
-     return line;
-   });
- }
- 
+interface ElevenLabsWord {
+  text: string;
+  start: number;
+  end: number;
+  speaker?: string;
+}
+
+interface ElevenLabsTranscriptionResult {
+  text: string;
+  words?: ElevenLabsWord[];
+  audio_events?: Array<{
+    type: string;
+    start: number;
+    end: number;
+  }>;
+}
+
+function mapTimestampsToLines(
+  lines: TranscriptResult["lines"],
+  words: ElevenLabsWord[]
+): TranscriptResult["lines"] {
+  if (!words || words.length === 0) return lines;
+  
+  const normalizeArabic = (text: string) => 
+    text.replace(/[\u064B-\u0652\u0670]/g, '')
+        .replace(/[^\u0600-\u06FF]/g, '')
+        .trim();
+  
+  let wordIndex = 0;
+  
+  return lines.map(line => {
+    const lineWords = line.arabic.split(/\s+/).filter(Boolean);
+    if (lineWords.length === 0) return line;
+    
+    let startMs: number | undefined;
+    let endMs: number | undefined;
+    
+    const startSearchIndex = wordIndex;
+    let matchedFirst = false;
+    
+    for (let i = 0; i < lineWords.length; i++) {
+      const lineWord = normalizeArabic(lineWords[i]);
+      if (!lineWord) continue;
+      
+      for (let j = matchedFirst ? wordIndex : startSearchIndex; j < words.length; j++) {
+        const elevenWord = normalizeArabic(words[j].text);
+        if (elevenWord === lineWord || elevenWord.includes(lineWord) || lineWord.includes(elevenWord)) {
+          if (!matchedFirst) {
+            startMs = Math.round(words[j].start * 1000);
+            matchedFirst = true;
+          }
+          endMs = Math.round(words[j].end * 1000);
+          wordIndex = j + 1;
+          break;
+        }
+      }
+    }
+    
+    if (startMs !== undefined && endMs !== undefined) {
+      return { ...line, startMs, endMs };
+    }
+    
+    return line;
+  });
+}
+
+/**
+ * Filter ElevenLabs words to only those within a time range
+ */
+function filterWordsByTimeRange(
+  words: ElevenLabsWord[],
+  startSec: number,
+  endSec: number
+): ElevenLabsWord[] {
+  return words.filter(w => w.start >= startSec && w.end <= endSec);
+}
+
+/**
+ * Filter raw transcript text by keeping only words within time range
+ */
+function filterTranscriptByTimeRange(
+  text: string,
+  words: ElevenLabsWord[],
+  startSec: number,
+  endSec: number
+): string {
+  const filteredWords = filterWordsByTimeRange(words, startSec, endSec);
+  if (filteredWords.length === 0) return text; // fallback to full text
+  return filteredWords.map(w => w.text).join(" ");
+}
+
+const MAX_DURATION = 180; // 3 minutes
 
 const Transcribe = () => {
   const { user, isAuthenticated } = useAuth();
@@ -171,153 +191,149 @@ const Transcribe = () => {
   } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Derived state for backwards compatibility
+  // URL import state
+  const [urlInput, setUrlInput] = useState("");
+  const [isLoadingUrl, setIsLoadingUrl] = useState(false);
+  const [remoteAudioUrl, setRemoteAudioUrl] = useState<string | null>(null);
+
+  // Duration & time range state
+  const [mediaDuration, setMediaDuration] = useState<number | null>(null);
+  const [timeRange, setTimeRange] = useState<[number, number]>([0, MAX_DURATION]);
+
+  // Derived state
   const transcript = transcriptResult?.rawTranscriptArabic ?? "";
   const vocabulary = transcriptResult?.vocabulary ?? [];
   const grammarPoints = transcriptResult?.grammarPoints ?? [];
   const culturalContext = transcriptResult?.culturalContext;
   const lines = transcriptResult?.lines ?? [];
 
-   const debugEnabled = useMemo(() => {
-     try {
-       return new URLSearchParams(window.location.search).has("debug");
-     } catch {
-       return false;
-     }
-   }, []);
+  const debugEnabled = useMemo(() => {
+    try {
+      return new URLSearchParams(window.location.search).has("debug");
+    } catch {
+      return false;
+    }
+  }, []);
 
-   // Persist debugTrace across reloads so we can tell if this is a page reload vs a React render crash.
-   useEffect(() => {
-     if (!debugTrace) return;
-     try {
-       sessionStorage.setItem("__transcribe_debug_trace", JSON.stringify(debugTrace));
-     } catch {
-       // ignore
-     }
-   }, [debugTrace]);
+  useEffect(() => {
+    if (!debugTrace) return;
+    try {
+      sessionStorage.setItem("__transcribe_debug_trace", JSON.stringify(debugTrace));
+    } catch { /* ignore */ }
+  }, [debugTrace]);
 
-   useEffect(() => {
-     try {
-       const storedTrace = sessionStorage.getItem("__transcribe_debug_trace");
-       const unloadAt = sessionStorage.getItem("__transcribe_unload_at");
-       const unloadPhase = sessionStorage.getItem("__transcribe_unload_phase");
-        const unloadActive = sessionStorage.getItem("__transcribe_unload_active");
+  useEffect(() => {
+    try {
+      const storedTrace = sessionStorage.getItem("__transcribe_debug_trace");
+      const unloadAt = sessionStorage.getItem("__transcribe_unload_at");
+      const unloadPhase = sessionStorage.getItem("__transcribe_unload_phase");
+      const unloadActive = sessionStorage.getItem("__transcribe_unload_active");
 
-       if (storedTrace && !debugTrace) {
-         setDebugTrace(JSON.parse(storedTrace));
-       }
+      if (storedTrace && !debugTrace) {
+        setDebugTrace(JSON.parse(storedTrace));
+      }
 
-        // Only show reload/crash toast if we previously recorded that work was in progress.
-        if (unloadAt && unloadActive === "1") {
-         // Show a toast after a reload so it's visible even if the UI flashes white.
-         toast.error("تمت إعادة تحميل الصفحة أثناء الرفع", {
-           description: unloadPhase
-             ? `آخر مرحلة: ${unloadPhase}`
-             : "تم اكتشاف إعادة تحميل غير متوقعة.",
-         });
-         sessionStorage.removeItem("__transcribe_unload_at");
-         sessionStorage.removeItem("__transcribe_unload_phase");
-          sessionStorage.removeItem("__transcribe_unload_active");
-        } else if (unloadAt) {
-          // Clean up stale markers from normal navigation.
-          sessionStorage.removeItem("__transcribe_unload_at");
-          sessionStorage.removeItem("__transcribe_unload_phase");
-          sessionStorage.removeItem("__transcribe_unload_active");
-       }
-     } catch (err) {
-       console.error("Failed to restore transcribe debug state:", err);
-     }
-     // eslint-disable-next-line react-hooks/exhaustive-deps
-   }, []);
+      if (unloadAt && unloadActive === "1") {
+        toast.error("تمت إعادة تحميل الصفحة أثناء الرفع", {
+          description: unloadPhase ? `آخر مرحلة: ${unloadPhase}` : "تم اكتشاف إعادة تحميل غير متوقعة.",
+        });
+        sessionStorage.removeItem("__transcribe_unload_at");
+        sessionStorage.removeItem("__transcribe_unload_phase");
+        sessionStorage.removeItem("__transcribe_unload_active");
+      } else if (unloadAt) {
+        sessionStorage.removeItem("__transcribe_unload_at");
+        sessionStorage.removeItem("__transcribe_unload_phase");
+        sessionStorage.removeItem("__transcribe_unload_active");
+      }
+    } catch (err) {
+      console.error("Failed to restore transcribe debug state:", err);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-   useEffect(() => {
-     const onBeforeUnload = () => {
-       try {
-          // Only record unload markers if we were actively processing.
-          if (!isProcessing && !isAnalyzing) return;
-         sessionStorage.setItem("__transcribe_unload_at", new Date().toISOString());
-         sessionStorage.setItem("__transcribe_unload_phase", debugTrace?.phase ?? "unknown");
-          sessionStorage.setItem("__transcribe_unload_active", "1");
-       } catch {
-         // ignore
-       }
-     };
-     window.addEventListener("beforeunload", onBeforeUnload);
-     return () => window.removeEventListener("beforeunload", onBeforeUnload);
-    }, [debugTrace?.phase, isAnalyzing, isProcessing]);
+  useEffect(() => {
+    const onBeforeUnload = () => {
+      try {
+        if (!isProcessing && !isAnalyzing) return;
+        sessionStorage.setItem("__transcribe_unload_at", new Date().toISOString());
+        sessionStorage.setItem("__transcribe_unload_phase", debugTrace?.phase ?? "unknown");
+        sessionStorage.setItem("__transcribe_unload_active", "1");
+      } catch { /* ignore */ }
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [debugTrace?.phase, isAnalyzing, isProcessing]);
+
+  // Detect duration from uploaded file
+  const detectFileDuration = useCallback((selectedFile: File) => {
+    const mediaEl = selectedFile.type.startsWith("video/")
+      ? document.createElement("video")
+      : document.createElement("audio");
+    
+    mediaEl.preload = "metadata";
+    const objectUrl = URL.createObjectURL(selectedFile);
+    mediaEl.src = objectUrl;
+    
+    mediaEl.onloadedmetadata = () => {
+      const dur = Math.ceil(mediaEl.duration);
+      setMediaDuration(dur);
+      setTimeRange([0, Math.min(dur, MAX_DURATION)]);
+      URL.revokeObjectURL(objectUrl);
+    };
+
+    mediaEl.onerror = () => {
+      console.warn("Could not detect media duration");
+      URL.revokeObjectURL(objectUrl);
+    };
+  }, []);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-     try {
-       const selectedFile = e.target.files?.[0];
-       if (selectedFile) {
-         // Validate file type
-         const validTypes = [
-           "audio/mpeg",
-           "audio/mp3",
-           "audio/wav",
-           "audio/m4a",
-           "audio/ogg",
-           "video/mp4",
-           "video/webm",
-           "video/quicktime",
-           "audio/mp4",
-         ];
+    try {
+      const selectedFile = e.target.files?.[0];
+      if (selectedFile) {
+        const validTypes = [
+          "audio/mpeg", "audio/mp3", "audio/wav", "audio/m4a", "audio/ogg",
+          "video/mp4", "video/webm", "video/quicktime", "audio/mp4",
+        ];
 
-         if (
-           !validTypes.includes(selectedFile.type) &&
-           !selectedFile.name.match(/\.(mp3|wav|m4a|ogg|mp4|webm|mov)$/i)
-         ) {
-           toast.error("نوع الملف غير مدعوم", {
-             description: "يرجى تحميل ملف صوتي أو فيديو",
-           });
-           return;
-         }
+        if (
+          !validTypes.includes(selectedFile.type) &&
+          !selectedFile.name.match(/\.(mp3|wav|m4a|ogg|mp4|webm|mov)$/i)
+        ) {
+          toast.error("نوع الملف غير مدعوم", { description: "يرجى تحميل ملف صوتي أو فيديو" });
+          return;
+        }
 
-         setFile(selectedFile);
-         setTranscriptResult(null);
-         // Create blob URL for audio playback
-         if (audioUrl) {
-           URL.revokeObjectURL(audioUrl);
-         }
-         setAudioUrl(URL.createObjectURL(selectedFile));
-       }
-     } catch (err) {
-       console.error("handleFileSelect error:", err);
-       setDebugTrace({
-         phase: "fileSelectError",
-         at: new Date().toISOString(),
-         message: err instanceof Error ? err.message : String(err),
-       });
-       toast.error("تعذر اختيار الملف", {
-         description: "حدث خطأ غير متوقع أثناء اختيار الملف.",
-       });
-     }
+        setFile(selectedFile);
+        setTranscriptResult(null);
+        setRemoteAudioUrl(null);
+        if (audioUrl) URL.revokeObjectURL(audioUrl);
+        setAudioUrl(URL.createObjectURL(selectedFile));
+        detectFileDuration(selectedFile);
+      }
+    } catch (err) {
+      console.error("handleFileSelect error:", err);
+      setDebugTrace({ phase: "fileSelectError", at: new Date().toISOString(), message: err instanceof Error ? err.message : String(err) });
+      toast.error("تعذر اختيار الملف");
+    }
   };
 
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
-     try {
-       e.preventDefault();
-       const droppedFile = e.dataTransfer.files?.[0];
-       if (droppedFile) {
-         setFile(droppedFile);
-         setTranscriptResult(null);
-         // Create blob URL for audio playback
-         if (audioUrl) {
-           URL.revokeObjectURL(audioUrl);
-         }
-         setAudioUrl(URL.createObjectURL(droppedFile));
-       }
-     } catch (err) {
-       console.error("handleDrop error:", err);
-       setDebugTrace({
-         phase: "dropError",
-         at: new Date().toISOString(),
-         message: err instanceof Error ? err.message : String(err),
-       });
-       toast.error("تعذر تحميل الملف", {
-         description: "حدث خطأ غير متوقع أثناء السحب والإفلات.",
-       });
-     }
+    try {
+      e.preventDefault();
+      const droppedFile = e.dataTransfer.files?.[0];
+      if (droppedFile) {
+        setFile(droppedFile);
+        setTranscriptResult(null);
+        setRemoteAudioUrl(null);
+        if (audioUrl) URL.revokeObjectURL(audioUrl);
+        setAudioUrl(URL.createObjectURL(droppedFile));
+        detectFileDuration(droppedFile);
+      }
+    } catch (err) {
+      console.error("handleDrop error:", err);
+      toast.error("تعذر تحميل الملف");
+    }
   };
 
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
@@ -326,188 +342,220 @@ const Transcribe = () => {
 
   const clearFile = () => {
     setFile(null);
-     setTranscriptResult(null);
-     // Clean up blob URL
-     if (audioUrl) {
-       URL.revokeObjectURL(audioUrl);
-       setAudioUrl(null);
-     }
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
+    setTranscriptResult(null);
+    setMediaDuration(null);
+    setTimeRange([0, MAX_DURATION]);
+    if (audioUrl) {
+      URL.revokeObjectURL(audioUrl);
+      setAudioUrl(null);
+    }
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const clearUrl = () => {
+    setUrlInput("");
+    setRemoteAudioUrl(null);
+    setMediaDuration(null);
+    setTimeRange([0, MAX_DURATION]);
+    setTranscriptResult(null);
+  };
+
+  // URL processing
+  const processUrl = async () => {
+    if (!urlInput.trim()) return;
+
+    setIsLoadingUrl(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("download-media", {
+        body: { url: urlInput.trim() },
+      });
+
+      if (error) throw new Error(error.message);
+      if (!data?.audioUrl) throw new Error("لم يتم العثور على رابط صوتي");
+
+      setRemoteAudioUrl(data.audioUrl);
+      setFile(null);
+      if (audioUrl) URL.revokeObjectURL(audioUrl);
+      setAudioUrl(null);
+
+      // Try to detect duration from the remote audio
+      const audioEl = document.createElement("audio");
+      audioEl.preload = "metadata";
+      audioEl.crossOrigin = "anonymous";
+      audioEl.src = data.audioUrl;
+      audioEl.onloadedmetadata = () => {
+        const dur = Math.ceil(audioEl.duration);
+        setMediaDuration(dur);
+        setTimeRange([0, Math.min(dur, MAX_DURATION)]);
+      };
+      audioEl.onerror = () => {
+        // If we can't detect, default to max
+        setMediaDuration(MAX_DURATION);
+        setTimeRange([0, MAX_DURATION]);
+      };
+
+      toast.success("تم استخراج الصوت!", { description: data.filename || "جاهز للتحويل" });
+    } catch (err) {
+      console.error("URL processing error:", err);
+      toast.error("فشل معالجة الرابط", {
+        description: err instanceof Error ? err.message : "حدث خطأ غير متوقع",
+      });
+    } finally {
+      setIsLoadingUrl(false);
     }
   };
 
-   const analyzeTranscript = async (
-     rawText: string,
-   ): Promise<{
-     vocabulary: VocabItem[];
-     grammarPoints: GrammarPoint[];
-     culturalContext?: string;
-     lines?: TranscriptResult["lines"];
-   } | null> => {
-     setIsAnalyzing(true);
-     try {
-       setDebugTrace({ phase: "request:analyze", at: new Date().toISOString() });
+  const analyzeTranscript = async (
+    rawText: string,
+  ): Promise<{
+    vocabulary: VocabItem[];
+    grammarPoints: GrammarPoint[];
+    culturalContext?: string;
+    lines?: TranscriptResult["lines"];
+  } | null> => {
+    setIsAnalyzing(true);
+    try {
+      setDebugTrace({ phase: "request:analyze", at: new Date().toISOString() });
 
-       const { data, error } = await supabase.functions.invoke<{
-         success: boolean;
-         result?: TranscriptResult;
-         error?: string;
-         details?: unknown;
-       }>("analyze-gulf-arabic", {
-         body: { transcript: rawText },
-       });
+      const { data, error } = await supabase.functions.invoke<{
+        success: boolean;
+        result?: TranscriptResult;
+        error?: string;
+        details?: unknown;
+      }>("analyze-gulf-arabic", {
+        body: { transcript: rawText },
+      });
 
-       if (error) {
-         throw new Error(error.message || "فشل التحليل");
-       }
+      if (error) throw new Error(error.message || "فشل التحليل");
+      if (!data?.success || !data.result) throw new Error(data?.error || "فشل التحليل");
 
-       if (!data?.success || !data.result) {
-         throw new Error(data?.error || "فشل التحليل");
-       }
+      const normalized = normalizeTranscriptResult(data.result);
 
-        const normalized = normalizeTranscriptResult(data.result);
+      toast.success("تم التحليل بنجاح!", {
+        description: `تم استخراج ${normalized.vocabulary.length} كلمات و ${normalized.lines.length} جمل`,
+      });
 
-       toast.success("تم التحليل بنجاح!", {
-          description: `تم استخراج ${normalized.vocabulary.length} كلمات و ${normalized.lines.length} جمل`,
-       });
+      setDebugTrace({
+        phase: "response:analyze",
+        at: new Date().toISOString(),
+        details: { lines: normalized.lines.length, vocab: normalized.vocabulary.length },
+      });
 
-       setDebugTrace({
-         phase: "response:analyze",
-         at: new Date().toISOString(),
-          details: { lines: normalized.lines.length, vocab: normalized.vocabulary.length },
-       });
-
-       return {
-          vocabulary: normalized.vocabulary,
-          grammarPoints: normalized.grammarPoints,
-          culturalContext: normalized.culturalContext,
-          lines: normalized.lines,
-       };
-     } catch (error) {
-       console.error("Analysis error:", error);
-       setDebugTrace({
-         phase: "error:analyze",
-         at: new Date().toISOString(),
-         message: error instanceof Error ? error.message : String(error),
-       });
-       toast.error("فشل التحليل", {
-         description: error instanceof Error ? error.message : "حدث خطأ غير متوقع",
-       });
-       return null;
-     } finally {
-       setIsAnalyzing(false);
-     }
-   };
+      return {
+        vocabulary: normalized.vocabulary,
+        grammarPoints: normalized.grammarPoints,
+        culturalContext: normalized.culturalContext,
+        lines: normalized.lines,
+      };
+    } catch (error) {
+      console.error("Analysis error:", error);
+      setDebugTrace({ phase: "error:analyze", at: new Date().toISOString(), message: error instanceof Error ? error.message : String(error) });
+      toast.error("فشل التحليل", { description: error instanceof Error ? error.message : "حدث خطأ غير متوقع" });
+      return null;
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
 
   const transcribeFile = async () => {
-    if (!file) return;
+    if (!file && !remoteAudioUrl) return;
 
-     setDebugTrace({ phase: "start", at: new Date().toISOString() });
+    setDebugTrace({ phase: "start", at: new Date().toISOString() });
     setIsProcessing(true);
     setProgress(0);
     let progressInterval: ReturnType<typeof setInterval> | null = null;
 
     try {
-       setDebugTrace({ phase: "progressTimer", at: new Date().toISOString() });
-      // Simulate progress while waiting for API response
       progressInterval = setInterval(() => {
         setProgress(prev => {
-          if (prev >= 90) {
-            if (progressInterval) clearInterval(progressInterval);
-            return 90;
-          }
+          if (prev >= 90) { if (progressInterval) clearInterval(progressInterval); return 90; }
           return prev + Math.random() * 10;
         });
       }, 500);
 
-      const formData = new FormData();
-      formData.append("audio", file);
+      let data: ElevenLabsTranscriptionResult;
+      let error: Error | null = null;
 
-       setDebugTrace({
-         phase: "request:transcribe",
-         at: new Date().toISOString(),
-         details: { name: file.name, size: file.size, type: file.type },
-       });
-
-      const { data, error } = await supabase.functions.invoke<ElevenLabsTranscriptionResult>(
-        "elevenlabs-transcribe",
-        {
-          body: formData,
-        },
-      );
+      if (remoteAudioUrl) {
+        // URL-based transcription
+        setDebugTrace({ phase: "request:transcribe-url", at: new Date().toISOString(), details: { url: remoteAudioUrl.substring(0, 80) } });
+        
+        const result = await supabase.functions.invoke<ElevenLabsTranscriptionResult>(
+          "elevenlabs-transcribe",
+          { body: { audioUrl: remoteAudioUrl } }
+        );
+        data = result.data!;
+        if (result.error) error = new Error(result.error.message);
+      } else {
+        // File-based transcription
+        const formData = new FormData();
+        formData.append("audio", file!);
+        setDebugTrace({ phase: "request:transcribe", at: new Date().toISOString(), details: { name: file!.name, size: file!.size, type: file!.type } });
+        
+        const result = await supabase.functions.invoke<ElevenLabsTranscriptionResult>(
+          "elevenlabs-transcribe",
+          { body: formData }
+        );
+        data = result.data!;
+        if (result.error) error = new Error(result.error.message);
+      }
 
       if (progressInterval) clearInterval(progressInterval);
 
-      if (error) {
-        throw new Error(error.message || "فشل التحويل");
-      }
+      if (error) throw error;
+      if (!data?.text) throw new Error("فشل التحويل: لا يوجد نص في الاستجابة");
 
-      if (!data?.text) {
-        throw new Error("فشل التحويل: لا يوجد نص في الاستجابة");
-      }
-
-      const result = data;
-      const elevenLabsWords = result.words || [];
-      setProgress(100);
-       
-       // Initialize TranscriptResult with raw transcript
-       const initialResult: TranscriptResult = {
-         rawTranscriptArabic: result.text,
-         lines: [], // Will be populated by future sentence parsing
-         vocabulary: [],
-         grammarPoints: [],
-       };
-       setTranscriptResult(initialResult);
- 
-      toast.success("تم التحويل بنجاح!", {
-        description: `تم تحويل ${file.name}، جاري التحليل...`
-      });
+      const elevenLabsWords = data.words || [];
       
-      // Automatically analyze the transcript
-       const analysisData = await analyzeTranscript(result.text);
-       if (analysisData) {
-         // Map timestamps from ElevenLabs words to the analyzed lines
-         const linesWithTimestamps = mapTimestampsToLines(
-           analysisData.lines || [],
-           elevenLabsWords
-         );
-         
-         console.log('Mapped timestamps to lines:', linesWithTimestamps.filter(l => l.startMs !== undefined).length, '/', linesWithTimestamps.length);
-         
-         setTranscriptResult(prev => prev ? {
-           ...prev,
-           vocabulary: analysisData.vocabulary,
-           grammarPoints: analysisData.grammarPoints,
-           culturalContext: analysisData.culturalContext,
-           lines: linesWithTimestamps,
-         } : null);
-       }
+      // Apply time range filtering if duration is known and range is set
+      let filteredText = data.text;
+      let filteredWords = elevenLabsWords;
+      
+      if (mediaDuration && mediaDuration > MAX_DURATION && elevenLabsWords.length > 0) {
+        filteredText = filterTranscriptByTimeRange(data.text, elevenLabsWords, timeRange[0], timeRange[1]);
+        filteredWords = filterWordsByTimeRange(elevenLabsWords, timeRange[0], timeRange[1]);
+        console.log(`Time range filter: ${timeRange[0]}s-${timeRange[1]}s, words: ${elevenLabsWords.length} → ${filteredWords.length}`);
+      }
+
+      setProgress(100);
+      
+      const initialResult: TranscriptResult = {
+        rawTranscriptArabic: filteredText,
+        lines: [],
+        vocabulary: [],
+        grammarPoints: [],
+      };
+      setTranscriptResult(initialResult);
+
+      toast.success("تم التحويل بنجاح!", { description: "جاري التحليل..." });
+      
+      const analysisData = await analyzeTranscript(filteredText);
+      if (analysisData) {
+        const linesWithTimestamps = mapTimestampsToLines(analysisData.lines || [], filteredWords);
+        console.log('Mapped timestamps:', linesWithTimestamps.filter(l => l.startMs !== undefined).length, '/', linesWithTimestamps.length);
+        
+        setTranscriptResult(prev => prev ? {
+          ...prev,
+          vocabulary: analysisData.vocabulary,
+          grammarPoints: analysisData.grammarPoints,
+          culturalContext: analysisData.culturalContext,
+          lines: linesWithTimestamps,
+        } : null);
+      }
     } catch (error) {
       console.error("Transcription error:", error);
-       setDebugTrace({
-         phase: "error",
-         at: new Date().toISOString(),
-         message: error instanceof Error ? error.message : String(error),
-       });
-      toast.error("فشل التحويل", {
-        description: error instanceof Error ? error.message : "حدث خطأ غير متوقع"
-      });
+      setDebugTrace({ phase: "error", at: new Date().toISOString(), message: error instanceof Error ? error.message : String(error) });
+      toast.error("فشل التحويل", { description: error instanceof Error ? error.message : "حدث خطأ غير متوقع" });
     } finally {
       if (progressInterval) clearInterval(progressInterval);
       setIsProcessing(false);
       setProgress(0);
-       setDebugTrace((prev) =>
-         prev?.phase === "error"
-           ? prev
-           : { phase: "done", at: new Date().toISOString() }
-       );
+      setDebugTrace(prev => prev?.phase === "error" ? prev : { phase: "done", at: new Date().toISOString() });
     }
   };
 
   const exportTranscript = () => {
     if (!transcript) return;
-
     const blob = new Blob([transcript], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -517,27 +565,21 @@ const Transcribe = () => {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    
     toast.success("تم التصدير بنجاح!");
   };
 
   const handleSaveClick = () => {
     if (!isAuthenticated) {
-      toast.error("يرجى تسجيل الدخول أولاً", {
-        description: "تحتاج إلى حساب لحفظ النصوص المحولة",
-      });
+      toast.error("يرجى تسجيل الدخول أولاً", { description: "تحتاج إلى حساب لحفظ النصوص المحولة" });
       return;
     }
-    // Generate default title from file name or date
-    const defaultTitle = file?.name?.replace(/\.[^/.]+$/, "") || 
-      `تحويل ${new Date().toLocaleDateString('ar-SA')}`;
+    const defaultTitle = file?.name?.replace(/\.[^/.]+$/, "") || `تحويل ${new Date().toLocaleDateString('ar-SA')}`;
     setSaveTitle(defaultTitle);
     setShowSaveDialog(true);
   };
 
   const saveTranscription = async () => {
     if (!transcriptResult || !user) return;
-
     setIsSaving(true);
     try {
       const { error } = await supabase.from("saved_transcriptions").insert({
@@ -550,63 +592,40 @@ const Transcribe = () => {
         cultural_context: transcriptResult.culturalContext || null,
         audio_url: audioUrl || null,
       });
-
       if (error) throw error;
-
       setIsSaved(true);
       setShowSaveDialog(false);
-      toast.success("تم حفظ النص بنجاح!", {
-        description: "يمكنك الوصول إليه من صفحة النصوص المحفوظة",
-      });
+      toast.success("تم حفظ النص بنجاح!");
     } catch (error) {
       console.error("Save error:", error);
-      toast.error("فشل الحفظ", {
-        description: error instanceof Error ? error.message : "حدث خطأ غير متوقع",
-      });
+      toast.error("فشل الحفظ", { description: error instanceof Error ? error.message : "حدث خطأ غير متوقع" });
     } finally {
       setIsSaving(false);
     }
   };
 
-  // Handler to add a word to the vocab section at the bottom
   const handleAddToVocabSection = (word: VocabItem) => {
     if (!transcriptResult) return;
-    
-    // Check if already in vocab section
     if (vocabSectionWords.has(word.arabic)) {
       toast.info("الكلمة موجودة بالفعل في قسم المفردات");
       return;
     }
-    
-    // Add to vocabulary array
     setTranscriptResult(prev => {
       if (!prev) return prev;
       const exists = prev.vocabulary.some(v => v.arabic === word.arabic);
       if (exists) return prev;
-      return {
-        ...prev,
-        vocabulary: [...prev.vocabulary, word],
-      };
+      return { ...prev, vocabulary: [...prev.vocabulary, word] };
     });
-    
     setVocabSectionWords(prev => new Set(prev).add(word.arabic));
     toast.success("تمت إضافة الكلمة إلى قسم المفردات");
   };
   
-  // Handler to save a word directly to My Words
   const handleSaveToMyWords = async (word: VocabItem) => {
     if (!isAuthenticated) {
-      toast.error("يرجى تسجيل الدخول أولاً", {
-        description: "تحتاج إلى حساب لحفظ الكلمات",
-      });
+      toast.error("يرجى تسجيل الدخول أولاً", { description: "تحتاج إلى حساب لحفظ الكلمات" });
       return;
     }
-    
-    if (savedWords.has(word.arabic)) {
-      toast.info("الكلمة محفوظة بالفعل");
-      return;
-    }
-    
+    if (savedWords.has(word.arabic)) { toast.info("الكلمة محفوظة بالفعل"); return; }
     try {
       await addUserVocabulary.mutateAsync({
         word_arabic: word.arabic,
@@ -626,11 +645,9 @@ const Transcribe = () => {
     }
   };
 
-  // Reset saved state when new transcription is created
   useEffect(() => {
     if (transcriptResult) {
       setIsSaved(false);
-      // Build vocabSectionWords set from existing vocabulary
       const existingVocab = new Set(transcriptResult.vocabulary.map(v => v.arabic));
       setVocabSectionWords(existingVocab);
     }
@@ -644,6 +661,9 @@ const Transcribe = () => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
+  const hasInput = Boolean(file) || Boolean(remoteAudioUrl);
+  const showTimeRange = mediaDuration !== null && mediaDuration > MAX_DURATION;
+
   return (
     <ErrorBoundary name="Transcribe">
     <div className="min-h-screen bg-background p-4 md:p-8" dir="rtl">
@@ -655,98 +675,145 @@ const Transcribe = () => {
               تحويل الصوت إلى نص
             </h1>
             <p className="text-muted-foreground">
-              ارفع ملف صوتي أو فيديو لتحويله إلى نص عربي
+              ارفع ملف صوتي/فيديو أو الصق رابط من يوتيوب أو وسائل التواصل
             </p>
           </div>
         </div>
 
-        {/* Upload Area */}
+        {/* Input Area with Tabs */}
         <Card>
           <CardHeader>
-            <CardTitle>رفع الملف</CardTitle>
-            <CardDescription>
-              اسحب وأفلت أو اختر ملف صوتي/فيديو
-            </CardDescription>
+            <CardTitle>مصدر المحتوى</CardTitle>
           </CardHeader>
           <CardContent>
-            <div
-              onDrop={handleDrop}
-              onDragOver={handleDragOver}
-              className={`
-                border-2 border-dashed rounded-lg p-8 text-center transition-colors
-                ${file ? "border-primary bg-primary/5" : "border-muted-foreground/25 hover:border-primary/50"}
-              `}
-            >
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="audio/*,video/*,.mp3,.wav,.m4a,.ogg,.mp4,.webm,.mov"
-                onChange={handleFileSelect}
-                className="hidden"
-                id="file-upload"
-              />
-              
-              {file ? (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-center gap-3">
-                    <FileAudio className="h-8 w-8 text-primary" />
-                    <div className="text-right">
-                      <p className="font-medium text-foreground">{file.name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {formatFileSize(file.size)}
-                      </p>
+            <Tabs defaultValue="upload" dir="rtl">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="upload" className="gap-2">
+                  <Upload className="h-4 w-4" />
+                  رفع ملف
+                </TabsTrigger>
+                <TabsTrigger value="url" className="gap-2">
+                  <Link2 className="h-4 w-4" />
+                  رابط
+                </TabsTrigger>
+              </TabsList>
+
+              {/* Upload Tab */}
+              <TabsContent value="upload">
+                <div
+                  onDrop={handleDrop}
+                  onDragOver={handleDragOver}
+                  className={`
+                    border-2 border-dashed rounded-lg p-8 text-center transition-colors
+                    ${file ? "border-primary bg-primary/5" : "border-muted-foreground/25 hover:border-primary/50"}
+                  `}
+                >
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="audio/*,video/*,.mp3,.wav,.m4a,.ogg,.mp4,.webm,.mov"
+                    onChange={handleFileSelect}
+                    className="hidden"
+                    id="file-upload"
+                  />
+                  
+                  {file ? (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-center gap-3">
+                        <FileAudio className="h-8 w-8 text-primary" />
+                        <div className="text-right">
+                          <p className="font-medium text-foreground">{file.name}</p>
+                          <p className="text-sm text-muted-foreground">{formatFileSize(file.size)}</p>
+                        </div>
+                        <Button variant="ghost" size="icon" onClick={clearFile} disabled={isProcessing}>
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
+                  ) : (
+                    <label htmlFor="file-upload" className="cursor-pointer">
+                      <Upload className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                      <p className="text-foreground font-medium">انقر أو اسحب الملف هنا</p>
+                      <p className="text-sm text-muted-foreground mt-1">MP3, WAV, M4A, OGG, MP4, WebM, MOV</p>
+                    </label>
+                  )}
+                </div>
+              </TabsContent>
+
+              {/* URL Tab */}
+              <TabsContent value="url">
+                <div className="space-y-4">
+                  <div className="flex gap-2">
+                    <Input
+                      value={urlInput}
+                      onChange={(e) => setUrlInput(e.target.value)}
+                      placeholder="الصق رابط يوتيوب، تيك توك، إنستغرام، أو إكس..."
+                      dir="ltr"
+                      className="font-mono text-sm"
+                      disabled={isLoadingUrl || isProcessing}
+                    />
                     <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={clearFile}
-                      disabled={isProcessing}
+                      onClick={processUrl}
+                      disabled={!urlInput.trim() || isLoadingUrl || isProcessing}
+                      variant="secondary"
                     >
-                      <X className="h-4 w-4" />
+                      {isLoadingUrl ? <Loader2 className="h-4 w-4 animate-spin" /> : "استخراج"}
                     </Button>
                   </div>
                   
-                  <Button
-                    onClick={() => {
-                      try {
-                        void transcribeFile();
-                      } catch (err) {
-                        console.error("transcribeFile handler error:", err);
-                        setDebugTrace({
-                          phase: "clickHandlerError",
-                          at: new Date().toISOString(),
-                          message: err instanceof Error ? err.message : String(err),
-                        });
-                        toast.error("حدث خطأ غير متوقع", {
-                          description: "حاول مرة أخرى.",
-                        });
-                      }
-                    }}
-                    disabled={isProcessing}
-                    className="w-full"
-                  >
-                    {isProcessing ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        جاري التحويل...
-                      </>
-                    ) : (
-                      "بدء التحويل"
-                    )}
-                  </Button>
+                  <p className="text-xs text-muted-foreground">
+                    يدعم: YouTube, TikTok, Instagram Reels, X/Twitter
+                  </p>
+
+                  {remoteAudioUrl && (
+                    <div className="flex items-center gap-3 p-3 rounded-lg bg-primary/5 border border-primary/20">
+                      <FileAudio className="h-6 w-6 text-primary" />
+                      <span className="text-sm text-foreground flex-1">تم استخراج الصوت بنجاح</span>
+                      <Button variant="ghost" size="icon" onClick={clearUrl} disabled={isProcessing}>
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
                 </div>
-              ) : (
-                <label htmlFor="file-upload" className="cursor-pointer">
-                  <Upload className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                  <p className="text-foreground font-medium">
-                    انقر أو اسحب الملف هنا
-                  </p>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    MP3, WAV, M4A, OGG, MP4, WebM, MOV
-                  </p>
-                </label>
-              )}
-            </div>
+              </TabsContent>
+            </Tabs>
+
+            {/* Time Range Selector */}
+            {showTimeRange && hasInput && (
+              <div className="mt-4 p-4 rounded-lg border bg-muted/30">
+                <TimeRangeSelector
+                  duration={mediaDuration!}
+                  maxRange={MAX_DURATION}
+                  value={timeRange}
+                  onChange={setTimeRange}
+                />
+              </div>
+            )}
+
+            {/* Duration info */}
+            {mediaDuration !== null && hasInput && !showTimeRange && (
+              <p className="mt-3 text-xs text-muted-foreground text-center">
+                مدة المقطع: {Math.floor(mediaDuration / 60)}:{(mediaDuration % 60).toString().padStart(2, "0")}
+              </p>
+            )}
+
+            {/* Process Button */}
+            {hasInput && (
+              <Button
+                onClick={() => {
+                  try { void transcribeFile(); } catch (err) {
+                    console.error("transcribeFile handler error:", err);
+                    toast.error("حدث خطأ غير متوقع");
+                  }
+                }}
+                disabled={isProcessing}
+                className="w-full mt-4"
+              >
+                {isProcessing ? (
+                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" />جاري التحويل...</>
+                ) : "بدء التحويل"}
+              </Button>
+            )}
 
             {/* Progress Bar */}
             {isProcessing && (
@@ -765,34 +832,15 @@ const Transcribe = () => {
           <DialogContent dir="rtl">
             <DialogHeader>
               <DialogTitle>حفظ النص المحوّل</DialogTitle>
-              <DialogDescription>
-                أدخل عنواناً للنص المحوّل لحفظه في حسابك
-              </DialogDescription>
+              <DialogDescription>أدخل عنواناً للنص المحوّل لحفظه في حسابك</DialogDescription>
             </DialogHeader>
             <div className="py-4">
-              <Input
-                value={saveTitle}
-                onChange={(e) => setSaveTitle(e.target.value)}
-                placeholder="عنوان النص..."
-                dir="rtl"
-              />
+              <Input value={saveTitle} onChange={(e) => setSaveTitle(e.target.value)} placeholder="عنوان النص..." dir="rtl" />
             </div>
             <DialogFooter className="gap-2 sm:gap-0">
-              <Button variant="outline" onClick={() => setShowSaveDialog(false)}>
-                إلغاء
-              </Button>
+              <Button variant="outline" onClick={() => setShowSaveDialog(false)}>إلغاء</Button>
               <Button onClick={saveTranscription} disabled={isSaving}>
-                {isSaving ? (
-                  <>
-                    <Loader2 className="ml-2 h-4 w-4 animate-spin" />
-                    جاري الحفظ...
-                  </>
-                ) : (
-                  <>
-                    <Save className="ml-2 h-4 w-4" />
-                    حفظ
-                  </>
-                )}
+                {isSaving ? (<><Loader2 className="ml-2 h-4 w-4 animate-spin" />جاري الحفظ...</>) : (<><Save className="ml-2 h-4 w-4" />حفظ</>)}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -804,31 +852,14 @@ const Transcribe = () => {
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
                 <CardTitle>النص المحوّل</CardTitle>
-                <CardDescription>
-                  {lines.length} جملة
-                </CardDescription>
+                <CardDescription>{lines.length} جملة</CardDescription>
               </div>
               <div className="flex gap-2">
-                <Button 
-                  onClick={handleSaveClick} 
-                  variant={isSaved ? "secondary" : "default"}
-                  disabled={isSaved}
-                >
-                  {isSaved ? (
-                    <>
-                      <Check className="ml-2 h-4 w-4" />
-                      تم الحفظ
-                    </>
-                  ) : (
-                    <>
-                      <Save className="ml-2 h-4 w-4" />
-                      حفظ
-                    </>
-                  )}
+                <Button onClick={handleSaveClick} variant={isSaved ? "secondary" : "default"} disabled={isSaved}>
+                  {isSaved ? (<><Check className="ml-2 h-4 w-4" />تم الحفظ</>) : (<><Save className="ml-2 h-4 w-4" />حفظ</>)}
                 </Button>
                 <Button onClick={exportTranscript} variant="outline">
-                  <Download className="ml-2 h-4 w-4" />
-                  تصدير
+                  <Download className="ml-2 h-4 w-4" />تصدير
                 </Button>
               </div>
             </CardHeader>
@@ -848,46 +879,25 @@ const Transcribe = () => {
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
                 <CardTitle>النص المحوّل</CardTitle>
-                <CardDescription>
-                  {transcript.length} حرف
-                </CardDescription>
+                <CardDescription>{transcript.length} حرف</CardDescription>
               </div>
               <div className="flex gap-2">
-                <Button 
-                  onClick={handleSaveClick} 
-                  variant={isSaved ? "secondary" : "default"}
-                  disabled={isSaved}
-                >
-                  {isSaved ? (
-                    <>
-                      <Check className="ml-2 h-4 w-4" />
-                      تم الحفظ
-                    </>
-                  ) : (
-                    <>
-                      <Save className="ml-2 h-4 w-4" />
-                      حفظ
-                    </>
-                  )}
+                <Button onClick={handleSaveClick} variant={isSaved ? "secondary" : "default"} disabled={isSaved}>
+                  {isSaved ? (<><Check className="ml-2 h-4 w-4" />تم الحفظ</>) : (<><Save className="ml-2 h-4 w-4" />حفظ</>)}
                 </Button>
                 <Button onClick={exportTranscript} variant="outline">
-                  <Download className="ml-2 h-4 w-4" />
-                  تصدير
+                  <Download className="ml-2 h-4 w-4" />تصدير
                 </Button>
               </div>
             </CardHeader>
             <CardContent>
-              <p
-                className="text-right text-lg leading-relaxed text-foreground"
-                dir="rtl"
-                style={{ fontFamily: "'Cairo', 'Traditional Arabic', sans-serif" }}
-              >
+              <p className="text-right text-lg leading-relaxed text-foreground" dir="rtl" style={{ fontFamily: "'Cairo', 'Traditional Arabic', sans-serif" }}>
                 {transcript}
               </p>
             </CardContent>
           </Card>
         ) : null}
- 
+
         {/* Analysis Loading */}
         {isAnalyzing && (
           <Card>
@@ -905,8 +915,7 @@ const Transcribe = () => {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <BookOpen className="h-5 w-5 text-primary" />
-                المفردات الرئيسية
+                <BookOpen className="h-5 w-5 text-primary" />المفردات الرئيسية
               </CardTitle>
               <CardDescription>
                 {vocabulary.length} كلمات مستخرجة من النص
@@ -920,62 +929,27 @@ const Transcribe = () => {
                   const isSavedWord = savedWords.has(wordKey);
                   
                   const handleAddWord = async () => {
-                    if (!isAuthenticated) {
-                      toast.error("يرجى تسجيل الدخول أولاً");
-                      return;
-                    }
-                    
+                    if (!isAuthenticated) { toast.error("يرجى تسجيل الدخول أولاً"); return; }
                     try {
-                      await addUserVocabulary.mutateAsync({
-                        word_arabic: item.arabic,
-                        word_english: item.english,
-                        root: item.root,
-                        source: "transcription",
-                      });
+                      await addUserVocabulary.mutateAsync({ word_arabic: item.arabic, word_english: item.english, root: item.root, source: "transcription" });
                       setSavedWords(prev => new Set(prev).add(wordKey));
-                      toast.success("تمت إضافة الكلمة!", {
-                        description: `"${item.arabic}" أُضيفت إلى كلماتي`,
-                      });
+                      toast.success("تمت إضافة الكلمة!", { description: `"${item.arabic}" أُضيفت إلى كلماتي` });
                     } catch (error) {
-                      toast.error(
-                        error instanceof Error ? error.message : "فشل إضافة الكلمة"
-                      );
+                      toast.error(error instanceof Error ? error.message : "فشل إضافة الكلمة");
                     }
                   };
                   
                   return (
-                    <div
-                      key={index}
-                      className="flex items-center justify-between p-3 rounded-lg bg-muted/50 border"
-                    >
+                    <div key={index} className="flex items-center justify-between p-3 rounded-lg bg-muted/50 border">
                       <div className="flex items-center gap-3">
-                        <span
-                          className="text-2xl font-bold text-foreground"
-                          style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
-                        >
-                          {item.arabic}
-                        </span>
-                        {item.root && (
-                          <Badge variant="outline" className="font-mono text-xs">
-                            {item.root}
-                          </Badge>
-                        )}
+                        <span className="text-2xl font-bold text-foreground" style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}>{item.arabic}</span>
+                        {item.root && <Badge variant="outline" className="font-mono text-xs">{item.root}</Badge>}
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-muted-foreground">{item.english}</span>
                         {isAuthenticated && (
-                          <Button
-                            variant={isSavedWord ? "secondary" : "ghost"}
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={handleAddWord}
-                            disabled={isSavedWord || addUserVocabulary.isPending}
-                          >
-                            {isSavedWord ? (
-                              <Check className="h-4 w-4 text-primary" />
-                            ) : (
-                              <Plus className="h-4 w-4" />
-                            )}
+                          <Button variant={isSavedWord ? "secondary" : "ghost"} size="icon" className="h-8 w-8" onClick={handleAddWord} disabled={isSavedWord || addUserVocabulary.isPending}>
+                            {isSavedWord ? <Check className="h-4 w-4 text-primary" /> : <Plus className="h-4 w-4" />}
                           </Button>
                         )}
                       </div>
@@ -988,30 +962,23 @@ const Transcribe = () => {
         )}
 
         {/* Grammar Section */}
-         {grammarPoints.length > 0 && (
+        {grammarPoints.length > 0 && (
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Languages className="h-5 w-5 text-primary" />
-                نقاط القواعد
-              </CardTitle>
-              <CardDescription>
-                قواعد اللهجة الخليجية المستخدمة في النص
-              </CardDescription>
+              <CardTitle className="flex items-center gap-2"><Languages className="h-5 w-5 text-primary" />نقاط القواعد</CardTitle>
+              <CardDescription>قواعد اللهجة الخليجية المستخدمة في النص</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                 {grammarPoints.map((item, index) => (
+                {grammarPoints.map((item, index) => (
                   <div key={index} className="p-4 rounded-lg bg-muted/50 border">
-                     <h4 className="font-semibold text-foreground mb-2">{item.title}</h4>
+                    <h4 className="font-semibold text-foreground mb-2">{item.title}</h4>
                     <p className="text-muted-foreground text-sm">{item.explanation}</p>
-                     {item.examples && item.examples.length > 0 && (
-                       <ul className="mt-2 text-sm text-muted-foreground list-disc list-inside">
-                         {item.examples.map((ex, i) => (
-                           <li key={i}>{ex}</li>
-                         ))}
-                       </ul>
-                     )}
+                    {item.examples && item.examples.length > 0 && (
+                      <ul className="mt-2 text-sm text-muted-foreground list-disc list-inside">
+                        {item.examples.map((ex, i) => <li key={i}>{ex}</li>)}
+                      </ul>
+                    )}
                   </div>
                 ))}
               </div>
@@ -1020,16 +987,13 @@ const Transcribe = () => {
         )}
 
         {/* Cultural Context */}
-         {culturalContext && (
+        {culturalContext && (
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-primary" />
-                السياق الثقافي
-              </CardTitle>
+              <CardTitle className="flex items-center gap-2"><Sparkles className="h-5 w-5 text-primary" />السياق الثقافي</CardTitle>
             </CardHeader>
             <CardContent>
-               <p className="text-muted-foreground leading-relaxed">{culturalContext}</p>
+              <p className="text-muted-foreground leading-relaxed">{culturalContext}</p>
             </CardContent>
           </Card>
         )}
@@ -1038,28 +1002,25 @@ const Transcribe = () => {
           <Card>
             <CardHeader>
               <CardTitle>Debug</CardTitle>
-              <CardDescription>
-                حالة الصفحة (أضف <span className="font-mono">?debug</span> للرابط)
-              </CardDescription>
+              <CardDescription>حالة الصفحة (أضف <span className="font-mono">?debug</span> للرابط)</CardDescription>
             </CardHeader>
             <CardContent>
               <pre className="text-xs whitespace-pre-wrap rounded-md bg-muted p-3 border">
-                {JSON.stringify(
-                  {
-                    debugTrace,
-                    state: {
-                      hasFile: Boolean(file),
-                      isProcessing,
-                      isAnalyzing,
-                      progress,
-                      hasAudioUrl: Boolean(audioUrl),
-                      transcriptChars: transcript.length,
-                      lines: lines.length,
-                    },
+                {JSON.stringify({
+                  debugTrace,
+                  state: {
+                    hasFile: Boolean(file),
+                    hasRemoteUrl: Boolean(remoteAudioUrl),
+                    isProcessing,
+                    isAnalyzing,
+                    progress,
+                    mediaDuration,
+                    timeRange,
+                    hasAudioUrl: Boolean(audioUrl),
+                    transcriptChars: transcript.length,
+                    lines: lines.length,
                   },
-                  null,
-                  2
-                )}
+                }, null, 2)}
               </pre>
             </CardContent>
           </Card>

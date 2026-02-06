@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Upload, FileAudio, Download, Loader2, X, BookOpen, Languages, Sparkles, Save, Check } from "lucide-react";
+import { Upload, FileAudio, Download, Loader2, X, BookOpen, Languages, Sparkles, Save, Check, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { HomeButton } from "@/components/HomeButton";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import type { TranscriptResult, VocabItem, GrammarPoint } from "@/types/transcript";
 import { LineByLineTranscript } from "@/components/transcript/LineByLineTranscript";
 import { useAuth } from "@/hooks/useAuth";
+import { useAddUserVocabulary } from "@/hooks/useUserVocabulary";
 import { Input } from "@/components/ui/input";
 import {
   Dialog,
@@ -90,6 +91,8 @@ function normalizeTranscriptResult(input: TranscriptResult): TranscriptResult {
 
 const Transcribe = () => {
   const { user, isAuthenticated } = useAuth();
+  const addUserVocabulary = useAddUserVocabulary();
+  const [savedWords, setSavedWords] = useState<Set<string>>(new Set());
   const [file, setFile] = useState<File | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -761,7 +764,7 @@ const Transcribe = () => {
         )}
 
         {/* Vocabulary Section */}
-         {vocabulary.length > 0 && (
+        {vocabulary.length > 0 && (
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -769,32 +772,79 @@ const Transcribe = () => {
                 المفردات الرئيسية
               </CardTitle>
               <CardDescription>
-                 {vocabulary.length} كلمات مستخرجة من النص
+                {vocabulary.length} كلمات مستخرجة من النص
+                {isAuthenticated && " - اضغط + لإضافة كلمة إلى قائمتك"}
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid gap-3">
-                 {vocabulary.map((item, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between p-3 rounded-lg bg-muted/50 border"
-                  >
-                    <div className="flex items-center gap-3">
-                      <span
-                        className="text-2xl font-bold text-foreground"
-                        style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
-                      >
-                         {item.arabic}
-                      </span>
-                       {item.root && (
-                         <Badge variant="outline" className="font-mono text-xs">
-                           {item.root}
-                         </Badge>
-                       )}
+                {vocabulary.map((item, index) => {
+                  const wordKey = item.arabic;
+                  const isSavedWord = savedWords.has(wordKey);
+                  
+                  const handleAddWord = async () => {
+                    if (!isAuthenticated) {
+                      toast.error("يرجى تسجيل الدخول أولاً");
+                      return;
+                    }
+                    
+                    try {
+                      await addUserVocabulary.mutateAsync({
+                        word_arabic: item.arabic,
+                        word_english: item.english,
+                        root: item.root,
+                        source: "transcription",
+                      });
+                      setSavedWords(prev => new Set(prev).add(wordKey));
+                      toast.success("تمت إضافة الكلمة!", {
+                        description: `"${item.arabic}" أُضيفت إلى كلماتي`,
+                      });
+                    } catch (error) {
+                      toast.error(
+                        error instanceof Error ? error.message : "فشل إضافة الكلمة"
+                      );
+                    }
+                  };
+                  
+                  return (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between p-3 rounded-lg bg-muted/50 border"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span
+                          className="text-2xl font-bold text-foreground"
+                          style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
+                        >
+                          {item.arabic}
+                        </span>
+                        {item.root && (
+                          <Badge variant="outline" className="font-mono text-xs">
+                            {item.root}
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-muted-foreground">{item.english}</span>
+                        {isAuthenticated && (
+                          <Button
+                            variant={isSavedWord ? "secondary" : "ghost"}
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={handleAddWord}
+                            disabled={isSavedWord || addUserVocabulary.isPending}
+                          >
+                            {isSavedWord ? (
+                              <Check className="h-4 w-4 text-primary" />
+                            ) : (
+                              <Plus className="h-4 w-4" />
+                            )}
+                          </Button>
+                        )}
+                      </div>
                     </div>
-                     <span className="text-muted-foreground">{item.english}</span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </CardContent>
           </Card>

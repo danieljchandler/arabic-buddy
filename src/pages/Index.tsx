@@ -6,6 +6,7 @@ import { TopicCard, Button, SectionFrame } from "@/components/design-system";
 import { Loader2, Settings, Brain, LogIn, LogOut, Mic } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AppShell } from "@/components/layout/AppShell";
+import { MyWordsSection } from "@/components/MyWordsSection";
 import lahjaLogo from "@/assets/lahja-logo.png";
 const Index = () => {
   const navigate = useNavigate();
@@ -127,6 +128,9 @@ const Index = () => {
           </p>
         </div>
       </button>
+
+      {/* My Words Section - only for authenticated users */}
+      {isAuthenticated && <MyWordsSection />}
 
       {/* Topic Grid - with subtle watercolor frame */}
       {topics && topics.length > 0 ? <SectionFrame className="py-4">

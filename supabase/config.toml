@@ -2,8 +2,9 @@ project_id = "ovscskaijvclaxelkdyf"
 
 [functions.elevenlabs-transcribe]
 verify_jwt = false
- # Allow up to 5 minutes for long audio files (ElevenLabs can take a while)
- # Default is 60s which cuts off longer recordings
 
 [functions.analyze-gulf-arabic]
+verify_jwt = false
+
+[functions.download-media]
 verify_jwt = false

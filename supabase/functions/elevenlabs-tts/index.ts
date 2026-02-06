@@ -44,9 +44,9 @@ serve(async (req) => {
           text,
           model_id: "eleven_multilingual_v2",
           voice_settings: {
-            stability: 0.5,
-            similarity_boost: 0.75,
-            style: 0.5,
+            stability: 0.3,        // Lower for natural Arabic prosody/tonal variation
+            similarity_boost: 0.8, // High for voice clarity
+            style: 0.7,           // Higher for expressive Arabic inflection
             use_speaker_boost: true,
           },
         }),

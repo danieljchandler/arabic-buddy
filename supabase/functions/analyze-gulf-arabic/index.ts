@@ -275,18 +275,161 @@ function createFallbackResult(transcript: string): TranscriptResult {
   };
 }
 
+// Common Arabic particles/words that AI often skips - fallback dictionary
+const COMMON_GLOSSES: Record<string, string> = {
+  // Conjunctions & particles
+  'و': 'and',
+  'أو': 'or',
+  'ولا': 'or/nor',
+  'بس': 'but/only',
+  'لكن': 'but',
+  'يعني': 'meaning/like',
+  'عشان': 'because/for',
+  'لأن': 'because',
+  'إذا': 'if',
+  'لو': 'if',
+  'لما': 'when',
+  'بعدين': 'then/after',
+  'وبعدين': 'and then',
+  'ف': 'so',
+  'فـ': 'so',
+  // Prepositions
+  'في': 'in',
+  'من': 'from',
+  'على': 'on',
+  'إلى': 'to',
+  'لـ': 'to/for',
+  'ل': 'to/for',
+  'مع': 'with',
+  'عن': 'about',
+  'بـ': 'with/by',
+  'ب': 'with/by',
+  // Pronouns
+  'أنا': 'I',
+  'انا': 'I',
+  'إنت': 'you',
+  'انت': 'you',
+  'أنت': 'you',
+  'إنتي': 'you (f)',
+  'انتي': 'you (f)',
+  'هو': 'he',
+  'هي': 'she',
+  'إحنا': 'we',
+  'احنا': 'we',
+  'نحن': 'we',
+  'هم': 'they',
+  'إنتو': 'you (pl)',
+  'انتو': 'you (pl)',
+  // Demonstratives
+  'هذا': 'this',
+  'هاذا': 'this',
+  'هذي': 'this (f)',
+  'هاذي': 'this (f)',
+  'ذا': 'this',
+  'ذي': 'this (f)',
+  'هذاك': 'that',
+  'ذاك': 'that',
+  'هذيك': 'that (f)',
+  'ذيك': 'that (f)',
+  // Question words
+  'شو': 'what',
+  'وش': 'what',
+  'ايش': 'what',
+  'إيش': 'what',
+  'ليش': 'why',
+  'ليه': 'why',
+  'وين': 'where',
+  'كيف': 'how',
+  'شلون': 'how',
+  'متى': 'when',
+  'مين': 'who',
+  'منو': 'who',
+  'كم': 'how many',
+  // Common words
+  'الحين': 'now',
+  'اليوم': 'today',
+  'أمس': 'yesterday',
+  'بكرة': 'tomorrow',
+  'بكره': 'tomorrow',
+  'كل': 'all/every',
+  'كثير': 'much/many',
+  'واجد': 'much/many',
+  'شوي': 'a little',
+  'شوية': 'a little',
+  'زين': 'good/ok',
+  'طيب': 'ok/good',
+  'تمام': 'ok/perfect',
+  'أوكي': 'ok',
+  'لا': 'no/not',
+  'نعم': 'yes',
+  'إي': 'yes',
+  'اي': 'yes',
+  'إيه': 'yes',
+  'ايه': 'yes',
+  'ما': 'not/what',
+  'مو': 'not',
+  'مب': 'not',
+  'مش': 'not',
+  'هناك': 'there',
+  'هنا': 'here',
+  'فيه': 'there is',
+  'في': 'there is/in',
+  'اللي': 'which/that',
+  'الي': 'which/that',
+  'يلا': 'let\'s go',
+  'خلاص': 'done/enough',
+  'بعد': 'also/after',
+  // Common verbs
+  'كان': 'was',
+  'يكون': 'to be',
+  'عنده': 'he has',
+  'عندي': 'I have',
+  'عندك': 'you have',
+  'أبي': 'I want',
+  'ابي': 'I want',
+  'يبي': 'he wants',
+  'تبي': 'you want',
+  'راح': 'went/will',
+  'بـ': 'will',
+  'قال': 'said',
+  'يقول': 'says',
+};
+
+// Strip Arabic diacritics for fuzzy matching
+function stripDiacritics(text: string): string {
+  // Remove Arabic diacritics (tashkeel): fatha, damma, kasra, sukun, shadda, etc.
+  return text.replace(/[\u064B-\u065F\u0670]/g, '');
+}
+
 function toWordTokens(
   arabic: string,
   vocabulary: VocabItem[],
   wordGlosses: Record<string, string> = {}
 ): WordToken[] {
-  // Build a map from key vocabulary (higher priority)
+  // Build maps - both original and stripped versions for fuzzy matching
   const vocabMap = new Map(vocabulary.map((v) => [v.arabic, v.english] as const));
+  const vocabMapStripped = new Map(vocabulary.map((v) => [stripDiacritics(v.arabic), v.english] as const));
+  
+  // Also create stripped version of wordGlosses
+  const wordGlossesStripped: Record<string, string> = {};
+  for (const [k, v] of Object.entries(wordGlosses)) {
+    wordGlossesStripped[stripDiacritics(k)] = v;
+  }
+  
   const words = arabic.split(/\s+/).filter(Boolean);
 
   return words.map((surface, idx) => {
-    // Priority: key vocabulary > word glosses map
-    const gloss = vocabMap.get(surface) ?? wordGlosses[surface];
+    const stripped = stripDiacritics(surface);
+    
+    // Priority: exact vocab > exact AI gloss > stripped vocab > stripped AI gloss > common fallback
+    const gloss = 
+      vocabMap.get(surface) ?? 
+      wordGlosses[surface] ?? 
+      vocabMapStripped.get(stripped) ?? 
+      wordGlossesStripped[stripped] ??
+      COMMON_GLOSSES[surface] ??
+      COMMON_GLOSSES[stripped];
+      
     return {
       id: `tok-${generateId()}-${idx}`,
       surface,

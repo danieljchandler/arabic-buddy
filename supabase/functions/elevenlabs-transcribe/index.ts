@@ -39,7 +39,14 @@ serve(async (req) => {
 
       console.log(`Fetching audio from URL: ${audioUrl.substring(0, 100)}...`);
       
-      const audioResponse = await fetch(audioUrl);
+      // Use proper headers to avoid 403 from CDNs (TikTok, etc.)
+      const audioResponse = await fetch(audioUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Referer': new URL(audioUrl).origin + '/',
+          'Accept': '*/*',
+        },
+      });
       if (!audioResponse.ok) {
         console.error(`Failed to fetch audio: ${audioResponse.status}`);
         return new Response(

@@ -6,55 +6,29 @@ const corsHeaders = {
 };
 
 /**
- * Extract media URLs from HTML using regex patterns.
- * Looks for og:video, og:audio, video source tags, and direct media links.
+ * Extract media URLs from HTML content.
  */
 function extractMediaUrls(html: string, baseUrl: string): string[] {
   const urls: string[] = [];
 
-  // Open Graph video/audio meta tags
-  const ogPatterns = [
+  const patterns = [
     /property="og:video(?::secure_url|:url)?"\s+content="([^"]+)"/gi,
     /content="([^"]+)"\s+property="og:video(?::secure_url|:url)?"/gi,
     /property="og:audio(?::secure_url|:url)?"\s+content="([^"]+)"/gi,
     /content="([^"]+)"\s+property="og:audio(?::secure_url|:url)?"/gi,
-  ];
-
-  for (const pattern of ogPatterns) {
-    let match;
-    while ((match = pattern.exec(html)) !== null) {
-      if (match[1]) urls.push(match[1]);
-    }
-  }
-
-  // <video src="..."> and <source src="...">
-  const videoSrcPatterns = [
     /<video[^>]+src="([^"]+)"/gi,
-    /<source[^>]+src="([^"]+)"[^>]*type="(?:video|audio)\/[^"]+"/gi,
     /<source[^>]+src="([^"]+)"/gi,
+    /name="twitter:player:stream"\s+content="([^"]+)"/gi,
+    /"(?:contentUrl|embedUrl|video_url|playAddr|downloadAddr)"\s*:\s*"([^"]+)"/gi,
   ];
 
-  for (const pattern of videoSrcPatterns) {
+  for (const pattern of patterns) {
     let match;
     while ((match = pattern.exec(html)) !== null) {
       if (match[1]) urls.push(match[1]);
     }
   }
 
-  // Twitter/X player card
-  const twitterPlayer = /name="twitter:player:stream"\s+content="([^"]+)"/gi;
-  let m;
-  while ((m = twitterPlayer.exec(html)) !== null) {
-    if (m[1]) urls.push(m[1]);
-  }
-
-  // JSON-LD contentUrl / embedUrl
-  const jsonLdPattern = /"(?:contentUrl|embedUrl)"\s*:\s*"([^"]+)"/gi;
-  while ((m = jsonLdPattern.exec(html)) !== null) {
-    if (m[1]) urls.push(m[1]);
-  }
-
-  // Deduplicate and resolve relative URLs
   const seen = new Set<string>();
   const resolved: string[] = [];
   for (const raw of urls) {
@@ -65,17 +39,12 @@ function extractMediaUrls(html: string, baseUrl: string): string[] {
         seen.add(decoded);
         resolved.push(decoded);
       }
-    } catch {
-      // skip invalid URLs
-    }
+    } catch { /* skip */ }
   }
 
   return resolved;
 }
 
-/**
- * Check if a URL points to a media file by content type or extension.
- */
 function looksLikeMedia(url: string, contentType?: string): boolean {
   if (contentType) {
     if (contentType.startsWith('audio/') || contentType.startsWith('video/')) return true;
@@ -118,7 +87,7 @@ serve(async (req) => {
       );
     }
 
-    // Step 1: Try HEAD request to see if URL is direct media
+    // Step 1: Check if URL is a direct media file
     try {
       const headResp = await fetch(url, { method: 'HEAD', redirect: 'follow' });
       const ct = headResp.headers.get('content-type') || '';
@@ -136,51 +105,107 @@ serve(async (req) => {
         );
       }
     } catch (e) {
-      console.log("HEAD request failed, trying GET:", e);
+      console.log("HEAD check failed, continuing:", e);
     }
 
-    // Step 2: Fetch the page HTML and extract embedded media URLs
-    console.log("Fetching page HTML to extract media...");
-    const pageResp = await fetch(url, {
-      redirect: 'follow',
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,*/*',
-      },
-    });
+    // Step 2: Use Firecrawl to scrape the JS-rendered page
+    const firecrawlKey = Deno.env.get("FIRECRAWL_API_KEY");
 
-    if (!pageResp.ok) {
+    let html = "";
+    let scrapedUrl = url;
+
+    if (firecrawlKey) {
+      console.log("Using Firecrawl to scrape JS-rendered page...");
+      try {
+        const fcResp = await fetch("https://api.firecrawl.dev/v1/scrape", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${firecrawlKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            url,
+            formats: ["html", "links"],
+            waitFor: 3000,
+          }),
+        });
+
+        const fcData = await fcResp.json();
+        if (fcResp.ok && fcData.success) {
+          html = fcData.data?.html || fcData.html || "";
+          scrapedUrl = fcData.data?.metadata?.sourceURL || url;
+          console.log(`Firecrawl returned ${html.length} chars of HTML`);
+
+          // Also check links for direct media files
+          const links: string[] = fcData.data?.links || fcData.links || [];
+          for (const link of links) {
+            if (looksLikeMedia(link)) {
+              console.log(`Found media in links: ${link.substring(0, 100)}`);
+              return new Response(
+                JSON.stringify({
+                  audioUrl: link,
+                  status: "tunnel",
+                  filename: new URL(link).pathname.split('/').pop() || null,
+                }),
+                { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+              );
+            }
+          }
+        } else {
+          console.error("Firecrawl error:", fcData.error || fcResp.status);
+        }
+      } catch (e) {
+        console.error("Firecrawl request failed:", e);
+      }
+    } else {
+      console.log("No FIRECRAWL_API_KEY, falling back to simple fetch...");
+      try {
+        const pageResp = await fetch(url, {
+          redirect: 'follow',
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,*/*',
+          },
+        });
+        if (pageResp.ok) {
+          html = await pageResp.text();
+          scrapedUrl = pageResp.url || url;
+          console.log(`Simple fetch returned ${html.length} chars`);
+        }
+      } catch (e) {
+        console.error("Simple fetch failed:", e);
+      }
+    }
+
+    if (!html) {
       return new Response(
-        JSON.stringify({ error: `Could not access URL (HTTP ${pageResp.status})` }),
+        JSON.stringify({ error: "Could not fetch the page content. Please try uploading the file directly." }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const finalUrl = pageResp.url || url;
-    const html = await pageResp.text();
-    console.log(`Fetched ${html.length} chars of HTML from ${finalUrl}`);
-
-    const mediaUrls = extractMediaUrls(html, finalUrl);
-    console.log(`Found ${mediaUrls.length} candidate media URLs`);
+    // Step 3: Extract media URLs from HTML
+    const mediaUrls = extractMediaUrls(html, scrapedUrl);
+    console.log(`Extracted ${mediaUrls.length} media URL candidates`);
 
     if (mediaUrls.length === 0) {
       return new Response(
         JSON.stringify({ 
-          error: "Could not find any media on this page. Try using a direct link to an audio/video file, or download the file and upload it instead." 
+          error: "لم يتم العثور على ملف وسائط في هذه الصفحة. حاول تحميل الملف مباشرة بدلاً من ذلك." 
         }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Step 3: Validate candidates — pick the first one that responds as media
-    for (const candidate of mediaUrls) {
+    // Step 4: Validate candidates
+    for (const candidate of mediaUrls.slice(0, 5)) {
       try {
-        console.log(`Checking candidate: ${candidate.substring(0, 100)}`);
+        console.log(`Validating: ${candidate.substring(0, 100)}`);
         const check = await fetch(candidate, { method: 'HEAD', redirect: 'follow' });
         const ct = check.headers.get('content-type') || '';
 
         if (looksLikeMedia(candidate, ct) || check.ok) {
-          console.log(`Found valid media: ${ct}`);
+          console.log(`Valid media found: ${ct || 'ok'}`);
           return new Response(
             JSON.stringify({
               audioUrl: check.url || candidate,
@@ -195,8 +220,8 @@ serve(async (req) => {
       }
     }
 
-    // If no candidate validated, return the first one anyway (best effort)
-    console.log("No candidate validated via HEAD, returning first match");
+    // Best effort: return first candidate
+    console.log("Returning first candidate as best effort");
     return new Response(
       JSON.stringify({
         audioUrl: mediaUrls[0],

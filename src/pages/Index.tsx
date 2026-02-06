@@ -2,11 +2,11 @@ import { useNavigate } from "react-router-dom";
 import { useTopics } from "@/hooks/useTopics";
 import { useAuth } from "@/hooks/useAuth";
 import { useReviewStats } from "@/hooks/useReview";
+import { useUserVocabularyDueCount } from "@/hooks/useUserVocabulary";
 import { TopicCard, Button, SectionFrame } from "@/components/design-system";
-import { Loader2, Settings, Brain, LogIn, LogOut, Mic } from "lucide-react";
+import { Loader2, Settings, Brain, LogIn, LogOut, Mic, BookOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AppShell } from "@/components/layout/AppShell";
-import { MyWordsSection } from "@/components/MyWordsSection";
 import lahjaLogo from "@/assets/lahja-logo.png";
 const Index = () => {
   const navigate = useNavigate();
@@ -21,6 +21,7 @@ const Index = () => {
     signOut,
     loading: authLoading
   } = useAuth();
+  const { data: myWordsStats } = useUserVocabularyDueCount();
   const {
     data: stats
   } = useReviewStats();
@@ -129,8 +130,36 @@ const Index = () => {
         </div>
       </button>
 
-      {/* My Words Section - only for authenticated users */}
-      {isAuthenticated && <MyWordsSection />}
+      {/* My Words Button - only for authenticated users */}
+      {isAuthenticated && (
+        <button
+          onClick={() => navigate("/my-words")}
+          className={cn(
+            "w-full mb-8 p-5 rounded-xl",
+            "bg-card border border-border",
+            "flex items-center justify-between",
+            "transition-all duration-200",
+            "hover:border-primary/20"
+          )}
+        >
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+              <BookOpen className="h-5 w-5 text-primary" />
+            </div>
+            <div className="text-left">
+              <p className="font-semibold text-foreground">My Words</p>
+              <p className="text-sm text-muted-foreground">
+                {myWordsStats?.dueCount ? `${myWordsStats.dueCount} due for review` : "Saved vocabulary"}
+              </p>
+            </div>
+          </div>
+          {myWordsStats && myWordsStats.dueCount > 0 && (
+            <div className="px-3 py-1.5 bg-primary/10 rounded-full">
+              <span className="text-sm font-semibold text-primary">{myWordsStats.dueCount}</span>
+            </div>
+          )}
+        </button>
+      )}
 
       {/* Topic Grid - with subtle watercolor frame */}
       {topics && topics.length > 0 ? <SectionFrame className="py-4">

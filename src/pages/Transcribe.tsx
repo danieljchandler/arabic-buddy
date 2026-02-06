@@ -362,12 +362,30 @@ const Transcribe = () => {
 
   // URL processing
   const processUrl = async () => {
-    if (!urlInput.trim()) return;
+    let trimmed = urlInput.trim();
+    if (!trimmed) return;
+
+    // Auto-prepend https:// if missing
+    if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) {
+      trimmed = `https://${trimmed}`;
+    }
+
+    // Basic URL validation
+    try {
+      const parsed = new URL(trimmed);
+      if (!parsed.hostname.includes('.')) {
+        toast.error("رابط غير صالح", { description: "يرجى إدخال رابط صحيح (مثلاً https://youtube.com/watch?v=...)" });
+        return;
+      }
+    } catch {
+      toast.error("رابط غير صالح", { description: "يرجى إدخال رابط صحيح" });
+      return;
+    }
 
     setIsLoadingUrl(true);
     try {
       const { data, error } = await supabase.functions.invoke("download-media", {
-        body: { url: urlInput.trim() },
+        body: { url: trimmed },
       });
 
       if (error) throw new Error(error.message);

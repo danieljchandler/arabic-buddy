@@ -6,11 +6,12 @@ const corsHeaders = {
 };
 
 /**
- * Extract media URLs from HTML content.
+ * Extract media URLs from HTML content, including platform-specific JSON data.
  */
 function extractMediaUrls(html: string, baseUrl: string): string[] {
   const urls: string[] = [];
 
+  // Standard HTML/meta patterns
   const patterns = [
     /property="og:video(?::secure_url|:url)?"\s+content="([^"]+)"/gi,
     /content="([^"]+)"\s+property="og:video(?::secure_url|:url)?"/gi,
@@ -19,7 +20,7 @@ function extractMediaUrls(html: string, baseUrl: string): string[] {
     /<video[^>]+src="([^"]+)"/gi,
     /<source[^>]+src="([^"]+)"/gi,
     /name="twitter:player:stream"\s+content="([^"]+)"/gi,
-    /"(?:contentUrl|embedUrl|video_url|playAddr|downloadAddr)"\s*:\s*"([^"]+)"/gi,
+    /"(?:contentUrl|embedUrl|video_url)"\s*:\s*"([^"]+)"/gi,
   ];
 
   for (const pattern of patterns) {
@@ -29,15 +30,44 @@ function extractMediaUrls(html: string, baseUrl: string): string[] {
     }
   }
 
+  // TikTok-specific: extract from embedded JSON data
+  // TikTok embeds video URLs in script tags with __UNIVERSAL_DATA_FOR_REHYDRATION__ or similar
+  const tiktokPatterns = [
+    /"playAddr"\s*:\s*"(https?:[^"]+)"/gi,
+    /"downloadAddr"\s*:\s*"(https?:[^"]+)"/gi,
+    /"play_addr"\s*:\s*\{[^}]*"url_list"\s*:\s*\["(https?:[^"]+)"/gi,
+    /"download_addr"\s*:\s*\{[^}]*"url_list"\s*:\s*\["(https?:[^"]+)"/gi,
+    /"video"\s*:\s*\{[^}]*"bitrateInfo"\s*:\s*\[[^\]]*"PlayAddr"\s*:\s*\{[^}]*"UrlList"\s*:\s*\["(https?:[^"]+)"/gi,
+  ];
+
+  for (const pattern of tiktokPatterns) {
+    let match;
+    while ((match = pattern.exec(html)) !== null) {
+      if (match[1]) {
+        // TikTok URLs are often unicode-escaped
+        const decoded = match[1].replace(/\\u002F/g, '/').replace(/\\u0026/g, '&');
+        urls.push(decoded);
+      }
+    }
+  }
+
+  // Generic: find any URL that looks like a video file in JSON data
+  const genericVideoUrl = /https?:\\?\/\\?\/[^"'\s]+\.(?:mp4|mp3|m4a|webm|mov)(?:\\?\/[^"'\s]*)?/gi;
+  let gMatch;
+  while ((gMatch = genericVideoUrl.exec(html)) !== null) {
+    const decoded = gMatch[0].replace(/\\u002F/g, '/').replace(/\\u0026/g, '&').replace(/\\\//g, '/');
+    urls.push(decoded);
+  }
+
   const seen = new Set<string>();
   const resolved: string[] = [];
   for (const raw of urls) {
     try {
-      const full = raw.startsWith('http') ? raw : new URL(raw, baseUrl).href;
-      const decoded = full.replace(/&amp;/g, '&');
-      if (!seen.has(decoded)) {
-        seen.add(decoded);
-        resolved.push(decoded);
+      const clean = raw.replace(/\\\//g, '/').replace(/\\u002F/g, '/').replace(/\\u0026/g, '&').replace(/&amp;/g, '&');
+      const full = clean.startsWith('http') ? clean : new URL(clean, baseUrl).href;
+      if (!seen.has(full)) {
+        seen.add(full);
+        resolved.push(full);
       }
     } catch { /* skip */ }
   }
@@ -158,13 +188,16 @@ serve(async (req) => {
             }
           }
         } else {
-          console.error("Firecrawl error:", fcData.error || fcResp.status);
+          console.log("Firecrawl failed or unsupported, falling back to simple fetch:", fcData.error || fcResp.status);
         }
       } catch (e) {
-        console.error("Firecrawl request failed:", e);
+        console.log("Firecrawl request failed, falling back:", e);
       }
-    } else {
-      console.log("No FIRECRAWL_API_KEY, falling back to simple fetch...");
+    }
+
+    // Fallback: always try simple fetch if we don't have HTML yet
+    if (!html) {
+      console.log("Using simple fetch to get page HTML...");
       try {
         const pageResp = await fetch(normalizedUrl, {
           redirect: 'follow',
@@ -179,7 +212,7 @@ serve(async (req) => {
           console.log(`Simple fetch returned ${html.length} chars`);
         }
       } catch (e) {
-        console.error("Simple fetch failed:", e);
+        console.error("Simple fetch also failed:", e);
       }
     }
 

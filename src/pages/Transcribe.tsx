@@ -675,7 +675,7 @@ const Transcribe = () => {
               تحويل الصوت إلى نص
             </h1>
             <p className="text-muted-foreground">
-              ارفع ملف صوتي/فيديو أو الصق رابط من يوتيوب أو وسائل التواصل
+              ارفع ملف صوتي/فيديو أو الصق رابط مباشر لملف وسائط
             </p>
           </div>
         </div>
@@ -747,7 +747,7 @@ const Transcribe = () => {
                     <Input
                       value={urlInput}
                       onChange={(e) => setUrlInput(e.target.value)}
-                      placeholder="الصق رابط يوتيوب، تيك توك، إنستغرام، أو إكس..."
+                      placeholder="الصق رابط مباشر لملف صوتي أو فيديو (mp3, mp4, wav...)"
                       dir="ltr"
                       className="font-mono text-sm"
                       disabled={isLoadingUrl || isProcessing}
@@ -762,7 +762,7 @@ const Transcribe = () => {
                   </div>
                   
                   <p className="text-xs text-muted-foreground">
-                    يدعم: YouTube, TikTok, Instagram Reels, X/Twitter
+                    الصق رابط مباشر لملف صوتي أو فيديو (مثلاً رابط .mp3 أو .mp4)
                   </p>
 
                   {remoteAudioUrl && (

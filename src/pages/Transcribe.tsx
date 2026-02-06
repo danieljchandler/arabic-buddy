@@ -194,7 +194,6 @@ const Transcribe = () => {
   // URL import state
   const [urlInput, setUrlInput] = useState("");
   const [isLoadingUrl, setIsLoadingUrl] = useState(false);
-  const [remoteAudioUrl, setRemoteAudioUrl] = useState<string | null>(null);
 
   // Duration & time range state
   const [mediaDuration, setMediaDuration] = useState<number | null>(null);
@@ -306,7 +305,7 @@ const Transcribe = () => {
 
         setFile(selectedFile);
         setTranscriptResult(null);
-        setRemoteAudioUrl(null);
+        
         if (audioUrl) URL.revokeObjectURL(audioUrl);
         setAudioUrl(URL.createObjectURL(selectedFile));
         detectFileDuration(selectedFile);
@@ -325,7 +324,7 @@ const Transcribe = () => {
       if (droppedFile) {
         setFile(droppedFile);
         setTranscriptResult(null);
-        setRemoteAudioUrl(null);
+        
         if (audioUrl) URL.revokeObjectURL(audioUrl);
         setAudioUrl(URL.createObjectURL(droppedFile));
         detectFileDuration(droppedFile);
@@ -354,7 +353,6 @@ const Transcribe = () => {
 
   const clearUrl = () => {
     setUrlInput("");
-    setRemoteAudioUrl(null);
     setMediaDuration(null);
     setTimeRange([0, MAX_DURATION]);
     setTranscriptResult(null);
@@ -389,30 +387,28 @@ const Transcribe = () => {
       });
 
       if (error) throw new Error(error.message);
-      if (!data?.audioUrl) throw new Error("لم يتم العثور على رابط صوتي");
+      if (!data?.audioBase64) throw new Error("لم يتم العثور على ملف صوتي");
 
-      setRemoteAudioUrl(data.audioUrl);
-      setFile(null);
+      // Convert base64 to File
+      const binaryStr = atob(data.audioBase64);
+      const bytes = new Uint8Array(binaryStr.length);
+      for (let i = 0; i < binaryStr.length; i++) {
+        bytes[i] = binaryStr.charCodeAt(i);
+      }
+      const blob = new Blob([bytes], { type: data.contentType || 'video/mp4' });
+      const filename = data.filename || 'downloaded-media.mp4';
+      const downloadedFile = new File([blob], filename, { type: blob.type });
+
+      // Use the file upload path instead of URL path
+      setFile(downloadedFile);
+      
       if (audioUrl) URL.revokeObjectURL(audioUrl);
-      setAudioUrl(null);
+      setAudioUrl(URL.createObjectURL(downloadedFile));
+      detectFileDuration(downloadedFile);
 
-      // Try to detect duration from the remote audio
-      const audioEl = document.createElement("audio");
-      audioEl.preload = "metadata";
-      audioEl.crossOrigin = "anonymous";
-      audioEl.src = data.audioUrl;
-      audioEl.onloadedmetadata = () => {
-        const dur = Math.ceil(audioEl.duration);
-        setMediaDuration(dur);
-        setTimeRange([0, Math.min(dur, MAX_DURATION)]);
-      };
-      audioEl.onerror = () => {
-        // If we can't detect, default to max
-        setMediaDuration(MAX_DURATION);
-        setTimeRange([0, MAX_DURATION]);
-      };
-
-      toast.success("تم استخراج الصوت!", { description: data.filename || "جاهز للتحويل" });
+      toast.success("تم تحميل الملف!", {
+        description: `${filename} (${(data.size / 1024 / 1024).toFixed(1)}MB)`,
+      });
     } catch (err) {
       console.error("URL processing error:", err);
       toast.error("فشل معالجة الرابط", {
@@ -476,7 +472,7 @@ const Transcribe = () => {
   };
 
   const transcribeFile = async () => {
-    if (!file && !remoteAudioUrl) return;
+    if (!file) return;
 
     setDebugTrace({ phase: "start", at: new Date().toISOString() });
     setIsProcessing(true);
@@ -491,32 +487,16 @@ const Transcribe = () => {
         });
       }, 500);
 
-      let data: ElevenLabsTranscriptionResult;
-      let error: Error | null = null;
-
-      if (remoteAudioUrl) {
-        // URL-based transcription
-        setDebugTrace({ phase: "request:transcribe-url", at: new Date().toISOString(), details: { url: remoteAudioUrl.substring(0, 80) } });
-        
-        const result = await supabase.functions.invoke<ElevenLabsTranscriptionResult>(
-          "elevenlabs-transcribe",
-          { body: { audioUrl: remoteAudioUrl } }
-        );
-        data = result.data!;
-        if (result.error) error = new Error(result.error.message);
-      } else {
-        // File-based transcription
-        const formData = new FormData();
-        formData.append("audio", file!);
-        setDebugTrace({ phase: "request:transcribe", at: new Date().toISOString(), details: { name: file!.name, size: file!.size, type: file!.type } });
-        
-        const result = await supabase.functions.invoke<ElevenLabsTranscriptionResult>(
-          "elevenlabs-transcribe",
-          { body: formData }
-        );
-        data = result.data!;
-        if (result.error) error = new Error(result.error.message);
-      }
+      const formData = new FormData();
+      formData.append("audio", file);
+      setDebugTrace({ phase: "request:transcribe", at: new Date().toISOString(), details: { name: file.name, size: file.size, type: file.type } });
+      
+      const result = await supabase.functions.invoke<ElevenLabsTranscriptionResult>(
+        "elevenlabs-transcribe",
+        { body: formData }
+      );
+      const data = result.data!;
+      const error = result.error ? new Error(result.error.message) : null;
 
       if (progressInterval) clearInterval(progressInterval);
 
@@ -679,7 +659,7 @@ const Transcribe = () => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
-  const hasInput = Boolean(file) || Boolean(remoteAudioUrl);
+  const hasInput = Boolean(file);
   const showTimeRange = mediaDuration !== null && mediaDuration > MAX_DURATION;
 
   return (
@@ -783,15 +763,7 @@ const Transcribe = () => {
                     يدعم روابط مباشرة وصفحات تحتوي على فيديو/صوت مضمّن
                   </p>
 
-                  {remoteAudioUrl && (
-                    <div className="flex items-center gap-3 p-3 rounded-lg bg-primary/5 border border-primary/20">
-                      <FileAudio className="h-6 w-6 text-primary" />
-                      <span className="text-sm text-foreground flex-1">تم استخراج الصوت بنجاح</span>
-                      <Button variant="ghost" size="icon" onClick={clearUrl} disabled={isProcessing}>
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  )}
+                  
                 </div>
               </TabsContent>
             </Tabs>
@@ -1028,7 +1000,6 @@ const Transcribe = () => {
                   debugTrace,
                   state: {
                     hasFile: Boolean(file),
-                    hasRemoteUrl: Boolean(remoteAudioUrl),
                     isProcessing,
                     isAnalyzing,
                     progress,

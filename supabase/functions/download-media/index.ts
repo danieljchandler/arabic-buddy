@@ -1,9 +1,12 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { encode as base64Encode } from "https://deno.land/std@0.168.0/encoding/base64.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
+
+const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB limit
 
 /**
  * Extract media URLs from HTML content, including platform-specific JSON data.
@@ -11,7 +14,6 @@ const corsHeaders = {
 function extractMediaUrls(html: string, baseUrl: string): string[] {
   const urls: string[] = [];
 
-  // Standard HTML/meta patterns
   const patterns = [
     /property="og:video(?::secure_url|:url)?"\s+content="([^"]+)"/gi,
     /content="([^"]+)"\s+property="og:video(?::secure_url|:url)?"/gi,
@@ -30,28 +32,25 @@ function extractMediaUrls(html: string, baseUrl: string): string[] {
     }
   }
 
-  // TikTok-specific: extract from embedded JSON data
-  // TikTok embeds video URLs in script tags with __UNIVERSAL_DATA_FOR_REHYDRATION__ or similar
+  // TikTok-specific patterns
   const tiktokPatterns = [
     /"playAddr"\s*:\s*"(https?:[^"]+)"/gi,
     /"downloadAddr"\s*:\s*"(https?:[^"]+)"/gi,
     /"play_addr"\s*:\s*\{[^}]*"url_list"\s*:\s*\["(https?:[^"]+)"/gi,
     /"download_addr"\s*:\s*\{[^}]*"url_list"\s*:\s*\["(https?:[^"]+)"/gi,
-    /"video"\s*:\s*\{[^}]*"bitrateInfo"\s*:\s*\[[^\]]*"PlayAddr"\s*:\s*\{[^}]*"UrlList"\s*:\s*\["(https?:[^"]+)"/gi,
   ];
 
   for (const pattern of tiktokPatterns) {
     let match;
     while ((match = pattern.exec(html)) !== null) {
       if (match[1]) {
-        // TikTok URLs are often unicode-escaped
         const decoded = match[1].replace(/\\u002F/g, '/').replace(/\\u0026/g, '&');
         urls.push(decoded);
       }
     }
   }
 
-  // Generic: find any URL that looks like a video file in JSON data
+  // Generic video file URLs in JSON
   const genericVideoUrl = /https?:\\?\/\\?\/[^"'\s]+\.(?:mp4|mp3|m4a|webm|mov)(?:\\?\/[^"'\s]*)?/gi;
   let gMatch;
   while ((gMatch = genericVideoUrl.exec(html)) !== null) {
@@ -83,6 +82,45 @@ function looksLikeMedia(url: string, contentType?: string): boolean {
   return /\.(mp3|mp4|m4a|wav|ogg|webm|mov|aac|flac)(\?|$)/i.test(url);
 }
 
+/**
+ * Fetch actual audio bytes from a URL and return as base64.
+ * Tries with browser-like headers to bypass CDN restrictions.
+ */
+async function fetchAudioAsBase64(mediaUrl: string): Promise<{ base64: string; contentType: string; size: number } | null> {
+  const headers = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Accept': '*/*',
+    'Referer': new URL(mediaUrl).origin + '/',
+  };
+
+  try {
+    console.log(`Downloading audio from: ${mediaUrl.substring(0, 100)}...`);
+    const resp = await fetch(mediaUrl, { headers, redirect: 'follow' });
+
+    if (!resp.ok) {
+      console.error(`Download failed: ${resp.status}`);
+      return null;
+    }
+
+    const contentType = resp.headers.get('content-type') || 'video/mp4';
+    const arrayBuffer = await resp.arrayBuffer();
+    const size = arrayBuffer.byteLength;
+
+    if (size > MAX_FILE_SIZE) {
+      console.error(`File too large: ${(size / 1024 / 1024).toFixed(1)}MB`);
+      return null;
+    }
+
+    console.log(`Downloaded ${(size / 1024 / 1024).toFixed(2)}MB, type: ${contentType}`);
+    const base64 = base64Encode(new Uint8Array(arrayBuffer));
+
+    return { base64, contentType, size };
+  } catch (e) {
+    console.error(`fetchAudioAsBase64 error:`, e);
+    return null;
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -98,7 +136,7 @@ serve(async (req) => {
       );
     }
 
-    // Auto-prepend https:// if missing
+    // Auto-prepend https://
     let normalizedUrl = url.trim();
     if (!normalizedUrl.startsWith('http://') && !normalizedUrl.startsWith('https://')) {
       normalizedUrl = `https://${normalizedUrl}`;
@@ -123,30 +161,33 @@ serve(async (req) => {
       );
     }
 
-    // Step 1: Check if URL is a direct media file
+    // Step 1: Check if URL is a direct media file and download it
     try {
       const headResp = await fetch(normalizedUrl, { method: 'HEAD', redirect: 'follow' });
       const ct = headResp.headers.get('content-type') || '';
       const finalUrl = headResp.url || normalizedUrl;
 
       if (looksLikeMedia(finalUrl, ct)) {
-        console.log(`Direct media URL detected (${ct})`);
-        return new Response(
-          JSON.stringify({
-            audioUrl: finalUrl,
-            status: "redirect",
-            filename: new URL(finalUrl).pathname.split('/').pop() || null,
-          }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        console.log(`Direct media URL detected (${ct}), downloading...`);
+        const audioData = await fetchAudioAsBase64(finalUrl);
+        if (audioData) {
+          return new Response(
+            JSON.stringify({
+              audioBase64: audioData.base64,
+              contentType: audioData.contentType,
+              size: audioData.size,
+              filename: new URL(finalUrl).pathname.split('/').pop() || 'audio.mp4',
+            }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
       }
     } catch (e) {
       console.log("HEAD check failed, continuing:", e);
     }
 
-    // Step 2: Use Firecrawl to scrape the JS-rendered page
+    // Step 2: Use Firecrawl or simple fetch to get page HTML
     const firecrawlKey = Deno.env.get("FIRECRAWL_API_KEY");
-
     let html = "";
     let scrapedUrl = normalizedUrl;
 
@@ -172,30 +213,34 @@ serve(async (req) => {
           scrapedUrl = fcData.data?.metadata?.sourceURL || normalizedUrl;
           console.log(`Firecrawl returned ${html.length} chars of HTML`);
 
-          // Also check links for direct media files
+          // Check links for direct media
           const links: string[] = fcData.data?.links || fcData.links || [];
           for (const link of links) {
             if (looksLikeMedia(link)) {
-              console.log(`Found media in links: ${link.substring(0, 100)}`);
-              return new Response(
-                JSON.stringify({
-                  audioUrl: link,
-                  status: "tunnel",
-                  filename: new URL(link).pathname.split('/').pop() || null,
-                }),
-                { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-              );
+              console.log(`Found media in links, downloading: ${link.substring(0, 100)}`);
+              const audioData = await fetchAudioAsBase64(link);
+              if (audioData) {
+                return new Response(
+                  JSON.stringify({
+                    audioBase64: audioData.base64,
+                    contentType: audioData.contentType,
+                    size: audioData.size,
+                    filename: new URL(link).pathname.split('/').pop() || 'audio.mp4',
+                  }),
+                  { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+                );
+              }
             }
           }
         } else {
-          console.log("Firecrawl failed or unsupported, falling back to simple fetch:", fcData.error || fcResp.status);
+          console.log("Firecrawl failed or unsupported, falling back:", fcData.error || fcResp.status);
         }
       } catch (e) {
         console.log("Firecrawl request failed, falling back:", e);
       }
     }
 
-    // Fallback: always try simple fetch if we don't have HTML yet
+    // Fallback: simple fetch
     if (!html) {
       console.log("Using simple fetch to get page HTML...");
       try {
@@ -223,51 +268,36 @@ serve(async (req) => {
       );
     }
 
-    // Step 3: Extract media URLs from HTML
+    // Step 3: Extract media URLs
     const mediaUrls = extractMediaUrls(html, scrapedUrl);
     console.log(`Extracted ${mediaUrls.length} media URL candidates`);
 
     if (mediaUrls.length === 0) {
       return new Response(
-        JSON.stringify({ 
-          error: "لم يتم العثور على ملف وسائط في هذه الصفحة. حاول تحميل الملف مباشرة بدلاً من ذلك." 
-        }),
+        JSON.stringify({ error: "لم يتم العثور على ملف وسائط في هذه الصفحة. حاول تحميل الملف مباشرة بدلاً من ذلك." }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Step 4: Validate candidates
+    // Step 4: Try to download each candidate
     for (const candidate of mediaUrls.slice(0, 5)) {
-      try {
-        console.log(`Validating: ${candidate.substring(0, 100)}`);
-        const check = await fetch(candidate, { method: 'HEAD', redirect: 'follow' });
-        const ct = check.headers.get('content-type') || '';
-
-        if (looksLikeMedia(candidate, ct) || check.ok) {
-          console.log(`Valid media found: ${ct || 'ok'}`);
-          return new Response(
-            JSON.stringify({
-              audioUrl: check.url || candidate,
-              status: "tunnel",
-              filename: new URL(candidate).pathname.split('/').pop() || null,
-            }),
-            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
-        }
-      } catch (e) {
-        console.log(`Candidate failed: ${e}`);
+      const audioData = await fetchAudioAsBase64(candidate);
+      if (audioData) {
+        return new Response(
+          JSON.stringify({
+            audioBase64: audioData.base64,
+            contentType: audioData.contentType,
+            size: audioData.size,
+            filename: new URL(candidate).pathname.split('/').pop() || 'audio.mp4',
+          }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
       }
     }
 
-    // Best effort: return first candidate
-    console.log("Returning first candidate as best effort");
     return new Response(
-      JSON.stringify({
-        audioUrl: mediaUrls[0],
-        status: "tunnel",
-        filename: null,
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ error: "تعذر تحميل ملف الوسائط. حاول تحميل الملف مباشرة بدلاً من ذلك." }),
+      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
     console.error("download-media error:", error);

@@ -68,11 +68,17 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Processing URL: ${url}`);
+    // Auto-prepend https:// if missing
+    let normalizedUrl = url.trim();
+    if (!normalizedUrl.startsWith('http://') && !normalizedUrl.startsWith('https://')) {
+      normalizedUrl = `https://${normalizedUrl}`;
+    }
+
+    console.log(`Processing URL: ${normalizedUrl}`);
 
     let parsedUrl: URL;
     try {
-      parsedUrl = new URL(url);
+      parsedUrl = new URL(normalizedUrl);
     } catch {
       return new Response(
         JSON.stringify({ error: "Invalid URL format" }),
@@ -89,9 +95,9 @@ serve(async (req) => {
 
     // Step 1: Check if URL is a direct media file
     try {
-      const headResp = await fetch(url, { method: 'HEAD', redirect: 'follow' });
+      const headResp = await fetch(normalizedUrl, { method: 'HEAD', redirect: 'follow' });
       const ct = headResp.headers.get('content-type') || '';
-      const finalUrl = headResp.url || url;
+      const finalUrl = headResp.url || normalizedUrl;
 
       if (looksLikeMedia(finalUrl, ct)) {
         console.log(`Direct media URL detected (${ct})`);
@@ -112,7 +118,7 @@ serve(async (req) => {
     const firecrawlKey = Deno.env.get("FIRECRAWL_API_KEY");
 
     let html = "";
-    let scrapedUrl = url;
+    let scrapedUrl = normalizedUrl;
 
     if (firecrawlKey) {
       console.log("Using Firecrawl to scrape JS-rendered page...");
@@ -124,7 +130,7 @@ serve(async (req) => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            url,
+            url: normalizedUrl,
             formats: ["html", "links"],
             waitFor: 3000,
           }),
@@ -133,7 +139,7 @@ serve(async (req) => {
         const fcData = await fcResp.json();
         if (fcResp.ok && fcData.success) {
           html = fcData.data?.html || fcData.html || "";
-          scrapedUrl = fcData.data?.metadata?.sourceURL || url;
+          scrapedUrl = fcData.data?.metadata?.sourceURL || normalizedUrl;
           console.log(`Firecrawl returned ${html.length} chars of HTML`);
 
           // Also check links for direct media files
@@ -160,7 +166,7 @@ serve(async (req) => {
     } else {
       console.log("No FIRECRAWL_API_KEY, falling back to simple fetch...");
       try {
-        const pageResp = await fetch(url, {
+        const pageResp = await fetch(normalizedUrl, {
           redirect: 'follow',
           headers: {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -169,7 +175,7 @@ serve(async (req) => {
         });
         if (pageResp.ok) {
           html = await pageResp.text();
-          scrapedUrl = pageResp.url || url;
+          scrapedUrl = pageResp.url || normalizedUrl;
           console.log(`Simple fetch returned ${html.length} chars`);
         }
       } catch (e) {

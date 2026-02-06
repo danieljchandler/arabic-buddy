@@ -67,15 +67,23 @@ Output ONLY valid JSON matching this schema:
   }]
 }
 
-Rules:
-- Split the ENTIRE transcript into SHORT, SINGLE SENTENCES. Each line should be ONE sentence only (roughly 5-15 words).
-- Do NOT group multiple sentences together. If in doubt, split more aggressively.
-- A sentence ends at natural pauses: periods, question marks, or strong intonation breaks.
-- Include ALL sentences from the transcript. Do NOT summarize or skip any content.
-- Do NOT summarize. Do NOT drop sentences.
-- Translation must be sentence-by-sentence matching each Arabic line.
-- Keep dialect spelling exactly as spoken (do NOT normalize).
-- Keep punctuation as spoken.
+CRITICAL RULES FOR SPLITTING:
+1. MAXIMUM 12 words per line. If a sentence is longer, SPLIT IT at natural clause boundaries (و، ف، بس، يعني، لأن، عشان).
+2. MINIMUM 3 words per line. Merge very short fragments with adjacent content.
+3. Each line should be ONE complete thought or clause - typically 5-10 words.
+4. Split aggressively at:
+   - Punctuation: . ، ؟ ! ؛
+   - Conjunctions that start new clauses: و (and), ف (so), بس (but), يعني (meaning)
+   - Natural speech pauses or topic shifts
+5. Include ALL content from the transcript. Do NOT skip or summarize.
+6. Translation must match each Arabic line exactly.
+7. Keep dialect spelling as spoken (do NOT normalize to MSA).
+
+EXAMPLE of good splitting:
+Long: "رحت السوق وشريت خضار وفواكه وبعدين رجعت البيت وسويت غدا" (too long - 11 words)
+Split into:
+- "رحت السوق وشريت خضار وفواكه" (6 words)
+- "وبعدين رجعت البيت وسويت غدا" (5 words)
 
 No additional text outside JSON.`;
 };

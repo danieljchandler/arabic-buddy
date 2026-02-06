@@ -20,78 +20,56 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Processing URL: ${url}`);
+    console.log(`Processing direct media URL: ${url}`);
 
-    // Validate URL pattern (YouTube, TikTok, Instagram, X/Twitter)
-    const supportedPatterns = [
-      /youtube\.com\/watch/i,
-      /youtu\.be\//i,
-      /youtube\.com\/shorts/i,
-      /tiktok\.com/i,
-      /instagram\.com\/(reel|p)\//i,
-      /twitter\.com\/.+\/status/i,
-      /x\.com\/.+\/status/i,
-    ];
-
-    const isSupported = supportedPatterns.some(pattern => pattern.test(url));
-    if (!isSupported) {
+    // Validate it looks like a URL
+    let parsedUrl: URL;
+    try {
+      parsedUrl = new URL(url);
+    } catch {
       return new Response(
-        JSON.stringify({ error: "Unsupported URL. Supported: YouTube, TikTok, Instagram, X/Twitter" }),
+        JSON.stringify({ error: "Invalid URL format" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const COBALT_API_URL = Deno.env.get("COBALT_API_URL") || "https://api.cobalt.tools";
-    console.log(`Using Cobalt API: ${COBALT_API_URL}`);
-
-    const cobaltResponse = await fetch(`${COBALT_API_URL}/`, {
-      method: "POST",
-      headers: {
-        "Accept": "application/json",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        url,
-        downloadMode: "audio",
-        audioFormat: "mp3",
-      }),
-    });
-
-    if (!cobaltResponse.ok) {
-      const errorText = await cobaltResponse.text();
-      console.error(`Cobalt API error: ${cobaltResponse.status} - ${errorText}`);
+    if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
       return new Response(
-        JSON.stringify({ error: "Failed to process URL", details: errorText }),
-        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const cobaltData = await cobaltResponse.json();
-    console.log("Cobalt response status:", cobaltData.status);
-
-    // Cobalt returns different statuses: "tunnel", "redirect", "stream", "error"
-    if (cobaltData.status === "error") {
-      return new Response(
-        JSON.stringify({ error: cobaltData.text || "Cobalt could not process this URL" }),
+        JSON.stringify({ error: "Only HTTP/HTTPS URLs are supported" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const audioUrl = cobaltData.url;
-    if (!audioUrl) {
+    // Fetch the remote file to verify it's accessible and get content type
+    const headResp = await fetch(url, { method: 'HEAD' });
+    if (!headResp.ok) {
+      console.error(`HEAD request failed: ${headResp.status}`);
       return new Response(
-        JSON.stringify({ error: "No audio URL returned from Cobalt" }),
-        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: `Could not access URL (HTTP ${headResp.status})` }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log("Successfully got audio URL from Cobalt");
+    const contentType = headResp.headers.get('content-type') || '';
+    const isMedia = contentType.startsWith('audio/') || contentType.startsWith('video/') || 
+                    contentType === 'application/octet-stream' ||
+                    /\.(mp3|wav|m4a|ogg|mp4|webm|mov|aac|flac)$/i.test(parsedUrl.pathname);
+
+    if (!isMedia) {
+      console.log(`Content-Type: ${contentType}, path: ${parsedUrl.pathname}`);
+      return new Response(
+        JSON.stringify({ error: "URL does not appear to point to an audio/video file. Please use a direct link to a media file." }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log("URL validated as media, returning direct URL");
 
     return new Response(
       JSON.stringify({
-        audioUrl,
-        status: cobaltData.status,
-        filename: cobaltData.filename || null,
+        audioUrl: url,
+        status: "redirect",
+        filename: parsedUrl.pathname.split('/').pop() || null,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

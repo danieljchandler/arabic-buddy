@@ -491,12 +491,38 @@ const Transcribe = () => {
       formData.append("audio", file);
       setDebugTrace({ phase: "request:transcribe", at: new Date().toISOString(), details: { name: file.name, size: file.size, type: file.type } });
       
-      const result = await supabase.functions.invoke<ElevenLabsTranscriptionResult>(
-        "elevenlabs-transcribe",
-        { body: formData }
-      );
-      const data = result.data!;
-      const error = result.error ? new Error(result.error.message) : null;
+      // Use direct fetch instead of supabase.functions.invoke to avoid
+      // client-level timeouts / request transforms that can reload the page.
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 5 * 60 * 1000); // 5 min
+
+      let data: ElevenLabsTranscriptionResult;
+      let error: Error | null = null;
+      try {
+        const resp = await fetch(`${supabaseUrl}/functions/v1/elevenlabs-transcribe`, {
+          method: "POST",
+          headers: {
+            "apikey": supabaseKey,
+            "Authorization": `Bearer ${supabaseKey}`,
+          },
+          body: formData,
+          signal: controller.signal,
+        });
+        clearTimeout(timeout);
+        if (!resp.ok) {
+          const errBody = await resp.text();
+          throw new Error(errBody || `Transcription failed (${resp.status})`);
+        }
+        data = await resp.json();
+      } catch (e) {
+        clearTimeout(timeout);
+        if (e instanceof DOMException && e.name === "AbortError") {
+          throw new Error("Transcription timed out – try a shorter clip.");
+        }
+        throw e;
+      }
 
       if (progressInterval) clearInterval(progressInterval);
 

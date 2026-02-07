@@ -15,6 +15,8 @@ interface QuizCardProps {
   otherWords: QuizCardWord[];
   gradient?: string;
   onAnswer: (isCorrect: boolean) => void;
+  /** Topic label to display as a tag */
+  topicLabel?: string;
 }
 
 const shuffleArray = <T,>(array: T[]): T[] => {
@@ -31,7 +33,7 @@ const shuffleArray = <T,>(array: T[]): T[] => {
  * 
  * Clean, focused design for vocabulary testing.
  */
-export const QuizCard = ({ word, otherWords, onAnswer }: QuizCardProps) => {
+export const QuizCard = ({ word, otherWords, onAnswer, topicLabel }: QuizCardProps) => {
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [showResult, setShowResult] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
@@ -80,6 +82,15 @@ export const QuizCard = ({ word, otherWords, onAnswer }: QuizCardProps) => {
 
   return (
     <div className="w-full max-w-sm mx-auto">
+      {/* Topic Label */}
+      {topicLabel && (
+        <div className="mb-3 flex justify-center">
+          <span className="px-3 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary">
+            {topicLabel}
+          </span>
+        </div>
+      )}
+
       {/* Question Header */}
       <div className="text-center mb-4">
         <p className="text-sm text-muted-foreground">

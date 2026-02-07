@@ -1,20 +1,15 @@
 import { useNavigate } from "react-router-dom";
-import { useTopics } from "@/hooks/useTopics";
 import { useAuth } from "@/hooks/useAuth";
 import { useReviewStats } from "@/hooks/useReview";
 import { useUserVocabularyDueCount } from "@/hooks/useUserVocabulary";
-import { TopicCard, Button, SectionFrame } from "@/components/design-system";
-import { Loader2, Settings, Brain, LogIn, LogOut, Mic, BookOpen } from "lucide-react";
+import { Button } from "@/components/design-system";
+import { Settings, Brain, LogIn, LogOut, Mic, BookOpen, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AppShell } from "@/components/layout/AppShell";
 import lahjaLogo from "@/assets/lahja-logo.png";
+
 const Index = () => {
   const navigate = useNavigate();
-  const {
-    data: topics,
-    isLoading,
-    error
-  } = useTopics();
   const {
     user,
     isAuthenticated,
@@ -22,49 +17,34 @@ const Index = () => {
     loading: authLoading
   } = useAuth();
   const { data: myWordsStats } = useUserVocabularyDueCount();
-  const {
-    data: stats
-  } = useReviewStats();
+  const { data: stats } = useReviewStats();
+
   const handleSignOut = async () => {
     await signOut();
   };
-  if (isLoading) {
-    return <AppShell>
-        <div className="flex items-center justify-center py-24">
-          <div className="text-center">
-            <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto mb-4" />
-            <p className="text-muted-foreground">Loading...</p>
-          </div>
-        </div>
-      </AppShell>;
-  }
-  if (error) {
-    return <AppShell>
-        <div className="flex items-center justify-center py-24">
-          <div className="text-center">
-            <p className="text-lg text-destructive mb-4">Error loading topics</p>
-            <Button onClick={() => window.location.reload()}>Try Again</Button>
-          </div>
-        </div>
-      </AppShell>;
-  }
-  return <AppShell>
+
+  return (
+    <AppShell>
       {/* Top bar with logo and auth */}
       <div className="flex items-center justify-between mb-10">
         <img src={lahjaLogo} alt="Lahja" className="h-24" />
         
         <div className="flex items-center gap-3">
-          {!authLoading && (isAuthenticated ? <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground hidden sm:inline">
-                  {user?.email?.split("@")[0]}
-                </span>
-                <Button variant="ghost" size="icon" onClick={handleSignOut} className="text-muted-foreground hover:text-foreground" title="Sign out">
-                  <LogOut className="h-4 w-4" />
-                </Button>
-              </div> : <Button variant="ghost" size="sm" onClick={() => navigate("/auth")} className="text-muted-foreground hover:text-foreground">
-                <LogIn className="h-4 w-4 mr-1.5" />
-                Login
-              </Button>)}
+          {!authLoading && (isAuthenticated ? (
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground hidden sm:inline">
+                {user?.email?.split("@")[0]}
+              </span>
+              <Button variant="ghost" size="icon" onClick={handleSignOut} className="text-muted-foreground hover:text-foreground" title="Sign out">
+                <LogOut className="h-4 w-4" />
+              </Button>
+            </div>
+          ) : (
+            <Button variant="ghost" size="sm" onClick={() => navigate("/auth")} className="text-muted-foreground hover:text-foreground">
+              <LogIn className="h-4 w-4 mr-1.5" />
+              Login
+            </Button>
+          ))}
 
           <Button variant="ghost" size="icon" onClick={() => navigate("/admin")} className="text-muted-foreground/50 hover:text-muted-foreground" title="Admin">
             <Settings className="h-4 w-4" />
@@ -73,18 +53,49 @@ const Index = () => {
       </div>
 
       {/* Tagline */}
-      <div className="mb-10 text-center">
-        
-      </div>
+      <div className="mb-10 text-center" />
 
-      {/* Review prompt - when logged in with due words */}
-      {isAuthenticated && stats && stats.dueCount > 0 && <button onClick={() => navigate("/review")} className={cn("w-full mb-8 p-5 rounded-xl", "bg-card border border-primary/20", "flex items-center justify-between", "transition-all duration-200", "hover:border-primary/40")}>
+      {/* New Words - main CTA */}
+      <button
+        onClick={() => navigate("/learn")}
+        className={cn(
+          "w-full mb-6 p-6 rounded-xl",
+          "bg-primary text-primary-foreground",
+          "flex items-center gap-4",
+          "transition-all duration-200",
+          "hover:opacity-90 active:scale-[0.98]",
+          "shadow-lg"
+        )}
+      >
+        <div className="w-12 h-12 rounded-lg bg-primary-foreground/20 flex items-center justify-center">
+          <Sparkles className="h-6 w-6" />
+        </div>
+        <div className="text-left">
+          <p className="text-lg font-bold">New Words</p>
+          <p className="text-sm opacity-80">
+            {stats ? `${stats.newCount} words to discover` : "Start learning vocabulary"}
+          </p>
+        </div>
+      </button>
+
+      {/* Review - combines all categories */}
+      {isAuthenticated && stats && stats.dueCount > 0 && (
+        <button
+          onClick={() => navigate("/review")}
+          className={cn(
+            "w-full mb-6 p-5 rounded-xl",
+            "bg-card border border-primary/20",
+            "flex items-center justify-between",
+            "transition-all duration-200",
+            "hover:border-primary/40"
+          )}
+        >
           <div className="flex items-center gap-4">
             <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
               <Brain className="h-5 w-5 text-primary" />
             </div>
             <div className="text-left">
-              <p className="font-semibold text-foreground">Review Time</p>
+              <p className="font-semibold text-foreground">Review</p>
               <p className="text-sm text-muted-foreground">
                 {stats.dueCount} {stats.dueCount === 1 ? "word" : "words"} due
               </p>
@@ -93,10 +104,20 @@ const Index = () => {
           <div className="px-3 py-1.5 bg-primary/10 rounded-full">
             <span className="text-sm font-semibold text-primary">{stats.dueCount}</span>
           </div>
-        </button>}
+        </button>
+      )}
 
-      {/* Review status - when caught up */}
-      {isAuthenticated && stats && stats.dueCount === 0 && stats.learnedCount > 0 && <button onClick={() => navigate("/review")} className={cn("w-full mb-8 p-5 rounded-xl", "bg-card border border-border", "flex items-center gap-4", "transition-all duration-200", "hover:border-primary/20")}>
+      {isAuthenticated && stats && stats.dueCount === 0 && stats.learnedCount > 0 && (
+        <button
+          onClick={() => navigate("/review")}
+          className={cn(
+            "w-full mb-6 p-5 rounded-xl",
+            "bg-card border border-border",
+            "flex items-center gap-4",
+            "transition-all duration-200",
+            "hover:border-primary/20"
+          )}
+        >
           <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
             <Brain className="h-5 w-5 text-muted-foreground" />
           </div>
@@ -106,36 +127,15 @@ const Index = () => {
               {stats.learnedCount} learned · {stats.masteredCount} mastered
             </p>
           </div>
-        </button>}
+        </button>
+      )}
 
-      {/* Transcription Tool */}
-      <button
-        onClick={() => navigate("/transcribe")}
-        className={cn(
-          "w-full mb-8 p-5 rounded-xl",
-          "bg-card border border-border",
-          "flex items-center gap-4",
-          "transition-all duration-200",
-          "hover:border-primary/20"
-        )}
-      >
-        <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-          <Mic className="h-5 w-5 text-primary" />
-        </div>
-        <div className="text-left">
-          <p className="font-semibold text-foreground">Transcribe Audio</p>
-          <p className="text-sm text-muted-foreground">
-            Convert Arabic audio to text
-          </p>
-        </div>
-      </button>
-
-      {/* My Words Button - only for authenticated users */}
+      {/* My Words */}
       {isAuthenticated && (
         <button
           onClick={() => navigate("/my-words")}
           className={cn(
-            "w-full mb-8 p-5 rounded-xl",
+            "w-full mb-6 p-5 rounded-xl",
             "bg-card border border-border",
             "flex items-center justify-between",
             "transition-all duration-200",
@@ -161,27 +161,29 @@ const Index = () => {
         </button>
       )}
 
-      {/* Topic Grid - with subtle watercolor frame */}
-      {topics && topics.length > 0 ? <SectionFrame className="py-4">
-          <div className="grid grid-cols-2 gap-4 md:gap-6">
-            {topics.map(topic => <TopicCard key={topic.id} topic={{
-          id: topic.id,
-          name: topic.name,
-          nameArabic: topic.name_arabic,
-          icon: topic.icon,
-          gradient: topic.gradient
-        }} onClick={() => navigate(`/learn/${topic.id}`)} />)}
-          </div>
-        </SectionFrame> : <div className="text-center py-16">
-          <p className="text-lg text-muted-foreground mb-3">No topics yet</p>
-          <p className="text-sm text-muted-foreground mb-6">
-            Add vocabulary topics in the admin panel to get started.
+      {/* Transcription Tool */}
+      <button
+        onClick={() => navigate("/transcribe")}
+        className={cn(
+          "w-full mb-6 p-5 rounded-xl",
+          "bg-card border border-border",
+          "flex items-center gap-4",
+          "transition-all duration-200",
+          "hover:border-primary/20"
+        )}
+      >
+        <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+          <Mic className="h-5 w-5 text-primary" />
+        </div>
+        <div className="text-left">
+          <p className="font-semibold text-foreground">Transcribe Audio</p>
+          <p className="text-sm text-muted-foreground">
+            Convert Arabic audio to text
           </p>
-          <Button onClick={() => navigate("/admin")} variant="outline">
-            <Settings className="h-4 w-4 mr-2" />
-            Go to Admin
-          </Button>
-        </div>}
-    </AppShell>;
+        </div>
+      </button>
+    </AppShell>
+  );
 };
+
 export default Index;

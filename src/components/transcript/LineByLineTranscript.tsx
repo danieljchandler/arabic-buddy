@@ -81,9 +81,9 @@
                <p className="text-sm text-muted-foreground">{token.gloss}</p>
              )}
              {token.standard && (
-               <p className="text-xs text-muted-foreground/70" dir="rtl">
-                 (فصحى: {token.standard})
-               </p>
+              <p className="text-xs text-muted-foreground/70" dir="rtl">
+                (Standard: {token.standard})
+              </p>
              )}
              {!hasGloss && (
                <p className="text-xs text-muted-foreground italic">
@@ -424,8 +424,8 @@ export const LineByLineTranscript = ({
          <h3
            className="text-lg font-semibold text-foreground"
            style={{ fontFamily: "'Montserrat', sans-serif" }}
-         >
-           الجمل
+          >
+            Sentences
          </h3>
          <div className="flex items-center gap-2">
            <span className="text-xs text-muted-foreground">
@@ -466,7 +466,7 @@ export const LineByLineTranscript = ({
  
        {/* Line count */}
        <p className="text-xs text-muted-foreground text-center">
-         {lines.length} جملة
+         {lines.length} {lines.length === 1 ? "sentence" : "sentences"}
        </p>
      </div>
    );

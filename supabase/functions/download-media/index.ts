@@ -332,7 +332,7 @@ serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ error: "تعذر تحميل ملف الوسائط. حاول تحميل الملف مباشرة بدلاً من ذلك." }),
+      JSON.stringify({ error: "Could not download the media file. Try uploading the file directly instead." }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {

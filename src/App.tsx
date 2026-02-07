@@ -55,8 +55,8 @@ const App = () => {
               ? parsed.payload
               : "";
 
-        toast.error("تعطّل التطبيق قبل قليل", {
-          description: msg || "تم تسجيل التفاصيل في الكونسول. جرّب مرة ثانية.",
+        toast.error("The app crashed recently", {
+          description: msg || "Details logged to the console. Please try again.",
         });
         console.error("Recovered last crash:", parsed);
       }
@@ -67,8 +67,8 @@ const App = () => {
     const onUnhandledRejection = (event: PromiseRejectionEvent) => {
       console.error("Unhandled promise rejection:", event.reason);
       persistCrash(event.reason);
-      toast.error("حدث خطأ غير متوقع", {
-        description: "حاول مرة أخرى. إذا استمرت المشكلة، أخبرني بما فعلته بالضبط.",
+      toast.error("An unexpected error occurred", {
+        description: "Please try again. If the problem persists, let me know what you did.",
       });
       // Prevent browser/dev overlay from treating it as fatal.
       event.preventDefault();
@@ -78,8 +78,8 @@ const App = () => {
       console.error("Global error:", event.error ?? event.message);
       persistCrash(event.error ?? event.message);
       // Don't spam toasts for every error; but make crashes visible.
-      toast.error("حدث خطأ في الصفحة", {
-        description: "تم تسجيل الخطأ في الكونسول. حاول إعادة المحاولة.",
+      toast.error("A page error occurred", {
+        description: "The error was logged to the console. Please try again.",
       });
 
       // In some hosted runtimes, letting this bubble can trigger a hard reload.

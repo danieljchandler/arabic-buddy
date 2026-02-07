@@ -115,6 +115,7 @@ const App = () => {
               }
             />
             <Route path="/my-words" element={<MyWords />} />
+            <Route path="/learn" element={<Learn />} />
             <Route path="/learn/:topicId" element={<Learn />} />
             <Route path="/quiz/:topicId" element={<Quiz />} />
 

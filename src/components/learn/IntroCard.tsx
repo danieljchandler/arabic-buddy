@@ -8,6 +8,8 @@ interface IntroCardProps {
   word: VocabularyWord;
   gradient?: string;
   onContinue: () => void;
+  /** Topic label to display as a tag */
+  topicLabel?: string;
 }
 
 /**
@@ -15,7 +17,7 @@ interface IntroCardProps {
  * 
  * Clean, focused presentation of vocabulary with audio.
  */
-export const IntroCard = ({ word, onContinue }: IntroCardProps) => {
+export const IntroCard = ({ word, onContinue, topicLabel }: IntroCardProps) => {
   const [hasPlayed, setHasPlayed] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -32,6 +34,15 @@ export const IntroCard = ({ word, onContinue }: IntroCardProps) => {
 
   return (
     <div className="w-full max-w-sm mx-auto text-center">
+      {/* Topic Label */}
+      {topicLabel && (
+        <div className="mb-3 flex justify-center">
+          <span className="px-3 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary">
+            {topicLabel}
+          </span>
+        </div>
+      )}
+
       {/* Word Card */}
       <div className="mb-6">
         <VocabularyCard

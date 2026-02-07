@@ -56,7 +56,7 @@ export const TimeRangeSelector = ({
   return (
     <div className="space-y-3" dir="ltr">
       <div className="flex items-center justify-between text-sm text-muted-foreground">
-        <span>اختر المقطع للمعالجة</span>
+        <span>Select segment to process</span>
         <span className="font-mono text-xs">
           {formatTime(selectedDuration)} / {formatTime(maxRange)} max
         </span>

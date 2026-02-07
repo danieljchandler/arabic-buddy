@@ -15,9 +15,9 @@ export const MyWordsSection = () => {
     e.stopPropagation();
     try {
       await deleteWord.mutateAsync(wordId);
-      toast.success("تم حذف الكلمة");
+      toast.success("Word deleted");
     } catch (error) {
-      toast.error("فشل حذف الكلمة");
+      toast.error("Failed to delete word");
     }
   };
 

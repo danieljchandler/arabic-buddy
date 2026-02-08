@@ -55,9 +55,18 @@ const strictJsonPrefix = (isRetry: boolean) =>
  * That payload explodes in size and often gets truncated, yielding invalid JSON.
  * We generate tokens server-side from the Arabic sentence text.
  */
-const getLinesSystemPrompt = (isRetry: boolean = false) => {
+const getLinesSystemPrompt = (isRetry: boolean = false, hasDualTranscripts: boolean = false) => {
   const strictPrefix = strictJsonPrefix(isRetry);
-  return `${strictPrefix}You are processing Gulf Arabic transcript text for language learners.
+  const dualInstructions = hasDualTranscripts
+    ? `You are given TWO transcriptions of the same Gulf Arabic audio from different speech-to-text engines.
+Compare them carefully and produce the BEST merged transcript:
+- Where they agree, use the shared text.
+- Where they differ, choose whichever version sounds more natural and accurate for Gulf Arabic dialect.
+- Do NOT simply concatenate them. Merge intelligently at the sentence/clause level.
+
+`
+    : '';
+  return `${strictPrefix}${dualInstructions}You are processing Gulf Arabic transcript text for language learners.
 
 Output ONLY valid JSON matching this schema:
 {
@@ -455,7 +464,8 @@ serve(async (req) => {
   }
 
   try {
-    const { transcript } = await req.json();
+    const body = await req.json();
+    const { transcript, munsitTranscript } = body;
 
     if (!transcript || typeof transcript !== 'string') {
       return new Response(
@@ -473,10 +483,19 @@ serve(async (req) => {
       );
     }
 
-     console.log('Analyzing transcript (lines + meta)...');
-     console.log('Transcript length:', transcript.length);
+    const hasDual = Boolean(munsitTranscript && typeof munsitTranscript === 'string' && munsitTranscript.trim().length > 0);
+    console.log('Analyzing transcript (lines + meta)...');
+    console.log('ElevenLabs transcript length:', transcript.length);
+    if (hasDual) {
+      console.log('Munsit transcript length:', munsitTranscript.length);
+    }
 
      let partial = false;
+
+     // Build user content for lines prompt
+     const linesUserContent = hasDual
+       ? `Transcription A (ElevenLabs):\n${transcript}\n\nTranscription B (Munsit):\n${munsitTranscript}`
+       : transcript;
 
      // -----------------------------
      // 1) Sentence split + translation
@@ -484,11 +503,10 @@ serve(async (req) => {
      let linesAi: LinesAI | null = null;
 
      let linesResp = await callAI({
-       systemPrompt: getLinesSystemPrompt(false),
-       userContent: transcript,
+       systemPrompt: getLinesSystemPrompt(false, hasDual),
+       userContent: linesUserContent,
        apiKey: LOVABLE_API_KEY,
        isRetry: false,
-       // Lines can be the largest part of the response.
        maxTokens: 8192,
      });
 
@@ -513,10 +531,10 @@ serve(async (req) => {
 
      if (!linesAi?.lines || !Array.isArray(linesAi.lines) || linesAi.lines.length === 0) {
        console.log('Lines parse failed, retrying with stricter prompt...');
-       const retry = await callAI({
-         systemPrompt: getLinesSystemPrompt(true),
-         userContent: transcript,
-         apiKey: LOVABLE_API_KEY,
+        const retry = await callAI({
+          systemPrompt: getLinesSystemPrompt(true, hasDual),
+          userContent: linesUserContent,
+          apiKey: LOVABLE_API_KEY,
          isRetry: true,
          maxTokens: 8192,
        });

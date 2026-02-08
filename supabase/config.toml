@@ -8,3 +8,9 @@ verify_jwt = false
 
 [functions.download-media]
 verify_jwt = false
+
+[functions.munsit-transcribe]
+verify_jwt = false
+
+[functions.elevenlabs-tts]
+verify_jwt = false

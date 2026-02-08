@@ -421,6 +421,7 @@ const Transcribe = () => {
 
   const analyzeTranscript = async (
     rawText: string,
+    munsitText?: string,
   ): Promise<{
     vocabulary: VocabItem[];
     grammarPoints: GrammarPoint[];
@@ -431,13 +432,16 @@ const Transcribe = () => {
     try {
       setDebugTrace({ phase: "request:analyze", at: new Date().toISOString() });
 
+      const body: Record<string, string> = { transcript: rawText };
+      if (munsitText) body.munsitTranscript = munsitText;
+
       const { data, error } = await supabase.functions.invoke<{
         success: boolean;
         result?: TranscriptResult;
         error?: string;
         details?: unknown;
       }>("analyze-gulf-arabic", {
-        body: { transcript: rawText },
+        body,
       });
 
       if (error) throw new Error(error.message || "Analysis failed");
@@ -495,49 +499,108 @@ const Transcribe = () => {
       // client-level timeouts / request transforms that can reload the page.
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 5 * 60 * 1000); // 5 min
 
-      let data: ElevenLabsTranscriptionResult;
-      let error: Error | null = null;
-      try {
-        const resp = await fetch(`${supabaseUrl}/functions/v1/elevenlabs-transcribe`, {
-          method: "POST",
-          headers: {
-            "apikey": supabaseKey,
-            "Authorization": `Bearer ${supabaseKey}`,
-          },
-          body: formData,
-          signal: controller.signal,
-        });
-        clearTimeout(timeout);
-        if (!resp.ok) {
-          const errBody = await resp.text();
-          throw new Error(errBody || `Transcription failed (${resp.status})`);
+      // Fire both transcription engines in parallel
+      const elevenLabsPromise = (async () => {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 5 * 60 * 1000);
+        try {
+          const resp = await fetch(`${supabaseUrl}/functions/v1/elevenlabs-transcribe`, {
+            method: "POST",
+            headers: {
+              "apikey": supabaseKey,
+              "Authorization": `Bearer ${supabaseKey}`,
+            },
+            body: formData,
+            signal: controller.signal,
+          });
+          clearTimeout(timeout);
+          if (!resp.ok) {
+            const errBody = await resp.text();
+            throw new Error(errBody || `ElevenLabs failed (${resp.status})`);
+          }
+          return await resp.json() as ElevenLabsTranscriptionResult;
+        } catch (e) {
+          clearTimeout(timeout);
+          if (e instanceof DOMException && e.name === "AbortError") {
+            throw new Error("ElevenLabs timed out – try a shorter clip.");
+          }
+          throw e;
         }
-        data = await resp.json();
-      } catch (e) {
-        clearTimeout(timeout);
-        if (e instanceof DOMException && e.name === "AbortError") {
-          throw new Error("Transcription timed out – try a shorter clip.");
+      })();
+
+      const munsitFormData = new FormData();
+      munsitFormData.append("audio", file);
+
+      const munsitPromise = (async () => {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 5 * 60 * 1000);
+        try {
+          const resp = await fetch(`${supabaseUrl}/functions/v1/munsit-transcribe`, {
+            method: "POST",
+            headers: {
+              "apikey": supabaseKey,
+              "Authorization": `Bearer ${supabaseKey}`,
+            },
+            body: munsitFormData,
+            signal: controller.signal,
+          });
+          clearTimeout(timeout);
+          if (!resp.ok) {
+            const errBody = await resp.text();
+            throw new Error(errBody || `Munsit failed (${resp.status})`);
+          }
+          return await resp.json() as { text?: string };
+        } catch (e) {
+          clearTimeout(timeout);
+          if (e instanceof DOMException && e.name === "AbortError") {
+            throw new Error("Munsit timed out.");
+          }
+          throw e;
         }
-        throw e;
-      }
+      })();
+
+      const [elevenLabsResult, munsitResult] = await Promise.allSettled([elevenLabsPromise, munsitPromise]);
 
       if (progressInterval) clearInterval(progressInterval);
 
-      if (error) throw error;
-      if (!data?.text) throw new Error("Transcription failed: no text in response");
+      // Extract results with fallback
+      const elevenLabsData = elevenLabsResult.status === "fulfilled" ? elevenLabsResult.value : null;
+      const munsitData = munsitResult.status === "fulfilled" ? munsitResult.value : null;
 
-      const elevenLabsWords = data.words || [];
-      
+      if (elevenLabsResult.status === "rejected") {
+        console.warn("ElevenLabs failed:", elevenLabsResult.reason);
+      }
+      if (munsitResult.status === "rejected") {
+        console.warn("Munsit failed:", munsitResult.reason);
+      }
+
+      // Need at least one to succeed
+      if (!elevenLabsData?.text && !munsitData?.text) {
+        const reasons = [
+          elevenLabsResult.status === "rejected" ? `ElevenLabs: ${elevenLabsResult.reason}` : null,
+          munsitResult.status === "rejected" ? `Munsit: ${munsitResult.reason}` : null,
+        ].filter(Boolean).join("; ");
+        throw new Error(`Both transcription engines failed. ${reasons}`);
+      }
+
+      const primaryText = elevenLabsData?.text || munsitData?.text || "";
+      const munsitText = munsitData?.text || undefined;
+      const elevenLabsWords = elevenLabsData?.words || [];
+
+      // Log which engines succeeded
+      const enginesUsed = [elevenLabsData?.text ? "ElevenLabs" : null, munsitData?.text ? "Munsit" : null].filter(Boolean);
+      console.log(`Transcription engines used: ${enginesUsed.join(" + ")}`);
+
       // Apply time range filtering if duration is known and range is set
-      let filteredText = data.text;
+      let filteredText = primaryText;
       let filteredWords = elevenLabsWords;
+      let filteredMunsitText = munsitText;
       
       if (mediaDuration && mediaDuration > MAX_DURATION && elevenLabsWords.length > 0) {
-        filteredText = filterTranscriptByTimeRange(data.text, elevenLabsWords, timeRange[0], timeRange[1]);
+        filteredText = filterTranscriptByTimeRange(primaryText, elevenLabsWords, timeRange[0], timeRange[1]);
         filteredWords = filterWordsByTimeRange(elevenLabsWords, timeRange[0], timeRange[1]);
+        // Munsit doesn't provide word-level timestamps, so we use it as-is
         console.log(`Time range filter: ${timeRange[0]}s-${timeRange[1]}s, words: ${elevenLabsWords.length} → ${filteredWords.length}`);
       }
 
@@ -551,9 +614,10 @@ const Transcribe = () => {
       };
       setTranscriptResult(initialResult);
 
-      toast.success("Transcription complete!", { description: "Analyzing..." });
+      const engineMsg = enginesUsed.length === 2 ? "Dual transcription complete!" : "Transcription complete!";
+      toast.success(engineMsg, { description: "Analyzing..." });
       
-      const analysisData = await analyzeTranscript(filteredText);
+      const analysisData = await analyzeTranscript(filteredText, filteredMunsitText);
       if (analysisData) {
         const linesWithTimestamps = mapTimestampsToLines(analysisData.lines || [], filteredWords);
         console.log('Mapped timestamps:', linesWithTimestamps.filter(l => l.startMs !== undefined).length, '/', linesWithTimestamps.length);

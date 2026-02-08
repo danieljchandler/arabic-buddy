@@ -491,8 +491,15 @@ const Transcribe = () => {
         });
       }, 500);
 
+      // Clone file for parallel uploads (some browsers can't share a File across concurrent reads)
+      const fileClone = new File([file], file.name, { type: file.type });
+
       const formData = new FormData();
       formData.append("audio", file);
+
+      const munsitFormData = new FormData();
+      munsitFormData.append("audio", fileClone);
+
       setDebugTrace({ phase: "request:transcribe", at: new Date().toISOString(), details: { name: file.name, size: file.size, type: file.type } });
       
       // Use direct fetch instead of supabase.functions.invoke to avoid
@@ -528,9 +535,6 @@ const Transcribe = () => {
           throw e;
         }
       })();
-
-      const munsitFormData = new FormData();
-      munsitFormData.append("audio", file);
 
       const munsitPromise = (async () => {
         const controller = new AbortController();

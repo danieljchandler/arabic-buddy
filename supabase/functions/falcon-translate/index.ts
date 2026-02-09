@@ -48,7 +48,7 @@ serve(async (req) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: "tiiuae/Falcon-H1-34B-Instruct",
+          model: "tiiuae/Falcon-H1-Tiny-R-0.6B",
           messages: [
             {
               role: "system",

@@ -609,6 +609,7 @@ serve(async (req) => {
          }
 
          const FALCON_ENDPOINT = "https://k5gka3aa0dgchbd4.us-east-1.aws.endpoints.huggingface.cloud/v1/chat/completions";
+         const FALCON_MODEL = "tiiuae/Falcon-H1-Tiny-R-0.6B";
 
          // Build batch prompt
          const numberedLines = arabicLines.map((line, i) => `${i + 1}. ${line}`).join('\n');
@@ -624,7 +625,7 @@ serve(async (req) => {
              'Content-Type': 'application/json',
            },
            body: JSON.stringify({
-             model: "tiiuae/Falcon-H1-34B-Instruct",
+             model: FALCON_MODEL,
              messages: [
                {
                  role: "system",

@@ -17,3 +17,9 @@ verify_jwt = false
 
 [functions.falcon-translate]
 verify_jwt = false
+
+[functions.classify-tutor-segments]
+verify_jwt = false
+
+[functions.generate-flashcard-image]
+verify_jwt = false

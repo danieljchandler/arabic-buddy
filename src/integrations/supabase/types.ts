@@ -89,6 +89,75 @@ export type Database = {
         }
         Relationships: []
       }
+      tutor_upload_candidates: {
+        Row: {
+          classification: string | null
+          confidence: number | null
+          created_at: string
+          id: string
+          image_url: string | null
+          sentence_audio_url: string | null
+          sentence_end_ms: number | null
+          sentence_english: string | null
+          sentence_start_ms: number | null
+          sentence_text: string | null
+          source_audio_url: string | null
+          status: string
+          upload_id: string
+          user_id: string
+          word_audio_url: string | null
+          word_end_ms: number | null
+          word_english: string | null
+          word_standard: string | null
+          word_start_ms: number | null
+          word_text: string
+        }
+        Insert: {
+          classification?: string | null
+          confidence?: number | null
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          sentence_audio_url?: string | null
+          sentence_end_ms?: number | null
+          sentence_english?: string | null
+          sentence_start_ms?: number | null
+          sentence_text?: string | null
+          source_audio_url?: string | null
+          status?: string
+          upload_id: string
+          user_id: string
+          word_audio_url?: string | null
+          word_end_ms?: number | null
+          word_english?: string | null
+          word_standard?: string | null
+          word_start_ms?: number | null
+          word_text: string
+        }
+        Update: {
+          classification?: string | null
+          confidence?: number | null
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          sentence_audio_url?: string | null
+          sentence_end_ms?: number | null
+          sentence_english?: string | null
+          sentence_start_ms?: number | null
+          sentence_text?: string | null
+          source_audio_url?: string | null
+          status?: string
+          upload_id?: string
+          user_id?: string
+          word_audio_url?: string | null
+          word_end_ms?: number | null
+          word_english?: string | null
+          word_standard?: string | null
+          word_start_ms?: number | null
+          word_text?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -120,10 +189,13 @@ export type Database = {
           next_review_at: string
           repetitions: number
           root: string | null
+          sentence_audio_url: string | null
           source: string | null
+          source_upload_id: string | null
           updated_at: string
           user_id: string
           word_arabic: string
+          word_audio_url: string | null
           word_english: string
         }
         Insert: {
@@ -135,10 +207,13 @@ export type Database = {
           next_review_at?: string
           repetitions?: number
           root?: string | null
+          sentence_audio_url?: string | null
           source?: string | null
+          source_upload_id?: string | null
           updated_at?: string
           user_id: string
           word_arabic: string
+          word_audio_url?: string | null
           word_english: string
         }
         Update: {
@@ -150,10 +225,13 @@ export type Database = {
           next_review_at?: string
           repetitions?: number
           root?: string | null
+          sentence_audio_url?: string | null
           source?: string | null
+          source_upload_id?: string | null
           updated_at?: string
           user_id?: string
           word_arabic?: string
+          word_audio_url?: string | null
           word_english?: string
         }
         Relationships: []

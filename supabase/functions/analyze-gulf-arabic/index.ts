@@ -597,19 +597,17 @@ serve(async (req) => {
      // 2) Falcon H1 translation + Meta extraction (in parallel)
      // -----------------------------
      const arabicLines = linesAi.lines.map(l => String(l.arabic ?? '').trim());
-     console.log('Starting parallel: Falcon translation + meta extraction for', arabicLines.length, 'lines');
+     console.log('Starting parallel: GPT-5 translation + meta extraction for', arabicLines.length, 'lines');
 
-     // Call Falcon H1 for alternative translations (via the falcon-translate edge function)
-     const falconPromise = (async (): Promise<string[]> => {
+     // Call GPT-5 for alternative translations (via Lovable AI gateway)
+     const gpt5Promise = (async (): Promise<string[]> => {
        try {
-         const FALCON_HF_API_KEY = Deno.env.get('FALCON_HF_API_KEY');
-         if (!FALCON_HF_API_KEY) {
-           console.warn('FALCON_HF_API_KEY not set, skipping Falcon translations');
+         if (!LOVABLE_API_KEY) {
+           console.warn('LOVABLE_API_KEY not set, skipping GPT-5 translations');
            return [];
          }
 
-         const FALCON_ENDPOINT = "https://k5gka3aa0dgchbd4.us-east-1.aws.endpoints.huggingface.cloud/v1/chat/completions";
-         const FALCON_MODEL = "tiiuae/Falcon-H1-Tiny-R-0.6B";
+         const GPT5_ENDPOINT = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
          // Build batch prompt
          const numberedLines = arabicLines.map((line, i) => `${i + 1}. ${line}`).join('\n');
@@ -617,15 +615,15 @@ serve(async (req) => {
          const controller = new AbortController();
          const timeout = setTimeout(() => controller.abort(), 45_000);
 
-         const response = await fetch(FALCON_ENDPOINT, {
+         const response = await fetch(GPT5_ENDPOINT, {
            method: 'POST',
            signal: controller.signal,
            headers: {
-             'Authorization': `Bearer ${FALCON_HF_API_KEY}`,
+             'Authorization': `Bearer ${LOVABLE_API_KEY}`,
              'Content-Type': 'application/json',
            },
            body: JSON.stringify({
-             model: FALCON_MODEL,
+             model: "openai/gpt-5",
              messages: [
                {
                  role: "system",
@@ -644,18 +642,18 @@ serve(async (req) => {
 
          if (!response.ok) {
            const errText = await response.text();
-           console.warn('Falcon API error:', response.status, errText?.slice(0, 300));
+           console.warn('GPT-5 API error:', response.status, errText?.slice(0, 300));
            return [];
          }
 
          const data = await response.json();
          const generatedText = data?.choices?.[0]?.message?.content || '';
          if (!generatedText) {
-           console.warn('Falcon returned empty content');
+           console.warn('GPT-5 returned empty content');
            return [];
          }
 
-         console.log('Falcon response length:', generatedText.length);
+         console.log('GPT-5 response length:', generatedText.length);
 
          // Parse numbered translations
          const translations: string[] = [];
@@ -672,10 +670,10 @@ serve(async (req) => {
            }
          }
 
-         console.log(`Falcon: produced ${translations.filter(t => t.length > 0).length}/${arabicLines.length} translations`);
+         console.log(`GPT-5: produced ${translations.filter(t => t.length > 0).length}/${arabicLines.length} translations`);
          return translations;
        } catch (e) {
-         console.warn('Falcon translation failed (non-fatal):', e instanceof Error ? e.message : String(e));
+         console.warn('GPT-5 translation failed (non-fatal):', e instanceof Error ? e.message : String(e));
          return [];
        }
      })();
@@ -708,21 +706,21 @@ serve(async (req) => {
        return metaAi;
      })();
 
-     const [falconTranslations, metaAi] = await Promise.all([falconPromise, metaPromise]);
+     const [gpt5Translations, metaAi] = await Promise.all([gpt5Promise, metaPromise]);
 
      // -----------------------------
      // 2b) Merge translations if Falcon succeeded
      // -----------------------------
      let finalLines = linesAi.lines;
-     const hasFalcon = falconTranslations.length > 0 && falconTranslations.some(t => t.length > 0);
+     const hasGpt5 = gpt5Translations.length > 0 && gpt5Translations.some(t => t.length > 0);
 
-     if (hasFalcon) {
-       console.log('Merging Gemini + Falcon translations...');
+     if (hasGpt5) {
+       console.log('Merging Gemini + GPT-5 translations...');
 
        const mergeContent = arabicLines.map((arabic, i) => {
          const geminiTrans = String(linesAi!.lines[i]?.translation ?? '');
-         const falconTrans = falconTranslations[i] || '';
-         return `Line ${i + 1}: "${arabic}"\n  Gemini: "${geminiTrans}"\n  Falcon: "${falconTrans}"`;
+         const gpt5Trans = gpt5Translations[i] || '';
+         return `Line ${i + 1}: "${arabic}"\n  Gemini: "${geminiTrans}"\n  GPT-5: "${gpt5Trans}"`;
        }).join('\n\n');
 
        const mergePrompt = `You are merging two translations of Gulf Arabic lines. For each line, pick whichever translation is more natural and accurate, or combine the best parts of both. Output ONLY valid JSON:
@@ -753,7 +751,7 @@ No additional text outside JSON.`;
          console.warn('Merge call failed, using Gemini translations');
        }
      } else {
-       console.log('Falcon unavailable or returned empty; using Gemini translations only');
+       console.log('GPT-5 unavailable or returned empty; using Gemini translations only');
      }
 
      if (!metaAi) {

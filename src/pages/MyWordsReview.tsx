@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useUpdateUserVocabularyReview } from "@/hooks/useUserVocabulary";
 import { HomeButton } from "@/components/HomeButton";
 import { RatingButtons } from "@/components/review/RatingButtons";
 import { AppShell } from "@/components/layout/AppShell";
-import { Loader2, Trophy, Brain, Sparkles, LogIn, Eye } from "lucide-react";
+import { Loader2, Trophy, LogIn, Eye, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Rating, calculateNextReview } from "@/lib/spacedRepetition";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -33,6 +33,16 @@ const MyWordsReview = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showAnswer, setShowAnswer] = useState(false);
   const [sessionCount, setSessionCount] = useState(0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const playAudio = (url: string) => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+    }
+    const audio = new Audio(url);
+    audioRef.current = audio;
+    audio.play().catch(console.error);
+  };
 
   const { data: dueWords, isLoading, refetch } = useQuery({
     queryKey: ["user-vocabulary-due-words", user?.id],
@@ -168,12 +178,40 @@ const MyWordsReview = () => {
         <div className="max-w-sm mx-auto">
           <div className="rounded-2xl bg-card border border-border p-8 text-center">
             <p
-              className="text-4xl font-bold text-foreground mb-6"
+              className="text-4xl font-bold text-foreground mb-4"
               style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
               dir="rtl"
             >
               {currentWord.word_arabic}
             </p>
+
+            {/* Audio buttons */}
+            {(currentWord.word_audio_url || currentWord.sentence_audio_url) && (
+              <div className="flex items-center justify-center gap-3 mb-6">
+                {currentWord.word_audio_url && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => playAudio(currentWord.word_audio_url!)}
+                    className="gap-1.5"
+                  >
+                    <Volume2 className="h-4 w-4" />
+                    Word
+                  </Button>
+                )}
+                {currentWord.sentence_audio_url && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => playAudio(currentWord.sentence_audio_url!)}
+                    className="gap-1.5"
+                  >
+                    <Volume2 className="h-4 w-4" />
+                    Sentence
+                  </Button>
+                )}
+              </div>
+            )}
 
             {!showAnswer ? (
               <Button

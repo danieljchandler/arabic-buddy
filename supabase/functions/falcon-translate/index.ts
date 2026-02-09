@@ -5,7 +5,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-const FALCON_ENDPOINT = "https://k5gka3aa0dgchbd4.us-east-1.aws.endpoints.huggingface.cloud/v1/chat/completions";
+const GPT5_ENDPOINT = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -22,16 +22,16 @@ serve(async (req) => {
       );
     }
 
-    const FALCON_HF_API_KEY = Deno.env.get('FALCON_HF_API_KEY');
-    if (!FALCON_HF_API_KEY) {
-      console.error('FALCON_HF_API_KEY is not configured');
+    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+    if (!LOVABLE_API_KEY) {
+      console.error('LOVABLE_API_KEY is not configured');
       return new Response(
-        JSON.stringify({ error: 'Falcon API key not configured' }),
+        JSON.stringify({ error: 'Lovable API key not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`Falcon translate: processing ${arabicLines.length} lines`);
+    console.log(`GPT-5 translate: processing ${arabicLines.length} lines`);
 
     const numberedLines = arabicLines.map((line: string, i: number) => `${i + 1}. ${line}`).join('\n');
 
@@ -40,15 +40,15 @@ serve(async (req) => {
 
     let response: Response;
     try {
-      response = await fetch(FALCON_ENDPOINT, {
+      response = await fetch(GPT5_ENDPOINT, {
         method: 'POST',
         signal: controller.signal,
         headers: {
-          'Authorization': `Bearer ${FALCON_HF_API_KEY}`,
+          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: "tiiuae/Falcon-H1-Tiny-R-0.6B",
+          model: "openai/gpt-5",
           messages: [
             {
               role: "system",
@@ -66,9 +66,9 @@ serve(async (req) => {
     } catch (e) {
       clearTimeout(timeout);
       const isAbort = e instanceof DOMException && e.name === 'AbortError';
-      console.error('Falcon fetch failed:', { isAbort, error: String(e) });
+      console.error('GPT-5 fetch failed:', { isAbort, error: String(e) });
       return new Response(
-        JSON.stringify({ error: isAbort ? 'Falcon request timed out' : String(e) }),
+        JSON.stringify({ error: isAbort ? 'GPT-5 request timed out' : String(e) }),
         { status: isAbort ? 504 : 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     } finally {
@@ -77,9 +77,9 @@ serve(async (req) => {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Falcon API error:', response.status, errorText?.slice(0, 500));
+      console.error('GPT-5 API error:', response.status, errorText?.slice(0, 500));
       return new Response(
-        JSON.stringify({ error: `Falcon API error (${response.status})`, details: errorText?.slice(0, 300) }),
+        JSON.stringify({ error: `GPT-5 API error (${response.status})`, details: errorText?.slice(0, 300) }),
         { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -88,14 +88,14 @@ serve(async (req) => {
     const generatedText = data?.choices?.[0]?.message?.content || '';
 
     if (!generatedText) {
-      console.error('Falcon returned empty content');
+      console.error('GPT-5 returned empty content');
       return new Response(
-        JSON.stringify({ error: 'Falcon returned empty response' }),
+        JSON.stringify({ error: 'GPT-5 returned empty response' }),
         { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log('Falcon response length:', generatedText.length);
+    console.log('GPT-5 response length:', generatedText.length);
 
     // Parse numbered translations
     const translations: string[] = [];
@@ -117,7 +117,7 @@ serve(async (req) => {
       }
     }
 
-    console.log(`Falcon translate: produced ${translations.filter(t => t.length > 0).length}/${arabicLines.length} translations`);
+    console.log(`GPT-5 translate: produced ${translations.filter(t => t.length > 0).length}/${arabicLines.length} translations`);
 
     return new Response(
       JSON.stringify({ translations }),
@@ -125,7 +125,7 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('Error in falcon-translate:', error);
+    console.error('Error in gpt5-translate:', error);
     return new Response(
       JSON.stringify({ error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

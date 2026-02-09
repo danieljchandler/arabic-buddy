@@ -48,7 +48,7 @@ serve(async (req) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: "openai/gpt-5",
+          model: "google/gemini-2.5-flash",
           messages: [
             {
               role: "system",
@@ -59,7 +59,6 @@ serve(async (req) => {
               content: `Translate these Gulf Arabic lines to English:\n\n${numberedLines}`
             }
           ],
-          max_completion_tokens: Math.min(arabicLines.length * 100, 4096),
         }),
       });
     } catch (e) {

@@ -232,17 +232,19 @@ const Transcribe = () => {
         setDebugTrace(JSON.parse(storedTrace));
       }
 
+      // Always clear markers first to prevent stale toasts on future loads
+      sessionStorage.removeItem("__transcribe_unload_at");
+      sessionStorage.removeItem("__transcribe_unload_phase");
+      sessionStorage.removeItem("__transcribe_unload_active");
+
+      // Only show the toast if the crash was recent (within 30 seconds)
       if (unloadAt && unloadActive === "1") {
-        toast.error("Page reloaded during upload", {
-          description: unloadPhase ? `Last phase: ${unloadPhase}` : "An unexpected reload was detected.",
-        });
-        sessionStorage.removeItem("__transcribe_unload_at");
-        sessionStorage.removeItem("__transcribe_unload_phase");
-        sessionStorage.removeItem("__transcribe_unload_active");
-      } else if (unloadAt) {
-        sessionStorage.removeItem("__transcribe_unload_at");
-        sessionStorage.removeItem("__transcribe_unload_phase");
-        sessionStorage.removeItem("__transcribe_unload_active");
+        const crashAge = Date.now() - new Date(unloadAt).getTime();
+        if (crashAge < 30_000) {
+          toast.error("Page reloaded during upload", {
+            description: unloadPhase ? `Last phase: ${unloadPhase}` : "An unexpected reload was detected.",
+          });
+        }
       }
     } catch (err) {
       console.error("Failed to restore transcribe debug state:", err);

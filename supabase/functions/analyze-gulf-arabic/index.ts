@@ -635,7 +635,6 @@ serve(async (req) => {
                }
              ],
              max_completion_tokens: Math.min(arabicLines.length * 100, 4096),
-             temperature: 0.3,
            }),
          });
          clearTimeout(timeout);

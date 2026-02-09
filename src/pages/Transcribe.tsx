@@ -240,7 +240,7 @@ const Transcribe = () => {
       // Only show the toast if the crash was recent (within 30 seconds)
       if (unloadAt && unloadActive === "1") {
         const crashAge = Date.now() - new Date(unloadAt).getTime();
-        if (crashAge < 30_000) {
+        if (crashAge < 10_000) {
           toast.error("Page reloaded during upload", {
             description: unloadPhase ? `Last phase: ${unloadPhase}` : "An unexpected reload was detected.",
           });

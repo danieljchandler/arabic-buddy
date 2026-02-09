@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      review_streaks: {
+        Row: {
+          created_at: string
+          current_streak: number
+          id: string
+          last_review_date: string | null
+          longest_streak: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          current_streak?: number
+          id?: string
+          last_review_date?: string | null
+          longest_streak?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          current_streak?: number
+          id?: string
+          last_review_date?: string | null
+          longest_streak?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       saved_transcriptions: {
         Row: {
           audio_url: string | null
@@ -181,17 +211,23 @@ export type Database = {
       }
       user_vocabulary: {
         Row: {
+          correct_count: number
           created_at: string
           ease_factor: number
           id: string
           interval_days: number
+          last_result: string | null
           last_reviewed_at: string | null
           next_review_at: string
           repetitions: number
+          review_count: number
           root: string | null
           sentence_audio_url: string | null
+          sentence_english: string | null
+          sentence_text: string | null
           source: string | null
           source_upload_id: string | null
+          stage: string
           updated_at: string
           user_id: string
           word_arabic: string
@@ -199,17 +235,23 @@ export type Database = {
           word_english: string
         }
         Insert: {
+          correct_count?: number
           created_at?: string
           ease_factor?: number
           id?: string
           interval_days?: number
+          last_result?: string | null
           last_reviewed_at?: string | null
           next_review_at?: string
           repetitions?: number
+          review_count?: number
           root?: string | null
           sentence_audio_url?: string | null
+          sentence_english?: string | null
+          sentence_text?: string | null
           source?: string | null
           source_upload_id?: string | null
+          stage?: string
           updated_at?: string
           user_id: string
           word_arabic: string
@@ -217,17 +259,23 @@ export type Database = {
           word_english: string
         }
         Update: {
+          correct_count?: number
           created_at?: string
           ease_factor?: number
           id?: string
           interval_days?: number
+          last_result?: string | null
           last_reviewed_at?: string | null
           next_review_at?: string
           repetitions?: number
+          review_count?: number
           root?: string | null
           sentence_audio_url?: string | null
+          sentence_english?: string | null
+          sentence_text?: string | null
           source?: string | null
           source_upload_id?: string | null
+          stage?: string
           updated_at?: string
           user_id?: string
           word_arabic?: string
@@ -285,37 +333,49 @@ export type Database = {
       }
       word_reviews: {
         Row: {
+          correct_count: number
           created_at: string
           ease_factor: number
           id: string
           interval_days: number
+          last_result: string | null
           last_reviewed_at: string | null
           next_review_at: string
           repetitions: number
+          review_count: number
+          stage: string
           updated_at: string
           user_id: string
           word_id: string
         }
         Insert: {
+          correct_count?: number
           created_at?: string
           ease_factor?: number
           id?: string
           interval_days?: number
+          last_result?: string | null
           last_reviewed_at?: string | null
           next_review_at?: string
           repetitions?: number
+          review_count?: number
+          stage?: string
           updated_at?: string
           user_id: string
           word_id: string
         }
         Update: {
+          correct_count?: number
           created_at?: string
           ease_factor?: number
           id?: string
           interval_days?: number
+          last_result?: string | null
           last_reviewed_at?: string | null
           next_review_at?: string
           repetitions?: number
+          review_count?: number
+          stage?: string
           updated_at?: string
           user_id?: string
           word_id?: string

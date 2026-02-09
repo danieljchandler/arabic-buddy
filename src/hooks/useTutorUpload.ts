@@ -68,7 +68,7 @@ export function useTutorUpload() {
       setProgress(15);
 
       const formData = new FormData();
-      formData.append("file", selectedFile);
+      formData.append("audio", selectedFile);
 
       const { data: transcribeData, error: transcribeError } = await supabase.functions.invoke(
         "elevenlabs-transcribe",

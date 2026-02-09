@@ -59,7 +59,7 @@ serve(async (req) => {
               content: `Translate these Gulf Arabic lines to English:\n\n${numberedLines}`
             }
           ],
-          max_tokens: Math.min(arabicLines.length * 100, 4096),
+          max_completion_tokens: Math.min(arabicLines.length * 100, 4096),
           temperature: 0.3,
         }),
       });

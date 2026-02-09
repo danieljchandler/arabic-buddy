@@ -14,6 +14,7 @@ import Auth from "./pages/Auth";
 import Review from "./pages/Review";
 import Transcribe from "./pages/Transcribe";
 import MyWords from "./pages/MyWords";
+import TutorUpload from "./pages/TutorUpload";
 
 // Admin pages
 import AdminLogin from "./pages/admin/AdminLogin";
@@ -115,6 +116,7 @@ const App = () => {
               }
             />
             <Route path="/my-words" element={<MyWords />} />
+            <Route path="/tutor-upload" element={<TutorUpload />} />
             <Route path="/learn" element={<Learn />} />
             <Route path="/learn/:topicId" element={<Learn />} />
             <Route path="/quiz/:topicId" element={<Quiz />} />

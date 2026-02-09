@@ -608,11 +608,10 @@ serve(async (req) => {
            return [];
          }
 
-         const FALCON_ENDPOINT = "https://k5gka3aa0dgchbd4.us-east-1.aws.endpoints.huggingface.cloud";
+         const FALCON_ENDPOINT = "https://k5gka3aa0dgchbd4.us-east-1.aws.endpoints.huggingface.cloud/v1/chat/completions";
 
          // Build batch prompt
          const numberedLines = arabicLines.map((line, i) => `${i + 1}. ${line}`).join('\n');
-         const prompt = `<|system|>\nYou are an expert translator specializing in Gulf Arabic (Khaliji) dialect. Translate each numbered Arabic line to natural English. Return ONLY the translations, numbered to match.\n<|user|>\nTranslate these Gulf Arabic lines to English:\n\n${numberedLines}\n<|assistant|>`;
 
          const controller = new AbortController();
          const timeout = setTimeout(() => controller.abort(), 45_000);
@@ -625,14 +624,19 @@ serve(async (req) => {
              'Content-Type': 'application/json',
            },
            body: JSON.stringify({
-             inputs: prompt,
-             parameters: {
-               max_new_tokens: Math.min(arabicLines.length * 100, 4096),
-               temperature: 0.3,
-               top_p: 0.9,
-               do_sample: true,
-               return_full_text: false,
-             },
+             model: "tiiuae/Falcon-H1-34B-Instruct",
+             messages: [
+               {
+                 role: "system",
+                 content: "You are an expert translator specializing in Gulf Arabic (Khaliji) dialect. Translate each numbered Arabic line to natural English. Return ONLY the translations, numbered to match. No commentary."
+               },
+               {
+                 role: "user",
+                 content: `Translate these Gulf Arabic lines to English:\n\n${numberedLines}`
+               }
+             ],
+             max_tokens: Math.min(arabicLines.length * 100, 4096),
+             temperature: 0.3,
            }),
          });
          clearTimeout(timeout);
@@ -644,15 +648,13 @@ serve(async (req) => {
          }
 
          const data = await response.json();
-         let generatedText = '';
-         if (Array.isArray(data) && data[0]?.generated_text) {
-           generatedText = data[0].generated_text;
-         } else if (data?.generated_text) {
-           generatedText = data.generated_text;
-         } else {
-           console.warn('Unexpected Falcon response format');
+         const generatedText = data?.choices?.[0]?.message?.content || '';
+         if (!generatedText) {
+           console.warn('Falcon returned empty content');
            return [];
          }
+
+         console.log('Falcon response length:', generatedText.length);
 
          // Parse numbered translations
          const translations: string[] = [];

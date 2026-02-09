@@ -623,7 +623,7 @@ serve(async (req) => {
              'Content-Type': 'application/json',
            },
            body: JSON.stringify({
-             model: "openai/gpt-5",
+             model: "google/gemini-2.5-flash",
              messages: [
                {
                  role: "system",
@@ -634,7 +634,6 @@ serve(async (req) => {
                  content: `Translate these Gulf Arabic lines to English:\n\n${numberedLines}`
                }
              ],
-             max_completion_tokens: Math.min(arabicLines.length * 100, 4096),
            }),
          });
          clearTimeout(timeout);
@@ -646,9 +645,10 @@ serve(async (req) => {
          }
 
          const data = await response.json();
+         console.log('GPT-5 raw response keys:', Object.keys(data), 'choices:', data?.choices?.length);
          const generatedText = data?.choices?.[0]?.message?.content || '';
          if (!generatedText) {
-           console.warn('GPT-5 returned empty content');
+           console.warn('GPT-5 returned empty content, full response:', JSON.stringify(data).slice(0, 500));
            return [];
          }
 

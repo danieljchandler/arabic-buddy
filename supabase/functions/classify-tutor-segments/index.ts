@@ -11,6 +11,13 @@ interface TimestampedSegment {
   endMs: number;
 }
 
+interface TranscriptWord {
+  text: string;
+  startMs: number;
+  endMs: number;
+  index: number;
+}
+
 interface ClassifiedCandidate {
   word_text: string;
   word_english: string;
@@ -29,7 +36,10 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { segments } = await req.json() as { segments: TimestampedSegment[] };
+    const { segments, words: rawWords } = await req.json() as { 
+      segments: TimestampedSegment[];
+      words?: TranscriptWord[];
+    };
     
     if (!segments || !Array.isArray(segments) || segments.length === 0) {
       return new Response(JSON.stringify({ error: "No segments provided" }), {
@@ -41,23 +51,51 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    // Build a compact representation for the AI
+    // Build segment list
     const segmentList = segments.map((s, i) => 
-      `[${i}] "${s.text}" (${s.startMs}-${s.endMs}ms)`
+      `[S${i}] "${s.text}" (${s.startMs}-${s.endMs}ms)`
     ).join("\n");
 
-    const systemPrompt = `You are a Gulf Arabic language teaching assistant. You are given timestamped transcript segments from a tutor speaking Gulf Arabic.
+    // Build word-level list if available
+    const wordList = rawWords?.length 
+      ? "\n\nWord-level timestamps:\n" + rawWords.map((w) => 
+          `[W${w.index}] "${w.text}" (${w.startMs}-${w.endMs}ms)`
+        ).join("\n")
+      : "";
+
+    const systemPrompt = `You are a Gulf Arabic language teaching assistant. You are given timestamped transcript segments (and optionally word-level timestamps) from a tutor-student session where a tutor teaches Gulf Arabic vocabulary.
+
+IMPORTANT CONTEXT: In these recordings, the tutor typically says a word, then the student(s) repeat it. You must identify ONLY the tutor's first utterance of each vocabulary word, NOT the student's repetition.
 
 Your task:
-1. Classify each segment as VOCAB_WORD (1-3 tokens, a vocabulary item), EXAMPLE_SENTENCE (a longer utterance demonstrating usage), or OTHER (filler, greetings, instructions in English, etc.)
+1. Classify each segment as VOCAB_WORD (1-3 tokens, a vocabulary item), EXAMPLE_SENTENCE (a longer utterance demonstrating usage), or OTHER (filler, greetings, instructions, repetitions by students)
 2. Pair each VOCAB_WORD with the nearest EXAMPLE_SENTENCE that demonstrates its usage
 3. For each vocabulary word, provide:
    - English translation
    - Optional standard Arabic spelling (if the spoken form differs)
-   - A confidence score (0.0-1.0) based on how clearly it's a teachable vocabulary item
+   - A confidence score (0.0-1.0)
    - Classification as CONCRETE (object, animal, food, place), ACTION (verb, activity), or ABSTRACT (function word, greeting, abstract concept)
+4. CRITICAL: When word-level timestamps are available, specify the exact word indices (word_start_index and word_end_index) for the tutor's utterance of each vocabulary word. Use ONLY the tutor's first utterance, skip any student repetitions that follow.
 
 Return the results using the extract_candidates tool.`;
+
+    const toolProperties: Record<string, any> = {
+      word_segment_index: { type: "number", description: "Index of the VOCAB_WORD segment" },
+      word_text: { type: "string", description: "The spoken word/phrase in Arabic" },
+      word_english: { type: "string", description: "English translation" },
+      word_standard: { type: "string", description: "Standard Arabic spelling if different from spoken" },
+      sentence_segment_index: { type: "number", description: "Index of the paired EXAMPLE_SENTENCE segment, or -1 if none" },
+      sentence_text: { type: "string", description: "The example sentence in Arabic" },
+      sentence_english: { type: "string", description: "English translation of the sentence" },
+      confidence: { type: "number", description: "Confidence score 0.0-1.0" },
+      classification: { type: "string", enum: ["CONCRETE", "ACTION", "ABSTRACT"], description: "Type of vocabulary item" },
+    };
+
+    // Add word-level index fields when word timestamps are available
+    if (rawWords?.length) {
+      toolProperties.word_start_index = { type: "number", description: "Index of the first word-level token (W index) for the tutor's utterance of this vocabulary word" };
+      toolProperties.word_end_index = { type: "number", description: "Index of the last word-level token (W index) for the tutor's utterance of this vocabulary word" };
+    }
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -69,7 +107,7 @@ Return the results using the extract_candidates tool.`;
         model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: `Here are the transcript segments:\n\n${segmentList}` },
+          { role: "user", content: `Here are the transcript segments:\n\n${segmentList}${wordList}` },
         ],
         tools: [
           {
@@ -84,17 +122,7 @@ Return the results using the extract_candidates tool.`;
                     type: "array",
                     items: {
                       type: "object",
-                      properties: {
-                        word_segment_index: { type: "number", description: "Index of the VOCAB_WORD segment" },
-                        word_text: { type: "string", description: "The spoken word/phrase in Arabic" },
-                        word_english: { type: "string", description: "English translation" },
-                        word_standard: { type: "string", description: "Standard Arabic spelling if different from spoken" },
-                        sentence_segment_index: { type: "number", description: "Index of the paired EXAMPLE_SENTENCE segment, or -1 if none" },
-                        sentence_text: { type: "string", description: "The example sentence in Arabic" },
-                        sentence_english: { type: "string", description: "English translation of the sentence" },
-                        confidence: { type: "number", description: "Confidence score 0.0-1.0" },
-                        classification: { type: "string", enum: ["CONCRETE", "ACTION", "ABSTRACT"], description: "Type of vocabulary item" },
-                      },
+                      properties: toolProperties,
                       required: ["word_segment_index", "word_text", "word_english", "confidence", "classification"],
                       additionalProperties: false,
                     },
@@ -136,10 +164,23 @@ Return the results using the extract_candidates tool.`;
     const parsed = JSON.parse(toolCall.function.arguments);
     const rawCandidates = parsed.candidates || [];
 
-    // Map AI output back to timestamps from original segments
+    // Map AI output back to timestamps
     const candidates: ClassifiedCandidate[] = rawCandidates.map((c: any) => {
       const wordSeg = segments[c.word_segment_index];
       const sentSeg = c.sentence_segment_index >= 0 ? segments[c.sentence_segment_index] : null;
+
+      // Prefer word-level timestamps for precise clipping (tutor only, no student repetition)
+      let wordStartMs = wordSeg?.startMs ?? 0;
+      let wordEndMs = wordSeg?.endMs ?? 0;
+
+      if (rawWords?.length && typeof c.word_start_index === "number" && typeof c.word_end_index === "number") {
+        const startWord = rawWords.find(w => w.index === c.word_start_index);
+        const endWord = rawWords.find(w => w.index === c.word_end_index);
+        if (startWord && endWord) {
+          wordStartMs = startWord.startMs;
+          wordEndMs = endWord.endMs;
+        }
+      }
 
       return {
         word_text: c.word_text || wordSeg?.text || "",
@@ -147,8 +188,8 @@ Return the results using the extract_candidates tool.`;
         word_standard: c.word_standard || undefined,
         sentence_text: c.sentence_text || sentSeg?.text || undefined,
         sentence_english: c.sentence_english || undefined,
-        word_start_ms: wordSeg?.startMs ?? 0,
-        word_end_ms: wordSeg?.endMs ?? 0,
+        word_start_ms: wordStartMs,
+        word_end_ms: wordEndMs,
         sentence_start_ms: sentSeg?.startMs ?? undefined,
         sentence_end_ms: sentSeg?.endMs ?? undefined,
         confidence: typeof c.confidence === "number" ? c.confidence : 0.5,

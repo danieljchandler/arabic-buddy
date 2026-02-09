@@ -121,13 +121,21 @@ export function useTutorUpload() {
         });
       }
 
-      // Step 4: AI classification
+      // Step 4: AI classification — pass both segments and raw word timestamps
       setProgressLabel("Classifying vocabulary…");
       setProgress(65);
 
+      // Build word-level list with indices for precise clipping
+      const indexedWords = words.map((w, i) => ({
+        text: w.text,
+        startMs: Math.round(w.start * 1000),
+        endMs: Math.round(w.end * 1000),
+        index: i,
+      }));
+
       const { data: classifyData, error: classifyError } = await supabase.functions.invoke(
         "classify-tutor-segments",
-        { body: { segments } }
+        { body: { segments, words: indexedWords } }
       );
 
       if (classifyError || !classifyData?.success) {

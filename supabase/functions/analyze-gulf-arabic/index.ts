@@ -594,38 +594,171 @@ serve(async (req) => {
      }
 
      // -----------------------------
-     // 2) Vocabulary + grammar + culture (small JSON)
+     // 2) Falcon H1 translation + Meta extraction (in parallel)
      // -----------------------------
-     let metaAi: MetaAI | null = null;
-     let metaResp = await callAI({
-       systemPrompt: getMetaSystemPrompt(false),
-       userContent: transcript,
-       apiKey: LOVABLE_API_KEY,
-       isRetry: false,
-       maxTokens: 2048,
-     });
-     if (metaResp.content) {
-       metaAi = safeJsonParse<MetaAI>(metaResp.content);
-     }
-     if (!metaAi) {
-       const metaRetry = await callAI({
-         systemPrompt: getMetaSystemPrompt(true),
+     const arabicLines = linesAi.lines.map(l => String(l.arabic ?? '').trim());
+     console.log('Starting parallel: Falcon translation + meta extraction for', arabicLines.length, 'lines');
+
+     // Call Falcon H1 for alternative translations (via the falcon-translate edge function)
+     const falconPromise = (async (): Promise<string[]> => {
+       try {
+         const FALCON_HF_API_KEY = Deno.env.get('FALCON_HF_API_KEY');
+         if (!FALCON_HF_API_KEY) {
+           console.warn('FALCON_HF_API_KEY not set, skipping Falcon translations');
+           return [];
+         }
+
+         const FALCON_ENDPOINT = "https://k5gka3aa0dgchbd4.us-east-1.aws.endpoints.huggingface.cloud";
+
+         // Build batch prompt
+         const numberedLines = arabicLines.map((line, i) => `${i + 1}. ${line}`).join('\n');
+         const prompt = `<|system|>\nYou are an expert translator specializing in Gulf Arabic (Khaliji) dialect. Translate each numbered Arabic line to natural English. Return ONLY the translations, numbered to match.\n<|user|>\nTranslate these Gulf Arabic lines to English:\n\n${numberedLines}\n<|assistant|>`;
+
+         const controller = new AbortController();
+         const timeout = setTimeout(() => controller.abort(), 45_000);
+
+         const response = await fetch(FALCON_ENDPOINT, {
+           method: 'POST',
+           signal: controller.signal,
+           headers: {
+             'Authorization': `Bearer ${FALCON_HF_API_KEY}`,
+             'Content-Type': 'application/json',
+           },
+           body: JSON.stringify({
+             inputs: prompt,
+             parameters: {
+               max_new_tokens: Math.min(arabicLines.length * 100, 4096),
+               temperature: 0.3,
+               top_p: 0.9,
+               do_sample: true,
+               return_full_text: false,
+             },
+           }),
+         });
+         clearTimeout(timeout);
+
+         if (!response.ok) {
+           const errText = await response.text();
+           console.warn('Falcon API error:', response.status, errText?.slice(0, 300));
+           return [];
+         }
+
+         const data = await response.json();
+         let generatedText = '';
+         if (Array.isArray(data) && data[0]?.generated_text) {
+           generatedText = data[0].generated_text;
+         } else if (data?.generated_text) {
+           generatedText = data.generated_text;
+         } else {
+           console.warn('Unexpected Falcon response format');
+           return [];
+         }
+
+         // Parse numbered translations
+         const translations: string[] = [];
+         const respLines = generatedText.split('\n').filter((l: string) => l.trim());
+         for (let i = 0; i < arabicLines.length; i++) {
+           const lineNum = i + 1;
+           const match = respLines.find((l: string) => l.trim().startsWith(`${lineNum}.`) || l.trim().startsWith(`${lineNum})`));
+           if (match) {
+             translations.push(match.trim().replace(/^\d+[\.\)]\s*/, ''));
+           } else if (i < respLines.length) {
+             translations.push(respLines[i]?.trim().replace(/^\d+[\.\)]\s*/, '') || '');
+           } else {
+             translations.push('');
+           }
+         }
+
+         console.log(`Falcon: produced ${translations.filter(t => t.length > 0).length}/${arabicLines.length} translations`);
+         return translations;
+       } catch (e) {
+         console.warn('Falcon translation failed (non-fatal):', e instanceof Error ? e.message : String(e));
+         return [];
+       }
+     })();
+
+     // Meta extraction in parallel with Falcon
+     const metaPromise = (async () => {
+       let metaAi: MetaAI | null = null;
+       let metaResp = await callAI({
+         systemPrompt: getMetaSystemPrompt(false),
          userContent: transcript,
          apiKey: LOVABLE_API_KEY,
-         isRetry: true,
+         isRetry: false,
          maxTokens: 2048,
        });
-       if (metaRetry.content) {
-         metaAi = safeJsonParse<MetaAI>(metaRetry.content);
+       if (metaResp.content) {
+         metaAi = safeJsonParse<MetaAI>(metaResp.content);
        }
-     }
-     if (!metaAi) {
-       partial = true;
-       metaAi = { vocabulary: [], grammarPoints: [] };
+       if (!metaAi) {
+         const metaRetry = await callAI({
+           systemPrompt: getMetaSystemPrompt(true),
+           userContent: transcript,
+           apiKey: LOVABLE_API_KEY,
+           isRetry: true,
+           maxTokens: 2048,
+         });
+         if (metaRetry.content) {
+           metaAi = safeJsonParse<MetaAI>(metaRetry.content);
+         }
+       }
+       return metaAi;
+     })();
+
+     const [falconTranslations, metaAi] = await Promise.all([falconPromise, metaPromise]);
+
+     // -----------------------------
+     // 2b) Merge translations if Falcon succeeded
+     // -----------------------------
+     let finalLines = linesAi.lines;
+     const hasFalcon = falconTranslations.length > 0 && falconTranslations.some(t => t.length > 0);
+
+     if (hasFalcon) {
+       console.log('Merging Gemini + Falcon translations...');
+
+       const mergeContent = arabicLines.map((arabic, i) => {
+         const geminiTrans = String(linesAi!.lines[i]?.translation ?? '');
+         const falconTrans = falconTranslations[i] || '';
+         return `Line ${i + 1}: "${arabic}"\n  Gemini: "${geminiTrans}"\n  Falcon: "${falconTrans}"`;
+       }).join('\n\n');
+
+       const mergePrompt = `You are merging two translations of Gulf Arabic lines. For each line, pick whichever translation is more natural and accurate, or combine the best parts of both. Output ONLY valid JSON:
+{"translations": ["merged translation 1", "merged translation 2", ...]}
+
+No additional text outside JSON.`;
+
+       const mergeResp = await callAI({
+         systemPrompt: mergePrompt,
+         userContent: mergeContent,
+         apiKey: LOVABLE_API_KEY,
+         isRetry: false,
+         maxTokens: 4096,
+       });
+
+       if (mergeResp.content) {
+         const merged = safeJsonParse<{ translations: string[] }>(mergeResp.content);
+         if (merged?.translations && Array.isArray(merged.translations)) {
+           finalLines = linesAi.lines.map((line, i) => ({
+             ...line,
+             translation: merged.translations[i] || line.translation,
+           }));
+           console.log('Merge complete: updated', merged.translations.length, 'translations');
+         } else {
+           console.warn('Merge parse failed, using Gemini translations');
+         }
+       } else {
+         console.warn('Merge call failed, using Gemini translations');
+       }
+     } else {
+       console.log('Falcon unavailable or returned empty; using Gemini translations only');
      }
 
-     const vocab = Array.isArray(metaAi.vocabulary) ? metaAi.vocabulary : [];
-     const grammarPoints = Array.isArray(metaAi.grammarPoints) ? metaAi.grammarPoints : [];
+     if (!metaAi) {
+       partial = true;
+     }
+     const safeMetaAi = metaAi || { vocabulary: [], grammarPoints: [] };
+     const vocab = Array.isArray(safeMetaAi.vocabulary) ? safeMetaAi.vocabulary : [];
+     const grammarPoints = Array.isArray(safeMetaAi.grammarPoints) ? safeMetaAi.grammarPoints : [];
 
      // -----------------------------
      // 3) Comprehensive word glosses for every word
@@ -634,7 +767,7 @@ serve(async (req) => {
      
      // Extract all unique words from all lines
      const allWords = new Set<string>();
-     for (const line of linesAi.lines) {
+     for (const line of finalLines) {
        const words = String(line.arabic ?? '').split(/\s+/).filter(Boolean);
        words.forEach(w => allWords.add(w));
      }
@@ -679,7 +812,7 @@ serve(async (req) => {
      // Build the full TranscriptResult
      const transcriptResult: TranscriptResult = {
        rawTranscriptArabic: transcript,
-       lines: linesAi.lines.map((l, idx) => ({
+       lines: finalLines.map((l, idx) => ({
          id: `line-${generateId()}-${idx}`,
          arabic: String(l.arabic ?? '').trim(),
          translation: String(l.translation ?? '').trim(),
@@ -687,7 +820,7 @@ serve(async (req) => {
        })),
        vocabulary: vocab,
        grammarPoints,
-       culturalContext: metaAi.culturalContext,
+       culturalContext: safeMetaAi.culturalContext,
      };
 
      console.log(

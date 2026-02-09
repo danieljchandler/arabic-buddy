@@ -619,7 +619,7 @@ const Transcribe = () => {
       setTranscriptResult(initialResult);
 
       const engineMsg = enginesUsed.length === 2 ? "Dual transcription complete!" : "Transcription complete!";
-      toast.success(engineMsg, { description: "Analyzing..." });
+      toast.success(engineMsg, { description: "Analyzing with dual LLMs..." });
       
       const analysisData = await analyzeTranscript(filteredText, filteredMunsitText);
       if (analysisData) {

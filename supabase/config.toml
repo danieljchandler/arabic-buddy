@@ -21,5 +21,8 @@ verify_jwt = false
 [functions.classify-tutor-segments]
 verify_jwt = false
 
+[functions.analyze-meme]
+verify_jwt = false
+
 [functions.generate-flashcard-image]
 verify_jwt = false

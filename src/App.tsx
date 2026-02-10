@@ -16,6 +16,7 @@ import Transcribe from "./pages/Transcribe";
 import MyWords from "./pages/MyWords";
 import TutorUpload from "./pages/TutorUpload";
 import MyWordsReview from "./pages/MyWordsReview";
+import MemeAnalyzer from "./pages/MemeAnalyzer";
 
 // Admin pages
 import AdminLogin from "./pages/admin/AdminLogin";
@@ -119,6 +120,11 @@ const App = () => {
             <Route path="/my-words" element={<MyWords />} />
             <Route path="/review/my-words" element={<MyWordsReview />} />
             <Route path="/tutor-upload" element={<TutorUpload />} />
+            <Route path="/meme" element={
+              <ErrorBoundary name="MemeAnalyzerRoute">
+                <MemeAnalyzer />
+              </ErrorBoundary>
+            } />
             <Route path="/learn" element={<Learn />} />
             <Route path="/learn/:topicId" element={<Learn />} />
             <Route path="/quiz/:topicId" element={<Quiz />} />

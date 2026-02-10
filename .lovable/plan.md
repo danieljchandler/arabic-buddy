@@ -1,194 +1,96 @@
 
 
-# Tutor Upload: Audio-to-Flashcard Pipeline
+# Meme Analyzer - Arabic Meme Breakdown Tool
 
-A new feature where users upload tutor audio or video, the system extracts vocabulary candidates with timestamps, and users review/approve them before creating flashcards with clipped audio and optional AI-generated images.
+## Overview
 
----
+A new section in the app where users upload Arabic memes (images or videos). The system uses AI vision to read on-screen text, transcribes any audio (for videos), then provides a full breakdown: transcription, translation, humor/cultural explanation, vocabulary words, and clickable tokens -- all reusing the existing transcript interaction patterns.
 
-## What You'll Get
+## How It Works
 
-1. A new **Tutor Upload** page accessible from the Home screen
-2. Upload audio/video of a tutor speaking Gulf Arabic
-3. The system transcribes, then uses AI to classify segments as vocabulary words vs. example sentences
-4. A **Review Screen** where you can play audio clips, edit words, approve or reject candidates
-5. Optional AI-generated images (auto-suggested only for concrete/action words)
-6. Approved items become flashcards in your **My Words** list with word + sentence audio clips
-
----
+1. **Upload**: User uploads an image or video from their device
+2. **Processing**:
+   - **Images**: AI vision model reads and extracts Arabic text from the image
+   - **Videos**: AI vision reads on-screen text from key frames PLUS ElevenLabs transcribes the audio track
+3. **Analysis**: AI explains the meme's meaning, humor, and cultural context, then produces a structured transcript (lines with tokens), vocabulary list, and grammar notes
+4. **Interaction**: Same as the Transcribe page -- clickable Arabic words show popover with gloss, option to add to vocab section or save to My Words
 
 ## User Flow
 
 ```text
-Home Screen
-    |
-    v
-[Tutor Upload] page
-    |
-    v
-Upload audio/video --> Transcribe (dual-engine)
-    |
-    v
-AI classifies segments: VOCAB_WORD / EXAMPLE_SENTENCE / OTHER
-    |
-    v
-Group into candidate pairs (word + sentence)
-    |
-    v
-Review Screen:
-  - Play word clip / sentence clip
-  - Edit spelling, edit/remove sentence
-  - Toggle image generation per item
-  - Approve / Reject each candidate
-    |
-    v
-Create flashcards from approved items --> My Words (user_vocabulary)
+Home --> "Meme Analyzer" button --> Upload page
+  |
+  +--> Upload image or video
+  |
+  +--> Processing (AI vision + optional audio transcription)
+  |
+  +--> Results:
+       +-- Meme displayed (image or video player)
+       +-- "What's Funny" explanation (casual + educational)
+       +-- On-screen text: transcription + translation (clickable tokens)
+       +-- Audio text (video only): transcription + translation (clickable tokens)
+       +-- Vocabulary section
+       +-- Grammar points
 ```
-
----
 
 ## Technical Plan
 
-### Phase 1: Database & Storage Setup
+### 1. New Edge Function: `analyze-meme`
 
-**New table: `tutor_upload_candidates`**
-Stores extracted vocabulary candidates linked to the original audio file.
+**File**: `supabase/functions/analyze-meme/index.ts`
 
-| Column | Type | Description |
-|--------|------|-------------|
-| id | uuid PK | |
-| user_id | uuid | Owner |
-| upload_id | uuid | Groups candidates from same upload |
-| word_text | text | Spoken word/phrase |
-| word_standard | text | Optional standard spelling |
-| word_english | text | AI-suggested English meaning |
-| sentence_text | text | Associated example sentence |
-| sentence_english | text | Sentence translation |
-| word_start_ms | int | Word audio start timestamp |
-| word_end_ms | int | Word audio end timestamp |
-| sentence_start_ms | int | Sentence start timestamp |
-| sentence_end_ms | int | Sentence end timestamp |
-| confidence | float | AI confidence score |
-| classification | text | CONCRETE / ACTION / ABSTRACT |
-| status | text | pending / approved / rejected |
-| word_audio_url | text | Clipped word audio URL |
-| sentence_audio_url | text | Clipped sentence audio URL |
-| image_url | text | Optional generated image URL |
-| source_audio_url | text | Original uploaded file URL |
-| created_at | timestamptz | |
+- Accepts a base64-encoded image (or video frame) plus optional audio transcript text
+- Uses Lovable AI with `google/gemini-2.5-flash` (supports vision/image input) to:
+  - Read all Arabic text visible in the image
+  - Translate the on-screen text
+  - Explain the meme's humor (casual tone first, then cultural/linguistic breakdown)
+  - Extract vocabulary and grammar points
+  - Return structured JSON matching the existing `TranscriptResult` format plus a new `memeExplanation` field
+- For videos: the frontend sends extracted frames; audio is transcribed separately via the existing `elevenlabs-transcribe` function
+- Update `supabase/config.toml` to register the function with `verify_jwt = false`
 
-RLS: Users can only access their own rows.
+### 2. Storage Bucket: `meme-uploads`
 
-**New storage bucket: `tutor-audio-clips`** (public) for clipped word/sentence audio and source uploads.
+- Create a public storage bucket for uploaded meme images/videos
+- Users need to see the meme alongside the analysis, so files are stored and referenced by URL
+- RLS policies to allow authenticated users to upload
 
-**Extend `user_vocabulary` table**: Add columns for `sentence_audio_url`, `word_audio_url`, and `source_upload_id` to link flashcards back to the original upload.
+### 3. New Page: `src/pages/MemeAnalyzer.tsx`
 
-### Phase 2: Edge Function -- `classify-tutor-segments`
+- Upload area (drag-and-drop or file picker) for images and videos
+- After upload:
+  - **Images**: Convert to base64, send to `analyze-meme` edge function
+  - **Videos**: Extract a few key frames (using canvas + video element), convert to base64 for vision; extract audio track and send to `elevenlabs-transcribe` for audio transcription; then send both to `analyze-meme`
+- Display the uploaded meme (image tag or video player with controls)
+- Display the "What's Funny" explanation in a styled card
+- Reuse `LineByLineTranscript` component for the on-screen text breakdown (clickable tokens, add to vocab, save to My Words)
+- Separate `LineByLineTranscript` section for audio transcript (videos only)
+- Vocabulary and grammar sections matching the Transcribe page layout
 
-A new backend function that takes the timestamped transcript and uses AI (Gemini 2.5 Flash) to:
+### 4. Route and Navigation
 
-1. Classify each segment as `VOCAB_WORD`, `EXAMPLE_SENTENCE`, or `OTHER`
-2. Pair vocabulary words with their nearest example sentence
-3. Provide English translations and confidence scores
-4. Classify word type as `CONCRETE`, `ACTION`, or `ABSTRACT` (for image suggestions)
+- Add `/meme` route in `src/App.tsx`
+- Add "Meme Analyzer" button on the Index page (home screen) with an appropriate icon
 
-Uses structured output via tool calling to ensure reliable JSON responses.
+### 5. Video Frame Extraction (Client-Side)
 
-### Phase 3: Edge Function -- `clip-audio`
+- Use HTML5 `<video>` + `<canvas>` to capture 3-5 evenly spaced frames from the video
+- Send these frames as base64 images to the AI for text reading
+- Extract audio using the existing file upload flow to `elevenlabs-transcribe`
 
-A new backend function that:
+### 6. Types
 
-1. Receives the source audio file URL and timestamp ranges
-2. Uses FFmpeg (via Deno) or Web Audio API to extract clips
-3. Adds 200-300ms padding before and after each clip
-4. Uploads clips to the `tutor-audio-clips` storage bucket
-5. Returns the public URLs
+- Extend or create a `MemeAnalysisResult` type that includes:
+  - `memeExplanation`: `{ casual: string; cultural: string }` -- the fun explanation plus deeper breakdown
+  - `onScreenText`: `TranscriptResult` -- structured lines from visible text
+  - `audioText?`: `TranscriptResult` -- structured lines from audio (video only)
+  - `mediaUrl`: string -- URL to the uploaded file in storage
 
-**Note**: Since edge functions have limited binary processing, the primary approach will be client-side audio clipping using the Web Audio API (AudioContext + OfflineAudioContext), with the clipped blobs uploaded to storage.
+### Key Reuse
 
-### Phase 4: Edge Function -- `generate-flashcard-image`
-
-A new backend function using `google/gemini-2.5-flash-image` via Lovable AI:
-
-1. Accepts word text and English meaning
-2. Generates a realistic photo-style image (4:3, warm neutral background, no text)
-3. Returns base64 image data
-4. Client uploads to `flashcard-images` bucket (already exists)
-
-Only triggered when user explicitly enables the image toggle.
-
-### Phase 5: New Page -- `/tutor-upload`
-
-**File: `src/pages/TutorUpload.tsx`**
-
-Multi-step page with states:
-
-1. **Upload Step**: Reuses existing file upload/URL import UI patterns from Transcribe page
-2. **Processing Step**: Shows progress through transcription + classification pipeline
-3. **Review Step**: Candidate list with approve/reject controls
-
-**Review step UI per candidate:**
-- Word text (Arabic, editable) + English meaning
-- Sentence text (Arabic, editable/removable) + English translation
-- Play button for word audio preview (clipped from source using timestamps)
-- Play button for sentence audio preview
-- Confidence badge with warning for low-confidence items
-- Image toggle (OFF by default; auto-suggested ON only for CONCRETE/ACTION words)
-- Approve / Reject buttons
-
-4. **Confirm Step**: Summary of approved items, "Create Flashcards" button
-
-### Phase 6: Client-Side Audio Clipping
-
-**File: `src/lib/audioClipper.ts`**
-
-Uses Web Audio API to:
-1. Decode the source audio file into an AudioBuffer
-2. For each approved candidate, extract word and sentence clips with padding
-3. Encode clips as WAV blobs
-4. Upload to `tutor-audio-clips` storage bucket
-
-### Phase 7: Flashcard Creation
-
-When user confirms:
-1. Clip audio for all approved candidates (client-side)
-2. Generate images for items with image toggle ON (via edge function)
-3. Insert into `user_vocabulary` with:
-   - `word_arabic`, `word_english` from the candidate
-   - `word_audio_url`, `sentence_audio_url` from clipped audio
-   - `source` = "tutor-upload"
-   - Image URL if generated
-4. Navigate to My Words page with success toast
-
-### Phase 8: Home Screen Integration
-
-Add a "Tutor Upload" navigation button on the home screen (between Transcribe and My Words), with appropriate icon and description.
-
----
-
-## Files to Create / Modify
-
-| Action | File |
-|--------|------|
-| Create | `src/pages/TutorUpload.tsx` |
-| Create | `src/lib/audioClipper.ts` |
-| Create | `src/hooks/useTutorUpload.ts` |
-| Create | `src/components/tutor/CandidateCard.tsx` |
-| Create | `src/components/tutor/CandidateList.tsx` |
-| Create | `supabase/functions/classify-tutor-segments/index.ts` |
-| Create | `supabase/functions/generate-flashcard-image/index.ts` |
-| Modify | `src/pages/Index.tsx` -- add nav button |
-| Modify | `src/App.tsx` -- add route |
-| Modify | `supabase/config.toml` -- register new functions |
-| Migration | New table + storage bucket + user_vocabulary columns |
-
----
-
-## Error Handling & Trust (Prompt 8)
-
-- Low confidence candidates (< 0.6) display a yellow warning badge: "Low confidence -- please verify"
-- No flashcards are ever auto-created; every item requires explicit approval
-- All fields are editable before approval
-- Rejected items are simply skipped (not stored as flashcards)
-- If classification fails entirely, the system shows the raw transcript segments and lets the user manually tag them
+- `LineByLineTranscript` component (clickable tokens, popovers, vocab actions) -- used as-is
+- `useAddUserVocabulary` hook for saving words to My Words
+- `analyze-gulf-arabic` patterns for AI prompting and JSON extraction
+- `elevenlabs-transcribe` function for video audio
+- Same vocabulary/grammar display sections from the Transcribe page
 

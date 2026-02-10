@@ -71,7 +71,7 @@ async function callAI(
   userContent: string | Array<{ type: string; text?: string; image_url?: { url: string } }>,
   apiKey: string,
   maxTokens = 4096,
-): Promise<string | null> {
+): Promise<string> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 55_000);
 
@@ -99,14 +99,27 @@ async function callAI(
     if (!response.ok) {
       const errText = await response.text();
       console.error('AI error:', response.status, errText.slice(0, 500));
-      return null;
+      if (response.status === 402) {
+        throw new Error('Not enough AI credits. Please add credits to your workspace at Settings → Workspace → Usage.');
+      }
+      if (response.status === 429) {
+        throw new Error('Rate limit exceeded. Please wait a moment and try again.');
+      }
+      throw new Error(`AI service error (${response.status})`);
     }
 
     const data = await response.json();
-    return data.choices?.[0]?.message?.content ?? null;
+    const content = data.choices?.[0]?.message?.content;
+    if (!content) {
+      throw new Error('AI returned empty response');
+    }
+    return content;
   } catch (e) {
+    if (e instanceof Error && (e.message.includes('credits') || e.message.includes('Rate limit') || e.message.includes('AI service'))) {
+      throw e; // Re-throw user-facing errors
+    }
     console.error('AI fetch failed:', e);
-    return null;
+    throw new Error('AI analysis failed. Please try again.');
   } finally {
     clearTimeout(timeout);
   }
@@ -243,9 +256,10 @@ serve(async (req) => {
       }
 
       const rawResponse = await callAI(MEME_ANALYSIS_PROMPT, userContent, LOVABLE_API_KEY, 6000);
+      onScreenResult = safeJsonParse<any>(rawResponse);
       
-      if (rawResponse) {
-        onScreenResult = safeJsonParse<any>(rawResponse);
+      if (!onScreenResult) {
+        throw new Error('Failed to parse AI response. Please try again.');
       }
     }
 
@@ -253,9 +267,7 @@ serve(async (req) => {
     if (audioTranscript && !imageBase64) {
       console.log('Analyzing audio transcript...');
       const rawResponse = await callAI(AUDIO_ANALYSIS_PROMPT, audioTranscript, LOVABLE_API_KEY, 4096);
-      if (rawResponse) {
-        audioResult = safeJsonParse<any>(rawResponse);
-      }
+      audioResult = safeJsonParse<any>(rawResponse);
     }
 
     // Build the final structured result

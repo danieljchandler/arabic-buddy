@@ -178,7 +178,7 @@ const MyWordsReview = () => {
         <div className="max-w-sm mx-auto">
           <div className="rounded-2xl bg-card border border-border p-8 text-center">
             <p
-              className="text-4xl font-bold text-foreground mb-4"
+              className="text-4xl font-bold text-foreground mb-6"
               style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
               dir="rtl"
             >
@@ -186,62 +186,61 @@ const MyWordsReview = () => {
             </p>
 
             {/* Audio buttons */}
-            {(currentWord.word_audio_url || currentWord.sentence_audio_url) && (
-              <div className="flex items-center justify-center gap-3 mb-6">
-                {currentWord.word_audio_url && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => playAudio(currentWord.word_audio_url!)}
-                    className="gap-1.5"
-                  >
-                    <Volume2 className="h-4 w-4" />
-                    Word
-                  </Button>
-                )}
-                {currentWord.sentence_audio_url && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => playAudio(currentWord.sentence_audio_url!)}
-                    className="gap-1.5"
-                  >
-                    <Volume2 className="h-4 w-4" />
-                    Sentence
-                  </Button>
-                )}
-              </div>
-            )}
+            <div className="flex items-center justify-center gap-3 mb-8">
+              {currentWord.word_audio_url && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => playAudio(currentWord.word_audio_url!)}
+                  className="gap-1.5"
+                >
+                  <Volume2 className="h-4 w-4" />
+                  Word
+                </Button>
+              )}
+              {currentWord.sentence_audio_url && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => playAudio(currentWord.sentence_audio_url!)}
+                  className="gap-1.5"
+                >
+                  <Volume2 className="h-4 w-4" />
+                  Sentence
+                </Button>
+              )}
+            </div>
 
-            {!showAnswer ? (
-              <Button
-                variant="outline"
-                size="lg"
-                onClick={() => setShowAnswer(true)}
-                className="gap-2"
-              >
-                <Eye className="h-4 w-4" />
-                Show Answer
-              </Button>
-            ) : (
-              <div className="animate-in fade-in duration-200">
+            {/* Optional reveal English */}
+            {showAnswer && (
+              <div className="animate-in fade-in duration-200 mb-4">
                 <p className="text-xl text-muted-foreground">{currentWord.word_english}</p>
               </div>
+            )}
+            {!showAnswer && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowAnswer(true)}
+                className="gap-1.5 text-muted-foreground"
+              >
+                <Eye className="h-4 w-4" />
+                Reveal English
+              </Button>
             )}
           </div>
         </div>
 
-        {showAnswer && (
-          <div className="mt-10 animate-in fade-in slide-in-from-bottom-4 duration-300">
-            <RatingButtons
-              onRate={handleRate}
-              easeFactor={currentWord.ease_factor}
-              intervalDays={currentWord.interval_days}
-              repetitions={currentWord.repetitions}
-              disabled={updateReview.isPending}
-            />
-          </div>
-        )}
+        {/* Self-rating always visible */}
+        <div className="mt-10">
+          <RatingButtons
+            onRate={handleRate}
+            easeFactor={currentWord.ease_factor}
+            intervalDays={currentWord.interval_days}
+            repetitions={currentWord.repetitions}
+            disabled={updateReview.isPending}
+          />
+        </div>
       </div>
     </AppShell>
   );

@@ -1,218 +1,194 @@
 
 
-# Stage-Based Spaced Repetition System
+# Tutor Upload: Audio-to-Flashcard Pipeline
 
-This is a large overhaul that replaces the current SM-2 algorithm with a simpler, stage-based SRS system and adds interactive quiz-style exercises for both curriculum words and personal (My Words) vocabulary.
-
----
-
-## Overview
-
-The current system uses the Anki-style SM-2 algorithm with ease factors and a "reveal answer then rate" flow. The new system replaces this with 6 discrete stages (NEW through Stage5), each with a fixed review interval and specific exercise types (multiple-choice only, no typing).
+A new feature where users upload tutor audio or video, the system extracts vocabulary candidates with timestamps, and users review/approve them before creating flashcards with clipped audio and optional AI-generated images.
 
 ---
 
-## 1. Database Changes
+## What You'll Get
 
-### Modify `user_vocabulary` table
-- Add `stage` column (text, default `'NEW'`, values: `NEW`, `STAGE_1`, `STAGE_2`, `STAGE_3`, `STAGE_4`, `STAGE_5`)
-- Add `last_result` column (text, nullable, values: `correct`, `incorrect`, `wrong`)
-- Add `sentence_text` column (text, nullable) -- needed for sentence-based exercises
-- Add `sentence_english` column (text, nullable) -- needed for sentence exercises
-- Add `review_count` column (integer, default 0) -- for accuracy tracking
-- Add `correct_count` column (integer, default 0) -- for accuracy tracking
-- Existing `ease_factor`, `interval_days`, `repetitions` columns become unused but kept for backward compatibility
-
-### Modify `word_reviews` table (curriculum words)
-- Add `stage` column (text, default `'NEW'`)
-- Add `last_result` column (text, nullable)
-- Add `review_count` column (integer, default 0)
-- Add `correct_count` column (integer, default 0)
-
-### New `review_streaks` table
-- `id` (uuid, PK)
-- `user_id` (uuid, not null)
-- `current_streak` (integer, default 0)
-- `longest_streak` (integer, default 0)
-- `last_review_date` (date, nullable)
-- RLS: users can only access their own row
-
-### Modify `tutor_upload_candidates` flow
-- When approving candidates into `user_vocabulary`, also copy `sentence_text` and `sentence_english` into the new columns
+1. A new **Tutor Upload** page accessible from the Home screen
+2. Upload audio/video of a tutor speaking Gulf Arabic
+3. The system transcribes, then uses AI to classify segments as vocabulary words vs. example sentences
+4. A **Review Screen** where you can play audio clips, edit words, approve or reject candidates
+5. Optional AI-generated images (auto-suggested only for concrete/action words)
+6. Approved items become flashcards in your **My Words** list with word + sentence audio clips
 
 ---
 
-## 2. Core SRS Logic
-
-### New file: `src/lib/stageRepetition.ts`
-
-Replaces `spacedRepetition.ts` usage in review flows.
-
-- Stages and intervals:
+## User Flow
 
 ```text
-NEW       -> immediate (no test, just show)
-STAGE_1   -> 10 minutes
-STAGE_2   -> 1 day
-STAGE_3   -> 3 days
-STAGE_4   -> 7 days
-STAGE_5   -> 21 days
+Home Screen
+    |
+    v
+[Tutor Upload] page
+    |
+    v
+Upload audio/video --> Transcribe (dual-engine)
+    |
+    v
+AI classifies segments: VOCAB_WORD / EXAMPLE_SENTENCE / OTHER
+    |
+    v
+Group into candidate pairs (word + sentence)
+    |
+    v
+Review Screen:
+  - Play word clip / sentence clip
+  - Edit spelling, edit/remove sentence
+  - Toggle image generation per item
+  - Approve / Reject each candidate
+    |
+    v
+Create flashcards from approved items --> My Words (user_vocabulary)
 ```
 
-- Promotion rules:
-  - `correct` -> advance one stage
-  - `incorrect` -> drop one stage (min STAGE_1)
-  - `wrong` -> return to NEW
+---
 
-- Function: `calculateStageTransition(currentStage, result)` returns `{ newStage, intervalMinutes, nextReviewAt }`
+## Technical Plan
+
+### Phase 1: Database & Storage Setup
+
+**New table: `tutor_upload_candidates`**
+Stores extracted vocabulary candidates linked to the original audio file.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | uuid PK | |
+| user_id | uuid | Owner |
+| upload_id | uuid | Groups candidates from same upload |
+| word_text | text | Spoken word/phrase |
+| word_standard | text | Optional standard spelling |
+| word_english | text | AI-suggested English meaning |
+| sentence_text | text | Associated example sentence |
+| sentence_english | text | Sentence translation |
+| word_start_ms | int | Word audio start timestamp |
+| word_end_ms | int | Word audio end timestamp |
+| sentence_start_ms | int | Sentence start timestamp |
+| sentence_end_ms | int | Sentence end timestamp |
+| confidence | float | AI confidence score |
+| classification | text | CONCRETE / ACTION / ABSTRACT |
+| status | text | pending / approved / rejected |
+| word_audio_url | text | Clipped word audio URL |
+| sentence_audio_url | text | Clipped sentence audio URL |
+| image_url | text | Optional generated image URL |
+| source_audio_url | text | Original uploaded file URL |
+| created_at | timestamptz | |
+
+RLS: Users can only access their own rows.
+
+**New storage bucket: `tutor-audio-clips`** (public) for clipped word/sentence audio and source uploads.
+
+**Extend `user_vocabulary` table**: Add columns for `sentence_audio_url`, `word_audio_url`, and `source_upload_id` to link flashcards back to the original upload.
+
+### Phase 2: Edge Function -- `classify-tutor-segments`
+
+A new backend function that takes the timestamped transcript and uses AI (Gemini 2.5 Flash) to:
+
+1. Classify each segment as `VOCAB_WORD`, `EXAMPLE_SENTENCE`, or `OTHER`
+2. Pair vocabulary words with their nearest example sentence
+3. Provide English translations and confidence scores
+4. Classify word type as `CONCRETE`, `ACTION`, or `ABSTRACT` (for image suggestions)
+
+Uses structured output via tool calling to ensure reliable JSON responses.
+
+### Phase 3: Edge Function -- `clip-audio`
+
+A new backend function that:
+
+1. Receives the source audio file URL and timestamp ranges
+2. Uses FFmpeg (via Deno) or Web Audio API to extract clips
+3. Adds 200-300ms padding before and after each clip
+4. Uploads clips to the `tutor-audio-clips` storage bucket
+5. Returns the public URLs
+
+**Note**: Since edge functions have limited binary processing, the primary approach will be client-side audio clipping using the Web Audio API (AudioContext + OfflineAudioContext), with the clipped blobs uploaded to storage.
+
+### Phase 4: Edge Function -- `generate-flashcard-image`
+
+A new backend function using `google/gemini-2.5-flash-image` via Lovable AI:
+
+1. Accepts word text and English meaning
+2. Generates a realistic photo-style image (4:3, warm neutral background, no text)
+3. Returns base64 image data
+4. Client uploads to `flashcard-images` bucket (already exists)
+
+Only triggered when user explicitly enables the image toggle.
+
+### Phase 5: New Page -- `/tutor-upload`
+
+**File: `src/pages/TutorUpload.tsx`**
+
+Multi-step page with states:
+
+1. **Upload Step**: Reuses existing file upload/URL import UI patterns from Transcribe page
+2. **Processing Step**: Shows progress through transcription + classification pipeline
+3. **Review Step**: Candidate list with approve/reject controls
+
+**Review step UI per candidate:**
+- Word text (Arabic, editable) + English meaning
+- Sentence text (Arabic, editable/removable) + English translation
+- Play button for word audio preview (clipped from source using timestamps)
+- Play button for sentence audio preview
+- Confidence badge with warning for low-confidence items
+- Image toggle (OFF by default; auto-suggested ON only for CONCRETE/ACTION words)
+- Approve / Reject buttons
+
+4. **Confirm Step**: Summary of approved items, "Create Flashcards" button
+
+### Phase 6: Client-Side Audio Clipping
+
+**File: `src/lib/audioClipper.ts`**
+
+Uses Web Audio API to:
+1. Decode the source audio file into an AudioBuffer
+2. For each approved candidate, extract word and sentence clips with padding
+3. Encode clips as WAV blobs
+4. Upload to `tutor-audio-clips` storage bucket
+
+### Phase 7: Flashcard Creation
+
+When user confirms:
+1. Clip audio for all approved candidates (client-side)
+2. Generate images for items with image toggle ON (via edge function)
+3. Insert into `user_vocabulary` with:
+   - `word_arabic`, `word_english` from the candidate
+   - `word_audio_url`, `sentence_audio_url` from clipped audio
+   - `source` = "tutor-upload"
+   - Image URL if generated
+4. Navigate to My Words page with success toast
+
+### Phase 8: Home Screen Integration
+
+Add a "Tutor Upload" navigation button on the home screen (between Transcribe and My Words), with appropriate icon and description.
 
 ---
 
-## 3. Exercise Types by Stage
+## Files to Create / Modify
 
-### New file: `src/lib/exerciseTypes.ts`
-
-Defines which exercise formats are available per stage and picks one randomly:
-
-| Stage | Exercise Types |
-|-------|---------------|
-| NEW | IntroCard -- show Arabic word, play audio, show English + sentence (no test) |
-| STAGE_1 | Audio plays -> pick correct Arabic word from 4 choices |
-| STAGE_2 | Audio -> pick Arabic OR Arabic shown -> pick English meaning |
-| STAGE_3 | Sentence audio -> pick missing word OR Arabic -> pick meaning |
-| STAGE_4 | English shown -> pick Arabic OR audio plays -> pick Arabic |
-| STAGE_5 | Sentence audio -> pick English meaning |
-
-Each exercise is a component that renders 4 multiple-choice options and returns correct/incorrect/wrong.
-
----
-
-## 4. Smart Distractors
-
-### New file: `src/lib/distractorEngine.ts`
-
-Generates 3 distractors for each question:
-
-1. **Same-source words**: For curriculum words, pull from the same topic. For user vocabulary, pull from the same user's word list.
-2. **Recently learned**: Words the user has reviewed recently (any stage above NEW).
-3. **Fallback**: Random words from the full vocabulary pool.
-
-The engine fetches a pool of candidate distractors when the review session starts, then selects 3 per question, shuffled with the correct answer.
+| Action | File |
+|--------|------|
+| Create | `src/pages/TutorUpload.tsx` |
+| Create | `src/lib/audioClipper.ts` |
+| Create | `src/hooks/useTutorUpload.ts` |
+| Create | `src/components/tutor/CandidateCard.tsx` |
+| Create | `src/components/tutor/CandidateList.tsx` |
+| Create | `supabase/functions/classify-tutor-segments/index.ts` |
+| Create | `supabase/functions/generate-flashcard-image/index.ts` |
+| Modify | `src/pages/Index.tsx` -- add nav button |
+| Modify | `src/App.tsx` -- add route |
+| Modify | `supabase/config.toml` -- register new functions |
+| Migration | New table + storage bucket + user_vocabulary columns |
 
 ---
 
-## 5. Exercise Components
+## Error Handling & Trust (Prompt 8)
 
-### New components in `src/components/exercises/`:
-
-- **`AudioToArabicChoice.tsx`** -- Plays audio, shows 4 Arabic word buttons
-- **`ArabicToEnglishChoice.tsx`** -- Shows Arabic word, 4 English meaning buttons
-- **`EnglishToArabicChoice.tsx`** -- Shows English meaning, 4 Arabic word buttons
-- **`SentenceAudioCloze.tsx`** -- Plays sentence audio, shows sentence with blank, 4 word choices to fill
-- **`SentenceAudioToMeaning.tsx`** -- Plays sentence audio, 4 English meaning buttons
-- **`ExerciseWrapper.tsx`** -- Shared wrapper: renders the chosen exercise, handles feedback animation (green/red flash), plays correct audio after answer, calls `onResult`
-
-Each component:
-- Shows 4 tappable option buttons
-- On tap: immediately shows green (correct) or red (incorrect) feedback
-- Plays the correct word audio after answering
-- Calls `onResult('correct' | 'incorrect' | 'wrong')` after a short delay
-
----
-
-## 6. Review Session Flow
-
-### Rewrite `src/pages/MyWordsReview.tsx` and `src/pages/Review.tsx`
-
-Both pages will use a shared review session hook:
-
-### New hook: `src/hooks/useStageReview.ts`
-
-- Fetches all due cards (where `next_review_at <= now`)
-- For NEW stage cards: shows IntroCard (no test), auto-advances to STAGE_1
-- For other stages: picks a random exercise type, renders it
-- After each answer:
-  - Immediate visual feedback (correct/incorrect)
-  - Play correct audio
-  - Update stage + next_review_at in the database
-  - Update streak
-- Session ends when all due cards are done
-- Shows completion screen with stats
-
-### Session flow:
-1. Load due cards
-2. For each card, determine stage and pick exercise
-3. User taps an answer
-4. Show feedback (green/red highlight on options)
-5. Play correct word audio
-6. Brief pause, then next card
-7. When done, show results summary
-
----
-
-## 7. Progress Dashboard
-
-### New component: `src/components/progress/ProgressDashboard.tsx`
-
-Displayed on the home page (Index.tsx) for authenticated users:
-
-- **Stage breakdown**: horizontal bar or pill badges showing count per stage (NEW: 5, Stage 1: 3, Stage 2: 8, etc.)
-- **Daily streak**: flame icon with streak count
-- **Accuracy**: percentage from `correct_count / review_count`
-- Compact design that fits the existing home page card layout
-
----
-
-## 8. Integration Points
-
-### Home page (`Index.tsx`)
-- Add ProgressDashboard component below the existing buttons
-- Review buttons continue to work as before, routing to the updated review pages
-
-### Tutor Upload flow
-- When creating `user_vocabulary` entries from approved candidates, also save `sentence_text` and `sentence_english`
-
-### Curriculum Learn flow (`Learn.tsx`)
-- The "New Words" intro+quiz flow stays as-is for first exposure
-- The `/review` route gets the new exercise system
-
----
-
-## 9. Files to Create/Modify
-
-**New files:**
-- `src/lib/stageRepetition.ts` -- stage logic and intervals
-- `src/lib/exerciseTypes.ts` -- exercise type definitions per stage
-- `src/lib/distractorEngine.ts` -- smart distractor generation
-- `src/components/exercises/AudioToArabicChoice.tsx`
-- `src/components/exercises/ArabicToEnglishChoice.tsx`
-- `src/components/exercises/EnglishToArabicChoice.tsx`
-- `src/components/exercises/SentenceAudioCloze.tsx`
-- `src/components/exercises/SentenceAudioToMeaning.tsx`
-- `src/components/exercises/ExerciseWrapper.tsx`
-- `src/hooks/useStageReview.ts`
-- `src/components/progress/ProgressDashboard.tsx`
-
-**Modified files:**
-- `src/pages/MyWordsReview.tsx` -- rewrite to use stage-based exercises
-- `src/pages/Review.tsx` -- rewrite to use stage-based exercises
-- `src/pages/Index.tsx` -- add progress dashboard
-- `src/hooks/useTutorUpload.ts` -- save sentence_text/sentence_english to user_vocabulary
-- `src/hooks/useReview.ts` -- update to use stage logic
-- `src/hooks/useUserVocabulary.ts` -- update types and queries
-- Database migration for new columns
-
-**Unchanged:**
-- `src/lib/spacedRepetition.ts` -- kept for reference but no longer used in review flows
-- `src/pages/Learn.tsx` -- kept as-is for new word introduction
-- Admin pages -- no changes needed
-
----
-
-## Technical Notes
-
-- Audio for exercises: uses `word_audio_url` (My Words) or `audio_url` (curriculum) if available, falls back to ElevenLabs TTS
-- Sentence audio: uses `sentence_audio_url` if available, otherwise generates via TTS from `sentence_text`
-- For curriculum words without sentences, sentence-based exercises will be skipped and replaced with word-level exercises from the same stage
-- The "wrong" result (completely wrong) maps to tapping an answer that is semantically very far from correct -- in practice, any incorrect answer drops one stage, and a "Reset" button on results lets users manually send cards back to NEW if needed
+- Low confidence candidates (< 0.6) display a yellow warning badge: "Low confidence -- please verify"
+- No flashcards are ever auto-created; every item requires explicit approval
+- All fields are editable before approval
+- Rejected items are simply skipped (not stored as flashcards)
+- If classification fails entirely, the system shows the raw transcript segments and lets the user manually tag them
 

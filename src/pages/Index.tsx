@@ -7,7 +7,6 @@ import { Settings, Brain, LogIn, LogOut, Mic, BookOpen, Sparkles, GraduationCap 
 import { cn } from "@/lib/utils";
 import { AppShell } from "@/components/layout/AppShell";
 import lahjaLogo from "@/assets/lahja-logo.png";
-import { ProgressDashboard } from "@/components/progress/ProgressDashboard";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -55,9 +54,6 @@ const Index = () => {
 
       {/* Tagline */}
       <div className="mb-10 text-center" />
-
-      {/* Progress Dashboard */}
-      {isAuthenticated && <ProgressDashboard />}
 
       {/* New Words - main CTA */}
       <button

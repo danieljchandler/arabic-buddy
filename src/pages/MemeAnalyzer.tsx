@@ -226,7 +226,16 @@ const MemeAnalyzer = () => {
       if (error) throw new Error(error.message);
       if (!data?.success || !data?.result) throw new Error(data?.error || "Analysis failed");
 
-      setResult(data.result as MemeAnalysisResult);
+      const analysisResult = data.result as MemeAnalysisResult;
+      
+      // Validate we got meaningful content
+      const hasExplanation = analysisResult.memeExplanation?.casual || analysisResult.memeExplanation?.cultural;
+      const hasLines = (analysisResult.onScreenText?.lines?.length ?? 0) > 0;
+      if (!hasExplanation && !hasLines) {
+        throw new Error("The AI couldn't extract any content from this meme. Try a clearer image.");
+      }
+
+      setResult(analysisResult);
       setProgress(100);
       toast.success("Meme analyzed! 🎉");
     } catch (err) {

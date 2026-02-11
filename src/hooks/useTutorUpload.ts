@@ -278,6 +278,7 @@ export function useTutorUpload() {
           word_audio_url: wordUrlData.publicUrl,
           sentence_audio_url: sentenceAudioUrl || null,
           source_upload_id: uploadId,
+          image_url: imageUrl || null,
         };
 
         const { error: insertError } = await supabase

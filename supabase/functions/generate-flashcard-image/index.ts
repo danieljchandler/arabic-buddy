@@ -21,22 +21,20 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    const prompt = `A single realistic, professional photograph of: ${word_english}. Photo-realistic style, like a high-quality stock photo. Warm, neutral background (soft beige, cream, or light wood). No text, labels, or watermarks. Simple, clear composition focusing on the subject. Good lighting, slightly warm tone.`;
+    const prompt = `Generate a single realistic, professional photograph of: ${word_english}. Photo-realistic style, like a high-quality stock photo. Warm, neutral background (soft beige, cream, or light wood). No text, labels, or watermarks anywhere in the image. Simple, clear composition focusing on the subject. Good lighting, slightly warm tone.`;
 
     console.log(`Generating image for: ${word_english}`);
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/images/generations", {
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${LOVABLE_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "dall-e-3",
-        prompt,
-        n: 1,
-        size: "1024x1024",
-        response_format: "b64_json",
+        model: "google/gemini-2.5-flash-image",
+        messages: [{ role: "user", content: prompt }],
+        modalities: ["image", "text"],
       }),
     });
 
@@ -52,15 +50,20 @@ serve(async (req) => {
     }
 
     const data = await response.json();
-    const b64 = data.data?.[0]?.b64_json;
+    console.log("Response keys:", JSON.stringify(Object.keys(data)));
+    console.log("Choice message keys:", JSON.stringify(Object.keys(data.choices?.[0]?.message || {})));
+    
+    // The image URL comes as a base64 data URI in the images array
+    const imageUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
 
-    if (!b64) {
+    if (!imageUrl) {
+      console.error("No image in response. Full structure:", JSON.stringify(data).substring(0, 500));
       throw new Error("No image generated");
     }
 
-    console.log(`Successfully generated image for: ${word_english}`);
+    console.log(`Successfully generated image for: ${word_english}, length: ${imageUrl.length}`);
 
-    return new Response(JSON.stringify({ success: true, imageBase64: `data:image/png;base64,${b64}` }), {
+    return new Response(JSON.stringify({ success: true, imageBase64: imageUrl }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {

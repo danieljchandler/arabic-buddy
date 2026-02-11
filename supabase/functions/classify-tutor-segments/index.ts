@@ -102,7 +102,7 @@ Return the results using the extract_candidates tool.`;
     // Try Falcon first, fall back to Lovable AI
     let response: Response;
     const requestBody = JSON.stringify({
-      model: 'tgi',
+      model: 'tiiuae/Falcon-H1R-7B',
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: `Here are the transcript segments:\n\n${segmentList}${wordList}` },

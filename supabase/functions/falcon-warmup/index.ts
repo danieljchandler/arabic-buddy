@@ -21,7 +21,7 @@ serve(async (req) => {
     }
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10_000);
+    const timeout = setTimeout(() => controller.abort(), 15_000);
 
     const response = await fetch(`${FALCON_URL}/v1/chat/completions`, {
       method: 'POST',
@@ -31,7 +31,7 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'tgi',
+        model: 'tiiuae/Falcon-H1R-7B',
         messages: [{ role: 'user', content: 'Hi' }],
         max_tokens: 1,
       }),

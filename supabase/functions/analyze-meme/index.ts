@@ -87,7 +87,7 @@ async function callFalcon(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'tgi',
+        model: 'tiiuae/Falcon-H1R-7B',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userContent },

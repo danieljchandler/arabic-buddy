@@ -22,6 +22,7 @@ interface DueUserWord {
   last_reviewed_at: string | null;
   word_audio_url: string | null;
   sentence_audio_url: string | null;
+  image_url: string | null;
 }
 
 const MyWordsReview = () => {
@@ -51,7 +52,7 @@ const MyWordsReview = () => {
       const now = new Date().toISOString();
       const { data, error } = await supabase
         .from("user_vocabulary")
-        .select("id, word_arabic, word_english, ease_factor, interval_days, repetitions, next_review_at, last_reviewed_at, word_audio_url, sentence_audio_url")
+        .select("id, word_arabic, word_english, ease_factor, interval_days, repetitions, next_review_at, last_reviewed_at, word_audio_url, sentence_audio_url, image_url")
         .eq("user_id", user.id)
         .lte("next_review_at", now)
         .order("next_review_at", { ascending: true });
@@ -177,6 +178,16 @@ const MyWordsReview = () => {
       <div className="py-4">
         <div className="max-w-sm mx-auto">
           <div className="rounded-2xl bg-card border border-border p-8 text-center">
+            {/* Image if available */}
+            {currentWord.image_url && (
+              <div className="mb-6 rounded-lg overflow-hidden bg-muted aspect-[4/3] flex items-center justify-center">
+                <img
+                  src={currentWord.image_url}
+                  alt=""
+                  className="w-full h-full object-contain"
+                />
+              </div>
+            )}
             <p
               className="text-4xl font-bold text-foreground mb-6"
               style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}

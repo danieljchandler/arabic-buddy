@@ -66,6 +66,51 @@ function toWordTokens(arabic: string, glosses: Record<string, string> = {}): Wor
   }));
 }
 
+async function callFalcon(
+  systemPrompt: string,
+  userContent: string,
+  maxTokens = 4096,
+): Promise<string | null> {
+  const FALCON_URL = Deno.env.get('FALCON_HF_ENDPOINT_URL');
+  const FALCON_KEY = Deno.env.get('FALCON_HF_API_KEY');
+  if (!FALCON_URL || !FALCON_KEY) return null;
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 50_000);
+
+    const response = await fetch(`${FALCON_URL}/v1/chat/completions`, {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        'Authorization': `Bearer ${FALCON_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'tgi',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userContent },
+        ],
+        max_tokens: maxTokens,
+        temperature: 0.3,
+      }),
+    });
+    clearTimeout(timeout);
+
+    if (!response.ok) {
+      console.warn('Falcon error:', response.status);
+      return null;
+    }
+
+    const data = await response.json();
+    return data.choices?.[0]?.message?.content || null;
+  } catch (e) {
+    console.warn('Falcon call failed:', e instanceof Error ? e.message : String(e));
+    return null;
+  }
+}
+
 async function callAI(
   systemPrompt: string,
   userContent: string | Array<{ type: string; text?: string; image_url?: { url: string } }>,
@@ -266,7 +311,9 @@ serve(async (req) => {
     // If we have audio transcript but no image analysis, or need separate audio analysis
     if (audioTranscript && !imageBase64) {
       console.log('Analyzing audio transcript...');
-      const rawResponse = await callAI(AUDIO_ANALYSIS_PROMPT, audioTranscript, LOVABLE_API_KEY, 4096);
+      // Try Falcon first for text-only analysis, fall back to Lovable AI
+      const falconResult = await callFalcon(AUDIO_ANALYSIS_PROMPT, audioTranscript, 4096);
+      const rawResponse = falconResult || await callAI(AUDIO_ANALYSIS_PROMPT, audioTranscript, LOVABLE_API_KEY, 4096);
       audioResult = safeJsonParse<any>(rawResponse);
     }
 

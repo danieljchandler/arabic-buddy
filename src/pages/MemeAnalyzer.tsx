@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -79,6 +79,12 @@ async function imageToBase64(file: File): Promise<string> {
 
 const MemeAnalyzer = () => {
   const { user, isAuthenticated } = useAuth();
+
+  // Fire-and-forget Falcon warm-up on mount
+  useEffect(() => {
+    supabase.functions.invoke('falcon-warmup').catch(() => {});
+  }, []);
+
   const addUserVocabulary = useAddUserVocabulary();
   const [savedWords, setSavedWords] = useState<Set<string>>(new Set());
   const [vocabSectionWords, setVocabSectionWords] = useState<Set<string>>(new Set());

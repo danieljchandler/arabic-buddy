@@ -170,6 +170,12 @@ const MAX_DURATION = 180; // 3 minutes
 
 const Transcribe = () => {
   const { user, isAuthenticated } = useAuth();
+
+  // Fire-and-forget Falcon warm-up on mount
+  useEffect(() => {
+    supabase.functions.invoke('falcon-warmup').catch(() => {});
+  }, []);
+
   const addUserVocabulary = useAddUserVocabulary();
   const [savedWords, setSavedWords] = useState<Set<string>>(new Set());
   const [vocabSectionWords, setVocabSectionWords] = useState<Set<string>>(new Set());

@@ -1,4 +1,4 @@
-import { useRef, useCallback } from "react";
+import { useRef, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
 import { HomeButton } from "@/components/HomeButton";
@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Upload, FileAudio, X, Check, Loader2, BookOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import { useTutorUpload } from "@/hooks/useTutorUpload";
 import { CandidateList } from "@/components/tutor/CandidateList";
 import { useAuth } from "@/hooks/useAuth";
@@ -15,6 +16,12 @@ import { useAuth } from "@/hooks/useAuth";
 const TutorUpload = () => {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
+
+  // Fire-and-forget Falcon warm-up on mount
+  useEffect(() => {
+    supabase.functions.invoke('falcon-warmup').catch(() => {});
+  }, []);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const {
     step,

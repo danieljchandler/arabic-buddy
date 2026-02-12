@@ -18,7 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Loader2, ArrowLeft, Sparkles, Save } from "lucide-react";
+import { Loader2, ArrowLeft, Sparkles, Save, Upload, Download } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import type { TranscriptLine } from "@/types/transcript";
@@ -58,6 +58,15 @@ const AdminVideoForm = () => {
   const [mediaDuration, setMediaDuration] = useState<number | null>(null);
   const [timeRange, setTimeRange] = useState<[number, number]>([0, MAX_DURATION]);
   const [audioFile, setAudioFile] = useState<File | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setAudioFile(file);
+    detectFileDuration(file);
+    toast.success("File loaded! Select the time range, then process.");
+  };
 
   const detectFileDuration = useCallback((file: File) => {
     const el = file.type.startsWith("video/")
@@ -113,8 +122,8 @@ const AdminVideoForm = () => {
   const handleDownloadAudio = async () => {
     if (!sourceUrl) return;
 
+    setIsDownloading(true);
     try {
-      toast.info("Downloading audio...");
       const { data: downloadData, error: downloadError } = await supabase.functions.invoke(
         "download-media",
         { body: { url: sourceUrl } }
@@ -142,9 +151,11 @@ const AdminVideoForm = () => {
       toast.success("Audio downloaded! Select the time range, then process.");
     } catch (err) {
       console.error("Download error:", err);
-      toast.error("Download failed", {
+      toast.error("Download failed — use 'Upload File' instead", {
         description: err instanceof Error ? err.message : "Unknown error",
       });
+    } finally {
+      setIsDownloading(false);
     }
   };
 
@@ -341,15 +352,45 @@ const AdminVideoForm = () => {
               </div>
             )}
 
-            {/* Step 1: Download */}
-            <Button
-              onClick={handleDownloadAudio}
-              disabled={!sourceUrl || !!audioFile || isProcessing}
-              variant="outline"
-              className="w-full"
-            >
-              {!audioFile ? "Download Audio" : "✓ Audio Downloaded"}
-            </Button>
+            {/* Step 1: Download or Upload */}
+            {!audioFile ? (
+              <div className="flex gap-2">
+                <Button
+                  onClick={handleDownloadAudio}
+                  disabled={!sourceUrl || isDownloading || isProcessing}
+                  variant="outline"
+                  className="flex-1"
+                >
+                  {isDownloading ? (
+                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Downloading...</>
+                  ) : (
+                    <><Download className="h-4 w-4 mr-2" />Download Audio</>
+                  )}
+                </Button>
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => document.getElementById("audio-upload")?.click()}
+                  disabled={isProcessing}
+                >
+                  <Upload className="h-4 w-4 mr-2" />Upload File
+                </Button>
+                <input
+                  id="audio-upload"
+                  type="file"
+                  accept="audio/*,video/*"
+                  className="hidden"
+                  onChange={handleFileUpload}
+                />
+              </div>
+            ) : (
+              <div className="flex gap-2 items-center">
+                <Badge variant="secondary" className="py-1.5">✓ Audio Ready</Badge>
+                <Button variant="ghost" size="sm" onClick={() => { setAudioFile(null); setMediaDuration(null); }}>
+                  Change
+                </Button>
+              </div>
+            )}
 
             {/* Step 2: Time range */}
             {mediaDuration && mediaDuration > 0 && (

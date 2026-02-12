@@ -20,30 +20,36 @@
    vocabSectionWords?: Set<string>;
  }
  
- interface InlineTokenProps {
-   token: WordToken;
-   isHighlighted?: boolean;
-   onAddToVocabSection?: (word: VocabItem) => void;
-   onSaveToMyWords?: (word: VocabItem) => void;
-   isSavedToMyWords?: boolean;
-   isInVocabSection?: boolean;
- }
+interface InlineTokenProps {
+  token: WordToken;
+  parentLine: TranscriptLine;
+  isHighlighted?: boolean;
+  onAddToVocabSection?: (word: VocabItem) => void;
+  onSaveToMyWords?: (word: VocabItem) => void;
+  isSavedToMyWords?: boolean;
+  isInVocabSection?: boolean;
+}
  
- const InlineToken = ({ 
-   token, 
-   isHighlighted, 
-   onAddToVocabSection,
-   onSaveToMyWords,
-   isSavedToMyWords,
-   isInVocabSection,
- }: InlineTokenProps) => {
-   const [open, setOpen] = useState(false);
-   const hasGloss = !!token.gloss;
-   
-   const vocabItem: VocabItem = {
-     arabic: token.surface,
-     english: token.gloss || "",
-   };
+const InlineToken = ({ 
+  token, 
+  parentLine,
+  isHighlighted, 
+  onAddToVocabSection,
+  onSaveToMyWords,
+  isSavedToMyWords,
+  isInVocabSection,
+}: InlineTokenProps) => {
+  const [open, setOpen] = useState(false);
+  const hasGloss = !!token.gloss;
+  
+  const vocabItem: VocabItem = {
+    arabic: token.surface,
+    english: token.gloss || "",
+    sentenceText: parentLine.arabic,
+    sentenceEnglish: parentLine.translation,
+    startMs: parentLine.startMs,
+    endMs: parentLine.endMs,
+  };
 
    return (
      <Popover open={open} onOpenChange={setOpen}>
@@ -234,15 +240,16 @@ interface TranscriptLineCardProps {
          >
           {line.tokens && line.tokens.length > 0 ? (
              line.tokens.map((token, index) => (
-               <span key={token.id} data-token className="inline">
-                  <InlineToken 
-                    token={token} 
-                    isHighlighted={isTokenHighlighted(token, index)}
-                    onAddToVocabSection={onAddToVocabSection}
-                    onSaveToMyWords={onSaveToMyWords}
-                    isSavedToMyWords={savedWords?.has(token.surface)}
-                    isInVocabSection={vocabSectionWords?.has(token.surface)}
-                  />
+                <span key={token.id} data-token className="inline">
+                   <InlineToken 
+                     token={token}
+                     parentLine={line}
+                     isHighlighted={isTokenHighlighted(token, index)}
+                     onAddToVocabSection={onAddToVocabSection}
+                     onSaveToMyWords={onSaveToMyWords}
+                     isSavedToMyWords={savedWords?.has(token.surface)}
+                     isInVocabSection={vocabSectionWords?.has(token.surface)}
+                   />
                  {/* Add space between words, but not after punctuation-only tokens */}
                  {index < line.tokens.length - 1 &&
                    !/^[،؟.!:؛]+$/.test(token.surface) && " "}

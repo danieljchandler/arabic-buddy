@@ -84,6 +84,9 @@ export const useAddUserVocabulary = () => {
       word_english: string; 
       root?: string;
       source?: string;
+      sentence_text?: string;
+      sentence_english?: string;
+      sentence_audio_url?: string;
     }) => {
       if (!user) throw new Error("Must be logged in");
 
@@ -95,6 +98,9 @@ export const useAddUserVocabulary = () => {
           word_english: word.word_english,
           root: word.root || null,
           source: word.source || "transcription",
+          sentence_text: word.sentence_text || null,
+          sentence_english: word.sentence_english || null,
+          sentence_audio_url: word.sentence_audio_url || null,
         })
         .select()
         .single();

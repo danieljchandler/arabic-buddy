@@ -244,7 +244,11 @@ export function useTutorUpload() {
               { body: { word_arabic: candidate.word_text, word_english: candidate.word_english } }
             );
 
-            if (!imgError && imgData?.imageBase64) {
+            if (imgError) {
+              console.error("Image generation edge function error:", candidate.word_english, imgError);
+            } else if (!imgData?.imageBase64) {
+              console.warn("No image returned for:", candidate.word_english, "Response:", JSON.stringify(imgData)?.substring(0, 200));
+            } else {
               // Upload base64 image to storage
               const base64Data = imgData.imageBase64.replace(/^data:image\/\w+;base64,/, '');
               const imgBytes = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
@@ -260,6 +264,8 @@ export function useTutorUpload() {
                   .from("flashcard-images")
                   .getPublicUrl(imgPath);
                 imageUrl = imgUrlData.publicUrl;
+              } else {
+                console.error("Image upload error:", imgUpErr);
               }
             }
           } catch (imgErr) {

@@ -14,6 +14,69 @@ export type Database = {
   }
   public: {
     Tables: {
+      discover_videos: {
+        Row: {
+          created_at: string
+          created_by: string
+          cultural_context: string | null
+          dialect: string
+          difficulty: string
+          duration_seconds: number | null
+          embed_url: string
+          grammar_points: Json
+          id: string
+          platform: string
+          published: boolean
+          source_url: string
+          thumbnail_url: string | null
+          title: string
+          title_arabic: string | null
+          transcript_lines: Json
+          updated_at: string
+          vocabulary: Json
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          cultural_context?: string | null
+          dialect?: string
+          difficulty?: string
+          duration_seconds?: number | null
+          embed_url: string
+          grammar_points?: Json
+          id?: string
+          platform?: string
+          published?: boolean
+          source_url: string
+          thumbnail_url?: string | null
+          title: string
+          title_arabic?: string | null
+          transcript_lines?: Json
+          updated_at?: string
+          vocabulary?: Json
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          cultural_context?: string | null
+          dialect?: string
+          difficulty?: string
+          duration_seconds?: number | null
+          embed_url?: string
+          grammar_points?: Json
+          id?: string
+          platform?: string
+          published?: boolean
+          source_url?: string
+          thumbnail_url?: string | null
+          title?: string
+          title_arabic?: string | null
+          transcript_lines?: Json
+          updated_at?: string
+          vocabulary?: Json
+        }
+        Relationships: []
+      }
       review_streaks: {
         Row: {
           created_at: string

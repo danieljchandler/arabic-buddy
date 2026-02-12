@@ -3,7 +3,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useReviewStats } from "@/hooks/useReview";
 import { useUserVocabularyDueCount } from "@/hooks/useUserVocabulary";
 import { Button } from "@/components/design-system";
-import { Settings, Brain, LogIn, LogOut, Mic, BookOpen, Sparkles, GraduationCap, Laugh } from "lucide-react";
+import { Settings, Brain, LogIn, LogOut, Mic, BookOpen, Sparkles, GraduationCap, Laugh, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AppShell } from "@/components/layout/AppShell";
 import lahjaLogo from "@/assets/lahja-logo.png";
@@ -184,6 +184,28 @@ const Index = () => {
           </div>
         </button>
       )}
+
+      {/* Discover */}
+      <button
+        onClick={() => navigate("/discover")}
+        className={cn(
+          "w-full mb-6 p-5 rounded-xl",
+          "bg-card border border-border",
+          "flex items-center gap-4",
+          "transition-all duration-200",
+          "hover:border-primary/20"
+        )}
+      >
+        <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+          <Play className="h-5 w-5 text-primary" />
+        </div>
+        <div className="text-left">
+          <p className="font-semibold text-foreground">Discover</p>
+          <p className="text-sm text-muted-foreground">
+            Watch Arabic videos with subtitles
+          </p>
+        </div>
+      </button>
 
       {/* Meme Analyzer */}
       <button

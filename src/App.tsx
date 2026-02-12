@@ -17,6 +17,8 @@ import MyWords from "./pages/MyWords";
 import TutorUpload from "./pages/TutorUpload";
 import MyWordsReview from "./pages/MyWordsReview";
 import MemeAnalyzer from "./pages/MemeAnalyzer";
+import Discover from "./pages/Discover";
+import DiscoverVideo from "./pages/DiscoverVideo";
 
 // Admin pages
 import AdminLogin from "./pages/admin/AdminLogin";
@@ -27,6 +29,8 @@ import TopicForm from "./pages/admin/TopicForm";
 import Words from "./pages/admin/Words";
 import WordForm from "./pages/admin/WordForm";
 import BulkWordImport from "./pages/admin/BulkWordImport";
+import AdminVideos from "./pages/admin/AdminVideos";
+import AdminVideoForm from "./pages/admin/AdminVideoForm";
 
 const queryClient = new QueryClient();
 
@@ -128,6 +132,8 @@ const App = () => {
             <Route path="/learn" element={<Learn />} />
             <Route path="/learn/:topicId" element={<Learn />} />
             <Route path="/quiz/:topicId" element={<Quiz />} />
+            <Route path="/discover" element={<Discover />} />
+            <Route path="/discover/:videoId" element={<DiscoverVideo />} />
 
             {/* Admin routes */}
             <Route path="/admin/login" element={<AdminLogin />} />
@@ -143,6 +149,9 @@ const App = () => {
                 element={<WordForm />}
               />
               <Route path="topics/:topicId/words/bulk" element={<BulkWordImport />} />
+              <Route path="videos" element={<AdminVideos />} />
+              <Route path="videos/new" element={<AdminVideoForm />} />
+              <Route path="videos/:videoId/edit" element={<AdminVideoForm />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />

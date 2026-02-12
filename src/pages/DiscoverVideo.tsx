@@ -1,17 +1,20 @@
-import { useState, useEffect, useRef, useCallback } from "react";
-import { useParams } from "react-router-dom";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import { useDiscoverVideo } from "@/hooks/useDiscoverVideos";
 import { useAuth } from "@/hooks/useAuth";
 import { useAddUserVocabulary } from "@/hooks/useUserVocabulary";
-import { AppShell } from "@/components/layout/AppShell";
-import { HomeButton } from "@/components/HomeButton";
-import { LineByLineTranscript } from "@/components/transcript/LineByLineTranscript";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Loader2, ArrowLeft } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { Switch } from "@/components/ui/switch";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Loader2, ArrowLeft, BookOpen, Check, Plus, Eye, EyeOff, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
-import type { TranscriptLine, VocabItem } from "@/types/transcript";
+import { cn } from "@/lib/utils";
+import type { TranscriptLine, WordToken, VocabItem } from "@/types/transcript";
 
 declare global {
   interface Window {
@@ -20,6 +23,167 @@ declare global {
   }
 }
 
+/* ── Clickable Word Token ─────────────────────────────────── */
+const ClickableWord = ({
+  token,
+  parentLine,
+  onSave,
+  isSaved,
+}: {
+  token: WordToken;
+  parentLine: TranscriptLine;
+  onSave?: (word: VocabItem) => void;
+  isSaved?: boolean;
+}) => {
+  const [open, setOpen] = useState(false);
+  const hasGloss = !!token.gloss;
+
+  const vocabItem: VocabItem = {
+    arabic: token.surface,
+    english: token.gloss || "",
+    sentenceText: parentLine.arabic,
+    sentenceEnglish: parentLine.translation,
+    startMs: parentLine.startMs,
+    endMs: parentLine.endMs,
+  };
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <span
+          className={cn(
+            "cursor-pointer transition-colors duration-150 rounded px-0.5",
+            "hover:bg-primary/15 hover:text-primary",
+          )}
+          role="button"
+          tabIndex={0}
+        >
+          {token.surface}
+        </span>
+      </PopoverTrigger>
+      <PopoverContent
+        side="top"
+        align="center"
+        className="w-auto min-w-[200px] p-3 z-[100]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="space-y-3">
+          <div className="text-center border-b border-border pb-2">
+            <p
+              className="text-xl font-bold text-foreground mb-1"
+              style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
+              dir="rtl"
+            >
+              {token.surface}
+            </p>
+            {hasGloss && <p className="text-sm text-muted-foreground">{token.gloss}</p>}
+            {token.standard && (
+              <p className="text-xs text-muted-foreground/70" dir="rtl">
+                (Standard: {token.standard})
+              </p>
+            )}
+            {!hasGloss && (
+              <p className="text-xs text-muted-foreground italic">No definition available</p>
+            )}
+          </div>
+          {onSave && (
+            <Button
+              variant="default"
+              size="sm"
+              className="w-full justify-start gap-2"
+              onClick={() => {
+                onSave(vocabItem);
+                setOpen(false);
+              }}
+              disabled={isSaved}
+            >
+              {isSaved ? (
+                <><Check className="h-4 w-4" /> Saved to My Words</>
+              ) : (
+                <><BookOpen className="h-4 w-4" /> Save to My Words</>
+              )}
+            </Button>
+          )}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+};
+
+/* ── Transcript Line Row ──────────────────────────────────── */
+const TranscriptRow = ({
+  line,
+  isActive,
+  showTranslation,
+  onSave,
+  savedWords,
+  lineRef,
+  onSeek,
+}: {
+  line: TranscriptLine;
+  isActive: boolean;
+  showTranslation: boolean;
+  onSave?: (word: VocabItem) => void;
+  savedWords?: Set<string>;
+  lineRef?: React.Ref<HTMLDivElement>;
+  onSeek?: (ms: number) => void;
+}) => {
+  return (
+    <div
+      ref={lineRef}
+      className={cn(
+        "px-4 py-3 rounded-lg transition-all duration-300 border border-transparent",
+        isActive
+          ? "bg-primary/8 border-primary/30 scale-[1.01]"
+          : "hover:bg-muted/40",
+      )}
+      onClick={() => line.startMs !== undefined && onSeek?.(line.startMs)}
+      role={line.startMs !== undefined ? "button" : undefined}
+      style={{ cursor: line.startMs !== undefined ? "pointer" : "default" }}
+    >
+      {/* Arabic text */}
+      <p
+        className={cn(
+          "text-lg leading-[2] transition-colors",
+          isActive ? "text-foreground font-medium" : "text-foreground/80",
+        )}
+        dir="rtl"
+        style={{ fontFamily: "'Cairo', 'Traditional Arabic', sans-serif" }}
+      >
+        {line.tokens && line.tokens.length > 0
+          ? line.tokens.map((token, i) => (
+              <span key={token.id} className="inline">
+                <ClickableWord
+                  token={token}
+                  parentLine={line}
+                  onSave={onSave}
+                  isSaved={savedWords?.has(token.surface)}
+                />
+                {i < line.tokens.length - 1 && !/^[،؟.!:؛]+$/.test(token.surface) && " "}
+              </span>
+            ))
+          : line.arabic}
+      </p>
+
+      {/* English translation */}
+      <div
+        className={cn(
+          "overflow-hidden transition-all duration-200",
+          showTranslation ? "max-h-20 opacity-100 mt-1" : "max-h-0 opacity-0",
+        )}
+      >
+        <p
+          className="text-sm text-muted-foreground leading-relaxed"
+          style={{ fontFamily: "'Open Sans', sans-serif" }}
+        >
+          {line.translation}
+        </p>
+      </div>
+    </div>
+  );
+};
+
+/* ── Main Page ────────────────────────────────────────────── */
 const DiscoverVideo = () => {
   const { videoId } = useParams<{ videoId: string }>();
   const navigate = useNavigate();
@@ -29,15 +193,17 @@ const DiscoverVideo = () => {
 
   const [currentTimeMs, setCurrentTimeMs] = useState(0);
   const [savedWords, setSavedWords] = useState<Set<string>>(new Set());
+  const [showTranslations, setShowTranslations] = useState(true);
   const playerRef = useRef<any>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const iframeRef = useRef<HTMLDivElement>(null);
+  const lineRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const transcriptContainerRef = useRef<HTMLDivElement>(null);
 
   // Load YouTube IFrame API
   useEffect(() => {
     if (video?.platform !== "youtube") return;
     if (window.YT && window.YT.Player) return;
-
     const tag = document.createElement("script");
     tag.src = "https://www.youtube.com/iframe_api";
     document.head.appendChild(tag);
@@ -46,7 +212,6 @@ const DiscoverVideo = () => {
   // Initialize YouTube player
   useEffect(() => {
     if (!video || video.platform !== "youtube" || !iframeRef.current) return;
-
     const ytVideoId = video.embed_url.match(/embed\/([a-zA-Z0-9_-]+)/)?.[1];
     if (!ytVideoId) return;
 
@@ -54,14 +219,9 @@ const DiscoverVideo = () => {
       if (playerRef.current) return;
       playerRef.current = new window.YT.Player(iframeRef.current!, {
         videoId: ytVideoId,
-        playerVars: {
-          enablejsapi: 1,
-          modestbranding: 1,
-          rel: 0,
-        },
+        playerVars: { enablejsapi: 1, modestbranding: 1, rel: 0 },
         events: {
           onStateChange: (event: any) => {
-            // Playing
             if (event.data === 1) {
               intervalRef.current = setInterval(() => {
                 if (playerRef.current?.getCurrentTime) {
@@ -79,16 +239,20 @@ const DiscoverVideo = () => {
       });
     };
 
-    if (window.YT && window.YT.Player) {
-      initPlayer();
-    } else {
-      window.onYouTubeIframeAPIReady = initPlayer;
-    }
+    if (window.YT && window.YT.Player) initPlayer();
+    else window.onYouTubeIframeAPIReady = initPlayer;
 
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
   }, [video]);
+
+  const handleSeek = useCallback((ms: number) => {
+    if (playerRef.current?.seekTo) {
+      playerRef.current.seekTo(ms / 1000, true);
+      playerRef.current.playVideo?.();
+    }
+  }, []);
 
   const handleSaveToMyWords = useCallback(
     async (word: VocabItem) => {
@@ -115,92 +279,207 @@ const DiscoverVideo = () => {
         }
       }
     },
-    [isAuthenticated, addUserVocabulary]
+    [isAuthenticated, addUserVocabulary],
+  );
+
+  const lines = useMemo(
+    () => ((video?.transcript_lines as any[]) ?? []) as TranscriptLine[],
+    [video],
+  );
+
+  // Find the currently active line
+  const activeLineId = useMemo(() => {
+    if (!lines.length || currentTimeMs <= 0) return null;
+    for (let i = lines.length - 1; i >= 0; i--) {
+      const line = lines[i];
+      if (line.startMs !== undefined && currentTimeMs >= line.startMs) {
+        if (line.endMs === undefined || currentTimeMs <= line.endMs + 500) {
+          return line.id;
+        }
+      }
+    }
+    return null;
+  }, [lines, currentTimeMs]);
+
+  // Auto-scroll to active line
+  useEffect(() => {
+    if (!activeLineId) return;
+    const el = lineRefs.current.get(activeLineId);
+    if (el && transcriptContainerRef.current) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [activeLineId]);
+
+  const vocabulary = useMemo(
+    () => ((video?.vocabulary as any[]) ?? []) as VocabItem[],
+    [video],
   );
 
   if (isLoading) {
     return (
-      <AppShell>
-        <div className="flex justify-center py-16">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      </AppShell>
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
     );
   }
 
   if (!video) {
     return (
-      <AppShell>
-        <HomeButton />
-        <p className="text-center text-muted-foreground py-16">Video not found</p>
-      </AppShell>
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <p className="text-muted-foreground">Video not found</p>
+      </div>
     );
   }
 
-  const lines = (video.transcript_lines as any[] ?? []) as TranscriptLine[];
-
   return (
-    <AppShell>
-      <div className="mb-4">
-        <Button variant="ghost" size="sm" onClick={() => navigate("/discover")} className="gap-1.5">
-          <ArrowLeft className="h-4 w-4" />
-          Back to Discover
-        </Button>
+    <div className="min-h-screen bg-background flex flex-col">
+      {/* Sticky video section */}
+      <div className="sticky top-0 z-30 bg-background">
+        {/* Back nav */}
+        <div className="px-4 py-2 flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate("/discover")}
+            className="gap-1.5 text-muted-foreground"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back
+          </Button>
+          <div className="flex-1" />
+          <div className="flex gap-1.5">
+            <Badge variant="outline" className="text-xs">{video.dialect}</Badge>
+            <Badge variant="outline" className="text-xs">{video.difficulty}</Badge>
+          </div>
+        </div>
+
+        {/* Video embed */}
+        <div className="bg-black">
+          {video.platform === "youtube" ? (
+            <div className="aspect-video max-h-[45vh] mx-auto">
+              <div ref={iframeRef} className="w-full h-full" />
+            </div>
+          ) : (
+            <div className="aspect-video max-h-[45vh] mx-auto">
+              <iframe
+                src={video.embed_url}
+                className="w-full h-full"
+                allowFullScreen
+                allow="autoplay; encrypted-media"
+              />
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Video embed */}
-      <div className="rounded-xl overflow-hidden bg-foreground/5 mb-4">
-        {video.platform === "youtube" ? (
-          <div className="aspect-video">
-            <div ref={iframeRef} className="w-full h-full" />
-          </div>
-        ) : (
-          <div className="aspect-video">
-            <iframe
-              src={video.embed_url}
-              className="w-full h-full"
-              allowFullScreen
-              allow="autoplay; encrypted-media"
-            />
-          </div>
-        )}
-      </div>
-
-      {/* Title & metadata */}
-      <div className="mb-6">
-        <h1 className="text-lg font-bold text-foreground mb-2">{video.title}</h1>
+      {/* Title bar */}
+      <div className="px-4 py-3 border-b border-border bg-card">
+        <h1
+          className="text-base font-bold text-foreground"
+          style={{ fontFamily: "'Montserrat', sans-serif" }}
+        >
+          {video.title}
+        </h1>
         {video.title_arabic && (
-          <p className="text-base font-arabic text-foreground/80 mb-2" dir="rtl">
+          <p
+            className="text-sm text-foreground/70 mt-0.5"
+            dir="rtl"
+            style={{ fontFamily: "'Cairo', sans-serif" }}
+          >
             {video.title_arabic}
           </p>
         )}
-        <div className="flex gap-1.5 flex-wrap">
-          <Badge variant="outline">{video.dialect}</Badge>
-          <Badge variant="outline">{video.difficulty}</Badge>
-          <Badge variant="outline" className="capitalize">{video.platform}</Badge>
+      </div>
+
+      {/* Transcript controls */}
+      <div className="px-4 py-2 flex items-center justify-between border-b border-border/50 bg-card/50">
+        <h2
+          className="text-sm font-semibold text-foreground"
+          style={{ fontFamily: "'Montserrat', sans-serif" }}
+        >
+          Transcript · {lines.length} lines
+        </h2>
+        <div className="flex items-center gap-2">
+          {showTranslations ? (
+            <Eye className="h-3.5 w-3.5 text-muted-foreground" />
+          ) : (
+            <EyeOff className="h-3.5 w-3.5 text-muted-foreground" />
+          )}
+          <span className="text-xs text-muted-foreground">EN</span>
+          <Switch
+            checked={showTranslations}
+            onCheckedChange={setShowTranslations}
+          />
         </div>
       </div>
 
-      {/* Synced transcript */}
-      {lines.length > 0 && (
-        <LineByLineTranscript
-          lines={lines}
-          currentTimeMs={currentTimeMs}
-          onSaveToMyWords={isAuthenticated ? handleSaveToMyWords : undefined}
-          savedWords={savedWords}
-        />
-      )}
+      {/* Scrollable transcript */}
+      <div
+        ref={transcriptContainerRef}
+        className="flex-1 overflow-y-auto px-2 py-3 space-y-1"
+      >
+        {lines.map((line) => (
+          <TranscriptRow
+            key={line.id}
+            line={line}
+            isActive={activeLineId === line.id}
+            showTranslation={showTranslations}
+            onSave={isAuthenticated ? handleSaveToMyWords : undefined}
+            savedWords={savedWords}
+            lineRef={(el) => {
+              if (el) lineRefs.current.set(line.id, el);
+              else lineRefs.current.delete(line.id);
+            }}
+            onSeek={handleSeek}
+          />
+        ))}
 
-      {/* Cultural context */}
-      {video.cultural_context && (
-        <div className="mt-6 p-4 rounded-xl bg-card border border-border">
-          <h3 className="font-semibold text-foreground mb-2" style={{ fontFamily: "'Montserrat', sans-serif" }}>
-            Cultural Context
-          </h3>
-          <p className="text-sm text-muted-foreground leading-relaxed">{video.cultural_context}</p>
+        {lines.length === 0 && (
+          <p className="text-center text-muted-foreground py-8 text-sm">
+            No transcript available for this video.
+          </p>
+        )}
+      </div>
+
+      {/* Vocabulary & cultural context footer */}
+      {(vocabulary.length > 0 || video.cultural_context) && (
+        <div className="border-t border-border bg-card px-4 py-4 space-y-4">
+          {vocabulary.length > 0 && (
+            <details className="group">
+              <summary className="flex items-center gap-2 cursor-pointer text-sm font-semibold text-foreground">
+                <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180 text-muted-foreground" />
+                Key Vocabulary ({vocabulary.length})
+              </summary>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                {vocabulary.map((v, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center justify-between gap-2 p-2 rounded-lg bg-muted/50 text-sm"
+                  >
+                    <span dir="rtl" className="font-medium text-foreground" style={{ fontFamily: "'Cairo', sans-serif" }}>
+                      {v.arabic}
+                    </span>
+                    <span className="text-muted-foreground text-xs truncate">{v.english}</span>
+                  </div>
+                ))}
+              </div>
+            </details>
+          )}
+
+          {video.cultural_context && (
+            <details className="group">
+              <summary className="flex items-center gap-2 cursor-pointer text-sm font-semibold text-foreground">
+                <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180 text-muted-foreground" />
+                Cultural Context
+              </summary>
+              <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
+                {video.cultural_context}
+              </p>
+            </details>
+          )}
         </div>
       )}
-    </AppShell>
+    </div>
   );
 };
 

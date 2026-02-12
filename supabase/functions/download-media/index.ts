@@ -191,49 +191,77 @@ async function downloadTikTok(url: string): Promise<{ base64: string; contentTyp
  * Try Cobalt v7 API as a generic fallback.
  */
 async function downloadViaCobalt(url: string): Promise<{ base64: string; contentType: string; size: number; filename: string } | null> {
-  const instance = "https://downloadapi.stuff.solutions";
-  console.log(`Trying Cobalt v7: ${url}`);
+  // Try multiple Cobalt instances with both v7 and v10 API formats
+  const instances = [
+    { url: "https://api.cobalt.tools", version: "v10" },
+    { url: "https://downloadapi.stuff.solutions", version: "v7" },
+  ];
 
-  try {
-    const cobaltResp = await fetch(`${instance}/api/json`, {
-      method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        url,
-        isAudioOnly: true,
-        aFormat: 'mp3',
-      }),
-    });
+  for (const instance of instances) {
+    console.log(`Trying Cobalt ${instance.version}: ${instance.url} for ${url}`);
+    try {
+      let cobaltResp: Response;
 
-    const cobaltData = await cobaltResp.json();
-    console.log(`Cobalt response: ${JSON.stringify(cobaltData).substring(0, 300)}`);
+      if (instance.version === "v10") {
+        cobaltResp = await fetch(`${instance.url}/`, {
+          method: 'POST',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            url,
+            downloadMode: 'audio',
+            audioFormat: 'mp3',
+          }),
+        });
+      } else {
+        cobaltResp = await fetch(`${instance.url}/api/json`, {
+          method: 'POST',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            url,
+            isAudioOnly: true,
+            aFormat: 'mp3',
+          }),
+        });
+      }
 
-    let downloadUrl: string | null = null;
-    let filename = 'audio.mp3';
+      if (!cobaltResp.ok) {
+        console.error(`Cobalt ${instance.version} returned ${cobaltResp.status}`);
+        continue;
+      }
 
-    if (cobaltData.status === 'stream' || cobaltData.status === 'success' || cobaltData.status === 'redirect') {
-      downloadUrl = cobaltData.url;
-    } else if (cobaltData.url && !cobaltData.error) {
-      downloadUrl = cobaltData.url;
-    } else {
-      console.error(`Cobalt error: ${JSON.stringify(cobaltData.error || cobaltData.text || cobaltData)}`);
-      return null;
+      const cobaltData = await cobaltResp.json();
+      console.log(`Cobalt response: ${JSON.stringify(cobaltData).substring(0, 300)}`);
+
+      let downloadUrl: string | null = null;
+      let filename = 'audio.mp3';
+
+      if (cobaltData.status === 'tunnel' || cobaltData.status === 'stream' || cobaltData.status === 'success' || cobaltData.status === 'redirect') {
+        downloadUrl = cobaltData.url;
+      } else if (cobaltData.url && !cobaltData.error) {
+        downloadUrl = cobaltData.url;
+      } else {
+        console.error(`Cobalt error: ${JSON.stringify(cobaltData.error || cobaltData.text || cobaltData)}`);
+        continue;
+      }
+
+      if (!downloadUrl) continue;
+
+      const data = await downloadAsBase64(downloadUrl);
+      if (data) {
+        return { ...data, filename: cobaltData.filename || filename };
+      }
+    } catch (e) {
+      console.error(`Cobalt ${instance.version} error:`, e);
     }
-
-    if (!downloadUrl) return null;
-
-    const data = await downloadAsBase64(downloadUrl);
-    if (data) {
-      return { ...data, filename: cobaltData.filename || filename };
-    }
-    return null;
-  } catch (e) {
-    console.error(`Cobalt error:`, e);
-    return null;
   }
+
+  return null;
 }
 
 serve(async (req) => {

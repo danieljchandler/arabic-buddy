@@ -34,11 +34,12 @@ serve(async (req) => {
   }
 
   try {
-    const MUNSIT_API_KEY = Deno.env.get("MUNSIT_API_KEY");
+    const MUNSIT_API_KEY = Deno.env.get("MUNSIT_API_KEY")?.trim();
     if (!MUNSIT_API_KEY) {
       console.error("MUNSIT_API_KEY is not configured");
       throw new Error("MUNSIT_API_KEY is not configured");
     }
+    console.log(`MUNSIT_API_KEY prefix: ${MUNSIT_API_KEY.substring(0, 10)}... (length: ${MUNSIT_API_KEY.length})`);
 
     let audioFile: File | null = null;
 

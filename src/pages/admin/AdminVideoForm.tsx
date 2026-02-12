@@ -53,10 +53,9 @@ const AdminVideoForm = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Time range selection
-  const MAX_DURATION = 180;
+  // Time range selection (no limit for admin discover videos)
   const [mediaDuration, setMediaDuration] = useState<number | null>(null);
-  const [timeRange, setTimeRange] = useState<[number, number]>([0, MAX_DURATION]);
+  const [timeRange, setTimeRange] = useState<[number, number]>([0, 0]);
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
 
@@ -79,7 +78,7 @@ const AdminVideoForm = () => {
       const dur = Math.ceil(el.duration);
       setMediaDuration(dur);
       setDurationSeconds(dur);
-      setTimeRange([0, Math.min(dur, MAX_DURATION)]);
+      setTimeRange([0, dur]);
       URL.revokeObjectURL(url);
     };
     el.onerror = () => URL.revokeObjectURL(url);
@@ -145,7 +144,7 @@ const AdminVideoForm = () => {
         const dur = Math.round(downloadData.duration);
         setDurationSeconds(dur);
         setMediaDuration(dur);
-        setTimeRange([0, Math.min(dur, MAX_DURATION)]);
+        setTimeRange([0, dur]);
       }
 
       toast.success("Audio downloaded! Select the time range, then process.");
@@ -396,7 +395,7 @@ const AdminVideoForm = () => {
             {mediaDuration && mediaDuration > 0 && (
               <TimeRangeSelector
                 duration={mediaDuration}
-                maxRange={MAX_DURATION}
+                maxRange={mediaDuration}
                 value={timeRange}
                 onChange={setTimeRange}
               />

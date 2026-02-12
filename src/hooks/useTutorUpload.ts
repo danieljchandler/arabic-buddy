@@ -239,34 +239,19 @@ export function useTutorUpload() {
         if (candidate.image_enabled) {
           setProgressLabel(`Generating image: ${candidate.word_english}…`);
           try {
+            const imgPath = `tutor/${user.id}/${candidate.id}.png`;
             const { data: imgData, error: imgError } = await supabase.functions.invoke(
               "generate-flashcard-image",
-              { body: { word_arabic: candidate.word_text, word_english: candidate.word_english } }
+              { body: { word_arabic: candidate.word_text, word_english: candidate.word_english, storage_path: imgPath } }
             );
 
             if (imgError) {
-              console.error("Image generation edge function error:", candidate.word_english, imgError);
-            } else if (!imgData?.imageBase64) {
-              console.warn("No image returned for:", candidate.word_english, "Response:", JSON.stringify(imgData)?.substring(0, 200));
+              console.error("Image generation error:", candidate.word_english, imgError);
+            } else if (imgData?.imageUrl) {
+              imageUrl = imgData.imageUrl;
+              console.log("Image saved for:", candidate.word_english, imageUrl);
             } else {
-              // Upload base64 image to storage
-              const base64Data = imgData.imageBase64.replace(/^data:image\/\w+;base64,/, '');
-              const imgBytes = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
-              const imgBlob = new Blob([imgBytes], { type: 'image/png' });
-              const imgPath = `tutor/${user.id}/${candidate.id}.png`;
-
-              const { error: imgUpErr } = await supabase.storage
-                .from("flashcard-images")
-                .upload(imgPath, imgBlob, { contentType: "image/png" });
-
-              if (!imgUpErr) {
-                const { data: imgUrlData } = supabase.storage
-                  .from("flashcard-images")
-                  .getPublicUrl(imgPath);
-                imageUrl = imgUrlData.publicUrl;
-              } else {
-                console.error("Image upload error:", imgUpErr);
-              }
+              console.warn("No image URL returned for:", candidate.word_english, imgData);
             }
           } catch (imgErr) {
             console.error("Image generation failed for:", candidate.word_english, imgErr);

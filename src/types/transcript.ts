@@ -14,11 +14,15 @@
    endMs?: number;
  };
  
- export type VocabItem = {
-   arabic: string;
-   english: string;
-   root?: string;
- };
+export type VocabItem = {
+  arabic: string;
+  english: string;
+  root?: string;
+  sentenceText?: string;
+  sentenceEnglish?: string;
+  startMs?: number;
+  endMs?: number;
+};
  
  export type GrammarPoint = {
    title: string;

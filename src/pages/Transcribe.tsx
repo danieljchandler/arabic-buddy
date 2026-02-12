@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { TranscriptResult, VocabItem, GrammarPoint } from "@/types/transcript";
+import { decodeAudioFile, clipToWav } from "@/lib/audioClipper";
 import { LineByLineTranscript } from "@/components/transcript/LineByLineTranscript";
 import { TimeRangeSelector } from "@/components/transcript/TimeRangeSelector";
 import { useAuth } from "@/hooks/useAuth";
@@ -727,11 +728,35 @@ const Transcribe = () => {
     }
     if (savedWords.has(word.arabic)) { toast.info("Word already saved"); return; }
     try {
+      let sentenceAudioUrl: string | undefined;
+
+      // Clip sentence audio if timestamps and file are available
+      if (file && word.startMs !== undefined && word.endMs !== undefined) {
+        try {
+          const audioBuffer = await decodeAudioFile(file);
+          const wavBlob = clipToWav(audioBuffer, word.startMs, word.endMs);
+          const clipPath = `sentence-clips/${user!.id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.wav`;
+          const { error: uploadError } = await supabase.storage
+            .from("flashcard-audio")
+            .upload(clipPath, wavBlob, { contentType: "audio/wav" });
+          if (!uploadError) {
+            sentenceAudioUrl = supabase.storage.from("flashcard-audio").getPublicUrl(clipPath).data.publicUrl;
+          } else {
+            console.warn("Sentence audio upload failed:", uploadError);
+          }
+        } catch (clipErr) {
+          console.warn("Sentence audio clipping failed:", clipErr);
+        }
+      }
+
       await addUserVocabulary.mutateAsync({
         word_arabic: word.arabic,
         word_english: word.english,
         root: word.root,
         source: "transcription",
+        sentence_text: word.sentenceText,
+        sentence_english: word.sentenceEnglish,
+        sentence_audio_url: sentenceAudioUrl,
       });
       setSavedWords(prev => new Set(prev).add(word.arabic));
       toast.success("Word saved to My Words");

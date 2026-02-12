@@ -274,20 +274,45 @@ const AdminVideoForm = () => {
   };
 
   const handleSave = async () => {
-    if (!title || !embedUrl || !platform) {
-      toast.error("Please fill in the required fields");
+    // Auto-parse URL if not done yet
+    let savePlatform = platform;
+    let saveEmbedUrl = embedUrl;
+    let saveThumbnail = thumbnailUrl;
+    if (sourceUrl && !saveEmbedUrl) {
+      const parsed = parseVideoUrl(sourceUrl);
+      if (parsed) {
+        savePlatform = parsed.platform;
+        saveEmbedUrl = parsed.embedUrl;
+        setPlatform(savePlatform);
+        setEmbedUrl(saveEmbedUrl);
+        if (parsed.platform === "youtube") {
+          saveThumbnail = getYouTubeThumbnail(parsed.videoId);
+          setThumbnailUrl(saveThumbnail);
+        }
+      }
+    }
+
+    // Auto-generate title from first transcript line if still empty
+    let saveTitle = title;
+    if (!saveTitle && transcriptLines.length > 0) {
+      saveTitle = (transcriptLines[0] as any).arabic?.slice(0, 60) || "Untitled Video";
+      setTitle(saveTitle);
+    }
+
+    if (!saveTitle || !saveEmbedUrl || !savePlatform) {
+      toast.error("Please fill in title and video URL");
       return;
     }
     setIsSaving(true);
 
     try {
       const record = {
-        title,
+        title: saveTitle,
         title_arabic: titleArabic || null,
         source_url: sourceUrl,
-        platform,
-        embed_url: embedUrl,
-        thumbnail_url: thumbnailUrl || null,
+        platform: savePlatform,
+        embed_url: saveEmbedUrl,
+        thumbnail_url: saveThumbnail || null,
         duration_seconds: durationSeconds,
         dialect,
         difficulty,

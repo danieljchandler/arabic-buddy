@@ -196,6 +196,71 @@ export function useTutorUpload() {
       const audioBuffer = await decodeAudioFile(file);
       setProgress(10);
 
+      // === Step A: Parallel image resolution ===
+      const imageNeeded = approved.filter(c => c.image_enabled);
+      const imageMap = new Map<string, string>();
+      let imagesResolved = 0;
+
+      if (imageNeeded.length > 0) {
+        setProgressLabel(`Generating images (0 of ${imageNeeded.length})…`);
+
+        // Batch lookup existing images from vocabulary_words
+        const lookupPromises = imageNeeded.map(async (candidate) => {
+          try {
+            const { data: existingWord } = await supabase
+              .from("vocabulary_words")
+              .select("image_url")
+              .ilike("word_english", candidate.word_english || "")
+              .not("image_url", "is", null)
+              .limit(1)
+              .maybeSingle();
+            return { id: candidate.id, url: existingWord?.image_url || null, candidate };
+          } catch {
+            return { id: candidate.id, url: null, candidate };
+          }
+        });
+
+        const lookupResults = await Promise.all(lookupPromises);
+
+        // Separate into found vs need-generation
+        const needGeneration: typeof lookupResults = [];
+        for (const result of lookupResults) {
+          if (result.url) {
+            imageMap.set(result.id, result.url);
+            imagesResolved++;
+            setProgressLabel(`Generating images (${imagesResolved} of ${imageNeeded.length})…`);
+          } else {
+            needGeneration.push(result);
+          }
+        }
+
+        // Fire all generation calls in parallel
+        if (needGeneration.length > 0) {
+          const genPromises = needGeneration.map(async ({ id, candidate }) => {
+            try {
+              const imgPath = `tutor/${user.id}/${id}.png`;
+              const { data: imgData, error: imgError } = await supabase.functions.invoke(
+                "generate-flashcard-image",
+                { body: { word_arabic: candidate.word_text, word_english: candidate.word_english, storage_path: imgPath } }
+              );
+              if (!imgError && imgData?.imageUrl) {
+                imageMap.set(id, imgData.imageUrl);
+              }
+            } catch (err) {
+              console.error("Image generation failed for:", candidate.word_english, err);
+            } finally {
+              imagesResolved++;
+              setProgressLabel(`Generating images (${imagesResolved} of ${imageNeeded.length})…`);
+            }
+          });
+
+          await Promise.allSettled(genPromises);
+        }
+      }
+
+      setProgress(50);
+
+      // === Step B: Sequential audio clipping + DB save ===
       const totalSteps = approved.length;
       let completed = 0;
 
@@ -234,50 +299,8 @@ export function useTutorUpload() {
           sentenceAudioUrl = sentUrlData.publicUrl;
         }
 
-        // Generate image if enabled
-        let imageUrl: string | undefined;
-        if (candidate.image_enabled) {
-          // First check if this word already exists in curated vocabulary with an image
-          try {
-            const { data: existingWord } = await supabase
-              .from("vocabulary_words")
-              .select("image_url")
-              .ilike("word_english", candidate.word_english || "")
-              .not("image_url", "is", null)
-              .limit(1)
-              .maybeSingle();
-
-            if (existingWord?.image_url) {
-              imageUrl = existingWord.image_url;
-              console.log("Reusing existing image for:", candidate.word_english, imageUrl);
-            }
-          } catch (lookupErr) {
-            console.warn("Vocab lookup failed, will generate:", lookupErr);
-          }
-
-          // If no existing image found, generate one
-          if (!imageUrl) {
-            setProgressLabel(`Generating image: ${candidate.word_english}…`);
-            try {
-              const imgPath = `tutor/${user.id}/${candidate.id}.png`;
-              const { data: imgData, error: imgError } = await supabase.functions.invoke(
-                "generate-flashcard-image",
-                { body: { word_arabic: candidate.word_text, word_english: candidate.word_english, storage_path: imgPath } }
-              );
-
-              if (imgError) {
-                console.error("Image generation error:", candidate.word_english, imgError);
-              } else if (imgData?.imageUrl) {
-                imageUrl = imgData.imageUrl;
-                console.log("Image saved for:", candidate.word_english, imageUrl);
-              } else {
-                console.warn("No image URL returned for:", candidate.word_english, imgData);
-              }
-            } catch (imgErr) {
-              console.error("Image generation failed for:", candidate.word_english, imgErr);
-            }
-          }
-        }
+        // Grab pre-resolved image URL
+        const imageUrl = imageMap.get(candidate.id);
 
         // Insert into user_vocabulary
         // Use type assertion since the new columns aren't in the generated types yet

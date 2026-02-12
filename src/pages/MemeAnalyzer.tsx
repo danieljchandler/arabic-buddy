@@ -164,6 +164,8 @@ const MemeAnalyzer = () => {
         word_english: word.english,
         root: word.root,
         source: "meme-analyzer",
+        sentence_text: word.sentenceText,
+        sentence_english: word.sentenceEnglish,
       });
       setSavedWords((prev) => new Set(prev).add(word.arabic));
       toast.success("Saved to My Words!", { description: word.arabic });

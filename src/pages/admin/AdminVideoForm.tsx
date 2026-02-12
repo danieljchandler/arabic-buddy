@@ -64,6 +64,7 @@ const AdminVideoForm = () => {
     if (!file) return;
     setAudioFile(file);
     detectFileDuration(file);
+    ensureUrlParsed();
     toast.success("File loaded! Select the time range, then process.");
   };
 
@@ -118,9 +119,23 @@ const AdminVideoForm = () => {
     toast.success(`Detected ${parsed.platform} video`);
   };
 
+  // Auto-parse URL if not already parsed
+  const ensureUrlParsed = useCallback(() => {
+    if (sourceUrl && !embedUrl) {
+      const parsed = parseVideoUrl(sourceUrl);
+      if (parsed) {
+        setPlatform(parsed.platform);
+        setEmbedUrl(parsed.embedUrl);
+        if (parsed.platform === "youtube") {
+          setThumbnailUrl(getYouTubeThumbnail(parsed.videoId));
+        }
+      }
+    }
+  }, [sourceUrl, embedUrl]);
+
   const handleDownloadAudio = async () => {
     if (!sourceUrl) return;
-
+    ensureUrlParsed();
     setIsDownloading(true);
     try {
       const { data: downloadData, error: downloadError } = await supabase.functions.invoke(
@@ -234,6 +249,14 @@ const AdminVideoForm = () => {
       setVocabulary(result.vocabulary || []);
       setGrammarPoints(result.grammarPoints || []);
       setCulturalContext(result.culturalContext || "");
+
+      // Auto-populate title if empty
+      if (!title && result.title) {
+        setTitle(result.title);
+      }
+      if (!titleArabic && result.titleArabic) {
+        setTitleArabic(result.titleArabic);
+      }
 
       // Duration already set during download step
 

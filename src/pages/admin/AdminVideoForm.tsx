@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -22,6 +22,7 @@ import { Loader2, ArrowLeft, Sparkles, Save } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import type { TranscriptLine } from "@/types/transcript";
+import { TimeRangeSelector } from "@/components/transcript/TimeRangeSelector";
 
 const DIALECTS = ["Gulf", "MSA", "Egyptian", "Levantine", "Maghrebi"];
 const DIFFICULTIES = ["Beginner", "Intermediate", "Advanced", "Expert"];
@@ -51,6 +52,29 @@ const AdminVideoForm = () => {
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Time range selection
+  const MAX_DURATION = 180;
+  const [mediaDuration, setMediaDuration] = useState<number | null>(null);
+  const [timeRange, setTimeRange] = useState<[number, number]>([0, MAX_DURATION]);
+  const [audioFile, setAudioFile] = useState<File | null>(null);
+
+  const detectFileDuration = useCallback((file: File) => {
+    const el = file.type.startsWith("video/")
+      ? document.createElement("video")
+      : document.createElement("audio");
+    el.preload = "metadata";
+    const url = URL.createObjectURL(file);
+    el.src = url;
+    el.onloadedmetadata = () => {
+      const dur = Math.ceil(el.duration);
+      setMediaDuration(dur);
+      setDurationSeconds(dur);
+      setTimeRange([0, Math.min(dur, MAX_DURATION)]);
+      URL.revokeObjectURL(url);
+    };
+    el.onerror = () => URL.revokeObjectURL(url);
+  }, []);
 
   // Populate form when editing
   useEffect(() => {
@@ -86,12 +110,10 @@ const AdminVideoForm = () => {
     toast.success(`Detected ${parsed.platform} video`);
   };
 
-  const handleProcess = async () => {
+  const handleDownloadAudio = async () => {
     if (!sourceUrl) return;
-    setIsProcessing(true);
 
     try {
-      // Step 1: Download audio
       toast.info("Downloading audio...");
       const { data: downloadData, error: downloadError } = await supabase.functions.invoke(
         "download-media",
@@ -100,17 +122,42 @@ const AdminVideoForm = () => {
       if (downloadError) throw new Error(downloadError.message);
       if (!downloadData?.audioBase64) throw new Error("No audio found");
 
-      // Convert base64 to File for transcription
       const binaryStr = atob(downloadData.audioBase64);
       const bytes = new Uint8Array(binaryStr.length);
       for (let i = 0; i < binaryStr.length; i++) {
         bytes[i] = binaryStr.charCodeAt(i);
       }
       const blob = new Blob([bytes], { type: downloadData.contentType || "audio/mp4" });
-      const audioFile = new File([blob], "audio.mp4", { type: blob.type });
+      const file = new File([blob], "audio.mp4", { type: blob.type });
+      setAudioFile(file);
+      detectFileDuration(file);
 
-      // Step 2: Transcribe with ElevenLabs
-      toast.info("Transcribing...");
+      if (downloadData.duration) {
+        const dur = Math.round(downloadData.duration);
+        setDurationSeconds(dur);
+        setMediaDuration(dur);
+        setTimeRange([0, Math.min(dur, MAX_DURATION)]);
+      }
+
+      toast.success("Audio downloaded! Select the time range, then process.");
+    } catch (err) {
+      console.error("Download error:", err);
+      toast.error("Download failed", {
+        description: err instanceof Error ? err.message : "Unknown error",
+      });
+    }
+  };
+
+  const handleProcess = async () => {
+    if (!audioFile) {
+      toast.error("Download audio first");
+      return;
+    }
+    setIsProcessing(true);
+
+    try {
+      // Transcribe with ElevenLabs
+      toast.info("Transcribing selected segment...");
       const formData = new FormData();
       formData.append("file", audioFile);
       formData.append("language_code", "ara");
@@ -127,7 +174,18 @@ const AdminVideoForm = () => {
 
       if (!transcribeRes.ok) throw new Error("Transcription failed");
       const transcribeData = await transcribeRes.json();
-      const rawText = transcribeData.text || "";
+      
+      // Filter words by selected time range
+      const [startSec, endSec] = timeRange;
+      let filteredWords = transcribeData.words || [];
+      let rawText = transcribeData.text || "";
+      
+      if (filteredWords.length > 0 && (startSec > 0 || endSec < (mediaDuration || Infinity))) {
+        filteredWords = filteredWords.filter(
+          (w: any) => w.start >= startSec && w.end <= endSec
+        );
+        rawText = filteredWords.map((w: any) => w.text).join(" ") || rawText;
+      }
 
       // Step 3: Analyze with Gemini/Falcon
       toast.info("Analyzing transcript...");
@@ -142,9 +200,8 @@ const AdminVideoForm = () => {
 
       // Map timestamps to lines if available
       let lines = result.lines || [];
-      if (transcribeData.words?.length > 0 && lines.length > 0) {
-        // Simple timestamp mapping
-        const words = transcribeData.words;
+      if (filteredWords.length > 0 && lines.length > 0) {
+        const words = filteredWords;
         let wordIdx = 0;
         lines = lines.map((line: any) => {
           const lineWords = line.arabic?.split(/\s+/).filter(Boolean) || [];
@@ -168,9 +225,7 @@ const AdminVideoForm = () => {
       setGrammarPoints(result.grammarPoints || []);
       setCulturalContext(result.culturalContext || "");
 
-      if (downloadData.duration) {
-        setDurationSeconds(Math.round(downloadData.duration));
-      }
+      // Duration already set during download step
 
       toast.success("Processing complete!", {
         description: `${lines.length} sentences, ${(result.vocabulary || []).length} vocab items`,
@@ -286,9 +341,30 @@ const AdminVideoForm = () => {
               </div>
             )}
 
+            {/* Step 1: Download */}
+            <Button
+              onClick={handleDownloadAudio}
+              disabled={!sourceUrl || !!audioFile || isProcessing}
+              variant="outline"
+              className="w-full"
+            >
+              {!audioFile ? "Download Audio" : "✓ Audio Downloaded"}
+            </Button>
+
+            {/* Step 2: Time range */}
+            {mediaDuration && mediaDuration > 0 && (
+              <TimeRangeSelector
+                duration={mediaDuration}
+                maxRange={MAX_DURATION}
+                value={timeRange}
+                onChange={setTimeRange}
+              />
+            )}
+
+            {/* Step 3: Process */}
             <Button
               onClick={handleProcess}
-              disabled={!sourceUrl || isProcessing}
+              disabled={!audioFile || isProcessing}
               className="w-full"
             >
               {isProcessing ? (

@@ -14,13 +14,22 @@ export function parseVideoUrl(url: string): { platform: string; videoId: string;
     };
   }
 
-  // TikTok
+  // TikTok (full URL with video ID)
   const ttMatch = url.match(/tiktok\.com\/@[^/]+\/video\/(\d+)/);
   if (ttMatch) {
     return {
       platform: "tiktok",
       videoId: ttMatch[1],
       embedUrl: `https://www.tiktok.com/embed/v2/${ttMatch[1]}`,
+    };
+  }
+
+  // TikTok short URL (vt.tiktok.com or vm.tiktok.com) — can't extract ID, use URL directly
+  if (/(?:vt|vm)\.tiktok\.com\//.test(url)) {
+    return {
+      platform: "tiktok",
+      videoId: "",
+      embedUrl: url,
     };
   }
 

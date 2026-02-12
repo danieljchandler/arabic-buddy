@@ -289,6 +289,12 @@ const AdminVideoForm = () => {
           saveThumbnail = getYouTubeThumbnail(parsed.videoId);
           setThumbnailUrl(saveThumbnail);
         }
+      } else {
+        // Fallback: use sourceUrl directly as embed URL
+        saveEmbedUrl = sourceUrl;
+        savePlatform = savePlatform || "youtube";
+        setEmbedUrl(saveEmbedUrl);
+        setPlatform(savePlatform);
       }
     }
 
@@ -298,9 +304,13 @@ const AdminVideoForm = () => {
       saveTitle = (transcriptLines[0] as any).arabic?.slice(0, 60) || "Untitled Video";
       setTitle(saveTitle);
     }
+    if (!saveTitle) {
+      saveTitle = "Untitled Video";
+      setTitle(saveTitle);
+    }
 
-    if (!saveTitle || !saveEmbedUrl || !savePlatform) {
-      toast.error("Please fill in title and video URL");
+    if (!sourceUrl) {
+      toast.error("Please enter a video URL");
       return;
     }
     setIsSaving(true);

@@ -1,72 +1,65 @@
+## Add Sentence Audio to Flashcards from Transcriptions
+
+When a user saves a word from a transcript line, the sentence audio context (the audio clip of the line the word appeared in) should be saved alongside it so they can hear the word used in context during flashcard review.
+
+### How It Works Today
+
+1. User transcribes audio/video on `transcribe tutor meme` 
+2. Each transcript line has `startMs`/`endMs` timestamps mapped from ElevenLabs word data
+3. User clicks a word token, then "Save to My Words"
+4. The `handleSaveToMyWords` callback receives a `VocabItem` with only `arabic`, `english`, and `root`
+5. No sentence text, sentence translation, or audio timing info is passed along
+6. The `user_vocabulary` table already has `sentence_text`, `sentence_english`, `sentence_audio_url` columns -- but they stay empty for transcription-sourced words
+
+### What Needs to Change
+
+**1. Expand the data passed when saving a word**
+
+- Update the `VocabItem` type (or create an extended version) to include sentence context: `sentence_text`, `sentence_english`, `startMs`, `endMs`
+- In `LineByLineTranscript`, the `InlineToken` component knows which `TranscriptLine` it belongs to. Pass the parent line's `arabic`, `translation`, `startMs`, and `endMs` into the `onSaveToMyWords` callback
+
+**2. Clip and store sentence audio**
+
+- When saving a word from a transcript, use the line's `startMs`/`endMs` to clip the relevant audio segment from the full audio file
+- Use the existing `tutor-audio-clips` storage bucket (or `flashcard-audio`) to upload the clipped audio
+- Store the resulting public URL in `sentence_audio_url` on the `user_vocabulary` record
+
+**3. Update the save mutation**
+
+- Extend `useAddUserVocabulary` to accept optional `sentence_text`, `sentence_english`, and `sentence_audio_url` fields
+- Pass these through to the database insert
+
+**4. No review UI changes needed**
+
+- The `MyWordsReview` page already queries `sentence_audio_url` and renders a "Sentence" audio button when available -- this will just start working automatically
+
+### Technical Details
+
+**Files to modify:**
 
 
-# Integrate Falcon H1 via Hugging Face Dedicated Endpoint
+| File                                                 | Change                                                                                                                                              |
+| ---------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/types/transcript.ts`                            | Add `sentenceText`, `sentenceEnglish`, `startMs`, `endMs` to `VocabItem`                                                                            |
+| `src/components/transcript/LineByLineTranscript.tsx` | Pass parent line context into `onSaveToMyWords` callback from `InlineToken`                                                                         |
+| `src/pages/Transcribe.tsx`                           | Update `handleSaveToMyWords` to clip audio using the existing `audioClipper` utility and upload to storage, then pass sentence data to the mutation |
+| `src/hooks/useUserVocabulary.ts`                     | Extend `useAddUserVocabulary` mutation to accept and insert `sentence_text`, `sentence_english`, `sentence_audio_url`                               |
+| `src/lib/audioClipper.ts`                            | Verify/use existing audio clipping utility for extracting the sentence segment                                                                      |
 
-## Overview
-Connect to your Falcon model hosted at `https://gsv7qihcuvh8iz7u.us-east4.gcp.endpoints.huggingface.cloud` and add warm-up requests that fire when the Meme Analyzer, Transcribe, and Tutor Upload pages load.
 
-## What Changes
+**Audio clipping approach:**
 
-### 1. Store the Falcon endpoint URL as a secret
-- Save `FALCON_HF_ENDPOINT_URL` = `https://gsv7qihcuvh8iz7u.us-east4.gcp.endpoints.huggingface.cloud` as a backend secret (the existing `FALCON_HF_API_KEY` will be used for auth).
+- The project already has `src/lib/audioClipper.ts` -- this will be used to extract the sentence audio segment client-side
+- The clipped audio blob will be uploaded to the `flashcard-audio` storage bucket
+- The public URL is then saved to `sentence_audio_url`
 
-### 2. New edge function: `falcon-warmup`
-A lightweight edge function that sends a tiny request to the Falcon endpoint to wake it up. It will:
-- Send a minimal chat completion request (e.g. "Hi" with `max_tokens: 1`)
-- Use the HF dedicated endpoint URL + API key
-- Return quickly (fire-and-forget style from client)
-- Handle errors silently (warm-up failures should never block the user)
+**Data flow:**
 
-### 3. Update `analyze-meme` edge function
-- Add Falcon as a translation/analysis option alongside the Lovable AI gateway
-- Use the HF endpoint with the OpenAI-compatible `/v1/chat/completions` path
-- Keep Lovable AI (Gemini) as the primary vision model (Falcon doesn't do vision)
-- Use Falcon for the meme explanation and cultural breakdown text generation where possible
-
-### 4. Update `analyze-gulf-arabic` edge function
-- Replace the GPT-5 translation step with a call to the Falcon HF endpoint
-- The comments already reference "Falcon" -- now it will actually use Falcon
-- Fall back to Lovable AI if the Falcon endpoint is unavailable
-
-### 5. Update `classify-tutor-segments` edge function
-- Add Falcon as the AI backend for classifying tutor segments
-- Fall back to Lovable AI if Falcon is unavailable
-
-### 6. Frontend warm-up calls
-Add a `useEffect` hook on three pages to fire the warm-up request on mount:
-- `src/pages/MemeAnalyzer.tsx`
-- `src/pages/Transcribe.tsx`
-- `src/pages/TutorUpload.tsx`
-
-Each will call `supabase.functions.invoke('falcon-warmup')` in a fire-and-forget pattern (no await, no error handling needed on client).
-
-## Technical Details
-
-### Falcon HF Endpoint Format
-The dedicated endpoint is OpenAI-compatible:
 ```text
-POST https://gsv7qihcuvh8iz7u.us-east4.gcp.endpoints.huggingface.cloud/v1/chat/completions
-Authorization: Bearer <FALCON_HF_API_KEY>
-Content-Type: application/json
-
-{
-  "model": "tgi",
-  "messages": [...],
-  "max_tokens": 2048
-}
+Token click -> "Save to My Words"
+  -> VocabItem now includes sentence context (text, translation, startMs, endMs)
+  -> Client clips audio segment from full file using audioClipper
+  -> Uploads clip to flashcard-audio bucket
+  -> Inserts into user_vocabulary with sentence_text, sentence_english, sentence_audio_url
+  -> MyWordsReview already shows "Sentence" button when sentence_audio_url exists
 ```
-
-### Edge function config
-Add `falcon-warmup` to `supabase/config.toml` with `verify_jwt = false`.
-
-### Files to create
-- `supabase/functions/falcon-warmup/index.ts`
-
-### Files to modify
-- `supabase/config.toml` (add falcon-warmup)
-- `supabase/functions/analyze-meme/index.ts` (use Falcon for text analysis)
-- `supabase/functions/analyze-gulf-arabic/index.ts` (use Falcon for translation)
-- `supabase/functions/classify-tutor-segments/index.ts` (use Falcon for classification)
-- `src/pages/MemeAnalyzer.tsx` (add warm-up call)
-- `src/pages/Transcribe.tsx` (add warm-up call)
-- `src/pages/TutorUpload.tsx` (add warm-up call)

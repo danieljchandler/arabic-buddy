@@ -31,7 +31,7 @@ serve(async (req) => {
   console.log(`Authenticated user: ${user.id}`);
 
   try {
-    const { word_arabic, word_english } = await req.json();
+    const { word_arabic, word_english, storage_path } = await req.json();
     
     if (!word_english) {
       return new Response(JSON.stringify({ error: "word_english is required" }), {
@@ -47,46 +47,93 @@ serve(async (req) => {
 
     console.log(`Generating image for: ${word_english}`);
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash-image",
-        messages: [{ role: "user", content: prompt }],
-        modalities: ["image", "text"],
-      }),
-    });
+    // Retry up to 2 times on transient failures
+    let imageBase64: string | null = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash-image",
+          messages: [{ role: "user", content: prompt }],
+          modalities: ["image", "text"],
+        }),
+      });
 
-    if (!response.ok) {
-      const errText = await response.text();
-      console.error("Image generation error:", response.status, errText);
-      if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limit exceeded" }), {
-          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+      if (!response.ok) {
+        const errText = await response.text();
+        console.error(`Attempt ${attempt + 1}: Image generation error:`, response.status, errText);
+        if (response.status === 429) {
+          return new Response(JSON.stringify({ error: "Rate limit exceeded" }), {
+            status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        if (attempt < 2) continue;
+        throw new Error(`Image generation failed after 3 attempts: ${response.status}`);
       }
-      throw new Error(`Image generation failed: ${response.status}`);
+
+      const data = await response.json();
+      const message = data.choices?.[0]?.message;
+      const url = message?.images?.[0]?.image_url?.url;
+
+      if (url) {
+        imageBase64 = url;
+        break;
+      }
+
+      // Check for provider error in choices
+      const choiceError = data.choices?.[0]?.error;
+      if (choiceError) {
+        console.warn(`Attempt ${attempt + 1}: Provider error: ${choiceError.message}`);
+      } else {
+        console.warn(`Attempt ${attempt + 1}: No image in response`);
+      }
+      
+      if (attempt < 2) {
+        // Wait a bit before retry
+        await new Promise(r => setTimeout(r, 2000));
+      }
     }
 
-    const data = await response.json();
-    console.log("Response structure:", JSON.stringify(Object.keys(data)));
-    
-    const message = data.choices?.[0]?.message;
-    console.log("Message keys:", JSON.stringify(Object.keys(message || {})));
-    
-    const imageUrl = message?.images?.[0]?.image_url?.url;
-
-    if (!imageUrl) {
-      console.error("No image in response:", JSON.stringify(data).substring(0, 1000));
-      throw new Error("No image generated");
+    if (!imageBase64) {
+      throw new Error("No image generated after 3 attempts");
     }
 
-    console.log(`Successfully generated image for: ${word_english}, base64 length: ${imageUrl.length}`);
+    // Upload directly to storage from the edge function
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    );
 
-    return new Response(JSON.stringify({ success: true, imageBase64: imageUrl }), {
+    // Decode base64 to binary
+    const base64Clean = imageBase64.replace(/^data:image\/\w+;base64,/, '');
+    const binaryStr = atob(base64Clean);
+    const bytes = new Uint8Array(binaryStr.length);
+    for (let i = 0; i < binaryStr.length; i++) {
+      bytes[i] = binaryStr.charCodeAt(i);
+    }
+
+    const finalPath = storage_path || `tutor/${user.id}/${crypto.randomUUID()}.png`;
+    
+    const { error: uploadError } = await supabaseAdmin.storage
+      .from("flashcard-images")
+      .upload(finalPath, bytes, { contentType: "image/png", upsert: true });
+
+    if (uploadError) {
+      console.error("Storage upload error:", uploadError);
+      throw new Error(`Failed to upload image: ${uploadError.message}`);
+    }
+
+    const { data: urlData } = supabaseAdmin.storage
+      .from("flashcard-images")
+      .getPublicUrl(finalPath);
+
+    console.log(`Successfully generated and uploaded image for: ${word_english} -> ${urlData.publicUrl}`);
+
+    return new Response(JSON.stringify({ success: true, imageUrl: urlData.publicUrl }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {

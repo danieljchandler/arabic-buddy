@@ -237,25 +237,45 @@ export function useTutorUpload() {
         // Generate image if enabled
         let imageUrl: string | undefined;
         if (candidate.image_enabled) {
-          setProgressLabel(`Generating image: ${candidate.word_english}…`);
+          // First check if this word already exists in curated vocabulary with an image
           try {
-            const imgPath = `tutor/${user.id}/${candidate.id}.png`;
-            const { data: imgData, error: imgError } = await supabase.functions.invoke(
-              "generate-flashcard-image",
-              { body: { word_arabic: candidate.word_text, word_english: candidate.word_english, storage_path: imgPath } }
-            );
+            const { data: existingWord } = await supabase
+              .from("vocabulary_words")
+              .select("image_url")
+              .ilike("word_english", candidate.word_english || "")
+              .not("image_url", "is", null)
+              .limit(1)
+              .maybeSingle();
 
-            if (imgError) {
-              console.error("Image generation error:", candidate.word_english, imgError);
-            } else if (imgData?.imageUrl) {
-              imageUrl = imgData.imageUrl;
-              console.log("Image saved for:", candidate.word_english, imageUrl);
-            } else {
-              console.warn("No image URL returned for:", candidate.word_english, imgData);
+            if (existingWord?.image_url) {
+              imageUrl = existingWord.image_url;
+              console.log("Reusing existing image for:", candidate.word_english, imageUrl);
             }
-          } catch (imgErr) {
-            console.error("Image generation failed for:", candidate.word_english, imgErr);
-            // Non-fatal, continue without image
+          } catch (lookupErr) {
+            console.warn("Vocab lookup failed, will generate:", lookupErr);
+          }
+
+          // If no existing image found, generate one
+          if (!imageUrl) {
+            setProgressLabel(`Generating image: ${candidate.word_english}…`);
+            try {
+              const imgPath = `tutor/${user.id}/${candidate.id}.png`;
+              const { data: imgData, error: imgError } = await supabase.functions.invoke(
+                "generate-flashcard-image",
+                { body: { word_arabic: candidate.word_text, word_english: candidate.word_english, storage_path: imgPath } }
+              );
+
+              if (imgError) {
+                console.error("Image generation error:", candidate.word_english, imgError);
+              } else if (imgData?.imageUrl) {
+                imageUrl = imgData.imageUrl;
+                console.log("Image saved for:", candidate.word_english, imageUrl);
+              } else {
+                console.warn("No image URL returned for:", candidate.word_english, imgData);
+              }
+            } catch (imgErr) {
+              console.error("Image generation failed for:", candidate.word_english, imgErr);
+            }
           }
         }
 

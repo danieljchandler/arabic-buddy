@@ -209,20 +209,6 @@ const DiscoverVideo = () => {
     document.head.appendChild(tag);
   }, [video?.platform]);
 
-  // Load TikTok embed script
-  useEffect(() => {
-    if (video?.platform !== "tiktok") return;
-    const existing = document.querySelector('script[src="https://www.tiktok.com/embed.js"]');
-    if (existing) {
-      // Re-trigger TikTok embed processing
-      (window as any).tiktokEmbed?.lib?.render?.();
-      return;
-    }
-    const tag = document.createElement("script");
-    tag.src = "https://www.tiktok.com/embed.js";
-    tag.async = true;
-    document.body.appendChild(tag);
-  }, [video?.platform]);
 
   // Initialize YouTube player
   useEffect(() => {
@@ -375,15 +361,20 @@ const DiscoverVideo = () => {
               <div ref={iframeRef} className="w-full h-full" />
             </div>
           ) : video.platform === "tiktok" ? (
-            <div className="max-h-[55vh] mx-auto flex justify-center overflow-hidden py-2">
-              <blockquote
-                className="tiktok-embed"
-                cite={video.source_url}
-                data-video-id=""
-                style={{ maxWidth: 325 }}
+            <div className="aspect-video max-h-[45vh] mx-auto flex items-center justify-center bg-gradient-to-b from-black to-zinc-900">
+              <a
+                href={video.source_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex flex-col items-center gap-3 text-white/80 hover:text-white transition-colors"
               >
-                <a href={video.source_url}>{video.title}</a>
-              </blockquote>
+                <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center backdrop-blur">
+                  <svg viewBox="0 0 24 24" className="w-8 h-8 fill-current" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M8 5v14l11-7z" />
+                  </svg>
+                </div>
+                <span className="text-sm font-medium">Watch on TikTok</span>
+              </a>
             </div>
           ) : (
             <div className="aspect-video max-h-[45vh] mx-auto">

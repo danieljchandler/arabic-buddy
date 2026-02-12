@@ -209,6 +209,21 @@ const DiscoverVideo = () => {
     document.head.appendChild(tag);
   }, [video?.platform]);
 
+  // Load TikTok embed script
+  useEffect(() => {
+    if (video?.platform !== "tiktok") return;
+    const existing = document.querySelector('script[src="https://www.tiktok.com/embed.js"]');
+    if (existing) {
+      // Re-trigger TikTok embed processing
+      (window as any).tiktokEmbed?.lib?.render?.();
+      return;
+    }
+    const tag = document.createElement("script");
+    tag.src = "https://www.tiktok.com/embed.js";
+    tag.async = true;
+    document.body.appendChild(tag);
+  }, [video?.platform]);
+
   // Initialize YouTube player
   useEffect(() => {
     if (!video || video.platform !== "youtube" || !iframeRef.current) return;
@@ -358,6 +373,17 @@ const DiscoverVideo = () => {
           {video.platform === "youtube" ? (
             <div className="aspect-video max-h-[45vh] mx-auto">
               <div ref={iframeRef} className="w-full h-full" />
+            </div>
+          ) : video.platform === "tiktok" ? (
+            <div className="max-h-[55vh] mx-auto flex justify-center overflow-hidden py-2">
+              <blockquote
+                className="tiktok-embed"
+                cite={video.source_url}
+                data-video-id=""
+                style={{ maxWidth: 325 }}
+              >
+                <a href={video.source_url}>{video.title}</a>
+              </blockquote>
             </div>
           ) : (
             <div className="aspect-video max-h-[45vh] mx-auto">

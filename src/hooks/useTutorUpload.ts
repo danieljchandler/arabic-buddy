@@ -192,37 +192,33 @@ export function useTutorUpload() {
     setProgressLabel("Preparing audio clips…");
 
     try {
-      // Decode audio once
-      const audioBuffer = await decodeAudioFile(file);
-      setProgress(10);
-
-      // === Step A: Parallel image resolution ===
+      // === Step A: Overlap audio decode + image resolution ===
       const imageNeeded = approved.filter(c => c.image_enabled);
       const imageMap = new Map<string, string>();
       let imagesResolved = 0;
 
-      if (imageNeeded.length > 0) {
+      const imageResolutionPromise = (async () => {
+        if (imageNeeded.length === 0) return;
         setProgressLabel(`Generating images (0 of ${imageNeeded.length})…`);
 
-        // Batch lookup existing images from vocabulary_words
-        const lookupPromises = imageNeeded.map(async (candidate) => {
-          try {
-            const { data: existingWord } = await supabase
-              .from("vocabulary_words")
-              .select("image_url")
-              .ilike("word_english", candidate.word_english || "")
-              .not("image_url", "is", null)
-              .limit(1)
-              .maybeSingle();
-            return { id: candidate.id, url: existingWord?.image_url || null, candidate };
-          } catch {
-            return { id: candidate.id, url: null, candidate };
-          }
-        });
+        // Batch lookup existing images
+        const lookupResults = await Promise.all(
+          imageNeeded.map(async (candidate) => {
+            try {
+              const { data: existingWord } = await supabase
+                .from("vocabulary_words")
+                .select("image_url")
+                .ilike("word_english", candidate.word_english || "")
+                .not("image_url", "is", null)
+                .limit(1)
+                .maybeSingle();
+              return { id: candidate.id, url: existingWord?.image_url || null, candidate };
+            } catch {
+              return { id: candidate.id, url: null, candidate };
+            }
+          })
+        );
 
-        const lookupResults = await Promise.all(lookupPromises);
-
-        // Separate into found vs need-generation
         const needGeneration: typeof lookupResults = [];
         for (const result of lookupResults) {
           if (result.url) {
@@ -234,101 +230,131 @@ export function useTutorUpload() {
           }
         }
 
-        // Fire all generation calls in parallel
         if (needGeneration.length > 0) {
-          const genPromises = needGeneration.map(async ({ id, candidate }) => {
-            try {
-              const imgPath = `tutor/${user.id}/${id}.png`;
-              const { data: imgData, error: imgError } = await supabase.functions.invoke(
-                "generate-flashcard-image",
-                { body: { word_arabic: candidate.word_text, word_english: candidate.word_english, storage_path: imgPath } }
-              );
-              if (!imgError && imgData?.imageUrl) {
-                imageMap.set(id, imgData.imageUrl);
+          await Promise.allSettled(
+            needGeneration.map(async ({ id, candidate }) => {
+              try {
+                const imgPath = `tutor/${user.id}/${id}.png`;
+                const { data: imgData, error: imgError } = await supabase.functions.invoke(
+                  "generate-flashcard-image",
+                  { body: { word_arabic: candidate.word_text, word_english: candidate.word_english, storage_path: imgPath } }
+                );
+                if (!imgError && imgData?.imageUrl) {
+                  imageMap.set(id, imgData.imageUrl);
+                }
+              } catch (err) {
+                console.error("Image generation failed for:", candidate.word_english, err);
+              } finally {
+                imagesResolved++;
+                setProgressLabel(`Generating images (${imagesResolved} of ${imageNeeded.length})…`);
               }
-            } catch (err) {
-              console.error("Image generation failed for:", candidate.word_english, err);
-            } finally {
-              imagesResolved++;
-              setProgressLabel(`Generating images (${imagesResolved} of ${imageNeeded.length})…`);
-            }
-          });
-
-          await Promise.allSettled(genPromises);
+            })
+          );
         }
-      }
+      })();
 
+      // Run audio decode concurrently with image resolution
+      setProgressLabel("Decoding audio…");
+      const [audioBuffer] = await Promise.all([
+        decodeAudioFile(file),
+        imageResolutionPromise,
+      ]);
       setProgress(50);
 
-      // === Step B: Sequential audio clipping + DB save ===
-      const totalSteps = approved.length;
-      let completed = 0;
+      // === Step B: Parallel audio clipping + upload ===
+      setProgressLabel("Clipping & uploading audio…");
 
-      for (const candidate of approved) {
-        // Clip word audio
-        setProgressLabel(`Clipping word: ${candidate.word_text}…`);
+      // Clip all audio synchronously (CPU-bound, fast)
+      interface ClipResult {
+        candidateId: string;
+        wordBlob: Blob;
+        wordPath: string;
+        sentBlob: Blob | null;
+        sentPath: string | null;
+      }
+
+      const clips: ClipResult[] = approved.map(candidate => {
         const wordBlob = clipToWav(audioBuffer, candidate.word_start_ms, candidate.word_end_ms);
         const wordPath = `${user.id}/${uploadId}/word-${candidate.id}.wav`;
-        
-        const { error: wordUpErr } = await supabase.storage
-          .from("tutor-audio-clips")
-          .upload(wordPath, wordBlob, { contentType: "audio/wav" });
-        
-        if (wordUpErr) console.error("Word clip upload error:", wordUpErr);
 
+        let sentBlob: Blob | null = null;
+        let sentPath: string | null = null;
+        if (candidate.sentence_start_ms != null && candidate.sentence_end_ms != null && candidate.sentence_text) {
+          sentBlob = clipToWav(audioBuffer, candidate.sentence_start_ms, candidate.sentence_end_ms);
+          sentPath = `${user.id}/${uploadId}/sent-${candidate.id}.wav`;
+        }
+
+        return { candidateId: candidate.id, wordBlob, wordPath, sentBlob, sentPath };
+      });
+
+      // Upload all clips in parallel
+      const uploadPromises = clips.flatMap(clip => {
+        const promises: Promise<void>[] = [];
+        promises.push(
+          supabase.storage
+            .from("tutor-audio-clips")
+            .upload(clip.wordPath, clip.wordBlob, { contentType: "audio/wav" })
+            .then(({ error }) => { if (error) console.error("Word clip upload error:", error); })
+        );
+        if (clip.sentBlob && clip.sentPath) {
+          const sentBlob = clip.sentBlob;
+          const sentPath = clip.sentPath;
+          promises.push(
+            supabase.storage
+              .from("tutor-audio-clips")
+              .upload(sentPath, sentBlob, { contentType: "audio/wav" })
+              .then(({ error }) => { if (error) console.error("Sentence clip upload error:", error); })
+          );
+        }
+        return promises;
+      });
+
+      await Promise.allSettled(uploadPromises);
+      setProgress(80);
+
+      // === Step C: Batch database insert ===
+      setProgressLabel("Saving flashcards…");
+
+      const insertRows: any[] = approved.map(candidate => {
+        const clip = clips.find(c => c.candidateId === candidate.id)!;
         const { data: wordUrlData } = supabase.storage
           .from("tutor-audio-clips")
-          .getPublicUrl(wordPath);
+          .getPublicUrl(clip.wordPath);
 
-        // Clip sentence audio if available
-        let sentenceAudioUrl: string | undefined;
-        if (candidate.sentence_start_ms != null && candidate.sentence_end_ms != null && candidate.sentence_text) {
-          const sentBlob = clipToWav(audioBuffer, candidate.sentence_start_ms, candidate.sentence_end_ms);
-          const sentPath = `${user.id}/${uploadId}/sent-${candidate.id}.wav`;
-          
-          const { error: sentUpErr } = await supabase.storage
-            .from("tutor-audio-clips")
-            .upload(sentPath, sentBlob, { contentType: "audio/wav" });
-          
-          if (sentUpErr) console.error("Sentence clip upload error:", sentUpErr);
-
+        let sentenceAudioUrl: string | null = null;
+        if (clip.sentPath) {
           const { data: sentUrlData } = supabase.storage
             .from("tutor-audio-clips")
-            .getPublicUrl(sentPath);
-
+            .getPublicUrl(clip.sentPath);
           sentenceAudioUrl = sentUrlData.publicUrl;
         }
 
-        // Grab pre-resolved image URL
-        const imageUrl = imageMap.get(candidate.id);
-
-        // Insert into user_vocabulary
-        // Use type assertion since the new columns aren't in the generated types yet
-        const insertData: any = {
+        return {
           user_id: user.id,
           word_arabic: candidate.word_text,
           word_english: candidate.word_english,
           source: "tutor-upload",
           word_audio_url: wordUrlData.publicUrl,
-          sentence_audio_url: sentenceAudioUrl || null,
+          sentence_audio_url: sentenceAudioUrl,
           source_upload_id: uploadId,
-          image_url: imageUrl || null,
+          image_url: imageMap.get(candidate.id) || null,
         };
+      });
 
-        const { error: insertError } = await supabase
-          .from("user_vocabulary")
-          .insert(insertData);
+      const { error: batchInsertError } = await supabase
+        .from("user_vocabulary")
+        .insert(insertRows);
 
-        if (insertError) {
-          if (insertError.code === "23505") {
-            console.warn("Duplicate word skipped:", candidate.word_text);
-          } else {
-            console.error("Insert error:", insertError);
+      if (batchInsertError) {
+        console.error("Batch insert error:", batchInsertError);
+        // If batch fails (e.g. partial duplicates), fall back to individual inserts
+        if (batchInsertError.code === "23505") {
+          console.warn("Batch had duplicates, falling back to individual inserts…");
+          for (const row of insertRows) {
+            const { error } = await supabase.from("user_vocabulary").insert(row);
+            if (error && error.code !== "23505") console.error("Insert error:", error);
           }
         }
-
-        completed++;
-        setProgress(10 + (completed / totalSteps) * 85);
       }
 
       setProgress(100);

@@ -21,13 +21,14 @@ serve(async (req) => {
     Deno.env.get('SUPABASE_ANON_KEY')!,
     { global: { headers: { Authorization: authHeader } } }
   );
-  const authToken = authHeader.replace('Bearer ', '');
-  const { data: claimsData, error: claimsError } = await supabaseAuth.auth.getClaims(authToken);
-  if (claimsError || !claimsData?.claims) {
+  const { data: { user }, error: userError } = await supabaseAuth.auth.getUser();
+  if (userError || !user) {
+    console.error("Auth failed:", userError?.message);
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
       status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   }
+  console.log(`Authenticated user: ${user.id}`);
 
   try {
     const { word_arabic, word_english } = await req.json();
@@ -42,7 +43,7 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    const prompt = `Generate a single realistic, professional photograph of: ${word_english}. Photo-realistic style, like a high-quality stock photo. Warm, neutral background (soft beige, cream, or light wood). No text, labels, or watermarks anywhere in the image. Simple, clear composition focusing on the subject. Good lighting, slightly warm tone.`;
+    const prompt = `A single realistic, professional photograph of: ${word_english}. Photo-realistic style, high-quality stock photo. Warm neutral background (soft beige, cream, or light wood). No text, labels, or watermarks. Simple, clear composition. Good lighting, slightly warm tone.`;
 
     console.log(`Generating image for: ${word_english}`);
 
@@ -71,18 +72,19 @@ serve(async (req) => {
     }
 
     const data = await response.json();
-    console.log("Response keys:", JSON.stringify(Object.keys(data)));
-    console.log("Choice message keys:", JSON.stringify(Object.keys(data.choices?.[0]?.message || {})));
+    console.log("Response structure:", JSON.stringify(Object.keys(data)));
     
-    // The image URL comes as a base64 data URI in the images array
-    const imageUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+    const message = data.choices?.[0]?.message;
+    console.log("Message keys:", JSON.stringify(Object.keys(message || {})));
+    
+    const imageUrl = message?.images?.[0]?.image_url?.url;
 
     if (!imageUrl) {
-      console.error("No image in response. Full structure:", JSON.stringify(data).substring(0, 500));
+      console.error("No image in response:", JSON.stringify(data).substring(0, 1000));
       throw new Error("No image generated");
     }
 
-    console.log(`Successfully generated image for: ${word_english}, length: ${imageUrl.length}`);
+    console.log(`Successfully generated image for: ${word_english}, base64 length: ${imageUrl.length}`);
 
     return new Response(JSON.stringify({ success: true, imageBase64: imageUrl }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

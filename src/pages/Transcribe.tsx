@@ -515,6 +515,8 @@ const Transcribe = () => {
       // client-level timeouts / request transforms that can reload the page.
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      const { data: { session } } = await supabase.auth.getSession();
+      const authToken = session?.access_token || supabaseKey;
 
       // Fire both transcription engines in parallel
       const elevenLabsPromise = (async () => {
@@ -525,7 +527,7 @@ const Transcribe = () => {
             method: "POST",
             headers: {
               "apikey": supabaseKey,
-              "Authorization": `Bearer ${supabaseKey}`,
+              "Authorization": `Bearer ${authToken}`,
             },
             body: formData,
             signal: controller.signal,
@@ -553,7 +555,7 @@ const Transcribe = () => {
             method: "POST",
             headers: {
               "apikey": supabaseKey,
-              "Authorization": `Bearer ${supabaseKey}`,
+              "Authorization": `Bearer ${authToken}`,
             },
             body: munsitFormData,
             signal: controller.signal,

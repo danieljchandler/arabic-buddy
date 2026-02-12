@@ -730,6 +730,7 @@ const Transcribe = () => {
     }
     if (savedWords.has(word.arabic)) { toast.info("Word already saved"); return; }
     try {
+      console.log("Save to My Words - VocabItem:", JSON.stringify({ arabic: word.arabic, sentenceText: word.sentenceText, sentenceEnglish: word.sentenceEnglish, startMs: word.startMs, endMs: word.endMs }));
       let sentenceAudioUrl: string | undefined;
 
       // Clip sentence audio if timestamps and file are available

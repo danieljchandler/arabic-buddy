@@ -550,7 +550,7 @@ const AdminVideoForm = () => {
         )}
 
         {/* Save button */}
-        <Button onClick={handleSave} disabled={isSaving || !title || !embedUrl} className="w-full" size="lg">
+        <Button onClick={handleSave} disabled={isSaving} className="w-full" size="lg">
           {isSaving ? (
             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
           ) : (

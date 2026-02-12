@@ -84,7 +84,7 @@ serve(async (req) => {
     } else {
       // FormData-based input (existing behavior)
       const formData = await req.formData();
-      audioFile = formData.get("audio") as File;
+      audioFile = (formData.get("audio") || formData.get("file")) as File;
     }
 
     if (!audioFile) {

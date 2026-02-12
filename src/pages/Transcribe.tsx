@@ -1050,10 +1050,23 @@ const Transcribe = () => {
                   
                   const handleAddWord = async () => {
                     if (!isAuthenticated) { toast.error("Please log in first"); return; }
+                    
+                    // Auto-match to a sentence containing this word
+                    const matchedLine = lines.find(l => 
+                      l.tokens?.some(t => t.surface === item.arabic) || 
+                      l.arabic.includes(item.arabic)
+                    );
+                    
+                    const enrichedVocab: VocabItem = {
+                      ...item,
+                      sentenceText: matchedLine?.arabic,
+                      sentenceEnglish: matchedLine?.translation,
+                      startMs: matchedLine?.startMs,
+                      endMs: matchedLine?.endMs,
+                    };
+                    
                     try {
-                      await addUserVocabulary.mutateAsync({ word_arabic: item.arabic, word_english: item.english, root: item.root, source: "transcription" });
-                      setSavedWords(prev => new Set(prev).add(wordKey));
-                      toast.success("Word added!", { description: `"${item.arabic}" added to My Words` });
+                      await handleSaveToMyWords(enrichedVocab);
                     } catch (error) {
                       toast.error(error instanceof Error ? error.message : "Failed to add word");
                     }

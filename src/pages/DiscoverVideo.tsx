@@ -14,6 +14,7 @@ import {
 import { Loader2, ArrowLeft, BookOpen, Check, Plus, Eye, EyeOff, ChevronDown, ChevronLeft, ChevronRight, List, Play, Pause, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { getTikTokEmbedUrl } from "@/lib/videoEmbed";
 import type { TranscriptLine, WordToken, VocabItem } from "@/types/transcript";
 
 declare global {
@@ -363,6 +364,17 @@ const DiscoverVideo = () => {
     [video],
   );
 
+  const resolvedEmbedUrl = useMemo(() => {
+    if (!video) return "";
+    if (video.platform !== "tiktok") return video.embed_url;
+
+    return (
+      getTikTokEmbedUrl(video.embed_url) ||
+      getTikTokEmbedUrl(video.source_url) ||
+      video.embed_url
+    );
+  }, [video]);
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -410,18 +422,20 @@ const DiscoverVideo = () => {
           ) : video.platform === "tiktok" ? (
             <div className="max-h-[55vh] mx-auto flex justify-center">
               <iframe
-                src={video.embed_url}
+                src={resolvedEmbedUrl}
                 className="w-full max-w-[325px] h-[55vh]"
+                title={video.title}
                 allowFullScreen
-                allow="autoplay; encrypted-media"
+                allow="autoplay; encrypted-media; picture-in-picture; web-share"
                 style={{ border: "none" }}
               />
             </div>
           ) : (
             <div className="aspect-video max-h-[45vh] mx-auto">
               <iframe
-                src={video.embed_url}
+                src={resolvedEmbedUrl}
                 className="w-full h-full"
+                title={video.title}
                 allowFullScreen
                 allow="autoplay; encrypted-media"
               />

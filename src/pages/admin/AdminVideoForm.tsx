@@ -251,6 +251,14 @@ const AdminVideoForm = () => {
         rawText = filteredWords.map((w: any) => w.text).join(" ") || rawText;
       }
 
+      // Normalize timestamps to the selected clip so transcript sync starts at 0.
+      const clipOffsetSec = Math.max(0, startSec);
+      const relativeWords = filteredWords.map((w: any) => ({
+        ...w,
+        start: Math.max(0, w.start - clipOffsetSec),
+        end: Math.max(0, w.end - clipOffsetSec),
+      }));
+
       // Step 3: Analyze with Gemini/Falcon
       toast.info("Analyzing transcript...");
       const { data: analyzeData, error: analyzeError } = await supabase.functions.invoke("analyze-gulf-arabic", {
@@ -263,8 +271,8 @@ const AdminVideoForm = () => {
 
       // Map timestamps to lines if available
       let lines = result.lines || [];
-      if (filteredWords.length > 0 && lines.length > 0) {
-        const words = filteredWords;
+      if (relativeWords.length > 0 && lines.length > 0) {
+        const words = relativeWords;
         let wordIdx = 0;
         lines = lines.map((line: any) => {
           const lineWords = line.arabic?.split(/\s+/).filter(Boolean) || [];

@@ -47,6 +47,30 @@ export function parseVideoUrl(url: string): { platform: string; videoId: string;
 }
 
 /**
+ * Normalize any TikTok URL to a valid embeddable URL when possible.
+ */
+export function getTikTokEmbedUrl(url: string): string | null {
+  if (!url) return null;
+
+  const fromPathMatch = url.match(/(?:video\/|embed\/v2\/)(\d{8,})/);
+  if (fromPathMatch?.[1]) {
+    return `https://www.tiktok.com/embed/v2/${fromPathMatch[1]}`;
+  }
+
+  try {
+    const parsed = new URL(url);
+    const byQuery = parsed.searchParams.get("video_id");
+    if (byQuery && /^\d{8,}$/.test(byQuery)) {
+      return `https://www.tiktok.com/embed/v2/${byQuery}`;
+    }
+  } catch {
+    // Ignore invalid URL shapes; regex fallback above already attempted.
+  }
+
+  return null;
+}
+
+/**
  * Get YouTube thumbnail URL
  */
 export function getYouTubeThumbnail(videoId: string): string {

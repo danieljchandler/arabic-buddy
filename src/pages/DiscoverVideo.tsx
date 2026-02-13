@@ -361,20 +361,14 @@ const DiscoverVideo = () => {
               <div ref={iframeRef} className="w-full h-full" />
             </div>
           ) : video.platform === "tiktok" ? (
-            <div className="aspect-video max-h-[45vh] mx-auto flex items-center justify-center bg-gradient-to-b from-black to-zinc-900">
-              <a
-                href={video.source_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex flex-col items-center gap-3 text-white/80 hover:text-white transition-colors"
-              >
-                <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center backdrop-blur">
-                  <svg viewBox="0 0 24 24" className="w-8 h-8 fill-current" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M8 5v14l11-7z" />
-                  </svg>
-                </div>
-                <span className="text-sm font-medium">Watch on TikTok</span>
-              </a>
+            <div className="max-h-[55vh] mx-auto flex justify-center">
+              <iframe
+                src={video.embed_url}
+                className="w-full max-w-[325px] h-[55vh]"
+                allowFullScreen
+                allow="autoplay; encrypted-media"
+                style={{ border: "none" }}
+              />
             </div>
           ) : (
             <div className="aspect-video max-h-[45vh] mx-auto">

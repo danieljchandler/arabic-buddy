@@ -105,7 +105,7 @@ const AdminVideoForm = () => {
     }
   }, [existingVideo]);
 
-  const handleUrlParse = () => {
+  const handleUrlParse = async () => {
     const parsed = parseVideoUrl(sourceUrl);
     if (!parsed) {
       toast.error("Unsupported URL", { description: "Please use a YouTube, TikTok, or Instagram URL" });
@@ -116,6 +116,26 @@ const AdminVideoForm = () => {
     if (parsed.platform === "youtube") {
       setThumbnailUrl(getYouTubeThumbnail(parsed.videoId));
     }
+
+    // Resolve TikTok short URLs to get proper embed URL
+    if (parsed.platform === "tiktok" && !parsed.videoId) {
+      toast.info("Resolving TikTok URL...");
+      try {
+        const { data, error } = await supabase.functions.invoke("resolve-tiktok-url", {
+          body: { url: sourceUrl },
+        });
+        if (error) throw new Error(error.message);
+        if (data?.videoId) {
+          setEmbedUrl(data.embedUrl);
+          toast.success(`Detected TikTok video (ID: ${data.videoId})`);
+          return;
+        }
+      } catch (err) {
+        console.error("TikTok resolve error:", err);
+        toast.warning("Could not resolve TikTok URL — using fallback embed");
+      }
+    }
+
     toast.success(`Detected ${parsed.platform} video`);
   };
 

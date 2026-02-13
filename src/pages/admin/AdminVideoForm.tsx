@@ -10,13 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Loader2, ArrowLeft, Sparkles, Save, Upload, Download } from "lucide-react";
 import { toast } from "sonner";
@@ -69,9 +63,7 @@ const AdminVideoForm = () => {
   };
 
   const detectFileDuration = useCallback((file: File) => {
-    const el = file.type.startsWith("video/")
-      ? document.createElement("video")
-      : document.createElement("audio");
+    const el = file.type.startsWith("video/") ? document.createElement("video") : document.createElement("audio");
     el.preload = "metadata";
     const url = URL.createObjectURL(file);
     el.src = url;
@@ -99,13 +91,41 @@ const AdminVideoForm = () => {
       setDifficulty(existingVideo.difficulty);
       setPublished(existingVideo.published);
       setCulturalContext(existingVideo.cultural_context || "");
-      setTranscriptLines((existingVideo.transcript_lines as any[] ?? []) as TranscriptLine[]);
-      setVocabulary((existingVideo.vocabulary as any[] ?? []) as any[]);
-      setGrammarPoints((existingVideo.grammar_points as any[] ?? []) as any[]);
+      setTranscriptLines(((existingVideo.transcript_lines as any[]) ?? []) as TranscriptLine[]);
+      setVocabulary(((existingVideo.vocabulary as any[]) ?? []) as any[]);
+      setGrammarPoints(((existingVideo.grammar_points as any[]) ?? []) as any[]);
     }
   }, [existingVideo]);
 
   const handleUrlParse = async () => {
+    // Check if it's a TikTok URL first (including short URLs)
+    if (sourceUrl.includes("tiktok.com")) {
+      toast.info("Resolving TikTok URL...");
+      try {
+        // Use TikTok's oEmbed API to get proper embed URL
+        const response = await fetch(`https://www.tiktok.com/oembed?url=${encodeURIComponent(sourceUrl)}`);
+        const data = await response.json();
+
+        // Extract video ID from the embed HTML
+        const match = data.html?.match(/embed\/v2\/(\d+)/);
+        if (match) {
+          const videoId = match[1];
+          const embedUrl = `https://www.tiktok.com/embed/v2/${videoId}`;
+          setPlatform("tiktok");
+          setEmbedUrl(embedUrl);
+          toast.success(`TikTok video detected (ID: ${videoId})`);
+          return;
+        }
+      } catch (err) {
+        console.error("TikTok oEmbed error:", err);
+        toast.error("Could not resolve TikTok URL", {
+          description: "Please try copying the full URL from the TikTok video page",
+        });
+        return;
+      }
+    }
+
+    // For non-TikTok URLs, use the original parser
     const parsed = parseVideoUrl(sourceUrl);
     if (!parsed) {
       toast.error("Unsupported URL", { description: "Please use a YouTube, TikTok, or Instagram URL" });
@@ -117,31 +137,31 @@ const AdminVideoForm = () => {
       setThumbnailUrl(getYouTubeThumbnail(parsed.videoId));
     }
 
-    // Resolve TikTok short URLs to get proper embed URL
-    if (parsed.platform === "tiktok" && !parsed.videoId) {
-      toast.info("Resolving TikTok URL...");
-      try {
-        const { data, error } = await supabase.functions.invoke("resolve-tiktok-url", {
-          body: { url: sourceUrl },
-        });
-        if (error) throw new Error(error.message);
-        if (data?.videoId) {
-          setEmbedUrl(data.embedUrl);
-          toast.success(`Detected TikTok video (ID: ${data.videoId})`);
-          return;
-        }
-      } catch (err) {
-        console.error("TikTok resolve error:", err);
-        toast.warning("Could not resolve TikTok URL — using fallback embed");
-      }
-    }
-
     toast.success(`Detected ${parsed.platform} video`);
   };
 
   // Auto-parse URL if not already parsed
-  const ensureUrlParsed = useCallback(() => {
+  const ensureUrlParsed = useCallback(async () => {
     if (sourceUrl && !embedUrl) {
+      // Handle TikTok URLs specially
+      if (sourceUrl.includes("tiktok.com")) {
+        try {
+          const response = await fetch(`https://www.tiktok.com/oembed?url=${encodeURIComponent(sourceUrl)}`);
+          const data = await response.json();
+          const match = data.html?.match(/embed\/v2\/(\d+)/);
+          if (match) {
+            const videoId = match[1];
+            const embedUrl = `https://www.tiktok.com/embed/v2/${videoId}`;
+            setPlatform("tiktok");
+            setEmbedUrl(embedUrl);
+            return;
+          }
+        } catch (err) {
+          console.error("TikTok auto-parse error:", err);
+        }
+      }
+
+      // Fallback to regular parser
       const parsed = parseVideoUrl(sourceUrl);
       if (parsed) {
         setPlatform(parsed.platform);
@@ -155,13 +175,12 @@ const AdminVideoForm = () => {
 
   const handleDownloadAudio = async () => {
     if (!sourceUrl) return;
-    ensureUrlParsed();
+    await ensureUrlParsed();
     setIsDownloading(true);
     try {
-      const { data: downloadData, error: downloadError } = await supabase.functions.invoke(
-        "download-media",
-        { body: { url: sourceUrl } }
-      );
+      const { data: downloadData, error: downloadError } = await supabase.functions.invoke("download-media", {
+        body: { url: sourceUrl },
+      });
       if (downloadError) throw new Error(downloadError.message);
       if (!downloadData?.audioBase64) throw new Error("No audio found");
 
@@ -207,7 +226,9 @@ const AdminVideoForm = () => {
       formData.append("file", audioFile);
       formData.append("language_code", "ara");
 
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       const projectUrl = import.meta.env.VITE_SUPABASE_URL;
 
       const transcribeRes = await fetch(`${projectUrl}/functions/v1/elevenlabs-transcribe`, {
@@ -219,25 +240,22 @@ const AdminVideoForm = () => {
 
       if (!transcribeRes.ok) throw new Error("Transcription failed");
       const transcribeData = await transcribeRes.json();
-      
+
       // Filter words by selected time range
       const [startSec, endSec] = timeRange;
       let filteredWords = transcribeData.words || [];
       let rawText = transcribeData.text || "";
-      
+
       if (filteredWords.length > 0 && (startSec > 0 || endSec < (mediaDuration || Infinity))) {
-        filteredWords = filteredWords.filter(
-          (w: any) => w.start >= startSec && w.end <= endSec
-        );
+        filteredWords = filteredWords.filter((w: any) => w.start >= startSec && w.end <= endSec);
         rawText = filteredWords.map((w: any) => w.text).join(" ") || rawText;
       }
 
       // Step 3: Analyze with Gemini/Falcon
       toast.info("Analyzing transcript...");
-      const { data: analyzeData, error: analyzeError } = await supabase.functions.invoke(
-        "analyze-gulf-arabic",
-        { body: { transcript: rawText } }
-      );
+      const { data: analyzeData, error: analyzeError } = await supabase.functions.invoke("analyze-gulf-arabic", {
+        body: { transcript: rawText },
+      });
       if (analyzeError) throw new Error(analyzeError.message);
       if (!analyzeData?.success) throw new Error(analyzeData?.error || "Analysis failed");
 
@@ -299,22 +317,43 @@ const AdminVideoForm = () => {
     let saveEmbedUrl = embedUrl;
     let saveThumbnail = thumbnailUrl;
     if (sourceUrl && !saveEmbedUrl) {
-      const parsed = parseVideoUrl(sourceUrl);
-      if (parsed) {
-        savePlatform = parsed.platform;
-        saveEmbedUrl = parsed.embedUrl;
-        setPlatform(savePlatform);
-        setEmbedUrl(saveEmbedUrl);
-        if (parsed.platform === "youtube") {
-          saveThumbnail = getYouTubeThumbnail(parsed.videoId);
-          setThumbnailUrl(saveThumbnail);
+      // Handle TikTok specially
+      if (sourceUrl.includes("tiktok.com")) {
+        try {
+          const response = await fetch(`https://www.tiktok.com/oembed?url=${encodeURIComponent(sourceUrl)}`);
+          const data = await response.json();
+          const match = data.html?.match(/embed\/v2\/(\d+)/);
+          if (match) {
+            const videoId = match[1];
+            saveEmbedUrl = `https://www.tiktok.com/embed/v2/${videoId}`;
+            savePlatform = "tiktok";
+            setPlatform(savePlatform);
+            setEmbedUrl(saveEmbedUrl);
+          }
+        } catch (err) {
+          console.error("TikTok save parse error:", err);
         }
-      } else {
-        // Fallback: use sourceUrl directly as embed URL
-        saveEmbedUrl = sourceUrl;
-        savePlatform = savePlatform || "youtube";
-        setEmbedUrl(saveEmbedUrl);
-        setPlatform(savePlatform);
+      }
+
+      // If still no embed URL, try regular parser
+      if (!saveEmbedUrl) {
+        const parsed = parseVideoUrl(sourceUrl);
+        if (parsed) {
+          savePlatform = parsed.platform;
+          saveEmbedUrl = parsed.embedUrl;
+          setPlatform(savePlatform);
+          setEmbedUrl(saveEmbedUrl);
+          if (parsed.platform === "youtube") {
+            saveThumbnail = getYouTubeThumbnail(parsed.videoId);
+            setThumbnailUrl(saveThumbnail);
+          }
+        } else {
+          // Final fallback: use sourceUrl directly as embed URL
+          saveEmbedUrl = sourceUrl;
+          savePlatform = savePlatform || "youtube";
+          setEmbedUrl(saveEmbedUrl);
+          setPlatform(savePlatform);
+        }
       }
     }
 
@@ -355,9 +394,7 @@ const AdminVideoForm = () => {
       };
 
       if (isEditing) {
-        const { error } = await (supabase.from("discover_videos" as any) as any)
-          .update(record)
-          .eq("id", videoId);
+        const { error } = await (supabase.from("discover_videos" as any) as any).update(record).eq("id", videoId);
         if (error) throw error;
         toast.success("Video updated!");
       } else {
@@ -410,7 +447,7 @@ const AdminVideoForm = () => {
               <Label>Video URL</Label>
               <div className="flex gap-2">
                 <Input
-                  placeholder="https://youtube.com/watch?v=..."
+                  placeholder="https://youtube.com/watch?v=... or https://www.tiktok.com/@user/video/..."
                   value={sourceUrl}
                   onChange={(e) => setSourceUrl(e.target.value)}
                 />
@@ -422,10 +459,10 @@ const AdminVideoForm = () => {
 
             {platform && (
               <div className="flex gap-2 items-center">
-                <Badge variant="outline" className="capitalize">{platform}</Badge>
-                {thumbnailUrl && (
-                  <img src={thumbnailUrl} alt="" className="h-12 rounded" />
-                )}
+                <Badge variant="outline" className="capitalize">
+                  {platform}
+                </Badge>
+                {thumbnailUrl && <img src={thumbnailUrl} alt="" className="h-12 rounded" />}
               </div>
             )}
 
@@ -439,9 +476,15 @@ const AdminVideoForm = () => {
                   className="flex-1"
                 >
                   {isDownloading ? (
-                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Downloading...</>
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Downloading...
+                    </>
                   ) : (
-                    <><Download className="h-4 w-4 mr-2" />Download Audio</>
+                    <>
+                      <Download className="h-4 w-4 mr-2" />
+                      Download Audio
+                    </>
                   )}
                 </Button>
                 <Button
@@ -450,7 +493,8 @@ const AdminVideoForm = () => {
                   onClick={() => document.getElementById("audio-upload")?.click()}
                   disabled={isProcessing}
                 >
-                  <Upload className="h-4 w-4 mr-2" />Upload File
+                  <Upload className="h-4 w-4 mr-2" />
+                  Upload File
                 </Button>
                 <input
                   id="audio-upload"
@@ -462,8 +506,17 @@ const AdminVideoForm = () => {
               </div>
             ) : (
               <div className="flex gap-2 items-center">
-                <Badge variant="secondary" className="py-1.5">✓ Audio Ready</Badge>
-                <Button variant="ghost" size="sm" onClick={() => { setAudioFile(null); setMediaDuration(null); }}>
+                <Badge variant="secondary" className="py-1.5">
+                  ✓ Audio Ready
+                </Badge>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setAudioFile(null);
+                    setMediaDuration(null);
+                  }}
+                >
                   Change
                 </Button>
               </div>
@@ -480,11 +533,7 @@ const AdminVideoForm = () => {
             )}
 
             {/* Step 3: Process */}
-            <Button
-              onClick={handleProcess}
-              disabled={!audioFile || isProcessing}
-              className="w-full"
-            >
+            <Button onClick={handleProcess} disabled={!audioFile || isProcessing} className="w-full">
               {isProcessing ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -512,24 +561,41 @@ const AdminVideoForm = () => {
             </div>
             <div className="space-y-2">
               <Label>Arabic Title</Label>
-              <Input value={titleArabic} onChange={(e) => setTitleArabic(e.target.value)} dir="rtl" placeholder="عنوان الفيديو" />
+              <Input
+                value={titleArabic}
+                onChange={(e) => setTitleArabic(e.target.value)}
+                dir="rtl"
+                placeholder="عنوان الفيديو"
+              />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Dialect *</Label>
                 <Select value={dialect} onValueChange={setDialect}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
-                    {DIALECTS.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+                    {DIALECTS.map((d) => (
+                      <SelectItem key={d} value={d}>
+                        {d}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
                 <Label>Difficulty *</Label>
                 <Select value={difficulty} onValueChange={setDifficulty}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
-                    {DIFFICULTIES.map((d) => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+                    {DIFFICULTIES.map((d) => (
+                      <SelectItem key={d} value={d}>
+                        {d}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -562,15 +628,15 @@ const AdminVideoForm = () => {
         {transcriptLines.length > 0 && (
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">
-                Transcript ({transcriptLines.length} lines)
-              </CardTitle>
+              <CardTitle className="text-lg">Transcript ({transcriptLines.length} lines)</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-2 max-h-80 overflow-y-auto">
                 {transcriptLines.map((line, i) => (
                   <div key={line.id || i} className="p-2 rounded bg-muted/50 text-sm">
-                    <p dir="rtl" className="font-arabic">{line.arabic}</p>
+                    <p dir="rtl" className="font-arabic">
+                      {line.arabic}
+                    </p>
                     <p className="text-muted-foreground text-xs mt-1">{line.translation}</p>
                   </div>
                 ))}
@@ -581,11 +647,7 @@ const AdminVideoForm = () => {
 
         {/* Save button */}
         <Button onClick={handleSave} disabled={isSaving} className="w-full" size="lg">
-          {isSaving ? (
-            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-          ) : (
-            <Save className="h-4 w-4 mr-2" />
-          )}
+          {isSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
           {isEditing ? "Update Video" : "Save Video"}
         </Button>
       </main>

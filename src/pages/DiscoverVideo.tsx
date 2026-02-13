@@ -11,7 +11,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Loader2, ArrowLeft, BookOpen, Check, Plus, Eye, EyeOff, ChevronDown } from "lucide-react";
+import { Loader2, ArrowLeft, BookOpen, Check, Plus, Eye, EyeOff, ChevronDown, List } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import type { TranscriptLine, WordToken, VocabItem } from "@/types/transcript";
@@ -194,6 +194,7 @@ const DiscoverVideo = () => {
   const [currentTimeMs, setCurrentTimeMs] = useState(0);
   const [savedWords, setSavedWords] = useState<Set<string>>(new Set());
   const [showTranslations, setShowTranslations] = useState(true);
+  const [showFullTranscript, setShowFullTranscript] = useState(false);
   const playerRef = useRef<any>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const iframeRef = useRef<HTMLDivElement>(null);
@@ -302,6 +303,11 @@ const DiscoverVideo = () => {
     return null;
   }, [lines, currentTimeMs]);
 
+  const activeLine = useMemo(
+    () => lines.find((l) => l.id === activeLineId) ?? null,
+    [lines, activeLineId],
+  );
+
   // Auto-scroll to active line
   useEffect(() => {
     if (!activeLineId) return;
@@ -402,14 +408,56 @@ const DiscoverVideo = () => {
         )}
       </div>
 
-      {/* Transcript controls */}
+      {/* Active subtitle display */}
+      <div className="px-4 py-4 border-b border-border bg-card/50 min-h-[80px] flex flex-col justify-center">
+        {activeLine ? (
+          <div className="text-center space-y-1.5">
+            <p
+              className="text-lg font-medium text-foreground leading-[2]"
+              dir="rtl"
+              style={{ fontFamily: "'Cairo', 'Traditional Arabic', sans-serif" }}
+            >
+              {activeLine.tokens && activeLine.tokens.length > 0
+                ? activeLine.tokens.map((token, i) => (
+                    <span key={token.id} className="inline">
+                      <ClickableWord
+                        token={token}
+                        parentLine={activeLine}
+                        onSave={isAuthenticated ? handleSaveToMyWords : undefined}
+                        isSaved={savedWords?.has(token.surface)}
+                      />
+                      {i < activeLine.tokens.length - 1 && !/^[،؟.!:؛]+$/.test(token.surface) && " "}
+                    </span>
+                  ))
+                : activeLine.arabic}
+            </p>
+            {showTranslations && activeLine.translation && (
+              <p
+                className="text-sm text-muted-foreground leading-relaxed"
+                style={{ fontFamily: "'Open Sans', sans-serif" }}
+              >
+                {activeLine.translation}
+              </p>
+            )}
+          </div>
+        ) : (
+          <p className="text-center text-sm text-muted-foreground italic">
+            {lines.length > 0 ? "Play video to see subtitles" : "No transcript available"}
+          </p>
+        )}
+      </div>
+
+      {/* Controls bar */}
       <div className="px-4 py-2 flex items-center justify-between border-b border-border/50 bg-card/50">
-        <h2
-          className="text-sm font-semibold text-foreground"
-          style={{ fontFamily: "'Montserrat', sans-serif" }}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="gap-1.5 text-muted-foreground text-xs"
+          onClick={() => setShowFullTranscript(!showFullTranscript)}
         >
-          Transcript · {lines.length} lines
-        </h2>
+          <List className="h-3.5 w-3.5" />
+          {showFullTranscript ? "Hide" : "Show"} Transcript ({lines.length})
+        </Button>
         <div className="flex items-center gap-2">
           {showTranslations ? (
             <Eye className="h-3.5 w-3.5 text-muted-foreground" />
@@ -424,33 +472,29 @@ const DiscoverVideo = () => {
         </div>
       </div>
 
-      {/* Scrollable transcript */}
-      <div
-        ref={transcriptContainerRef}
-        className="flex-1 overflow-y-auto px-2 py-3 space-y-1"
-      >
-        {lines.map((line) => (
-          <TranscriptRow
-            key={line.id}
-            line={line}
-            isActive={activeLineId === line.id}
-            showTranslation={showTranslations}
-            onSave={isAuthenticated ? handleSaveToMyWords : undefined}
-            savedWords={savedWords}
-            lineRef={(el) => {
-              if (el) lineRefs.current.set(line.id, el);
-              else lineRefs.current.delete(line.id);
-            }}
-            onSeek={handleSeek}
-          />
-        ))}
-
-        {lines.length === 0 && (
-          <p className="text-center text-muted-foreground py-8 text-sm">
-            No transcript available for this video.
-          </p>
-        )}
-      </div>
+      {/* Full transcript (toggleable) */}
+      {showFullTranscript && (
+        <div
+          ref={transcriptContainerRef}
+          className="flex-1 overflow-y-auto px-2 py-3 space-y-1"
+        >
+          {lines.map((line) => (
+            <TranscriptRow
+              key={line.id}
+              line={line}
+              isActive={activeLineId === line.id}
+              showTranslation={showTranslations}
+              onSave={isAuthenticated ? handleSaveToMyWords : undefined}
+              savedWords={savedWords}
+              lineRef={(el) => {
+                if (el) lineRefs.current.set(line.id, el);
+                else lineRefs.current.delete(line.id);
+              }}
+              onSeek={handleSeek}
+            />
+          ))}
+        </div>
+      )}
 
       {/* Vocabulary & cultural context footer */}
       {(vocabulary.length > 0 || video.cultural_context) && (

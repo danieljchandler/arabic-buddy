@@ -215,7 +215,6 @@ const DiscoverVideo = () => {
     document.head.appendChild(tag);
   }, [video?.platform]);
 
-
   // Initialize YouTube player
   useEffect(() => {
     if (!video || video.platform !== "youtube" || !iframeRef.current) return;
@@ -277,6 +276,7 @@ const DiscoverVideo = () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
   }, [timerPlaying]);
+
   const handleSaveToMyWords = useCallback(
     async (word: VocabItem) => {
       if (!isAuthenticated) {
@@ -454,48 +454,56 @@ const DiscoverVideo = () => {
         {/* Timer controls for non-YouTube */}
         {!isYouTube && lines.length > 0 && (
           <div className="flex items-center justify-center gap-3 mb-3">
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-8 w-8"
-              onClick={() => { setTimerMs(0); setTimerPlaying(false); }}
-              title="Reset"
-            >
-              <RotateCcw className="h-3.5 w-3.5" />
-            </Button>
-            <Button
-              variant="default"
-              size="sm"
-              className="gap-1.5 px-4"
-              onClick={() => setTimerPlaying((p) => !p)}
-            >
-              {timerPlaying ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
-              {timerPlaying ? "Pause" : "Start"} Subtitles
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={() => {
-                // Skip backward 3 seconds
-                setTimerMs((prev) => Math.max(0, prev - 3000));
-              }}
-              title="-3s"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={() => {
-                // Skip forward 3 seconds
-                setTimerMs((prev) => prev + 3000);
-              }}
-              title="+3s"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
+            {!timerPlaying && timerMs === 0 ? (
+              <Button
+                variant="default"
+                size="lg"
+                className="gap-2 px-6"
+                onClick={() => setTimerPlaying(true)}
+              >
+                <Play className="h-4 w-4" />
+                Start Learning
+              </Button>
+            ) : (
+              <>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => { setTimerMs(0); setTimerPlaying(false); }}
+                  title="Reset"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                </Button>
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="gap-1.5 px-4"
+                  onClick={() => setTimerPlaying((p) => !p)}
+                >
+                  {timerPlaying ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
+                  {timerPlaying ? "Pause" : "Resume"}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => setTimerMs((prev) => Math.max(0, prev - 3000))}
+                  title="-3s"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => setTimerMs((prev) => prev + 3000)}
+                  title="+3s"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </>
+            )}
           </div>
         )}
 
@@ -532,7 +540,7 @@ const DiscoverVideo = () => {
             </div>
           ) : (
             <p className="text-center text-sm text-muted-foreground italic">
-              {lines.length > 0 ? (isYouTube ? "Play video to see subtitles" : "Press 'Start Subtitles' when you play the video") : "No transcript available"}
+              {lines.length > 0 ? (isYouTube ? "Play video to see subtitles" : "Press 'Start Learning' to begin") : "No transcript available"}
             </p>
           )}
         </div>

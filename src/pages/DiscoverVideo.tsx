@@ -11,7 +11,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Loader2, ArrowLeft, BookOpen, Check, Plus, Eye, EyeOff, ChevronDown, List } from "lucide-react";
+import { Loader2, ArrowLeft, BookOpen, Check, Plus, Eye, EyeOff, ChevronDown, ChevronLeft, ChevronRight, List } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import type { TranscriptLine, WordToken, VocabItem } from "@/types/transcript";
@@ -195,6 +195,7 @@ const DiscoverVideo = () => {
   const [savedWords, setSavedWords] = useState<Set<string>>(new Set());
   const [showTranslations, setShowTranslations] = useState(true);
   const [showFullTranscript, setShowFullTranscript] = useState(false);
+  const [manualLineIndex, setManualLineIndex] = useState(0);
   const playerRef = useRef<any>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const iframeRef = useRef<HTMLDivElement>(null);
@@ -289,19 +290,27 @@ const DiscoverVideo = () => {
     [video],
   );
 
-  // Find the currently active line
+  // For YouTube: find active line by time. For others: use manual index.
+  const isYouTube = video?.platform === "youtube";
+
   const activeLineId = useMemo(() => {
-    if (!lines.length || currentTimeMs <= 0) return null;
-    for (let i = lines.length - 1; i >= 0; i--) {
-      const line = lines[i];
-      if (line.startMs !== undefined && currentTimeMs >= line.startMs) {
-        if (line.endMs === undefined || currentTimeMs <= line.endMs + 500) {
-          return line.id;
+    if (!lines.length) return null;
+    if (isYouTube) {
+      if (currentTimeMs <= 0) return null;
+      for (let i = lines.length - 1; i >= 0; i--) {
+        const line = lines[i];
+        if (line.startMs !== undefined && currentTimeMs >= line.startMs) {
+          if (line.endMs === undefined || currentTimeMs <= line.endMs + 500) {
+            return line.id;
+          }
         }
       }
+      return null;
     }
-    return null;
-  }, [lines, currentTimeMs]);
+    // Manual navigation for non-YouTube
+    const idx = Math.max(0, Math.min(manualLineIndex, lines.length - 1));
+    return lines[idx]?.id ?? null;
+  }, [lines, currentTimeMs, isYouTube, manualLineIndex]);
 
   const activeLine = useMemo(
     () => lines.find((l) => l.id === activeLineId) ?? null,
@@ -409,41 +418,74 @@ const DiscoverVideo = () => {
       </div>
 
       {/* Active subtitle display */}
-      <div className="px-4 py-4 border-b border-border bg-card/50 min-h-[80px] flex flex-col justify-center">
-        {activeLine ? (
-          <div className="text-center space-y-1.5">
-            <p
-              className="text-lg font-medium text-foreground leading-[2]"
-              dir="rtl"
-              style={{ fontFamily: "'Cairo', 'Traditional Arabic', sans-serif" }}
-            >
-              {activeLine.tokens && activeLine.tokens.length > 0
-                ? activeLine.tokens.map((token, i) => (
-                    <span key={token.id} className="inline">
-                      <ClickableWord
-                        token={token}
-                        parentLine={activeLine}
-                        onSave={isAuthenticated ? handleSaveToMyWords : undefined}
-                        isSaved={savedWords?.has(token.surface)}
-                      />
-                      {i < activeLine.tokens.length - 1 && !/^[،؟.!:؛]+$/.test(token.surface) && " "}
-                    </span>
-                  ))
-                : activeLine.arabic}
-            </p>
-            {showTranslations && activeLine.translation && (
+      <div className="px-4 py-4 border-b border-border bg-card/50 min-h-[80px] flex items-center gap-2">
+        {/* Prev button for non-YouTube */}
+        {!isYouTube && lines.length > 0 && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 shrink-0"
+            onClick={() => setManualLineIndex((i) => Math.max(0, i - 1))}
+            disabled={manualLineIndex <= 0}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+        )}
+
+        <div className="flex-1 flex flex-col justify-center">
+          {activeLine ? (
+            <div className="text-center space-y-1.5">
               <p
-                className="text-sm text-muted-foreground leading-relaxed"
-                style={{ fontFamily: "'Open Sans', sans-serif" }}
+                className="text-lg font-medium text-foreground leading-[2]"
+                dir="rtl"
+                style={{ fontFamily: "'Cairo', 'Traditional Arabic', sans-serif" }}
               >
-                {activeLine.translation}
+                {activeLine.tokens && activeLine.tokens.length > 0
+                  ? activeLine.tokens.map((token, i) => (
+                      <span key={token.id} className="inline">
+                        <ClickableWord
+                          token={token}
+                          parentLine={activeLine}
+                          onSave={isAuthenticated ? handleSaveToMyWords : undefined}
+                          isSaved={savedWords?.has(token.surface)}
+                        />
+                        {i < activeLine.tokens.length - 1 && !/^[،؟.!:؛]+$/.test(token.surface) && " "}
+                      </span>
+                    ))
+                  : activeLine.arabic}
               </p>
-            )}
-          </div>
-        ) : (
-          <p className="text-center text-sm text-muted-foreground italic">
-            {lines.length > 0 ? "Play video to see subtitles" : "No transcript available"}
-          </p>
+              {showTranslations && activeLine.translation && (
+                <p
+                  className="text-sm text-muted-foreground leading-relaxed"
+                  style={{ fontFamily: "'Open Sans', sans-serif" }}
+                >
+                  {activeLine.translation}
+                </p>
+              )}
+              {!isYouTube && (
+                <p className="text-[10px] text-muted-foreground/60">
+                  {manualLineIndex + 1} / {lines.length}
+                </p>
+              )}
+            </div>
+          ) : (
+            <p className="text-center text-sm text-muted-foreground italic">
+              {lines.length > 0 ? (isYouTube ? "Play video to see subtitles" : "Tap arrows to browse subtitles") : "No transcript available"}
+            </p>
+          )}
+        </div>
+
+        {/* Next button for non-YouTube */}
+        {!isYouTube && lines.length > 0 && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 shrink-0"
+            onClick={() => setManualLineIndex((i) => Math.min(lines.length - 1, i + 1))}
+            disabled={manualLineIndex >= lines.length - 1}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
         )}
       </div>
 

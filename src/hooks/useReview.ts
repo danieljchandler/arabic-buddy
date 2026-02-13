@@ -163,7 +163,7 @@ export const useSubmitReview = () => {
         user_id: user.id,
         word_id: wordId,
         ease_factor: result.easeFactor,
-        interval_days: result.intervalDays,
+        interval_days: Math.max(0, Math.round(result.intervalDays)),
         repetitions: result.repetitions,
         next_review_at: result.nextReviewAt.toISOString(),
         last_reviewed_at: new Date().toISOString(),

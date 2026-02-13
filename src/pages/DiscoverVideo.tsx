@@ -11,7 +11,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Loader2, ArrowLeft, BookOpen, Check, Plus, Eye, EyeOff, ChevronDown, ChevronLeft, ChevronRight, List } from "lucide-react";
+import { Loader2, ArrowLeft, BookOpen, Check, Plus, Eye, EyeOff, ChevronDown, ChevronLeft, ChevronRight, List, Play, Pause, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import type { TranscriptLine, WordToken, VocabItem } from "@/types/transcript";
@@ -196,6 +196,10 @@ const DiscoverVideo = () => {
   const [showTranslations, setShowTranslations] = useState(true);
   const [showFullTranscript, setShowFullTranscript] = useState(false);
   const [manualLineIndex, setManualLineIndex] = useState(0);
+  // Timer-based sync for non-YouTube
+  const [timerPlaying, setTimerPlaying] = useState(false);
+  const [timerMs, setTimerMs] = useState(0);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const playerRef = useRef<any>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const iframeRef = useRef<HTMLDivElement>(null);
@@ -257,6 +261,22 @@ const DiscoverVideo = () => {
     }
   }, []);
 
+  // Timer-based playback for non-YouTube videos
+  useEffect(() => {
+    if (timerPlaying) {
+      timerRef.current = setInterval(() => {
+        setTimerMs((prev) => prev + 100);
+      }, 100);
+    } else {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    }
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [timerPlaying]);
   const handleSaveToMyWords = useCallback(
     async (word: VocabItem) => {
       if (!isAuthenticated) {
@@ -307,10 +327,22 @@ const DiscoverVideo = () => {
       }
       return null;
     }
-    // Manual navigation for non-YouTube
+    // Timer-based sync for non-YouTube: use timerMs if playing/started, else manual index
+    if (timerMs > 0 || timerPlaying) {
+      for (let i = lines.length - 1; i >= 0; i--) {
+        const line = lines[i];
+        if (line.startMs !== undefined && timerMs >= line.startMs) {
+          if (line.endMs === undefined || timerMs <= line.endMs + 500) {
+            return line.id;
+          }
+        }
+      }
+      return null;
+    }
+    // Fallback: manual navigation
     const idx = Math.max(0, Math.min(manualLineIndex, lines.length - 1));
     return lines[idx]?.id ?? null;
-  }, [lines, currentTimeMs, isYouTube, manualLineIndex]);
+  }, [lines, currentTimeMs, isYouTube, manualLineIndex, timerMs, timerPlaying]);
 
   const activeLine = useMemo(
     () => lines.find((l) => l.id === activeLineId) ?? null,
@@ -418,21 +450,56 @@ const DiscoverVideo = () => {
       </div>
 
       {/* Active subtitle display */}
-      <div className="px-4 py-4 border-b border-border bg-card/50 min-h-[80px] flex items-center gap-2">
-        {/* Prev button for non-YouTube */}
+      <div className="px-4 py-4 border-b border-border bg-card/50 min-h-[80px]">
+        {/* Timer controls for non-YouTube */}
         {!isYouTube && lines.length > 0 && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 shrink-0"
-            onClick={() => setManualLineIndex((i) => Math.max(0, i - 1))}
-            disabled={manualLineIndex <= 0}
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center justify-center gap-3 mb-3">
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => { setTimerMs(0); setTimerPlaying(false); }}
+              title="Reset"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="default"
+              size="sm"
+              className="gap-1.5 px-4"
+              onClick={() => setTimerPlaying((p) => !p)}
+            >
+              {timerPlaying ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
+              {timerPlaying ? "Pause" : "Start"} Subtitles
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => {
+                // Skip backward 3 seconds
+                setTimerMs((prev) => Math.max(0, prev - 3000));
+              }}
+              title="-3s"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => {
+                // Skip forward 3 seconds
+                setTimerMs((prev) => prev + 3000);
+              }}
+              title="+3s"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
         )}
 
-        <div className="flex-1 flex flex-col justify-center">
+        <div className="flex flex-col justify-center">
           {activeLine ? (
             <div className="text-center space-y-1.5">
               <p
@@ -462,31 +529,13 @@ const DiscoverVideo = () => {
                   {activeLine.translation}
                 </p>
               )}
-              {!isYouTube && (
-                <p className="text-[10px] text-muted-foreground/60">
-                  {manualLineIndex + 1} / {lines.length}
-                </p>
-              )}
             </div>
           ) : (
             <p className="text-center text-sm text-muted-foreground italic">
-              {lines.length > 0 ? (isYouTube ? "Play video to see subtitles" : "Tap arrows to browse subtitles") : "No transcript available"}
+              {lines.length > 0 ? (isYouTube ? "Play video to see subtitles" : "Press 'Start Subtitles' when you play the video") : "No transcript available"}
             </p>
           )}
         </div>
-
-        {/* Next button for non-YouTube */}
-        {!isYouTube && lines.length > 0 && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 shrink-0"
-            onClick={() => setManualLineIndex((i) => Math.min(lines.length - 1, i + 1))}
-            disabled={manualLineIndex >= lines.length - 1}
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        )}
       </div>
 
       {/* Controls bar */}

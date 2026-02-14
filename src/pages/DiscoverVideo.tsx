@@ -399,7 +399,7 @@ const DiscoverVideo = () => {
     if (!video || video.platform !== "tiktok") return "";
 
     const baseUrl = (resolvedTikTokVideoId
-      ? `https://www.tiktok.com/player/v1/${resolvedTikTokVideoId}`
+      ? `https://www.tiktok.com/embed/v2/${resolvedTikTokVideoId}`
       : resolvedEmbedUrl) || resolvedEmbedUrl;
 
     if (!baseUrl) return "";

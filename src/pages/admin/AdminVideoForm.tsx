@@ -108,7 +108,7 @@ const AdminVideoForm = () => {
 
         const videoId = extractTikTokVideoId(`${data?.html ?? ""} ${data?.author_url ?? ""} ${sourceUrl}`);
         if (videoId) {
-          const embedUrl = `https://www.tiktok.com/embed/v2/${videoId}`;
+          const embedUrl = `https://www.tiktok.com/player/v1/${videoId}`;
           setPlatform("tiktok");
           setEmbedUrl(embedUrl);
           toast.success(`TikTok video detected (ID: ${videoId})`);
@@ -148,7 +148,7 @@ const AdminVideoForm = () => {
           const data = await response.json();
           const videoId = extractTikTokVideoId(`${data?.html ?? ""} ${data?.author_url ?? ""} ${sourceUrl}`);
           if (videoId) {
-            const embedUrl = `https://www.tiktok.com/embed/v2/${videoId}`;
+            const embedUrl = `https://www.tiktok.com/player/v1/${videoId}`;
             setPlatform("tiktok");
             setEmbedUrl(embedUrl);
             return;
@@ -329,7 +329,7 @@ const AdminVideoForm = () => {
           const data = await response.json();
           const videoId = extractTikTokVideoId(`${data?.html ?? ""} ${data?.author_url ?? ""} ${sourceUrl}`);
           if (videoId) {
-            saveEmbedUrl = `https://www.tiktok.com/embed/v2/${videoId}`;
+            saveEmbedUrl = `https://www.tiktok.com/player/v1/${videoId}`;
             savePlatform = "tiktok";
             setPlatform(savePlatform);
             setEmbedUrl(saveEmbedUrl);

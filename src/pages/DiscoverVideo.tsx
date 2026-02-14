@@ -402,9 +402,7 @@ const DiscoverVideo = () => {
 
     const prefersPlayerEndpoint = /\/player\/v1\//.test(video.embed_url);
     const baseUrl = (resolvedTikTokVideoId
-      ? (prefersPlayerEndpoint
-        ? `https://www.tiktok.com/player/v1/${resolvedTikTokVideoId}`
-        : `https://www.tiktok.com/embed/v2/${resolvedTikTokVideoId}`)
+      ? `https://www.tiktok.com/player/v1/${resolvedTikTokVideoId}`
       : resolvedEmbedUrl) || resolvedEmbedUrl;
 
     if (!baseUrl) return "";

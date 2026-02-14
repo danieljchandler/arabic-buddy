@@ -79,7 +79,7 @@ async function downloadAsBase64(url: string, referer?: string): Promise<{ base64
     }
 
     console.log(`Downloaded ${(size / 1024 / 1024).toFixed(2)}MB, type: ${contentType}`);
-    const base64 = base64Encode(new Uint8Array(arrayBuffer));
+    const base64 = base64Encode(new Uint8Array(arrayBuffer) as unknown as ArrayBuffer);
     return { base64, contentType, size };
   } catch (e) {
     console.error(`Download error:`, e);

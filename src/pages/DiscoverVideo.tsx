@@ -494,27 +494,30 @@ const DiscoverVideo = () => {
               <div ref={iframeRef} className="w-full h-full" />
             </div>
           ) : video.platform === "tiktok" ? (
-            <div className="mx-auto flex justify-center">
-              <div className="w-full h-[70vh] max-h-[600px] bg-black">
-                {tiktokIframeUrl ? (
-                  <iframe
-                    key={`${tiktokIframeUrl}-${tiktokPlaybackNonce}`}
-                    src={tiktokIframeUrl}
-                    className="w-full h-full border-0"
-                    title={video.title}
-                    allowFullScreen
-                    allow="autoplay; encrypted-media; fullscreen; picture-in-picture" referrerPolicy="strict-origin-when-cross-origin"
-                  />
-                ) : (
-                  <a
-                    href={resolvedTikTokCiteUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="h-full w-full flex items-center justify-center text-sm text-white/80"
-                  >
-                    View on TikTok
-                  </a>
-                )}
+            <div className="mx-auto flex w-full justify-center px-2 py-2">
+              <div className="w-full max-w-[420px]">
+                <div className="relative aspect-[9/16] w-full max-h-[75vh] overflow-hidden rounded-md bg-black">
+                  {tiktokIframeUrl ? (
+                    <iframe
+                      key={`${tiktokIframeUrl}-${tiktokPlaybackNonce}`}
+                      src={tiktokIframeUrl}
+                      className="absolute inset-0 h-full w-full border-0"
+                      title={video.title}
+                      allowFullScreen
+                      scrolling="no"
+                      allow="autoplay; encrypted-media; fullscreen; picture-in-picture" referrerPolicy="strict-origin-when-cross-origin"
+                    />
+                  ) : (
+                    <a
+                      href={resolvedTikTokCiteUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex h-full w-full items-center justify-center text-sm text-white/80"
+                    >
+                      View on TikTok
+                    </a>
+                  )}
+                </div>
               </div>
             </div>
           ) : (

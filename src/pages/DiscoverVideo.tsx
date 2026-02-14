@@ -467,8 +467,8 @@ const DiscoverVideo = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      {/* Sticky video section */}
-      <div className="sticky top-0 z-30 bg-background">
+      {/* Video section - sticky for YouTube, static for TikTok (vertical videos need more space) */}
+      <div className={cn(isYouTube ? "sticky top-0 z-30" : "relative z-30", "bg-background")}>
         {/* Back nav */}
         <div className="px-4 py-2 flex items-center gap-2">
           <Button
@@ -495,12 +495,12 @@ const DiscoverVideo = () => {
             </div>
           ) : video.platform === "tiktok" ? (
             <div className="mx-auto flex justify-center">
-              <div className="w-full h-[45vh] max-h-[400px] overflow-hidden bg-black">
+              <div className="w-full h-[70vh] max-h-[600px] bg-black">
                 {tiktokIframeUrl ? (
                   <iframe
                     key={`${tiktokIframeUrl}-${tiktokPlaybackNonce}`}
                     src={tiktokIframeUrl}
-                    className="w-full h-full"
+                    className="w-full h-full border-0"
                     title={video.title}
                     allowFullScreen
                     allow="autoplay; encrypted-media; fullscreen; picture-in-picture" referrerPolicy="strict-origin-when-cross-origin"

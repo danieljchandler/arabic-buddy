@@ -505,7 +505,7 @@ const DiscoverVideo = () => {
           ) : video.platform === "tiktok" ? (
             <div className="mx-auto flex w-full justify-center px-2 py-2">
               <div className="w-full max-w-[420px]">
-                <div className="relative aspect-[9/16] w-full max-h-[62vh] overflow-hidden rounded-md bg-black">
+                <div className="relative aspect-[9/16] w-full max-h-[75vh] overflow-hidden rounded-md bg-black">
                   {tiktokIframeUrl ? (
                     <iframe
                       key={`${tiktokIframeUrl}-${tiktokPlaybackNonce}`}
@@ -514,12 +514,6 @@ const DiscoverVideo = () => {
                       title={video.title}
                       allowFullScreen
                       scrolling="no"
-                      onLoad={() => {
-                        if (!pendingTikTokStart) return;
-                        setTimerMs(0);
-                        setTimerPlaying(true);
-                        setPendingTikTokStart(false);
-                      }}
                       allow="autoplay; encrypted-media; fullscreen; picture-in-picture" referrerPolicy="strict-origin-when-cross-origin"
                     />
                   ) : (
@@ -531,42 +525,6 @@ const DiscoverVideo = () => {
                     >
                       View on TikTok
                     </a>
-                  )}
-
-                  {!timerPlaying && timerMs === 0 && lines.length > 0 && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                      <Button
-                        size="icon"
-                        className="h-14 w-14 rounded-full"
-                        onClick={handleStartTikTokWithTranscript}
-                        title="Play video and subtitles"
-                      >
-                        <Play className="h-6 w-6" />
-                      </Button>
-                    </div>
-                  )}
-
-                  {lines.length > 0 && (
-                    <div className="absolute inset-x-0 bottom-0 bg-black/65 px-3 py-2 backdrop-blur-sm">
-                      {activeLine ? (
-                        <div className="text-center space-y-0.5">
-                          <p
-                            className="text-sm font-medium text-white leading-[1.9]"
-                            dir="rtl"
-                            style={{ fontFamily: "'Cairo', 'Traditional Arabic', sans-serif" }}
-                          >
-                            {activeLine.arabic}
-                          </p>
-                          {showTranslations && activeLine.translation && (
-                            <p className="text-xs text-white/85 leading-relaxed">{activeLine.translation}</p>
-                          )}
-                        </div>
-                      ) : (
-                        <p className="text-center text-xs text-white/80 italic">
-                          Tap play to begin synced subtitles
-                        </p>
-                      )}
-                    </div>
                   )}
                 </div>
               </div>

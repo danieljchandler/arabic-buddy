@@ -400,18 +400,19 @@ const DiscoverVideo = () => {
   const tiktokIframeUrl = useMemo(() => {
     if (!video || video.platform !== "tiktok") return "";
 
+    const prefersPlayerEndpoint = /\/player\/v1\//.test(video.embed_url);
     const baseUrl = (resolvedTikTokVideoId
       ? `https://www.tiktok.com/player/v1/${resolvedTikTokVideoId}`
       : resolvedEmbedUrl) || resolvedEmbedUrl;
 
     if (!baseUrl) return "";
 
-    const separator = baseUrl.includes("?") ? "&" : "?";
-    const autoplayParams = timerPlaying || tiktokPlaybackNonce > 0
-      ? "autoplay=1&muted=1&music_info=0&description=0"
-      : "music_info=0&description=0";
+    if (!(timerPlaying || tiktokPlaybackNonce > 0)) {
+      return baseUrl;
+    }
 
-    return `${baseUrl}${separator}${autoplayParams}`;
+    const separator = baseUrl.includes("?") ? "&" : "?";
+    return `${baseUrl}${separator}autoplay=1`;
   }, [video, resolvedEmbedUrl, resolvedTikTokVideoId, timerPlaying, tiktokPlaybackNonce]);
 
   const handleStartTikTokWithTranscript = useCallback(() => {

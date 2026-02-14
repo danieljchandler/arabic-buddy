@@ -50,7 +50,7 @@ export function parseVideoUrl(url: string): { platform: string; videoId: string;
 export function extractTikTokVideoId(value: string): string | null {
   if (!value) return null;
 
-  const match = value.match(/(?:video\/|embed\/v2\/|player\/v1\/)(\d{8,})/);
+  const match = value.match(/(?:video\/|embed\/v2\/|player\/v1\/|\/v\/|item_id=)(\d{8,})/);
   return match?.[1] ?? null;
 }
 

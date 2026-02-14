@@ -12,6 +12,11 @@ describe("TikTok URL helpers", () => {
     expect(extractTikTokVideoId(url)).toBe("7451234567890123456");
   });
 
+  it("extracts video ID from item_id query params", () => {
+    const url = "https://www.tiktok.com/share/video/?item_id=7451234567890123456";
+    expect(extractTikTokVideoId(url)).toBe("7451234567890123456");
+  });
+
   it("parses TikTok full URLs as player embed", () => {
     const parsed = parseVideoUrl("https://www.tiktok.com/@creator/video/7451234567890123456");
     expect(parsed).toEqual({

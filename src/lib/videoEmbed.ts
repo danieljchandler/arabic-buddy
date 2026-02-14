@@ -20,7 +20,7 @@ export function parseVideoUrl(url: string): { platform: string; videoId: string;
     return {
       platform: "tiktok",
       videoId: ttMatch[1],
-      embedUrl: `https://www.tiktok.com/embed/v2/${ttMatch[1]}`,
+      embedUrl: `https://www.tiktok.com/player/v1/${ttMatch[1]}`,
     };
   }
 
@@ -62,14 +62,14 @@ export function getTikTokEmbedUrl(url: string): string | null {
 
   const fromPathId = extractTikTokVideoId(url);
   if (fromPathId) {
-    return `https://www.tiktok.com/embed/v2/${fromPathId}`;
+    return `https://www.tiktok.com/player/v1/${fromPathId}`;
   }
 
   try {
     const parsed = new URL(url);
     const byQuery = parsed.searchParams.get("video_id");
     if (byQuery && /^\d{8,}$/.test(byQuery)) {
-      return `https://www.tiktok.com/embed/v2/${byQuery}`;
+      return `https://www.tiktok.com/player/v1/${byQuery}`;
     }
   } catch {
     // Ignore invalid URL shapes; regex fallback above already attempted.

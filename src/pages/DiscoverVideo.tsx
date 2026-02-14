@@ -11,7 +11,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Loader2, ArrowLeft, BookOpen, Check, Plus, Eye, EyeOff, ChevronDown, ChevronLeft, ChevronRight, List, Play, Pause, RotateCcw } from "lucide-react";
+import { Loader2, ArrowLeft, BookOpen, Check, Plus, Eye, EyeOff, ChevronDown, List, Play } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { extractTikTokVideoId, getTikTokEmbedUrl } from "@/lib/videoEmbed";
@@ -205,6 +205,7 @@ const DiscoverVideo = () => {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const iframeRef = useRef<HTMLDivElement>(null);
   const [tiktokPlaybackNonce, setTiktokPlaybackNonce] = useState(0);
+  const [pendingTikTokStart, setPendingTikTokStart] = useState(false);
   const [resolvedTikTokVideoId, setResolvedTikTokVideoId] = useState<string | null>(null);
   const [resolvedTikTokAuthorUrl, setResolvedTikTokAuthorUrl] = useState<string | null>(null);
   const lineRefs = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -316,6 +317,7 @@ const DiscoverVideo = () => {
 
   // For YouTube: find active line by time. For others: use manual index.
   const isYouTube = video?.platform === "youtube";
+  const isTikTok = video?.platform === "tiktok";
 
   const activeLineId = useMemo(() => {
     if (!lines.length) return null;
@@ -411,6 +413,13 @@ const DiscoverVideo = () => {
 
     return `${baseUrl}${separator}${autoplayParams}`;
   }, [video, resolvedEmbedUrl, resolvedTikTokVideoId, timerPlaying, tiktokPlaybackNonce]);
+
+  const handleStartTikTokWithTranscript = useCallback(() => {
+    setTimerPlaying(false);
+    setTimerMs(0);
+    setPendingTikTokStart(true);
+    setTiktokPlaybackNonce((prev) => prev + 1);
+  }, []);
 
   useEffect(() => {
     if (!video || video.platform !== "tiktok") return;
@@ -554,113 +563,47 @@ const DiscoverVideo = () => {
       </div>
 
       {/* Active subtitle display */}
-      <div className="px-4 py-4 border-b border-border bg-card/50 min-h-[80px]">
-        {/* Timer controls for non-YouTube */}
-        {!isYouTube && lines.length > 0 && (
-          <div className="flex items-center justify-center gap-3 mb-3">
-            {!timerPlaying && timerMs === 0 ? (
-              <Button
-                variant="default"
-                size="lg"
-                className="gap-2 px-6"
-                onClick={() => {
-                  setTimerMs(0);
-                  setTimerPlaying(true);
-                  if (video?.platform === "tiktok") {
-                    setTiktokPlaybackNonce((prev) => prev + 1);
-                  }
-                }}
-              >
-                <Play className="h-4 w-4" />
-                Start Learning
-              </Button>
+      {!isTikTok && (
+        <div className="px-4 py-4 border-b border-border bg-card/50 min-h-[80px]">
+          <div className="flex flex-col justify-center">
+            {activeLine ? (
+              <div className="text-center space-y-1.5">
+                <p
+                  className="text-lg font-medium text-foreground leading-[2]"
+                  dir="rtl"
+                  style={{ fontFamily: "'Cairo', 'Traditional Arabic', sans-serif" }}
+                >
+                  {activeLine.tokens && activeLine.tokens.length > 0
+                    ? activeLine.tokens.map((token, i) => (
+                        <span key={token.id} className="inline">
+                          <ClickableWord
+                            token={token}
+                            parentLine={activeLine}
+                            onSave={isAuthenticated ? handleSaveToMyWords : undefined}
+                            isSaved={savedWords?.has(token.surface)}
+                          />
+                          {i < activeLine.tokens.length - 1 && !/^[،؟.!:؛]+$/.test(token.surface) && " "}
+                        </span>
+                      ))
+                    : activeLine.arabic}
+                </p>
+                {showTranslations && activeLine.translation && (
+                  <p
+                    className="text-sm text-muted-foreground leading-relaxed"
+                    style={{ fontFamily: "'Open Sans', sans-serif" }}
+                  >
+                    {activeLine.translation}
+                  </p>
+                )}
+              </div>
             ) : (
-              <>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="h-8 w-8"
-                  onClick={() => {
-                    setTimerMs(0);
-                    setTimerPlaying(false);
-                    if (video?.platform === "tiktok") {
-                      setTiktokPlaybackNonce((prev) => prev + 1);
-                    }
-                  }}
-                  title="Reset"
-                >
-                  <RotateCcw className="h-3.5 w-3.5" />
-                </Button>
-                <Button
-                  variant="default"
-                  size="sm"
-                  className="gap-1.5 px-4"
-                  onClick={() => setTimerPlaying((p) => !p)}
-                >
-                  {timerPlaying ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
-                  {timerPlaying ? "Pause" : "Resume"}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8"
-                  onClick={() => setTimerMs((prev) => Math.max(0, prev - 3000))}
-                  title="-3s"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8"
-                  onClick={() => setTimerMs((prev) => prev + 3000)}
-                  title="+3s"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </>
+              <p className="text-center text-sm text-muted-foreground italic">
+                {lines.length > 0 ? (isYouTube ? "Play video to see subtitles" : "Tap play on the video to begin") : "No transcript available"}
+              </p>
             )}
           </div>
-        )}
-
-        <div className="flex flex-col justify-center">
-          {activeLine ? (
-            <div className="text-center space-y-1.5">
-              <p
-                className="text-lg font-medium text-foreground leading-[2]"
-                dir="rtl"
-                style={{ fontFamily: "'Cairo', 'Traditional Arabic', sans-serif" }}
-              >
-                {activeLine.tokens && activeLine.tokens.length > 0
-                  ? activeLine.tokens.map((token, i) => (
-                      <span key={token.id} className="inline">
-                        <ClickableWord
-                          token={token}
-                          parentLine={activeLine}
-                          onSave={isAuthenticated ? handleSaveToMyWords : undefined}
-                          isSaved={savedWords?.has(token.surface)}
-                        />
-                        {i < activeLine.tokens.length - 1 && !/^[،؟.!:؛]+$/.test(token.surface) && " "}
-                      </span>
-                    ))
-                  : activeLine.arabic}
-              </p>
-              {showTranslations && activeLine.translation && (
-                <p
-                  className="text-sm text-muted-foreground leading-relaxed"
-                  style={{ fontFamily: "'Open Sans', sans-serif" }}
-                >
-                  {activeLine.translation}
-                </p>
-              )}
-            </div>
-          ) : (
-            <p className="text-center text-sm text-muted-foreground italic">
-              {lines.length > 0 ? (isYouTube ? "Play video to see subtitles" : "Press 'Start Learning' to begin") : "No transcript available"}
-            </p>
-          )}
         </div>
-      </div>
+      )}
 
       {/* Controls bar */}
       <div className="px-4 py-2 flex items-center justify-between border-b border-border/50 bg-card/50">

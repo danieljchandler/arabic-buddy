@@ -4,7 +4,7 @@ import { extractTikTokVideoId, getTikTokEmbedUrl, parseVideoUrl } from "./videoE
 describe("TikTok URL helpers", () => {
   it("normalizes full TikTok URL to player embed", () => {
     const url = "https://www.tiktok.com/@creator/video/7451234567890123456";
-    expect(getTikTokEmbedUrl(url)).toBe("https://www.tiktok.com/player/v1/7451234567890123456");
+    expect(getTikTokEmbedUrl(url)).toBe("https://www.tiktok.com/embed/v2/7451234567890123456");
   });
 
   it("extracts video ID from player URL", () => {
@@ -17,7 +17,7 @@ describe("TikTok URL helpers", () => {
     expect(parsed).toEqual({
       platform: "tiktok",
       videoId: "7451234567890123456",
-      embedUrl: "https://www.tiktok.com/player/v1/7451234567890123456",
+      embedUrl: "https://www.tiktok.com/embed/v2/7451234567890123456",
     });
   });
 });

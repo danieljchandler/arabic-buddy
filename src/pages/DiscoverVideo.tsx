@@ -494,8 +494,8 @@ const DiscoverVideo = () => {
               <div ref={iframeRef} className="w-full h-full" />
             </div>
           ) : video.platform === "tiktok" ? (
-            <div className="mx-auto flex justify-center px-2 py-1">
-              <div className="w-full max-w-[260px] h-[40vh] max-h-[360px] rounded-xl overflow-hidden bg-black">
+            <div className="mx-auto flex justify-center">
+              <div className="w-full h-[45vh] max-h-[400px] overflow-hidden bg-black">
                 {tiktokIframeUrl ? (
                   <iframe
                     key={`${tiktokIframeUrl}-${tiktokPlaybackNonce}`}

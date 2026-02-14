@@ -496,7 +496,7 @@ const DiscoverVideo = () => {
           ) : video.platform === "tiktok" ? (
             <div className="mx-auto flex w-full justify-center px-2 py-2">
               <div className="w-full max-w-[420px]">
-                <div className="relative aspect-[9/16] w-full max-h-[62vh] overflow-hidden rounded-md bg-black">
+                <div className="relative aspect-[9/16] w-full max-h-[75vh] overflow-hidden rounded-md bg-black">
                   {tiktokIframeUrl ? (
                     <iframe
                       key={`${tiktokIframeUrl}-${tiktokPlaybackNonce}`}
@@ -516,23 +516,6 @@ const DiscoverVideo = () => {
                     >
                       View on TikTok
                     </a>
-                  )}
-
-                  {!timerPlaying && timerMs === 0 && lines.length > 0 && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                      <Button
-                        size="icon"
-                        className="h-14 w-14 rounded-full"
-                        onClick={() => {
-                          setTimerMs(0);
-                          setTimerPlaying(true);
-                          setTiktokPlaybackNonce((prev) => prev + 1);
-                        }}
-                        title="Play video and subtitles"
-                      >
-                        <Play className="h-6 w-6" />
-                      </Button>
-                    </div>
                   )}
                 </div>
               </div>

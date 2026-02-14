@@ -21,7 +21,6 @@ declare global {
   interface Window {
     YT: any;
     onYouTubeIframeAPIReady: (() => void) | undefined;
-    tiktokEmbedLoad?: () => void;
   }
 }
 
@@ -205,7 +204,7 @@ const DiscoverVideo = () => {
   const playerRef = useRef<any>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const iframeRef = useRef<HTMLDivElement>(null);
-  const tiktokEmbedRef = useRef<HTMLDivElement>(null);
+  const [tiktokPlaybackNonce, setTiktokPlaybackNonce] = useState(0);
   const [resolvedTikTokVideoId, setResolvedTikTokVideoId] = useState<string | null>(null);
   const [resolvedTikTokAuthorUrl, setResolvedTikTokAuthorUrl] = useState<string | null>(null);
   const lineRefs = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -396,6 +395,23 @@ const DiscoverVideo = () => {
     return video.source_url || resolvedEmbedUrl || video.embed_url;
   }, [video, resolvedEmbedUrl, resolvedTikTokAuthorUrl, resolvedTikTokVideoId]);
 
+  const tiktokIframeUrl = useMemo(() => {
+    if (!video || video.platform !== "tiktok") return "";
+
+    const baseUrl = (resolvedTikTokVideoId
+      ? `https://www.tiktok.com/embed/v2/${resolvedTikTokVideoId}`
+      : resolvedEmbedUrl) || resolvedEmbedUrl;
+
+    if (!baseUrl) return "";
+
+    const separator = baseUrl.includes("?") ? "&" : "?";
+    const autoplayParams = timerPlaying || tiktokPlaybackNonce > 0
+      ? "autoplay=1&music_info=0&description=0"
+      : "music_info=0&description=0";
+
+    return `${baseUrl}${separator}${autoplayParams}`;
+  }, [video, resolvedEmbedUrl, resolvedTikTokVideoId, timerPlaying, tiktokPlaybackNonce]);
+
   useEffect(() => {
     if (!video || video.platform !== "tiktok") return;
 
@@ -432,46 +448,6 @@ const DiscoverVideo = () => {
       cancelled = true;
     };
   }, [video, resolvedEmbedUrl, tiktokVideoId]);
-
-  useEffect(() => {
-    if (!video || video.platform !== "tiktok" || !tiktokEmbedRef.current) return;
-
-    const container = tiktokEmbedRef.current;
-    container.innerHTML = "";
-
-    const citeUrl = resolvedTikTokCiteUrl;
-    if (!citeUrl) return;
-
-    const blockquote = document.createElement("blockquote");
-    blockquote.className = "tiktok-embed";
-    blockquote.setAttribute("cite", citeUrl);
-    if (resolvedTikTokVideoId) blockquote.setAttribute("data-video-id", resolvedTikTokVideoId);
-    blockquote.style.maxWidth = "325px";
-    blockquote.style.minWidth = "325px";
-
-    const section = document.createElement("section");
-    const anchor = document.createElement("a");
-    anchor.href = citeUrl;
-    anchor.target = "_blank";
-    anchor.rel = "noreferrer";
-    anchor.textContent = "View on TikTok";
-    section.appendChild(anchor);
-    blockquote.appendChild(section);
-    container.appendChild(blockquote);
-
-    const existingScript = document.getElementById("tiktok-embed-script") as HTMLScriptElement | null;
-    if (existingScript) {
-      window.tiktokEmbedLoad?.();
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.id = "tiktok-embed-script";
-    script.src = "https://www.tiktok.com/embed.js";
-    script.async = true;
-    script.onload = () => window.tiktokEmbedLoad?.();
-    document.body.appendChild(script);
-  }, [video, resolvedTikTokCiteUrl, resolvedTikTokVideoId]);
 
   if (isLoading) {
     return (
@@ -518,12 +494,28 @@ const DiscoverVideo = () => {
               <div ref={iframeRef} className="w-full h-full" />
             </div>
           ) : video.platform === "tiktok" ? (
-            <div className="max-h-[55vh] mx-auto flex justify-center">
-              <div
-                ref={tiktokEmbedRef}
-                className="w-full max-w-[325px] h-[55vh] overflow-y-auto"
-                title={video.title}
-              />
+            <div className="mx-auto flex justify-center px-2 py-2">
+              <div className="w-full max-w-[320px] aspect-[9/16] max-h-[42vh] rounded-xl overflow-hidden bg-black">
+                {tiktokIframeUrl ? (
+                  <iframe
+                    key={`${tiktokIframeUrl}-${tiktokPlaybackNonce}`}
+                    src={tiktokIframeUrl}
+                    className="w-full h-full"
+                    title={video.title}
+                    allowFullScreen
+                    allow="autoplay; encrypted-media"
+                  />
+                ) : (
+                  <a
+                    href={resolvedTikTokCiteUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="h-full w-full flex items-center justify-center text-sm text-white/80"
+                  >
+                    View on TikTok
+                  </a>
+                )}
+              </div>
             </div>
           ) : (
             <div className="aspect-video max-h-[45vh] mx-auto">
@@ -568,7 +560,13 @@ const DiscoverVideo = () => {
                 variant="default"
                 size="lg"
                 className="gap-2 px-6"
-                onClick={() => setTimerPlaying(true)}
+                onClick={() => {
+                  setTimerMs(0);
+                  setTimerPlaying(true);
+                  if (video?.platform === "tiktok") {
+                    setTiktokPlaybackNonce((prev) => prev + 1);
+                  }
+                }}
               >
                 <Play className="h-4 w-4" />
                 Start Learning
@@ -579,7 +577,13 @@ const DiscoverVideo = () => {
                   variant="outline"
                   size="icon"
                   className="h-8 w-8"
-                  onClick={() => { setTimerMs(0); setTimerPlaying(false); }}
+                  onClick={() => {
+                    setTimerMs(0);
+                    setTimerPlaying(false);
+                    if (video?.platform === "tiktok") {
+                      setTiktokPlaybackNonce((prev) => prev + 1);
+                    }
+                  }}
                   title="Reset"
                 >
                   <RotateCcw className="h-3.5 w-3.5" />

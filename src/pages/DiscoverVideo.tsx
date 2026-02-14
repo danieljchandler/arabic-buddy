@@ -11,7 +11,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Loader2, ArrowLeft, BookOpen, Check, Plus, Eye, EyeOff, ChevronDown, ChevronLeft, ChevronRight, List, Play, Pause, RotateCcw } from "lucide-react";
+import { Loader2, ArrowLeft, BookOpen, Check, Plus, Eye, EyeOff, ChevronDown, List, Play } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { extractTikTokVideoId, getTikTokEmbedUrl } from "@/lib/videoEmbed";
@@ -555,74 +555,6 @@ const DiscoverVideo = () => {
 
       {/* Active subtitle display */}
       <div className="px-4 py-4 border-b border-border bg-card/50 min-h-[80px]">
-        {/* Timer controls for non-YouTube */}
-        {!isYouTube && lines.length > 0 && (
-          <div className="flex items-center justify-center gap-3 mb-3">
-            {!timerPlaying && timerMs === 0 ? (
-              <Button
-                variant="default"
-                size="lg"
-                className="gap-2 px-6"
-                onClick={() => {
-                  setTimerMs(0);
-                  setTimerPlaying(true);
-                  if (video?.platform === "tiktok") {
-                    setTiktokPlaybackNonce((prev) => prev + 1);
-                  }
-                }}
-              >
-                <Play className="h-4 w-4" />
-                Start Learning
-              </Button>
-            ) : (
-              <>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="h-8 w-8"
-                  onClick={() => {
-                    setTimerMs(0);
-                    setTimerPlaying(false);
-                    if (video?.platform === "tiktok") {
-                      setTiktokPlaybackNonce((prev) => prev + 1);
-                    }
-                  }}
-                  title="Reset"
-                >
-                  <RotateCcw className="h-3.5 w-3.5" />
-                </Button>
-                <Button
-                  variant="default"
-                  size="sm"
-                  className="gap-1.5 px-4"
-                  onClick={() => setTimerPlaying((p) => !p)}
-                >
-                  {timerPlaying ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
-                  {timerPlaying ? "Pause" : "Resume"}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8"
-                  onClick={() => setTimerMs((prev) => Math.max(0, prev - 3000))}
-                  title="-3s"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8"
-                  onClick={() => setTimerMs((prev) => prev + 3000)}
-                  title="+3s"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </>
-            )}
-          </div>
-        )}
-
         <div className="flex flex-col justify-center">
           {activeLine ? (
             <div className="text-center space-y-1.5">
@@ -656,7 +588,7 @@ const DiscoverVideo = () => {
             </div>
           ) : (
             <p className="text-center text-sm text-muted-foreground italic">
-              {lines.length > 0 ? (isYouTube ? "Play video to see subtitles" : "Press 'Start Learning' to begin") : "No transcript available"}
+              {lines.length > 0 ? (isYouTube ? "Play video to see subtitles" : "Tap play on the video to begin") : "No transcript available"}
             </p>
           )}
         </div>

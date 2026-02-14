@@ -383,7 +383,7 @@ const COMMON_GLOSSES: Record<string, string> = {
   'هناك': 'there',
   'هنا': 'here',
   'فيه': 'there is',
-  'في': 'there is/in',
+  'فيها': 'in it/there is',
   'اللي': 'which/that',
   'الي': 'which/that',
   'يلا': 'let\'s go',
@@ -400,7 +400,7 @@ const COMMON_GLOSSES: Record<string, string> = {
   'يبي': 'he wants',
   'تبي': 'you want',
   'راح': 'went/will',
-  'بـ': 'will',
+  'بيـ': 'will',
   'قال': 'said',
   'يقول': 'says',
 };

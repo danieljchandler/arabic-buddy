@@ -95,7 +95,7 @@ serve(async (req) => {
   } catch (error) {
     console.error("TTS error:", error);
     return new Response(
-      JSON.stringify({ error: error.message || "TTS generation failed" }),
+      JSON.stringify({ error: (error as Error).message || "TTS generation failed" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

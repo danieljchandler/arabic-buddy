@@ -382,7 +382,7 @@ const DiscoverVideo = () => {
     if (!video || video.platform !== "tiktok") return null;
 
     const source = `${resolvedEmbedUrl} ${video.embed_url} ${video.source_url}`;
-    const match = source.match(/(?:video\/|embed\/v2\/)(\d{8,})/);
+    const match = source.match(/(?:video\/|embed\/v2\/|player\/v1\/)(\d{8,})/);
     return match?.[1] ?? null;
   }, [video, resolvedEmbedUrl]);
 
@@ -399,14 +399,14 @@ const DiscoverVideo = () => {
     if (!video || video.platform !== "tiktok") return "";
 
     const baseUrl = (resolvedTikTokVideoId
-      ? `https://www.tiktok.com/embed/v2/${resolvedTikTokVideoId}`
+      ? `https://www.tiktok.com/player/v1/${resolvedTikTokVideoId}`
       : resolvedEmbedUrl) || resolvedEmbedUrl;
 
     if (!baseUrl) return "";
 
     const separator = baseUrl.includes("?") ? "&" : "?";
     const autoplayParams = timerPlaying || tiktokPlaybackNonce > 0
-      ? "autoplay=1&music_info=0&description=0"
+      ? "autoplay=1&muted=1&music_info=0&description=0"
       : "music_info=0&description=0";
 
     return `${baseUrl}${separator}${autoplayParams}`;
@@ -503,7 +503,7 @@ const DiscoverVideo = () => {
                     className="w-full h-full"
                     title={video.title}
                     allowFullScreen
-                    allow="autoplay; encrypted-media"
+                    allow="autoplay; encrypted-media; fullscreen; picture-in-picture" referrerPolicy="strict-origin-when-cross-origin"
                   />
                 ) : (
                   <a
@@ -524,7 +524,7 @@ const DiscoverVideo = () => {
                 className="w-full h-full"
                 title={video.title}
                 allowFullScreen
-                allow="autoplay; encrypted-media"
+                allow="autoplay; encrypted-media; fullscreen; picture-in-picture" referrerPolicy="strict-origin-when-cross-origin"
               />
             </div>
           )}

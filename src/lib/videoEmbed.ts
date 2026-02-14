@@ -46,15 +46,23 @@ export function parseVideoUrl(url: string): { platform: string; videoId: string;
   return null;
 }
 
+
+export function extractTikTokVideoId(value: string): string | null {
+  if (!value) return null;
+
+  const match = value.match(/(?:video\/|embed\/v2\/)(\d{8,})/);
+  return match?.[1] ?? null;
+}
+
 /**
  * Normalize any TikTok URL to a valid embeddable URL when possible.
  */
 export function getTikTokEmbedUrl(url: string): string | null {
   if (!url) return null;
 
-  const fromPathMatch = url.match(/(?:video\/|embed\/v2\/)(\d{8,})/);
-  if (fromPathMatch?.[1]) {
-    return `https://www.tiktok.com/embed/v2/${fromPathMatch[1]}`;
+  const fromPathId = extractTikTokVideoId(url);
+  if (fromPathId) {
+    return `https://www.tiktok.com/embed/v2/${fromPathId}`;
   }
 
   try {

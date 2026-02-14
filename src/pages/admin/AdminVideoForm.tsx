@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useDiscoverVideo } from "@/hooks/useDiscoverVideos";
-import { parseVideoUrl, getYouTubeThumbnail } from "@/lib/videoEmbed";
+import { extractTikTokVideoId, parseVideoUrl, getYouTubeThumbnail } from "@/lib/videoEmbed";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -106,10 +106,8 @@ const AdminVideoForm = () => {
         const response = await fetch(`https://www.tiktok.com/oembed?url=${encodeURIComponent(sourceUrl)}`);
         const data = await response.json();
 
-        // Extract video ID from the embed HTML
-        const match = data.html?.match(/embed\/v2\/(\d+)/);
-        if (match) {
-          const videoId = match[1];
+        const videoId = extractTikTokVideoId(`${data?.html ?? ""} ${data?.author_url ?? ""} ${sourceUrl}`);
+        if (videoId) {
           const embedUrl = `https://www.tiktok.com/embed/v2/${videoId}`;
           setPlatform("tiktok");
           setEmbedUrl(embedUrl);
@@ -148,9 +146,8 @@ const AdminVideoForm = () => {
         try {
           const response = await fetch(`https://www.tiktok.com/oembed?url=${encodeURIComponent(sourceUrl)}`);
           const data = await response.json();
-          const match = data.html?.match(/embed\/v2\/(\d+)/);
-          if (match) {
-            const videoId = match[1];
+          const videoId = extractTikTokVideoId(`${data?.html ?? ""} ${data?.author_url ?? ""} ${sourceUrl}`);
+          if (videoId) {
             const embedUrl = `https://www.tiktok.com/embed/v2/${videoId}`;
             setPlatform("tiktok");
             setEmbedUrl(embedUrl);
@@ -330,9 +327,8 @@ const AdminVideoForm = () => {
         try {
           const response = await fetch(`https://www.tiktok.com/oembed?url=${encodeURIComponent(sourceUrl)}`);
           const data = await response.json();
-          const match = data.html?.match(/embed\/v2\/(\d+)/);
-          if (match) {
-            const videoId = match[1];
+          const videoId = extractTikTokVideoId(`${data?.html ?? ""} ${data?.author_url ?? ""} ${sourceUrl}`);
+          if (videoId) {
             saveEmbedUrl = `https://www.tiktok.com/embed/v2/${videoId}`;
             savePlatform = "tiktok";
             setPlatform(savePlatform);

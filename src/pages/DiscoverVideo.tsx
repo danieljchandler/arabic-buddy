@@ -14,7 +14,7 @@ import {
 import { Loader2, ArrowLeft, BookOpen, Check, Plus, Eye, EyeOff, ChevronDown, ChevronLeft, ChevronRight, List, Play, Pause, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { getTikTokEmbedUrl } from "@/lib/videoEmbed";
+import { extractTikTokVideoId, getTikTokEmbedUrl } from "@/lib/videoEmbed";
 import type { TranscriptLine, WordToken, VocabItem } from "@/types/transcript";
 
 declare global {
@@ -207,6 +207,7 @@ const DiscoverVideo = () => {
   const iframeRef = useRef<HTMLDivElement>(null);
   const tiktokEmbedRef = useRef<HTMLDivElement>(null);
   const [resolvedTikTokVideoId, setResolvedTikTokVideoId] = useState<string | null>(null);
+  const [resolvedTikTokAuthorUrl, setResolvedTikTokAuthorUrl] = useState<string | null>(null);
   const lineRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const transcriptContainerRef = useRef<HTMLDivElement>(null);
 
@@ -388,17 +389,18 @@ const DiscoverVideo = () => {
 
   const resolvedTikTokCiteUrl = useMemo(() => {
     if (!video || video.platform !== "tiktok") return "";
-    if (resolvedTikTokVideoId) {
-      return `https://www.tiktok.com/@_/video/${resolvedTikTokVideoId}`;
+    if (resolvedTikTokVideoId && resolvedTikTokAuthorUrl) {
+      return `${resolvedTikTokAuthorUrl.replace(/\/$/, "")}/video/${resolvedTikTokVideoId}`;
     }
 
     return video.source_url || resolvedEmbedUrl || video.embed_url;
-  }, [video, resolvedEmbedUrl, resolvedTikTokVideoId]);
+  }, [video, resolvedEmbedUrl, resolvedTikTokAuthorUrl, resolvedTikTokVideoId]);
 
   useEffect(() => {
     if (!video || video.platform !== "tiktok") return;
 
     setResolvedTikTokVideoId(tiktokVideoId);
+    setResolvedTikTokAuthorUrl(null);
     if (tiktokVideoId) return;
 
     const candidateUrl = video.source_url || video.embed_url || resolvedEmbedUrl;
@@ -410,9 +412,14 @@ const DiscoverVideo = () => {
       try {
         const response = await fetch(`https://www.tiktok.com/oembed?url=${encodeURIComponent(candidateUrl)}`);
         const data = await response.json();
-        const match = data?.html?.match(/embed\/v2\/(\d{8,})/);
-        if (!cancelled && match?.[1]) {
-          setResolvedTikTokVideoId(match[1]);
+        const resolvedId = extractTikTokVideoId(`${data?.html ?? ""} ${data?.author_url ?? ""} ${candidateUrl}`);
+        if (!cancelled) {
+          if (resolvedId) {
+            setResolvedTikTokVideoId(resolvedId);
+          }
+          if (typeof data?.author_url === "string" && data.author_url.includes("tiktok.com/@")) {
+            setResolvedTikTokAuthorUrl(data.author_url);
+          }
         }
       } catch {
         // Keep best-effort fallback with source URL only.

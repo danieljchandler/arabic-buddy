@@ -394,6 +394,12 @@ const DiscoverVideo = () => {
       return `${resolvedTikTokAuthorUrl.replace(/\/$/, "")}/video/${resolvedTikTokVideoId}`;
     }
 
+    // Prefer a canonical watch URL whenever we have an ID.
+    // Short/share/embed URLs are more likely to trigger unavailable responses in embed.js.
+    if (resolvedTikTokVideoId) {
+      return `https://www.tiktok.com/video/${resolvedTikTokVideoId}`;
+    }
+
     return video.source_url || resolvedEmbedUrl || video.embed_url;
   }, [video, resolvedEmbedUrl, resolvedTikTokAuthorUrl, resolvedTikTokVideoId]);
 

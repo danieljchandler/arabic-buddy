@@ -249,24 +249,12 @@
   }
 
   .lahja-divider {
-    height: 20px;
-    width: 100%;
+    height: 14px;
     border-radius: 999px;
-    background-image: url('/assets/lahja-border-pattern.svg');
-    background-repeat: repeat-x;
-    background-size: auto 100%;
-    background-position: center;
-    box-shadow: 0 2px 6px -4px hsl(0 0% 0% / 0.4);
-  }
-
-  .lahja-divider-subtle {
-    height: 12px;
-    width: 100%;
-    border-radius: 999px;
-    background-image: url('/assets/lahja-border-pattern.svg');
-    background-repeat: repeat-x;
-    background-size: auto 100%;
-    opacity: 0.75;
+    background-image:
+      linear-gradient(90deg, hsl(7 52% 36%) 0%, hsl(7 52% 36%) 24%, hsl(38 48% 76%) 24%, hsl(38 48% 76%) 34%, hsl(97 17% 37%) 34%, hsl(97 17% 37%) 60%, hsl(0 0% 20%) 60%, hsl(0 0% 20%) 78%, hsl(7 52% 36%) 78%, hsl(7 52% 36%) 100%),
+      repeating-linear-gradient(135deg, hsl(38 48% 76% / 0.7) 0 10px, transparent 10px 20px);
+    box-shadow: inset 0 1px 0 hsl(38 50% 98% / 0.65), 0 1px 0 hsl(0 0% 0% / 0.06);
   }
 
   .lahja-surface {
@@ -280,18 +268,5 @@
     font-weight: 700;
     letter-spacing: -0.01em;
     color: hsl(0 0% 20%);
-  }
-
-  .lahja-card-trim {
-    position: absolute;
-    left: 1rem;
-    right: 1rem;
-    top: 0.45rem;
-    height: 8px;
-    border-radius: 999px;
-    background-image: url('/assets/lahja-border-pattern.svg');
-    background-repeat: repeat-x;
-    background-size: auto 100%;
-    opacity: 0.85;
   }
 }

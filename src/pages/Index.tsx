@@ -62,7 +62,6 @@ const Index = () => {
         onClick={() => navigate("/learn")}
         className={cn(
           "w-full mb-6 p-6 rounded-[1.5rem]",
-          "relative overflow-hidden",
           "bg-gradient-to-br from-primary via-primary to-[#345e4b] text-primary-foreground",
           "flex items-center gap-4",
           "transition-all duration-200",
@@ -70,7 +69,6 @@ const Index = () => {
           "shadow-[0_16px_30px_-20px_rgba(21,58,47,0.8)]"
         )}
       >
-        <span className="lahja-card-trim opacity-60" aria-hidden="true" />
         <div className="w-12 h-12 rounded-2xl bg-primary-foreground/20 flex items-center justify-center border border-primary-foreground/20">
           <Sparkles className="h-6 w-6" />
         </div>
@@ -89,7 +87,6 @@ const Index = () => {
           className={cn(
             "w-full mb-6 p-5 rounded-xl",
             "lahja-surface rounded-[1.25rem]",
-            "relative overflow-hidden pt-7",
             "flex items-center justify-between",
             "transition-all duration-200",
             "hover:border-primary/40 hover:-translate-y-0.5"
@@ -119,7 +116,6 @@ const Index = () => {
           className={cn(
             "w-full mb-6 p-5 rounded-xl",
             "lahja-surface rounded-[1.25rem]",
-            "relative overflow-hidden pt-7",
             "flex items-center gap-4",
             "transition-all duration-200",
             "hover:border-primary/20"
@@ -145,7 +141,6 @@ const Index = () => {
           className={cn(
             "w-full mb-6 p-5 rounded-xl",
             "lahja-surface rounded-[1.25rem]",
-            "relative overflow-hidden pt-7",
             "flex items-center justify-between",
             "transition-all duration-200",
             "hover:border-primary/20"
@@ -178,7 +173,6 @@ const Index = () => {
           className={cn(
             "w-full mb-6 p-5 rounded-xl",
             "lahja-surface rounded-[1.25rem]",
-            "relative overflow-hidden pt-7",
             "flex items-center gap-4",
             "transition-all duration-200",
             "hover:border-primary/20"
@@ -203,7 +197,6 @@ const Index = () => {
         className={cn(
           "w-full mb-6 p-5 rounded-xl",
           "lahja-surface rounded-[1.25rem]",
-          "relative overflow-hidden pt-7",
           "flex items-center gap-4",
           "transition-all duration-200",
           "hover:border-primary/20"
@@ -227,7 +220,6 @@ const Index = () => {
         className={cn(
           "w-full mb-6 p-5 rounded-xl",
           "lahja-surface rounded-[1.25rem]",
-          "relative overflow-hidden pt-7",
           "flex items-center gap-4",
           "transition-all duration-200",
           "hover:border-primary/20"
@@ -251,7 +243,6 @@ const Index = () => {
         className={cn(
           "w-full mb-6 p-5 rounded-xl",
           "lahja-surface rounded-[1.25rem]",
-          "relative overflow-hidden pt-7",
           "flex items-center gap-4",
           "transition-all duration-200",
           "hover:border-primary/20"

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -12,7 +12,8 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Loader2, ArrowLeft, Sparkles, Save, Upload, Download } from "lucide-react";
+import { Loader2, ArrowLeft, Sparkles, Save, Upload, Download, Plus, Trash2 } from "lucide-react";
+import { EditableTranscript } from "@/components/admin/EditableTranscript";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import type { TranscriptLine } from "@/types/transcript";
@@ -628,23 +629,136 @@ const AdminVideoForm = () => {
           </CardContent>
         </Card>
 
-        {/* Transcript preview */}
+        {/* Editable Transcript */}
         {transcriptLines.length > 0 && (
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Transcript ({transcriptLines.length} lines)</CardTitle>
+              <CardTitle className="text-lg">Transcript</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2 max-h-80 overflow-y-auto">
-                {transcriptLines.map((line, i) => (
-                  <div key={line.id || i} className="p-2 rounded bg-muted/50 text-sm">
-                    <p dir="rtl" className="font-arabic">
-                      {line.arabic}
-                    </p>
-                    <p className="text-muted-foreground text-xs mt-1">{line.translation}</p>
+              <EditableTranscript
+                lines={transcriptLines}
+                onChange={setTranscriptLines}
+                audioUrl={audioFile ? URL.createObjectURL(audioFile) : undefined}
+              />
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Editable Vocabulary */}
+        {vocabulary.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Vocabulary ({vocabulary.length})</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {vocabulary.map((item: any, i: number) => (
+                <div key={i} className="flex items-center gap-2 p-2 rounded bg-muted/50">
+                  <Input
+                    value={item.arabic || ""}
+                    onChange={(e) => {
+                      const updated = [...vocabulary];
+                      updated[i] = { ...item, arabic: e.target.value };
+                      setVocabulary(updated);
+                    }}
+                    dir="rtl"
+                    className="flex-1 h-8 text-sm"
+                    style={{ fontFamily: "'Cairo', sans-serif" }}
+                    placeholder="Arabic"
+                  />
+                  <Input
+                    value={item.english || ""}
+                    onChange={(e) => {
+                      const updated = [...vocabulary];
+                      updated[i] = { ...item, english: e.target.value };
+                      setVocabulary(updated);
+                    }}
+                    className="flex-1 h-8 text-sm"
+                    placeholder="English"
+                  />
+                  <Input
+                    value={item.root || ""}
+                    onChange={(e) => {
+                      const updated = [...vocabulary];
+                      updated[i] = { ...item, root: e.target.value };
+                      setVocabulary(updated);
+                    }}
+                    dir="rtl"
+                    className="w-20 h-8 text-sm"
+                    placeholder="Root"
+                  />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-destructive/50 hover:text-destructive shrink-0"
+                    onClick={() => setVocabulary(vocabulary.filter((_: any, j: number) => j !== i))}
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                </div>
+              ))}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setVocabulary([...vocabulary, { arabic: "", english: "", root: "" }])}
+              >
+                <Plus className="h-3 w-3 mr-1" />
+                Add Word
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Editable Grammar Points */}
+        {grammarPoints.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Grammar Points ({grammarPoints.length})</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {grammarPoints.map((gp: any, i: number) => (
+                <div key={i} className="p-3 rounded bg-muted/50 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Input
+                      value={gp.title || ""}
+                      onChange={(e) => {
+                        const updated = [...grammarPoints];
+                        updated[i] = { ...gp, title: e.target.value };
+                        setGrammarPoints(updated);
+                      }}
+                      className="flex-1 h-8 text-sm font-medium"
+                      placeholder="Title"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-destructive/50 hover:text-destructive shrink-0"
+                      onClick={() => setGrammarPoints(grammarPoints.filter((_: any, j: number) => j !== i))}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
                   </div>
-                ))}
-              </div>
+                  <Textarea
+                    value={gp.explanation || ""}
+                    onChange={(e) => {
+                      const updated = [...grammarPoints];
+                      updated[i] = { ...gp, explanation: e.target.value };
+                      setGrammarPoints(updated);
+                    }}
+                    className="text-sm"
+                    rows={2}
+                    placeholder="Explanation"
+                  />
+                </div>
+              ))}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setGrammarPoints([...grammarPoints, { title: "", explanation: "" }])}
+              >
+                <Plus className="h-3 w-3 mr-1" />
+                Add Grammar Point
+              </Button>
             </CardContent>
           </Card>
         )}

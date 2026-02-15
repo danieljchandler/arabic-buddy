@@ -11,7 +11,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Loader2, ArrowLeft, BookOpen, Check, Plus, Eye, EyeOff, ChevronDown, List, Play } from "lucide-react";
+import { Loader2, ArrowLeft, BookOpen, Check, Plus, Eye, EyeOff, ChevronDown, List } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { extractTikTokVideoId, getTikTokEmbedUrl } from "@/lib/videoEmbed";
@@ -21,6 +21,7 @@ declare global {
   interface Window {
     YT: any;
     onYouTubeIframeAPIReady: (() => void) | undefined;
+    tiktokEmbedLoad?: () => void;
   }
 }
 
@@ -204,8 +205,7 @@ const DiscoverVideo = () => {
   const playerRef = useRef<any>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const iframeRef = useRef<HTMLDivElement>(null);
-  const [tiktokPlaybackNonce, setTiktokPlaybackNonce] = useState(0);
-  const [pendingTikTokStart, setPendingTikTokStart] = useState(false);
+  const tiktokEmbedRef = useRef<HTMLDivElement>(null);
   const [resolvedTikTokVideoId, setResolvedTikTokVideoId] = useState<string | null>(null);
   const [resolvedTikTokAuthorUrl, setResolvedTikTokAuthorUrl] = useState<string | null>(null);
   const lineRefs = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -394,32 +394,63 @@ const DiscoverVideo = () => {
       return `${resolvedTikTokAuthorUrl.replace(/\/$/, "")}/video/${resolvedTikTokVideoId}`;
     }
 
+    // Prefer a canonical watch URL whenever we have an ID.
+    // Short/share/embed URLs are more likely to trigger unavailable responses in embed.js.
+    if (resolvedTikTokVideoId) {
+      return `https://www.tiktok.com/video/${resolvedTikTokVideoId}`;
+    }
+
     return video.source_url || resolvedEmbedUrl || video.embed_url;
   }, [video, resolvedEmbedUrl, resolvedTikTokAuthorUrl, resolvedTikTokVideoId]);
 
-  const tiktokIframeUrl = useMemo(() => {
-    if (!video || video.platform !== "tiktok") return "";
+  useEffect(() => {
+    if (!video || video.platform !== "tiktok" || !tiktokEmbedRef.current) return;
 
-    const baseUrl = (resolvedTikTokVideoId
-      ? `https://www.tiktok.com/embed/v2/${resolvedTikTokVideoId}`
-      : resolvedEmbedUrl) || resolvedEmbedUrl;
+    const container = tiktokEmbedRef.current;
+    container.innerHTML = "";
 
-    if (!baseUrl) return "";
+    const citeUrl = resolvedTikTokCiteUrl;
+    if (!citeUrl) return;
 
-    const separator = baseUrl.includes("?") ? "&" : "?";
-    const autoplayParams = timerPlaying || tiktokPlaybackNonce > 0
-      ? "autoplay=1&muted=1&music_info=0&description=0"
-      : "music_info=0&description=0";
+    const blockquote = document.createElement("blockquote");
+    blockquote.className = "tiktok-embed";
+    blockquote.setAttribute("cite", citeUrl);
+    if (resolvedTikTokVideoId) blockquote.setAttribute("data-video-id", resolvedTikTokVideoId);
+    blockquote.style.maxWidth = "100%";
+    blockquote.style.minWidth = "100%";
+    blockquote.style.margin = "0 auto";
 
-    return `${baseUrl}${separator}${autoplayParams}`;
-  }, [video, resolvedEmbedUrl, resolvedTikTokVideoId, timerPlaying, tiktokPlaybackNonce]);
+    const section = document.createElement("section");
+    const anchor = document.createElement("a");
+    anchor.href = citeUrl;
+    anchor.target = "_blank";
+    anchor.rel = "noreferrer";
+    anchor.textContent = "View on TikTok";
+    section.appendChild(anchor);
+    blockquote.appendChild(section);
+    container.appendChild(blockquote);
 
-  const handleStartTikTokWithTranscript = useCallback(() => {
-    setTimerPlaying(false);
-    setTimerMs(0);
-    setPendingTikTokStart(true);
-    setTiktokPlaybackNonce((prev) => prev + 1);
-  }, []);
+    const hydrateEmbed = () => {
+      if (typeof window.tiktokEmbedLoad === "function") {
+        window.tiktokEmbedLoad();
+        return;
+      }
+
+      const existingScript = document.getElementById("tiktok-embed-script") as HTMLScriptElement | null;
+      if (existingScript) {
+        existingScript.remove();
+      }
+
+      const script = document.createElement("script");
+      script.id = "tiktok-embed-script";
+      script.src = "https://www.tiktok.com/embed.js";
+      script.async = true;
+      script.onload = () => window.tiktokEmbedLoad?.();
+      document.body.appendChild(script);
+    };
+
+    hydrateEmbed();
+  }, [video, resolvedTikTokCiteUrl, resolvedTikTokVideoId]);
 
   useEffect(() => {
     if (!video || video.platform !== "tiktok") return;
@@ -505,28 +536,11 @@ const DiscoverVideo = () => {
           ) : video.platform === "tiktok" ? (
             <div className="mx-auto flex w-full justify-center px-2 py-2">
               <div className="w-full max-w-[420px]">
-                <div className="relative aspect-[9/16] w-full max-h-[75vh] overflow-hidden rounded-md bg-black">
-                  {tiktokIframeUrl ? (
-                    <iframe
-                      key={`${tiktokIframeUrl}-${tiktokPlaybackNonce}`}
-                      src={tiktokIframeUrl}
-                      className="absolute inset-0 h-full w-full border-0"
-                      title={video.title}
-                      allowFullScreen
-                      scrolling="no"
-                      allow="autoplay; encrypted-media; fullscreen; picture-in-picture" referrerPolicy="strict-origin-when-cross-origin"
-                    />
-                  ) : (
-                    <a
-                      href={resolvedTikTokCiteUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="flex h-full w-full items-center justify-center text-sm text-white/80"
-                    >
-                      View on TikTok
-                    </a>
-                  )}
-                </div>
+                <div
+                  ref={tiktokEmbedRef}
+                  className="relative aspect-[9/16] w-full max-h-[75vh] overflow-y-auto rounded-md bg-black"
+                  title={video.title}
+                />
               </div>
             </div>
           ) : (

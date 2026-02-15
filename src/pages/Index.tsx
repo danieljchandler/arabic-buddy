@@ -92,7 +92,6 @@ const Index = () => {
             "hover:border-primary/40 hover:-translate-y-0.5"
           )}
         >
-          <span className="lahja-card-trim" aria-hidden="true" />
           <div className="flex items-center gap-4">
             <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/15">
               <Brain className="h-5 w-5 text-primary" />
@@ -121,7 +120,6 @@ const Index = () => {
             "hover:border-primary/20"
           )}
         >
-          <span className="lahja-card-trim" aria-hidden="true" />
           <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
             <Brain className="h-5 w-5 text-muted-foreground" />
           </div>
@@ -146,7 +144,6 @@ const Index = () => {
             "hover:border-primary/20"
           )}
         >
-          <span className="lahja-card-trim" aria-hidden="true" />
           <div className="flex items-center gap-4">
             <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
               <BookOpen className="h-5 w-5 text-primary" />
@@ -178,7 +175,6 @@ const Index = () => {
             "hover:border-primary/20"
           )}
         >
-          <span className="lahja-card-trim" aria-hidden="true" />
           <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
             <GraduationCap className="h-5 w-5 text-primary" />
           </div>
@@ -202,7 +198,6 @@ const Index = () => {
           "hover:border-primary/20"
         )}
       >
-        <span className="lahja-card-trim" aria-hidden="true" />
         <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
           <Play className="h-5 w-5 text-primary" />
         </div>
@@ -225,7 +220,6 @@ const Index = () => {
           "hover:border-primary/20"
         )}
       >
-        <span className="lahja-card-trim" aria-hidden="true" />
         <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
           <Laugh className="h-5 w-5 text-primary" />
         </div>
@@ -248,7 +242,6 @@ const Index = () => {
           "hover:border-primary/20"
         )}
       >
-        <span className="lahja-card-trim" aria-hidden="true" />
         <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
           <Mic className="h-5 w-5 text-primary" />
         </div>

@@ -16,13 +16,18 @@ interface AppShellProps {
  */
 export function AppShell({ children, className, compact = false }: AppShellProps) {
   return (
-    <div className={cn("min-h-screen lahja-paper relative", className)}>
-      <div className="absolute inset-x-0 top-0 px-5 pt-4">
-        <div className="lahja-divider opacity-90" />
-      </div>
+    <div 
+      className={cn("min-h-screen bg-background relative", className)}
+      style={{
+        backgroundImage: "url('/assets/lahja-watercolor-bg-subtle.svg')",
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundRepeat: "no-repeat",
+      }}
+    >
       <div className={cn(
         "relative mx-auto w-full max-w-2xl",
-        compact ? "px-5 py-8" : "px-6 py-10 md:py-14"
+        compact ? "px-5 py-6" : "px-6 py-8 md:py-12"
       )}>
         {children}
       </div>

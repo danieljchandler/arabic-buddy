@@ -26,11 +26,8 @@ const Index = () => {
   return (
     <AppShell>
       {/* Top bar with logo and auth */}
-      <div className="flex items-start justify-between mb-8 gap-4">
-        <div>
-          <img src={lahjaLogo} alt="Lahja" className="h-20 sm:h-24" />
-          <p className="text-sm sm:text-base italic text-muted-foreground mt-1">Learn Arabic the way it's spoken</p>
-        </div>
+      <div className="flex items-center justify-between mb-10">
+        <img src={lahjaLogo} alt="Lahja" className="h-24" />
         
         <div className="flex items-center gap-3">
           {!authLoading && (isAuthenticated ? (
@@ -55,26 +52,27 @@ const Index = () => {
         </div>
       </div>
 
-      <div className="lahja-divider mb-8" />
+      {/* Tagline */}
+      <div className="mb-10 text-center" />
 
       {/* New Words - main CTA */}
       <button
         onClick={() => navigate("/learn")}
         className={cn(
-          "w-full mb-6 p-6 rounded-[1.5rem]",
-          "bg-gradient-to-br from-primary via-primary to-[#345e4b] text-primary-foreground",
+          "w-full mb-6 p-6 rounded-xl",
+          "bg-primary text-primary-foreground",
           "flex items-center gap-4",
           "transition-all duration-200",
-          "hover:brightness-105 active:scale-[0.98]",
-          "shadow-[0_16px_30px_-20px_rgba(21,58,47,0.8)]"
+          "hover:opacity-90 active:scale-[0.98]",
+          "shadow-lg"
         )}
       >
-        <div className="w-12 h-12 rounded-2xl bg-primary-foreground/20 flex items-center justify-center border border-primary-foreground/20">
+        <div className="w-12 h-12 rounded-lg bg-primary-foreground/20 flex items-center justify-center">
           <Sparkles className="h-6 w-6" />
         </div>
         <div className="text-left">
-          <p className="text-xl lahja-title text-primary-foreground">New Words</p>
-          <p className="text-sm opacity-90">
+          <p className="text-lg font-bold">New Words</p>
+          <p className="text-sm opacity-80">
             {stats ? `${stats.newCount} words to discover` : "Start learning vocabulary"}
           </p>
         </div>
@@ -86,18 +84,18 @@ const Index = () => {
           onClick={() => navigate("/review")}
           className={cn(
             "w-full mb-6 p-5 rounded-xl",
-            "lahja-surface rounded-[1.25rem]",
+            "bg-card border border-primary/20",
             "flex items-center justify-between",
             "transition-all duration-200",
-            "hover:border-primary/40 hover:-translate-y-0.5"
+            "hover:border-primary/40"
           )}
         >
           <div className="flex items-center gap-4">
-            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/15">
+            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
               <Brain className="h-5 w-5 text-primary" />
             </div>
             <div className="text-left">
-              <p className="font-semibold text-foreground lahja-title">Review</p>
+              <p className="font-semibold text-foreground">Review</p>
               <p className="text-sm text-muted-foreground">
                 {stats.dueCount} {stats.dueCount === 1 ? "word" : "words"} due
               </p>
@@ -114,7 +112,7 @@ const Index = () => {
           onClick={() => navigate("/review")}
           className={cn(
             "w-full mb-6 p-5 rounded-xl",
-            "lahja-surface rounded-[1.25rem]",
+            "bg-card border border-border",
             "flex items-center gap-4",
             "transition-all duration-200",
             "hover:border-primary/20"
@@ -138,7 +136,7 @@ const Index = () => {
           onClick={() => navigate("/my-words")}
           className={cn(
             "w-full mb-6 p-5 rounded-xl",
-            "lahja-surface rounded-[1.25rem]",
+            "bg-card border border-border",
             "flex items-center justify-between",
             "transition-all duration-200",
             "hover:border-primary/20"
@@ -169,7 +167,7 @@ const Index = () => {
           onClick={() => navigate("/tutor-upload")}
           className={cn(
             "w-full mb-6 p-5 rounded-xl",
-            "lahja-surface rounded-[1.25rem]",
+            "bg-card border border-border",
             "flex items-center gap-4",
             "transition-all duration-200",
             "hover:border-primary/20"
@@ -192,7 +190,7 @@ const Index = () => {
         onClick={() => navigate("/discover")}
         className={cn(
           "w-full mb-6 p-5 rounded-xl",
-          "lahja-surface rounded-[1.25rem]",
+          "bg-card border border-border",
           "flex items-center gap-4",
           "transition-all duration-200",
           "hover:border-primary/20"
@@ -214,7 +212,7 @@ const Index = () => {
         onClick={() => navigate("/meme")}
         className={cn(
           "w-full mb-6 p-5 rounded-xl",
-          "lahja-surface rounded-[1.25rem]",
+          "bg-card border border-border",
           "flex items-center gap-4",
           "transition-all duration-200",
           "hover:border-primary/20"
@@ -236,7 +234,7 @@ const Index = () => {
         onClick={() => navigate("/transcribe")}
         className={cn(
           "w-full mb-6 p-5 rounded-xl",
-          "lahja-surface rounded-[1.25rem]",
+          "bg-card border border-border",
           "flex items-center gap-4",
           "transition-all duration-200",
           "hover:border-primary/20"

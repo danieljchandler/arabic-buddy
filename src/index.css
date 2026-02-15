@@ -121,7 +121,6 @@
   body {
     @apply bg-background text-foreground;
     font-family: 'Open Sans', 'Cairo', sans-serif;
-    letter-spacing: 0.01em;
   }
 
   html {
@@ -233,40 +232,5 @@
 
   .bg-gradient-red {
     background: hsl(7 52% 36%);
-  }
-
-  .lahja-paper {
-    background-color: hsl(var(--background));
-    background-image:
-      url('/assets/lahja-watercolor-bg-subtle.svg'),
-      radial-gradient(circle at 20% 20%, hsl(38 40% 96% / 0.7) 0%, transparent 50%),
-      radial-gradient(circle at 80% 10%, hsl(38 30% 88% / 0.45) 0%, transparent 35%),
-      radial-gradient(circle at 50% 100%, hsl(35 38% 90% / 0.35) 0%, transparent 45%),
-      repeating-linear-gradient(45deg, transparent 0 14px, hsl(38 25% 76% / 0.04) 14px 15px),
-      repeating-linear-gradient(-45deg, transparent 0 18px, hsl(38 20% 68% / 0.04) 18px 19px);
-    background-size: cover, auto, auto, auto, auto, auto;
-    background-position: center;
-  }
-
-  .lahja-divider {
-    height: 14px;
-    border-radius: 999px;
-    background-image:
-      linear-gradient(90deg, hsl(7 52% 36%) 0%, hsl(7 52% 36%) 24%, hsl(38 48% 76%) 24%, hsl(38 48% 76%) 34%, hsl(97 17% 37%) 34%, hsl(97 17% 37%) 60%, hsl(0 0% 20%) 60%, hsl(0 0% 20%) 78%, hsl(7 52% 36%) 78%, hsl(7 52% 36%) 100%),
-      repeating-linear-gradient(135deg, hsl(38 48% 76% / 0.7) 0 10px, transparent 10px 20px);
-    box-shadow: inset 0 1px 0 hsl(38 50% 98% / 0.65), 0 1px 0 hsl(0 0% 0% / 0.06);
-  }
-
-  .lahja-surface {
-    background: linear-gradient(145deg, hsl(40 36% 98%) 0%, hsl(40 30% 94%) 100%);
-    border: 1px solid hsl(38 30% 76% / 0.9);
-    box-shadow: 0 4px 16px -10px hsl(0 0% 15% / 0.2);
-  }
-
-  .lahja-title {
-    font-family: 'Montserrat', 'Cairo', sans-serif;
-    font-weight: 700;
-    letter-spacing: -0.01em;
-    color: hsl(0 0% 20%);
   }
 }

@@ -402,21 +402,21 @@ const DiscoverVideo = () => {
     return resolvedEmbedUrl;
   }, [video, resolvedEmbedUrl, resolvedTikTokVideoId]);
 
-  const tiktokBlockquoteHtml = useMemo(() => {
-    if (!resolvedTikTokVideoId || !resolvedTikTokCiteUrl) return "";
+    const prefersPlayerEndpoint = /\/player\/v1\//.test(video.embed_url);
+    const baseUrl = (resolvedTikTokVideoId
+      ? `https://www.tiktok.com/player/v1/${resolvedTikTokVideoId}`
+      : resolvedEmbedUrl) || resolvedEmbedUrl;
 
     return `<blockquote class="tiktok-embed" cite="${resolvedTikTokCiteUrl}" data-video-id="${resolvedTikTokVideoId}" style="max-width: 100%; min-width: 100%; margin: 0 auto;"><section><a target="_blank" rel="noreferrer" href="${resolvedTikTokCiteUrl}">View on TikTok</a></section></blockquote>`;
   }, [resolvedTikTokCiteUrl, resolvedTikTokVideoId]);
 
-  useEffect(() => {
-    if (!video || video.platform !== "tiktok" || !tiktokBlockquoteHtml) return;
-
-    const scriptId = "tiktok-embed-script";
-    const existingScript = document.getElementById(scriptId) as HTMLScriptElement | null;
-    if (existingScript) {
-      setTiktokEmbedReadyKey((prev) => prev + 1);
-      return;
+    if (!(timerPlaying || tiktokPlaybackNonce > 0)) {
+      return baseUrl;
     }
+
+    const separator = baseUrl.includes("?") ? "&" : "?";
+    return `${baseUrl}${separator}autoplay=1`;
+  }, [video, resolvedEmbedUrl, resolvedTikTokVideoId, timerPlaying, tiktokPlaybackNonce]);
 
     const script = document.createElement("script");
     script.id = scriptId;

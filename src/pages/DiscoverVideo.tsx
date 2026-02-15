@@ -11,7 +11,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Loader2, ArrowLeft, BookOpen, Check, Plus, Eye, EyeOff, ChevronDown, List } from "lucide-react";
+import { Loader2, ArrowLeft, BookOpen, Check, Eye, EyeOff, ChevronDown, List, Pause, Play, SkipBack, SkipForward, Captions } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { extractTikTokVideoId, getTikTokEmbedUrl } from "@/lib/videoEmbed";
@@ -196,6 +196,8 @@ const DiscoverVideo = () => {
   const [currentTimeMs, setCurrentTimeMs] = useState(0);
   const [savedWords, setSavedWords] = useState<Set<string>>(new Set());
   const [showTranslations, setShowTranslations] = useState(true);
+  const [showOverlaySubtitles, setShowOverlaySubtitles] = useState(true);
+  const [playbackMode, setPlaybackMode] = useState<"continuous" | "line">("continuous");
   const [showFullTranscript, setShowFullTranscript] = useState(false);
   const [manualLineIndex, setManualLineIndex] = useState(0);
   // Timer-based sync for non-YouTube
@@ -208,6 +210,8 @@ const DiscoverVideo = () => {
   const [tiktokEmbedReadyKey, setTiktokEmbedReadyKey] = useState(0);
   const [resolvedTikTokVideoId, setResolvedTikTokVideoId] = useState<string | null>(null);
   const [resolvedTikTokAuthorUrl, setResolvedTikTokAuthorUrl] = useState<string | null>(null);
+  const [isYouTubePlaying, setIsYouTubePlaying] = useState(false);
+  const [lineControlIndex, setLineControlIndex] = useState(0);
   const lineRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const transcriptContainerRef = useRef<HTMLDivElement>(null);
 
@@ -234,12 +238,14 @@ const DiscoverVideo = () => {
         events: {
           onStateChange: (event: any) => {
             if (event.data === 1) {
+              setIsYouTubePlaying(true);
               intervalRef.current = setInterval(() => {
                 if (playerRef.current?.getCurrentTime) {
                   setCurrentTimeMs(playerRef.current.getCurrentTime() * 1000);
                 }
               }, 200);
             } else {
+              setIsYouTubePlaying(false);
               if (intervalRef.current) {
                 clearInterval(intervalRef.current);
                 intervalRef.current = null;
@@ -264,6 +270,7 @@ const DiscoverVideo = () => {
       playerRef.current.playVideo?.();
     }
   }, []);
+
 
   // Timer-based playback for non-YouTube videos
   useEffect(() => {
@@ -319,6 +326,23 @@ const DiscoverVideo = () => {
   const isYouTube = video?.platform === "youtube";
   const isTikTok = video?.platform === "tiktok";
 
+  const playLineByIndex = useCallback(
+    (index: number) => {
+      if (!lines.length) return;
+      const clampedIndex = Math.max(0, Math.min(index, lines.length - 1));
+      const targetLine = lines[clampedIndex];
+      if (!targetLine) return;
+
+      setLineControlIndex(clampedIndex);
+      setManualLineIndex(clampedIndex);
+
+      if (isYouTube && targetLine.startMs !== undefined) {
+        handleSeek(targetLine.startMs);
+      }
+    },
+    [handleSeek, isYouTube, lines],
+  );
+
   const activeLineId = useMemo(() => {
     if (!lines.length) return null;
     if (isYouTube) {
@@ -354,6 +378,24 @@ const DiscoverVideo = () => {
     () => lines.find((l) => l.id === activeLineId) ?? null,
     [lines, activeLineId],
   );
+
+  useEffect(() => {
+    if (!activeLine) return;
+    const nextIndex = lines.findIndex((line) => line.id === activeLine.id);
+    if (nextIndex >= 0) {
+      setLineControlIndex(nextIndex);
+      setManualLineIndex(nextIndex);
+    }
+  }, [activeLine, lines]);
+
+  useEffect(() => {
+    if (!isYouTube || playbackMode !== "line" || !isYouTubePlaying || !activeLine?.endMs) return;
+
+    if (currentTimeMs >= activeLine.endMs) {
+      playerRef.current?.pauseVideo?.();
+      setIsYouTubePlaying(false);
+    }
+  }, [activeLine, currentTimeMs, isYouTube, isYouTubePlaying, playbackMode]);
 
   // Auto-scroll to active line
   useEffect(() => {
@@ -502,7 +544,7 @@ const DiscoverVideo = () => {
         </div>
 
         {/* Video embed */}
-        <div className="bg-black">
+        <div className="bg-black relative">
           {video.platform === "youtube" ? (
             <div className="aspect-video max-h-[45vh] mx-auto">
               <div ref={iframeRef} className="w-full h-full" />
@@ -549,6 +591,17 @@ const DiscoverVideo = () => {
                 allowFullScreen
                 allow="autoplay; encrypted-media; fullscreen; picture-in-picture" referrerPolicy="strict-origin-when-cross-origin"
               />
+            </div>
+          )}
+
+          {showOverlaySubtitles && activeLine && (
+            <div className="pointer-events-none absolute bottom-3 left-1/2 w-[calc(100%-1rem)] max-w-3xl -translate-x-1/2 rounded-md bg-black/70 px-3 py-2 text-center text-white backdrop-blur-sm">
+              <p className="text-lg leading-[1.9]" dir="rtl" style={{ fontFamily: "'Cairo', 'Traditional Arabic', sans-serif" }}>
+                {activeLine.arabic}
+              </p>
+              {showTranslations && (
+                <p className="mt-1 text-xs text-white/90">{activeLine.translation}</p>
+              )}
             </div>
           )}
         </div>
@@ -628,6 +681,23 @@ const DiscoverVideo = () => {
           {showFullTranscript ? "Hide" : "Show"} Transcript ({lines.length})
         </Button>
         <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 gap-1 px-2 text-xs text-muted-foreground"
+            onClick={() => setPlaybackMode((prev) => (prev === "continuous" ? "line" : "continuous"))}
+          >
+            {playbackMode === "continuous" ? <Play className="h-3.5 w-3.5" /> : <Pause className="h-3.5 w-3.5" />}
+            {playbackMode === "continuous" ? "Full" : "Line"}
+          </Button>
+          <Button
+            variant={showOverlaySubtitles ? "secondary" : "ghost"}
+            size="icon"
+            className="h-7 w-7"
+            onClick={() => setShowOverlaySubtitles((prev) => !prev)}
+          >
+            <Captions className="h-3.5 w-3.5" />
+          </Button>
           {showTranslations ? (
             <Eye className="h-3.5 w-3.5 text-muted-foreground" />
           ) : (
@@ -640,6 +710,23 @@ const DiscoverVideo = () => {
           />
         </div>
       </div>
+
+      {playbackMode === "line" && lines.length > 0 && (
+        <div className="border-b border-border/50 bg-card/40 px-4 py-2">
+          <div className="flex items-center justify-center gap-2">
+            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => playLineByIndex(lineControlIndex - 1)} disabled={lineControlIndex <= 0}>
+              <SkipBack className="h-4 w-4" />
+            </Button>
+            <Button variant="default" size="sm" className="gap-2" onClick={() => playLineByIndex(lineControlIndex)}>
+              <Play className="h-4 w-4" />
+              Play line {lineControlIndex + 1}
+            </Button>
+            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => playLineByIndex(lineControlIndex + 1)} disabled={lineControlIndex >= lines.length - 1}>
+              <SkipForward className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Full transcript (toggleable) */}
       {showFullTranscript && (

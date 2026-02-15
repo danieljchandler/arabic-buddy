@@ -21,6 +21,7 @@ declare global {
   interface Window {
     YT: any;
     onYouTubeIframeAPIReady: (() => void) | undefined;
+    tiktokEmbedLoad?: () => void;
   }
 }
 

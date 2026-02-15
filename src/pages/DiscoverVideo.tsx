@@ -325,10 +325,25 @@ const DiscoverVideo = () => {
   // For YouTube: find active line by time. For others: use manual index.
   const isYouTube = video?.platform === "youtube";
   const isTikTok = video?.platform === "tiktok";
-  const horizontalVideoHeight = "min(45vh, calc(100dvh - 15rem))";
-  const horizontalVideoWidth = "min(100%, calc((100dvh - 15rem) * 16 / 9))";
-  const verticalVideoHeight = "min(72vh, calc(100dvh - 13rem))";
-  const verticalVideoWidth = "min(100%, calc((100dvh - 13rem) * 9 / 16))";
+  const horizontalVideoMaxHeightClass = "max-h-[min(45vh,calc(100dvh-15rem))]";
+  const verticalVideoMaxHeightClass = "max-h-[min(72vh,calc(100dvh-13rem))]";
+
+  const playLineByIndex = useCallback(
+    (index: number) => {
+      if (!lines.length) return;
+      const clampedIndex = Math.max(0, Math.min(index, lines.length - 1));
+      const targetLine = lines[clampedIndex];
+      if (!targetLine) return;
+
+      setLineControlIndex(clampedIndex);
+      setManualLineIndex(clampedIndex);
+
+      if (isYouTube && targetLine.startMs !== undefined) {
+        handleSeek(targetLine.startMs);
+      }
+    },
+    [handleSeek, isYouTube, lines],
+  );
 
   const playLineByIndex = useCallback(
     (index: number) => {
@@ -550,19 +565,13 @@ const DiscoverVideo = () => {
         {/* Video embed */}
         <div className="bg-black relative">
           {video.platform === "youtube" ? (
-            <div
-              className="mx-auto"
-              style={{ width: horizontalVideoWidth, height: horizontalVideoHeight }}
-            >
-              <div ref={iframeRef} className="h-full w-full" />
+            <div className={cn("aspect-video mx-auto", horizontalVideoMaxHeightClass)}>
+              <div ref={iframeRef} className="w-full h-full" />
             </div>
           ) : video.platform === "tiktok" ? (
             <div className="mx-auto flex w-full justify-center px-2 py-2">
               <div className="w-full max-w-[420px]">
-                <div
-                  className="relative overflow-hidden rounded-md bg-black"
-                  style={{ width: verticalVideoWidth, height: verticalVideoHeight }}
-                >
+                <div className={cn("relative aspect-[9/16] w-full overflow-hidden rounded-md bg-black", verticalVideoMaxHeightClass)}>
                   {tiktokBlockquoteHtml ? (
                     <div
                       key={`${resolvedTikTokVideoId}-${tiktokEmbedReadyKey}`}
@@ -593,10 +602,7 @@ const DiscoverVideo = () => {
               </div>
             </div>
           ) : (
-            <div
-              className="mx-auto"
-              style={{ width: horizontalVideoWidth, height: horizontalVideoHeight }}
-            >
+            <div className={cn("aspect-video mx-auto", horizontalVideoMaxHeightClass)}>
               <iframe
                 src={resolvedEmbedUrl}
                 className="w-full h-full"

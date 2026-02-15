@@ -345,23 +345,6 @@ const DiscoverVideo = () => {
     [handleSeek, isYouTube, lines],
   );
 
-  const playLineByIndex = useCallback(
-    (index: number) => {
-      if (!lines.length) return;
-      const clampedIndex = Math.max(0, Math.min(index, lines.length - 1));
-      const targetLine = lines[clampedIndex];
-      if (!targetLine) return;
-
-      setLineControlIndex(clampedIndex);
-      setManualLineIndex(clampedIndex);
-
-      if (isYouTube && targetLine.startMs !== undefined) {
-        handleSeek(targetLine.startMs);
-      }
-    },
-    [handleSeek, isYouTube, lines],
-  );
-
   const activeLineId = useMemo(() => {
     if (!lines.length) return null;
     if (isYouTube) {

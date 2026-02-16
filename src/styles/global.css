@@ -1,0 +1,39 @@
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    touch-action: manipulation;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-body);
+    min-height: 100vh;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-heading);
+  }
+}
+
+@layer utilities {
+  .font-heading {
+    font-family: var(--font-heading);
+  }
+
+  .font-arabic {
+    font-family: var(--font-arabic);
+    line-height: 1.6;
+  }
+
+  .font-body {
+    font-family: var(--font-body);
+  }
+}

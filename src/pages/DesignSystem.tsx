@@ -1,14 +1,3 @@
-import lahjaLogo from "@/assets/lahja-logo.png";
-import {
-  LahjaButton,
-  LahjaCard,
-  LahjaDialectPill,
-  LahjaDividerPattern,
-  LahjaHeader,
-  LahjaInput,
-  LahjaWordRow,
-} from "@/components/lahja";
-
 const palette = [
   { name: "Primary Green", token: "--color-primary", value: "#1F6F54" },
   { name: "Sand", token: "--color-sand", value: "#E6D5B8" },
@@ -17,98 +6,100 @@ const palette = [
   { name: "Surface", token: "--color-surface", value: "#F8F1E4" },
 ];
 
+const buttonStyles = [
+  { label: "Primary", className: "bg-primary text-primary-foreground" },
+  { label: "Secondary", className: "bg-secondary text-secondary-foreground" },
+  { label: "Accent", className: "bg-accent text-accent-foreground" },
+];
+
 const DesignSystem = () => {
   return (
     <main className="mx-auto max-w-6xl space-y-10 p-8 md:p-12">
-      <LahjaHeader
-        logoSrc={lahjaLogo}
-        title="Lahja Design System"
-        subtitle="Calm, minimal UI with subtle accents and bilingual-ready typography"
-      />
+      <header className="space-y-3">
+        <p className="text-sm uppercase tracking-[0.2em] text-muted-foreground">Lahja Design System</p>
+        <h1 className="font-heading text-4xl text-foreground">Calm, minimal, and grounded</h1>
+        <p className="max-w-3xl text-base text-muted-foreground">
+          Core visual foundations from BRAND.md: flat colors, subtle elevation, and bilingual-friendly
+          typography.
+        </p>
+      </header>
 
       <section className="space-y-4">
         <h2 className="font-heading text-2xl">Palette</h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           {palette.map((swatch) => (
-            <LahjaCard key={swatch.token} className="overflow-hidden p-0">
+            <article key={swatch.token} className="overflow-hidden rounded-lg border border-border bg-card shadow-soft">
               <div className="h-20" style={{ backgroundColor: `var(${swatch.token})` }} />
               <div className="space-y-1 p-3 text-sm">
                 <p className="font-semibold text-foreground">{swatch.name}</p>
                 <p className="text-muted-foreground">{swatch.value}</p>
                 <p className="font-mono text-xs text-muted-foreground">{swatch.token}</p>
               </div>
-            </LahjaCard>
+            </article>
           ))}
         </div>
       </section>
 
       <section className="space-y-4">
         <h2 className="font-heading text-2xl">Typography</h2>
-        <LahjaCard className="space-y-3">
+        <div className="space-y-4 rounded-xl border border-border bg-card p-6 shadow-soft">
           <p className="font-heading text-3xl">Montserrat Bold for English headings</p>
-          <p className="font-arabic text-2xl">يا هلا — Cairo Bold for Arabic-first UI moments</p>
+          <p className="font-arabic text-2xl">خط عربي واضح باستخدام Cairo Bold</p>
           <p className="font-body text-base text-muted-foreground">
-            Open Sans Regular for body text and mixed-language labels.
+            Open Sans Regular for readable body text and mixed-language UI labels.
           </p>
-        </LahjaCard>
+        </div>
       </section>
 
       <section className="space-y-4">
         <h2 className="font-heading text-2xl">Buttons</h2>
-        <LahjaCard className="space-y-5">
-          <div className="flex flex-wrap gap-3">
-            <LahjaButton variant="primary">Primary</LahjaButton>
-            <LahjaButton variant="secondary">Secondary</LahjaButton>
-            <LahjaButton variant="ghost">Ghost</LahjaButton>
-          </div>
-          <div className="flex flex-wrap gap-3">
-            <LahjaButton variant="primary" className="brightness-95">
-              Hover Preview
-            </LahjaButton>
-            <LahjaButton variant="secondary" disabled>
-              Disabled
-            </LahjaButton>
-            <LahjaButton variant="ghost" disabled>
-              Disabled
-            </LahjaButton>
-          </div>
-        </LahjaCard>
+        <div className="flex flex-wrap gap-4">
+          {buttonStyles.map((button) => (
+            <button
+              key={button.label}
+              type="button"
+              className={`rounded-md px-5 py-2.5 text-sm font-semibold shadow-soft transition-opacity hover:opacity-90 ${button.className}`}
+            >
+              {button.label}
+            </button>
+          ))}
+        </div>
       </section>
 
       <section className="grid gap-6 lg:grid-cols-2">
-        <LahjaCard className="space-y-4">
+        <div className="space-y-4">
+          <h2 className="font-heading text-2xl">Cards</h2>
+          <article className="rounded-xl border border-border bg-card p-6 shadow-card">
+            <h3 className="font-heading text-xl text-foreground">Lesson Card</h3>
+            <p className="mt-2 text-muted-foreground">
+              Use flat surfaces and low-contrast shadows to keep focus on content.
+            </p>
+          </article>
+        </div>
+
+        <div className="space-y-4">
           <h2 className="font-heading text-2xl">Inputs</h2>
-          <LahjaInput id="search-phrase" label="Search phrase" placeholder="Type Arabic or English" />
-          <LahjaInput id="disabled-input" label="Disabled" value="Coming soon" disabled readOnly />
-        </LahjaCard>
-
-        <LahjaCard className="space-y-4">
-          <h2 className="font-heading text-2xl">Dialect Pills</h2>
-          <div className="flex flex-wrap gap-2">
-            <LahjaDialectPill label="Kuwaiti" active />
-            <LahjaDialectPill label="Saudi" />
-            <LahjaDialectPill label="Emirati" />
-            <LahjaDialectPill label="Bahraini" />
+          <div className="rounded-xl border border-border bg-card p-6 shadow-soft">
+            <label className="mb-2 block text-sm font-semibold text-foreground" htmlFor="demo-input">
+              Search phrase
+            </label>
+            <input
+              id="demo-input"
+              type="text"
+              placeholder="Type in Arabic or English"
+              className="w-full rounded-md border border-border bg-input px-4 py-2.5 text-foreground outline-none ring-0 transition focus:border-primary focus-visible:ring-2 focus-visible:ring-ring"
+            />
           </div>
-        </LahjaCard>
+        </div>
       </section>
 
       <section className="space-y-4">
-        <h2 className="font-heading text-2xl">Word Rows</h2>
-        <LahjaCard className="space-y-3">
-          <LahjaWordRow arabic="شلونك؟" transliteration="shlōnik?" english="How are you?" />
-          <LahjaWordRow arabic="يلا" transliteration="yalla" english="Let’s go" />
-          <LahjaWordRow arabic="مشكور" transliteration="mashkūr" english="Thank you" />
-        </LahjaCard>
-      </section>
-
-      <section className="space-y-4">
-        <h2 className="font-heading text-2xl">Divider Pattern</h2>
-        <LahjaCard className="space-y-5">
-          <p className="text-sm text-muted-foreground">Very low-contrast, majlis-inspired divider accent.</p>
-          <LahjaDividerPattern />
-          <LahjaDividerPattern className="opacity-70" />
-        </LahjaCard>
+        <h2 className="font-heading text-2xl">Dividers</h2>
+        <div className="space-y-6 rounded-xl border border-border bg-card p-6 shadow-soft">
+          <div className="h-px w-full bg-border" />
+          <div className="h-px w-full bg-primary/30" />
+          <div className="h-px w-full bg-accent/30" />
+        </div>
       </section>
     </main>
   );

@@ -1,6 +1,7 @@
 import { ReactNode } from "react";
 import { cn } from "@/lib/utils";
-import extendedBannerImg from "@/assets/extended-banner.png";
+import { SaduBanner } from "@/components/design-system/SaduBanner";
+import shapesOverlayImg from "@/assets/shapes-overlay.png";
 
 interface AppShellProps {
   children: ReactNode;
@@ -21,12 +22,14 @@ export function AppShell({ children, className, compact = false }: AppShellProps
       className={cn("min-h-screen relative", className)}
       style={{
         backgroundColor: "#FFFFFF",
-        backgroundImage: `url(${extendedBannerImg})`,
-        backgroundSize: "100% 100vh",
+        backgroundImage: `url(${shapesOverlayImg})`,
+        backgroundSize: "cover",
         backgroundPosition: "top center",
         backgroundRepeat: "no-repeat",
+        backgroundAttachment: "fixed",
       }}
     >
+      <SaduBanner />
       <div className={cn(
         "relative mx-auto w-full max-w-2xl",
         compact ? "px-5 py-6" : "px-6 pt-4 pb-8 md:pt-6 md:pb-12"

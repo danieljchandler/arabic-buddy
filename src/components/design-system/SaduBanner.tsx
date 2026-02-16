@@ -14,7 +14,7 @@ export function SaduBanner() {
       <div
         style={{
           width: '100%',
-          height: 28,
+          height: 14,
           backgroundImage: `url(${saduBannerImg})`,
           backgroundRepeat: 'repeat-x',
           backgroundSize: 'auto 100%',

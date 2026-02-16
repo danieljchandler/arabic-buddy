@@ -16,8 +16,8 @@ export function SaduBanner() {
           width: '100%',
           height: 14,
           backgroundImage: `url(${saduBannerImg})`,
-          backgroundRepeat: 'repeat-x',
-          backgroundSize: 'auto 100%',
+          backgroundRepeat: 'no-repeat',
+          backgroundSize: '100% 100%',
           backgroundPosition: 'center',
           opacity: 0.75,
         }}

@@ -10,16 +10,15 @@ import saduBannerImg from "@/assets/sadu-banner.png";
 export function SaduBanner() {
   return (
     <div className="w-full" aria-hidden="true">
-      {/* Main Sadu pattern strip - tiled PNG */}
+      {/* Main Sadu pattern strip - PNG */}
       <div
         style={{
           width: '100%',
-          height: 14,
+          height: 40,
           backgroundImage: `url(${saduBannerImg})`,
           backgroundRepeat: 'no-repeat',
-          backgroundSize: 'cover',
+          backgroundSize: '100% 100%',
           backgroundPosition: 'center',
-          opacity: 0.75,
         }}
       />
 

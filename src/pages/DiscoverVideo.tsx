@@ -11,7 +11,13 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Loader2, ArrowLeft, BookOpen, Check, Eye, EyeOff, ChevronDown, List, Pause, Play, SkipBack, SkipForward, Captions } from "lucide-react";
+import { Loader2, ArrowLeft, BookOpen, Check, Eye, EyeOff, ChevronDown, List, Pause, Play, SkipBack, SkipForward, Captions, Gauge } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { extractTikTokVideoId, getTikTokEmbedUrl } from "@/lib/videoEmbed";
@@ -198,6 +204,7 @@ const DiscoverVideo = () => {
   const [showTranslations, setShowTranslations] = useState(true);
   const [showOverlaySubtitles, setShowOverlaySubtitles] = useState(true);
   const [playbackMode, setPlaybackMode] = useState<"continuous" | "line">("continuous");
+  const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [showFullTranscript, setShowFullTranscript] = useState(false);
   const [manualLineIndex, setManualLineIndex] = useState(0);
   // Timer-based sync for non-YouTube
@@ -239,6 +246,8 @@ const DiscoverVideo = () => {
           onStateChange: (event: any) => {
             if (event.data === 1) {
               setIsYouTubePlaying(true);
+              // Apply current playback speed when video starts
+              playerRef.current?.setPlaybackRate?.(playbackSpeed);
               intervalRef.current = setInterval(() => {
                 if (playerRef.current?.getCurrentTime) {
                   setCurrentTimeMs(playerRef.current.getCurrentTime() * 1000);
@@ -262,7 +271,14 @@ const DiscoverVideo = () => {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [video]);
+  }, [video, playbackSpeed]);
+
+  // Apply speed changes to YouTube player
+  useEffect(() => {
+    if (playerRef.current?.setPlaybackRate) {
+      playerRef.current.setPlaybackRate(playbackSpeed);
+    }
+  }, [playbackSpeed]);
 
   const handleSeek = useCallback((ms: number) => {
     if (playerRef.current?.seekTo) {
@@ -272,11 +288,11 @@ const DiscoverVideo = () => {
   }, []);
 
 
-  // Timer-based playback for non-YouTube videos
+  // Timer-based playback for non-YouTube videos (respects playback speed)
   useEffect(() => {
     if (timerPlaying) {
       timerRef.current = setInterval(() => {
-        setTimerMs((prev) => prev + 100);
+        setTimerMs((prev) => prev + Math.round(100 * playbackSpeed));
       }, 100);
     } else {
       if (timerRef.current) {
@@ -287,7 +303,7 @@ const DiscoverVideo = () => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [timerPlaying]);
+  }, [timerPlaying, playbackSpeed]);
 
   const handleSaveToMyWords = useCallback(
     async (word: VocabItem) => {
@@ -682,15 +698,36 @@ const DiscoverVideo = () => {
           <List className="h-3.5 w-3.5" />
           {showFullTranscript ? "Hide" : "Show"} Transcript ({lines.length})
         </Button>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
+          {/* Speed control */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-7 gap-1 px-2 text-xs text-muted-foreground">
+                <Gauge className="h-3.5 w-3.5" />
+                {playbackSpeed}x
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-[100px]">
+              {[0.5, 0.75, 1, 1.25, 1.5].map((speed) => (
+                <DropdownMenuItem
+                  key={speed}
+                  onClick={() => setPlaybackSpeed(speed)}
+                  className={cn("text-sm", playbackSpeed === speed && "font-bold text-primary")}
+                >
+                  {speed}x {speed === 1 && "(Normal)"}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          {/* Playback mode toggle */}
           <Button
-            variant="ghost"
+            variant={playbackMode === "line" ? "secondary" : "ghost"}
             size="sm"
             className="h-7 gap-1 px-2 text-xs text-muted-foreground"
             onClick={() => setPlaybackMode((prev) => (prev === "continuous" ? "line" : "continuous"))}
           >
             {playbackMode === "continuous" ? <Play className="h-3.5 w-3.5" /> : <Pause className="h-3.5 w-3.5" />}
-            {playbackMode === "continuous" ? "Full" : "Line"}
+            {playbackMode === "continuous" ? "Continuous" : "Phrase"}
           </Button>
           <Button
             variant={showOverlaySubtitles ? "secondary" : "ghost"}
@@ -721,7 +758,7 @@ const DiscoverVideo = () => {
             </Button>
             <Button variant="default" size="sm" className="gap-2" onClick={() => playLineByIndex(lineControlIndex)}>
               <Play className="h-4 w-4" />
-              Play line {lineControlIndex + 1}
+              Phrase {lineControlIndex + 1}/{lines.length}
             </Button>
             <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => playLineByIndex(lineControlIndex + 1)} disabled={lineControlIndex >= lines.length - 1}>
               <SkipForward className="h-4 w-4" />

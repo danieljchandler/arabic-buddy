@@ -24,7 +24,7 @@ const Index = () => {
   };
 
   return (
-    <AppShell showTopBorder>
+    <AppShell>
       {/* Top bar with logo and auth */}
       <div className="flex items-center justify-between mb-10">
         <img src={lahjaLogo} alt="Lahja" className="h-24" />

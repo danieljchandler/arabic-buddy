@@ -14,11 +14,12 @@ export function SaduBanner() {
       <div
         style={{
           width: '100%',
-          height: 40,
+          height: 28,
           backgroundImage: `url(${saduBannerImg})`,
           backgroundRepeat: 'repeat-x',
           backgroundSize: 'auto 100%',
           backgroundPosition: 'center',
+          opacity: 0.75,
         }}
       />
 

@@ -12,6 +12,7 @@ export { VocabularyCard, type VocabularyWord } from './VocabularyCard';
 
 // Layout
 export { SectionFrame } from './SectionFrame';
+export { SaduBanner } from './SaduBanner';
 
 // Typography
 export { SectionHeader } from './SectionHeader';

@@ -6,80 +6,82 @@
 
 @layer base {
   :root {
-    /* Lahja Brand Color Palette */
-    /* Background: Warm Sand Beige #E2C5A6 - light, calm, breathable */
+    /* ── Lahja Brand Guide Color Palette ── */
+    /* Deep Desert #44663D | Warm Sand #E2C5A6 | Desert Red #8C4135 | Charcoal #323A36 */
+
+    /* Background: Warm Sand Beige - light, calm, breathable */
     --background: 32 50% 77%;
-    --foreground: 0 0% 12%;
+    --foreground: 150 5% 15%;
 
     /* Cards: Off-white surface - slightly lighter than warm sand */
     --card: 38 35% 97%;
-    --card-foreground: 0 0% 12%;
+    --card-foreground: 150 5% 15%;
 
     --popover: 38 35% 97%;
-    --popover-foreground: 0 0% 12%;
+    --popover-foreground: 150 5% 15%;
 
-    /* Deep Desert Green - for primary actions only */
-    --primary: 160 57% 28%;
+    /* Deep Desert - earthy olive green for primary actions */
+    --primary: 110 25% 32%;
     --primary-foreground: 0 0% 100%;
 
-    /* Muted Indigo secondary */
-    --secondary: 192 22% 23%;
+    /* Charcoal secondary */
+    --secondary: 150 10% 25%;
     --secondary-foreground: 0 0% 100%;
 
-    /* Desert Red accent */
-    --accent: 7 52% 36%;
+    /* Desert Red accent - warm terracotta */
+    --accent: 8 45% 38%;
     --accent-foreground: 0 0% 100%;
 
     /* Muted backgrounds - between background and card */
     --muted: 38 40% 93%;
-    --muted-foreground: 0 0% 35%;
+    --muted-foreground: 150 5% 40%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --success: 160 57% 28%;
+    --success: 110 25% 32%;
     --success-foreground: 0 0% 100%;
 
     /* Subtle warm border for structure */
     --border: 38 35% 80%;
     --input: 38 35% 92%;
-    --ring: 160 57% 28%;
+    --ring: 110 25% 32%;
 
     --radius: 1rem;
 
     /* Olive Green for dialect accents */
-    --olive: 97 17% 37%;
+    --olive: 110 20% 37%;
 
-    /* Topic gradients - aligned with new palette */
-    --topic-colors: 160 57% 28%;
+    /* Topic gradients - aligned with brand palette */
+    --topic-colors: 110 25% 32%;
     --topic-animals: 38 47% 70%;
-    --topic-household: 97 17% 37%;
-    --topic-tools: 192 22% 23%;
-    --topic-food: 7 52% 36%;
-    --topic-nature: 160 45% 35%;
+    --topic-household: 110 20% 37%;
+    --topic-tools: 150 10% 25%;
+    --topic-food: 8 45% 38%;
+    --topic-nature: 110 22% 38%;
 
-    /* Desert Red border color #5C3A46 */
-    --desert-red: 340 23% 29%;
-    
+    /* Desert Red border color */
+    --desert-red: 8 45% 30%;
+
     /* Card cream - white/cream for cards */
     --card-cream: 40 50% 97%;
 
     /* Shadows - very subtle, borders do the work */
     --shadow-soft: 0 2px 8px -2px hsl(38 30% 50% / 0.08);
     --shadow-card: 0 2px 12px -4px hsl(38 30% 40% / 0.1);
-    --shadow-button: 0 4px 12px -4px hsl(160 57% 28% / 0.2);
+    --shadow-button: 0 4px 12px -4px hsl(110 25% 32% / 0.2);
     /* Topic card shadows - subtle depth */
-    --shadow-topic: 0 2px 8px -2px hsl(340 23% 29% / 0.08), 0 4px 16px -4px hsl(38 30% 40% / 0.06);
-    --shadow-topic-hover: 0 4px 12px -2px hsl(340 23% 29% / 0.12), 0 8px 24px -6px hsl(38 30% 40% / 0.1);
+    --shadow-topic: 0 2px 8px -2px hsl(8 45% 30% / 0.08), 0 4px 16px -4px hsl(38 30% 40% / 0.06);
+    --shadow-topic-hover: 0 4px 12px -2px hsl(8 45% 30% / 0.12), 0 8px 24px -6px hsl(38 30% 40% / 0.1);
 
     --sidebar-background: 38 35% 96%;
-    --sidebar-foreground: 0 0% 12%;
-    --sidebar-primary: 160 57% 28%;
+    --sidebar-foreground: 150 5% 15%;
+    --sidebar-primary: 110 25% 32%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 38 40% 92%;
-    --sidebar-accent-foreground: 0 0% 12%;
+    --sidebar-accent-foreground: 150 5% 15%;
     --sidebar-border: 38 35% 80%;
-    --sidebar-ring: 160 57% 28%;
+    --sidebar-ring: 110 25% 32%;
   }
 
   .dark {
@@ -92,13 +94,13 @@
     --popover: 0 0% 14%;
     --popover-foreground: 38 47% 92%;
 
-    --primary: 160 50% 35%;
+    --primary: 110 22% 40%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 192 20% 30%;
+    --secondary: 150 10% 32%;
     --secondary-foreground: 0 0% 100%;
 
-    --accent: 7 45% 42%;
+    --accent: 8 40% 48%;
     --accent-foreground: 0 0% 100%;
 
     --muted: 0 0% 18%;
@@ -106,9 +108,9 @@
 
     --border: 0 0% 20%;
     --input: 0 0% 20%;
-    --ring: 160 50% 35%;
+    --ring: 110 22% 40%;
 
-    --success: 160 50% 40%;
+    --success: 110 22% 45%;
     --success-foreground: 0 0% 100%;
   }
 }
@@ -211,7 +213,7 @@
 
   /* Topic accent colors - for small accent stripes only */
   .bg-gradient-green {
-    background: hsl(160 57% 28%);
+    background: hsl(110 25% 32%);
   }
 
   .bg-gradient-sand {
@@ -219,18 +221,18 @@
   }
 
   .bg-gradient-olive {
-    background: hsl(97 20% 38%);
+    background: hsl(110 18% 40%);
   }
 
   .bg-gradient-indigo {
-    background: hsl(192 22% 25%);
+    background: hsl(150 10% 25%);
   }
 
   .bg-gradient-charcoal {
-    background: hsl(0 0% 18%);
+    background: hsl(150 7% 21%);
   }
 
   .bg-gradient-red {
-    background: hsl(7 52% 36%);
+    background: hsl(8 45% 38%);
   }
 }

@@ -1,6 +1,7 @@
 import { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { SaduBanner } from "@/components/design-system/SaduBanner";
+import shapesOverlayImg from "@/assets/shapes-overlay.png";
 
 interface AppShellProps {
   children: ReactNode;
@@ -12,18 +13,20 @@ interface AppShellProps {
 /**
  * AppShell - Consistent layout wrapper for all pages
  *
- * Provides unified spacing, watercolor SVG background, and Sadu banner header.
+ * Provides unified spacing, full-page Sadu geometric background, and Sadu banner.
  * Use compact mode for immersive learning screens.
  */
 export function AppShell({ children, className, compact = false }: AppShellProps) {
   return (
     <div
-      className={cn("min-h-screen bg-background relative", className)}
+      className={cn("min-h-screen relative", className)}
       style={{
-        backgroundImage: "url('/assets/lahja-watercolor-bg-subtle.svg')",
+        backgroundColor: "#FFFFFF",
+        backgroundImage: `url(${shapesOverlayImg})`,
         backgroundSize: "cover",
-        backgroundPosition: "center",
+        backgroundPosition: "top center",
         backgroundRepeat: "no-repeat",
+        backgroundAttachment: "fixed",
       }}
     >
       <SaduBanner />

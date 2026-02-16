@@ -19,6 +19,7 @@ import MyWordsReview from "./pages/MyWordsReview";
 import MemeAnalyzer from "./pages/MemeAnalyzer";
 import Discover from "./pages/Discover";
 import DiscoverVideo from "./pages/DiscoverVideo";
+import DesignSystem from "./pages/DesignSystem";
 
 // Admin pages
 import AdminLogin from "./pages/admin/AdminLogin";
@@ -134,6 +135,7 @@ const App = () => {
             <Route path="/quiz/:topicId" element={<Quiz />} />
             <Route path="/discover" element={<Discover />} />
             <Route path="/discover/:videoId" element={<DiscoverVideo />} />
+            <Route path="/design-system" element={<DesignSystem />} />
 
             {/* Admin routes */}
             <Route path="/admin/login" element={<AdminLogin />} />

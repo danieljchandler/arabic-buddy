@@ -26,7 +26,7 @@ const DiscoverPreviewCard = ({ video, onClick }: { video: any; onClick: () => vo
       )}
     >
       {/* Video thumbnail styled like a social feed post */}
-      <div className="relative aspect-[9/10] bg-foreground/5 overflow-hidden">
+      <div className="relative aspect-[4/3] bg-foreground/5 overflow-hidden">
         {video.thumbnail_url ? (
           <img
             src={video.thumbnail_url}

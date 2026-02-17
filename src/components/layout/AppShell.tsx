@@ -27,7 +27,7 @@ export function AppShell({ children, className, compact = false }: AppShellProps
           backgroundSize: "cover",
           backgroundPosition: "top center",
           backgroundRepeat: "no-repeat",
-          opacity: 0.85,
+          opacity: 0.95,
           pointerEvents: "none",
         }}
       />

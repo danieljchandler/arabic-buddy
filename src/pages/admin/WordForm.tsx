@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ArrowLeft } from 'lucide-react';
+import { Loader2, ArrowLeft, Sparkles } from 'lucide-react';
 import { ImageUploader } from '@/components/admin/ImageUploader';
 import { AudioUploader } from '@/components/admin/AudioUploader';
 import { ImagePositionEditor } from '@/components/admin/ImagePositionEditor';
@@ -24,6 +24,49 @@ const WordForm = () => {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [imagePosition, setImagePosition] = useState('50 50');
+  const [generatingImage, setGeneratingImage] = useState(false);
+
+  const handleAiGenerate = async () => {
+    if (!wordEnglish.trim()) {
+      toast({ variant: 'destructive', title: 'Enter English word first', description: 'The AI needs the English word to generate an image.' });
+      return;
+    }
+    setGeneratingImage(true);
+    try {
+      // Check for existing image in vocabulary_words
+      const { data: existing } = await supabase
+        .from('vocabulary_words')
+        .select('image_url')
+        .ilike('word_english', wordEnglish.trim())
+        .not('image_url', 'is', null)
+        .limit(1)
+        .single();
+
+      if (existing?.image_url) {
+        setImageUrl(existing.image_url);
+        toast({ title: 'Reused existing image', description: `Found an existing image for "${wordEnglish}".` });
+        return;
+      }
+
+      const storagePath = `admin/${crypto.randomUUID()}.png`;
+      const { data, error } = await supabase.functions.invoke('generate-flashcard-image', {
+        body: { word_english: wordEnglish.trim(), word_arabic: wordArabic.trim(), storage_path: storagePath },
+      });
+
+      if (error) throw error;
+      if (data?.imageUrl) {
+        setImageUrl(data.imageUrl);
+        toast({ title: 'Image generated!', description: `AI created an image for "${wordEnglish}".` });
+      } else {
+        throw new Error(data?.error || 'No image returned');
+      }
+    } catch (err: any) {
+      console.error('AI image generation failed:', err);
+      toast({ variant: 'destructive', title: 'Generation failed', description: err.message || 'Could not generate image.' });
+    } finally {
+      setGeneratingImage(false);
+    }
+  };
 
   // Fetch topic info
   const { data: topic } = useQuery({
@@ -201,6 +244,21 @@ const WordForm = () => {
                   onUpload={setImageUrl}
                   onRemove={() => setImageUrl(null)}
                 />
+                {!imageUrl && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full gap-2"
+                    onClick={handleAiGenerate}
+                    disabled={generatingImage}
+                  >
+                    {generatingImage ? (
+                      <><Loader2 className="h-4 w-4 animate-spin" /> Generating…</>
+                    ) : (
+                      <><Sparkles className="h-4 w-4" /> AI Generate Image</>
+                    )}
+                  </Button>
+                )}
               </div>
 
               {/* Image position editor - only show when image is uploaded */}

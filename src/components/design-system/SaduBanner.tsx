@@ -10,7 +10,7 @@ import saduBannerImg from "@/assets/sadu-banner.png";
 export function SaduBanner() {
   return (
     <div className="w-full" aria-hidden="true">
-      {/* Main Sadu pattern strip - PNG, tiled horizontally */}
+      {/* Main Sadu pattern strip - PNG, tiled horizontally at natural size */}
       <div
         style={{
           width: '100%',
@@ -19,14 +19,6 @@ export function SaduBanner() {
           backgroundRepeat: 'repeat-x',
           backgroundSize: 'auto 100%',
           backgroundPosition: 'center top',
-        }}
-      />
-
-      {/* Warm sand gradient fade */}
-      <div
-        style={{
-          height: 60,
-          background: 'linear-gradient(180deg, rgba(226,197,166,0.5) 0%, rgba(226,197,166,0) 100%)',
         }}
       />
     </div>

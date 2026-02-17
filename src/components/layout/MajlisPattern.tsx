@@ -3,7 +3,7 @@
  *
  * Brand guide motifs: diamond/chevron geometric patterns.
  * Very low opacity (3-6%), large partially-cropped shapes.
- * Colors: Deep Desert olive, Warm Sand, Desert Red, Charcoal only.
+ * Colors: Desert Red, Warm Sand, Charcoal only.
  */
 export function MajlisPattern() {
   return (
@@ -37,13 +37,13 @@ export function MajlisPattern() {
         <pattern id="nested-diamonds" x="0" y="0" width="50" height="50" patternUnits="userSpaceOnUse">
           <path
             d="M25 0L50 25L25 50L0 25Z"
-            stroke="hsl(110 22% 35%)"
+            stroke="hsl(8 42% 40%)"
             strokeWidth="1"
             fill="none"
           />
           <path
             d="M25 10L40 25L25 40L10 25Z"
-            stroke="hsl(110 22% 35%)"
+            stroke="hsl(8 42% 40%)"
             strokeWidth="0.5"
             fill="none"
           />
@@ -98,7 +98,7 @@ export function MajlisPattern() {
       >
         <path
           d="M0 200 Q 50 150, 100 150 T 200 100"
-          stroke="hsl(110 22% 35%)"
+          stroke="hsl(8 42% 40%)"
           strokeWidth="2"
           fill="none"
         />
@@ -137,7 +137,7 @@ export function MajlisPattern() {
             strokeWidth="0.75"
             fill="none"
           />
-          <circle r="15" stroke="hsl(110 22% 35%)" strokeWidth="0.5" fill="none" />
+          <circle r="15" stroke="hsl(8 42% 40%)" strokeWidth="0.5" fill="none" />
         </g>
       </svg>
 
@@ -157,7 +157,7 @@ export function MajlisPattern() {
         fill="none"
         style={{ opacity: 0.04 }}
       >
-        <path d="M20 8L32 20L20 32L8 20Z" stroke="hsl(110 22% 35%)" strokeWidth="0.75" fill="none" />
+        <path d="M20 8L32 20L20 32L8 20Z" stroke="hsl(8 42% 40%)" strokeWidth="0.75" fill="none" />
       </svg>
     </div>
   );

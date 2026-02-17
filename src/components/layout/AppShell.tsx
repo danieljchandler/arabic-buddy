@@ -1,6 +1,7 @@
 import { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import borderFullPageImg from "@/assets/border-full-page.png";
+import { SaduBanner } from "@/components/design-system/SaduBanner";
 
 interface AppShellProps {
   children: ReactNode;
@@ -12,13 +13,13 @@ interface AppShellProps {
 /**
  * AppShell - Consistent layout wrapper for all pages
  *
- * Provides unified spacing with full-page Sadu border background.
+ * Provides unified spacing with parchment backdrop and Sadu border on top.
  * Use compact mode for immersive learning screens.
  */
 export function AppShell({ children, className, compact = false }: AppShellProps) {
   return (
     <div className={cn("min-h-screen relative", className)} style={{ backgroundColor: "#FFFFFF" }}>
-      {/* Background image layer with reduced opacity */}
+      {/* Parchment backdrop layer with reduced opacity */}
       <div
         style={{
           position: "fixed",
@@ -31,9 +32,13 @@ export function AppShell({ children, className, compact = false }: AppShellProps
           pointerEvents: "none",
         }}
       />
+      {/* Sadu border strip at the top */}
+      <div className="relative z-10">
+        <SaduBanner />
+      </div>
       <div className={cn(
         "relative mx-auto w-full max-w-2xl",
-        compact ? "px-5 py-6" : "px-6 pt-4 pb-8 md:pt-6 md:pb-12"
+        compact ? "px-5 py-6" : "px-6 pt-0 pb-8 md:pt-2 md:pb-12"
       )}>
         {children}
       </div>

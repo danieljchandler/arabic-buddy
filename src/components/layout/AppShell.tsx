@@ -17,16 +17,20 @@ interface AppShellProps {
  */
 export function AppShell({ children, className, compact = false }: AppShellProps) {
   return (
-    <div
-      className={cn("min-h-screen relative", className)}
-      style={{
-        backgroundImage: `url(${borderFullPageImg})`,
-        backgroundSize: "cover",
-        backgroundPosition: "top center",
-        backgroundRepeat: "no-repeat",
-        backgroundAttachment: "fixed",
-      }}
-    >
+    <div className={cn("min-h-screen relative", className)} style={{ backgroundColor: "#FFFFFF" }}>
+      {/* Background image layer with reduced opacity */}
+      <div
+        style={{
+          position: "fixed",
+          inset: 0,
+          backgroundImage: `url(${borderFullPageImg})`,
+          backgroundSize: "cover",
+          backgroundPosition: "top center",
+          backgroundRepeat: "no-repeat",
+          opacity: 0.55,
+          pointerEvents: "none",
+        }}
+      />
       <div className={cn(
         "relative mx-auto w-full max-w-2xl",
         compact ? "px-5 py-6" : "px-6 pt-4 pb-8 md:pt-6 md:pb-12"

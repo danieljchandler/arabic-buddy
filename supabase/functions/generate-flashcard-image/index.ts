@@ -31,7 +31,7 @@ serve(async (req) => {
   console.log(`Authenticated user: ${user.id}`);
 
   try {
-    const { word_arabic, word_english, storage_path } = await req.json();
+    const { word_arabic, word_english, storage_path, custom_instructions } = await req.json();
     
     if (!word_english) {
       return new Response(JSON.stringify({ error: "word_english is required" }), {
@@ -43,7 +43,11 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    const prompt = `A single realistic, professional photograph of: ${word_english}. Photo-realistic style, high-quality stock photo. Warm neutral background (soft beige, cream, or light wood). No text, labels, or watermarks. Simple, clear composition. Good lighting, slightly warm tone.`;
+    let prompt = `A single realistic, professional photograph of: ${word_english}. Photo-realistic style, high-quality stock photo. Warm neutral background (soft beige, cream, or light wood). No text, labels, or watermarks. Simple, clear composition. Good lighting, slightly warm tone.`;
+    
+    if (custom_instructions) {
+      prompt += ` Additional instructions: ${custom_instructions}`;
+    }
 
     console.log(`Generating image for: ${word_english}`);
 

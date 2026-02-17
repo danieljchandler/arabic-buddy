@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { Textarea } from '@/components/ui/textarea';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -25,32 +26,40 @@ const WordForm = () => {
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [imagePosition, setImagePosition] = useState('50 50');
   const [generatingImage, setGeneratingImage] = useState(false);
+  const [imageInstructions, setImageInstructions] = useState('');
 
-  const handleAiGenerate = async () => {
+  const handleAiGenerate = async (forceNew = false) => {
     if (!wordEnglish.trim()) {
       toast({ variant: 'destructive', title: 'Enter English word first', description: 'The AI needs the English word to generate an image.' });
       return;
     }
     setGeneratingImage(true);
     try {
-      // Check for existing image in vocabulary_words
-      const { data: existing } = await supabase
-        .from('vocabulary_words')
-        .select('image_url')
-        .ilike('word_english', wordEnglish.trim())
-        .not('image_url', 'is', null)
-        .limit(1)
-        .single();
+      // Only reuse existing when generating for the first time with no custom instructions
+      if (!forceNew && !imageUrl && !imageInstructions.trim()) {
+        const { data: existing } = await supabase
+          .from('vocabulary_words')
+          .select('image_url')
+          .ilike('word_english', wordEnglish.trim())
+          .not('image_url', 'is', null)
+          .limit(1)
+          .single();
 
-      if (existing?.image_url) {
-        setImageUrl(existing.image_url);
-        toast({ title: 'Reused existing image', description: `Found an existing image for "${wordEnglish}".` });
-        return;
+        if (existing?.image_url) {
+          setImageUrl(existing.image_url);
+          toast({ title: 'Reused existing image', description: `Found an existing image for "${wordEnglish}".` });
+          return;
+        }
       }
 
       const storagePath = `admin/${crypto.randomUUID()}.png`;
       const { data, error } = await supabase.functions.invoke('generate-flashcard-image', {
-        body: { word_english: wordEnglish.trim(), word_arabic: wordArabic.trim(), storage_path: storagePath },
+        body: {
+          word_english: wordEnglish.trim(),
+          word_arabic: wordArabic.trim(),
+          storage_path: storagePath,
+          custom_instructions: imageInstructions.trim() || undefined,
+        },
       });
 
       if (error) throw error;
@@ -244,21 +253,28 @@ const WordForm = () => {
                   onUpload={setImageUrl}
                   onRemove={() => setImageUrl(null)}
                 />
-                {!imageUrl && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full gap-2"
-                    onClick={handleAiGenerate}
-                    disabled={generatingImage}
-                  >
-                    {generatingImage ? (
-                      <><Loader2 className="h-4 w-4 animate-spin" /> Generating…</>
-                    ) : (
-                      <><Sparkles className="h-4 w-4" /> AI Generate Image</>
-                    )}
-                  </Button>
-                )}
+                <Textarea
+                  placeholder="Optional: custom instructions for AI (e.g. 'show a red apple on a wooden table')"
+                  value={imageInstructions}
+                  onChange={(e) => setImageInstructions(e.target.value)}
+                  rows={2}
+                  className="text-sm"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full gap-2"
+                  onClick={() => handleAiGenerate(!!imageUrl)}
+                  disabled={generatingImage}
+                >
+                  {generatingImage ? (
+                    <><Loader2 className="h-4 w-4 animate-spin" /> Generating…</>
+                  ) : imageUrl ? (
+                    <><Sparkles className="h-4 w-4" /> Regenerate Image</>
+                  ) : (
+                    <><Sparkles className="h-4 w-4" /> AI Generate Image</>
+                  )}
+                </Button>
               </div>
 
               {/* Image position editor - only show when image is uploaded */}

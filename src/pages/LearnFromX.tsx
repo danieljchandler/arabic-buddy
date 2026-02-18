@@ -64,6 +64,23 @@ function normalizeTranscriptResult(input: TranscriptResult): TranscriptResult {
   };
 }
 
+/** Extracts the real error message from a supabase.functions.invoke error.
+ *  The SDK wraps non-2xx responses in FunctionsHttpError whose `.message` is
+ *  always the generic "Edge Function returned a non-2xx status code".
+ *  The actual JSON body (with our own `error` field) lives in `.context`. */
+async function readInvokeError(err: unknown): Promise<string> {
+  if (!err || typeof err !== "object") return String(err);
+  const context = (err as { context?: Response }).context;
+  if (context) {
+    try {
+      const body = await context.clone().json();
+      if (body?.error) return body.error;
+      if (body?.message) return body.message;
+    } catch { /* ignore parse failure */ }
+  }
+  return (err as Error).message ?? "Unknown error";
+}
+
 const LearnFromX = () => {
   const { isAuthenticated } = useAuth();
   const addUserVocabulary = useAddUserVocabulary();
@@ -101,7 +118,7 @@ const LearnFromX = () => {
         body: { url: trimmed },
       });
 
-      if (scrapeError) throw new Error(scrapeError.message);
+      if (scrapeError) throw new Error(await readInvokeError(scrapeError));
       if (!scrapeData?.success) throw new Error(scrapeData?.error ?? "Failed to extract post text");
 
       const text: string = scrapeData.text;
@@ -116,7 +133,7 @@ const LearnFromX = () => {
         body: { transcript: text },
       });
 
-      if (analyzeError) throw new Error(analyzeError.message);
+      if (analyzeError) throw new Error(await readInvokeError(analyzeError));
       if (!analyzeData?.success || !analyzeData.result) throw new Error(analyzeData?.error ?? "Analysis failed");
 
       const normalized = normalizeTranscriptResult(analyzeData.result);

@@ -4,7 +4,7 @@ import { useReviewStats } from "@/hooks/useReview";
 import { useUserVocabularyDueCount } from "@/hooks/useUserVocabulary";
 import { useDiscoverVideos } from "@/hooks/useDiscoverVideos";
 import { Button } from "@/components/design-system";
-import { Settings, Brain, LogIn, LogOut, Mic, BookOpen, Sparkles, GraduationCap, Laugh, Play, ChevronRight } from "lucide-react";
+import { Settings, Brain, LogIn, LogOut, Mic, BookOpen, Sparkles, GraduationCap, Laugh, Play, ChevronRight, Twitter } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AppShell } from "@/components/layout/AppShell";
 import { Badge } from "@/components/ui/badge";
@@ -332,6 +332,28 @@ const Index = () => {
             <p className="font-semibold text-foreground">Meme Analyzer</p>
             <p className="text-xs text-muted-foreground">
               Break down Arabic memes
+            </p>
+          </div>
+        </button>
+
+        {/* Learn from X Post */}
+        <button
+          onClick={() => navigate("/learn-from-x")}
+          className={cn(
+            "w-full p-4 rounded-xl",
+            "bg-card border border-border",
+            "flex items-center gap-3",
+            "transition-all duration-200",
+            "hover:border-primary/20"
+          )}
+        >
+          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+            <Twitter className="h-5 w-5 text-primary" />
+          </div>
+          <div className="text-left">
+            <p className="font-semibold text-foreground">Learn from X Post</p>
+            <p className="text-xs text-muted-foreground">
+              Analyze Arabic posts from X
             </p>
           </div>
         </button>

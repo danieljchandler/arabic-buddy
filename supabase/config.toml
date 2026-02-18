@@ -29,3 +29,6 @@ verify_jwt = false
 
 [functions.falcon-warmup]
 verify_jwt = false
+
+[functions.scrape-x-post]
+verify_jwt = false

@@ -5,6 +5,10 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
+type JinaResponse = {
+  data?: { title?: string; description?: string; content?: string };
+};
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -28,36 +32,16 @@ serve(async (req) => {
       );
     }
 
-    console.log('Scraping X post via Jina Reader:', url);
-
-    const jinaUrl = `https://r.jina.ai/${url}`;
-    const jinaHeaders: Record<string, string> = {
-      'Accept': 'application/json',
-      'X-Return-Format': 'markdown',
-      'X-No-Cache': 'true',
-    };
-
-    // Optional: use API key for higher rate limits (free to register at jina.ai)
     const JINA_API_KEY = Deno.env.get('JINA_API_KEY');
-    if (JINA_API_KEY) {
-      jinaHeaders['Authorization'] = `Bearer ${JINA_API_KEY}`;
+
+    // Try free tier first, fall back to authenticated if it fails or returns no text
+    console.log('Attempting Jina Reader (free tier)...');
+    let arabicText = await fetchFromJina(url, null);
+
+    if (!arabicText && JINA_API_KEY) {
+      console.log('Free tier returned no text, retrying with API key...');
+      arabicText = await fetchFromJina(url, JINA_API_KEY);
     }
-
-    const jinaResponse = await fetch(jinaUrl, { headers: jinaHeaders });
-
-    if (!jinaResponse.ok) {
-      const errText = await jinaResponse.text();
-      console.error('Jina Reader error:', jinaResponse.status, errText.slice(0, 300));
-      return new Response(
-        JSON.stringify({ success: false, error: `Failed to fetch post [${jinaResponse.status}]. The post may be private or unavailable.` }),
-        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const data = await jinaResponse.json();
-    console.log('Jina Reader response keys:', Object.keys(data?.data ?? {}));
-
-    const arabicText = extractArabicText(data);
 
     if (!arabicText) {
       return new Response(
@@ -66,7 +50,6 @@ serve(async (req) => {
       );
     }
 
-    // Check if the extracted text contains Arabic
     const hasArabic = /[\u0600-\u06FF]/.test(arabicText);
     if (!hasArabic) {
       return new Response(
@@ -76,7 +59,6 @@ serve(async (req) => {
     }
 
     console.log('Extracted Arabic text, length:', arabicText.length);
-
     return new Response(
       JSON.stringify({ success: true, text: arabicText }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -92,22 +74,60 @@ serve(async (req) => {
 });
 
 /**
+ * Fetch an X post via Jina Reader. Pass apiKey=null to use the free tier.
+ * Returns the extracted Arabic text, or null if the request failed or yielded nothing useful.
+ */
+async function fetchFromJina(url: string, apiKey: string | null): Promise<string | null> {
+  const jinaUrl = `https://r.jina.ai/${url}`;
+  const headers: Record<string, string> = {
+    'Accept': 'application/json',
+    'X-Return-Format': 'markdown',
+    'X-No-Cache': 'true',
+  };
+  if (apiKey) {
+    headers['Authorization'] = `Bearer ${apiKey}`;
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(jinaUrl, { headers });
+  } catch (err) {
+    console.error('Jina fetch error:', err);
+    return null;
+  }
+
+  if (!response.ok) {
+    console.warn(`Jina Reader [${apiKey ? 'authenticated' : 'free'}] responded ${response.status}`);
+    return null;
+  }
+
+  let data: JinaResponse;
+  try {
+    data = await response.json();
+  } catch {
+    console.warn('Jina Reader returned non-JSON body');
+    return null;
+  }
+
+  console.log(`Jina [${apiKey ? 'authenticated' : 'free'}] response keys:`, Object.keys(data?.data ?? {}));
+  return extractArabicText(data);
+}
+
+/**
  * Extract tweet text from Jina Reader's JSON response.
  * Jina returns { data: { title, description, content, url } }.
  * For X posts, the title is typically: 'Username on X: "tweet text"'
  */
-function extractArabicText(jinaData: unknown): string | null {
-  const data = (jinaData as { data?: { title?: string; description?: string; content?: string } })?.data;
+function extractArabicText(jinaData: JinaResponse): string | null {
+  const data = jinaData?.data;
   if (!data) return null;
 
   // Strategy 1: Extract tweet text from title (format: `Username on X: "tweet text"`)
   const title = data.title ?? '';
   if (title) {
-    // Match quoted portion after the colon
     const quoteMatch = title.match(/[""\u201C\u201D](.+?)[""\u201C\u201D]\s*$/s)
       ?? title.match(/:\s*[""\u201C\u201D](.+)/s);
     if (quoteMatch?.[1]?.trim().length > 5) return quoteMatch[1].trim();
-    // If no quotes, take everything after ": "
     const colonMatch = title.match(/:\s*(.+)/s);
     if (colonMatch?.[1]?.trim().length > 5) return colonMatch[1].trim();
   }

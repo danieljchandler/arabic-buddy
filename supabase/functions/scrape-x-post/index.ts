@@ -11,14 +11,6 @@ serve(async (req) => {
   }
 
   try {
-    const BRIGHT_DATA_API_KEY = Deno.env.get('BRIGHT_DATA_API_KEY');
-    if (!BRIGHT_DATA_API_KEY) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'BRIGHT_DATA_API_KEY is not configured' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
     const { url } = await req.json();
     if (!url || typeof url !== 'string') {
       return new Response(
@@ -26,9 +18,6 @@ serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    // Normalize X/Twitter URL
-    const normalizedUrl = url.replace('https://x.com/', 'https://twitter.com/').replace('http://x.com/', 'https://twitter.com/');
 
     // Validate it's an X/Twitter post URL
     const isXPost = /https?:\/\/(twitter\.com|x\.com)\/\w+\/status\/\d+/.test(url);
@@ -39,37 +28,36 @@ serve(async (req) => {
       );
     }
 
-    console.log('Scraping X post:', normalizedUrl);
+    console.log('Scraping X post via Jina Reader:', url);
 
-    // Use Bright Data's Web Unlocker API to scrape the post
-    const scrapeResponse = await fetch('https://api.brightdata.com/request', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${BRIGHT_DATA_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        zone: 'web_unlocker1',
-        url: normalizedUrl,
-        format: 'raw',
-      }),
-    });
+    const jinaUrl = `https://r.jina.ai/${url}`;
+    const jinaHeaders: Record<string, string> = {
+      'Accept': 'application/json',
+      'X-Return-Format': 'markdown',
+      'X-No-Cache': 'true',
+    };
 
-    if (!scrapeResponse.ok) {
-      const errorBody = await scrapeResponse.text();
-      console.error('Bright Data error:', scrapeResponse.status, errorBody.slice(0, 500));
+    // Optional: use API key for higher rate limits (free to register at jina.ai)
+    const JINA_API_KEY = Deno.env.get('JINA_API_KEY');
+    if (JINA_API_KEY) {
+      jinaHeaders['Authorization'] = `Bearer ${JINA_API_KEY}`;
+    }
+
+    const jinaResponse = await fetch(jinaUrl, { headers: jinaHeaders });
+
+    if (!jinaResponse.ok) {
+      const errText = await jinaResponse.text();
+      console.error('Jina Reader error:', jinaResponse.status, errText.slice(0, 300));
       return new Response(
-        JSON.stringify({ success: false, error: `Bright Data scraping failed [${scrapeResponse.status}]: ${errorBody.slice(0, 200)}` }),
+        JSON.stringify({ success: false, error: `Failed to fetch post [${jinaResponse.status}]. The post may be private or unavailable.` }),
         { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const html = await scrapeResponse.text();
-    console.log('Got HTML, length:', html.length);
+    const data = await jinaResponse.json();
+    console.log('Jina Reader response keys:', Object.keys(data?.data ?? {}));
 
-    // Extract tweet text from the HTML
-    // Twitter renders tweet text in og:description meta tag or article elements
-    const arabicText = extractTweetText(html);
+    const arabicText = extractArabicText(data);
 
     if (!arabicText) {
       return new Response(
@@ -87,6 +75,8 @@ serve(async (req) => {
       );
     }
 
+    console.log('Extracted Arabic text, length:', arabicText.length);
+
     return new Response(
       JSON.stringify({ success: true, text: arabicText }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -102,59 +92,39 @@ serve(async (req) => {
 });
 
 /**
- * Extract tweet text from Twitter/X HTML.
- * Tries multiple strategies in order of reliability.
+ * Extract tweet text from Jina Reader's JSON response.
+ * Jina returns { data: { title, description, content, url } }.
+ * For X posts, the title is typically: 'Username on X: "tweet text"'
  */
-function extractTweetText(html: string): string | null {
-  // Strategy 1: og:description meta tag (most reliable for server-rendered pages)
-  const ogDescMatch = html.match(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i)
-    ?? html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:description["']/i);
-  
-  if (ogDescMatch?.[1]) {
-    const text = decodeHtmlEntities(ogDescMatch[1]);
-    // og:description often starts with username, strip it
-    // Format: "username on X: \"tweet text\""
-    const quoteMatch = text.match(/[""](.+)[""]$/s) ?? text.match(/:\s*["""](.+)["""]$/s);
-    if (quoteMatch?.[1]) return quoteMatch[1].trim();
-    // Fall through to return the full og:description
-    if (text.length > 10) return text.trim();
+function extractArabicText(jinaData: unknown): string | null {
+  const data = (jinaData as { data?: { title?: string; description?: string; content?: string } })?.data;
+  if (!data) return null;
+
+  // Strategy 1: Extract tweet text from title (format: `Username on X: "tweet text"`)
+  const title = data.title ?? '';
+  if (title) {
+    // Match quoted portion after the colon
+    const quoteMatch = title.match(/[""\u201C\u201D](.+?)[""\u201C\u201D]\s*$/s)
+      ?? title.match(/:\s*[""\u201C\u201D](.+)/s);
+    if (quoteMatch?.[1]?.trim().length > 5) return quoteMatch[1].trim();
+    // If no quotes, take everything after ": "
+    const colonMatch = title.match(/:\s*(.+)/s);
+    if (colonMatch?.[1]?.trim().length > 5) return colonMatch[1].trim();
   }
 
-  // Strategy 2: Twitter card description
-  const twitterDescMatch = html.match(/<meta[^>]+name=["']twitter:description["'][^>]+content=["']([^"']+)["']/i)
-    ?? html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']twitter:description["']/i);
-  
-  if (twitterDescMatch?.[1]) {
-    const text = decodeHtmlEntities(twitterDescMatch[1]);
-    if (text.length > 5) return text.trim();
-  }
+  // Strategy 2: description field (often the tweet text directly)
+  const description = data.description ?? '';
+  if (description.trim().length > 5) return description.trim();
 
-  // Strategy 3: JSON-LD data
-  const jsonLdMatch = html.match(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/i);
-  if (jsonLdMatch?.[1]) {
-    try {
-      const data = JSON.parse(jsonLdMatch[1]);
-      const articleBody = data?.articleBody ?? data?.description;
-      if (typeof articleBody === 'string' && articleBody.length > 5) {
-        return decodeHtmlEntities(articleBody).trim();
-      }
-    } catch { /* ignore */ }
+  // Strategy 3: Pull Arabic lines from the markdown content
+  const content = data.content ?? '';
+  if (content) {
+    const arabicLines = content
+      .split('\n')
+      .map((l: string) => l.trim())
+      .filter((l: string) => l.length > 0 && /[\u0600-\u06FF]/.test(l));
+    if (arabicLines.length > 0) return arabicLines.join('\n');
   }
 
   return null;
-}
-
-function decodeHtmlEntities(text: string): string {
-  return text
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&apos;/g, "'")
-    .replace(/&#x27;/g, "'")
-    .replace(/&#x2F;/g, '/')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(parseInt(code, 10)))
-    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
 }

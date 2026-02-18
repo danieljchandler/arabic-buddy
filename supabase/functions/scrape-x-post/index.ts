@@ -116,27 +116,35 @@ async function fetchFromJina(url: string, apiKey: string | null): Promise<string
 /**
  * Extract tweet text from Jina Reader's JSON response.
  * Jina returns { data: { title, description, content, url } }.
- * For X posts, the title is typically: 'Username on X: "tweet text"'
+ *
+ * X post titles look like: 'Username on X: "tweet text" / X'
+ * Note the trailing ' / X' after the closing quote — we strip it.
  */
 function extractArabicText(jinaData: JinaResponse): string | null {
   const data = jinaData?.data;
   if (!data) return null;
 
-  // Strategy 1: Extract tweet text from title (format: `Username on X: "tweet text"`)
+  // Strategy 1: Extract tweet text from title.
+  // Handles the ' / X' suffix that X appends after the closing quote.
   const title = data.title ?? '';
   if (title) {
-    const quoteMatch = title.match(/[""\u201C\u201D](.+?)[""\u201C\u201D]\s*$/s)
-      ?? title.match(/:\s*[""\u201C\u201D](.+)/s);
-    if (quoteMatch?.[1]?.trim().length > 5) return quoteMatch[1].trim();
-    const colonMatch = title.match(/:\s*(.+)/s);
-    if (colonMatch?.[1]?.trim().length > 5) return colonMatch[1].trim();
+    const m = title.match(/:\s*"([\s\S]+?)"\s*\/\s*X\s*$/i)  // "text" / X  (most common)
+           ?? title.match(/:\s*"([\s\S]+?)"\s*$/s)             // "text" at end
+           ?? title.match(/:\s*"([\s\S]+)/s);                  // "text... (no closing quote)
+    if (m?.[1]) {
+      const text = m[1]
+        .replace(/"\s*\/\s*X\s*$/i, '')  // strip stray trailing " / X
+        .replace(/"$/, '')               // strip stray trailing quote
+        .trim();
+      if (text.length > 5) return text;
+    }
   }
 
-  // Strategy 2: description field (often the tweet text directly)
+  // Strategy 2: description field (sometimes populated directly with tweet text)
   const description = data.description ?? '';
   if (description.trim().length > 5) return description.trim();
 
-  // Strategy 3: Pull Arabic lines from the markdown content
+  // Strategy 3: Pull Arabic lines from the markdown content body
   const content = data.content ?? '';
   if (content) {
     const arabicLines = content

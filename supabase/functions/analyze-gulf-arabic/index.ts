@@ -132,7 +132,8 @@ Output ONLY valid JSON matching this schema:
 
 Rules:
 - Provide an English gloss for EVERY unique Arabic word in the input.
-- IMPORTANT: Also add entries for meaningful multi-word compounds/collocations that appear in the input (e.g. "وقت الدورة" = "rush hour", "في الصباح" = "in the morning"). Use the full phrase as the key.
+- IMPORTANT: Also add entries for meaningful multi-word compounds/collocations that appear in the input — both 2-word AND 3-word phrases (e.g. "وقت الدورة" = "rush hour", "في الصباح" = "in the morning", "بيت شعر" = "poetry verse"). Use the full phrase as the key.
+- For every word that is part of a multi-word phrase, ALSO include it as an individual entry with its standalone meaning (do not omit it).
 - Include common particles: و = and, في = in, من = from, على = on, إلى/لـ = to, ما = not/what, هذا/هاذا = this, إذا/لو = if, etc.
 - Include pronouns: أنا = I, إنت/أنت = you, هو = he, هي = she, إحنا/نحن = we, هم = they, etc.
 - Include verbs in context: provide the meaning as used (e.g., راح = went/will, يبي = wants, أبي = I want).
@@ -453,6 +454,18 @@ function toWordTokens(
     );
   }
 
+  // Helper: lookup a trigram (three consecutive words) in glosses/vocab
+  function lookupTrigram(w1: string, w2: string, w3: string): string | undefined {
+    const trigram = `${w1} ${w2} ${w3}`;
+    const strippedTrigram = `${stripDiacritics(w1)} ${stripDiacritics(w2)} ${stripDiacritics(w3)}`;
+    return (
+      vocabMap.get(trigram) ??
+      wordGlosses[trigram] ??
+      vocabMapStripped.get(strippedTrigram) ??
+      wordGlossesStripped[strippedTrigram]
+    );
+  }
+
   const words = arabic.split(/\s+/).filter(Boolean);
   const tokens: WordToken[] = [];
   let i = 0;
@@ -460,7 +473,33 @@ function toWordTokens(
   while (i < words.length) {
     const surface = words[i];
 
-    // Try bigram first (current word + next word)
+    // Try trigram first (current word + next two words)
+    if (i + 2 < words.length) {
+      const trigramGloss = lookupTrigram(surface, words[i + 1], words[i + 2]);
+      if (trigramGloss) {
+        // Emit first word with the compound gloss
+        tokens.push({
+          id: `tok-${generateId()}-${i}`,
+          surface,
+          gloss: trigramGloss,
+        });
+        // Emit second and third words with reference markers
+        tokens.push({
+          id: `tok-${generateId()}-${i + 1}`,
+          surface: words[i + 1],
+          gloss: `(→ ${surface})`, // indicates it's part of the preceding compound
+        });
+        tokens.push({
+          id: `tok-${generateId()}-${i + 2}`,
+          surface: words[i + 2],
+          gloss: `(→ ${surface})`, // indicates it's part of the preceding compound
+        });
+        i += 3;
+        continue;
+      }
+    }
+
+    // Try bigram (current word + next word)
     if (i + 1 < words.length) {
       const bigramGloss = lookupBigram(surface, words[i + 1]);
       if (bigramGloss) {

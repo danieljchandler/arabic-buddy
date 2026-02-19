@@ -196,7 +196,7 @@ const InlineToken = ({
             )}
             {!hasGloss && (
               <p className="text-xs text-muted-foreground italic">
-                No definition — tap an adjacent word to combine
+                No definition — tap 1–2 adjacent words to combine
               </p>
             )}
           </div>
@@ -288,22 +288,33 @@ interface TranscriptLineCardProps {
    savedWords,
    vocabSectionWords,
  }: TranscriptLineCardProps) => {
-   const [selectedTokenIdx, setSelectedTokenIdx] = useState<number | null>(null);
+   const [selectedIndices, setSelectedIndices] = useState<number[]>([]);
    const [compoundPopoverIdx, setCompoundPopoverIdx] = useState<number | null>(null);
    const selectionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-   // Build a lookup for compound glosses from the line's tokens
-   // The AI may have returned glosses for "word1 word2" as a key in wordGlosses
-   // We look up pairs of adjacent tokens
-   const getCompoundGloss = useCallback((idx1: number, idx2: number): string | undefined => {
+   // Lookup compound gloss for a range [firstIdx, lastIdx] (inclusive).
+   // Supports bigrams (span=1) and trigrams (span=2).
+   // The backend marks 2nd (and 3rd) compound tokens with "(→ firstWord)" in their gloss.
+   const getCompoundGloss = useCallback((firstIdx: number, lastIdx: number): string | undefined => {
      if (!line.tokens) return undefined;
-     const t1 = line.tokens[idx1];
-     const t2 = line.tokens[idx2];
+     const span = lastIdx - firstIdx;
+     if (span < 1 || span > 2) return undefined;
+
+     const t1 = line.tokens[firstIdx];
+     const t2 = line.tokens[firstIdx + 1];
      if (!t1 || !t2) return undefined;
-     // Check if token2's gloss references token1 (compound marker set by backend)
-     if (t2.gloss && t2.gloss.startsWith("(→")) return t1.gloss;
-     // Check if token1's gloss references token2 (compound marker the other direction)
-     if (t1.gloss && t1.gloss.startsWith("(→")) return t2.gloss;
+
+     if (span === 1) {
+       // Bigram: second token carries "(→ ..." marker, first token has the compound gloss
+       if (t2.gloss?.startsWith("(→")) return t1.gloss;
+       if (t1.gloss?.startsWith("(→")) return t2.gloss;
+       return undefined;
+     }
+
+     // Trigram: both second and third tokens carry "(→ ..." markers
+     const t3 = line.tokens[firstIdx + 2];
+     if (!t3) return undefined;
+     if (t2.gloss?.startsWith("(→") && t3.gloss?.startsWith("(→")) return t1.gloss;
      return undefined;
    }, [line.tokens]);
 
@@ -311,40 +322,58 @@ interface TranscriptLineCardProps {
      const idx = line.tokens.findIndex(t => t.id === token.id);
      if (idx === -1) return;
 
-     if (selectedTokenIdx === null) {
-       // First click — select this token, auto-clear after 3s
-       setSelectedTokenIdx(idx);
-       if (selectionTimerRef.current) clearTimeout(selectionTimerRef.current);
-       selectionTimerRef.current = setTimeout(() => setSelectedTokenIdx(null), 3000);
-     } else if (selectedTokenIdx === idx) {
-       // Clicking the same token — open its single popover (deselect)
-       setSelectedTokenIdx(null);
-       if (selectionTimerRef.current) clearTimeout(selectionTimerRef.current);
-     } else {
-       // Second click — check if adjacent
-       const diff = Math.abs(idx - selectedTokenIdx);
-       if (diff === 1) {
-         const firstIdx = Math.min(idx, selectedTokenIdx);
-         const secondIdx = Math.max(idx, selectedTokenIdx);
-         const compoundGloss = getCompoundGloss(firstIdx, secondIdx);
-         if (compoundGloss) {
-           // Show compound popover on the first word
-           setCompoundPopoverIdx(firstIdx);
-         } else {
-           // No compound gloss — show hint on the new token's single popover
-           setSelectedTokenIdx(idx);
-           if (selectionTimerRef.current) clearTimeout(selectionTimerRef.current);
-           selectionTimerRef.current = setTimeout(() => setSelectedTokenIdx(null), 3000);
-         }
-       } else {
-         // Not adjacent — start fresh selection
-         setSelectedTokenIdx(idx);
-         if (selectionTimerRef.current) clearTimeout(selectionTimerRef.current);
-         selectionTimerRef.current = setTimeout(() => setSelectedTokenIdx(null), 3000);
-       }
-       setSelectedTokenIdx(null);
+     if (selectionTimerRef.current) clearTimeout(selectionTimerRef.current);
+
+     if (selectedIndices.length === 0) {
+       // First tap — select this token, auto-clear after 3s
+       setSelectedIndices([idx]);
+       selectionTimerRef.current = setTimeout(() => setSelectedIndices([]), 3000);
+       return;
      }
-   }, [selectedTokenIdx, line.tokens, getCompoundGloss]);
+
+     const minSel = Math.min(...selectedIndices);
+     const maxSel = Math.max(...selectedIndices);
+
+     // Tapped the same single selected token — deselect (opens single popover on next tap)
+     if (selectedIndices.length === 1 && idx === selectedIndices[0]) {
+       setSelectedIndices([]);
+       return;
+     }
+
+     // Check if adjacent to current selection range
+     const isAdjacentLeft = idx === minSel - 1;
+     const isAdjacentRight = idx === maxSel + 1;
+
+     if (!isAdjacentLeft && !isAdjacentRight) {
+       // Not adjacent — start fresh selection
+       setSelectedIndices([idx]);
+       selectionTimerRef.current = setTimeout(() => setSelectedIndices([]), 3000);
+       return;
+     }
+
+     const newMin = isAdjacentLeft ? idx : minSel;
+     const newMax = isAdjacentRight ? idx : maxSel;
+     const newSpan = newMax - newMin; // 1 = bigram, 2 = trigram
+
+     const compoundGloss = getCompoundGloss(newMin, newMax);
+     if (compoundGloss) {
+       // Compound found — show popover anchored on the first word
+       setCompoundPopoverIdx(newMin);
+       setSelectedIndices([]);
+       return;
+     }
+
+     if (newSpan < 2) {
+       // Bigram tried, no match — allow extending selection to a 3rd word
+       const newIndices: number[] = [];
+       for (let i = newMin; i <= newMax; i++) newIndices.push(i);
+       setSelectedIndices(newIndices);
+       selectionTimerRef.current = setTimeout(() => setSelectedIndices([]), 3000);
+     } else {
+       // Trigram tried and no compound found — reset
+       setSelectedIndices([]);
+     }
+   }, [selectedIndices, line.tokens, getCompoundGloss]);
 
    const isTokenHighlighted = (_token: WordToken, _index: number): boolean => false;
 
@@ -395,12 +424,24 @@ interface TranscriptLineCardProps {
           {line.tokens && line.tokens.length > 0 ? (
              line.tokens.map((token, index) => {
                const isThisCompoundAnchor = compoundPopoverIdx === index;
-               const nextToken = line.tokens[index + 1];
-               const compoundSurface = isThisCompoundAnchor && nextToken
-                 ? `${token.surface} ${nextToken.surface}`
+               // Determine compound word count by checking for "(→" markers on following tokens
+               const compoundWordCount = isThisCompoundAnchor
+                 ? (() => {
+                     let count = 1;
+                     let next = index + 1;
+                     while (
+                       next < line.tokens.length &&
+                       line.tokens[next]?.gloss?.startsWith("(→") &&
+                       count < 3
+                     ) { count++; next++; }
+                     return count;
+                   })()
+                 : 1;
+               const compoundSurface = isThisCompoundAnchor
+                 ? line.tokens.slice(index, index + compoundWordCount).map(t => t.surface).join(' ')
                  : undefined;
                const compoundGloss = isThisCompoundAnchor
-                 ? getCompoundGloss(index, index + 1)
+                 ? getCompoundGloss(index, index + compoundWordCount - 1)
                  : undefined;
 
                const compoundVocabItem: VocabItem = {
@@ -418,7 +459,7 @@ interface TranscriptLineCardProps {
                      token={token}
                      parentLine={line}
                      isHighlighted={isTokenHighlighted(token, index)}
-                     isSelected={selectedTokenIdx === index}
+                     isSelected={selectedIndices.includes(index)}
                      onAddToVocabSection={onAddToVocabSection}
                      onSaveToMyWords={onSaveToMyWords}
                      isSavedToMyWords={savedWords?.has(token.surface)}
@@ -479,9 +520,11 @@ interface TranscriptLineCardProps {
        </div>
 
        {/* Selection hint */}
-       {selectedTokenIdx !== null && (
+       {selectedIndices.length > 0 && (
          <p className="text-xs text-secondary/70 text-center mt-2 animate-pulse italic">
-           Now tap an adjacent word to combine
+           {selectedIndices.length === 1
+             ? "Tap an adjacent word to combine (up to 3 words)"
+             : "Tap one more adjacent word, or tap elsewhere to cancel"}
          </p>
        )}
      </div>

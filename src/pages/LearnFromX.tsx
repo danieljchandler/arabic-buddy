@@ -11,7 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { LineByLineTranscript } from "@/components/transcript/LineByLineTranscript";
 import { useAuth } from "@/hooks/useAuth";
 import { useAddUserVocabulary } from "@/hooks/useUserVocabulary";
-import { Twitter, Loader2, Search, BookOpen, MessageSquare, Globe } from "lucide-react";
+import { Twitter, Loader2, Search, BookOpen, MessageSquare, Globe, Plus, Check } from "lucide-react";
 import type { TranscriptResult, VocabItem, GrammarPoint } from "@/types/transcript";
 
 function normalizeTranscriptResult(input: TranscriptResult): TranscriptResult {
@@ -158,12 +158,21 @@ const LearnFromX = () => {
     }
     if (savedWords.has(vocab.arabic)) return;
 
+    // Match to a transcript line for sentence context
+    const matchedLine = lines.find(
+      (l) =>
+        l.tokens?.some((t) => t.surface === vocab.arabic) ||
+        l.arabic.includes(vocab.arabic)
+    );
+
     try {
       await addUserVocabulary.mutateAsync({
         word_arabic: vocab.arabic,
         word_english: vocab.english,
         root: vocab.root,
         source: "x_post",
+        sentence_text: vocab.sentenceText ?? matchedLine?.arabic,
+        sentence_english: vocab.sentenceEnglish ?? matchedLine?.translation,
       });
       setSavedWords((prev) => new Set([...prev, vocab.arabic]));
       toast.success(`Saved "${vocab.arabic}"`);
@@ -267,7 +276,11 @@ const LearnFromX = () => {
             {/* Transcript Tab */}
             <TabsContent value="transcript">
               <ErrorBoundary name="LineByLineTranscript">
-                <LineByLineTranscript lines={lines} />
+                <LineByLineTranscript
+                  lines={lines}
+                  onSaveToMyWords={isAuthenticated ? handleSaveWord : undefined}
+                  savedWords={savedWords}
+                />
               </ErrorBoundary>
             </TabsContent>
 
@@ -297,13 +310,17 @@ const LearnFromX = () => {
                         </div>
                         {isAuthenticated && (
                           <Button
-                            size="sm"
-                            variant={savedWords.has(vocab.arabic) ? "secondary" : "outline"}
+                            variant={savedWords.has(vocab.arabic) ? "secondary" : "ghost"}
+                            size="icon"
+                            className="h-8 w-8 shrink-0"
                             onClick={() => handleSaveWord(vocab)}
-                            disabled={savedWords.has(vocab.arabic)}
-                            className="shrink-0"
+                            disabled={savedWords.has(vocab.arabic) || addUserVocabulary.isPending}
                           >
-                            {savedWords.has(vocab.arabic) ? "Saved ✓" : "Save"}
+                            {savedWords.has(vocab.arabic) ? (
+                              <Check className="h-4 w-4 text-primary" />
+                            ) : (
+                              <Plus className="h-4 w-4" />
+                            )}
                           </Button>
                         )}
                       </div>

@@ -633,6 +633,31 @@ serve(async (req) => {
     const body = await req.json();
     const { transcript, munsitTranscript } = body;
 
+    // ── Quick phrase-translation shortcut ──────────────────────────────────
+    // When called with { phrase } (no transcript), translate a short Arabic
+    // word or phrase and return { translation } immediately.
+    if (body.phrase && typeof body.phrase === 'string') {
+      const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+      if (!LOVABLE_API_KEY) {
+        return new Response(JSON.stringify({ error: 'AI service not configured' }), {
+          status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+      console.log('Phrase translation:', body.phrase);
+      const resp = await callAI({
+        systemPrompt: 'You are a Gulf Arabic translator. Translate the given Arabic word or phrase to English. Return ONLY the English translation — 1 to 5 words, no punctuation, no explanation.',
+        userContent: body.phrase,
+        apiKey: LOVABLE_API_KEY,
+        maxTokens: 30,
+      });
+      const translation = (resp.content ?? '').trim().replace(/^["'.]+|["'.]+$/g, '');
+      return new Response(
+        JSON.stringify({ translation: translation || null }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    // ──────────────────────────────────────────────────────────────────────
+
     if (!transcript || typeof transcript !== 'string') {
       return new Response(
         JSON.stringify({ error: 'Missing or invalid transcript' }),

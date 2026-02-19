@@ -401,17 +401,17 @@ interface TranscriptLineCardProps {
          .join(' ');
        setLiveCompound({ firstIdx: newMin, surface: combinedSurface, wordCount: newSpan + 1, translation: null, loading: true });
        supabase.functions
-         .invoke('translate-phrase', { body: { phrase: combinedSurface } })
+         .invoke('falcon-translate', { body: { arabicLines: [combinedSurface] } })
          .then(({ data, error }) => {
-           if (!error && data?.translation) {
-             setLiveCompound({ firstIdx: newMin, surface: combinedSurface, wordCount: newSpan + 1, translation: data.translation, loading: false });
+           if (!error && data?.translations?.[0]) {
+             setLiveCompound({ firstIdx: newMin, surface: combinedSurface, wordCount: newSpan + 1, translation: data.translations[0], loading: false });
            } else {
-             console.warn('translate-phrase failed:', error);
+             console.warn('falcon-translate failed:', error);
              setLiveCompound({ firstIdx: newMin, surface: combinedSurface, wordCount: newSpan + 1, translation: null, loading: false });
            }
          })
          .catch((err) => {
-           console.warn('translate-phrase error:', err);
+           console.warn('falcon-translate error:', err);
            setLiveCompound(prev => prev ? { ...prev, loading: false } : null);
          });
      }

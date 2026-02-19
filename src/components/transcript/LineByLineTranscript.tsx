@@ -1,5 +1,5 @@
- import { useState, useRef, useEffect } from "react";
- import { ChevronDown, ChevronUp, Eye, EyeOff, Play, Pause, Plus, BookOpen, Check } from "lucide-react";
+ import { useState, useRef, useEffect, useCallback } from "react";
+ import { ChevronDown, ChevronUp, Eye, EyeOff, Play, Pause, Plus, BookOpen, Check, Link2 } from "lucide-react";
  import { cn } from "@/lib/utils";
  import { Switch } from "@/components/ui/switch";
  import {
@@ -24,22 +24,43 @@ interface InlineTokenProps {
   token: WordToken;
   parentLine: TranscriptLine;
   isHighlighted?: boolean;
+  isSelected?: boolean;
   onAddToVocabSection?: (word: VocabItem) => void;
   onSaveToMyWords?: (word: VocabItem) => void;
   isSavedToMyWords?: boolean;
   isInVocabSection?: boolean;
+  onTokenClick?: (token: WordToken) => void;
+  // compound popover
+  compoundOpen?: boolean;
+  compoundGloss?: string;
+  compoundSurface?: string;
+  onCompoundOpenChange?: (open: boolean) => void;
+  onAddCompoundToVocab?: () => void;
+  onSaveCompoundToMyWords?: () => void;
+  isCompoundSavedToMyWords?: boolean;
+  isCompoundInVocabSection?: boolean;
 }
  
 const InlineToken = ({ 
   token, 
   parentLine,
   isHighlighted, 
+  isSelected,
   onAddToVocabSection,
   onSaveToMyWords,
   isSavedToMyWords,
   isInVocabSection,
+  onTokenClick,
+  compoundOpen,
+  compoundGloss,
+  compoundSurface,
+  onCompoundOpenChange,
+  onAddCompoundToVocab,
+  onSaveCompoundToMyWords,
+  isCompoundSavedToMyWords,
+  isCompoundInVocabSection,
 }: InlineTokenProps) => {
-  const [open, setOpen] = useState(false);
+  const [singleOpen, setSingleOpen] = useState(false);
   const hasGloss = !!token.gloss;
   
   const vocabItem: VocabItem = {
@@ -51,110 +72,192 @@ const InlineToken = ({
     endMs: parentLine.endMs,
   };
 
-   return (
-     <Popover open={open} onOpenChange={setOpen}>
-       <PopoverTrigger asChild>
-         <span
-           className={cn(
-             "cursor-pointer transition-colors duration-150",
-             "hover:text-primary hover:underline hover:decoration-primary/40 hover:underline-offset-4",
-             "active:text-primary active:underline active:decoration-primary/60",
-             isHighlighted && "bg-primary/20 text-primary rounded px-0.5"
-           )}
-           role="button"
-           tabIndex={0}
-         >
-           {token.surface}
-         </span>
-       </PopoverTrigger>
-       <PopoverContent
-         side="top"
-         align="center"
-         className="w-auto min-w-[200px] p-3 z-[100]"
-         onClick={(e) => e.stopPropagation()}
-       >
-         <div className="space-y-3">
-           {/* Word display */}
-           <div className="text-center border-b border-border pb-2">
-             <p 
-               className="text-xl font-bold text-foreground mb-1"
-               style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
-               dir="rtl"
-             >
-               {token.surface}
-             </p>
-             {hasGloss && (
-               <p className="text-sm text-muted-foreground">{token.gloss}</p>
-             )}
-             {token.standard && (
-              <p className="text-xs text-muted-foreground/70" dir="rtl">
-                (Standard: {token.standard})
+  const handleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onTokenClick) {
+      onTokenClick(token);
+    } else {
+      setSingleOpen(true);
+    }
+  };
+
+  // If this token is the anchor for a compound popover, render that
+  if (compoundOpen !== undefined && compoundGloss) {
+    return (
+      <Popover open={compoundOpen} onOpenChange={onCompoundOpenChange}>
+        <PopoverTrigger asChild>
+          <span
+            className={cn(
+              "cursor-pointer transition-colors duration-150",
+              "hover:text-primary hover:underline hover:decoration-primary/40 hover:underline-offset-4",
+            isSelected && "bg-secondary/20 text-secondary rounded px-0.5",
+              isHighlighted && "bg-primary/20 text-primary rounded px-0.5"
+            )}
+            role="button"
+            tabIndex={0}
+            onClick={handleClick}
+          >
+            {token.surface}
+          </span>
+        </PopoverTrigger>
+        <PopoverContent
+          side="top"
+          align="center"
+          className="w-auto min-w-[220px] p-3 z-[100]"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="space-y-3">
+            <div className="text-center border-b border-border pb-2">
+              <div className="flex items-center justify-center gap-1 mb-1">
+                <Link2 className="h-3 w-3 text-muted-foreground" />
+                <span className="text-xs text-muted-foreground">compound phrase</span>
+              </div>
+              <p
+                className="text-xl font-bold text-foreground mb-1"
+                style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
+                dir="rtl"
+              >
+                {compoundSurface}
               </p>
-             )}
-             {!hasGloss && (
-               <p className="text-xs text-muted-foreground italic">
-                 No definition available
-               </p>
-             )}
-           </div>
-           
-           {/* Action buttons */}
-           <div className="flex flex-col gap-2">
-             {onAddToVocabSection && (
-               <Button
-                 variant="outline"
-                 size="sm"
-                 className="w-full justify-start gap-2"
-                 onClick={() => {
-                   onAddToVocabSection(vocabItem);
-                   setOpen(false);
-                 }}
-                 disabled={isInVocabSection}
-               >
-                 {isInVocabSection ? (
-                   <>
-                     <Check className="h-4 w-4 text-primary" />
-                     In vocab section
-                   </>
-                 ) : (
-                   <>
-                     <Plus className="h-4 w-4" />
-                     Add to vocab section
-                   </>
-                 )}
-               </Button>
-             )}
-             
-             {onSaveToMyWords && (
-               <Button
-                 variant="default"
-                 size="sm"
-                 className="w-full justify-start gap-2"
-                 onClick={() => {
-                   onSaveToMyWords(vocabItem);
-                   setOpen(false);
-                 }}
-                 disabled={isSavedToMyWords}
-               >
-                 {isSavedToMyWords ? (
-                   <>
-                     <Check className="h-4 w-4" />
-                     Saved to My Words
-                   </>
-                 ) : (
-                   <>
-                     <BookOpen className="h-4 w-4" />
-                     Save to My Words
-                   </>
-                 )}
-               </Button>
-             )}
-           </div>
-         </div>
-       </PopoverContent>
-     </Popover>
-   );
- };
+              <p className="text-sm text-muted-foreground">{compoundGloss}</p>
+            </div>
+            <div className="flex flex-col gap-2">
+              {onAddCompoundToVocab && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full justify-start gap-2"
+                  onClick={() => { onAddCompoundToVocab(); onCompoundOpenChange?.(false); }}
+                  disabled={isCompoundInVocabSection}
+                >
+                  {isCompoundInVocabSection ? <><Check className="h-4 w-4 text-primary" />In vocab section</> : <><Plus className="h-4 w-4" />Add to vocab section</>}
+                </Button>
+              )}
+              {onSaveCompoundToMyWords && (
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="w-full justify-start gap-2"
+                  onClick={() => { onSaveCompoundToMyWords(); onCompoundOpenChange?.(false); }}
+                  disabled={isCompoundSavedToMyWords}
+                >
+                  {isCompoundSavedToMyWords ? <><Check className="h-4 w-4" />Saved to My Words</> : <><BookOpen className="h-4 w-4" />Save to My Words</>}
+                </Button>
+              )}
+            </div>
+          </div>
+        </PopoverContent>
+      </Popover>
+    );
+  }
+
+  // Normal single-word popover
+  return (
+    <Popover open={singleOpen} onOpenChange={setSingleOpen}>
+      <PopoverTrigger asChild>
+        <span
+          className={cn(
+            "cursor-pointer transition-colors duration-150",
+            "hover:text-primary hover:underline hover:decoration-primary/40 hover:underline-offset-4",
+            "active:text-primary active:underline active:decoration-primary/60",
+            isSelected && "bg-secondary/20 text-secondary rounded px-0.5",
+            isHighlighted && "bg-primary/20 text-primary rounded px-0.5"
+          )}
+          role="button"
+          tabIndex={0}
+          onClick={handleClick}
+        >
+          {token.surface}
+        </span>
+      </PopoverTrigger>
+      <PopoverContent
+        side="top"
+        align="center"
+        className="w-auto min-w-[200px] p-3 z-[100]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="space-y-3">
+          {/* Word display */}
+          <div className="text-center border-b border-border pb-2">
+            <p 
+              className="text-xl font-bold text-foreground mb-1"
+              style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
+              dir="rtl"
+            >
+              {token.surface}
+            </p>
+            {hasGloss && (
+              <p className="text-sm text-muted-foreground">{token.gloss}</p>
+            )}
+            {token.standard && (
+             <p className="text-xs text-muted-foreground/70" dir="rtl">
+               (Standard: {token.standard})
+             </p>
+            )}
+            {!hasGloss && (
+              <p className="text-xs text-muted-foreground italic">
+                No definition — tap an adjacent word to combine
+              </p>
+            )}
+          </div>
+          
+          {/* Action buttons */}
+          <div className="flex flex-col gap-2">
+            {onAddToVocabSection && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full justify-start gap-2"
+                onClick={() => {
+                  onAddToVocabSection(vocabItem);
+                  setSingleOpen(false);
+                }}
+                disabled={isInVocabSection}
+              >
+                {isInVocabSection ? (
+                  <>
+                    <Check className="h-4 w-4 text-primary" />
+                    In vocab section
+                  </>
+                ) : (
+                  <>
+                    <Plus className="h-4 w-4" />
+                    Add to vocab section
+                  </>
+                )}
+              </Button>
+            )}
+            
+            {onSaveToMyWords && (
+              <Button
+                variant="default"
+                size="sm"
+                className="w-full justify-start gap-2"
+                onClick={() => {
+                  onSaveToMyWords(vocabItem);
+                  setSingleOpen(false);
+                }}
+                disabled={isSavedToMyWords}
+              >
+                {isSavedToMyWords ? (
+                  <>
+                    <Check className="h-4 w-4" />
+                    Saved to My Words
+                  </>
+                ) : (
+                  <>
+                    <BookOpen className="h-4 w-4" />
+                    Save to My Words
+                  </>
+                )}
+              </Button>
+            )}
+          </div>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+};
  
 interface TranscriptLineCardProps {
    line: TranscriptLine;
@@ -185,13 +288,65 @@ interface TranscriptLineCardProps {
    savedWords,
    vocabSectionWords,
  }: TranscriptLineCardProps) => {
-   // Determine if a token should be highlighted based on current playback time
-   const isTokenHighlighted = (token: WordToken, index: number): boolean => {
-     if (!isActive || !isPlaying || currentTimeMs === undefined) return false;
-     // Future: check token.startMs and token.endMs when available
-     // For now, return false until timestamps are mapped
-     return false;
-   };
+   const [selectedTokenIdx, setSelectedTokenIdx] = useState<number | null>(null);
+   const [compoundPopoverIdx, setCompoundPopoverIdx] = useState<number | null>(null);
+   const selectionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+   // Build a lookup for compound glosses from the line's tokens
+   // The AI may have returned glosses for "word1 word2" as a key in wordGlosses
+   // We look up pairs of adjacent tokens
+   const getCompoundGloss = useCallback((idx1: number, idx2: number): string | undefined => {
+     if (!line.tokens) return undefined;
+     const t1 = line.tokens[idx1];
+     const t2 = line.tokens[idx2];
+     if (!t1 || !t2) return undefined;
+     // Check if token2's gloss references token1 (compound marker set by backend)
+     if (t2.gloss && t2.gloss.startsWith("(→")) return t1.gloss;
+     // Check if token1's gloss references token2 (compound marker the other direction)
+     if (t1.gloss && t1.gloss.startsWith("(→")) return t2.gloss;
+     return undefined;
+   }, [line.tokens]);
+
+   const handleTokenClick = useCallback((token: WordToken) => {
+     const idx = line.tokens.findIndex(t => t.id === token.id);
+     if (idx === -1) return;
+
+     if (selectedTokenIdx === null) {
+       // First click — select this token, auto-clear after 3s
+       setSelectedTokenIdx(idx);
+       if (selectionTimerRef.current) clearTimeout(selectionTimerRef.current);
+       selectionTimerRef.current = setTimeout(() => setSelectedTokenIdx(null), 3000);
+     } else if (selectedTokenIdx === idx) {
+       // Clicking the same token — open its single popover (deselect)
+       setSelectedTokenIdx(null);
+       if (selectionTimerRef.current) clearTimeout(selectionTimerRef.current);
+     } else {
+       // Second click — check if adjacent
+       const diff = Math.abs(idx - selectedTokenIdx);
+       if (diff === 1) {
+         const firstIdx = Math.min(idx, selectedTokenIdx);
+         const secondIdx = Math.max(idx, selectedTokenIdx);
+         const compoundGloss = getCompoundGloss(firstIdx, secondIdx);
+         if (compoundGloss) {
+           // Show compound popover on the first word
+           setCompoundPopoverIdx(firstIdx);
+         } else {
+           // No compound gloss — show hint on the new token's single popover
+           setSelectedTokenIdx(idx);
+           if (selectionTimerRef.current) clearTimeout(selectionTimerRef.current);
+           selectionTimerRef.current = setTimeout(() => setSelectedTokenIdx(null), 3000);
+         }
+       } else {
+         // Not adjacent — start fresh selection
+         setSelectedTokenIdx(idx);
+         if (selectionTimerRef.current) clearTimeout(selectionTimerRef.current);
+         selectionTimerRef.current = setTimeout(() => setSelectedTokenIdx(null), 3000);
+       }
+       setSelectedTokenIdx(null);
+     }
+   }, [selectedTokenIdx, line.tokens, getCompoundGloss]);
+
+   const isTokenHighlighted = (_token: WordToken, _index: number): boolean => false;
 
    return (
      <div
@@ -233,28 +388,58 @@ interface TranscriptLineCardProps {
            dir="rtl"
            style={{ fontFamily: "'Cairo', 'Traditional Arabic', sans-serif" }}
            onClick={(e) => {
-             // Don't toggle if clicking on a token
              if ((e.target as HTMLElement).closest("[data-token]")) return;
              onToggle();
            }}
          >
           {line.tokens && line.tokens.length > 0 ? (
-             line.tokens.map((token, index) => (
-                <span key={token.id} data-token className="inline">
+             line.tokens.map((token, index) => {
+               const isThisCompoundAnchor = compoundPopoverIdx === index;
+               const nextToken = line.tokens[index + 1];
+               const compoundSurface = isThisCompoundAnchor && nextToken
+                 ? `${token.surface} ${nextToken.surface}`
+                 : undefined;
+               const compoundGloss = isThisCompoundAnchor
+                 ? getCompoundGloss(index, index + 1)
+                 : undefined;
+
+               const compoundVocabItem: VocabItem = {
+                 arabic: compoundSurface || token.surface,
+                 english: compoundGloss || "",
+                 sentenceText: line.arabic,
+                 sentenceEnglish: line.translation,
+                 startMs: line.startMs,
+                 endMs: line.endMs,
+               };
+
+               return (
+                 <span key={token.id} data-token className="inline">
                    <InlineToken 
                      token={token}
                      parentLine={line}
                      isHighlighted={isTokenHighlighted(token, index)}
+                     isSelected={selectedTokenIdx === index}
                      onAddToVocabSection={onAddToVocabSection}
                      onSaveToMyWords={onSaveToMyWords}
                      isSavedToMyWords={savedWords?.has(token.surface)}
                      isInVocabSection={vocabSectionWords?.has(token.surface)}
+                     onTokenClick={handleTokenClick}
+                     compoundOpen={isThisCompoundAnchor ? true : undefined}
+                     compoundGloss={compoundGloss}
+                     compoundSurface={compoundSurface}
+                     onCompoundOpenChange={(open) => {
+                       if (!open) setCompoundPopoverIdx(null);
+                     }}
+                     onAddCompoundToVocab={onAddToVocabSection ? () => onAddToVocabSection(compoundVocabItem) : undefined}
+                     onSaveCompoundToMyWords={onSaveToMyWords ? () => onSaveToMyWords(compoundVocabItem) : undefined}
+                     isCompoundSavedToMyWords={compoundSurface ? savedWords?.has(compoundSurface) : false}
+                     isCompoundInVocabSection={compoundSurface ? vocabSectionWords?.has(compoundSurface) : false}
                    />
-                 {/* Add space between words, but not after punctuation-only tokens */}
-                 {index < line.tokens.length - 1 &&
-                   !/^[،؟.!:؛]+$/.test(token.surface) && " "}
-               </span>
-             ))
+                   {index < line.tokens.length - 1 &&
+                     !/^[،؟.!:؛]+$/.test(token.surface) && " "}
+                 </span>
+               );
+             })
            ) : (
              <span className="text-foreground">
                {line.arabic}
@@ -292,6 +477,13 @@ interface TranscriptLineCardProps {
            <ChevronDown className="h-4 w-4 text-muted-foreground/50" />
          )}
        </div>
+
+       {/* Selection hint */}
+       {selectedTokenIdx !== null && (
+         <p className="text-xs text-secondary/70 text-center mt-2 animate-pulse italic">
+           Now tap an adjacent word to combine
+         </p>
+       )}
      </div>
    );
  };
@@ -312,93 +504,44 @@ export const LineByLineTranscript = ({
   const [internalCurrentTimeMs, setInternalCurrentTimeMs] = useState<number>(0);
    const audioRef = useRef<HTMLAudioElement | null>(null);
  
-   // Initialize audio element
    useEffect(() => {
      if (audioUrl && !audioRef.current) {
        audioRef.current = new Audio(audioUrl);
-       
-       audioRef.current.addEventListener('ended', () => {
-         setIsPlaying(false);
-         setActiveLineId(null);
-       });
-       
-       audioRef.current.addEventListener('pause', () => {
-         setIsPlaying(false);
-       });
-       
-       audioRef.current.addEventListener('play', () => {
-         setIsPlaying(true);
-       });
-      
+       audioRef.current.addEventListener('ended', () => { setIsPlaying(false); setActiveLineId(null); });
+       audioRef.current.addEventListener('pause', () => setIsPlaying(false));
+       audioRef.current.addEventListener('play', () => setIsPlaying(true));
       audioRef.current.addEventListener('timeupdate', () => {
-        if (audioRef.current) {
-          setInternalCurrentTimeMs(audioRef.current.currentTime * 1000);
-        }
+        if (audioRef.current) setInternalCurrentTimeMs(audioRef.current.currentTime * 1000);
       });
      }
-     
      return () => {
-       if (audioRef.current) {
-         audioRef.current.pause();
-         audioRef.current = null;
-       }
+       if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
      };
    }, [audioUrl]);
  
-   // Update audio source when URL changes
    useEffect(() => {
-     if (audioRef.current && audioUrl) {
-       audioRef.current.src = audioUrl;
-     }
+     if (audioRef.current && audioUrl) audioRef.current.src = audioUrl;
    }, [audioUrl]);
  
-  // Use external currentTimeMs if provided, otherwise use internal
   const effectiveCurrentTimeMs = currentTimeMs ?? internalCurrentTimeMs;
-
   const stopAtEndRef = useRef<number | null>(null);
 
   const handlePlayLine = (line: TranscriptLine) => {
     if (!audioRef.current || !audioUrl) return;
-
-    // Clear any pending stop timer
-    if (stopAtEndRef.current !== null) {
-      cancelAnimationFrame(stopAtEndRef.current);
-      stopAtEndRef.current = null;
-    }
-
-    // If clicking the same line that's playing, toggle pause
-    if (activeLineId === line.id && isPlaying) {
-      audioRef.current.pause();
-      return;
-    }
-
+    if (stopAtEndRef.current !== null) { cancelAnimationFrame(stopAtEndRef.current); stopAtEndRef.current = null; }
+    if (activeLineId === line.id && isPlaying) { audioRef.current.pause(); return; }
     setActiveLineId(line.id);
-
-    // If startMs/endMs exist, seek to startMs and schedule stop at endMs
     if (line.startMs !== undefined && line.endMs !== undefined) {
       audioRef.current.currentTime = line.startMs / 1000;
-      
       const checkTime = () => {
         if (!audioRef.current) return;
-        
-        const currentMs = audioRef.current.currentTime * 1000;
-        if (currentMs >= line.endMs!) {
-          audioRef.current.pause();
-          setIsPlaying(false);
-          stopAtEndRef.current = null;
-          return;
+        if (audioRef.current.currentTime * 1000 >= line.endMs!) {
+          audioRef.current.pause(); setIsPlaying(false); stopAtEndRef.current = null; return;
         }
-        
-        if (!audioRef.current.paused) {
-          stopAtEndRef.current = requestAnimationFrame(checkTime);
-        }
+        if (!audioRef.current.paused) stopAtEndRef.current = requestAnimationFrame(checkTime);
       };
-      
-      audioRef.current.play().then(() => {
-        stopAtEndRef.current = requestAnimationFrame(checkTime);
-      }).catch(console.error);
+      audioRef.current.play().then(() => { stopAtEndRef.current = requestAnimationFrame(checkTime); }).catch(console.error);
     } else {
-      // No timestamps - play from beginning (fallback)
       audioRef.current.currentTime = 0;
       audioRef.current.play().catch(console.error);
     }
@@ -407,26 +550,17 @@ export const LineByLineTranscript = ({
    const toggleLine = (lineId: string) => {
      setExpandedLines((prev) => {
        const next = new Set(prev);
-       if (next.has(lineId)) {
-         next.delete(lineId);
-       } else {
-         next.add(lineId);
-       }
+       if (next.has(lineId)) next.delete(lineId); else next.add(lineId);
        return next;
      });
    };
  
-   const isLineExpanded = (lineId: string) => {
-     return showAllTranslations || expandedLines.has(lineId);
-   };
+   const isLineExpanded = (lineId: string) => showAllTranslations || expandedLines.has(lineId);
  
-   if (!lines || lines.length === 0) {
-     return null;
-   }
+   if (!lines || lines.length === 0) return null;
  
    return (
      <div className="space-y-4">
-       {/* Header with toggle */}
        <div className="flex items-center justify-between">
          <h3
            className="text-lg font-semibold text-foreground"
@@ -450,7 +584,6 @@ export const LineByLineTranscript = ({
          </div>
        </div>
  
-       {/* Lines list */}
        <div className="space-y-3">
          {lines.map((line) => (
            <TranscriptLineCard
@@ -471,7 +604,6 @@ export const LineByLineTranscript = ({
          ))}
        </div>
  
-       {/* Line count */}
        <p className="text-xs text-muted-foreground text-center">
          {lines.length} {lines.length === 1 ? "sentence" : "sentences"}
        </p>

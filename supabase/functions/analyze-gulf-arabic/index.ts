@@ -119,18 +119,20 @@ No additional text outside JSON.`;
 
 const getWordGlossesPrompt = (isRetry: boolean = false) => {
   const strictPrefix = strictJsonPrefix(isRetry);
-  return `${strictPrefix}You are a Gulf Arabic linguist providing word-by-word English glosses for language learners.
+  return `${strictPrefix}You are a Gulf Arabic linguist providing English glosses for language learners.
 
 Output ONLY valid JSON matching this schema:
 {
   "glosses": {
     "arabicWord": "english meaning",
+    "multi word phrase": "english meaning",
     ...
   }
 }
 
 Rules:
-- Provide an English gloss for EVERY unique Arabic word in the transcript.
+- Provide an English gloss for EVERY unique Arabic word in the input.
+- IMPORTANT: Also add entries for meaningful multi-word compounds/collocations that appear in the input (e.g. "وقت الدورة" = "rush hour", "في الصباح" = "in the morning"). Use the full phrase as the key.
 - Include common particles: و = and, في = in, من = from, على = on, إلى/لـ = to, ما = not/what, هذا/هاذا = this, إذا/لو = if, etc.
 - Include pronouns: أنا = I, إنت/أنت = you, هو = he, هي = she, إحنا/نحن = we, هم = they, etc.
 - Include verbs in context: provide the meaning as used (e.g., راح = went/will, يبي = wants, أبي = I want).
@@ -425,27 +427,71 @@ function toWordTokens(
   for (const [k, v] of Object.entries(wordGlosses)) {
     wordGlossesStripped[stripDiacritics(k)] = v;
   }
-  
-  const words = arabic.split(/\s+/).filter(Boolean);
 
-  return words.map((surface, idx) => {
+  // Helper: lookup a single word in all dictionaries
+  function lookupSingle(surface: string): string | undefined {
     const stripped = stripDiacritics(surface);
-    
-    // Priority: exact vocab > exact AI gloss > stripped vocab > stripped AI gloss > common fallback
-    const gloss = 
-      vocabMap.get(surface) ?? 
-      wordGlosses[surface] ?? 
-      vocabMapStripped.get(stripped) ?? 
+    return (
+      vocabMap.get(surface) ??
+      wordGlosses[surface] ??
+      vocabMapStripped.get(stripped) ??
       wordGlossesStripped[stripped] ??
       COMMON_GLOSSES[surface] ??
-      COMMON_GLOSSES[stripped];
-      
-    return {
-      id: `tok-${generateId()}-${idx}`,
+      COMMON_GLOSSES[stripped]
+    );
+  }
+
+  // Helper: lookup a bigram (two consecutive words joined by space) in glosses/vocab
+  function lookupBigram(w1: string, w2: string): string | undefined {
+    const bigram = `${w1} ${w2}`;
+    const strippedBigram = `${stripDiacritics(w1)} ${stripDiacritics(w2)}`;
+    return (
+      vocabMap.get(bigram) ??
+      wordGlosses[bigram] ??
+      vocabMapStripped.get(strippedBigram) ??
+      wordGlossesStripped[strippedBigram]
+    );
+  }
+
+  const words = arabic.split(/\s+/).filter(Boolean);
+  const tokens: WordToken[] = [];
+  let i = 0;
+
+  while (i < words.length) {
+    const surface = words[i];
+
+    // Try bigram first (current word + next word)
+    if (i + 1 < words.length) {
+      const bigramGloss = lookupBigram(surface, words[i + 1]);
+      if (bigramGloss) {
+        // Emit first word with the compound gloss
+        tokens.push({
+          id: `tok-${generateId()}-${i}`,
+          surface,
+          gloss: bigramGloss,
+        });
+        // Emit second word with a reference gloss so it's not blank
+        tokens.push({
+          id: `tok-${generateId()}-${i + 1}`,
+          surface: words[i + 1],
+          gloss: `(→ ${surface})`, // indicates it's part of the preceding compound
+        });
+        i += 2;
+        continue;
+      }
+    }
+
+    // Single word lookup
+    const gloss = lookupSingle(surface);
+    tokens.push({
+      id: `tok-${generateId()}-${i}`,
       surface,
       gloss,
-    };
-  });
+    });
+    i++;
+  }
+
+  return tokens;
 }
 
 type LinesAI = {
@@ -858,40 +904,43 @@ No additional text outside JSON.`;
      
      console.log('Fetching glosses for', allWords.size, 'unique words...');
      
-     let glossesResp = await callAI({
-       systemPrompt: getWordGlossesPrompt(false),
-       userContent: `Provide English glosses for these Gulf Arabic words:\n\n${Array.from(allWords).join(' ')}`,
-       apiKey: LOVABLE_API_KEY,
-       isRetry: false,
-       maxTokens: 4096,
-     });
-     
-     if (glossesResp.content) {
-       const glossesAi = safeJsonParse<GlossesAI>(glossesResp.content);
-       if (glossesAi?.glosses && typeof glossesAi.glosses === 'object') {
-         wordGlosses = glossesAi.glosses;
-         console.log('Parsed', Object.keys(wordGlosses).length, 'word glosses');
-       }
-     }
-     
-     // Retry if we got no glosses
-     if (Object.keys(wordGlosses).length === 0) {
-       console.log('Word glosses parse failed, retrying...');
-       const glossesRetry = await callAI({
-         systemPrompt: getWordGlossesPrompt(true),
-         userContent: `Provide English glosses for these Gulf Arabic words:\n\n${Array.from(allWords).join(' ')}`,
-         apiKey: LOVABLE_API_KEY,
-         isRetry: true,
-         maxTokens: 4096,
-       });
-       if (glossesRetry.content) {
-         const glossesAi = safeJsonParse<GlossesAI>(glossesRetry.content);
-         if (glossesAi?.glosses && typeof glossesAi.glosses === 'object') {
-           wordGlosses = glossesAi.glosses;
-           console.log('Retry: parsed', Object.keys(wordGlosses).length, 'word glosses');
-         }
-       }
-     }
+      // Include the full transcript lines for compound/collocation detection
+      const glossesContext = `Full transcript for compound detection:\n${finalLines.map(l => l.arabic).join('\n')}\n\nUnique words to gloss:\n${Array.from(allWords).join(' ')}`;
+
+      let glossesResp = await callAI({
+        systemPrompt: getWordGlossesPrompt(false),
+        userContent: glossesContext,
+        apiKey: LOVABLE_API_KEY,
+        isRetry: false,
+        maxTokens: 4096,
+      });
+      
+      if (glossesResp.content) {
+        const glossesAi = safeJsonParse<GlossesAI>(glossesResp.content);
+        if (glossesAi?.glosses && typeof glossesAi.glosses === 'object') {
+          wordGlosses = glossesAi.glosses;
+          console.log('Parsed', Object.keys(wordGlosses).length, 'word glosses');
+        }
+      }
+      
+      // Retry if we got no glosses
+      if (Object.keys(wordGlosses).length === 0) {
+        console.log('Word glosses parse failed, retrying...');
+        const glossesRetry = await callAI({
+          systemPrompt: getWordGlossesPrompt(true),
+          userContent: glossesContext,
+          apiKey: LOVABLE_API_KEY,
+          isRetry: true,
+          maxTokens: 4096,
+        });
+        if (glossesRetry.content) {
+          const glossesAi = safeJsonParse<GlossesAI>(glossesRetry.content);
+          if (glossesAi?.glosses && typeof glossesAi.glosses === 'object') {
+            wordGlosses = glossesAi.glosses;
+            console.log('Retry: parsed', Object.keys(wordGlosses).length, 'word glosses');
+          }
+        }
+      }
 
      // Build the full TranscriptResult
      const transcriptResult: TranscriptResult = {

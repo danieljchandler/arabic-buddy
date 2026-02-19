@@ -401,17 +401,17 @@ interface TranscriptLineCardProps {
          .join(' ');
        setLiveCompound({ firstIdx: newMin, surface: combinedSurface, wordCount: newSpan + 1, translation: null, loading: true });
        supabase.functions
-         .invoke('analyze-gulf-arabic', { body: { phrase: combinedSurface } })
+         .invoke('translate-phrase', { body: { phrase: combinedSurface } })
          .then(({ data, error }) => {
            if (!error && data?.translation) {
              setLiveCompound({ firstIdx: newMin, surface: combinedSurface, wordCount: newSpan + 1, translation: data.translation, loading: false });
            } else {
-             console.warn('phrase translation failed:', error);
+             console.warn('translate-phrase failed:', error);
              setLiveCompound({ firstIdx: newMin, surface: combinedSurface, wordCount: newSpan + 1, translation: null, loading: false });
            }
          })
          .catch((err) => {
-           console.warn('phrase translation error:', err);
+           console.warn('translate-phrase error:', err);
            setLiveCompound(prev => prev ? { ...prev, loading: false } : null);
          });
      }

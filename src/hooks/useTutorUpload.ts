@@ -7,7 +7,7 @@ import type { CandidateData } from "@/components/tutor/CandidateCard";
 
 type Step = "upload" | "processing" | "review" | "confirm" | "creating";
 
-interface ElevenLabsWord {
+interface DeepgramWord {
   text: string;
   start: number;
   end: number;
@@ -63,7 +63,7 @@ export function useTutorUpload() {
         // Non-fatal — we can still proceed with local file
       }
 
-      // Step 2: Transcribe with ElevenLabs (word-level timestamps)
+      // Step 2: Transcribe with Deepgram (word-level timestamps)
       setProgressLabel("Transcribing audio…");
       setProgress(15);
 
@@ -71,7 +71,7 @@ export function useTutorUpload() {
       formData.append("audio", selectedFile);
 
       const { data: transcribeData, error: transcribeError } = await supabase.functions.invoke(
-        "elevenlabs-transcribe",
+        "deepgram-transcribe",
         { body: formData }
       );
 
@@ -80,7 +80,7 @@ export function useTutorUpload() {
       }
 
       setProgress(50);
-      const words: ElevenLabsWord[] = transcribeData.words || [];
+      const words: DeepgramWord[] = transcribeData.words || [];
       
       if (words.length === 0) {
         throw new Error("No words detected in audio. Please try a different file.");

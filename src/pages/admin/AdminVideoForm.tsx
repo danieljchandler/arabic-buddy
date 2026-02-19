@@ -218,18 +218,17 @@ const AdminVideoForm = () => {
     setIsProcessing(true);
 
     try {
-      // Transcribe with ElevenLabs
+      // Transcribe with Deepgram
       toast.info("Transcribing selected segment...");
       const formData = new FormData();
       formData.append("file", audioFile);
-      formData.append("language_code", "ara");
 
       const {
         data: { session },
       } = await supabase.auth.getSession();
       const projectUrl = import.meta.env.VITE_SUPABASE_URL;
 
-      const transcribeRes = await fetch(`${projectUrl}/functions/v1/elevenlabs-transcribe`, {
+      const transcribeRes = await fetch(`${projectUrl}/functions/v1/deepgram-transcribe`, {
         method: "POST",
         headers: { Authorization: `Bearer ${session?.access_token}` },
         body: formData,

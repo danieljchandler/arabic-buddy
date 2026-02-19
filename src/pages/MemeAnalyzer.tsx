@@ -194,17 +194,15 @@ const MemeAnalyzer = () => {
         const frames = await extractVideoFrames(file, 4);
         imageBase64 = frames;
 
-        // Transcribe audio via ElevenLabs
+        // Transcribe audio via Deepgram
         setProgress(30);
         toast.info("Transcribing audio...");
         try {
           const formData = new FormData();
           formData.append("audio", file);
-          formData.append("model_id", "scribe_v2");
-          formData.append("language_code", "arb");
 
           const { data: transcriptionData, error: transcriptionError } = await supabase.functions.invoke(
-            "elevenlabs-transcribe",
+            "deepgram-transcribe",
             { body: formData }
           );
 

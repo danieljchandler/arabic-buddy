@@ -3,6 +3,9 @@ project_id = "ovscskaijvclaxelkdyf"
 [functions.elevenlabs-transcribe]
 verify_jwt = false
 
+[functions.deepgram-transcribe]
+verify_jwt = false
+
 [functions.analyze-gulf-arabic]
 verify_jwt = false
 

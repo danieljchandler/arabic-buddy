@@ -76,26 +76,21 @@ function normalizeTranscriptResult(input: TranscriptResult): TranscriptResult {
   };
 }
 
-interface ElevenLabsWord {
+interface DeepgramWord {
   text: string;
   start: number;
   end: number;
   speaker?: string;
 }
 
-interface ElevenLabsTranscriptionResult {
+interface DeepgramTranscriptionResult {
   text: string;
-  words?: ElevenLabsWord[];
-  audio_events?: Array<{
-    type: string;
-    start: number;
-    end: number;
-  }>;
+  words?: DeepgramWord[];
 }
 
 function mapTimestampsToLines(
   lines: TranscriptResult["lines"],
-  words: ElevenLabsWord[]
+  words: DeepgramWord[]
 ): TranscriptResult["lines"] {
   if (!words || words.length === 0) return lines;
   
@@ -121,8 +116,8 @@ function mapTimestampsToLines(
       if (!lineWord) continue;
       
       for (let j = matchedFirst ? wordIndex : startSearchIndex; j < words.length; j++) {
-        const elevenWord = normalizeArabic(words[j].text);
-        if (elevenWord === lineWord || elevenWord.includes(lineWord) || lineWord.includes(elevenWord)) {
+        const transcribedWord = normalizeArabic(words[j].text);
+        if (transcribedWord === lineWord || transcribedWord.includes(lineWord) || lineWord.includes(transcribedWord)) {
           if (!matchedFirst) {
             startMs = Math.round(words[j].start * 1000);
             matchedFirst = true;
@@ -143,13 +138,13 @@ function mapTimestampsToLines(
 }
 
 /**
- * Filter ElevenLabs words to only those within a time range
+ * Filter transcription words to only those within a time range
  */
 function filterWordsByTimeRange(
-  words: ElevenLabsWord[],
+  words: DeepgramWord[],
   startSec: number,
   endSec: number
-): ElevenLabsWord[] {
+): DeepgramWord[] {
   return words.filter(w => w.start >= startSec && w.end <= endSec);
 }
 
@@ -158,7 +153,7 @@ function filterWordsByTimeRange(
  */
 function filterTranscriptByTimeRange(
   text: string,
-  words: ElevenLabsWord[],
+  words: DeepgramWord[],
   startSec: number,
   endSec: number
 ): string {
@@ -519,11 +514,11 @@ const Transcribe = () => {
       const authToken = session?.access_token || supabaseKey;
 
       // Fire both transcription engines in parallel
-      const elevenLabsPromise = (async () => {
+      const deepgramPromise = (async () => {
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 5 * 60 * 1000);
         try {
-          const resp = await fetch(`${supabaseUrl}/functions/v1/elevenlabs-transcribe`, {
+          const resp = await fetch(`${supabaseUrl}/functions/v1/deepgram-transcribe`, {
             method: "POST",
             headers: {
               "apikey": supabaseKey,
@@ -535,13 +530,13 @@ const Transcribe = () => {
           clearTimeout(timeout);
           if (!resp.ok) {
             const errBody = await resp.text();
-            throw new Error(errBody || `ElevenLabs failed (${resp.status})`);
+            throw new Error(errBody || `Deepgram failed (${resp.status})`);
           }
-          return await resp.json() as ElevenLabsTranscriptionResult;
+          return await resp.json() as DeepgramTranscriptionResult;
         } catch (e) {
           clearTimeout(timeout);
           if (e instanceof DOMException && e.name === "AbortError") {
-            throw new Error("ElevenLabs timed out – try a shorter clip.");
+            throw new Error("Deepgram timed out – try a shorter clip.");
           }
           throw e;
         }
@@ -575,48 +570,48 @@ const Transcribe = () => {
         }
       })();
 
-      const [elevenLabsResult, munsitResult] = await Promise.allSettled([elevenLabsPromise, munsitPromise]);
+      const [deepgramResult, munsitResult] = await Promise.allSettled([deepgramPromise, munsitPromise]);
 
       if (progressInterval) clearInterval(progressInterval);
 
       // Extract results with fallback
-      const elevenLabsData = elevenLabsResult.status === "fulfilled" ? elevenLabsResult.value : null;
+      const deepgramData = deepgramResult.status === "fulfilled" ? deepgramResult.value : null;
       const munsitData = munsitResult.status === "fulfilled" ? munsitResult.value : null;
 
-      if (elevenLabsResult.status === "rejected") {
-        console.warn("ElevenLabs failed:", elevenLabsResult.reason);
+      if (deepgramResult.status === "rejected") {
+        console.warn("Deepgram failed:", deepgramResult.reason);
       }
       if (munsitResult.status === "rejected") {
         console.warn("Munsit failed:", munsitResult.reason);
       }
 
       // Need at least one to succeed
-      if (!elevenLabsData?.text && !munsitData?.text) {
+      if (!deepgramData?.text && !munsitData?.text) {
         const reasons = [
-          elevenLabsResult.status === "rejected" ? `ElevenLabs: ${elevenLabsResult.reason}` : null,
+          deepgramResult.status === "rejected" ? `Deepgram: ${deepgramResult.reason}` : null,
           munsitResult.status === "rejected" ? `Munsit: ${munsitResult.reason}` : null,
         ].filter(Boolean).join("; ");
         throw new Error(`Both transcription engines failed. ${reasons}`);
       }
 
-      const primaryText = elevenLabsData?.text || munsitData?.text || "";
+      const primaryText = deepgramData?.text || munsitData?.text || "";
       const munsitText = munsitData?.text || undefined;
-      const elevenLabsWords = elevenLabsData?.words || [];
+      const deepgramWords = deepgramData?.words || [];
 
       // Log which engines succeeded
-      const enginesUsed = [elevenLabsData?.text ? "ElevenLabs" : null, munsitData?.text ? "Munsit" : null].filter(Boolean);
+      const enginesUsed = [deepgramData?.text ? "Deepgram" : null, munsitData?.text ? "Munsit" : null].filter(Boolean);
       console.log(`Transcription engines used: ${enginesUsed.join(" + ")}`);
 
       // Apply time range filtering if duration is known and range is set
       let filteredText = primaryText;
-      let filteredWords = elevenLabsWords;
+      let filteredWords = deepgramWords;
       let filteredMunsitText = munsitText;
-      
-      if (mediaDuration && mediaDuration > MAX_DURATION && elevenLabsWords.length > 0) {
-        filteredText = filterTranscriptByTimeRange(primaryText, elevenLabsWords, timeRange[0], timeRange[1]);
-        filteredWords = filterWordsByTimeRange(elevenLabsWords, timeRange[0], timeRange[1]);
+
+      if (mediaDuration && mediaDuration > MAX_DURATION && deepgramWords.length > 0) {
+        filteredText = filterTranscriptByTimeRange(primaryText, deepgramWords, timeRange[0], timeRange[1]);
+        filteredWords = filterWordsByTimeRange(deepgramWords, timeRange[0], timeRange[1]);
         // Munsit doesn't provide word-level timestamps, so we use it as-is
-        console.log(`Time range filter: ${timeRange[0]}s-${timeRange[1]}s, words: ${elevenLabsWords.length} → ${filteredWords.length}`);
+        console.log(`Time range filter: ${timeRange[0]}s-${timeRange[1]}s, words: ${deepgramWords.length} → ${filteredWords.length}`);
       }
 
       setProgress(100);

@@ -9,6 +9,7 @@
  } from "@/components/ui/popover";
  import { Button } from "@/components/ui/button";
  import type { TranscriptLine, WordToken, VocabItem } from "@/types/transcript";
+import { supabase } from "@/integrations/supabase/client";
  
  interface LineByLineTranscriptProps {
    lines: TranscriptLine[];
@@ -39,6 +40,7 @@ interface InlineTokenProps {
   onSaveCompoundToMyWords?: () => void;
   isCompoundSavedToMyWords?: boolean;
   isCompoundInVocabSection?: boolean;
+  isLoadingCompound?: boolean;
 }
  
 const InlineToken = ({ 
@@ -59,6 +61,7 @@ const InlineToken = ({
   onSaveCompoundToMyWords,
   isCompoundSavedToMyWords,
   isCompoundInVocabSection,
+  isLoadingCompound,
 }: InlineTokenProps) => {
   const [singleOpen, setSingleOpen] = useState(false);
   const hasGloss = !!token.gloss;
@@ -82,7 +85,7 @@ const InlineToken = ({
   };
 
   // If this token is the anchor for a compound popover, render that
-  if (compoundOpen !== undefined && compoundGloss) {
+  if (compoundOpen !== undefined) {
     return (
       <Popover open={compoundOpen} onOpenChange={onCompoundOpenChange}>
         <PopoverTrigger asChild>
@@ -119,10 +122,19 @@ const InlineToken = ({
               >
                 {compoundSurface}
               </p>
-              <p className="text-sm text-muted-foreground">{compoundGloss}</p>
+              {isLoadingCompound ? (
+                <div className="flex items-center justify-center gap-2 mt-1">
+                  <div className="h-3 w-3 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                  <span className="text-xs text-muted-foreground">Translating…</span>
+                </div>
+              ) : compoundGloss ? (
+                <p className="text-sm text-muted-foreground">{compoundGloss}</p>
+              ) : (
+                <p className="text-xs text-muted-foreground italic">Could not translate</p>
+              )}
             </div>
             <div className="flex flex-col gap-2">
-              {onAddCompoundToVocab && (
+              {onAddCompoundToVocab && !isLoadingCompound && compoundGloss && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -133,7 +145,7 @@ const InlineToken = ({
                   {isCompoundInVocabSection ? <><Check className="h-4 w-4 text-primary" />In vocab section</> : <><Plus className="h-4 w-4" />Add to vocab section</>}
                 </Button>
               )}
-              {onSaveCompoundToMyWords && (
+              {onSaveCompoundToMyWords && !isLoadingCompound && compoundGloss && (
                 <Button
                   variant="default"
                   size="sm"
@@ -290,6 +302,13 @@ interface TranscriptLineCardProps {
  }: TranscriptLineCardProps) => {
    const [selectedIndices, setSelectedIndices] = useState<number[]>([]);
    const [compoundPopoverIdx, setCompoundPopoverIdx] = useState<number | null>(null);
+   const [liveCompound, setLiveCompound] = useState<{
+     firstIdx: number;
+     surface: string;
+     wordCount: number;
+     translation: string | null;
+     loading: boolean;
+   } | null>(null);
    const selectionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
    // Lookup compound gloss for a range [firstIdx, lastIdx] (inclusive).
@@ -325,7 +344,9 @@ interface TranscriptLineCardProps {
      if (selectionTimerRef.current) clearTimeout(selectionTimerRef.current);
 
      if (selectedIndices.length === 0) {
-       // First tap — select this token, auto-clear after 3s
+       // First tap — select this token, close any existing compound popup, auto-clear after 3s
+       setCompoundPopoverIdx(null);
+       setLiveCompound(null);
        setSelectedIndices([idx]);
        selectionTimerRef.current = setTimeout(() => setSelectedIndices([]), 3000);
        return;
@@ -334,7 +355,7 @@ interface TranscriptLineCardProps {
      const minSel = Math.min(...selectedIndices);
      const maxSel = Math.max(...selectedIndices);
 
-     // Tapped the same single selected token — deselect (opens single popover on next tap)
+     // Tapped the same single selected token — deselect
      if (selectedIndices.length === 1 && idx === selectedIndices[0]) {
        setSelectedIndices([]);
        return;
@@ -346,6 +367,8 @@ interface TranscriptLineCardProps {
 
      if (!isAdjacentLeft && !isAdjacentRight) {
        // Not adjacent — start fresh selection
+       setCompoundPopoverIdx(null);
+       setLiveCompound(null);
        setSelectedIndices([idx]);
        selectionTimerRef.current = setTimeout(() => setSelectedIndices([]), 3000);
        return;
@@ -355,23 +378,42 @@ interface TranscriptLineCardProps {
      const newMax = isAdjacentRight ? idx : maxSel;
      const newSpan = newMax - newMin; // 1 = bigram, 2 = trigram
 
-     const compoundGloss = getCompoundGloss(newMin, newMax);
-     if (compoundGloss) {
-       // Compound found — show popover anchored on the first word
-       setCompoundPopoverIdx(newMin);
-       setSelectedIndices([]);
+     if (newSpan > 2) {
+       // Max 3 words — start fresh
+       setSelectedIndices([idx]);
+       selectionTimerRef.current = setTimeout(() => setSelectedIndices([]), 3000);
        return;
      }
 
-     if (newSpan < 2) {
-       // Bigram tried, no match — allow extending selection to a 3rd word
-       const newIndices: number[] = [];
-       for (let i = newMin; i <= newMax; i++) newIndices.push(i);
-       setSelectedIndices(newIndices);
-       selectionTimerRef.current = setTimeout(() => setSelectedIndices([]), 3000);
+     // Commit the selection — always show compound popup
+     const preComputedGloss = getCompoundGloss(newMin, newMax);
+     setCompoundPopoverIdx(newMin);
+     setSelectedIndices([]);
+
+     if (preComputedGloss) {
+       // Pre-computed compound — clear any live lookup
+       setLiveCompound(null);
      } else {
-       // Trigram tried and no compound found — reset
-       setSelectedIndices([]);
+       // No pre-computed compound — trigger live translation
+       const combinedSurface = line.tokens
+         .slice(newMin, newMax + 1)
+         .map(t => t.surface)
+         .join(' ');
+       setLiveCompound({ firstIdx: newMin, surface: combinedSurface, wordCount: newSpan + 1, translation: null, loading: true });
+       supabase.functions
+         .invoke('translate-phrase', { body: { phrase: combinedSurface } })
+         .then(({ data, error }) => {
+           if (!error && data?.translation) {
+             setLiveCompound({ firstIdx: newMin, surface: combinedSurface, wordCount: newSpan + 1, translation: data.translation, loading: false });
+           } else {
+             console.warn('translate-phrase failed:', error);
+             setLiveCompound({ firstIdx: newMin, surface: combinedSurface, wordCount: newSpan + 1, translation: null, loading: false });
+           }
+         })
+         .catch((err) => {
+           console.warn('translate-phrase error:', err);
+           setLiveCompound(prev => prev ? { ...prev, loading: false } : null);
+         });
      }
    }, [selectedIndices, line.tokens, getCompoundGloss]);
 
@@ -424,25 +466,34 @@ interface TranscriptLineCardProps {
           {line.tokens && line.tokens.length > 0 ? (
              line.tokens.map((token, index) => {
                const isThisCompoundAnchor = compoundPopoverIdx === index;
-               // Determine compound word count by checking for "(→" markers on following tokens
+               // Live compound data for this anchor (if a live lookup is in progress or done)
+               const thisLiveCompound = isThisCompoundAnchor && liveCompound?.firstIdx === index
+                 ? liveCompound
+                 : null;
+               // Determine compound word count: from live lookup OR from backend "(→" markers
                const compoundWordCount = isThisCompoundAnchor
-                 ? (() => {
-                     let count = 1;
-                     let next = index + 1;
-                     while (
-                       next < line.tokens.length &&
-                       line.tokens[next]?.gloss?.startsWith("(→") &&
-                       count < 3
-                     ) { count++; next++; }
-                     return count;
-                   })()
+                 ? (thisLiveCompound
+                     ? thisLiveCompound.wordCount
+                     : (() => {
+                         let count = 1;
+                         let next = index + 1;
+                         while (
+                           next < line.tokens.length &&
+                           line.tokens[next]?.gloss?.startsWith("(→") &&
+                           count < 3
+                         ) { count++; next++; }
+                         return count;
+                       })())
                  : 1;
                const compoundSurface = isThisCompoundAnchor
-                 ? line.tokens.slice(index, index + compoundWordCount).map(t => t.surface).join(' ')
+                 ? (thisLiveCompound?.surface ?? line.tokens.slice(index, index + compoundWordCount).map(t => t.surface).join(' '))
                  : undefined;
                const compoundGloss = isThisCompoundAnchor
-                 ? getCompoundGloss(index, index + compoundWordCount - 1)
+                 ? (thisLiveCompound
+                     ? (thisLiveCompound.translation ?? undefined)
+                     : getCompoundGloss(index, index + compoundWordCount - 1))
                  : undefined;
+               const isLoadingCompound = isThisCompoundAnchor && !!thisLiveCompound?.loading;
 
                const compoundVocabItem: VocabItem = {
                  arabic: compoundSurface || token.surface,
@@ -468,6 +519,7 @@ interface TranscriptLineCardProps {
                      compoundOpen={isThisCompoundAnchor ? true : undefined}
                      compoundGloss={compoundGloss}
                      compoundSurface={compoundSurface}
+                     isLoadingCompound={isLoadingCompound}
                      onCompoundOpenChange={(open) => {
                        if (!open) setCompoundPopoverIdx(null);
                      }}
@@ -522,9 +574,7 @@ interface TranscriptLineCardProps {
        {/* Selection hint */}
        {selectedIndices.length > 0 && (
          <p className="text-xs text-secondary/70 text-center mt-2 animate-pulse italic">
-           {selectedIndices.length === 1
-             ? "Tap an adjacent word to combine (up to 3 words)"
-             : "Tap one more adjacent word, or tap elsewhere to cancel"}
+           Tap an adjacent word to see combined translation
          </p>
        )}
      </div>

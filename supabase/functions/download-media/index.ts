@@ -62,6 +62,69 @@ function extractYouTubeVideoId(url: string): string | null {
 }
 
 /**
+ * YouTube audio download via RapidAPI (youtube-mp36)
+ */
+async function downloadYouTubeViaRapidApi(url: string): Promise<{ base64: string; contentType: string; size: number; filename: string } | null> {
+  const videoId = extractYouTubeVideoId(url);
+  if (!videoId) return null;
+
+  const apiKey = Deno.env.get('RAPIDAPI_KEY');
+  if (!apiKey) {
+    console.log('RAPIDAPI_KEY not set, skipping RapidAPI strategy');
+    return null;
+  }
+
+  console.log(`Trying RapidAPI (youtube-mp36) for video: ${videoId}`);
+  try {
+    let link: string | null = null;
+
+    // Poll up to 4 times in case status is "processing"
+    for (let attempt = 0; attempt < 4; attempt++) {
+      const resp = await fetch(`https://youtube-mp36.p.rapidapi.com/dl?id=${videoId}`, {
+        headers: {
+          'X-RapidAPI-Key': apiKey,
+          'X-RapidAPI-Host': 'youtube-mp36.p.rapidapi.com',
+        },
+      });
+
+      if (!resp.ok) {
+        console.error(`RapidAPI returned ${resp.status}`);
+        return null;
+      }
+
+      const data = await resp.json();
+      console.log(`RapidAPI attempt ${attempt + 1}: status=${data.status}`);
+
+      if (data.status === 'ok' && data.link) {
+        link = data.link;
+        break;
+      } else if (data.status === 'processing') {
+        // Wait and retry
+        await new Promise((r) => setTimeout(r, 3000));
+        continue;
+      } else {
+        console.error('RapidAPI error:', data.msg || data.status);
+        return null;
+      }
+    }
+
+    if (!link) {
+      console.error('RapidAPI: no download link after polling');
+      return null;
+    }
+
+    const audioData = await downloadAsBase64(link);
+    if (audioData) {
+      return { ...audioData, filename: `youtube_${videoId}.mp3` };
+    }
+    return null;
+  } catch (e) {
+    console.error('RapidAPI YouTube error:', e);
+    return null;
+  }
+}
+
+/**
  * YouTube-specific download using Innertube API with multiple client fallbacks
  */
 async function downloadYouTube(url: string): Promise<{ base64: string; contentType: string; size: number; filename: string } | null> {
@@ -537,8 +600,23 @@ serve(async (req) => {
       }
     }
 
-    // Strategy 3: YouTube-specific download via Innertube API
+    // Strategy 3: YouTube-specific download (RapidAPI first, Innertube fallback)
     if (isYouTubeUrl(normalizedUrl)) {
+      // Try RapidAPI (youtube-mp36) first
+      const rapidResult = await downloadYouTubeViaRapidApi(normalizedUrl);
+      if (rapidResult) {
+        return new Response(
+          JSON.stringify({
+            audioBase64: rapidResult.base64,
+            contentType: rapidResult.contentType,
+            size: rapidResult.size,
+            filename: rapidResult.filename,
+          }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Fall back to Innertube API
       const ytResult = await downloadYouTube(normalizedUrl);
       if (ytResult) {
         return new Response(

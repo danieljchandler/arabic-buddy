@@ -281,43 +281,68 @@ const AdminVideoForm = () => {
     setIsProcessing(true);
 
     try {
-      // Transcribe with Deepgram
-      toast.info("Transcribing selected segment...");
-      const formData = new FormData();
-      formData.append("file", audioFile);
-
       const {
         data: { session },
       } = await supabase.auth.getSession();
       const projectUrl = import.meta.env.VITE_SUPABASE_URL;
 
-      const transcribeRes = await fetch(`${projectUrl}/functions/v1/deepgram-transcribe`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${session?.access_token}` },
-        body: formData,
-        signal: AbortSignal.timeout(300000),
-      });
+      // Try Munsit first (Arabic-specialized), fall back to Deepgram
+      let rawText = "";
+      let relativeWords: any[] = [];
 
-      if (!transcribeRes.ok) throw new Error("Transcription failed");
-      const transcribeData = await transcribeRes.json();
-
-      // Filter words by selected time range
-      const [startSec, endSec] = timeRange;
-      let filteredWords = transcribeData.words || [];
-      let rawText = transcribeData.text || "";
-
-      if (filteredWords.length > 0 && (startSec > 0 || endSec < (mediaDuration || Infinity))) {
-        filteredWords = filteredWords.filter((w: any) => w.start >= startSec && w.end <= endSec);
-        rawText = filteredWords.map((w: any) => w.text).join(" ") || rawText;
+      toast.info("Transcribing with Munsit (Arabic)...");
+      try {
+        const munsitFormData = new FormData();
+        munsitFormData.append("audio", audioFile);
+        const munsitRes = await fetch(`${projectUrl}/functions/v1/munsit-transcribe`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${session?.access_token}` },
+          body: munsitFormData,
+          signal: AbortSignal.timeout(300000),
+        });
+        if (munsitRes.ok) {
+          const munsitData = await munsitRes.json();
+          rawText = munsitData.text || "";
+          if (rawText) {
+            toast.info("Munsit transcription done, analyzing...");
+          }
+        }
+      } catch (munsitErr) {
+        console.warn("Munsit failed, falling back to Deepgram:", munsitErr);
       }
 
-      // Normalize timestamps to the selected clip so transcript sync starts at 0.
-      const clipOffsetSec = Math.max(0, startSec);
-      const relativeWords = filteredWords.map((w: any) => ({
-        ...w,
-        start: Math.max(0, w.start - clipOffsetSec),
-        end: Math.max(0, w.end - clipOffsetSec),
-      }));
+      // Fall back to Deepgram if Munsit produced no text
+      if (!rawText) {
+        toast.info("Falling back to Deepgram transcription...");
+        const formData = new FormData();
+        formData.append("file", audioFile);
+        const transcribeRes = await fetch(`${projectUrl}/functions/v1/deepgram-transcribe`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${session?.access_token}` },
+          body: formData,
+          signal: AbortSignal.timeout(300000),
+        });
+        if (!transcribeRes.ok) throw new Error("Transcription failed");
+        const transcribeData = await transcribeRes.json();
+
+        // Filter words by selected time range
+        const [startSec, endSec] = timeRange;
+        let filteredWords = transcribeData.words || [];
+        rawText = transcribeData.text || "";
+
+        if (filteredWords.length > 0 && (startSec > 0 || endSec < (mediaDuration || Infinity))) {
+          filteredWords = filteredWords.filter((w: any) => w.start >= startSec && w.end <= endSec);
+          rawText = filteredWords.map((w: any) => w.text).join(" ") || rawText;
+        }
+
+        // Normalize timestamps to the selected clip so transcript sync starts at 0.
+        const clipOffsetSec = Math.max(0, startSec);
+        relativeWords = filteredWords.map((w: any) => ({
+          ...w,
+          start: Math.max(0, w.start - clipOffsetSec),
+          end: Math.max(0, w.end - clipOffsetSec),
+        }));
+      }
 
       // Step 3: Analyze with Gemini/Falcon
       toast.info("Analyzing transcript...");

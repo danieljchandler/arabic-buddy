@@ -171,6 +171,69 @@ const AdminVideoForm = () => {
     }
   }, [sourceUrl, embedUrl]);
 
+  const isYouTubeSource = sourceUrl.includes("youtube.com") || sourceUrl.includes("youtu.be");
+
+  const handleFetchCaptions = async () => {
+    if (!sourceUrl) return;
+    await ensureUrlParsed();
+    setIsDownloading(true);
+    try {
+      toast.info("Fetching captions from YouTube...");
+      const { data, error } = await supabase.functions.invoke("fetch-youtube-captions", {
+        body: { url: sourceUrl },
+      });
+      if (error) throw new Error(error.message);
+      if (!data?.lines?.length) throw new Error(data?.error || "No captions found");
+
+      // Build transcript lines from captions
+      const rawText: string = data.rawText || data.lines.map((l: any) => l.text).join("\n");
+
+      // Analyze with gulf arabic
+      toast.info("Analyzing captions...");
+      const { data: analyzeData, error: analyzeError } = await supabase.functions.invoke("analyze-gulf-arabic", {
+        body: { transcript: rawText },
+      });
+      if (analyzeError) throw new Error(analyzeError.message);
+      if (!analyzeData?.success) throw new Error(analyzeData?.error || "Analysis failed");
+
+      const result = analyzeData.result;
+
+      // Map caption timestamps to analyzed lines
+      const captionLines: { startMs: number; endMs: number; text: string }[] = data.lines;
+      let lines = result.lines || [];
+      if (captionLines.length > 0 && lines.length > 0) {
+        let captionIdx = 0;
+        lines = lines.map((line: any) => {
+          if (captionIdx < captionLines.length) {
+            const cap = captionLines[captionIdx];
+            captionIdx++;
+            return { ...line, startMs: cap.startMs, endMs: cap.endMs };
+          }
+          return line;
+        });
+      }
+
+      setTranscriptLines(lines);
+      setVocabulary(result.vocabulary || []);
+      setGrammarPoints(result.grammarPoints || []);
+      setCulturalContext(result.culturalContext || "");
+
+      if (!title && result.title) setTitle(result.title);
+      if (!titleArabic && result.titleArabic) setTitleArabic(result.titleArabic);
+
+      toast.success("Done!", {
+        description: `${lines.length} transcript lines from captions`,
+      });
+    } catch (err) {
+      console.error("Caption fetch error:", err);
+      toast.error("Caption fetch failed", {
+        description: err instanceof Error ? err.message : "Upload the audio file directly instead",
+      });
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
   const handleDownloadAudio = async () => {
     if (!sourceUrl) return;
     await ensureUrlParsed();
@@ -495,88 +558,110 @@ const AdminVideoForm = () => {
               </div>
             )}
 
-            {/* Step 1: Download or Upload */}
-            {!audioFile ? (
-              <div className="space-y-2">
-                <div className="flex gap-2">
-                  <Button
-                    onClick={handleDownloadAudio}
-                    disabled={!sourceUrl || isDownloading || isProcessing}
-                    variant="outline"
-                    className="flex-1"
-                  >
-                    {isDownloading ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        Downloading...
-                      </>
-                    ) : (
-                      <>
-                        <Download className="h-4 w-4 mr-2" />
-                        Download Audio
-                      </>
-                    )}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="flex-1"
-                    onClick={() => document.getElementById("audio-upload")?.click()}
-                    disabled={isProcessing}
-                  >
-                    <Upload className="h-4 w-4 mr-2" />
-                    Upload File
-                  </Button>
-                  <input
-                    id="audio-upload"
-                    type="file"
-                    accept="audio/*,video/*"
-                    className="hidden"
-                    onChange={handleFileUpload}
-                  />
+            {/* YouTube: Captions flow (no audio download needed) */}
+            {isYouTubeSource ? (
+              <div className="space-y-3">
+                <Button
+                  onClick={handleFetchCaptions}
+                  disabled={!sourceUrl || isDownloading || isProcessing}
+                  className="w-full"
+                >
+                  {isDownloading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Fetching captions...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-4 w-4 mr-2" />
+                      Fetch Captions & Analyze
+                    </>
+                  )}
+                </Button>
+                <p className="text-xs text-muted-foreground text-center">
+                  Uses YouTube's built-in captions — no audio download required
+                </p>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 border-t" />
+                  <span className="text-xs text-muted-foreground">or use your own audio</span>
+                  <div className="flex-1 border-t" />
                 </div>
+                {!audioFile ? (
+                  <>
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => document.getElementById("audio-upload")?.click()}
+                      disabled={isProcessing}
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      Upload Audio / Video File
+                    </Button>
+                    <input
+                      id="audio-upload"
+                      type="file"
+                      accept="audio/*,video/*"
+                      className="hidden"
+                      onChange={handleFileUpload}
+                    />
+                  </>
+                ) : (
+                  <div className="flex gap-2 items-center">
+                    <Badge variant="secondary" className="py-1.5">✓ Audio Ready</Badge>
+                    <Button variant="ghost" size="sm" onClick={() => { setAudioFile(null); setMediaDuration(null); }}>Change</Button>
+                  </div>
+                )}
+                {mediaDuration && mediaDuration > 0 && (
+                  <TimeRangeSelector duration={mediaDuration} maxRange={mediaDuration} value={timeRange} onChange={setTimeRange} />
+                )}
+                {audioFile && (
+                  <Button onClick={handleProcess} disabled={isProcessing} className="w-full">
+                    {isProcessing ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Processing...</> : <><Sparkles className="h-4 w-4 mr-2" />Transcribe & Analyze</>}
+                  </Button>
+                )}
               </div>
             ) : (
-              <div className="flex gap-2 items-center">
-                <Badge variant="secondary" className="py-1.5">
-                  ✓ Audio Ready
-                </Badge>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setAudioFile(null);
-                    setMediaDuration(null);
-                  }}
-                >
-                  Change
+              /* Non-YouTube: Download or Upload + Process */
+              <>
+                {!audioFile ? (
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={handleDownloadAudio}
+                      disabled={!sourceUrl || isDownloading || isProcessing}
+                      variant="outline"
+                      className="flex-1"
+                    >
+                      {isDownloading ? (
+                        <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Downloading...</>
+                      ) : (
+                        <><Download className="h-4 w-4 mr-2" />Download Audio</>
+                      )}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => document.getElementById("audio-upload")?.click()}
+                      disabled={isProcessing}
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      Upload File
+                    </Button>
+                    <input id="audio-upload" type="file" accept="audio/*,video/*" className="hidden" onChange={handleFileUpload} />
+                  </div>
+                ) : (
+                  <div className="flex gap-2 items-center">
+                    <Badge variant="secondary" className="py-1.5">✓ Audio Ready</Badge>
+                    <Button variant="ghost" size="sm" onClick={() => { setAudioFile(null); setMediaDuration(null); }}>Change</Button>
+                  </div>
+                )}
+                {mediaDuration && mediaDuration > 0 && (
+                  <TimeRangeSelector duration={mediaDuration} maxRange={mediaDuration} value={timeRange} onChange={setTimeRange} />
+                )}
+                <Button onClick={handleProcess} disabled={!audioFile || isProcessing} className="w-full">
+                  {isProcessing ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Processing...</> : <><Sparkles className="h-4 w-4 mr-2" />Auto-Transcribe & Analyze</>}
                 </Button>
-              </div>
+              </>
             )}
-
-            {/* Step 2: Time range */}
-            {mediaDuration && mediaDuration > 0 && (
-              <TimeRangeSelector
-                duration={mediaDuration}
-                maxRange={mediaDuration}
-                value={timeRange}
-                onChange={setTimeRange}
-              />
-            )}
-
-            {/* Step 3: Process */}
-            <Button onClick={handleProcess} disabled={!audioFile || isProcessing} className="w-full">
-              {isProcessing ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Processing...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="h-4 w-4 mr-2" />
-                  Auto-Transcribe & Analyze
-                </>
-              )}
-            </Button>
           </CardContent>
         </Card>
 

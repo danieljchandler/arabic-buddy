@@ -35,3 +35,6 @@ verify_jwt = false
 
 [functions.scrape-x-post]
 verify_jwt = false
+
+[functions.fetch-youtube-captions]
+verify_jwt = false

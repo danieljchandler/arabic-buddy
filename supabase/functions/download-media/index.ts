@@ -143,7 +143,7 @@ async function downloadYouTube(url: string): Promise<{ base64: string; contentTy
       console.log(`Trying YouTube client: ${client.name}`);
       const playerResp = await fetch('https://www.youtube.com/youtubei/v1/player?prettyPrint=false', {
         method: 'POST',
-        headers: client.headers,
+        headers: client.headers as Record<string, string>,
         body: JSON.stringify({
           videoId,
           ...client.body,

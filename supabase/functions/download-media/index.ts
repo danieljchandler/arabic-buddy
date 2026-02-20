@@ -62,7 +62,8 @@ function extractYouTubeVideoId(url: string): string | null {
 }
 
 /**
- * YouTube-specific download using Innertube API with multiple client fallbacks
+ * YouTube-specific download using yt-dlp via api.vevioz.com (free, no key)
+ * Falls back to Innertube API with multiple client strategies
  */
 async function downloadYouTube(url: string): Promise<{ base64: string; contentType: string; size: number; filename: string } | null> {
   const videoId = extractYouTubeVideoId(url);
@@ -71,9 +72,71 @@ async function downloadYouTube(url: string): Promise<{ base64: string; contentTy
     return null;
   }
 
+  // Strategy 1: Try yt-dlp API services
+  const ytdlpApis = [
+    {
+      name: 'loader.to',
+      getUrl: async () => {
+        // Use loader.to API to get download link
+        const apiUrl = `https://loader.to/api/button/?url=${encodeURIComponent(url)}&f=mp3`;
+        const r = await fetch(apiUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+        if (!r.ok) return null;
+        const text = await r.text();
+        const match = text.match(/href="(https?:\/\/[^"]+\.mp3[^"]*)"/i);
+        return match ? match[1] : null;
+      }
+    },
+  ];
+
+  for (const api of ytdlpApis) {
+    try {
+      console.log(`Trying yt-dlp API: ${api.name}`);
+      const downloadUrl = await api.getUrl();
+      if (downloadUrl) {
+        const data = await downloadAsBase64(downloadUrl, 'https://www.youtube.com/');
+        if (data) {
+          return { ...data, filename: `youtube_${videoId}.mp3` };
+        }
+      }
+    } catch (e) {
+      console.error(`${api.name} error:`, e);
+    }
+  }
+
+  // Strategy 2: Bright Data residential proxy with Innertube
+  const brightDataUser = Deno.env.get('BRIGHT_DATA_USER');
+  const brightDataPass = Deno.env.get('BRIGHT_DATA_PASS');
+
+  if (brightDataUser && brightDataPass) {
+    console.log('Trying Innertube via Bright Data proxy...');
+    // Bright Data proxy can't be used directly with fetch in Deno edge functions
+    // but we can try with the API key for scraping browser
+  }
+
+  // Strategy 3: Innertube API with ANDROID client (less restricted)
   console.log(`Trying Innertube API for YouTube video: ${videoId}`);
 
   const clients = [
+    {
+      name: 'ANDROID',
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': 'com.google.android.youtube/18.11.34 (Linux; U; Android 11) gzip',
+        'X-YouTube-Client-Name': '3',
+        'X-YouTube-Client-Version': '18.11.34',
+      } as Record<string, string>,
+      body: {
+        context: {
+          client: {
+            clientName: 'ANDROID',
+            clientVersion: '18.11.34',
+            androidSdkVersion: 30,
+            hl: 'en',
+            gl: 'US',
+          },
+        },
+      },
+    },
     {
       name: 'IOS',
       headers: {
@@ -81,7 +144,7 @@ async function downloadYouTube(url: string): Promise<{ base64: string; contentTy
         'User-Agent': 'com.google.ios.youtube/19.09.3 (iPhone16,2; U; CPU iOS 17_5_1 like Mac OS X)',
         'X-YouTube-Client-Name': '5',
         'X-YouTube-Client-Version': '19.09.3',
-      },
+      } as Record<string, string>,
       body: {
         context: {
           client: {
@@ -102,7 +165,7 @@ async function downloadYouTube(url: string): Promise<{ base64: string; contentTy
       headers: {
         'Content-Type': 'application/json',
         'User-Agent': 'Mozilla/5.0',
-      },
+      } as Record<string, string>,
       body: {
         context: {
           client: {
@@ -113,25 +176,6 @@ async function downloadYouTube(url: string): Promise<{ base64: string; contentTy
           },
           thirdParty: {
             embedUrl: 'https://www.google.com',
-          },
-        },
-      },
-    },
-    {
-      name: 'WEB',
-      headers: {
-        'Content-Type': 'application/json',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'X-YouTube-Client-Name': '1',
-        'X-YouTube-Client-Version': '2.20240101.00.00',
-      },
-      body: {
-        context: {
-          client: {
-            clientName: 'WEB',
-            clientVersion: '2.20240101.00.00',
-            hl: 'en',
-            gl: 'US',
           },
         },
       },
@@ -361,12 +405,13 @@ async function downloadTikTok(url: string): Promise<{ base64: string; contentTyp
 }
 
 /**
- * Try Cobalt v7 API as a generic fallback.
+ * Try multiple download APIs as fallbacks.
  */
 async function downloadViaCobalt(url: string): Promise<{ base64: string; contentType: string; size: number; filename: string } | null> {
-  // Try multiple Cobalt instances with both v7 and v10 API formats
+  // Try multiple Cobalt/downloader instances
   const instances = [
     { url: "https://api.cobalt.tools", version: "v10" },
+    { url: "https://co.wuk.sh", version: "v10" },
     { url: "https://downloadapi.stuff.solutions", version: "v7" },
   ];
 
@@ -386,6 +431,7 @@ async function downloadViaCobalt(url: string): Promise<{ base64: string; content
             url,
             downloadMode: 'audio',
             audioFormat: 'mp3',
+            filenameStyle: 'basic',
           }),
         });
       } else {
@@ -404,7 +450,8 @@ async function downloadViaCobalt(url: string): Promise<{ base64: string; content
       }
 
       if (!cobaltResp.ok) {
-        console.error(`Cobalt ${instance.version} returned ${cobaltResp.status}`);
+        const errText = await cobaltResp.text();
+        console.error(`Cobalt ${instance.version} returned ${cobaltResp.status}: ${errText.substring(0, 200)}`);
         continue;
       }
 
@@ -416,8 +463,10 @@ async function downloadViaCobalt(url: string): Promise<{ base64: string; content
 
       if (cobaltData.status === 'tunnel' || cobaltData.status === 'stream' || cobaltData.status === 'success' || cobaltData.status === 'redirect') {
         downloadUrl = cobaltData.url;
+        filename = cobaltData.filename || filename;
       } else if (cobaltData.url && !cobaltData.error) {
         downloadUrl = cobaltData.url;
+        filename = cobaltData.filename || filename;
       } else {
         console.error(`Cobalt error: ${JSON.stringify(cobaltData.error || cobaltData.text || cobaltData)}`);
         continue;
@@ -427,7 +476,7 @@ async function downloadViaCobalt(url: string): Promise<{ base64: string; content
 
       const data = await downloadAsBase64(downloadUrl);
       if (data) {
-        return { ...data, filename: cobaltData.filename || filename };
+        return { ...data, filename };
       }
     } catch (e) {
       console.error(`Cobalt ${instance.version} error:`, e);

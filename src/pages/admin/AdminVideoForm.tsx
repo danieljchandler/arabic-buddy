@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Loader2, ArrowLeft, Sparkles, Save, Upload, Download, Plus, Trash2 } from "lucide-react";
+import { Loader2, ArrowLeft, Sparkles, Save, Upload, Download, Plus, Trash2, Captions } from "lucide-react";
 import { EditableTranscript } from "@/components/admin/EditableTranscript";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
@@ -47,6 +47,7 @@ const AdminVideoForm = () => {
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isFetchingCaptions, setIsFetchingCaptions] = useState(false);
 
   // Time range selection (no limit for admin discover videos)
   const [mediaDuration, setMediaDuration] = useState<number | null>(null);
@@ -207,6 +208,58 @@ const AdminVideoForm = () => {
       });
     } finally {
       setIsDownloading(false);
+    }
+  };
+
+  const handleFetchCaptions = async () => {
+    if (!sourceUrl) return;
+    await ensureUrlParsed();
+    setIsFetchingCaptions(true);
+    try {
+      toast.info("Fetching YouTube captions...");
+      const { data: captionData, error: captionError } = await supabase.functions.invoke("fetch-youtube-captions", {
+        body: { url: sourceUrl },
+      });
+      if (captionError) throw new Error(captionError.message);
+      if (!captionData?.success) throw new Error(captionData?.error || "No captions found");
+
+      toast.info("Analyzing captions...");
+      const { data: analyzeData, error: analyzeError } = await supabase.functions.invoke("analyze-gulf-arabic", {
+        body: { transcript: captionData.rawText },
+      });
+      if (analyzeError) throw new Error(analyzeError.message);
+      if (!analyzeData?.success) throw new Error(analyzeData?.error || "Analysis failed");
+
+      const result = analyzeData.result;
+
+      // Merge analysis lines with YouTube caption timestamps
+      const captionLines: { startMs: number; endMs: number; text: string }[] = captionData.lines ?? [];
+      let lines = result.lines || [];
+      if (captionLines.length > 0 && lines.length > 0) {
+        // Map each analysis line to the closest caption line by position
+        lines = lines.map((line: any, i: number) => {
+          const capLine = captionLines[i] ?? captionLines[captionLines.length - 1];
+          return { ...line, startMs: capLine.startMs, endMs: capLine.endMs };
+        });
+      }
+
+      setTranscriptLines(lines);
+      setVocabulary(result.vocabulary || []);
+      setGrammarPoints(result.grammarPoints || []);
+      setCulturalContext(result.culturalContext || "");
+      if (!title && result.title) setTitle(result.title);
+      if (!titleArabic && result.titleArabic) setTitleArabic(result.titleArabic);
+
+      toast.success("Captions loaded!", {
+        description: `${lines.length} lines from ${captionData.trackName} captions`,
+      });
+    } catch (err) {
+      console.error("Caption fetch error:", err);
+      toast.error("Could not fetch captions", {
+        description: err instanceof Error ? err.message : "Unknown error. Try downloading audio instead.",
+      });
+    } finally {
+      setIsFetchingCaptions(false);
     }
   };
 
@@ -472,41 +525,68 @@ const AdminVideoForm = () => {
 
             {/* Step 1: Download or Upload */}
             {!audioFile ? (
-              <div className="flex gap-2">
-                <Button
-                  onClick={handleDownloadAudio}
-                  disabled={!sourceUrl || isDownloading || isProcessing}
-                  variant="outline"
-                  className="flex-1"
-                >
-                  {isDownloading ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Downloading...
-                    </>
-                  ) : (
-                    <>
-                      <Download className="h-4 w-4 mr-2" />
-                      Download Audio
-                    </>
-                  )}
-                </Button>
-                <Button
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => document.getElementById("audio-upload")?.click()}
-                  disabled={isProcessing}
-                >
-                  <Upload className="h-4 w-4 mr-2" />
-                  Upload File
-                </Button>
-                <input
-                  id="audio-upload"
-                  type="file"
-                  accept="audio/*,video/*"
-                  className="hidden"
-                  onChange={handleFileUpload}
-                />
+              <div className="space-y-2">
+                {(platform === "youtube" || sourceUrl.includes("youtube.com") || sourceUrl.includes("youtu.be")) && (
+                  <Button
+                    onClick={handleFetchCaptions}
+                    disabled={!sourceUrl || isFetchingCaptions || isProcessing}
+                    variant="default"
+                    className="w-full"
+                  >
+                    {isFetchingCaptions ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Fetching Captions...
+                      </>
+                    ) : (
+                      <>
+                        <Captions className="h-4 w-4 mr-2" />
+                        Fetch YouTube Captions
+                      </>
+                    )}
+                  </Button>
+                )}
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleDownloadAudio}
+                    disabled={!sourceUrl || isDownloading || isProcessing || isFetchingCaptions}
+                    variant="outline"
+                    className="flex-1"
+                  >
+                    {isDownloading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Downloading...
+                      </>
+                    ) : (
+                      <>
+                        <Download className="h-4 w-4 mr-2" />
+                        Download Audio
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => document.getElementById("audio-upload")?.click()}
+                    disabled={isProcessing || isFetchingCaptions}
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    Upload File
+                  </Button>
+                  <input
+                    id="audio-upload"
+                    type="file"
+                    accept="audio/*,video/*"
+                    className="hidden"
+                    onChange={handleFileUpload}
+                  />
+                </div>
+                {(platform === "youtube" || sourceUrl.includes("youtube.com") || sourceUrl.includes("youtu.be")) && (
+                  <p className="text-xs text-muted-foreground">
+                    Fetch Captions is fastest — uses YouTube's built-in subtitles. Download Audio gives more accurate results via Deepgram.
+                  </p>
+                )}
               </div>
             ) : (
               <div className="flex gap-2 items-center">

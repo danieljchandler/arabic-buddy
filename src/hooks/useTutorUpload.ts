@@ -60,20 +60,34 @@ export function useTutorUpload() {
 
       if (uploadError) {
         console.error("Storage upload error:", uploadError);
-        // Non-fatal — we can still proceed with local file
       }
 
       // Step 2: Transcribe with Deepgram (word-level timestamps)
+      // Use the storage public URL when available — this avoids sending the entire
+      // file as a FormData payload through the edge function (which has size limits
+      // and chokes on large video files).
       setProgressLabel("Transcribing audio…");
       setProgress(15);
 
-      const formData = new FormData();
-      formData.append("audio", selectedFile);
+      let transcribeResult: { data: any; error: any };
 
-      const { data: transcribeData, error: transcribeError } = await supabase.functions.invoke(
-        "deepgram-transcribe",
-        { body: formData }
-      );
+      if (!uploadError) {
+        const { data: { publicUrl } } = supabase.storage
+          .from("tutor-audio-clips")
+          .getPublicUrl(storagePath);
+        transcribeResult = await supabase.functions.invoke("deepgram-transcribe", {
+          body: { audioUrl: publicUrl },
+        });
+      } else {
+        // Fallback: send file directly (only practical for small audio files)
+        const formData = new FormData();
+        formData.append("audio", selectedFile);
+        transcribeResult = await supabase.functions.invoke("deepgram-transcribe", {
+          body: formData,
+        });
+      }
+
+      const { data: transcribeData, error: transcribeError } = transcribeResult;
 
       if (transcribeError || !transcribeData) {
         throw new Error(transcribeError?.message || "Transcription failed");

@@ -12,9 +12,19 @@ const PADDING_MS = 250; // 250ms padding before and after
 export async function decodeAudioFile(file: File): Promise<AudioBuffer> {
   const arrayBuffer = await file.arrayBuffer();
   const audioContext = new AudioContext();
-  const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-  await audioContext.close();
-  return audioBuffer;
+  try {
+    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+    await audioContext.close();
+    return audioBuffer;
+  } catch (err) {
+    await audioContext.close();
+    if (file.type.startsWith("video/")) {
+      throw new Error(
+        "Could not extract audio from this video file. Try opening the video in a tool like VLC and exporting it as MP3 or M4A, then upload that instead."
+      );
+    }
+    throw err;
+  }
 }
 
 /**

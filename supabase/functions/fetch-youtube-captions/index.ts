@@ -26,23 +26,16 @@ interface CaptionLine {
   text: string;
 }
 
-/** Parse YouTube timedtext XML into lines */
 function parseTimedtextXml(xml: string): CaptionLine[] {
   const lines: CaptionLine[] = [];
-  // Match <text start="X" dur="Y">...</text> pattern
   const re = /<text[^>]+start="([\d.]+)"[^>]*dur="([\d.]+)"[^>]*>([\s\S]*?)<\/text>/g;
   let m;
   while ((m = re.exec(xml)) !== null) {
     const startSec = parseFloat(m[1]);
     const durSec = parseFloat(m[2]);
     const raw = m[3]
-      .replace(/&amp;/g, '&')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/&quot;/g, '"')
-      .replace(/&#39;/g, "'")
-      .replace(/<[^>]+>/g, '') // strip inner tags
-      .trim();
+      .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/<[^>]+>/g, '').trim();
     if (raw) {
       lines.push({
         startMs: Math.round(startSec * 1000),
@@ -54,7 +47,6 @@ function parseTimedtextXml(xml: string): CaptionLine[] {
   return lines;
 }
 
-/** Parse JSON3 format captions */
 function parseJson3(data: any): CaptionLine[] {
   const lines: CaptionLine[] = [];
   const events = data?.events || [];
@@ -71,112 +63,270 @@ function parseJson3(data: any): CaptionLine[] {
   return lines;
 }
 
-/** Fetch captions from YouTube timedtext API */
-async function fetchCaptions(videoId: string): Promise<{ lines: CaptionLine[]; lang: string } | null> {
-  // Try Arabic first, then English fallback
-  const langs = [
-    { lang: 'ar', kind: '' },
-    { lang: 'ar-x-auto', kind: 'asr' },
-    { lang: 'en', kind: '' },
-    { lang: 'en-US', kind: 'asr' },
-  ];
+function tryParseJson3(text: string): CaptionLine[] {
+  if (!text || text.trim().length < 5) return [];
+  // Try direct parse
+  try {
+    return parseJson3(JSON.parse(text.trim()));
+  } catch { /* continue */ }
+  // Try to find JSON object in text
+  const match = text.match(/(\{"wireMagic"[\s\S]*\}|\{"events"[\s\S]*\})/);
+  if (match) {
+    try { return parseJson3(JSON.parse(match[1])); } catch { /* continue */ }
+  }
+  return [];
+}
 
-  for (const { lang, kind } of langs) {
+function fixUrl(url: string): string {
+  return url
+    .replace(/\\u0026/g, '&')
+    .replace(/(?<![\\])u0026/g, '&')
+    .replace(/\\\//g, '/')
+    .trim();
+}
+
+async function jinaFetch(url: string, jinaKey: string, format = 'text'): Promise<string | null> {
+  try {
+    const resp = await fetch(`https://r.jina.ai/${url}`, {
+      headers: {
+        'Authorization': `Bearer ${jinaKey}`,
+        'X-Return-Format': format,
+        'X-No-Cache': 'true',
+      },
+    });
+    if (resp.ok) return await resp.text();
+    console.log(`Jina ${format} failed: ${resp.status}`);
+  } catch (e) {
+    console.error('Jina error:', e);
+  }
+  return null;
+}
+
+async function fetchCaptionContent(captionUrl: string, lang: string, jinaKey?: string): Promise<CaptionLine[]> {
+  const clean = fixUrl(captionUrl);
+
+  // Try json3 direct
+  for (const fmt of ['json3', 'srv3', '']) {
+    const url = fmt ? `${clean.replace(/&fmt=[^&]*/g, '')}&fmt=${fmt}` : clean.replace(/&fmt=[^&]*/g, '');
     try {
-      // Try JSON3 format first
-      const kindParam = kind ? `&kind=${kind}` : '';
-      const json3Url = `https://www.youtube.com/api/timedtext?v=${videoId}&lang=${lang}${kindParam}&fmt=json3`;
-      console.log(`Trying captions: ${json3Url}`);
-      const resp = await fetch(json3Url, {
+      const resp = await fetch(url, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-          'Accept-Language': 'en-US,en;q=0.9',
+          'Cookie': 'CONSENT=YES+cb',
         },
       });
-
       if (resp.ok) {
         const text = await resp.text();
-        if (text && text.trim().startsWith('{')) {
-          const data = JSON.parse(text);
-          const lines = parseJson3(data);
+        if (text && text.trim().length > 5) {
+          const lines = fmt !== '' ? tryParseJson3(text) : parseTimedtextXml(text);
           if (lines.length > 0) {
-            console.log(`Got ${lines.length} caption lines in ${lang} (json3)`);
-            return { lines, lang };
+            console.log(`Direct ${fmt || 'xml'} worked for ${lang}: ${lines.length} lines`);
+            return lines;
           }
+          // Try xml parse on json3/srv3 too
+          const xmlLines = parseTimedtextXml(text);
+          if (xmlLines.length > 0) return xmlLines;
         }
       }
+    } catch (e) { /* continue */ }
+  }
 
-      // Try XML format
-      const xmlUrl = `https://www.youtube.com/api/timedtext?v=${videoId}&lang=${lang}${kindParam}`;
-      const xmlResp = await fetch(xmlUrl, {
-        headers: { 'User-Agent': 'Mozilla/5.0' },
-      });
-      if (xmlResp.ok) {
-        const xml = await xmlResp.text();
-        const lines = parseTimedtextXml(xml);
-        if (lines.length > 0) {
-          console.log(`Got ${lines.length} caption lines in ${lang} (xml)`);
-          return { lines, lang };
-        }
+  // Try via Jina as proxy for the caption content
+  if (jinaKey) {
+    const json3Url = `${clean.replace(/&fmt=[^&]*/g, '')}&fmt=json3`;
+    const content = await jinaFetch(json3Url, jinaKey, 'text');
+    if (content) {
+      console.log(`Jina caption content (${lang}): ${content.substring(0, 200)}`);
+      const lines = tryParseJson3(content);
+      if (lines.length > 0) {
+        console.log(`Jina proxy worked for ${lang}: ${lines.length} lines`);
+        return lines;
       }
-    } catch (e) {
-      console.error(`Caption fetch error for ${lang}:`, e);
+      // Try XML
+      const xmlLines = parseTimedtextXml(content);
+      if (xmlLines.length > 0) return xmlLines;
     }
   }
 
-  // Try to get caption track list from the video page
-  console.log('Trying to get caption list from video page...');
+  return [];
+}
+
+function extractTracksFromHtml(html: string): any[] {
+  // Try multiple patterns
+  const patterns = [
+    /"captionTracks":\s*(\[[\s\S]*?\])\s*,\s*"audioTracks"/,
+    /"captionTracks":\s*(\[[\s\S]*?\]),/,
+  ];
+  for (const pattern of patterns) {
+    const match = html.match(pattern);
+    if (match) {
+      try {
+        const tracks = JSON.parse(match[1]);
+        if (Array.isArray(tracks) && tracks.length > 0) return tracks;
+      } catch { /* continue */ }
+    }
+  }
+
+  // Try parsing full ytInitialPlayerResponse
+  const playerPatterns = [
+    /ytInitialPlayerResponse\s*=\s*(\{.+?\});\s*(?:var |const |let |window\[)/s,
+    /ytInitialPlayerResponse\s*=\s*(\{[\s\S]+?"captionTracks"[\s\S]+?\});\s*(?:var|const|let|;)/,
+  ];
+  for (const pattern of playerPatterns) {
+    const match = html.match(pattern);
+    if (match) {
+      try {
+        const data = JSON.parse(match[1]);
+        const tracks = data?.captions?.playerCaptionsTracklistRenderer?.captionTracks || [];
+        if (tracks.length > 0) return tracks;
+      } catch { /* continue */ }
+    }
+  }
+
+  return [];
+}
+
+async function fetchCaptions(videoId: string, jinaKey?: string): Promise<{ lines: CaptionLine[]; lang: string } | null> {
+  // Strategy 1: Static timedtext API - works for some videos without tokens
+  const directLangs = [
+    { lang: 'ar', kind: '' },
+    { lang: 'ar-x-auto', kind: 'asr' },
+  ];
+
+  for (const { lang, kind } of directLangs) {
+    const kindParam = kind ? `&kind=${kind}` : '';
+    const captionUrl = `https://www.youtube.com/api/timedtext?v=${videoId}&lang=${lang}${kindParam}&fmt=json3`;
+    try {
+      const resp = await fetch(captionUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          'Cookie': 'CONSENT=YES+cb; YSC=abc123',
+        },
+      });
+      if (resp.ok) {
+        const text = await resp.text();
+        const lines = tryParseJson3(text);
+        if (lines.length > 0) {
+          console.log(`Static timedtext ${lang}: ${lines.length} lines`);
+          return { lines, lang };
+        }
+      }
+    } catch (e) { /* continue */ }
+  }
+
+  // Strategy 2: Use Jina to proxy the static timedtext URLs directly
+  if (jinaKey) {
+    for (const { lang, kind } of directLangs) {
+      const kindParam = kind ? `&kind=${kind}` : '';
+      const captionUrl = `https://www.youtube.com/api/timedtext?v=${videoId}&lang=${lang}${kindParam}&fmt=json3`;
+      const content = await jinaFetch(captionUrl, jinaKey, 'text');
+      if (content) {
+        console.log(`Jina static timedtext (${lang}): ${content.substring(0, 200)}`);
+        const lines = tryParseJson3(content);
+        if (lines.length > 0) {
+          console.log(`Jina static timedtext worked (${lang}): ${lines.length} lines`);
+          return { lines, lang };
+        }
+        const xmlLines = parseTimedtextXml(content);
+        if (xmlLines.length > 0) return { lines: xmlLines, lang };
+      }
+    }
+  }
+
+  // Strategy 3: Get token-based track URLs from watch page, then fetch immediately
+  const watchUrl = `https://www.youtube.com/watch?v=${videoId}&hl=en&gl=US`;
+  let watchHtml: string | null = null;
+
+  // Try direct watch page
   try {
-    const pageResp = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
+    const resp = await fetch(watchUrl, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml',
         'Accept-Language': 'en-US,en;q=0.9,ar;q=0.8',
+        'Cookie': 'CONSENT=YES+cb; YSC=DwKYllHNwuw; VISITOR_INFO1_LIVE=abc',
       },
     });
-    if (pageResp.ok) {
-      const html = await pageResp.text();
-      // Extract caption tracks from ytInitialPlayerResponse
-      const captionMatch = html.match(/"captionTracks":\s*(\[[\s\S]*?\])/);
-      if (captionMatch) {
-        const tracks = JSON.parse(captionMatch[1].replace(/\\"/g, '"').replace(/\\/g, ''));
-        console.log(`Found ${tracks.length} caption tracks`);
-        // Try Arabic tracks first, then any track
-        const sorted = [...tracks].sort((a: any, b: any) => {
-          const aAr = a.languageCode?.startsWith('ar') ? 0 : 1;
-          const bAr = b.languageCode?.startsWith('ar') ? 0 : 1;
-          return aAr - bAr;
-        });
-        for (const track of sorted.slice(0, 3)) {
-          const baseUrl = track.baseUrl?.replace(/\\u0026/g, '&').replace(/\\\//g, '/');
-          if (!baseUrl) continue;
-          console.log(`Trying track: ${track.languageCode} - ${baseUrl.substring(0, 100)}`);
-          const trackResp = await fetch(`${baseUrl}&fmt=json3`, {
-            headers: { 'User-Agent': 'Mozilla/5.0' },
-          });
-          if (trackResp.ok) {
-            const text = await trackResp.text();
-            if (text.startsWith('{')) {
-              const data = JSON.parse(text);
-              const lines = parseJson3(data);
-              if (lines.length > 0) {
-                return { lines, lang: track.languageCode };
-              }
-            }
-            // Try XML
-            const xmlResp2 = await fetch(baseUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } });
-            if (xmlResp2.ok) {
-              const xml = await xmlResp2.text();
-              const lines = parseTimedtextXml(xml);
-              if (lines.length > 0) {
-                return { lines, lang: track.languageCode };
-              }
-            }
-          }
+    if (resp.ok) {
+      watchHtml = await resp.text();
+      console.log(`Direct watch page: ${watchHtml.length} chars, hasCaptionTracks: ${watchHtml.includes('captionTracks')}`);
+    }
+  } catch (e) {
+    console.error('Watch page error:', e);
+  }
+
+  // Try Jina for watch page
+  if ((!watchHtml || !watchHtml.includes('captionTracks')) && jinaKey) {
+    const content = await jinaFetch(watchUrl, jinaKey, 'html');
+    if (content && content.includes('captionTracks')) {
+      watchHtml = content;
+      console.log(`Jina watch page: ${watchHtml.length} chars with captionTracks`);
+    }
+  }
+
+  if (watchHtml && watchHtml.includes('captionTracks')) {
+    const tracks = extractTracksFromHtml(watchHtml);
+    console.log(`Found ${tracks.length} tracks from watch page`);
+
+    if (tracks.length > 0) {
+      // Sort: Arabic first
+      const sorted = [...tracks].sort((a: any, b: any) =>
+        (a.languageCode?.startsWith('ar') ? 0 : 1) - (b.languageCode?.startsWith('ar') ? 0 : 1)
+      );
+
+      for (const track of sorted.slice(0, 5)) {
+        if (!track.baseUrl) continue;
+        const lang = track.languageCode || 'unknown';
+        console.log(`Trying track: ${lang}`);
+        const lines = await fetchCaptionContent(track.baseUrl, lang, jinaKey);
+        if (lines.length > 0) return { lines, lang };
+      }
+    }
+  }
+
+  // Strategy 4: Android Innertube (sometimes bypasses auth)
+  try {
+    const body = JSON.stringify({
+      videoId,
+      context: {
+        client: {
+          clientName: 'ANDROID',
+          clientVersion: '18.11.34',
+          androidSdkVersion: 30,
+          hl: 'en',
+          gl: 'US',
+        },
+      },
+    });
+    const resp = await fetch('https://www.youtube.com/youtubei/v1/player', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': 'com.google.android.youtube/18.11.34 (Linux; U; Android 11) gzip',
+        'X-YouTube-Client-Name': '3',
+        'X-YouTube-Client-Version': '18.11.34',
+      },
+      body,
+    });
+    console.log(`Android innertube: ${resp.status}`);
+    if (resp.ok) {
+      const data = await resp.json();
+      const tracks = data?.captions?.playerCaptionsTracklistRenderer?.captionTracks || [];
+      console.log(`Android innertube tracks: ${tracks.length}`);
+      if (tracks.length > 0) {
+        const sorted = [...tracks].sort((a: any, b: any) =>
+          (a.languageCode?.startsWith('ar') ? 0 : 1) - (b.languageCode?.startsWith('ar') ? 0 : 1)
+        );
+        for (const track of sorted.slice(0, 5)) {
+          if (!track.baseUrl) continue;
+          const lang = track.languageCode || 'unknown';
+          const lines = await fetchCaptionContent(track.baseUrl, lang, jinaKey);
+          if (lines.length > 0) return { lines, lang };
         }
       }
     }
   } catch (e) {
-    console.error('Page scrape error:', e);
+    console.error('Android innertube error:', e);
   }
 
   return null;
@@ -198,8 +348,10 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Fetching captions for video: ${videoId}`);
-    const result = await fetchCaptions(videoId);
+    const jinaKey = Deno.env.get('JINA_API_KEY');
+    console.log(`Fetching captions for: ${videoId}, Jina: ${!!jinaKey}`);
+
+    const result = await fetchCaptions(videoId, jinaKey);
 
     if (!result || result.lines.length === 0) {
       return new Response(
@@ -208,14 +360,13 @@ serve(async (req) => {
       );
     }
 
-    // Merge adjacent lines into sentence-like chunks (group by ~3 second windows)
+    // Merge adjacent lines into sentence chunks
     const merged: CaptionLine[] = [];
     let current: CaptionLine | null = null;
     for (const line of result.lines) {
       if (!current) {
         current = { ...line };
-      } else if (line.startMs - current.endMs < 800 && (current.endMs - current.startMs) < 5000) {
-        // Merge nearby lines
+      } else if (line.startMs - current.endMs < 800 && (current.endMs - current.startMs) < 6000) {
         current.text += ' ' + line.text;
         current.endMs = line.endMs;
       } else {

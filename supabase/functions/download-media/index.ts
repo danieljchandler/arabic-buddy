@@ -586,23 +586,8 @@ serve(async (req) => {
       }
     }
 
-    // Strategy 3: YouTube-specific download (RapidAPI first, Innertube fallback)
+    // Strategy 3: YouTube-specific download via Innertube API
     if (isYouTubeUrl(normalizedUrl)) {
-      // Try RapidAPI (youtube-mp36) first
-      const rapidResult = await downloadYouTubeViaRapidApi(normalizedUrl);
-      if (rapidResult) {
-        return new Response(
-          JSON.stringify({
-            audioBase64: rapidResult.base64,
-            contentType: rapidResult.contentType,
-            size: rapidResult.size,
-            filename: rapidResult.filename,
-          }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      // Fall back to Innertube API
       const ytResult = await downloadYouTube(normalizedUrl);
       if (ytResult) {
         return new Response(

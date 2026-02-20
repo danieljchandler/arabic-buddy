@@ -62,8 +62,8 @@ function extractYouTubeVideoId(url: string): string | null {
 }
 
 /**
- * YouTube-specific download using yt-dlp via api.vevioz.com (free, no key)
- * Falls back to Innertube API with multiple client strategies
+ * YouTube-specific download using loader.to (free, no key), then Innertube API
+ * with multiple client strategies (ANDROID, IOS, TVHTML5_SIMPLY_EMBEDDED)
  */
 async function downloadYouTube(url: string): Promise<{ base64: string; contentType: string; size: number; filename: string } | null> {
   const videoId = extractYouTubeVideoId(url);
@@ -103,17 +103,7 @@ async function downloadYouTube(url: string): Promise<{ base64: string; contentTy
     }
   }
 
-  // Strategy 2: Bright Data residential proxy with Innertube
-  const brightDataUser = Deno.env.get('BRIGHT_DATA_USER');
-  const brightDataPass = Deno.env.get('BRIGHT_DATA_PASS');
-
-  if (brightDataUser && brightDataPass) {
-    console.log('Trying Innertube via Bright Data proxy...');
-    // Bright Data proxy can't be used directly with fetch in Deno edge functions
-    // but we can try with the API key for scraping browser
-  }
-
-  // Strategy 3: Innertube API with ANDROID client (less restricted)
+  // Strategy 2: Innertube API with ANDROID client (less restricted)
   console.log(`Trying Innertube API for YouTube video: ${videoId}`);
 
   const clients = [
@@ -586,23 +576,8 @@ serve(async (req) => {
       }
     }
 
-    // Strategy 3: YouTube-specific download (RapidAPI first, Innertube fallback)
+    // Strategy 3: YouTube-specific download via Innertube API
     if (isYouTubeUrl(normalizedUrl)) {
-      // Try RapidAPI (youtube-mp36) first
-      const rapidResult = await downloadYouTubeViaRapidApi(normalizedUrl);
-      if (rapidResult) {
-        return new Response(
-          JSON.stringify({
-            audioBase64: rapidResult.base64,
-            contentType: rapidResult.contentType,
-            size: rapidResult.size,
-            filename: rapidResult.filename,
-          }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      // Fall back to Innertube API
       const ytResult = await downloadYouTube(normalizedUrl);
       if (ytResult) {
         return new Response(

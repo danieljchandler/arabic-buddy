@@ -14,13 +14,14 @@ interface WordReview {
   next_review_at: string;
 }
 
-interface VocabularyWord {
+export interface VocabularyWord {
   id: string;
   word_arabic: string;
   word_english: string;
   image_url: string | null;
   audio_url: string | null;
   topic_id: string;
+  image_position?: string | null;
 }
 
 interface WordWithReview extends VocabularyWord {
@@ -192,5 +193,20 @@ export const useSubmitReview = () => {
       queryClient.invalidateQueries({ queryKey: ['due-words'] });
       queryClient.invalidateQueries({ queryKey: ['review-stats'] });
     },
+  });
+};
+
+export const useAllVocabularyWords = () => {
+  return useQuery({
+    queryKey: ['all-vocabulary-words'],
+    queryFn: async (): Promise<VocabularyWord[]> => {
+      const { data, error } = await supabase
+        .from('vocabulary_words')
+        .select('id, word_arabic, word_english, image_url, audio_url, topic_id, image_position');
+
+      if (error) throw error;
+      return data || [];
+    },
+    staleTime: 5 * 60 * 1000,
   });
 };

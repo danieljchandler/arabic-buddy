@@ -143,7 +143,7 @@ const App = () => {
 
             {/* Admin routes */}
             <Route path="/admin/login" element={<AdminLogin />} />
-            <Route path="/admin" element={<AdminLayout />}>
+            <Route path="/admin" element={<ErrorBoundary name="AdminRoute"><AdminLayout /></ErrorBoundary>}>
               <Route index element={<Dashboard />} />
               <Route path="topics" element={<Topics />} />
               <Route path="topics/new" element={<TopicForm />} />

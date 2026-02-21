@@ -16,21 +16,20 @@ serve(async (req) => {
       status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   }
-  const supabaseAuth = createClient(
-    Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_ANON_KEY')!,
-    { global: { headers: { Authorization: authHeader } } }
-  );
-  const { data: { user }, error: userError } = await supabaseAuth.auth.getUser();
-  if (userError || !user) {
-    console.error("Auth failed:", userError?.message);
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-      status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
-  }
-  console.log(`Authenticated user: ${user.id}`);
-
   try {
+    const supabaseAuth = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+    const { data: { user }, error: userError } = await supabaseAuth.auth.getUser();
+    if (userError || !user) {
+      console.error("Auth failed:", userError?.message);
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+    console.log(`Authenticated user: ${user.id}`);
     const { word_arabic, word_english, storage_path, custom_instructions } = await req.json();
     
     if (!word_english) {

@@ -18,19 +18,18 @@ serve(async (req) => {
       status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   }
-  const supabaseAuth = createClient(
-    Deno.env.get('SUPABASE_URL')!,
-    Deno.env.get('SUPABASE_ANON_KEY')!,
-    { global: { headers: { Authorization: authHeader } } }
-  );
-  const { data: { user }, error: userError } = await supabaseAuth.auth.getUser();
-  if (userError || !user) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-      status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
-  }
-
   try {
+    const supabaseAuth = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+    const { data: { user }, error: userError } = await supabaseAuth.auth.getUser();
+    if (userError || !user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
     const FALCON_URL = Deno.env.get('FALCON_HF_ENDPOINT_URL');
     const FALCON_KEY = Deno.env.get('FALCON_HF_API_KEY');
 

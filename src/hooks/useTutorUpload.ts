@@ -93,8 +93,8 @@ export function useTutorUpload() {
         // Log the full error so it's visible in the browser console for debugging
         console.error("Transcription error full object:", transcribeError);
         // Supabase wraps the edge function response — try to extract the real message
-        const ctx = (transcribeError as any)?.context;
-        const details = ctx?.error || ctx?.details || ctx?.message;
+        const body = (transcribeError as any)?.context?.body;
+        const details = body?.error || body?.details || body?.message;
         throw new Error(details || transcribeError?.message || "Transcription failed");
       }
 

@@ -398,24 +398,25 @@ async function downloadTikTok(url: string): Promise<{ base64: string; contentTyp
  * Try multiple download APIs as fallbacks.
  */
 async function downloadViaCobalt(url: string): Promise<{ base64: string; contentType: string; size: number; filename: string } | null> {
-  // Try multiple Cobalt/downloader instances
+  // Community Cobalt instances (v10 API). List sourced from cobalt.tools/instances.
   const instances = [
-    { url: "https://api.cobalt.tools", version: "v10" },
-    { url: "https://co.wuk.sh", version: "v10" },
-    { url: "https://downloadapi.stuff.solutions", version: "v7" },
+    "https://api.cobalt.tools",
+    "https://co.imput.net",
+    "https://cobalt.api.timelessnesses.com",
+    "https://cobalt.canine.tools",
   ];
 
-  for (const instance of instances) {
-    console.log(`Trying Cobalt ${instance.version}: ${instance.url} for ${url}`);
+  for (const instanceUrl of instances) {
+    console.log(`Trying Cobalt: ${instanceUrl}`);
     try {
       let cobaltResp: Response;
 
-      if (instance.version === "v10") {
-        cobaltResp = await fetch(`${instance.url}/`, {
+      cobaltResp = await fetch(`${instanceUrl}/`, {
           method: 'POST',
           headers: {
             'Accept': 'application/json',
             'Content-Type': 'application/json',
+            'User-Agent': 'Mozilla/5.0 (compatible; arabic-buddy/1.0)',
           },
           body: JSON.stringify({
             url,
@@ -424,24 +425,10 @@ async function downloadViaCobalt(url: string): Promise<{ base64: string; content
             filenameStyle: 'basic',
           }),
         });
-      } else {
-        cobaltResp = await fetch(`${instance.url}/api/json`, {
-          method: 'POST',
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            url,
-            isAudioOnly: true,
-            aFormat: 'mp3',
-          }),
-        });
-      }
 
       if (!cobaltResp.ok) {
         const errText = await cobaltResp.text();
-        console.error(`Cobalt ${instance.version} returned ${cobaltResp.status}: ${errText.substring(0, 200)}`);
+        console.error(`Cobalt ${instanceUrl} returned ${cobaltResp.status}: ${errText.substring(0, 200)}`);
         continue;
       }
 
@@ -469,7 +456,7 @@ async function downloadViaCobalt(url: string): Promise<{ base64: string; content
         return { ...data, filename };
       }
     } catch (e) {
-      console.error(`Cobalt ${instance.version} error:`, e);
+      console.error(`Cobalt ${instanceUrl} error:`, e);
     }
   }
 

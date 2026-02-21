@@ -60,8 +60,9 @@ serve(async (req) => {
     let response: Response;
 
     if (contentType.includes("application/json")) {
-      // URL-based input: pass the URL directly to Deepgram so it fetches the file
-      // itself. This avoids buffering large video files in the edge function.
+      // URL-based input: fetch the file from storage and stream it directly to
+      // Deepgram. Streaming (body: audioResponse.body) avoids buffering the
+      // entire file in edge function memory, so large video files work fine.
       const body = await req.json();
       const { audioUrl } = body;
 
@@ -72,15 +73,27 @@ serve(async (req) => {
         );
       }
 
-      console.log(`Passing URL to Deepgram: ${audioUrl.substring(0, 100)}...`);
+      console.log(`Fetching and streaming to Deepgram: ${audioUrl.substring(0, 100)}...`);
+
+      const audioResponse = await fetch(audioUrl);
+      if (!audioResponse.ok || !audioResponse.body) {
+        console.error(`Failed to fetch audio from storage: ${audioResponse.status}`);
+        return new Response(
+          JSON.stringify({ error: `Failed to fetch audio from storage: ${audioResponse.status}` }),
+          { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const audioContentType = audioResponse.headers.get("content-type") || "audio/mpeg";
+      console.log(`Streaming file to Deepgram, content-type: ${audioContentType}`);
 
       response = await fetch(deepgramUrl, {
         method: "POST",
         headers: {
           "Authorization": `Token ${DEEPGRAM_API_KEY}`,
-          "Content-Type": "application/json",
+          "Content-Type": audioContentType,
         },
-        body: JSON.stringify({ url: audioUrl }),
+        body: audioResponse.body,
         signal: controller.signal,
       });
     } else {

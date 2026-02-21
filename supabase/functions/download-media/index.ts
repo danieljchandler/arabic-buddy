@@ -1,6 +1,10 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { encode as base64Encode } from "https://deno.land/std@0.168.0/encoding/base64.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+function encodeBase64(data: Uint8Array): string {
+  const binString = Array.from(data, (b) => String.fromCharCode(b)).join('');
+  return btoa(binString);
+}
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -345,7 +349,7 @@ async function downloadAsBase64(url: string, referer?: string): Promise<{ base64
     }
 
     console.log(`Downloaded ${(size / 1024 / 1024).toFixed(2)}MB, type: ${contentType}`);
-    const base64 = base64Encode(new Uint8Array(arrayBuffer) as unknown as ArrayBuffer);
+    const base64 = encodeBase64(new Uint8Array(arrayBuffer));
     return { base64, contentType, size };
   } catch (e) {
     console.error(`Download error:`, e);

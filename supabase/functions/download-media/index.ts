@@ -62,7 +62,8 @@ function extractYouTubeVideoId(url: string): string | null {
 }
 
 /**
- * YouTube audio download via RapidAPI youtube-mp36 (requires RAPIDAPI_KEY secret).
+ * YouTube audio download via RapidAPI services (requires RAPIDAPI_KEY secret).
+ * Tries multiple RapidAPI endpoints as fallbacks.
  */
 async function downloadYouTubeViaRapidApi(url: string): Promise<{ base64: string; contentType: string; size: number; filename: string } | null> {
   const videoId = extractYouTubeVideoId(url);
@@ -74,11 +75,22 @@ async function downloadYouTubeViaRapidApi(url: string): Promise<{ base64: string
     return null;
   }
 
+  // Strategy A: youtube-mp36
+  const resultA = await tryRapidApiMp36(videoId, apiKey);
+  if (resultA) return resultA;
+
+  // Strategy B: youtube-media-downloader
+  const resultB = await tryRapidApiMediaDownloader(videoId, apiKey);
+  if (resultB) return resultB;
+
+  return null;
+}
+
+async function tryRapidApiMp36(videoId: string, apiKey: string): Promise<{ base64: string; contentType: string; size: number; filename: string } | null> {
   console.log(`Trying RapidAPI (youtube-mp36) for video: ${videoId}`);
   try {
     let link: string | null = null;
 
-    // Poll up to 4 times — the API sometimes returns status "processing"
     for (let attempt = 0; attempt < 4; attempt++) {
       const resp = await fetch(`https://youtube-mp36.p.rapidapi.com/dl?id=${videoId}`, {
         headers: {
@@ -88,12 +100,12 @@ async function downloadYouTubeViaRapidApi(url: string): Promise<{ base64: string
       });
 
       if (!resp.ok) {
-        console.error(`RapidAPI returned ${resp.status}`);
+        console.error(`RapidAPI mp36 returned ${resp.status}`);
         return null;
       }
 
       const data = await resp.json();
-      console.log(`RapidAPI attempt ${attempt + 1}: status=${data.status}`);
+      console.log(`RapidAPI mp36 attempt ${attempt + 1}: status=${data.status}`);
 
       if (data.status === 'ok' && data.link) {
         link = data.link;
@@ -101,21 +113,78 @@ async function downloadYouTubeViaRapidApi(url: string): Promise<{ base64: string
       } else if (data.status === 'processing') {
         await new Promise((r) => setTimeout(r, 3000));
       } else {
-        console.error('RapidAPI error:', data.msg || data.status);
+        console.error('RapidAPI mp36 error:', data.msg || data.status);
         return null;
       }
     }
 
-    if (!link) {
-      console.error('RapidAPI: no download link after polling');
-      return null;
-    }
+    if (!link) return null;
 
     const audioData = await downloadAsBase64(link);
     if (audioData) return { ...audioData, filename: `youtube_${videoId}.mp3` };
     return null;
   } catch (e) {
-    console.error('RapidAPI YouTube error:', e);
+    console.error('RapidAPI mp36 error:', e);
+    return null;
+  }
+}
+
+async function tryRapidApiMediaDownloader(videoId: string, apiKey: string): Promise<{ base64: string; contentType: string; size: number; filename: string } | null> {
+  console.log(`Trying RapidAPI (youtube-media-downloader) for video: ${videoId}`);
+  try {
+    const resp = await fetch(`https://youtube-media-downloader.p.rapidapi.com/v2/video/details?videoId=${videoId}`, {
+      headers: {
+        'X-RapidAPI-Key': apiKey,
+        'X-RapidAPI-Host': 'youtube-media-downloader.p.rapidapi.com',
+      },
+    });
+
+    if (!resp.ok) {
+      console.error(`RapidAPI media-downloader returned ${resp.status}`);
+      const text = await resp.text();
+      console.error(`Response: ${text.substring(0, 200)}`);
+      return null;
+    }
+
+    const data = await resp.json();
+    
+    // Try audio formats first
+    const audios = data.audios?.items || [];
+    const videos = data.videos?.items || [];
+    
+    // Sort audios by quality (prefer higher)
+    const sortedAudios = audios
+      .filter((a: any) => a.url)
+      .sort((a: any, b: any) => (parseInt(b.quality) || 0) - (parseInt(a.quality) || 0));
+    
+    for (const audio of sortedAudios.slice(0, 3)) {
+      console.log(`Trying audio format: ${audio.quality}, ${audio.extension}`);
+      const audioData = await downloadAsBase64(audio.url, 'https://www.youtube.com/');
+      if (audioData) {
+        const ext = audio.extension || 'mp3';
+        return { ...audioData, filename: `youtube_${videoId}.${ext}` };
+      }
+    }
+
+    // Fallback to lowest quality video
+    const sortedVideos = videos
+      .filter((v: any) => v.url && v.hasAudio)
+      .sort((a: any, b: any) => (parseInt(a.quality) || 0) - (parseInt(b.quality) || 0));
+    
+    for (const video of sortedVideos.slice(0, 2)) {
+      const size = parseInt(video.size || '0');
+      if (size > MAX_FILE_SIZE) continue;
+      console.log(`Trying video format: ${video.quality}`);
+      const videoData = await downloadAsBase64(video.url, 'https://www.youtube.com/');
+      if (videoData) {
+        return { ...videoData, filename: `youtube_${videoId}.mp4` };
+      }
+    }
+
+    console.error('RapidAPI media-downloader: no downloadable formats found');
+    return null;
+  } catch (e) {
+    console.error('RapidAPI media-downloader error:', e);
     return null;
   }
 }

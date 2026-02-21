@@ -4,13 +4,6 @@ import React from "react";
 import { ReviewQuizCard } from "@/components/review/ReviewQuizCard";
 import { VocabularyWord } from "@/hooks/useReview";
 
-// Minimal stub for VocabularyCard so the test focuses on quiz logic
-vi.mock("@/components/design-system", () => ({
-  VocabularyCard: ({ word }: { word: VocabularyWord }) => (
-    <div data-testid="vocabulary-card">{word.word_arabic}</div>
-  ),
-}));
-
 const makeWord = (overrides: Partial<VocabularyWord> = {}): VocabularyWord => ({
   id: "w1",
   word_arabic: "كلب",
@@ -23,10 +16,10 @@ const makeWord = (overrides: Partial<VocabularyWord> = {}): VocabularyWord => ({
 });
 
 const topicWords: VocabularyWord[] = [
-  makeWord({ id: "w1", word_english: "dog" }),
-  makeWord({ id: "w2", word_english: "cat" }),
-  makeWord({ id: "w3", word_english: "bird" }),
-  makeWord({ id: "w4", word_english: "fish" }),
+  makeWord({ id: "w1", word_arabic: "كلب", word_english: "dog" }),
+  makeWord({ id: "w2", word_arabic: "قطة", word_english: "cat" }),
+  makeWord({ id: "w3", word_arabic: "طائر", word_english: "bird" }),
+  makeWord({ id: "w4", word_arabic: "سمكة", word_english: "fish" }),
 ];
 
 describe("ReviewQuizCard", () => {
@@ -36,30 +29,39 @@ describe("ReviewQuizCard", () => {
     onAnswer = vi.fn();
   });
 
-  it("renders 4 answer options", () => {
+  it("renders 4 play buttons (one per option)", () => {
     render(
       <ReviewQuizCard word={topicWords[0]} topicWords={topicWords} onAnswer={onAnswer} />
     );
-    const buttons = screen.getAllByRole("button");
-    // 4 answer buttons
-    expect(buttons).toHaveLength(4);
+    const playButtons = screen.getAllByRole("button", { name: /play/i });
+    expect(playButtons).toHaveLength(4);
   });
 
-  it("calls onAnswer(true) when correct option is selected", () => {
+  it("renders all 4 Arabic word options", () => {
     render(
       <ReviewQuizCard word={topicWords[0]} topicWords={topicWords} onAnswer={onAnswer} />
     );
-    const dogButton = screen.getByRole("button", { name: /dog/i });
-    fireEvent.click(dogButton);
+    expect(screen.getByText("كلب")).toBeInTheDocument();
+    expect(screen.getByText("قطة")).toBeInTheDocument();
+    expect(screen.getByText("طائر")).toBeInTheDocument();
+    expect(screen.getByText("سمكة")).toBeInTheDocument();
+  });
+
+  it("calls onAnswer(true) when correct Arabic option is selected", () => {
+    render(
+      <ReviewQuizCard word={topicWords[0]} topicWords={topicWords} onAnswer={onAnswer} />
+    );
+    const dogOption = screen.getByText("كلب").closest("[role='button']") as HTMLElement;
+    fireEvent.click(dogOption);
     expect(onAnswer).toHaveBeenCalledWith(true);
   });
 
-  it("calls onAnswer(false) when wrong option is selected", () => {
+  it("calls onAnswer(false) when wrong Arabic option is selected", () => {
     render(
       <ReviewQuizCard word={topicWords[0]} topicWords={topicWords} onAnswer={onAnswer} />
     );
-    const catButton = screen.getByRole("button", { name: /cat/i });
-    fireEvent.click(catButton);
+    const catOption = screen.getByText("قطة").closest("[role='button']") as HTMLElement;
+    fireEvent.click(catOption);
     expect(onAnswer).toHaveBeenCalledWith(false);
   });
 
@@ -67,31 +69,31 @@ describe("ReviewQuizCard", () => {
     render(
       <ReviewQuizCard word={topicWords[0]} topicWords={topicWords} onAnswer={onAnswer} />
     );
-    const dogButton = screen.getByRole("button", { name: /dog/i });
-    fireEvent.click(dogButton);
+    const dogOption = screen.getByText("كلب").closest("[role='button']") as HTMLElement;
+    fireEvent.click(dogOption);
     expect(screen.getByText(/correct/i)).toBeInTheDocument();
   });
 
-  it("shows correct answer on wrong selection", () => {
+  it("shows correct Arabic answer on wrong selection", () => {
     render(
       <ReviewQuizCard word={topicWords[0]} topicWords={topicWords} onAnswer={onAnswer} />
     );
-    const catButton = screen.getByRole("button", { name: /cat/i });
-    fireEvent.click(catButton);
-    expect(screen.getByText(/the answer was: dog/i)).toBeInTheDocument();
+    const catOption = screen.getByText("قطة").closest("[role='button']") as HTMLElement;
+    fireEvent.click(catOption);
+    expect(screen.getByText(/the answer was: كلب/i)).toBeInTheDocument();
   });
 
   it("does not call onAnswer again after the first selection (disabled)", () => {
     render(
       <ReviewQuizCard word={topicWords[0]} topicWords={topicWords} onAnswer={onAnswer} />
     );
-    const catButton = screen.getByRole("button", { name: /cat/i });
-    const dogButton = screen.getByRole("button", { name: /dog/i });
-    fireEvent.click(catButton);
-    // All answer buttons should be disabled after the first answer
-    expect(catButton).toBeDisabled();
-    expect(dogButton).toBeDisabled();
-    fireEvent.click(dogButton); // should be a no-op
+    const catOption = screen.getByText("قطة").closest("[role='button']") as HTMLElement;
+    const dogOption = screen.getByText("كلب").closest("[role='button']") as HTMLElement;
+    fireEvent.click(catOption);
+    // Options should be marked aria-disabled after the first answer
+    expect(catOption).toHaveAttribute("aria-disabled", "true");
+    expect(dogOption).toHaveAttribute("aria-disabled", "true");
+    fireEvent.click(dogOption); // should be a no-op
     expect(onAnswer).toHaveBeenCalledTimes(1);
   });
 });

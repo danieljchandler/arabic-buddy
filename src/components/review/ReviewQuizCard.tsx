@@ -1,8 +1,7 @@
-import { useState, useMemo } from "react";
-import { VocabularyCard } from "@/components/design-system";
+import { useState, useMemo, useCallback, useRef } from "react";
 import { VocabularyWord } from "@/hooks/useReview";
 import { cn } from "@/lib/utils";
-import { CheckCircle2, XCircle } from "lucide-react";
+import { CheckCircle2, XCircle, Volume2 } from "lucide-react";
 
 interface ReviewQuizCardProps {
   word: VocabularyWord;
@@ -25,10 +24,10 @@ const shuffleArray = <T,>(array: T[]): T[] => {
 };
 
 /**
- * ReviewQuizCard - Multiple-choice quiz card used during spaced repetition review.
+ * ReviewQuizCard - Second quiz mode used during spaced repetition review.
  *
- * Shows the word image and plays audio, then asks the user to select the correct
- * English translation from 4 options drawn from the same topic.
+ * Shows the word image (no audio), then asks the user to select the correct
+ * Arabic word from 4 options. Each option has a play button to hear the word.
  */
 export const ReviewQuizCard = ({
   word,
@@ -37,84 +36,128 @@ export const ReviewQuizCard = ({
   onAnswer,
   disabled,
 }: ReviewQuizCardProps) => {
-  const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showResult, setShowResult] = useState(false);
+  const playingAudioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Build up to 4 options: correct answer + up to 3 distractors.
-  // Prefer same-topic words; fall back to other-topic words if the topic is small.
+  // Build up to 4 options: correct word + up to 3 distractors (full word objects
+  // so we have access to word_arabic and audio_url for each option).
   // Memoised on word id so options don't reshuffle on re-renders.
   const options = useMemo(() => {
     const sameTopicPool = shuffleArray(topicWords.filter((w) => w.id !== word.id));
     const fallbackPool = shuffleArray(fallbackWords.filter((w) => w.id !== word.id));
-    const distractors = [...sameTopicPool, ...fallbackPool]
-      .slice(0, 3)
-      .map((w) => w.word_english);
-    return shuffleArray([word.word_english, ...distractors]);
+    const distractors = [...sameTopicPool, ...fallbackPool].slice(0, 3);
+    return shuffleArray([word, ...distractors]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [word.id]);
 
-  const handleSelect = (answer: string) => {
+  const handleSelect = (option: VocabularyWord) => {
     if (showResult || disabled) return;
-    const correct = answer === word.word_english;
-    setSelectedAnswer(answer);
+    const correct = option.id === word.id;
+    setSelectedId(option.id);
     setShowResult(true);
     onAnswer(correct);
   };
 
+  const playOptionAudio = useCallback((option: VocabularyWord, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!option.audio_url) return;
+    // Stop any currently playing option audio
+    if (playingAudioRef.current) {
+      playingAudioRef.current.pause();
+    }
+    const audio = new Audio(option.audio_url);
+    playingAudioRef.current = audio;
+    audio.onended = () => { playingAudioRef.current = null; };
+    audio.play().catch(() => { playingAudioRef.current = null; });
+  }, []);
+
   return (
     <div className="w-full max-w-sm mx-auto">
-      {/* Image + audio card (no Arabic text revealed yet) */}
-      <VocabularyCard
-        word={word}
-        showAnswer={false}
-        showTapHint={false}
-        showRepeatButton={true}
-        hintText="Tap to hear"
-      />
+      {/* Image only – no audio interaction */}
+      <div className="rounded-xl overflow-hidden border border-border bg-card aspect-[4/3] flex items-center justify-center mb-6">
+        {word.image_url ? (
+          <img
+            src={word.image_url}
+            alt=""
+            className="w-full h-full object-contain"
+            style={{
+              objectPosition: word.image_position
+                ? `${word.image_position.split(" ")[0]}% ${word.image_position.split(" ")[1]}%`
+                : "50% 50%",
+            }}
+          />
+        ) : (
+          <div className="w-16 h-16 rounded-full bg-muted-foreground/10 flex items-center justify-center">
+            <Volume2 className="w-8 h-8 text-muted-foreground/40" />
+          </div>
+        )}
+      </div>
 
-      {/* Multiple-choice options */}
-      <div className="mt-6">
-        <p className="text-center text-sm text-muted-foreground mb-3">
-          What does this word mean?
-        </p>
-        <div className="grid grid-cols-2 gap-3">
-          {options.map((option, index) => {
-            const isSelected = selectedAnswer === option;
-            const isCorrectAnswer = option === word.word_english;
+      {/* Arabic multiple-choice options with play buttons */}
+      <p className="text-center text-sm text-muted-foreground mb-3">
+        Which word matches the picture?
+      </p>
+      <div className="grid grid-cols-2 gap-3">
+        {options.map((option) => {
+          const isSelected = selectedId === option.id;
+          const isCorrectAnswer = option.id === word.id;
 
-            let style = "bg-card border border-border hover:border-primary";
-            if (showResult) {
-              if (isCorrectAnswer) {
-                style = "bg-success/20 border-2 border-success";
-              } else if (isSelected && !isCorrectAnswer) {
-                style = "bg-destructive/20 border-2 border-destructive";
-              }
+          let style = "bg-card border border-border hover:border-primary";
+          if (showResult) {
+            if (isCorrectAnswer) {
+              style = "bg-success/20 border-2 border-success";
+            } else if (isSelected && !isCorrectAnswer) {
+              style = "bg-destructive/20 border-2 border-destructive";
             }
+          }
 
-            return (
-              <button
-                key={index}
-                onClick={() => handleSelect(option)}
-                disabled={showResult || disabled}
-                className={cn(
-                  "p-3 rounded-xl text-sm font-medium transition-all duration-200",
-                  "flex items-center justify-center gap-2",
-                  style,
-                  !showResult && "hover:scale-[1.02] active:scale-[0.98]",
-                  "disabled:cursor-not-allowed"
-                )}
-              >
+          return (
+            <div
+              key={option.id}
+              role="button"
+              tabIndex={showResult || disabled ? -1 : 0}
+              onClick={!showResult && !disabled ? () => handleSelect(option) : undefined}
+              onKeyDown={
+                !showResult && !disabled
+                  ? (e) => e.key === "Enter" && handleSelect(option)
+                  : undefined
+              }
+              aria-disabled={showResult || disabled}
+              className={cn(
+                "p-3 rounded-xl text-sm font-medium transition-all duration-200",
+                "flex items-center justify-between gap-2",
+                style,
+                !showResult && !disabled && "cursor-pointer hover:scale-[1.02] active:scale-[0.98]",
+                (showResult || disabled) && "cursor-not-allowed"
+              )}
+            >
+              <div className="flex items-center gap-2 min-w-0">
                 {showResult && isCorrectAnswer && (
                   <CheckCircle2 className="h-4 w-4 text-success shrink-0" />
                 )}
                 {showResult && isSelected && !isCorrectAnswer && (
                   <XCircle className="h-4 w-4 text-destructive shrink-0" />
                 )}
-                {option}
+                <span className="text-lg font-bold font-arabic truncate" dir="rtl">
+                  {option.word_arabic}
+                </span>
+              </div>
+              <button
+                onClick={(e) => playOptionAudio(option, e)}
+                disabled={!option.audio_url}
+                aria-label={`Play ${option.word_arabic}`}
+                className={cn(
+                  "p-1.5 rounded-full bg-primary/10 hover:bg-primary/20 shrink-0",
+                  "transition-colors duration-150",
+                  !option.audio_url && "opacity-40 cursor-not-allowed"
+                )}
+              >
+                <Volume2 className="h-4 w-4 text-primary" />
               </button>
-            );
-          })}
-        </div>
+            </div>
+          );
+        })}
       </div>
 
       {/* Result feedback */}
@@ -123,14 +166,14 @@ export const ReviewQuizCard = ({
           className={cn(
             "mt-4 p-3 rounded-xl text-center text-sm font-semibold",
             "animate-in fade-in slide-in-from-bottom-4 duration-300",
-            selectedAnswer === word.word_english
+            selectedId === word.id
               ? "bg-success/20 text-success-foreground"
               : "bg-destructive/20 text-destructive-foreground"
           )}
         >
-          {selectedAnswer === word.word_english
+          {selectedId === word.id
             ? "Correct! أحسنت"
-            : `The answer was: ${word.word_english}`}
+            : `The answer was: ${word.word_arabic}`}
         </div>
       )}
     </div>

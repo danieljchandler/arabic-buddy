@@ -463,7 +463,50 @@ async function downloadViaCobalt(url: string): Promise<{ base64: string; content
   return null;
 }
 
-serve(async (req) => {
+/**
+ * Fetch YouTube auto-generated captions as a last resort when audio download fails.
+ */
+async function fetchYouTubeCaptions(videoId: string): Promise<{ text: string; lang: string } | null> {
+  const targets = [
+    { lang: 'ar', kind: 'asr' },   // auto-generated Arabic
+    { lang: 'ar', kind: '' },       // manual Arabic
+    { lang: 'ar-SA', kind: 'asr' },
+    { lang: 'ar-EG', kind: 'asr' },
+    { lang: 'ar-AE', kind: 'asr' },
+  ];
+
+  for (const target of targets) {
+    try {
+      const kindParam = target.kind ? `&kind=${target.kind}` : '';
+      const captionUrl = `https://www.youtube.com/api/timedtext?v=${videoId}&lang=${target.lang}${kindParam}&fmt=json3`;
+      console.log(`Trying captions: ${captionUrl}`);
+      const resp = await fetch(captionUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          'Referer': 'https://www.youtube.com/',
+        },
+      });
+      if (!resp.ok) { console.error(`Caption ${target.lang}/${target.kind}: ${resp.status}`); continue; }
+      const data = await resp.json();
+      if (!data.events || !Array.isArray(data.events)) continue;
+      const text = data.events
+        .filter((e: any) => e.segs)
+        .flatMap((e: any) => e.segs.map((s: any) => (s.utf8 || '').replace('\n', ' ')))
+        .join(' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+      if (text && text.length > 20) {
+        console.log(`Got captions (${target.lang}): ${text.substring(0, 80)}...`);
+        return { text, lang: target.lang };
+      }
+    } catch (e) {
+      console.error(`Caption error ${target.lang}/${target.kind}:`, e);
+    }
+  }
+  return null;
+}
+
+
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -592,6 +635,20 @@ serve(async (req) => {
           }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
+      }
+    }
+
+    // Strategy 5: YouTube captions as last resort (no audio download needed)
+    if (isYouTubeUrl(normalizedUrl)) {
+      const videoId = extractYouTubeVideoId(normalizedUrl);
+      if (videoId) {
+        const captions = await fetchYouTubeCaptions(videoId);
+        if (captions) {
+          return new Response(
+            JSON.stringify({ captionsText: captions.text, captionsLang: captions.lang }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
       }
     }
 

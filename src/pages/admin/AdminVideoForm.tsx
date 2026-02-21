@@ -187,6 +187,14 @@ const AdminVideoForm = () => {
         const realMsg = body?.error || body?.message || error.message;
         throw new Error(realMsg);
       }
+      // Captions fallback: YouTube auto-captions returned instead of audio
+      if (data?.captionsText) {
+        toast.success("Audio unavailable — using YouTube captions instead.");
+        setIsDownloading(false);
+        await handleProcess(undefined, data.captionsText);
+        return;
+      }
+
       if (!data?.audioBase64) throw new Error("No audio found");
 
       const binaryStr = atob(data.audioBase64);
@@ -225,8 +233,8 @@ const AdminVideoForm = () => {
       });
       if (downloadError) {
         console.error("download-media error:", downloadError);
-        const ctx = (downloadError as any)?.context;
-        const realMsg = ctx?.error || ctx?.message || downloadError.message;
+        const body = (downloadError as any)?.context?.body;
+        const realMsg = body?.error || body?.message || downloadError.message;
         throw new Error(realMsg);
       }
       if (!downloadData?.audioBase64) throw new Error("No audio found");
@@ -259,9 +267,9 @@ const AdminVideoForm = () => {
     }
   };
 
-  const handleProcess = async (fileOverride?: File) => {
+  const handleProcess = async (fileOverride?: File, rawTextOverride?: string) => {
     const targetFile = fileOverride ?? audioFile;
-    if (!targetFile) {
+    if (!rawTextOverride && !targetFile) {
       toast.error("Download audio first");
       return;
     }
@@ -274,10 +282,13 @@ const AdminVideoForm = () => {
       const projectUrl = import.meta.env.VITE_SUPABASE_URL;
 
       // Try Munsit first (Arabic-specialized), fall back to Deepgram
-      let rawText = "";
+      let rawText = rawTextOverride ?? "";
       let relativeWords: any[] = [];
 
-      toast.info("Transcribing with Munsit (Arabic)...");
+      if (rawTextOverride) {
+        toast.info("Using YouTube captions, analyzing...");
+      } else if (targetFile) {
+        toast.info("Transcribing with Munsit (Arabic)...");
       try {
         const munsitFormData = new FormData();
         munsitFormData.append("audio", targetFile);
@@ -330,6 +341,7 @@ const AdminVideoForm = () => {
           end: Math.max(0, w.end - clipOffsetSec),
         }));
       }
+      } // end else if (transcription branch)
 
       // Step 3: Analyze with Gemini/Falcon
       toast.info("Analyzing transcript...");

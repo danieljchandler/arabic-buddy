@@ -9,6 +9,7 @@ import {
 } from "@/hooks/useReview";
 import { ReviewCard } from "@/components/review/ReviewCard";
 import { ReviewQuizCard } from "@/components/review/ReviewQuizCard";
+import { ReviewImageQuizCard } from "@/components/review/ReviewImageQuizCard";
 import { HomeButton } from "@/components/HomeButton";
 import { Button } from "@/components/design-system";
 import { AppShell } from "@/components/layout/AppShell";
@@ -156,6 +157,9 @@ const Review = () => {
   // A word is "new" (learn mode) when it has never been successfully reviewed.
   const isNewWord = !currentWord.review || currentWord.review.repetitions === 0;
 
+  // First quiz: audio was heard during learn mode; now test picture recognition.
+  const isFirstQuiz = currentWord.review?.repetitions === 1;
+
   // Words from the same topic used as multiple-choice distractors.
   const topicWords =
     allWords?.filter((w) => w.topic_id === currentWord.topic_id) ?? [];
@@ -224,8 +228,17 @@ const Review = () => {
               </Button>
             </div>
           </div>
+        ) : isFirstQuiz ? (
+          /* ── FIRST QUIZ: hear audio → select correct picture ─────────── */
+          <ReviewImageQuizCard
+            word={currentWord}
+            topicWords={topicWords}
+            fallbackWords={fallbackWords}
+            onAnswer={handleQuizAnswer}
+            disabled={submitReview.isPending || answerPending}
+          />
         ) : (
-          /* ── QUIZ MODE: multiple-choice review ───────────────────────── */
+          /* ── SECOND QUIZ: see picture → select correct Arabic word ───── */
           <ReviewQuizCard
             word={currentWord}
             topicWords={topicWords}

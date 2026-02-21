@@ -181,7 +181,12 @@ const AdminVideoForm = () => {
       const { data, error } = await supabase.functions.invoke("download-media", {
         body: { url: sourceUrl },
       });
-      if (error) throw new Error(error.message);
+      if (error) {
+        console.error("download-media error:", error);
+        const body = (error as any)?.context?.body;
+        const realMsg = body?.error || body?.message || error.message;
+        throw new Error(realMsg);
+      }
       if (!data?.audioBase64) throw new Error("No audio found");
 
       const binaryStr = atob(data.audioBase64);
@@ -218,7 +223,12 @@ const AdminVideoForm = () => {
       const { data: downloadData, error: downloadError } = await supabase.functions.invoke("download-media", {
         body: { url: sourceUrl },
       });
-      if (downloadError) throw new Error(downloadError.message);
+      if (downloadError) {
+        console.error("download-media error:", downloadError);
+        const ctx = (downloadError as any)?.context;
+        const realMsg = ctx?.error || ctx?.message || downloadError.message;
+        throw new Error(realMsg);
+      }
       if (!downloadData?.audioBase64) throw new Error("No audio found");
 
       const binaryStr = atob(downloadData.audioBase64);

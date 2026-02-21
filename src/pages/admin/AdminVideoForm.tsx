@@ -187,14 +187,6 @@ const AdminVideoForm = () => {
         const realMsg = body?.error || body?.message || error.message;
         throw new Error(realMsg);
       }
-      // Captions fallback: YouTube auto-captions returned instead of audio
-      if (data?.captionsText) {
-        toast.success("Audio unavailable — using YouTube captions instead.");
-        setIsDownloading(false);
-        await handleProcess(undefined, data.captionsText);
-        return;
-      }
-
       if (!data?.audioBase64) throw new Error("No audio found");
 
       const binaryStr = atob(data.audioBase64);
@@ -267,9 +259,9 @@ const AdminVideoForm = () => {
     }
   };
 
-  const handleProcess = async (fileOverride?: File, rawTextOverride?: string) => {
+  const handleProcess = async (fileOverride?: File) => {
     const targetFile = fileOverride ?? audioFile;
-    if (!rawTextOverride && !targetFile) {
+    if (!targetFile) {
       toast.error("Download audio first");
       return;
     }
@@ -282,13 +274,10 @@ const AdminVideoForm = () => {
       const projectUrl = import.meta.env.VITE_SUPABASE_URL;
 
       // Try Munsit first (Arabic-specialized), fall back to Deepgram
-      let rawText = rawTextOverride ?? "";
+      let rawText = "";
       let relativeWords: any[] = [];
 
-      if (rawTextOverride) {
-        toast.info("Using YouTube captions, analyzing...");
-      } else if (targetFile) {
-        toast.info("Transcribing with Munsit (Arabic)...");
+      toast.info("Transcribing with Munsit (Arabic)...");
       try {
         const munsitFormData = new FormData();
         munsitFormData.append("audio", targetFile);
@@ -341,7 +330,6 @@ const AdminVideoForm = () => {
           end: Math.max(0, w.end - clipOffsetSec),
         }));
       }
-      } // end else if (transcription branch)
 
       // Step 3: Analyze with Gemini/Falcon
       toast.info("Analyzing transcript...");

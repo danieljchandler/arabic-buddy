@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { VocabularyWord } from "@/hooks/useTopic";
-import { QuizMode } from "@/pages/Quiz";
+
+export type QuizMode = "multiple-choice" | "typing";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";

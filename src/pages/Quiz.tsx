@@ -4,17 +4,14 @@ import { useTopic, VocabularyWord } from "@/hooks/useTopic";
 import { HomeButton } from "@/components/HomeButton";
 import { Button } from "@/components/design-system";
 import { AppShell } from "@/components/layout/AppShell";
-import { cn } from "@/lib/utils";
 import { Loader2 } from "lucide-react";
-import { QuizQuestion } from "@/components/quiz/QuizQuestion";
+import { QuizCard } from "@/components/learn/QuizCard";
 import { QuizResults } from "@/components/quiz/QuizResults";
-
-export type QuizMode = "multiple-choice" | "typing";
 
 interface QuizState {
   currentIndex: number;
   score: number;
-  answers: { word: VocabularyWord; correct: boolean; userAnswer: string }[];
+  answers: { word: VocabularyWord; correct: boolean }[];
   isComplete: boolean;
 }
 
@@ -32,7 +29,6 @@ const Quiz = () => {
   const navigate = useNavigate();
   const { data: topic, isLoading, error } = useTopic(topicId);
   
-  const [mode, setMode] = useState<QuizMode | null>(null);
   const [shuffledWords, setShuffledWords] = useState<VocabularyWord[]>([]);
   const [quizState, setQuizState] = useState<QuizState>({
     currentIndex: 0,
@@ -56,24 +52,21 @@ const Quiz = () => {
         answers: [],
         isComplete: false,
       });
-      setMode(null);
     }
   }, [topic]);
 
-  const handleAnswer = (isCorrect: boolean, userAnswer: string) => {
+  const handleAnswer = (isCorrect: boolean) => {
     const currentWord = shuffledWords[quizState.currentIndex];
-    const newAnswers = [...quizState.answers, { word: currentWord, correct: isCorrect, userAnswer }];
+    const newAnswers = [...quizState.answers, { word: currentWord, correct: isCorrect }];
     const newScore = isCorrect ? quizState.score + 1 : quizState.score;
     const isLastQuestion = quizState.currentIndex >= shuffledWords.length - 1;
 
-    setTimeout(() => {
-      setQuizState({
-        currentIndex: isLastQuestion ? quizState.currentIndex : quizState.currentIndex + 1,
-        score: newScore,
-        answers: newAnswers,
-        isComplete: isLastQuestion,
-      });
-    }, 1500);
+    setQuizState({
+      currentIndex: isLastQuestion ? quizState.currentIndex : quizState.currentIndex + 1,
+      score: newScore,
+      answers: newAnswers,
+      isComplete: isLastQuestion,
+    });
   };
 
   if (isLoading) {
@@ -114,74 +107,6 @@ const Quiz = () => {
             Quiz requires at least 4 words.
           </p>
           <Button onClick={() => navigate("/")}>Go Home</Button>
-        </div>
-      </AppShell>
-    );
-  }
-
-  // Mode selection screen
-  if (!mode) {
-    return (
-      <AppShell compact>
-        <div className="flex items-center justify-between mb-8">
-          <HomeButton />
-          <div className="px-4 py-2 rounded-lg bg-card border border-border">
-            <span className="text-sm font-semibold text-foreground font-arabic">
-              {topic.name_arabic}
-            </span>
-          </div>
-          <div className="w-11" />
-        </div>
-        
-        <div className="max-w-sm mx-auto text-center py-8">
-          <h2 className="text-xl font-bold text-foreground mb-2 font-arabic">اختبار</h2>
-          <p className="text-muted-foreground mb-8">Choose quiz mode</p>
-          
-          <div className="space-y-3">
-            <button
-              onClick={() => setMode("multiple-choice")}
-              className={cn(
-                "w-full p-5 rounded-xl text-left",
-                "bg-card border border-border",
-                "transition-all duration-200",
-                "hover:border-primary/30"
-              )}
-            >
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center text-lg">
-                  ○
-                </div>
-                <div>
-                  <p className="font-semibold text-foreground">Multiple Choice</p>
-                  <p className="text-sm text-muted-foreground">Pick the correct answer</p>
-                </div>
-              </div>
-            </button>
-            
-            <button
-              onClick={() => setMode("typing")}
-              className={cn(
-                "w-full p-5 rounded-xl text-left",
-                "bg-card border border-border",
-                "transition-all duration-200",
-                "hover:border-primary/30"
-              )}
-            >
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center text-lg">
-                  ⌨
-                </div>
-                <div>
-                  <p className="font-semibold text-foreground">Type Answer</p>
-                  <p className="text-sm text-muted-foreground">Write the English word</p>
-                </div>
-              </div>
-            </button>
-          </div>
-          
-          <p className="mt-8 text-sm text-muted-foreground">
-            {shuffledWords.length} questions
-          </p>
         </div>
       </AppShell>
     );
@@ -230,9 +155,8 @@ const Quiz = () => {
       </div>
 
       <div className="py-4">
-        <QuizQuestion
-          mode={mode}
-          currentWord={currentWord}
+        <QuizCard
+          word={currentWord}
           otherWords={otherWords}
           gradient={topic.gradient}
           onAnswer={handleAnswer}

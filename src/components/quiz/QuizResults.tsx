@@ -8,7 +8,7 @@ interface QuizResultsProps {
   topic: TopicWithWords;
   quizState: {
     score: number;
-    answers: { word: VocabularyWord; correct: boolean; userAnswer: string }[];
+    answers: { word: VocabularyWord; correct: boolean; userAnswer?: string }[];
   };
   onRestart: () => void;
   onHome: () => void;
@@ -89,8 +89,12 @@ export const QuizResults = ({ topic, quizState, onRestart, onHome }: QuizResults
                       answer.word.word_english
                     ) : (
                       <>
-                        <span className="text-destructive line-through">{answer.userAnswer}</span>
-                        {" → "}
+                        {answer.userAnswer && (
+                          <>
+                            <span className="text-destructive line-through">{answer.userAnswer}</span>
+                            {" → "}
+                          </>
+                        )}
                         <span className="text-success">{answer.word.word_english}</span>
                       </>
                     )}

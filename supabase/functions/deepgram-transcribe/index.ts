@@ -40,13 +40,28 @@ serve(async (req) => {
       throw new Error("DEEPGRAM_API_KEY is not configured");
     }
 
-    let audioBytes: ArrayBuffer | null = null;
-    let audioMimeType = "audio/mpeg";
+    const deepgramParams = new URLSearchParams({
+      model: "nova-3",
+      language: "ar",
+      diarize: "true",
+      punctuate: "true",
+      smart_format: "true",
+    });
+    const deepgramUrl = `https://api.deepgram.com/v1/listen?${deepgramParams}`;
 
     const contentType = req.headers.get("content-type") || "";
 
+    console.log("Sending request to Deepgram API...");
+    const startTime = Date.now();
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), DEEPGRAM_TIMEOUT_MS);
+
+    let response: Response;
+
     if (contentType.includes("application/json")) {
-      // URL-based input — download first so we control headers (avoids CDN 403s)
+      // URL-based input: pass the URL directly to Deepgram so it fetches the file
+      // itself. This avoids buffering large video files in the edge function.
       const body = await req.json();
       const { audioUrl } = body;
 
@@ -57,31 +72,19 @@ serve(async (req) => {
         );
       }
 
-      console.log(`Fetching audio from URL: ${audioUrl.substring(0, 100)}...`);
+      console.log(`Passing URL to Deepgram: ${audioUrl.substring(0, 100)}...`);
 
-      const audioResponse = await fetch(audioUrl, {
+      response = await fetch(deepgramUrl, {
+        method: "POST",
         headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Referer': new URL(audioUrl).origin + '/',
-          'Accept': '*/*',
+          "Authorization": `Token ${DEEPGRAM_API_KEY}`,
+          "Content-Type": "application/json",
         },
+        body: JSON.stringify({ url: audioUrl }),
+        signal: controller.signal,
       });
-
-      if (!audioResponse.ok) {
-        console.error(`Failed to fetch audio: ${audioResponse.status}`);
-        return new Response(
-          JSON.stringify({ error: "Failed to fetch audio from URL", status: audioResponse.status }),
-          { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      const audioBlob = await audioResponse.blob();
-      audioMimeType = audioBlob.type || "audio/mpeg";
-      audioBytes = await audioBlob.arrayBuffer();
-      const fileSizeMB = (audioBytes.byteLength / (1024 * 1024)).toFixed(2);
-      console.log(`Downloaded audio: ${fileSizeMB} MB, type: ${audioMimeType}`);
     } else {
-      // FormData-based input
+      // FormData-based input: buffer and forward bytes (small audio files only)
       const formData = await req.formData();
       const audioFile = (formData.get("audio") || formData.get("file")) as File;
 
@@ -92,42 +95,21 @@ serve(async (req) => {
         );
       }
 
-      audioMimeType = audioFile.type || "audio/mpeg";
-      audioBytes = await audioFile.arrayBuffer();
+      const audioMimeType = audioFile.type || "audio/mpeg";
+      const audioBytes = await audioFile.arrayBuffer();
       const fileSizeMB = (audioBytes.byteLength / (1024 * 1024)).toFixed(2);
       console.log(`Processing file: ${audioFile.name}, size: ${fileSizeMB} MB, type: ${audioMimeType}`);
+
+      response = await fetch(deepgramUrl, {
+        method: "POST",
+        headers: {
+          "Authorization": `Token ${DEEPGRAM_API_KEY}`,
+          "Content-Type": audioMimeType,
+        },
+        body: audioBytes,
+        signal: controller.signal,
+      });
     }
-
-    if (!audioBytes) {
-      return new Response(
-        JSON.stringify({ error: "No audio data" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Call Deepgram pre-recorded audio API
-    const deepgramUrl = new URL("https://api.deepgram.com/v1/listen");
-    deepgramUrl.searchParams.set("model", "nova-3");
-    deepgramUrl.searchParams.set("language", "ar");
-    deepgramUrl.searchParams.set("diarize", "true");
-    deepgramUrl.searchParams.set("punctuate", "true");
-    deepgramUrl.searchParams.set("smart_format", "true");
-
-    console.log("Sending request to Deepgram API...");
-    const startTime = Date.now();
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), DEEPGRAM_TIMEOUT_MS);
-
-    const response = await fetch(deepgramUrl.toString(), {
-      method: "POST",
-      headers: {
-        "Authorization": `Token ${DEEPGRAM_API_KEY}`,
-        "Content-Type": audioMimeType,
-      },
-      body: audioBytes,
-      signal: controller.signal,
-    });
 
     clearTimeout(timeoutId);
     const elapsedSec = ((Date.now() - startTime) / 1000).toFixed(1);

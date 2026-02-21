@@ -183,8 +183,14 @@ const AdminVideoForm = () => {
       });
       if (error) {
         console.error("download-media error:", error);
-        const body = (error as any)?.context?.body;
-        const realMsg = body?.error || body?.message || error.message;
+        let realMsg = error.message;
+        try {
+          const resp = (error as any)?.context;
+          if (resp && typeof resp.json === "function") {
+            const body = await resp.json();
+            realMsg = body?.error || body?.message || realMsg;
+          }
+        } catch { /* ignore parse errors */ }
         throw new Error(realMsg);
       }
       if (!data?.audioBase64) throw new Error("No audio found");
@@ -225,8 +231,14 @@ const AdminVideoForm = () => {
       });
       if (downloadError) {
         console.error("download-media error:", downloadError);
-        const ctx = (downloadError as any)?.context;
-        const realMsg = ctx?.error || ctx?.message || downloadError.message;
+        let realMsg = downloadError.message;
+        try {
+          const resp = (downloadError as any)?.context;
+          if (resp && typeof resp.json === "function") {
+            const body = await resp.json();
+            realMsg = body?.error || body?.message || realMsg;
+          }
+        } catch { /* ignore parse errors */ }
         throw new Error(realMsg);
       }
       if (!downloadData?.audioBase64) throw new Error("No audio found");

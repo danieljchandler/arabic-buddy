@@ -156,6 +156,7 @@ const Quiz = () => {
 
       <div className="py-4">
         <QuizCard
+          key={currentWord.id}
           word={currentWord}
           otherWords={otherWords}
           gradient={topic.gradient}

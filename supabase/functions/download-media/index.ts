@@ -79,8 +79,8 @@ async function downloadYouTubeViaRapidApi(url: string): Promise<{ base64: string
   const resultA = await tryRapidApiMp36(videoId, apiKey);
   if (resultA) return resultA;
 
-  // Strategy B: youtube-media-downloader
-  const resultB = await tryRapidApiMediaDownloader(videoId, apiKey);
+  // Strategy B: youtube-mp3-2025 (streams through its own CDN, avoids IP-lock)
+  const resultB = await tryRapidApiMp3_2025(videoId, apiKey);
   if (resultB) return resultB;
 
   return null;
@@ -129,66 +129,51 @@ async function tryRapidApiMp36(videoId: string, apiKey: string): Promise<{ base6
   }
 }
 
-async function tryRapidApiMediaDownloader(videoId: string, apiKey: string): Promise<{ base64: string; contentType: string; size: number; filename: string } | null> {
-  console.log(`Trying RapidAPI (youtube-media-downloader) for video: ${videoId}`);
+async function tryRapidApiMp3_2025(videoId: string, apiKey: string): Promise<{ base64: string; contentType: string; size: number; filename: string } | null> {
+  console.log(`Trying RapidAPI (youtube-mp3-2025) for video: ${videoId}`);
   try {
-    const resp = await fetch(`https://youtube-media-downloader.p.rapidapi.com/v2/video/details?videoId=${videoId}`, {
+    const resp = await fetch('https://youtube-mp3-2025.p.rapidapi.com/v1/social/youtube/audio', {
+      method: 'POST',
       headers: {
+        'Content-Type': 'application/json',
         'X-RapidAPI-Key': apiKey,
-        'X-RapidAPI-Host': 'youtube-media-downloader.p.rapidapi.com',
+        'X-RapidAPI-Host': 'youtube-mp3-2025.p.rapidapi.com',
       },
+      body: JSON.stringify({
+        url: `https://www.youtube.com/watch?v=${videoId}`,
+        quality: '128kbps',
+        ext: 'mp3',
+      }),
     });
 
     if (!resp.ok) {
-      console.error(`RapidAPI media-downloader returned ${resp.status}`);
+      console.error(`RapidAPI mp3-2025 returned ${resp.status}`);
       const text = await resp.text();
-      console.error(`Response: ${text.substring(0, 200)}`);
+      console.error(`Response: ${text.substring(0, 300)}`);
       return null;
     }
 
     const data = await resp.json();
-    
-    // Try audio formats first
-    const audios = data.audios?.items || [];
-    const videos = data.videos?.items || [];
-    
-    // Sort audios by quality (prefer higher)
-    const sortedAudios = audios
-      .filter((a: any) => a.url)
-      .sort((a: any, b: any) => (parseInt(b.quality) || 0) - (parseInt(a.quality) || 0));
-    
-    for (const audio of sortedAudios.slice(0, 3)) {
-      console.log(`Trying audio format: ${audio.quality}, ${audio.extension}`);
-      const audioData = await downloadAsBase64(audio.url, 'https://www.youtube.com/');
-      if (audioData) {
-        const ext = audio.extension || 'mp3';
-        return { ...audioData, filename: `youtube_${videoId}.${ext}` };
-      }
+    console.log(`RapidAPI mp3-2025 response keys: ${Object.keys(data).join(', ')}`);
+
+    // The API may return a direct download URL or stream URL
+    const downloadUrl = data.url || data.link || data.download_url || data.audioUrl;
+    if (!downloadUrl) {
+      console.error('RapidAPI mp3-2025: no download URL in response:', JSON.stringify(data).substring(0, 300));
+      return null;
     }
 
-    // Fallback to lowest quality video
-    const sortedVideos = videos
-      .filter((v: any) => v.url && v.hasAudio)
-      .sort((a: any, b: any) => (parseInt(a.quality) || 0) - (parseInt(b.quality) || 0));
-    
-    for (const video of sortedVideos.slice(0, 2)) {
-      const size = parseInt(video.size || '0');
-      if (size > MAX_FILE_SIZE) continue;
-      console.log(`Trying video format: ${video.quality}`);
-      const videoData = await downloadAsBase64(video.url, 'https://www.youtube.com/');
-      if (videoData) {
-        return { ...videoData, filename: `youtube_${videoId}.mp4` };
-      }
+    console.log(`RapidAPI mp3-2025 download URL: ${downloadUrl.substring(0, 120)}...`);
+    const audioData = await downloadAsBase64(downloadUrl);
+    if (audioData) {
+      return { ...audioData, filename: `youtube_${videoId}.mp3` };
     }
-
-    console.error('RapidAPI media-downloader: no downloadable formats found');
     return null;
   } catch (e) {
-    console.error('RapidAPI media-downloader error:', e);
+    console.error('RapidAPI mp3-2025 error:', e);
     return null;
   }
 }
-
 /**
  * YouTube-specific download using loader.to (free, no key), then Innertube API
  * with multiple client strategies (ANDROID, IOS, TVHTML5_SIMPLY_EMBEDDED)

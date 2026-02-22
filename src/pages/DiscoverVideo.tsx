@@ -11,7 +11,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Loader2, ArrowLeft, BookOpen, Check, Eye, EyeOff, ChevronDown, List, Pause, Play, SkipBack, SkipForward, Captions, Gauge } from "lucide-react";
+import { Loader2, ArrowLeft, BookOpen, Check, Eye, EyeOff, ChevronDown, ChevronLeft, ChevronRight, List, Pause, Play, SkipBack, SkipForward, Captions, Gauge } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -644,45 +644,79 @@ const DiscoverVideo = () => {
         )}
       </div>
 
-      {/* Active subtitle display */}
+      {/* Active subtitle display with navigation arrows */}
       {!isTikTok && (
         <div className="px-4 py-4 border-b border-border bg-card/50 min-h-[80px]">
-          <div className="flex flex-col justify-center">
-            {activeLine ? (
-              <div className="text-center space-y-1.5">
-                <p
-                  className="text-lg font-medium text-foreground leading-[2]"
-                  dir="rtl"
-                  style={{ fontFamily: "'Cairo', 'Traditional Arabic', sans-serif" }}
-                >
-                  {activeLine.tokens && activeLine.tokens.length > 0
-                    ? activeLine.tokens.map((token, i) => (
-                        <span key={token.id} className="inline">
-                          <ClickableWord
-                            token={token}
-                            parentLine={activeLine}
-                            onSave={isAuthenticated ? handleSaveToMyWords : undefined}
-                            isSaved={savedWords?.has(token.surface)}
-                          />
-                          {i < activeLine.tokens.length - 1 && !/^[،؟.!:؛]+$/.test(token.surface) && " "}
-                        </span>
-                      ))
-                    : activeLine.arabic}
-                </p>
-                {showTranslations && activeLine.translation && (
+          <div className="flex items-center gap-2">
+            {/* Previous line arrow */}
+            <button
+              onClick={() => playLineByIndex(lineControlIndex - 1)}
+              disabled={lineControlIndex <= 0 || lines.length === 0}
+              className={cn(
+                "shrink-0 w-10 h-10 rounded-full flex items-center justify-center",
+                "bg-muted/60 transition-all duration-200",
+                "hover:bg-muted active:scale-95",
+                "disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-muted/60"
+              )}
+              aria-label="Previous line"
+            >
+              <ChevronLeft className="h-5 w-5 text-foreground" />
+            </button>
+
+            {/* Active line content */}
+            <div className="flex-1 min-w-0">
+              {activeLine ? (
+                <div className="text-center space-y-1.5">
                   <p
-                    className="text-sm text-muted-foreground leading-relaxed"
-                    style={{ fontFamily: "'Open Sans', sans-serif" }}
+                    className="text-lg font-medium text-foreground leading-[2]"
+                    dir="rtl"
+                    style={{ fontFamily: "'Cairo', 'Traditional Arabic', sans-serif" }}
                   >
-                    {activeLine.translation}
+                    {activeLine.tokens && activeLine.tokens.length > 0
+                      ? activeLine.tokens.map((token, i) => (
+                          <span key={token.id} className="inline">
+                            <ClickableWord
+                              token={token}
+                              parentLine={activeLine}
+                              onSave={isAuthenticated ? handleSaveToMyWords : undefined}
+                              isSaved={savedWords?.has(token.surface)}
+                            />
+                            {i < activeLine.tokens.length - 1 && !/^[،؟.!:؛]+$/.test(token.surface) && " "}
+                          </span>
+                        ))
+                      : activeLine.arabic}
                   </p>
-                )}
-              </div>
-            ) : (
-              <p className="text-center text-sm text-muted-foreground italic">
-                {lines.length > 0 ? (isYouTube ? "Play video to see subtitles" : "Tap play on the video to begin") : "No transcript available"}
-              </p>
-            )}
+                  {showTranslations && activeLine.translation && (
+                    <p
+                      className="text-sm text-muted-foreground leading-relaxed"
+                      style={{ fontFamily: "'Open Sans', sans-serif" }}
+                    >
+                      {activeLine.translation}
+                    </p>
+                  )}
+                  <p className="text-xs text-muted-foreground/60">{lineControlIndex + 1} / {lines.length}</p>
+                </div>
+              ) : (
+                <p className="text-center text-sm text-muted-foreground italic">
+                  {lines.length > 0 ? (isYouTube ? "Play video to see subtitles" : "Tap play on the video to begin") : "No transcript available"}
+                </p>
+              )}
+            </div>
+
+            {/* Next line arrow */}
+            <button
+              onClick={() => playLineByIndex(lineControlIndex + 1)}
+              disabled={lineControlIndex >= lines.length - 1 || lines.length === 0}
+              className={cn(
+                "shrink-0 w-10 h-10 rounded-full flex items-center justify-center",
+                "bg-muted/60 transition-all duration-200",
+                "hover:bg-muted active:scale-95",
+                "disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-muted/60"
+              )}
+              aria-label="Next line"
+            >
+              <ChevronRight className="h-5 w-5 text-foreground" />
+            </button>
           </div>
         </div>
       )}

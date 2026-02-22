@@ -11,13 +11,7 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Require an Authorization header (Supabase clients always send one)
-  const authHeader = req.headers.get('Authorization');
-  if (!authHeader?.startsWith('Bearer ')) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-      status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
-  }
+  // Auth is handled at the gateway level via verify_jwt config
   try {
     const { text, voiceId = "JBFqnCBsd6RMkjVDRZzb" } = await req.json();
     

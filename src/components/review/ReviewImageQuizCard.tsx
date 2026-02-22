@@ -38,6 +38,8 @@ export const ReviewImageQuizCard = ({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showResult, setShowResult] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [ttsUrl, setTtsUrl] = useState<string | null>(null);
+  const [ttsLoading, setTtsLoading] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Build 4 image options: correct word + up to 3 distractors.
@@ -50,25 +52,67 @@ export const ReviewImageQuizCard = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [word.id]);
 
+  // Generate TTS when no stored audio_url exists
+  useEffect(() => {
+    if (word.audio_url) return;
+    let cancelled = false;
+    setTtsLoading(true);
+    const generate = async () => {
+      try {
+        const response = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/elevenlabs-tts`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+              Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            },
+            body: JSON.stringify({ text: word.word_arabic }),
+          }
+        );
+        if (!cancelled && response.ok) {
+          const blob = await response.blob();
+          setTtsUrl(URL.createObjectURL(blob));
+        }
+      } catch {
+        // TTS fallback failed silently
+      } finally {
+        if (!cancelled) setTtsLoading(false);
+      }
+    };
+    generate();
+    return () => { cancelled = true; };
+  }, [word.id, word.audio_url, word.word_arabic]);
+
+  const effectiveAudioUrl = word.audio_url || ttsUrl;
+
   const playAudio = useCallback(() => {
-    if (isPlaying || !word.audio_url) return;
-    // Stop any currently playing audio before starting a new one
+    if (isPlaying || !effectiveAudioUrl) return;
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.onended = null;
       audioRef.current.onerror = null;
     }
     setIsPlaying(true);
-    const audio = new Audio(word.audio_url);
+    const audio = new Audio(effectiveAudioUrl);
     audioRef.current = audio;
     audio.onended = () => setIsPlaying(false);
     audio.onerror = () => setIsPlaying(false);
     audio.play().catch(() => setIsPlaying(false));
-  }, [word.audio_url, isPlaying]);
+  }, [effectiveAudioUrl, isPlaying]);
 
-  // Auto-play audio when the word changes; stop on unmount.
+  // Auto-play audio when the word changes or TTS becomes available; stop on unmount.
+  const hasAutoPlayed = useRef(false);
   useEffect(() => {
-    playAudio();
+    hasAutoPlayed.current = false;
+  }, [word.id]);
+
+  useEffect(() => {
+    if (effectiveAudioUrl && !hasAutoPlayed.current) {
+      hasAutoPlayed.current = true;
+      playAudio();
+    }
     return () => {
       if (audioRef.current) {
         audioRef.current.pause();
@@ -78,7 +122,7 @@ export const ReviewImageQuizCard = ({
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [word.id]);
+  }, [effectiveAudioUrl]);
 
   const handleSelect = (option: VocabularyWord) => {
     if (showResult || disabled) return;
@@ -94,13 +138,14 @@ export const ReviewImageQuizCard = ({
       <div className="text-center mb-6">
         <button
           onClick={playAudio}
-          disabled={isPlaying || !word.audio_url}
+          disabled={isPlaying || ttsLoading || !effectiveAudioUrl}
           aria-label="Play word audio"
           className={cn(
             "w-20 h-20 rounded-full bg-primary flex items-center justify-center mx-auto shadow-button",
             "transition-all duration-200 hover:scale-110 active:scale-95",
             isPlaying && "animate-pulse-glow",
-            (!word.audio_url) && "opacity-50 cursor-not-allowed"
+            ttsLoading && "animate-pulse",
+            (!effectiveAudioUrl && !ttsLoading) && "opacity-50 cursor-not-allowed"
           )}
         >
           <Volume2 className="w-10 h-10 text-primary-foreground" />

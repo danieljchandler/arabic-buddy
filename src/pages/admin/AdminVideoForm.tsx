@@ -583,7 +583,18 @@ const AdminVideoForm = () => {
                     ) : isProcessing ? (
                       <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Transcribing...</>
                     ) : (
-                      <><Download className="h-4 w-4 mr-2" />Download Audio and Transcribe</>
+                      <><Download className="h-4 w-4 mr-2" />{isEditing ? "Download & Re-transcribe" : "Download Audio and Transcribe"}</>
+                    )}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={handleDownloadAudio}
+                    disabled={!sourceUrl || isDownloading || isProcessing}
+                  >
+                    {isDownloading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <><Download className="h-4 w-4 mr-2" />Audio Only</>
                     )}
                   </Button>
                   <Button
@@ -695,7 +706,36 @@ const AdminVideoForm = () => {
             <CardHeader>
               <CardTitle className="text-lg">Transcript</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
+              {!stableAudioUrl && (
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 border border-border">
+                  <p className="text-sm text-muted-foreground flex-1">
+                    Load audio to listen to each line and verify timestamps.
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleDownloadAudio}
+                    disabled={!sourceUrl || isDownloading}
+                  >
+                    {isDownloading ? (
+                      <><Loader2 className="h-3 w-3 mr-2 animate-spin" />Loading...</>
+                    ) : (
+                      <><Download className="h-3 w-3 mr-2" />Load Audio</>
+                    )}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => document.getElementById("audio-upload-transcript")?.click()}
+                    disabled={isDownloading}
+                  >
+                    <Upload className="h-3 w-3 mr-2" />
+                    Upload
+                  </Button>
+                  <input id="audio-upload-transcript" type="file" accept="audio/*,video/*" className="hidden" aria-label="Upload audio or video file for transcript playback" onChange={handleFileUpload} />
+                </div>
+              )}
               <EditableTranscript
                 lines={transcriptLines}
                 onChange={setTranscriptLines}

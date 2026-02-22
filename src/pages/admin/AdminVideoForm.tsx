@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -53,6 +53,18 @@ const AdminVideoForm = () => {
   const [timeRange, setTimeRange] = useState<[number, number]>([0, 0]);
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
+
+  // Stable blob URL for audio playback in transcript editor
+  const stableAudioUrl = useMemo(() => {
+    if (!audioFile) return undefined;
+    return URL.createObjectURL(audioFile);
+  }, [audioFile]);
+
+  useEffect(() => {
+    return () => {
+      if (stableAudioUrl) URL.revokeObjectURL(stableAudioUrl);
+    };
+  }, [stableAudioUrl]);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -687,7 +699,7 @@ const AdminVideoForm = () => {
               <EditableTranscript
                 lines={transcriptLines}
                 onChange={setTranscriptLines}
-                audioUrl={audioFile ? URL.createObjectURL(audioFile) : undefined}
+                audioUrl={stableAudioUrl}
               />
             </CardContent>
           </Card>

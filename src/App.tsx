@@ -20,6 +20,7 @@ import MemeAnalyzer from "./pages/MemeAnalyzer";
 import Discover from "./pages/Discover";
 import DiscoverVideo from "./pages/DiscoverVideo";
 import LearnFromX from "./pages/LearnFromX";
+import HowDoISay from "./pages/HowDoISay";
 
 // Admin pages
 import AdminLogin from "./pages/admin/AdminLogin";
@@ -138,6 +139,11 @@ const App = () => {
             <Route path="/learn-from-x" element={
               <ErrorBoundary name="LearnFromXRoute">
                 <LearnFromX />
+              </ErrorBoundary>
+            } />
+            <Route path="/how-do-i-say" element={
+              <ErrorBoundary name="HowDoISayRoute">
+                <HowDoISay />
               </ErrorBoundary>
             } />
 

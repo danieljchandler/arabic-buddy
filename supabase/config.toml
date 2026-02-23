@@ -38,3 +38,6 @@ verify_jwt = false
 
 [functions.fetch-youtube-captions]
 verify_jwt = false
+
+[functions.how-do-i-say]
+verify_jwt = false

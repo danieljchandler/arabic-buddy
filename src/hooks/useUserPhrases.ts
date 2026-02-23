@@ -27,14 +27,14 @@ export const useUserPhrases = () => {
     queryFn: async () => {
       if (!user) return [];
 
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("user_phrases")
         .select("*")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      return data as UserPhrase[];
+      return (data ?? []) as UserPhrase[];
     },
     enabled: !!user,
   });
@@ -54,7 +54,7 @@ export const useAddUserPhrase = () => {
     }) => {
       if (!user) throw new Error("Must be logged in");
 
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("user_phrases")
         .insert({
           user_id: user.id,
@@ -87,7 +87,7 @@ export const useDeleteUserPhrase = () => {
 
   return useMutation({
     mutationFn: async (phraseId: string) => {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from("user_phrases")
         .delete()
         .eq("id", phraseId);

@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { AppShell } from "@/components/layout/AppShell";
 import { Badge } from "@/components/ui/badge";
 import lahjaLogo from "@/assets/lahja-logo.png";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { formatDuration } from "@/lib/videoEmbed";
 
 const DiscoverPreviewCard = ({ video, onClick }: { video: any; onClick: () => void }) => {
@@ -99,17 +99,9 @@ const Index = () => {
   const { data: stats } = useReviewStats();
   const { data: discoverVideos } = useDiscoverVideos();
 
-  // Rotate through videos for the preview
   const [previewIndex, setPreviewIndex] = useState(0);
-  useEffect(() => {
-    if (!discoverVideos?.length) return;
-    const interval = setInterval(() => {
-      setPreviewIndex((i) => (i + 1) % discoverVideos.length);
-    }, 4000);
-    return () => clearInterval(interval);
-  }, [discoverVideos]);
-
-  const previewVideo = discoverVideos?.[previewIndex];
+  const previewVideos = discoverVideos?.slice(0, 5) ?? [];
+  const previewVideo = previewVideos[previewIndex];
 
   const handleSignOut = async () => {
     await signOut();
@@ -159,10 +151,29 @@ const Index = () => {
         </div>
 
         {previewVideo ? (
-          <DiscoverPreviewCard
-            video={previewVideo}
-            onClick={() => navigate(`/discover/${previewVideo.id}`)}
-          />
+          <div>
+            <DiscoverPreviewCard
+              video={previewVideo}
+              onClick={() => navigate(`/discover/${previewVideo.id}`)}
+            />
+            {previewVideos.length > 1 && (
+              <div className="flex justify-center gap-2 mt-3">
+                {previewVideos.map((v, i) => (
+                  <button
+                    key={v.id}
+                    onClick={() => setPreviewIndex(i)}
+                    className={cn(
+                      "w-2.5 h-2.5 rounded-full transition-all duration-200",
+                      i === previewIndex
+                        ? "bg-primary scale-125"
+                        : "bg-primary/30 hover:bg-primary/50"
+                    )}
+                    aria-label={`Video ${i + 1}`}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
         ) : (
           <button
             onClick={() => navigate("/discover")}

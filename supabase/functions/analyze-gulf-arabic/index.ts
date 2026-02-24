@@ -800,6 +800,11 @@ serve(async (req) => {
             return await lovableAITranslate(arabicLines, LOVABLE_API_KEY);
           }
 
+          // Normalize: strip trailing /run, /runsync, or slash
+          const baseUrl = RUNPOD_URL.replace(/\/(run|runsync)\/?$/, '').replace(/\/+$/, '');
+          const runpodEndpoint = `${baseUrl}/runsync`;
+          console.log('Calling Jais for translation at:', runpodEndpoint);
+
           const numberedLines = arabicLines.map((line, i) => `${i + 1}. ${line}`).join('\n');
 
            const controller = new AbortController();
@@ -809,7 +814,7 @@ serve(async (req) => {
           const userContent = `Translate these Gulf Arabic lines to English:\n\n${numberedLines}`;
           const prompt = `### Instruction: ${systemContent}\n\n### Input: ${userContent}\n\n### Response:`;
 
-          const response = await fetch(`${RUNPOD_URL}/runsync`, {
+          const response = await fetch(runpodEndpoint, {
             method: 'POST',
             signal: controller.signal,
             headers: {
@@ -828,7 +833,7 @@ serve(async (req) => {
 
           if (!response.ok) {
             const errText = await response.text();
-            console.warn('Jais API error:', response.status, errText?.slice(0, 300));
+            console.warn('Jais API error:', response.status, 'url:', runpodEndpoint, 'body:', errText?.slice(0, 300));
             console.log('Falling back to Lovable AI for translation...');
             return await lovableAITranslate(arabicLines, LOVABLE_API_KEY);
           }

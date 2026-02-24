@@ -32,6 +32,11 @@ function formatJaisPrompt(systemPrompt: string, userContent: string): string {
   return `### Instruction: ${systemPrompt}\n\n### Input: ${userContent}\n\n### Response:`;
 }
 
+/** Normalize RunPod endpoint URL: strip trailing /run, /runsync, or slash */
+function normalizeRunpodUrl(url: string): string {
+  return url.replace(/\/(run|runsync)\/?$/, '').replace(/\/+$/, '');
+}
+
 async function callJais(
   systemPrompt: string,
   userContent: string,
@@ -41,13 +46,18 @@ async function callJais(
   const RUNPOD_KEY = Deno.env.get('RUNPOD_API_KEY');
   if (!RUNPOD_URL || !RUNPOD_KEY) return null;
 
+  const baseUrl = normalizeRunpodUrl(RUNPOD_URL);
+
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 50_000);
 
     const prompt = formatJaisPrompt(systemPrompt, userContent);
 
-    const response = await fetch(`${RUNPOD_URL}/runsync`, {
+    const runpodEndpoint = `${baseUrl}/runsync`;
+    console.log('Calling Jais at:', runpodEndpoint);
+
+    const response = await fetch(runpodEndpoint, {
       method: 'POST',
       signal: controller.signal,
       headers: {
@@ -65,7 +75,8 @@ async function callJais(
     clearTimeout(timeout);
 
     if (!response.ok) {
-      console.warn('Jais error:', response.status);
+      const errBody = await response.text().catch(() => '');
+      console.warn('Jais error:', response.status, 'url:', runpodEndpoint, 'body:', errBody.slice(0, 300));
       return null;
     }
 

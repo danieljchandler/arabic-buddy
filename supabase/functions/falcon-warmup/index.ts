@@ -39,10 +39,15 @@ serve(async (req) => {
       });
     }
 
+    // Normalize: strip trailing /run, /runsync, or slash
+    const baseUrl = RUNPOD_URL.replace(/\/(run|runsync)\/?$/, '').replace(/\/+$/, '');
+    const runpodEndpoint = `${baseUrl}/runsync`;
+    console.log('Jais warmup calling:', runpodEndpoint);
+
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15_000);
 
-    const response = await fetch(`${RUNPOD_URL}/runsync`, {
+    const response = await fetch(runpodEndpoint, {
       method: 'POST',
       signal: controller.signal,
       headers: {

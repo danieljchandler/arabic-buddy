@@ -42,7 +42,7 @@ serve(async (req) => {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15_000);
 
-    const response = await fetch(`${RUNPOD_URL}/v1/chat/completions`, {
+    const response = await fetch(`${RUNPOD_URL}/openai/v1/chat/completions`, {
       method: 'POST',
       signal: controller.signal,
       headers: {

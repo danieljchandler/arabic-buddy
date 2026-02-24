@@ -250,6 +250,22 @@ serve(async (req) => {
     console.log(`how-do-i-say: LLM used = ${llmUsed}, phrase = "${trimmedPhrase}"`);
     const rawResponse = jaisResult || await callAI(SYSTEM_PROMPT, userContent, LOVABLE_API_KEY, 4096);
 
+    // Persist LLM usage log to the database
+    try {
+      const supabaseService = createClient(
+        Deno.env.get('SUPABASE_URL')!,
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+      );
+      await supabaseService.from('llm_usage_logs').insert({
+        function_name: 'how-do-i-say',
+        llm_used: llmUsed,
+        phrase: trimmedPhrase,
+        user_id: user.id,
+      });
+    } catch (logErr) {
+      console.warn(`how-do-i-say: failed to write llm_usage_log (function=how-do-i-say, user=${user.id}):`, logErr instanceof Error ? logErr.message : String(logErr));
+    }
+
     const parsed = safeJsonParse<any>(rawResponse);
     if (!parsed) {
       throw new Error('Failed to parse AI response. Please try again.');
@@ -303,6 +319,7 @@ serve(async (req) => {
       vocabulary,
       culturalNotes: parsed.culturalNotes ? String(parsed.culturalNotes) : undefined,
       genderVariants: parsed.genderVariants ? String(parsed.genderVariants) : undefined,
+      llmUsed,
     };
 
     const preferred = translations.find((t: any) => t.isPreferred);

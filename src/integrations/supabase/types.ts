@@ -113,6 +113,33 @@ export type Database = {
         }
         Relationships: []
       }
+      llm_usage_logs: {
+        Row: {
+          id: string
+          function_name: string
+          llm_used: string
+          phrase: string | null
+          user_id: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          function_name: string
+          llm_used: string
+          phrase?: string | null
+          user_id?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          function_name?: string
+          llm_used?: string
+          phrase?: string | null
+          user_id?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
       review_streaks: {
         Row: {
           created_at: string

@@ -30,10 +30,10 @@ serve(async (req) => {
         status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
-    const FALCON_URL = Deno.env.get('FALCON_HF_ENDPOINT_URL');
-    const FALCON_KEY = Deno.env.get('FALCON_HF_API_KEY');
+    const RUNPOD_URL = Deno.env.get('RUNPOD_ENDPOINT_URL');
+    const RUNPOD_KEY = Deno.env.get('RUNPOD_API_KEY');
 
-    if (!FALCON_URL || !FALCON_KEY) {
+    if (!RUNPOD_URL || !RUNPOD_KEY) {
       return new Response(JSON.stringify({ ok: true, skipped: true }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -42,28 +42,28 @@ serve(async (req) => {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15_000);
 
-    const response = await fetch(`${FALCON_URL}/v1/chat/completions`, {
+    const response = await fetch(`${RUNPOD_URL}/v1/chat/completions`, {
       method: 'POST',
       signal: controller.signal,
       headers: {
-        'Authorization': `Bearer ${FALCON_KEY}`,
+        'Authorization': `Bearer ${RUNPOD_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'tiiuae/Falcon-H1R-7B',
+        model: 'tiiuae/jais-adapted-30b-chat',
         messages: [{ role: 'user', content: 'Hi' }],
         max_tokens: 1,
       }),
     });
     clearTimeout(timeout);
 
-    console.log('Falcon warmup response:', response.status);
+    console.log('Jais warmup response:', response.status);
 
     return new Response(JSON.stringify({ ok: true, status: response.status }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (e) {
-    console.warn('Falcon warmup error (non-fatal):', e instanceof Error ? e.message : String(e));
+    console.warn('Jais warmup error (non-fatal):', e instanceof Error ? e.message : String(e));
     return new Response(JSON.stringify({ ok: true, warmedUp: false }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

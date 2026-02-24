@@ -788,86 +788,86 @@ serve(async (req) => {
      const arabicLines = linesAi.lines.map(l => String(l.arabic ?? '').trim());
      console.log('Starting parallel: Falcon translation + meta extraction for', arabicLines.length, 'lines');
 
-     // Call Falcon H1 for alternative translations (via HF dedicated endpoint)
-     const falconPromise = (async (): Promise<string[]> => {
+     // Call Jais 30 for alternative translations (via RunPod serverless endpoint)
+     const jaisPromise = (async (): Promise<string[]> => {
        try {
-         const FALCON_URL = Deno.env.get('FALCON_HF_ENDPOINT_URL');
-         const FALCON_KEY = Deno.env.get('FALCON_HF_API_KEY');
+         const RUNPOD_URL = Deno.env.get('RUNPOD_ENDPOINT_URL');
+         const RUNPOD_KEY = Deno.env.get('RUNPOD_API_KEY');
 
-         if (!FALCON_URL || !FALCON_KEY) {
-           console.warn('Falcon endpoint not configured, falling back to Lovable AI');
-           // Fallback to Lovable AI (GPT-5-mini)
-           return await lovableAITranslate(arabicLines, LOVABLE_API_KEY);
-         }
+         if (!RUNPOD_URL || !RUNPOD_KEY) {
+           console.warn('Jais/RunPod endpoint not configured, falling back to Lovable AI');
+            // Fallback to Lovable AI (GPT-5-mini)
+            return await lovableAITranslate(arabicLines, LOVABLE_API_KEY);
+          }
 
-         const numberedLines = arabicLines.map((line, i) => `${i + 1}. ${line}`).join('\n');
+          const numberedLines = arabicLines.map((line, i) => `${i + 1}. ${line}`).join('\n');
 
-          const controller = new AbortController();
-          const timeout = setTimeout(() => controller.abort(), 120_000);
+           const controller = new AbortController();
+           const timeout = setTimeout(() => controller.abort(), 120_000);
 
-         const response = await fetch(`${FALCON_URL}/v1/chat/completions`, {
-           method: 'POST',
-           signal: controller.signal,
-           headers: {
-             'Authorization': `Bearer ${FALCON_KEY}`,
-             'Content-Type': 'application/json',
-           },
-           body: JSON.stringify({
-             model: 'tiiuae/Falcon-H1R-7B',
-             messages: [
-               {
-                 role: "system",
-                 content: "You are an expert translator specializing in Gulf Arabic (Khaliji) dialect. Translate each numbered Arabic line to natural English. Return ONLY the translations, numbered to match. No commentary."
-               },
-               {
-                 role: "user",
-                 content: `Translate these Gulf Arabic lines to English:\n\n${numberedLines}`
-               }
-             ],
-             max_tokens: 4096,
-           }),
-         });
-         clearTimeout(timeout);
+          const response = await fetch(`${RUNPOD_URL}/v1/chat/completions`, {
+            method: 'POST',
+            signal: controller.signal,
+            headers: {
+              'Authorization': `Bearer ${RUNPOD_KEY}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model: 'tiiuae/jais-adapted-30b-chat',
+              messages: [
+                {
+                  role: "system",
+                  content: "You are an expert translator specializing in Gulf Arabic (Khaliji) dialect. Translate each numbered Arabic line to natural English. Return ONLY the translations, numbered to match. No commentary."
+                },
+                {
+                  role: "user",
+                  content: `Translate these Gulf Arabic lines to English:\n\n${numberedLines}`
+                }
+              ],
+              max_tokens: 4096,
+            }),
+          });
+          clearTimeout(timeout);
 
-         if (!response.ok) {
-           const errText = await response.text();
-           console.warn('Falcon API error:', response.status, errText?.slice(0, 300));
-           console.log('Falling back to Lovable AI for translation...');
-           return await lovableAITranslate(arabicLines, LOVABLE_API_KEY);
-         }
+          if (!response.ok) {
+            const errText = await response.text();
+            console.warn('Jais API error:', response.status, errText?.slice(0, 300));
+            console.log('Falling back to Lovable AI for translation...');
+            return await lovableAITranslate(arabicLines, LOVABLE_API_KEY);
+          }
 
-         const data = await response.json();
-         console.log('Falcon raw response keys:', Object.keys(data), 'choices:', data?.choices?.length);
-         const generatedText = data?.choices?.[0]?.message?.content || '';
-         if (!generatedText) {
-           console.warn('Falcon returned empty content');
-           return await lovableAITranslate(arabicLines, LOVABLE_API_KEY);
-         }
+          const data = await response.json();
+          console.log('Jais raw response keys:', Object.keys(data), 'choices:', data?.choices?.length);
+          const generatedText = data?.choices?.[0]?.message?.content || '';
+          if (!generatedText) {
+            console.warn('Jais returned empty content');
+            return await lovableAITranslate(arabicLines, LOVABLE_API_KEY);
+          }
 
-         console.log('Falcon response length:', generatedText.length);
+          console.log('Jais response length:', generatedText.length);
 
-         // Parse numbered translations
-         const translations: string[] = [];
-         const respLines = generatedText.split('\n').filter((l: string) => l.trim());
-         for (let i = 0; i < arabicLines.length; i++) {
-           const lineNum = i + 1;
-           const match = respLines.find((l: string) => l.trim().startsWith(`${lineNum}.`) || l.trim().startsWith(`${lineNum})`));
-           if (match) {
-             translations.push(match.trim().replace(/^\d+[\.\)]\s*/, ''));
-           } else if (i < respLines.length) {
-             translations.push(respLines[i]?.trim().replace(/^\d+[\.\)]\s*/, '') || '');
-           } else {
-             translations.push('');
-           }
-         }
+          // Parse numbered translations
+          const translations: string[] = [];
+          const respLines = generatedText.split('\n').filter((l: string) => l.trim());
+          for (let i = 0; i < arabicLines.length; i++) {
+            const lineNum = i + 1;
+            const match = respLines.find((l: string) => l.trim().startsWith(`${lineNum}.`) || l.trim().startsWith(`${lineNum})`));
+            if (match) {
+              translations.push(match.trim().replace(/^\d+[\.\)]\s*/, ''));
+            } else if (i < respLines.length) {
+              translations.push(respLines[i]?.trim().replace(/^\d+[\.\)]\s*/, '') || '');
+            } else {
+              translations.push('');
+            }
+          }
 
-         console.log(`Falcon: produced ${translations.filter(t => t.length > 0).length}/${arabicLines.length} translations`);
-         return translations;
-       } catch (e) {
-         console.warn('Falcon translation failed, falling back to Lovable AI:', e instanceof Error ? e.message : String(e));
-         return await lovableAITranslate(arabicLines, LOVABLE_API_KEY);
-       }
-     })();
+          console.log(`Jais: produced ${translations.filter(t => t.length > 0).length}/${arabicLines.length} translations`);
+          return translations;
+        } catch (e) {
+          console.warn('Jais translation failed, falling back to Lovable AI:', e instanceof Error ? e.message : String(e));
+          return await lovableAITranslate(arabicLines, LOVABLE_API_KEY);
+        }
+      })();
 
      // Meta extraction in parallel with Falcon
      const metaPromise = (async () => {
@@ -897,22 +897,22 @@ serve(async (req) => {
        return metaAi;
      })();
 
-     const [falconTranslations, metaAi] = await Promise.all([falconPromise, metaPromise]);
+      const [jaisTranslations, metaAi] = await Promise.all([jaisPromise, metaPromise]);
 
-     // -----------------------------
-     // 2b) Merge translations if Falcon succeeded
-     // -----------------------------
-     let finalLines = linesAi.lines;
-     const hasFalcon = falconTranslations.length > 0 && falconTranslations.some(t => t.length > 0);
+      // -----------------------------
+      // 2b) Merge translations if Jais succeeded
+      // -----------------------------
+      let finalLines = linesAi.lines;
+      const hasJais = jaisTranslations.length > 0 && jaisTranslations.some(t => t.length > 0);
 
-     if (hasFalcon) {
-       console.log('Merging Gemini + Falcon translations...');
+      if (hasJais) {
+        console.log('Merging Gemini + Jais translations...');
 
-       const mergeContent = arabicLines.map((arabic, i) => {
-         const geminiTrans = String(linesAi!.lines[i]?.translation ?? '');
-         const falconTrans = falconTranslations[i] || '';
-         return `Line ${i + 1}: "${arabic}"\n  Gemini: "${geminiTrans}"\n  Falcon: "${falconTrans}"`;
-       }).join('\n\n');
+        const mergeContent = arabicLines.map((arabic, i) => {
+          const geminiTrans = String(linesAi!.lines[i]?.translation ?? '');
+          const jaisTrans = jaisTranslations[i] || '';
+          return `Line ${i + 1}: "${arabic}"\n  Gemini: "${geminiTrans}"\n  Jais: "${jaisTrans}"`;
+        }).join('\n\n');
 
        const mergePrompt = `You are merging two translations of Gulf Arabic lines. For each line, pick whichever translation is more natural and accurate, or combine the best parts of both. Output ONLY valid JSON:
 {"translations": ["merged translation 1", "merged translation 2", ...]}
@@ -941,9 +941,9 @@ No additional text outside JSON.`;
        } else {
          console.warn('Merge call failed, using Gemini translations');
        }
-     } else {
-       console.log('Falcon unavailable or returned empty; using Gemini translations only');
-     }
+      } else {
+        console.log('Jais unavailable or returned empty; using Gemini translations only');
+      }
 
      if (!metaAi) {
        partial = true;

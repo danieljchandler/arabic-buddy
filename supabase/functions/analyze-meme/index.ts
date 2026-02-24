@@ -67,28 +67,28 @@ function toWordTokens(arabic: string, glosses: Record<string, string> = {}): Wor
   }));
 }
 
-async function callFalcon(
+async function callJais(
   systemPrompt: string,
   userContent: string,
   maxTokens = 4096,
 ): Promise<string | null> {
-  const FALCON_URL = Deno.env.get('FALCON_HF_ENDPOINT_URL');
-  const FALCON_KEY = Deno.env.get('FALCON_HF_API_KEY');
-  if (!FALCON_URL || !FALCON_KEY) return null;
+  const RUNPOD_URL = Deno.env.get('RUNPOD_ENDPOINT_URL');
+  const RUNPOD_KEY = Deno.env.get('RUNPOD_API_KEY');
+  if (!RUNPOD_URL || !RUNPOD_KEY) return null;
 
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 50_000);
 
-    const response = await fetch(`${FALCON_URL}/v1/chat/completions`, {
+    const response = await fetch(`${RUNPOD_URL}/v1/chat/completions`, {
       method: 'POST',
       signal: controller.signal,
       headers: {
-        'Authorization': `Bearer ${FALCON_KEY}`,
+        'Authorization': `Bearer ${RUNPOD_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'tiiuae/Falcon-H1R-7B',
+        model: 'tiiuae/jais-adapted-30b-chat',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userContent },
@@ -100,14 +100,14 @@ async function callFalcon(
     clearTimeout(timeout);
 
     if (!response.ok) {
-      console.warn('Falcon error:', response.status);
+      console.warn('Jais error:', response.status);
       return null;
     }
 
     const data = await response.json();
     return data.choices?.[0]?.message?.content || null;
   } catch (e) {
-    console.warn('Falcon call failed:', e instanceof Error ? e.message : String(e));
+    console.warn('Jais call failed:', e instanceof Error ? e.message : String(e));
     return null;
   }
 }
@@ -330,9 +330,9 @@ serve(async (req) => {
     // If we have audio transcript but no image analysis, or need separate audio analysis
     if (audioTranscript && !imageBase64) {
       console.log('Analyzing audio transcript...');
-      // Try Falcon first for text-only analysis, fall back to Lovable AI
-      const falconResult = await callFalcon(AUDIO_ANALYSIS_PROMPT, audioTranscript, 4096);
-      const rawResponse = falconResult || await callAI(AUDIO_ANALYSIS_PROMPT, audioTranscript, LOVABLE_API_KEY, 4096);
+      // Try Jais first for text-only analysis, fall back to Lovable AI
+      const jaisResult = await callJais(AUDIO_ANALYSIS_PROMPT, audioTranscript, 4096);
+      const rawResponse = jaisResult || await callAI(AUDIO_ANALYSIS_PROMPT, audioTranscript, LOVABLE_API_KEY, 4096);
       audioResult = safeJsonParse<any>(rawResponse);
     }
 

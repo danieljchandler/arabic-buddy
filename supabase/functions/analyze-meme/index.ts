@@ -80,13 +80,17 @@ async function callJais(
   const RUNPOD_KEY = Deno.env.get('RUNPOD_API_KEY');
   if (!RUNPOD_URL || !RUNPOD_KEY) return null;
 
+  // Normalize: strip trailing /run, /runsync, or slash
+  const baseUrl = RUNPOD_URL.replace(/\/(run|runsync)\/?$/, '').replace(/\/+$/, '');
+  const runpodEndpoint = `${baseUrl}/runsync`;
+
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 50_000);
 
     const prompt = formatJaisPrompt(systemPrompt, userContent);
 
-    const response = await fetch(`${RUNPOD_URL}/runsync`, {
+    const response = await fetch(runpodEndpoint, {
       method: 'POST',
       signal: controller.signal,
       headers: {

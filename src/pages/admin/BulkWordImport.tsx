@@ -45,10 +45,20 @@ const BulkWordImport = () => {
   const [pasteText, setPasteText] = useState('');
   const [isUploading, setIsUploading] = useState(false);
 
-  // Fetch topic info
+  // Fetch topic/lesson info (try lessons first, fall back to topics)
   const { data: topic } = useQuery({
     queryKey: ['topic-info', topicId],
     queryFn: async () => {
+      const { data: lesson } = await supabase
+        .from('lessons')
+        .select('title, title_arabic, icon, gradient')
+        .eq('id', topicId)
+        .maybeSingle();
+
+      if (lesson) {
+        return { name: (lesson as any).title, name_arabic: (lesson as any).title_arabic, icon: (lesson as any).icon, gradient: (lesson as any).gradient };
+      }
+
       const { data, error } = await supabase
         .from('topics')
         .select('name, name_arabic, icon, gradient')
@@ -103,20 +113,43 @@ const BulkWordImport = () => {
         })
       );
 
+      // Check if topicId is a lesson or a topic
+      const { data: lessonCheck } = await supabase
+        .from('lessons')
+        .select('id')
+        .eq('id', topicId)
+        .maybeSingle();
+
+      const isLesson = !!lessonCheck;
+
       // Get current max display_order
-      const { data: maxOrder } = await supabase
-        .from('vocabulary_words')
-        .select('display_order')
-        .eq('topic_id', topicId)
+      const orderQuery = isLesson
+        ? supabase.from('vocabulary_words').select('display_order').eq('lesson_id', topicId)
+        : supabase.from('vocabulary_words').select('display_order').eq('topic_id', topicId);
+
+      const { data: maxOrder } = await orderQuery
         .order('display_order', { ascending: false })
         .limit(1)
         .single();
 
       let nextOrder = (maxOrder?.display_order ?? -1) + 1;
 
+      // If lesson, find the associated topic_id for backward compat
+      let resolvedTopicId = topicId;
+      if (isLesson) {
+        const { data: existingWord } = await supabase
+          .from('vocabulary_words')
+          .select('topic_id')
+          .eq('lesson_id', topicId)
+          .limit(1)
+          .maybeSingle();
+        resolvedTopicId = existingWord?.topic_id || topicId;
+      }
+
       // Insert all entries
       const wordsToInsert = entriesWithAudio.map((entry) => ({
-        topic_id: topicId,
+        topic_id: resolvedTopicId,
+        lesson_id: isLesson ? topicId : null,
         word_arabic: entry.wordArabic.trim(),
         word_english: entry.wordEnglish.trim(),
         audio_url: entry.audioUrl,

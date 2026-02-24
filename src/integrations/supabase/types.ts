@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      curriculum_stages: {
+        Row: {
+          id: string
+          name: string
+          name_arabic: string | null
+          stage_number: number
+          cefr_level: string | null
+          description: string | null
+          display_order: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          name_arabic?: string | null
+          stage_number: number
+          cefr_level?: string | null
+          description?: string | null
+          display_order?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          name_arabic?: string | null
+          stage_number?: number
+          cefr_level?: string | null
+          description?: string | null
+          display_order?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       discover_videos: {
         Row: {
           created_at: string
@@ -148,6 +184,86 @@ export type Database = {
           vocabulary?: Json
         }
         Relationships: []
+      }
+      lessons: {
+        Row: {
+          id: string
+          stage_id: string
+          lesson_number: number
+          title: string
+          title_arabic: string | null
+          description: string | null
+          duration_minutes: number | null
+          cefr_target: string | null
+          approach: string | null
+          unlock_condition: string | null
+          icon: string
+          gradient: string
+          display_order: number
+          lesson_sequence: Json
+          image_scenes: Json
+          flashcard_spec: Json
+          real_world_prompts: Json
+          design_rationale: Json
+          sound_spotlight: Json
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          stage_id: string
+          lesson_number: number
+          title: string
+          title_arabic?: string | null
+          description?: string | null
+          duration_minutes?: number | null
+          cefr_target?: string | null
+          approach?: string | null
+          unlock_condition?: string | null
+          icon?: string
+          gradient?: string
+          display_order?: number
+          lesson_sequence?: Json
+          image_scenes?: Json
+          flashcard_spec?: Json
+          real_world_prompts?: Json
+          design_rationale?: Json
+          sound_spotlight?: Json
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          stage_id?: string
+          lesson_number?: number
+          title?: string
+          title_arabic?: string | null
+          description?: string | null
+          duration_minutes?: number | null
+          cefr_target?: string | null
+          approach?: string | null
+          unlock_condition?: string | null
+          icon?: string
+          gradient?: string
+          display_order?: number
+          lesson_sequence?: Json
+          image_scenes?: Json
+          flashcard_spec?: Json
+          real_world_prompts?: Json
+          design_rationale?: Json
+          sound_spotlight?: Json
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lessons_stage_id_fkey"
+            columns: ["stage_id"]
+            isOneToOne: false
+            referencedRelation: "curriculum_stages"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       topics: {
         Row: {
@@ -353,36 +469,51 @@ export type Database = {
       vocabulary_words: {
         Row: {
           audio_url: string | null
+          category: string | null
           created_at: string
           display_order: number
           id: string
           image_position: string | null
+          image_scene_description: string | null
           image_url: string | null
+          lesson_id: string | null
+          teaching_note: string | null
           topic_id: string
+          transliteration: string | null
           updated_at: string
           word_arabic: string
           word_english: string
         }
         Insert: {
           audio_url?: string | null
+          category?: string | null
           created_at?: string
           display_order?: number
           id?: string
           image_position?: string | null
+          image_scene_description?: string | null
           image_url?: string | null
+          lesson_id?: string | null
+          teaching_note?: string | null
           topic_id: string
+          transliteration?: string | null
           updated_at?: string
           word_arabic: string
           word_english: string
         }
         Update: {
           audio_url?: string | null
+          category?: string | null
           created_at?: string
           display_order?: number
           id?: string
           image_position?: string | null
+          image_scene_description?: string | null
           image_url?: string | null
+          lesson_id?: string | null
+          teaching_note?: string | null
           topic_id?: string
+          transliteration?: string | null
           updated_at?: string
           word_arabic?: string
           word_english?: string
@@ -393,6 +524,13 @@ export type Database = {
             columns: ["topic_id"]
             isOneToOne: false
             referencedRelation: "topics"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vocabulary_words_lesson_id_fkey"
+            columns: ["lesson_id"]
+            isOneToOne: false
+            referencedRelation: "lessons"
             referencedColumns: ["id"]
           },
         ]

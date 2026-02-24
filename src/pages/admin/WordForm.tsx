@@ -77,10 +77,20 @@ const WordForm = () => {
     }
   };
 
-  // Fetch topic info
+  // Fetch topic/lesson info (try lessons first, fall back to topics)
   const { data: topic } = useQuery({
     queryKey: ['topic-info', topicId],
     queryFn: async () => {
+      const { data: lesson } = await supabase
+        .from('lessons')
+        .select('title, title_arabic, icon, gradient')
+        .eq('id', topicId)
+        .maybeSingle();
+
+      if (lesson) {
+        return { name: (lesson as any).title, name_arabic: (lesson as any).title_arabic, icon: (lesson as any).icon, gradient: (lesson as any).gradient };
+      }
+
       const { data, error } = await supabase
         .from('topics')
         .select('name, name_arabic, icon, gradient')
@@ -135,28 +145,54 @@ const WordForm = () => {
 
         if (error) throw error;
       } else {
-        // Get max display_order for this topic
-        const { data: maxOrder } = await supabase
-          .from('vocabulary_words')
-          .select('display_order')
-          .eq('topic_id', topicId)
+        // Check if topicId is a lesson or a topic
+        const { data: lessonCheck } = await supabase
+          .from('lessons')
+          .select('id')
+          .eq('id', topicId)
+          .maybeSingle();
+
+        const isLesson = !!lessonCheck;
+
+        // Get max display_order
+        const orderQuery = isLesson
+          ? supabase.from('vocabulary_words').select('display_order').eq('lesson_id', topicId)
+          : supabase.from('vocabulary_words').select('display_order').eq('topic_id', topicId);
+
+        const { data: maxOrder } = await orderQuery
           .order('display_order', { ascending: false })
           .limit(1)
           .single();
 
         const nextOrder = (maxOrder?.display_order ?? -1) + 1;
 
+        const insertData: any = {
+          word_arabic: wordArabic,
+          word_english: wordEnglish,
+          image_url: imageUrl,
+          audio_url: audioUrl,
+          image_position: imagePosition,
+          display_order: nextOrder,
+        };
+
+        if (isLesson) {
+          insertData.lesson_id = topicId;
+          // Also need a topic_id for backward compat — use existing or create one
+          const { data: existingWords } = await supabase
+            .from('vocabulary_words')
+            .select('topic_id')
+            .eq('lesson_id', topicId)
+            .limit(1)
+            .maybeSingle();
+
+          insertData.topic_id = existingWords?.topic_id || topicId;
+        } else {
+          insertData.topic_id = topicId;
+        }
+
         const { error } = await supabase
           .from('vocabulary_words')
-          .insert({
-            topic_id: topicId,
-            word_arabic: wordArabic,
-            word_english: wordEnglish,
-            image_url: imageUrl,
-            audio_url: audioUrl,
-            image_position: imagePosition,
-            display_order: nextOrder,
-          } as any);
+          .insert(insertData);
 
         if (error) throw error;
       }

@@ -33,6 +33,8 @@ import WordForm from "./pages/admin/WordForm";
 import BulkWordImport from "./pages/admin/BulkWordImport";
 import AdminVideos from "./pages/admin/AdminVideos";
 import AdminVideoForm from "./pages/admin/AdminVideoForm";
+import Stages from "./pages/admin/Stages";
+import LessonImport from "./pages/admin/LessonImport";
 
 const queryClient = new QueryClient();
 
@@ -151,6 +153,10 @@ const App = () => {
             <Route path="/admin/login" element={<AdminLogin />} />
             <Route path="/admin" element={<ErrorBoundary name="AdminRoute"><AdminLayout /></ErrorBoundary>}>
               <Route index element={<Dashboard />} />
+              {/* Curriculum routes */}
+              <Route path="curriculum" element={<Stages />} />
+              <Route path="lessons/import" element={<LessonImport />} />
+              {/* Legacy topic routes (still used for word management) */}
               <Route path="topics" element={<Topics />} />
               <Route path="topics/new" element={<TopicForm />} />
               <Route path="topics/:topicId/edit" element={<TopicForm />} />

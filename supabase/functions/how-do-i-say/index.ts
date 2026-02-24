@@ -28,28 +28,28 @@ function safeJsonParse<T>(content: string): T | null {
   }
 }
 
-async function callFalcon(
+async function callJais(
   systemPrompt: string,
   userContent: string,
   maxTokens = 4096,
 ): Promise<string | null> {
-  const FALCON_URL = Deno.env.get('FALCON_HF_ENDPOINT_URL');
-  const FALCON_KEY = Deno.env.get('FALCON_HF_API_KEY');
-  if (!FALCON_URL || !FALCON_KEY) return null;
+  const RUNPOD_URL = Deno.env.get('RUNPOD_ENDPOINT_URL');
+  const RUNPOD_KEY = Deno.env.get('RUNPOD_API_KEY');
+  if (!RUNPOD_URL || !RUNPOD_KEY) return null;
 
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 50_000);
 
-    const response = await fetch(`${FALCON_URL}/v1/chat/completions`, {
+    const response = await fetch(`${RUNPOD_URL}/v1/chat/completions`, {
       method: 'POST',
       signal: controller.signal,
       headers: {
-        'Authorization': `Bearer ${FALCON_KEY}`,
+        'Authorization': `Bearer ${RUNPOD_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'tiiuae/Falcon-H1R-7B',
+        model: 'tiiuae/jais-adapted-30b-chat',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userContent },
@@ -61,14 +61,14 @@ async function callFalcon(
     clearTimeout(timeout);
 
     if (!response.ok) {
-      console.warn('Falcon error:', response.status);
+      console.warn('Jais error:', response.status);
       return null;
     }
 
     const data = await response.json();
     return data.choices?.[0]?.message?.content || null;
   } catch (e) {
-    console.warn('Falcon call failed:', e instanceof Error ? e.message : String(e));
+    console.warn('Jais call failed:', e instanceof Error ? e.message : String(e));
     return null;
   }
 }
@@ -211,10 +211,10 @@ serve(async (req) => {
       );
     }
 
-    // Try Falcon first (faster/cheaper), fall back to Lovable AI
+    // Try Jais first (Arabic-specialized), fall back to Lovable AI
     const userContent = `How do I say this in Gulf Arabic: "${trimmedPhrase}"`;
-    const falconResult = await callFalcon(SYSTEM_PROMPT, userContent, 4096);
-    const rawResponse = falconResult || await callAI(SYSTEM_PROMPT, userContent, LOVABLE_API_KEY, 4096);
+    const jaisResult = await callJais(SYSTEM_PROMPT, userContent, 4096);
+    const rawResponse = jaisResult || await callAI(SYSTEM_PROMPT, userContent, LOVABLE_API_KEY, 4096);
 
     const parsed = safeJsonParse<any>(rawResponse);
     if (!parsed) {

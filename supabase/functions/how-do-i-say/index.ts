@@ -204,23 +204,18 @@ serve(async (req) => {
   }
 
   const authHeader = req.headers.get('Authorization');
-  if (!authHeader?.startsWith('Bearer ')) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-      status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
-  }
 
   try {
-    const supabaseAuth = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_ANON_KEY')!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-    const { data: { user }, error: userError } = await supabaseAuth.auth.getUser();
-    if (userError || !user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+    // Resolve the caller's identity if an auth header is present; anonymous use is allowed.
+    let userId: string | null = null;
+    if (authHeader?.startsWith('Bearer ')) {
+      const supabaseAuth = createClient(
+        Deno.env.get('SUPABASE_URL')!,
+        Deno.env.get('SUPABASE_ANON_KEY')!,
+        { global: { headers: { Authorization: authHeader } } }
+      );
+      const { data: { user } } = await supabaseAuth.auth.getUser();
+      userId = user?.id ?? null;
     }
 
     const body = await req.json();
@@ -260,10 +255,10 @@ serve(async (req) => {
         function_name: 'how-do-i-say',
         llm_used: llmUsed,
         phrase: trimmedPhrase,
-        user_id: user.id,
+        user_id: userId,
       });
     } catch (logErr) {
-      console.warn(`how-do-i-say: failed to write llm_usage_log (function=how-do-i-say, user=${user.id}):`, logErr instanceof Error ? logErr.message : String(logErr));
+      console.warn(`how-do-i-say: failed to write llm_usage_log (function=how-do-i-say, user=${userId}):`, logErr instanceof Error ? logErr.message : String(logErr));
     }
 
     const parsed = safeJsonParse<any>(rawResponse);

@@ -305,6 +305,9 @@ serve(async (req) => {
       genderVariants: parsed.genderVariants ? String(parsed.genderVariants) : undefined,
     };
 
+    const preferred = translations.find((t: any) => t.isPreferred);
+    console.log(`how-do-i-say: result = ${translations.length} translation(s) via ${llmUsed}, preferred = "${preferred?.transliteration ?? 'none'}"`);
+
     return new Response(
       JSON.stringify({ success: true, result }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

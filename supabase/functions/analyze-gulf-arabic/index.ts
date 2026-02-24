@@ -805,7 +805,11 @@ serve(async (req) => {
            const controller = new AbortController();
            const timeout = setTimeout(() => controller.abort(), 120_000);
 
-          const response = await fetch(`${RUNPOD_URL}/openai/v1/chat/completions`, {
+          const systemContent = "You are an expert translator specializing in Gulf Arabic (Khaliji) dialect. Translate each numbered Arabic line to natural English. Return ONLY the translations, numbered to match. No commentary.";
+          const userContent = `Translate these Gulf Arabic lines to English:\n\n${numberedLines}`;
+          const prompt = `### Instruction: ${systemContent}\n\n### Input: ${userContent}\n\n### Response:`;
+
+          const response = await fetch(`${RUNPOD_URL}/runsync`, {
             method: 'POST',
             signal: controller.signal,
             headers: {
@@ -813,18 +817,11 @@ serve(async (req) => {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              model: 'tiiuae/jais-adapted-30b-chat',
-              messages: [
-                {
-                  role: "system",
-                  content: "You are an expert translator specializing in Gulf Arabic (Khaliji) dialect. Translate each numbered Arabic line to natural English. Return ONLY the translations, numbered to match. No commentary."
-                },
-                {
-                  role: "user",
-                  content: `Translate these Gulf Arabic lines to English:\n\n${numberedLines}`
-                }
-              ],
-              max_tokens: 4096,
+              input: {
+                prompt,
+                max_tokens: 4096,
+                temperature: 0.3,
+              },
             }),
           });
           clearTimeout(timeout);
@@ -837,8 +834,17 @@ serve(async (req) => {
           }
 
           const data = await response.json();
-          console.log('Jais raw response keys:', Object.keys(data), 'choices:', data?.choices?.length);
-          const generatedText = data?.choices?.[0]?.message?.content || '';
+          console.log('Jais runsync response status:', data?.status, 'keys:', Object.keys(data));
+          
+          // Handle RunPod runsync output format
+          const output = data?.output;
+          let generatedText = '';
+          if (typeof output === 'string') generatedText = output;
+          else if (typeof output?.text === 'string') generatedText = output.text;
+          else if (Array.isArray(output) && typeof output[0] === 'string') generatedText = output[0];
+          else if (typeof output?.choices?.[0]?.message?.content === 'string') generatedText = output.choices[0].message.content;
+          else if (typeof output?.choices?.[0]?.text === 'string') generatedText = output.choices[0].text;
+          else if (output) generatedText = typeof output === 'object' ? JSON.stringify(output) : String(output);
           if (!generatedText) {
             console.warn('Jais returned empty content');
             return await lovableAITranslate(arabicLines, LOVABLE_API_KEY);

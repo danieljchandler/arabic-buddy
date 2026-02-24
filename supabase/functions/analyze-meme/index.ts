@@ -67,6 +67,10 @@ function toWordTokens(arabic: string, glosses: Record<string, string> = {}): Wor
   }));
 }
 
+function formatJaisPrompt(systemPrompt: string, userContent: string): string {
+  return `### Instruction: ${systemPrompt}\n\n### Input: ${userContent}\n\n### Response:`;
+}
+
 async function callJais(
   systemPrompt: string,
   userContent: string,
@@ -80,7 +84,9 @@ async function callJais(
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 50_000);
 
-    const response = await fetch(`${RUNPOD_URL}/openai/v1/chat/completions`, {
+    const prompt = formatJaisPrompt(systemPrompt, userContent);
+
+    const response = await fetch(`${RUNPOD_URL}/runsync`, {
       method: 'POST',
       signal: controller.signal,
       headers: {
@@ -88,13 +94,11 @@ async function callJais(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'tiiuae/jais-adapted-30b-chat',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userContent },
-        ],
-        max_tokens: maxTokens,
-        temperature: 0.3,
+        input: {
+          prompt,
+          max_tokens: maxTokens,
+          temperature: 0.3,
+        },
       }),
     });
     clearTimeout(timeout);
@@ -105,7 +109,22 @@ async function callJais(
     }
 
     const data = await response.json();
-    return data.choices?.[0]?.message?.content || null;
+    console.log('Jais runsync response status:', data?.status, 'keys:', Object.keys(data));
+
+    const output = data?.output;
+    if (!output) {
+      console.warn('Jais returned no output');
+      return null;
+    }
+
+    if (typeof output === 'string') return output;
+    if (typeof output?.text === 'string') return output.text;
+    if (Array.isArray(output) && typeof output[0] === 'string') return output[0];
+    if (typeof output?.choices?.[0]?.message?.content === 'string') return output.choices[0].message.content;
+    if (typeof output?.choices?.[0]?.text === 'string') return output.choices[0].text;
+
+    console.warn('Jais unexpected output format:', JSON.stringify(output).slice(0, 500));
+    return typeof output === 'object' ? JSON.stringify(output) : String(output);
   } catch (e) {
     console.warn('Jais call failed:', e instanceof Error ? e.message : String(e));
     return null;

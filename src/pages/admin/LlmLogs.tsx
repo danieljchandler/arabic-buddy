@@ -1,10 +1,14 @@
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Zap } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+
+function isJaisLlm(llmUsed: string) {
+  return llmUsed.startsWith('Jais');
+}
 
 const LlmLogs = () => {
   const { isAdmin } = useAdminAuth();
@@ -31,8 +35,45 @@ const LlmLogs = () => {
     );
   }
 
+  const latest = logs?.[0];
+
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-8 space-y-6">
+      {/* Most recent query — the answer to "which LLM was used?" */}
+      {latest ? (
+        <Card className={`border-2 ${isJaisLlm(latest.llm_used) ? 'border-primary/50 bg-primary/5' : 'border-secondary/50 bg-secondary/5'}`}>
+          <CardHeader className="pb-2">
+            <div className="flex items-center gap-2">
+              <Zap className="h-5 w-5 text-primary" />
+              <CardTitle className="text-base">Most Recent Query</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap items-center gap-4">
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">LLM used</p>
+                <Badge variant={isJaisLlm(latest.llm_used) ? 'default' : 'secondary'} className="text-sm px-3 py-1">
+                  {latest.llm_used}
+                </Badge>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Phrase</p>
+                <p className="font-medium italic">{latest.phrase ?? '—'}</p>
+              </div>
+              <div className="ml-auto">
+                <p className="text-xs text-muted-foreground mb-1">Time</p>
+                <p className="text-sm text-muted-foreground">{new Date(latest.created_at).toLocaleString()}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card className="border-dashed">
+          <CardContent className="py-6 text-center text-muted-foreground">No queries logged yet.</CardContent>
+        </Card>
+      )}
+
+      {/* Full log table */}
       <Card>
         <CardHeader>
           <CardTitle>LLM Usage Logs</CardTitle>
@@ -61,7 +102,7 @@ const LlmLogs = () => {
                       <code className="text-xs bg-muted px-1 py-0.5 rounded">{log.function_name}</code>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={log.llm_used.startsWith('Jais') ? 'default' : 'secondary'}>
+                      <Badge variant={isJaisLlm(log.llm_used) ? 'default' : 'secondary'}>
                         {log.llm_used}
                       </Badge>
                     </TableCell>

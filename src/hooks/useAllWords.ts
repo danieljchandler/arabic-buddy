@@ -25,8 +25,9 @@ const shuffleArray = <T,>(array: T[]): T[] => {
 };
 
 /**
- * Fetches all vocabulary words across topics, shuffled.
+ * Fetches all vocabulary words across lessons/topics, shuffled.
  * Optionally filters to only "new" (unreviewed) words for logged-in users.
+ * Joins with both lessons and topics for label data.
  */
 export const useAllWords = (onlyNew = false) => {
   const { user } = useAuth();
@@ -45,26 +46,36 @@ export const useAllWords = (onlyNew = false) => {
           image_position,
           display_order,
           topic_id,
+          lesson_id,
           topics (
             name,
             name_arabic
+          ),
+          lessons (
+            title,
+            title_arabic
           )
         `);
 
       if (error) throw error;
 
-      let mapped = (words || []).map(w => ({
-        id: w.id,
-        word_arabic: w.word_arabic,
-        word_english: w.word_english,
-        image_url: w.image_url,
-        audio_url: w.audio_url,
-        image_position: w.image_position,
-        display_order: w.display_order,
-        topic_id: w.topic_id,
-        topic_name: (w.topics as any)?.name || '',
-        topic_name_arabic: (w.topics as any)?.name_arabic || '',
-      }));
+      let mapped = (words || []).map(w => {
+        const lesson = (w as any).lessons;
+        const topic = (w as any).topics;
+        return {
+          id: w.id,
+          word_arabic: w.word_arabic,
+          word_english: w.word_english,
+          image_url: w.image_url,
+          audio_url: w.audio_url,
+          image_position: w.image_position,
+          display_order: w.display_order,
+          topic_id: w.topic_id,
+          // Prefer lesson name, fall back to topic name
+          topic_name: lesson?.title || topic?.name || '',
+          topic_name_arabic: lesson?.title_arabic || topic?.name_arabic || '',
+        };
+      });
 
       // If onlyNew and user is logged in, filter out reviewed words
       if (onlyNew && user) {

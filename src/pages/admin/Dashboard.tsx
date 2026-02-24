@@ -3,7 +3,7 @@ import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { useTopics } from '@/hooks/useTopics';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, LogOut, BookOpen, Plus, Settings, Mic, PlayCircle } from 'lucide-react';
+import { Loader2, LogOut, BookOpen, Plus, Settings, Mic, PlayCircle, Upload, GraduationCap } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 import lahjaIcon from '@/assets/lahja-icon.png';
@@ -82,7 +82,7 @@ const Dashboard = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
           <Card>
             <CardHeader className="pb-2">
-              <CardDescription>Total Topics</CardDescription>
+              <CardDescription>Total Lessons</CardDescription>
               <CardTitle className="text-4xl">{topics?.length || 0}</CardTitle>
             </CardHeader>
           </Card>
@@ -94,7 +94,7 @@ const Dashboard = () => {
           </Card>
           <Card>
             <CardHeader className="pb-2">
-              <CardDescription>Average Words/Topic</CardDescription>
+              <CardDescription>Average Words/Lesson</CardDescription>
               <CardTitle className="text-4xl">
                 {topics?.length ? Math.round(totalWords / topics.length) : 0}
               </CardTitle>
@@ -106,6 +106,34 @@ const Dashboard = () => {
         <div className={`grid grid-cols-1 ${isAdmin ? 'md:grid-cols-2' : ''} gap-4 mb-8`}>
           {isAdmin && (
             <>
+              <Card className="cursor-pointer hover:shadow-lg transition-shadow border-primary/30" onClick={() => navigate('/admin/lessons/import')}>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-4">
+                    <div className="bg-primary/10 rounded-full p-4">
+                      <Upload className="h-8 w-8 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-lg">Import Lesson Plan</h3>
+                      <p className="text-muted-foreground">Upload an xlsx lesson plan to auto-create lessons with vocabulary</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/admin/curriculum')}>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-4">
+                    <div className="bg-primary/10 rounded-full p-4">
+                      <GraduationCap className="h-8 w-8 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-lg">Curriculum</h3>
+                      <p className="text-muted-foreground">View stages, lessons, and vocabulary</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
               <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/admin/topics')}>
                 <CardContent className="pt-6">
                   <div className="flex items-center gap-4">
@@ -114,21 +142,7 @@ const Dashboard = () => {
                     </div>
                     <div>
                       <h3 className="font-semibold text-lg">Manage Topics</h3>
-                      <p className="text-muted-foreground">Add, edit, or remove vocabulary topics</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/admin/topics/new')}>
-                <CardContent className="pt-6">
-                  <div className="flex items-center gap-4">
-                    <div className="bg-accent/10 rounded-full p-4">
-                      <Plus className="h-8 w-8 text-accent" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-lg">Add New Topic</h3>
-                      <p className="text-muted-foreground">Create a new vocabulary category</p>
+                      <p className="text-muted-foreground">Legacy topic management</p>
                     </div>
                   </div>
                 </CardContent>

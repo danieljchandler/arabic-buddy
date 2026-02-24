@@ -3,6 +3,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useReviewStats } from "@/hooks/useReview";
 import { useUserVocabularyDueCount } from "@/hooks/useUserVocabulary";
 import { useDiscoverVideos } from "@/hooks/useDiscoverVideos";
+import { useStages } from "@/hooks/useStages";
+import { useAllLessons } from "@/hooks/useLessons";
 import { Button } from "@/components/design-system";
 import { Settings, Brain, LogIn, LogOut, Mic, BookOpen, Sparkles, GraduationCap, Laugh, Play, ChevronRight, Twitter, MessageCircleQuestion } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -98,6 +100,8 @@ const Index = () => {
   const { data: myWordsStats } = useUserVocabularyDueCount();
   const { data: stats } = useReviewStats();
   const { data: discoverVideos } = useDiscoverVideos();
+  const { data: stages } = useStages();
+  const { data: allLessons } = useAllLessons();
 
   const [previewIndex, setPreviewIndex] = useState(0);
   const previewVideos = discoverVideos?.slice(0, 5) ?? [];
@@ -195,28 +199,81 @@ const Index = () => {
 
       {/* ===== Other sections ===== */}
       <div className="space-y-3">
-        {/* New Words */}
-        <button
-          onClick={() => navigate("/learn")}
-          className={cn(
-            "w-full p-4 rounded-xl",
-            "bg-primary text-primary-foreground",
-            "flex items-center gap-3",
-            "transition-all duration-200",
-            "hover:opacity-90 active:scale-[0.98]",
-            "shadow-md"
-          )}
-        >
-          <div className="w-10 h-10 rounded-lg bg-primary-foreground/20 flex items-center justify-center shrink-0">
-            <Sparkles className="h-5 w-5" />
+        {/* Curriculum: Stages & Lessons */}
+        {allLessons && allLessons.length > 0 && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-bold text-foreground" style={{ fontFamily: "'Montserrat', sans-serif" }}>
+                Lessons
+              </h2>
+              <button
+                onClick={() => navigate("/learn")}
+                className="text-sm font-medium text-primary hover:underline flex items-center gap-0.5"
+              >
+                Mixed mode <ChevronRight className="h-3.5 w-3.5" />
+              </button>
+            </div>
+            {stages?.filter(s => s.stage_number > 0 || (allLessons?.filter(l => l.stage_id === s.id).length ?? 0) > 0).map(stage => {
+              const stageLessons = allLessons?.filter(l => l.stage_id === stage.id) || [];
+              if (stageLessons.length === 0) return null;
+              return (
+                <div key={stage.id} className="space-y-1.5">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1">
+                    {stage.stage_number > 0 ? `Stage ${stage.stage_number}: ` : ''}{stage.name}
+                  </p>
+                  {stageLessons.map(lesson => (
+                    <button
+                      key={lesson.id}
+                      onClick={() => navigate(`/learn/${lesson.id}`)}
+                      className={cn(
+                        "w-full p-3 rounded-xl",
+                        "bg-card border border-border",
+                        "flex items-center gap-3",
+                        "transition-all duration-200",
+                        "hover:border-primary/40 active:scale-[0.98]"
+                      )}
+                    >
+                      <span className="text-2xl">{lesson.icon}</span>
+                      <div className="text-left flex-1">
+                        <p className="font-semibold text-foreground text-sm">{lesson.title}</p>
+                        {lesson.title_arabic && (
+                          <p className="text-xs text-muted-foreground font-arabic">{lesson.title_arabic}</p>
+                        )}
+                      </div>
+                      <span className="text-xs text-muted-foreground">{lesson.word_count} words</span>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    </button>
+                  ))}
+                </div>
+              );
+            })}
           </div>
-          <div className="text-left">
-            <p className="font-bold">New Words</p>
-            <p className="text-xs opacity-80">
-              {stats ? `${stats.newCount} words to discover` : "Start learning vocabulary"}
-            </p>
-          </div>
-        </button>
+        )}
+
+        {/* New Words (mixed mode fallback) */}
+        {(!allLessons || allLessons.length === 0) && (
+          <button
+            onClick={() => navigate("/learn")}
+            className={cn(
+              "w-full p-4 rounded-xl",
+              "bg-primary text-primary-foreground",
+              "flex items-center gap-3",
+              "transition-all duration-200",
+              "hover:opacity-90 active:scale-[0.98]",
+              "shadow-md"
+            )}
+          >
+            <div className="w-10 h-10 rounded-lg bg-primary-foreground/20 flex items-center justify-center shrink-0">
+              <Sparkles className="h-5 w-5" />
+            </div>
+            <div className="text-left">
+              <p className="font-bold">New Words</p>
+              <p className="text-xs opacity-80">
+                {stats ? `${stats.newCount} words to discover` : "Start learning vocabulary"}
+              </p>
+            </div>
+          </button>
+        )}
 
         {/* Review */}
         {isAuthenticated && stats && stats.dueCount > 0 && (

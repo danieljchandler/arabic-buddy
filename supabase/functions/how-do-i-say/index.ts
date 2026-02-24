@@ -246,6 +246,8 @@ serve(async (req) => {
     // Try Jais first (Arabic-specialized), fall back to Lovable AI
     const userContent = `How do I say this in Gulf Arabic: "${trimmedPhrase}"`;
     const jaisResult = await callJais(SYSTEM_PROMPT, userContent, 4096);
+    const llmUsed = jaisResult ? 'Jais (RunPod)' : 'google/gemini-3-flash-preview (Lovable AI)';
+    console.log(`how-do-i-say: LLM used = ${llmUsed}, phrase = "${trimmedPhrase}"`);
     const rawResponse = jaisResult || await callAI(SYSTEM_PROMPT, userContent, LOVABLE_API_KEY, 4096);
 
     const parsed = safeJsonParse<any>(rawResponse);

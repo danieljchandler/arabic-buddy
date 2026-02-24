@@ -42,7 +42,7 @@ serve(async (req) => {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15_000);
 
-    const response = await fetch(`${RUNPOD_URL}/openai/v1/chat/completions`, {
+    const response = await fetch(`${RUNPOD_URL}/runsync`, {
       method: 'POST',
       signal: controller.signal,
       headers: {
@@ -50,9 +50,10 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'tiiuae/jais-adapted-30b-chat',
-        messages: [{ role: 'user', content: 'Hi' }],
-        max_tokens: 1,
+        input: {
+          prompt: '### Instruction: Say hi.\n\n### Response:',
+          max_tokens: 1,
+        },
       }),
     });
     clearTimeout(timeout);

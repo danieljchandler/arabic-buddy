@@ -67,71 +67,51 @@ function toWordTokens(arabic: string, glosses: Record<string, string> = {}): Wor
   }));
 }
 
-function formatJaisPrompt(systemPrompt: string, userContent: string): string {
-  return `### Instruction: ${systemPrompt}\n\n### Input: ${userContent}\n\n### Response:`;
-}
-
-async function callJais(
+async function callQwen(
   systemPrompt: string,
   userContent: string,
+  apiKey: string,
   maxTokens = 4096,
-): Promise<string | null> {
-  const RUNPOD_URL = Deno.env.get('RUNPOD_ENDPOINT_URL');
-  const RUNPOD_KEY = Deno.env.get('RUNPOD_API_KEY');
-  if (!RUNPOD_URL || !RUNPOD_KEY) return null;
-
-  // Normalize: strip trailing /run, /runsync, or slash
-  const baseUrl = RUNPOD_URL.replace(/\/(run|runsync)\/?$/, '').replace(/\/+$/, '');
-  const runpodEndpoint = `${baseUrl}/runsync`;
+): Promise<string> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 55_000);
 
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 50_000);
-
-    const prompt = formatJaisPrompt(systemPrompt, userContent);
-
-    const response = await fetch(runpodEndpoint, {
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       signal: controller.signal,
       headers: {
-        'Authorization': `Bearer ${RUNPOD_KEY}`,
+        'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        input: {
-          prompt,
-          max_tokens: maxTokens,
-          temperature: 0.3,
-        },
+        model: 'qwen/qwen3-5-plus',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userContent },
+        ],
+        max_tokens: maxTokens,
+        temperature: 0.3,
       }),
     });
-    clearTimeout(timeout);
 
     if (!response.ok) {
-      console.warn('Jais error:', response.status);
-      return null;
+      const errText = await response.text();
+      console.error('Qwen error:', response.status, errText.slice(0, 500));
+      throw new Error(`Qwen service error (${response.status})`);
     }
 
     const data = await response.json();
-    console.log('Jais runsync response status:', data?.status, 'keys:', Object.keys(data));
-
-    const output = data?.output;
-    if (!output) {
-      console.warn('Jais returned no output');
-      return null;
+    const content = data.choices?.[0]?.message?.content;
+    if (!content) {
+      throw new Error('Qwen returned empty response');
     }
-
-    if (typeof output === 'string') return output;
-    if (typeof output?.text === 'string') return output.text;
-    if (Array.isArray(output) && typeof output[0] === 'string') return output[0];
-    if (typeof output?.choices?.[0]?.message?.content === 'string') return output.choices[0].message.content;
-    if (typeof output?.choices?.[0]?.text === 'string') return output.choices[0].text;
-
-    console.warn('Jais unexpected output format:', JSON.stringify(output).slice(0, 500));
-    return typeof output === 'object' ? JSON.stringify(output) : String(output);
+    return content;
   } catch (e) {
-    console.warn('Jais call failed:', e instanceof Error ? e.message : String(e));
-    return null;
+    console.error('Qwen fetch failed:', e);
+    throw new Error('AI analysis failed. Please try again.');
+  } finally {
+    clearTimeout(timeout);
   }
 }
 
@@ -308,6 +288,14 @@ serve(async (req) => {
       );
     }
 
+    const OPENROUTER_API_KEY = Deno.env.get('OPENROUTER_API_KEY');
+    if (!OPENROUTER_API_KEY) {
+      return new Response(
+        JSON.stringify({ error: 'AI service not configured' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Build vision content for image analysis
     let onScreenResult: any = null;
     let audioResult: any = null;
@@ -353,9 +341,7 @@ serve(async (req) => {
     // If we have audio transcript but no image analysis, or need separate audio analysis
     if (audioTranscript && !imageBase64) {
       console.log('Analyzing audio transcript...');
-      // Try Jais first for text-only analysis, fall back to Lovable AI
-      const jaisResult = await callJais(AUDIO_ANALYSIS_PROMPT, audioTranscript, 4096);
-      const rawResponse = jaisResult || await callAI(AUDIO_ANALYSIS_PROMPT, audioTranscript, LOVABLE_API_KEY, 4096);
+      const rawResponse = await callQwen(AUDIO_ANALYSIS_PROMPT, audioTranscript, OPENROUTER_API_KEY, 4096);
       audioResult = safeJsonParse<any>(rawResponse);
     }
 

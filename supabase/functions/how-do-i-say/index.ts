@@ -115,7 +115,7 @@ async function callAI(
   const timeout = setTimeout(() => controller.abort(), 55_000);
 
   try {
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       signal: controller.signal,
       headers: {
@@ -123,7 +123,7 @@ async function callAI(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-3-flash-preview',
+        model: 'qwen/qwen3-5-plus',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userContent },
@@ -235,20 +235,19 @@ serve(async (req) => {
 
     const trimmedPhrase = phrase.trim().slice(0, 500);
 
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    if (!LOVABLE_API_KEY) {
+    const OPENROUTER_API_KEY = Deno.env.get('OPENROUTER_API_KEY');
+    if (!OPENROUTER_API_KEY) {
       return new Response(
         JSON.stringify({ error: 'AI service not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Try Jais first (Arabic-specialized), fall back to Lovable AI
+    // Use Qwen via OpenRouter for translation
     const userContent = `How do I say this in Gulf Arabic: "${trimmedPhrase}"`;
-    const jaisResult = await callJais(SYSTEM_PROMPT, userContent, 4096);
-    const llmUsed = jaisResult ? 'Jais (RunPod)' : 'google/gemini-3-flash-preview (Lovable AI)';
+    const llmUsed = 'qwen/qwen3-5-plus (OpenRouter)';
     console.log(`how-do-i-say: LLM used = ${llmUsed}, phrase = "${trimmedPhrase}"`);
-    const rawResponse = jaisResult || await callAI(SYSTEM_PROMPT, userContent, LOVABLE_API_KEY, 4096);
+    const rawResponse = await callAI(SYSTEM_PROMPT, userContent, OPENROUTER_API_KEY, 4096);
 
     // Persist LLM usage log to the database
     try {

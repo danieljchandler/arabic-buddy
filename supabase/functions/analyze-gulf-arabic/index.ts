@@ -171,7 +171,7 @@ async function callAI({
     const startedAt = Date.now();
     let response: Response;
     try {
-      response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
         signal: controller.signal,
         headers: {
@@ -179,9 +179,8 @@ async function callAI({
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          // Gemini tends to follow "return ONLY JSON" well, and now our schema is small enough
-          // to avoid truncation.
-          model: 'google/gemini-2.5-flash',
+          // Qwen3-5-plus via OpenRouter for Gulf Arabic analysis
+          model: 'qwen/qwen3-5-plus',
           messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userContent },
@@ -543,14 +542,14 @@ type MetaAI = {
   culturalContext?: string;
 };
 
-// Fallback: use Lovable AI (GPT-5-mini) for translation when Falcon is unavailable
+// Fallback: use Qwen via OpenRouter for translation when needed
 async function lovableAITranslate(arabicLines: string[], apiKey: string): Promise<string[]> {
   try {
     const numberedLines = arabicLines.map((line, i) => `${i + 1}. ${line}`).join('\n');
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 45_000);
 
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       signal: controller.signal,
       headers: {
@@ -558,7 +557,7 @@ async function lovableAITranslate(arabicLines: string[], apiKey: string): Promis
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'openai/gpt-5-mini',
+        model: 'qwen/qwen3-5-plus',
         messages: [
           {
             role: "system",
@@ -574,7 +573,7 @@ async function lovableAITranslate(arabicLines: string[], apiKey: string): Promis
     clearTimeout(timeout);
 
     if (!response.ok) {
-      console.warn('Lovable AI fallback translation error:', response.status);
+      console.warn('Qwen translation error:', response.status);
       return [];
     }
 
@@ -595,10 +594,10 @@ async function lovableAITranslate(arabicLines: string[], apiKey: string): Promis
         translations.push('');
       }
     }
-    console.log(`Lovable AI fallback: produced ${translations.filter(t => t.length > 0).length}/${arabicLines.length} translations`);
+    console.log(`Qwen translate: produced ${translations.filter(t => t.length > 0).length}/${arabicLines.length} translations`);
     return translations;
   } catch (e) {
-    console.warn('Lovable AI fallback translation failed:', e instanceof Error ? e.message : String(e));
+    console.warn('Qwen translation failed:', e instanceof Error ? e.message : String(e));
     return [];
   }
 }
@@ -635,8 +634,8 @@ serve(async (req) => {
     // When called with { phrase } (no transcript), translate a short Arabic
     // word or phrase and return { translation } immediately.
     if (body.phrase && typeof body.phrase === 'string') {
-      const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-      if (!LOVABLE_API_KEY) {
+      const OPENROUTER_API_KEY = Deno.env.get('OPENROUTER_API_KEY');
+      if (!OPENROUTER_API_KEY) {
         return new Response(JSON.stringify({ error: 'AI service not configured' }), {
           status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
@@ -645,7 +644,7 @@ serve(async (req) => {
       const resp = await callAI({
         systemPrompt: 'You are a Gulf Arabic translator. Translate the given Arabic word or phrase to English. Return ONLY the English translation — 1 to 5 words, no punctuation, no explanation.',
         userContent: body.phrase,
-        apiKey: LOVABLE_API_KEY,
+        apiKey: OPENROUTER_API_KEY,
         maxTokens: 30,
       });
       const translation = (resp.content ?? '').trim().replace(/^["'.]+|["'.]+$/g, '');
@@ -663,9 +662,9 @@ serve(async (req) => {
       );
     }
 
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    if (!LOVABLE_API_KEY) {
-      console.error('LOVABLE_API_KEY is not configured');
+    const OPENROUTER_API_KEY = Deno.env.get('OPENROUTER_API_KEY');
+    if (!OPENROUTER_API_KEY) {
+      console.error('OPENROUTER_API_KEY is not configured');
       return new Response(
         JSON.stringify({ error: 'AI service not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -694,7 +693,7 @@ serve(async (req) => {
      let linesResp = await callAI({
        systemPrompt: getLinesSystemPrompt(false, hasDual),
        userContent: linesUserContent,
-       apiKey: LOVABLE_API_KEY,
+       apiKey: OPENROUTER_API_KEY,
        isRetry: false,
        maxTokens: 8192,
      });
@@ -723,7 +722,7 @@ serve(async (req) => {
         const retry = await callAI({
           systemPrompt: getLinesSystemPrompt(true, hasDual),
           userContent: linesUserContent,
-          apiKey: LOVABLE_API_KEY,
+          apiKey: OPENROUTER_API_KEY,
          isRetry: true,
          maxTokens: 8192,
        });
@@ -743,7 +742,7 @@ serve(async (req) => {
          let metaResp = await callAI({
            systemPrompt: getMetaSystemPrompt(false),
            userContent: transcript,
-           apiKey: LOVABLE_API_KEY,
+           apiKey: OPENROUTER_API_KEY,
            isRetry: false,
            maxTokens: 2048,
          });
@@ -752,7 +751,7 @@ serve(async (req) => {
            const metaRetry = await callAI({
              systemPrompt: getMetaSystemPrompt(true),
              userContent: transcript,
-             apiKey: LOVABLE_API_KEY,
+             apiKey: OPENROUTER_API_KEY,
              isRetry: true,
              maxTokens: 2048,
            });
@@ -788,105 +787,16 @@ serve(async (req) => {
      const arabicLines = linesAi.lines.map(l => String(l.arabic ?? '').trim());
      console.log('Starting parallel: Falcon translation + meta extraction for', arabicLines.length, 'lines');
 
-     // Call Jais 30 for alternative translations (via RunPod serverless endpoint)
-     const jaisPromise = (async (): Promise<string[]> => {
-       try {
-         const RUNPOD_URL = Deno.env.get('RUNPOD_ENDPOINT_URL');
-         const RUNPOD_KEY = Deno.env.get('RUNPOD_API_KEY');
+     // Secondary translation pass is no longer needed since callAI uses Qwen directly
+     const jaisPromise = Promise.resolve([] as string[]);
 
-         if (!RUNPOD_URL || !RUNPOD_KEY) {
-           console.warn('Jais/RunPod endpoint not configured, falling back to Lovable AI');
-            // Fallback to Lovable AI (GPT-5-mini)
-            return await lovableAITranslate(arabicLines, LOVABLE_API_KEY);
-          }
-
-          // Normalize: strip trailing /run, /runsync, or slash
-          const baseUrl = RUNPOD_URL.replace(/\/(run|runsync)\/?$/, '').replace(/\/+$/, '');
-          const runpodEndpoint = `${baseUrl}/runsync`;
-          console.log('Calling Jais for translation at:', runpodEndpoint);
-
-          const numberedLines = arabicLines.map((line, i) => `${i + 1}. ${line}`).join('\n');
-
-           const controller = new AbortController();
-           const timeout = setTimeout(() => controller.abort(), 120_000);
-
-          const systemContent = "You are an expert translator specializing in Gulf Arabic (Khaliji) dialect. Translate each numbered Arabic line to natural English. Return ONLY the translations, numbered to match. No commentary.";
-          const userContent = `Translate these Gulf Arabic lines to English:\n\n${numberedLines}`;
-          const prompt = `### Instruction: ${systemContent}\n\n### Input: ${userContent}\n\n### Response:`;
-
-          const response = await fetch(runpodEndpoint, {
-            method: 'POST',
-            signal: controller.signal,
-            headers: {
-              'Authorization': `Bearer ${RUNPOD_KEY}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              input: {
-                prompt,
-                max_tokens: 4096,
-                temperature: 0.3,
-              },
-            }),
-          });
-          clearTimeout(timeout);
-
-          if (!response.ok) {
-            const errText = await response.text();
-            console.warn('Jais API error:', response.status, 'url:', runpodEndpoint, 'body:', errText?.slice(0, 300));
-            console.log('Falling back to Lovable AI for translation...');
-            return await lovableAITranslate(arabicLines, LOVABLE_API_KEY);
-          }
-
-          const data = await response.json();
-          console.log('Jais runsync response status:', data?.status, 'keys:', Object.keys(data));
-          
-          // Handle RunPod runsync output format
-          const output = data?.output;
-          let generatedText = '';
-          if (typeof output === 'string') generatedText = output;
-          else if (typeof output?.text === 'string') generatedText = output.text;
-          else if (Array.isArray(output) && typeof output[0] === 'string') generatedText = output[0];
-          else if (typeof output?.choices?.[0]?.message?.content === 'string') generatedText = output.choices[0].message.content;
-          else if (typeof output?.choices?.[0]?.text === 'string') generatedText = output.choices[0].text;
-          else if (output) generatedText = typeof output === 'object' ? JSON.stringify(output) : String(output);
-          if (!generatedText) {
-            console.warn('Jais returned empty content');
-            return await lovableAITranslate(arabicLines, LOVABLE_API_KEY);
-          }
-
-          console.log('Jais response length:', generatedText.length);
-
-          // Parse numbered translations
-          const translations: string[] = [];
-          const respLines = generatedText.split('\n').filter((l: string) => l.trim());
-          for (let i = 0; i < arabicLines.length; i++) {
-            const lineNum = i + 1;
-            const match = respLines.find((l: string) => l.trim().startsWith(`${lineNum}.`) || l.trim().startsWith(`${lineNum})`));
-            if (match) {
-              translations.push(match.trim().replace(/^\d+[\.\)]\s*/, ''));
-            } else if (i < respLines.length) {
-              translations.push(respLines[i]?.trim().replace(/^\d+[\.\)]\s*/, '') || '');
-            } else {
-              translations.push('');
-            }
-          }
-
-          console.log(`Jais: produced ${translations.filter(t => t.length > 0).length}/${arabicLines.length} translations`);
-          return translations;
-        } catch (e) {
-          console.warn('Jais translation failed, falling back to Lovable AI:', e instanceof Error ? e.message : String(e));
-          return await lovableAITranslate(arabicLines, LOVABLE_API_KEY);
-        }
-      })();
-
-     // Meta extraction in parallel with Falcon
+     // Meta extraction in parallel with translation
      const metaPromise = (async () => {
        let metaAi: MetaAI | null = null;
        let metaResp = await callAI({
          systemPrompt: getMetaSystemPrompt(false),
          userContent: transcript,
-         apiKey: LOVABLE_API_KEY,
+         apiKey: OPENROUTER_API_KEY,
          isRetry: false,
          maxTokens: 2048,
        });
@@ -897,7 +807,7 @@ serve(async (req) => {
          const metaRetry = await callAI({
            systemPrompt: getMetaSystemPrompt(true),
            userContent: transcript,
-           apiKey: LOVABLE_API_KEY,
+           apiKey: OPENROUTER_API_KEY,
            isRetry: true,
            maxTokens: 2048,
          });
@@ -911,18 +821,18 @@ serve(async (req) => {
       const [jaisTranslations, metaAi] = await Promise.all([jaisPromise, metaPromise]);
 
       // -----------------------------
-      // 2b) Merge translations if Jais succeeded
+      // 2b) Merge translations if secondary pass succeeded
       // -----------------------------
       let finalLines = linesAi.lines;
       const hasJais = jaisTranslations.length > 0 && jaisTranslations.some(t => t.length > 0);
 
       if (hasJais) {
-        console.log('Merging Gemini + Jais translations...');
+        console.log('Merging primary + secondary translations...');
 
         const mergeContent = arabicLines.map((arabic, i) => {
-          const geminiTrans = String(linesAi!.lines[i]?.translation ?? '');
-          const jaisTrans = jaisTranslations[i] || '';
-          return `Line ${i + 1}: "${arabic}"\n  Gemini: "${geminiTrans}"\n  Jais: "${jaisTrans}"`;
+          const primaryTrans = String(linesAi!.lines[i]?.translation ?? '');
+          const secondaryTrans = jaisTranslations[i] || '';
+          return `Line ${i + 1}: "${arabic}"\n  Primary: "${primaryTrans}"\n  Secondary: "${secondaryTrans}"`;
         }).join('\n\n');
 
        const mergePrompt = `You are merging two translations of Gulf Arabic lines. For each line, pick whichever translation is more natural and accurate, or combine the best parts of both. Output ONLY valid JSON:
@@ -933,7 +843,7 @@ No additional text outside JSON.`;
        const mergeResp = await callAI({
          systemPrompt: mergePrompt,
          userContent: mergeContent,
-         apiKey: LOVABLE_API_KEY,
+         apiKey: OPENROUTER_API_KEY,
          isRetry: false,
          maxTokens: 4096,
        });
@@ -947,13 +857,13 @@ No additional text outside JSON.`;
            }));
            console.log('Merge complete: updated', merged.translations.length, 'translations');
          } else {
-           console.warn('Merge parse failed, using Gemini translations');
+           console.warn('Merge parse failed, using primary Qwen translations');
          }
        } else {
-         console.warn('Merge call failed, using Gemini translations');
+         console.warn('Merge call failed, using Qwen translations');
        }
       } else {
-        console.log('Jais unavailable or returned empty; using Gemini translations only');
+        console.log('Using Qwen translations from primary analysis pass');
       }
 
      if (!metaAi) {
@@ -983,7 +893,7 @@ No additional text outside JSON.`;
       let glossesResp = await callAI({
         systemPrompt: getWordGlossesPrompt(false),
         userContent: glossesContext,
-        apiKey: LOVABLE_API_KEY,
+        apiKey: OPENROUTER_API_KEY,
         isRetry: false,
         maxTokens: 4096,
       });
@@ -1002,7 +912,7 @@ No additional text outside JSON.`;
         const glossesRetry = await callAI({
           systemPrompt: getWordGlossesPrompt(true),
           userContent: glossesContext,
-          apiKey: LOVABLE_API_KEY,
+          apiKey: OPENROUTER_API_KEY,
           isRetry: true,
           maxTokens: 4096,
         });

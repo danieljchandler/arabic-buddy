@@ -7,6 +7,7 @@ const corsHeaders = {
 };
 
 const CEREBRAS_ENDPOINT = 'https://api.cerebras.ai/v1/chat/completions';
+const CEREBRAS_MODEL = 'qwen-3-235b-a22b-instruct-2507'; // Jais not available on Cerebras inference; using Qwen-3 which excels at Arabic
 const OPENROUTER_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
 
 interface RawTranslation {
@@ -141,7 +142,7 @@ async function callCerebrasJais(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'jais-2-70b',
+        model: CEREBRAS_MODEL,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userContent },
@@ -281,7 +282,7 @@ serve(async (req) => {
       );
     }
 
-    const llmUsed = 'jais-2-70b (Cerebras)';
+    const llmUsed = `${CEREBRAS_MODEL} (Cerebras)`;
     console.log(`translate-jais: LLM used = ${llmUsed}, phrase = "${trimmedPhrase}"`);
 
     // Step 1: Get translation from Cerebras Jais 2 70B

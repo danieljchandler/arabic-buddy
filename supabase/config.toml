@@ -41,3 +41,6 @@ verify_jwt = false
 
 [functions.how-do-i-say]
 verify_jwt = false
+
+[functions.translate-jais]
+verify_jwt = false

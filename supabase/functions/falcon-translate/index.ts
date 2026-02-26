@@ -6,7 +6,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-const QWEN_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
+const JAIS_ENDPOINT = "https://api.cerebras.ai/v1/chat/completions";
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -41,16 +41,16 @@ serve(async (req) => {
       );
     }
 
-    const OPENROUTER_API_KEY = Deno.env.get('OPENROUTER_API_KEY');
-    if (!OPENROUTER_API_KEY) {
-      console.error('OPENROUTER_API_KEY is not configured');
+    const CEREBRAS_API_KEY = Deno.env.get('CEREBRAS_API_KEY');
+    if (!CEREBRAS_API_KEY) {
+      console.error('CEREBRAS_API_KEY is not configured');
       return new Response(
-        JSON.stringify({ error: 'OpenRouter API key not configured' }),
+        JSON.stringify({ error: 'Cerebras API key not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`Qwen translate: processing ${arabicLines.length} lines`);
+    console.log(`Jais translate: processing ${arabicLines.length} lines`);
 
     const numberedLines = arabicLines.map((line: string, i: number) => `${i + 1}. ${line}`).join('\n');
 
@@ -59,15 +59,15 @@ serve(async (req) => {
 
     let response: Response;
     try {
-      response = await fetch(QWEN_ENDPOINT, {
+      response = await fetch(JAIS_ENDPOINT, {
         method: 'POST',
         signal: controller.signal,
         headers: {
-          'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+          'Authorization': `Bearer ${CEREBRAS_API_KEY}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: "qwen/qwen3-5-plus",
+          model: "jais-2-70b",
           messages: [
             {
               role: "system",
@@ -83,9 +83,9 @@ serve(async (req) => {
     } catch (e) {
       clearTimeout(timeout);
       const isAbort = e instanceof DOMException && e.name === 'AbortError';
-      console.error('Qwen fetch failed:', { isAbort, error: String(e) });
+      console.error('Jais fetch failed:', { isAbort, error: String(e) });
       return new Response(
-        JSON.stringify({ error: isAbort ? 'Qwen request timed out' : String(e) }),
+        JSON.stringify({ error: isAbort ? 'Jais request timed out' : String(e) }),
         { status: isAbort ? 504 : 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     } finally {
@@ -94,9 +94,9 @@ serve(async (req) => {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Qwen API error:', response.status, errorText?.slice(0, 500));
+      console.error('Jais API error:', response.status, errorText?.slice(0, 500));
       return new Response(
-        JSON.stringify({ error: `Qwen API error (${response.status})`, details: errorText?.slice(0, 300) }),
+        JSON.stringify({ error: `Jais API error (${response.status})`, details: errorText?.slice(0, 300) }),
         { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -105,14 +105,14 @@ serve(async (req) => {
     const generatedText = data?.choices?.[0]?.message?.content || '';
 
     if (!generatedText) {
-      console.error('Qwen returned empty content');
+      console.error('Jais returned empty content');
       return new Response(
-        JSON.stringify({ error: 'Qwen returned empty response' }),
+        JSON.stringify({ error: 'Jais returned empty response' }),
         { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log('Qwen response length:', generatedText.length);
+    console.log('Jais response length:', generatedText.length);
 
     // Parse numbered translations
     const translations: string[] = [];
@@ -134,7 +134,7 @@ serve(async (req) => {
       }
     }
 
-    console.log(`Qwen translate: produced ${translations.filter(t => t.length > 0).length}/${arabicLines.length} translations`);
+    console.log(`Jais translate: produced ${translations.filter(t => t.length > 0).length}/${arabicLines.length} translations`);
 
     return new Response(
       JSON.stringify({ translations }),
@@ -142,7 +142,7 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('Error in qwen-translate:', error);
+    console.error('Error in falcon-translate:', error);
     return new Response(
       JSON.stringify({ error: 'Internal server error', details: error instanceof Error ? error.message : 'Unknown error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

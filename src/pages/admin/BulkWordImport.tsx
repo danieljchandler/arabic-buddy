@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ArrowLeft, Plus, Trash2, Mic, Check, X, Play, Pause, Upload, FileSpreadsheet, ClipboardPaste } from 'lucide-react';
+import { Loader2, ArrowLeft, Plus, Trash2, Check, X, Play, Pause, Upload, FileSpreadsheet, ClipboardPaste } from 'lucide-react';
 import { InlineAudioRecorder } from '@/components/admin/InlineAudioRecorder';
 
 interface WordEntry {
@@ -45,20 +45,10 @@ const BulkWordImport = () => {
   const [pasteText, setPasteText] = useState('');
   const [isUploading, setIsUploading] = useState(false);
 
-  // Fetch topic/lesson info (try lessons first, fall back to topics)
+  // Fetch topic info
   const { data: topic } = useQuery({
     queryKey: ['topic-info', topicId],
     queryFn: async () => {
-      const { data: lesson } = await supabase
-        .from('lessons')
-        .select('title, title_arabic, icon, gradient')
-        .eq('id', topicId)
-        .maybeSingle();
-
-      if (lesson) {
-        return { name: (lesson as any).title, name_arabic: (lesson as any).title_arabic, icon: (lesson as any).icon, gradient: (lesson as any).gradient };
-      }
-
       const { data, error } = await supabase
         .from('topics')
         .select('name, name_arabic, icon, gradient')
@@ -70,7 +60,6 @@ const BulkWordImport = () => {
     },
   });
 
-  // Upload audio file helper
   const uploadAudioFile = async (file: File): Promise<string> => {
     const fileExt = file.name.split('.').pop();
     const fileName = `${crypto.randomUUID()}.${fileExt}`;
@@ -93,7 +82,6 @@ const BulkWordImport = () => {
     mutationFn: async () => {
       setIsUploading(true);
       
-      // Filter valid entries
       const validEntries = entries.filter(
         (e) => e.wordArabic.trim() && e.wordEnglish.trim()
       );
@@ -102,7 +90,6 @@ const BulkWordImport = () => {
         throw new Error('No valid entries to save');
       }
 
-      // Upload any audio files first
       const entriesWithAudio = await Promise.all(
         validEntries.map(async (entry) => {
           if (entry.audioFile && !entry.audioUrl) {
@@ -113,43 +100,19 @@ const BulkWordImport = () => {
         })
       );
 
-      // Check if topicId is a lesson or a topic
-      const { data: lessonCheck } = await supabase
-        .from('lessons')
-        .select('id')
-        .eq('id', topicId)
-        .maybeSingle();
-
-      const isLesson = !!lessonCheck;
-
       // Get current max display_order
-      const orderQuery = isLesson
-        ? supabase.from('vocabulary_words').select('display_order').eq('lesson_id', topicId)
-        : supabase.from('vocabulary_words').select('display_order').eq('topic_id', topicId);
-
-      const { data: maxOrder } = await orderQuery
+      const { data: maxOrder } = await supabase
+        .from('vocabulary_words')
+        .select('display_order')
+        .eq('topic_id', topicId)
         .order('display_order', { ascending: false })
         .limit(1)
         .single();
 
       let nextOrder = (maxOrder?.display_order ?? -1) + 1;
 
-      // If lesson, find the associated topic_id for backward compat
-      let resolvedTopicId = topicId;
-      if (isLesson) {
-        const { data: existingWord } = await supabase
-          .from('vocabulary_words')
-          .select('topic_id')
-          .eq('lesson_id', topicId)
-          .limit(1)
-          .maybeSingle();
-        resolvedTopicId = existingWord?.topic_id || topicId;
-      }
-
-      // Insert all entries
       const wordsToInsert = entriesWithAudio.map((entry) => ({
-        topic_id: resolvedTopicId,
-        lesson_id: isLesson ? topicId : null,
+        topic_id: topicId,
         word_arabic: entry.wordArabic.trim(),
         word_english: entry.wordEnglish.trim(),
         audio_url: entry.audioUrl,
@@ -202,7 +165,6 @@ const BulkWordImport = () => {
     setEntries((prev) => [...prev, ...newEntries]);
   };
 
-  // Parse pasted text (supports tab-separated and comma-separated)
   const parsePastedText = () => {
     if (!pasteText.trim()) return;
 
@@ -210,7 +172,6 @@ const BulkWordImport = () => {
     const newEntries: WordEntry[] = [];
 
     for (const line of lines) {
-      // Try tab first, then comma
       let parts = line.split('\t');
       if (parts.length < 2) {
         parts = line.split(',');
@@ -235,7 +196,6 @@ const BulkWordImport = () => {
 
     if (newEntries.length > 0) {
       setEntries((prev) => {
-        // Remove empty entries at the end, then add new ones
         const filtered = prev.filter(e => e.wordArabic.trim() || e.wordEnglish.trim());
         return [...filtered, ...newEntries];
       });
@@ -250,7 +210,6 @@ const BulkWordImport = () => {
     }
   };
 
-  // Handle CSV/Excel file upload
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -259,18 +218,15 @@ const BulkWordImport = () => {
     const lines = text.trim().split('\n');
     const newEntries: WordEntry[] = [];
 
-    // Skip header row if it looks like one
     const startIndex = lines[0]?.toLowerCase().includes('arabic') || 
                        lines[0]?.toLowerCase().includes('english') ? 1 : 0;
 
     for (let i = startIndex; i < lines.length; i++) {
       const line = lines[i];
-      // Handle CSV with potential quotes
       let parts: string[] = [];
       
       if (line.includes('"')) {
-        // CSV with quotes - simple parsing
-        const regex = /(?:^|,)("(?:[^"]*(?:""[^"]*)*)"|[^,]*)/g;
+        const regex = /(?:^|,)(\"(?:[^\"]*(?:\"\"[^\"]*)*)\"|[^,]*)/g;
         let match;
         while ((match = regex.exec(line)) !== null) {
           let value = match[1] || '';
@@ -280,7 +236,6 @@ const BulkWordImport = () => {
           parts.push(value.trim());
         }
       } else {
-        // Tab or comma separated
         parts = line.includes('\t') ? line.split('\t') : line.split(',');
       }
 
@@ -315,26 +270,22 @@ const BulkWordImport = () => {
       });
     }
 
-    // Reset file input
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
   };
 
-  // Handle bulk audio file upload
   const handleAudioFilesUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files || files.length === 0) return;
 
     const audioMap = new Map<string, File>();
     
-    // Create a map of filename (without extension) -> file
     for (const file of Array.from(files)) {
       const nameWithoutExt = file.name.replace(/\.[^/.]+$/, '').toLowerCase();
       audioMap.set(nameWithoutExt, file);
     }
 
-    // Match audio files to entries by Arabic or English word
     let matchCount = 0;
     setEntries((prev) =>
       prev.map((entry) => {
@@ -371,7 +322,6 @@ const BulkWordImport = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <header className="border-b bg-card sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -415,7 +365,6 @@ const BulkWordImport = () => {
       </header>
 
       <main className="container mx-auto px-4 py-6 max-w-4xl">
-        {/* Import Options */}
         <Card className="mb-6">
           <CardHeader>
             <CardTitle>Import Words</CardTitle>
@@ -501,11 +450,7 @@ const BulkWordImport = () => {
                       onChange={handleAudioFilesUpload}
                       className="hidden"
                     />
-                    <Button 
-                      variant="outline" 
-                      onClick={() => audioInputRef.current?.click()}
-                      disabled={entries.filter(e => e.wordArabic.trim()).length === 0}
-                    >
+                    <Button variant="outline" onClick={() => audioInputRef.current?.click()}>
                       <Upload className="mr-2 h-4 w-4" />
                       Upload Audio Files
                     </Button>
@@ -519,189 +464,55 @@ const BulkWordImport = () => {
         {/* Word entries */}
         <div className="space-y-3">
           {entries.map((entry, index) => (
-            <Card
-              key={entry.id}
-              className={`transition-opacity ${
-                entry.wordArabic.trim() && entry.wordEnglish.trim()
-                  ? 'border-primary/30'
-                  : 'opacity-80'
-              }`}
-            >
-              <CardContent className="py-4">
+            <Card key={entry.id} className="border">
+              <CardContent className="pt-4 pb-3">
                 <div className="flex items-start gap-3">
-                  <span className="text-sm text-muted-foreground font-mono w-8 pt-2.5">
-                    {index + 1}.
+                  <span className="text-sm text-muted-foreground mt-2 w-6 text-right shrink-0">
+                    {index + 1}
                   </span>
-
                   <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-3">
                     <Input
-                      placeholder="Arabic word (e.g., أحمر)"
+                      placeholder="Arabic word"
                       value={entry.wordArabic}
-                      onChange={(e) =>
-                        updateEntry(entry.id, 'wordArabic', e.target.value)
-                      }
+                      onChange={(e) => updateEntry(entry.id, 'wordArabic', e.target.value)}
                       dir="rtl"
                       className="text-lg"
                     />
                     <Input
-                      placeholder="English word (e.g., Red)"
+                      placeholder="English translation"
                       value={entry.wordEnglish}
-                      onChange={(e) =>
-                        updateEntry(entry.id, 'wordEnglish', e.target.value)
-                      }
-                      className="text-lg"
+                      onChange={(e) => updateEntry(entry.id, 'wordEnglish', e.target.value)}
                     />
                   </div>
-
-                  {/* Audio section */}
-                  <div className="flex items-center gap-2">
-                    {entry.isRecording ? (
-                      <InlineAudioRecorder
-                        onSave={(url) => {
-                          updateEntry(entry.id, 'audioUrl', url);
-                          updateEntry(entry.id, 'isRecording', false);
-                        }}
-                        onCancel={() => updateEntry(entry.id, 'isRecording', false)}
-                      />
-                    ) : entry.audioUrl ? (
-                      <div className="flex items-center gap-1">
-                        <AudioPreview url={entry.audioUrl} />
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => updateEntry(entry.id, 'audioUrl', null)}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ) : entry.audioFile ? (
-                      <div className="flex items-center gap-1">
-                        <AudioFilePreview file={entry.audioFile} />
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => updateEntry(entry.id, 'audioFile', null)}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="h-9 w-9"
-                        onClick={() => updateEntry(entry.id, 'isRecording', true)}
-                        title="Record audio"
-                      >
-                        <Mic className="h-4 w-4" />
-                      </Button>
-                    )}
+                  <div className="flex items-center gap-1 shrink-0">
+                    <InlineAudioRecorder
+                      audioUrl={entry.audioUrl}
+                      onRecorded={(url) => updateEntry(entry.id, 'audioUrl', url)}
+                      storagePath={`${topicId}/${entry.id}`}
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => removeEntry(entry.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
-
-                  {/* Delete */}
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-9 w-9 text-muted-foreground hover:text-destructive"
-                    onClick={() => removeEntry(entry.id)}
-                    disabled={entries.length <= 1}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
                 </div>
               </CardContent>
             </Card>
           ))}
         </div>
 
-        {/* Bottom actions */}
-        <div className="mt-6 flex justify-between">
-          <Button variant="outline" onClick={() => addMultipleEntries(5)}>
+        <div className="mt-4 flex justify-center">
+          <Button variant="outline" onClick={addEntry}>
             <Plus className="mr-2 h-4 w-4" />
-            Add More Rows
-          </Button>
-          <Button
-            onClick={() => mutation.mutate()}
-            disabled={mutation.isPending || validCount === 0 || isUploading}
-            size="lg"
-          >
-            {mutation.isPending || isUploading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {isUploading ? 'Uploading...' : 'Saving...'}
-              </>
-            ) : (
-              <>
-                <Check className="mr-2 h-4 w-4" />
-                Save All ({validCount})
-              </>
-            )}
+            Add Row
           </Button>
         </div>
       </main>
     </div>
-  );
-};
-
-// Audio preview for uploaded URL
-const AudioPreview = ({ url }: { url: string }) => {
-  const [isPlaying, setIsPlaying] = useState(false);
-
-  const togglePlay = () => {
-    const audio = new Audio(url);
-    if (isPlaying) {
-      setIsPlaying(false);
-    } else {
-      audio.play();
-      audio.onended = () => setIsPlaying(false);
-      setIsPlaying(true);
-    }
-  };
-
-  return (
-    <Button
-      variant="outline"
-      size="icon"
-      className="h-9 w-9 text-success"
-      onClick={togglePlay}
-      title="Play recording"
-    >
-      {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-    </Button>
-  );
-};
-
-// Audio preview for local file
-const AudioFilePreview = ({ file }: { file: File }) => {
-  const [isPlaying, setIsPlaying] = useState(false);
-
-  const togglePlay = () => {
-    const url = URL.createObjectURL(file);
-    const audio = new Audio(url);
-    if (isPlaying) {
-      setIsPlaying(false);
-    } else {
-      audio.play();
-      audio.onended = () => {
-        setIsPlaying(false);
-        URL.revokeObjectURL(url);
-      };
-      setIsPlaying(true);
-    }
-  };
-
-  return (
-    <Button
-      variant="outline"
-      size="icon"
-      className="h-9 w-9 text-primary"
-      onClick={togglePlay}
-      title={`Play ${file.name}`}
-    >
-      {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-    </Button>
   );
 };
 

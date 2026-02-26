@@ -44,7 +44,6 @@ export const useDueWords = () => {
 
       const now = new Date().toISOString();
 
-      // Get all words with their review status (join lessons + topics)
       const { data: words, error: wordsError } = await supabase
         .from('vocabulary_words')
         .select(`
@@ -54,16 +53,9 @@ export const useDueWords = () => {
           image_url,
           audio_url,
           topic_id,
-          lesson_id,
           topics (
             name,
             name_arabic,
-            gradient,
-            icon
-          ),
-          lessons (
-            title,
-            title_arabic,
             gradient,
             icon
           )
@@ -71,7 +63,6 @@ export const useDueWords = () => {
 
       if (wordsError) throw wordsError;
 
-      // Get user's review data
       const { data: reviews, error: reviewsError } = await supabase
         .from('word_reviews')
         .select('*')
@@ -81,28 +72,21 @@ export const useDueWords = () => {
 
       const reviewMap = new Map(reviews?.map(r => [r.word_id, r]) || []);
 
-      // Filter to due words (either never reviewed or next_review_at <= now)
       const dueWords = words
         ?.map(word => {
           const review = reviewMap.get(word.id) || null;
-          // Prefer lesson data, fall back to topic data
-          const lesson = (word as any).lessons;
           const topicData = (word as any).topics;
-          const topic = lesson
-            ? { name: lesson.title, name_arabic: lesson.title_arabic || lesson.title, gradient: lesson.gradient, icon: lesson.icon }
-            : topicData as WordWithReview['topic'];
           return {
             ...word,
             review,
-            topic,
+            topic: topicData as WordWithReview['topic'],
           };
         })
         .filter(word => {
-          if (!word.review) return true; // Never reviewed = due
+          if (!word.review) return true;
           return new Date(word.review.next_review_at) <= new Date(now);
         })
         .sort((a, b) => {
-          // Sort by: never reviewed first, then by next_review_at
           if (!a.review) return -1;
           if (!b.review) return 1;
           return new Date(a.review.next_review_at).getTime() - new Date(b.review.next_review_at).getTime();
@@ -124,12 +108,10 @@ export const useReviewStats = () => {
 
       const now = new Date().toISOString();
 
-      // Get total words count
       const { count: totalWords } = await supabase
         .from('vocabulary_words')
         .select('*', { count: 'exact', head: true });
 
-      // Get user's reviews
       const { data: reviews } = await supabase
         .from('word_reviews')
         .select('*')
@@ -184,7 +166,6 @@ export const useSubmitReview = () => {
       };
 
       if (currentReview) {
-        // Update existing review
         const { error } = await supabase
           .from('word_reviews')
           .update(reviewData)
@@ -192,7 +173,6 @@ export const useSubmitReview = () => {
 
         if (error) throw error;
       } else {
-        // Insert new review
         const { error } = await supabase
           .from('word_reviews')
           .insert(reviewData);

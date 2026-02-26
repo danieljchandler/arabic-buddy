@@ -35,7 +35,6 @@ const WordForm = () => {
     }
     setGeneratingImage(true);
     try {
-      // Only reuse existing when generating for the first time with no custom instructions
       if (!forceNew && !imageUrl && !imageInstructions.trim()) {
         const { data: existing } = await supabase
           .from('vocabulary_words')
@@ -77,20 +76,10 @@ const WordForm = () => {
     }
   };
 
-  // Fetch topic/lesson info (try lessons first, fall back to topics)
+  // Fetch topic info
   const { data: topic } = useQuery({
     queryKey: ['topic-info', topicId],
     queryFn: async () => {
-      const { data: lesson } = await supabase
-        .from('lessons')
-        .select('title, title_arabic, icon, gradient')
-        .eq('id', topicId)
-        .maybeSingle();
-
-      if (lesson) {
-        return { name: (lesson as any).title, name_arabic: (lesson as any).title_arabic, icon: (lesson as any).icon, gradient: (lesson as any).gradient };
-      }
-
       const { data, error } = await supabase
         .from('topics')
         .select('name, name_arabic, icon, gradient')
@@ -125,7 +114,7 @@ const WordForm = () => {
       setWordEnglish(existingWord.word_english);
       setImageUrl(existingWord.image_url);
       setAudioUrl(existingWord.audio_url);
-      setImagePosition((existingWord as any).image_position || '50 50');
+      setImagePosition(existingWord.image_position || '50 50');
     }
   }, [existingWord]);
 
@@ -140,59 +129,32 @@ const WordForm = () => {
             image_url: imageUrl,
             audio_url: audioUrl,
             image_position: imagePosition,
-          } as any)
+          })
           .eq('id', wordId);
 
         if (error) throw error;
       } else {
-        // Check if topicId is a lesson or a topic
-        const { data: lessonCheck } = await supabase
-          .from('lessons')
-          .select('id')
-          .eq('id', topicId)
-          .maybeSingle();
-
-        const isLesson = !!lessonCheck;
-
-        // Get max display_order
-        const orderQuery = isLesson
-          ? supabase.from('vocabulary_words').select('display_order').eq('lesson_id', topicId)
-          : supabase.from('vocabulary_words').select('display_order').eq('topic_id', topicId);
-
-        const { data: maxOrder } = await orderQuery
+        const { data: maxOrder } = await supabase
+          .from('vocabulary_words')
+          .select('display_order')
+          .eq('topic_id', topicId)
           .order('display_order', { ascending: false })
           .limit(1)
           .single();
 
         const nextOrder = (maxOrder?.display_order ?? -1) + 1;
 
-        const insertData: any = {
-          word_arabic: wordArabic,
-          word_english: wordEnglish,
-          image_url: imageUrl,
-          audio_url: audioUrl,
-          image_position: imagePosition,
-          display_order: nextOrder,
-        };
-
-        if (isLesson) {
-          insertData.lesson_id = topicId;
-          // Also need a topic_id for backward compat — use existing or create one
-          const { data: existingWords } = await supabase
-            .from('vocabulary_words')
-            .select('topic_id')
-            .eq('lesson_id', topicId)
-            .limit(1)
-            .maybeSingle();
-
-          insertData.topic_id = existingWords?.topic_id || topicId;
-        } else {
-          insertData.topic_id = topicId;
-        }
-
         const { error } = await supabase
           .from('vocabulary_words')
-          .insert(insertData);
+          .insert({
+            topic_id: topicId,
+            word_arabic: wordArabic,
+            word_english: wordEnglish,
+            image_url: imageUrl,
+            audio_url: audioUrl,
+            image_position: imagePosition,
+            display_order: nextOrder,
+          });
 
         if (error) throw error;
       }
@@ -234,7 +196,6 @@ const WordForm = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <header className="border-b bg-card">
         <div className="container mx-auto px-4 py-4 flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={() => navigate(`/admin/topics/${topicId}/words`)}>
@@ -254,7 +215,6 @@ const WordForm = () => {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Word fields */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="wordArabic">Arabic Word</Label>
@@ -281,7 +241,6 @@ const WordForm = () => {
                 </div>
               </div>
 
-              {/* Image upload */}
               <div className="space-y-2">
                 <Label>Flashcard Image</Label>
                 <ImageUploader
@@ -313,7 +272,6 @@ const WordForm = () => {
                 </Button>
               </div>
 
-              {/* Image position editor - only show when image is uploaded */}
               {imageUrl && (
                 <div className="space-y-2">
                   <Label>Image Position</Label>
@@ -325,7 +283,6 @@ const WordForm = () => {
                 </div>
               )}
 
-              {/* Audio upload */}
               <div className="space-y-2">
                 <Label>Audio Pronunciation</Label>
                 <AudioUploader
@@ -335,7 +292,6 @@ const WordForm = () => {
                 />
               </div>
 
-              {/* Submit */}
               <div className="flex gap-3">
                 <Button
                   type="button"

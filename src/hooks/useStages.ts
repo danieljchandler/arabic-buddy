@@ -14,22 +14,16 @@ export interface CurriculumStage {
   lesson_count?: number;
 }
 
+/**
+ * curriculum_stages table doesn't exist yet.
+ * Return empty array to avoid errors.
+ */
 export const useStages = () => {
   return useQuery({
     queryKey: ['curriculum-stages'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('curriculum_stages')
-        .select('*, lessons(id)')
-        .order('display_order', { ascending: true });
-
-      if (error) throw error;
-
-      return (data || []).map((stage: any) => ({
-        ...stage,
-        lesson_count: stage.lessons?.length || 0,
-        lessons: undefined,
-      })) as CurriculumStage[];
+    queryFn: async (): Promise<CurriculumStage[]> => {
+      // Table doesn't exist yet - return empty
+      return [];
     },
   });
 };

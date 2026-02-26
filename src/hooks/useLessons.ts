@@ -3,15 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 
 export interface Lesson {
   id: string;
-  stage_id: string;
-  lesson_number: number;
-  title: string;
-  title_arabic: string | null;
-  description: string | null;
-  duration_minutes: number | null;
-  cefr_target: string | null;
-  approach: string | null;
-  unlock_condition: string | null;
+  name: string;
+  name_arabic: string;
   icon: string;
   gradient: string;
   display_order: number;
@@ -20,51 +13,32 @@ export interface Lesson {
   word_count?: number;
 }
 
-/** Fetch all lessons for a given stage */
-export const useLessons = (stageId: string | undefined) => {
+/** Fetch all topics as lessons (lessons table doesn't exist yet) */
+export const useLessons = (stageId?: string | undefined) => {
   return useQuery({
     queryKey: ['lessons', stageId],
     queryFn: async () => {
-      if (!stageId) throw new Error('Stage ID is required');
-
       const { data, error } = await supabase
-        .from('lessons')
+        .from('topics')
         .select('*, vocabulary_words(id)')
-        .eq('stage_id', stageId)
         .order('display_order', { ascending: true });
 
       if (error) throw error;
 
-      return (data || []).map((lesson: any) => ({
-        ...lesson,
-        word_count: lesson.vocabulary_words?.length || 0,
-        vocabulary_words: undefined,
+      return (data || []).map((topic: any) => ({
+        id: topic.id,
+        name: topic.name,
+        name_arabic: topic.name_arabic,
+        icon: topic.icon,
+        gradient: topic.gradient,
+        display_order: topic.display_order,
+        created_at: topic.created_at,
+        updated_at: topic.updated_at,
+        word_count: topic.vocabulary_words?.length || 0,
       })) as Lesson[];
     },
-    enabled: !!stageId,
   });
 };
 
-/** Fetch all lessons across all stages */
-export const useAllLessons = () => {
-  return useQuery({
-    queryKey: ['all-lessons'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('lessons')
-        .select('*, vocabulary_words(id), curriculum_stages(name, stage_number)')
-        .order('display_order', { ascending: true });
-
-      if (error) throw error;
-
-      return (data || []).map((lesson: any) => ({
-        ...lesson,
-        word_count: lesson.vocabulary_words?.length || 0,
-        stage_name: lesson.curriculum_stages?.name || '',
-        stage_number: lesson.curriculum_stages?.stage_number || 0,
-        vocabulary_words: undefined,
-        curriculum_stages: undefined,
-      })) as (Lesson & { stage_name: string; stage_number: number })[];
-    },
-  });
-};
+/** Fetch all lessons across all stages (alias) */
+export const useAllLessons = () => useLessons();

@@ -12,7 +12,6 @@ interface VocabEntry {
 }
 
 interface ParsedLessonPlan {
-  // From Overview sheet
   stageId: string;
   lessonNumber: number;
   title: string;
@@ -22,9 +21,7 @@ interface ParsedLessonPlan {
   cefrTarget?: string;
   approach?: string;
   unlockCondition?: string;
-  // Vocabulary
   vocabulary: VocabEntry[];
-  // JSONB metadata from other sheets
   lessonSequence: any[];
   imageScenes: any[];
   flashcardSpec: any[];
@@ -34,42 +31,16 @@ interface ParsedLessonPlan {
 }
 
 /**
- * Hook to import a parsed lesson plan into the database.
- * The xlsx parsing happens client-side; this hook handles the DB inserts.
+ * Hook to import a parsed lesson plan.
+ * Since lessons/curriculum_stages tables don't exist yet,
+ * this creates a topic and vocabulary words instead.
  */
 export const useLessonImport = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (plan: ParsedLessonPlan) => {
-      // 1. Create the lesson
-      const { data: lesson, error: lessonError } = await supabase
-        .from('lessons')
-        .insert({
-          stage_id: plan.stageId,
-          lesson_number: plan.lessonNumber,
-          title: plan.title,
-          title_arabic: plan.titleArabic || null,
-          description: plan.description || null,
-          duration_minutes: plan.durationMinutes || null,
-          cefr_target: plan.cefrTarget || null,
-          approach: plan.approach || null,
-          unlock_condition: plan.unlockCondition || null,
-          display_order: plan.lessonNumber,
-          lesson_sequence: plan.lessonSequence,
-          image_scenes: plan.imageScenes,
-          flashcard_spec: plan.flashcardSpec,
-          real_world_prompts: plan.realWorldPrompts,
-          design_rationale: plan.designRationale,
-          sound_spotlight: plan.soundSpotlight,
-        } as any)
-        .select()
-        .single();
-
-      if (lessonError) throw lessonError;
-
-      // 2. We need a topic_id for backward compatibility.
-      //    Create a matching topic or reuse an existing one.
+      // Create a topic for this lesson
       const topicName = plan.title;
       let topicId: string;
 
@@ -105,33 +76,25 @@ export const useLessonImport = () => {
         topicId = newTopic.id;
       }
 
-      // 3. Insert vocabulary words linked to both lesson and topic
+      // Insert vocabulary words
       if (plan.vocabulary.length > 0) {
         const wordsToInsert = plan.vocabulary.map((v, idx) => ({
-          lesson_id: lesson.id,
           topic_id: topicId,
           word_arabic: v.arabic,
           word_english: v.english,
-          transliteration: v.transliteration || null,
-          category: v.category || null,
-          image_scene_description: v.imageScene || null,
-          teaching_note: v.teachingNote || null,
           display_order: idx,
         }));
 
         const { error: wordsError } = await supabase
           .from('vocabulary_words')
-          .insert(wordsToInsert as any);
+          .insert(wordsToInsert);
 
         if (wordsError) throw wordsError;
       }
 
-      return lesson;
+      return { id: topicId, name: topicName };
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['all-lessons'] });
-      queryClient.invalidateQueries({ queryKey: ['lessons'] });
-      queryClient.invalidateQueries({ queryKey: ['curriculum-stages'] });
       queryClient.invalidateQueries({ queryKey: ['topics'] });
     },
   });

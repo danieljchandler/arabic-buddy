@@ -426,6 +426,7 @@ const Transcribe = () => {
   const analyzeTranscript = async (
     rawText: string,
     munsitText?: string,
+    fanarText?: string,
   ): Promise<{
     vocabulary: VocabItem[];
     grammarPoints: GrammarPoint[];
@@ -438,6 +439,7 @@ const Transcribe = () => {
 
       const body: Record<string, string> = { transcript: rawText };
       if (munsitText) body.munsitTranscript = munsitText;
+      if (fanarText) body.fanarTranscript = fanarText;
 
       const { data, error } = await supabase.functions.invoke<{
         success: boolean;
@@ -495,14 +497,18 @@ const Transcribe = () => {
         });
       }, 500);
 
-      // Clone file for parallel uploads (some browsers can't share a File across concurrent reads)
+      // Clone files for parallel uploads (some browsers can't share a File across concurrent reads)
       const fileClone = new File([file], file.name, { type: file.type });
+      const fileClone2 = new File([file], file.name, { type: file.type });
 
       const formData = new FormData();
       formData.append("audio", file);
 
       const munsitFormData = new FormData();
       munsitFormData.append("audio", fileClone);
+
+      const fanarFormData = new FormData();
+      fanarFormData.append("audio", fileClone2);
 
       setDebugTrace({ phase: "request:transcribe", at: new Date().toISOString(), details: { name: file.name, size: file.size, type: file.type } });
       
@@ -513,7 +519,7 @@ const Transcribe = () => {
       const { data: { session } } = await supabase.auth.getSession();
       const authToken = session?.access_token || supabaseKey;
 
-      // Fire both transcription engines in parallel
+      // Fire all transcription engines in parallel
       const deepgramPromise = (async () => {
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 5 * 60 * 1000);
@@ -570,13 +576,43 @@ const Transcribe = () => {
         }
       })();
 
-      const [deepgramResult, munsitResult] = await Promise.allSettled([deepgramPromise, munsitPromise]);
+      // Fanar ASR (budget-gated — the edge function handles budget checks)
+      const fanarPromise = (async () => {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 2 * 60 * 1000);
+        try {
+          const resp = await fetch(`${supabaseUrl}/functions/v1/fanar-transcribe`, {
+            method: "POST",
+            headers: {
+              "apikey": supabaseKey,
+              "Authorization": `Bearer ${authToken}`,
+            },
+            body: fanarFormData,
+            signal: controller.signal,
+          });
+          clearTimeout(timeout);
+          if (!resp.ok) {
+            const errBody = await resp.text();
+            throw new Error(errBody || `Fanar failed (${resp.status})`);
+          }
+          return await resp.json() as { text?: string | null; fanarUsed?: boolean; fanarAvailable?: boolean; budgetRemaining?: number };
+        } catch (e) {
+          clearTimeout(timeout);
+          if (e instanceof DOMException && e.name === "AbortError") {
+            throw new Error("Fanar timed out.");
+          }
+          throw e;
+        }
+      })();
+
+      const [deepgramResult, munsitResult, fanarResult] = await Promise.allSettled([deepgramPromise, munsitPromise, fanarPromise]);
 
       if (progressInterval) clearInterval(progressInterval);
 
       // Extract results with fallback
       const deepgramData = deepgramResult.status === "fulfilled" ? deepgramResult.value : null;
       const munsitData = munsitResult.status === "fulfilled" ? munsitResult.value : null;
+      const fanarData = fanarResult.status === "fulfilled" ? fanarResult.value : null;
 
       if (deepgramResult.status === "rejected") {
         console.warn("Deepgram failed:", deepgramResult.reason);
@@ -584,38 +620,51 @@ const Transcribe = () => {
       if (munsitResult.status === "rejected") {
         console.warn("Munsit failed:", munsitResult.reason);
       }
+      if (fanarResult.status === "rejected") {
+        console.warn("Fanar failed:", fanarResult.reason);
+      }
 
       // Need at least one to succeed
-      if (!deepgramData?.text && !munsitData?.text) {
+      if (!deepgramData?.text && !munsitData?.text && !fanarData?.text) {
         const reasons = [
           deepgramResult.status === "rejected" ? `Deepgram: ${deepgramResult.reason}` : null,
           munsitResult.status === "rejected" ? `Munsit: ${munsitResult.reason}` : null,
+          fanarResult.status === "rejected" ? `Fanar: ${fanarResult.reason}` : null,
         ].filter(Boolean).join("; ");
-        throw new Error(`Both transcription engines failed. ${reasons}`);
+        throw new Error(`All transcription engines failed. ${reasons}`);
       }
 
-      const primaryText = deepgramData?.text || munsitData?.text || "";
+      const primaryText = deepgramData?.text || munsitData?.text || fanarData?.text || "";
       const munsitText = munsitData?.text || undefined;
+      const fanarText = (fanarData?.fanarUsed && fanarData?.text) ? fanarData.text : undefined;
       const deepgramWords = deepgramData?.words || [];
 
       // Log which engines succeeded
-      const enginesUsed = [deepgramData?.text ? "Deepgram" : null, munsitData?.text ? "Munsit" : null].filter(Boolean);
+      const enginesUsed = [
+        deepgramData?.text ? "Deepgram" : null,
+        munsitData?.text ? "Munsit" : null,
+        fanarText ? "Fanar" : null,
+      ].filter(Boolean);
       console.log(`Transcription engines used: ${enginesUsed.join(" + ")}`);
+      if (fanarData && !fanarData.fanarUsed) {
+        console.log(`Fanar ASR skipped: ${fanarData.fanarAvailable === false ? 'budget exhausted' : 'not used'} (remaining: ${fanarData.budgetRemaining ?? '?'})`);
+      }
 
       // Apply time range filtering if duration is known and range is set
       let filteredText = primaryText;
       let filteredWords = deepgramWords;
       let filteredMunsitText = munsitText;
+      let filteredFanarText = fanarText;
 
       if (mediaDuration && mediaDuration > MAX_DURATION && deepgramWords.length > 0) {
         filteredText = filterTranscriptByTimeRange(primaryText, deepgramWords, timeRange[0], timeRange[1]);
         filteredWords = filterWordsByTimeRange(deepgramWords, timeRange[0], timeRange[1]);
-        // Munsit doesn't provide word-level timestamps, so we use it as-is
+        // Munsit and Fanar don't provide word-level timestamps, so we use them as-is
         console.log(`Time range filter: ${timeRange[0]}s-${timeRange[1]}s, words: ${deepgramWords.length} → ${filteredWords.length}`);
       }
 
       setProgress(100);
-      
+
       const initialResult: TranscriptResult = {
         rawTranscriptArabic: filteredText,
         lines: [],
@@ -624,10 +673,11 @@ const Transcribe = () => {
       };
       setTranscriptResult(initialResult);
 
-      const engineMsg = enginesUsed.length === 2 ? "Dual transcription complete!" : "Transcription complete!";
-      toast.success(engineMsg, { description: "Analyzing with dual LLMs..." });
-      
-      const analysisData = await analyzeTranscript(filteredText, filteredMunsitText);
+      const engineCount = enginesUsed.length;
+      const engineMsg = engineCount >= 3 ? "Triple transcription complete!" : engineCount === 2 ? "Dual transcription complete!" : "Transcription complete!";
+      toast.success(engineMsg, { description: "Analyzing with multi-LLM ensemble..." });
+
+      const analysisData = await analyzeTranscript(filteredText, filteredMunsitText, filteredFanarText);
       if (analysisData) {
         const linesWithTimestamps = mapTimestampsToLines(analysisData.lines || [], filteredWords);
         console.log('Mapped timestamps:', linesWithTimestamps.filter(l => l.startMs !== undefined).length, '/', linesWithTimestamps.length);

@@ -1,14 +1,17 @@
 import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { useStages } from '@/hooks/useStages';
 import { useLessonImport } from '@/hooks/useLessonImport';
 import { parseLessonXlsx, ParsedLessonPlan } from '@/lib/parseLessonXlsx';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ArrowLeft, Upload, FileSpreadsheet, Check, BookOpen } from 'lucide-react';
+import { Loader2, ArrowLeft, Upload, FileSpreadsheet, Check, BookOpen, Plus } from 'lucide-react';
 
 const LessonImport = () => {
   const navigate = useNavigate();
@@ -18,10 +21,17 @@ const LessonImport = () => {
   const { data: stages, isLoading: stagesLoading } = useStages();
   const importMutation = useLessonImport();
 
+  const queryClient = useQueryClient();
+
   const [parsed, setParsed] = useState<ParsedLessonPlan | null>(null);
   const [fileName, setFileName] = useState('');
   const [selectedStageId, setSelectedStageId] = useState('');
   const [autoDetectedStage, setAutoDetectedStage] = useState<string | null>(null);
+  const [isCreatingStage, setIsCreatingStage] = useState(false);
+  const [newStageName, setNewStageName] = useState('');
+  const [newStageNumber, setNewStageNumber] = useState('');
+  const [newStageCefr, setNewStageCefr] = useState('');
+  const [creatingStage, setCreatingStage] = useState(false);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -85,6 +95,47 @@ const LessonImport = () => {
     } catch (err: any) {
       console.error('Import error:', err);
       toast({ variant: 'destructive', title: 'Import failed', description: err.message });
+    }
+  };
+
+  const handleCreateStage = async () => {
+    if (!newStageName.trim() || !newStageNumber.trim()) return;
+
+    const stageNum = parseInt(newStageNumber, 10);
+    if (isNaN(stageNum) || stageNum < 0) {
+      toast({ variant: 'destructive', title: 'Invalid stage number', description: 'Please enter a valid number (0 or above).' });
+      return;
+    }
+
+    setCreatingStage(true);
+    try {
+      const maxDisplayOrder = stages?.reduce((max, s) => Math.max(max, s.display_order), -1) ?? -1;
+
+      const { data: newStage, error } = await supabase
+        .from('curriculum_stages')
+        .insert({
+          name: newStageName.trim(),
+          stage_number: stageNum,
+          cefr_level: newStageCefr.trim() || null,
+          display_order: maxDisplayOrder + 1,
+        } as any)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      await queryClient.invalidateQueries({ queryKey: ['curriculum-stages'] });
+      setSelectedStageId(newStage.id);
+      setIsCreatingStage(false);
+      setNewStageName('');
+      setNewStageNumber('');
+      setNewStageCefr('');
+      toast({ title: 'Stage created', description: `Stage ${stageNum}: ${newStageName.trim()}` });
+    } catch (err: any) {
+      console.error('Create stage error:', err);
+      toast({ variant: 'destructive', title: 'Failed to create stage', description: err.message });
+    } finally {
+      setCreatingStage(false);
     }
   };
 
@@ -205,27 +256,97 @@ const LessonImport = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label>Curriculum Stage</Label>
-                {autoDetectedStage && (
+                <div className="flex items-center justify-between">
+                  <Label>Curriculum Stage</Label>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsCreatingStage(!isCreatingStage)}
+                  >
+                    {isCreatingStage ? (
+                      'Select existing'
+                    ) : (
+                      <>
+                        <Plus className="mr-1 h-4 w-4" />
+                        Create new
+                      </>
+                    )}
+                  </Button>
+                </div>
+                {autoDetectedStage && !isCreatingStage && (
                   <p className="text-sm text-primary">Auto-detected: {autoDetectedStage}</p>
                 )}
-                <Select value={selectedStageId} onValueChange={setSelectedStageId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a stage..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {stagesLoading ? (
-                      <SelectItem value="loading" disabled>Loading stages...</SelectItem>
-                    ) : (
-                      stages?.map(stage => (
-                        <SelectItem key={stage.id} value={stage.id}>
-                          Stage {stage.stage_number}: {stage.name}
-                          {stage.cefr_level && ` (${stage.cefr_level})`}
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
+
+                {isCreatingStage ? (
+                  <div className="space-y-3 rounded-lg border p-3">
+                    <div className="space-y-1">
+                      <Label className="text-sm">Stage Number</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        placeholder="e.g. 7"
+                        value={newStageNumber}
+                        onChange={e => setNewStageNumber(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-sm">Name</Label>
+                      <Input
+                        placeholder="e.g. Advanced Conversation"
+                        value={newStageName}
+                        onChange={e => setNewStageName(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-sm">CEFR Level (optional)</Label>
+                      <Input
+                        placeholder="e.g. B2 → C1"
+                        value={newStageCefr}
+                        onChange={e => setNewStageCefr(e.target.value)}
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="w-full"
+                      disabled={!newStageName.trim() || !newStageNumber.trim() || creatingStage}
+                      onClick={handleCreateStage}
+                    >
+                      {creatingStage ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Creating...
+                        </>
+                      ) : (
+                        <>
+                          <Plus className="mr-2 h-4 w-4" />
+                          Create Stage
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                ) : (
+                  <Select value={selectedStageId} onValueChange={setSelectedStageId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a stage..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {stagesLoading ? (
+                        <SelectItem value="loading" disabled>Loading stages...</SelectItem>
+                      ) : stages && stages.length > 0 ? (
+                        stages.map(stage => (
+                          <SelectItem key={stage.id} value={stage.id}>
+                            Stage {stage.stage_number}: {stage.name}
+                            {stage.cefr_level && ` (${stage.cefr_level})`}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="empty" disabled>No stages yet — create one above</SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
 
               <Button

@@ -94,7 +94,7 @@ const HowDoISay = () => {
     setSavedPhrases(new Set());
 
     try {
-      const { data, error } = await supabase.functions.invoke("translate-jais", {
+      const { data, error } = await supabase.functions.invoke("how-do-i-say", {
         body: { phrase: trimmed },
       });
 

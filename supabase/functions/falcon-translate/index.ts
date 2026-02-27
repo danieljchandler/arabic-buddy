@@ -118,7 +118,7 @@ serve(async (req) => {
 
     const [qwenText, geminiText] = await Promise.all([
       callOpenRouterTranslate('qwen/qwen3-30b-a3b', numberedLines, OPENROUTER_API_KEY),
-      callOpenRouterTranslate('google/gemini-2.5-flash-preview', numberedLines, OPENROUTER_API_KEY),
+      callOpenRouterTranslate('google/gemini-2.5-flash', numberedLines, OPENROUTER_API_KEY),
     ]);
 
     const generatedText = qwenText ?? geminiText ?? '';

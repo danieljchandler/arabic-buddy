@@ -940,9 +940,6 @@ serve(async (req) => {
      const arabicLines = linesAi.lines.map(l => String(l.arabic ?? '').trim());
      console.log('Starting parallel: Falcon translation + meta extraction for', arabicLines.length, 'lines');
 
-     // Secondary translation pass is no longer needed since callAI uses Qwen directly
-     const jaisPromise = Promise.resolve([] as string[]);
-
      // Meta extraction: Qwen + Fanar-Sadiq in parallel
      const metaPromise = (async () => {
        let metaAi: MetaAI | null = null;
@@ -988,30 +985,27 @@ serve(async (req) => {
          })()
        : Promise.resolve(null as MetaAI | null);
 
-      const [jaisTranslations, metaAi, fanarMetaAi] = await Promise.all([jaisPromise, metaPromise, fanarMetaPromise]);
+      const [metaAi, fanarMetaAi] = await Promise.all([metaPromise, fanarMetaPromise]);
 
       // -----------------------------
       // 2b) Merge translations from Qwen + Fanar conjunction
       // -----------------------------
       let finalLines = linesAi.lines;
-      const hasJais = jaisTranslations.length > 0 && jaisTranslations.some(t => t.length > 0);
       const hasFanarLines = fanarLinesAi?.lines && Array.isArray(fanarLinesAi.lines) && fanarLinesAi.lines.length > 0;
 
       // Determine if we have secondary translations to merge
-      const hasMergeSource = hasJais || hasFanarLines;
+      const hasMergeSource = hasFanarLines;
 
       if (hasMergeSource) {
-        console.log('Merging translations:', hasJais ? '+Jais' : '', hasFanarLines ? '+Fanar' : '');
+        console.log('Merging translations: +Fanar');
 
         const mergeContent = arabicLines.map((arabic, i) => {
           const primaryTrans = String(linesAi!.lines[i]?.translation ?? '');
-          const secondaryTrans = hasJais ? (jaisTranslations[i] || '') : '';
           // Match Fanar lines by index (best effort since sentence boundaries may differ)
           const fanarTrans = hasFanarLines && i < fanarLinesAi!.lines.length
             ? String(fanarLinesAi!.lines[i]?.translation ?? '')
             : '';
           let entry = `Line ${i + 1}: "${arabic}"\n  Qwen: "${primaryTrans}"`;
-          if (secondaryTrans) entry += `\n  Jais: "${secondaryTrans}"`;
           if (fanarTrans) entry += `\n  Fanar: "${fanarTrans}"`;
           return entry;
         }).join('\n\n');

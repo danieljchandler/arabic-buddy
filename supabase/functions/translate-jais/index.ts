@@ -25,7 +25,7 @@ interface RawVocabularyItem {
   root?: unknown;
 }
 
-interface JaisResponsePayload {
+interface TranslationPayload {
   translations?: RawTranslation[];
   vocabulary?: RawVocabularyItem[];
   culturalNotes?: unknown;
@@ -214,7 +214,7 @@ async function callOpenRouter(
     }
     return content;
   } catch (e) {
-    if (e instanceof Error && (e.message.includes('Rate limit') || e.message.includes('credits'))) throw e;
+    if (e instanceof Error && (e.message.includes('Not enough AI credits') || e.message.includes('Rate limit'))) throw e;
     console.warn(`OpenRouter ${model} fetch failed (non-fatal):`, e instanceof Error ? e.message : String(e));
     return null;
   } finally {
@@ -330,7 +330,7 @@ serve(async (req) => {
     const llmsUsed = [`${QWEN_MODEL} (OpenRouter)`, `${GEMINI_MODEL} (OpenRouter)`];
     if (fanarAvailable) llmsUsed.push('Fanar');
     const llmUsed = llmsUsed.join(' + ');
-    console.log(`translate-jais: LLMs = ${llmUsed}, phrase = "${trimmedPhrase}"`);
+    console.log(`gulf-translate: LLMs = ${llmUsed}, phrase = "${trimmedPhrase}"`);
 
     // Step 1: Get translations from Qwen + Gemini + Fanar in parallel
     const userContent = `How do I say this in Omani Gulf Arabic: "${trimmedPhrase}"`;
@@ -356,16 +356,16 @@ serve(async (req) => {
         : Promise.resolve(null),
     ]);
 
-    const parsed = rawResponse ? safeJsonParse<JaisResponsePayload>(rawResponse) : null;
-    const geminiParsed = geminiRawResponse ? safeJsonParse<JaisResponsePayload>(geminiRawResponse) : null;
-    const fanarParsed = fanarRawResponse ? safeJsonParse<JaisResponsePayload>(fanarRawResponse) : null;
+    const parsed = rawResponse ? safeJsonParse<TranslationPayload>(rawResponse) : null;
+    const geminiParsed = geminiRawResponse ? safeJsonParse<TranslationPayload>(geminiRawResponse) : null;
+    const fanarParsed = fanarRawResponse ? safeJsonParse<TranslationPayload>(fanarRawResponse) : null;
 
     if (!parsed && !geminiParsed && !fanarParsed) {
       throw firstLlmError ?? new Error('Failed to parse translation responses. Please try again.');
     }
 
     // Normalise translations from a parsed result
-    function normTranslations(p: JaisResponsePayload | null): NormalisedTranslation[] {
+    function normTranslations(p: TranslationPayload | null): NormalisedTranslation[] {
       if (!p || !Array.isArray(p.translations)) return [];
       return p.translations
         .filter((t: RawTranslation) => t?.arabic && t?.transliteration)
@@ -389,10 +389,10 @@ serve(async (req) => {
     mergedFromGemini.forEach(t => seenArabic.add(t.arabic));
     const mergedFromFanar = fanarTranslations.filter(t => !seenArabic.has(t.arabic));
     if (mergedFromGemini.length > 0) {
-      console.log(`translate-jais: added ${mergedFromGemini.length} unique translation(s) from Gemini`);
+      console.log(`gulf-translate: added ${mergedFromGemini.length} unique translation(s) from Gemini`);
     }
     if (mergedFromFanar.length > 0) {
-      console.log(`translate-jais: added ${mergedFromFanar.length} unique translation(s) from Fanar`);
+      console.log(`gulf-translate: added ${mergedFromFanar.length} unique translation(s) from Fanar`);
     }
 
     let translations: NormalisedTranslation[] = [...qwenTranslations, ...mergedFromGemini, ...mergedFromFanar];
@@ -414,18 +414,19 @@ serve(async (req) => {
     // Supabase hard limit regardless of how long the parallel LLM calls took.
     const FUNCTION_HARD_LIMIT_MS = 60_000;
     const RESPONSE_OVERHEAD_MS = 3_000;
-    const dialectCheckBudgetMs = Math.max(0, Math.min(30_000, FUNCTION_HARD_LIMIT_MS - elapsedMs - RESPONSE_OVERHEAD_MS));
+    const MAX_DIALECT_CHECK_MS = 30_000;
+    const dialectCheckBudgetMs = Math.max(0, Math.min(MAX_DIALECT_CHECK_MS, FUNCTION_HARD_LIMIT_MS - elapsedMs - RESPONSE_OVERHEAD_MS));
     // dialectScore 5 = perfectly authentic (neutral/passing default when skipped).
     const dialectCheck = dialectCheckBudgetMs > 3_000
       ? await runQwenDialectCheck(trimmedPhrase, preferredTranslation.arabic, OPENROUTER_API_KEY, dialectCheckBudgetMs)
       : { dialectScore: 5, isAuthentic: true, feedback: 'skipped (budget)', correctedArabic: null };
-    console.log(`translate-jais: Qwen dialect check score=${dialectCheck.dialectScore}, authentic=${dialectCheck.isAuthentic}, feedback="${dialectCheck.feedback}"`);
+    console.log(`gulf-translate: Qwen dialect check score=${dialectCheck.dialectScore}, authentic=${dialectCheck.isAuthentic}, feedback="${dialectCheck.feedback}"`);
 
     // If Qwen flags the preferred translation as not authentic and provides a correction, apply it
     if (!dialectCheck.isAuthentic && dialectCheck.correctedArabic) {
       const targetIdx = preferredIdx >= 0 ? preferredIdx : 0;
       translations[targetIdx] = { ...translations[targetIdx], arabic: dialectCheck.correctedArabic };
-      console.log(`translate-jais: Qwen dialect correction applied for "${trimmedPhrase}"`);
+      console.log(`gulf-translate: Qwen dialect correction applied for "${trimmedPhrase}"`);
     }
 
     // Ensure exactly one isPreferred = true
@@ -513,18 +514,18 @@ serve(async (req) => {
         user_id: user.id,
       });
     } catch (logErr) {
-      console.warn(`translate-jais: failed to write llm_usage_log (user=${user.id}):`, logErr instanceof Error ? logErr.message : String(logErr));
+      console.warn(`gulf-translate: failed to write llm_usage_log (user=${user.id}):`, logErr instanceof Error ? logErr.message : String(logErr));
     }
 
     const preferred = translations.find((t: NormalisedTranslation) => t.isPreferred);
-    console.log(`translate-jais: result = ${translations.length} translation(s), preferred = "${preferred?.transliteration ?? 'none'}", dialectScore=${dialectCheck.dialectScore}`);
+    console.log(`gulf-translate: result = ${translations.length} translation(s), preferred = "${preferred?.transliteration ?? 'none'}", dialectScore=${dialectCheck.dialectScore}`);
 
     return new Response(
       JSON.stringify({ success: true, result }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   } catch (e) {
-    console.error('translate-jais error:', e);
+    console.error('gulf-translate error:', e);
     return new Response(
       JSON.stringify({ error: e instanceof Error ? e.message : 'Unknown error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },

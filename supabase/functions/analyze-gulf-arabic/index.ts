@@ -56,9 +56,20 @@ const strictJsonPrefix = (isRetry: boolean) =>
  * That payload explodes in size and often gets truncated, yielding invalid JSON.
  * We generate tokens server-side from the Arabic sentence text.
  */
-const getLinesSystemPrompt = (isRetry: boolean = false, hasDualTranscripts: boolean = false) => {
+const getLinesSystemPrompt = (isRetry: boolean = false, hasDualTranscripts: boolean = false, hasTripleTranscripts: boolean = false) => {
   const strictPrefix = strictJsonPrefix(isRetry);
-  const dualInstructions = hasDualTranscripts
+  const multiInstructions = hasTripleTranscripts
+    ? `You are given THREE transcriptions of the same Gulf Arabic audio from different speech-to-text engines.
+Compare them carefully and produce the BEST merged transcript:
+- Where all engines agree, use the shared text.
+- Where they differ, choose whichever version sounds most natural and accurate for Gulf Arabic dialect.
+- Fanar is an Arabic-native model and may be more accurate for dialect-specific words and phrases.
+- Deepgram provides the most reliable word boundaries.
+- Munsit specialises in Arabic and may better capture dialectal vocabulary.
+- Do NOT simply concatenate them. Merge intelligently at the sentence/clause level.
+
+`
+    : hasDualTranscripts
     ? `You are given TWO transcriptions of the same Gulf Arabic audio from different speech-to-text engines.
 Compare them carefully and produce the BEST merged transcript:
 - Where they agree, use the shared text.
@@ -67,7 +78,7 @@ Compare them carefully and produce the BEST merged transcript:
 
 `
     : '';
-  return `${strictPrefix}${dualInstructions}You are processing Gulf Arabic transcript text for language learners.
+  return `${strictPrefix}${multiInstructions}You are processing Gulf Arabic transcript text for language learners.
 
 Output ONLY valid JSON matching this schema:
 {
@@ -238,6 +249,94 @@ async function callAI({
     return { content };
  }
  
+type CallFanarArgs = {
+  systemPrompt: string;
+  userContent: string;
+  apiKey: string;
+  model?: string; // 'Fanar' | 'Fanar-C-2-27B' | 'Fanar-Sadiq'
+  maxTokens?: number;
+  temperature?: number;
+};
+
+async function callFanar({
+  systemPrompt,
+  userContent,
+  apiKey,
+  model = 'Fanar',
+  maxTokens = 4096,
+  temperature = 0.2,
+}: CallFanarArgs): Promise<{ content: string | null; error?: string; status?: number }> {
+  const controller = new AbortController();
+  const timeoutMs = 55_000;
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  const startedAt = Date.now();
+  let response: Response;
+  try {
+    response = await fetch('https://api.fanar.qa/v1/chat/completions', {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userContent },
+        ],
+        max_tokens: maxTokens,
+        temperature,
+      }),
+    });
+  } catch (e) {
+    const elapsedMs = Date.now() - startedAt;
+    const isAbort = e instanceof DOMException && e.name === 'AbortError';
+    console.error('Fanar fetch failed:', { model, elapsedMs, isAbort, error: String(e) });
+    return {
+      content: null,
+      error: isAbort ? `Fanar request timed out after ${timeoutMs}ms` : String(e),
+      status: isAbort ? 504 : 500,
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+
+  const elapsedMs = Date.now() - startedAt;
+  console.log('Fanar response:', { model, status: response.status, ok: response.ok, elapsedMs });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Fanar error body (first 800 chars):', errorText?.slice?.(0, 800) ?? errorText);
+    return { content: null, error: errorText, status: response.status };
+  }
+
+  let responseText: string;
+  try {
+    responseText = await response.text();
+  } catch (e) {
+    console.error('Failed to read Fanar response body:', e);
+    return { content: null, error: 'Failed to read Fanar response body', status: 500 };
+  }
+
+  if (!responseText || responseText.trim().length === 0) {
+    console.error('Fanar returned empty response body');
+    return { content: null, error: 'Fanar returned empty response', status: 500 };
+  }
+
+  let data;
+  try {
+    data = JSON.parse(responseText);
+  } catch (e) {
+    console.error('Failed to parse Fanar response JSON:', e);
+    return { content: null, error: 'Failed to parse Fanar response as JSON', status: 500 };
+  }
+
+  const content = data.choices?.[0]?.message?.content;
+  return { content };
+}
+
 function extractJsonObject(text: string): string {
   const cleaned = text
     .replace(/```json\n?/g, '')
@@ -628,7 +727,7 @@ serve(async (req) => {
       });
     }
     const body = await req.json();
-    const { transcript, munsitTranscript } = body;
+    const { transcript, munsitTranscript, fanarTranscript } = body;
 
     // ── Quick phrase-translation shortcut ──────────────────────────────────
     // When called with { phrase } (no transcript), translate a short Arabic
@@ -672,31 +771,61 @@ serve(async (req) => {
     }
 
     const hasDual = Boolean(munsitTranscript && typeof munsitTranscript === 'string' && munsitTranscript.trim().length > 0);
+    const hasFanar = Boolean(fanarTranscript && typeof fanarTranscript === 'string' && fanarTranscript.trim().length > 0);
+    const hasTriple = hasDual && hasFanar;
     console.log('Analyzing transcript (lines + meta)...');
-    console.log('ElevenLabs transcript length:', transcript.length);
+    console.log('Deepgram transcript length:', transcript.length);
     if (hasDual) {
       console.log('Munsit transcript length:', munsitTranscript.length);
+    }
+    if (hasFanar) {
+      console.log('Fanar transcript length:', fanarTranscript.length);
+    }
+
+    const FANAR_API_KEY = Deno.env.get('FANAR_API_KEY')?.trim();
+    const fanarLlmAvailable = Boolean(FANAR_API_KEY);
+    if (fanarLlmAvailable) {
+      console.log('Fanar LLM conjunction enabled');
     }
 
      let partial = false;
 
      // Build user content for lines prompt
-     const linesUserContent = hasDual
-       ? `Transcription A (ElevenLabs):\n${transcript}\n\nTranscription B (Munsit):\n${munsitTranscript}`
+     const linesUserContent = hasTriple
+       ? `Transcription A (Deepgram):\n${transcript}\n\nTranscription B (Munsit):\n${munsitTranscript}\n\nTranscription C (Fanar):\n${fanarTranscript}`
+       : hasDual
+       ? `Transcription A (Deepgram):\n${transcript}\n\nTranscription B (Munsit):\n${munsitTranscript}`
+       : hasFanar
+       ? `Transcription A (Deepgram):\n${transcript}\n\nTranscription B (Fanar):\n${fanarTranscript}`
        : transcript;
 
      // -----------------------------
-     // 1) Sentence split + translation
+     // 1) Sentence split + translation (Qwen + Fanar in parallel)
      // -----------------------------
      let linesAi: LinesAI | null = null;
+     let fanarLinesAi: LinesAI | null = null;
 
-     let linesResp = await callAI({
-       systemPrompt: getLinesSystemPrompt(false, hasDual),
+     const hasDualOrTriple = hasDual || hasFanar;
+
+     // Fire Qwen and Fanar in parallel for lines
+     const qwenLinesPromise = callAI({
+       systemPrompt: getLinesSystemPrompt(false, hasDualOrTriple, hasTriple),
        userContent: linesUserContent,
        apiKey: OPENROUTER_API_KEY,
        isRetry: false,
        maxTokens: 8192,
      });
+
+     const fanarLinesPromise = fanarLlmAvailable
+       ? callFanar({
+           systemPrompt: getLinesSystemPrompt(false, hasDualOrTriple, hasTriple),
+           userContent: linesUserContent,
+           apiKey: FANAR_API_KEY!,
+           maxTokens: 8192,
+         })
+       : Promise.resolve({ content: null } as { content: string | null });
+
+     const [linesResp, fanarLinesResp] = await Promise.all([qwenLinesPromise, fanarLinesPromise]);
 
      if (!linesResp.content && linesResp.status) {
        if (linesResp.status === 429) {
@@ -716,18 +845,31 @@ serve(async (req) => {
      if (linesResp.content) {
        linesAi = safeJsonParse<LinesAI>(linesResp.content);
      }
+     if (fanarLinesResp.content) {
+       fanarLinesAi = safeJsonParse<LinesAI>(fanarLinesResp.content);
+       if (fanarLinesAi?.lines) {
+         console.log('Fanar lines pass: parsed', fanarLinesAi.lines.length, 'lines');
+       }
+     }
 
      if (!linesAi?.lines || !Array.isArray(linesAi.lines) || linesAi.lines.length === 0) {
-       console.log('Lines parse failed, retrying with stricter prompt...');
-        const retry = await callAI({
-          systemPrompt: getLinesSystemPrompt(true, hasDual),
-          userContent: linesUserContent,
-          apiKey: OPENROUTER_API_KEY,
-         isRetry: true,
-         maxTokens: 8192,
-       });
-       if (retry.content) {
-         linesAi = safeJsonParse<LinesAI>(retry.content);
+       // Try Fanar result as fallback before retrying
+       if (fanarLinesAi?.lines && Array.isArray(fanarLinesAi.lines) && fanarLinesAi.lines.length > 0) {
+         console.log('Qwen lines failed, using Fanar lines as primary');
+         linesAi = fanarLinesAi;
+         fanarLinesAi = null; // already used as primary
+       } else {
+         console.log('Lines parse failed, retrying with stricter prompt...');
+         const retry = await callAI({
+           systemPrompt: getLinesSystemPrompt(true, hasDualOrTriple, hasTriple),
+           userContent: linesUserContent,
+           apiKey: OPENROUTER_API_KEY,
+           isRetry: true,
+           maxTokens: 8192,
+         });
+         if (retry.content) {
+           linesAi = safeJsonParse<LinesAI>(retry.content);
+         }
        }
      }
 
@@ -790,7 +932,7 @@ serve(async (req) => {
      // Secondary translation pass is no longer needed since callAI uses Qwen directly
      const jaisPromise = Promise.resolve([] as string[]);
 
-     // Meta extraction in parallel with translation
+     // Meta extraction: Qwen + Fanar-Sadiq in parallel
      const metaPromise = (async () => {
        let metaAi: MetaAI | null = null;
        let metaResp = await callAI({
@@ -818,24 +960,52 @@ serve(async (req) => {
        return metaAi;
      })();
 
-      const [jaisTranslations, metaAi] = await Promise.all([jaisPromise, metaPromise]);
+     // Fanar-Sadiq meta extraction (cultural context specialist)
+     const fanarMetaPromise = fanarLlmAvailable
+       ? (async () => {
+           const fanarMetaResp = await callFanar({
+             systemPrompt: getMetaSystemPrompt(false),
+             userContent: transcript,
+             apiKey: FANAR_API_KEY!,
+             model: 'Fanar-Sadiq',
+             maxTokens: 2048,
+           });
+           if (fanarMetaResp.content) {
+             return safeJsonParse<MetaAI>(fanarMetaResp.content);
+           }
+           return null;
+         })()
+       : Promise.resolve(null as MetaAI | null);
+
+      const [jaisTranslations, metaAi, fanarMetaAi] = await Promise.all([jaisPromise, metaPromise, fanarMetaPromise]);
 
       // -----------------------------
-      // 2b) Merge translations if secondary pass succeeded
+      // 2b) Merge translations from Qwen + Fanar conjunction
       // -----------------------------
       let finalLines = linesAi.lines;
       const hasJais = jaisTranslations.length > 0 && jaisTranslations.some(t => t.length > 0);
+      const hasFanarLines = fanarLinesAi?.lines && Array.isArray(fanarLinesAi.lines) && fanarLinesAi.lines.length > 0;
 
-      if (hasJais) {
-        console.log('Merging primary + secondary translations...');
+      // Determine if we have secondary translations to merge
+      const hasMergeSource = hasJais || hasFanarLines;
+
+      if (hasMergeSource) {
+        console.log('Merging translations:', hasJais ? '+Jais' : '', hasFanarLines ? '+Fanar' : '');
 
         const mergeContent = arabicLines.map((arabic, i) => {
           const primaryTrans = String(linesAi!.lines[i]?.translation ?? '');
-          const secondaryTrans = jaisTranslations[i] || '';
-          return `Line ${i + 1}: "${arabic}"\n  Primary: "${primaryTrans}"\n  Secondary: "${secondaryTrans}"`;
+          const secondaryTrans = hasJais ? (jaisTranslations[i] || '') : '';
+          // Match Fanar lines by index (best effort since sentence boundaries may differ)
+          const fanarTrans = hasFanarLines && i < fanarLinesAi!.lines.length
+            ? String(fanarLinesAi!.lines[i]?.translation ?? '')
+            : '';
+          let entry = `Line ${i + 1}: "${arabic}"\n  Qwen: "${primaryTrans}"`;
+          if (secondaryTrans) entry += `\n  Jais: "${secondaryTrans}"`;
+          if (fanarTrans) entry += `\n  Fanar: "${fanarTrans}"`;
+          return entry;
         }).join('\n\n');
 
-       const mergePrompt = `You are merging two translations of Gulf Arabic lines. For each line, pick whichever translation is more natural and accurate, or combine the best parts of both. Output ONLY valid JSON:
+       const mergePrompt = `You are merging translations of Gulf Arabic lines from multiple AI models. For each line, pick whichever translation is most natural and accurate, or combine the best parts. Fanar is an Arabic-native model and may capture dialect nuances better. Output ONLY valid JSON:
 {"translations": ["merged translation 1", "merged translation 2", ...]}
 
 No additional text outside JSON.`;
@@ -870,43 +1040,95 @@ No additional text outside JSON.`;
        partial = true;
      }
      const safeMetaAi = metaAi || { vocabulary: [], grammarPoints: [] };
-     const vocab = Array.isArray(safeMetaAi.vocabulary) ? safeMetaAi.vocabulary : [];
-     const grammarPoints = Array.isArray(safeMetaAi.grammarPoints) ? safeMetaAi.grammarPoints : [];
+     let vocab = Array.isArray(safeMetaAi.vocabulary) ? safeMetaAi.vocabulary : [];
+     let grammarPoints = Array.isArray(safeMetaAi.grammarPoints) ? safeMetaAi.grammarPoints : [];
+     let culturalContext = safeMetaAi.culturalContext;
+
+     // Merge Fanar-Sadiq meta results if available
+     if (fanarMetaAi) {
+       console.log('Merging Fanar-Sadiq meta results...');
+       // Union vocabularies (deduplicate by Arabic text)
+       if (Array.isArray(fanarMetaAi.vocabulary)) {
+         const existingArabic = new Set(vocab.map(v => v.arabic));
+         const newVocab = fanarMetaAi.vocabulary.filter(v => v.arabic && !existingArabic.has(v.arabic));
+         if (newVocab.length > 0) {
+           vocab = [...vocab, ...newVocab];
+           console.log(`Added ${newVocab.length} vocab items from Fanar-Sadiq`);
+         }
+       }
+       // Union grammar points (deduplicate by title)
+       if (Array.isArray(fanarMetaAi.grammarPoints)) {
+         const existingTitles = new Set(grammarPoints.map(g => g.title.toLowerCase()));
+         const newGrammar = fanarMetaAi.grammarPoints.filter(g => g.title && !existingTitles.has(g.title.toLowerCase()));
+         if (newGrammar.length > 0) {
+           grammarPoints = [...grammarPoints, ...newGrammar];
+           console.log(`Added ${newGrammar.length} grammar points from Fanar-Sadiq`);
+         }
+       }
+       // Prefer Fanar-Sadiq cultural context if richer (longer)
+       if (fanarMetaAi.culturalContext && (!culturalContext || fanarMetaAi.culturalContext.length > culturalContext.length)) {
+         culturalContext = fanarMetaAi.culturalContext;
+         console.log('Using Fanar-Sadiq cultural context (richer)');
+       }
+     }
 
      // -----------------------------
-     // 3) Comprehensive word glosses for every word
+     // 3) Comprehensive word glosses (Qwen + Fanar in parallel)
      // -----------------------------
      let wordGlosses: Record<string, string> = {};
-     
+
      // Extract all unique words from all lines
      const allWords = new Set<string>();
      for (const line of finalLines) {
        const words = String(line.arabic ?? '').split(/\s+/).filter(Boolean);
        words.forEach(w => allWords.add(w));
      }
-     
+
      console.log('Fetching glosses for', allWords.size, 'unique words...');
-     
+
       // Include the full transcript lines for compound/collocation detection
       const glossesContext = `Full transcript for compound detection:\n${finalLines.map(l => l.arabic).join('\n')}\n\nUnique words to gloss:\n${Array.from(allWords).join(' ')}`;
 
-      let glossesResp = await callAI({
+      // Fire Qwen and Fanar glosses in parallel
+      const qwenGlossesPromise = callAI({
         systemPrompt: getWordGlossesPrompt(false),
         userContent: glossesContext,
         apiKey: OPENROUTER_API_KEY,
         isRetry: false,
         maxTokens: 4096,
       });
-      
+
+      const fanarGlossesPromise = fanarLlmAvailable
+        ? callFanar({
+            systemPrompt: getWordGlossesPrompt(false),
+            userContent: glossesContext,
+            apiKey: FANAR_API_KEY!,
+            maxTokens: 4096,
+          })
+        : Promise.resolve({ content: null } as { content: string | null });
+
+      const [glossesResp, fanarGlossesResp] = await Promise.all([qwenGlossesPromise, fanarGlossesPromise]);
+
       if (glossesResp.content) {
         const glossesAi = safeJsonParse<GlossesAI>(glossesResp.content);
         if (glossesAi?.glosses && typeof glossesAi.glosses === 'object') {
           wordGlosses = glossesAi.glosses;
-          console.log('Parsed', Object.keys(wordGlosses).length, 'word glosses');
+          console.log('Qwen: parsed', Object.keys(wordGlosses).length, 'word glosses');
         }
       }
-      
-      // Retry if we got no glosses
+
+      // Merge Fanar glosses (Fanar overwrites for dialect-specific words)
+      if (fanarGlossesResp.content) {
+        const fanarGlossesAi = safeJsonParse<GlossesAI>(fanarGlossesResp.content);
+        if (fanarGlossesAi?.glosses && typeof fanarGlossesAi.glosses === 'object') {
+          const fanarGlossCount = Object.keys(fanarGlossesAi.glosses).length;
+          // Overlay Fanar glosses on top (Arabic-native advantage for dialect words)
+          wordGlosses = { ...wordGlosses, ...fanarGlossesAi.glosses };
+          console.log(`Fanar: merged ${fanarGlossCount} glosses (total: ${Object.keys(wordGlosses).length})`);
+        }
+      }
+
+      // Retry if we got no glosses from either
       if (Object.keys(wordGlosses).length === 0) {
         console.log('Word glosses parse failed, retrying...');
         const glossesRetry = await callAI({
@@ -936,7 +1158,7 @@ No additional text outside JSON.`;
        })),
        vocabulary: vocab,
        grammarPoints,
-       culturalContext: safeMetaAi.culturalContext,
+       culturalContext,
      };
 
      console.log(

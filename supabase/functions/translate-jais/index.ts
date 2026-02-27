@@ -76,6 +76,50 @@ function safeJsonParse<T>(content: string): T | null {
   }
 }
 
+async function callFanar(
+  systemPrompt: string,
+  userContent: string,
+  apiKey: string,
+  maxTokens = 4096,
+): Promise<string | null> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 55_000);
+
+  try {
+    const response = await fetch('https://api.fanar.qa/v1/chat/completions', {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'Fanar',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userContent },
+        ],
+        max_tokens: maxTokens,
+        temperature: 0.3,
+      }),
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      console.warn('Fanar error:', response.status, errText.slice(0, 300));
+      return null;
+    }
+
+    const data = await response.json();
+    return data.choices?.[0]?.message?.content ?? null;
+  } catch (e) {
+    console.warn('Fanar fetch failed (non-fatal):', e instanceof Error ? e.message : String(e));
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 const TRANSLATION_SYSTEM_PROMPT = `You are an expert Gulf Arabic language teacher specialising in the dialects of the UAE, Saudi Arabia, Kuwait, Bahrain, Qatar, and Oman, with deep expertise in the Omani dialect.
 
 Given an English phrase or question, provide multiple natural ways to say it in authentic Omani Gulf Arabic.
@@ -282,33 +326,60 @@ serve(async (req) => {
       );
     }
 
-    const llmUsed = `${CEREBRAS_MODEL} (Cerebras)`;
-    console.log(`translate-jais: LLM used = ${llmUsed}, phrase = "${trimmedPhrase}"`);
+    const FANAR_API_KEY = Deno.env.get('FANAR_API_KEY')?.trim();
+    const fanarAvailable = Boolean(FANAR_API_KEY);
 
-    // Step 1: Get translation from Cerebras Jais 2 70B
+    const llmsUsed = [`${CEREBRAS_MODEL} (Cerebras)`];
+    if (fanarAvailable) llmsUsed.push('Fanar');
+    const llmUsed = llmsUsed.join(' + ');
+    console.log(`translate-jais: LLMs = ${llmUsed}, phrase = "${trimmedPhrase}"`);
+
+    // Step 1: Get translations from Cerebras + Fanar in parallel
     const userContent = `How do I say this in Omani Gulf Arabic: "${trimmedPhrase}"`;
-    const rawResponse = await callCerebrasJais(TRANSLATION_SYSTEM_PROMPT, userContent, CEREBRAS_API_KEY, 4096);
+
+    const [rawResponse, fanarRawResponse] = await Promise.all([
+      callCerebrasJais(TRANSLATION_SYSTEM_PROMPT, userContent, CEREBRAS_API_KEY, 4096),
+      fanarAvailable
+        ? callFanar(TRANSLATION_SYSTEM_PROMPT, userContent, FANAR_API_KEY!, 4096)
+        : Promise.resolve(null),
+    ]);
 
     const parsed = safeJsonParse<JaisResponsePayload>(rawResponse);
-    if (!parsed) {
-      throw new Error('Failed to parse Jais response. Please try again.');
+    const fanarParsed = fanarRawResponse ? safeJsonParse<JaisResponsePayload>(fanarRawResponse) : null;
+
+    if (!parsed && !fanarParsed) {
+      throw new Error('Failed to parse translation responses. Please try again.');
     }
 
-    let translations: NormalisedTranslation[] = Array.isArray(parsed.translations)
-      ? parsed.translations
-          .filter((t: RawTranslation) => t?.arabic && t?.transliteration)
-          .map((t: RawTranslation) => ({
-            arabic: String(t.arabic),
-            transliteration: String(t.transliteration),
-            english: String(t.english ?? ''),
-            context: String(t.context ?? ''),
-            naturalness: typeof t.naturalness === 'number' ? Math.min(5, Math.max(1, t.naturalness)) : 3,
-            isPreferred: !!t.isPreferred,
-          }))
-      : [];
+    // Normalise translations from a parsed result
+    function normTranslations(p: JaisResponsePayload | null): NormalisedTranslation[] {
+      if (!p || !Array.isArray(p.translations)) return [];
+      return p.translations
+        .filter((t: RawTranslation) => t?.arabic && t?.transliteration)
+        .map((t: RawTranslation) => ({
+          arabic: String(t.arabic),
+          transliteration: String(t.transliteration),
+          english: String(t.english ?? ''),
+          context: String(t.context ?? ''),
+          naturalness: typeof t.naturalness === 'number' ? Math.min(5, Math.max(1, t.naturalness)) : 3,
+          isPreferred: !!t.isPreferred,
+        }));
+    }
+
+    const cerebrasTranslations = normTranslations(parsed);
+    const fanarTranslations = normTranslations(fanarParsed);
+
+    // Merge: start with Cerebras, add unique Fanar translations by Arabic text
+    const seenArabic = new Set(cerebrasTranslations.map(t => t.arabic));
+    const mergedFromFanar = fanarTranslations.filter(t => !seenArabic.has(t.arabic));
+    if (mergedFromFanar.length > 0) {
+      console.log(`translate-jais: added ${mergedFromFanar.length} unique translation(s) from Fanar`);
+    }
+
+    let translations: NormalisedTranslation[] = [...cerebrasTranslations, ...mergedFromFanar];
 
     if (translations.length === 0) {
-      throw new Error('Jais could not produce translations. Please try rephrasing.');
+      throw new Error('Could not produce translations. Please try rephrasing.');
     }
 
     // Step 2: Cross-check preferred translation with Qwen for Omani dialect authenticity
@@ -342,7 +413,8 @@ serve(async (req) => {
       return b.naturalness - a.naturalness;
     });
 
-    const vocabulary: NormalisedVocabularyItem[] = Array.isArray(parsed.vocabulary)
+    // Merge vocabularies from Cerebras + Fanar
+    const cerebrasVocab: NormalisedVocabularyItem[] = parsed && Array.isArray(parsed.vocabulary)
       ? parsed.vocabulary
           .filter((v: RawVocabularyItem) => v?.arabic)
           .map((v: RawVocabularyItem) => ({
@@ -351,13 +423,30 @@ serve(async (req) => {
             root: v.root ? String(v.root) : undefined,
           }))
       : [];
+    const fanarVocab: NormalisedVocabularyItem[] = fanarParsed && Array.isArray(fanarParsed.vocabulary)
+      ? fanarParsed.vocabulary
+          .filter((v: RawVocabularyItem) => v?.arabic)
+          .map((v: RawVocabularyItem) => ({
+            arabic: String(v.arabic),
+            english: String(v.english ?? ''),
+            root: v.root ? String(v.root) : undefined,
+          }))
+      : [];
+    const vocabArabicSet = new Set(cerebrasVocab.map(v => v.arabic));
+    const vocabulary = [...cerebrasVocab, ...fanarVocab.filter(v => !vocabArabicSet.has(v.arabic))];
+
+    // Prefer richer cultural notes
+    const cerebrasNotes = parsed?.culturalNotes ? String(parsed.culturalNotes) : undefined;
+    const fanarNotes = fanarParsed?.culturalNotes ? String(fanarParsed.culturalNotes) : undefined;
+    const culturalNotes = (fanarNotes && (!cerebrasNotes || fanarNotes.length > cerebrasNotes.length))
+      ? fanarNotes : cerebrasNotes;
 
     const result = {
       phrase: trimmedPhrase,
       translations,
       vocabulary,
-      culturalNotes: parsed.culturalNotes ? String(parsed.culturalNotes) : undefined,
-      genderVariants: parsed.genderVariants ? String(parsed.genderVariants) : undefined,
+      culturalNotes,
+      genderVariants: parsed?.genderVariants ? String(parsed.genderVariants) : (fanarParsed?.genderVariants ? String(fanarParsed.genderVariants) : undefined),
       llmUsed,
       dialectScore: dialectCheck.dialectScore,
       dialectVerified: dialectCheck.isAuthentic,

@@ -28,6 +28,50 @@ function safeJsonParse<T>(content: string): T | null {
   }
 }
 
+async function callFanar(
+  systemPrompt: string,
+  userContent: string,
+  apiKey: string,
+  maxTokens = 4096,
+): Promise<string | null> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 55_000);
+
+  try {
+    const response = await fetch('https://api.fanar.qa/v1/chat/completions', {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'Fanar',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userContent },
+        ],
+        max_tokens: maxTokens,
+        temperature: 0.3,
+      }),
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      console.warn('Fanar error:', response.status, errText.slice(0, 300));
+      return null;
+    }
+
+    const data = await response.json();
+    return data.choices?.[0]?.message?.content ?? null;
+  } catch (e) {
+    console.warn('Fanar fetch failed (non-fatal):', e instanceof Error ? e.message : String(e));
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 async function callAI(
   systemPrompt: string,
   userContent: string,
@@ -161,11 +205,22 @@ serve(async (req) => {
       );
     }
 
-    // Use Qwen via OpenRouter for translation
+    // Fire Qwen and Fanar in parallel for translation
     const userContent = `How do I say this in Gulf Arabic: "${trimmedPhrase}"`;
-    const llmUsed = 'qwen/qwen3-5-plus (OpenRouter)';
-    console.log(`how-do-i-say: LLM used = ${llmUsed}, phrase = "${trimmedPhrase}"`);
-    const rawResponse = await callAI(SYSTEM_PROMPT, userContent, OPENROUTER_API_KEY, 4096);
+    const FANAR_API_KEY = Deno.env.get('FANAR_API_KEY')?.trim();
+    const fanarAvailable = Boolean(FANAR_API_KEY);
+
+    const llmsUsed: string[] = ['qwen/qwen3-5-plus (OpenRouter)'];
+    if (fanarAvailable) llmsUsed.push('Fanar');
+    const llmUsed = llmsUsed.join(' + ');
+    console.log(`how-do-i-say: LLMs = ${llmUsed}, phrase = "${trimmedPhrase}"`);
+
+    const [rawResponse, fanarRawResponse] = await Promise.all([
+      callAI(SYSTEM_PROMPT, userContent, OPENROUTER_API_KEY, 4096),
+      fanarAvailable
+        ? callFanar(SYSTEM_PROMPT, userContent, FANAR_API_KEY!, 4096)
+        : Promise.resolve(null),
+    ]);
 
     // Persist LLM usage log to the database
     try {
@@ -184,23 +239,38 @@ serve(async (req) => {
     }
 
     const parsed = safeJsonParse<any>(rawResponse);
-    if (!parsed) {
+    const fanarParsed = fanarRawResponse ? safeJsonParse<any>(fanarRawResponse) : null;
+
+    if (!parsed && !fanarParsed) {
       throw new Error('Failed to parse AI response. Please try again.');
     }
 
-    // Validate and sanitise the result
-    const translations = Array.isArray(parsed.translations)
-      ? parsed.translations
-          .filter((t: any) => t?.arabic && t?.transliteration)
-          .map((t: any) => ({
-            arabic: String(t.arabic),
-            transliteration: String(t.transliteration),
-            english: String(t.english ?? ''),
-            context: String(t.context ?? ''),
-            naturalness: typeof t.naturalness === 'number' ? Math.min(5, Math.max(1, t.naturalness)) : 3,
-            isPreferred: !!t.isPreferred,
-          }))
-      : [];
+    // Normalise translation entries from a parsed result
+    function normTranslations(p: any): any[] {
+      if (!p || !Array.isArray(p.translations)) return [];
+      return p.translations
+        .filter((t: any) => t?.arabic && t?.transliteration)
+        .map((t: any) => ({
+          arabic: String(t.arabic),
+          transliteration: String(t.transliteration),
+          english: String(t.english ?? ''),
+          context: String(t.context ?? ''),
+          naturalness: typeof t.naturalness === 'number' ? Math.min(5, Math.max(1, t.naturalness)) : 3,
+          isPreferred: !!t.isPreferred,
+        }));
+    }
+
+    const qwenTranslations = normTranslations(parsed);
+    const fanarTranslations = normTranslations(fanarParsed);
+
+    // Merge: start with Qwen translations, add unique Fanar translations by Arabic text
+    const seenArabic = new Set(qwenTranslations.map((t: any) => t.arabic));
+    const mergedFromFanar = fanarTranslations.filter((t: any) => !seenArabic.has(t.arabic));
+    if (mergedFromFanar.length > 0) {
+      console.log(`how-do-i-say: added ${mergedFromFanar.length} unique translation(s) from Fanar`);
+    }
+
+    const translations = [...qwenTranslations, ...mergedFromFanar];
 
     if (translations.length === 0) {
       throw new Error('AI could not produce translations. Please try rephrasing.');
@@ -220,22 +290,32 @@ serve(async (req) => {
       return b.naturalness - a.naturalness;
     });
 
-    const vocabulary = Array.isArray(parsed.vocabulary)
-      ? parsed.vocabulary
-          .filter((v: any) => v?.arabic)
-          .map((v: any) => ({
-            arabic: String(v.arabic),
-            english: String(v.english ?? ''),
-            root: v.root ? String(v.root) : undefined,
-          }))
+    // Merge vocabularies from both sources
+    const qwenVocab = parsed && Array.isArray(parsed.vocabulary)
+      ? parsed.vocabulary.filter((v: any) => v?.arabic).map((v: any) => ({
+          arabic: String(v.arabic), english: String(v.english ?? ''), root: v.root ? String(v.root) : undefined,
+        }))
       : [];
+    const fanarVocab = fanarParsed && Array.isArray(fanarParsed.vocabulary)
+      ? fanarParsed.vocabulary.filter((v: any) => v?.arabic).map((v: any) => ({
+          arabic: String(v.arabic), english: String(v.english ?? ''), root: v.root ? String(v.root) : undefined,
+        }))
+      : [];
+    const vocabArabicSet = new Set(qwenVocab.map((v: any) => v.arabic));
+    const vocabulary = [...qwenVocab, ...fanarVocab.filter((v: any) => !vocabArabicSet.has(v.arabic))];
+
+    // Prefer richer cultural notes
+    const qwenNotes = parsed?.culturalNotes ? String(parsed.culturalNotes) : undefined;
+    const fanarNotes = fanarParsed?.culturalNotes ? String(fanarParsed.culturalNotes) : undefined;
+    const culturalNotes = (fanarNotes && (!qwenNotes || fanarNotes.length > qwenNotes.length))
+      ? fanarNotes : qwenNotes;
 
     const result = {
       phrase: trimmedPhrase,
       translations,
       vocabulary,
-      culturalNotes: parsed.culturalNotes ? String(parsed.culturalNotes) : undefined,
-      genderVariants: parsed.genderVariants ? String(parsed.genderVariants) : undefined,
+      culturalNotes,
+      genderVariants: parsed?.genderVariants ? String(parsed.genderVariants) : (fanarParsed?.genderVariants ? String(fanarParsed.genderVariants) : undefined),
       llmUsed,
     };
 

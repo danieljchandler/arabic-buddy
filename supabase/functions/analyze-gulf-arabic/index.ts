@@ -190,8 +190,8 @@ async function callAI({
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          // Qwen3-5-plus via OpenRouter for Gulf Arabic analysis
-          model: 'qwen/qwen3-5-plus',
+          // Qwen3-30b-a3b via OpenRouter for Gulf Arabic analysis
+          model: 'qwen/qwen3-30b-a3b',
           messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userContent },
@@ -641,43 +641,54 @@ type MetaAI = {
   culturalContext?: string;
 };
 
-// Fallback: use Qwen via OpenRouter for translation when needed
+// Fallback: use Qwen + Gemini via OpenRouter for translation when needed
 async function lovableAITranslate(arabicLines: string[], apiKey: string): Promise<string[]> {
-  try {
-    const numberedLines = arabicLines.map((line, i) => `${i + 1}. ${line}`).join('\n');
+  const numberedLines = arabicLines.map((line, i) => `${i + 1}. ${line}`).join('\n');
+  const messages = [
+    {
+      role: "system",
+      content: "You are an expert translator specializing in Gulf Arabic (Khaliji) dialect. Translate each numbered Arabic line to natural English. Return ONLY the translations, numbered to match. No commentary.",
+    },
+    {
+      role: "user",
+      content: `Translate these Gulf Arabic lines to English:\n\n${numberedLines}`,
+    },
+  ];
+
+  async function callModel(model: string): Promise<string | null> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 45_000);
-
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      signal: controller.signal,
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'qwen/qwen3-5-plus',
-        messages: [
-          {
-            role: "system",
-            content: "You are an expert translator specializing in Gulf Arabic (Khaliji) dialect. Translate each numbered Arabic line to natural English. Return ONLY the translations, numbered to match. No commentary."
-          },
-          {
-            role: "user",
-            content: `Translate these Gulf Arabic lines to English:\n\n${numberedLines}`
-          }
-        ],
-      }),
-    });
-    clearTimeout(timeout);
-
-    if (!response.ok) {
-      console.warn('Qwen translation error:', response.status);
-      return [];
+    try {
+      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        signal: controller.signal,
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ model, messages }),
+      });
+      clearTimeout(timeout);
+      if (!response.ok) {
+        console.warn(`${model} translation error:`, response.status);
+        return null;
+      }
+      const data = await response.json();
+      return data?.choices?.[0]?.message?.content || null;
+    } catch (e) {
+      clearTimeout(timeout);
+      console.warn(`${model} translation failed:`, e instanceof Error ? e.message : String(e));
+      return null;
     }
+  }
 
-    const data = await response.json();
-    const generatedText = data?.choices?.[0]?.message?.content || '';
+  try {
+    const [qwenText, geminiText] = await Promise.all([
+      callModel('qwen/qwen3-30b-a3b'),
+      callModel('google/gemini-2.5-flash-preview'),
+    ]);
+
+    const generatedText = qwenText ?? geminiText ?? '';
     if (!generatedText) return [];
 
     const translations: string[] = [];
@@ -693,10 +704,10 @@ async function lovableAITranslate(arabicLines: string[], apiKey: string): Promis
         translations.push('');
       }
     }
-    console.log(`Qwen translate: produced ${translations.filter(t => t.length > 0).length}/${arabicLines.length} translations`);
+    console.log(`lovableAITranslate: produced ${translations.filter(t => t.length > 0).length}/${arabicLines.length} translations (qwen=${!!qwenText}, gemini=${!!geminiText})`);
     return translations;
   } catch (e) {
-    console.warn('Qwen translation failed:', e instanceof Error ? e.message : String(e));
+    console.warn('lovableAITranslate failed:', e instanceof Error ? e.message : String(e));
     return [];
   }
 }

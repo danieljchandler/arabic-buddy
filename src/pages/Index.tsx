@@ -213,8 +213,8 @@ const Index = () => {
                 Mixed mode <ChevronRight className="h-3.5 w-3.5" />
               </button>
             </div>
-            {stages?.filter(s => s.stage_number > 0 || (allLessons?.filter(l => l.stage_id === s.id).length ?? 0) > 0).map(stage => {
-              const stageLessons = allLessons?.filter(l => l.stage_id === stage.id) || [];
+            {stages?.filter(s => s.stage_number > 0 || (allLessons?.length ?? 0) > 0).map(stage => {
+              const stageLessons = allLessons || [];
               if (stageLessons.length === 0) return null;
               return (
                 <div key={stage.id} className="space-y-1.5">
@@ -235,9 +235,9 @@ const Index = () => {
                     >
                       <span className="text-2xl">{lesson.icon}</span>
                       <div className="text-left flex-1">
-                        <p className="font-semibold text-foreground text-sm">{lesson.title}</p>
-                        {lesson.title_arabic && (
-                          <p className="text-xs text-muted-foreground font-arabic">{lesson.title_arabic}</p>
+                        <p className="font-semibold text-foreground text-sm">{lesson.name}</p>
+                        {lesson.name_arabic && (
+                          <p className="text-xs text-muted-foreground font-arabic">{lesson.name_arabic}</p>
                         )}
                       </div>
                       <span className="text-xs text-muted-foreground">{lesson.word_count} words</span>

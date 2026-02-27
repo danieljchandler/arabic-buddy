@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 const CEREBRAS_ENDPOINT = 'https://api.cerebras.ai/v1/chat/completions';
-const CEREBRAS_MODEL = 'qwen-3-235b-a22b-instruct-2507'; // Jais not available on Cerebras inference; using Qwen-3 which excels at Arabic
+const CEREBRAS_MODEL = 'qwen-3-32b';
 const OPENROUTER_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
 
 interface RawTranslation {
@@ -168,12 +168,12 @@ Return ONLY valid JSON:
   "correctedArabic": "string or null - provide a corrected version only if dialectScore < 3"
 }`;
 
-async function callCerebrasJais(
+async function callCerebrasQwen(
   systemPrompt: string,
   userContent: string,
   apiKey: string,
   maxTokens = 4096,
-): Promise<string> {
+): Promise<string | null> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 55_000);
 
@@ -198,21 +198,22 @@ async function callCerebrasJais(
 
     if (!response.ok) {
       const errText = await response.text();
-      console.error('Cerebras Jais error:', response.status, errText.slice(0, 500));
+      console.warn('Cerebras Qwen error:', response.status, errText.slice(0, 500));
       if (response.status === 429) throw new Error('Rate limit exceeded. Please wait a moment and try again.');
-      throw new Error(`Cerebras API error (${response.status})`);
+      return null;
     }
 
     const data = await response.json();
     const content = data?.choices?.[0]?.message?.content;
-    if (!content) throw new Error('Jais returned empty response');
+    if (!content) {
+      console.warn('Cerebras Qwen returned empty response');
+      return null;
+    }
     return content;
   } catch (e) {
-    if (e instanceof Error && (e.message.includes('Rate limit') || e.message.includes('Cerebras API error'))) {
-      throw e;
-    }
-    console.error('Cerebras fetch failed:', e);
-    throw new Error('Jais translation failed. Please try again.');
+    if (e instanceof Error && e.message.includes('Rate limit')) throw e;
+    console.warn('Cerebras Qwen fetch failed (non-fatal):', e instanceof Error ? e.message : String(e));
+    return null;
   } finally {
     clearTimeout(timeout);
   }
@@ -338,7 +339,7 @@ serve(async (req) => {
     const userContent = `How do I say this in Omani Gulf Arabic: "${trimmedPhrase}"`;
 
     const [rawResponse, fanarRawResponse] = await Promise.all([
-      callCerebrasJais(TRANSLATION_SYSTEM_PROMPT, userContent, CEREBRAS_API_KEY, 4096),
+      callCerebrasQwen(TRANSLATION_SYSTEM_PROMPT, userContent, CEREBRAS_API_KEY, 4096),
       fanarAvailable
         ? callFanar(TRANSLATION_SYSTEM_PROMPT, userContent, FANAR_API_KEY!, 4096)
         : Promise.resolve(null),

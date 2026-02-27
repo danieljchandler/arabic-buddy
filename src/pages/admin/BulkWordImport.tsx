@@ -486,9 +486,8 @@ const BulkWordImport = () => {
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
                     <InlineAudioRecorder
-                      audioUrl={entry.audioUrl}
-                      onRecorded={(url) => updateEntry(entry.id, 'audioUrl', url)}
-                      storagePath={`${topicId}/${entry.id}`}
+                      onSave={(url) => updateEntry(entry.id, 'audioUrl', url)}
+                      onCancel={() => {}}
                     />
                     <Button
                       variant="ghost"

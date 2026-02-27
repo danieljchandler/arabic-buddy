@@ -25,9 +25,9 @@ const Stages = () => {
   // Group lessons by stage
   const lessonsByStage = new Map<string, typeof allLessons>();
   allLessons?.forEach(lesson => {
-    const existing = lessonsByStage.get(lesson.stage_id) || [];
+    const existing = lessonsByStage.get('default') || [];
     existing.push(lesson);
-    lessonsByStage.set(lesson.stage_id, existing);
+    lessonsByStage.set('default', existing);
   });
 
   return (
@@ -93,10 +93,10 @@ const Stages = () => {
                           <span className="text-2xl">{lesson.icon}</span>
                           <div>
                             <p className="font-medium">
-                              Lesson {lesson.lesson_number}: {lesson.title}
+                              Lesson {lesson.display_order}: {lesson.name}
                             </p>
-                            {lesson.title_arabic && (
-                              <p className="text-sm text-muted-foreground font-arabic">{lesson.title_arabic}</p>
+                            {lesson.name_arabic && (
+                              <p className="text-sm text-muted-foreground font-arabic">{lesson.name_arabic}</p>
                             )}
                           </div>
                         </div>

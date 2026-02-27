@@ -218,9 +218,17 @@ serve(async (req) => {
     const llmUsed = llmsUsed.join(' + ');
     console.log(`how-do-i-say: LLMs = ${llmUsed}, phrase = "${trimmedPhrase}"`);
 
+    // Use .catch() on each call so that if multiple models reject simultaneously
+    // (e.g. both return 429 or 402), the second rejection is not an unhandled
+    // promise rejection that would crash the Deno process with a RUNTIME_ERROR.
+    let firstLlmError: Error | null = null;
+    const captureLlmError = (e: unknown): null => {
+      if (!firstLlmError) firstLlmError = e instanceof Error ? e : new Error(String(e));
+      return null;
+    };
     const [rawResponse, geminiRawResponse, fanarRawResponse] = await Promise.all([
-      callAI(SYSTEM_PROMPT, userContent, OPENROUTER_API_KEY, 'qwen/qwen3-30b-a3b', 4096),
-      callAI(SYSTEM_PROMPT, userContent, OPENROUTER_API_KEY, 'google/gemini-2.5-flash-preview', 4096),
+      callAI(SYSTEM_PROMPT, userContent, OPENROUTER_API_KEY, 'qwen/qwen3-30b-a3b', 4096).catch(captureLlmError),
+      callAI(SYSTEM_PROMPT, userContent, OPENROUTER_API_KEY, 'google/gemini-2.5-flash-preview', 4096).catch(captureLlmError),
       fanarAvailable
         ? callFanar(SYSTEM_PROMPT, userContent, FANAR_API_KEY!, 4096)
         : Promise.resolve(null),
@@ -247,7 +255,7 @@ serve(async (req) => {
     const fanarParsed = fanarRawResponse ? safeJsonParse<any>(fanarRawResponse) : null;
 
     if (!parsed && !geminiParsed && !fanarParsed) {
-      throw new Error('Failed to parse AI response. Please try again.');
+      throw firstLlmError ?? new Error('Failed to parse AI response. Please try again.');
     }
 
     // Normalise translation entries from a parsed result

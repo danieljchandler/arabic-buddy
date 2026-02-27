@@ -333,9 +333,17 @@ serve(async (req) => {
     // Step 1: Get translations from Qwen + Gemini + Fanar in parallel
     const userContent = `How do I say this in Omani Gulf Arabic: "${trimmedPhrase}"`;
 
+    // Use .catch() on each call so that if multiple models reject simultaneously
+    // (e.g. both return 429), the second rejection is not an unhandled promise
+    // rejection that would crash the Deno process with a RUNTIME_ERROR.
+    let firstLlmError: Error | null = null;
+    const captureLlmError = (e: unknown): null => {
+      if (!firstLlmError) firstLlmError = e instanceof Error ? e : new Error(String(e));
+      return null;
+    };
     const [rawResponse, geminiRawResponse, fanarRawResponse] = await Promise.all([
-      callOpenRouter(QWEN_MODEL, TRANSLATION_SYSTEM_PROMPT, userContent, OPENROUTER_API_KEY, 4096),
-      callOpenRouter(GEMINI_MODEL, TRANSLATION_SYSTEM_PROMPT, userContent, OPENROUTER_API_KEY, 4096),
+      callOpenRouter(QWEN_MODEL, TRANSLATION_SYSTEM_PROMPT, userContent, OPENROUTER_API_KEY, 4096).catch(captureLlmError),
+      callOpenRouter(GEMINI_MODEL, TRANSLATION_SYSTEM_PROMPT, userContent, OPENROUTER_API_KEY, 4096).catch(captureLlmError),
       fanarAvailable
         ? callFanar(TRANSLATION_SYSTEM_PROMPT, userContent, FANAR_API_KEY!, 4096)
         : Promise.resolve(null),
@@ -346,7 +354,7 @@ serve(async (req) => {
     const fanarParsed = fanarRawResponse ? safeJsonParse<JaisResponsePayload>(fanarRawResponse) : null;
 
     if (!parsed && !geminiParsed && !fanarParsed) {
-      throw new Error('Failed to parse translation responses. Please try again.');
+      throw firstLlmError ?? new Error('Failed to parse translation responses. Please try again.');
     }
 
     // Normalise translations from a parsed result

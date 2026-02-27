@@ -79,6 +79,7 @@ async function callAI(
   apiKey: string,
   model: string,
   maxTokens = 4096,
+  onError?: (e: Error) => void,
 ): Promise<string | null> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 55_000);
@@ -106,10 +107,12 @@ async function callAI(
       const errText = await response.text();
       console.error(`AI error (${model}):`, response.status, errText.slice(0, 500));
       if (response.status === 402) {
-        throw new Error('Not enough AI credits. Please add credits to your workspace at Settings → Workspace → Usage.');
+        onError?.(new Error('Not enough AI credits. Please add credits to your workspace at Settings → Workspace → Usage.'));
+        return null;
       }
       if (response.status === 429) {
-        throw new Error('Rate limit exceeded. Please wait a moment and try again.');
+        onError?.(new Error('Rate limit exceeded. Please wait a moment and try again.'));
+        return null;
       }
       return null;
     }
@@ -122,10 +125,7 @@ async function callAI(
     }
     return content;
   } catch (e) {
-    if (e instanceof Error && (e.message.includes('credits') || e.message.includes('Rate limit'))) {
-      throw e;
-    }
-    console.error(`AI fetch failed (${model}):`, e);
+    console.warn(`AI fetch failed (${model}):`, e instanceof Error ? e.message : String(e));
     return null;
   } finally {
     clearTimeout(timeout);
@@ -218,19 +218,22 @@ serve(async (req) => {
     const llmUsed = llmsUsed.join(' + ');
     console.log(`how-do-i-say: LLMs = ${llmUsed}, phrase = "${trimmedPhrase}"`);
 
-    // Use .catch() on each call so that if multiple models reject simultaneously
-    // (e.g. both return 429 or 402), the second rejection is not an unhandled
-    // promise rejection that would crash the Deno process with a RUNTIME_ERROR.
+    // Use an error-callback on each call so that if multiple models return 402/429
+    // simultaneously, errors are captured without throwing into Promise.all, which
+    // would otherwise risk an unhandled rejection crashing the Deno process with a
+    // RUNTIME_ERROR.
     let firstLlmError: Error | null = null;
-    const captureLlmError = (e: unknown): null => {
-      if (!firstLlmError) firstLlmError = e instanceof Error ? e : new Error(String(e));
-      return null;
+    const captureLlmError = (e: Error) => {
+      if (!firstLlmError) firstLlmError = e;
     };
     const [rawResponse, geminiRawResponse, fanarRawResponse] = await Promise.all([
-      callAI(SYSTEM_PROMPT, userContent, OPENROUTER_API_KEY, 'qwen/qwen3-30b-a3b', 4096).catch(captureLlmError),
-      callAI(SYSTEM_PROMPT, userContent, OPENROUTER_API_KEY, 'google/gemini-2.5-flash-preview', 4096).catch(captureLlmError),
+      callAI(SYSTEM_PROMPT, userContent, OPENROUTER_API_KEY, 'qwen/qwen3-30b-a3b', 4096, captureLlmError),
+      callAI(SYSTEM_PROMPT, userContent, OPENROUTER_API_KEY, 'google/gemini-2.5-flash-preview', 4096, captureLlmError),
       fanarAvailable
-        ? callFanar(SYSTEM_PROMPT, userContent, FANAR_API_KEY!, 4096).catch(captureLlmError)
+        ? callFanar(SYSTEM_PROMPT, userContent, FANAR_API_KEY!, 4096).catch((e: unknown) => {
+            console.warn('how-do-i-say: unexpected Fanar rejection:', e instanceof Error ? e.message : String(e));
+            return null;
+          })
         : Promise.resolve(null),
     ]);
 

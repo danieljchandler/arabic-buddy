@@ -217,9 +217,11 @@ serve(async (req) => {
 
     const userContent = `How do I say this in Gulf Arabic: "${trimmedPhrase}"`;
 
-    // Build the list of parallel model calls based on which API keys are available.
-    // Lovable gateway (LOVABLE_API_KEY) is the primary/reliable path in this environment.
-    // OpenRouter is a secondary path. Fanar is an optional Gulf Arabic specialist.
+    // Fire ALL available models in parallel (not fallback — results are merged).
+    // 1. Lovable gateway: google/gemini-2.5-flash  (reliable built-in AI service)
+    // 2. OpenRouter: qwen/qwen3-30b-a3b            (strong reasoning model)
+    // 3. OpenRouter: google/gemma-3-12b-it          (best Google model for Arabic)
+    // 4. Fanar                                       (optional Gulf Arabic specialist)
     const llmsUsed: string[] = [];
     const fanarAvailable = Boolean(FANAR_API_KEY);
 
@@ -239,6 +241,12 @@ serve(async (req) => {
       calls.push({
         label: 'qwen-openrouter',
         call: callAI(OPENROUTER_ENDPOINT, 'qwen/qwen3-30b-a3b', SYSTEM_PROMPT, userContent, OPENROUTER_API_KEY, 4096),
+      });
+
+      llmsUsed.push('google/gemma-3-12b-it (OpenRouter)');
+      calls.push({
+        label: 'gemma-openrouter',
+        call: callAI(OPENROUTER_ENDPOINT, 'google/gemma-3-12b-it', SYSTEM_PROMPT, userContent, OPENROUTER_API_KEY, 4096),
       });
     }
 

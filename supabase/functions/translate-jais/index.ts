@@ -6,9 +6,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-const CEREBRAS_ENDPOINT = 'https://api.cerebras.ai/v1/chat/completions';
-const CEREBRAS_MODEL = 'qwen-3-32b';
 const OPENROUTER_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
+const QWEN_MODEL = 'qwen/qwen3-30b-a3b';
+const GEMINI_MODEL = 'google/gemini-2.5-flash-preview';
 
 interface RawTranslation {
   arabic?: unknown;
@@ -168,7 +168,8 @@ Return ONLY valid JSON:
   "correctedArabic": "string or null - provide a corrected version only if dialectScore < 3"
 }`;
 
-async function callCerebrasQwen(
+async function callOpenRouter(
+  model: string,
   systemPrompt: string,
   userContent: string,
   apiKey: string,
@@ -178,7 +179,7 @@ async function callCerebrasQwen(
   const timeout = setTimeout(() => controller.abort(), 55_000);
 
   try {
-    const response = await fetch(CEREBRAS_ENDPOINT, {
+    const response = await fetch(OPENROUTER_ENDPOINT, {
       method: 'POST',
       signal: controller.signal,
       headers: {
@@ -186,7 +187,7 @@ async function callCerebrasQwen(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: CEREBRAS_MODEL,
+        model,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userContent },
@@ -198,7 +199,7 @@ async function callCerebrasQwen(
 
     if (!response.ok) {
       const errText = await response.text();
-      console.warn('Cerebras Qwen error:', response.status, errText.slice(0, 500));
+      console.warn(`OpenRouter ${model} error:`, response.status, errText.slice(0, 500));
       if (response.status === 429) throw new Error('Rate limit exceeded. Please wait a moment and try again.');
       return null;
     }
@@ -206,13 +207,13 @@ async function callCerebrasQwen(
     const data = await response.json();
     const content = data?.choices?.[0]?.message?.content;
     if (!content) {
-      console.warn('Cerebras Qwen returned empty response');
+      console.warn(`OpenRouter ${model} returned empty response`);
       return null;
     }
     return content;
   } catch (e) {
     if (e instanceof Error && e.message.includes('Rate limit')) throw e;
-    console.warn('Cerebras Qwen fetch failed (non-fatal):', e instanceof Error ? e.message : String(e));
+    console.warn(`OpenRouter ${model} fetch failed (non-fatal):`, e instanceof Error ? e.message : String(e));
     return null;
   } finally {
     clearTimeout(timeout);
@@ -236,7 +237,7 @@ async function runQwenDialectCheck(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'qwen/qwen3-5-plus',
+        model: QWEN_MODEL,
         messages: [
           { role: 'system', content: QWEN_DIALECT_CHECK_PROMPT },
           { role: 'user', content: `English: "${phrase}"\nArabic translation: "${arabicTranslation}"` },
@@ -311,15 +312,8 @@ serve(async (req) => {
 
     const trimmedPhrase = phrase.trim().slice(0, 500);
 
-    const CEREBRAS_API_KEY = Deno.env.get('CEREBRAS_API_KEY');
     const OPENROUTER_API_KEY = Deno.env.get('OPENROUTER_API_KEY');
 
-    if (!CEREBRAS_API_KEY) {
-      return new Response(
-        JSON.stringify({ error: 'Cerebras API key not configured' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      );
-    }
     if (!OPENROUTER_API_KEY) {
       return new Response(
         JSON.stringify({ error: 'AI service not configured' }),
@@ -330,25 +324,27 @@ serve(async (req) => {
     const FANAR_API_KEY = Deno.env.get('FANAR_API_KEY')?.trim();
     const fanarAvailable = Boolean(FANAR_API_KEY);
 
-    const llmsUsed = [`${CEREBRAS_MODEL} (Cerebras)`];
+    const llmsUsed = [`${QWEN_MODEL} (OpenRouter)`, `${GEMINI_MODEL} (OpenRouter)`];
     if (fanarAvailable) llmsUsed.push('Fanar');
     const llmUsed = llmsUsed.join(' + ');
     console.log(`translate-jais: LLMs = ${llmUsed}, phrase = "${trimmedPhrase}"`);
 
-    // Step 1: Get translations from Cerebras + Fanar in parallel
+    // Step 1: Get translations from Qwen + Gemini + Fanar in parallel
     const userContent = `How do I say this in Omani Gulf Arabic: "${trimmedPhrase}"`;
 
-    const [rawResponse, fanarRawResponse] = await Promise.all([
-      callCerebrasQwen(TRANSLATION_SYSTEM_PROMPT, userContent, CEREBRAS_API_KEY, 4096),
+    const [rawResponse, geminiRawResponse, fanarRawResponse] = await Promise.all([
+      callOpenRouter(QWEN_MODEL, TRANSLATION_SYSTEM_PROMPT, userContent, OPENROUTER_API_KEY, 4096),
+      callOpenRouter(GEMINI_MODEL, TRANSLATION_SYSTEM_PROMPT, userContent, OPENROUTER_API_KEY, 4096),
       fanarAvailable
         ? callFanar(TRANSLATION_SYSTEM_PROMPT, userContent, FANAR_API_KEY!, 4096)
         : Promise.resolve(null),
     ]);
 
-    const parsed = safeJsonParse<JaisResponsePayload>(rawResponse);
+    const parsed = rawResponse ? safeJsonParse<JaisResponsePayload>(rawResponse) : null;
+    const geminiParsed = geminiRawResponse ? safeJsonParse<JaisResponsePayload>(geminiRawResponse) : null;
     const fanarParsed = fanarRawResponse ? safeJsonParse<JaisResponsePayload>(fanarRawResponse) : null;
 
-    if (!parsed && !fanarParsed) {
+    if (!parsed && !geminiParsed && !fanarParsed) {
       throw new Error('Failed to parse translation responses. Please try again.');
     }
 
@@ -367,17 +363,23 @@ serve(async (req) => {
         }));
     }
 
-    const cerebrasTranslations = normTranslations(parsed);
+    const qwenTranslations = normTranslations(parsed);
+    const geminiTranslations = normTranslations(geminiParsed);
     const fanarTranslations = normTranslations(fanarParsed);
 
-    // Merge: start with Cerebras, add unique Fanar translations by Arabic text
-    const seenArabic = new Set(cerebrasTranslations.map(t => t.arabic));
+    // Merge: start with Qwen, add unique Gemini translations, then unique Fanar translations
+    const seenArabic = new Set(qwenTranslations.map(t => t.arabic));
+    const mergedFromGemini = geminiTranslations.filter(t => !seenArabic.has(t.arabic));
+    mergedFromGemini.forEach(t => seenArabic.add(t.arabic));
     const mergedFromFanar = fanarTranslations.filter(t => !seenArabic.has(t.arabic));
+    if (mergedFromGemini.length > 0) {
+      console.log(`translate-jais: added ${mergedFromGemini.length} unique translation(s) from Gemini`);
+    }
     if (mergedFromFanar.length > 0) {
       console.log(`translate-jais: added ${mergedFromFanar.length} unique translation(s) from Fanar`);
     }
 
-    let translations: NormalisedTranslation[] = [...cerebrasTranslations, ...mergedFromFanar];
+    let translations: NormalisedTranslation[] = [...qwenTranslations, ...mergedFromGemini, ...mergedFromFanar];
 
     if (translations.length === 0) {
       throw new Error('Could not produce translations. Please try rephrasing.');
@@ -414,9 +416,18 @@ serve(async (req) => {
       return b.naturalness - a.naturalness;
     });
 
-    // Merge vocabularies from Cerebras + Fanar
-    const cerebrasVocab: NormalisedVocabularyItem[] = parsed && Array.isArray(parsed.vocabulary)
+    // Merge vocabularies from Qwen + Gemini + Fanar
+    const qwenVocab: NormalisedVocabularyItem[] = parsed && Array.isArray(parsed.vocabulary)
       ? parsed.vocabulary
+          .filter((v: RawVocabularyItem) => v?.arabic)
+          .map((v: RawVocabularyItem) => ({
+            arabic: String(v.arabic),
+            english: String(v.english ?? ''),
+            root: v.root ? String(v.root) : undefined,
+          }))
+      : [];
+    const geminiVocab: NormalisedVocabularyItem[] = geminiParsed && Array.isArray(geminiParsed.vocabulary)
+      ? geminiParsed.vocabulary
           .filter((v: RawVocabularyItem) => v?.arabic)
           .map((v: RawVocabularyItem) => ({
             arabic: String(v.arabic),
@@ -433,21 +444,28 @@ serve(async (req) => {
             root: v.root ? String(v.root) : undefined,
           }))
       : [];
-    const vocabArabicSet = new Set(cerebrasVocab.map(v => v.arabic));
-    const vocabulary = [...cerebrasVocab, ...fanarVocab.filter(v => !vocabArabicSet.has(v.arabic))];
+    const vocabArabicSet = new Set(qwenVocab.map(v => v.arabic));
+    const extraGeminiVocab = geminiVocab.filter(v => !vocabArabicSet.has(v.arabic));
+    extraGeminiVocab.forEach(v => vocabArabicSet.add(v.arabic));
+    const vocabulary = [...qwenVocab, ...extraGeminiVocab, ...fanarVocab.filter(v => !vocabArabicSet.has(v.arabic))];
 
     // Prefer richer cultural notes
-    const cerebrasNotes = parsed?.culturalNotes ? String(parsed.culturalNotes) : undefined;
+    const qwenNotes = parsed?.culturalNotes ? String(parsed.culturalNotes) : undefined;
+    const geminiNotes = geminiParsed?.culturalNotes ? String(geminiParsed.culturalNotes) : undefined;
     const fanarNotes = fanarParsed?.culturalNotes ? String(fanarParsed.culturalNotes) : undefined;
-    const culturalNotes = (fanarNotes && (!cerebrasNotes || fanarNotes.length > cerebrasNotes.length))
-      ? fanarNotes : cerebrasNotes;
+    const allNotes = [qwenNotes, geminiNotes, fanarNotes].filter(Boolean) as string[];
+    const culturalNotes = allNotes.reduce((best, n) => (!best || n.length > best.length ? n : best), undefined as string | undefined);
+
+    const genderVariants = parsed?.genderVariants
+      ? String(parsed.genderVariants)
+      : (geminiParsed?.genderVariants ? String(geminiParsed.genderVariants) : (fanarParsed?.genderVariants ? String(fanarParsed.genderVariants) : undefined));
 
     const result = {
       phrase: trimmedPhrase,
       translations,
       vocabulary,
       culturalNotes,
-      genderVariants: parsed?.genderVariants ? String(parsed.genderVariants) : (fanarParsed?.genderVariants ? String(fanarParsed.genderVariants) : undefined),
+      genderVariants,
       llmUsed,
       dialectScore: dialectCheck.dialectScore,
       dialectVerified: dialectCheck.isAuthentic,

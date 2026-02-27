@@ -76,8 +76,9 @@ async function callAI(
   systemPrompt: string,
   userContent: string,
   apiKey: string,
+  model: string,
   maxTokens = 4096,
-): Promise<string> {
+): Promise<string | null> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 55_000);
 
@@ -90,7 +91,7 @@ async function callAI(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'qwen/qwen3-5-plus',
+        model,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userContent },
@@ -102,28 +103,29 @@ async function callAI(
 
     if (!response.ok) {
       const errText = await response.text();
-      console.error('AI error:', response.status, errText.slice(0, 500));
+      console.error(`AI error (${model}):`, response.status, errText.slice(0, 500));
       if (response.status === 402) {
         throw new Error('Not enough AI credits. Please add credits to your workspace at Settings → Workspace → Usage.');
       }
       if (response.status === 429) {
         throw new Error('Rate limit exceeded. Please wait a moment and try again.');
       }
-      throw new Error(`AI service error (${response.status})`);
+      return null;
     }
 
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content;
     if (!content) {
-      throw new Error('AI returned empty response');
+      console.warn(`AI (${model}) returned empty response`);
+      return null;
     }
     return content;
   } catch (e) {
-    if (e instanceof Error && (e.message.includes('credits') || e.message.includes('Rate limit') || e.message.includes('AI service'))) {
+    if (e instanceof Error && (e.message.includes('credits') || e.message.includes('Rate limit'))) {
       throw e;
     }
-    console.error('AI fetch failed:', e);
-    throw new Error('AI analysis failed. Please try again.');
+    console.error(`AI fetch failed (${model}):`, e);
+    return null;
   } finally {
     clearTimeout(timeout);
   }
@@ -205,18 +207,19 @@ serve(async (req) => {
       );
     }
 
-    // Fire Qwen and Fanar in parallel for translation
+    // Fire Qwen, Gemini and Fanar in parallel for translation
     const userContent = `How do I say this in Gulf Arabic: "${trimmedPhrase}"`;
     const FANAR_API_KEY = Deno.env.get('FANAR_API_KEY')?.trim();
     const fanarAvailable = Boolean(FANAR_API_KEY);
 
-    const llmsUsed: string[] = ['qwen/qwen3-5-plus (OpenRouter)'];
+    const llmsUsed: string[] = ['qwen/qwen3-30b-a3b (OpenRouter)', 'google/gemini-2.5-flash-preview (OpenRouter)'];
     if (fanarAvailable) llmsUsed.push('Fanar');
     const llmUsed = llmsUsed.join(' + ');
     console.log(`how-do-i-say: LLMs = ${llmUsed}, phrase = "${trimmedPhrase}"`);
 
-    const [rawResponse, fanarRawResponse] = await Promise.all([
-      callAI(SYSTEM_PROMPT, userContent, OPENROUTER_API_KEY, 4096),
+    const [rawResponse, geminiRawResponse, fanarRawResponse] = await Promise.all([
+      callAI(SYSTEM_PROMPT, userContent, OPENROUTER_API_KEY, 'qwen/qwen3-30b-a3b', 4096),
+      callAI(SYSTEM_PROMPT, userContent, OPENROUTER_API_KEY, 'google/gemini-2.5-flash-preview', 4096),
       fanarAvailable
         ? callFanar(SYSTEM_PROMPT, userContent, FANAR_API_KEY!, 4096)
         : Promise.resolve(null),
@@ -238,10 +241,11 @@ serve(async (req) => {
       console.warn(`how-do-i-say: failed to write llm_usage_log (function=how-do-i-say, user=${userId}):`, logErr instanceof Error ? logErr.message : String(logErr));
     }
 
-    const parsed = safeJsonParse<any>(rawResponse);
+    const parsed = rawResponse ? safeJsonParse<any>(rawResponse) : null;
+    const geminiParsed = geminiRawResponse ? safeJsonParse<any>(geminiRawResponse) : null;
     const fanarParsed = fanarRawResponse ? safeJsonParse<any>(fanarRawResponse) : null;
 
-    if (!parsed && !fanarParsed) {
+    if (!parsed && !geminiParsed && !fanarParsed) {
       throw new Error('Failed to parse AI response. Please try again.');
     }
 
@@ -261,16 +265,22 @@ serve(async (req) => {
     }
 
     const qwenTranslations = normTranslations(parsed);
+    const geminiTranslations = normTranslations(geminiParsed);
     const fanarTranslations = normTranslations(fanarParsed);
 
-    // Merge: start with Qwen translations, add unique Fanar translations by Arabic text
+    // Merge: start with Qwen translations, add unique Gemini and Fanar translations by Arabic text
     const seenArabic = new Set(qwenTranslations.map((t: any) => t.arabic));
+    const mergedFromGemini = geminiTranslations.filter((t: any) => !seenArabic.has(t.arabic));
+    mergedFromGemini.forEach((t: any) => seenArabic.add(t.arabic));
     const mergedFromFanar = fanarTranslations.filter((t: any) => !seenArabic.has(t.arabic));
+    if (mergedFromGemini.length > 0) {
+      console.log(`how-do-i-say: added ${mergedFromGemini.length} unique translation(s) from Gemini`);
+    }
     if (mergedFromFanar.length > 0) {
       console.log(`how-do-i-say: added ${mergedFromFanar.length} unique translation(s) from Fanar`);
     }
 
-    const translations = [...qwenTranslations, ...mergedFromFanar];
+    const translations = [...qwenTranslations, ...mergedFromGemini, ...mergedFromFanar];
 
     if (translations.length === 0) {
       throw new Error('AI could not produce translations. Please try rephrasing.');
@@ -290,9 +300,14 @@ serve(async (req) => {
       return b.naturalness - a.naturalness;
     });
 
-    // Merge vocabularies from both sources
+    // Merge vocabularies from all sources
     const qwenVocab = parsed && Array.isArray(parsed.vocabulary)
       ? parsed.vocabulary.filter((v: any) => v?.arabic).map((v: any) => ({
+          arabic: String(v.arabic), english: String(v.english ?? ''), root: v.root ? String(v.root) : undefined,
+        }))
+      : [];
+    const geminiVocab = geminiParsed && Array.isArray(geminiParsed.vocabulary)
+      ? geminiParsed.vocabulary.filter((v: any) => v?.arabic).map((v: any) => ({
           arabic: String(v.arabic), english: String(v.english ?? ''), root: v.root ? String(v.root) : undefined,
         }))
       : [];
@@ -302,20 +317,23 @@ serve(async (req) => {
         }))
       : [];
     const vocabArabicSet = new Set(qwenVocab.map((v: any) => v.arabic));
-    const vocabulary = [...qwenVocab, ...fanarVocab.filter((v: any) => !vocabArabicSet.has(v.arabic))];
+    const extraGeminiVocab = geminiVocab.filter((v: any) => !vocabArabicSet.has(v.arabic));
+    extraGeminiVocab.forEach((v: any) => vocabArabicSet.add(v.arabic));
+    const vocabulary = [...qwenVocab, ...extraGeminiVocab, ...fanarVocab.filter((v: any) => !vocabArabicSet.has(v.arabic))];
 
     // Prefer richer cultural notes
     const qwenNotes = parsed?.culturalNotes ? String(parsed.culturalNotes) : undefined;
+    const geminiNotes = geminiParsed?.culturalNotes ? String(geminiParsed.culturalNotes) : undefined;
     const fanarNotes = fanarParsed?.culturalNotes ? String(fanarParsed.culturalNotes) : undefined;
-    const culturalNotes = (fanarNotes && (!qwenNotes || fanarNotes.length > qwenNotes.length))
-      ? fanarNotes : qwenNotes;
+    const allNotes = [qwenNotes, geminiNotes, fanarNotes].filter(Boolean) as string[];
+    const culturalNotes = allNotes.reduce((best, n) => (!best || n.length > best.length ? n : best), undefined as string | undefined);
 
     const result = {
       phrase: trimmedPhrase,
       translations,
       vocabulary,
       culturalNotes,
-      genderVariants: parsed?.genderVariants ? String(parsed.genderVariants) : (fanarParsed?.genderVariants ? String(fanarParsed.genderVariants) : undefined),
+      genderVariants: parsed?.genderVariants ? String(parsed.genderVariants) : (geminiParsed?.genderVariants ? String(geminiParsed.genderVariants) : (fanarParsed?.genderVariants ? String(fanarParsed.genderVariants) : undefined)),
       llmUsed,
     };
 

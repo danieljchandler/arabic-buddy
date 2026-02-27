@@ -42,7 +42,7 @@ serve(async (req) => {
     // Normalize: strip trailing /run, /runsync, or slash
     const baseUrl = RUNPOD_URL.replace(/\/(run|runsync)\/?$/, '').replace(/\/+$/, '');
     const runpodEndpoint = `${baseUrl}/runsync`;
-    console.log('Jais warmup calling:', runpodEndpoint);
+    console.log('Falcon warmup calling:', runpodEndpoint);
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15_000);
@@ -63,13 +63,13 @@ serve(async (req) => {
     });
     clearTimeout(timeout);
 
-    console.log('Jais warmup response:', response.status);
+    console.log('Falcon warmup response:', response.status);
 
     return new Response(JSON.stringify({ ok: true, status: response.status }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (e) {
-    console.warn('Jais warmup error (non-fatal):', e instanceof Error ? e.message : String(e));
+    console.warn('Falcon warmup error (non-fatal):', e instanceof Error ? e.message : String(e));
     return new Response(JSON.stringify({ ok: true, warmedUp: false }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

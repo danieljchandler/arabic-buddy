@@ -73,13 +73,12 @@ async function callFanar(
   }
 }
 
-async function callAI(
+async function callOpenRouter(
+  model: string,
   systemPrompt: string,
   userContent: string,
   apiKey: string,
-  model: string,
   maxTokens = 4096,
-  onError?: (e: Error) => void,
 ): Promise<string | null> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 55_000);
@@ -105,14 +104,12 @@ async function callAI(
 
     if (!response.ok) {
       const errText = await response.text();
-      console.error(`AI error (${model}):`, response.status, errText.slice(0, 500));
+      console.warn(`OpenRouter ${model} error:`, response.status, errText.slice(0, 500));
       if (response.status === 402) {
-        onError?.(new Error('Not enough AI credits. Please add credits to your workspace at Settings → Workspace → Usage.'));
-        return null;
+        throw new Error('Not enough AI credits. Please add credits to your workspace at Settings → Workspace → Usage.');
       }
       if (response.status === 429) {
-        onError?.(new Error('Rate limit exceeded. Please wait a moment and try again.'));
-        return null;
+        throw new Error('Rate limit exceeded. Please wait a moment and try again.');
       }
       return null;
     }
@@ -120,12 +117,13 @@ async function callAI(
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content;
     if (!content) {
-      console.warn(`AI (${model}) returned empty response`);
+      console.warn(`OpenRouter ${model} returned empty response`);
       return null;
     }
     return content;
   } catch (e) {
-    console.warn(`AI fetch failed (${model}):`, e instanceof Error ? e.message : String(e));
+    if (e instanceof Error && (e.message.includes('credits') || e.message.includes('Rate limit'))) throw e;
+    console.warn(`OpenRouter ${model} fetch failed (non-fatal):`, e instanceof Error ? e.message : String(e));
     return null;
   } finally {
     clearTimeout(timeout);
@@ -218,22 +216,19 @@ serve(async (req) => {
     const llmUsed = llmsUsed.join(' + ');
     console.log(`how-do-i-say: LLMs = ${llmUsed}, phrase = "${trimmedPhrase}"`);
 
-    // Use an error-callback on each call so that if multiple models return 402/429
-    // simultaneously, errors are captured without throwing into Promise.all, which
-    // would otherwise risk an unhandled rejection crashing the Deno process with a
-    // RUNTIME_ERROR.
+    // Use .catch() on each call so that if multiple models reject simultaneously
+    // (e.g. both return 402 or 429), the second rejection is not an unhandled
+    // promise rejection that would crash the Deno process with a RUNTIME_ERROR.
     let firstLlmError: Error | null = null;
-    const captureLlmError = (e: Error) => {
-      if (!firstLlmError) firstLlmError = e;
+    const captureLlmError = (e: unknown): null => {
+      if (!firstLlmError) firstLlmError = e instanceof Error ? e : new Error(String(e));
+      return null;
     };
     const [rawResponse, geminiRawResponse, fanarRawResponse] = await Promise.all([
-      callAI(SYSTEM_PROMPT, userContent, OPENROUTER_API_KEY, 'qwen/qwen3-30b-a3b', 4096, captureLlmError),
-      callAI(SYSTEM_PROMPT, userContent, OPENROUTER_API_KEY, 'google/gemini-2.5-flash-preview', 4096, captureLlmError),
+      callOpenRouter('qwen/qwen3-30b-a3b', SYSTEM_PROMPT, userContent, OPENROUTER_API_KEY, 4096).catch(captureLlmError),
+      callOpenRouter('google/gemini-2.5-flash-preview', SYSTEM_PROMPT, userContent, OPENROUTER_API_KEY, 4096).catch(captureLlmError),
       fanarAvailable
-        ? callFanar(SYSTEM_PROMPT, userContent, FANAR_API_KEY!, 4096).catch((e: unknown) => {
-            console.warn('how-do-i-say: unexpected Fanar rejection:', e instanceof Error ? e.message : String(e));
-            return null;
-          })
+        ? callFanar(SYSTEM_PROMPT, userContent, FANAR_API_KEY!, 4096).catch(captureLlmError)
         : Promise.resolve(null),
     ]);
 

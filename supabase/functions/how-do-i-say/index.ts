@@ -73,7 +73,9 @@ async function callFanar(
   }
 }
 
-async function callOpenRouter(
+/** Call an AI model via a generic OpenAI-compatible endpoint (Lovable gateway or OpenRouter). */
+async function callAI(
+  endpoint: string,
   model: string,
   systemPrompt: string,
   userContent: string,
@@ -84,7 +86,7 @@ async function callOpenRouter(
   const timeout = setTimeout(() => controller.abort(), 55_000);
 
   try {
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    const response = await fetch(endpoint, {
       method: 'POST',
       signal: controller.signal,
       headers: {
@@ -104,7 +106,7 @@ async function callOpenRouter(
 
     if (!response.ok) {
       const errText = await response.text();
-      console.warn(`OpenRouter ${model} error:`, response.status, errText.slice(0, 500));
+      console.warn(`AI ${model} error (${endpoint}):`, response.status, errText.slice(0, 500));
       if (response.status === 402) {
         throw new Error('Not enough AI credits. Please add credits to your workspace at Settings → Workspace → Usage.');
       }
@@ -117,18 +119,21 @@ async function callOpenRouter(
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content;
     if (!content) {
-      console.warn(`OpenRouter ${model} returned empty response`);
+      console.warn(`AI ${model} returned empty response`);
       return null;
     }
     return content;
   } catch (e) {
     if (e instanceof Error && (e.message.includes('credits') || e.message.includes('Rate limit'))) throw e;
-    console.warn(`OpenRouter ${model} fetch failed (non-fatal):`, e instanceof Error ? e.message : String(e));
+    console.warn(`AI ${model} fetch failed (non-fatal):`, e instanceof Error ? e.message : String(e));
     return null;
   } finally {
     clearTimeout(timeout);
   }
 }
+
+const LOVABLE_GATEWAY = 'https://ai.gateway.lovable.dev/v1/chat/completions';
+const OPENROUTER_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
 
 const SYSTEM_PROMPT = `You are an expert Gulf Arabic language teacher specialising in the dialects of the UAE, Saudi Arabia, Kuwait, Bahrain, Qatar, and Oman.
 
@@ -198,39 +203,75 @@ serve(async (req) => {
 
     const trimmedPhrase = phrase.trim().slice(0, 500);
 
+    // Resolve available AI services
+    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     const OPENROUTER_API_KEY = Deno.env.get('OPENROUTER_API_KEY');
-    if (!OPENROUTER_API_KEY) {
+    const FANAR_API_KEY = Deno.env.get('FANAR_API_KEY')?.trim();
+
+    if (!LOVABLE_API_KEY && !OPENROUTER_API_KEY) {
       return new Response(
         JSON.stringify({ error: 'AI service not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Fire Qwen, Gemini and Fanar in parallel for translation
     const userContent = `How do I say this in Gulf Arabic: "${trimmedPhrase}"`;
-    const FANAR_API_KEY = Deno.env.get('FANAR_API_KEY')?.trim();
+
+    // Build the list of parallel model calls based on which API keys are available.
+    // Lovable gateway (LOVABLE_API_KEY) is the primary/reliable path in this environment.
+    // OpenRouter is a secondary path. Fanar is an optional Gulf Arabic specialist.
+    const llmsUsed: string[] = [];
     const fanarAvailable = Boolean(FANAR_API_KEY);
 
-    const llmsUsed: string[] = ['qwen/qwen3-30b-a3b (OpenRouter)', 'google/gemini-2.5-flash (OpenRouter)'];
-    if (fanarAvailable) llmsUsed.push('Fanar');
+    interface ModelCall { label: string; call: Promise<string | null>; }
+    const calls: ModelCall[] = [];
+
+    if (LOVABLE_API_KEY) {
+      llmsUsed.push('google/gemini-2.5-flash (Lovable)');
+      calls.push({
+        label: 'gemini-lovable',
+        call: callAI(LOVABLE_GATEWAY, 'google/gemini-2.5-flash', SYSTEM_PROMPT, userContent, LOVABLE_API_KEY, 4096),
+      });
+    }
+
+    if (OPENROUTER_API_KEY) {
+      llmsUsed.push('qwen/qwen3-30b-a3b (OpenRouter)');
+      calls.push({
+        label: 'qwen-openrouter',
+        call: callAI(OPENROUTER_ENDPOINT, 'qwen/qwen3-30b-a3b', SYSTEM_PROMPT, userContent, OPENROUTER_API_KEY, 4096),
+      });
+    }
+
+    if (fanarAvailable) {
+      llmsUsed.push('Fanar');
+      calls.push({
+        label: 'fanar',
+        call: callFanar(SYSTEM_PROMPT, userContent, FANAR_API_KEY!, 4096),
+      });
+    }
+
     const llmUsed = llmsUsed.join(' + ');
     console.log(`how-do-i-say: LLMs = ${llmUsed}, phrase = "${trimmedPhrase}"`);
 
-    // Use .catch() on each call so that if multiple models reject simultaneously
-    // (e.g. both return 402 or 429), the second rejection is not an unhandled
-    // promise rejection that would crash the Deno process with a RUNTIME_ERROR.
+    // Fire all available models in parallel. .catch() on each so a rejection from
+    // one model doesn't cause an unhandled promise rejection crash in Deno.
     let firstLlmError: Error | null = null;
     const captureLlmError = (e: unknown): null => {
       if (!firstLlmError) firstLlmError = e instanceof Error ? e : new Error(String(e));
       return null;
     };
-    const [rawResponse, geminiRawResponse, fanarRawResponse] = await Promise.all([
-      callOpenRouter('qwen/qwen3-30b-a3b', SYSTEM_PROMPT, userContent, OPENROUTER_API_KEY, 4096).catch(captureLlmError),
-      callOpenRouter('google/gemini-2.5-flash', SYSTEM_PROMPT, userContent, OPENROUTER_API_KEY, 4096).catch(captureLlmError),
-      fanarAvailable
-        ? callFanar(SYSTEM_PROMPT, userContent, FANAR_API_KEY!, 4096).catch(captureLlmError)
-        : Promise.resolve(null),
-    ]);
+
+    const rawResults = await Promise.all(calls.map(c => c.call.catch(captureLlmError)));
+
+    // Map results back to labels
+    const resultMap = new Map<string, string | null>();
+    calls.forEach((c, i) => resultMap.set(c.label, rawResults[i]));
+
+    // Log which models succeeded
+    const succeeded = calls.filter((c, i) => rawResults[i] !== null).map(c => c.label);
+    const failed = calls.filter((c, i) => rawResults[i] === null).map(c => c.label);
+    if (failed.length > 0) console.warn(`how-do-i-say: failed models: ${failed.join(', ')}`);
+    if (succeeded.length > 0) console.log(`how-do-i-say: succeeded models: ${succeeded.join(', ')}`);
 
     // Persist LLM usage log to the database
     try {
@@ -248,12 +289,11 @@ serve(async (req) => {
       console.warn(`how-do-i-say: failed to write llm_usage_log (function=how-do-i-say, user=${userId}):`, logErr instanceof Error ? logErr.message : String(logErr));
     }
 
-    const parsed = rawResponse ? safeJsonParse<any>(rawResponse) : null;
-    const geminiParsed = geminiRawResponse ? safeJsonParse<any>(geminiRawResponse) : null;
-    const fanarParsed = fanarRawResponse ? safeJsonParse<any>(fanarRawResponse) : null;
+    // Parse all raw responses
+    const parsedResults: (any | null)[] = rawResults.map(r => r ? safeJsonParse<any>(r) : null);
 
-    if (!parsed && !geminiParsed && !fanarParsed) {
-      throw firstLlmError ?? new Error('Failed to parse AI response. Please try again.');
+    if (parsedResults.every(p => p === null)) {
+      throw firstLlmError ?? new Error('All AI models failed. Please try again.');
     }
 
     // Normalise translation entries from a parsed result
@@ -271,23 +311,17 @@ serve(async (req) => {
         }));
     }
 
-    const qwenTranslations = normTranslations(parsed);
-    const geminiTranslations = normTranslations(geminiParsed);
-    const fanarTranslations = normTranslations(fanarParsed);
-
-    // Merge: start with Qwen translations, add unique Gemini and Fanar translations by Arabic text
-    const seenArabic = new Set(qwenTranslations.map((t: any) => t.arabic));
-    const mergedFromGemini = geminiTranslations.filter((t: any) => !seenArabic.has(t.arabic));
-    mergedFromGemini.forEach((t: any) => seenArabic.add(t.arabic));
-    const mergedFromFanar = fanarTranslations.filter((t: any) => !seenArabic.has(t.arabic));
-    if (mergedFromGemini.length > 0) {
-      console.log(`how-do-i-say: added ${mergedFromGemini.length} unique translation(s) from Gemini`);
+    // Merge translations from all sources, deduplicating by Arabic text
+    const seenArabic = new Set<string>();
+    const translations: any[] = [];
+    for (const p of parsedResults) {
+      for (const t of normTranslations(p)) {
+        if (!seenArabic.has(t.arabic)) {
+          seenArabic.add(t.arabic);
+          translations.push(t);
+        }
+      }
     }
-    if (mergedFromFanar.length > 0) {
-      console.log(`how-do-i-say: added ${mergedFromFanar.length} unique translation(s) from Fanar`);
-    }
-
-    const translations = [...qwenTranslations, ...mergedFromGemini, ...mergedFromFanar];
 
     if (translations.length === 0) {
       throw new Error('AI could not produce translations. Please try rephrasing.');
@@ -308,39 +342,43 @@ serve(async (req) => {
     });
 
     // Merge vocabularies from all sources
-    const qwenVocab = parsed && Array.isArray(parsed.vocabulary)
-      ? parsed.vocabulary.filter((v: any) => v?.arabic).map((v: any) => ({
-          arabic: String(v.arabic), english: String(v.english ?? ''), root: v.root ? String(v.root) : undefined,
-        }))
-      : [];
-    const geminiVocab = geminiParsed && Array.isArray(geminiParsed.vocabulary)
-      ? geminiParsed.vocabulary.filter((v: any) => v?.arabic).map((v: any) => ({
-          arabic: String(v.arabic), english: String(v.english ?? ''), root: v.root ? String(v.root) : undefined,
-        }))
-      : [];
-    const fanarVocab = fanarParsed && Array.isArray(fanarParsed.vocabulary)
-      ? fanarParsed.vocabulary.filter((v: any) => v?.arabic).map((v: any) => ({
-          arabic: String(v.arabic), english: String(v.english ?? ''), root: v.root ? String(v.root) : undefined,
-        }))
-      : [];
-    const vocabArabicSet = new Set(qwenVocab.map((v: any) => v.arabic));
-    const extraGeminiVocab = geminiVocab.filter((v: any) => !vocabArabicSet.has(v.arabic));
-    extraGeminiVocab.forEach((v: any) => vocabArabicSet.add(v.arabic));
-    const vocabulary = [...qwenVocab, ...extraGeminiVocab, ...fanarVocab.filter((v: any) => !vocabArabicSet.has(v.arabic))];
+    const vocabArabicSet = new Set<string>();
+    const vocabulary: any[] = [];
+    for (const p of parsedResults) {
+      if (p && Array.isArray(p.vocabulary)) {
+        for (const v of p.vocabulary) {
+          if (v?.arabic && !vocabArabicSet.has(String(v.arabic))) {
+            vocabArabicSet.add(String(v.arabic));
+            vocabulary.push({
+              arabic: String(v.arabic),
+              english: String(v.english ?? ''),
+              root: v.root ? String(v.root) : undefined,
+            });
+          }
+        }
+      }
+    }
 
-    // Prefer richer cultural notes
-    const qwenNotes = parsed?.culturalNotes ? String(parsed.culturalNotes) : undefined;
-    const geminiNotes = geminiParsed?.culturalNotes ? String(geminiParsed.culturalNotes) : undefined;
-    const fanarNotes = fanarParsed?.culturalNotes ? String(fanarParsed.culturalNotes) : undefined;
-    const allNotes = [qwenNotes, geminiNotes, fanarNotes].filter(Boolean) as string[];
-    const culturalNotes = allNotes.reduce((best, n) => (!best || n.length > best.length ? n : best), undefined as string | undefined);
+    // Pick the richest cultural notes from any model
+    const allNotes = parsedResults
+      .map(p => p?.culturalNotes ? String(p.culturalNotes) : undefined)
+      .filter(Boolean) as string[];
+    const culturalNotes = allNotes.reduce(
+      (best, n) => (!best || n.length > best.length ? n : best),
+      undefined as string | undefined,
+    );
+
+    // Pick gender variants from first model that provides them
+    const genderVariants = parsedResults
+      .map(p => p?.genderVariants ? String(p.genderVariants) : undefined)
+      .find(Boolean);
 
     const result = {
       phrase: trimmedPhrase,
       translations,
       vocabulary,
       culturalNotes,
-      genderVariants: parsed?.genderVariants ? String(parsed.genderVariants) : (geminiParsed?.genderVariants ? String(geminiParsed.genderVariants) : (fanarParsed?.genderVariants ? String(fanarParsed.genderVariants) : undefined)),
+      genderVariants,
       llmUsed,
     };
 

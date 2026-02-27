@@ -8,7 +8,7 @@ const corsHeaders = {
 
 const OPENROUTER_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
 const QWEN_MODEL = 'qwen/qwen3-30b-a3b';
-const GEMINI_MODEL = 'google/gemini-2.5-flash-preview';
+const GEMINI_MODEL = 'google/gemini-2.5-flash';
 
 interface RawTranslation {
   arabic?: unknown;

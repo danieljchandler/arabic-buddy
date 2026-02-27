@@ -111,15 +111,6 @@ async function callOpenRouter(
       if (response.status === 429) {
         throw new Error('Rate limit exceeded. Please wait a moment and try again.');
       }
-      if (response.status === 400) {
-        let detail = `AI service error (400)`;
-        try {
-          const errBody = JSON.parse(errText);
-          if (errBody?.error?.message) detail = errBody.error.message;
-          else if (errBody?.message) detail = errBody.message;
-        } catch { /* ignore */ }
-        throw new Error(detail);
-      }
       return null;
     }
 
@@ -131,7 +122,7 @@ async function callOpenRouter(
     }
     return content;
   } catch (e) {
-    if (e instanceof Error && (e.message.includes('credits') || e.message.includes('Rate limit') || e.message.includes('AI service error'))) throw e;
+    if (e instanceof Error && (e.message.includes('credits') || e.message.includes('Rate limit'))) throw e;
     console.warn(`OpenRouter ${model} fetch failed (non-fatal):`, e instanceof Error ? e.message : String(e));
     return null;
   } finally {

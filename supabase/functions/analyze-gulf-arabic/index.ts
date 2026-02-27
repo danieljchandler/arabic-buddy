@@ -685,7 +685,7 @@ async function lovableAITranslate(arabicLines: string[], apiKey: string): Promis
   try {
     const [qwenText, geminiText] = await Promise.all([
       callModel('qwen/qwen3-30b-a3b'),
-      callModel('google/gemini-2.5-flash-preview'),
+      callModel('google/gemini-2.5-flash'),
     ]);
 
     const generatedText = qwenText ?? geminiText ?? '';

@@ -201,6 +201,7 @@ async function callOpenRouter(
     if (!response.ok) {
       const errText = await response.text();
       console.warn(`OpenRouter ${model} error:`, response.status, errText.slice(0, 500));
+      if (response.status === 402) throw new Error('Not enough AI credits. Please add credits to your workspace at Settings → Workspace → Usage.');
       if (response.status === 429) throw new Error('Rate limit exceeded. Please wait a moment and try again.');
       return null;
     }
@@ -213,7 +214,7 @@ async function callOpenRouter(
     }
     return content;
   } catch (e) {
-    if (e instanceof Error && e.message.includes('Rate limit')) throw e;
+    if (e instanceof Error && (e.message.includes('Rate limit') || e.message.includes('credits'))) throw e;
     console.warn(`OpenRouter ${model} fetch failed (non-fatal):`, e instanceof Error ? e.message : String(e));
     return null;
   } finally {
@@ -225,9 +226,10 @@ async function runQwenDialectCheck(
   phrase: string,
   arabicTranslation: string,
   apiKey: string,
+  timeoutMs = 30_000,
 ): Promise<QwenDialectCheckResult> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 30_000);
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     const response = await fetch(OPENROUTER_ENDPOINT, {
@@ -281,14 +283,14 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders });
   }
 
-  const authHeader = req.headers.get('Authorization');
-  if (!authHeader?.startsWith('Bearer ')) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-      status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
-
   try {
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const supabaseAuth = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_ANON_KEY')!,
@@ -407,12 +409,15 @@ serve(async (req) => {
     const preferredTranslation = preferredIdx >= 0 ? translations[preferredIdx] : translations[0];
 
     const elapsedMs = Date.now() - requestStartMs;
-    // Only run the dialect check when at least 15 s of budget remains within the
-    // 55 s envelope we reserve for LLM work (leaving ~5 s for response overhead).
-    const LLM_CALLS_BUDGET_MS = 55_000;
+    // Reserve 3 s for response serialisation; cap the dialect check at 30 s.
+    // Using a dynamic abort timeout ensures the function never exceeds the 60 s
+    // Supabase hard limit regardless of how long the parallel LLM calls took.
+    const FUNCTION_HARD_LIMIT_MS = 60_000;
+    const RESPONSE_OVERHEAD_MS = 3_000;
+    const dialectCheckBudgetMs = Math.max(0, Math.min(30_000, FUNCTION_HARD_LIMIT_MS - elapsedMs - RESPONSE_OVERHEAD_MS));
     // dialectScore 5 = perfectly authentic (neutral/passing default when skipped).
-    const dialectCheck = elapsedMs < LLM_CALLS_BUDGET_MS - 15_000
-      ? await runQwenDialectCheck(trimmedPhrase, preferredTranslation.arabic, OPENROUTER_API_KEY)
+    const dialectCheck = dialectCheckBudgetMs > 3_000
+      ? await runQwenDialectCheck(trimmedPhrase, preferredTranslation.arabic, OPENROUTER_API_KEY, dialectCheckBudgetMs)
       : { dialectScore: 5, isAuthentic: true, feedback: 'skipped (budget)', correctedArabic: null };
     console.log(`translate-jais: Qwen dialect check score=${dialectCheck.dialectScore}, authentic=${dialectCheck.isAuthentic}, feedback="${dialectCheck.feedback}"`);
 

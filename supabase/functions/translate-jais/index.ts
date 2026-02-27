@@ -333,6 +333,11 @@ serve(async (req) => {
     // Step 1: Get translations from Qwen + Gemini + Fanar in parallel
     const userContent = `How do I say this in Omani Gulf Arabic: "${trimmedPhrase}"`;
 
+    // Track wall-clock time so we can skip the sequential dialect-check step
+    // if the parallel LLM calls have already consumed most of the 60 s function
+    // budget (leaving insufficient room for the extra round-trip).
+    const requestStartMs = Date.now();
+
     // Use .catch() on each call so that if multiple models reject simultaneously
     // (e.g. both return 429), the second rejection is not an unhandled promise
     // rejection that would crash the Deno process with a RUNTIME_ERROR.
@@ -345,7 +350,7 @@ serve(async (req) => {
       callOpenRouter(QWEN_MODEL, TRANSLATION_SYSTEM_PROMPT, userContent, OPENROUTER_API_KEY, 4096).catch(captureLlmError),
       callOpenRouter(GEMINI_MODEL, TRANSLATION_SYSTEM_PROMPT, userContent, OPENROUTER_API_KEY, 4096).catch(captureLlmError),
       fanarAvailable
-        ? callFanar(TRANSLATION_SYSTEM_PROMPT, userContent, FANAR_API_KEY!, 4096)
+        ? callFanar(TRANSLATION_SYSTEM_PROMPT, userContent, FANAR_API_KEY!, 4096).catch(captureLlmError)
         : Promise.resolve(null),
     ]);
 
@@ -394,11 +399,21 @@ serve(async (req) => {
       throw new Error('Could not produce translations. Please try rephrasing.');
     }
 
-    // Step 2: Cross-check preferred translation with Qwen for Omani dialect authenticity
+    // Step 2: Cross-check preferred translation with Qwen for Omani dialect authenticity.
+    // Only run if enough wall-clock budget remains (Supabase Edge Functions have a
+    // 60 s hard timeout; the parallel calls above can each take up to 55 s, so skip
+    // the extra sequential round-trip when we are already close to the limit).
     const preferredIdx = translations.findIndex((t: NormalisedTranslation) => t.isPreferred);
     const preferredTranslation = preferredIdx >= 0 ? translations[preferredIdx] : translations[0];
 
-    const dialectCheck = await runQwenDialectCheck(trimmedPhrase, preferredTranslation.arabic, OPENROUTER_API_KEY);
+    const elapsedMs = Date.now() - requestStartMs;
+    // Only run the dialect check when at least 15 s of budget remains within the
+    // 55 s envelope we reserve for LLM work (leaving ~5 s for response overhead).
+    const LLM_CALLS_BUDGET_MS = 55_000;
+    // dialectScore 5 = perfectly authentic (neutral/passing default when skipped).
+    const dialectCheck = elapsedMs < LLM_CALLS_BUDGET_MS - 15_000
+      ? await runQwenDialectCheck(trimmedPhrase, preferredTranslation.arabic, OPENROUTER_API_KEY)
+      : { dialectScore: 5, isAuthentic: true, feedback: 'skipped (budget)', correctedArabic: null };
     console.log(`translate-jais: Qwen dialect check score=${dialectCheck.dialectScore}, authentic=${dialectCheck.isAuthentic}, feedback="${dialectCheck.feedback}"`);
 
     // If Qwen flags the preferred translation as not authentic and provides a correction, apply it

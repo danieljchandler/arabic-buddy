@@ -230,7 +230,7 @@ serve(async (req) => {
       callAI(SYSTEM_PROMPT, userContent, OPENROUTER_API_KEY, 'qwen/qwen3-30b-a3b', 4096).catch(captureLlmError),
       callAI(SYSTEM_PROMPT, userContent, OPENROUTER_API_KEY, 'google/gemini-2.5-flash-preview', 4096).catch(captureLlmError),
       fanarAvailable
-        ? callFanar(SYSTEM_PROMPT, userContent, FANAR_API_KEY!, 4096)
+        ? callFanar(SYSTEM_PROMPT, userContent, FANAR_API_KEY!, 4096).catch(captureLlmError)
         : Promise.resolve(null),
     ]);
 

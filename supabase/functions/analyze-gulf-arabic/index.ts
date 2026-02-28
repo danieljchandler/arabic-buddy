@@ -382,6 +382,7 @@ async function callFanar({
 
 function extractJsonObject(text: string): string {
   const cleaned = text
+    .replace(/<think>[\s\S]*?<\/think>/gi, '')
     .replace(/```json\n?/g, '')
     .replace(/```\n?/g, '')
     .trim();
@@ -397,8 +398,8 @@ function extractJsonObject(text: string): string {
 function safeJsonParse<T>(content: string): T | null {
   try {
     return JSON.parse(extractJsonObject(content)) as T;
-  } catch (e) {
-    console.error('JSON parse error:', e);
+  } catch {
+    console.error('JSON parse error for content:', content.slice(0, 500));
     return null;
   }
 }

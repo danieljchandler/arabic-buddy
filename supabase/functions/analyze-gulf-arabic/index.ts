@@ -67,6 +67,8 @@ Compare them carefully and produce the BEST merged transcript:
 - Deepgram provides the most reliable word boundaries.
 - Munsit specialises in Arabic and may better capture dialectal vocabulary.
 - Do NOT simply concatenate them. Merge intelligently at the sentence/clause level.
+- ALWAYS prefer the spoken/dialectal form over formal/MSA spelling. Write words as they are pronounced.
+- Use ALL three transcripts to ensure NO spoken content is missed — include every word that was said.
 
 `
     : hasDualTranscripts
@@ -75,6 +77,8 @@ Compare them carefully and produce the BEST merged transcript:
 - Where they agree, use the shared text.
 - Where they differ, choose whichever version sounds more natural and accurate for Gulf Arabic dialect.
 - Do NOT simply concatenate them. Merge intelligently at the sentence/clause level.
+- ALWAYS prefer the spoken/dialectal form over formal/MSA spelling. Write words as they are pronounced.
+- Use BOTH transcripts to ensure NO spoken content is missed — include every word that was said.
 
 `
     : '';
@@ -96,9 +100,17 @@ CRITICAL RULES FOR SPLITTING:
    - Punctuation: . ، ؟ ! ؛
    - Conjunctions that start new clauses: و (and), ف (so), بس (but), يعني (meaning)
    - Natural speech pauses or topic shifts
-5. Include ALL content from the transcript. Do NOT skip or summarize.
+5. Include ALL content from the transcript. Do NOT skip, summarize, or omit ANY spoken content. Every word that was said must appear in the output.
 6. Translation must match each Arabic line exactly.
-7. Keep dialect spelling as spoken (do NOT normalize to MSA).
+7. CRITICAL — SPOKEN FORM ONLY: Write Arabic EXACTLY as it is pronounced/spoken, NOT with proper/standard Arabic spelling. Use dialectal/colloquial forms. Examples:
+   - Write "هالشي" NOT "هذا الشيء"
+   - Write "وش" NOT "ماذا"
+   - Write "يبي" NOT "يريد"
+   - Write "وين" NOT "أين"
+   - Write "شلون" NOT "كيف"
+   - Write "اللحين" or "الحين" NOT "الآن"
+   - Keep contractions, slang, filler words (يعني، هيه، آه) exactly as spoken.
+   - Do NOT correct grammar or normalize spelling to MSA/formal Arabic.
 
 EXAMPLE of good splitting:
 Long: "رحت السوق وشريت خضار وفواكه وبعدين رجعت البيت وسويت غدا" (too long - 11 words)

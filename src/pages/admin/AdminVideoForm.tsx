@@ -296,57 +296,95 @@ const AdminVideoForm = () => {
         data: { session },
       } = await supabase.auth.getSession();
       const projectUrl = import.meta.env.VITE_SUPABASE_URL;
+      const authHeaders = { Authorization: `Bearer ${session?.access_token}` };
 
-      // Try Munsit first (Arabic-specialized), fall back to Deepgram
-      let rawText = "";
-      let relativeWords: any[] = [];
+      // Run all three ASR engines in parallel
+      toast.info("Transcribing with Munsit, Deepgram & Fanar...");
 
-      toast.info("Transcribing with Munsit (Arabic)...");
-      try {
-        const munsitFormData = new FormData();
-        munsitFormData.append("audio", targetFile);
-        const munsitRes = await fetch(`${projectUrl}/functions/v1/munsit-transcribe`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${session?.access_token}` },
-          body: munsitFormData,
-          signal: AbortSignal.timeout(300000),
-        });
-        if (munsitRes.ok) {
-          const munsitData = await munsitRes.json();
-          rawText = munsitData.text || "";
-          if (rawText) {
-            toast.info("Munsit transcription done, analyzing...");
-          }
-        }
-      } catch (munsitErr) {
-        console.warn("Munsit failed, falling back to Deepgram:", munsitErr);
+      const munsitFormData = new FormData();
+      munsitFormData.append("audio", targetFile);
+      const munsitPromise = fetch(`${projectUrl}/functions/v1/munsit-transcribe`, {
+        method: "POST",
+        headers: authHeaders,
+        body: munsitFormData,
+        signal: AbortSignal.timeout(300000),
+      }).then(async (res) => {
+        if (!res.ok) throw new Error(`Munsit HTTP ${res.status}`);
+        return res.json();
+      });
+
+      const deepgramFormData = new FormData();
+      deepgramFormData.append("file", targetFile);
+      const deepgramPromise = fetch(`${projectUrl}/functions/v1/deepgram-transcribe`, {
+        method: "POST",
+        headers: authHeaders,
+        body: deepgramFormData,
+        signal: AbortSignal.timeout(300000),
+      }).then(async (res) => {
+        if (!res.ok) throw new Error(`Deepgram HTTP ${res.status}`);
+        return res.json();
+      });
+
+      const fanarFormData = new FormData();
+      fanarFormData.append("audio", targetFile);
+      const fanarPromise = fetch(`${projectUrl}/functions/v1/fanar-transcribe`, {
+        method: "POST",
+        headers: authHeaders,
+        body: fanarFormData,
+        signal: AbortSignal.timeout(300000),
+      }).then(async (res) => {
+        if (!res.ok) throw new Error(`Fanar HTTP ${res.status}`);
+        return res.json();
+      });
+
+      const [munsitResult, deepgramResult, fanarResult] = await Promise.allSettled([
+        munsitPromise,
+        deepgramPromise,
+        fanarPromise,
+      ]);
+
+      // Extract texts from each engine
+      const munsitText = munsitResult.status === "fulfilled" ? (munsitResult.value.text || "") : "";
+      const deepgramData = deepgramResult.status === "fulfilled" ? deepgramResult.value : null;
+      const deepgramText = deepgramData?.text || "";
+      const fanarText = fanarResult.status === "fulfilled" ? (fanarResult.value.text || "") : "";
+
+      // Log results
+      if (munsitResult.status === "rejected") console.warn("Munsit failed:", munsitResult.reason);
+      if (deepgramResult.status === "rejected") console.warn("Deepgram failed:", deepgramResult.reason);
+      if (fanarResult.status === "rejected") console.warn("Fanar failed:", fanarResult.reason);
+      else if (fanarResult.status === "fulfilled" && !fanarResult.value.text && fanarResult.value.reason) {
+        console.log(`Fanar excluded: ${fanarResult.value.reason}`);
       }
 
-      // Fall back to Deepgram if Munsit produced no text
-      if (!rawText) {
-        toast.info("Falling back to Deepgram transcription...");
-        const formData = new FormData();
-        formData.append("file", targetFile);
-        const transcribeRes = await fetch(`${projectUrl}/functions/v1/deepgram-transcribe`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${session?.access_token}` },
-          body: formData,
-          signal: AbortSignal.timeout(300000),
-        });
-        if (!transcribeRes.ok) throw new Error("Transcription failed");
-        const transcribeData = await transcribeRes.json();
+      const engines: string[] = [];
+      if (munsitText) engines.push("Munsit");
+      if (deepgramText) engines.push("Deepgram");
+      if (fanarText) engines.push("Fanar");
 
-        // Filter words by selected time range
+      if (engines.length === 0) {
+        throw new Error("All transcription engines failed. Please try again.");
+      }
+
+      toast.info(`Got transcriptions from: ${engines.join(", ")}. Analyzing...`);
+
+      // Use Deepgram as the primary transcript (has word-level timestamps).
+      // Fall back to Munsit or Fanar if Deepgram failed.
+      const primaryText = deepgramText || munsitText || fanarText;
+
+      // Filter Deepgram words by selected time range for timestamp mapping
+      let relativeWords: any[] = [];
+      let filteredPrimaryText = primaryText;
+
+      if (deepgramData?.words && deepgramData.words.length > 0) {
         const [startSec, endSec] = timeRange;
-        let filteredWords = transcribeData.words || [];
-        rawText = transcribeData.text || "";
+        let filteredWords = deepgramData.words;
 
-        if (filteredWords.length > 0 && (startSec > 0 || endSec < (mediaDuration || Infinity))) {
+        if (startSec > 0 || endSec < (mediaDuration || Infinity)) {
           filteredWords = filteredWords.filter((w: any) => w.start >= startSec && w.end <= endSec);
-          rawText = filteredWords.map((w: any) => w.text).join(" ") || rawText;
+          filteredPrimaryText = filteredWords.map((w: any) => w.text).join(" ") || primaryText;
         }
 
-        // Normalize timestamps to the selected clip so transcript sync starts at 0.
         const clipOffsetSec = Math.max(0, startSec);
         relativeWords = filteredWords.map((w: any) => ({
           ...w,
@@ -355,10 +393,18 @@ const AdminVideoForm = () => {
         }));
       }
 
-      // Step 3: Analyze with Gemini/Falcon
+      // Send all available transcripts to the analysis function for intelligent merging
+      const analyzeBody: Record<string, string> = { transcript: filteredPrimaryText };
+      if (munsitText && munsitText !== filteredPrimaryText) {
+        analyzeBody.munsitTranscript = munsitText;
+      }
+      if (fanarText) {
+        analyzeBody.fanarTranscript = fanarText;
+      }
+
       toast.info("Analyzing transcript...");
       const { data: analyzeData, error: analyzeError } = await supabase.functions.invoke("analyze-gulf-arabic", {
-        body: { transcript: rawText },
+        body: analyzeBody,
       });
       if (analyzeError) throw new Error(analyzeError.message);
       if (!analyzeData?.success) throw new Error(analyzeData?.error || "Analysis failed");
@@ -403,7 +449,7 @@ const AdminVideoForm = () => {
       // Duration already set during download step
 
       toast.success("Processing complete!", {
-        description: `${lines.length} sentences, ${(result.vocabulary || []).length} vocab items`,
+        description: `${lines.length} sentences from ${engines.length} engine${engines.length > 1 ? "s" : ""}, ${(result.vocabulary || []).length} vocab items`,
       });
     } catch (err) {
       console.error("Processing error:", err);

@@ -1001,7 +1001,7 @@ serve(async (req) => {
        // Fanar-Sadiq meta enrichment (unchanged)
        fanarLlmAvailable
          ? callFanar({
-             systemPrompt: getMetaSystemPrompt(false),
+             systemPrompt: getMetaSystemPrompt(true),
              userContent: mergedTranscriptText,
              apiKey: FANAR_API_KEY!,
              model: 'Fanar-Sadiq',

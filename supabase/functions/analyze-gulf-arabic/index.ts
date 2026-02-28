@@ -961,7 +961,7 @@ serve(async (req) => {
      const [geminiTransResp, analysisResp, fanarMetaResp] = await Promise.all([
        // Translation primary: Gemini 2.5 Flash via OpenRouter
        callAI({
-         model: 'google/gemini-2.5-flash',
+         model: 'google/gemini-2.5-pro',
          systemPrompt: getTranslationSystemPrompt(),
          userContent: mergedTranscriptText,
          apiKey: OPENROUTER_API_KEY,

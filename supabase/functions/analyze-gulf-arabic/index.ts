@@ -157,7 +157,7 @@ Output ONLY valid JSON matching this schema:
 }
 
 Rules:
-- lines: IMPORTANT — the output `lines` array MUST include ALL numbered lines from the input. Every single line, no exceptions. Do not omit, skip, or stop early. Keep the Arabic text EXACTLY as given. Provide a natural English translation for each line.
+- lines: IMPORTANT — the output "lines" array MUST include ALL numbered lines from the input. Every single line, no exceptions. Do not omit, skip, or stop early. Keep the Arabic text EXACTLY as given. Provide a natural English translation for each line.
 - vocabulary: 5–8 useful Gulf Arabic words or phrases with English meaning and root when applicable.
 - grammarPoints: 2–4 dialect-specific grammar points with brief examples from the transcript.
 - culturalContext: Optional brief cultural note about the content.

@@ -200,6 +200,7 @@ type CallAIArgs = {
   isRetry?: boolean;
   maxTokens?: number;
   model?: string; // defaults to 'qwen/qwen3-235b-a22b'
+  gateway?: 'openrouter' | 'lovable'; // defaults to 'openrouter'
 };
 
 async function callAI({
@@ -209,7 +210,14 @@ async function callAI({
   isRetry = false,
   maxTokens = 4096,
   model = 'qwen/qwen3-235b-a22b',
+  gateway = 'openrouter',
 }: CallAIArgs): Promise<{ content: string | null; error?: string; status?: number }> {
+    const isLovable = gateway === 'lovable';
+    const gatewayUrl = isLovable
+      ? 'https://ai.gateway.lovable.dev/v1/chat/completions'
+      : 'https://openrouter.ai/api/v1/chat/completions';
+    const gatewayKey = isLovable ? (Deno.env.get('LOVABLE_API_KEY') ?? '') : apiKey;
+
     const controller = new AbortController();
     // Allow longer timeout for complex transcripts - edge functions can run up to 60s
     const timeoutMs = 55_000;
@@ -218,11 +226,11 @@ async function callAI({
     const startedAt = Date.now();
     let response: Response;
     try {
-      response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      response = await fetch(gatewayUrl, {
         method: 'POST',
         signal: controller.signal,
         headers: {
-          'Authorization': `Bearer ${apiKey}`,
+          'Authorization': `Bearer ${gatewayKey}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -958,15 +966,16 @@ serve(async (req) => {
      // =====================================================================
      console.log('Translation (Gemini) and analysis (Qwen) running in parallel...');
 
-     const [geminiTransResp, analysisResp, fanarMetaResp] = await Promise.all([
-       // Translation primary: Gemini 2.5 Flash via OpenRouter
-       callAI({
-         model: 'google/gemini-2.5-pro',
-         systemPrompt: getTranslationSystemPrompt(),
-         userContent: mergedTranscriptText,
-         apiKey: OPENROUTER_API_KEY,
-         maxTokens: 16384,
-       }),
+      const [geminiTransResp, analysisResp, fanarMetaResp] = await Promise.all([
+        // Translation primary: Gemini 2.5 Pro via Lovable AI gateway
+        callAI({
+          model: 'google/gemini-2.5-pro',
+          systemPrompt: getTranslationSystemPrompt(),
+          userContent: mergedTranscriptText,
+          apiKey: '', // not used for lovable gateway
+          gateway: 'lovable',
+          maxTokens: 16384,
+        }),
        // Call 2: vocabulary + grammar (Qwen, unchanged from Step 2)
        callAI({
          systemPrompt: getAnalysisSystemPrompt(false),

@@ -56,7 +56,10 @@ const strictJsonPrefix = (isRetry: boolean) =>
  * That payload explodes in size and often gets truncated, yielding invalid JSON.
  * We generate tokens server-side from the Arabic sentence text.
  */
-const getLinesSystemPrompt = (isRetry: boolean = false, hasDualTranscripts: boolean = false, hasTripleTranscripts: boolean = false) => {
+// ─── CALL 1 PROMPT ───────────────────────────────────────────────────────────
+// Transcript merging only. Produces Arabic lines with NO translations.
+// Translations, vocabulary, and grammar are handled in Call 2.
+const getMergeOnlySystemPrompt = (isRetry: boolean = false, hasDualTranscripts: boolean = false, hasTripleTranscripts: boolean = false) => {
   const strictPrefix = strictJsonPrefix(isRetry);
   const multiInstructions = hasTripleTranscripts
     ? `You are given THREE transcriptions of the same Gulf Arabic audio from different speech-to-text engines.
@@ -82,14 +85,11 @@ Compare them carefully and produce the BEST merged transcript:
 
 `
     : '';
-  return `${strictPrefix}${multiInstructions}You are processing Gulf Arabic transcript text for language learners.
+  return `${strictPrefix}${multiInstructions}You are merging Gulf Arabic speech-to-text transcriptions for language learners.
 
 Output ONLY valid JSON matching this schema:
 {
-  "lines": [{
-    "arabic": string,
-    "translation": string
-  }]
+  "lines": [{"arabic": string}]
 }
 
 CRITICAL RULES FOR SPLITTING:
@@ -101,8 +101,7 @@ CRITICAL RULES FOR SPLITTING:
    - Conjunctions that start new clauses: و (and), ف (so), بس (but), يعني (meaning)
    - Natural speech pauses or topic shifts
 5. Include ALL content from the transcript. Do NOT skip, summarize, or omit ANY spoken content. Every word that was said must appear in the output.
-6. Translation must match each Arabic line exactly.
-7. CRITICAL — SPOKEN FORM ONLY: Write Arabic EXACTLY as it is pronounced/spoken, NOT with proper/standard Arabic spelling. Use dialectal/colloquial forms. Examples:
+6. CRITICAL — SPOKEN FORM ONLY: Write Arabic EXACTLY as it is pronounced/spoken, NOT with proper/standard Arabic spelling. Use dialectal/colloquial forms. Examples:
    - Write "هالشي" NOT "هذا الشيء"
    - Write "وش" NOT "ماذا"
    - Write "يبي" NOT "يريد"
@@ -111,6 +110,8 @@ CRITICAL RULES FOR SPLITTING:
    - Write "اللحين" or "الحين" NOT "الآن"
    - Keep contractions, slang, filler words (يعني، هيه، آه) exactly as spoken.
    - Do NOT correct grammar or normalize spelling to MSA/formal Arabic.
+
+IMPORTANT: Output Arabic text ONLY — no "translation" field in this step.
 
 EXAMPLE of good splitting:
 Long: "رحت السوق وشريت خضار وفواكه وبعدين رجعت البيت وسويت غدا" (too long - 11 words)
@@ -140,35 +141,34 @@ Rules:
 No additional text outside JSON.`;
 };
 
-const getWordGlossesPrompt = (isRetry: boolean = false) => {
+// ─── CALL 2 PROMPT ───────────────────────────────────────────────────────────
+// Analysis and enrichment. Receives the clean merged transcript from Call 1.
+// Produces per-line translations, vocabulary, and grammar points.
+const getAnalysisSystemPrompt = (isRetry: boolean = false) => {
   const strictPrefix = strictJsonPrefix(isRetry);
-  return `${strictPrefix}You are a Gulf Arabic linguist providing English glosses for language learners.
+  return `${strictPrefix}You are analyzing a Gulf Arabic transcript for language learners. You are given a clean pre-merged transcript split into numbered Arabic lines.
 
 Output ONLY valid JSON matching this schema:
 {
-  "glosses": {
-    "arabicWord": "english meaning",
-    "multi word phrase": "english meaning",
-    ...
-  }
+  "lines": [{"arabic": string, "translation": string}],
+  "vocabulary": [{"arabic": string, "english": string, "root"?: string}],
+  "grammarPoints": [{"title": string, "explanation": string, "examples"?: string[]}],
+  "culturalContext"?: string
 }
 
 Rules:
-- Provide an English gloss for EVERY unique Arabic word in the input.
-- IMPORTANT: Also add entries for meaningful multi-word compounds/collocations that appear in the input — both 2-word AND 3-word phrases (e.g. "وقت الدورة" = "rush hour", "في الصباح" = "in the morning", "بيت شعر" = "poetry verse"). Use the full phrase as the key.
-- For every word that is part of a multi-word phrase, ALSO include it as an individual entry with its standalone meaning (do not omit it).
-- Include common particles: و = and, في = in, من = from, على = on, إلى/لـ = to, ما = not/what, هذا/هاذا = this, إذا/لو = if, etc.
-- Include pronouns: أنا = I, إنت/أنت = you, هو = he, هي = she, إحنا/نحن = we, هم = they, etc.
-- Include verbs in context: provide the meaning as used (e.g., راح = went/will, يبي = wants, أبي = I want).
-- For words with multiple meanings, use the contextual meaning from the transcript.
-- Keep glosses short (1-4 words).
-- Preserve Gulf dialect spellings as keys (do not normalize to MSA).
+- lines: Keep the Arabic text EXACTLY as given — do not modify it. Provide a natural English translation for each line.
+- vocabulary: 5–8 useful Gulf Arabic words or phrases with English meaning and root when applicable.
+- grammarPoints: 2–4 dialect-specific grammar points with brief examples from the transcript.
+- culturalContext: Optional brief cultural note about the content.
+- Keep translations and explanations concise.
 
 No additional text outside JSON.`;
 };
 
-type GlossesAI = {
-  glosses: Record<string, string>;
+// Returned by Call 1 (merge only — no translations)
+type MergeOnlyAI = {
+  lines: Array<{ arabic: string }>;
 };
  
 type CallAIArgs = {
@@ -643,8 +643,12 @@ function toWordTokens(
   return tokens;
 }
 
-type LinesAI = {
+// Returned by Call 2 (translations + vocabulary + grammar from merged transcript)
+type AnalysisAI = {
   lines: Array<{ arabic: string; translation: string }>;
+  vocabulary: VocabItem[];
+  grammarPoints: GrammarPoint[];
+  culturalContext?: string;
 };
 
 type MetaAI = {
@@ -813,7 +817,7 @@ serve(async (req) => {
 
      let partial = false;
 
-     // Build user content for lines prompt
+     // Build user content for the merge prompt (all available ASR transcripts)
      const linesUserContent = hasTriple
        ? `Transcription A (Deepgram):\n${transcript}\n\nTranscription B (Munsit):\n${munsitTranscript}\n\nTranscription C (Fanar):\n${fanarTranscript}`
        : hasDual
@@ -822,42 +826,45 @@ serve(async (req) => {
        ? `Transcription A (Deepgram):\n${transcript}\n\nTranscription B (Fanar):\n${fanarTranscript}`
        : transcript;
 
-     // -----------------------------
-     // 1) Sentence split + translation (Qwen + Fanar in parallel)
-     // -----------------------------
-     let linesAi: LinesAI | null = null;
-     let fanarLinesAi: LinesAI | null = null;
-
      const hasDualOrTriple = hasDual || hasFanar;
 
-     // Fire Qwen and Fanar in parallel for lines
-     const qwenLinesPromise = callAI({
-       systemPrompt: getLinesSystemPrompt(false, hasDualOrTriple, hasTriple),
-       userContent: linesUserContent,
-       apiKey: OPENROUTER_API_KEY,
-       isRetry: false,
-       maxTokens: 8192,
-     });
+     // =====================================================================
+     // CALL 1 — Transcript merging only
+     // Send all ASR transcripts to Qwen. Produce merged Arabic lines only.
+     // No translations. No vocabulary. No grammar. Just the merged text.
+     // Fanar runs in parallel as a fallback merge source.
+     // =====================================================================
+     console.log('Call 1: merging ASR transcripts into clean Arabic lines...');
 
-     const fanarLinesPromise = fanarLlmAvailable
-       ? callFanar({
-           systemPrompt: getLinesSystemPrompt(false, hasDualOrTriple, hasTriple),
-           userContent: linesUserContent,
-           apiKey: FANAR_API_KEY!,
-           maxTokens: 8192,
-         })
-       : Promise.resolve({ content: null } as { content: string | null });
+     let mergeOnlyAi: MergeOnlyAI | null = null;
 
-     const [linesResp, fanarLinesResp] = await Promise.all([qwenLinesPromise, fanarLinesPromise]);
+     const [mergeResp, fanarMergeResp] = await Promise.all([
+       callAI({
+         systemPrompt: getMergeOnlySystemPrompt(false, hasDualOrTriple, hasTriple),
+         userContent: linesUserContent,
+         apiKey: OPENROUTER_API_KEY,
+         isRetry: false,
+         maxTokens: 8192,
+       }),
+       fanarLlmAvailable
+         ? callFanar({
+             systemPrompt: getMergeOnlySystemPrompt(false, hasDualOrTriple, hasTriple),
+             userContent: linesUserContent,
+             apiKey: FANAR_API_KEY!,
+             maxTokens: 8192,
+           })
+         : Promise.resolve({ content: null } as { content: string | null }),
+     ]);
 
-     if (!linesResp.content && linesResp.status) {
-       if (linesResp.status === 429) {
+     // Check for fatal errors from Qwen Call 1
+     if (!mergeResp.content && mergeResp.status) {
+       if (mergeResp.status === 429) {
          return new Response(
            JSON.stringify({ error: 'Rate limit exceeded. Please try again later.' }),
            { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
          );
        }
-       if (linesResp.status === 402) {
+       if (mergeResp.status === 402) {
          return new Response(
            JSON.stringify({ error: 'AI credits exhausted. Please add credits to continue.' }),
            { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -865,313 +872,161 @@ serve(async (req) => {
        }
      }
 
-     if (linesResp.content) {
-       linesAi = safeJsonParse<LinesAI>(linesResp.content);
-     }
-     if (fanarLinesResp.content) {
-       fanarLinesAi = safeJsonParse<LinesAI>(fanarLinesResp.content);
-       if (fanarLinesAi?.lines) {
-         console.log('Fanar lines pass: parsed', fanarLinesAi.lines.length, 'lines');
-       }
+     if (mergeResp.content) {
+       mergeOnlyAi = safeJsonParse<MergeOnlyAI>(mergeResp.content);
      }
 
-     if (!linesAi?.lines || !Array.isArray(linesAi.lines) || linesAi.lines.length === 0) {
-       // Try Fanar result as fallback before retrying
-       if (fanarLinesAi?.lines && Array.isArray(fanarLinesAi.lines) && fanarLinesAi.lines.length > 0) {
-         console.log('Qwen lines failed, using Fanar lines as primary');
-         linesAi = fanarLinesAi;
-         fanarLinesAi = null; // already used as primary
-       } else {
-         console.log('Lines parse failed, retrying with stricter prompt...');
-         const retry = await callAI({
-           systemPrompt: getLinesSystemPrompt(true, hasDualOrTriple, hasTriple),
-           userContent: linesUserContent,
-           apiKey: OPENROUTER_API_KEY,
-           isRetry: true,
-           maxTokens: 8192,
-         });
-         if (retry.content) {
-           linesAi = safeJsonParse<LinesAI>(retry.content);
+     // Fallback to Fanar if Qwen Call 1 parse failed
+     if (!mergeOnlyAi?.lines || mergeOnlyAi.lines.length === 0) {
+       if (fanarMergeResp.content) {
+         const fanarMergeAi = safeJsonParse<MergeOnlyAI>(fanarMergeResp.content);
+         if (fanarMergeAi?.lines && fanarMergeAi.lines.length > 0) {
+           console.log('Qwen Call 1 parse failed, using Fanar merge result');
+           mergeOnlyAi = fanarMergeAi;
          }
        }
      }
 
-     // Fallback if we still can't parse
-     if (!linesAi?.lines || !Array.isArray(linesAi.lines) || linesAi.lines.length === 0) {
-       console.error('Failed to parse lines JSON; using fallback splitting');
+     // Retry Qwen Call 1 with stricter prompt if still failed
+     if (!mergeOnlyAi?.lines || mergeOnlyAi.lines.length === 0) {
+       console.log('Call 1 parse failed, retrying with stricter prompt...');
+       const mergeRetry = await callAI({
+         systemPrompt: getMergeOnlySystemPrompt(true, hasDualOrTriple, hasTriple),
+         userContent: linesUserContent,
+         apiKey: OPENROUTER_API_KEY,
+         isRetry: true,
+         maxTokens: 8192,
+       });
+       if (mergeRetry.content) {
+         mergeOnlyAi = safeJsonParse<MergeOnlyAI>(mergeRetry.content);
+       }
+     }
+
+     // If Call 1 fails entirely — do NOT attempt Call 2
+     if (!mergeOnlyAi?.lines || !Array.isArray(mergeOnlyAi.lines) || mergeOnlyAi.lines.length === 0) {
+       console.error('Call 1 failed: could not produce merged transcript. Skipping Call 2.');
        partial = true;
        const fallback = createFallbackResult(transcript);
-
-       // Still attempt meta extraction (best effort)
-       const meta = await (async () => {
-         let metaResp = await callAI({
-           systemPrompt: getMetaSystemPrompt(false),
-           userContent: transcript,
-           apiKey: OPENROUTER_API_KEY,
-           isRetry: false,
-           maxTokens: 2048,
-         });
-         let metaAi = metaResp.content ? safeJsonParse<MetaAI>(metaResp.content) : null;
-         if (!metaAi) {
-           const metaRetry = await callAI({
-             systemPrompt: getMetaSystemPrompt(true),
-             userContent: transcript,
-             apiKey: OPENROUTER_API_KEY,
-             isRetry: true,
-             maxTokens: 2048,
-           });
-           metaAi = metaRetry.content ? safeJsonParse<MetaAI>(metaRetry.content) : null;
-         }
-         if (!metaAi) {
-           return { vocabulary: [], grammarPoints: [], culturalContext: undefined } as MetaAI;
-         }
-         return metaAi;
-       })();
-
-       const withMeta: TranscriptResult = {
-         ...fallback,
-         vocabulary: Array.isArray(meta.vocabulary) ? meta.vocabulary : [],
-         grammarPoints: Array.isArray(meta.grammarPoints) ? meta.grammarPoints : [],
-         culturalContext: meta.culturalContext,
-         // Update tokens with vocab glosses if available
-         lines: fallback.lines.map((l) => ({
-           ...l,
-           tokens: toWordTokens(l.arabic, Array.isArray(meta.vocabulary) ? meta.vocabulary : [], {}),
-         })),
-       };
-
        return new Response(
-         JSON.stringify({ success: true, result: withMeta, partial }),
+         JSON.stringify({ success: true, result: fallback, partial }),
          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
        );
      }
 
-     // -----------------------------
-     // 2) Falcon H1 translation + Meta extraction (in parallel)
-     // -----------------------------
-     const arabicLines = linesAi.lines.map(l => String(l.arabic ?? '').trim());
-     console.log('Starting parallel: Falcon translation + meta extraction for', arabicLines.length, 'lines');
+     // Store the merged transcript from Call 1
+     const mergedLines = mergeOnlyAi.lines;
+     console.log('Call 1 complete:', mergedLines.length, 'merged Arabic lines stored.');
 
-     // Meta extraction: Qwen + Fanar-Sadiq in parallel
-     const metaPromise = (async () => {
-       let metaAi: MetaAI | null = null;
-       let metaResp = await callAI({
-         systemPrompt: getMetaSystemPrompt(false),
-         userContent: transcript,
+     // Build numbered merged transcript text to feed into Call 2
+     const mergedTranscriptText = mergedLines
+       .map((l, i) => `${i + 1}. ${l.arabic}`)
+       .join('\n');
+
+     // =====================================================================
+     // CALL 2 — Analysis and enrichment
+     // Send the clean merged transcript from Call 1 to Qwen.
+     // Produce: per-line translations, vocabulary, grammar points.
+     // Fanar-Sadiq runs in parallel for additional meta enrichment.
+     // Call 2 only runs because Call 1 succeeded above.
+     // =====================================================================
+     console.log('Call 2: analyzing merged transcript for translations, vocabulary, and grammar...');
+
+     let analysisAi: AnalysisAI | null = null;
+
+     const [analysisResp, fanarMetaResp] = await Promise.all([
+       callAI({
+         systemPrompt: getAnalysisSystemPrompt(false),
+         userContent: mergedTranscriptText,
          apiKey: OPENROUTER_API_KEY,
          isRetry: false,
-         maxTokens: 2048,
-       });
-       if (metaResp.content) {
-         metaAi = safeJsonParse<MetaAI>(metaResp.content);
-       }
-       if (!metaAi) {
-         const metaRetry = await callAI({
-           systemPrompt: getMetaSystemPrompt(true),
-           userContent: transcript,
-           apiKey: OPENROUTER_API_KEY,
-           isRetry: true,
-           maxTokens: 2048,
-         });
-         if (metaRetry.content) {
-           metaAi = safeJsonParse<MetaAI>(metaRetry.content);
-         }
-       }
-       return metaAi;
-     })();
-
-     // Fanar-Sadiq meta extraction (cultural context specialist)
-     const fanarMetaPromise = fanarLlmAvailable
-       ? (async () => {
-           const fanarMetaResp = await callFanar({
+         maxTokens: 8192,
+       }),
+       fanarLlmAvailable
+         ? callFanar({
              systemPrompt: getMetaSystemPrompt(false),
-             userContent: transcript,
+             userContent: mergedTranscriptText,
              apiKey: FANAR_API_KEY!,
              model: 'Fanar-Sadiq',
              maxTokens: 2048,
-           });
-           if (fanarMetaResp.content) {
-             return safeJsonParse<MetaAI>(fanarMetaResp.content);
-           }
-           return null;
-         })()
-       : Promise.resolve(null as MetaAI | null);
+           })
+         : Promise.resolve({ content: null } as { content: string | null }),
+     ]);
 
-      const [metaAi, fanarMetaAi] = await Promise.all([metaPromise, fanarMetaPromise]);
+     if (analysisResp.content) {
+       analysisAi = safeJsonParse<AnalysisAI>(analysisResp.content);
+     }
 
-      // -----------------------------
-      // 2b) Merge translations from Qwen + Fanar conjunction
-      // -----------------------------
-      let finalLines = linesAi.lines;
-      const hasFanarLines = fanarLinesAi?.lines && Array.isArray(fanarLinesAi.lines) && fanarLinesAi.lines.length > 0;
-
-      // Determine if we have secondary translations to merge
-      const hasMergeSource = hasFanarLines;
-
-      if (hasMergeSource) {
-        console.log('Merging translations: +Fanar');
-
-        const mergeContent = arabicLines.map((arabic, i) => {
-          const primaryTrans = String(linesAi!.lines[i]?.translation ?? '');
-          // Match Fanar lines by index (best effort since sentence boundaries may differ)
-          const fanarTrans = hasFanarLines && i < fanarLinesAi!.lines.length
-            ? String(fanarLinesAi!.lines[i]?.translation ?? '')
-            : '';
-          let entry = `Line ${i + 1}: "${arabic}"\n  Qwen: "${primaryTrans}"`;
-          if (fanarTrans) entry += `\n  Fanar: "${fanarTrans}"`;
-          return entry;
-        }).join('\n\n');
-
-       const mergePrompt = `You are merging translations of Gulf Arabic lines from multiple AI models. For each line, pick whichever translation is most natural and accurate, or combine the best parts. Fanar is an Arabic-native model and may capture dialect nuances better. Output ONLY valid JSON:
-{"translations": ["merged translation 1", "merged translation 2", ...]}
-
-No additional text outside JSON.`;
-
-       const mergeResp = await callAI({
-         systemPrompt: mergePrompt,
-         userContent: mergeContent,
+     // Retry Call 2 with stricter prompt if parse fails
+     if (!analysisAi?.lines || analysisAi.lines.length === 0) {
+       console.log('Call 2 parse failed, retrying with stricter prompt...');
+       const analysisRetry = await callAI({
+         systemPrompt: getAnalysisSystemPrompt(true),
+         userContent: mergedTranscriptText,
          apiKey: OPENROUTER_API_KEY,
-         isRetry: false,
-         maxTokens: 4096,
+         isRetry: true,
+         maxTokens: 8192,
        });
-
-       if (mergeResp.content) {
-         const merged = safeJsonParse<{ translations: string[] }>(mergeResp.content);
-         if (merged?.translations && Array.isArray(merged.translations)) {
-           finalLines = linesAi.lines.map((line, i) => ({
-             ...line,
-             translation: merged.translations[i] || line.translation,
-           }));
-           console.log('Merge complete: updated', merged.translations.length, 'translations');
-         } else {
-           console.warn('Merge parse failed, using primary Qwen translations');
-         }
-       } else {
-         console.warn('Merge call failed, using Qwen translations');
+       if (analysisRetry.content) {
+         analysisAi = safeJsonParse<AnalysisAI>(analysisRetry.content);
        }
-      } else {
-        console.log('Using Qwen translations from primary analysis pass');
-      }
+     }
 
-     if (!metaAi) {
+     if (!analysisAi) {
        partial = true;
      }
-     const safeMetaAi = metaAi || { vocabulary: [], grammarPoints: [] };
-     let vocab = Array.isArray(safeMetaAi.vocabulary) ? safeMetaAi.vocabulary : [];
-     let grammarPoints = Array.isArray(safeMetaAi.grammarPoints) ? safeMetaAi.grammarPoints : [];
-     let culturalContext = safeMetaAi.culturalContext;
+
+     // Use Call 2 output; fall back to merged lines with empty translations if needed
+     const safeAnalysis = analysisAi ?? {
+       lines: mergedLines.map(l => ({ arabic: l.arabic, translation: '' })),
+       vocabulary: [],
+       grammarPoints: [],
+     };
+
+     let finalLines = safeAnalysis.lines;
+     let vocab = Array.isArray(safeAnalysis.vocabulary) ? safeAnalysis.vocabulary : [];
+     let grammarPoints = Array.isArray(safeAnalysis.grammarPoints) ? safeAnalysis.grammarPoints : [];
+     let culturalContext = safeAnalysis.culturalContext;
 
      // Merge Fanar-Sadiq meta results if available
-     if (fanarMetaAi) {
-       console.log('Merging Fanar-Sadiq meta results...');
-       // Union vocabularies (deduplicate by Arabic text)
-       if (Array.isArray(fanarMetaAi.vocabulary)) {
-         const existingArabic = new Set(vocab.map(v => v.arabic));
-         const newVocab = fanarMetaAi.vocabulary.filter(v => v.arabic && !existingArabic.has(v.arabic));
-         if (newVocab.length > 0) {
-           vocab = [...vocab, ...newVocab];
-           console.log(`Added ${newVocab.length} vocab items from Fanar-Sadiq`);
+     if (fanarMetaResp.content) {
+       const fanarMetaAi = safeJsonParse<MetaAI>(fanarMetaResp.content);
+       if (fanarMetaAi) {
+         console.log('Merging Fanar-Sadiq meta results...');
+         // Union vocabularies (deduplicate by Arabic text)
+         if (Array.isArray(fanarMetaAi.vocabulary)) {
+           const existingArabic = new Set(vocab.map(v => v.arabic));
+           const newVocab = fanarMetaAi.vocabulary.filter(v => v.arabic && !existingArabic.has(v.arabic));
+           if (newVocab.length > 0) {
+             vocab = [...vocab, ...newVocab];
+             console.log(`Added ${newVocab.length} vocab items from Fanar-Sadiq`);
+           }
          }
-       }
-       // Union grammar points (deduplicate by title)
-       if (Array.isArray(fanarMetaAi.grammarPoints)) {
-         const existingTitles = new Set(grammarPoints.map(g => g.title.toLowerCase()));
-         const newGrammar = fanarMetaAi.grammarPoints.filter(g => g.title && !existingTitles.has(g.title.toLowerCase()));
-         if (newGrammar.length > 0) {
-           grammarPoints = [...grammarPoints, ...newGrammar];
-           console.log(`Added ${newGrammar.length} grammar points from Fanar-Sadiq`);
+         // Union grammar points (deduplicate by title)
+         if (Array.isArray(fanarMetaAi.grammarPoints)) {
+           const existingTitles = new Set(grammarPoints.map(g => g.title.toLowerCase()));
+           const newGrammar = fanarMetaAi.grammarPoints.filter(g => g.title && !existingTitles.has(g.title.toLowerCase()));
+           if (newGrammar.length > 0) {
+             grammarPoints = [...grammarPoints, ...newGrammar];
+             console.log(`Added ${newGrammar.length} grammar points from Fanar-Sadiq`);
+           }
          }
-       }
-       // Prefer Fanar-Sadiq cultural context if richer (longer)
-       if (fanarMetaAi.culturalContext && (!culturalContext || fanarMetaAi.culturalContext.length > culturalContext.length)) {
-         culturalContext = fanarMetaAi.culturalContext;
-         console.log('Using Fanar-Sadiq cultural context (richer)');
+         // Prefer Fanar-Sadiq cultural context if richer (longer)
+         if (fanarMetaAi.culturalContext && (!culturalContext || fanarMetaAi.culturalContext.length > culturalContext.length)) {
+           culturalContext = fanarMetaAi.culturalContext;
+           console.log('Using Fanar-Sadiq cultural context (richer)');
+         }
        }
      }
 
-     // -----------------------------
-     // 3) Comprehensive word glosses (Qwen + Fanar in parallel)
-     // -----------------------------
-     let wordGlosses: Record<string, string> = {};
-
-     // Extract all unique words from all lines
-     const allWords = new Set<string>();
-     for (const line of finalLines) {
-       const words = String(line.arabic ?? '').split(/\s+/).filter(Boolean);
-       words.forEach(w => allWords.add(w));
-     }
-
-     console.log('Fetching glosses for', allWords.size, 'unique words...');
-
-      // Include the full transcript lines for compound/collocation detection
-      const glossesContext = `Full transcript for compound detection:\n${finalLines.map(l => l.arabic).join('\n')}\n\nUnique words to gloss:\n${Array.from(allWords).join(' ')}`;
-
-      // Fire Qwen and Fanar glosses in parallel
-      const qwenGlossesPromise = callAI({
-        systemPrompt: getWordGlossesPrompt(false),
-        userContent: glossesContext,
-        apiKey: OPENROUTER_API_KEY,
-        isRetry: false,
-        maxTokens: 4096,
-      });
-
-      const fanarGlossesPromise = fanarLlmAvailable
-        ? callFanar({
-            systemPrompt: getWordGlossesPrompt(false),
-            userContent: glossesContext,
-            apiKey: FANAR_API_KEY!,
-            maxTokens: 4096,
-          })
-        : Promise.resolve({ content: null } as { content: string | null });
-
-      const [glossesResp, fanarGlossesResp] = await Promise.all([qwenGlossesPromise, fanarGlossesPromise]);
-
-      if (glossesResp.content) {
-        const glossesAi = safeJsonParse<GlossesAI>(glossesResp.content);
-        if (glossesAi?.glosses && typeof glossesAi.glosses === 'object') {
-          wordGlosses = glossesAi.glosses;
-          console.log('Qwen: parsed', Object.keys(wordGlosses).length, 'word glosses');
-        }
-      }
-
-      // Merge Fanar glosses (Fanar overwrites for dialect-specific words)
-      if (fanarGlossesResp.content) {
-        const fanarGlossesAi = safeJsonParse<GlossesAI>(fanarGlossesResp.content);
-        if (fanarGlossesAi?.glosses && typeof fanarGlossesAi.glosses === 'object') {
-          const fanarGlossCount = Object.keys(fanarGlossesAi.glosses).length;
-          // Overlay Fanar glosses on top (Arabic-native advantage for dialect words)
-          wordGlosses = { ...wordGlosses, ...fanarGlossesAi.glosses };
-          console.log(`Fanar: merged ${fanarGlossCount} glosses (total: ${Object.keys(wordGlosses).length})`);
-        }
-      }
-
-      // Retry if we got no glosses from either
-      if (Object.keys(wordGlosses).length === 0) {
-        console.log('Word glosses parse failed, retrying...');
-        const glossesRetry = await callAI({
-          systemPrompt: getWordGlossesPrompt(true),
-          userContent: glossesContext,
-          apiKey: OPENROUTER_API_KEY,
-          isRetry: true,
-          maxTokens: 4096,
-        });
-        if (glossesRetry.content) {
-          const glossesAi = safeJsonParse<GlossesAI>(glossesRetry.content);
-          if (glossesAi?.glosses && typeof glossesAi.glosses === 'object') {
-            wordGlosses = glossesAi.glosses;
-            console.log('Retry: parsed', Object.keys(wordGlosses).length, 'word glosses');
-          }
-        }
-      }
-
-     // Build the full TranscriptResult
+     // Build the final TranscriptResult
+     // Token glosses come from vocabulary items and the COMMON_GLOSSES fallback dictionary.
      const transcriptResult: TranscriptResult = {
        rawTranscriptArabic: transcript,
        lines: finalLines.map((l, idx) => ({
          id: `line-${generateId()}-${idx}`,
          arabic: String(l.arabic ?? '').trim(),
          translation: String(l.translation ?? '').trim(),
-         tokens: toWordTokens(String(l.arabic ?? '').trim(), vocab, wordGlosses),
+         tokens: toWordTokens(String(l.arabic ?? '').trim(), vocab, {}),
        })),
        vocabulary: vocab,
        grammarPoints,

@@ -1,19 +1,31 @@
 
 
-## Problem
+## Fix: Redeploy `analyze-gulf-arabic` Edge Function
 
-The "How Do I Say" page error (`AI service error (400)`) is caused by the **deployed edge function being out of date**. The logs show it's still trying to use `qwen/qwen3-5-plus` as a model ID on OpenRouter, which doesn't exist. The current source code has already been updated to use `qwen/qwen3-30b-a3b`, but the function was never redeployed.
+### What happened
 
-Evidence:
-- Edge function log: `"qwen/qwen3-5-plus is not a valid model ID"` (the old model)
-- Current source code (line 243): uses `qwen/qwen3-30b-a3b` (the new model)
-- The old deployed version also throws on 400 errors instead of returning null, which crashes the entire request even though other models (Gemini, Fanar) could handle it
+The **Gemini 2.5 Pro translation call never fired** because the deployed version of the function is stale. The source code (lines 961-968) correctly calls `google/gemini-2.5-pro` via OpenRouter for translation, but this code was never deployed. The live function is still running an old version that:
 
-## Fix
+- Uses the invalid model ID `qwen/qwen3-5-plus` (causing 400 errors on every Qwen call)
+- Does not have the dedicated Gemini translation step at all
 
-**Redeploy the `how-do-i-say` edge function.** No code changes needed -- the source code is already correct. The redeployment will pick up:
+As a result, only **Fanar** succeeded in your uploads, while both Qwen and Gemini silently failed.
 
-1. The corrected model ID (`qwen/qwen3-30b-a3b` instead of the invalid `qwen/qwen3-5-plus`)
-2. Graceful error handling in `callAI` (returns `null` on 400 errors instead of throwing)
-3. The expanded 4-model parallel pipeline (Gemini + Qwen + Gemma + Fanar) instead of just 2 models
+### The fix
+
+**Redeploy the `analyze-gulf-arabic` edge function.** No code changes are needed -- the source code is already correct. After redeployment, the pipeline will work as designed:
+
+1. **Call 1 (Merge)**: Qwen 3 235B + Fanar in parallel to merge ASR transcripts
+2. **Translation**: Gemini 2.5 Pro (primary) with Qwen fallback for per-line English translations
+3. **Call 2 (Analysis)**: Qwen for vocabulary/grammar + Fanar-Sadiq for meta enrichment
+
+### Build error
+
+The reported build error (`Expected ';', got 'lines' at line 160`) appears to be a stale compilation artifact. The source code at that location is inside a valid template literal string. Redeployment should clear this.
+
+### Steps
+
+1. Redeploy the `analyze-gulf-arabic` edge function
+2. Verify deployment succeeded (check logs for updated model IDs)
+3. Optionally re-process a video to confirm Gemini translation fires
 

@@ -1,19 +1,48 @@
 
 
-## Problem
+## Switch Gemini 2.5 Pro Translation to Lovable AI Gateway
 
-The "How Do I Say" page error (`AI service error (400)`) is caused by the **deployed edge function being out of date**. The logs show it's still trying to use `qwen/qwen3-5-plus` as a model ID on OpenRouter, which doesn't exist. The current source code has already been updated to use `qwen/qwen3-30b-a3b`, but the function was never redeployed.
+### Problem
+The Gemini 2.5 Pro translation call in `analyze-gulf-arabic` currently goes through OpenRouter, which ran out of credits (402 error). Lovable AI gateway has `google/gemini-2.5-pro` available with pre-configured credits.
 
-Evidence:
-- Edge function log: `"qwen/qwen3-5-plus is not a valid model ID"` (the old model)
-- Current source code (line 243): uses `qwen/qwen3-30b-a3b` (the new model)
-- The old deployed version also throws on 400 errors instead of returning null, which crashes the entire request even though other models (Gemini, Fanar) could handle it
+### Changes (single file: `supabase/functions/analyze-gulf-arabic/index.ts`)
 
-## Fix
+**1. Update `callAI` to support Lovable AI gateway**
 
-**Redeploy the `how-do-i-say` edge function.** No code changes needed -- the source code is already correct. The redeployment will pick up:
+Add an optional `gateway` parameter (`'openrouter' | 'lovable'`) to the `CallAIArgs` type. When `gateway` is `'lovable'`:
+- Use URL: `https://ai.gateway.lovable.dev/v1/chat/completions`
+- Use `LOVABLE_API_KEY` instead of the passed `apiKey`
+- Keep all other logic (timeout, parsing, error handling) identical
 
-1. The corrected model ID (`qwen/qwen3-30b-a3b` instead of the invalid `qwen/qwen3-5-plus`)
-2. Graceful error handling in `callAI` (returns `null` on 400 errors instead of throwing)
-3. The expanded 4-model parallel pipeline (Gemini + Qwen + Gemma + Fanar) instead of just 2 models
+**2. Switch the Gemini translation call to Lovable AI**
+
+Change lines 961-968 from:
+```typescript
+callAI({
+  model: 'google/gemini-2.5-pro',
+  systemPrompt: getTranslationSystemPrompt(),
+  userContent: mergedTranscriptText,
+  apiKey: OPENROUTER_API_KEY,
+  maxTokens: 16384,
+})
+```
+To:
+```typescript
+callAI({
+  model: 'google/gemini-2.5-pro',
+  systemPrompt: getTranslationSystemPrompt(),
+  userContent: mergedTranscriptText,
+  apiKey: '', // not used for lovable gateway
+  gateway: 'lovable',
+  maxTokens: 16384,
+})
+```
+
+**3. Read `LOVABLE_API_KEY` at the top** alongside the other env vars (it's already a configured secret).
+
+### What stays the same
+- Qwen calls continue through OpenRouter (unchanged)
+- Fanar calls continue through their direct API (unchanged)
+- Fallback logic: if Gemini fails, Qwen still handles translation as fallback
+- The function will be auto-deployed after the code change
 

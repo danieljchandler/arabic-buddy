@@ -117,7 +117,7 @@ serve(async (req) => {
     const numberedLines = arabicLines.map((line: string, i: number) => `${i + 1}. ${line}`).join('\n');
 
     const [qwenText, geminiText] = await Promise.all([
-      callOpenRouterTranslate('qwen/qwen3-30b-a3b', numberedLines, OPENROUTER_API_KEY),
+      callOpenRouterTranslate('qwen/qwen3-235b-a22b', numberedLines, OPENROUTER_API_KEY),
       callOpenRouterTranslate('google/gemini-2.5-flash', numberedLines, OPENROUTER_API_KEY),
     ]);
 

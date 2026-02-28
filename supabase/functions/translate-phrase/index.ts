@@ -91,7 +91,7 @@ serve(async (req) => {
     }
 
     const [qwenResult, geminiResult] = await Promise.all([
-      callOpenRouter('qwen/qwen3-30b-a3b', 15_000),
+      callOpenRouter('qwen/qwen3-235b-a22b', 15_000),
       callOpenRouter('google/gemini-2.5-flash', 15_000),
     ]);
 

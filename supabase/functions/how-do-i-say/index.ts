@@ -219,7 +219,7 @@ serve(async (req) => {
 
     // Fire ALL available models in parallel (not fallback — results are merged).
     // 1. Lovable gateway: google/gemini-2.5-flash  (reliable built-in AI service)
-    // 2. OpenRouter: qwen/qwen3-30b-a3b            (strong reasoning model)
+    // 2. OpenRouter: qwen/qwen3-235b-a22b            (strong reasoning model)
     // 3. OpenRouter: google/gemma-3-12b-it          (best Google model for Arabic)
     // 4. Fanar                                       (optional Gulf Arabic specialist)
     const llmsUsed: string[] = [];
@@ -237,10 +237,10 @@ serve(async (req) => {
     }
 
     if (OPENROUTER_API_KEY) {
-      llmsUsed.push('qwen/qwen3-30b-a3b (OpenRouter)');
+      llmsUsed.push('qwen/qwen3-235b-a22b (OpenRouter)');
       calls.push({
         label: 'qwen-openrouter',
-        call: callAI(OPENROUTER_ENDPOINT, 'qwen/qwen3-30b-a3b', SYSTEM_PROMPT, userContent, OPENROUTER_API_KEY, 4096),
+        call: callAI(OPENROUTER_ENDPOINT, 'qwen/qwen3-235b-a22b', SYSTEM_PROMPT, userContent, OPENROUTER_API_KEY, 4096),
       });
 
       llmsUsed.push('google/gemma-3-12b-it (OpenRouter)');

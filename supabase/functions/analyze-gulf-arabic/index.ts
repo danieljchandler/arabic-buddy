@@ -157,7 +157,7 @@ Output ONLY valid JSON matching this schema:
 }
 
 Rules:
-- lines: Keep the Arabic text EXACTLY as given — do not modify it. Provide a natural English translation for each line.
+- lines: IMPORTANT — the output `lines` array MUST include ALL numbered lines from the input. Every single line, no exceptions. Do not omit, skip, or stop early. Keep the Arabic text EXACTLY as given. Provide a natural English translation for each line.
 - vocabulary: 5–8 useful Gulf Arabic words or phrases with English meaning and root when applicable.
 - grammarPoints: 2–4 dialect-specific grammar points with brief examples from the transcript.
 - culturalContext: Optional brief cultural note about the content.
@@ -165,6 +165,28 @@ Rules:
 
 No additional text outside JSON.`;
 };
+
+// ─── TRANSLATION PROMPT ──────────────────────────────────────────────────────
+// Used by Gemini 2.5 Flash (primary) and Qwen (fallback).
+// Receives the numbered merged transcript produced by Call 1.
+// Produces ONLY per-line translations — no vocabulary, no grammar.
+const getTranslationSystemPrompt = () =>
+  `You are a Gulf Arabic translator specializing in the Gulf/Khaliji dialect.
+You will be given numbered Arabic lines. Translate each line to natural English.
+
+Output ONLY valid JSON matching this schema:
+{"translations": ["English for line 1", "English for line 2", ...]}
+
+Rules:
+- The output array must have exactly the same number of items as there are numbered lines.
+- Translations should be natural and idiomatic, not word-for-word.
+- Preserve the tone and meaning of Gulf Arabic dialect.
+- Keep each translation concise.
+
+No additional text outside JSON.`;
+
+// Returned by the dedicated translation call (Gemini primary / Qwen fallback)
+type TranslationAI = { translations: string[] };
 
 // Returned by Call 1 (merge only — no translations)
 type MergeOnlyAI = {
@@ -177,6 +199,7 @@ type CallAIArgs = {
   apiKey: string;
   isRetry?: boolean;
   maxTokens?: number;
+  model?: string; // defaults to 'qwen/qwen3-235b-a22b'
 };
 
 async function callAI({
@@ -185,6 +208,7 @@ async function callAI({
   apiKey,
   isRetry = false,
   maxTokens = 4096,
+  model = 'qwen/qwen3-235b-a22b',
 }: CallAIArgs): Promise<{ content: string | null; error?: string; status?: number }> {
     const controller = new AbortController();
     // Allow longer timeout for complex transcripts - edge functions can run up to 60s
@@ -202,8 +226,7 @@ async function callAI({
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          // Qwen3-30b-a3b via OpenRouter for Gulf Arabic analysis
-          model: 'qwen/qwen3-235b-a22b',
+          model,
           messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userContent },
@@ -917,23 +940,34 @@ serve(async (req) => {
      const mergedLines = mergeOnlyAi.lines;
      console.log('Call 1 complete:', mergedLines.length, 'merged Arabic lines stored.');
 
-     // Build numbered merged transcript text to feed into Call 2
+     // Build numbered merged transcript text to feed into translation and Call 2
      const mergedTranscriptText = mergedLines
        .map((l, i) => `${i + 1}. ${l.arabic}`)
        .join('\n');
 
      // =====================================================================
-     // CALL 2 — Analysis and enrichment
-     // Send the clean merged transcript from Call 1 to Qwen.
-     // Produce: per-line translations, vocabulary, grammar points.
-     // Fanar-Sadiq runs in parallel for additional meta enrichment.
-     // Call 2 only runs because Call 1 succeeded above.
+     // TRANSLATION — Gemini 2.5 Flash (primary) / Qwen (fallback)
+     // Receives the merged transcript from Call 1.
+     // Produces per-line English translations only — separate from analysis.
+     //
+     // CALL 2 — Analysis and enrichment (vocabulary + grammar)
+     // Receives the same merged transcript from Call 1.
+     // Produces vocabulary, grammar points, and cultural context.
+     //
+     // Both run in parallel. Translation is a separate concern from analysis.
      // =====================================================================
-     console.log('Call 2: analyzing merged transcript for translations, vocabulary, and grammar...');
+     console.log('Translation (Gemini) and analysis (Qwen) running in parallel...');
 
-     let analysisAi: AnalysisAI | null = null;
-
-     const [analysisResp, fanarMetaResp] = await Promise.all([
+     const [geminiTransResp, analysisResp, fanarMetaResp] = await Promise.all([
+       // Translation primary: Gemini 2.5 Flash via OpenRouter
+       callAI({
+         model: 'google/gemini-2.5-pro',
+         systemPrompt: getTranslationSystemPrompt(),
+         userContent: mergedTranscriptText,
+         apiKey: OPENROUTER_API_KEY,
+         maxTokens: 16384,
+       }),
+       // Call 2: vocabulary + grammar (Qwen, unchanged from Step 2)
        callAI({
          systemPrompt: getAnalysisSystemPrompt(false),
          userContent: mergedTranscriptText,
@@ -941,6 +975,7 @@ serve(async (req) => {
          isRetry: false,
          maxTokens: 8192,
        }),
+       // Fanar-Sadiq meta enrichment (unchanged)
        fanarLlmAvailable
          ? callFanar({
              systemPrompt: getMetaSystemPrompt(false),
@@ -952,6 +987,39 @@ serve(async (req) => {
          : Promise.resolve({ content: null } as { content: string | null }),
      ]);
 
+     // --- Parse Gemini translation result ---
+     let translationAi: TranslationAI | null = null;
+     if (geminiTransResp.content) {
+       translationAi = safeJsonParse<TranslationAI>(geminiTransResp.content);
+       if (translationAi?.translations) {
+         console.log('Gemini translation: parsed', translationAi.translations.length, 'lines.');
+       }
+     }
+
+     // --- Fallback: Qwen translation-only call if Gemini failed or returned empty ---
+     if (!translationAi?.translations || translationAi.translations.length === 0) {
+       console.log('Gemini translation failed or empty, falling back to Qwen for translation...');
+       const qwenTransResp = await callAI({
+         systemPrompt: getTranslationSystemPrompt(),
+         userContent: mergedTranscriptText,
+         apiKey: OPENROUTER_API_KEY,
+         maxTokens: 4096,
+       });
+       if (qwenTransResp.content) {
+         translationAi = safeJsonParse<TranslationAI>(qwenTransResp.content);
+         if (translationAi?.translations) {
+           console.log('Qwen translation fallback: parsed', translationAi.translations.length, 'lines.');
+         }
+       }
+     }
+
+     const dedicatedTranslations = translationAi?.translations ?? [];
+     if (dedicatedTranslations.length === 0) {
+       console.warn('Translation call produced no results; will use Call 2 embedded translations as last resort.');
+     }
+
+     // --- Parse Call 2 (analysis) result ---
+     let analysisAi: AnalysisAI | null = null;
      if (analysisResp.content) {
        analysisAi = safeJsonParse<AnalysisAI>(analysisResp.content);
      }
@@ -975,17 +1043,33 @@ serve(async (req) => {
        partial = true;
      }
 
-     // Use Call 2 output; fall back to merged lines with empty translations if needed
-     const safeAnalysis = analysisAi ?? {
-       lines: mergedLines.map(l => ({ arabic: l.arabic, translation: '' })),
-       vocabulary: [],
-       grammarPoints: [],
-     };
+     // Always use mergedLines (Call 1 output) as the authoritative Arabic source.
+     // Call 2 provides translations (secondary fallback) + vocab + grammar only.
+     const call2Lines = analysisAi?.lines ?? [];
+     if (analysisAi && call2Lines.length < mergedLines.length) {
+       console.warn(
+         `Call 2 returned ${call2Lines.length} lines but Call 1 produced ${mergedLines.length}. Using Call 1 lines as authoritative Arabic source.`
+       );
+     }
+     let vocab = Array.isArray(analysisAi?.vocabulary) ? analysisAi!.vocabulary : [];
+     let grammarPoints = Array.isArray(analysisAi?.grammarPoints) ? analysisAi!.grammarPoints : [];
+     let culturalContext = analysisAi?.culturalContext;
 
-     let finalLines = safeAnalysis.lines;
-     let vocab = Array.isArray(safeAnalysis.vocabulary) ? safeAnalysis.vocabulary : [];
-     let grammarPoints = Array.isArray(safeAnalysis.grammarPoints) ? safeAnalysis.grammarPoints : [];
-     let culturalContext = safeAnalysis.culturalContext;
+     // Build finalLines from mergedLines — always has the correct count.
+     // Translation priority: dedicated Gemini/Qwen > Call 2 embedded > empty string.
+     let finalLines = mergedLines.map((mergedLine, i) => ({
+       arabic: mergedLine.arabic,
+       translation: dedicatedTranslations[i] || call2Lines[i]?.translation || '',
+     }));
+
+     if (dedicatedTranslations.length > 0) {
+       console.log(
+         'Applied dedicated translations to',
+         dedicatedTranslations.length,
+         'lines.',
+         geminiTransResp.content && translationAi ? '(Gemini)' : '(Qwen fallback)'
+       );
+     }
 
      // Merge Fanar-Sadiq meta results if available
      if (fanarMetaResp.content) {

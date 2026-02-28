@@ -738,6 +738,7 @@ const Transcribe = () => {
         vocabulary: JSON.parse(JSON.stringify(transcriptResult.vocabulary)),
         grammar_points: JSON.parse(JSON.stringify(transcriptResult.grammarPoints)),
         cultural_context: transcriptResult.culturalContext || null,
+        dialect_validation: transcriptResult.dialectValidation ?? null,
         audio_url: audioUrl || null,
       });
       if (error) throw error;

@@ -39,6 +39,7 @@ function generateId(): string {
    vocabulary: VocabItem[];
    grammarPoints: GrammarPoint[];
    culturalContext?: string;
+  dialectValidation?: { content: string; timestamp: string } | null;
  }
 
 const corsHeaders = {
@@ -165,6 +166,18 @@ Rules:
 
 No additional text outside JSON.`;
 };
+
+// ─── FANAR DIALECT VALIDATION PROMPT ────────────────────────────────────────
+// Sent to Fanar-Sadiq after merge, in parallel with translation.
+// Read-only: result is stored for review, never used to modify transcript.
+const getFanarValidationSystemPrompt = () =>
+  `أنت خبير في اللهجة الخليجية. راجع هذا النص المنقول وحدد أي مشاكل في:
+- كلمات تبدو مُحوَّلة إلى الفصحى بدلاً من اللهجة الخليجية المحكية
+- كلمات أو عبارات تبدو مكتوبة بشكل غير صحيح أو مُحرَّفة
+- محتوى لا يتوافق ثقافياً مع السياق الخليجي
+
+اذكر رقم السطر والكلمة والمشكلة بإيجاز. إذا لم تجد مشاكل، قل ذلك بجملة واحدة.
+يمكنك الإجابة بالعربية أو الإنجليزية.`;
 
 // ─── TRANSLATION PROMPT ──────────────────────────────────────────────────────
 // Used by Gemini 2.5 Flash (primary) and Qwen (fallback).
@@ -995,7 +1008,30 @@ serve(async (req) => {
              maxTokens: 2048,
            })
          : Promise.resolve({ content: null } as { content: string | null }),
+       // Fanar-Sadiq dialect validation — read-only, never blocks pipeline
+       fanarLlmAvailable
+         ? callFanar({
+             systemPrompt: getFanarValidationSystemPrompt(),
+             userContent: mergedTranscriptText,
+             apiKey: FANAR_API_KEY!,
+             model: 'Fanar-Sadiq',
+             maxTokens: 1024,
+           }).catch((e) => {
+             console.warn('Fanar dialect validation failed (non-blocking):', e);
+             return { content: null } as { content: string | null };
+           })
+         : Promise.resolve({ content: null } as { content: string | null }),
      ]);
+
+     // --- Parse Fanar dialect validation — accept JSON or raw text, never throw ---
+     let dialectValidation: { content: string; timestamp: string } | null = null;
+     if (fanarValidResp?.content) {
+       dialectValidation = {
+         content: fanarValidResp.content,
+         timestamp: new Date().toISOString(),
+       };
+       console.log('Fanar dialect validation received (first 150 chars):', fanarValidResp.content.slice(0, 150));
+     }
 
      // --- Parse Gemini translation result ---
      let translationAi: TranslationAI | null = null;
@@ -1125,6 +1161,7 @@ serve(async (req) => {
        vocabulary: vocab,
        grammarPoints,
        culturalContext,
+       dialectValidation,
      };
 
      console.log(

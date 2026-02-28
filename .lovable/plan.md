@@ -1,31 +1,48 @@
 
 
-## Fix: Redeploy `analyze-gulf-arabic` Edge Function
+## Switch Gemini 2.5 Pro Translation to Lovable AI Gateway
 
-### What happened
+### Problem
+The Gemini 2.5 Pro translation call in `analyze-gulf-arabic` currently goes through OpenRouter, which ran out of credits (402 error). Lovable AI gateway has `google/gemini-2.5-pro` available with pre-configured credits.
 
-The **Gemini 2.5 Pro translation call never fired** because the deployed version of the function is stale. The source code (lines 961-968) correctly calls `google/gemini-2.5-pro` via OpenRouter for translation, but this code was never deployed. The live function is still running an old version that:
+### Changes (single file: `supabase/functions/analyze-gulf-arabic/index.ts`)
 
-- Uses the invalid model ID `qwen/qwen3-5-plus` (causing 400 errors on every Qwen call)
-- Does not have the dedicated Gemini translation step at all
+**1. Update `callAI` to support Lovable AI gateway**
 
-As a result, only **Fanar** succeeded in your uploads, while both Qwen and Gemini silently failed.
+Add an optional `gateway` parameter (`'openrouter' | 'lovable'`) to the `CallAIArgs` type. When `gateway` is `'lovable'`:
+- Use URL: `https://ai.gateway.lovable.dev/v1/chat/completions`
+- Use `LOVABLE_API_KEY` instead of the passed `apiKey`
+- Keep all other logic (timeout, parsing, error handling) identical
 
-### The fix
+**2. Switch the Gemini translation call to Lovable AI**
 
-**Redeploy the `analyze-gulf-arabic` edge function.** No code changes are needed -- the source code is already correct. After redeployment, the pipeline will work as designed:
+Change lines 961-968 from:
+```typescript
+callAI({
+  model: 'google/gemini-2.5-pro',
+  systemPrompt: getTranslationSystemPrompt(),
+  userContent: mergedTranscriptText,
+  apiKey: OPENROUTER_API_KEY,
+  maxTokens: 16384,
+})
+```
+To:
+```typescript
+callAI({
+  model: 'google/gemini-2.5-pro',
+  systemPrompt: getTranslationSystemPrompt(),
+  userContent: mergedTranscriptText,
+  apiKey: '', // not used for lovable gateway
+  gateway: 'lovable',
+  maxTokens: 16384,
+})
+```
 
-1. **Call 1 (Merge)**: Qwen 3 235B + Fanar in parallel to merge ASR transcripts
-2. **Translation**: Gemini 2.5 Pro (primary) with Qwen fallback for per-line English translations
-3. **Call 2 (Analysis)**: Qwen for vocabulary/grammar + Fanar-Sadiq for meta enrichment
+**3. Read `LOVABLE_API_KEY` at the top** alongside the other env vars (it's already a configured secret).
 
-### Build error
-
-The reported build error (`Expected ';', got 'lines' at line 160`) appears to be a stale compilation artifact. The source code at that location is inside a valid template literal string. Redeployment should clear this.
-
-### Steps
-
-1. Redeploy the `analyze-gulf-arabic` edge function
-2. Verify deployment succeeded (check logs for updated model IDs)
-3. Optionally re-process a video to confirm Gemini translation fires
+### What stays the same
+- Qwen calls continue through OpenRouter (unchanged)
+- Fanar calls continue through their direct API (unchanged)
+- Fallback logic: if Gemini fails, Qwen still handles translation as fallback
+- The function will be auto-deployed after the code change
 

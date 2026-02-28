@@ -203,7 +203,7 @@ async function callAI({
         },
         body: JSON.stringify({
           // Qwen3-30b-a3b via OpenRouter for Gulf Arabic analysis
-          model: 'qwen/qwen3-30b-a3b',
+          model: 'qwen/qwen3-235b-a22b',
           messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userContent },
@@ -696,7 +696,7 @@ async function lovableAITranslate(arabicLines: string[], apiKey: string): Promis
 
   try {
     const [qwenText, geminiText] = await Promise.all([
-      callModel('qwen/qwen3-30b-a3b'),
+      callModel('qwen/qwen3-235b-a22b'),
       callModel('google/gemini-2.5-flash'),
     ]);
 

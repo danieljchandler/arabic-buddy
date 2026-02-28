@@ -199,7 +199,7 @@ type CallAIArgs = {
   apiKey: string;
   isRetry?: boolean;
   maxTokens?: number;
-  model?: string; // defaults to 'qwen/qwen3-235b-a22b'
+  model?: string; // defaults to 'qwen/qwen3-235b-a22b-04-28'
 };
 
 async function callAI({
@@ -208,7 +208,7 @@ async function callAI({
   apiKey,
   isRetry = false,
   maxTokens = 4096,
-  model = 'qwen/qwen3-235b-a22b',
+  model = 'qwen/qwen3-235b-a22b-04-28',
 }: CallAIArgs): Promise<{ content: string | null; error?: string; status?: number }> {
     const controller = new AbortController();
     // Allow longer timeout for complex transcripts - edge functions can run up to 60s
@@ -961,7 +961,7 @@ serve(async (req) => {
      const [geminiTransResp, analysisResp, fanarMetaResp] = await Promise.all([
        // Translation primary: Gemini 2.5 Flash via OpenRouter
        callAI({
-         model: 'google/gemini-2.5-pro',
+         model: 'google/gemini-2.5-flash',
          systemPrompt: getTranslationSystemPrompt(),
          userContent: mergedTranscriptText,
          apiKey: OPENROUTER_API_KEY,

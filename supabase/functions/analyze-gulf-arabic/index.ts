@@ -965,7 +965,7 @@ serve(async (req) => {
          systemPrompt: getTranslationSystemPrompt(),
          userContent: mergedTranscriptText,
          apiKey: OPENROUTER_API_KEY,
-         maxTokens: 4096,
+         maxTokens: 16384,
        }),
        // Call 2: vocabulary + grammar (Qwen, unchanged from Step 2)
        callAI({

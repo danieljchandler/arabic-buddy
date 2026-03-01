@@ -3,7 +3,7 @@ import type { Segment } from '@/types/transcript';
 import { splitSegment, mergeSegments } from '@/lib/transcriptOps';
 import { useUndoStack } from './useUndoStack';
 
-const DEBOUNCE_MS = 800;
+const DEFAULT_DEBOUNCE_MS = 800;
 
 /**
  * Core state management for the transcript editor.
@@ -13,6 +13,7 @@ const DEBOUNCE_MS = 800;
 export function useTranscriptEditor(
   initialSegments: Segment[],
   onSave?: (segments: Segment[]) => void,
+  debounceMs = DEFAULT_DEBOUNCE_MS,
 ) {
   const [segments, setSegments] = useState<Segment[]>(initialSegments);
   const [staleTranslations, setStaleTranslations] = useState<Set<string>>(new Set());
@@ -29,7 +30,7 @@ export function useTranscriptEditor(
       if (saveTimer.current) clearTimeout(saveTimer.current);
       saveTimer.current = setTimeout(() => {
         onSave?.(segs);
-      }, DEBOUNCE_MS);
+      }, debounceMs);
     },
     [onSave],
   );

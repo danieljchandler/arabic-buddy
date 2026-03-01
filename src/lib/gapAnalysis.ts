@@ -1,5 +1,13 @@
 import type { GapWarning, PublishCheckItem, Segment } from '@/types/transcript';
 
+// ── Thresholds ──────────────────────────────────────────────────────
+const MIN_DURATION_S = 0.5;
+const MAX_DURATION_S = 7;
+const MAX_GAP_S = 2;
+const MAX_SEGMENT_FOR_PUBLISH_S = 8;
+const MIN_AVG_CONFIDENCE = 0.7;
+const RED_CONFIDENCE = 0.65;
+
 /**
  * Analyse an ordered array of segments for timing issues.
  *
@@ -16,7 +24,7 @@ export function analyseGaps(segments: Segment[]): GapWarning[] {
     const seg = segments[i];
     const duration = seg.end - seg.start;
 
-    if (duration < 0.5) {
+    if (duration < MIN_DURATION_S) {
       warnings.push({
         type: 'too-short',
         severity: 'warning',
@@ -25,7 +33,7 @@ export function analyseGaps(segments: Segment[]): GapWarning[] {
       });
     }
 
-    if (duration > 7) {
+    if (duration > MAX_DURATION_S) {
       warnings.push({
         type: 'too-long',
         severity: 'warning',
@@ -46,7 +54,7 @@ export function analyseGaps(segments: Segment[]): GapWarning[] {
           segmentIndex: i,
           segmentIndexB: i + 1,
         });
-      } else if (gap > 2) {
+      } else if (gap > MAX_GAP_S) {
         warnings.push({
           type: 'gap',
           severity: 'warning',
@@ -74,19 +82,19 @@ export function analyseGaps(segments: Segment[]): GapWarning[] {
 export function runPublishChecklist(segments: Segment[]): PublishCheckItem[] {
   const warnings = analyseGaps(segments);
   const hasOverlap = warnings.some(w => w.type === 'overlap');
-  const hasLongSegment = segments.some(s => s.end - s.start > 8);
+  const hasLongSegment = segments.some(s => s.end - s.start > MAX_SEGMENT_FOR_PUBLISH_S);
   const allTranslated = segments.every(s => s.translation && s.translation.trim().length > 0);
   const avgConfidence =
     segments.length > 0
       ? segments.reduce((sum, s) => sum + s.confidence, 0) / segments.length
       : 0;
-  const hasRedConfidence = segments.some(s => s.confidence < 0.65);
+  const hasRedConfidence = segments.some(s => s.confidence < RED_CONFIDENCE);
 
   return [
     { label: 'No overlapping segments', passed: !hasOverlap },
     { label: 'No segment > 8 seconds', passed: !hasLongSegment },
     { label: 'All segments have a translation', passed: allTranslated },
-    { label: 'Average confidence > 0.70', passed: avgConfidence > 0.7 },
+    { label: 'Average confidence > 0.70', passed: avgConfidence > MIN_AVG_CONFIDENCE },
     { label: 'No unreviewed red-confidence segments', passed: !hasRedConfidence },
   ];
 }

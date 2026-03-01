@@ -137,11 +137,20 @@ export default function TranscriptEditor({
             setShowDiff(false);
           }}
           onRejectAll={() => setShowDiff(false)}
-          onAcceptOne={() => {
-            /* Per-suggestion accept would require more granular diff logic */
+          onAcceptOne={(index) => {
+            // Individual accept: replace only one suggested boundary
+            const updated = [...segments];
+            const suggested = suggestedSegments[index];
+            if (suggested) {
+              replaceAll([
+                ...segments.filter(s => s.start < suggested.start),
+                suggested,
+                ...segments.filter(s => s.start >= suggested.end),
+              ]);
+            }
           }}
-          onRejectOne={() => {
-            /* Per-suggestion reject */
+          onRejectOne={(index) => {
+            // Individual reject is a no-op — suggestion stays in diff but isn't applied
           }}
         />
       )}

@@ -175,7 +175,7 @@ export default function SegmentCard({
         {isStaleTranslation && (
           <span className="inline-block w-2 h-2 rounded-full bg-amber-500 flex-shrink-0" title="Translation may be stale" />
         )}
-        <span>{segment.translation || '(no translation)'}</span>
+        <span>{segment.translation || <em aria-label="Missing translation">(no translation)</em>}</span>
       </div>
 
       {/* Timestamp scrubber */}

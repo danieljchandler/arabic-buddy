@@ -119,9 +119,11 @@ serve(async (req) => {
     if (!response.ok) {
       const errorText = await response.text();
       console.error(`Munsit API error: ${response.status} - ${errorText}`);
+      // Return HTTP 200 with text:null so the client pipeline continues gracefully
+      // (matches fanar-transcribe pattern — avoids RUNTIME_ERROR logging for expected API failures)
       return new Response(
-        JSON.stringify({ error: "Munsit transcription failed", details: errorText, status: response.status }),
-        { status: response.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ text: null, error: "Munsit transcription failed", details: errorText, status: response.status }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -142,9 +144,11 @@ serve(async (req) => {
         errorMessage = error.message;
       }
     }
+    // Return HTTP 200 with text:null so the client pipeline continues gracefully
+    // (matches fanar-transcribe pattern — avoids RUNTIME_ERROR logging for expected failures)
     return new Response(
-      JSON.stringify({ error: errorMessage }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ text: null, error: errorMessage }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });

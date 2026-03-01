@@ -620,6 +620,8 @@ const Transcribe = () => {
       }
       if (munsitResult.status === "rejected") {
         console.warn("Munsit failed:", munsitResult.reason);
+      } else if (munsitData && !munsitData.text && (munsitData as any).error) {
+        console.warn("Munsit failed (non-blocking):", (munsitData as any).error);
       }
       if (fanarResult.status === "rejected") {
         console.warn("Fanar failed:", fanarResult.reason);
@@ -627,9 +629,12 @@ const Transcribe = () => {
 
       // Need at least one to succeed
       if (!deepgramData?.text && !munsitData?.text && !fanarData?.text) {
+        const munsitReason = munsitResult.status === "rejected"
+          ? String(munsitResult.reason)
+          : munsitData && !munsitData.text ? ((munsitData as any).error || 'no transcript') : null;
         const reasons = [
           deepgramResult.status === "rejected" ? `Deepgram: ${deepgramResult.reason}` : null,
-          munsitResult.status === "rejected" ? `Munsit: ${munsitResult.reason}` : null,
+          munsitReason ? `Munsit: ${munsitReason}` : null,
           fanarResult.status === "rejected" ? `Fanar: ${fanarResult.reason}` : null,
         ].filter(Boolean).join("; ");
         throw new Error(`All transcription engines failed. ${reasons}`);

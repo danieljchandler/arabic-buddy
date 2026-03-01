@@ -22,6 +22,7 @@ function normalizeTranscriptResult(input: TranscriptResult): TranscriptResult {
   return {
     rawTranscriptArabic: String(input.rawTranscriptArabic ?? ""),
     culturalContext: input.culturalContext === undefined ? undefined : String(input.culturalContext),
+    dialect: input.dialect,
     vocabulary: safeVocab
       .filter((v) => v && typeof v === "object")
       .map((v) => ({

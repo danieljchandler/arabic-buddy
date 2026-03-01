@@ -44,6 +44,7 @@ function generateId(): string {
    grammarPoints: GrammarPoint[];
    culturalContext?: string;
   dialectValidation?: { content: string; timestamp: string } | null;
+  dialect?: 'Saudi' | 'Kuwaiti' | 'UAE' | 'Bahraini' | 'Qatari' | 'Omani' | 'Gulf';
  }
 
 const corsHeaders = {
@@ -55,6 +56,11 @@ const strictJsonPrefix = (isRetry: boolean) =>
   isRetry
     ? "CRITICAL: Return ONLY valid JSON. No commentary, no markdown, no explanation. Just the JSON object.\n\n"
     : "";
+
+const getDialectNote = (dialect?: string, prefix = '\n') =>
+  dialect && dialect !== 'Gulf'
+    ? `${prefix}The speaker is using ${dialect} Gulf Arabic dialect.`
+    : `${prefix}The speaker is using Gulf Arabic (Khaliji) dialect.`;
 
 /**
  * IMPORTANT: We intentionally do NOT ask the model to output per-word tokens.
@@ -94,8 +100,28 @@ Compare them carefully and produce the BEST merged transcript:
 
 Output ONLY valid JSON matching this schema:
 {
-  "lines": [{"arabic": string}]
+  "lines": [{"arabic": string}],
+  "dialect": "Saudi" | "Kuwaiti" | "UAE" | "Bahraini" | "Qatari" | "Omani" | "Gulf"
 }
+
+DIALECT IDENTIFICATION RULES:
+Identify the Gulf Arabic dialect based on vocabulary, phonology, and speech patterns. Use ONLY one of these exact string values:
+- "Saudi": Najdi/Hijazi — "وش"/"إيش" (what), "الحين" (now), "يبي"/"يبغى" (want), "يسير" (go), Najdi "g" for ق, "عيال" (kids), "شلون" (how are you).
+- "Kuwaiti": "شنو" (what), "هواية" (a lot), "چذي"/"چذا" (like this), distinctive "چ" for ك in some words, "يبه" (wow), "ليش" (why).
+- "UAE": "شو" with Levantine influence, "عيل" (then/so), "الحين" (now), "يلا" very frequent, Emirati "گ" for ق in some words, "شويه" (a bit).
+- "Bahraini": Hybrid "شو"/"شنو", "ب"-prefixed verbs (بيروح/بيجي), features shared with both Kuwaiti and Eastern Saudi.
+- "Qatari": "ش"-prefix interrogative patterns, "هاي" (this), Bedouin vocabulary influence, intonation distinct from Kuwaiti.
+- "Omani": "إيش"/"ايش" (what), "حق" (for/of), universal "j" for ج, "كيف" used as greeting response, Dhofari/Muscat variation.
+- "Gulf": ONLY if genuinely ambiguous — cannot be attributed to a single country with confidence.
+
+KEY SIGNALS:
+- What: شنو(KW/BH/QA) | وش/إيش(SA) | شو(UAE/BH) | إيش(OM)
+- Want: يبي/يبغى(SA/KW) | يريد(MSA — avoid)
+- Now: الحين(SA/UAE) | هلأ | الكيف(OM)
+- How/fine: شلون(SA/KW) | كيف(OM/formal) | زين(universal Gulf = good)
+- چ/گ consonant shifts → KW or UAE
+- ب-prefix on future verbs → BH
+- حق possessive → OM
 
 CRITICAL RULES FOR SPLITTING:
 1. MAXIMUM 12 words per line. If a sentence is longer, SPLIT IT at natural clause boundaries (و، ف، بس، يعني، لأن، عشان).
@@ -149,9 +175,12 @@ No additional text outside JSON.`;
 // ─── CALL 2 PROMPT ───────────────────────────────────────────────────────────
 // Analysis and enrichment. Receives the clean merged transcript from Call 1.
 // Produces per-line translations, vocabulary, and grammar points.
-const getAnalysisSystemPrompt = (isRetry: boolean = false) => {
+const getAnalysisSystemPrompt = (isRetry: boolean = false, dialect?: string) => {
   const strictPrefix = strictJsonPrefix(isRetry);
-  return `${strictPrefix}You are analyzing a Gulf Arabic transcript for language learners. You are given a clean pre-merged transcript split into numbered Arabic lines.
+  const dialectNote = dialect && dialect !== 'Gulf'
+    ? `\nThe audio is ${dialect} Gulf Arabic dialect. Prioritise ${dialect}-specific vocabulary, grammar patterns, and cultural notes in your output.`
+    : '\nThe audio is Gulf Arabic (Khaliji) dialect.';
+  return `${strictPrefix}You are analyzing a Gulf Arabic transcript for language learners. You are given a clean pre-merged transcript split into numbered Arabic lines.${dialectNote}
 
 Output ONLY valid JSON matching this schema:
 {
@@ -213,8 +242,11 @@ const getFanarValidationSystemPrompt = () =>
 // Used by Gemini 2.5 Flash (primary) and Qwen (fallback).
 // Receives the numbered merged transcript produced by Call 1.
 // Produces ONLY per-line translations — no vocabulary, no grammar.
-const getTranslationSystemPrompt = () =>
-  `You are a Gulf Arabic translator specializing in the Gulf/Khaliji dialect.
+const getTranslationSystemPrompt = (dialect?: string) => {
+  const dialectNote = dialect && dialect !== 'Gulf'
+    ? `${getDialectNote(dialect)} Reflect regional vocabulary and expressions in your translations where appropriate.`
+    : getDialectNote(undefined);
+  return `You are a Gulf Arabic translator specializing in the Gulf/Khaliji dialect.${dialectNote}
 You will be given numbered Arabic lines. Translate each line to natural English.
 
 Output ONLY valid JSON matching this schema:
@@ -227,6 +259,7 @@ Rules:
 - Keep each translation concise.
 
 No additional text outside JSON.`;
+};
 
 // Returned by the dedicated translation call (Gemini primary / Qwen fallback)
 type TranslationAI = { translations: string[] };
@@ -234,6 +267,7 @@ type TranslationAI = { translations: string[] };
 // Returned by Call 1 (merge only — no translations)
 type MergeOnlyAI = {
   lines: Array<{ arabic: string }>;
+  dialect?: 'Saudi' | 'Kuwaiti' | 'UAE' | 'Bahraini' | 'Qatari' | 'Omani' | 'Gulf';
 };
  
 type CallAIArgs = {
@@ -743,12 +777,13 @@ type MetaAI = {
 };
 
 // Fallback: use Qwen + Gemini via OpenRouter for translation when needed
-async function lovableAITranslate(arabicLines: string[], apiKey: string): Promise<string[]> {
+async function lovableAITranslate(arabicLines: string[], apiKey: string, dialect?: string): Promise<string[]> {
   const numberedLines = arabicLines.map((line, i) => `${i + 1}. ${line}`).join('\n');
+  const dialectNote = dialect ? getDialectNote(dialect, ' ') : '';
   const messages = [
     {
       role: "system",
-      content: "You are an expert translator specializing in Gulf Arabic (Khaliji) dialect. Translate each numbered Arabic line to natural English. Return ONLY the translations, numbered to match. No commentary.",
+      content: `You are an expert translator specializing in Gulf Arabic (Khaliji) dialect.${dialectNote} Translate each numbered Arabic line to natural English. Return ONLY the translations, numbered to match. No commentary.`,
     },
     {
       role: "user",
@@ -1000,7 +1035,8 @@ serve(async (req) => {
 
      // Store the merged transcript from Call 1
      const mergedLines = mergeOnlyAi.lines;
-     console.log('Call 1 complete:', mergedLines.length, 'merged Arabic lines stored.');
+     const detectedDialect = mergeOnlyAi.dialect ?? 'Gulf';
+     console.log('Call 1 complete:', mergedLines.length, 'merged Arabic lines. Detected dialect:', detectedDialect);
 
      // Build numbered merged transcript text to feed into translation and Call 2
      const mergedTranscriptText = mergedLines
@@ -1024,7 +1060,7 @@ serve(async (req) => {
         // Translation primary: Gemini 2.5 Pro via Lovable AI gateway
         callAI({
           model: 'google/gemini-2.5-pro',
-          systemPrompt: getTranslationSystemPrompt(),
+          systemPrompt: getTranslationSystemPrompt(detectedDialect),
           userContent: mergedTranscriptText,
           apiKey: '', // not used for lovable gateway
           gateway: 'lovable',
@@ -1032,7 +1068,7 @@ serve(async (req) => {
         }),
        // Call 2: vocabulary + grammar (Qwen, unchanged from Step 2)
        callAI({
-         systemPrompt: getAnalysisSystemPrompt(false),
+         systemPrompt: getAnalysisSystemPrompt(false, detectedDialect),
          userContent: mergedTranscriptText,
          apiKey: OPENROUTER_API_KEY,
          isRetry: false,
@@ -1088,7 +1124,7 @@ serve(async (req) => {
      if (!translationAi?.translations || translationAi.translations.length === 0) {
        console.log('Gemini translation failed or empty, falling back to Qwen for translation...');
        const qwenTransResp = await callAI({
-         systemPrompt: getTranslationSystemPrompt(),
+         systemPrompt: getTranslationSystemPrompt(detectedDialect),
          userContent: mergedTranscriptText,
          apiKey: OPENROUTER_API_KEY,
          maxTokens: 4096,
@@ -1116,7 +1152,7 @@ serve(async (req) => {
      if (!analysisAi?.lines || analysisAi.lines.length === 0) {
        console.log('Call 2 parse failed, retrying with stricter prompt...');
        const analysisRetry = await callAI({
-         systemPrompt: getAnalysisSystemPrompt(true),
+         systemPrompt: getAnalysisSystemPrompt(true, detectedDialect),
          userContent: mergedTranscriptText,
          apiKey: OPENROUTER_API_KEY,
          isRetry: true,
@@ -1235,6 +1271,7 @@ serve(async (req) => {
        grammarPoints,
        culturalContext,
        dialectValidation,
+       dialect: detectedDialect,
      };
 
      console.log(

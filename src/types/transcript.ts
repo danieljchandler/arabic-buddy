@@ -37,4 +37,5 @@ export type VocabItem = {
    grammarPoints: GrammarPoint[];
   culturalContext?: string;
   dialectValidation?: { content: string; timestamp: string } | null;
+  dialect?: 'Saudi' | 'Kuwaiti' | 'UAE' | 'Bahraini' | 'Qatari' | 'Omani' | 'Gulf';
 };

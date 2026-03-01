@@ -1,48 +1,34 @@
 
 
-## Switch Gemini 2.5 Pro Translation to Lovable AI Gateway
+## Fix Build Errors: Missing `fanarValidResp` and `dialectValidation` Type
 
 ### Problem
-The Gemini 2.5 Pro translation call in `analyze-gulf-arabic` currently goes through OpenRouter, which ran out of credits (402 error). Lovable AI gateway has `google/gemini-2.5-pro` available with pre-configured credits.
+Two build errors prevent the edge function from deploying:
 
-### Changes (single file: `supabase/functions/analyze-gulf-arabic/index.ts`)
+1. **`fanarValidResp` is undefined** -- The `Promise.all` on line 983 runs 4 parallel calls but only destructures 3 results: `[geminiTransResp, analysisResp, fanarMetaResp]`. The 4th result (Fanar dialect validation) is never captured, causing `fanarValidResp` to be undefined on lines 1028-1033.
 
-**1. Update `callAI` to support Lovable AI gateway**
+2. **`dialectValidation` not on `TranscriptResult` type** -- The edge function returns `dialectValidation` in its response (line 1164), and `Transcribe.tsx` reads it (line 741), but the `TranscriptResult` type in `src/types/transcript.ts` doesn't include this field.
 
-Add an optional `gateway` parameter (`'openrouter' | 'lovable'`) to the `CallAIArgs` type. When `gateway` is `'lovable'`:
-- Use URL: `https://ai.gateway.lovable.dev/v1/chat/completions`
-- Use `LOVABLE_API_KEY` instead of the passed `apiKey`
-- Keep all other logic (timeout, parsing, error handling) identical
+### Fix 1: Capture 4th Promise result (`analyze-gulf-arabic/index.ts`)
 
-**2. Switch the Gemini translation call to Lovable AI**
-
-Change lines 961-968 from:
+Change line 983 from:
 ```typescript
-callAI({
-  model: 'google/gemini-2.5-pro',
-  systemPrompt: getTranslationSystemPrompt(),
-  userContent: mergedTranscriptText,
-  apiKey: OPENROUTER_API_KEY,
-  maxTokens: 16384,
-})
+const [geminiTransResp, analysisResp, fanarMetaResp] = await Promise.all([
 ```
 To:
 ```typescript
-callAI({
-  model: 'google/gemini-2.5-pro',
-  systemPrompt: getTranslationSystemPrompt(),
-  userContent: mergedTranscriptText,
-  apiKey: '', // not used for lovable gateway
-  gateway: 'lovable',
-  maxTokens: 16384,
-})
+const [geminiTransResp, analysisResp, fanarMetaResp, fanarValidResp] = await Promise.all([
 ```
 
-**3. Read `LOVABLE_API_KEY` at the top** alongside the other env vars (it's already a configured secret).
+### Fix 2: Add `dialectValidation` to `TranscriptResult` type (`src/types/transcript.ts`)
 
-### What stays the same
-- Qwen calls continue through OpenRouter (unchanged)
-- Fanar calls continue through their direct API (unchanged)
-- Fallback logic: if Gemini fails, Qwen still handles translation as fallback
-- The function will be auto-deployed after the code change
+Add to the `TranscriptResult` type:
+```typescript
+dialectValidation?: { content: string; timestamp: string } | null;
+```
+
+### What this fixes
+- The edge function will compile and deploy successfully
+- Fanar dialect validation results will be properly captured and returned
+- The Transcribe page will be able to store dialect validation data without type errors
 

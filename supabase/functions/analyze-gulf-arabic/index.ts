@@ -25,6 +25,10 @@ function generateId(): string {
    arabic: string;
    english: string;
    root?: string;
+   culturalContext?: string;
+   idiomaticNuance?: string;
+   dialectNotes?: string;
+   exampleSentence?: { arabic: string; english: string };
  }
  
  interface GrammarPoint {
@@ -166,6 +170,32 @@ Rules:
 
 No additional text outside JSON.`;
 };
+
+// ─── VOCAB ENRICHMENT PROMPT ─────────────────────────────────────────────────
+// Sent to Claude Sonnet after the full vocab assembly (Qwen + Fanar union).
+// Claude enriches each item — it never replaces Qwen's output.
+const getVocabEnrichmentSystemPrompt = () =>
+  `You are enriching a Gulf Arabic vocabulary list for language learners.
+For each vocabulary item provided, add Gulf-specific depth.
+
+Output ONLY valid JSON matching this schema:
+{
+  "enrichments": [
+    {
+      "arabic": "<exact arabic word as given>",
+      "culturalContext": "<cultural context specific to Gulf/Khaliji usage>",
+      "idiomaticNuance": "<how the word is actually used vs its literal meaning>",
+      "dialectNotes": "<how this differs from MSA or other Arabic dialects — omit if not meaningfully different>",
+      "exampleSentence": { "arabic": "<natural Gulf Arabic sentence>", "english": "<translation>" }
+    }
+  ]
+}
+
+Rules:
+- One enrichment object per vocabulary item, matched by the exact arabic field value
+- Keep each field concise (1–2 sentences)
+- dialectNotes: only include when the word genuinely differs from MSA usage
+- Output ONLY valid JSON. No commentary outside JSON.`;
 
 // ─── FANAR DIALECT VALIDATION PROMPT ────────────────────────────────────────
 // Sent to Fanar-Sadiq after merge, in parallel with translation.
@@ -696,6 +726,16 @@ type AnalysisAI = {
   culturalContext?: string;
 };
 
+type ClaudeEnrichmentAI = {
+  enrichments: Array<{
+    arabic: string;
+    culturalContext?: string;
+    idiomaticNuance?: string;
+    dialectNotes?: string;
+    exampleSentence?: { arabic: string; english: string };
+  }>;
+};
+
 type MetaAI = {
   vocabulary: VocabItem[];
   grammarPoints: GrammarPoint[];
@@ -1145,6 +1185,37 @@ serve(async (req) => {
            culturalContext = fanarMetaAi.culturalContext;
            console.log('Using Fanar-Sadiq cultural context (richer)');
          }
+       }
+     }
+
+     // ── Step 5: Claude Sonnet vocabulary enrichment ──────────────────────────
+     // Runs after full vocab assembly (Qwen + Fanar union). Sequential.
+     // Non-blocking: any failure leaves vocab unchanged.
+     if (vocab.length > 0) {
+       try {
+         const vocabPayload = JSON.stringify(vocab.map(v => ({ arabic: v.arabic, english: v.english, root: v.root })));
+         const claudeEnrichResp = await callAI({
+           model: 'anthropic/claude-sonnet-4-5',
+           systemPrompt: getVocabEnrichmentSystemPrompt(),
+           userContent: `Vocabulary list to enrich:\n${vocabPayload}`,
+           apiKey: OPENROUTER_API_KEY,
+           maxTokens: 4096,
+         });
+         if (claudeEnrichResp.content) {
+           const claudeEnrichAi = safeJsonParse<ClaudeEnrichmentAI>(claudeEnrichResp.content);
+           if (claudeEnrichAi?.enrichments?.length) {
+             const enrichmentMap = new Map(claudeEnrichAi.enrichments.map(e => [e.arabic, e]));
+             vocab = vocab.map(item => {
+               const enrichment = enrichmentMap.get(item.arabic);
+               if (!enrichment) return item;
+               const { arabic: _arabic, ...fields } = enrichment;
+               return { ...item, ...fields };
+             });
+             console.log(`Claude enriched ${enrichmentMap.size} vocab items.`);
+           }
+         }
+       } catch (e) {
+         console.warn('Claude vocab enrichment failed (non-blocking):', e);
        }
      }
 

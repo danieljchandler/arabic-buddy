@@ -1,0 +1,237 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
+import type { Segment } from '@/types/transcript';
+import { splitSegment, mergeSegments } from '@/lib/transcriptOps';
+import { useUndoStack } from './useUndoStack';
+
+const DEBOUNCE_MS = 800;
+
+/**
+ * Core state management for the transcript editor.
+ * Handles split, merge, text edit, and timestamp changes
+ * with debounced persistence and undo support.
+ */
+export function useTranscriptEditor(
+  initialSegments: Segment[],
+  onSave?: (segments: Segment[]) => void,
+) {
+  const [segments, setSegments] = useState<Segment[]>(initialSegments);
+  const [staleTranslations, setStaleTranslations] = useState<Set<string>>(new Set());
+  const { push, undo, redo, canUndo, canRedo } = useUndoStack();
+  const saveTimer = useRef<ReturnType<typeof setTimeout>>();
+
+  // Sync with prop changes
+  useEffect(() => {
+    setSegments(initialSegments);
+  }, [initialSegments]);
+
+  const debounceSave = useCallback(
+    (segs: Segment[]) => {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+      saveTimer.current = setTimeout(() => {
+        onSave?.(segs);
+      }, DEBOUNCE_MS);
+    },
+    [onSave],
+  );
+
+  /** Split a segment at a word boundary. */
+  const split = useCallback(
+    (segmentId: string, splitAfterWordIndex: number) => {
+      setSegments(prev => {
+        const idx = prev.findIndex(s => s.id === segmentId);
+        if (idx === -1) return prev;
+
+        const original = prev[idx];
+        const [a, b] = splitSegment(original, splitAfterWordIndex);
+        push({ type: 'SplitOp', originalSegment: original, resultSegments: [a, b] });
+
+        const next = [...prev.slice(0, idx), a, b, ...prev.slice(idx + 1)];
+        debounceSave(next);
+        return next;
+      });
+    },
+    [push, debounceSave],
+  );
+
+  /** Merge segment at `index` with segment at `index + 1`. */
+  const merge = useCallback(
+    (index: number) => {
+      setSegments(prev => {
+        if (index < 0 || index >= prev.length - 1) return prev;
+
+        const a = prev[index];
+        const b = prev[index + 1];
+        const merged = mergeSegments(a, b);
+        push({ type: 'MergeOp', originalSegments: [a, b], resultSegment: merged });
+
+        const next = [...prev.slice(0, index), merged, ...prev.slice(index + 2)];
+        debounceSave(next);
+        return next;
+      });
+    },
+    [push, debounceSave],
+  );
+
+  /** Update the Arabic text of a segment. */
+  const editText = useCallback(
+    (segmentId: string, newText: string) => {
+      setSegments(prev => {
+        const idx = prev.findIndex(s => s.id === segmentId);
+        if (idx === -1) return prev;
+
+        const old = prev[idx];
+        push({ type: 'EditTextOp', segmentId, previousText: old.text, newText });
+
+        const updated = { ...old, text: newText };
+        const next = [...prev.slice(0, idx), updated, ...prev.slice(idx + 1)];
+
+        setStaleTranslations(s => new Set(s).add(segmentId));
+        debounceSave(next);
+        return next;
+      });
+    },
+    [push, debounceSave],
+  );
+
+  /** Shift a timestamp (start or end) on a segment. */
+  const shiftTimestamp = useCallback(
+    (segmentId: string, field: 'start' | 'end', newValue: number) => {
+      setSegments(prev => {
+        const idx = prev.findIndex(s => s.id === segmentId);
+        if (idx === -1) return prev;
+
+        const old = prev[idx];
+        push({ type: 'ShiftTimestampOp', segmentId, field, previousValue: old[field], newValue });
+
+        const updated = { ...old, [field]: newValue };
+        const next = [...prev.slice(0, idx), updated, ...prev.slice(idx + 1)];
+        debounceSave(next);
+        return next;
+      });
+    },
+    [push, debounceSave],
+  );
+
+  /** Replace Arabic text via AI (records as AIReplaceOp). */
+  const aiReplace = useCallback(
+    (segmentId: string, newText: string) => {
+      setSegments(prev => {
+        const idx = prev.findIndex(s => s.id === segmentId);
+        if (idx === -1) return prev;
+
+        const old = prev[idx];
+        push({ type: 'AIReplaceOp', segmentId, previousText: old.text, newText });
+
+        const updated = { ...old, text: newText };
+        const next = [...prev.slice(0, idx), updated, ...prev.slice(idx + 1)];
+
+        setStaleTranslations(s => new Set(s).add(segmentId));
+        debounceSave(next);
+        return next;
+      });
+    },
+    [push, debounceSave],
+  );
+
+  /** Replace all segments at once (e.g. after AI suggest-breaks). */
+  const replaceAll = useCallback(
+    (newSegments: Segment[]) => {
+      setSegments(newSegments);
+      debounceSave(newSegments);
+    },
+    [debounceSave],
+  );
+
+  /** Mark a translation as fresh after re-translating. */
+  const markTranslationFresh = useCallback((segmentId: string) => {
+    setStaleTranslations(prev => {
+      const next = new Set(prev);
+      next.delete(segmentId);
+      return next;
+    });
+  }, []);
+
+  /** Apply undo — reverse the last operation. */
+  const handleUndo = useCallback(() => {
+    const op = undo();
+    if (!op) return;
+
+    setSegments(prev => {
+      switch (op.type) {
+        case 'SplitOp': {
+          const idx = prev.findIndex(s => s.id === op.resultSegments[0].id);
+          if (idx === -1) return prev;
+          return [...prev.slice(0, idx), op.originalSegment, ...prev.slice(idx + 2)];
+        }
+        case 'MergeOp': {
+          const idx = prev.findIndex(s => s.id === op.resultSegment.id);
+          if (idx === -1) return prev;
+          return [...prev.slice(0, idx), ...op.originalSegments, ...prev.slice(idx + 1)];
+        }
+        case 'EditTextOp':
+        case 'AIReplaceOp': {
+          const idx = prev.findIndex(s => s.id === op.segmentId);
+          if (idx === -1) return prev;
+          return [...prev.slice(0, idx), { ...prev[idx], text: op.previousText }, ...prev.slice(idx + 1)];
+        }
+        case 'ShiftTimestampOp': {
+          const idx = prev.findIndex(s => s.id === op.segmentId);
+          if (idx === -1) return prev;
+          return [...prev.slice(0, idx), { ...prev[idx], [op.field]: op.previousValue }, ...prev.slice(idx + 1)];
+        }
+        default:
+          return prev;
+      }
+    });
+  }, [undo]);
+
+  /** Apply redo — reapply the last undone operation. */
+  const handleRedo = useCallback(() => {
+    const op = redo();
+    if (!op) return;
+
+    setSegments(prev => {
+      switch (op.type) {
+        case 'SplitOp': {
+          const idx = prev.findIndex(s => s.id === op.originalSegment.id);
+          if (idx === -1) return prev;
+          return [...prev.slice(0, idx), ...op.resultSegments, ...prev.slice(idx + 1)];
+        }
+        case 'MergeOp': {
+          const idx = prev.findIndex(s => s.id === op.originalSegments[0].id);
+          if (idx === -1) return prev;
+          return [...prev.slice(0, idx), op.resultSegment, ...prev.slice(idx + 2)];
+        }
+        case 'EditTextOp':
+        case 'AIReplaceOp': {
+          const idx = prev.findIndex(s => s.id === op.segmentId);
+          if (idx === -1) return prev;
+          return [...prev.slice(0, idx), { ...prev[idx], text: op.newText }, ...prev.slice(idx + 1)];
+        }
+        case 'ShiftTimestampOp': {
+          const idx = prev.findIndex(s => s.id === op.segmentId);
+          if (idx === -1) return prev;
+          return [...prev.slice(0, idx), { ...prev[idx], [op.field]: op.newValue }, ...prev.slice(idx + 1)];
+        }
+        default:
+          return prev;
+      }
+    });
+  }, [redo]);
+
+  return {
+    segments,
+    staleTranslations,
+    split,
+    merge,
+    editText,
+    shiftTimestamp,
+    aiReplace,
+    replaceAll,
+    markTranslationFresh,
+    handleUndo,
+    handleRedo,
+    canUndo,
+    canRedo,
+  };
+}

@@ -198,7 +198,7 @@ Rules:
 - Output ONLY valid JSON. No commentary outside JSON.`;
 
 // ─── FANAR DIALECT VALIDATION PROMPT ────────────────────────────────────────
-// Sent to Fanar-Sadiq after merge, in parallel with translation.
+// Sent to Fanar-C-2-27B after merge, in parallel with translation.
 // Read-only: result is stored for review, never used to modify transcript.
 const getFanarValidationSystemPrompt = () =>
   `أنت خبير في اللهجة الخليجية. راجع هذا النص المنقول وحدد أي مشاكل في:
@@ -1048,13 +1048,15 @@ serve(async (req) => {
              maxTokens: 2048,
            })
          : Promise.resolve({ content: null } as { content: string | null }),
-       // Fanar-Sadiq dialect validation — read-only, never blocks pipeline
+       // Fanar-C-2-27B dialect validation — read-only, never blocks pipeline
+       // Fanar-Sadiq is RAG/knowledge-base only — it returns "no info in my KB"
+       // for linguistic analysis tasks. Fanar-C-2-27B is the general chat model.
        fanarLlmAvailable
          ? callFanar({
              systemPrompt: getFanarValidationSystemPrompt(),
              userContent: mergedTranscriptText,
              apiKey: FANAR_API_KEY!,
-             model: 'Fanar-Sadiq',
+             model: 'Fanar-C-2-27B',
              maxTokens: 1024,
            }).catch((e) => {
              console.warn('Fanar dialect validation failed (non-blocking):', e);

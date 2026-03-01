@@ -66,8 +66,8 @@ serve(async (req) => {
       if (!audioResponse.ok) {
         console.error(`Failed to fetch audio: ${audioResponse.status}`);
         return new Response(
-          JSON.stringify({ error: "Failed to fetch audio from URL", status: audioResponse.status }),
-          { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          JSON.stringify({ text: null, error: "Failed to fetch audio from URL", status: audioResponse.status }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
 

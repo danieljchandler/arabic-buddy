@@ -980,7 +980,7 @@ serve(async (req) => {
      // =====================================================================
      console.log('Translation (Gemini) and analysis (Qwen) running in parallel...');
 
-      const [geminiTransResp, analysisResp, fanarMetaResp] = await Promise.all([
+      const [geminiTransResp, analysisResp, fanarMetaResp, fanarValidResp] = await Promise.all([
         // Translation primary: Gemini 2.5 Pro via Lovable AI gateway
         callAI({
           model: 'google/gemini-2.5-pro',

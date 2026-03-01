@@ -309,8 +309,9 @@ const AdminVideoForm = () => {
         body: munsitFormData,
         signal: AbortSignal.timeout(300000),
       }).then(async (res) => {
-        if (!res.ok) throw new Error(`Munsit HTTP ${res.status}`);
-        return res.json();
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok && !body.text) throw new Error(body.error || `Munsit HTTP ${res.status}`);
+        return body as { text?: string | null; error?: string };
       });
 
       const deepgramFormData = new FormData();
@@ -333,8 +334,9 @@ const AdminVideoForm = () => {
         body: fanarFormData,
         signal: AbortSignal.timeout(300000),
       }).then(async (res) => {
-        if (!res.ok) throw new Error(`Fanar HTTP ${res.status}`);
-        return res.json();
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok && !body.text) throw new Error(body.error || `Fanar HTTP ${res.status}`);
+        return body as { text?: string | null; reason?: string };
       });
 
       const [munsitResult, deepgramResult, fanarResult] = await Promise.allSettled([

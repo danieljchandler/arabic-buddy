@@ -35,5 +35,6 @@ export type VocabItem = {
    lines: TranscriptLine[];
    vocabulary: VocabItem[];
    grammarPoints: GrammarPoint[];
-   culturalContext?: string;
- };
+  culturalContext?: string;
+  dialectValidation?: { content: string; timestamp: string } | null;
+};

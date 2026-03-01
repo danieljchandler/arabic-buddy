@@ -351,6 +351,9 @@ const AdminVideoForm = () => {
 
       // Log results
       if (munsitResult.status === "rejected") console.warn("Munsit failed:", munsitResult.reason);
+      else if (munsitResult.status === "fulfilled" && !munsitResult.value.text && munsitResult.value.error) {
+        console.warn("Munsit failed (non-blocking):", munsitResult.value.error);
+      }
       if (deepgramResult.status === "rejected") console.warn("Deepgram failed:", deepgramResult.reason);
       if (fanarResult.status === "rejected") console.warn("Fanar failed:", fanarResult.reason);
       else if (fanarResult.status === "fulfilled" && !fanarResult.value.text && fanarResult.value.reason) {

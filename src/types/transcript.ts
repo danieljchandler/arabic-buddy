@@ -39,3 +39,50 @@ export type VocabItem = {
   dialectValidation?: { content: string; timestamp: string } | null;
   dialect?: 'Saudi' | 'Kuwaiti' | 'UAE' | 'Bahraini' | 'Qatari' | 'Omani' | 'Gulf';
 };
+
+// ── Transcript Editor types (ASR word-level segments) ──────────────
+
+/** A single word with timing data from ASR output. */
+export type Word = {
+  word: string;
+  start: number;      // seconds
+  end: number;        // seconds
+  confidence: number; // 0–1
+};
+
+/** A subtitle segment composed of timed words. */
+export type Segment = {
+  id: string;
+  video_id: string;
+  start: number;       // seconds
+  end: number;         // seconds
+  text: string;        // Arabic
+  translation: string; // English
+  confidence: number;  // average of word confidences
+  words: Word[];
+  speaker?: string;
+};
+
+/** Operation types for the undo stack. */
+export type UndoOperation =
+  | { type: 'SplitOp'; originalSegment: Segment; resultSegments: [Segment, Segment] }
+  | { type: 'MergeOp'; originalSegments: [Segment, Segment]; resultSegment: Segment }
+  | { type: 'EditTextOp'; segmentId: string; previousText: string; newText: string }
+  | { type: 'ShiftTimestampOp'; segmentId: string; field: 'start' | 'end'; previousValue: number; newValue: number }
+  | { type: 'AIReplaceOp'; segmentId: string; previousText: string; newText: string };
+
+/** Result of gap analysis between segments. */
+export type GapWarning = {
+  type: 'gap' | 'overlap' | 'too-short' | 'too-long';
+  severity: 'warning' | 'error';
+  message: string;
+  segmentIndex: number;
+  /** Second segment index (for gap/overlap between two segments). */
+  segmentIndexB?: number;
+};
+
+/** Publish-checklist item. */
+export type PublishCheckItem = {
+  label: string;
+  passed: boolean;
+};

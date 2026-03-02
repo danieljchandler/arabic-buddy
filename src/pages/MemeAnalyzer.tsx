@@ -14,56 +14,7 @@ import { useAddUserVocabulary } from "@/hooks/useUserVocabulary";
 import type { MemeAnalysisResult } from "@/types/meme";
 import type { VocabItem } from "@/types/transcript";
 import { AppShell } from "@/components/layout/AppShell";
-
-/**
- * Extract evenly-spaced frames from a video as base64 JPEG strings
- */
-async function extractVideoFrames(file: File, numFrames = 4): Promise<string[]> {
-  return new Promise((resolve, reject) => {
-    const video = document.createElement("video");
-    video.preload = "auto";
-    video.muted = true;
-    const url = URL.createObjectURL(file);
-    video.src = url;
-
-    video.onloadedmetadata = async () => {
-      const duration = video.duration;
-      const canvas = document.createElement("canvas");
-      // Cap resolution to reduce base64 size
-      const maxDim = 1024;
-      const scale = Math.min(1, maxDim / Math.max(video.videoWidth, video.videoHeight));
-      canvas.width = Math.round(video.videoWidth * scale);
-      canvas.height = Math.round(video.videoHeight * scale);
-      const ctx = canvas.getContext("2d")!;
-      const frames: string[] = [];
-
-      const seekToTime = (time: number): Promise<void> =>
-        new Promise((res) => {
-          video.currentTime = time;
-          video.onseeked = () => res();
-        });
-
-      try {
-        for (let i = 0; i < numFrames; i++) {
-          const time = (duration / (numFrames + 1)) * (i + 1);
-          await seekToTime(time);
-          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-          frames.push(canvas.toDataURL("image/jpeg", 0.7));
-        }
-        URL.revokeObjectURL(url);
-        resolve(frames);
-      } catch (e) {
-        URL.revokeObjectURL(url);
-        reject(e);
-      }
-    };
-
-    video.onerror = () => {
-      URL.revokeObjectURL(url);
-      reject(new Error("Failed to load video"));
-    };
-  });
-}
+import { extractFramesWithTimestamps } from "@/lib/videoFrameExtractor";
 
 /**
  * Convert an image file to base64 data URI
@@ -188,11 +139,11 @@ const MemeAnalyzer = () => {
       let audioTranscript: string | undefined;
 
       if (isVideo) {
-        // Extract frames for vision
+        // Extract frames for vision (up to 4 evenly-spaced frames)
         setProgress(10);
         toast.info("Extracting video frames...");
-        const frames = await extractVideoFrames(file, 4);
-        imageBase64 = frames;
+        const videoFrames = await extractFramesWithTimestamps(file, 4, 4, 1024);
+        imageBase64 = videoFrames.map((f) => f.dataUri);
 
         // Transcribe audio via Deepgram
         setProgress(30);

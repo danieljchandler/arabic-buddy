@@ -34,6 +34,7 @@ export default function Toolbar({
 }: ToolbarProps) {
   const [showChecklist, setShowChecklist] = useState(false);
   const [showWarnings, setShowWarnings] = useState(false);
+  const [showShortcuts, setShowShortcuts] = useState(false);
 
   const warnings: GapWarning[] = analyseGaps(segments);
   const checklist: PublishCheckItem[] = runPublishChecklist(segments);
@@ -141,6 +142,15 @@ export default function Toolbar({
         📋 Checklist
       </button>
 
+      {/* Keyboard shortcuts */}
+      <button
+        className="px-2 py-1 text-xs rounded bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 transition-colors"
+        onClick={() => setShowShortcuts(!showShortcuts)}
+        title="Keyboard shortcuts"
+      >
+        ⌨ Shortcuts
+      </button>
+
       {/* Warning details dropdown */}
       {showWarnings && warnings.length > 0 && (
         <div className="basis-full mt-1 rounded border border-gray-200 dark:border-gray-700 p-2 text-xs space-y-1">
@@ -166,6 +176,31 @@ export default function Toolbar({
               <span>{item.label}</span>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Keyboard shortcuts panel */}
+      {showShortcuts && (
+        <div className="basis-full mt-1 rounded border border-gray-200 dark:border-gray-700 p-2 text-xs">
+          <table className="w-full border-separate border-spacing-y-0.5">
+            <tbody>
+              {[
+                { keys: '[ / ]', action: 'Nudge active segment start ±100ms (ripples neighbors)' },
+                { keys: '{ / }', action: 'Nudge active segment end ±100ms (ripples neighbors)' },
+                { keys: 'Ctrl+Z', action: 'Undo (including ripple cascades)' },
+                { keys: 'Ctrl+⇧+Z', action: 'Redo' },
+                { keys: 'Enter', action: 'Split segment at cursor (in edit mode)' },
+                { keys: '⌘Enter', action: 'Commit text edit without splitting' },
+                { keys: 'Esc', action: 'Cancel text edit' },
+                { keys: 'Drag handle', action: 'Adjust start/end time — turns orange when rippling neighbors' },
+              ].map(({ keys, action }) => (
+                <tr key={keys} className="text-muted-foreground">
+                  <td className="font-mono pr-3 text-right whitespace-nowrap text-foreground">{keys}</td>
+                  <td>{action}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </div>

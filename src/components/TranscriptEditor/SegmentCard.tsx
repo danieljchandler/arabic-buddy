@@ -13,6 +13,7 @@ interface SegmentCardProps {
   prevSegmentEnd?: number;
   nextSegmentStart?: number;
   onSplit: (segmentId: string, splitAfterWordIndex: number) => void;
+  onSplitAtCursor: (segmentId: string, cursorPos: number, currentText: string) => void;
   onEditText: (segmentId: string, newText: string) => void;
   onStartChange: (segmentId: string, value: number) => void;
   onEndChange: (segmentId: string, value: number) => void;
@@ -32,8 +33,9 @@ function confidenceBadgeColor(confidence: number): string {
  * - RTL Arabic text with per-word confidence coloring
  * - Inline editing via contentEditable
  * - Confidence badge
- * - Timestamp scrubber
+ * - Timestamp scrubber with ripple support
  * - Split (✂) on word boundary hover
+ * - Enter key in edit mode to split at cursor position
  * - AI Fix Arabic and Re-translate buttons
  */
 export default function SegmentCard({
@@ -45,6 +47,7 @@ export default function SegmentCard({
   prevSegmentEnd,
   nextSegmentStart,
   onSplit,
+  onSplitAtCursor,
   onEditText,
   onStartChange,
   onEndChange,
@@ -79,7 +82,19 @@ export default function SegmentCard({
   }, [editValue, onEditText, segment.id, segment.text]);
 
   const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
+    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      // Plain Enter = split segment at cursor position
+      if (e.key === 'Enter' && !e.metaKey && !e.ctrlKey && !e.shiftKey) {
+        e.preventDefault();
+        const cursorPos = e.currentTarget.selectionStart ?? 0;
+        const textBefore = editValue.slice(0, cursorPos).trim();
+        const textAfter = editValue.slice(cursorPos).trim();
+        if (textBefore && textAfter) {
+          setEditing(false);
+          onSplitAtCursor(segment.id, cursorPos, editValue);
+        }
+        return;
+      }
       // Cmd/Ctrl+Enter to commit edit
       if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
@@ -91,7 +106,7 @@ export default function SegmentCard({
         setEditValue(segment.text);
       }
     },
-    [handleEditDone, segment.text],
+    [handleEditDone, segment.id, segment.text, editValue, onSplitAtCursor],
   );
 
   return (
@@ -148,16 +163,21 @@ export default function SegmentCard({
 
       {/* Arabic text (RTL) */}
       {editing ? (
-        <textarea
-          dir="rtl"
-          className="w-full text-right font-cairo text-base rounded border border-blue-400 p-1.5 bg-white dark:bg-gray-900 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
-          value={editValue}
-          onChange={e => setEditValue(e.target.value)}
-          onBlur={handleEditDone}
-          onKeyDown={handleKeyDown}
-          rows={2}
-          autoFocus
-        />
+        <div>
+          <textarea
+            dir="rtl"
+            className="w-full text-right font-cairo text-base rounded border border-blue-400 p-1.5 bg-white dark:bg-gray-900 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+            value={editValue}
+            onChange={e => setEditValue(e.target.value)}
+            onBlur={handleEditDone}
+            onKeyDown={handleKeyDown}
+            rows={2}
+            autoFocus
+          />
+          <p className="text-[9px] text-muted-foreground mt-0.5">
+            Enter — split here &nbsp;·&nbsp; ⌘Enter — save &nbsp;·&nbsp; Esc — cancel
+          </p>
+        </div>
       ) : (
         <div className="min-h-[2em]">
           <WordConfidence
@@ -178,12 +198,13 @@ export default function SegmentCard({
         <span>{segment.translation || <em aria-label="Missing translation">(no translation)</em>}</span>
       </div>
 
-      {/* Timestamp scrubber */}
+      {/* Timestamp scrubber with ripple enabled */}
       <TimestampScrubber
         start={segment.start}
         end={segment.end}
         minStart={prevSegmentEnd ?? 0}
         maxEnd={nextSegmentStart}
+        allowRipple
         onStartChange={v => onStartChange(segment.id, v)}
         onEndChange={v => onEndChange(segment.id, v)}
       />

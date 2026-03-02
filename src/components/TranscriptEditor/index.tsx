@@ -39,6 +39,8 @@ export default function TranscriptEditor({
     merge,
     editText,
     shiftTimestamp,
+    shiftTimestampRipple,
+    splitAtCursor,
     aiReplace,
     replaceAll,
     handleUndo,
@@ -72,16 +74,16 @@ export default function TranscriptEditor({
         if (!seg) return;
 
         if (e.key === '[') {
-          shiftTimestamp(seg.id, 'start', Math.max(0, seg.start - 0.1));
+          shiftTimestampRipple(seg.id, 'start', Math.max(0, seg.start - 0.1));
         }
         if (e.key === ']') {
-          shiftTimestamp(seg.id, 'start', seg.start + 0.1);
+          shiftTimestampRipple(seg.id, 'start', seg.start + 0.1);
         }
         if (e.key === '{') {
-          shiftTimestamp(seg.id, 'end', Math.max(seg.start + 0.1, seg.end - 0.1));
+          shiftTimestampRipple(seg.id, 'end', Math.max(seg.start + 0.1, seg.end - 0.1));
         }
         if (e.key === '}') {
-          shiftTimestamp(seg.id, 'end', seg.end + 0.1);
+          shiftTimestampRipple(seg.id, 'end', seg.end + 0.1);
         }
       }
     };
@@ -177,10 +179,11 @@ export default function TranscriptEditor({
             activeWordIndex={activeWordIndex}
             staleTranslations={staleTranslations}
             onSplit={split}
+            onSplitAtCursor={splitAtCursor}
             onMerge={merge}
             onEditText={editText}
-            onStartChange={(id, v) => shiftTimestamp(id, 'start', v)}
-            onEndChange={(id, v) => shiftTimestamp(id, 'end', v)}
+            onStartChange={(id, v) => shiftTimestampRipple(id, 'start', v)}
+            onEndChange={(id, v) => shiftTimestampRipple(id, 'end', v)}
             onFixArabic={handleFixArabic}
             onSeek={seekToSegment}
           />

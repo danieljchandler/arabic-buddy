@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { avg, splitSegment, mergeSegments } from './transcriptOps';
+import { avg, splitSegment, mergeSegments, splitSegmentAtCursor } from './transcriptOps';
 import type { Segment } from '@/types/transcript';
 
 function makeSegment(overrides: Partial<Segment> = {}): Segment {
@@ -126,5 +126,54 @@ describe('mergeSegments', () => {
     const merged = mergeSegments(a, b);
 
     expect(merged.confidence).toBeCloseTo(0.75);
+  });
+});
+
+describe('splitSegmentAtCursor', () => {
+  it('splits after first word when cursor falls at end of first word', () => {
+    const seg = makeSegment(); // text: 'مرحبا كيف حالك'
+    // 'مرحبا' is 5 chars; cursor at 5 → after first word
+    const [a, b] = splitSegmentAtCursor(seg, 5, seg.text);
+    expect(a.words).toHaveLength(1);
+    expect(b.words).toHaveLength(2);
+    expect(a.end).toBe(1); // word boundary timing
+    expect(b.start).toBe(1);
+  });
+
+  it('splits after second word when cursor falls in the space between word 2 and 3', () => {
+    const seg = makeSegment(); // text: 'مرحبا كيف حالك', word2 ends at char 9
+    // 'مرحبا كيف' = 9 chars; cursor at 9 → after word index 1
+    const [a, b] = splitSegmentAtCursor(seg, 9, seg.text);
+    expect(a.words).toHaveLength(2);
+    expect(b.words).toHaveLength(1);
+    expect(a.end).toBe(2);
+    expect(b.start).toBe(2);
+  });
+
+  it('falls back to interpolation when text is edited and words do not match', () => {
+    const seg = makeSegment();
+    const editedText = 'مرحبا جميل كيف حالك'; // extra word inserted
+    // cursor at position 12 (roughly middle)
+    const [a, b] = splitSegmentAtCursor(seg, 12, editedText);
+    expect(a.text).toBe(editedText.slice(0, 12).trim());
+    expect(b.text).toBe(editedText.slice(12).trim());
+    // Timing is interpolated: start 0, end 3; ratio ≈ 12/19
+    const ratio = 12 / editedText.length;
+    const expectedSplit = Math.round((0 + ratio * 3) * 1000) / 1000;
+    expect(a.end).toBeCloseTo(expectedSplit, 2);
+    expect(b.start).toBeCloseTo(expectedSplit, 2);
+  });
+
+  it('throws when cursor leaves no text on one side', () => {
+    const seg = makeSegment();
+    expect(() => splitSegmentAtCursor(seg, 0, seg.text)).toThrow(RangeError);
+    expect(() => splitSegmentAtCursor(seg, seg.text.length, seg.text)).toThrow(RangeError);
+  });
+
+  it('assigns new id to right segment and keeps original id on left', () => {
+    const seg = makeSegment();
+    const [a, b] = splitSegmentAtCursor(seg, 5, seg.text);
+    expect(a.id).toBe(seg.id);
+    expect(b.id).not.toBe(seg.id);
   });
 });

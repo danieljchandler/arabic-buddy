@@ -69,7 +69,8 @@ export type UndoOperation =
   | { type: 'MergeOp'; originalSegments: [Segment, Segment]; resultSegment: Segment }
   | { type: 'EditTextOp'; segmentId: string; previousText: string; newText: string }
   | { type: 'ShiftTimestampOp'; segmentId: string; field: 'start' | 'end'; previousValue: number; newValue: number }
-  | { type: 'AIReplaceOp'; segmentId: string; previousText: string; newText: string };
+  | { type: 'AIReplaceOp'; segmentId: string; previousText: string; newText: string }
+  | { type: 'RippleTimestampOp'; changes: Array<{ segmentId: string; field: 'start' | 'end'; previousValue: number; newValue: number }> };
 
 /** Result of gap analysis between segments. */
 export type GapWarning = {

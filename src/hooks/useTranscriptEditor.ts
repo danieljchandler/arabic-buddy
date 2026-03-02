@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Segment } from '@/types/transcript';
-import { splitSegment, mergeSegments } from '@/lib/transcriptOps';
+import { splitSegment, mergeSegments, splitSegmentAtCursor } from '@/lib/transcriptOps';
 import { useUndoStack } from './useUndoStack';
 
 const DEFAULT_DEBOUNCE_MS = 800;
@@ -113,6 +113,82 @@ export function useTranscriptEditor(
     [push, debounceSave],
   );
 
+  /**
+   * Shift a timestamp and ripple to neighboring segments if needed.
+   * When extending segment[i]'s end past segment[i+1]'s start, pushes
+   * segment[i+1].start forward (cascading right). When pulling segment[i]'s
+   * start before segment[i-1]'s end, pushes segment[i-1].end backward
+   * (cascading left). All changes are recorded in a single RippleTimestampOp
+   * so undo reverses the entire cascade atomically.
+   */
+  const shiftTimestampRipple = useCallback(
+    (segmentId: string, field: 'start' | 'end', newValue: number) => {
+      setSegments(prev => {
+        const idx = prev.findIndex(s => s.id === segmentId);
+        if (idx === -1) return prev;
+
+        const next = prev.map(s => ({ ...s }));
+        const changes: Array<{ segmentId: string; field: 'start' | 'end'; previousValue: number; newValue: number }> = [];
+
+        const record = (i: number, f: 'start' | 'end', oldVal: number, newVal: number) => {
+          changes.push({ segmentId: next[i].id, field: f, previousValue: oldVal, newValue: newVal });
+          next[i] = { ...next[i], [f]: newVal };
+        };
+
+        record(idx, field, prev[idx][field], newValue);
+
+        if (field === 'end') {
+          // Ripple right: push subsequent segments' starts if they overlap.
+          for (let i = idx + 1; i < next.length; i++) {
+            if (next[i].start < next[i - 1].end) {
+              const oldStart = next[i].start;
+              record(i, 'start', oldStart, Math.round(next[i - 1].end * 1000) / 1000);
+            } else {
+              break;
+            }
+          }
+        } else {
+          // Ripple left: push preceding segments' ends if they overlap.
+          for (let i = idx - 1; i >= 0; i--) {
+            if (next[i].end > next[i + 1].start) {
+              const oldEnd = next[i].end;
+              record(i, 'end', oldEnd, Math.round(next[i + 1].start * 1000) / 1000);
+            } else {
+              break;
+            }
+          }
+        }
+
+        push({ type: 'RippleTimestampOp', changes });
+        debounceSave(next);
+        return next;
+      });
+    },
+    [push, debounceSave],
+  );
+
+  /**
+   * Split a segment at a cursor position within the edited text.
+   * Uses word-level timing when possible; falls back to interpolation.
+   */
+  const splitAtCursor = useCallback(
+    (segmentId: string, cursorPos: number, currentText: string) => {
+      setSegments(prev => {
+        const idx = prev.findIndex(s => s.id === segmentId);
+        if (idx === -1) return prev;
+
+        const original = prev[idx];
+        const [a, b] = splitSegmentAtCursor(original, cursorPos, currentText);
+        push({ type: 'SplitOp', originalSegment: original, resultSegments: [a, b] });
+
+        const next = [...prev.slice(0, idx), a, b, ...prev.slice(idx + 1)];
+        debounceSave(next);
+        return next;
+      });
+    },
+    [push, debounceSave],
+  );
+
   /** Replace Arabic text via AI (records as AIReplaceOp). */
   const aiReplace = useCallback(
     (segmentId: string, newText: string) => {
@@ -180,6 +256,12 @@ export function useTranscriptEditor(
           if (idx === -1) return prev;
           return [...prev.slice(0, idx), { ...prev[idx], [op.field]: op.previousValue }, ...prev.slice(idx + 1)];
         }
+        case 'RippleTimestampOp': {
+          return prev.map(seg => {
+            const change = op.changes.find(c => c.segmentId === seg.id);
+            return change ? { ...seg, [change.field]: change.previousValue } : seg;
+          });
+        }
         default:
           return prev;
       }
@@ -214,6 +296,12 @@ export function useTranscriptEditor(
           if (idx === -1) return prev;
           return [...prev.slice(0, idx), { ...prev[idx], [op.field]: op.newValue }, ...prev.slice(idx + 1)];
         }
+        case 'RippleTimestampOp': {
+          return prev.map(seg => {
+            const change = op.changes.find(c => c.segmentId === seg.id);
+            return change ? { ...seg, [change.field]: change.newValue } : seg;
+          });
+        }
         default:
           return prev;
       }
@@ -227,6 +315,8 @@ export function useTranscriptEditor(
     merge,
     editText,
     shiftTimestamp,
+    shiftTimestampRipple,
+    splitAtCursor,
     aiReplace,
     replaceAll,
     markTranslationFresh,

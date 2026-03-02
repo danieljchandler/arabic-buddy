@@ -57,6 +57,75 @@ export function splitSegment(
 }
 
 /**
+ * Split a segment at a cursor position within text.
+ *
+ * Attempts to find the word boundary that the cursor falls after by accumulating
+ * character lengths. Falls back to time-interpolation when words don't match
+ * the current (possibly edited) text.
+ *
+ * @param segment    - The segment to split.
+ * @param cursorPos  - Character index within `currentText` where the split should occur.
+ * @param currentText - The text as currently shown in the editor (may differ from segment.text after edits).
+ * @returns A tuple `[leftSegment, rightSegment]`.
+ */
+export function splitSegmentAtCursor(
+  segment: Segment,
+  cursorPos: number,
+  currentText: string,
+): [Segment, Segment] {
+  const textBefore = currentText.slice(0, cursorPos).trim();
+  const textAfter = currentText.slice(cursorPos).trim();
+
+  if (!textBefore || !textAfter) {
+    throw new RangeError('cursorPos must leave non-empty text on both sides');
+  }
+
+  // Try to map cursor position to a word index by walking through segment.words.
+  // Words are joined with spaces: "w0 w1 w2 ..."
+  let charCount = 0;
+  let splitAfterWordIndex = -1;
+  for (let i = 0; i < segment.words.length; i++) {
+    if (i > 0) charCount += 1; // space between words
+    charCount += segment.words[i].word.length;
+    if (charCount >= cursorPos && i < segment.words.length - 1) {
+      splitAfterWordIndex = i;
+      break;
+    }
+  }
+
+  if (splitAfterWordIndex >= 0) {
+    // Clean word-level split with accurate timing.
+    return splitSegment(segment, splitAfterWordIndex);
+  }
+
+  // Fallback: interpolate split time by character-position ratio.
+  const ratio = Math.max(0.01, Math.min(0.99, cursorPos / currentText.length));
+  const splitTime = Math.round((segment.start + ratio * (segment.end - segment.start)) * 1000) / 1000;
+
+  const leftWords = segment.words.filter(w => w.end <= splitTime);
+  const rightWords = segment.words.filter(w => w.start >= splitTime);
+
+  const segA: Segment = {
+    ...segment,
+    end: splitTime,
+    text: textBefore,
+    words: leftWords,
+    confidence: leftWords.length > 0 ? avg(leftWords.map(w => w.confidence)) : segment.confidence,
+  };
+
+  const segB: Segment = {
+    ...segment,
+    id: crypto.randomUUID(),
+    start: splitTime,
+    text: textAfter,
+    words: rightWords,
+    confidence: rightWords.length > 0 ? avg(rightWords.map(w => w.confidence)) : segment.confidence,
+  };
+
+  return [segA, segB];
+}
+
+/**
  * Merge two adjacent segments into one.
  *
  * @param segA - The earlier segment (by time).

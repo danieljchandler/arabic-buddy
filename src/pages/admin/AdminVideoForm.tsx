@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Loader2, ArrowLeft, Sparkles, Save, Upload, Download, Plus, Trash2 } from "lucide-react";
-import { EditableTranscript } from "@/components/admin/EditableTranscript";
+import { AdminTranscriptEditor } from "@/components/admin/AdminTranscriptEditor";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import type { TranscriptLine } from "@/types/transcript";
@@ -787,7 +787,7 @@ const AdminVideoForm = () => {
                   <input id="audio-upload-transcript" type="file" accept="audio/*,video/*" className="hidden" aria-label="Upload audio or video file for transcript playback" onChange={handleFileUpload} />
                 </div>
               )}
-              <EditableTranscript
+              <AdminTranscriptEditor
                 lines={transcriptLines}
                 onChange={setTranscriptLines}
                 audioUrl={stableAudioUrl}

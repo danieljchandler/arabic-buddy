@@ -3,7 +3,7 @@ import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { useTopics } from '@/hooks/useTopics';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, LogOut, BookOpen, Plus, Settings, Mic, PlayCircle, Upload, GraduationCap, ChartBar } from 'lucide-react';
+import { Loader2, LogOut, BookOpen, Plus, Settings, Mic, PlayCircle, Upload, GraduationCap } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 import lahjaIcon from '@/assets/lahja-icon.png';
@@ -157,20 +157,6 @@ const Dashboard = () => {
                     <div>
                       <h3 className="font-semibold text-lg">Manage Videos</h3>
                       <p className="text-muted-foreground">Add and manage Discover videos</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/admin/llm-logs')}>
-                <CardContent className="pt-6">
-                  <div className="flex items-center gap-4">
-                    <div className="bg-primary/10 rounded-full p-4">
-                      <ChartBar className="h-8 w-8 text-primary" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-lg">LLM Usage Logs</h3>
-                      <p className="text-muted-foreground">See which LLM handled each "How do I say" request</p>
                     </div>
                   </div>
                 </CardContent>

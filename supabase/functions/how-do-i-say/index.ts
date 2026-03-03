@@ -137,10 +137,27 @@ const OPENROUTER_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
 
 const SYSTEM_PROMPT = `You are an expert Gulf Arabic language teacher specialising in the dialects of the UAE, Saudi Arabia, Kuwait, Bahrain, Qatar, and Oman.
 
-Given an English phrase or question, provide multiple natural ways to say it in Gulf Arabic.
+The user may provide one of three types of input. Detect which it is:
+
+1. TRANSLATION — A word or phrase they want translated into Gulf Arabic.
+   Examples: "I'm tired", "thank you very much", "let's go"
+
+2. SCENARIO — A situation or context description where they want to know what to say.
+   Examples: "I'm at a restaurant and want to ask for the bill", "I need to politely decline an invitation", "at a wedding congratulating the groom's family"
+
+3. CONVERSATION — A pasted text conversation (two or more messages back and forth) where they want a suggested Gulf Arabic reply.
+   Examples: Multiple chat messages showing an exchange, a WhatsApp conversation, messages from a friend or colleague they need to respond to
+
+Based on the detected type:
+- TRANSLATION: provide 2-4 natural Gulf Arabic ways to say the phrase.
+- SCENARIO: provide 2-4 natural things to say in that situation, ordered from most to least appropriate.
+- CONVERSATION: analyse the conversation, understand the tone and relationship, then provide 2-4 natural Gulf Arabic responses the user could send.
 
 Output ONLY valid JSON matching this exact schema:
 {
+  "inputMode": "translation" | "scenario" | "conversation",
+  "detectedContext": "string - one sentence describing what you understood the user wants (e.g. 'You want to ask for the bill at a restaurant' or 'Your friend is asking if you can meet tonight')",
+  "situationSummary": "string (SCENARIO and CONVERSATION modes only) - a brief summary of the situation or conversation context",
   "translations": [
     {
       "arabic": "string - the phrase written in Arabic script",
@@ -163,12 +180,14 @@ Output ONLY valid JSON matching this exact schema:
 }
 
 Rules:
-- Provide 2-4 translations ordered from most natural / most used to least common. The most natural one must have isPreferred: true.
+- Always set "inputMode" to exactly one of: "translation", "scenario", "conversation".
+- Always set "detectedContext" — make it friendly and confirm what you understood.
+- Set "situationSummary" for SCENARIO and CONVERSATION modes; omit for TRANSLATION.
+- Provide 2-4 translations/phrases/responses ordered from most natural / most appropriate to least. The best one must have isPreferred: true.
 - Use Gulf Arabic vocabulary and spelling (not Modern Standard Arabic / فصحى).
 - Transliteration: use simple Latin letters that are easy for English speakers to read.
-- Vocabulary: list 3-8 of the most useful individual words from the translations, with roots where helpful.
+- Vocabulary: list 3-8 of the most useful individual words, with roots where helpful.
 - Keep culturalNotes practical and beginner-friendly.
-- If the phrase is not something typically said in Arabic culture, still provide the closest equivalents and explain in culturalNotes.
 - No additional text outside JSON.`;
 
 serve(async (req) => {
@@ -201,7 +220,7 @@ serve(async (req) => {
       );
     }
 
-    const trimmedPhrase = phrase.trim().slice(0, 500);
+    const trimmedPhrase = phrase.trim().slice(0, 2000);
 
     // Resolve available AI services
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
@@ -215,7 +234,7 @@ serve(async (req) => {
       );
     }
 
-    const userContent = `How do I say this in Gulf Arabic: "${trimmedPhrase}"`;
+    const userContent = trimmedPhrase;
 
     // Fire ALL available models in parallel (not fallback — results are merged).
     // 1. Lovable gateway: google/gemini-2.5-flash  (reliable built-in AI service)
@@ -381,8 +400,21 @@ serve(async (req) => {
       .map(p => p?.genderVariants ? String(p.genderVariants) : undefined)
       .find(Boolean);
 
+    // Pick inputMode and detectedContext from the first successful parse
+    const firstParsed = parsedResults.find(p => p !== null);
+    const inputMode: string = firstParsed?.inputMode ?? 'translation';
+    const detectedContext: string | undefined = firstParsed?.detectedContext
+      ? String(firstParsed.detectedContext)
+      : undefined;
+    const situationSummary: string | undefined = parsedResults
+      .map(p => p?.situationSummary ? String(p.situationSummary) : undefined)
+      .find(Boolean);
+
     const result = {
       phrase: trimmedPhrase,
+      inputMode,
+      detectedContext,
+      situationSummary,
       translations,
       vocabulary,
       culturalNotes,

@@ -12,6 +12,7 @@
    tokens: WordToken[];     // clickable words
    startMs?: number;        // for future audio sync
    endMs?: number;
+  segmentType?: 'audio' | 'text_overlay';
  };
  
 export type VocabItem = {

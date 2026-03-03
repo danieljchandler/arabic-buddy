@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useDiscoverVideo } from "@/hooks/useDiscoverVideos";
 import { extractTikTokVideoId, parseVideoUrl, getYouTubeThumbnail } from "@/lib/videoEmbed";
+import { extractFramesWithTimestamps } from "@/lib/videoFrameExtractor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -298,6 +299,24 @@ const AdminVideoForm = () => {
       const projectUrl = import.meta.env.VITE_SUPABASE_URL;
       const authHeaders = { Authorization: `Bearer ${session?.access_token}` };
 
+      // Start visual analysis in parallel if the file is a video
+      const isVideoFile = targetFile.type.startsWith("video/");
+      const visualPromise = isVideoFile
+        ? (async () => {
+            try {
+              const frames = await extractFramesWithTimestamps(targetFile, 4, 12, 640);
+              const { data, error } = await supabase.functions.invoke("extract-visual-context", {
+                body: { frames, audioDuration: mediaDuration ?? undefined },
+              });
+              if (error || !data?.success) return null;
+              return data.result;
+            } catch (err) {
+              console.warn("Visual analysis failed (non-blocking):", err);
+              return null;
+            }
+          })()
+        : Promise.resolve(null);
+
       // Run all three ASR engines in parallel
       toast.info("Transcribing with Munsit, Deepgram & Fanar...");
 
@@ -339,10 +358,11 @@ const AdminVideoForm = () => {
         return body as { text?: string | null; reason?: string };
       });
 
-      const [munsitResult, deepgramResult, fanarResult] = await Promise.allSettled([
+      const [munsitResult, deepgramResult, fanarResult, visualResult] = await Promise.allSettled([
         munsitPromise,
         deepgramPromise,
         fanarPromise,
+        visualPromise,
       ]);
 
       // Extract texts from each engine
@@ -398,6 +418,30 @@ const AdminVideoForm = () => {
         }));
       }
 
+      // Extract visual context result (non-blocking — undefined if failed or not a video)
+      const visualContextData = visualResult.status === "fulfilled" ? visualResult.value : null;
+      if (visualContextData) {
+        const segmentCount = visualContextData.onScreenTextSegments?.length ?? 0;
+        toast.info(`Visual analysis complete — ${segmentCount} on-screen text segment${segmentCount !== 1 ? "s" : ""} detected`);
+      }
+
+      // Build a compact visual context string to pass to the translation model
+      const visualContextStr = visualContextData
+        ? (() => {
+            const parts: string[] = [];
+            if (visualContextData.sceneContext) parts.push(`Scene: ${visualContextData.sceneContext}`);
+            if (visualContextData.culturalContext) parts.push(visualContextData.culturalContext);
+            if (visualContextData.onScreenTextSegments?.length > 0) {
+              const texts = visualContextData.onScreenTextSegments.map((s: any) => s.text).join("; ");
+              parts.push(`On-screen text: ${texts}`);
+            }
+            if (visualContextData.detectedDialectCues?.length > 0) {
+              parts.push(`Visual dialect cues: ${visualContextData.detectedDialectCues.join(", ")}`);
+            }
+            return parts.join(". ");
+          })()
+        : undefined;
+
       // Send all available transcripts to the analysis function for intelligent merging
       const analyzeBody: Record<string, string> = { transcript: filteredPrimaryText };
       if (munsitText && munsitText !== filteredPrimaryText) {
@@ -405,6 +449,9 @@ const AdminVideoForm = () => {
       }
       if (fanarText) {
         analyzeBody.fanarTranscript = fanarText;
+      }
+      if (visualContextStr) {
+        analyzeBody.visualContext = visualContextStr;
       }
 
       toast.info("Analyzing transcript...");
@@ -438,10 +485,41 @@ const AdminVideoForm = () => {
         });
       }
 
-      setTranscriptLines(lines);
+      // Merge on-screen text segments as text_overlay lines
+      let mergedLines = lines;
+      if (visualContextData?.onScreenTextSegments?.length > 0) {
+        const overlayLines: TranscriptLine[] = visualContextData.onScreenTextSegments.map(
+          (seg: any, idx: number) => ({
+            id: `overlay-${idx}-${Date.now()}`,
+            arabic: String(seg.text ?? ""),
+            translation: String(seg.translation ?? ""),
+            tokens: String(seg.text ?? "").split(/\s+/).filter(Boolean).map((w: string, wi: number) => ({
+              id: `otok-${idx}-${wi}`,
+              surface: w,
+            })),
+            startMs: typeof seg.startSeconds === "number" ? Math.round(seg.startSeconds * 1000) : undefined,
+            endMs: typeof seg.endSeconds === "number" ? Math.round(seg.endSeconds * 1000) : undefined,
+            segmentType: "text_overlay" as const,
+          })
+        );
+        // Interleave overlay lines with audio lines ordered by startMs
+        const allLines = [...mergedLines, ...overlayLines].sort((a, b) => {
+          const aMs = a.startMs ?? Infinity;
+          const bMs = b.startMs ?? Infinity;
+          return aMs - bMs;
+        });
+        mergedLines = allLines;
+      }
+
+      setTranscriptLines(mergedLines);
       setVocabulary(result.vocabulary || []);
       setGrammarPoints(result.grammarPoints || []);
-      setCulturalContext(result.culturalContext || "");
+      // Merge visual cultural context with audio analysis cultural context
+      const audioCulturalContext = result.culturalContext || "";
+      const visualCulturalNote = visualContextData?.culturalContext
+        ? (audioCulturalContext ? `${audioCulturalContext}\n\nVisual context: ${visualContextData.culturalContext}` : visualContextData.culturalContext)
+        : audioCulturalContext;
+      setCulturalContext(visualCulturalNote);
 
       // Auto-populate title if empty
       if (!title && result.title) {
@@ -453,8 +531,9 @@ const AdminVideoForm = () => {
 
       // Duration already set during download step
 
+      const overlayCount = visualContextData?.onScreenTextSegments?.length ?? 0;
       toast.success("Processing complete!", {
-        description: `${lines.length} sentences from ${engines.length} engine${engines.length > 1 ? "s" : ""}, ${(result.vocabulary || []).length} vocab items`,
+        description: `${mergedLines.length} segments from ${engines.length} engine${engines.length > 1 ? "s" : ""}${overlayCount > 0 ? `, ${overlayCount} screen text overlay${overlayCount !== 1 ? "s" : ""}` : ""}, ${(result.vocabulary || []).length} vocab items`,
       });
     } catch (err) {
       console.error("Processing error:", err);

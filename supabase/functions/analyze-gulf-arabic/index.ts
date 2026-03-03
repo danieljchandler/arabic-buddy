@@ -242,11 +242,14 @@ const getFanarValidationSystemPrompt = () =>
 // Used by Gemini 2.5 Flash (primary) and Qwen (fallback).
 // Receives the numbered merged transcript produced by Call 1.
 // Produces ONLY per-line translations — no vocabulary, no grammar.
-const getTranslationSystemPrompt = (dialect?: string) => {
+const getTranslationSystemPrompt = (dialect?: string, visualContext?: string) => {
   const dialectNote = dialect && dialect !== 'Gulf'
     ? `${getDialectNote(dialect)} Reflect regional vocabulary and expressions in your translations where appropriate.`
     : getDialectNote(undefined);
-  return `You are a Gulf Arabic translator specializing in the Gulf/Khaliji dialect.${dialectNote}
+  const visualNote = visualContext
+    ? `\n\nVideo context: ${visualContext}\nUse this context to improve translation accuracy and naturalness where relevant.`
+    : '';
+  return `You are a Gulf Arabic translator specializing in the Gulf/Khaliji dialect.${dialectNote}${visualNote}
 You will be given numbered Arabic lines. Translate each line to natural English.
 
 Output ONLY valid JSON matching this schema:
@@ -874,7 +877,7 @@ serve(async (req) => {
       });
     }
     const body = await req.json();
-    const { transcript, munsitTranscript, fanarTranscript } = body;
+    const { transcript, munsitTranscript, fanarTranscript, visualContext } = body;
 
     // ── Quick phrase-translation shortcut ──────────────────────────────────
     // When called with { phrase } (no transcript), translate a short Arabic
@@ -1060,7 +1063,7 @@ serve(async (req) => {
         // Translation primary: Gemini 2.5 Pro via Lovable AI gateway
         callAI({
           model: 'google/gemini-2.5-pro',
-          systemPrompt: getTranslationSystemPrompt(detectedDialect),
+          systemPrompt: getTranslationSystemPrompt(detectedDialect, visualContext),
           userContent: mergedTranscriptText,
           apiKey: '', // not used for lovable gateway
           gateway: 'lovable',
@@ -1124,7 +1127,7 @@ serve(async (req) => {
      if (!translationAi?.translations || translationAi.translations.length === 0) {
        console.log('Gemini translation failed or empty, falling back to Qwen for translation...');
        const qwenTransResp = await callAI({
-         systemPrompt: getTranslationSystemPrompt(detectedDialect),
+         systemPrompt: getTranslationSystemPrompt(detectedDialect, visualContext),
          userContent: mergedTranscriptText,
          apiKey: OPENROUTER_API_KEY,
          maxTokens: 4096,

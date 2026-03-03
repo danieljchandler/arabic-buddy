@@ -1,5 +1,5 @@
  import { useState, useRef, useEffect, useCallback } from "react";
- import { ChevronDown, ChevronUp, Eye, EyeOff, Play, Pause, Plus, BookOpen, Check, Link2 } from "lucide-react";
+ import { ChevronDown, ChevronUp, Eye, EyeOff, Play, Pause, Plus, BookOpen, Check, Link2, MonitorPlay } from "lucide-react";
  import { cn } from "@/lib/utils";
  import { Switch } from "@/components/ui/switch";
  import {
@@ -419,14 +419,30 @@ interface TranscriptLineCardProps {
 
    const isTokenHighlighted = (_token: WordToken, _index: number): boolean => false;
 
+   const isOverlay = line.segmentType === 'text_overlay';
+
    return (
      <div
        className={cn(
-         "rounded-xl bg-card border border-border p-4 transition-all duration-200",
+         "rounded-xl border p-4 transition-all duration-200",
          "hover:shadow-md",
-         isActive && "ring-2 ring-primary/50 border-primary bg-primary/5"
+         isOverlay
+           ? "bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800/50"
+           : "bg-card border-border",
+         isActive && !isOverlay && "ring-2 ring-primary/50 border-primary bg-primary/5",
+         isActive && isOverlay && "ring-2 ring-amber-400/50"
        )}
      >
+       {/* On-screen text badge */}
+       {isOverlay && (
+         <div className="flex items-center gap-1.5 mb-2">
+           <MonitorPlay className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+           <span className="text-xs font-medium text-amber-600 dark:text-amber-400 uppercase tracking-wide">
+             On screen
+           </span>
+         </div>
+       )}
+
        {/* Header row with play button */}
        <div className="flex items-start gap-3">
          {/* Play button */}

@@ -222,6 +222,7 @@ const DiscoverVideo = () => {
   const [lineControlIndex, setLineControlIndex] = useState(0);
   const phraseEndMsRef = useRef<number | null>(null);
   const phraseStartMsRef = useRef<number | null>(null);
+  const isSeekingRef = useRef(false);
   const lineRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const transcriptContainerRef = useRef<HTMLDivElement>(null);
 
@@ -364,6 +365,7 @@ const DiscoverVideo = () => {
       phraseEndMsRef.current = targetLine.endMs ?? null;
 
       if (isYouTube && targetLine.startMs !== undefined) {
+        isSeekingRef.current = true;
         handleSeek(targetLine.startMs);
       }
     },
@@ -408,6 +410,7 @@ const DiscoverVideo = () => {
 
   useEffect(() => {
     if (!activeLine) return;
+    if (isSeekingRef.current) return;
     const nextIndex = lines.findIndex((line) => line.id === activeLine.id);
     if (nextIndex >= 0) {
       setLineControlIndex(nextIndex);
@@ -425,6 +428,9 @@ const DiscoverVideo = () => {
     // Don't trigger until we've actually reached the start of this phrase
     // (prevents false positives from stale currentTimeMs before the seek lands)
     if (startMs != null && currentTimeMs < startMs) return;
+
+    // Seek has landed — clear the seeking flag so line-sync can resume
+    isSeekingRef.current = false;
 
     if (currentTimeMs >= endMs) {
       playerRef.current?.pauseVideo?.();

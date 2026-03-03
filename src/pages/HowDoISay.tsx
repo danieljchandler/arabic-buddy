@@ -201,6 +201,7 @@ const HowDoISay = () => {
       {/* Instructions card */}
       <Card className="mb-5 border-primary/20 bg-primary/5">
         <button
+          type="button"
           className="w-full flex items-center justify-between px-4 py-3 text-left"
           onClick={() => setShowInstructions((v) => !v)}
           aria-expanded={showInstructions}

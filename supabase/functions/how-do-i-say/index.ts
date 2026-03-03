@@ -402,7 +402,11 @@ serve(async (req) => {
 
     // Pick inputMode and detectedContext from the first successful parse
     const firstParsed = parsedResults.find(p => p !== null);
-    const inputMode: string = firstParsed?.inputMode ?? 'translation';
+    const VALID_INPUT_MODES = new Set(['translation', 'scenario', 'conversation']);
+    const rawInputMode = firstParsed?.inputMode;
+    const inputMode: string = (typeof rawInputMode === 'string' && VALID_INPUT_MODES.has(rawInputMode))
+      ? rawInputMode
+      : 'translation';
     const detectedContext: string | undefined = firstParsed?.detectedContext
       ? String(firstParsed.detectedContext)
       : undefined;

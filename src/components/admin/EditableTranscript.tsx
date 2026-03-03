@@ -444,7 +444,7 @@ export const EditableTranscript = ({
           if (audioRef.current.currentTime >= endSec) {
             audioRef.current.pause();
             setIsPlaying(false);
-            if (audioRef.current && lineEndListenerRef.current) {
+            if (lineEndListenerRef.current) {
               audioRef.current.removeEventListener('timeupdate', lineEndListenerRef.current);
             }
             lineEndListenerRef.current = null;

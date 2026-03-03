@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
@@ -23,6 +23,11 @@ import {
   Check,
   Bookmark,
   BookmarkCheck,
+  ChevronDown,
+  ChevronUp,
+  Languages,
+  MapPin,
+  MessageSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -35,8 +40,13 @@ interface PhraseTranslation {
   isPreferred: boolean;
 }
 
+type InputMode = "translation" | "scenario" | "conversation";
+
 interface HowDoISayResult {
   phrase: string;
+  inputMode: InputMode;
+  detectedContext?: string;
+  situationSummary?: string;
   translations: PhraseTranslation[];
   vocabulary: VocabItem[];
   culturalNotes?: string;
@@ -83,6 +93,7 @@ const HowDoISay = () => {
   const [result, setResult] = useState<HowDoISayResult | null>(null);
   const [savedWords, setSavedWords] = useState<Set<string>>(new Set());
   const [savedPhrases, setSavedPhrases] = useState<Set<string>>(new Set());
+  const [showInstructions, setShowInstructions] = useState(true);
 
   const handleSearch = async () => {
     const trimmed = phraseInput.trim();
@@ -101,10 +112,16 @@ const HowDoISay = () => {
       if (error) throw new Error(await readInvokeError(error));
       if (!data?.success || !data?.result) throw new Error(data?.error ?? "Translation failed");
 
-      setResult(data.result as HowDoISayResult);
-      toast.success("Got it!", {
-        description: `Found ${data.result.translations.length} ways to say it`,
-      });
+      const r = data.result as HowDoISayResult;
+      setResult(r);
+      const count = r.translations.length;
+      const modeLabel =
+        r.inputMode === "scenario"
+          ? `${count} thing${count !== 1 ? "s" : ""} to say`
+          : r.inputMode === "conversation"
+          ? `${count} suggested response${count !== 1 ? "s" : ""}`
+          : `${count} way${count !== 1 ? "s" : ""} to say it`;
+      toast.success("Got it!", { description: modeLabel });
     } catch (err) {
       console.error("how-do-i-say error:", err);
       toast.error("Translation failed", {
@@ -168,7 +185,7 @@ const HowDoISay = () => {
     <AppShell>
       <HomeButton />
 
-      <div className="mb-6 mt-4">
+      <div className="mb-4 mt-4">
         <h1
           className="text-2xl font-bold text-foreground flex items-center gap-2"
           style={{ fontFamily: "'Montserrat', sans-serif" }}
@@ -177,21 +194,97 @@ const HowDoISay = () => {
           How do I say…?
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Type anything in English and get natural Gulf Arabic phrases
+          Translate a phrase, ask what to say in a situation, or get a reply suggestion for a conversation.
         </p>
       </div>
 
+      {/* Instructions card */}
+      <Card className="mb-5 border-primary/20 bg-primary/5">
+        <button
+          type="button"
+          className="w-full flex items-center justify-between px-4 py-3 text-left"
+          onClick={() => setShowInstructions((v) => !v)}
+          aria-expanded={showInstructions}
+        >
+          <span className="text-sm font-semibold text-primary flex items-center gap-2">
+            <Info className="h-4 w-4" />
+            How to use this page
+          </span>
+          {showInstructions ? (
+            <ChevronUp className="h-4 w-4 text-primary/70" />
+          ) : (
+            <ChevronDown className="h-4 w-4 text-primary/70" />
+          )}
+        </button>
+        {showInstructions && (
+          <CardContent className="pt-0 pb-4 space-y-3">
+            <div className="flex items-start gap-3">
+              <div className="shrink-0 mt-0.5 p-1.5 rounded-md bg-primary/10">
+                <Languages className="h-3.5 w-3.5 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-foreground">Translate a phrase</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Type any word or phrase in English.
+                </p>
+                <p className="text-xs text-muted-foreground/60 italic mt-0.5">
+                  e.g. "I'm exhausted" · "can we leave now?" · "thank you so much"
+                </p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <div className="shrink-0 mt-0.5 p-1.5 rounded-md bg-primary/10">
+                <MapPin className="h-3.5 w-3.5 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-foreground">Describe a situation</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Explain the context and ask what you should say.
+                </p>
+                <p className="text-xs text-muted-foreground/60 italic mt-0.5">
+                  e.g. "I'm at a restaurant and want to ask for more water" · "I need to politely refuse an invitation from a colleague"
+                </p>
+              </div>
+            </div>
+            <div className="flex items-start gap-3">
+              <div className="shrink-0 mt-0.5 p-1.5 rounded-md bg-primary/10">
+                <MessageSquare className="h-3.5 w-3.5 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-foreground">Paste a conversation</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Paste a chat exchange and get a suggested Gulf Arabic reply.
+                </p>
+                <p className="text-xs text-muted-foreground/60 italic mt-0.5">
+                  e.g. Paste a WhatsApp chat or text messages — the AI will read the conversation and suggest what to say back.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        )}
+      </Card>
+
       {/* Search input */}
-      <div className="flex gap-2 mb-6">
-        <Input
+      <div className="flex gap-2 mb-6 items-start">
+        <Textarea
           value={phraseInput}
           onChange={(e) => setPhraseInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && !isLoading && handleSearch()}
-          placeholder="e.g. I'm hungry, How are you?, Thank you so much"
-          className="flex-1"
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey && !isLoading) {
+              e.preventDefault();
+              handleSearch();
+            }
+          }}
+          placeholder={"Type a phrase, describe a situation, or paste a conversation…\n(Shift + Enter for a new line)"}
+          className="flex-1 resize-none min-h-[80px]"
+          rows={3}
           disabled={isLoading}
         />
-        <Button onClick={handleSearch} disabled={isLoading || !phraseInput.trim()} className="gap-2 shrink-0">
+        <Button
+          onClick={handleSearch}
+          disabled={isLoading || !phraseInput.trim()}
+          className="gap-2 shrink-0 h-10 mt-0.5"
+        >
           {isLoading ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -209,10 +302,36 @@ const HowDoISay = () => {
       {/* Results */}
       {result && (
         <div className="space-y-5">
+
+          {/* Detected mode + context */}
+          {result.detectedContext && (
+            <div className="flex items-center gap-2.5 p-3 rounded-lg bg-muted/40 border border-border/50">
+              <Badge variant="outline" className="shrink-0 capitalize text-xs">
+                {result.inputMode === "translation"
+                  ? "Translation"
+                  : result.inputMode === "scenario"
+                  ? "Situation"
+                  : "Conversation"}
+              </Badge>
+              <p className="text-sm text-muted-foreground leading-snug">{result.detectedContext}</p>
+            </div>
+          )}
+
+          {/* Situation summary (scenario / conversation modes) */}
+          {result.situationSummary && (
+            <p className="text-xs text-muted-foreground/70 italic -mt-2 px-1">
+              {result.situationSummary}
+            </p>
+          )}
+
           {/* Translations */}
           <div>
             <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
-              Ways to say it in Gulf Arabic
+              {result.inputMode === "scenario"
+                ? "What to say in this situation"
+                : result.inputMode === "conversation"
+                ? "How to respond"
+                : "Ways to say it in Gulf Arabic"}
             </h2>
             <div className="space-y-3">
               {result.translations.map((t, idx) => (

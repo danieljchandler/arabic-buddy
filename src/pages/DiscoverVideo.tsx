@@ -205,6 +205,8 @@ const DiscoverVideo = () => {
   const [showOverlaySubtitles, setShowOverlaySubtitles] = useState(true);
   const [playbackMode, setPlaybackMode] = useState<"continuous" | "line">("continuous");
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
+  const playbackSpeedRef = useRef(playbackSpeed);
+  playbackSpeedRef.current = playbackSpeed;
   const [showFullTranscript, setShowFullTranscript] = useState(false);
   const [manualLineIndex, setManualLineIndex] = useState(0);
   // Timer-based sync for non-YouTube
@@ -219,6 +221,7 @@ const DiscoverVideo = () => {
   const [resolvedTikTokAuthorUrl, setResolvedTikTokAuthorUrl] = useState<string | null>(null);
   const [isYouTubePlaying, setIsYouTubePlaying] = useState(false);
   const [lineControlIndex, setLineControlIndex] = useState(0);
+  const phraseEndMsRef = useRef<number | null>(null);
   const lineRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const transcriptContainerRef = useRef<HTMLDivElement>(null);
 
@@ -247,7 +250,8 @@ const DiscoverVideo = () => {
             if (event.data === 1) {
               setIsYouTubePlaying(true);
               // Apply current playback speed when video starts
-              playerRef.current?.setPlaybackRate?.(playbackSpeed);
+              playerRef.current?.setPlaybackRate?.(playbackSpeedRef.current);
+              if (intervalRef.current) clearInterval(intervalRef.current);
               intervalRef.current = setInterval(() => {
                 if (playerRef.current?.getCurrentTime) {
                   setCurrentTimeMs(playerRef.current.getCurrentTime() * 1000);
@@ -271,7 +275,8 @@ const DiscoverVideo = () => {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [video, playbackSpeed]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [video]);
 
   // Apply speed changes to YouTube player
   useEffect(() => {
@@ -354,6 +359,9 @@ const DiscoverVideo = () => {
       setLineControlIndex(clampedIndex);
       setManualLineIndex(clampedIndex);
 
+      // Track the target line's end time for phrase-mode pause
+      phraseEndMsRef.current = targetLine.endMs ?? null;
+
       if (isYouTube && targetLine.startMs !== undefined) {
         handleSeek(targetLine.startMs);
       }
@@ -407,13 +415,16 @@ const DiscoverVideo = () => {
   }, [activeLine, lines]);
 
   useEffect(() => {
-    if (!isYouTube || playbackMode !== "line" || !isYouTubePlaying || !activeLine?.endMs) return;
+    if (!isYouTube || playbackMode !== "line" || !isYouTubePlaying) return;
 
-    if (currentTimeMs >= activeLine.endMs) {
+    const endMs = phraseEndMsRef.current;
+    if (endMs == null) return;
+
+    if (currentTimeMs >= endMs) {
       playerRef.current?.pauseVideo?.();
       setIsYouTubePlaying(false);
     }
-  }, [activeLine, currentTimeMs, isYouTube, isYouTubePlaying, playbackMode]);
+  }, [currentTimeMs, isYouTube, isYouTubePlaying, playbackMode]);
 
   // Auto-scroll to active line
   useEffect(() => {

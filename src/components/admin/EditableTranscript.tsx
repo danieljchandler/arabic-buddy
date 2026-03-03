@@ -395,7 +395,7 @@ export const EditableTranscript = ({
   const [activeLineId, setActiveLineId] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const stopAtEndRef = useRef<number | null>(null);
+  const lineEndListenerRef = useRef<(() => void) | null>(null);
 
   // Initialize audio
   useEffect(() => {
@@ -410,6 +410,10 @@ export const EditableTranscript = ({
     }
     return () => {
       if (audioRef.current) {
+        if (lineEndListenerRef.current) {
+          audioRef.current.removeEventListener('timeupdate', lineEndListenerRef.current);
+          lineEndListenerRef.current = null;
+        }
         audioRef.current.pause();
         audioRef.current = null;
       }
@@ -420,9 +424,10 @@ export const EditableTranscript = ({
     (line: TranscriptLine) => {
       if (!audioRef.current || !audioUrl) return;
 
-      if (stopAtEndRef.current !== null) {
-        cancelAnimationFrame(stopAtEndRef.current);
-        stopAtEndRef.current = null;
+      // Clean up any previous line-end listener
+      if (lineEndListenerRef.current) {
+        audioRef.current.removeEventListener('timeupdate', lineEndListenerRef.current);
+        lineEndListenerRef.current = null;
       }
 
       if (activeLineId === line.id && isPlaying) {
@@ -433,22 +438,22 @@ export const EditableTranscript = ({
       setActiveLineId(line.id);
 
       if (line.startMs !== undefined && line.endMs !== undefined) {
-        audioRef.current.currentTime = line.startMs / 1000;
-        const checkTime = () => {
+        const endSec = line.endMs / 1000;
+        const onTimeUpdate = () => {
           if (!audioRef.current) return;
-          if (audioRef.current.currentTime * 1000 >= line.endMs!) {
+          if (audioRef.current.currentTime >= endSec) {
             audioRef.current.pause();
             setIsPlaying(false);
-            stopAtEndRef.current = null;
-            return;
-          }
-          if (!audioRef.current.paused) {
-            stopAtEndRef.current = requestAnimationFrame(checkTime);
+            if (audioRef.current && lineEndListenerRef.current) {
+              audioRef.current.removeEventListener('timeupdate', lineEndListenerRef.current);
+            }
+            lineEndListenerRef.current = null;
           }
         };
-        audioRef.current.play().then(() => {
-          stopAtEndRef.current = requestAnimationFrame(checkTime);
-        }).catch(console.error);
+        lineEndListenerRef.current = onTimeUpdate;
+        audioRef.current.addEventListener('timeupdate', onTimeUpdate);
+        audioRef.current.currentTime = line.startMs / 1000;
+        audioRef.current.play().catch(console.error);
       } else {
         audioRef.current.currentTime = 0;
         audioRef.current.play().catch(console.error);

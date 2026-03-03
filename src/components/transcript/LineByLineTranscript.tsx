@@ -612,6 +612,7 @@ export const LineByLineTranscript = ({
    const [isPlaying, setIsPlaying] = useState(false);
   const [internalCurrentTimeMs, setInternalCurrentTimeMs] = useState<number>(0);
    const audioRef = useRef<HTMLAudioElement | null>(null);
+  const lineEndListenerRef = useRef<(() => void) | null>(null);
  
    useEffect(() => {
      if (audioUrl && !audioRef.current) {
@@ -624,7 +625,14 @@ export const LineByLineTranscript = ({
       });
      }
      return () => {
-       if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
+       if (audioRef.current) {
+         if (lineEndListenerRef.current) {
+           audioRef.current.removeEventListener('timeupdate', lineEndListenerRef.current);
+           lineEndListenerRef.current = null;
+         }
+         audioRef.current.pause();
+         audioRef.current = null;
+       }
      };
    }, [audioUrl]);
  
@@ -633,23 +641,33 @@ export const LineByLineTranscript = ({
    }, [audioUrl]);
  
   const effectiveCurrentTimeMs = currentTimeMs ?? internalCurrentTimeMs;
-  const stopAtEndRef = useRef<number | null>(null);
 
   const handlePlayLine = (line: TranscriptLine) => {
     if (!audioRef.current || !audioUrl) return;
-    if (stopAtEndRef.current !== null) { cancelAnimationFrame(stopAtEndRef.current); stopAtEndRef.current = null; }
+    // Clean up any previous line-end listener
+    if (lineEndListenerRef.current) {
+      audioRef.current.removeEventListener('timeupdate', lineEndListenerRef.current);
+      lineEndListenerRef.current = null;
+    }
     if (activeLineId === line.id && isPlaying) { audioRef.current.pause(); return; }
     setActiveLineId(line.id);
     if (line.startMs !== undefined && line.endMs !== undefined) {
-      audioRef.current.currentTime = line.startMs / 1000;
-      const checkTime = () => {
+      const endSec = line.endMs / 1000;
+      const onTimeUpdate = () => {
         if (!audioRef.current) return;
-        if (audioRef.current.currentTime * 1000 >= line.endMs!) {
-          audioRef.current.pause(); setIsPlaying(false); stopAtEndRef.current = null; return;
+        if (audioRef.current.currentTime >= endSec) {
+          audioRef.current.pause();
+          setIsPlaying(false);
+          if (audioRef.current && lineEndListenerRef.current) {
+            audioRef.current.removeEventListener('timeupdate', lineEndListenerRef.current);
+          }
+          lineEndListenerRef.current = null;
         }
-        if (!audioRef.current.paused) stopAtEndRef.current = requestAnimationFrame(checkTime);
       };
-      audioRef.current.play().then(() => { stopAtEndRef.current = requestAnimationFrame(checkTime); }).catch(console.error);
+      lineEndListenerRef.current = onTimeUpdate;
+      audioRef.current.addEventListener('timeupdate', onTimeUpdate);
+      audioRef.current.currentTime = line.startMs / 1000;
+      audioRef.current.play().catch(console.error);
     } else {
       audioRef.current.currentTime = 0;
       audioRef.current.play().catch(console.error);

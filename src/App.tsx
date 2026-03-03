@@ -35,7 +35,6 @@ import AdminVideos from "./pages/admin/AdminVideos";
 import AdminVideoForm from "./pages/admin/AdminVideoForm";
 import Stages from "./pages/admin/Stages";
 import LessonImport from "./pages/admin/LessonImport";
-import LlmLogs from "./pages/admin/LlmLogs";
 
 const queryClient = new QueryClient();
 
@@ -171,7 +170,6 @@ const App = () => {
               <Route path="videos" element={<AdminVideos />} />
               <Route path="videos/new" element={<AdminVideoForm />} />
               <Route path="videos/:videoId/edit" element={<AdminVideoForm />} />
-              <Route path="llm-logs" element={<LlmLogs />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />

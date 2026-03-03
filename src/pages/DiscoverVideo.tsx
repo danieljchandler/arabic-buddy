@@ -11,7 +11,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Loader2, ArrowLeft, BookOpen, Check, Eye, EyeOff, ChevronDown, ChevronLeft, ChevronRight, List, Pause, Play, SkipBack, SkipForward, Captions, Gauge } from "lucide-react";
+import { Loader2, ArrowLeft, BookOpen, Check, Eye, EyeOff, ChevronDown, ChevronLeft, ChevronRight, List, Pause, Play, SkipBack, SkipForward, Gauge } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -202,7 +202,6 @@ const DiscoverVideo = () => {
   const [currentTimeMs, setCurrentTimeMs] = useState(0);
   const [savedWords, setSavedWords] = useState<Set<string>>(new Set());
   const [showTranslations, setShowTranslations] = useState(true);
-  const [showOverlaySubtitles, setShowOverlaySubtitles] = useState(true);
   const [playbackMode, setPlaybackMode] = useState<"continuous" | "line">("continuous");
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const playbackSpeedRef = useRef(playbackSpeed);
@@ -222,6 +221,7 @@ const DiscoverVideo = () => {
   const [isYouTubePlaying, setIsYouTubePlaying] = useState(false);
   const [lineControlIndex, setLineControlIndex] = useState(0);
   const phraseEndMsRef = useRef<number | null>(null);
+  const phraseStartMsRef = useRef<number | null>(null);
   const lineRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const transcriptContainerRef = useRef<HTMLDivElement>(null);
 
@@ -359,7 +359,8 @@ const DiscoverVideo = () => {
       setLineControlIndex(clampedIndex);
       setManualLineIndex(clampedIndex);
 
-      // Track the target line's end time for phrase-mode pause
+      // Track the target line's start/end time for phrase-mode pause
+      phraseStartMsRef.current = targetLine.startMs ?? null;
       phraseEndMsRef.current = targetLine.endMs ?? null;
 
       if (isYouTube && targetLine.startMs !== undefined) {
@@ -417,8 +418,13 @@ const DiscoverVideo = () => {
   useEffect(() => {
     if (!isYouTube || playbackMode !== "line" || !isYouTubePlaying) return;
 
+    const startMs = phraseStartMsRef.current;
     const endMs = phraseEndMsRef.current;
     if (endMs == null) return;
+
+    // Don't trigger until we've actually reached the start of this phrase
+    // (prevents false positives from stale currentTimeMs before the seek lands)
+    if (startMs != null && currentTimeMs < startMs) return;
 
     if (currentTimeMs >= endMs) {
       playerRef.current?.pauseVideo?.();
@@ -623,16 +629,6 @@ const DiscoverVideo = () => {
             </div>
           )}
 
-          {showOverlaySubtitles && activeLine && (
-            <div className="pointer-events-none absolute bottom-3 left-1/2 w-[calc(100%-1rem)] max-w-3xl -translate-x-1/2 rounded-md bg-black/70 px-3 py-2 text-center text-white backdrop-blur-sm">
-              <p className="text-lg leading-[1.9]" dir="rtl" style={{ fontFamily: "'Cairo', 'Traditional Arabic', sans-serif" }}>
-                {activeLine.arabic}
-              </p>
-              {showTranslations && (
-                <p className="mt-1 text-xs text-white/90">{activeLine.translation}</p>
-              )}
-            </div>
-          )}
         </div>
       </div>
 
@@ -773,14 +769,6 @@ const DiscoverVideo = () => {
           >
             {playbackMode === "continuous" ? <Play className="h-3.5 w-3.5" /> : <Pause className="h-3.5 w-3.5" />}
             {playbackMode === "continuous" ? "Continuous" : "Phrase"}
-          </Button>
-          <Button
-            variant={showOverlaySubtitles ? "secondary" : "ghost"}
-            size="icon"
-            className="h-7 w-7"
-            onClick={() => setShowOverlaySubtitles((prev) => !prev)}
-          >
-            <Captions className="h-3.5 w-3.5" />
           </Button>
           {showTranslations ? (
             <Eye className="h-3.5 w-3.5 text-muted-foreground" />

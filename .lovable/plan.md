@@ -1,39 +1,33 @@
 
 
-# Wire TranscriptEditor into Admin Video Form
+# Fix: Badge component ref warning
 
 ## Problem
-The new `TranscriptEditor` component (with gap indicators, Enter-to-split, duration labels, keyboard shortcuts, ripple timestamps) exists at `src/components/TranscriptEditor/` but is never rendered. The admin edit page at `src/pages/admin/AdminVideoForm.tsx` (line 790) still uses the old `EditableTranscript` component.
+React warns that a `ref` is being passed to the `Badge` component, which currently renders a plain `<div>` without forwarding refs. This is a cosmetic console warning -- it does not break anything.
 
-## Solution
-Create a lightweight adapter component that bridges the data format gap, then swap it into AdminVideoForm.
+## Fix
+Update `src/components/ui/badge.tsx` to use `React.forwardRef` so the component properly accepts and forwards refs.
 
-## Key Data Mapping
+## Change
 
-```text
-TranscriptLine (admin)     ->  Segment (editor)
-  id                           id
-  arabic                       text
-  translation                  translation
-  startMs (milliseconds)       start (seconds) = startMs / 1000
-  endMs (milliseconds)         end (seconds) = endMs / 1000
-  tokens                       words (map surface -> word, gloss preserved via round-trip)
+**File: `src/components/ui/badge.tsx`**
+
+Replace the current `Badge` function:
+```tsx
+function Badge({ className, variant, ...props }: BadgeProps) {
+  return <div className={cn(badgeVariants({ variant }), className)} {...props} />;
+}
 ```
 
-## Changes
+With a `forwardRef` version:
+```tsx
+const Badge = React.forwardRef<HTMLDivElement, BadgeProps>(
+  ({ className, variant, ...props }, ref) => {
+    return <div ref={ref} className={cn(badgeVariants({ variant }), className)} {...props} />;
+  }
+);
+Badge.displayName = "Badge";
+```
 
-### 1. New file: `src/components/admin/AdminTranscriptEditor.tsx`
-- Accepts `lines: TranscriptLine[]`, `onChange: (lines: TranscriptLine[]) => void`, `audioUrl?: string`
-- Converts `TranscriptLine[]` to `Segment[]` on mount/update (ms to seconds, arabic to text, tokens to words)
-- Passes `onSave` callback to `TranscriptEditor` that converts `Segment[]` back to `TranscriptLine[]` and calls `onChange`
-- Preserves token glosses through round-tripping by storing them in a ref map keyed by segment ID
-- Memoizes the conversion to avoid unnecessary re-renders
-
-### 2. Edit: `src/pages/admin/AdminVideoForm.tsx`
-- Replace import of `EditableTranscript` (line 16) with `AdminTranscriptEditor`
-- Replace `<EditableTranscript lines={transcriptLines} onChange={setTranscriptLines} audioUrl={stableAudioUrl} />` (line 790) with `<AdminTranscriptEditor lines={transcriptLines} onChange={setTranscriptLines} audioUrl={stableAudioUrl} />`
-
-### Trade-offs
-- Inline gloss editing (clicking individual Arabic tokens to set English glosses) is not available in the new editor. Token data is preserved on save but cannot be edited inline. This is acceptable since the transcript structure features (split, merge, ripple timing, gap indicators) are far more valuable for the admin workflow.
-- The `TranscriptEditor` includes a two-column video player layout -- when no `videoUrl` is passed, it renders the segment list full-width, which works well for the admin form's existing layout.
+This is a one-line structural change. No other files need updating.
 

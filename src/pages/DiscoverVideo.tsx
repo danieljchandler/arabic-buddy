@@ -260,6 +260,7 @@ const DiscoverVideo = () => {
               }, 200);
             } else {
               setIsYouTubePlaying(false);
+              isSeekingRef.current = false; // clear any stuck seeking state
               if (intervalRef.current) {
                 clearInterval(intervalRef.current);
                 intervalRef.current = null;
@@ -366,6 +367,8 @@ const DiscoverVideo = () => {
 
       if (isYouTube && targetLine.startMs !== undefined) {
         isSeekingRef.current = true;
+        // Safety: clear the flag after 2 s max in case the seek never lands
+        setTimeout(() => { isSeekingRef.current = false; }, 2000);
         handleSeek(targetLine.startMs);
       }
     },
@@ -407,6 +410,11 @@ const DiscoverVideo = () => {
     () => lines.find((l) => l.id === activeLineId) ?? null,
     [lines, activeLineId],
   );
+
+  // In phrase mode, show the line at lineControlIndex to avoid stale activeLine during seek lag
+  const displayLine = (playbackMode === "line" && lines[lineControlIndex])
+    ? lines[lineControlIndex]
+    : activeLine;
 
   useEffect(() => {
     if (!activeLine) return;
@@ -678,33 +686,33 @@ const DiscoverVideo = () => {
 
             {/* Active line content */}
             <div className="flex-1 min-w-0">
-              {activeLine ? (
+              {displayLine ? (
                 <div className="text-center space-y-1.5">
                   <p
                     className="text-lg font-medium text-foreground leading-[2]"
                     dir="rtl"
                     style={{ fontFamily: "'Cairo', 'Traditional Arabic', sans-serif" }}
                   >
-                    {activeLine.tokens && activeLine.tokens.length > 0
-                      ? activeLine.tokens.map((token, i) => (
+                    {displayLine.tokens && displayLine.tokens.length > 0
+                      ? displayLine.tokens.map((token, i) => (
                           <span key={token.id} className="inline">
                             <ClickableWord
                               token={token}
-                              parentLine={activeLine}
+                              parentLine={displayLine}
                               onSave={isAuthenticated ? handleSaveToMyWords : undefined}
                               isSaved={savedWords?.has(token.surface)}
                             />
-                            {i < activeLine.tokens.length - 1 && !/^[،؟.!:؛]+$/.test(token.surface) && " "}
+                            {i < displayLine.tokens.length - 1 && !/^[،؟.!:؛]+$/.test(token.surface) && " "}
                           </span>
                         ))
-                      : activeLine.arabic}
+                      : displayLine.arabic}
                   </p>
-                  {showTranslations && activeLine.translation && (
+                  {showTranslations && displayLine.translation && (
                     <p
                       className="text-sm text-muted-foreground leading-relaxed"
                       style={{ fontFamily: "'Open Sans', sans-serif" }}
                     >
-                      {activeLine.translation}
+                      {displayLine.translation}
                     </p>
                   )}
                   <p className="text-xs text-muted-foreground/60">{lineControlIndex + 1} / {lines.length}</p>

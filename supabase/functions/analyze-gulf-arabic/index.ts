@@ -45,6 +45,10 @@ function generateId(): string {
    culturalContext?: string;
   dialectValidation?: { content: string; timestamp: string } | null;
   dialect?: 'Saudi' | 'Kuwaiti' | 'UAE' | 'Bahraini' | 'Qatari' | 'Omani' | 'Gulf';
+  /** Full merged Arabic transcript with tashkeel added by Farasa. Feed to ElevenLabs TTS for accurate pronunciation. */
+  diacritizedTranscript?: string | null;
+  /** Dialect identification from CAMeL-Lab BERT model (city-level, independent of LLM). */
+  camelDialect?: { code: string; dialect: string; confidence: number; isGulf: boolean } | null;
  }
 
 const corsHeaders = {
@@ -779,6 +783,83 @@ type MetaAI = {
   culturalContext?: string;
 };
 
+// ── CAMeL-Lab dialect identification ─────────────────────────────────────────
+// Model: CAMeL-Lab/bert-base-arabic-camelbert-mix-did-madar-twitter
+// Runs in parallel with Call 2 to validate the LLM-detected dialect.
+// Returns null on any failure so it never blocks the pipeline.
+const CAMEL_CITY_TO_DIALECT: Record<string, string> = {
+  KUW: 'Kuwaiti', DOH: 'Qatari',   RIY: 'Saudi', JED: 'Saudi',
+  ABU: 'UAE',     DUB: 'UAE',      MSC: 'Omani', BAH: 'Bahraini',
+};
+const CAMEL_GULF_CITIES = new Set(Object.keys(CAMEL_CITY_TO_DIALECT));
+
+async function callCamelDialect(
+  text: string,
+  hfApiKey: string,
+): Promise<{ code: string; dialect: string; confidence: number; isGulf: boolean } | null> {
+  // Use only first 512 chars — dialect is detectable from short samples and
+  // shorter input keeps latency low (BERT has a 512-token limit anyway).
+  const sample = text.trim().slice(0, 512);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 20_000);
+  try {
+    const resp = await fetch(
+      'https://api-inference.huggingface.co/models/CAMeL-Lab/bert-base-arabic-camelbert-mix-did-madar-twitter',
+      {
+        method: 'POST',
+        signal: controller.signal,
+        headers: { 'Authorization': `Bearer ${hfApiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ inputs: sample }),
+      },
+    );
+    if (!resp.ok) {
+      // 503 = model cold-starting — expected on free HF tier, non-fatal
+      console.warn(`CAMeL dialect model: HTTP ${resp.status} (cold start or unavailable)`);
+      return null;
+    }
+    const predictions: { label: string; score: number }[] = await resp.json();
+    if (!Array.isArray(predictions) || !predictions[0]) return null;
+    const top = predictions[0];
+    const code = top.label.toUpperCase();
+    const dialect = CAMEL_CITY_TO_DIALECT[code] ?? code;
+    const isGulf = CAMEL_GULF_CITIES.has(code);
+    return { code, dialect, confidence: Math.round(top.score * 1000) / 1000, isGulf };
+  } catch (e) {
+    console.warn('CAMeL dialect call failed:', e instanceof Error ? e.message : String(e));
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+// ── Farasa diacritization ─────────────────────────────────────────────────────
+// Adds short vowels (tashkeel) to unvoweled Arabic text via the QCRI Farasa
+// REST API. The diacritized output is included in the response for downstream
+// ElevenLabs TTS calls, which produce more accurate pronunciation with tashkeel.
+async function callFarasaDiacritize(text: string): Promise<string | null> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15_000);
+  try {
+    const resp = await fetch('https://farasa.qcri.org/webapi/diac/', {
+      method: 'POST',
+      signal: controller.signal,
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ text }).toString(),
+    });
+    if (!resp.ok) {
+      console.warn(`Farasa diac: HTTP ${resp.status}`);
+      return null;
+    }
+    const data = await resp.json();
+    return (data.text ?? data.output ?? null) as string | null;
+  } catch (e) {
+    console.warn('Farasa diacritize failed:', e instanceof Error ? e.message : String(e));
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 // Fallback: use Qwen + Gemini via OpenRouter for translation when needed
 async function lovableAITranslate(arabicLines: string[], apiKey: string, dialect?: string): Promise<string[]> {
   const numberedLines = arabicLines.map((line, i) => `${i + 1}. ${line}`).join('\n');
@@ -1055,11 +1136,22 @@ serve(async (req) => {
      // Receives the same merged transcript from Call 1.
      // Produces vocabulary, grammar points, and cultural context.
      //
-     // Both run in parallel. Translation is a separate concern from analysis.
+     // CAMEL DIALECT ID — CAMeL-Lab BERT model via Hugging Face Inference API.
+     // Identifies Gulf dialect at city level (Kuwait/Doha/Riyadh/Abu Dhabi/etc.)
+     // independently of the LLM. Runs in parallel — result enriches the response
+     // and validates the LLM-detected dialect. Never blocks the pipeline.
+     //
+     // FARASA DIACRITIZE — QCRI Farasa REST API adds tashkeel to merged Arabic.
+     // Diacritized text is returned in the result for ElevenLabs TTS calls.
+     //
+     // All run in parallel. Translation is a separate concern from analysis.
      // =====================================================================
-     console.log('Translation (Gemini) and analysis (Qwen) running in parallel...');
+     console.log('Translation (Gemini), analysis (Qwen), CAMeL dialect, Farasa diac running in parallel...');
 
-      const [geminiTransResp, analysisResp, fanarMetaResp, fanarValidResp] = await Promise.all([
+     const arabicOnlyText = mergedLines.map(l => l.arabic).join('\n');
+     const hfApiKey = Deno.env.get('HUGGINGFACE_API_KEY') ?? Deno.env.get('FALCON_HF_API_KEY') ?? '';
+
+      const [geminiTransResp, analysisResp, fanarMetaResp, fanarValidResp, camelDialectResult, diacritizedTranscript] = await Promise.all([
         // Translation primary: Gemini 2.5 Pro via Lovable AI gateway
         callAI({
           model: 'google/gemini-2.5-pro',
@@ -1102,7 +1194,36 @@ serve(async (req) => {
              return { content: null } as { content: string | null };
            })
          : Promise.resolve({ content: null } as { content: string | null }),
+       // CAMeL-Lab BERT dialect ID — validates/confirms the LLM-detected dialect.
+       // Uses the MADAR-Twitter model: city-level (Kuwait/Doha/Riyadh/Abu Dhabi/…).
+       // Non-blocking: any failure returns null and the pipeline continues.
+       hfApiKey
+         ? callCamelDialect(arabicOnlyText, hfApiKey).catch((e) => {
+             console.warn('CAMeL dialect call failed (non-blocking):', e);
+             return null;
+           })
+         : Promise.resolve(null),
+       // Farasa diacritize — adds short vowels (tashkeel) to the merged Arabic.
+       // The result is stored in diacritizedTranscript for ElevenLabs TTS calls.
+       callFarasaDiacritize(arabicOnlyText).catch((e) => {
+         console.warn('Farasa diacritize failed (non-blocking):', e);
+         return null;
+       }),
      ]);
+
+     // --- Log CAMeL dialect result vs LLM-detected dialect ---
+     if (camelDialectResult) {
+       const agreement = camelDialectResult.dialect === detectedDialect ? 'agree' : 'disagree';
+       console.log(
+         `CAMeL dialect: ${camelDialectResult.dialect} (${camelDialectResult.code}, conf=${camelDialectResult.confidence})` +
+         ` — LLM: ${detectedDialect} — ${agreement}`,
+       );
+     } else {
+       console.log('CAMeL dialect: unavailable (no HF key or model cold start)');
+     }
+     if (diacritizedTranscript) {
+       console.log(`Farasa diacritize: ${diacritizedTranscript.length} chars of tashkeel-annotated Arabic`);
+     }
 
      // --- Parse Fanar dialect validation — accept JSON or raw text, never throw ---
      let dialectValidation: { content: string; timestamp: string } | null = null;
@@ -1275,6 +1396,8 @@ serve(async (req) => {
        culturalContext,
        dialectValidation,
        dialect: detectedDialect,
+       diacritizedTranscript: diacritizedTranscript ?? null,
+       camelDialect: camelDialectResult ?? null,
      };
 
      console.log(

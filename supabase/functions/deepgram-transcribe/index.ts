@@ -38,14 +38,13 @@ serve(async (req) => {
       throw new Error("DEEPGRAM_API_KEY is not configured");
     }
 
-    const deepgramParams = new URLSearchParams({
+    const baseDeepgramParams = new URLSearchParams({
       model: "nova-3",
       language: "ar",
       diarize: "true",
       punctuate: "true",
       smart_format: "true",
     });
-    const deepgramUrl = `https://api.deepgram.com/v1/listen?${deepgramParams}`;
 
     const contentType = req.headers.get("content-type") || "";
 
@@ -62,7 +61,23 @@ serve(async (req) => {
       // Deepgram. Streaming (body: audioResponse.body) avoids buffering the
       // entire file in edge function memory, so large video files work fine.
       const body = await req.json();
-      const { audioUrl } = body;
+      const { audioUrl, keyterms } = body;
+
+      // Deepgram Nova-3 Keyterm Prompting: boost recognition of known vocabulary.
+      // Pass lesson word list from the caller (e.g. current lesson's Arabic words).
+      // Each keyterm is appended as a separate URL param: keyterm=<word>:<boost>
+      // Max 100 keyterms per request; boost factor 1.0–10.0 (we use 2 as default).
+      const deepgramParams = new URLSearchParams(baseDeepgramParams);
+      if (Array.isArray(keyterms) && keyterms.length > 0) {
+        const validKeyterms = keyterms
+          .filter((k: unknown): k is string => typeof k === 'string' && k.trim().length > 0)
+          .slice(0, 100);
+        for (const term of validKeyterms) {
+          deepgramParams.append('keyterm', `${term.trim()}:2`);
+        }
+        console.log(`Deepgram: ${validKeyterms.length} keyterms added for vocabulary boost`);
+      }
+      const deepgramUrl = `https://api.deepgram.com/v1/listen?${deepgramParams}`;
 
       if (!audioUrl) {
         return new Response(
@@ -96,6 +111,8 @@ serve(async (req) => {
       });
     } else {
       // FormData-based input: buffer and forward bytes (small audio files only)
+      // Keyterm prompting is not supported in form-data mode (no JSON body to read terms from).
+      const deepgramUrl = `https://api.deepgram.com/v1/listen?${baseDeepgramParams}`;
       const formData = await req.formData();
       const audioFile = (formData.get("audio") || formData.get("file")) as File;
 

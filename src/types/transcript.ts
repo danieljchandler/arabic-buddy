@@ -39,6 +39,10 @@ export type VocabItem = {
   culturalContext?: string;
   dialectValidation?: { content: string; timestamp: string } | null;
   dialect?: 'Saudi' | 'Kuwaiti' | 'UAE' | 'Bahraini' | 'Qatari' | 'Omani' | 'Gulf';
+  /** Full merged Arabic with tashkeel from Farasa — feed to ElevenLabs TTS for accurate pronunciation. */
+  diacritizedTranscript?: string | null;
+  /** City-level Gulf dialect from CAMeL-Lab BERT model, independent of LLM detection. */
+  camelDialect?: { code: string; dialect: string; confidence: number; isGulf: boolean } | null;
 };
 
 // ── Transcript Editor types (ASR word-level segments) ──────────────

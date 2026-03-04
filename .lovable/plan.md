@@ -1,31 +1,33 @@
 
 
-# Set Up Azure Pronunciation Assessment
+# Fix: Badge component ref warning
 
-## Secrets Needed
+## Problem
+React warns that a `ref` is being passed to the `Badge` component, which currently renders a plain `<div>` without forwarding refs. This is a cosmetic console warning -- it does not break anything.
 
-The edge function uses two environment variables:
-- **AZURE_SPEECH_KEY** — your Azure Speech API key
-- **AZURE_SPEECH_REGION** — your Azure region (e.g. `uaenorth`, `eastus`)
+## Fix
+Update `src/components/ui/badge.tsx` to use `React.forwardRef` so the component properly accepts and forwards refs.
 
-No separate endpoint URL secret is needed — the endpoint is automatically constructed from the region:
+## Change
+
+**File: `src/components/ui/badge.tsx`**
+
+Replace the current `Badge` function:
+```tsx
+function Badge({ className, variant, ...props }: BadgeProps) {
+  return <div className={cn(badgeVariants({ variant }), className)} {...props} />;
+}
 ```
-https://{AZURE_SPEECH_REGION}.stt.speech.microsoft.com/speech/recognition/...
+
+With a `forwardRef` version:
+```tsx
+const Badge = React.forwardRef<HTMLDivElement, BadgeProps>(
+  ({ className, variant, ...props }, ref) => {
+    return <div ref={ref} className={cn(badgeVariants({ variant }), className)} {...props} />;
+  }
+);
+Badge.displayName = "Badge";
 ```
 
-I'll use the secrets tool to prompt you for both values.
-
-## Build Error Fixes
-
-There are also three build errors to fix in the same pass:
-
-1. **Edge function type error** (line 208): `Uint8Array` isn't accepted as `body` in Deno's fetch. Fix: wrap with `new Blob([audioBytes])` or cast to `ReadableStream`.
-
-2. **`difficulty` column missing** — `useReview.ts`, `Learn.tsx`, and `MyWordsReview.tsx` reference a `difficulty` column on `word_reviews` / `user_vocabulary` that doesn't exist in the database schema. Fix: remove `difficulty` from the select queries and the `WordWithReview` / `DueUserWord` types, or add the column via migration. I'll check what's expected and align code to the actual schema.
-
-## Steps
-
-1. Store `AZURE_SPEECH_KEY` and `AZURE_SPEECH_REGION` as secrets
-2. Fix `body: audioBytes` → `body: new Blob([audioBytes])` in the edge function
-3. Fix the `difficulty` column references in `useReview.ts`, `Learn.tsx`, and `MyWordsReview.tsx`
+This is a one-line structural change. No other files need updating.
 

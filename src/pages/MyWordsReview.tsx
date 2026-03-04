@@ -249,7 +249,7 @@ const MyWordsReview = () => {
           <RatingButtons
             onRate={handleRate}
             stability={currentWord.ease_factor}
-            difficulty={currentWord.difficulty ?? 5.0}
+            difficulty={5.0}
             intervalDays={currentWord.interval_days}
             repetitions={currentWord.repetitions}
             disabled={updateReview.isPending}

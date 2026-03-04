@@ -54,7 +54,6 @@ const Learn = () => {
   const [userReviews, setUserReviews] = useState<Map<string, {
     id: string;
     ease_factor: number;
-    difficulty: number;
     interval_days: number;
     repetitions: number;
     last_reviewed_at: string | null;

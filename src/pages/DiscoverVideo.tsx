@@ -419,12 +419,29 @@ const DiscoverVideo = () => {
   useEffect(() => {
     if (!activeLine) return;
     if (isSeekingRef.current) return;
+    if (playbackMode === "line") return;
     const nextIndex = lines.findIndex((line) => line.id === activeLine.id);
     if (nextIndex >= 0) {
       setLineControlIndex(nextIndex);
       setManualLineIndex(nextIndex);
     }
-  }, [activeLine, lines]);
+  }, [activeLine, lines, playbackMode]);
+
+  // When switching to phrase mode, pause the video and lock to current phrase
+  useEffect(() => {
+    if (playbackMode !== "line") return;
+    if (!isYouTube) return;
+    // Pause the video so the user is in control
+    if (playerRef.current?.pauseVideo) {
+      playerRef.current.pauseVideo();
+    }
+    // Set phrase boundaries from the current lineControlIndex so phrase-end detection works
+    const currentLine = lines[lineControlIndex];
+    if (currentLine) {
+      phraseStartMsRef.current = currentLine.startMs ?? null;
+      phraseEndMsRef.current = currentLine.endMs ?? null;
+    }
+  }, [playbackMode, isYouTube]); // intentionally exclude lines/lineControlIndex — only fire on mode switch
 
   useEffect(() => {
     if (!isYouTube || playbackMode !== "line" || !isYouTubePlaying) return;

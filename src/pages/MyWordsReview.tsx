@@ -69,7 +69,7 @@ const MyWordsReview = () => {
     const result = calculateNextReview(
       rating,
       word.ease_factor,
-      word.difficulty ?? 5.0,
+      5.0,
       word.interval_days,
       word.repetitions,
     );

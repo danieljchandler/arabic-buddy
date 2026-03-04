@@ -68,7 +68,7 @@ const Learn = () => {
         const wordIds = words.map(w => w.id);
         const { data: reviews } = await supabase
           .from('word_reviews')
-          .select('id, word_id, ease_factor, difficulty, interval_days, repetitions, last_reviewed_at, next_review_at')
+          .select('id, word_id, ease_factor, interval_days, repetitions, last_reviewed_at, next_review_at')
           .eq('user_id', user.id)
           .in('word_id', wordIds);
         if (reviews) {

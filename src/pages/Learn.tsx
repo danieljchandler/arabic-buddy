@@ -118,7 +118,6 @@ const Learn = () => {
             word_id: currentWord.id,
             ease_factor: existingReview.ease_factor,
             interval_days: existingReview.interval_days,
-            interval_days: existingReview.interval_days,
             repetitions: existingReview.repetitions,
             last_reviewed_at: existingReview.last_reviewed_at,
             next_review_at: existingReview.next_review_at,

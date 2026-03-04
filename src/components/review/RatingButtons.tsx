@@ -4,7 +4,8 @@ import { RotateCcw, ThumbsDown, ThumbsUp, Sparkles } from "lucide-react";
 
 interface RatingButtonsProps {
   onRate: (rating: Rating) => void;
-  easeFactor: number;
+  stability: number;
+  difficulty: number;
   intervalDays: number;
   repetitions: number;
   disabled?: boolean;
@@ -15,12 +16,13 @@ interface RatingButtonsProps {
  * 
  * Clean, minimal design that doesn't overwhelm the learner.
  */
-export const RatingButtons = ({ 
-  onRate, 
-  easeFactor, 
-  intervalDays, 
+export const RatingButtons = ({
+  onRate,
+  stability,
+  difficulty,
+  intervalDays,
   repetitions,
-  disabled 
+  disabled,
 }: RatingButtonsProps) => {
   const buttons: { rating: Rating; label: string; icon: React.ReactNode; color: string }[] = [
     { 
@@ -56,7 +58,7 @@ export const RatingButtons = ({
       </p>
       <div className="grid grid-cols-4 gap-2">
         {buttons.map(({ rating, label, icon, color }) => {
-          const nextInterval = estimateNextInterval(rating, easeFactor, intervalDays, repetitions);
+          const nextInterval = estimateNextInterval(rating, stability, difficulty, intervalDays, repetitions);
           
           return (
             <button

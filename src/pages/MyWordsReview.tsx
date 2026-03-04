@@ -15,7 +15,8 @@ interface DueUserWord {
   id: string;
   word_arabic: string;
   word_english: string;
-  ease_factor: number;
+  ease_factor: number;  // FSRS stability
+  difficulty: number;   // FSRS difficulty
   interval_days: number;
   repetitions: number;
   next_review_at: string;
@@ -52,7 +53,7 @@ const MyWordsReview = () => {
       const now = new Date().toISOString();
       const { data, error } = await supabase
         .from("user_vocabulary")
-        .select("id, word_arabic, word_english, ease_factor, interval_days, repetitions, next_review_at, last_reviewed_at, word_audio_url, sentence_audio_url, image_url")
+        .select("id, word_arabic, word_english, ease_factor, difficulty, interval_days, repetitions, next_review_at, last_reviewed_at, word_audio_url, sentence_audio_url, image_url")
         .eq("user_id", user.id)
         .lte("next_review_at", now)
         .order("next_review_at", { ascending: true });
@@ -69,13 +70,15 @@ const MyWordsReview = () => {
     const result = calculateNextReview(
       rating,
       word.ease_factor,
+      word.difficulty ?? 5.0,
       word.interval_days,
-      word.repetitions
+      word.repetitions,
     );
 
     await updateReview.mutateAsync({
       wordId: word.id,
-      easeFactor: result.easeFactor,
+      stability: result.stability,
+      difficulty: result.difficulty,
       intervalDays: result.intervalDays,
       repetitions: result.repetitions,
       nextReviewAt: result.nextReviewAt,
@@ -246,7 +249,8 @@ const MyWordsReview = () => {
         <div className="mt-10">
           <RatingButtons
             onRate={handleRate}
-            easeFactor={currentWord.ease_factor}
+            stability={currentWord.ease_factor}
+            difficulty={currentWord.difficulty ?? 5.0}
             intervalDays={currentWord.interval_days}
             repetitions={currentWord.repetitions}
             disabled={updateReview.isPending}

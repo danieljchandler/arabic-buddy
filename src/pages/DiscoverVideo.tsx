@@ -258,9 +258,13 @@ const DiscoverVideo = () => {
                   setCurrentTimeMs(playerRef.current.getCurrentTime() * 1000);
                 }
               }, 200);
+            } else if (event.data === 3) {
+              // Buffering — do NOT clear isSeekingRef here, as this fires
+              // during seeks. The seek is still in progress; let it complete.
             } else {
+              // Genuinely stopped (paused=2, ended=0, unstarted=-1, cued=5)
               setIsYouTubePlaying(false);
-              isSeekingRef.current = false; // clear any stuck seeking state
+              isSeekingRef.current = false; // safe to clear now
               if (intervalRef.current) {
                 clearInterval(intervalRef.current);
                 intervalRef.current = null;

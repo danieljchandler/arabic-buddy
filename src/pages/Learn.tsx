@@ -75,7 +75,6 @@ const Learn = () => {
           const reviewMap = new Map(reviews.map(r => [r.word_id, {
             id: r.id,
             ease_factor: r.ease_factor,
-            difficulty: r.difficulty,
             interval_days: r.interval_days,
             repetitions: r.repetitions,
             last_reviewed_at: r.last_reviewed_at,

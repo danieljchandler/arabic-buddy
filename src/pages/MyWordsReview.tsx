@@ -52,7 +52,7 @@ const MyWordsReview = () => {
       const now = new Date().toISOString();
       const { data, error } = await supabase
         .from("user_vocabulary")
-        .select("id, word_arabic, word_english, ease_factor, difficulty, interval_days, repetitions, next_review_at, last_reviewed_at, word_audio_url, sentence_audio_url, image_url")
+        .select("id, word_arabic, word_english, ease_factor, interval_days, repetitions, next_review_at, last_reviewed_at, word_audio_url, sentence_audio_url, image_url")
         .eq("user_id", user.id)
         .lte("next_review_at", now)
         .order("next_review_at", { ascending: true });

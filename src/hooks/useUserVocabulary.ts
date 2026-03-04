@@ -145,15 +145,17 @@ export const useUpdateUserVocabularyReview = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ 
-      wordId, 
-      easeFactor, 
-      intervalDays, 
-      repetitions, 
-      nextReviewAt 
+    mutationFn: async ({
+      wordId,
+      stability,
+      difficulty,
+      intervalDays,
+      repetitions,
+      nextReviewAt,
     }: {
       wordId: string;
-      easeFactor: number;
+      stability: number;
+      difficulty: number;
       intervalDays: number;
       repetitions: number;
       nextReviewAt: Date;
@@ -161,9 +163,10 @@ export const useUpdateUserVocabularyReview = () => {
       const { error } = await supabase
         .from("user_vocabulary")
         .update({
-          ease_factor: easeFactor,
+          ease_factor: stability,
+          difficulty,
           interval_days: Math.max(0, Math.round(intervalDays)),
-          repetitions: repetitions,
+          repetitions,
           next_review_at: nextReviewAt.toISOString(),
           last_reviewed_at: new Date().toISOString(),
         })

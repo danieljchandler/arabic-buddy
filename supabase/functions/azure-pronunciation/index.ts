@@ -50,6 +50,8 @@ const corsHeaders = {
 const AZURE_SPEECH_KEY = Deno.env.get('AZURE_SPEECH_KEY') ?? '';
 const AZURE_SPEECH_REGION = Deno.env.get('AZURE_SPEECH_REGION') ?? 'eastus';
 
+const SUPPORTED_LOCALES = ['ar-SA', 'ar-QA', 'ar-KW', 'ar-BH', 'ar-AE', 'ar-OM', 'ar-EG'];
+
 /** Azure Pronunciation Assessment config sent as base64 header */
 interface PronunciationConfig {
   ReferenceText: string;
@@ -118,22 +120,34 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const body = await req.json();
+    // Parse request body — return 400 for malformed JSON
+    let body: { audioBase64: string; referenceText: string; locale?: string; audioMimeType?: string };
+    try {
+      body = await req.json();
+    } catch {
+      return new Response(
+        JSON.stringify({ error: 'Invalid JSON in request body' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const {
       audioBase64,
       referenceText,
       locale = 'ar-SA',
       audioMimeType = 'audio/webm',
-    } = body as {
-      audioBase64: string;
-      referenceText: string;
-      locale?: string;
-      audioMimeType?: string;
-    };
+    } = body;
 
     if (!audioBase64 || !referenceText) {
       return new Response(
         JSON.stringify({ error: 'audioBase64 and referenceText are required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!SUPPORTED_LOCALES.includes(locale)) {
+      return new Response(
+        JSON.stringify({ error: `Unsupported locale '${locale}'. Supported: ${SUPPORTED_LOCALES.join(', ')}` }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -154,8 +168,16 @@ Deno.serve(async (req: Request) => {
     };
     const pronunciationHeader = btoa(JSON.stringify(pronunciationConfig));
 
-    // Decode audio from base64
-    const audioBytes = Uint8Array.from(atob(audioBase64), (c) => c.charCodeAt(0));
+    // Decode audio from base64 — return 400 for invalid base64
+    let audioBytes: Uint8Array;
+    try {
+      audioBytes = Uint8Array.from(atob(audioBase64), (c) => c.charCodeAt(0));
+    } catch {
+      return new Response(
+        JSON.stringify({ error: 'audioBase64 is not valid base64' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Determine Content-Type — strip any existing codecs param and re-add
     const baseMime = audioMimeType.split(';')[0].trim();
@@ -169,16 +191,34 @@ Deno.serve(async (req: Request) => {
     const endpoint = `https://${AZURE_SPEECH_REGION}.stt.speech.microsoft.com/speech/recognition/conversation/cognitiveservices/v1`;
     const params = new URLSearchParams({ language: locale, format: 'detailed' });
 
-    const azureRes = await fetch(`${endpoint}?${params}`, {
-      method: 'POST',
-      headers: {
-        'Ocp-Apim-Subscription-Key': AZURE_SPEECH_KEY,
-        'Content-Type': contentType,
-        'Pronunciation-Assessment': pronunciationHeader,
-        'Accept': 'application/json',
-      },
-      body: audioBytes,
-    });
+    // Bound the Azure call with a 10s timeout to prevent edge worker stalling
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10_000);
+
+    let azureRes: Response;
+    try {
+      azureRes = await fetch(`${endpoint}?${params}`, {
+        method: 'POST',
+        headers: {
+          'Ocp-Apim-Subscription-Key': AZURE_SPEECH_KEY,
+          'Content-Type': contentType,
+          'Pronunciation-Assessment': pronunciationHeader,
+          'Accept': 'application/json',
+        },
+        body: audioBytes,
+        signal: controller.signal,
+      });
+    } catch (err: unknown) {
+      clearTimeout(timeoutId);
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        return new Response(
+          JSON.stringify({ error: 'Azure Speech request timed out' }),
+          { status: 504, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      throw err;
+    }
+    clearTimeout(timeoutId);
 
     if (!azureRes.ok) {
       const errText = await azureRes.text();

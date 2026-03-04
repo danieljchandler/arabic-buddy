@@ -173,9 +173,10 @@ export function calculateNextReview(
 
     if (rating === 'again') {
       // Forgot — shorter interval, lower stability but not zero
+      // Keep repetitions > 0 so a lapsed established card is not re-treated as brand-new
       newStability   = Math.max(nextForgetStability(d, s, ret), 0.1);
       newInterval    = LEARNING_INTERVALS.again;
-      newRepetitions = 0;
+      newRepetitions = repetitions;
     } else {
       // Recalled — stability grows; interval = new stability (90% retention target)
       newStability   = Math.max(nextRecallStability(d, s, ret, r), 0.1);

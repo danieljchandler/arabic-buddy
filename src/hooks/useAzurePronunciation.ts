@@ -21,7 +21,7 @@
  *   'ar-OM' Oman
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface PhonemeResult {
@@ -85,6 +85,7 @@ export function useAzurePronunciation() {
   const [result, setResult] = useState<PronunciationResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const requestIdRef = useRef(0);
 
   /**
    * Assess pronunciation of an audio recording against Arabic reference text.
@@ -100,12 +101,30 @@ export function useAzurePronunciation() {
       referenceText: string,
       locale = 'ar-SA'
     ): Promise<PronunciationResult | null> => {
+      // Fail-fast guard for empty inputs
+      if (!audioBlob || audioBlob.size === 0) {
+        setError('No audio recorded');
+        setIsLoading(false);
+        return null;
+      }
+      if (!referenceText.trim()) {
+        setError('Reference text is required');
+        setIsLoading(false);
+        return null;
+      }
+
+      // Capture request ID to guard against stale responses from overlapping calls
+      const reqId = ++requestIdRef.current;
+
       setIsLoading(true);
       setError(null);
       setResult(null);
 
       try {
         const audioBase64 = await blobToBase64(audioBlob);
+
+        if (reqId !== requestIdRef.current) return null;
+
         const audioMimeType = audioBlob.type.split(';')[0] || 'audio/webm';
 
         const { data, error: fnError } = await supabase.functions.invoke(
@@ -115,6 +134,8 @@ export function useAzurePronunciation() {
           }
         );
 
+        if (reqId !== requestIdRef.current) return null;
+
         if (fnError) throw new Error(fnError.message);
         if (data?.error) throw new Error(data.error);
 
@@ -122,11 +143,14 @@ export function useAzurePronunciation() {
         setResult(pronunciationResult);
         return pronunciationResult;
       } catch (err: unknown) {
+        if (reqId !== requestIdRef.current) return null;
         const message = err instanceof Error ? err.message : String(err);
         setError(message);
         return null;
       } finally {
-        setIsLoading(false);
+        if (reqId === requestIdRef.current) {
+          setIsLoading(false);
+        }
       }
     },
     []

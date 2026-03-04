@@ -51,7 +51,15 @@ const Learn = () => {
   const [phase, setPhase] = useState<Phase>("intro");
   const [sessionResults, setSessionResults] = useState({ correct: 0, total: 0 });
   const [isComplete, setIsComplete] = useState(false);
-  const [userReviews, setUserReviews] = useState<Map<string, { id: string }>>(new Map());
+  const [userReviews, setUserReviews] = useState<Map<string, {
+    id: string;
+    ease_factor: number;
+    difficulty: number;
+    interval_days: number;
+    repetitions: number;
+    last_reviewed_at: string | null;
+    next_review_at: string | null;
+  }>>(new Map());
 
   // Fetch existing reviews for SRS integration
   useEffect(() => {
@@ -60,11 +68,19 @@ const Learn = () => {
         const wordIds = words.map(w => w.id);
         const { data: reviews } = await supabase
           .from('word_reviews')
-          .select('id, word_id')
+          .select('id, word_id, ease_factor, difficulty, interval_days, repetitions, last_reviewed_at, next_review_at')
           .eq('user_id', user.id)
           .in('word_id', wordIds);
         if (reviews) {
-          const reviewMap = new Map(reviews.map(r => [r.word_id, { id: r.id }]));
+          const reviewMap = new Map(reviews.map(r => [r.word_id, {
+            id: r.id,
+            ease_factor: r.ease_factor,
+            difficulty: r.difficulty,
+            interval_days: r.interval_days,
+            repetitions: r.repetitions,
+            last_reviewed_at: r.last_reviewed_at,
+            next_review_at: r.next_review_at,
+          }]));
           setUserReviews(reviewMap);
         }
       };
@@ -102,12 +118,12 @@ const Learn = () => {
             id: existingReview.id,
             user_id: user.id,
             word_id: currentWord.id,
-            ease_factor: 0,
-            difficulty: 5.0,
-            interval_days: 0,
-            repetitions: 0,
-            last_reviewed_at: null,
-            next_review_at: new Date().toISOString()
+            ease_factor: existingReview.ease_factor,
+            difficulty: existingReview.difficulty,
+            interval_days: existingReview.interval_days,
+            repetitions: existingReview.repetitions,
+            last_reviewed_at: existingReview.last_reviewed_at,
+            next_review_at: existingReview.next_review_at,
           } : null
         });
       } catch (err) {

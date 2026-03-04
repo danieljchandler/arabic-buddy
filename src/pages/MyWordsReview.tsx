@@ -16,7 +16,6 @@ interface DueUserWord {
   word_arabic: string;
   word_english: string;
   ease_factor: number;  // FSRS stability
-  difficulty: number;   // FSRS difficulty
   interval_days: number;
   repetitions: number;
   next_review_at: string;

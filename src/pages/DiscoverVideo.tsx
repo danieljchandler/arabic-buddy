@@ -11,7 +11,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Loader2, ArrowLeft, BookOpen, Check, Eye, EyeOff, ChevronDown, ChevronLeft, ChevronRight, List, Pause, Play, SkipBack, SkipForward, Captions, Gauge } from "lucide-react";
+import { Loader2, ArrowLeft, BookOpen, Check, Eye, EyeOff, ChevronDown, ChevronLeft, ChevronRight, List, Pause, Play, SkipBack, SkipForward, Gauge } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -202,9 +202,10 @@ const DiscoverVideo = () => {
   const [currentTimeMs, setCurrentTimeMs] = useState(0);
   const [savedWords, setSavedWords] = useState<Set<string>>(new Set());
   const [showTranslations, setShowTranslations] = useState(true);
-  const [showOverlaySubtitles, setShowOverlaySubtitles] = useState(true);
   const [playbackMode, setPlaybackMode] = useState<"continuous" | "line">("continuous");
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
+  const playbackSpeedRef = useRef(playbackSpeed);
+  playbackSpeedRef.current = playbackSpeed;
   const [showFullTranscript, setShowFullTranscript] = useState(false);
   const [manualLineIndex, setManualLineIndex] = useState(0);
   // Timer-based sync for non-YouTube
@@ -219,6 +220,9 @@ const DiscoverVideo = () => {
   const [resolvedTikTokAuthorUrl, setResolvedTikTokAuthorUrl] = useState<string | null>(null);
   const [isYouTubePlaying, setIsYouTubePlaying] = useState(false);
   const [lineControlIndex, setLineControlIndex] = useState(0);
+  const phraseEndMsRef = useRef<number | null>(null);
+  const phraseStartMsRef = useRef<number | null>(null);
+  const isSeekingRef = useRef(false);
   const lineRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const transcriptContainerRef = useRef<HTMLDivElement>(null);
 
@@ -247,14 +251,20 @@ const DiscoverVideo = () => {
             if (event.data === 1) {
               setIsYouTubePlaying(true);
               // Apply current playback speed when video starts
-              playerRef.current?.setPlaybackRate?.(playbackSpeed);
+              playerRef.current?.setPlaybackRate?.(playbackSpeedRef.current);
+              if (intervalRef.current) clearInterval(intervalRef.current);
               intervalRef.current = setInterval(() => {
                 if (playerRef.current?.getCurrentTime) {
                   setCurrentTimeMs(playerRef.current.getCurrentTime() * 1000);
                 }
               }, 200);
+            } else if (event.data === 3) {
+              // Buffering — do NOT clear isSeekingRef here, as this fires
+              // during seeks. The seek is still in progress; let it complete.
             } else {
+              // Genuinely stopped (paused=2, ended=0, unstarted=-1, cued=5)
               setIsYouTubePlaying(false);
+              isSeekingRef.current = false; // safe to clear now
               if (intervalRef.current) {
                 clearInterval(intervalRef.current);
                 intervalRef.current = null;
@@ -271,7 +281,8 @@ const DiscoverVideo = () => {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [video, playbackSpeed]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [video]);
 
   // Apply speed changes to YouTube player
   useEffect(() => {
@@ -354,7 +365,14 @@ const DiscoverVideo = () => {
       setLineControlIndex(clampedIndex);
       setManualLineIndex(clampedIndex);
 
+      // Track the target line's start/end time for phrase-mode pause
+      phraseStartMsRef.current = targetLine.startMs ?? null;
+      phraseEndMsRef.current = targetLine.endMs ?? null;
+
       if (isYouTube && targetLine.startMs !== undefined) {
+        isSeekingRef.current = true;
+        // Safety: clear the flag after 2 s max in case the seek never lands
+        setTimeout(() => { isSeekingRef.current = false; }, 2000);
         handleSeek(targetLine.startMs);
       }
     },
@@ -397,23 +415,57 @@ const DiscoverVideo = () => {
     [lines, activeLineId],
   );
 
+  // In phrase mode, show the line at lineControlIndex to avoid stale activeLine during seek lag
+  const displayLine = (playbackMode === "line" && lines[lineControlIndex])
+    ? lines[lineControlIndex]
+    : activeLine;
+
   useEffect(() => {
     if (!activeLine) return;
+    if (isSeekingRef.current) return;
+    if (playbackMode === "line") return;
     const nextIndex = lines.findIndex((line) => line.id === activeLine.id);
     if (nextIndex >= 0) {
       setLineControlIndex(nextIndex);
       setManualLineIndex(nextIndex);
     }
-  }, [activeLine, lines]);
+  }, [activeLine, lines, playbackMode]);
+
+  // When switching to phrase mode, pause the video and lock to current phrase
+  useEffect(() => {
+    if (playbackMode !== "line") return;
+    if (!isYouTube) return;
+    // Pause the video so the user is in control
+    if (playerRef.current?.pauseVideo) {
+      playerRef.current.pauseVideo();
+    }
+    // Set phrase boundaries from the current lineControlIndex so phrase-end detection works
+    const currentLine = lines[lineControlIndex];
+    if (currentLine) {
+      phraseStartMsRef.current = currentLine.startMs ?? null;
+      phraseEndMsRef.current = currentLine.endMs ?? null;
+    }
+  }, [playbackMode, isYouTube]); // intentionally exclude lines/lineControlIndex — only fire on mode switch
 
   useEffect(() => {
-    if (!isYouTube || playbackMode !== "line" || !isYouTubePlaying || !activeLine?.endMs) return;
+    if (!isYouTube || playbackMode !== "line" || !isYouTubePlaying) return;
 
-    if (currentTimeMs >= activeLine.endMs) {
+    const startMs = phraseStartMsRef.current;
+    const endMs = phraseEndMsRef.current;
+    if (endMs == null) return;
+
+    // Don't trigger until we've actually reached the start of this phrase
+    // (prevents false positives from stale currentTimeMs before the seek lands)
+    if (startMs != null && currentTimeMs < startMs) return;
+
+    // Seek has landed — clear the seeking flag so line-sync can resume
+    isSeekingRef.current = false;
+
+    if (currentTimeMs >= endMs) {
       playerRef.current?.pauseVideo?.();
       setIsYouTubePlaying(false);
     }
-  }, [activeLine, currentTimeMs, isYouTube, isYouTubePlaying, playbackMode]);
+  }, [currentTimeMs, isYouTube, isYouTubePlaying, playbackMode]);
 
   // Auto-scroll to active line
   useEffect(() => {
@@ -612,16 +664,6 @@ const DiscoverVideo = () => {
             </div>
           )}
 
-          {showOverlaySubtitles && activeLine && (
-            <div className="pointer-events-none absolute bottom-3 left-1/2 w-[calc(100%-1rem)] max-w-3xl -translate-x-1/2 rounded-md bg-black/70 px-3 py-2 text-center text-white backdrop-blur-sm">
-              <p className="text-lg leading-[1.9]" dir="rtl" style={{ fontFamily: "'Cairo', 'Traditional Arabic', sans-serif" }}>
-                {activeLine.arabic}
-              </p>
-              {showTranslations && (
-                <p className="mt-1 text-xs text-white/90">{activeLine.translation}</p>
-              )}
-            </div>
-          )}
         </div>
       </div>
 
@@ -665,33 +707,33 @@ const DiscoverVideo = () => {
 
             {/* Active line content */}
             <div className="flex-1 min-w-0">
-              {activeLine ? (
+              {displayLine ? (
                 <div className="text-center space-y-1.5">
                   <p
                     className="text-lg font-medium text-foreground leading-[2]"
                     dir="rtl"
                     style={{ fontFamily: "'Cairo', 'Traditional Arabic', sans-serif" }}
                   >
-                    {activeLine.tokens && activeLine.tokens.length > 0
-                      ? activeLine.tokens.map((token, i) => (
+                    {displayLine.tokens && displayLine.tokens.length > 0
+                      ? displayLine.tokens.map((token, i) => (
                           <span key={token.id} className="inline">
                             <ClickableWord
                               token={token}
-                              parentLine={activeLine}
+                              parentLine={displayLine}
                               onSave={isAuthenticated ? handleSaveToMyWords : undefined}
                               isSaved={savedWords?.has(token.surface)}
                             />
-                            {i < activeLine.tokens.length - 1 && !/^[،؟.!:؛]+$/.test(token.surface) && " "}
+                            {i < displayLine.tokens.length - 1 && !/^[،؟.!:؛]+$/.test(token.surface) && " "}
                           </span>
                         ))
-                      : activeLine.arabic}
+                      : displayLine.arabic}
                   </p>
-                  {showTranslations && activeLine.translation && (
+                  {showTranslations && displayLine.translation && (
                     <p
                       className="text-sm text-muted-foreground leading-relaxed"
                       style={{ fontFamily: "'Open Sans', sans-serif" }}
                     >
-                      {activeLine.translation}
+                      {displayLine.translation}
                     </p>
                   )}
                   <p className="text-xs text-muted-foreground/60">{lineControlIndex + 1} / {lines.length}</p>
@@ -762,14 +804,6 @@ const DiscoverVideo = () => {
           >
             {playbackMode === "continuous" ? <Play className="h-3.5 w-3.5" /> : <Pause className="h-3.5 w-3.5" />}
             {playbackMode === "continuous" ? "Continuous" : "Phrase"}
-          </Button>
-          <Button
-            variant={showOverlaySubtitles ? "secondary" : "ghost"}
-            size="icon"
-            className="h-7 w-7"
-            onClick={() => setShowOverlaySubtitles((prev) => !prev)}
-          >
-            <Captions className="h-3.5 w-3.5" />
           </Button>
           {showTranslations ? (
             <Eye className="h-3.5 w-3.5 text-muted-foreground" />

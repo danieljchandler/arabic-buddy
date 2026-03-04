@@ -205,7 +205,7 @@ Deno.serve(async (req: Request) => {
           'Pronunciation-Assessment': pronunciationHeader,
           'Accept': 'application/json',
         },
-        body: audioBytes,
+        body: new Blob([audioBytes]),
         signal: controller.signal,
       });
     } catch (err: unknown) {

@@ -54,7 +54,6 @@ const Learn = () => {
   const [userReviews, setUserReviews] = useState<Map<string, {
     id: string;
     ease_factor: number;
-    difficulty: number;
     interval_days: number;
     repetitions: number;
     last_reviewed_at: string | null;
@@ -68,14 +67,13 @@ const Learn = () => {
         const wordIds = words.map(w => w.id);
         const { data: reviews } = await supabase
           .from('word_reviews')
-          .select('id, word_id, ease_factor, difficulty, interval_days, repetitions, last_reviewed_at, next_review_at')
+          .select('id, word_id, ease_factor, interval_days, repetitions, last_reviewed_at, next_review_at')
           .eq('user_id', user.id)
           .in('word_id', wordIds);
         if (reviews) {
           const reviewMap = new Map(reviews.map(r => [r.word_id, {
             id: r.id,
             ease_factor: r.ease_factor,
-            difficulty: r.difficulty,
             interval_days: r.interval_days,
             repetitions: r.repetitions,
             last_reviewed_at: r.last_reviewed_at,
@@ -119,7 +117,6 @@ const Learn = () => {
             user_id: user.id,
             word_id: currentWord.id,
             ease_factor: existingReview.ease_factor,
-            difficulty: existingReview.difficulty,
             interval_days: existingReview.interval_days,
             repetitions: existingReview.repetitions,
             last_reviewed_at: existingReview.last_reviewed_at,

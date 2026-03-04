@@ -8,7 +8,6 @@ interface WordReview {
   user_id: string;
   word_id: string;
   ease_factor: number;  // stores FSRS stability
-  difficulty: number;   // stores FSRS difficulty (1–10)
   interval_days: number;
   repetitions: number;
   last_reviewed_at: string | null;
@@ -151,7 +150,7 @@ export const useSubmitReview = () => {
       if (!user) throw new Error('Must be logged in');
 
       const stability    = currentReview?.ease_factor   ?? 0;
-      const difficulty   = currentReview?.difficulty    ?? 5.0;
+      const difficulty   = 5.0;
       const intervalDays = currentReview?.interval_days ?? 0;
       const repetitions  = currentReview?.repetitions   ?? 0;
 
@@ -161,7 +160,6 @@ export const useSubmitReview = () => {
         user_id: user.id,
         word_id: wordId,
         ease_factor: result.stability,
-        difficulty: result.difficulty,
         interval_days: Math.max(0, Math.round(result.intervalDays)),
         repetitions: result.repetitions,
         next_review_at: result.nextReviewAt.toISOString(),

@@ -36,6 +36,7 @@ import AdminVideoForm from "./pages/admin/AdminVideoForm";
 import Stages from "./pages/admin/Stages";
 import LessonImport from "./pages/admin/LessonImport";
 import LlmLogs from "./pages/admin/LlmLogs";
+import CurriculumBuilder from "./pages/admin/CurriculumBuilder";
 
 const queryClient = new QueryClient();
 
@@ -172,6 +173,9 @@ const App = () => {
               <Route path="videos/new" element={<AdminVideoForm />} />
               <Route path="videos/:videoId/edit" element={<AdminVideoForm />} />
               <Route path="llm-logs" element={<LlmLogs />} />
+              {/* Curriculum builder — AI chat for creating lessons */}
+              <Route path="curriculum-builder" element={<CurriculumBuilder />} />
+              <Route path="curriculum-builder/:sessionId" element={<CurriculumBuilder />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />

@@ -3,7 +3,7 @@ import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { useTopics } from '@/hooks/useTopics';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, LogOut, BookOpen, Plus, Settings, Mic, PlayCircle, Upload, GraduationCap, ChartBar } from 'lucide-react';
+import { Loader2, LogOut, BookOpen, Plus, Settings, Mic, PlayCircle, Upload, GraduationCap, ChartBar, Sparkles } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 import lahjaIcon from '@/assets/lahja-icon.png';
@@ -106,6 +106,20 @@ const Dashboard = () => {
         <div className={`grid grid-cols-1 ${isAdmin ? 'md:grid-cols-2' : ''} gap-4 mb-8`}>
           {isAdmin && (
             <>
+              <Card className="cursor-pointer hover:shadow-lg transition-shadow border-primary/50 bg-primary/5" onClick={() => navigate('/admin/curriculum-builder')}>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-4">
+                    <div className="bg-primary/20 rounded-full p-4">
+                      <Sparkles className="h-8 w-8 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-lg">Curriculum Builder</h3>
+                      <p className="text-muted-foreground">Chat with AI to create lessons, vocabulary, and flashcards</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
               <Card className="cursor-pointer hover:shadow-lg transition-shadow border-primary/30" onClick={() => navigate('/admin/lessons/import')}>
                 <CardContent className="pt-6">
                   <div className="flex items-center gap-4">

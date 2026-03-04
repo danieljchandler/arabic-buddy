@@ -39,21 +39,19 @@ const QUICK_ACTIONS = [
 
 export const ChatInput = ({ onSend, disabled, isGenerating }: ChatInputProps) => {
   const [value, setValue] = useState('');
+  const [currentMode, setCurrentMode] = useState<'chat' | 'generate_lesson' | 'generate_vocab'>('chat');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const handleSend = useCallback(
-    (mode: 'chat' | 'generate_lesson' | 'generate_vocab' = 'chat') => {
-      const trimmed = value.trim();
-      if (!trimmed || disabled || isGenerating) return;
-      onSend(trimmed, mode);
-      setValue('');
-      // Reset textarea height
-      if (textareaRef.current) {
-        textareaRef.current.style.height = 'auto';
-      }
-    },
-    [value, disabled, isGenerating, onSend],
-  );
+  const handleSend = useCallback(() => {
+    const trimmed = value.trim();
+    if (!trimmed || disabled || isGenerating) return;
+    onSend(trimmed, currentMode);
+    setValue('');
+    setCurrentMode('chat');
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+    }
+  }, [value, currentMode, disabled, isGenerating, onSend]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -64,6 +62,7 @@ export const ChatInput = ({ onSend, disabled, isGenerating }: ChatInputProps) =>
 
   const handleQuickAction = (action: (typeof QUICK_ACTIONS)[number]) => {
     setValue(action.prompt);
+    setCurrentMode(action.mode);
     textareaRef.current?.focus();
   };
 
@@ -103,7 +102,7 @@ export const ChatInput = ({ onSend, disabled, isGenerating }: ChatInputProps) =>
           rows={1}
         />
         <Button
-          onClick={() => handleSend(value.startsWith('Create a complete lesson') ? 'generate_lesson' : value.startsWith('Generate vocabulary') ? 'generate_vocab' : 'chat')}
+          onClick={handleSend}
           disabled={!value.trim() || disabled || isGenerating}
           size="icon"
           className="shrink-0"

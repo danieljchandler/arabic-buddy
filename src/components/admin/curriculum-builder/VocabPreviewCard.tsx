@@ -93,7 +93,11 @@ export const VocabPreviewCard = ({ data, onApprove }: VocabPreviewCardProps) => 
                   onClick={() => toggleIndex(i)}
                 >
                   <td className="px-3 py-2">
-                    <Checkbox checked={selectedIndices.has(i)} />
+                    <Checkbox
+                      checked={selectedIndices.has(i)}
+                      onCheckedChange={() => toggleIndex(i)}
+                      onClick={(e) => e.stopPropagation()}
+                    />
                   </td>
                   <td className="px-3 py-2 font-arabic text-right">{word.word_arabic}</td>
                   <td className="px-3 py-2 text-muted-foreground">{word.transliteration ?? '-'}</td>

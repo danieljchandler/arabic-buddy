@@ -97,7 +97,7 @@ The system prompt will include:
 
 **`src/components/admin/curriculum-builder/ChatWindow.tsx`** — The chat interface
 - Message list with role-based styling (user right-aligned, assistant left-aligned)
-- Markdown rendering for assistant messages (using existing markdown or a lightweight renderer)
+- Markdown rendering for assistant messages (using existing Markdown or a lightweight renderer)
 - Auto-scroll to bottom on new messages
 - "Generating..." indicator with model name badge
 

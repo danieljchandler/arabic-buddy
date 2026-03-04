@@ -65,8 +65,8 @@ const CurriculumBuilder = () => {
       {
         dialect: newDialect,
         model: newModel,
-        stageId: newStageId || undefined,
-        cefr: newCefr || undefined,
+        stageId: newStageId && newStageId !== 'any' ? newStageId : undefined,
+        cefr: newCefr && newCefr !== 'any' ? newCefr : undefined,
       },
       {
         onSuccess: () => setShowNewDialog(false),
@@ -82,58 +82,52 @@ const CurriculumBuilder = () => {
   );
 
   const handleApproveLesson = useCallback(
-    (messageId: string, data: Record<string, unknown>) => {
-      // The LessonPreviewCard calls onApprove(stageId), but we wrap it here
-      // We need to get the stageId from the card's callback
-      return (stageId: string) => {
-        if (!activeSessionId) return;
-        const lesson = (data as Record<string, unknown>).lesson as Record<string, unknown>;
-        approveLesson.mutate({
-          messageId,
-          sessionId: activeSessionId,
-          stageId,
-          lessonData: {
-            title: lesson.title as string,
-            title_arabic: lesson.title_arabic as string | undefined,
-            description: lesson.description as string | undefined,
-            duration_minutes: lesson.duration_minutes as number | undefined,
-            cefr_target: lesson.cefr_target as string | undefined,
-            approach: lesson.approach as string | undefined,
-            icon: lesson.icon as string | undefined,
-            vocabulary: lesson.vocabulary as Array<{
-              word_arabic: string;
-              word_english: string;
-              transliteration?: string;
-              category?: string;
-              teaching_note?: string;
-              image_scene_description?: string;
-            }>,
-          },
-        });
-      };
+    (messageId: string, data: Record<string, unknown>, stageId: string) => {
+      if (!activeSessionId) return;
+      const lesson = data.lesson as Record<string, unknown>;
+      approveLesson.mutate({
+        messageId,
+        sessionId: activeSessionId,
+        stageId,
+        lessonData: {
+          title: lesson.title as string,
+          title_arabic: lesson.title_arabic as string | undefined,
+          description: lesson.description as string | undefined,
+          duration_minutes: lesson.duration_minutes as number | undefined,
+          cefr_target: lesson.cefr_target as string | undefined,
+          approach: lesson.approach as string | undefined,
+          icon: lesson.icon as string | undefined,
+          vocabulary: lesson.vocabulary as Array<{
+            word_arabic: string;
+            word_english: string;
+            transliteration?: string;
+            category?: string;
+            teaching_note?: string;
+            image_scene_description?: string;
+          }>,
+        },
+      });
     },
     [activeSessionId, approveLesson],
   );
 
   const handleApproveVocab = useCallback(
-    (messageId: string, data: Record<string, unknown>) => {
-      return (lessonId: string, selectedIndices: number[]) => {
-        if (!activeSessionId) return;
-        const vocabulary = (data.vocabulary as Array<{
-          word_arabic: string;
-          word_english: string;
-          transliteration?: string;
-          category?: string;
-          teaching_note?: string;
-        }>) ?? [];
-        const selectedWords = selectedIndices.map((i) => vocabulary[i]).filter(Boolean);
-        approveVocabulary.mutate({
-          messageId,
-          sessionId: activeSessionId,
-          lessonId,
-          words: selectedWords,
-        });
-      };
+    (messageId: string, data: Record<string, unknown>, lessonId: string, selectedIndices: number[]) => {
+      if (!activeSessionId) return;
+      const vocabulary = (data.vocabulary as Array<{
+        word_arabic: string;
+        word_english: string;
+        transliteration?: string;
+        category?: string;
+        teaching_note?: string;
+      }>) ?? [];
+      const selectedWords = selectedIndices.map((i) => vocabulary[i]).filter(Boolean);
+      approveVocabulary.mutate({
+        messageId,
+        sessionId: activeSessionId,
+        lessonId,
+        words: selectedWords,
+      });
     },
     [activeSessionId, approveVocabulary],
   );
@@ -187,20 +181,13 @@ const CurriculumBuilder = () => {
             messages={messages}
             isGenerating={isGenerating}
             sessionId={activeSessionId}
-            onApproveLesson={(msgId, data) => {
-              const handler = handleApproveLesson(msgId, data);
-              // The LessonPreviewCard will call the handler with stageId
-              handler(data.stageId as string ?? '');
-            }}
-            onApproveVocab={(msgId, data) => {
-              const handler = handleApproveVocab(msgId, data);
-              handler(data.lessonId as string ?? '', data.selectedIndices as number[] ?? []);
-            }}
+            onApproveLesson={handleApproveLesson}
+            onApproveVocab={handleApproveVocab}
           />
 
           <ChatInput
             onSend={handleSend}
-            disabled={!activeSessionId}
+            disabled={!activeSession}
             isGenerating={isGenerating}
           />
         </div>

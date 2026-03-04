@@ -11,8 +11,8 @@ interface ChatWindowProps {
   messages: ChatMessage[];
   isGenerating: boolean;
   sessionId: string | null;
-  onApproveLesson: (messageId: string, data: Record<string, unknown>) => void;
-  onApproveVocab: (messageId: string, data: Record<string, unknown>) => void;
+  onApproveLesson: (messageId: string, data: Record<string, unknown>, stageId: string) => void;
+  onApproveVocab: (messageId: string, data: Record<string, unknown>, lessonId: string, selectedIndices: number[]) => void;
 }
 
 export const ChatWindow = ({
@@ -102,7 +102,7 @@ export const ChatWindow = ({
               <div className="ml-11 mt-2">
                 <LessonPreviewCard
                   data={msg.structured_output}
-                  onApprove={() => onApproveLesson(msg.id, msg.structured_output!)}
+                  onApprove={(stageId) => onApproveLesson(msg.id, msg.structured_output!, stageId)}
                 />
               </div>
             )}
@@ -110,7 +110,7 @@ export const ChatWindow = ({
               <div className="ml-11 mt-2">
                 <VocabPreviewCard
                   data={msg.structured_output}
-                  onApprove={() => onApproveVocab(msg.id, msg.structured_output!)}
+                  onApprove={(lessonId, selectedIndices) => onApproveVocab(msg.id, msg.structured_output!, lessonId, selectedIndices)}
                 />
               </div>
             )}

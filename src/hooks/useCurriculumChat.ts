@@ -221,10 +221,11 @@ export function useCurriculumChat() {
         .update({ status: 'archived' } as never)
         .eq('id', sessionId);
       if (error) throw error;
+      return sessionId;
     },
-    onSuccess: () => {
+    onSuccess: (archivedSessionId) => {
       queryClient.invalidateQueries({ queryKey: ['curriculum-chat-sessions'] });
-      if (activeSessionId) {
+      if (archivedSessionId === activeSessionId) {
         setActiveSessionId(null);
       }
     },

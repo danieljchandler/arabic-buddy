@@ -300,11 +300,12 @@ serve(async (req) => {
       );
     }
 
-    // Build the full message array with system prompt
+    // Build the full message array with system prompt (cap history to avoid token overflow)
+    const cappedMessages = messages.slice(-50);
     const systemPrompt = buildSystemPrompt(dialect, stageContext, mode);
     const fullMessages = [
       { role: "system", content: systemPrompt },
-      ...messages.map((m) => ({ role: m.role, content: m.content })),
+      ...cappedMessages.map((m) => ({ role: m.role, content: m.content })),
     ];
 
     console.log(
@@ -325,7 +326,7 @@ serve(async (req) => {
       await supabaseService.from("llm_usage_logs").insert({
         function_name: "curriculum-chat",
         llm_used: modelId,
-        phrase: messages[messages.length - 1]?.content?.slice(0, 200) || "",
+        phrase: `[curriculum-chat] mode=${mode} dialect=${dialect} messages=${messages.length}`,
         user_id: user.id,
       });
     } catch (logErr) {

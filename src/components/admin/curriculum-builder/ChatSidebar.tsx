@@ -54,10 +54,18 @@ export const ChatSidebar = ({
             </div>
           ) : (
             sessions.map((session) => (
-              <button
+              <div
                 key={session.id}
+                role="button"
+                tabIndex={0}
                 onClick={() => onSelectSession(session.id)}
-                className={`w-full text-left p-3 rounded-lg text-sm transition-colors group ${
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    onSelectSession(session.id);
+                  }
+                }}
+                className={`w-full text-left p-3 rounded-lg text-sm transition-colors group cursor-pointer ${
                   activeSessionId === session.id
                     ? 'bg-primary/10 border border-primary/20'
                     : 'hover:bg-muted/60'
@@ -86,7 +94,7 @@ export const ChatSidebar = ({
                     <Archive className="h-3.5 w-3.5 text-muted-foreground" />
                   </button>
                 </div>
-              </button>
+              </div>
             ))
           )}
         </div>

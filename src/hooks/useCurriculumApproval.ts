@@ -90,9 +90,7 @@ export function useCurriculumApproval() {
           .from('vocabulary_words' as never)
           .insert(vocabInserts as never);
 
-        if (vocabErr) {
-          console.warn('Vocab insert error (non-fatal):', vocabErr.message);
-        }
+        if (vocabErr) throw vocabErr;
       }
 
       // 4. Record the approval

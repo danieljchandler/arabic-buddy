@@ -106,7 +106,14 @@ const Dashboard = () => {
         <div className={`grid grid-cols-1 ${isAdmin ? 'md:grid-cols-2' : ''} gap-4 mb-8`}>
           {isAdmin && (
             <>
-              <Card className="cursor-pointer hover:shadow-lg transition-shadow border-primary/50 bg-primary/5" onClick={() => navigate('/admin/curriculum-builder')}>
+              <Card
+                className="cursor-pointer hover:shadow-lg transition-shadow border-primary/50 bg-primary/5"
+                role="button"
+                tabIndex={0}
+                aria-label="Curriculum Builder"
+                onClick={() => navigate('/admin/curriculum-builder')}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') navigate('/admin/curriculum-builder'); }}
+              >
                 <CardContent className="pt-6">
                   <div className="flex items-center gap-4">
                     <div className="bg-primary/20 rounded-full p-4">

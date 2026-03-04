@@ -8,7 +8,6 @@ interface WordReview {
   user_id: string;
   word_id: string;
   ease_factor: number;  // stores FSRS stability
-  difficulty: number;   // stores FSRS difficulty (1–10)
   interval_days: number;
   repetitions: number;
   last_reviewed_at: string | null;

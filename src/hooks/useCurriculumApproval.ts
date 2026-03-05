@@ -66,11 +66,12 @@ export function useCurriculumApproval() {
           icon: lessonData.icon || '📚',
           gradient: 'bg-gradient-green',
           display_order: nextLessonNumber,
-        })
+        } as never)
         .select()
         .single();
 
       if (lessonErr) throw lessonErr;
+      const lessonRecord = lesson as unknown as { id: string; title: string };
 
       // 3. Insert vocabulary words if provided
       if (lessonData.vocabulary && lessonData.vocabulary.length > 0) {

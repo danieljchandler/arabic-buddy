@@ -49,7 +49,7 @@ export function useCurriculumApproval() {
         .order('lesson_number', { ascending: false })
         .limit(1);
 
-      const nextLessonNumber = (existingLessons?.[0]?.lesson_number ?? 0) + 1;
+      const nextLessonNumber = ((existingLessons as unknown as { lesson_number: number }[])?.[0]?.lesson_number ?? 0) + 1;
 
       // 2. Create the lesson
       const { data: lesson, error: lessonErr } = await supabase

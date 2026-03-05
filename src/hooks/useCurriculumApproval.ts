@@ -43,7 +43,7 @@ export function useCurriculumApproval() {
 
       // 1. Find the next lesson number for this stage
       const { data: existingLessons } = await supabase
-        .from('lessons')
+        .from('lessons' as never)
         .select('lesson_number')
         .eq('stage_id', stageId)
         .order('lesson_number', { ascending: false })

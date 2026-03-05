@@ -110,9 +110,10 @@ export function useCurriculumApproval() {
 
       return lesson;
     },
-    onSuccess: (lesson) => {
+    onSuccess: (lesson: unknown) => {
+      const l = lesson as { title: string };
       toast.success('Lesson created!', {
-        description: `"${lesson.title}" added to curriculum`,
+        description: `"${l.title}" added to curriculum`,
       });
       queryClient.invalidateQueries({ queryKey: ['lessons'] });
       queryClient.invalidateQueries({ queryKey: ['all-lessons'] });

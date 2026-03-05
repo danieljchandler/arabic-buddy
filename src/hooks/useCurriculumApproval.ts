@@ -53,7 +53,7 @@ export function useCurriculumApproval() {
 
       // 2. Create the lesson
       const { data: lesson, error: lessonErr } = await supabase
-        .from('lessons')
+        .from('lessons' as never)
         .insert({
           stage_id: stageId,
           lesson_number: nextLessonNumber,

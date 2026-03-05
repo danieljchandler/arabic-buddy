@@ -101,7 +101,7 @@ export function useCurriculumApproval() {
           message_id: messageId,
           session_id: sessionId,
           approval_type: 'lesson',
-          target_lesson_id: lesson.id,
+          target_lesson_id: lessonRecord.id,
           approved_by: userData.user.id,
         } as never);
 

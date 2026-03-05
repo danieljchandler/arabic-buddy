@@ -43,17 +43,17 @@ export function useCurriculumApproval() {
 
       // 1. Find the next lesson number for this stage
       const { data: existingLessons } = await supabase
-        .from('lessons')
+        .from('lessons' as never)
         .select('lesson_number')
         .eq('stage_id', stageId)
         .order('lesson_number', { ascending: false })
         .limit(1);
 
-      const nextLessonNumber = (existingLessons?.[0]?.lesson_number ?? 0) + 1;
+      const nextLessonNumber = ((existingLessons as unknown as { lesson_number: number }[])?.[0]?.lesson_number ?? 0) + 1;
 
       // 2. Create the lesson
       const { data: lesson, error: lessonErr } = await supabase
-        .from('lessons')
+        .from('lessons' as never)
         .insert({
           stage_id: stageId,
           lesson_number: nextLessonNumber,
@@ -66,18 +66,19 @@ export function useCurriculumApproval() {
           icon: lessonData.icon || '📚',
           gradient: 'bg-gradient-green',
           display_order: nextLessonNumber,
-        })
+        } as never)
         .select()
         .single();
 
       if (lessonErr) throw lessonErr;
+      const lessonRecord = lesson as unknown as { id: string; title: string };
 
       // 3. Insert vocabulary words if provided
       if (lessonData.vocabulary && lessonData.vocabulary.length > 0) {
         // We need a topic_id for vocabulary_words — use the lesson's stage as a fallback
         // First check if there's a topic linked to this stage already
         const vocabInserts = lessonData.vocabulary.map((word, idx) => ({
-          lesson_id: lesson.id,
+          lesson_id: lessonRecord.id,
           // topic_id is required by the schema but we may not have one for new curriculum lessons
           // We'll need to create a topic or use a placeholder
           word_arabic: word.word_arabic,
@@ -100,7 +101,7 @@ export function useCurriculumApproval() {
           message_id: messageId,
           session_id: sessionId,
           approval_type: 'lesson',
-          target_lesson_id: lesson.id,
+          target_lesson_id: lessonRecord.id,
           approved_by: userData.user.id,
         } as never);
 
@@ -108,11 +109,12 @@ export function useCurriculumApproval() {
         console.warn('Approval tracking error (non-fatal):', approvalErr.message);
       }
 
-      return lesson;
+      return lessonRecord;
     },
-    onSuccess: (lesson) => {
+    onSuccess: (lesson: unknown) => {
+      const l = lesson as { title: string };
       toast.success('Lesson created!', {
-        description: `"${lesson.title}" added to curriculum`,
+        description: `"${l.title}" added to curriculum`,
       });
       queryClient.invalidateQueries({ queryKey: ['lessons'] });
       queryClient.invalidateQueries({ queryKey: ['all-lessons'] });

@@ -1,33 +1,33 @@
 
 
-# Fix Build Errors
+# Fix: Badge component ref warning
 
-There are two issues breaking the preview:
+## Problem
+React warns that a `ref` is being passed to the `Badge` component, which currently renders a plain `<div>` without forwarding refs. This is a cosmetic console warning -- it does not break anything.
 
-## 1. Merge conflict markers in `src/App.tsx`
+## Fix
+Update `src/components/ui/badge.tsx` to use `React.forwardRef` so the component properly accepts and forwards refs.
 
-Git merge conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`) are present at lines 38-42 and 178-184. These need to be resolved by keeping the branch content (the `LlmLogs` and `CurriculumBuilder` imports and routes).
+## Change
 
-**Line 38-42** — resolve to:
-```typescript
-import LlmLogs from "./pages/admin/LlmLogs";
-import CurriculumBuilder from "./pages/admin/CurriculumBuilder";
+**File: `src/components/ui/badge.tsx`**
+
+Replace the current `Badge` function:
+```tsx
+function Badge({ className, variant, ...props }: BadgeProps) {
+  return <div className={cn(badgeVariants({ variant }), className)} {...props} />;
+}
 ```
 
-**Lines 178-184** — resolve to:
-```typescript
-              <Route path="llm-logs" element={<LlmLogs />} />
-              <Route path="curriculum-builder" element={<CurriculumBuilder />} />
-              <Route path="curriculum-builder/:sessionId" element={<CurriculumBuilder />} />
+With a `forwardRef` version:
+```tsx
+const Badge = React.forwardRef<HTMLDivElement, BadgeProps>(
+  ({ className, variant, ...props }, ref) => {
+    return <div ref={ref} className={cn(badgeVariants({ variant }), className)} {...props} />;
+  }
+);
+Badge.displayName = "Badge";
 ```
 
-## 2. Edge function type error in `azure-pronunciation/index.ts`
-
-Deno's strict typing rejects `new Blob([audioBytes])` when `audioBytes` is `Uint8Array`. Fix by converting to `ArrayBuffer` first:
-
-```typescript
-body: new Blob([audioBytes.buffer]),
-```
-
-Both fixes are straightforward — resolving the merge conflicts restores the app, and the edge function fix resolves the deployment type check.
+This is a one-line structural change. No other files need updating.
 

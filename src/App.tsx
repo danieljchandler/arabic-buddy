@@ -172,13 +172,9 @@ const App = () => {
               <Route path="videos" element={<AdminVideos />} />
               <Route path="videos/new" element={<AdminVideoForm />} />
               <Route path="videos/:videoId/edit" element={<AdminVideoForm />} />
-<<<<<<< claude/internal-curriculum-builder-GisaM
               <Route path="llm-logs" element={<LlmLogs />} />
-              {/* Curriculum builder — AI chat for creating lessons */}
               <Route path="curriculum-builder" element={<CurriculumBuilder />} />
               <Route path="curriculum-builder/:sessionId" element={<CurriculumBuilder />} />
-=======
->>>>>>> main
             </Route>
 
             <Route path="*" element={<NotFound />} />

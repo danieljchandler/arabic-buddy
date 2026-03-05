@@ -78,7 +78,7 @@ export function useCurriculumApproval() {
         // We need a topic_id for vocabulary_words — use the lesson's stage as a fallback
         // First check if there's a topic linked to this stage already
         const vocabInserts = lessonData.vocabulary.map((word, idx) => ({
-          lesson_id: lesson.id,
+          lesson_id: lessonRecord.id,
           // topic_id is required by the schema but we may not have one for new curriculum lessons
           // We'll need to create a topic or use a placeholder
           word_arabic: word.word_arabic,

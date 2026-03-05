@@ -35,11 +35,8 @@ import AdminVideos from "./pages/admin/AdminVideos";
 import AdminVideoForm from "./pages/admin/AdminVideoForm";
 import Stages from "./pages/admin/Stages";
 import LessonImport from "./pages/admin/LessonImport";
-<<<<<<< claude/internal-curriculum-builder-GisaM
 import LlmLogs from "./pages/admin/LlmLogs";
 import CurriculumBuilder from "./pages/admin/CurriculumBuilder";
-=======
->>>>>>> main
 
 const queryClient = new QueryClient();
 

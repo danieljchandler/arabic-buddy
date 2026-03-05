@@ -109,7 +109,7 @@ export function useCurriculumApproval() {
         console.warn('Approval tracking error (non-fatal):', approvalErr.message);
       }
 
-      return lesson;
+      return lessonRecord;
     },
     onSuccess: (lesson: unknown) => {
       const l = lesson as { title: string };

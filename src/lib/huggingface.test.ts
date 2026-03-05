@@ -1,21 +1,18 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-/* ---- mock the openai module ---- */
-const createMock = vi.fn();
-vi.mock("openai", () => {
+/* ---- mock the supabase client ---- */
+const invokeMock = vi.fn();
+vi.mock("@/integrations/supabase/client", () => {
   return {
-    default: vi.fn().mockImplementation(() => ({
-      chat: { completions: { create: createMock } },
-    })),
+    supabase: {
+      functions: { invoke: invokeMock },
+    },
   };
 });
 
-/* The module under test reads import.meta.env at call time, so we can set it
-   before each test. */
 beforeEach(() => {
-  vi.stubEnv("VITE_HF_TOKEN", "hf_test_token");
   vi.useFakeTimers();
-  createMock.mockReset();
+  invokeMock.mockReset();
 });
 
 afterEach(() => {
@@ -29,32 +26,36 @@ async function loadModule() {
 
 describe("getDialectResponse", () => {
   it("returns content from a successful API call", async () => {
-    createMock.mockResolvedValueOnce({
-      choices: [{ message: { content: "مرحبا" } }],
+    invokeMock.mockResolvedValueOnce({
+      data: { content: "مرحبا" },
+      error: null,
     });
 
     const { getDialectResponse } = await loadModule();
     const result = await getDialectResponse("Say hello", "standard");
     expect(result).toBe("مرحبا");
 
-    expect(createMock).toHaveBeenCalledWith(
+    expect(invokeMock).toHaveBeenCalledWith(
+      "hf-chat",
       expect.objectContaining({
-        model: "tiiuae/Falcon-H1-7B-Instruct:cheapest",
+        body: { prompt: "Say hello", modelTier: "standard" },
       }),
     );
   });
 
   it("uses the premium model when requested", async () => {
-    createMock.mockResolvedValueOnce({
-      choices: [{ message: { content: "أهلاً" } }],
+    invokeMock.mockResolvedValueOnce({
+      data: { content: "أهلاً" },
+      error: null,
     });
 
     const { getDialectResponse } = await loadModule();
     await getDialectResponse("Greet me", "premium");
 
-    expect(createMock).toHaveBeenCalledWith(
+    expect(invokeMock).toHaveBeenCalledWith(
+      "hf-chat",
       expect.objectContaining({
-        model: "inceptionai/Jais-2-8B-Chat:cheapest",
+        body: { prompt: "Greet me", modelTier: "premium" },
       }),
     );
   });
@@ -64,18 +65,16 @@ describe("getDialectResponse", () => {
       status: 503,
     });
 
-    createMock
-      .mockRejectedValueOnce(busyError)
-      .mockResolvedValueOnce({
-        choices: [{ message: { content: "نجحنا" } }],
-      });
+    invokeMock
+      .mockResolvedValueOnce({ data: null, error: busyError })
+      .mockResolvedValueOnce({ data: { content: "نجحنا" }, error: null });
 
     const { getDialectResponse } = await loadModule();
     const promise = getDialectResponse("Try again", "standard");
     await vi.advanceTimersByTimeAsync(2000);
     const result = await promise;
     expect(result).toBe("نجحنا");
-    expect(createMock).toHaveBeenCalledTimes(2);
+    expect(invokeMock).toHaveBeenCalledTimes(2);
   });
 
   it("returns a fallback message after exhausting retries", async () => {
@@ -83,10 +82,10 @@ describe("getDialectResponse", () => {
       status: 503,
     });
 
-    createMock
-      .mockRejectedValueOnce(busyError)
-      .mockRejectedValueOnce(busyError)
-      .mockRejectedValueOnce(busyError);
+    invokeMock
+      .mockResolvedValueOnce({ data: null, error: busyError })
+      .mockResolvedValueOnce({ data: null, error: busyError })
+      .mockResolvedValueOnce({ data: null, error: busyError });
 
     const { getDialectResponse } = await loadModule();
     const promise = getDialectResponse("Fail", "standard");
@@ -96,22 +95,15 @@ describe("getDialectResponse", () => {
   });
 
   it("returns a fallback message for an empty response", async () => {
-    createMock.mockResolvedValueOnce({
-      choices: [{ message: { content: null } }],
+    invokeMock.mockResolvedValueOnce({
+      data: { content: null },
+      error: null,
     });
 
     const { getDialectResponse } = await loadModule();
     const result = await getDialectResponse("Empty", "standard");
     expect(result).toContain("Sorry, the service is temporarily busy");
-    expect(createMock).toHaveBeenCalledTimes(1);
-  });
-
-  it("throws when VITE_HF_TOKEN is missing", async () => {
-    vi.stubEnv("VITE_HF_TOKEN", "");
-
-    const { getDialectResponse } = await loadModule();
-    await expect(getDialectResponse("test", "standard")).rejects.toThrow(
-      "VITE_HF_TOKEN is not set",
-    );
+    expect(invokeMock).toHaveBeenCalledTimes(1);
   });
 });
+

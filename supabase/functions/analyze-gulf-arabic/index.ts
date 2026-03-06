@@ -474,7 +474,7 @@ async function callJaisHF(
   const timeout = setTimeout(() => controller.abort(), 45_000);
 
   try {
-    const response = await fetch('https://router.huggingface.co/v1/chat/completions', {
+    const response = await fetch('https://router.huggingface.co/together/v1/chat/completions', {
       method: 'POST',
       signal: controller.signal,
       headers: {
@@ -482,7 +482,7 @@ async function callJaisHF(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'inceptionai/Jais-2-8B-Chat:cheapest',
+        model: 'inceptionai/Jais-2-8B-Chat',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userContent },
@@ -519,7 +519,12 @@ async function callFalconHF(
   const timeout = setTimeout(() => controller.abort(), 45_000);
 
   try {
-    const response = await fetch('https://router.huggingface.co/v1/chat/completions', {
+    const falconEndpoint = Deno.env.get('FALCON_HF_ENDPOINT_URL');
+    if (!falconEndpoint) {
+      console.warn('FALCON_HF_ENDPOINT_URL not set, skipping Falcon call');
+      return { content: null };
+    }
+    const response = await fetch(`${falconEndpoint}/v1/chat/completions`, {
       method: 'POST',
       signal: controller.signal,
       headers: {
@@ -527,7 +532,7 @@ async function callFalconHF(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'tiiuae/Falcon-H1-7B-Instruct:cheapest',
+        model: 'tiiuae/Falcon-H1-7B-Instruct',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userContent },
@@ -1111,6 +1116,7 @@ serve(async (req) => {
 
     const HF_TOKEN = Deno.env.get('VITE_HF_TOKEN');
     const hfAvailable = Boolean(HF_TOKEN);
+    const falconAvailable = Boolean(HF_TOKEN) && Boolean(Deno.env.get('FALCON_HF_ENDPOINT_URL'));
 
      let partial = false;
 
@@ -1362,7 +1368,7 @@ serve(async (req) => {
      }
 
      // --- Fallback: Falcon H1 translation if both Gemini and Qwen failed ---
-     if ((!translationAi?.translations || translationAi.translations.length === 0) && hfAvailable) {
+     if ((!translationAi?.translations || translationAi.translations.length === 0) && falconAvailable) {
        console.log('Qwen translation failed or empty, falling back to Falcon H1 for translation...');
        const falconTransResp = await callFalconHF(
          getTranslationSystemPrompt(detectedDialect, visualContext),

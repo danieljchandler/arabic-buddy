@@ -125,7 +125,7 @@ async function callJaisHF(
   const timeout = setTimeout(() => controller.abort(), 45_000);
 
   try {
-    const response = await fetch('https://router.huggingface.co/v1/chat/completions', {
+    const response = await fetch('https://router.huggingface.co/together/v1/chat/completions', {
       method: 'POST',
       signal: controller.signal,
       headers: {
@@ -133,7 +133,7 @@ async function callJaisHF(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'inceptionai/Jais-2-8B-Chat:cheapest',
+        model: 'inceptionai/Jais-2-8B-Chat',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userContent },

@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 const OPENROUTER_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
-const HF_ROUTER_ENDPOINT = 'https://router.huggingface.co/v1/chat/completions';
+// Falcon uses dedicated HF Inference Endpoint (resolved from env)
 
 function parseNumberedTranslations(generatedText: string, arabicLines: string[]): string[] {
   const translations: string[] = [];
@@ -76,10 +76,15 @@ async function callHuggingFace(
   numberedLines: string,
   hfToken: string,
 ): Promise<string | null> {
+  const falconEndpoint = Deno.env.get('FALCON_HF_ENDPOINT_URL');
+  if (!falconEndpoint) {
+    console.warn('FALCON_HF_ENDPOINT_URL not set, skipping Falcon call');
+    return null;
+  }
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 45_000);
   try {
-    const response = await fetch(HF_ROUTER_ENDPOINT, {
+    const response = await fetch(`${falconEndpoint}/v1/chat/completions`, {
       method: 'POST',
       signal: controller.signal,
       headers: {
@@ -87,7 +92,7 @@ async function callHuggingFace(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'tiiuae/Falcon-H1-7B-Instruct:cheapest',
+        model: 'tiiuae/Falcon-H1-7B-Instruct',
         messages: [
           {
             role: 'system',
@@ -156,7 +161,7 @@ serve(async (req) => {
     }
 
     const HF_TOKEN = Deno.env.get('VITE_HF_TOKEN');
-    const hfAvailable = Boolean(HF_TOKEN);
+    const falconAvailable = Boolean(HF_TOKEN) && Boolean(Deno.env.get('FALCON_HF_ENDPOINT_URL'));
 
     console.log(`falcon-translate: processing ${arabicLines.length} lines`);
 
@@ -165,7 +170,7 @@ serve(async (req) => {
     const [qwenText, geminiText, falconText] = await Promise.all([
       callOpenRouterTranslate('qwen/qwen3-235b-a22b', numberedLines, OPENROUTER_API_KEY),
       callOpenRouterTranslate('google/gemini-2.5-flash', numberedLines, OPENROUTER_API_KEY),
-      hfAvailable
+      falconAvailable
         ? callHuggingFace(numberedLines, HF_TOKEN!).catch((e) => {
             console.warn('Falcon H1 HF failed (non-blocking):', e);
             return null;

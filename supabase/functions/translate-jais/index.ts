@@ -9,7 +9,7 @@ const corsHeaders = {
 const OPENROUTER_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
 const QWEN_MODEL = 'qwen/qwen3-235b-a22b';
 const GEMINI_MODEL = 'google/gemini-2.5-flash';
-const HF_ROUTER_ENDPOINT = 'https://router.huggingface.co/v1/chat/completions';
+const JAIS_HF_ENDPOINT = 'https://router.huggingface.co/together/v1/chat/completions';
 
 interface RawTranslation {
   arabic?: unknown;
@@ -88,7 +88,7 @@ async function callJaisHF(
   const timeout = setTimeout(() => controller.abort(), 45_000);
 
   try {
-    const response = await fetch(HF_ROUTER_ENDPOINT, {
+    const response = await fetch(JAIS_HF_ENDPOINT, {
       method: 'POST',
       signal: controller.signal,
       headers: {
@@ -96,7 +96,7 @@ async function callJaisHF(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'inceptionai/Jais-2-8B-Chat:cheapest',
+        model: 'inceptionai/Jais-2-8B-Chat',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userContent },

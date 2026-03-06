@@ -5,11 +5,20 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const HF_ENDPOINT = 'https://router.huggingface.co/v1/chat/completions';
+const JAIS_HF_ENDPOINT = 'https://router.huggingface.co/together/v1/chat/completions';
 
-const MODEL_MAP: Record<string, string> = {
-  standard: 'tiiuae/Falcon-H1-7B-Instruct:cheapest',
-  premium: 'inceptionai/Jais-2-8B-Chat:cheapest',
+const MODEL_MAP: Record<string, { model: string; getEndpoint: () => string | null }> = {
+  standard: {
+    model: 'tiiuae/Falcon-H1-7B-Instruct',
+    getEndpoint: () => {
+      const url = Deno.env.get('FALCON_HF_ENDPOINT_URL');
+      return url ? `${url}/v1/chat/completions` : null;
+    },
+  },
+  premium: {
+    model: 'inceptionai/Jais-2-8B-Chat',
+    getEndpoint: () => JAIS_HF_ENDPOINT,
+  },
 };
 
 const DEFAULT_SYSTEM_PROMPT =
@@ -31,22 +40,30 @@ serve(async (req) => {
       );
     }
 
-    const model = MODEL_MAP[modelTier];
-    if (!model) {
+    const config = MODEL_MAP[modelTier];
+    if (!config) {
       return new Response(
         JSON.stringify({ error: `Unknown modelTier: ${modelTier}` }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
 
-    const response = await fetch(HF_ENDPOINT, {
+    const endpoint = config.getEndpoint();
+    if (!endpoint) {
+      return new Response(
+        JSON.stringify({ error: `Endpoint not available for ${modelTier} (dedicated endpoint may be offline)` }),
+        { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+
+    const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${hfToken}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model,
+        model: config.model,
         messages: [
           { role: 'system', content: DEFAULT_SYSTEM_PROMPT },
           { role: 'user', content: prompt },

@@ -161,7 +161,7 @@ serve(async (req) => {
     }
 
     const HF_TOKEN = Deno.env.get('VITE_HF_TOKEN');
-    const hfAvailable = Boolean(HF_TOKEN);
+    const falconAvailable = Boolean(HF_TOKEN) && Boolean(Deno.env.get('FALCON_HF_ENDPOINT_URL'));
 
     console.log(`falcon-translate: processing ${arabicLines.length} lines`);
 

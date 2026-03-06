@@ -7,7 +7,8 @@ const corsHeaders = {
 };
 
 const OPENROUTER_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
-const RUNPOD_BASE = 'https://api.runpod.ai/v2';
+const RUNPOD_JAIS_ENDPOINT = 'https://api.runpod.ai/v2/xx0wek543611i5/openai/v1/chat/completions';
+const RUNPOD_FALCON_ENDPOINT = 'https://api.runpod.ai/v2/tnhfklb3tb7md8/openai/v1/chat/completions';
 
 function parseNumberedTranslations(generatedText: string, arabicLines: string[]): string[] {
   const translations: string[] = [];
@@ -73,12 +74,11 @@ async function callOpenRouterTranslate(
 }
 
 async function callRunPodTranslate(
-  endpointId: string,
+  endpoint: string,
   model: string,
   numberedLines: string,
   apiKey: string,
 ): Promise<string | null> {
-  const endpoint = `${RUNPOD_BASE}/${endpointId}/openai/v1/chat/completions`;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 45_000);
   try {
@@ -159,8 +159,6 @@ serve(async (req) => {
     }
 
     const RUNPOD_API_KEY = Deno.env.get('RUNPOD_API_KEY');
-    const runpodJaisId = Deno.env.get('RUNPOD_JAIS_ENDPOINT_ID');
-    const runpodFalconId = Deno.env.get('RUNPOD_FALCON_ENDPOINT_ID');
 
     console.log(`falcon-translate: processing ${arabicLines.length} lines`);
 
@@ -175,14 +173,13 @@ serve(async (req) => {
 
     // Fallback to RunPod Jais then Falcon if OpenRouter calls both fail
     if (!generatedText && RUNPOD_API_KEY) {
-      if (runpodJaisId) {
-        console.log('OpenRouter failed, trying Jais via RunPod...');
-        generatedText = await callRunPodTranslate(runpodJaisId, 'inceptionai/Jais-2-8B-Chat', numberedLines, RUNPOD_API_KEY)
-          .catch((e) => { console.warn('Jais RunPod fallback failed:', e); return null; }) ?? '';
-      }
-      if (!generatedText && runpodFalconId) {
+      console.log('OpenRouter failed, trying Jais via RunPod...');
+      generatedText = await callRunPodTranslate(RUNPOD_JAIS_ENDPOINT, 'inceptionai/Jais-2-8B-Chat', numberedLines, RUNPOD_API_KEY)
+        .catch((e) => { console.warn('Jais RunPod fallback failed:', e); return null; }) ?? '';
+
+      if (!generatedText) {
         console.log('Jais RunPod failed, trying Falcon via RunPod...');
-        generatedText = await callRunPodTranslate(runpodFalconId, 'tiiuae/Falcon-H1R-7B', numberedLines, RUNPOD_API_KEY)
+        generatedText = await callRunPodTranslate(RUNPOD_FALCON_ENDPOINT, 'tiiuae/Falcon-H1R-7B', numberedLines, RUNPOD_API_KEY)
           .catch((e) => { console.warn('Falcon RunPod fallback failed:', e); return null; }) ?? '';
       }
     }

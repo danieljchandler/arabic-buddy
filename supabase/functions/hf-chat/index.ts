@@ -5,22 +5,17 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const RUNPOD_BASE = 'https://api.runpod.ai/v2';
+const RUNPOD_JAIS_ENDPOINT = 'https://api.runpod.ai/v2/xx0wek543611i5/openai/v1/chat/completions';
+const RUNPOD_FALCON_ENDPOINT = 'https://api.runpod.ai/v2/tnhfklb3tb7md8/openai/v1/chat/completions';
 
-const MODEL_MAP: Record<string, { model: string; getEndpoint: () => string | null }> = {
+const MODEL_MAP: Record<string, { model: string; endpoint: string }> = {
   standard: {
     model: 'tiiuae/Falcon-H1R-7B',
-    getEndpoint: () => {
-      const id = Deno.env.get('RUNPOD_FALCON_ENDPOINT_ID');
-      return id ? `${RUNPOD_BASE}/${id}/openai/v1/chat/completions` : null;
-    },
+    endpoint: RUNPOD_FALCON_ENDPOINT,
   },
   premium: {
     model: 'inceptionai/Jais-2-8B-Chat',
-    getEndpoint: () => {
-      const id = Deno.env.get('RUNPOD_JAIS_ENDPOINT_ID');
-      return id ? `${RUNPOD_BASE}/${id}/openai/v1/chat/completions` : null;
-    },
+    endpoint: RUNPOD_JAIS_ENDPOINT,
   },
 };
 
@@ -51,15 +46,7 @@ serve(async (req) => {
       );
     }
 
-    const endpoint = config.getEndpoint();
-    if (!endpoint) {
-      return new Response(
-        JSON.stringify({ error: `Endpoint not available for ${modelTier} (endpoint ID not configured)` }),
-        { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      );
-    }
-
-    const response = await fetch(endpoint, {
+    const response = await fetch(config.endpoint, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,

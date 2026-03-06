@@ -465,14 +465,13 @@ async function callFanar({
 }
 
 async function callRunPodModel(
-  endpointId: string,
+  endpoint: string,
   model: string,
   systemPrompt: string,
   userContent: string,
   apiKey: string,
   maxTokens = 4096,
 ): Promise<{ content: string | null }> {
-  const endpoint = `https://api.runpod.ai/v2/${endpointId}/openai/v1/chat/completions`;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 45_000);
 
@@ -1068,10 +1067,10 @@ serve(async (req) => {
     }
 
     const RUNPOD_API_KEY = Deno.env.get('RUNPOD_API_KEY');
-    const runpodJaisId = Deno.env.get('RUNPOD_JAIS_ENDPOINT_ID');
-    const runpodFalconId = Deno.env.get('RUNPOD_FALCON_ENDPOINT_ID');
-    const jaisAvailable = Boolean(RUNPOD_API_KEY) && Boolean(runpodJaisId);
-    const falconAvailable = Boolean(RUNPOD_API_KEY) && Boolean(runpodFalconId);
+    const RUNPOD_JAIS_ENDPOINT = 'https://api.runpod.ai/v2/xx0wek543611i5/openai/v1/chat/completions';
+    const RUNPOD_FALCON_ENDPOINT = 'https://api.runpod.ai/v2/tnhfklb3tb7md8/openai/v1/chat/completions';
+    const jaisAvailable = Boolean(RUNPOD_API_KEY);
+    const falconAvailable = Boolean(RUNPOD_API_KEY);
 
      let partial = false;
 
@@ -1250,7 +1249,7 @@ serve(async (req) => {
          : Promise.resolve({ content: null } as { content: string | null }),
        // Jais meta enrichment via RunPod — Arabic-first model for grammar points and cultural context
        jaisAvailable
-         ? callRunPodModel(runpodJaisId!, 'inceptionai/Jais-2-8B-Chat', getMetaSystemPrompt(true), mergedTranscriptText, RUNPOD_API_KEY!, 2048).catch((e) => {
+         ? callRunPodModel(RUNPOD_JAIS_ENDPOINT, 'inceptionai/Jais-2-8B-Chat', getMetaSystemPrompt(true), mergedTranscriptText, RUNPOD_API_KEY!, 2048).catch((e) => {
              console.warn('Jais meta enrichment failed (non-blocking):', e);
              return { content: null } as { content: string | null };
            })
@@ -1326,7 +1325,7 @@ serve(async (req) => {
      if ((!translationAi?.translations || translationAi.translations.length === 0) && falconAvailable) {
        console.log('Qwen translation failed or empty, falling back to Falcon via RunPod for translation...');
        const falconTransResp = await callRunPodModel(
-         runpodFalconId!,
+         RUNPOD_FALCON_ENDPOINT,
          'tiiuae/Falcon-H1R-7B',
          getTranslationSystemPrompt(detectedDialect, visualContext),
          mergedTranscriptText,

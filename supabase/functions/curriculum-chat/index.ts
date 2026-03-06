@@ -40,19 +40,9 @@ const MODEL_REGISTRY: Record<string, ModelConfig> = {
     keyEnv: "FANAR_API_KEY",
     isFanar: true,
   },
-  "falcon-h1r": {
-    endpoint: "", // resolved from env
-    model: "falcon-h1r",
-    keyEnv: "FALCON_HF_API_KEY",
-  },
   "jais-hf": {
     endpoint: "https://router.huggingface.co/together/v1/chat/completions",
     model: "inceptionai/Jais-2-8B-Chat",
-    keyEnv: "VITE_HF_TOKEN",
-  },
-  "falcon-h1-hf": {
-    endpoint: "", // resolved from FALCON_HF_ENDPOINT_URL env var
-    model: "tiiuae/Falcon-H1-7B-Instruct",
     keyEnv: "VITE_HF_TOKEN",
   },
 };
@@ -167,12 +157,6 @@ async function callLLM(
   }
 
   let endpoint = config.endpoint;
-  // Falcon models use a dynamic endpoint from env
-  if (config.model === "falcon-h1r" || config.model === "tiiuae/Falcon-H1-7B-Instruct") {
-    const falconUrl = Deno.env.get("FALCON_HF_ENDPOINT_URL") || "";
-    if (!falconUrl) throw new Error("FALCON_HF_ENDPOINT_URL not configured");
-    endpoint = config.model === "falcon-h1r" ? falconUrl : `${falconUrl}/v1/chat/completions`;
-  }
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 55_000);

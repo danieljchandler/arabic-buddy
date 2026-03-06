@@ -8,13 +8,6 @@ const corsHeaders = {
 const JAIS_HF_ENDPOINT = 'https://router.huggingface.co/together/v1/chat/completions';
 
 const MODEL_MAP: Record<string, { model: string; getEndpoint: () => string | null }> = {
-  standard: {
-    model: 'tiiuae/Falcon-H1-7B-Instruct',
-    getEndpoint: () => {
-      const url = Deno.env.get('FALCON_HF_ENDPOINT_URL');
-      return url ? `${url}/v1/chat/completions` : null;
-    },
-  },
   premium: {
     model: 'inceptionai/Jais-2-8B-Chat',
     getEndpoint: () => JAIS_HF_ENDPOINT,

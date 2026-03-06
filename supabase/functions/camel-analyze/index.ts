@@ -10,7 +10,7 @@
  *   dialect     - Identify Gulf dialect variant (Kuwait/Qatar/UAE/Saudi/Oman/Bahrain/MSA)
  *
  * Env vars required:
- *   HUGGINGFACE_API_KEY  — for CAMeL-Lab dialect model (can reuse FALCON_HF_API_KEY if same token)
+ *   HUGGINGFACE_API_KEY  — for CAMeL-Lab dialect model
  *
  * Env vars optional (Farasa is free/no-auth):
  *   (none — Farasa webapi is public)
@@ -294,7 +294,7 @@ serve(async (req) => {
 
     // ── Parallel API calls ────────────────────────────────────────────────────
 
-    const hfApiKey = Deno.env.get('HUGGINGFACE_API_KEY') ?? Deno.env.get('FALCON_HF_API_KEY') ?? '';
+    const hfApiKey = Deno.env.get('HUGGINGFACE_API_KEY') ?? '';
 
     const [diacResult, segResult, posResult, dialectResult] = await Promise.all([
       wantDiac    ? callFarasa('diac', text)                          : Promise.resolve(null),

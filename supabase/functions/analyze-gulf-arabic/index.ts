@@ -509,56 +509,6 @@ async function callJaisHF(
   }
 }
 
-async function callFalconHF(
-  systemPrompt: string,
-  userContent: string,
-  hfToken: string,
-  maxTokens = 4096,
-): Promise<{ content: string | null }> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 45_000);
-
-  try {
-    const falconEndpoint = Deno.env.get('FALCON_HF_ENDPOINT_URL');
-    if (!falconEndpoint) {
-      console.warn('FALCON_HF_ENDPOINT_URL not set, skipping Falcon call');
-      return { content: null };
-    }
-    const response = await fetch(`${falconEndpoint}/v1/chat/completions`, {
-      method: 'POST',
-      signal: controller.signal,
-      headers: {
-        'Authorization': `Bearer ${hfToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'tiiuae/Falcon-H1-7B-Instruct',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userContent },
-        ],
-        max_tokens: maxTokens,
-        temperature: 0.3,
-      }),
-    });
-
-    if (!response.ok) {
-      console.warn('Falcon H1 HF error:', response.status);
-      return { content: null };
-    }
-
-    const data = await response.json();
-    const content = data?.choices?.[0]?.message?.content ?? null;
-    console.log('Falcon H1 HF response:', content?.slice(0, 200));
-    return { content };
-  } catch (e) {
-    console.warn('Falcon H1 HF failed (non-fatal):', e instanceof Error ? e.message : String(e));
-    return { content: null };
-  } finally {
-    clearTimeout(timeout);
-  }
-}
-
 function extractJsonObject(text: string): string {
   const cleaned = text
     .replace(/<think>[\s\S]*?<\/think>/gi, '')
@@ -1116,7 +1066,6 @@ serve(async (req) => {
 
     const HF_TOKEN = Deno.env.get('VITE_HF_TOKEN');
     const hfAvailable = Boolean(HF_TOKEN);
-    const falconAvailable = Boolean(HF_TOKEN) && Boolean(Deno.env.get('FALCON_HF_ENDPOINT_URL'));
 
      let partial = false;
 
@@ -1248,7 +1197,7 @@ serve(async (req) => {
      console.log('Translation (Gemini), analysis (Qwen), CAMeL dialect, Farasa diac running in parallel...');
 
      const arabicOnlyText = mergedLines.map(l => l.arabic).join('\n');
-     const hfApiKey = Deno.env.get('HUGGINGFACE_API_KEY') ?? Deno.env.get('FALCON_HF_API_KEY') ?? '';
+     const hfApiKey = Deno.env.get('HUGGINGFACE_API_KEY') ?? '';
 
       const [geminiTransResp, analysisResp, fanarMetaResp, fanarValidResp, jaisMetaResp, camelDialectResult, diacritizedTranscript] = await Promise.all([
         // Translation primary: Gemini 2.5 Pro via Lovable AI gateway
@@ -1363,26 +1312,6 @@ serve(async (req) => {
          translationAi = safeJsonParse<TranslationAI>(qwenTransResp.content);
          if (translationAi?.translations) {
            console.log('Qwen translation fallback: parsed', translationAi.translations.length, 'lines.');
-         }
-       }
-     }
-
-     // --- Fallback: Falcon H1 translation if both Gemini and Qwen failed ---
-     if ((!translationAi?.translations || translationAi.translations.length === 0) && falconAvailable) {
-       console.log('Qwen translation failed or empty, falling back to Falcon H1 for translation...');
-       const falconTransResp = await callFalconHF(
-         getTranslationSystemPrompt(detectedDialect, visualContext),
-         mergedTranscriptText,
-         HF_TOKEN!,
-         4096,
-       ).catch((e) => {
-         console.warn('Falcon H1 translation fallback failed (non-blocking):', e);
-         return { content: null };
-       });
-       if (falconTransResp.content) {
-         translationAi = safeJsonParse<TranslationAI>(falconTransResp.content);
-         if (translationAi?.translations) {
-           console.log('Falcon H1 translation fallback: parsed', translationAi.translations.length, 'lines.');
          }
        }
      }

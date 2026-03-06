@@ -7,7 +7,6 @@ const corsHeaders = {
 };
 
 const OPENROUTER_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
-// Falcon uses dedicated HF Inference Endpoint (resolved from env)
 
 function parseNumberedTranslations(generatedText: string, arabicLines: string[]): string[] {
   const translations: string[] = [];
@@ -72,53 +71,6 @@ async function callOpenRouterTranslate(
   }
 }
 
-async function callHuggingFace(
-  numberedLines: string,
-  hfToken: string,
-): Promise<string | null> {
-  const falconEndpoint = Deno.env.get('FALCON_HF_ENDPOINT_URL');
-  if (!falconEndpoint) {
-    console.warn('FALCON_HF_ENDPOINT_URL not set, skipping Falcon call');
-    return null;
-  }
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 45_000);
-  try {
-    const response = await fetch(`${falconEndpoint}/v1/chat/completions`, {
-      method: 'POST',
-      signal: controller.signal,
-      headers: {
-        'Authorization': `Bearer ${hfToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'tiiuae/Falcon-H1-7B-Instruct',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are an expert translator specializing in Gulf Arabic (Khaliji) dialect. Translate each numbered Arabic line to natural English. Return ONLY the translations, numbered to match. No commentary.',
-          },
-          {
-            role: 'user',
-            content: `Translate these Gulf Arabic lines to English:\n\n${numberedLines}`,
-          },
-        ],
-      }),
-    });
-    if (!response.ok) {
-      console.warn('Falcon H1 HF error:', response.status);
-      return null;
-    }
-    const data = await response.json();
-    return data?.choices?.[0]?.message?.content || null;
-  } catch (e) {
-    console.warn('Falcon H1 HF failed (non-fatal):', e instanceof Error ? e.message : String(e));
-    return null;
-  } finally {
-    clearTimeout(timeout);
-  }
-}
-
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -160,25 +112,16 @@ serve(async (req) => {
       );
     }
 
-    const HF_TOKEN = Deno.env.get('VITE_HF_TOKEN');
-    const falconAvailable = Boolean(HF_TOKEN) && Boolean(Deno.env.get('FALCON_HF_ENDPOINT_URL'));
-
     console.log(`falcon-translate: processing ${arabicLines.length} lines`);
 
     const numberedLines = arabicLines.map((line: string, i: number) => `${i + 1}. ${line}`).join('\n');
 
-    const [qwenText, geminiText, falconText] = await Promise.all([
+    const [qwenText, geminiText] = await Promise.all([
       callOpenRouterTranslate('qwen/qwen3-235b-a22b', numberedLines, OPENROUTER_API_KEY),
       callOpenRouterTranslate('google/gemini-2.5-flash', numberedLines, OPENROUTER_API_KEY),
-      falconAvailable
-        ? callHuggingFace(numberedLines, HF_TOKEN!).catch((e) => {
-            console.warn('Falcon H1 HF failed (non-blocking):', e);
-            return null;
-          })
-        : Promise.resolve(null),
     ]);
 
-    const generatedText = qwenText ?? geminiText ?? falconText ?? '';
+    const generatedText = qwenText ?? geminiText ?? '';
 
     if (!generatedText) {
       console.error('All translation models returned empty content');
@@ -188,7 +131,7 @@ serve(async (req) => {
       );
     }
 
-    console.log(`falcon-translate: response length=${generatedText.length} (qwen=${!!qwenText}, gemini=${!!geminiText}, falcon=${!!falconText})`);
+    console.log(`falcon-translate: response length=${generatedText.length} (qwen=${!!qwenText}, gemini=${!!geminiText})`);
 
     const translations = parseNumberedTranslations(generatedText, arabicLines);
 

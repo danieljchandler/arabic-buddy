@@ -6,9 +6,8 @@ export type LLMModelId =
   | 'qwen/qwen3-235b-a22b'
   | 'google/gemma-3-12b-it'
   | 'fanar'
-  | 'falcon-h1r'
   | 'jais-hf'
-  | 'falcon-h1-hf';
+  | 'falcon-h1r';
 
 interface ModelOption {
   id: LLMModelId;
@@ -46,23 +45,17 @@ const MODEL_OPTIONS: ModelOption[] = [
     badge: 'Gulf Expert',
   },
   {
-    id: 'falcon-h1r',
-    name: 'Falcon H1R',
-    provider: 'TII',
-    description: 'Arabic-native model',
-  },
-  {
     id: 'jais-hf',
     name: 'Jais 2 8B',
-    provider: 'HF Serverless',
+    provider: 'RunPod',
     description: 'Arabic-first, dialect expert',
     badge: 'Arabic Expert',
   },
   {
-    id: 'falcon-h1-hf',
-    name: 'Falcon H1 7B',
-    provider: 'HF Serverless',
-    description: 'Fast hybrid model, strong multilingual',
+    id: 'falcon-h1r',
+    name: 'Falcon H1R 7B',
+    provider: 'RunPod',
+    description: 'Arabic-native hybrid model',
   },
 ];
 

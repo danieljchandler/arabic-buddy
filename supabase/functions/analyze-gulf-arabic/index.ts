@@ -464,75 +464,27 @@ async function callFanar({
   return { content };
 }
 
-async function callJaisHF(
+async function callRunPodModel(
+  endpoint: string,
+  model: string,
   systemPrompt: string,
   userContent: string,
-  hfToken: string,
-  maxTokens = 2048,
-): Promise<{ content: string | null }> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 45_000);
-
-  try {
-    const response = await fetch('https://router.huggingface.co/together/v1/chat/completions', {
-      method: 'POST',
-      signal: controller.signal,
-      headers: {
-        'Authorization': `Bearer ${hfToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'inceptionai/Jais-2-8B-Chat',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userContent },
-        ],
-        max_tokens: maxTokens,
-        temperature: 0.3,
-      }),
-    });
-
-    if (!response.ok) {
-      console.warn('Jais HF error:', response.status);
-      return { content: null };
-    }
-
-    const data = await response.json();
-    const content = data?.choices?.[0]?.message?.content ?? null;
-    console.log('Jais HF response:', content?.slice(0, 200));
-    return { content };
-  } catch (e) {
-    console.warn('Jais HF failed (non-fatal):', e instanceof Error ? e.message : String(e));
-    return { content: null };
-  } finally {
-    clearTimeout(timeout);
-  }
-}
-
-async function callFalconHF(
-  systemPrompt: string,
-  userContent: string,
-  hfToken: string,
+  apiKey: string,
   maxTokens = 4096,
 ): Promise<{ content: string | null }> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 45_000);
 
   try {
-    const falconEndpoint = Deno.env.get('FALCON_HF_ENDPOINT_URL');
-    if (!falconEndpoint) {
-      console.warn('FALCON_HF_ENDPOINT_URL not set, skipping Falcon call');
-      return { content: null };
-    }
-    const response = await fetch(`${falconEndpoint}/v1/chat/completions`, {
+    const response = await fetch(endpoint, {
       method: 'POST',
       signal: controller.signal,
       headers: {
-        'Authorization': `Bearer ${hfToken}`,
+        'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'tiiuae/Falcon-H1-7B-Instruct',
+        model,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userContent },
@@ -543,16 +495,16 @@ async function callFalconHF(
     });
 
     if (!response.ok) {
-      console.warn('Falcon H1 HF error:', response.status);
+      console.warn(`RunPod ${model} error:`, response.status);
       return { content: null };
     }
 
     const data = await response.json();
     const content = data?.choices?.[0]?.message?.content ?? null;
-    console.log('Falcon H1 HF response:', content?.slice(0, 200));
+    console.log(`RunPod ${model} response:`, content?.slice(0, 200));
     return { content };
   } catch (e) {
-    console.warn('Falcon H1 HF failed (non-fatal):', e instanceof Error ? e.message : String(e));
+    console.warn(`RunPod ${model} failed (non-fatal):`, e instanceof Error ? e.message : String(e));
     return { content: null };
   } finally {
     clearTimeout(timeout);
@@ -1114,9 +1066,11 @@ serve(async (req) => {
       console.log('Fanar LLM conjunction enabled');
     }
 
-    const HF_TOKEN = Deno.env.get('VITE_HF_TOKEN');
-    const hfAvailable = Boolean(HF_TOKEN);
-    const falconAvailable = Boolean(HF_TOKEN) && Boolean(Deno.env.get('FALCON_HF_ENDPOINT_URL'));
+    const RUNPOD_API_KEY = Deno.env.get('RUNPOD_API_KEY');
+    const RUNPOD_JAIS_ENDPOINT = 'https://api.runpod.ai/v2/xx0wek543611i5/openai/v1/chat/completions';
+    const RUNPOD_FALCON_ENDPOINT = 'https://api.runpod.ai/v2/tnhfklb3tb7md8/openai/v1/chat/completions';
+    const jaisAvailable = Boolean(RUNPOD_API_KEY);
+    const falconAvailable = Boolean(RUNPOD_API_KEY);
 
      let partial = false;
 
@@ -1248,7 +1202,7 @@ serve(async (req) => {
      console.log('Translation (Gemini), analysis (Qwen), CAMeL dialect, Farasa diac running in parallel...');
 
      const arabicOnlyText = mergedLines.map(l => l.arabic).join('\n');
-     const hfApiKey = Deno.env.get('HUGGINGFACE_API_KEY') ?? Deno.env.get('FALCON_HF_API_KEY') ?? '';
+     const hfApiKey = Deno.env.get('HUGGINGFACE_API_KEY') ?? '';
 
       const [geminiTransResp, analysisResp, fanarMetaResp, fanarValidResp, jaisMetaResp, camelDialectResult, diacritizedTranscript] = await Promise.all([
         // Translation primary: Gemini 2.5 Pro via Lovable AI gateway
@@ -1293,9 +1247,9 @@ serve(async (req) => {
              return { content: null } as { content: string | null };
            })
          : Promise.resolve({ content: null } as { content: string | null }),
-       // Jais meta enrichment — Arabic-first model for grammar points and cultural context
-       hfAvailable
-         ? callJaisHF(getMetaSystemPrompt(true), mergedTranscriptText, HF_TOKEN!, 2048).catch((e) => {
+       // Jais meta enrichment via RunPod — Arabic-first model for grammar points and cultural context
+       jaisAvailable
+         ? callRunPodModel(RUNPOD_JAIS_ENDPOINT, 'inceptionai/Jais-2-8B-Chat', getMetaSystemPrompt(true), mergedTranscriptText, RUNPOD_API_KEY!, 2048).catch((e) => {
              console.warn('Jais meta enrichment failed (non-blocking):', e);
              return { content: null } as { content: string | null };
            })
@@ -1367,22 +1321,24 @@ serve(async (req) => {
        }
      }
 
-     // --- Fallback: Falcon H1 translation if both Gemini and Qwen failed ---
+     // --- Fallback: Falcon via RunPod if both Gemini and Qwen failed ---
      if ((!translationAi?.translations || translationAi.translations.length === 0) && falconAvailable) {
-       console.log('Qwen translation failed or empty, falling back to Falcon H1 for translation...');
-       const falconTransResp = await callFalconHF(
+       console.log('Qwen translation failed or empty, falling back to Falcon via RunPod for translation...');
+       const falconTransResp = await callRunPodModel(
+         RUNPOD_FALCON_ENDPOINT,
+         'tiiuae/Falcon-H1R-7B',
          getTranslationSystemPrompt(detectedDialect, visualContext),
          mergedTranscriptText,
-         HF_TOKEN!,
+         RUNPOD_API_KEY!,
          4096,
        ).catch((e) => {
-         console.warn('Falcon H1 translation fallback failed (non-blocking):', e);
+         console.warn('Falcon RunPod translation fallback failed (non-blocking):', e);
          return { content: null };
        });
        if (falconTransResp.content) {
          translationAi = safeJsonParse<TranslationAI>(falconTransResp.content);
          if (translationAi?.translations) {
-           console.log('Falcon H1 translation fallback: parsed', translationAi.translations.length, 'lines.');
+           console.log('Falcon RunPod translation fallback: parsed', translationAi.translations.length, 'lines.');
          }
        }
      }

@@ -5,19 +5,17 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const JAIS_HF_ENDPOINT = 'https://router.huggingface.co/together/v1/chat/completions';
+const RUNPOD_JAIS_ENDPOINT = 'https://api.runpod.ai/v2/xx0wek543611i5/openai/v1/chat/completions';
+const RUNPOD_FALCON_ENDPOINT = 'https://api.runpod.ai/v2/tnhfklb3tb7md8/openai/v1/chat/completions';
 
-const MODEL_MAP: Record<string, { model: string; getEndpoint: () => string | null }> = {
+const MODEL_MAP: Record<string, { model: string; endpoint: string }> = {
   standard: {
-    model: 'tiiuae/Falcon-H1-7B-Instruct',
-    getEndpoint: () => {
-      const url = Deno.env.get('FALCON_HF_ENDPOINT_URL');
-      return url ? `${url}/v1/chat/completions` : null;
-    },
+    model: 'tiiuae/Falcon-H1R-7B',
+    endpoint: RUNPOD_FALCON_ENDPOINT,
   },
   premium: {
     model: 'inceptionai/Jais-2-8B-Chat',
-    getEndpoint: () => JAIS_HF_ENDPOINT,
+    endpoint: RUNPOD_JAIS_ENDPOINT,
   },
 };
 
@@ -32,10 +30,10 @@ serve(async (req) => {
   try {
     const { prompt, modelTier } = await req.json() as { prompt: string; modelTier: 'standard' | 'premium' };
 
-    const hfToken = Deno.env.get('VITE_HF_TOKEN');
-    if (!hfToken) {
+    const apiKey = Deno.env.get('RUNPOD_API_KEY');
+    if (!apiKey) {
       return new Response(
-        JSON.stringify({ error: 'Authentication token is not configured' }),
+        JSON.stringify({ error: 'RUNPOD_API_KEY is not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
@@ -48,18 +46,10 @@ serve(async (req) => {
       );
     }
 
-    const endpoint = config.getEndpoint();
-    if (!endpoint) {
-      return new Response(
-        JSON.stringify({ error: `Endpoint not available for ${modelTier} (dedicated endpoint may be offline)` }),
-        { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      );
-    }
-
-    const response = await fetch(endpoint, {
+    const response = await fetch(config.endpoint, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${hfToken}`,
+        'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({

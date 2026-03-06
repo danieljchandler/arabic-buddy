@@ -115,6 +115,51 @@ async function callQwen(
   }
 }
 
+async function callJaisHF(
+  systemPrompt: string,
+  userContent: string,
+  hfToken: string,
+  maxTokens = 4096,
+): Promise<string | null> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 45_000);
+
+  try {
+    const response = await fetch('https://router.huggingface.co/v1/chat/completions', {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        'Authorization': `Bearer ${hfToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'inceptionai/Jais-2-8B-Chat:cheapest',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userContent },
+        ],
+        max_tokens: maxTokens,
+        temperature: 0.3,
+      }),
+    });
+
+    if (!response.ok) {
+      console.warn('Jais HF error:', response.status);
+      return null;
+    }
+
+    const data = await response.json();
+    const content = data?.choices?.[0]?.message?.content;
+    console.log('Jais HF response:', content?.slice(0, 200));
+    return content || null;
+  } catch (e) {
+    console.warn('Jais HF failed (non-fatal):', e instanceof Error ? e.message : String(e));
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 async function callAI(
   systemPrompt: string,
   userContent: string | Array<{ type: string; text?: string; image_url?: { url: string } }>,
@@ -296,6 +341,9 @@ serve(async (req) => {
       );
     }
 
+    const HF_TOKEN = Deno.env.get('VITE_HF_TOKEN');
+    const jaisAvailable = Boolean(HF_TOKEN);
+
     // Build vision content for image analysis
     let onScreenResult: any = null;
     let audioResult: any = null;
@@ -340,9 +388,45 @@ serve(async (req) => {
 
     // If we have audio transcript but no image analysis, or need separate audio analysis
     if (audioTranscript && !imageBase64) {
-      console.log('Analyzing audio transcript...');
-      const rawResponse = await callQwen(AUDIO_ANALYSIS_PROMPT, audioTranscript, OPENROUTER_API_KEY, 4096);
-      audioResult = safeJsonParse<any>(rawResponse);
+      console.log('Analyzing audio transcript (Qwen + Jais in parallel)...');
+      const [qwenRaw, jaisRaw] = await Promise.all([
+        callQwen(AUDIO_ANALYSIS_PROMPT, audioTranscript, OPENROUTER_API_KEY, 4096).catch((e: unknown) => {
+          console.warn('Qwen audio analysis failed (non-fatal):', e instanceof Error ? e.message : String(e));
+          return null;
+        }),
+        jaisAvailable
+          ? callJaisHF(AUDIO_ANALYSIS_PROMPT, audioTranscript, HF_TOKEN!, 4096).catch((e: unknown) => {
+              console.warn('Jais audio analysis failed (non-fatal):', e instanceof Error ? e.message : String(e));
+              return null;
+            })
+          : Promise.resolve(null),
+      ]);
+
+      const qwenAudioResult = qwenRaw ? safeJsonParse<any>(qwenRaw) : null;
+      const jaisAudioResult = jaisRaw ? safeJsonParse<any>(jaisRaw) : null;
+
+      // Use Qwen as primary, merge Jais vocabulary and grammar points
+      audioResult = qwenAudioResult ?? jaisAudioResult;
+      if (qwenAudioResult && jaisAudioResult) {
+        // Merge Jais vocabulary (deduplicate by arabic field)
+        if (Array.isArray(jaisAudioResult.vocabulary)) {
+          const existingArabic = new Set((qwenAudioResult.vocabulary ?? []).map((v: any) => v.arabic));
+          const extraVocab = jaisAudioResult.vocabulary.filter((v: any) => v?.arabic && !existingArabic.has(v.arabic));
+          if (extraVocab.length > 0) {
+            audioResult = { ...audioResult, vocabulary: [...(audioResult.vocabulary ?? []), ...extraVocab] };
+            console.log(`Merged ${extraVocab.length} vocab item(s) from Jais audio analysis`);
+          }
+        }
+        // Merge Jais grammar points (deduplicate by title)
+        if (Array.isArray(jaisAudioResult.grammarPoints)) {
+          const existingTitles = new Set((qwenAudioResult.grammarPoints ?? []).map((g: any) => String(g.title ?? '').toLowerCase()));
+          const extraGrammar = jaisAudioResult.grammarPoints.filter((g: any) => g?.title && !existingTitles.has(String(g.title).toLowerCase()));
+          if (extraGrammar.length > 0) {
+            audioResult = { ...audioResult, grammarPoints: [...(audioResult.grammarPoints ?? []), ...extraGrammar] };
+            console.log(`Merged ${extraGrammar.length} grammar point(s) from Jais audio analysis`);
+          }
+        }
+      }
     }
 
     // Build the final structured result

@@ -464,6 +464,96 @@ async function callFanar({
   return { content };
 }
 
+async function callJaisHF(
+  systemPrompt: string,
+  userContent: string,
+  hfToken: string,
+  maxTokens = 2048,
+): Promise<{ content: string | null }> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 45_000);
+
+  try {
+    const response = await fetch('https://router.huggingface.co/v1/chat/completions', {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        'Authorization': `Bearer ${hfToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'inceptionai/Jais-2-8B-Chat:cheapest',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userContent },
+        ],
+        max_tokens: maxTokens,
+        temperature: 0.3,
+      }),
+    });
+
+    if (!response.ok) {
+      console.warn('Jais HF error:', response.status);
+      return { content: null };
+    }
+
+    const data = await response.json();
+    const content = data?.choices?.[0]?.message?.content ?? null;
+    console.log('Jais HF response:', content?.slice(0, 200));
+    return { content };
+  } catch (e) {
+    console.warn('Jais HF failed (non-fatal):', e instanceof Error ? e.message : String(e));
+    return { content: null };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function callFalconHF(
+  systemPrompt: string,
+  userContent: string,
+  hfToken: string,
+  maxTokens = 4096,
+): Promise<{ content: string | null }> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 45_000);
+
+  try {
+    const response = await fetch('https://router.huggingface.co/v1/chat/completions', {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        'Authorization': `Bearer ${hfToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'tiiuae/Falcon-H1-7B-Instruct:cheapest',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userContent },
+        ],
+        max_tokens: maxTokens,
+        temperature: 0.3,
+      }),
+    });
+
+    if (!response.ok) {
+      console.warn('Falcon H1 HF error:', response.status);
+      return { content: null };
+    }
+
+    const data = await response.json();
+    const content = data?.choices?.[0]?.message?.content ?? null;
+    console.log('Falcon H1 HF response:', content?.slice(0, 200));
+    return { content };
+  } catch (e) {
+    console.warn('Falcon H1 HF failed (non-fatal):', e instanceof Error ? e.message : String(e));
+    return { content: null };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 function extractJsonObject(text: string): string {
   const cleaned = text
     .replace(/<think>[\s\S]*?<\/think>/gi, '')
@@ -1019,6 +1109,9 @@ serve(async (req) => {
       console.log('Fanar LLM conjunction enabled');
     }
 
+    const HF_TOKEN = Deno.env.get('VITE_HF_TOKEN');
+    const hfAvailable = Boolean(HF_TOKEN);
+
      let partial = false;
 
      // Build user content for the merge prompt (all available ASR transcripts)
@@ -1151,7 +1244,7 @@ serve(async (req) => {
      const arabicOnlyText = mergedLines.map(l => l.arabic).join('\n');
      const hfApiKey = Deno.env.get('HUGGINGFACE_API_KEY') ?? Deno.env.get('FALCON_HF_API_KEY') ?? '';
 
-      const [geminiTransResp, analysisResp, fanarMetaResp, fanarValidResp, camelDialectResult, diacritizedTranscript] = await Promise.all([
+      const [geminiTransResp, analysisResp, fanarMetaResp, fanarValidResp, jaisMetaResp, camelDialectResult, diacritizedTranscript] = await Promise.all([
         // Translation primary: Gemini 2.5 Pro via Lovable AI gateway
         callAI({
           model: 'google/gemini-2.5-pro',
@@ -1191,6 +1284,13 @@ serve(async (req) => {
              maxTokens: 1024,
            }).catch((e) => {
              console.warn('Fanar dialect validation failed (non-blocking):', e);
+             return { content: null } as { content: string | null };
+           })
+         : Promise.resolve({ content: null } as { content: string | null }),
+       // Jais meta enrichment — Arabic-first model for grammar points and cultural context
+       hfAvailable
+         ? callJaisHF(getMetaSystemPrompt(true), mergedTranscriptText, HF_TOKEN!, 2048).catch((e) => {
+             console.warn('Jais meta enrichment failed (non-blocking):', e);
              return { content: null } as { content: string | null };
            })
          : Promise.resolve({ content: null } as { content: string | null }),
@@ -1257,6 +1357,26 @@ serve(async (req) => {
          translationAi = safeJsonParse<TranslationAI>(qwenTransResp.content);
          if (translationAi?.translations) {
            console.log('Qwen translation fallback: parsed', translationAi.translations.length, 'lines.');
+         }
+       }
+     }
+
+     // --- Fallback: Falcon H1 translation if both Gemini and Qwen failed ---
+     if ((!translationAi?.translations || translationAi.translations.length === 0) && hfAvailable) {
+       console.log('Qwen translation failed or empty, falling back to Falcon H1 for translation...');
+       const falconTransResp = await callFalconHF(
+         getTranslationSystemPrompt(detectedDialect, visualContext),
+         mergedTranscriptText,
+         HF_TOKEN!,
+         4096,
+       ).catch((e) => {
+         console.warn('Falcon H1 translation fallback failed (non-blocking):', e);
+         return { content: null };
+       });
+       if (falconTransResp.content) {
+         translationAi = safeJsonParse<TranslationAI>(falconTransResp.content);
+         if (translationAi?.translations) {
+           console.log('Falcon H1 translation fallback: parsed', translationAi.translations.length, 'lines.');
          }
        }
      }
@@ -1346,6 +1466,37 @@ serve(async (req) => {
          if (fanarMetaAi.culturalContext && (!culturalContext || fanarMetaAi.culturalContext.length > culturalContext.length)) {
            culturalContext = fanarMetaAi.culturalContext;
            console.log('Using Fanar-Sadiq cultural context (richer)');
+         }
+       }
+     }
+
+     // Merge Jais meta results if available
+     if (jaisMetaResp.content) {
+       const jaisMetaAi = safeJsonParse<MetaAI>(jaisMetaResp.content);
+       if (jaisMetaAi) {
+         console.log('Merging Jais meta results...');
+         // Union vocabularies (deduplicate by Arabic text)
+         if (Array.isArray(jaisMetaAi.vocabulary)) {
+           const existingArabic = new Set(vocab.map(v => v.arabic));
+           const newVocab = jaisMetaAi.vocabulary.filter(v => v.arabic && !existingArabic.has(v.arabic));
+           if (newVocab.length > 0) {
+             vocab = [...vocab, ...newVocab];
+             console.log(`Added ${newVocab.length} vocab items from Jais`);
+           }
+         }
+         // Union grammar points (deduplicate by title)
+         if (Array.isArray(jaisMetaAi.grammarPoints)) {
+           const existingTitles = new Set(grammarPoints.map(g => g.title.toLowerCase()));
+           const newGrammar = jaisMetaAi.grammarPoints.filter(g => g.title && !existingTitles.has(g.title.toLowerCase()));
+           if (newGrammar.length > 0) {
+             grammarPoints = [...grammarPoints, ...newGrammar];
+             console.log(`Added ${newGrammar.length} grammar points from Jais`);
+           }
+         }
+         // Prefer Jais cultural context if richer (longer)
+         if (jaisMetaAi.culturalContext && (!culturalContext || jaisMetaAi.culturalContext.length > culturalContext.length)) {
+           culturalContext = jaisMetaAi.culturalContext;
+           console.log('Using Jais cultural context (richer)');
          }
        }
      }

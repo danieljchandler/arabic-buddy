@@ -45,6 +45,16 @@ const MODEL_REGISTRY: Record<string, ModelConfig> = {
     model: "falcon-h1r",
     keyEnv: "FALCON_HF_API_KEY",
   },
+  "jais-hf": {
+    endpoint: "https://router.huggingface.co/v1/chat/completions",
+    model: "inceptionai/Jais-2-8B-Chat:cheapest",
+    keyEnv: "VITE_HF_TOKEN",
+  },
+  "falcon-h1-hf": {
+    endpoint: "https://router.huggingface.co/v1/chat/completions",
+    model: "tiiuae/Falcon-H1-7B-Instruct:cheapest",
+    keyEnv: "VITE_HF_TOKEN",
+  },
 };
 
 const DIALECT_CONTEXT: Record<string, string> = {

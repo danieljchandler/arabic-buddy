@@ -9,6 +9,7 @@ const corsHeaders = {
 const OPENROUTER_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
 const QWEN_MODEL = 'qwen/qwen3-235b-a22b';
 const GEMINI_MODEL = 'google/gemini-2.5-flash';
+const HF_ROUTER_ENDPOINT = 'https://router.huggingface.co/v1/chat/completions';
 
 interface RawTranslation {
   arabic?: unknown;
@@ -74,6 +75,51 @@ function safeJsonParse<T>(content: string): T | null {
   } catch {
     console.error('JSON parse error for content:', content.slice(0, 500));
     return null;
+  }
+}
+
+async function callJaisHF(
+  systemPrompt: string,
+  userContent: string,
+  hfToken: string,
+  maxTokens = 4096,
+): Promise<string | null> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 45_000);
+
+  try {
+    const response = await fetch(HF_ROUTER_ENDPOINT, {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        'Authorization': `Bearer ${hfToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'inceptionai/Jais-2-8B-Chat:cheapest',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userContent },
+        ],
+        max_tokens: maxTokens,
+        temperature: 0.3,
+      }),
+    });
+
+    if (!response.ok) {
+      console.warn('Jais HF error:', response.status);
+      return null;
+    }
+
+    const data = await response.json();
+    const content = data?.choices?.[0]?.message?.content;
+    console.log('Jais HF response:', content?.slice(0, 200));
+    return content || null;
+  } catch (e) {
+    console.warn('Jais HF failed (non-fatal):', e instanceof Error ? e.message : String(e));
+    return null;
+  } finally {
+    clearTimeout(timeout);
   }
 }
 
@@ -327,12 +373,16 @@ serve(async (req) => {
     const FANAR_API_KEY = Deno.env.get('FANAR_API_KEY')?.trim();
     const fanarAvailable = Boolean(FANAR_API_KEY);
 
+    const HF_TOKEN = Deno.env.get('VITE_HF_TOKEN');
+    const jaisAvailable = Boolean(HF_TOKEN);
+
     const llmsUsed = [`${QWEN_MODEL} (OpenRouter)`, `${GEMINI_MODEL} (OpenRouter)`];
     if (fanarAvailable) llmsUsed.push('Fanar');
+    if (jaisAvailable) llmsUsed.push('Jais (HF Serverless)');
     const llmUsed = llmsUsed.join(' + ');
     console.log(`gulf-translate: LLMs = ${llmUsed}, phrase = "${trimmedPhrase}"`);
 
-    // Step 1: Get translations from Qwen + Gemini + Fanar in parallel
+    // Step 1: Get translations from Qwen + Gemini + Fanar + Jais in parallel
     const userContent = `How do I say this in Omani Gulf Arabic: "${trimmedPhrase}"`;
 
     // Track wall-clock time so we can skip the sequential dialect-check step
@@ -348,19 +398,23 @@ serve(async (req) => {
       if (!firstLlmError) firstLlmError = e instanceof Error ? e : new Error(String(e));
       return null;
     };
-    const [rawResponse, geminiRawResponse, fanarRawResponse] = await Promise.all([
+    const [rawResponse, geminiRawResponse, fanarRawResponse, jaisRawResponse] = await Promise.all([
       callOpenRouter(QWEN_MODEL, TRANSLATION_SYSTEM_PROMPT, userContent, OPENROUTER_API_KEY, 4096).catch(captureLlmError),
       callOpenRouter(GEMINI_MODEL, TRANSLATION_SYSTEM_PROMPT, userContent, OPENROUTER_API_KEY, 4096).catch(captureLlmError),
       fanarAvailable
         ? callFanar(TRANSLATION_SYSTEM_PROMPT, userContent, FANAR_API_KEY!, 4096).catch(captureLlmError)
+        : Promise.resolve(null),
+      jaisAvailable
+        ? callJaisHF(TRANSLATION_SYSTEM_PROMPT, userContent, HF_TOKEN!, 4096).catch(captureLlmError)
         : Promise.resolve(null),
     ]);
 
     const parsed = rawResponse ? safeJsonParse<TranslationPayload>(rawResponse) : null;
     const geminiParsed = geminiRawResponse ? safeJsonParse<TranslationPayload>(geminiRawResponse) : null;
     const fanarParsed = fanarRawResponse ? safeJsonParse<TranslationPayload>(fanarRawResponse) : null;
+    const jaisParsed = jaisRawResponse ? safeJsonParse<TranslationPayload>(jaisRawResponse) : null;
 
-    if (!parsed && !geminiParsed && !fanarParsed) {
+    if (!parsed && !geminiParsed && !fanarParsed && !jaisParsed) {
       throw firstLlmError ?? new Error('Failed to parse translation responses. Please try again.');
     }
 
@@ -382,20 +436,26 @@ serve(async (req) => {
     const qwenTranslations = normTranslations(parsed);
     const geminiTranslations = normTranslations(geminiParsed);
     const fanarTranslations = normTranslations(fanarParsed);
+    const jaisTranslations = normTranslations(jaisParsed);
 
-    // Merge: start with Qwen, add unique Gemini translations, then unique Fanar translations
+    // Merge: start with Qwen, add unique Gemini translations, then unique Fanar, then unique Jais
     const seenArabic = new Set(qwenTranslations.map(t => t.arabic));
     const mergedFromGemini = geminiTranslations.filter(t => !seenArabic.has(t.arabic));
     mergedFromGemini.forEach(t => seenArabic.add(t.arabic));
     const mergedFromFanar = fanarTranslations.filter(t => !seenArabic.has(t.arabic));
+    mergedFromFanar.forEach(t => seenArabic.add(t.arabic));
+    const mergedFromJais = jaisTranslations.filter(t => !seenArabic.has(t.arabic));
     if (mergedFromGemini.length > 0) {
       console.log(`gulf-translate: added ${mergedFromGemini.length} unique translation(s) from Gemini`);
     }
     if (mergedFromFanar.length > 0) {
       console.log(`gulf-translate: added ${mergedFromFanar.length} unique translation(s) from Fanar`);
     }
+    if (mergedFromJais.length > 0) {
+      console.log(`gulf-translate: added ${mergedFromJais.length} unique translation(s) from Jais`);
+    }
 
-    let translations: NormalisedTranslation[] = [...qwenTranslations, ...mergedFromGemini, ...mergedFromFanar];
+    let translations: NormalisedTranslation[] = [...qwenTranslations, ...mergedFromGemini, ...mergedFromFanar, ...mergedFromJais];
 
     if (translations.length === 0) {
       throw new Error('Could not produce translations. Please try rephrasing.');
@@ -446,7 +506,7 @@ serve(async (req) => {
       return b.naturalness - a.naturalness;
     });
 
-    // Merge vocabularies from Qwen + Gemini + Fanar
+    // Merge vocabularies from Qwen + Gemini + Fanar + Jais
     const qwenVocab: NormalisedVocabularyItem[] = parsed && Array.isArray(parsed.vocabulary)
       ? parsed.vocabulary
           .filter((v: RawVocabularyItem) => v?.arabic)
@@ -474,21 +534,32 @@ serve(async (req) => {
             root: v.root ? String(v.root) : undefined,
           }))
       : [];
+    const jaisVocab: NormalisedVocabularyItem[] = jaisParsed && Array.isArray(jaisParsed.vocabulary)
+      ? jaisParsed.vocabulary
+          .filter((v: RawVocabularyItem) => v?.arabic)
+          .map((v: RawVocabularyItem) => ({
+            arabic: String(v.arabic),
+            english: String(v.english ?? ''),
+            root: v.root ? String(v.root) : undefined,
+          }))
+      : [];
     const vocabArabicSet = new Set(qwenVocab.map(v => v.arabic));
     const extraGeminiVocab = geminiVocab.filter(v => !vocabArabicSet.has(v.arabic));
     extraGeminiVocab.forEach(v => vocabArabicSet.add(v.arabic));
-    const vocabulary = [...qwenVocab, ...extraGeminiVocab, ...fanarVocab.filter(v => !vocabArabicSet.has(v.arabic))];
+    const extraFanarVocab = fanarVocab.filter(v => !vocabArabicSet.has(v.arabic));
+    extraFanarVocab.forEach(v => vocabArabicSet.add(v.arabic));
+    const vocabulary = [...qwenVocab, ...extraGeminiVocab, ...extraFanarVocab, ...jaisVocab.filter(v => !vocabArabicSet.has(v.arabic))];
 
     // Prefer richer cultural notes
     const qwenNotes = parsed?.culturalNotes ? String(parsed.culturalNotes) : undefined;
     const geminiNotes = geminiParsed?.culturalNotes ? String(geminiParsed.culturalNotes) : undefined;
     const fanarNotes = fanarParsed?.culturalNotes ? String(fanarParsed.culturalNotes) : undefined;
-    const allNotes = [qwenNotes, geminiNotes, fanarNotes].filter(Boolean) as string[];
+    const jaisNotes = jaisParsed?.culturalNotes ? String(jaisParsed.culturalNotes) : undefined;
+    const allNotes = [qwenNotes, geminiNotes, fanarNotes, jaisNotes].filter(Boolean) as string[];
     const culturalNotes = allNotes.reduce((best, n) => (!best || n.length > best.length ? n : best), undefined as string | undefined);
 
-    const genderVariants = parsed?.genderVariants
-      ? String(parsed.genderVariants)
-      : (geminiParsed?.genderVariants ? String(geminiParsed.genderVariants) : (fanarParsed?.genderVariants ? String(fanarParsed.genderVariants) : undefined));
+    const genderVariantsSource = [parsed, geminiParsed, fanarParsed, jaisParsed].find(p => p?.genderVariants);
+    const genderVariants = genderVariantsSource?.genderVariants ? String(genderVariantsSource.genderVariants) : undefined;
 
     const result = {
       phrase: trimmedPhrase,

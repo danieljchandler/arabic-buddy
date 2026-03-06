@@ -1,0 +1,1 @@
+export { RunPodEndpoints } from "./client";

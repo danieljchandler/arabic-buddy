@@ -47,3 +47,6 @@ verify_jwt = false
 
 [functions.fanar-transcribe]
 verify_jwt = false
+
+[functions.hf-chat]
+verify_jwt = false

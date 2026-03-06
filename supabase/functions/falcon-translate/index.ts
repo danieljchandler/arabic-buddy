@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 const OPENROUTER_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
-const HF_ROUTER_ENDPOINT = 'https://router.huggingface.co/v1/chat/completions';
+// Falcon uses dedicated HF Inference Endpoint (resolved from env)
 
 function parseNumberedTranslations(generatedText: string, arabicLines: string[]): string[] {
   const translations: string[] = [];

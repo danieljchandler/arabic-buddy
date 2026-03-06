@@ -5,12 +5,22 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const JAIS_HF_ENDPOINT = 'https://router.huggingface.co/together/v1/chat/completions';
+const RUNPOD_BASE = 'https://api.runpod.ai/v2';
 
 const MODEL_MAP: Record<string, { model: string; getEndpoint: () => string | null }> = {
+  standard: {
+    model: 'tiiuae/Falcon-H1R-7B',
+    getEndpoint: () => {
+      const id = Deno.env.get('RUNPOD_FALCON_ENDPOINT_ID');
+      return id ? `${RUNPOD_BASE}/${id}/openai/v1/chat/completions` : null;
+    },
+  },
   premium: {
     model: 'inceptionai/Jais-2-8B-Chat',
-    getEndpoint: () => JAIS_HF_ENDPOINT,
+    getEndpoint: () => {
+      const id = Deno.env.get('RUNPOD_JAIS_ENDPOINT_ID');
+      return id ? `${RUNPOD_BASE}/${id}/openai/v1/chat/completions` : null;
+    },
   },
 };
 
@@ -25,10 +35,10 @@ serve(async (req) => {
   try {
     const { prompt, modelTier } = await req.json() as { prompt: string; modelTier: 'standard' | 'premium' };
 
-    const hfToken = Deno.env.get('VITE_HF_TOKEN');
-    if (!hfToken) {
+    const apiKey = Deno.env.get('RUNPOD_API_KEY');
+    if (!apiKey) {
       return new Response(
-        JSON.stringify({ error: 'Authentication token is not configured' }),
+        JSON.stringify({ error: 'RUNPOD_API_KEY is not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
@@ -44,7 +54,7 @@ serve(async (req) => {
     const endpoint = config.getEndpoint();
     if (!endpoint) {
       return new Response(
-        JSON.stringify({ error: `Endpoint not available for ${modelTier} (dedicated endpoint may be offline)` }),
+        JSON.stringify({ error: `Endpoint not available for ${modelTier} (endpoint ID not configured)` }),
         { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
@@ -52,7 +62,7 @@ serve(async (req) => {
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${hfToken}`,
+        'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({

@@ -16,7 +16,10 @@ interface ModelConfig {
   model: string;
   keyEnv: string;
   isFanar?: boolean;
+  runpodEndpointEnv?: string; // when set, endpoint is resolved dynamically from this env var
 }
+
+const RUNPOD_BASE = "https://api.runpod.ai/v2";
 
 const MODEL_REGISTRY: Record<string, ModelConfig> = {
   "google/gemini-2.5-flash": {
@@ -41,9 +44,16 @@ const MODEL_REGISTRY: Record<string, ModelConfig> = {
     isFanar: true,
   },
   "jais-hf": {
-    endpoint: "https://router.huggingface.co/together/v1/chat/completions",
+    endpoint: "", // resolved from RUNPOD_JAIS_ENDPOINT_ID
     model: "inceptionai/Jais-2-8B-Chat",
-    keyEnv: "VITE_HF_TOKEN",
+    keyEnv: "RUNPOD_API_KEY",
+    runpodEndpointEnv: "RUNPOD_JAIS_ENDPOINT_ID",
+  },
+  "falcon-h1r": {
+    endpoint: "", // resolved from RUNPOD_FALCON_ENDPOINT_ID
+    model: "tiiuae/Falcon-H1R-7B",
+    keyEnv: "RUNPOD_API_KEY",
+    runpodEndpointEnv: "RUNPOD_FALCON_ENDPOINT_ID",
   },
 };
 
@@ -157,6 +167,12 @@ async function callLLM(
   }
 
   let endpoint = config.endpoint;
+  // RunPod models resolve their endpoint dynamically from an env var containing the endpoint ID
+  if (config.runpodEndpointEnv) {
+    const endpointId = Deno.env.get(config.runpodEndpointEnv)?.trim();
+    if (!endpointId) throw new Error(`${config.runpodEndpointEnv} not configured`);
+    endpoint = `${RUNPOD_BASE}/${endpointId}/openai/v1/chat/completions`;
+  }
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 55_000);

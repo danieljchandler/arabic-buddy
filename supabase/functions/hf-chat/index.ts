@@ -40,22 +40,30 @@ serve(async (req) => {
       );
     }
 
-    const model = MODEL_MAP[modelTier];
-    if (!model) {
+    const config = MODEL_MAP[modelTier];
+    if (!config) {
       return new Response(
         JSON.stringify({ error: `Unknown modelTier: ${modelTier}` }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
 
-    const response = await fetch(HF_ENDPOINT, {
+    const endpoint = config.getEndpoint();
+    if (!endpoint) {
+      return new Response(
+        JSON.stringify({ error: `Endpoint not available for ${modelTier} (dedicated endpoint may be offline)` }),
+        { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+
+    const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${hfToken}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model,
+        model: config.model,
         messages: [
           { role: 'system', content: DEFAULT_SYSTEM_PROMPT },
           { role: 'user', content: prompt },

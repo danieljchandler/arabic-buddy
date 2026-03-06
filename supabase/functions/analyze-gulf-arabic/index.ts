@@ -1368,7 +1368,7 @@ serve(async (req) => {
      }
 
      // --- Fallback: Falcon H1 translation if both Gemini and Qwen failed ---
-     if ((!translationAi?.translations || translationAi.translations.length === 0) && hfAvailable) {
+     if ((!translationAi?.translations || translationAi.translations.length === 0) && falconAvailable) {
        console.log('Qwen translation failed or empty, falling back to Falcon H1 for translation...');
        const falconTransResp = await callFalconHF(
          getTranslationSystemPrompt(detectedDialect, visualContext),

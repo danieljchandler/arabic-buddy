@@ -170,7 +170,7 @@ serve(async (req) => {
     const [qwenText, geminiText, falconText] = await Promise.all([
       callOpenRouterTranslate('qwen/qwen3-235b-a22b', numberedLines, OPENROUTER_API_KEY),
       callOpenRouterTranslate('google/gemini-2.5-flash', numberedLines, OPENROUTER_API_KEY),
-      hfAvailable
+      falconAvailable
         ? callHuggingFace(numberedLines, HF_TOKEN!).catch((e) => {
             console.warn('Falcon H1 HF failed (non-blocking):', e);
             return null;

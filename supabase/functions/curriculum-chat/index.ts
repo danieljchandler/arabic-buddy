@@ -167,10 +167,11 @@ async function callLLM(
   }
 
   let endpoint = config.endpoint;
-  // Falcon uses a dynamic endpoint
-  if (config.model === "falcon-h1r") {
-    endpoint = Deno.env.get("FALCON_HF_ENDPOINT_URL") || "";
-    if (!endpoint) throw new Error("FALCON_HF_ENDPOINT_URL not configured");
+  // Falcon models use a dynamic endpoint from env
+  if (config.model === "falcon-h1r" || config.model === "tiiuae/Falcon-H1-7B-Instruct") {
+    const falconUrl = Deno.env.get("FALCON_HF_ENDPOINT_URL") || "";
+    if (!falconUrl) throw new Error("FALCON_HF_ENDPOINT_URL not configured");
+    endpoint = config.model === "falcon-h1r" ? falconUrl : `${falconUrl}/v1/chat/completions`;
   }
 
   const controller = new AbortController();

@@ -46,13 +46,13 @@ const MODEL_REGISTRY: Record<string, ModelConfig> = {
     keyEnv: "FALCON_HF_API_KEY",
   },
   "jais-hf": {
-    endpoint: "https://router.huggingface.co/v1/chat/completions",
-    model: "inceptionai/Jais-2-8B-Chat:cheapest",
+    endpoint: "https://router.huggingface.co/together/v1/chat/completions",
+    model: "inceptionai/Jais-2-8B-Chat",
     keyEnv: "VITE_HF_TOKEN",
   },
   "falcon-h1-hf": {
-    endpoint: "https://router.huggingface.co/v1/chat/completions",
-    model: "tiiuae/Falcon-H1-7B-Instruct:cheapest",
+    endpoint: "", // resolved from FALCON_HF_ENDPOINT_URL env var
+    model: "tiiuae/Falcon-H1-7B-Instruct",
     keyEnv: "VITE_HF_TOKEN",
   },
 };

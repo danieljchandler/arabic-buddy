@@ -519,7 +519,12 @@ async function callFalconHF(
   const timeout = setTimeout(() => controller.abort(), 45_000);
 
   try {
-    const response = await fetch('https://router.huggingface.co/v1/chat/completions', {
+    const falconEndpoint = Deno.env.get('FALCON_HF_ENDPOINT_URL');
+    if (!falconEndpoint) {
+      console.warn('FALCON_HF_ENDPOINT_URL not set, skipping Falcon call');
+      return { content: null };
+    }
+    const response = await fetch(`${falconEndpoint}/v1/chat/completions`, {
       method: 'POST',
       signal: controller.signal,
       headers: {
@@ -527,7 +532,7 @@ async function callFalconHF(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'tiiuae/Falcon-H1-7B-Instruct:cheapest',
+        model: 'tiiuae/Falcon-H1-7B-Instruct',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userContent },

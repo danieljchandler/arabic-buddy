@@ -464,6 +464,96 @@ async function callFanar({
   return { content };
 }
 
+type CallFalconH1Args = {
+  systemPrompt: string;
+  userContent: string;
+  maxTokens?: number;
+  temperature?: number;
+};
+
+async function callFalconH1({
+  systemPrompt,
+  userContent,
+  maxTokens = 4096,
+  temperature = 0.2,
+}: CallFalconH1Args): Promise<{ content: string | null; error?: string; status?: number }> {
+  const endpoint = Deno.env.get('FALCON_HF_ENDPOINT_URL');
+  const apiKey = Deno.env.get('FALCON_HF_API_KEY')?.trim();
+  if (!endpoint || !apiKey) {
+    return { content: null, error: 'Falcon H1 not configured', status: 503 };
+  }
+
+  const controller = new AbortController();
+  const timeoutMs = 55_000;
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  const startedAt = Date.now();
+  let response: Response;
+  try {
+    response = await fetch(endpoint, {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'falcon-h1r',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userContent },
+        ],
+        max_tokens: maxTokens,
+        temperature,
+      }),
+    });
+  } catch (e) {
+    const elapsedMs = Date.now() - startedAt;
+    const isAbort = e instanceof DOMException && e.name === 'AbortError';
+    console.error('Falcon H1 fetch failed:', { elapsedMs, isAbort, error: String(e) });
+    return {
+      content: null,
+      error: isAbort ? `Falcon H1 request timed out after ${timeoutMs}ms` : String(e),
+      status: isAbort ? 504 : 500,
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+
+  const elapsedMs = Date.now() - startedAt;
+  console.log('Falcon H1 response:', { status: response.status, ok: response.ok, elapsedMs });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Falcon H1 error body (first 800 chars):', errorText?.slice?.(0, 800) ?? errorText);
+    return { content: null, error: errorText, status: response.status };
+  }
+
+  let responseText: string;
+  try {
+    responseText = await response.text();
+  } catch (e) {
+    console.error('Failed to read Falcon H1 response body:', e);
+    return { content: null, error: 'Failed to read Falcon H1 response body', status: 500 };
+  }
+
+  if (!responseText || responseText.trim().length === 0) {
+    console.error('Falcon H1 returned empty response body');
+    return { content: null, error: 'Falcon H1 returned empty response', status: 500 };
+  }
+
+  let data;
+  try {
+    data = JSON.parse(responseText);
+  } catch (e) {
+    console.error('Failed to parse Falcon H1 response JSON:', e);
+    return { content: null, error: 'Failed to parse Falcon H1 response as JSON', status: 500 };
+  }
+
+  const content = data.choices?.[0]?.message?.content;
+  return { content };
+}
+
 function extractJsonObject(text: string): string {
   const cleaned = text
     .replace(/<think>[\s\S]*?<\/think>/gi, '')
@@ -1019,6 +1109,13 @@ serve(async (req) => {
       console.log('Fanar LLM conjunction enabled');
     }
 
+    const falconH1Available = Boolean(
+      Deno.env.get('FALCON_HF_ENDPOINT_URL') && Deno.env.get('FALCON_HF_API_KEY')?.trim()
+    );
+    if (falconH1Available) {
+      console.log('Falcon H1 enabled');
+    }
+
      let partial = false;
 
      // Build user content for the merge prompt (all available ASR transcripts)
@@ -1042,7 +1139,7 @@ serve(async (req) => {
 
      let mergeOnlyAi: MergeOnlyAI | null = null;
 
-     const [mergeResp, fanarMergeResp] = await Promise.all([
+     const [mergeResp, fanarMergeResp, falconMergeResp] = await Promise.all([
        callAI({
          systemPrompt: getMergeOnlySystemPrompt(false, hasDualOrTriple, hasTriple),
          userContent: linesUserContent,
@@ -1056,6 +1153,16 @@ serve(async (req) => {
              userContent: linesUserContent,
              apiKey: FANAR_API_KEY!,
              maxTokens: 8192,
+           })
+         : Promise.resolve({ content: null } as { content: string | null }),
+       falconH1Available
+         ? callFalconH1({
+             systemPrompt: getMergeOnlySystemPrompt(false, hasDualOrTriple, hasTriple),
+             userContent: linesUserContent,
+             maxTokens: 8192,
+           }).catch((e) => {
+             console.warn('Falcon H1 merge call failed (non-blocking):', e);
+             return { content: null } as { content: string | null };
            })
          : Promise.resolve({ content: null } as { content: string | null }),
      ]);
@@ -1087,6 +1194,17 @@ serve(async (req) => {
          if (fanarMergeAi?.lines && fanarMergeAi.lines.length > 0) {
            console.log('Qwen Call 1 parse failed, using Fanar merge result');
            mergeOnlyAi = fanarMergeAi;
+         }
+       }
+     }
+
+     // Fallback to Falcon H1 if both Qwen and Fanar Call 1 parse failed
+     if (!mergeOnlyAi?.lines || mergeOnlyAi.lines.length === 0) {
+       if (falconMergeResp.content) {
+         const falconMergeAi = safeJsonParse<MergeOnlyAI>(falconMergeResp.content);
+         if (falconMergeAi?.lines && falconMergeAi.lines.length > 0) {
+           console.log('Qwen and Fanar Call 1 parse failed, using Falcon H1 merge result');
+           mergeOnlyAi = falconMergeAi;
          }
        }
      }
@@ -1128,7 +1246,7 @@ serve(async (req) => {
        .join('\n');
 
      // =====================================================================
-     // TRANSLATION — Gemini 2.5 Flash (primary) / Qwen (fallback)
+     // TRANSLATION — Gemini 2.5 Flash (primary) / Falcon H1 (parallel) / Qwen (fallback)
      // Receives the merged transcript from Call 1.
      // Produces per-line English translations only — separate from analysis.
      //
@@ -1146,12 +1264,12 @@ serve(async (req) => {
      //
      // All run in parallel. Translation is a separate concern from analysis.
      // =====================================================================
-     console.log('Translation (Gemini), analysis (Qwen), CAMeL dialect, Farasa diac running in parallel...');
+     console.log('Translation (Gemini+Falcon H1), analysis (Qwen), CAMeL dialect, Farasa diac running in parallel...');
 
      const arabicOnlyText = mergedLines.map(l => l.arabic).join('\n');
      const hfApiKey = Deno.env.get('HUGGINGFACE_API_KEY') ?? Deno.env.get('FALCON_HF_API_KEY') ?? '';
 
-      const [geminiTransResp, analysisResp, fanarMetaResp, fanarValidResp, camelDialectResult, diacritizedTranscript] = await Promise.all([
+      const [geminiTransResp, analysisResp, fanarMetaResp, fanarValidResp, camelDialectResult, diacritizedTranscript, falconTransResp] = await Promise.all([
         // Translation primary: Gemini 2.5 Pro via Lovable AI gateway
         callAI({
           model: 'google/gemini-2.5-pro',
@@ -1209,6 +1327,18 @@ serve(async (req) => {
          console.warn('Farasa diacritize failed (non-blocking):', e);
          return null;
        }),
+       // Falcon H1 translation (parallel with Gemini) — Arabic-native model used
+       // as an additional fallback when Gemini translation is unavailable.
+       falconH1Available
+         ? callFalconH1({
+             systemPrompt: getTranslationSystemPrompt(detectedDialect, visualContext),
+             userContent: mergedTranscriptText,
+             maxTokens: 4096,
+           }).catch((e) => {
+             console.warn('Falcon H1 translation failed (non-blocking):', e);
+             return { content: null } as { content: string | null };
+           })
+         : Promise.resolve({ content: null } as { content: string | null }),
      ]);
 
      // --- Log CAMeL dialect result vs LLM-detected dialect ---
@@ -1244,9 +1374,19 @@ serve(async (req) => {
        }
      }
 
-     // --- Fallback: Qwen translation-only call if Gemini failed or returned empty ---
+     // --- Fallback: Falcon H1 translation if Gemini failed or returned empty ---
      if (!translationAi?.translations || translationAi.translations.length === 0) {
-       console.log('Gemini translation failed or empty, falling back to Qwen for translation...');
+       if (falconTransResp?.content) {
+         translationAi = safeJsonParse<TranslationAI>(falconTransResp.content);
+         if (translationAi?.translations) {
+           console.log('Falcon H1 translation fallback: parsed', translationAi.translations.length, 'lines.');
+         }
+       }
+     }
+
+     // --- Fallback: Qwen translation-only call if Gemini and Falcon H1 both failed or returned empty ---
+     if (!translationAi?.translations || translationAi.translations.length === 0) {
+       console.log('Gemini and Falcon H1 translation failed or empty, falling back to Qwen for translation...');
        const qwenTransResp = await callAI({
          systemPrompt: getTranslationSystemPrompt(detectedDialect, visualContext),
          userContent: mergedTranscriptText,
@@ -1287,6 +1427,27 @@ serve(async (req) => {
        }
      }
 
+     // Fallback to Falcon H1 for analysis if Qwen retry also failed
+     if (!analysisAi?.lines || analysisAi.lines.length === 0) {
+       if (falconH1Available) {
+         console.log('Qwen Call 2 retry failed, trying Falcon H1 for analysis...');
+         const falconAnalysisResp = await callFalconH1({
+           systemPrompt: getAnalysisSystemPrompt(false, detectedDialect),
+           userContent: mergedTranscriptText,
+           maxTokens: 8192,
+         }).catch((e) => {
+           console.warn('Falcon H1 analysis failed (non-blocking):', e);
+           return { content: null } as { content: string | null };
+         });
+         if (falconAnalysisResp.content) {
+           analysisAi = safeJsonParse<AnalysisAI>(falconAnalysisResp.content);
+           if (analysisAi?.lines?.length) {
+             console.log('Falcon H1 analysis fallback succeeded:', analysisAi.lines.length, 'lines.');
+           }
+         }
+       }
+     }
+
      if (!analysisAi) {
        partial = true;
      }
@@ -1311,11 +1472,17 @@ serve(async (req) => {
      }));
 
      if (dedicatedTranslations.length > 0) {
+       let translationSource = '(Qwen fallback)';
+       if (geminiTransResp.content && translationAi) {
+         translationSource = '(Gemini)';
+       } else if (falconTransResp?.content && translationAi) {
+         translationSource = '(Falcon H1 fallback)';
+       }
        console.log(
          'Applied dedicated translations to',
          dedicatedTranslations.length,
          'lines.',
-         geminiTransResp.content && translationAi ? '(Gemini)' : '(Qwen fallback)'
+         translationSource,
        );
      }
 

@@ -115,8 +115,8 @@ const App = () => {
           <Routes>
             {/* Public learning app */}
             <Route path="/" element={<ErrorBoundary name="HomeRoute"><Index /></ErrorBoundary>} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/review" element={<Review />} />
+            <Route path="/auth" element={<ErrorBoundary name="AuthRoute"><Auth /></ErrorBoundary>} />
+            <Route path="/review" element={<ErrorBoundary name="ReviewRoute"><Review /></ErrorBoundary>} />
             <Route
               path="/transcribe"
               element={
@@ -125,19 +125,19 @@ const App = () => {
                 </ErrorBoundary>
               }
             />
-            <Route path="/my-words" element={<MyWords />} />
-            <Route path="/review/my-words" element={<MyWordsReview />} />
-            <Route path="/tutor-upload" element={<TutorUpload />} />
+            <Route path="/my-words" element={<ErrorBoundary name="MyWordsRoute"><MyWords /></ErrorBoundary>} />
+            <Route path="/review/my-words" element={<ErrorBoundary name="MyWordsReviewRoute"><MyWordsReview /></ErrorBoundary>} />
+            <Route path="/tutor-upload" element={<ErrorBoundary name="TutorUploadRoute"><TutorUpload /></ErrorBoundary>} />
             <Route path="/meme" element={
               <ErrorBoundary name="MemeAnalyzerRoute">
                 <MemeAnalyzer />
               </ErrorBoundary>
             } />
-            <Route path="/learn" element={<Learn />} />
-            <Route path="/learn/:topicId" element={<Learn />} />
-            <Route path="/quiz/:topicId" element={<Quiz />} />
-            <Route path="/discover" element={<Discover />} />
-            <Route path="/discover/:videoId" element={<DiscoverVideo />} />
+            <Route path="/learn" element={<ErrorBoundary name="LearnRoute"><Learn /></ErrorBoundary>} />
+            <Route path="/learn/:topicId" element={<ErrorBoundary name="LearnTopicRoute"><Learn /></ErrorBoundary>} />
+            <Route path="/quiz/:topicId" element={<ErrorBoundary name="QuizRoute"><Quiz /></ErrorBoundary>} />
+            <Route path="/discover" element={<ErrorBoundary name="DiscoverRoute"><Discover /></ErrorBoundary>} />
+            <Route path="/discover/:videoId" element={<ErrorBoundary name="DiscoverVideoRoute"><DiscoverVideo /></ErrorBoundary>} />
             <Route path="/learn-from-x" element={
               <ErrorBoundary name="LearnFromXRoute">
                 <LearnFromX />

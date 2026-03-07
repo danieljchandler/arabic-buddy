@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -11,6 +11,9 @@ export const useAdminAuth = () => {
   const [isRecorder, setIsRecorder] = useState(false);
   const [role, setRole] = useState<UserRole>(null);
   const [loading, setLoading] = useState(true);
+  // Track the currently-authenticated user ID so token refreshes for the
+  // same user don't trigger a loading spinner (which causes a white flash).
+  const currentUserIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     // Set up auth state listener FIRST
@@ -19,15 +22,22 @@ export const useAdminAuth = () => {
         setSession(session);
         setUser(session?.user ?? null);
 
-        // Defer role check with setTimeout to prevent deadlock
         if (session?.user) {
-          // Keep loading=true while roles are being re-checked so AdminLayout
-          // shows the spinner instead of a blank white screen.
-          setLoading(true);
+          const isNewUser = session.user.id !== currentUserIdRef.current;
+          currentUserIdRef.current = session.user.id;
+
+          if (isNewUser) {
+            // A genuinely different user signed in — show the spinner while
+            // we verify their roles.
+            setLoading(true);
+          }
+          // Token refreshes for the same user (TOKEN_REFRESHED) skip setLoading
+          // so the page stays visible without a white flash.
           setTimeout(() => {
             checkRoles(session.user.id);
           }, 0);
         } else {
+          currentUserIdRef.current = null;
           setIsAdmin(false);
           setIsRecorder(false);
           setRole(null);
@@ -40,8 +50,9 @@ export const useAdminAuth = () => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
-      
+
       if (session?.user) {
+        currentUserIdRef.current = session.user.id;
         checkRoles(session.user.id);
       } else {
         setLoading(false);

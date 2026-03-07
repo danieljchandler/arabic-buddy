@@ -10,6 +10,7 @@ import { Loader2, Mail, Lock, UserPlus, LogIn } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
 import lahjaIcon from "@/assets/lahja-icon.png";
+import { isSupabaseConfigured } from "@/integrations/supabase/client";
 
 const authSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -112,6 +113,13 @@ const Auth = () => {
       <div className="mb-8">
         <HomeButton />
       </div>
+
+      {/* Supabase misconfiguration warning */}
+      {!isSupabaseConfigured && (
+        <div className="max-w-sm mx-auto mb-6 rounded-lg border border-yellow-400 bg-yellow-50 p-4 text-sm text-yellow-800">
+          <strong>Supabase not connected.</strong> Login won't work until you connect your Supabase project in the Lovable dashboard under <em>Project → Supabase</em>.
+        </div>
+      )}
 
       {/* Main Content - centered with generous spacing */}
       <div className="max-w-sm mx-auto">

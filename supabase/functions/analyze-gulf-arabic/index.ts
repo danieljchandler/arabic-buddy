@@ -472,8 +472,10 @@ async function callRunPodModel(
   apiKey: string,
   maxTokens = 4096,
 ): Promise<{ content: string | null }> {
+  // RunPod serverless endpoints need cold-start time (up to 60s+), so use a
+  // generous 90s timeout to avoid aborting during spin-up.
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 45_000);
+  const timeout = setTimeout(() => controller.abort(), 90_000);
 
   try {
     const response = await fetch(endpoint, {
@@ -884,27 +886,45 @@ async function callCamelDialect(
 // REST API. The diacritized output is included in the response for downstream
 // ElevenLabs TTS calls, which produce more accurate pronunciation with tashkeel.
 async function callFarasaDiacritize(text: string): Promise<string | null> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 15_000);
-  try {
-    const resp = await fetch('https://farasa.qcri.org/webapi/diac/', {
-      method: 'POST',
-      signal: controller.signal,
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({ text }).toString(),
-    });
-    if (!resp.ok) {
-      console.warn(`Farasa diac: HTTP ${resp.status}`);
-      return null;
+  // Try multiple Farasa endpoint URL patterns — the API has historically moved
+  // between /webapi/diac/ and /webapi/diacritize/ paths.
+  const FARASA_URLS = [
+    'https://farasa.qcri.org/webapi/diac/',
+    'https://farasa.qcri.org/webapi/diacritize/',
+    'https://farasa-api.qcri.org/webapi/diac/',
+  ];
+
+  for (const url of FARASA_URLS) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15_000);
+    try {
+      const resp = await fetch(url, {
+        method: 'POST',
+        signal: controller.signal,
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ text }).toString(),
+      });
+      if (resp.status === 404) {
+        console.warn(`Farasa diac: 404 at ${url}, trying next URL...`);
+        continue;
+      }
+      if (!resp.ok) {
+        console.warn(`Farasa diac: HTTP ${resp.status} at ${url}`);
+        return null;
+      }
+      const data = await resp.json();
+      console.log(`Farasa diac: success via ${url}`);
+      return (data.text ?? data.output ?? null) as string | null;
+    } catch (e) {
+      console.warn(`Farasa diacritize failed at ${url}:`, e instanceof Error ? e.message : String(e));
+      continue;
+    } finally {
+      clearTimeout(timeout);
     }
-    const data = await resp.json();
-    return (data.text ?? data.output ?? null) as string | null;
-  } catch (e) {
-    console.warn('Farasa diacritize failed:', e instanceof Error ? e.message : String(e));
-    return null;
-  } finally {
-    clearTimeout(timeout);
   }
+
+  console.warn('Farasa diacritize: all URLs exhausted');
+  return null;
 }
 
 // Fallback: use Qwen + Gemini via OpenRouter for translation when needed
@@ -1199,12 +1219,12 @@ serve(async (req) => {
      //
      // All run in parallel. Translation is a separate concern from analysis.
      // =====================================================================
-     console.log('Translation (Gemini), analysis (Qwen), CAMeL dialect, Farasa diac running in parallel...');
+     console.log('Translation (Gemini), analysis (Qwen), meta (Fanar+Jais+Falcon), CAMeL dialect, Farasa diac running in parallel...');
 
      const arabicOnlyText = mergedLines.map(l => l.arabic).join('\n');
      const hfApiKey = Deno.env.get('HUGGINGFACE_API_KEY') ?? '';
 
-      const [geminiTransResp, analysisResp, fanarMetaResp, fanarValidResp, jaisMetaResp, camelDialectResult, diacritizedTranscript] = await Promise.all([
+      const [geminiTransResp, analysisResp, fanarMetaResp, fanarValidResp, jaisMetaResp, falconMetaResp, camelDialectResult, diacritizedTranscript] = await Promise.all([
         // Translation primary: Gemini 2.5 Pro via Lovable AI gateway
         callAI({
           model: 'google/gemini-2.5-pro',
@@ -1251,6 +1271,15 @@ serve(async (req) => {
        jaisAvailable
          ? callRunPodModel(RUNPOD_JAIS_ENDPOINT, 'inceptionai/Jais-2-8B-Chat', getMetaSystemPrompt(true), mergedTranscriptText, RUNPOD_API_KEY!, 2048).catch((e) => {
              console.warn('Jais meta enrichment failed (non-blocking):', e);
+             return { content: null } as { content: string | null };
+           })
+         : Promise.resolve({ content: null } as { content: string | null }),
+       // Falcon H1 meta enrichment via RunPod — runs in parallel for vocab/grammar/cultural context.
+       // Previously Falcon only fired as a 3rd-level translation fallback (after Gemini+Qwen),
+       // meaning it almost never ran. Now it contributes meta enrichment alongside Jais.
+       falconAvailable
+         ? callRunPodModel(RUNPOD_FALCON_ENDPOINT, 'tiiuae/Falcon-H1R-7B', getMetaSystemPrompt(true), mergedTranscriptText, RUNPOD_API_KEY!, 2048).catch((e) => {
+             console.warn('Falcon meta enrichment failed (non-blocking):', e);
              return { content: null } as { content: string | null };
            })
          : Promise.resolve({ content: null } as { content: string | null }),
@@ -1463,8 +1492,36 @@ serve(async (req) => {
        }
      }
 
+     // Merge Falcon H1 meta results if available
+     if (falconMetaResp.content) {
+       const falconMetaAi = safeJsonParse<MetaAI>(falconMetaResp.content);
+       if (falconMetaAi) {
+         console.log('Merging Falcon H1 meta results...');
+         if (Array.isArray(falconMetaAi.vocabulary)) {
+           const existingArabic = new Set(vocab.map(v => v.arabic));
+           const newVocab = falconMetaAi.vocabulary.filter(v => v.arabic && !existingArabic.has(v.arabic));
+           if (newVocab.length > 0) {
+             vocab = [...vocab, ...newVocab];
+             console.log(`Added ${newVocab.length} vocab items from Falcon H1`);
+           }
+         }
+         if (Array.isArray(falconMetaAi.grammarPoints)) {
+           const existingTitles = new Set(grammarPoints.map(g => g.title.toLowerCase()));
+           const newGrammar = falconMetaAi.grammarPoints.filter(g => g.title && !existingTitles.has(g.title.toLowerCase()));
+           if (newGrammar.length > 0) {
+             grammarPoints = [...grammarPoints, ...newGrammar];
+             console.log(`Added ${newGrammar.length} grammar points from Falcon H1`);
+           }
+         }
+         if (falconMetaAi.culturalContext && (!culturalContext || falconMetaAi.culturalContext.length > culturalContext.length)) {
+           culturalContext = falconMetaAi.culturalContext;
+           console.log('Using Falcon H1 cultural context (richer)');
+         }
+       }
+     }
+
      // ── Step 5: Claude Sonnet vocabulary enrichment ──────────────────────────
-     // Runs after full vocab assembly (Qwen + Fanar union). Sequential.
+     // Runs after full vocab assembly (Qwen + Fanar + Jais + Falcon union). Sequential.
      // Non-blocking: any failure leaves vocab unchanged.
      if (vocab.length > 0) {
        try {

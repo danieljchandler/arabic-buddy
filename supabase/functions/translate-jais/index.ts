@@ -85,7 +85,8 @@ async function callJaisHF(
   maxTokens = 4096,
 ): Promise<string | null> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 45_000);
+  // HF serverless can be slow on cold starts — generous 90s timeout
+  const timeout = setTimeout(() => controller.abort(), 90_000);
 
   try {
     const response = await fetch(JAIS_HF_ENDPOINT, {

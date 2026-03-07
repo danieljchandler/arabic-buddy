@@ -36,7 +36,7 @@ async function callOpenRouterTranslate(
   apiKey: string,
 ): Promise<string | null> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 45_000);
+  const timeout = setTimeout(() => controller.abort(), 90_000);
   try {
     const response = await fetch(OPENROUTER_ENDPOINT, {
       method: 'POST',
@@ -80,7 +80,7 @@ async function callRunPodTranslate(
   apiKey: string,
 ): Promise<string | null> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 45_000);
+  const timeout = setTimeout(() => controller.abort(), 90_000);
   try {
     const response = await fetch(endpoint, {
       method: 'POST',

@@ -22,7 +22,7 @@ export function AdminTranscriptEditor({ lines, onChange, audioUrl }: AdminTransc
   useMemo(() => {
     const map = glossMapRef.current;
     for (const line of lines) {
-      for (const token of line.tokens) {
+      for (const token of (line.tokens ?? [])) {
         map.set(`${line.id}:${token.surface}`, token);
       }
     }
@@ -38,7 +38,7 @@ export function AdminTranscriptEditor({ lines, onChange, audioUrl }: AdminTransc
         text: line.arabic,
         translation: line.translation,
         confidence: 1,
-        words: line.tokens.map<Word>((t) => ({
+        words: (line.tokens ?? []).map<Word>((t) => ({
           word: t.surface,
           start: 0,
           end: 0,

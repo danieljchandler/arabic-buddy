@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -56,16 +56,18 @@ const AdminVideoForm = () => {
   const [isDownloading, setIsDownloading] = useState(false);
 
   // Stable blob URL for audio playback in transcript editor
-  const stableAudioUrl = useMemo(() => {
-    if (!audioFile) return undefined;
-    return URL.createObjectURL(audioFile);
-  }, [audioFile]);
-
+  const [stableAudioUrl, setStableAudioUrl] = useState<string | undefined>(undefined);
   useEffect(() => {
+    if (!audioFile) {
+      setStableAudioUrl(undefined);
+      return;
+    }
+    const url = URL.createObjectURL(audioFile);
+    setStableAudioUrl(url);
     return () => {
-      if (stableAudioUrl) URL.revokeObjectURL(stableAudioUrl);
+      URL.revokeObjectURL(url);
     };
-  }, [stableAudioUrl]);
+  }, [audioFile]);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -511,7 +513,17 @@ const AdminVideoForm = () => {
         mergedLines = allLines;
       }
 
-      setTranscriptLines(mergedLines);
+      // Ensure every line has a valid tokens array (guards against API returning lines without tokens)
+      const sanitizedLines = mergedLines.map((line: any) => ({
+        ...line,
+        tokens: Array.isArray(line.tokens)
+          ? line.tokens
+          : String(line.arabic ?? "").split(/\s+/).filter(Boolean).map((w: string, wi: number) => ({
+              id: `tok-${line.id ?? wi}-${wi}`,
+              surface: w,
+            })),
+      }));
+      setTranscriptLines(sanitizedLines);
       setVocabulary(result.vocabulary || []);
       setGrammarPoints(result.grammarPoints || []);
       // Merge visual cultural context with audio analysis cultural context

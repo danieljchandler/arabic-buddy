@@ -95,9 +95,7 @@ const App = () => {
         description: "The error was logged to the console. Please try again.",
       });
 
-      // In some hosted runtimes, letting this bubble can trigger a hard reload.
       event.preventDefault();
-      (event as unknown as { stopImmediatePropagation?: () => void }).stopImmediatePropagation?.();
     };
 
     window.addEventListener("unhandledrejection", onUnhandledRejection);
@@ -116,7 +114,7 @@ const App = () => {
         <BrowserRouter>
           <Routes>
             {/* Public learning app */}
-            <Route path="/" element={<Index />} />
+            <Route path="/" element={<ErrorBoundary name="HomeRoute"><Index /></ErrorBoundary>} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/review" element={<Review />} />
             <Route

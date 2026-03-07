@@ -24,9 +24,11 @@ async function warmEndpoint(
   apiKey: string,
 ): Promise<'ok' | 'error'> {
   const controller = new AbortController();
-  // Allow up to 90s for cold start — the goal is just to wake the worker.
-  const timeout = setTimeout(() => controller.abort(), 90_000);
+  // Allow up to 150s for cold start — RunPod serverless can take 90s+ to spin up.
+  const timeout = setTimeout(() => controller.abort(), 150_000);
+  const startMs = Date.now();
   try {
+    console.log(`warmup ${model}: sending ping...`);
     const resp = await fetch(endpoint, {
       method: 'POST',
       signal: controller.signal,
@@ -43,12 +45,13 @@ async function warmEndpoint(
         temperature: 0,
       }),
     });
-    console.log(`warmup ${model}: HTTP ${resp.status}`);
-    // Drain the body to release the connection
-    await resp.text();
+    const elapsedSec = ((Date.now() - startMs) / 1000).toFixed(1);
+    const body = await resp.text();
+    console.log(`warmup ${model}: HTTP ${resp.status} in ${elapsedSec}s — ${body.slice(0, 100)}`);
     return resp.ok ? 'ok' : 'error';
   } catch (e) {
-    console.warn(`warmup ${model} failed:`, e instanceof Error ? e.message : String(e));
+    const elapsedSec = ((Date.now() - startMs) / 1000).toFixed(1);
+    console.warn(`warmup ${model} failed in ${elapsedSec}s:`, e instanceof Error ? e.message : String(e));
     return 'error';
   } finally {
     clearTimeout(timeout);

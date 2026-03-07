@@ -61,13 +61,13 @@ async function callFarasaRaw(task: FarasaTask, text: string): Promise<string | n
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), FARASA_TIMEOUT_MS);
       try {
-        const params: Record<string, string> = { text };
-        if (farasaApiKey) params.api_key = farasaApiKey;
+        const jsonBody: Record<string, string> = { text };
+        if (farasaApiKey) jsonBody.api_key = farasaApiKey;
         const res = await fetch(url, {
           method: 'POST',
           signal: controller.signal,
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: new URLSearchParams(params).toString(),
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(jsonBody),
         });
         if (res.status === 404) {
           console.warn(`Farasa ${task}: 404 at ${url}, trying next...`);

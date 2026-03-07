@@ -35,8 +35,17 @@ const AdminLayout = () => {
     );
   }
 
+  // While the navigation effect fires (user not authorised), show spinner
+  // rather than returning null, which causes a white flash.
   if (!user || (!isAdmin && !isRecorder)) {
-    return null;
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
+          <p className="text-muted-foreground">Redirecting…</p>
+        </div>
+      </div>
+    );
   }
 
   return <Outlet />;

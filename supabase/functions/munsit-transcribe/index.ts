@@ -104,6 +104,7 @@ serve(async (req) => {
     // Try multiple Munsit API base URLs in case the primary DNS fails.
     // The Munsit/CNTXT API has been observed at multiple hostnames.
     const MUNSIT_URLS = [
+      "https://api.cntxt.tools/public/audio/transcribe",
       "https://api.cntxt.tools/audio/transcribe",
       "https://munsit.cntxt.tools/audio/transcribe",
       "https://api.munsit.ai/audio/transcribe",

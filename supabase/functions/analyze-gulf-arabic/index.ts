@@ -472,10 +472,11 @@ async function callRunPodModel(
   apiKey: string,
   maxTokens = 4096,
 ): Promise<{ content: string | null }> {
-  // RunPod serverless endpoints need cold-start time (up to 60s+), so use a
-  // generous 90s timeout to avoid aborting during spin-up.
+  // RunPod serverless endpoints need cold-start time (up to 90s+), so use a
+  // generous 120s timeout to avoid aborting during spin-up.
+  // The upload page pre-warms these endpoints on load to reduce actual wait.
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 90_000);
+  const timeout = setTimeout(() => controller.abort(), 120_000);
 
   try {
     const response = await fetch(endpoint, {
@@ -888,21 +889,25 @@ async function callCamelDialect(
 async function callFarasaDiacritize(text: string): Promise<string | null> {
   // Try multiple Farasa endpoint URL patterns — the API has historically moved
   // between /webapi/diac/ and /webapi/diacritize/ paths.
+  // The API now requires an api_key parameter (free registration at farasa.qcri.org).
   const FARASA_URLS = [
-    'https://farasa.qcri.org/webapi/diac/',
     'https://farasa.qcri.org/webapi/diacritize/',
-    'https://farasa-api.qcri.org/webapi/diac/',
+    'https://farasa-api.qcri.org/webapi/diacritize/',
+    'https://farasa.qcri.org/webapi/seq2seq_diacritize/',
   ];
+  const farasaApiKey = Deno.env.get('FARASA_API_KEY') ?? '';
 
   for (const url of FARASA_URLS) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15_000);
     try {
+      const params: Record<string, string> = { text };
+      if (farasaApiKey) params.api_key = farasaApiKey;
       const resp = await fetch(url, {
         method: 'POST',
         signal: controller.signal,
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({ text }).toString(),
+        body: new URLSearchParams(params).toString(),
       });
       if (resp.status === 404) {
         console.warn(`Farasa diac: 404 at ${url}, trying next URL...`);

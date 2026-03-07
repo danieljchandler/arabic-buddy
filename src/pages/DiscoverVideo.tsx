@@ -454,12 +454,16 @@ const DiscoverVideo = () => {
     const endMs = phraseEndMsRef.current;
     if (endMs == null) return;
 
-    // Don't trigger until we've actually reached the start of this phrase
-    // (prevents false positives from stale currentTimeMs before the seek lands)
-    if (startMs != null && currentTimeMs < startMs) return;
-
-    // Seek has landed — clear the seeking flag so line-sync can resume
-    isSeekingRef.current = false;
+    // While a seek is in progress, currentTimeMs is stale and may still reflect the
+    // previous phrase position. Only clear the seeking flag once the time actually
+    // lands inside the target phrase window; until then skip end-of-phrase evaluation
+    // so we don't falsely pause (e.g. when navigating backwards).
+    if (isSeekingRef.current) {
+      if (startMs != null && currentTimeMs >= startMs && currentTimeMs < endMs) {
+        isSeekingRef.current = false;
+      }
+      return;
+    }
 
     if (currentTimeMs >= endMs) {
       playerRef.current?.pauseVideo?.();

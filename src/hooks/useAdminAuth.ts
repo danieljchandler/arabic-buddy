@@ -18,9 +18,12 @@ export const useAdminAuth = () => {
       (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
-        
+
         // Defer role check with setTimeout to prevent deadlock
         if (session?.user) {
+          // Keep loading=true while roles are being re-checked so AdminLayout
+          // shows the spinner instead of a blank white screen.
+          setLoading(true);
           setTimeout(() => {
             checkRoles(session.user.id);
           }, 0);

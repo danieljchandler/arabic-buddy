@@ -101,19 +101,56 @@ serve(async (req) => {
     console.log("Sending request to Munsit API...");
     const startTime = Date.now();
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), MUNSIT_TIMEOUT_MS);
+    // Try multiple Munsit API base URLs in case the primary DNS fails.
+    // The Munsit/CNTXT API has been observed at multiple hostnames.
+    const MUNSIT_URLS = [
+      "https://api.cntxt.tools/audio/transcribe",
+      "https://munsit.cntxt.tools/audio/transcribe",
+      "https://api.munsit.ai/audio/transcribe",
+    ];
 
-    const response = await fetch("https://api.cntxt.tools/audio/transcribe", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${MUNSIT_API_KEY}`,
-      },
-      body: apiFormData,
-      signal: controller.signal,
-    });
+    let response: Response | null = null;
+    let lastError: string | null = null;
 
-    clearTimeout(timeoutId);
+    for (const url of MUNSIT_URLS) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), MUNSIT_TIMEOUT_MS);
+
+      try {
+        // Rebuild FormData for each attempt since body is consumed after fetch
+        const retryFormData = new FormData();
+        retryFormData.append("file", audioFile);
+        retryFormData.append("model", "munsit-1");
+
+        response = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${MUNSIT_API_KEY}`,
+          },
+          body: retryFormData,
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+        const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+        console.log(`Munsit responded via ${url} in ${elapsed}s with status ${response.status}`);
+        break; // success — got a response (even if non-200, stop trying URLs)
+      } catch (e) {
+        clearTimeout(timeoutId);
+        lastError = e instanceof Error ? e.message : String(e);
+        console.warn(`Munsit fetch failed at ${url}: ${lastError}, trying next URL...`);
+        response = null;
+        continue;
+      }
+    }
+
+    if (!response) {
+      console.error(`All Munsit URLs failed. Last error: ${lastError}`);
+      return new Response(
+        JSON.stringify({ text: null, error: `All Munsit endpoints unreachable: ${lastError}` }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const elapsedSec = ((Date.now() - startTime) / 1000).toFixed(1);
     console.log(`Munsit responded in ${elapsedSec}s with status ${response.status}`);
 

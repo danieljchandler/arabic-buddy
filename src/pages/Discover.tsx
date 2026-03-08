@@ -56,6 +56,11 @@ const Discover = () => {
         Watch Arabic videos with synced subtitles and translations
       </p>
 
+      {/* Content request bar */}
+      <div className="mb-6">
+        <ContentRequestBar />
+      </div>
+
       {/* Filters */}
       <div className="space-y-3 mb-6">
         <div className="relative">

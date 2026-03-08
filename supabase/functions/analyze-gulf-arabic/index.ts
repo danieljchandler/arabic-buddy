@@ -247,14 +247,17 @@ const getFanarValidationSystemPrompt = () =>
 // Used by Gemini 2.5 Flash (primary) and Qwen (fallback).
 // Receives the numbered merged transcript produced by Call 1.
 // Produces ONLY per-line translations — no vocabulary, no grammar.
-const getTranslationSystemPrompt = (dialect?: string, visualContext?: string) => {
+const getTranslationSystemPrompt = (dialect?: string, visualContext?: string, sonioxTranslation?: string) => {
   const dialectNote = dialect && dialect !== 'Gulf'
     ? `${getDialectNote(dialect)} Reflect regional vocabulary and expressions in your translations where appropriate.`
     : getDialectNote(undefined);
   const visualNote = visualContext
     ? `\n\nVideo context: ${visualContext}\nUse this context to improve translation accuracy and naturalness where relevant.`
     : '';
-  return `You are a Gulf Arabic translator specializing in the Gulf/Khaliji dialect.${dialectNote}${visualNote}
+  const sonioxNote = sonioxTranslation
+    ? `\n\nReference translation (Soniox ASR+Translation engine):\n${sonioxTranslation}\nThis machine translation is provided as a reference only. Use it to inform your translations but prioritize accuracy and natural English phrasing.`
+    : '';
+  return `You are a Gulf Arabic translator specializing in the Gulf/Khaliji dialect.${dialectNote}${visualNote}${sonioxNote}
 You will be given numbered Arabic lines. Translate each line to natural English.
 
 Output ONLY valid JSON matching this schema:

@@ -31,6 +31,8 @@ interface InlineTokenProps {
   isSavedToMyWords?: boolean;
   isInVocabSection?: boolean;
   onTokenClick?: (token: WordToken) => void;
+  forceSingleOpen?: boolean;
+  onForceSingleOpenChange?: (open: boolean) => void;
   // compound popover
   compoundOpen?: boolean;
   compoundGloss?: string;

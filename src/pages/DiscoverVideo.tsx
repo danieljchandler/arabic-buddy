@@ -900,6 +900,9 @@ const DiscoverVideo = () => {
               </p>
             </details>
           )}
+
+          {/* Video Rating */}
+          <VideoRating videoId={video.id} userId={user?.id} />
         </div>
       )}
     </div>

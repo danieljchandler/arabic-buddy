@@ -517,8 +517,8 @@ async function callRunPodModel(
       const errBody = await response.text().catch(() => '');
       console.warn(`RunPod ${model} error: HTTP ${response.status} in ${elapsedSec}s — ${errBody.slice(0, 200)}`);
 
-      // Retry on 502/503 (worker cold-starting or scaling up)
-      if ((response.status === 502 || response.status === 503) && attempt < MAX_RETRIES) {
+      // Retry on 500/502/503 (worker cold-starting, scaling up, or transient error)
+      if ((response.status >= 500 && response.status <= 503) && attempt < MAX_RETRIES) {
         console.log(`RunPod ${model}: retrying in ${RETRY_DELAY_MS / 1000}s (worker may be starting)...`);
         await new Promise(r => setTimeout(r, RETRY_DELAY_MS));
         continue;
@@ -910,41 +910,58 @@ async function callCamelDialect(
 // REST API. The diacritized output is included in the response for downstream
 // ElevenLabs TTS calls, which produce more accurate pronunciation with tashkeel.
 async function callFarasaDiacritize(text: string): Promise<string | null> {
-  // Try multiple Farasa endpoint URL patterns — the API has historically moved
-  // between /webapi/diac/ and /webapi/diacritize/ paths.
-  // The API now requires an api_key parameter (free registration at farasa.qcri.org).
-  const FARASA_URLS = [
-    'https://farasa.qcri.org/webapi/diacritize/',
-    'https://farasa-api.qcri.org/webapi/diacritize/',
-    'https://farasa.qcri.org/webapi/seq2seq_diacritize/',
-  ];
+  // Try multiple Farasa endpoint URL patterns and content-types.
+  // The API has historically moved between paths and accepts both JSON and form-urlencoded.
+  // diacritizeV2 is the newest endpoint and doesn't require an API key.
   const farasaApiKey = Deno.env.get('FARASA_API_KEY') ?? '';
 
-  for (const url of FARASA_URLS) {
+  // Each entry: [url, contentType]
+  const attempts: [string, 'json' | 'form'][] = [
+    ['https://farasa-api.qcri.org/msa/webapi/diacritizeV2/', 'json'],
+    ['https://farasa.qcri.org/webapi/diacritize/', 'json'],
+    ['https://farasa.qcri.org/webapi/diacritize/', 'form'],
+    ['https://farasa-api.qcri.org/webapi/diacritize/', 'json'],
+    ['https://farasa.qcri.org/webapi/seq2seq_diacritize/', 'json'],
+  ];
+
+  for (const [url, contentType] of attempts) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15_000);
     try {
-      const jsonBody: Record<string, string> = { text };
-      if (farasaApiKey) jsonBody.api_key = farasaApiKey;
+      let headers: Record<string, string>;
+      let body: string;
+      if (contentType === 'json') {
+        const jsonBody: Record<string, string> = { text };
+        if (farasaApiKey) jsonBody.api_key = farasaApiKey;
+        headers = { 'Content-Type': 'application/json' };
+        body = JSON.stringify(jsonBody);
+      } else {
+        const params: Record<string, string> = { text };
+        if (farasaApiKey) params.api_key = farasaApiKey;
+        headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
+        body = new URLSearchParams(params).toString();
+      }
       const resp = await fetch(url, {
         method: 'POST',
         signal: controller.signal,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(jsonBody),
+        headers,
+        body,
       });
-      if (resp.status === 404) {
-        console.warn(`Farasa diac: 404 at ${url}, trying next URL...`);
+      if (resp.status === 404 || resp.status === 400) {
+        const errText = await resp.text().catch(() => '');
+        console.warn(`Farasa diac: HTTP ${resp.status} at ${url} [${contentType}] — ${errText.slice(0, 100)}`);
         continue;
       }
       if (!resp.ok) {
-        console.warn(`Farasa diac: HTTP ${resp.status} at ${url}`);
-        return null;
+        const errText = await resp.text().catch(() => '');
+        console.warn(`Farasa diac: HTTP ${resp.status} at ${url} [${contentType}] — ${errText.slice(0, 100)}`);
+        continue;
       }
       const data = await resp.json();
-      console.log(`Farasa diac: success via ${url}`);
+      console.log(`Farasa diac: success via ${url} [${contentType}]`);
       return (data.text ?? data.output ?? null) as string | null;
     } catch (e) {
-      console.warn(`Farasa diacritize failed at ${url}:`, e instanceof Error ? e.message : String(e));
+      console.warn(`Farasa diacritize failed at ${url} [${contentType}]:`, e instanceof Error ? e.message : String(e));
       continue;
     } finally {
       clearTimeout(timeout);

@@ -69,6 +69,7 @@ const InlineToken = ({
 }: InlineTokenProps) => {
   const [singleOpen, setSingleOpen] = useState(false);
   const [liveTranslation, setLiveTranslation] = useState<string | null>(null);
+  const [liveMsa, setLiveMsa] = useState<string | null>(null);
   const [isTranslating, setIsTranslating] = useState(false);
   const hasGloss = !!token.gloss;
   const displayGloss = token.gloss || liveTranslation;

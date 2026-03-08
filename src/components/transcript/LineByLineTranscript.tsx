@@ -64,16 +64,43 @@ const InlineToken = ({
   isLoadingCompound,
 }: InlineTokenProps) => {
   const [singleOpen, setSingleOpen] = useState(false);
+  const [liveTranslation, setLiveTranslation] = useState<string | null>(null);
+  const [isTranslating, setIsTranslating] = useState(false);
   const hasGloss = !!token.gloss;
+  const displayGloss = token.gloss || liveTranslation;
   
   const vocabItem: VocabItem = {
     arabic: token.surface,
-    english: token.gloss || "",
+    english: displayGloss || "",
     sentenceText: parentLine.arabic,
     sentenceEnglish: parentLine.translation,
     startMs: parentLine.startMs,
     endMs: parentLine.endMs,
   };
+
+  const handleTranslateSingle = useCallback(async () => {
+    if (isTranslating || liveTranslation) return;
+    setIsTranslating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('translate-phrase', {
+        body: { phrase: token.surface },
+      });
+      if (!error && data?.translation) {
+        setLiveTranslation(data.translation);
+      }
+    } catch (err) {
+      console.warn('Single word translation failed:', err);
+    } finally {
+      setIsTranslating(false);
+    }
+  }, [token.surface, isTranslating, liveTranslation]);
+
+  // Auto-translate when single popover opens and no gloss
+  useEffect(() => {
+    if (singleOpen && !hasGloss && !liveTranslation && !isTranslating) {
+      handleTranslateSingle();
+    }
+  }, [singleOpen, hasGloss, liveTranslation, isTranslating, handleTranslateSingle]);
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -198,18 +225,34 @@ const InlineToken = ({
             >
               {token.surface}
             </p>
-            {hasGloss && (
-              <p className="text-sm text-muted-foreground">{token.gloss}</p>
+            {displayGloss && (
+              <p className="text-sm text-muted-foreground">{displayGloss}</p>
             )}
             {token.standard && (
              <p className="text-xs text-muted-foreground/70" dir="rtl">
                (Standard: {token.standard})
              </p>
             )}
-            {!hasGloss && (
-              <p className="text-xs text-muted-foreground italic">
-                No definition — tap 1–2 adjacent words to combine
-              </p>
+            {!displayGloss && isTranslating && (
+              <div className="flex items-center justify-center gap-2 mt-1">
+                <div className="h-3 w-3 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                <span className="text-xs text-muted-foreground">Translating…</span>
+              </div>
+            )}
+            {!displayGloss && !isTranslating && (
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground italic">
+                  No definition found
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-6 text-xs px-2"
+                  onClick={(e) => { e.stopPropagation(); handleTranslateSingle(); }}
+                >
+                  Retry translation
+                </Button>
+              </div>
             )}
           </div>
           
@@ -400,8 +443,8 @@ interface TranscriptLineCardProps {
          .map(t => t.surface)
          .join(' ');
        setLiveCompound({ firstIdx: newMin, surface: combinedSurface, wordCount: newSpan + 1, translation: null, loading: true });
-       supabase.functions
-         .invoke('analyze-gulf-arabic', { body: { phrase: combinedSurface } })
+        supabase.functions
+          .invoke('translate-phrase', { body: { phrase: combinedSurface } })
          .then(({ data, error }) => {
            if (!error && data?.translation) {
              setLiveCompound({ firstIdx: newMin, surface: combinedSurface, wordCount: newSpan + 1, translation: data.translation, loading: false });

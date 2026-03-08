@@ -10,6 +10,7 @@ import {
 import { ReviewCard } from "@/components/review/ReviewCard";
 import { ReviewQuizCard } from "@/components/review/ReviewQuizCard";
 import { ReviewImageQuizCard } from "@/components/review/ReviewImageQuizCard";
+import { PronunciationButton } from "@/components/review/PronunciationButton";
 import { HomeButton } from "@/components/HomeButton";
 import { Button } from "@/components/design-system";
 import { AppShell } from "@/components/layout/AppShell";

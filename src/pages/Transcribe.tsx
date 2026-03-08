@@ -524,6 +524,7 @@ const Transcribe = () => {
       // Clone files for parallel uploads (some browsers can't share a File across concurrent reads)
       const fileClone = new File([file], file.name, { type: file.type });
       const fileClone2 = new File([file], file.name, { type: file.type });
+      const fileClone3 = new File([file], file.name, { type: file.type });
 
       const formData = new FormData();
       formData.append("audio", file);
@@ -533,6 +534,9 @@ const Transcribe = () => {
 
       const fanarFormData = new FormData();
       fanarFormData.append("audio", fileClone2);
+
+      const sonioxFormData = new FormData();
+      sonioxFormData.append("audio", fileClone3);
 
       setDebugTrace({ phase: "request:transcribe", at: new Date().toISOString(), details: { name: file.name, size: file.size, type: file.type } });
       

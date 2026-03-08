@@ -22,6 +22,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { extractTikTokVideoId, getTikTokEmbedUrl } from "@/lib/videoEmbed";
 import type { TranscriptLine, WordToken, VocabItem } from "@/types/transcript";
+import { VideoRating } from "@/components/discover/VideoRating";
 
 declare global {
   interface Window {
@@ -196,7 +197,7 @@ const DiscoverVideo = () => {
   const { videoId } = useParams<{ videoId: string }>();
   const navigate = useNavigate();
   const { data: video, isLoading } = useDiscoverVideo(videoId);
-  const { isAuthenticated } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const addUserVocabulary = useAddUserVocabulary();
 
   const [currentTimeMs, setCurrentTimeMs] = useState(0);
@@ -899,6 +900,9 @@ const DiscoverVideo = () => {
               </p>
             </details>
           )}
+
+          {/* Video Rating */}
+          <VideoRating videoId={video.id} userId={user?.id} />
         </div>
       )}
     </div>

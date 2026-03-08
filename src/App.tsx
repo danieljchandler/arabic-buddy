@@ -21,6 +21,7 @@ import Discover from "./pages/Discover";
 import DiscoverVideo from "./pages/DiscoverVideo";
 import LearnFromX from "./pages/LearnFromX";
 import HowDoISay from "./pages/HowDoISay";
+import CultureGuide from "./pages/CultureGuide";
 
 // Admin pages
 import AdminLogin from "./pages/admin/AdminLogin";
@@ -146,6 +147,11 @@ const App = () => {
             <Route path="/how-do-i-say" element={
               <ErrorBoundary name="HowDoISayRoute">
                 <HowDoISay />
+              </ErrorBoundary>
+            } />
+            <Route path="/culture-guide" element={
+              <ErrorBoundary name="CultureGuideRoute">
+                <CultureGuide />
               </ErrorBoundary>
             } />
 

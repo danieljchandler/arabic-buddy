@@ -56,3 +56,6 @@ verify_jwt = false
 
 [functions.farasa]
 verify_jwt = false
+
+[functions.culture-guide]
+verify_jwt = false

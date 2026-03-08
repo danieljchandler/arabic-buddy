@@ -6,7 +6,7 @@ import { useDiscoverVideos } from "@/hooks/useDiscoverVideos";
 import { useStages } from "@/hooks/useStages";
 import { useAllLessons } from "@/hooks/useLessons";
 import { Button } from "@/components/design-system";
-import { Settings, Brain, LogIn, LogOut, Mic, BookOpen, Sparkles, GraduationCap, Laugh, Play, ChevronRight, Twitter, MessageCircleQuestion } from "lucide-react";
+import { Settings, Brain, LogIn, LogOut, Mic, BookOpen, Sparkles, GraduationCap, Laugh, Play, ChevronRight, Twitter, MessageCircleQuestion, Compass } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AppShell } from "@/components/layout/AppShell";
 import { Badge } from "@/components/ui/badge";
@@ -444,6 +444,28 @@ const Index = () => {
             <p className="font-semibold text-foreground">How do I say…?</p>
             <p className="text-xs text-muted-foreground">
               Translate phrases into Gulf Arabic
+            </p>
+          </div>
+        </button>
+
+        {/* Culture Guide */}
+        <button
+          onClick={() => navigate("/culture-guide")}
+          className={cn(
+            "w-full p-4 rounded-xl",
+            "bg-card border border-border",
+            "flex items-center gap-3",
+            "transition-all duration-200",
+            "hover:border-primary/20"
+          )}
+        >
+          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+            <Compass className="h-5 w-5 text-primary" />
+          </div>
+          <div className="text-left">
+            <p className="font-semibold text-foreground">What should I do?</p>
+            <p className="text-xs text-muted-foreground">
+              Get culturally appropriate Gulf advice
             </p>
           </div>
         </button>

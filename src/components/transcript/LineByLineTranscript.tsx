@@ -205,7 +205,7 @@ const InlineToken = ({
 
   // Normal single-word popover
   return (
-    <Popover open={singleOpen} onOpenChange={setSingleOpen}>
+    <Popover open={effectiveOpen} onOpenChange={setEffectiveOpen}>
       <PopoverTrigger asChild>
         <span
           className={cn(

@@ -1070,7 +1070,7 @@ serve(async (req) => {
       });
     }
     const body = await req.json();
-    const { transcript, munsitTranscript, fanarTranscript, visualContext } = body;
+    const { transcript, munsitTranscript, fanarTranscript, sonioxTranscript, visualContext } = body;
 
     // ── Quick phrase-translation shortcut ──────────────────────────────────
     // When called with { phrase } (no transcript), translate a short Arabic

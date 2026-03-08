@@ -64,7 +64,10 @@ const InlineToken = ({
   isLoadingCompound,
 }: InlineTokenProps) => {
   const [singleOpen, setSingleOpen] = useState(false);
+  const [liveTranslation, setLiveTranslation] = useState<string | null>(null);
+  const [isTranslating, setIsTranslating] = useState(false);
   const hasGloss = !!token.gloss;
+  const displayGloss = token.gloss || liveTranslation;
   
   const vocabItem: VocabItem = {
     arabic: token.surface,

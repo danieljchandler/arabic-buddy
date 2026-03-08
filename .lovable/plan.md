@@ -1,12 +1,19 @@
 
 
-# Update Falcon HF Endpoint URL
+## Update Falcon RunPod Endpoint
 
-Update the `FALCON_HF_ENDPOINT_URL` secret to the new Hugging Face endpoint:
+Replace the old Falcon endpoint ID `tnhfklb3tb7md8` with `owodjrizyv47m0` across all 6 edge functions. Since it's a vLLM worker, the `/openai/v1/chat/completions` path will work — just a simple ID swap.
 
-```
-https://efsmvsds6b9u2s0q.us-east-1.aws.endpoints.huggingface.cloud
-```
+### Files to update (all same change: `tnhfklb3tb7md8` → `owodjrizyv47m0`)
 
-Single step: use the secrets tool to update the existing `FALCON_HF_ENDPOINT_URL` value. No code changes needed since the edge function already reads this from the environment.
+| File | Lines |
+|------|-------|
+| `supabase/functions/hf-chat/index.ts` | Line 9 |
+| `supabase/functions/analyze-gulf-arabic/index.ts` | Line 1136 |
+| `supabase/functions/classify-tutor-segments/index.ts` | Lines 75, 157 |
+| `supabase/functions/falcon-translate/index.ts` | Line 11 |
+| `supabase/functions/curriculum-chat/index.ts` | Line 22 |
+| `supabase/functions/warmup-runpod/index.ts` | Line 19 |
+
+No logic changes needed — pure string replacement in each file.
 

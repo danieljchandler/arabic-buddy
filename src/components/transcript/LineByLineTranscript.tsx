@@ -36,6 +36,7 @@ interface InlineTokenProps {
   // compound popover
   compoundOpen?: boolean;
   compoundGloss?: string;
+  compoundMsa?: string;
   compoundSurface?: string;
   onCompoundOpenChange?: (open: boolean) => void;
   onAddCompoundToVocab?: () => void;
@@ -59,6 +60,7 @@ const InlineToken = ({
   onForceSingleOpenChange,
   compoundOpen,
   compoundGloss,
+  compoundMsa,
   compoundSurface,
   onCompoundOpenChange,
   onAddCompoundToVocab,
@@ -69,6 +71,7 @@ const InlineToken = ({
 }: InlineTokenProps) => {
   const [singleOpen, setSingleOpen] = useState(false);
   const [liveTranslation, setLiveTranslation] = useState<string | null>(null);
+  const [liveMsa, setLiveMsa] = useState<string | null>(null);
   const [isTranslating, setIsTranslating] = useState(false);
   const hasGloss = !!token.gloss;
   const displayGloss = token.gloss || liveTranslation;
@@ -100,6 +103,9 @@ const InlineToken = ({
       });
       if (!error && data?.translation) {
         setLiveTranslation(data.translation);
+        if (data.msa) {
+          setLiveMsa(data.msa);
+        }
       }
     } catch (err) {
       console.warn('Single word translation failed:', err);
@@ -168,7 +174,14 @@ const InlineToken = ({
                   <span className="text-xs text-muted-foreground">Translating…</span>
                 </div>
               ) : compoundGloss ? (
-                <p className="text-sm text-muted-foreground">{compoundGloss}</p>
+                <>
+                  <p className="text-sm text-muted-foreground">{compoundGloss}</p>
+                  {compoundMsa && (
+                    <p className="text-xs text-muted-foreground/70" dir="rtl">
+                      (فصحى: {compoundMsa})
+                    </p>
+                  )}
+                </>
               ) : (
                 <p className="text-xs text-muted-foreground italic">Could not translate</p>
               )}
@@ -241,9 +254,9 @@ const InlineToken = ({
             {displayGloss && (
               <p className="text-sm text-muted-foreground">{displayGloss}</p>
             )}
-            {token.standard && (
+            {(token.standard || liveMsa) && (
              <p className="text-xs text-muted-foreground/70" dir="rtl">
-               (Standard: {token.standard})
+               (فصحى: {token.standard || liveMsa})
              </p>
             )}
             {!displayGloss && isTranslating && (
@@ -359,13 +372,14 @@ interface TranscriptLineCardProps {
    const [selectedIndices, setSelectedIndices] = useState<number[]>([]);
    const [compoundPopoverIdx, setCompoundPopoverIdx] = useState<number | null>(null);
    const [singlePopoverIdx, setSinglePopoverIdx] = useState<number | null>(null);
-   const [liveCompound, setLiveCompound] = useState<{
-     firstIdx: number;
-     surface: string;
-     wordCount: number;
-     translation: string | null;
-     loading: boolean;
-   } | null>(null);
+    const [liveCompound, setLiveCompound] = useState<{
+      firstIdx: number;
+      surface: string;
+      wordCount: number;
+      translation: string | null;
+      msa: string | null;
+      loading: boolean;
+    } | null>(null);
    const selectionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
    // Lookup compound gloss for a range [firstIdx, lastIdx] (inclusive).
@@ -462,17 +476,17 @@ interface TranscriptLineCardProps {
          .slice(newMin, newMax + 1)
          .map(t => t.surface)
          .join(' ');
-       setLiveCompound({ firstIdx: newMin, surface: combinedSurface, wordCount: newSpan + 1, translation: null, loading: true });
-        supabase.functions
-          .invoke('translate-phrase', { body: { phrase: combinedSurface } })
-         .then(({ data, error }) => {
-           if (!error && data?.translation) {
-             setLiveCompound({ firstIdx: newMin, surface: combinedSurface, wordCount: newSpan + 1, translation: data.translation, loading: false });
-           } else {
-             console.warn('phrase translation failed:', error);
-             setLiveCompound({ firstIdx: newMin, surface: combinedSurface, wordCount: newSpan + 1, translation: null, loading: false });
-           }
-         })
+        setLiveCompound({ firstIdx: newMin, surface: combinedSurface, wordCount: newSpan + 1, translation: null, msa: null, loading: true });
+         supabase.functions
+           .invoke('translate-phrase', { body: { phrase: combinedSurface } })
+          .then(({ data, error }) => {
+            if (!error && data?.translation) {
+              setLiveCompound({ firstIdx: newMin, surface: combinedSurface, wordCount: newSpan + 1, translation: data.translation, msa: data.msa || null, loading: false });
+            } else {
+              console.warn('phrase translation failed:', error);
+              setLiveCompound({ firstIdx: newMin, surface: combinedSurface, wordCount: newSpan + 1, translation: null, msa: null, loading: false });
+            }
+          })
          .catch((err) => {
            console.warn('phrase translation error:', err);
            setLiveCompound(prev => prev ? { ...prev, loading: false } : null);
@@ -573,6 +587,7 @@ interface TranscriptLineCardProps {
                      : getCompoundGloss(index, index + compoundWordCount - 1))
                  : undefined;
                const isLoadingCompound = isThisCompoundAnchor && !!thisLiveCompound?.loading;
+               const compoundMsa = isThisCompoundAnchor ? (thisLiveCompound?.msa ?? undefined) : undefined;
 
                const compoundVocabItem: VocabItem = {
                  arabic: compoundSurface || token.surface,
@@ -598,9 +613,10 @@ interface TranscriptLineCardProps {
                       forceSingleOpen={singlePopoverIdx === index}
                       onForceSingleOpenChange={(open) => { if (!open) setSinglePopoverIdx(null); }}
                       compoundOpen={isThisCompoundAnchor ? true : undefined}
-                     compoundGloss={compoundGloss}
-                     compoundSurface={compoundSurface}
-                     isLoadingCompound={isLoadingCompound}
+                      compoundGloss={compoundGloss}
+                      compoundMsa={compoundMsa}
+                      compoundSurface={compoundSurface}
+                      isLoadingCompound={isLoadingCompound}
                      onCompoundOpenChange={(open) => {
                        if (!open) setCompoundPopoverIdx(null);
                      }}

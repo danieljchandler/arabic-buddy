@@ -40,53 +40,78 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const FARASA_BASES = [
-  'https://farasa.qcri.org/webapi',
-  'https://farasa-api.qcri.org/webapi',
-];
 const FARASA_TIMEOUT_MS = 20_000;
 
 export type FarasaTask = 'diac' | 'seg' | 'pos' | 'NER' | 'parsing';
 
-// ── Raw API caller (tries multiple base URLs to handle 404 / DNS issues) ─────
+// ── Raw API caller (tries multiple URLs + content types) ─────────────────────
 
 async function callFarasaRaw(task: FarasaTask, text: string): Promise<string | null> {
-  // Also try the alternate task path for diacritization (diacritize is primary, diac is legacy)
-  const taskPaths = task === 'diac' ? ['diacritize', 'seq2seq_diacritize', 'diac'] : [task];
   const farasaApiKey = Deno.env.get('FARASA_API_KEY') ?? '';
 
-  for (const base of FARASA_BASES) {
-    for (const tp of taskPaths) {
-      const url = `${base}/${tp}/`;
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), FARASA_TIMEOUT_MS);
-      try {
+  // Build list of [url, contentType] attempts for this task.
+  // diacritization has extra endpoints including diacritizeV2.
+  type Attempt = [string, 'json' | 'form'];
+  let attempts: Attempt[];
+
+  if (task === 'diac') {
+    attempts = [
+      ['https://farasa-api.qcri.org/msa/webapi/diacritizeV2/', 'json'],
+      ['https://farasa.qcri.org/webapi/diacritize/', 'json'],
+      ['https://farasa.qcri.org/webapi/diacritize/', 'form'],
+      ['https://farasa-api.qcri.org/webapi/diacritize/', 'json'],
+      ['https://farasa.qcri.org/webapi/seq2seq_diacritize/', 'json'],
+    ];
+  } else {
+    const bases = ['https://farasa.qcri.org/webapi', 'https://farasa-api.qcri.org/webapi'];
+    attempts = bases.flatMap(base => [
+      [`${base}/${task}/`, 'json'] as Attempt,
+      [`${base}/${task}/`, 'form'] as Attempt,
+    ]);
+  }
+
+  for (const [url, contentType] of attempts) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), FARASA_TIMEOUT_MS);
+    try {
+      let headers: Record<string, string>;
+      let body: string;
+      if (contentType === 'json') {
         const jsonBody: Record<string, string> = { text };
         if (farasaApiKey) jsonBody.api_key = farasaApiKey;
-        const res = await fetch(url, {
-          method: 'POST',
-          signal: controller.signal,
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(jsonBody),
-        });
-        if (res.status === 404) {
-          console.warn(`Farasa ${task}: 404 at ${url}, trying next...`);
-          continue;
-        }
-        if (!res.ok) {
-          console.warn(`Farasa ${task}: HTTP ${res.status} at ${url}`);
-          return null;
-        }
-        const data = await res.json();
-        console.log(`Farasa ${task}: success via ${url}`);
-        // Farasa field name differs by task but is always one of: text / output / result
-        return (data.text ?? data.output ?? data.result ?? null) as string | null;
-      } catch (e) {
-        console.warn(`Farasa ${task} failed at ${url}:`, e instanceof Error ? e.message : String(e));
-        continue;
-      } finally {
-        clearTimeout(timeout);
+        headers = { 'Content-Type': 'application/json' };
+        body = JSON.stringify(jsonBody);
+      } else {
+        const params: Record<string, string> = { text };
+        if (farasaApiKey) params.api_key = farasaApiKey;
+        headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
+        body = new URLSearchParams(params).toString();
       }
+      const res = await fetch(url, {
+        method: 'POST',
+        signal: controller.signal,
+        headers,
+        body,
+      });
+      if (res.status === 404 || res.status === 400) {
+        const errText = await res.text().catch(() => '');
+        console.warn(`Farasa ${task}: HTTP ${res.status} at ${url} [${contentType}] — ${errText.slice(0, 100)}`);
+        continue;
+      }
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '');
+        console.warn(`Farasa ${task}: HTTP ${res.status} at ${url} [${contentType}] — ${errText.slice(0, 100)}`);
+        continue;
+      }
+      const data = await res.json();
+      console.log(`Farasa ${task}: success via ${url} [${contentType}]`);
+      // Farasa field name differs by task but is always one of: text / output / result
+      return (data.text ?? data.output ?? data.result ?? null) as string | null;
+    } catch (e) {
+      console.warn(`Farasa ${task} failed at ${url} [${contentType}]:`, e instanceof Error ? e.message : String(e));
+      continue;
+    } finally {
+      clearTimeout(timeout);
     }
   }
   console.warn(`Farasa ${task}: all URLs exhausted`);

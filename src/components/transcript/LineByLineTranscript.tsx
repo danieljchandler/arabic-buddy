@@ -225,18 +225,34 @@ const InlineToken = ({
             >
               {token.surface}
             </p>
-            {hasGloss && (
-              <p className="text-sm text-muted-foreground">{token.gloss}</p>
+            {displayGloss && (
+              <p className="text-sm text-muted-foreground">{displayGloss}</p>
             )}
             {token.standard && (
              <p className="text-xs text-muted-foreground/70" dir="rtl">
                (Standard: {token.standard})
              </p>
             )}
-            {!hasGloss && (
-              <p className="text-xs text-muted-foreground italic">
-                No definition — tap 1–2 adjacent words to combine
-              </p>
+            {!displayGloss && isTranslating && (
+              <div className="flex items-center justify-center gap-2 mt-1">
+                <div className="h-3 w-3 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                <span className="text-xs text-muted-foreground">Translating…</span>
+              </div>
+            )}
+            {!displayGloss && !isTranslating && (
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground italic">
+                  No definition found
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-6 text-xs px-2"
+                  onClick={(e) => { e.stopPropagation(); handleTranslateSingle(); }}
+                >
+                  Retry translation
+                </Button>
+              </div>
             )}
           </div>
           

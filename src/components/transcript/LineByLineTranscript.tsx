@@ -447,10 +447,11 @@ interface TranscriptLineCardProps {
        return;
      }
 
-     // Commit the selection — always show compound popup
-     const preComputedGloss = getCompoundGloss(newMin, newMax);
-     setCompoundPopoverIdx(newMin);
-     setSelectedIndices([]);
+      // Commit the selection — always show compound popup
+      const preComputedGloss = getCompoundGloss(newMin, newMax);
+      setCompoundPopoverIdx(newMin);
+      setSinglePopoverIdx(null);
+      setSelectedIndices([]);
 
      if (preComputedGloss) {
        // Pre-computed compound — clear any live lookup

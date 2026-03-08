@@ -367,6 +367,7 @@ const AdminVideoForm = () => {
 
       const sonioxFormData = new FormData();
       sonioxFormData.append("audio", new File([targetFile], targetFile.name, { type: targetFile.type }));
+      sonioxFormData.append("includeTranslation", "true");
       const sonioxPromise = fetch(`${projectUrl}/functions/v1/soniox-transcribe`, {
         method: "POST",
         headers: authHeaders,
@@ -375,7 +376,7 @@ const AdminVideoForm = () => {
       }).then(async (res) => {
         const body = await res.json().catch(() => ({}));
         if (!res.ok && !body.text) throw new Error(body.error || `Soniox HTTP ${res.status}`);
-        return body as { text?: string | null; sonioxUsed?: boolean; reason?: string };
+        return body as { text?: string | null; sonioxUsed?: boolean; reason?: string; translationText?: string | null };
       });
 
       const [munsitResult, deepgramResult, fanarResult, sonioxResult, visualResult] = await Promise.allSettled([

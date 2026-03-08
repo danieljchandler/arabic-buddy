@@ -1133,7 +1133,7 @@ serve(async (req) => {
 
     const RUNPOD_API_KEY = Deno.env.get('RUNPOD_API_KEY');
     const RUNPOD_JAIS_ENDPOINT = 'https://api.runpod.ai/v2/xx0wek543611i5/openai/v1/chat/completions';
-    const RUNPOD_FALCON_ENDPOINT = 'https://api.runpod.ai/v2/tnhfklb3tb7md8/openai/v1/chat/completions';
+    const RUNPOD_FALCON_ENDPOINT = 'https://api.runpod.ai/v2/owodjrizyv47m0/openai/v1/chat/completions';
     const jaisAvailable = Boolean(RUNPOD_API_KEY);
     const falconAvailable = Boolean(RUNPOD_API_KEY);
     if (!RUNPOD_API_KEY) {

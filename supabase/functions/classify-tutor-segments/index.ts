@@ -154,7 +154,7 @@ Return the results using the extract_candidates tool.`;
     if (falconAvailable) {
       try {
         const falconResp = await fetch(
-          `https://api.runpod.ai/v2/tnhfklb3tb7md8/openai/v1/chat/completions`,
+          `https://api.runpod.ai/v2/owodjrizyv47m0/openai/v1/chat/completions`,,
           {
             method: "POST",
             headers: {

@@ -391,6 +391,23 @@ const Transcribe = () => {
 
     setIsLoadingUrl(true);
     try {
+      // Detect platform for logging
+      const hostname = new URL(trimmed).hostname;
+      let platform = 'other';
+      if (hostname.includes('youtube.com') || hostname.includes('youtu.be')) platform = 'youtube';
+      else if (hostname.includes('tiktok.com')) platform = 'tiktok';
+      else if (hostname.includes('instagram.com')) platform = 'instagram';
+      else if (hostname.includes('x.com') || hostname.includes('twitter.com')) platform = 'x';
+
+      // Log the import (fire-and-forget)
+      supabase.from('content_import_logs').insert({
+        user_id: user?.id ?? null,
+        url: trimmed,
+        platform,
+      }).then(({ error: logErr }) => {
+        if (logErr) console.warn('Import log failed:', logErr.message);
+      });
+
       const { data, error } = await supabase.functions.invoke("download-media", {
         body: { url: trimmed },
       });

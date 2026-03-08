@@ -613,9 +613,10 @@ interface TranscriptLineCardProps {
                       forceSingleOpen={singlePopoverIdx === index}
                       onForceSingleOpenChange={(open) => { if (!open) setSinglePopoverIdx(null); }}
                       compoundOpen={isThisCompoundAnchor ? true : undefined}
-                     compoundGloss={compoundGloss}
-                     compoundSurface={compoundSurface}
-                     isLoadingCompound={isLoadingCompound}
+                      compoundGloss={compoundGloss}
+                      compoundMsa={compoundMsa}
+                      compoundSurface={compoundSurface}
+                      isLoadingCompound={isLoadingCompound}
                      onCompoundOpenChange={(open) => {
                        if (!open) setCompoundPopoverIdx(null);
                      }}

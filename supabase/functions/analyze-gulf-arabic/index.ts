@@ -1317,24 +1317,34 @@ serve(async (req) => {
              return { content: null } as { content: string | null };
            })
          : Promise.resolve({ content: null } as { content: string | null }),
-       // Jais meta enrichment via RunPod — Arabic-first model for grammar points and cultural context
+       // Jais meta enrichment via RunPod — wrapped in 45s Promise.race so cold starts can't stall the pipeline
        jaisAvailable
-         ? (console.log('Jais meta enrichment: FIRING via RunPod...'),
-            callRunPodModel(RUNPOD_JAIS_ENDPOINT, 'inceptionai/Jais-2-8B-Chat', getMetaSystemPrompt(true), mergedTranscriptText, RUNPOD_API_KEY!, 2048).catch((e) => {
-             console.warn('Jais meta enrichment failed (non-blocking):', e instanceof Error ? e.message : String(e));
-             return { content: null } as { content: string | null };
-           }))
+         ? (console.log('Jais meta enrichment: FIRING via RunPod (45s race)...'),
+            Promise.race([
+              callRunPodModel(RUNPOD_JAIS_ENDPOINT, 'inceptionai/Jais-2-8B-Chat', getMetaSystemPrompt(true), mergedTranscriptText, RUNPOD_API_KEY!, 2048).catch((e) => {
+                console.warn('Jais meta enrichment failed (non-blocking):', e instanceof Error ? e.message : String(e));
+                return { content: null } as { content: string | null };
+              }),
+              new Promise<{ content: string | null }>(resolve => setTimeout(() => {
+                console.warn('RunPod Jais: timed out at 45s, skipping');
+                resolve({ content: null });
+              }, 45_000)),
+            ]))
          : (console.log('Jais meta enrichment: SKIPPED (no RUNPOD_API_KEY)'),
             Promise.resolve({ content: null } as { content: string | null })),
-       // Falcon H1 meta enrichment via RunPod — runs in parallel for vocab/grammar/cultural context.
-       // Previously Falcon only fired as a 3rd-level translation fallback (after Gemini+Qwen),
-       // meaning it almost never ran. Now it contributes meta enrichment alongside Jais.
+       // Falcon H1 meta enrichment via RunPod — wrapped in 45s Promise.race
        falconAvailable
-         ? (console.log('Falcon meta enrichment: FIRING via RunPod...'),
-            callRunPodModel(RUNPOD_FALCON_ENDPOINT, 'tiiuae/Falcon-H1R-7B', getMetaSystemPrompt(true), mergedTranscriptText, RUNPOD_API_KEY!, 2048).catch((e) => {
-             console.warn('Falcon meta enrichment failed (non-blocking):', e instanceof Error ? e.message : String(e));
-             return { content: null } as { content: string | null };
-           }))
+         ? (console.log('Falcon meta enrichment: FIRING via RunPod (45s race)...'),
+            Promise.race([
+              callRunPodModel(RUNPOD_FALCON_ENDPOINT, 'tiiuae/Falcon-H1R-7B', getMetaSystemPrompt(true), mergedTranscriptText, RUNPOD_API_KEY!, 2048).catch((e) => {
+                console.warn('Falcon meta enrichment failed (non-blocking):', e instanceof Error ? e.message : String(e));
+                return { content: null } as { content: string | null };
+              }),
+              new Promise<{ content: string | null }>(resolve => setTimeout(() => {
+                console.warn('RunPod Falcon: timed out at 45s, skipping');
+                resolve({ content: null });
+              }, 45_000)),
+            ]))
          : (console.log('Falcon meta enrichment: SKIPPED (no RUNPOD_API_KEY)'),
             Promise.resolve({ content: null } as { content: string | null })),
        // CAMeL-Lab BERT dialect ID — validates/confirms the LLM-detected dialect.

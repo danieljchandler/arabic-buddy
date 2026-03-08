@@ -477,6 +477,9 @@ const AdminVideoForm = () => {
       if (fanarText) {
         analyzeBody.fanarTranscript = fanarText;
       }
+      if (sonioxText) {
+        analyzeBody.sonioxTranscript = sonioxText;
+      }
       if (visualContextStr) {
         analyzeBody.visualContext = visualContextStr;
       }

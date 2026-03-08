@@ -77,16 +77,17 @@ const getDialectNote = (dialect?: string, prefix = '\n') =>
 const getMergeOnlySystemPrompt = (isRetry: boolean = false, hasDualTranscripts: boolean = false, hasTripleTranscripts: boolean = false) => {
   const strictPrefix = strictJsonPrefix(isRetry);
   const multiInstructions = hasTripleTranscripts
-    ? `You are given THREE transcriptions of the same Gulf Arabic audio from different speech-to-text engines.
+    ? `You are given MULTIPLE transcriptions of the same Gulf Arabic audio from different speech-to-text engines.
 Compare them carefully and produce the BEST merged transcript:
-- Where all engines agree, use the shared text.
+- Where engines agree, use the shared text.
 - Where they differ, choose whichever version sounds most natural and accurate for Gulf Arabic dialect.
 - Fanar is an Arabic-native model and may be more accurate for dialect-specific words and phrases.
+- Soniox provides high-accuracy multilingual transcription and may capture words other engines miss.
 - Deepgram provides the most reliable word boundaries.
 - Munsit specialises in Arabic and may better capture dialectal vocabulary.
 - Do NOT simply concatenate them. Merge intelligently at the sentence/clause level.
 - ALWAYS prefer the spoken/dialectal form over formal/MSA spelling. Write words as they are pronounced.
-- Use ALL three transcripts to ensure NO spoken content is missed — include every word that was said.
+- Use ALL transcripts to ensure NO spoken content is missed — include every word that was said.
 
 `
     : hasDualTranscripts

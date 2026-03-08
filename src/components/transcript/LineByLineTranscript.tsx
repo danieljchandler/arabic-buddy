@@ -400,14 +400,18 @@ interface TranscriptLineCardProps {
 
      if (selectionTimerRef.current) clearTimeout(selectionTimerRef.current);
 
-     if (selectedIndices.length === 0) {
-       // First tap — select this token, close any existing compound popup, auto-clear after 3s
-       setCompoundPopoverIdx(null);
-       setLiveCompound(null);
-       setSelectedIndices([idx]);
-       selectionTimerRef.current = setTimeout(() => setSelectedIndices([]), 3000);
-       return;
-     }
+      if (selectedIndices.length === 0) {
+        // First tap — select this token, close any existing popups, auto-open single popover after 1.5s if no second tap
+        setCompoundPopoverIdx(null);
+        setLiveCompound(null);
+        setSinglePopoverIdx(null);
+        setSelectedIndices([idx]);
+        selectionTimerRef.current = setTimeout(() => {
+          setSelectedIndices([]);
+          setSinglePopoverIdx(idx);
+        }, 1500);
+        return;
+      }
 
      const minSel = Math.min(...selectedIndices);
      const maxSel = Math.max(...selectedIndices);

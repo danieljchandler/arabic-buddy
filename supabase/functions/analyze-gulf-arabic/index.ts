@@ -472,12 +472,15 @@ async function callRunPodModel(
   apiKey: string,
   maxTokens = 4096,
 ): Promise<{ content: string | null }> {
-  // RunPod serverless endpoints need cold-start time (up to 60s+), so use a
-  // generous 90s timeout to avoid aborting during spin-up.
+  // RunPod serverless endpoints need cold-start time (up to 90s+), so use a
+  // generous 180s timeout to avoid aborting during spin-up.
+  // The upload page pre-warms these endpoints on load to reduce actual wait.
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 90_000);
+  const timeout = setTimeout(() => controller.abort(), 180_000);
 
+  const startMs = Date.now();
   try {
+    console.log(`RunPod ${model}: sending request...`);
     const response = await fetch(endpoint, {
       method: 'POST',
       signal: controller.signal,
@@ -496,17 +499,21 @@ async function callRunPodModel(
       }),
     });
 
+    const elapsedSec = ((Date.now() - startMs) / 1000).toFixed(1);
     if (!response.ok) {
-      console.warn(`RunPod ${model} error:`, response.status);
+      const errBody = await response.text().catch(() => '');
+      console.warn(`RunPod ${model} error: HTTP ${response.status} in ${elapsedSec}s — ${errBody.slice(0, 200)}`);
       return { content: null };
     }
 
     const data = await response.json();
     const content = data?.choices?.[0]?.message?.content ?? null;
-    console.log(`RunPod ${model} response:`, content?.slice(0, 200));
+    console.log(`RunPod ${model} response in ${elapsedSec}s:`, content?.slice(0, 200));
     return { content };
   } catch (e) {
-    console.warn(`RunPod ${model} failed (non-fatal):`, e instanceof Error ? e.message : String(e));
+    const elapsedSec = ((Date.now() - startMs) / 1000).toFixed(1);
+    const msg = e instanceof Error ? e.message : String(e);
+    console.warn(`RunPod ${model} failed in ${elapsedSec}s (non-fatal): ${msg}`);
     return { content: null };
   } finally {
     clearTimeout(timeout);
@@ -888,21 +895,25 @@ async function callCamelDialect(
 async function callFarasaDiacritize(text: string): Promise<string | null> {
   // Try multiple Farasa endpoint URL patterns — the API has historically moved
   // between /webapi/diac/ and /webapi/diacritize/ paths.
+  // The API now requires an api_key parameter (free registration at farasa.qcri.org).
   const FARASA_URLS = [
-    'https://farasa.qcri.org/webapi/diac/',
     'https://farasa.qcri.org/webapi/diacritize/',
-    'https://farasa-api.qcri.org/webapi/diac/',
+    'https://farasa-api.qcri.org/webapi/diacritize/',
+    'https://farasa.qcri.org/webapi/seq2seq_diacritize/',
   ];
+  const farasaApiKey = Deno.env.get('FARASA_API_KEY') ?? '';
 
   for (const url of FARASA_URLS) {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15_000);
     try {
+      const jsonBody: Record<string, string> = { text };
+      if (farasaApiKey) jsonBody.api_key = farasaApiKey;
       const resp = await fetch(url, {
         method: 'POST',
         signal: controller.signal,
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({ text }).toString(),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(jsonBody),
       });
       if (resp.status === 404) {
         console.warn(`Farasa diac: 404 at ${url}, trying next URL...`);
@@ -1091,6 +1102,11 @@ serve(async (req) => {
     const RUNPOD_FALCON_ENDPOINT = 'https://api.runpod.ai/v2/tnhfklb3tb7md8/openai/v1/chat/completions';
     const jaisAvailable = Boolean(RUNPOD_API_KEY);
     const falconAvailable = Boolean(RUNPOD_API_KEY);
+    if (!RUNPOD_API_KEY) {
+      console.warn('RUNPOD_API_KEY not set — Jais and Falcon will be skipped');
+    } else {
+      console.log('RunPod available — Jais + Falcon will run in parallel enrichment');
+    }
 
      let partial = false;
 
@@ -1269,20 +1285,24 @@ serve(async (req) => {
          : Promise.resolve({ content: null } as { content: string | null }),
        // Jais meta enrichment via RunPod — Arabic-first model for grammar points and cultural context
        jaisAvailable
-         ? callRunPodModel(RUNPOD_JAIS_ENDPOINT, 'inceptionai/Jais-2-8B-Chat', getMetaSystemPrompt(true), mergedTranscriptText, RUNPOD_API_KEY!, 2048).catch((e) => {
-             console.warn('Jais meta enrichment failed (non-blocking):', e);
+         ? (console.log('Jais meta enrichment: FIRING via RunPod...'),
+            callRunPodModel(RUNPOD_JAIS_ENDPOINT, 'inceptionai/Jais-2-8B-Chat', getMetaSystemPrompt(true), mergedTranscriptText, RUNPOD_API_KEY!, 2048).catch((e) => {
+             console.warn('Jais meta enrichment failed (non-blocking):', e instanceof Error ? e.message : String(e));
              return { content: null } as { content: string | null };
-           })
-         : Promise.resolve({ content: null } as { content: string | null }),
+           }))
+         : (console.log('Jais meta enrichment: SKIPPED (no RUNPOD_API_KEY)'),
+            Promise.resolve({ content: null } as { content: string | null })),
        // Falcon H1 meta enrichment via RunPod — runs in parallel for vocab/grammar/cultural context.
        // Previously Falcon only fired as a 3rd-level translation fallback (after Gemini+Qwen),
        // meaning it almost never ran. Now it contributes meta enrichment alongside Jais.
        falconAvailable
-         ? callRunPodModel(RUNPOD_FALCON_ENDPOINT, 'tiiuae/Falcon-H1R-7B', getMetaSystemPrompt(true), mergedTranscriptText, RUNPOD_API_KEY!, 2048).catch((e) => {
-             console.warn('Falcon meta enrichment failed (non-blocking):', e);
+         ? (console.log('Falcon meta enrichment: FIRING via RunPod...'),
+            callRunPodModel(RUNPOD_FALCON_ENDPOINT, 'tiiuae/Falcon-H1R-7B', getMetaSystemPrompt(true), mergedTranscriptText, RUNPOD_API_KEY!, 2048).catch((e) => {
+             console.warn('Falcon meta enrichment failed (non-blocking):', e instanceof Error ? e.message : String(e));
              return { content: null } as { content: string | null };
-           })
-         : Promise.resolve({ content: null } as { content: string | null }),
+           }))
+         : (console.log('Falcon meta enrichment: SKIPPED (no RUNPOD_API_KEY)'),
+            Promise.resolve({ content: null } as { content: string | null })),
        // CAMeL-Lab BERT dialect ID — validates/confirms the LLM-detected dialect.
        // Uses the MADAR-Twitter model: city-level (Kuwait/Doha/Riyadh/Abu Dhabi/…).
        // Non-blocking: any failure returns null and the pipeline continues.

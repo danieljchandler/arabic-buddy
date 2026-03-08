@@ -101,6 +101,9 @@ const InlineToken = ({
       });
       if (!error && data?.translation) {
         setLiveTranslation(data.translation);
+        if (data.msa) {
+          setLiveMsa(data.msa);
+        }
       }
     } catch (err) {
       console.warn('Single word translation failed:', err);

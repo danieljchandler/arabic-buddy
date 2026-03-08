@@ -22,6 +22,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { extractTikTokVideoId, getTikTokEmbedUrl } from "@/lib/videoEmbed";
 import type { TranscriptLine, WordToken, VocabItem } from "@/types/transcript";
+import { VideoRating } from "@/components/discover/VideoRating";
 
 declare global {
   interface Window {

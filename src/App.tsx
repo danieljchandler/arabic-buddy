@@ -21,6 +21,7 @@ import Discover from "./pages/Discover";
 import DiscoverVideo from "./pages/DiscoverVideo";
 import LearnFromX from "./pages/LearnFromX";
 import HowDoISay from "./pages/HowDoISay";
+import CultureGuide from "./pages/CultureGuide";
 
 // Admin pages
 import AdminLogin from "./pages/admin/AdminLogin";

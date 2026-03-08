@@ -472,16 +472,16 @@ async function callRunPodModel(
   apiKey: string,
   maxTokens = 4096,
 ): Promise<{ content: string | null }> {
-  // RunPod serverless endpoints need cold-start time (up to 90s+), so use a
-  // generous 180s timeout to avoid aborting during spin-up.
-  // The upload page pre-warms these endpoints on load to reduce actual wait.
-  // Retries on 502/503 (worker starting) with 15s backoff, up to 3 attempts.
+  // RunPod serverless endpoints need cold-start time (up to 90s+).
+  // Use a 50s AbortController timeout as safety net — the caller wraps
+  // this in a 45s Promise.race so the pipeline never stalls.
+  // Retries on 500-503 with 3s backoff, up to 2 attempts.
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 180_000);
+  const timeout = setTimeout(() => controller.abort(), 50_000);
 
   const startMs = Date.now();
-  const MAX_RETRIES = 3;
-  const RETRY_DELAY_MS = 15_000;
+  const MAX_RETRIES = 2;
+  const RETRY_DELAY_MS = 3_000;
   const requestBody = JSON.stringify({
     model,
     messages: [

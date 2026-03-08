@@ -174,7 +174,14 @@ const InlineToken = ({
                   <span className="text-xs text-muted-foreground">Translating…</span>
                 </div>
               ) : compoundGloss ? (
-                <p className="text-sm text-muted-foreground">{compoundGloss}</p>
+                <>
+                  <p className="text-sm text-muted-foreground">{compoundGloss}</p>
+                  {compoundMsa && (
+                    <p className="text-xs text-muted-foreground/70" dir="rtl">
+                      (فصحى: {compoundMsa})
+                    </p>
+                  )}
+                </>
               ) : (
                 <p className="text-xs text-muted-foreground italic">Could not translate</p>
               )}

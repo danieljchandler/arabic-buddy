@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, Search, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDuration } from "@/lib/videoEmbed";
+import { ContentRequestBar } from "@/components/discover/ContentRequestBar";
 import {
   Select,
   SelectContent,

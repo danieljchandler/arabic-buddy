@@ -476,17 +476,17 @@ interface TranscriptLineCardProps {
          .slice(newMin, newMax + 1)
          .map(t => t.surface)
          .join(' ');
-       setLiveCompound({ firstIdx: newMin, surface: combinedSurface, wordCount: newSpan + 1, translation: null, loading: true });
-        supabase.functions
-          .invoke('translate-phrase', { body: { phrase: combinedSurface } })
-         .then(({ data, error }) => {
-           if (!error && data?.translation) {
-             setLiveCompound({ firstIdx: newMin, surface: combinedSurface, wordCount: newSpan + 1, translation: data.translation, loading: false });
-           } else {
-             console.warn('phrase translation failed:', error);
-             setLiveCompound({ firstIdx: newMin, surface: combinedSurface, wordCount: newSpan + 1, translation: null, loading: false });
-           }
-         })
+        setLiveCompound({ firstIdx: newMin, surface: combinedSurface, wordCount: newSpan + 1, translation: null, msa: null, loading: true });
+         supabase.functions
+           .invoke('translate-phrase', { body: { phrase: combinedSurface } })
+          .then(({ data, error }) => {
+            if (!error && data?.translation) {
+              setLiveCompound({ firstIdx: newMin, surface: combinedSurface, wordCount: newSpan + 1, translation: data.translation, msa: data.msa || null, loading: false });
+            } else {
+              console.warn('phrase translation failed:', error);
+              setLiveCompound({ firstIdx: newMin, surface: combinedSurface, wordCount: newSpan + 1, translation: null, msa: null, loading: false });
+            }
+          })
          .catch((err) => {
            console.warn('phrase translation error:', err);
            setLiveCompound(prev => prev ? { ...prev, loading: false } : null);

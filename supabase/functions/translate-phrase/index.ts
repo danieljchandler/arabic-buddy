@@ -47,7 +47,8 @@ serve(async (req) => {
     console.log('Translating phrase:', phrase);
 
     const OPENROUTER_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
-    const translationMessages = [
+    
+    const englishMessages = [
       {
         role: 'system',
         content: 'You are a Gulf Arabic translator. Translate the given Arabic word or phrase to English. Return ONLY the English translation — no explanation, no punctuation around it, just 1-5 words.'
@@ -58,7 +59,18 @@ serve(async (req) => {
       }
     ];
 
-    async function callOpenRouter(model: string, timeoutMs: number): Promise<string | null> {
+    const msaMessages = [
+      {
+        role: 'system',
+        content: 'Convert this Gulf Arabic word/phrase to Modern Standard Arabic (فصحى). Return ONLY the MSA Arabic script, no explanation.'
+      },
+      {
+        role: 'user',
+        content: phrase,
+      }
+    ];
+
+    async function callOpenRouter(model: string, messages: any[], timeoutMs: number): Promise<string | null> {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), timeoutMs);
       try {
@@ -71,7 +83,7 @@ serve(async (req) => {
           },
           body: JSON.stringify({
             model,
-            messages: translationMessages,
+            messages,
             max_tokens: 30,
             temperature: 0.1,
           }),
@@ -90,15 +102,20 @@ serve(async (req) => {
       }
     }
 
-    const [qwenResult, geminiResult] = await Promise.all([
-      callOpenRouter('qwen/qwen3-235b-a22b', 15_000),
-      callOpenRouter('google/gemini-2.5-flash', 15_000),
+    // Run 4 parallel calls: 2 for English (Qwen + Gemini), 2 for MSA (Qwen + Gemini)
+    const [qwenEn, geminiEn, qwenMsa, geminiMsa] = await Promise.all([
+      callOpenRouter('qwen/qwen3-235b-a22b', englishMessages, 15_000),
+      callOpenRouter('google/gemini-2.5-flash', englishMessages, 15_000),
+      callOpenRouter('qwen/qwen3-235b-a22b', msaMessages, 15_000),
+      callOpenRouter('google/gemini-2.5-flash', msaMessages, 15_000),
     ]);
 
-    const translation = qwenResult ?? geminiResult ?? '';
-    console.log('Translation result:', phrase, '->', translation, `(qwen=${!!qwenResult}, gemini=${!!geminiResult})`);
+    const translation = qwenEn ?? geminiEn ?? '';
+    const msa = qwenMsa ?? geminiMsa ?? '';
+    console.log('Translation result:', phrase, '->', translation, `(qwen=${!!qwenEn}, gemini=${!!geminiEn})`);
+    console.log('MSA result:', phrase, '->', msa, `(qwen=${!!qwenMsa}, gemini=${!!geminiMsa})`);
 
-    return new Response(JSON.stringify({ translation }), {
+    return new Response(JSON.stringify({ translation, msa }), {
       status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
 

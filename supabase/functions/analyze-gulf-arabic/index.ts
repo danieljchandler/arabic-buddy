@@ -1431,7 +1431,7 @@ serve(async (req) => {
          callRunPodModel(
            RUNPOD_FALCON_ENDPOINT,
            'tiiuae/Falcon-H1R-7B',
-           getTranslationSystemPrompt(detectedDialect, visualContext),
+           getTranslationSystemPrompt(detectedDialect, visualContext, sonioxTranslation),
            mergedTranscriptText,
            RUNPOD_API_KEY!,
            4096,

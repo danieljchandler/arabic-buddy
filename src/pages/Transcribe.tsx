@@ -449,6 +449,7 @@ const Transcribe = () => {
     rawText: string,
     munsitText?: string,
     fanarText?: string,
+    sonioxText?: string,
   ): Promise<{
     vocabulary: VocabItem[];
     grammarPoints: GrammarPoint[];
@@ -462,6 +463,7 @@ const Transcribe = () => {
       const body: Record<string, string> = { transcript: rawText };
       if (munsitText) body.munsitTranscript = munsitText;
       if (fanarText) body.fanarTranscript = fanarText;
+      if (sonioxText) body.sonioxTranscript = sonioxText;
 
       const { data, error } = await supabase.functions.invoke<{
         success: boolean;

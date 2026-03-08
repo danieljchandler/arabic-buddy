@@ -303,7 +303,7 @@ const InlineToken = ({
                 className="w-full justify-start gap-2"
                 onClick={() => {
                   onSaveToMyWords(vocabItem);
-                  setSingleOpen(false);
+                  setEffectiveOpen(false);
                 }}
                 disabled={isSavedToMyWords}
               >

@@ -426,10 +426,11 @@ interface TranscriptLineCardProps {
      const isAdjacentLeft = idx === minSel - 1;
      const isAdjacentRight = idx === maxSel + 1;
 
-     if (!isAdjacentLeft && !isAdjacentRight) {
-       // Not adjacent — start fresh selection
-       setCompoundPopoverIdx(null);
-       setLiveCompound(null);
+      if (!isAdjacentLeft && !isAdjacentRight) {
+        // Not adjacent — start fresh selection
+        setCompoundPopoverIdx(null);
+        setLiveCompound(null);
+        setSinglePopoverIdx(null);
        setSelectedIndices([idx]);
        selectionTimerRef.current = setTimeout(() => setSelectedIndices([]), 3000);
        return;

@@ -10,6 +10,7 @@ import {
 import { ReviewCard } from "@/components/review/ReviewCard";
 import { ReviewQuizCard } from "@/components/review/ReviewQuizCard";
 import { ReviewImageQuizCard } from "@/components/review/ReviewImageQuizCard";
+import { PronunciationButton } from "@/components/review/PronunciationButton";
 import { HomeButton } from "@/components/HomeButton";
 import { Button } from "@/components/design-system";
 import { AppShell } from "@/components/layout/AppShell";
@@ -215,7 +216,10 @@ const Review = () => {
               showAnswer={true}
               onReveal={() => {}}
             />
-            <div className="mt-8 text-center">
+            <div className="mt-6 mb-4">
+              <PronunciationButton word={currentWord.word_arabic} />
+            </div>
+            <div className="mt-4 text-center">
               <p className="text-sm text-muted-foreground mb-4">
                 Take a moment to learn this word, then continue.
               </p>

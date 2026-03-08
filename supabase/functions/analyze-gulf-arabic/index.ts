@@ -1414,20 +1414,26 @@ serve(async (req) => {
        }
      }
 
-     // --- Fallback: Falcon via RunPod if both Gemini and Qwen failed ---
+     // --- Fallback: Falcon via RunPod if both Gemini and Qwen failed (45s race) ---
      if ((!translationAi?.translations || translationAi.translations.length === 0) && falconAvailable) {
-       console.log('Qwen translation failed or empty, falling back to Falcon via RunPod for translation...');
-       const falconTransResp = await callRunPodModel(
-         RUNPOD_FALCON_ENDPOINT,
-         'tiiuae/Falcon-H1R-7B',
-         getTranslationSystemPrompt(detectedDialect, visualContext),
-         mergedTranscriptText,
-         RUNPOD_API_KEY!,
-         4096,
-       ).catch((e) => {
-         console.warn('Falcon RunPod translation fallback failed (non-blocking):', e);
-         return { content: null };
-       });
+       console.log('Qwen translation failed or empty, falling back to Falcon via RunPod for translation (45s race)...');
+       const falconTransResp = await Promise.race([
+         callRunPodModel(
+           RUNPOD_FALCON_ENDPOINT,
+           'tiiuae/Falcon-H1R-7B',
+           getTranslationSystemPrompt(detectedDialect, visualContext),
+           mergedTranscriptText,
+           RUNPOD_API_KEY!,
+           4096,
+         ).catch((e) => {
+           console.warn('Falcon RunPod translation fallback failed (non-blocking):', e);
+           return { content: null };
+         }),
+         new Promise<{ content: string | null }>(resolve => setTimeout(() => {
+           console.warn('RunPod Falcon translation fallback: timed out at 45s');
+           resolve({ content: null });
+         }, 45_000)),
+       ]);
        if (falconTransResp.content) {
          translationAi = safeJsonParse<TranslationAI>(falconTransResp.content);
          if (translationAi?.translations) {

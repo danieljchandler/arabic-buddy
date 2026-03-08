@@ -28,6 +28,11 @@ const AdminVideoForm = () => {
   const { videoId } = useParams<{ videoId: string }>();
   const { user } = useAuth();
   const queryClient = useQueryClient();
+
+  // Pre-warm RunPod endpoints (Jais + Falcon) so cold starts happen before pipeline runs
+  useEffect(() => {
+    supabase.functions.invoke("warmup-runpod").catch(() => {});
+  }, []);
   const isEditing = !!videoId;
   const { data: existingVideo, isLoading: loadingVideo } = useDiscoverVideo(videoId);
 

@@ -278,7 +278,7 @@ const InlineToken = ({
                 className="w-full justify-start gap-2"
                 onClick={() => {
                   onAddToVocabSection(vocabItem);
-                  setSingleOpen(false);
+                   setEffectiveOpen(false);
                 }}
                 disabled={isInVocabSection}
               >

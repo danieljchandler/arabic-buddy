@@ -6,6 +6,7 @@ import { HomeButton } from "@/components/HomeButton";
 import { RatingButtons } from "@/components/review/RatingButtons";
 import { AppShell } from "@/components/layout/AppShell";
 import { Loader2, Trophy, LogIn, Eye, Volume2 } from "lucide-react";
+import { PronunciationButton } from "@/components/review/PronunciationButton";
 import { Button } from "@/components/ui/button";
 import { Rating, calculateNextReview } from "@/lib/spacedRepetition";
 import { useQuery, useQueryClient } from "@tanstack/react-query";

@@ -14,6 +14,15 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders });
   }
 
+  // Munsit ASR disabled — api.cntxt.tools DNS is not resolving (as of Mar 2026).
+  // Return graceful null so the pipeline continues with Deepgram + Fanar.
+  // Re-enable when CNTXT restores their DNS / publishes a new endpoint.
+  console.log('Munsit ASR: disabled (api.cntxt.tools DNS dead)');
+  return new Response(
+    JSON.stringify({ text: null, error: 'Munsit disabled — api.cntxt.tools DNS not resolving' }),
+    { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+  );
+
   // Authenticate user
   const authHeader = req.headers.get('Authorization');
   if (!authHeader?.startsWith('Bearer ')) {

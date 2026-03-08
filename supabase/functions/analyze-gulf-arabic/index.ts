@@ -475,41 +475,58 @@ async function callRunPodModel(
   // RunPod serverless endpoints need cold-start time (up to 90s+), so use a
   // generous 180s timeout to avoid aborting during spin-up.
   // The upload page pre-warms these endpoints on load to reduce actual wait.
+  // Retries on 502/503 (worker starting) with 15s backoff, up to 3 attempts.
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 180_000);
 
   const startMs = Date.now();
-  try {
-    console.log(`RunPod ${model}: sending request...`);
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      signal: controller.signal,
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userContent },
-        ],
-        max_tokens: maxTokens,
-        temperature: 0.3,
-      }),
-    });
+  const MAX_RETRIES = 3;
+  const RETRY_DELAY_MS = 15_000;
+  const requestBody = JSON.stringify({
+    model,
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userContent },
+    ],
+    max_tokens: maxTokens,
+    temperature: 0.3,
+  });
 
-    const elapsedSec = ((Date.now() - startMs) / 1000).toFixed(1);
-    if (!response.ok) {
+  try {
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      console.log(`RunPod ${model}: attempt ${attempt}/${MAX_RETRIES}...`);
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        signal: controller.signal,
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: requestBody,
+      });
+
+      const elapsedSec = ((Date.now() - startMs) / 1000).toFixed(1);
+
+      if (response.ok) {
+        const data = await response.json();
+        const content = data?.choices?.[0]?.message?.content ?? null;
+        console.log(`RunPod ${model} response in ${elapsedSec}s:`, content?.slice(0, 200));
+        return { content };
+      }
+
       const errBody = await response.text().catch(() => '');
       console.warn(`RunPod ${model} error: HTTP ${response.status} in ${elapsedSec}s — ${errBody.slice(0, 200)}`);
+
+      // Retry on 502/503 (worker cold-starting or scaling up)
+      if ((response.status === 502 || response.status === 503) && attempt < MAX_RETRIES) {
+        console.log(`RunPod ${model}: retrying in ${RETRY_DELAY_MS / 1000}s (worker may be starting)...`);
+        await new Promise(r => setTimeout(r, RETRY_DELAY_MS));
+        continue;
+      }
+
       return { content: null };
     }
-
-    const data = await response.json();
-    const content = data?.choices?.[0]?.message?.content ?? null;
-    console.log(`RunPod ${model} response in ${elapsedSec}s:`, content?.slice(0, 200));
-    return { content };
+    return { content: null };
   } catch (e) {
     const elapsedSec = ((Date.now() - startMs) / 1000).toFixed(1);
     const msg = e instanceof Error ? e.message : String(e);

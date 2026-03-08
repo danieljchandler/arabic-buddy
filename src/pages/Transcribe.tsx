@@ -554,31 +554,11 @@ const Transcribe = () => {
       })();
 
       const munsitPromise = (async () => {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 5 * 60 * 1000);
-        try {
-          const resp = await fetch(`${supabaseUrl}/functions/v1/munsit-transcribe`, {
-            method: "POST",
-            headers: {
-              "apikey": supabaseKey,
-              "Authorization": `Bearer ${authToken}`,
-            },
-            body: munsitFormData,
-            signal: controller.signal,
-          });
-          clearTimeout(timeout);
-          if (!resp.ok) {
-            const errBody = await resp.text();
-            throw new Error(errBody || `Munsit failed (${resp.status})`);
-          }
-          return await resp.json() as { text?: string };
-        } catch (e) {
-          clearTimeout(timeout);
-          if (e instanceof DOMException && e.name === "AbortError") {
-            throw new Error("Munsit timed out.");
-          }
-          throw e;
-        }
+        // Munsit ASR disabled — api.cntxt.tools DNS is not resolving (as of Mar 2026).
+        // Return null immediately so the parallel pipeline doesn't waste time on it.
+        // Re-enable when CNTXT restores their DNS / publishes a new endpoint.
+        console.log("Munsit ASR: disabled (api.cntxt.tools DNS dead)");
+        return { text: null } as { text?: string };
       })();
 
       // Fanar ASR (budget-gated — the edge function handles budget checks)

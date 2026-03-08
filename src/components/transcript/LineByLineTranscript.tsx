@@ -110,10 +110,10 @@ const InlineToken = ({
 
   // Auto-translate when single popover opens and no gloss
   useEffect(() => {
-    if (singleOpen && !hasGloss && !liveTranslation && !isTranslating) {
+    if (effectiveOpen && !hasGloss && !liveTranslation && !isTranslating) {
       handleTranslateSingle();
     }
-  }, [singleOpen, hasGloss, liveTranslation, isTranslating, handleTranslateSingle]);
+  }, [effectiveOpen, hasGloss, liveTranslation, isTranslating, handleTranslateSingle]);
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();

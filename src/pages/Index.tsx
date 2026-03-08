@@ -448,6 +448,28 @@ const Index = () => {
           </div>
         </button>
 
+        {/* Culture Guide */}
+        <button
+          onClick={() => navigate("/culture-guide")}
+          className={cn(
+            "w-full p-4 rounded-xl",
+            "bg-card border border-border",
+            "flex items-center gap-3",
+            "transition-all duration-200",
+            "hover:border-primary/20"
+          )}
+        >
+          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+            <Compass className="h-5 w-5 text-primary" />
+          </div>
+          <div className="text-left">
+            <p className="font-semibold text-foreground">What should I do?</p>
+            <p className="text-xs text-muted-foreground">
+              Get culturally appropriate Gulf advice
+            </p>
+          </div>
+        </button>
+
         {/* Transcription Tool */}
         <button
           onClick={() => navigate("/transcribe")}

@@ -149,6 +149,11 @@ const App = () => {
                 <HowDoISay />
               </ErrorBoundary>
             } />
+            <Route path="/culture-guide" element={
+              <ErrorBoundary name="CultureGuideRoute">
+                <CultureGuide />
+              </ErrorBoundary>
+            } />
 
             {/* Admin routes */}
             <Route path="/admin/login" element={<AdminLogin />} />

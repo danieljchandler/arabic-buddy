@@ -1288,7 +1288,7 @@ serve(async (req) => {
         // Translation primary: Gemini 2.5 Pro via Lovable AI gateway
         callAI({
           model: 'google/gemini-2.5-pro',
-          systemPrompt: getTranslationSystemPrompt(detectedDialect, visualContext),
+          systemPrompt: getTranslationSystemPrompt(detectedDialect, visualContext, sonioxTranslation),
           userContent: mergedTranscriptText,
           apiKey: '', // not used for lovable gateway
           gateway: 'lovable',

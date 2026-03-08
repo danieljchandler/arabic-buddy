@@ -449,6 +449,7 @@ const Transcribe = () => {
     rawText: string,
     munsitText?: string,
     fanarText?: string,
+    sonioxText?: string,
   ): Promise<{
     vocabulary: VocabItem[];
     grammarPoints: GrammarPoint[];
@@ -462,6 +463,7 @@ const Transcribe = () => {
       const body: Record<string, string> = { transcript: rawText };
       if (munsitText) body.munsitTranscript = munsitText;
       if (fanarText) body.fanarTranscript = fanarText;
+      if (sonioxText) body.sonioxTranscript = sonioxText;
 
       const { data, error } = await supabase.functions.invoke<{
         success: boolean;
@@ -522,6 +524,7 @@ const Transcribe = () => {
       // Clone files for parallel uploads (some browsers can't share a File across concurrent reads)
       const fileClone = new File([file], file.name, { type: file.type });
       const fileClone2 = new File([file], file.name, { type: file.type });
+      const fileClone3 = new File([file], file.name, { type: file.type });
 
       const formData = new FormData();
       formData.append("audio", file);
@@ -531,6 +534,9 @@ const Transcribe = () => {
 
       const fanarFormData = new FormData();
       fanarFormData.append("audio", fileClone2);
+
+      const sonioxFormData = new FormData();
+      sonioxFormData.append("audio", fileClone3);
 
       setDebugTrace({ phase: "request:transcribe", at: new Date().toISOString(), details: { name: file.name, size: file.size, type: file.type } });
       
@@ -607,7 +613,36 @@ const Transcribe = () => {
         }
       })();
 
-      const [deepgramResult, munsitResult, fanarResult] = await Promise.allSettled([deepgramPromise, munsitPromise, fanarPromise]);
+      // Soniox ASR
+      const sonioxPromise = (async () => {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 5 * 60 * 1000);
+        try {
+          const resp = await fetch(`${supabaseUrl}/functions/v1/soniox-transcribe`, {
+            method: "POST",
+            headers: {
+              "apikey": supabaseKey,
+              "Authorization": `Bearer ${authToken}`,
+            },
+            body: sonioxFormData,
+            signal: controller.signal,
+          });
+          clearTimeout(timeout);
+          if (!resp.ok) {
+            const errBody = await resp.text();
+            throw new Error(errBody || `Soniox failed (${resp.status})`);
+          }
+          return await resp.json() as { text?: string | null; sonioxUsed?: boolean; words?: DeepgramWord[] };
+        } catch (e) {
+          clearTimeout(timeout);
+          if (e instanceof DOMException && e.name === "AbortError") {
+            throw new Error("Soniox timed out.");
+          }
+          throw e;
+        }
+      })();
+
+      const [deepgramResult, munsitResult, fanarResult, sonioxResult] = await Promise.allSettled([deepgramPromise, munsitPromise, fanarPromise, sonioxPromise]);
 
       if (progressInterval) clearInterval(progressInterval);
 
@@ -615,6 +650,7 @@ const Transcribe = () => {
       const deepgramData = deepgramResult.status === "fulfilled" ? deepgramResult.value : null;
       const munsitData = munsitResult.status === "fulfilled" ? munsitResult.value : null;
       const fanarData = fanarResult.status === "fulfilled" ? fanarResult.value : null;
+      const sonioxData = sonioxResult.status === "fulfilled" ? sonioxResult.value : null;
 
       if (deepgramResult.status === "rejected") {
         console.warn("Deepgram failed:", deepgramResult.reason);
@@ -627,9 +663,12 @@ const Transcribe = () => {
       if (fanarResult.status === "rejected") {
         console.warn("Fanar failed:", fanarResult.reason);
       }
+      if (sonioxResult.status === "rejected") {
+        console.warn("Soniox failed:", sonioxResult.reason);
+      }
 
       // Need at least one to succeed
-      if (!deepgramData?.text && !munsitData?.text && !fanarData?.text) {
+      if (!deepgramData?.text && !munsitData?.text && !fanarData?.text && !sonioxData?.text) {
         const munsitReason = munsitResult.status === "rejected"
           ? String(munsitResult.reason)
           : munsitData && !munsitData.text ? ((munsitData as any).error || 'no transcript') : null;
@@ -637,13 +676,15 @@ const Transcribe = () => {
           deepgramResult.status === "rejected" ? `Deepgram: ${deepgramResult.reason}` : null,
           munsitReason ? `Munsit: ${munsitReason}` : null,
           fanarResult.status === "rejected" ? `Fanar: ${fanarResult.reason}` : null,
+          sonioxResult.status === "rejected" ? `Soniox: ${sonioxResult.reason}` : null,
         ].filter(Boolean).join("; ");
         throw new Error(`All transcription engines failed. ${reasons}`);
       }
 
-      const primaryText = deepgramData?.text || munsitData?.text || fanarData?.text || "";
+      const primaryText = deepgramData?.text || sonioxData?.text || munsitData?.text || fanarData?.text || "";
       const munsitText = munsitData?.text || undefined;
       const fanarText = (fanarData?.fanarUsed && fanarData?.text) ? fanarData.text : undefined;
+      const sonioxText = (sonioxData?.sonioxUsed && sonioxData?.text) ? sonioxData.text : undefined;
       const deepgramWords = deepgramData?.words || [];
 
       // Log which engines succeeded
@@ -651,6 +692,7 @@ const Transcribe = () => {
         deepgramData?.text ? "Deepgram" : null,
         munsitData?.text ? "Munsit" : null,
         fanarText ? "Fanar" : null,
+        sonioxText ? "Soniox" : null,
       ].filter(Boolean);
       console.log(`Transcription engines used: ${enginesUsed.join(" + ")}`);
       if (fanarData && !fanarData.fanarUsed) {
@@ -662,11 +704,12 @@ const Transcribe = () => {
       let filteredWords = deepgramWords;
       let filteredMunsitText = munsitText;
       let filteredFanarText = fanarText;
+      let filteredSonioxText = sonioxText;
 
       if (mediaDuration && mediaDuration > MAX_DURATION && deepgramWords.length > 0) {
         filteredText = filterTranscriptByTimeRange(primaryText, deepgramWords, timeRange[0], timeRange[1]);
         filteredWords = filterWordsByTimeRange(deepgramWords, timeRange[0], timeRange[1]);
-        // Munsit and Fanar don't provide word-level timestamps, so we use them as-is
+        // Other engines don't provide word-level timestamps, so we use them as-is
         console.log(`Time range filter: ${timeRange[0]}s-${timeRange[1]}s, words: ${deepgramWords.length} → ${filteredWords.length}`);
       }
 
@@ -681,10 +724,10 @@ const Transcribe = () => {
       setTranscriptResult(initialResult);
 
       const engineCount = enginesUsed.length;
-      const engineMsg = engineCount >= 3 ? "Triple transcription complete!" : engineCount === 2 ? "Dual transcription complete!" : "Transcription complete!";
+      const engineMsg = engineCount >= 4 ? "Quad transcription complete!" : engineCount >= 3 ? "Triple transcription complete!" : engineCount === 2 ? "Dual transcription complete!" : "Transcription complete!";
       toast.success(engineMsg, { description: "Analyzing with multi-LLM ensemble..." });
 
-      const analysisData = await analyzeTranscript(filteredText, filteredMunsitText, filteredFanarText);
+      const analysisData = await analyzeTranscript(filteredText, filteredMunsitText, filteredFanarText, filteredSonioxText);
       if (analysisData) {
         const linesWithTimestamps = mapTimestampsToLines(analysisData.lines || [], filteredWords);
         console.log('Mapped timestamps:', linesWithTimestamps.filter(l => l.startMs !== undefined).length, '/', linesWithTimestamps.length);

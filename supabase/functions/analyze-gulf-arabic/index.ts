@@ -77,16 +77,17 @@ const getDialectNote = (dialect?: string, prefix = '\n') =>
 const getMergeOnlySystemPrompt = (isRetry: boolean = false, hasDualTranscripts: boolean = false, hasTripleTranscripts: boolean = false) => {
   const strictPrefix = strictJsonPrefix(isRetry);
   const multiInstructions = hasTripleTranscripts
-    ? `You are given THREE transcriptions of the same Gulf Arabic audio from different speech-to-text engines.
+    ? `You are given MULTIPLE transcriptions of the same Gulf Arabic audio from different speech-to-text engines.
 Compare them carefully and produce the BEST merged transcript:
-- Where all engines agree, use the shared text.
+- Where engines agree, use the shared text.
 - Where they differ, choose whichever version sounds most natural and accurate for Gulf Arabic dialect.
 - Fanar is an Arabic-native model and may be more accurate for dialect-specific words and phrases.
+- Soniox provides high-accuracy multilingual transcription and may capture words other engines miss.
 - Deepgram provides the most reliable word boundaries.
 - Munsit specialises in Arabic and may better capture dialectal vocabulary.
 - Do NOT simply concatenate them. Merge intelligently at the sentence/clause level.
 - ALWAYS prefer the spoken/dialectal form over formal/MSA spelling. Write words as they are pronounced.
-- Use ALL three transcripts to ensure NO spoken content is missed — include every word that was said.
+- Use ALL transcripts to ensure NO spoken content is missed — include every word that was said.
 
 `
     : hasDualTranscripts
@@ -246,14 +247,17 @@ const getFanarValidationSystemPrompt = () =>
 // Used by Gemini 2.5 Flash (primary) and Qwen (fallback).
 // Receives the numbered merged transcript produced by Call 1.
 // Produces ONLY per-line translations — no vocabulary, no grammar.
-const getTranslationSystemPrompt = (dialect?: string, visualContext?: string) => {
+const getTranslationSystemPrompt = (dialect?: string, visualContext?: string, sonioxTranslation?: string) => {
   const dialectNote = dialect && dialect !== 'Gulf'
     ? `${getDialectNote(dialect)} Reflect regional vocabulary and expressions in your translations where appropriate.`
     : getDialectNote(undefined);
   const visualNote = visualContext
     ? `\n\nVideo context: ${visualContext}\nUse this context to improve translation accuracy and naturalness where relevant.`
     : '';
-  return `You are a Gulf Arabic translator specializing in the Gulf/Khaliji dialect.${dialectNote}${visualNote}
+  const sonioxNote = sonioxTranslation
+    ? `\n\nReference translation (Soniox ASR+Translation engine):\n${sonioxTranslation}\nThis machine translation is provided as a reference only. Use it to inform your translations but prioritize accuracy and natural English phrasing.`
+    : '';
+  return `You are a Gulf Arabic translator specializing in the Gulf/Khaliji dialect.${dialectNote}${visualNote}${sonioxNote}
 You will be given numbered Arabic lines. Translate each line to natural English.
 
 Output ONLY valid JSON matching this schema:
@@ -1070,7 +1074,7 @@ serve(async (req) => {
       });
     }
     const body = await req.json();
-    const { transcript, munsitTranscript, fanarTranscript, visualContext } = body;
+    const { transcript, munsitTranscript, fanarTranscript, sonioxTranscript, sonioxTranslation, visualContext } = body;
 
     // ── Quick phrase-translation shortcut ──────────────────────────────────
     // When called with { phrase } (no transcript), translate a short Arabic
@@ -1115,7 +1119,9 @@ serve(async (req) => {
 
     const hasDual = Boolean(munsitTranscript && typeof munsitTranscript === 'string' && munsitTranscript.trim().length > 0);
     const hasFanar = Boolean(fanarTranscript && typeof fanarTranscript === 'string' && fanarTranscript.trim().length > 0);
+    const hasSoniox = Boolean(sonioxTranscript && typeof sonioxTranscript === 'string' && sonioxTranscript.trim().length > 0);
     const hasTriple = hasDual && hasFanar;
+    const asrCount = 1 + (hasDual ? 1 : 0) + (hasFanar ? 1 : 0) + (hasSoniox ? 1 : 0);
     console.log('Analyzing transcript (lines + meta)...');
     console.log('Deepgram transcript length:', transcript.length);
     if (hasDual) {
@@ -1123,6 +1129,9 @@ serve(async (req) => {
     }
     if (hasFanar) {
       console.log('Fanar transcript length:', fanarTranscript.length);
+    }
+    if (hasSoniox) {
+      console.log('Soniox transcript length:', sonioxTranscript.length);
     }
 
     const FANAR_API_KEY = Deno.env.get('FANAR_API_KEY')?.trim();
@@ -1145,15 +1154,16 @@ serve(async (req) => {
      let partial = false;
 
      // Build user content for the merge prompt (all available ASR transcripts)
-     const linesUserContent = hasTriple
-       ? `Transcription A (Deepgram):\n${transcript}\n\nTranscription B (Munsit):\n${munsitTranscript}\n\nTranscription C (Fanar):\n${fanarTranscript}`
-       : hasDual
-       ? `Transcription A (Deepgram):\n${transcript}\n\nTranscription B (Munsit):\n${munsitTranscript}`
-       : hasFanar
-       ? `Transcription A (Deepgram):\n${transcript}\n\nTranscription B (Fanar):\n${fanarTranscript}`
-       : transcript;
+     const transcriptParts: string[] = [`Transcription A (Deepgram):\n${transcript}`];
+     if (hasDual) transcriptParts.push(`Transcription B (Munsit):\n${munsitTranscript}`);
+     if (hasFanar) transcriptParts.push(`Transcription ${hasDual ? 'C' : 'B'} (Fanar):\n${fanarTranscript}`);
+     if (hasSoniox) {
+       const label = String.fromCharCode(65 + transcriptParts.length); // D or C or B
+       transcriptParts.push(`Transcription ${label} (Soniox):\n${sonioxTranscript}`);
+     }
+     const linesUserContent = transcriptParts.length > 1 ? transcriptParts.join('\n\n') : transcript;
 
-     const hasDualOrTriple = hasDual || hasFanar;
+     const hasDualOrTriple = asrCount >= 2;
 
      // =====================================================================
      // CALL 1 — Transcript merging only
@@ -1278,7 +1288,7 @@ serve(async (req) => {
         // Translation primary: Gemini 2.5 Pro via Lovable AI gateway
         callAI({
           model: 'google/gemini-2.5-pro',
-          systemPrompt: getTranslationSystemPrompt(detectedDialect, visualContext),
+          systemPrompt: getTranslationSystemPrompt(detectedDialect, visualContext, sonioxTranslation),
           userContent: mergedTranscriptText,
           apiKey: '', // not used for lovable gateway
           gateway: 'lovable',
@@ -1401,7 +1411,7 @@ serve(async (req) => {
      if (!translationAi?.translations || translationAi.translations.length === 0) {
        console.log('Gemini translation failed or empty, falling back to Qwen for translation...');
        const qwenTransResp = await callAI({
-         systemPrompt: getTranslationSystemPrompt(detectedDialect, visualContext),
+         systemPrompt: getTranslationSystemPrompt(detectedDialect, visualContext, sonioxTranslation),
          userContent: mergedTranscriptText,
          apiKey: OPENROUTER_API_KEY,
          maxTokens: 4096,
@@ -1421,7 +1431,7 @@ serve(async (req) => {
          callRunPodModel(
            RUNPOD_FALCON_ENDPOINT,
            'tiiuae/Falcon-H1R-7B',
-           getTranslationSystemPrompt(detectedDialect, visualContext),
+           getTranslationSystemPrompt(detectedDialect, visualContext, sonioxTranslation),
            mergedTranscriptText,
            RUNPOD_API_KEY!,
            4096,

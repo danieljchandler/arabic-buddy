@@ -324,8 +324,8 @@ const AdminVideoForm = () => {
           })()
         : Promise.resolve(null);
 
-      // Run all three ASR engines in parallel
-      toast.info("Transcribing with Munsit, Deepgram & Fanar...");
+      // Run all ASR engines in parallel
+      toast.info("Transcribing with Deepgram, Fanar & Soniox...");
 
       const munsitFormData = new FormData();
       munsitFormData.append("audio", targetFile);
@@ -365,10 +365,25 @@ const AdminVideoForm = () => {
         return body as { text?: string | null; reason?: string };
       });
 
-      const [munsitResult, deepgramResult, fanarResult, visualResult] = await Promise.allSettled([
+      const sonioxFormData = new FormData();
+      sonioxFormData.append("audio", new File([targetFile], targetFile.name, { type: targetFile.type }));
+      sonioxFormData.append("includeTranslation", "true");
+      const sonioxPromise = fetch(`${projectUrl}/functions/v1/soniox-transcribe`, {
+        method: "POST",
+        headers: authHeaders,
+        body: sonioxFormData,
+        signal: AbortSignal.timeout(300000),
+      }).then(async (res) => {
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok && !body.text) throw new Error(body.error || `Soniox HTTP ${res.status}`);
+        return body as { text?: string | null; sonioxUsed?: boolean; reason?: string; translationText?: string | null };
+      });
+
+      const [munsitResult, deepgramResult, fanarResult, sonioxResult, visualResult] = await Promise.allSettled([
         munsitPromise,
         deepgramPromise,
         fanarPromise,
+        sonioxPromise,
         visualPromise,
       ]);
 
@@ -377,6 +392,7 @@ const AdminVideoForm = () => {
       const deepgramData = deepgramResult.status === "fulfilled" ? deepgramResult.value : null;
       const deepgramText = deepgramData?.text || "";
       const fanarText = fanarResult.status === "fulfilled" ? (fanarResult.value.text || "") : "";
+      const sonioxText = sonioxResult.status === "fulfilled" && sonioxResult.value.sonioxUsed ? (sonioxResult.value.text || "") : "";
 
       // Log results
       if (munsitResult.status === "rejected") console.warn("Munsit failed:", munsitResult.reason);
@@ -388,11 +404,16 @@ const AdminVideoForm = () => {
       else if (fanarResult.status === "fulfilled" && !fanarResult.value.text && fanarResult.value.reason) {
         console.log(`Fanar excluded: ${fanarResult.value.reason}`);
       }
+      if (sonioxResult.status === "rejected") console.warn("Soniox failed:", sonioxResult.reason);
+      else if (sonioxResult.status === "fulfilled" && !sonioxResult.value.sonioxUsed) {
+        console.log(`Soniox excluded: ${sonioxResult.value.reason || 'not used'}`);
+      }
 
       const engines: string[] = [];
       if (munsitText) engines.push("Munsit");
       if (deepgramText) engines.push("Deepgram");
       if (fanarText) engines.push("Fanar");
+      if (sonioxText) engines.push("Soniox");
 
       if (engines.length === 0) {
         throw new Error("All transcription engines failed. Please try again.");
@@ -456,6 +477,14 @@ const AdminVideoForm = () => {
       }
       if (fanarText) {
         analyzeBody.fanarTranscript = fanarText;
+      }
+      if (sonioxText) {
+        analyzeBody.sonioxTranscript = sonioxText;
+      }
+      // Pass Soniox translation as an additional reference for the analysis
+      const sonioxTranslation = sonioxResult.status === "fulfilled" ? sonioxResult.value.translationText : null;
+      if (sonioxTranslation) {
+        analyzeBody.sonioxTranslation = sonioxTranslation;
       }
       if (visualContextStr) {
         analyzeBody.visualContext = visualContextStr;

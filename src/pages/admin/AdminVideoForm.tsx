@@ -481,6 +481,11 @@ const AdminVideoForm = () => {
       if (sonioxText) {
         analyzeBody.sonioxTranscript = sonioxText;
       }
+      // Pass Soniox translation as an additional reference for the analysis
+      const sonioxTranslation = sonioxResult.status === "fulfilled" ? sonioxResult.value.translationText : null;
+      if (sonioxTranslation) {
+        analyzeBody.sonioxTranslation = sonioxTranslation;
+      }
       if (visualContextStr) {
         analyzeBody.visualContext = visualContextStr;
       }

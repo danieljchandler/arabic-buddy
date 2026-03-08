@@ -55,6 +55,8 @@ const InlineToken = ({
   isSavedToMyWords,
   isInVocabSection,
   onTokenClick,
+  forceSingleOpen,
+  onForceSingleOpenChange,
   compoundOpen,
   compoundGloss,
   compoundSurface,
@@ -70,6 +72,15 @@ const InlineToken = ({
   const [isTranslating, setIsTranslating] = useState(false);
   const hasGloss = !!token.gloss;
   const displayGloss = token.gloss || liveTranslation;
+  
+  // Merge forceSingleOpen from parent with local state
+  const effectiveOpen = singleOpen || (forceSingleOpen ?? false);
+  const setEffectiveOpen = (open: boolean) => {
+    setSingleOpen(open);
+    if (!open && forceSingleOpen) {
+      onForceSingleOpenChange?.(false);
+    }
+  };
   
   const vocabItem: VocabItem = {
     arabic: token.surface,

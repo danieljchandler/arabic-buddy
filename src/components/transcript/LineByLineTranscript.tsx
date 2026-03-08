@@ -443,8 +443,8 @@ interface TranscriptLineCardProps {
          .map(t => t.surface)
          .join(' ');
        setLiveCompound({ firstIdx: newMin, surface: combinedSurface, wordCount: newSpan + 1, translation: null, loading: true });
-       supabase.functions
-         .invoke('analyze-gulf-arabic', { body: { phrase: combinedSurface } })
+        supabase.functions
+          .invoke('translate-phrase', { body: { phrase: combinedSurface } })
          .then(({ data, error }) => {
            if (!error && data?.translation) {
              setLiveCompound({ firstIdx: newMin, surface: combinedSurface, wordCount: newSpan + 1, translation: data.translation, loading: false });

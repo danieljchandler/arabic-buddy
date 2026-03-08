@@ -358,6 +358,7 @@ interface TranscriptLineCardProps {
  }: TranscriptLineCardProps) => {
    const [selectedIndices, setSelectedIndices] = useState<number[]>([]);
    const [compoundPopoverIdx, setCompoundPopoverIdx] = useState<number | null>(null);
+   const [singlePopoverIdx, setSinglePopoverIdx] = useState<number | null>(null);
    const [liveCompound, setLiveCompound] = useState<{
      firstIdx: number;
      surface: string;

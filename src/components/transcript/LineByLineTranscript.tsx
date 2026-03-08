@@ -71,12 +71,36 @@ const InlineToken = ({
   
   const vocabItem: VocabItem = {
     arabic: token.surface,
-    english: token.gloss || "",
+    english: displayGloss || "",
     sentenceText: parentLine.arabic,
     sentenceEnglish: parentLine.translation,
     startMs: parentLine.startMs,
     endMs: parentLine.endMs,
   };
+
+  const handleTranslateSingle = useCallback(async () => {
+    if (isTranslating || liveTranslation) return;
+    setIsTranslating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('translate-phrase', {
+        body: { phrase: token.surface },
+      });
+      if (!error && data?.translation) {
+        setLiveTranslation(data.translation);
+      }
+    } catch (err) {
+      console.warn('Single word translation failed:', err);
+    } finally {
+      setIsTranslating(false);
+    }
+  }, [token.surface, isTranslating, liveTranslation]);
+
+  // Auto-translate when single popover opens and no gloss
+  useEffect(() => {
+    if (singleOpen && !hasGloss && !liveTranslation && !isTranslating) {
+      handleTranslateSingle();
+    }
+  }, [singleOpen, hasGloss, liveTranslation, isTranslating, handleTranslateSingle]);
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();

@@ -36,6 +36,7 @@ interface InlineTokenProps {
   // compound popover
   compoundOpen?: boolean;
   compoundGloss?: string;
+  compoundMsa?: string;
   compoundSurface?: string;
   onCompoundOpenChange?: (open: boolean) => void;
   onAddCompoundToVocab?: () => void;

@@ -72,7 +72,7 @@ serve(async (req) => {
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
     const RUNPOD_API_KEY = Deno.env.get("RUNPOD_API_KEY");
-    const RUNPOD_FALCON_ENDPOINT = "https://api.runpod.ai/v2/tnhfklb3tb7md8/openai/v1/chat/completions";
+    const RUNPOD_FALCON_ENDPOINT = "https://api.runpod.ai/v2/owodjrizyv47m0/openai/v1/chat/completions";
     const falconAvailable = Boolean(RUNPOD_API_KEY);
 
     // Build segment list
@@ -154,7 +154,7 @@ Return the results using the extract_candidates tool.`;
     if (falconAvailable) {
       try {
         const falconResp = await fetch(
-          `https://api.runpod.ai/v2/tnhfklb3tb7md8/openai/v1/chat/completions`,
+          `https://api.runpod.ai/v2/owodjrizyv47m0/openai/v1/chat/completions`,,
           {
             method: "POST",
             headers: {

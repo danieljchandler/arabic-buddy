@@ -245,9 +245,9 @@ const InlineToken = ({
             {displayGloss && (
               <p className="text-sm text-muted-foreground">{displayGloss}</p>
             )}
-            {token.standard && (
+            {(token.standard || liveMsa) && (
              <p className="text-xs text-muted-foreground/70" dir="rtl">
-               (Standard: {token.standard})
+               (فصحى: {token.standard || liveMsa})
              </p>
             )}
             {!displayGloss && isTranslating && (

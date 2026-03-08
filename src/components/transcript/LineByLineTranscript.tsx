@@ -587,6 +587,7 @@ interface TranscriptLineCardProps {
                      : getCompoundGloss(index, index + compoundWordCount - 1))
                  : undefined;
                const isLoadingCompound = isThisCompoundAnchor && !!thisLiveCompound?.loading;
+               const compoundMsa = isThisCompoundAnchor ? (thisLiveCompound?.msa ?? undefined) : undefined;
 
                const compoundVocabItem: VocabItem = {
                  arabic: compoundSurface || token.surface,

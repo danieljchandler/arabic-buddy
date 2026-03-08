@@ -1411,7 +1411,7 @@ serve(async (req) => {
      if (!translationAi?.translations || translationAi.translations.length === 0) {
        console.log('Gemini translation failed or empty, falling back to Qwen for translation...');
        const qwenTransResp = await callAI({
-         systemPrompt: getTranslationSystemPrompt(detectedDialect, visualContext),
+         systemPrompt: getTranslationSystemPrompt(detectedDialect, visualContext, sonioxTranslation),
          userContent: mergedTranscriptText,
          apiKey: OPENROUTER_API_KEY,
          maxTokens: 4096,

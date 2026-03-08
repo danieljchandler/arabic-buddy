@@ -60,6 +60,7 @@ const InlineToken = ({
   onForceSingleOpenChange,
   compoundOpen,
   compoundGloss,
+  compoundMsa,
   compoundSurface,
   onCompoundOpenChange,
   onAddCompoundToVocab,

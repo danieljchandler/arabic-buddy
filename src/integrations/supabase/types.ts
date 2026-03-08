@@ -125,6 +125,36 @@ export type Database = {
         }
         Relationships: []
       }
+      human_review_requests: {
+        Row: {
+          admin_response: string | null
+          ai_response: string
+          conversation_context: string
+          created_at: string
+          id: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          admin_response?: string | null
+          ai_response: string
+          conversation_context: string
+          created_at?: string
+          id?: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          admin_response?: string | null
+          ai_response?: string
+          conversation_context?: string
+          created_at?: string
+          id?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       review_streaks: {
         Row: {
           created_at: string

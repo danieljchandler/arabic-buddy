@@ -1115,7 +1115,9 @@ serve(async (req) => {
 
     const hasDual = Boolean(munsitTranscript && typeof munsitTranscript === 'string' && munsitTranscript.trim().length > 0);
     const hasFanar = Boolean(fanarTranscript && typeof fanarTranscript === 'string' && fanarTranscript.trim().length > 0);
+    const hasSoniox = Boolean(sonioxTranscript && typeof sonioxTranscript === 'string' && sonioxTranscript.trim().length > 0);
     const hasTriple = hasDual && hasFanar;
+    const asrCount = 1 + (hasDual ? 1 : 0) + (hasFanar ? 1 : 0) + (hasSoniox ? 1 : 0);
     console.log('Analyzing transcript (lines + meta)...');
     console.log('Deepgram transcript length:', transcript.length);
     if (hasDual) {
@@ -1123,6 +1125,9 @@ serve(async (req) => {
     }
     if (hasFanar) {
       console.log('Fanar transcript length:', fanarTranscript.length);
+    }
+    if (hasSoniox) {
+      console.log('Soniox transcript length:', sonioxTranscript.length);
     }
 
     const FANAR_API_KEY = Deno.env.get('FANAR_API_KEY')?.trim();
@@ -1145,15 +1150,16 @@ serve(async (req) => {
      let partial = false;
 
      // Build user content for the merge prompt (all available ASR transcripts)
-     const linesUserContent = hasTriple
-       ? `Transcription A (Deepgram):\n${transcript}\n\nTranscription B (Munsit):\n${munsitTranscript}\n\nTranscription C (Fanar):\n${fanarTranscript}`
-       : hasDual
-       ? `Transcription A (Deepgram):\n${transcript}\n\nTranscription B (Munsit):\n${munsitTranscript}`
-       : hasFanar
-       ? `Transcription A (Deepgram):\n${transcript}\n\nTranscription B (Fanar):\n${fanarTranscript}`
-       : transcript;
+     const transcriptParts: string[] = [`Transcription A (Deepgram):\n${transcript}`];
+     if (hasDual) transcriptParts.push(`Transcription B (Munsit):\n${munsitTranscript}`);
+     if (hasFanar) transcriptParts.push(`Transcription ${hasDual ? 'C' : 'B'} (Fanar):\n${fanarTranscript}`);
+     if (hasSoniox) {
+       const label = String.fromCharCode(65 + transcriptParts.length); // D or C or B
+       transcriptParts.push(`Transcription ${label} (Soniox):\n${sonioxTranscript}`);
+     }
+     const linesUserContent = transcriptParts.length > 1 ? transcriptParts.join('\n\n') : transcript;
 
-     const hasDualOrTriple = hasDual || hasFanar;
+     const hasDualOrTriple = asrCount >= 2;
 
      // =====================================================================
      // CALL 1 — Transcript merging only

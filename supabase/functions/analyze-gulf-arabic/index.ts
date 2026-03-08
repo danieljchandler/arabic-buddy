@@ -472,16 +472,16 @@ async function callRunPodModel(
   apiKey: string,
   maxTokens = 4096,
 ): Promise<{ content: string | null }> {
-  // RunPod serverless endpoints need cold-start time (up to 90s+), so use a
-  // generous 180s timeout to avoid aborting during spin-up.
-  // The upload page pre-warms these endpoints on load to reduce actual wait.
-  // Retries on 502/503 (worker starting) with 15s backoff, up to 3 attempts.
+  // RunPod serverless endpoints need cold-start time (up to 90s+).
+  // Use a 50s AbortController timeout as safety net — the caller wraps
+  // this in a 45s Promise.race so the pipeline never stalls.
+  // Retries on 500-503 with 3s backoff, up to 2 attempts.
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 180_000);
+  const timeout = setTimeout(() => controller.abort(), 50_000);
 
   const startMs = Date.now();
-  const MAX_RETRIES = 3;
-  const RETRY_DELAY_MS = 15_000;
+  const MAX_RETRIES = 2;
+  const RETRY_DELAY_MS = 3_000;
   const requestBody = JSON.stringify({
     model,
     messages: [
@@ -1317,24 +1317,34 @@ serve(async (req) => {
              return { content: null } as { content: string | null };
            })
          : Promise.resolve({ content: null } as { content: string | null }),
-       // Jais meta enrichment via RunPod — Arabic-first model for grammar points and cultural context
+       // Jais meta enrichment via RunPod — wrapped in 45s Promise.race so cold starts can't stall the pipeline
        jaisAvailable
-         ? (console.log('Jais meta enrichment: FIRING via RunPod...'),
-            callRunPodModel(RUNPOD_JAIS_ENDPOINT, 'inceptionai/Jais-2-8B-Chat', getMetaSystemPrompt(true), mergedTranscriptText, RUNPOD_API_KEY!, 2048).catch((e) => {
-             console.warn('Jais meta enrichment failed (non-blocking):', e instanceof Error ? e.message : String(e));
-             return { content: null } as { content: string | null };
-           }))
+         ? (console.log('Jais meta enrichment: FIRING via RunPod (45s race)...'),
+            Promise.race([
+              callRunPodModel(RUNPOD_JAIS_ENDPOINT, 'inceptionai/Jais-2-8B-Chat', getMetaSystemPrompt(true), mergedTranscriptText, RUNPOD_API_KEY!, 2048).catch((e) => {
+                console.warn('Jais meta enrichment failed (non-blocking):', e instanceof Error ? e.message : String(e));
+                return { content: null } as { content: string | null };
+              }),
+              new Promise<{ content: string | null }>(resolve => setTimeout(() => {
+                console.warn('RunPod Jais: timed out at 45s, skipping');
+                resolve({ content: null });
+              }, 45_000)),
+            ]))
          : (console.log('Jais meta enrichment: SKIPPED (no RUNPOD_API_KEY)'),
             Promise.resolve({ content: null } as { content: string | null })),
-       // Falcon H1 meta enrichment via RunPod — runs in parallel for vocab/grammar/cultural context.
-       // Previously Falcon only fired as a 3rd-level translation fallback (after Gemini+Qwen),
-       // meaning it almost never ran. Now it contributes meta enrichment alongside Jais.
+       // Falcon H1 meta enrichment via RunPod — wrapped in 45s Promise.race
        falconAvailable
-         ? (console.log('Falcon meta enrichment: FIRING via RunPod...'),
-            callRunPodModel(RUNPOD_FALCON_ENDPOINT, 'tiiuae/Falcon-H1R-7B', getMetaSystemPrompt(true), mergedTranscriptText, RUNPOD_API_KEY!, 2048).catch((e) => {
-             console.warn('Falcon meta enrichment failed (non-blocking):', e instanceof Error ? e.message : String(e));
-             return { content: null } as { content: string | null };
-           }))
+         ? (console.log('Falcon meta enrichment: FIRING via RunPod (45s race)...'),
+            Promise.race([
+              callRunPodModel(RUNPOD_FALCON_ENDPOINT, 'tiiuae/Falcon-H1R-7B', getMetaSystemPrompt(true), mergedTranscriptText, RUNPOD_API_KEY!, 2048).catch((e) => {
+                console.warn('Falcon meta enrichment failed (non-blocking):', e instanceof Error ? e.message : String(e));
+                return { content: null } as { content: string | null };
+              }),
+              new Promise<{ content: string | null }>(resolve => setTimeout(() => {
+                console.warn('RunPod Falcon: timed out at 45s, skipping');
+                resolve({ content: null });
+              }, 45_000)),
+            ]))
          : (console.log('Falcon meta enrichment: SKIPPED (no RUNPOD_API_KEY)'),
             Promise.resolve({ content: null } as { content: string | null })),
        // CAMeL-Lab BERT dialect ID — validates/confirms the LLM-detected dialect.
@@ -1404,20 +1414,26 @@ serve(async (req) => {
        }
      }
 
-     // --- Fallback: Falcon via RunPod if both Gemini and Qwen failed ---
+     // --- Fallback: Falcon via RunPod if both Gemini and Qwen failed (45s race) ---
      if ((!translationAi?.translations || translationAi.translations.length === 0) && falconAvailable) {
-       console.log('Qwen translation failed or empty, falling back to Falcon via RunPod for translation...');
-       const falconTransResp = await callRunPodModel(
-         RUNPOD_FALCON_ENDPOINT,
-         'tiiuae/Falcon-H1R-7B',
-         getTranslationSystemPrompt(detectedDialect, visualContext),
-         mergedTranscriptText,
-         RUNPOD_API_KEY!,
-         4096,
-       ).catch((e) => {
-         console.warn('Falcon RunPod translation fallback failed (non-blocking):', e);
-         return { content: null };
-       });
+       console.log('Qwen translation failed or empty, falling back to Falcon via RunPod for translation (45s race)...');
+       const falconTransResp = await Promise.race([
+         callRunPodModel(
+           RUNPOD_FALCON_ENDPOINT,
+           'tiiuae/Falcon-H1R-7B',
+           getTranslationSystemPrompt(detectedDialect, visualContext),
+           mergedTranscriptText,
+           RUNPOD_API_KEY!,
+           4096,
+         ).catch((e) => {
+           console.warn('Falcon RunPod translation fallback failed (non-blocking):', e);
+           return { content: null };
+         }),
+         new Promise<{ content: string | null }>(resolve => setTimeout(() => {
+           console.warn('RunPod Falcon translation fallback: timed out at 45s');
+           resolve({ content: null });
+         }, 45_000)),
+       ]);
        if (falconTransResp.content) {
          translationAi = safeJsonParse<TranslationAI>(falconTransResp.content);
          if (translationAi?.translations) {

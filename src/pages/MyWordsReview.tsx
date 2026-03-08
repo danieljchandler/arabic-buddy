@@ -225,6 +225,11 @@ const MyWordsReview = () => {
               )}
             </div>
 
+            {/* Pronunciation practice */}
+            <div className="mb-6">
+              <PronunciationButton word={currentWord.word_arabic} />
+            </div>
+
             {/* Optional reveal English */}
             {showAnswer && (
               <div className="animate-in fade-in duration-200 mb-4">

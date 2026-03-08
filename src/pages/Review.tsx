@@ -216,7 +216,10 @@ const Review = () => {
               showAnswer={true}
               onReveal={() => {}}
             />
-            <div className="mt-8 text-center">
+            <div className="mt-6 mb-4">
+              <PronunciationButton word={currentWord.word_arabic} />
+            </div>
+            <div className="mt-4 text-center">
               <p className="text-sm text-muted-foreground mb-4">
                 Take a moment to learn this word, then continue.
               </p>

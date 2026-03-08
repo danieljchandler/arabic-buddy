@@ -592,8 +592,10 @@ interface TranscriptLineCardProps {
                      onSaveToMyWords={onSaveToMyWords}
                      isSavedToMyWords={savedWords?.has(token.surface)}
                      isInVocabSection={vocabSectionWords?.has(token.surface)}
-                     onTokenClick={handleTokenClick}
-                     compoundOpen={isThisCompoundAnchor ? true : undefined}
+                      onTokenClick={handleTokenClick}
+                      forceSingleOpen={singlePopoverIdx === index}
+                      onForceSingleOpenChange={(open) => { if (!open) setSinglePopoverIdx(null); }}
+                      compoundOpen={isThisCompoundAnchor ? true : undefined}
                      compoundGloss={compoundGloss}
                      compoundSurface={compoundSurface}
                      isLoadingCompound={isLoadingCompound}

@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, Search, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDuration } from "@/lib/videoEmbed";
+import { ContentRequestBar } from "@/components/discover/ContentRequestBar";
 import {
   Select,
   SelectContent,
@@ -54,6 +55,11 @@ const Discover = () => {
       <p className="text-sm text-muted-foreground mb-6">
         Watch Arabic videos with synced subtitles and translations
       </p>
+
+      {/* Content request bar */}
+      <div className="mb-6">
+        <ContentRequestBar />
+      </div>
 
       {/* Filters */}
       <div className="space-y-3 mb-6">

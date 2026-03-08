@@ -38,6 +38,30 @@ export type Database = {
         }
         Relationships: []
       }
+      content_requests: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          request_type: string
+          user_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          request_type?: string
+          user_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          request_type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       discover_videos: {
         Row: {
           created_at: string

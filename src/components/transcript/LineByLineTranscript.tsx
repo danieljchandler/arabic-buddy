@@ -372,13 +372,14 @@ interface TranscriptLineCardProps {
    const [selectedIndices, setSelectedIndices] = useState<number[]>([]);
    const [compoundPopoverIdx, setCompoundPopoverIdx] = useState<number | null>(null);
    const [singlePopoverIdx, setSinglePopoverIdx] = useState<number | null>(null);
-   const [liveCompound, setLiveCompound] = useState<{
-     firstIdx: number;
-     surface: string;
-     wordCount: number;
-     translation: string | null;
-     loading: boolean;
-   } | null>(null);
+    const [liveCompound, setLiveCompound] = useState<{
+      firstIdx: number;
+      surface: string;
+      wordCount: number;
+      translation: string | null;
+      msa: string | null;
+      loading: boolean;
+    } | null>(null);
    const selectionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
    // Lookup compound gloss for a range [firstIdx, lastIdx] (inclusive).

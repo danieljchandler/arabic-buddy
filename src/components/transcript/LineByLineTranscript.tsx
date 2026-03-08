@@ -31,6 +31,8 @@ interface InlineTokenProps {
   isSavedToMyWords?: boolean;
   isInVocabSection?: boolean;
   onTokenClick?: (token: WordToken) => void;
+  forceSingleOpen?: boolean;
+  onForceSingleOpenChange?: (open: boolean) => void;
   // compound popover
   compoundOpen?: boolean;
   compoundGloss?: string;
@@ -53,6 +55,8 @@ const InlineToken = ({
   isSavedToMyWords,
   isInVocabSection,
   onTokenClick,
+  forceSingleOpen,
+  onForceSingleOpenChange,
   compoundOpen,
   compoundGloss,
   compoundSurface,
@@ -68,6 +72,15 @@ const InlineToken = ({
   const [isTranslating, setIsTranslating] = useState(false);
   const hasGloss = !!token.gloss;
   const displayGloss = token.gloss || liveTranslation;
+  
+  // Merge forceSingleOpen from parent with local state
+  const effectiveOpen = singleOpen || (forceSingleOpen ?? false);
+  const setEffectiveOpen = (open: boolean) => {
+    setSingleOpen(open);
+    if (!open && forceSingleOpen) {
+      onForceSingleOpenChange?.(false);
+    }
+  };
   
   const vocabItem: VocabItem = {
     arabic: token.surface,
@@ -97,10 +110,10 @@ const InlineToken = ({
 
   // Auto-translate when single popover opens and no gloss
   useEffect(() => {
-    if (singleOpen && !hasGloss && !liveTranslation && !isTranslating) {
+    if (effectiveOpen && !hasGloss && !liveTranslation && !isTranslating) {
       handleTranslateSingle();
     }
-  }, [singleOpen, hasGloss, liveTranslation, isTranslating, handleTranslateSingle]);
+  }, [effectiveOpen, hasGloss, liveTranslation, isTranslating, handleTranslateSingle]);
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -192,7 +205,7 @@ const InlineToken = ({
 
   // Normal single-word popover
   return (
-    <Popover open={singleOpen} onOpenChange={setSingleOpen}>
+    <Popover open={effectiveOpen} onOpenChange={setEffectiveOpen}>
       <PopoverTrigger asChild>
         <span
           className={cn(
@@ -265,7 +278,7 @@ const InlineToken = ({
                 className="w-full justify-start gap-2"
                 onClick={() => {
                   onAddToVocabSection(vocabItem);
-                  setSingleOpen(false);
+                   setEffectiveOpen(false);
                 }}
                 disabled={isInVocabSection}
               >
@@ -290,7 +303,7 @@ const InlineToken = ({
                 className="w-full justify-start gap-2"
                 onClick={() => {
                   onSaveToMyWords(vocabItem);
-                  setSingleOpen(false);
+                  setEffectiveOpen(false);
                 }}
                 disabled={isSavedToMyWords}
               >
@@ -345,6 +358,7 @@ interface TranscriptLineCardProps {
  }: TranscriptLineCardProps) => {
    const [selectedIndices, setSelectedIndices] = useState<number[]>([]);
    const [compoundPopoverIdx, setCompoundPopoverIdx] = useState<number | null>(null);
+   const [singlePopoverIdx, setSinglePopoverIdx] = useState<number | null>(null);
    const [liveCompound, setLiveCompound] = useState<{
      firstIdx: number;
      surface: string;
@@ -386,14 +400,18 @@ interface TranscriptLineCardProps {
 
      if (selectionTimerRef.current) clearTimeout(selectionTimerRef.current);
 
-     if (selectedIndices.length === 0) {
-       // First tap — select this token, close any existing compound popup, auto-clear after 3s
-       setCompoundPopoverIdx(null);
-       setLiveCompound(null);
-       setSelectedIndices([idx]);
-       selectionTimerRef.current = setTimeout(() => setSelectedIndices([]), 3000);
-       return;
-     }
+      if (selectedIndices.length === 0) {
+        // First tap — select this token, close any existing popups, auto-open single popover after 1.5s if no second tap
+        setCompoundPopoverIdx(null);
+        setLiveCompound(null);
+        setSinglePopoverIdx(null);
+        setSelectedIndices([idx]);
+        selectionTimerRef.current = setTimeout(() => {
+          setSelectedIndices([]);
+          setSinglePopoverIdx(idx);
+        }, 1500);
+        return;
+      }
 
      const minSel = Math.min(...selectedIndices);
      const maxSel = Math.max(...selectedIndices);
@@ -408,10 +426,11 @@ interface TranscriptLineCardProps {
      const isAdjacentLeft = idx === minSel - 1;
      const isAdjacentRight = idx === maxSel + 1;
 
-     if (!isAdjacentLeft && !isAdjacentRight) {
-       // Not adjacent — start fresh selection
-       setCompoundPopoverIdx(null);
-       setLiveCompound(null);
+      if (!isAdjacentLeft && !isAdjacentRight) {
+        // Not adjacent — start fresh selection
+        setCompoundPopoverIdx(null);
+        setLiveCompound(null);
+        setSinglePopoverIdx(null);
        setSelectedIndices([idx]);
        selectionTimerRef.current = setTimeout(() => setSelectedIndices([]), 3000);
        return;
@@ -428,10 +447,11 @@ interface TranscriptLineCardProps {
        return;
      }
 
-     // Commit the selection — always show compound popup
-     const preComputedGloss = getCompoundGloss(newMin, newMax);
-     setCompoundPopoverIdx(newMin);
-     setSelectedIndices([]);
+      // Commit the selection — always show compound popup
+      const preComputedGloss = getCompoundGloss(newMin, newMax);
+      setCompoundPopoverIdx(newMin);
+      setSinglePopoverIdx(null);
+      setSelectedIndices([]);
 
      if (preComputedGloss) {
        // Pre-computed compound — clear any live lookup
@@ -574,8 +594,10 @@ interface TranscriptLineCardProps {
                      onSaveToMyWords={onSaveToMyWords}
                      isSavedToMyWords={savedWords?.has(token.surface)}
                      isInVocabSection={vocabSectionWords?.has(token.surface)}
-                     onTokenClick={handleTokenClick}
-                     compoundOpen={isThisCompoundAnchor ? true : undefined}
+                      onTokenClick={handleTokenClick}
+                      forceSingleOpen={singlePopoverIdx === index}
+                      onForceSingleOpenChange={(open) => { if (!open) setSinglePopoverIdx(null); }}
+                      compoundOpen={isThisCompoundAnchor ? true : undefined}
                      compoundGloss={compoundGloss}
                      compoundSurface={compoundSurface}
                      isLoadingCompound={isLoadingCompound}

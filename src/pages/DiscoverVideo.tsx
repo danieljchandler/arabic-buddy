@@ -197,7 +197,7 @@ const DiscoverVideo = () => {
   const { videoId } = useParams<{ videoId: string }>();
   const navigate = useNavigate();
   const { data: video, isLoading } = useDiscoverVideo(videoId);
-  const { isAuthenticated } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const addUserVocabulary = useAddUserVocabulary();
 
   const [currentTimeMs, setCurrentTimeMs] = useState(0);

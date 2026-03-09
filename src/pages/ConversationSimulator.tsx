@@ -149,6 +149,20 @@ const ConversationSimulator = () => {
     }
   }, [messages]);
 
+  // Auto-play new assistant messages
+  useEffect(() => {
+    if (pendingAutoPlayRef.current && messages.length > 0) {
+      const lastMessage = messages[messages.length - 1];
+      if (lastMessage.role === "assistant" && lastMessage.content === pendingAutoPlayRef.current) {
+        pendingAutoPlayRef.current = null;
+        // Small delay to ensure UI is updated
+        setTimeout(() => {
+          speakText(lastMessage.content, messages.length - 1);
+        }, 300);
+      }
+    }
+  }, [messages]);
+
   const startScenario = useCallback(async (scenario: Scenario) => {
     setSelectedScenario(scenario);
     setMessages([]);

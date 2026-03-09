@@ -490,6 +490,33 @@ const Index = () => {
           </button>
         </div>
 
+        {/* Grammar Drills */}
+        <div className="pt-4">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1 mb-2">
+            Grammar
+          </p>
+          <button
+            onClick={() => navigate("/grammar")}
+            className={cn(
+              "w-full p-4 rounded-xl",
+              "bg-gradient-to-r from-violet-500/10 to-purple-500/10 border border-violet-500/20",
+              "flex items-center gap-3",
+              "transition-all duration-200",
+              "hover:border-violet-500/40 active:scale-[0.98]"
+            )}
+          >
+            <div className="w-10 h-10 rounded-lg bg-violet-500/10 flex items-center justify-center shrink-0">
+              <PenTool className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+            </div>
+            <div className="text-left">
+              <p className="font-semibold text-foreground">Grammar Drills</p>
+              <p className="text-xs text-muted-foreground">
+                AI-powered conjugation, pronouns & more
+              </p>
+            </div>
+          </button>
+        </div>
+
         {/* Listening Practice */}
         <div className="pt-4">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1 mb-2">

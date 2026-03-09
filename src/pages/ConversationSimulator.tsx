@@ -85,8 +85,25 @@ const ConversationSimulator = () => {
   const [input, setInput] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState<number | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // ElevenLabs realtime speech-to-text
+  const scribe = useScribe({
+    modelId: "scribe_v2_realtime",
+    commitStrategy: "vad",
+    onPartialTranscript: (data) => {
+      if (data.text) {
+        setInput(data.text);
+      }
+    },
+    onCommittedTranscript: (data) => {
+      if (data.text) {
+        setInput(data.text);
+      }
+    },
+  });
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {

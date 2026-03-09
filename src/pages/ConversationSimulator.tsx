@@ -91,8 +91,6 @@ const ConversationSimulator = () => {
 
   // ElevenLabs realtime speech-to-text
   const scribe = useScribe({
-    modelId: "scribe_v2_realtime",
-    commitStrategy: "vad",
     onPartialTranscript: (data) => {
       if (data.text) {
         setInput(data.text);

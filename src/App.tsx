@@ -177,6 +177,11 @@ const App = () => {
                 <DialectCompare />
               </ErrorBoundary>
             } />
+            <Route path="/listening" element={
+              <ErrorBoundary name="ListeningRoute">
+                <ListeningPractice />
+              </ErrorBoundary>
+            } />
 
             {/* Admin routes */}
             <Route path="/admin/login" element={<AdminLogin />} />

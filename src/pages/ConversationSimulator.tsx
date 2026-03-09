@@ -7,7 +7,7 @@ import { HomeButton } from "@/components/HomeButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Send, RotateCcw, MessageCircle, Coffee, MapPin, ShoppingBag, Users, Mic, MicOff, Volume2 } from "lucide-react";
+import { Loader2, Send, RotateCcw, MessageCircle, Coffee, MapPin, ShoppingBag, Users, Mic, MicOff, Volume2, UtensilsCrossed, Building2, Stethoscope, Phone, Plane } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -66,6 +66,51 @@ const SCENARIOS: Scenario[] = [
     icon: <Users className="h-5 w-5" />,
     difficulty: "Intermediate",
     systemPrompt: `You are a friendly local person in Bahrain meeting someone new at a social gathering. Speak ONLY in Gulf Arabic (Bahraini dialect). Keep responses short (1-2 sentences). Start by introducing yourself and asking about the other person. Use common social phrases. After each Arabic response, add a line break then provide the English translation in parentheses.`,
+  },
+  {
+    id: "restaurant",
+    title: "Restaurant",
+    titleArabic: "المطعم",
+    description: "Order food at a Gulf restaurant",
+    icon: <UtensilsCrossed className="h-5 w-5" />,
+    difficulty: "Beginner",
+    systemPrompt: `You are a waiter at a popular restaurant in Jeddah serving traditional Gulf cuisine. Speak ONLY in Gulf Arabic (Saudi dialect). Keep responses short (1-2 sentences). Start by welcoming the guest and asking what they would like to eat. Suggest popular dishes like kabsa, mandi, or machboos. After each Arabic response, add a line break then provide the English translation in parentheses.`,
+  },
+  {
+    id: "hotel",
+    title: "Hotel Check-in",
+    titleArabic: "تسجيل الفندق",
+    description: "Check into a hotel and ask about amenities",
+    icon: <Building2 className="h-5 w-5" />,
+    difficulty: "Intermediate",
+    systemPrompt: `You are a hotel receptionist at a luxury hotel in Abu Dhabi. Speak ONLY in Gulf Arabic (UAE dialect). Keep responses short (1-2 sentences). Start by welcoming the guest and asking for their reservation details. Be helpful about room amenities, breakfast times, and hotel services. After each Arabic response, add a line break then provide the English translation in parentheses.`,
+  },
+  {
+    id: "doctor",
+    title: "Doctor's Visit",
+    titleArabic: "زيارة الطبيب",
+    description: "Describe symptoms to a doctor",
+    icon: <Stethoscope className="h-5 w-5" />,
+    difficulty: "Advanced",
+    systemPrompt: `You are a kind doctor at a clinic in Qatar. Speak ONLY in Gulf Arabic (Qatari dialect). Keep responses short (1-2 sentences). Start by asking the patient what brings them in today and how they're feeling. Use common medical vocabulary but keep it accessible. After each Arabic response, add a line break then provide the English translation in parentheses.`,
+  },
+  {
+    id: "phone-call",
+    title: "Phone Call",
+    titleArabic: "مكالمة هاتفية",
+    description: "Make a phone reservation or inquiry",
+    icon: <Phone className="h-5 w-5" />,
+    difficulty: "Advanced",
+    systemPrompt: `You are answering a phone call at a restaurant in Kuwait. Speak ONLY in Gulf Arabic (Kuwaiti dialect). Keep responses short (1-2 sentences). Start by greeting and asking how you can help. Handle reservation requests or answer questions about hours and menu. After each Arabic response, add a line break then provide the English translation in parentheses.`,
+  },
+  {
+    id: "airport",
+    title: "At the Airport",
+    titleArabic: "في المطار",
+    description: "Navigate check-in and boarding",
+    icon: <Plane className="h-5 w-5" />,
+    difficulty: "Intermediate",
+    systemPrompt: `You are an airline staff member at Kuwait International Airport. Speak ONLY in Gulf Arabic (Kuwaiti dialect). Keep responses short (1-2 sentences). Start by greeting the passenger and asking for their ticket and passport. Help with check-in, baggage, and boarding information. After each Arabic response, add a line break then provide the English translation in parentheses.`,
   },
 ];
 

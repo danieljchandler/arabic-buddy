@@ -103,6 +103,43 @@ const ConversationSimulator = () => {
     },
   });
 
+  // Voice recording toggle
+  const toggleRecording = useCallback(async () => {
+    if (scribe.isConnected) {
+      scribe.disconnect();
+      setIsRecording(false);
+    } else {
+      try {
+        // Request microphone permission
+        await navigator.mediaDevices.getUserMedia({ audio: true });
+        
+        // Get token from edge function
+        const { data, error } = await supabase.functions.invoke("elevenlabs-scribe-token");
+        
+        if (error || !data?.token) {
+          throw new Error("Failed to get speech recognition token");
+        }
+
+        // Start the transcription session
+        await scribe.connect({
+          token: data.token,
+          microphone: {
+            echoCancellation: true,
+            noiseSuppression: true,
+          },
+        });
+        setIsRecording(true);
+      } catch (err) {
+        console.error("Voice recording error:", err);
+        toast({
+          title: "Voice input unavailable",
+          description: "Could not start voice recording. Please type instead.",
+          variant: "destructive",
+        });
+      }
+    }
+  }, [scribe, toast]);
+
   // Auto-scroll to bottom on new messages
   useEffect(() => {
     if (scrollRef.current) {

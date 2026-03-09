@@ -379,6 +379,44 @@ const ConversationSimulator = () => {
     );
   }
 
+  // Fetch DB scenarios and merge with hardcoded
+  const { data: dbScenarios } = useQuery({
+    queryKey: ['conversation-scenarios'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('conversation_scenarios' as any)
+        .select('*')
+        .eq('status', 'published');
+      return (data || []) as any[];
+    },
+  });
+
+  const ICON_MAP: Record<string, React.ReactNode> = {
+    Coffee: <Coffee className="h-5 w-5" />,
+    MapPin: <MapPin className="h-5 w-5" />,
+    ShoppingBag: <ShoppingBag className="h-5 w-5" />,
+    Users: <Users className="h-5 w-5" />,
+    UtensilsCrossed: <UtensilsCrossed className="h-5 w-5" />,
+    Building2: <Building2 className="h-5 w-5" />,
+    Stethoscope: <Stethoscope className="h-5 w-5" />,
+    Phone: <Phone className="h-5 w-5" />,
+    Plane: <Plane className="h-5 w-5" />,
+    MessageCircle: <MessageCircle className="h-5 w-5" />,
+  };
+
+  const allScenarios: Scenario[] = [
+    ...(dbScenarios || []).map((s: any) => ({
+      id: s.id,
+      title: s.title,
+      titleArabic: s.title_arabic,
+      description: s.description,
+      icon: ICON_MAP[s.icon_name] || <MessageCircle className="h-5 w-5" />,
+      systemPrompt: s.system_prompt,
+      difficulty: s.difficulty as "Beginner" | "Intermediate" | "Advanced",
+    })),
+    ...SCENARIOS,
+  ];
+
   // Scenario selection screen
   if (!selectedScenario) {
     return (
@@ -394,7 +432,7 @@ const ConversationSimulator = () => {
           </div>
 
           <div className="grid gap-3">
-            {SCENARIOS.map((scenario) => (
+            {allScenarios.map((scenario) => (
               <button
                 key={scenario.id}
                 onClick={() => startScenario(scenario)}

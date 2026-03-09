@@ -86,8 +86,10 @@ const ConversationSimulator = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState<number | null>(null);
   const [isRecording, setIsRecording] = useState(false);
+  const [autoPlay, setAutoPlay] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const pendingAutoPlayRef = useRef<string | null>(null);
 
   // ElevenLabs realtime speech-to-text
   const scribe = useScribe({
@@ -147,6 +149,20 @@ const ConversationSimulator = () => {
     }
   }, [messages]);
 
+  // Auto-play new assistant messages
+  useEffect(() => {
+    if (pendingAutoPlayRef.current && messages.length > 0) {
+      const lastMessage = messages[messages.length - 1];
+      if (lastMessage.role === "assistant" && lastMessage.content === pendingAutoPlayRef.current) {
+        pendingAutoPlayRef.current = null;
+        // Small delay to ensure UI is updated
+        setTimeout(() => {
+          speakText(lastMessage.content, messages.length - 1);
+        }, 300);
+      }
+    }
+  }, [messages]);
+
   const startScenario = useCallback(async (scenario: Scenario) => {
     setSelectedScenario(scenario);
     setMessages([]);
@@ -166,6 +182,10 @@ const ConversationSimulator = () => {
 
       const reply = data?.reply || data?.content || "";
       setMessages([{ role: "assistant", content: reply }]);
+      // Queue auto-play for the first message
+      if (autoPlay) {
+        pendingAutoPlayRef.current = reply;
+      }
     } catch (err) {
       toast({
         title: "Error",
@@ -203,6 +223,10 @@ const ConversationSimulator = () => {
 
       const reply = data?.reply || data?.content || "";
       setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
+      // Queue auto-play
+      if (autoPlay) {
+        pendingAutoPlayRef.current = reply;
+      }
     } catch (err) {
       toast({
         title: "Error",
@@ -363,6 +387,19 @@ const ConversationSimulator = () => {
       <div className="mb-4 flex items-center justify-between">
         <HomeButton />
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setAutoPlay(!autoPlay)}
+            className={cn(
+              "flex items-center gap-1 px-2 py-1 rounded-md text-xs transition-colors",
+              autoPlay 
+                ? "bg-primary/10 text-primary" 
+                : "bg-muted text-muted-foreground"
+            )}
+            title={autoPlay ? "Auto-play is on" : "Auto-play is off"}
+          >
+            <Volume2 className="h-3 w-3" />
+            {autoPlay ? "Auto" : "Manual"}
+          </button>
           <Badge variant="outline">{selectedScenario.title}</Badge>
           <Button variant="ghost" size="sm" onClick={resetConversation}>
             <RotateCcw className="h-4 w-4" />

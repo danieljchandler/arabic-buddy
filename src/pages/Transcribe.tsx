@@ -413,6 +413,21 @@ const Transcribe = () => {
       });
 
       if (error) throw new Error(error.message);
+      
+      // Check if we got cached transcription data
+      if (data?.cached && data?.transcriptionData) {
+        toast.success("Using cached transcription!", {
+          description: `Processed ${data.cacheAge ? Math.floor(data.cacheAge) : '?'} days ago • ${data.processingEngines?.length || 0} engines`,
+          duration: 5000,
+        });
+        
+        // Set the cached result directly
+        const cached = normalizeTranscriptResult(data.transcriptionData);
+        setTranscriptResult(cached);
+        setIsLoadingUrl(false);
+        return;
+      }
+      
       if (!data?.audioBase64) throw new Error("No audio file found");
 
       // Convert base64 to File

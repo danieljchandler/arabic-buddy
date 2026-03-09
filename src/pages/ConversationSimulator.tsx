@@ -342,11 +342,26 @@ const ConversationSimulator = () => {
                 </p>
                 {msg.role === "assistant" && (
                   <button
-                    onClick={() => speakText(msg.content)}
-                    className="mt-2 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                    onClick={() => speakText(msg.content, i)}
+                    disabled={isSpeaking !== null}
+                    className={cn(
+                      "mt-2 flex items-center gap-1 text-xs transition-colors",
+                      isSpeaking === i 
+                        ? "text-primary" 
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
                   >
-                    <Volume2 className="h-3 w-3" />
-                    Listen
+                    {isSpeaking === i ? (
+                      <>
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        Speaking...
+                      </>
+                    ) : (
+                      <>
+                        <Volume2 className="h-3 w-3" />
+                        Listen
+                      </>
+                    )}
                   </button>
                 )}
               </div>

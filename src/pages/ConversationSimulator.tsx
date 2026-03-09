@@ -99,7 +99,7 @@ const ConversationSimulator = () => {
     setIsGenerating(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke("how-do-i-say", {
+      const { data, error } = await supabase.functions.invoke("conversation-practice", {
         body: {
           messages: [
             { role: "system", content: scenario.systemPrompt },

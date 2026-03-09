@@ -287,3 +287,107 @@ export function useIncrementReviews() {
     },
   });
 }
+
+// Check and award achievements based on user progress
+export function useCheckAchievements() {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async () => {
+      if (!user) return [];
+
+      // Get all achievements and user's earned ones
+      const [{ data: achievements }, { data: userAchievements }, { data: streak }, { data: weeklyGoal }] = await Promise.all([
+        supabase.from("achievements").select("*"),
+        supabase.from("user_achievements").select("achievement_id").eq("user_id", user.id),
+        supabase.from("review_streaks").select("*").eq("user_id", user.id).maybeSingle(),
+        supabase.from("weekly_goals").select("*").eq("user_id", user.id).order("week_start_date", { ascending: false }).limit(1).maybeSingle(),
+      ]);
+
+      if (!achievements) return [];
+
+      const earnedIds = new Set(userAchievements?.map(ua => ua.achievement_id) || []);
+      const newlyEarned: Achievement[] = [];
+
+      // Get user stats
+      const { count: totalReviews } = await supabase
+        .from("word_reviews")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id);
+
+      const { count: wordsLearned } = await supabase
+        .from("word_reviews")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .gte("repetitions", 1);
+
+      const currentStreak = streak?.current_streak || 0;
+      const completedReviews = weeklyGoal?.completed_reviews || 0;
+
+      // Check each achievement
+      for (const achievement of achievements) {
+        if (earnedIds.has(achievement.id)) continue;
+
+        let earned = false;
+        const value = achievement.requirement_value || 0;
+
+        switch (achievement.requirement_type) {
+          case "reviews_completed":
+            earned = (totalReviews || 0) >= value;
+            break;
+          case "words_learned":
+            earned = (wordsLearned || 0) >= value;
+            break;
+          case "streak_days":
+            earned = currentStreak >= value;
+            break;
+          default:
+            break;
+        }
+
+        if (earned) {
+          const { error } = await supabase
+            .from("user_achievements")
+            .insert({ user_id: user.id, achievement_id: achievement.id });
+
+          if (!error) {
+            newlyEarned.push(achievement as Achievement);
+            
+            // Award XP for achievement
+            const { data: currentXP } = await supabase
+              .from("user_xp")
+              .select("total_xp")
+              .eq("user_id", user.id)
+              .single();
+
+            await supabase
+              .from("user_xp")
+              .upsert({
+                user_id: user.id,
+                total_xp: (currentXP?.total_xp || 0) + achievement.xp_reward,
+                level: calculateLevel((currentXP?.total_xp || 0) + achievement.xp_reward),
+              }, { onConflict: "user_id" });
+          }
+        }
+      }
+
+      return newlyEarned;
+    },
+    onSuccess: (newlyEarned) => {
+      if (newlyEarned.length > 0) {
+        queryClient.invalidateQueries({ queryKey: ["user-achievements"] });
+        queryClient.invalidateQueries({ queryKey: ["user-xp"] });
+
+        // Show toast for each new achievement
+        newlyEarned.forEach((achievement) => {
+          toast({
+            title: `${achievement.icon} Achievement Unlocked!`,
+            description: `${achievement.name} — +${achievement.xp_reward} XP`,
+          });
+        });
+      }
+    },
+  });
+}

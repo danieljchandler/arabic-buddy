@@ -62,3 +62,6 @@ verify_jwt = false
 
 [functions.translate-phrase]
 verify_jwt = false
+
+[functions.resolve-tiktok-url]
+verify_jwt = false

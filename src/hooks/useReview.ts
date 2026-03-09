@@ -139,6 +139,7 @@ export const useSubmitReview = () => {
   const queryClient = useQueryClient();
   const addXP = useAddXP();
   const incrementReviews = useIncrementReviews();
+  const checkAchievements = useCheckAchievements();
 
   return useMutation({
     mutationFn: async ({ 

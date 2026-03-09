@@ -171,7 +171,7 @@ export function useCreateBattle() {
           question_count: params.questionCount || 10,
           time_limit_seconds: params.timeLimitSeconds || 60,
           status: 'pending',
-        })
+        } as any)
         .select()
         .single();
 

@@ -26,6 +26,7 @@ import {
   Challenge,
 } from "@/hooks/useSocial";
 import { useLikedVideos } from "@/hooks/useVideoLikes";
+import { useCreateBattle } from "@/hooks/useVocabBattles";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {

@@ -137,6 +137,18 @@ const ConversationSimulator = () => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const pendingAutoPlayRef = useRef<string | null>(null);
 
+  // Fetch DB scenarios — must be declared here before any conditional returns (Rules of Hooks)
+  const { data: dbScenarios } = useQuery({
+    queryKey: ['conversation-scenarios'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('conversation_scenarios' as any)
+        .select('*')
+        .eq('status', 'published');
+      return (data || []) as any[];
+    },
+  });
+
   // ElevenLabs realtime speech-to-text
   const scribe = useScribe({
     onPartialTranscript: (data) => {
@@ -378,18 +390,6 @@ const ConversationSimulator = () => {
       </AppShell>
     );
   }
-
-  // Fetch DB scenarios and merge with hardcoded
-  const { data: dbScenarios } = useQuery({
-    queryKey: ['conversation-scenarios'],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from('conversation_scenarios' as any)
-        .select('*')
-        .eq('status', 'published');
-      return (data || []) as any[];
-    },
-  });
 
   const ICON_MAP: Record<string, React.ReactNode> = {
     Coffee: <Coffee className="h-5 w-5" />,

@@ -1,5 +1,7 @@
 import { useNavigate } from "react-router-dom";
+import { useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 import { useReviewStats } from "@/hooks/useReview";
 import { useUserVocabularyDueCount } from "@/hooks/useUserVocabulary";
 import { useDiscoverVideos } from "@/hooks/useDiscoverVideos";
@@ -108,6 +110,21 @@ const Index = () => {
   const previewVideos = discoverVideos?.slice(0, 5) ?? [];
   const previewVideo = previewVideos[previewIndex];
 
+  // Check onboarding status for authenticated users
+  useEffect(() => {
+    if (!isAuthenticated || authLoading || !user) return;
+    const checkOnboarding = async () => {
+      const { data } = await supabase
+        .from('profiles' as any)
+        .select('onboarding_completed')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (data && !(data as any).onboarding_completed) {
+        navigate('/onboarding');
+      }
+    };
+    checkOnboarding();
+  }, [isAuthenticated, authLoading, user, navigate]);
   const handleSignOut = async () => {
     await signOut();
   };

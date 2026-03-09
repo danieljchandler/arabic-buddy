@@ -411,9 +411,6 @@ const CreateChallengeDialog = ({
   const [targetXp, setTargetXp] = useState(100);
   const [durationDays, setDurationDays] = useState(7);
   const createChallenge = useCreateChallenge();
-
-  // Import vocab battle hook
-  const { useCreateBattle } = require('@/hooks/useVocabBattles');
   const createBattle = useCreateBattle();
 
   const handleCreate = async () => {

@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { useScribe } from "@elevenlabs/react";
 import { useAuth } from "@/hooks/useAuth";
 import { AppShell } from "@/components/layout/AppShell";
 import { HomeButton } from "@/components/HomeButton";
@@ -136,6 +135,7 @@ const ConversationSimulator = () => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const pendingAutoPlayRef = useRef<string | null>(null);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
 
   // Fetch DB scenarios — must be declared here before any conditional returns (Rules of Hooks)
   const { data: dbScenarios } = useQuery({
@@ -149,56 +149,57 @@ const ConversationSimulator = () => {
     },
   });
 
-  // ElevenLabs realtime speech-to-text
-  const scribe = useScribe({
-    onPartialTranscript: (data) => {
-      if (data.text) {
-        setInput(data.text);
-      }
-    },
-    onCommittedTranscript: (data) => {
-      if (data.text) {
-        setInput(data.text);
-      }
-    },
-  });
-
-  // Voice recording toggle
-  const toggleRecording = useCallback(async () => {
-    if (scribe.isConnected) {
-      scribe.disconnect();
+  // Voice recording toggle using browser Web Speech API
+  const toggleRecording = useCallback(() => {
+    if (isRecording) {
+      recognitionRef.current?.stop();
       setIsRecording(false);
-    } else {
-      try {
-        // Request microphone permission
-        await navigator.mediaDevices.getUserMedia({ audio: true });
-        
-        // Get token from edge function
-        const { data, error } = await supabase.functions.invoke("elevenlabs-scribe-token");
-        
-        if (error || !data?.token) {
-          throw new Error("Failed to get speech recognition token");
-        }
+      return;
+    }
 
-        // Start the transcription session
-        await scribe.connect({
-          token: data.token,
-          microphone: {
-            echoCancellation: true,
-            noiseSuppression: true,
-          },
-        });
-        setIsRecording(true);
-      } catch (err) {
-        console.error("Voice recording error:", err);
+    const SpeechRecognition =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      toast({
+        title: "Voice input not supported",
+        description: "Your browser doesn't support voice input. Please use Chrome or Edge, or type instead.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const recognition: SpeechRecognition = new SpeechRecognition();
+    recognition.lang = "ar";
+    recognition.interimResults = true;
+    recognition.continuous = false;
+
+    recognition.onstart = () => setIsRecording(true);
+
+    recognition.onresult = (event: SpeechRecognitionEvent) => {
+      const transcript = Array.from(event.results)
+        .map((r) => r[0].transcript)
+        .join("");
+      setInput(transcript);
+    };
+
+    recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+      console.error("Speech recognition error:", event.error);
+      setIsRecording(false);
+      if (event.error !== "aborted") {
         toast({
-          title: "Voice input unavailable",
-          description: "Could not start voice recording. Please type instead.",
+          title: "Voice input error",
+          description: "Could not capture audio. Please type instead.",
           variant: "destructive",
         });
       }
-    }
-  }, [scribe, toast]);
+    };
+
+    recognition.onend = () => setIsRecording(false);
+
+    recognitionRef.current = recognition;
+    recognition.start();
+  }, [isRecording, toast]);
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {

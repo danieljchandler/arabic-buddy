@@ -202,6 +202,19 @@ const Index = () => {
               <p className="font-semibold text-foreground text-xs">Leaderboard</p>
             </button>
             <button
+              onClick={() => navigate("/battles")}
+              className={cn(
+                "p-3 rounded-xl",
+                "bg-gradient-to-b from-red-500/10 to-pink-500/10 border border-red-500/20",
+                "flex flex-col items-center gap-1.5",
+                "transition-all duration-200",
+                "hover:border-red-500/40 active:scale-[0.98]"
+              )}
+            >
+              <Swords className="h-5 w-5 text-red-500" />
+              <p className="font-semibold text-foreground text-xs">Battles</p>
+            </button>
+            <button
               onClick={() => navigate("/friends")}
               className={cn(
                 "p-3 rounded-xl",

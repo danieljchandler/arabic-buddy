@@ -160,6 +160,16 @@ const App = () => {
                 <Pricing />
               </ErrorBoundary>
             } />
+            <Route path="/pronunciation" element={
+              <ErrorBoundary name="PronunciationRoute">
+                <PronunciationPractice />
+              </ErrorBoundary>
+            } />
+            <Route path="/conversation" element={
+              <ErrorBoundary name="ConversationRoute">
+                <ConversationSimulator />
+              </ErrorBoundary>
+            } />
 
             {/* Admin routes */}
             <Route path="/admin/login" element={<AdminLogin />} />

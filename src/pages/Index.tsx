@@ -1,6 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
-import { NotificationBell } from "@/components/NotificationBell";
+import { useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useReviewStats } from "@/hooks/useReview";

@@ -201,6 +201,9 @@ export const useSubmitReview = () => {
       
       addXP.mutate({ amount: xpAmounts[rating], reason: 'review' });
       incrementReviews.mutate();
+      
+      // Check for newly earned achievements
+      checkAchievements.mutate();
     },
   });
 };

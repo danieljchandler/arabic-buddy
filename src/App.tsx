@@ -35,6 +35,7 @@ import GrammarDrills from "./pages/GrammarDrills";
 import VocabGames from "./pages/VocabGames";
 import Onboarding from "./pages/Onboarding";
 import Settings from "./pages/Settings";
+import Friends from "./pages/Friends";
 import AdminLogin from "./pages/admin/AdminLogin";
 import AdminLayout from "./pages/admin/AdminLayout";
 import Dashboard from "./pages/admin/Dashboard";

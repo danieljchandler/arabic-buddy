@@ -722,6 +722,7 @@ serve(async (req) => {
               contentType: audioData.contentType,
               size: audioData.size,
               filename: new URL(finalUrl).pathname.split('/').pop() || 'audio.mp4',
+              originalUrl: normalizedUrl,
             }),
             { headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );

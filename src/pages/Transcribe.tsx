@@ -372,6 +372,13 @@ const Transcribe = () => {
     let trimmed = urlInput.trim();
     if (!trimmed) return;
 
+    // Store URL in component state and URL params for caching
+    const searchParams = new URLSearchParams(window.location.search);
+    searchParams.set('url', trimmed);
+    window.history.replaceState({}, '', `${window.location.pathname}?${searchParams}`);
+    let trimmed = urlInput.trim();
+    if (!trimmed) return;
+
     // Auto-prepend https:// if missing
     if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) {
       trimmed = `https://${trimmed}`;

@@ -27,6 +27,7 @@ import PronunciationPractice from "./pages/PronunciationPractice";
 import ConversationSimulator from "./pages/ConversationSimulator";
 import DialectCompare from "./pages/DialectCompare";
 import ListeningPractice from "./pages/ListeningPractice";
+import Leaderboard from "./pages/Leaderboard";
 import AdminLogin from "./pages/admin/AdminLogin";
 import AdminLayout from "./pages/admin/AdminLayout";
 import Dashboard from "./pages/admin/Dashboard";
@@ -180,6 +181,11 @@ const App = () => {
             <Route path="/listening" element={
               <ErrorBoundary name="ListeningRoute">
                 <ListeningPractice />
+              </ErrorBoundary>
+            } />
+            <Route path="/leaderboard" element={
+              <ErrorBoundary name="LeaderboardRoute">
+                <Leaderboard />
               </ErrorBoundary>
             } />
 

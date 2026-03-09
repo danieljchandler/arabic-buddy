@@ -1656,6 +1656,7 @@ serve(async (req) => {
        culturalContext,
        dialectValidation,
        dialect: detectedDialect,
+       difficulty: detectedDifficulty,
        diacritizedTranscript: diacritizedTranscript ?? null,
        camelDialect: camelDialectResult ?? null,
      };

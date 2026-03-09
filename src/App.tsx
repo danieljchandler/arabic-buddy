@@ -22,8 +22,7 @@ import DiscoverVideo from "./pages/DiscoverVideo";
 import LearnFromX from "./pages/LearnFromX";
 import HowDoISay from "./pages/HowDoISay";
 import CultureGuide from "./pages/CultureGuide";
-
-// Admin pages
+import Pricing from "./pages/Pricing";
 import AdminLogin from "./pages/admin/AdminLogin";
 import AdminLayout from "./pages/admin/AdminLayout";
 import Dashboard from "./pages/admin/Dashboard";
@@ -152,6 +151,11 @@ const App = () => {
             <Route path="/culture-guide" element={
               <ErrorBoundary name="CultureGuideRoute">
                 <CultureGuide />
+              </ErrorBoundary>
+            } />
+            <Route path="/pricing" element={
+              <ErrorBoundary name="PricingRoute">
+                <Pricing />
               </ErrorBoundary>
             } />
 

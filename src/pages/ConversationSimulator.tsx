@@ -186,7 +186,13 @@ const ConversationSimulator = () => {
     recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
       console.error("Speech recognition error:", event.error);
       setIsRecording(false);
-      if (event.error !== "aborted") {
+      if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+        toast({
+          title: "Microphone access blocked",
+          description: "Click the lock/info icon in your browser's address bar, set Microphone to 'Allow', then refresh the page.",
+          variant: "destructive",
+        });
+      } else if (event.error !== "aborted") {
         toast({
           title: "Voice input error",
           description: "Could not capture audio. Please type instead.",

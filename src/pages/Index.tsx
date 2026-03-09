@@ -542,6 +542,7 @@ const Index = () => {
               </p>
             </div>
           </button>
+        </div>
 
         {/* Listening Practice */}
         <div className="pt-4">

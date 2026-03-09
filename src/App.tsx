@@ -53,6 +53,8 @@ import Stages from "./pages/admin/Stages";
 import LessonImport from "./pages/admin/LessonImport";
 import LlmLogs from "./pages/admin/LlmLogs";
 import CurriculumBuilder from "./pages/admin/CurriculumBuilder";
+import AdminStories from "./pages/admin/AdminStories";
+import AdminStoryForm from "./pages/admin/AdminStoryForm";
 
 const queryClient = new QueryClient();
 

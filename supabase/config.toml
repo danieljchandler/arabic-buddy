@@ -45,6 +45,9 @@ verify_jwt = false
 [functions.translate-jais]
 verify_jwt = false
 
+[functions.soniox-transcribe]
+verify_jwt = false
+
 [functions.fanar-transcribe]
 verify_jwt = false
 

@@ -573,6 +573,7 @@ const Transcribe = () => {
 
       const sonioxFormData = new FormData();
       sonioxFormData.append("audio", fileClone3);
+      sonioxFormData.append("includeTranslation", "true");
 
       setDebugTrace({ phase: "request:transcribe", at: new Date().toISOString(), details: { name: file.name, size: file.size, type: file.type } });
       

@@ -30,6 +30,7 @@ import ListeningPractice from "./pages/ListeningPractice";
 import Leaderboard from "./pages/Leaderboard";
 import ReadingPractice from "./pages/ReadingPractice";
 import DailyChallenge from "./pages/DailyChallenge";
+import LearningAnalytics from "./pages/LearningAnalytics";
 import AdminLogin from "./pages/admin/AdminLogin";
 import AdminLayout from "./pages/admin/AdminLayout";
 import Dashboard from "./pages/admin/Dashboard";
@@ -200,7 +201,14 @@ const App = () => {
                 <DailyChallenge />
               </ErrorBoundary>
             } />
+            <Route path="/analytics" element={
+              <ErrorBoundary name="AnalyticsRoute">
+                <LearningAnalytics />
+              </ErrorBoundary>
+            } />
 
+            {/* Admin routes */}
+            <Route path="/admin/login" element={<AdminLogin />} />
             <Route path="/admin" element={<ErrorBoundary name="AdminRoute"><AdminLayout /></ErrorBoundary>}>
               <Route index element={<Dashboard />} />
               {/* Curriculum routes */}

@@ -774,6 +774,8 @@ const Transcribe = () => {
           grammarPoints: analysisData.grammarPoints,
           culturalContext: analysisData.culturalContext,
           lines: linesWithTimestamps,
+          dialect: analysisData.dialect,
+          difficulty: analysisData.difficulty,
         } : null);
       }
     } catch (error) {

@@ -260,6 +260,66 @@ export type Database = {
         }
         Relationships: []
       }
+      trending_video_candidates: {
+        Row: {
+          created_at: string | null
+          creator_handle: string | null
+          creator_name: string
+          detected_topic: string | null
+          discovered_at: string | null
+          id: string
+          platform: string
+          processed: boolean | null
+          rejected: boolean | null
+          rejection_reason: string | null
+          thumbnail_url: string | null
+          title: string
+          trending_score: number | null
+          updated_at: string | null
+          url: string
+          video_id: string
+          view_count: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          creator_handle?: string | null
+          creator_name: string
+          detected_topic?: string | null
+          discovered_at?: string | null
+          id?: string
+          platform: string
+          processed?: boolean | null
+          rejected?: boolean | null
+          rejection_reason?: string | null
+          thumbnail_url?: string | null
+          title: string
+          trending_score?: number | null
+          updated_at?: string | null
+          url: string
+          video_id: string
+          view_count?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          creator_handle?: string | null
+          creator_name?: string
+          detected_topic?: string | null
+          discovered_at?: string | null
+          id?: string
+          platform?: string
+          processed?: boolean | null
+          rejected?: boolean | null
+          rejection_reason?: string | null
+          thumbnail_url?: string | null
+          title?: string
+          trending_score?: number | null
+          updated_at?: string | null
+          url?: string
+          video_id?: string
+          view_count?: number | null
+        }
+        Relationships: []
+      }
       tutor_upload_candidates: {
         Row: {
           classification: string | null

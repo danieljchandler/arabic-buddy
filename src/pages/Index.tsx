@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { XPDisplay, StreakDisplay, WeeklyGoalCard, AchievementsGrid } from "@/components/gamification";
 import lahjaLogo from "@/assets/lahja-logo.png";
 import { useState } from "react";
+import { NotificationBell } from "@/components/NotificationBell";
 import { formatDuration } from "@/lib/videoEmbed";
 
 const DiscoverPreviewCard = ({ video, onClick }: { video: any; onClick: () => void }) => {
@@ -153,9 +154,12 @@ const Index = () => {
           ))}
 
           {isAuthenticated && (
-            <Button variant="ghost" size="icon" onClick={() => navigate("/settings")} className="text-muted-foreground hover:text-foreground" title="Settings">
-              <Settings className="h-4 w-4" />
-            </Button>
+            <>
+              <NotificationBell />
+              <Button variant="ghost" size="icon" onClick={() => navigate("/settings")} className="text-muted-foreground hover:text-foreground" title="Settings">
+                <Settings className="h-4 w-4" />
+              </Button>
+            </>
           )}
           <Button variant="ghost" size="icon" onClick={() => navigate("/admin")} className="text-muted-foreground/50 hover:text-muted-foreground" title="Admin">
             <GraduationCap className="h-4 w-4" />

@@ -201,8 +201,12 @@ const App = () => {
                 <DailyChallenge />
               </ErrorBoundary>
             } />
+            <Route path="/analytics" element={
+              <ErrorBoundary name="AnalyticsRoute">
+                <LearningAnalytics />
+              </ErrorBoundary>
+            } />
 
-            <Route path="/admin" element={<ErrorBoundary name="AdminRoute"><AdminLayout /></ErrorBoundary>}>
               <Route index element={<Dashboard />} />
               {/* Curriculum routes */}
               <Route path="curriculum" element={<Stages />} />

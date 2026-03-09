@@ -84,7 +84,9 @@ const ConversationSimulator = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {

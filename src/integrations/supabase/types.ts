@@ -101,6 +101,57 @@ export type Database = {
         }
         Relationships: []
       }
+      conversation_scenarios: {
+        Row: {
+          created_at: string
+          created_by: string
+          description: string
+          dialect: string
+          difficulty: string
+          example_exchanges: Json
+          icon_name: string
+          id: string
+          session_id: string | null
+          status: string
+          system_prompt: string
+          title: string
+          title_arabic: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          description?: string
+          dialect?: string
+          difficulty?: string
+          example_exchanges?: Json
+          icon_name?: string
+          id?: string
+          session_id?: string | null
+          status?: string
+          system_prompt?: string
+          title?: string
+          title_arabic?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          description?: string
+          dialect?: string
+          difficulty?: string
+          example_exchanges?: Json
+          icon_name?: string
+          id?: string
+          session_id?: string | null
+          status?: string
+          system_prompt?: string
+          title?: string
+          title_arabic?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       daily_challenge_completions: {
         Row: {
           challenge_date: string
@@ -131,6 +182,54 @@ export type Database = {
           score?: number
           user_id?: string
           xp_earned?: number
+        }
+        Relationships: []
+      }
+      daily_challenges: {
+        Row: {
+          challenge_date: string | null
+          challenge_type: string
+          created_at: string
+          created_by: string
+          dialect: string
+          difficulty: string
+          id: string
+          questions: Json
+          session_id: string | null
+          status: string
+          title: string
+          title_arabic: string
+          updated_at: string
+        }
+        Insert: {
+          challenge_date?: string | null
+          challenge_type?: string
+          created_at?: string
+          created_by: string
+          dialect?: string
+          difficulty?: string
+          id?: string
+          questions?: Json
+          session_id?: string | null
+          status?: string
+          title?: string
+          title_arabic?: string
+          updated_at?: string
+        }
+        Update: {
+          challenge_date?: string | null
+          challenge_type?: string
+          created_at?: string
+          created_by?: string
+          dialect?: string
+          difficulty?: string
+          id?: string
+          questions?: Json
+          session_id?: string | null
+          status?: string
+          title?: string
+          title_arabic?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -197,6 +296,60 @@ export type Database = {
         }
         Relationships: []
       }
+      grammar_exercises: {
+        Row: {
+          category: string
+          choices: Json
+          correct_index: number
+          created_at: string
+          created_by: string
+          dialect: string
+          difficulty: string
+          explanation: string
+          grammar_point: string
+          id: string
+          question_arabic: string
+          question_english: string
+          session_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          choices?: Json
+          correct_index?: number
+          created_at?: string
+          created_by: string
+          dialect?: string
+          difficulty?: string
+          explanation?: string
+          grammar_point?: string
+          id?: string
+          question_arabic: string
+          question_english: string
+          session_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          choices?: Json
+          correct_index?: number
+          created_at?: string
+          created_by?: string
+          dialect?: string
+          difficulty?: string
+          explanation?: string
+          grammar_point?: string
+          id?: string
+          question_arabic?: string
+          question_english?: string
+          session_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       human_review_requests: {
         Row: {
           admin_response: string | null
@@ -257,6 +410,54 @@ export type Database = {
           name_arabic?: string | null
           updated_at?: string
           verified?: boolean
+        }
+        Relationships: []
+      }
+      listening_exercises: {
+        Row: {
+          audio_text: string
+          audio_text_english: string
+          created_at: string
+          created_by: string
+          dialect: string
+          difficulty: string
+          hint: string | null
+          id: string
+          mode: string
+          questions: Json
+          session_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          audio_text?: string
+          audio_text_english?: string
+          created_at?: string
+          created_by: string
+          dialect?: string
+          difficulty?: string
+          hint?: string | null
+          id?: string
+          mode?: string
+          questions?: Json
+          session_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          audio_text?: string
+          audio_text_english?: string
+          created_at?: string
+          created_by?: string
+          dialect?: string
+          difficulty?: string
+          hint?: string | null
+          id?: string
+          mode?: string
+          questions?: Json
+          session_id?: string | null
+          status?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -354,6 +555,60 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      reading_passages: {
+        Row: {
+          created_at: string
+          created_by: string
+          cultural_note: string | null
+          dialect: string
+          difficulty: string
+          id: string
+          passage: string
+          passage_english: string
+          questions: Json
+          session_id: string | null
+          status: string
+          title: string
+          title_english: string
+          updated_at: string
+          vocabulary: Json
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          cultural_note?: string | null
+          dialect?: string
+          difficulty?: string
+          id?: string
+          passage?: string
+          passage_english?: string
+          questions?: Json
+          session_id?: string | null
+          status?: string
+          title?: string
+          title_english?: string
+          updated_at?: string
+          vocabulary?: Json
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          cultural_note?: string | null
+          dialect?: string
+          difficulty?: string
+          id?: string
+          passage?: string
+          passage_english?: string
+          questions?: Json
+          session_id?: string | null
+          status?: string
+          title?: string
+          title_english?: string
+          updated_at?: string
+          vocabulary?: Json
+        }
+        Relationships: []
       }
       review_streaks: {
         Row: {
@@ -784,6 +1039,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      vocab_game_sets: {
+        Row: {
+          created_at: string
+          created_by: string
+          dialect: string
+          difficulty: string
+          game_type: string
+          id: string
+          session_id: string | null
+          status: string
+          title: string
+          updated_at: string
+          word_pairs: Json
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          dialect?: string
+          difficulty?: string
+          game_type?: string
+          id?: string
+          session_id?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+          word_pairs?: Json
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          dialect?: string
+          difficulty?: string
+          game_type?: string
+          id?: string
+          session_id?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+          word_pairs?: Json
+        }
+        Relationships: []
       }
       vocabulary_words: {
         Row: {

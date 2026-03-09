@@ -247,6 +247,27 @@ const Settings = () => {
             </div>
           </section>
 
+          {/* Library */}
+          <section className="space-y-3">
+            <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+              <Heart className="h-4 w-4" />
+              My Library
+            </div>
+            <button
+              onClick={() => navigate('/liked-videos')}
+              className="w-full flex items-center justify-between p-3 rounded-xl bg-card border border-border hover:border-primary/30 transition-all"
+            >
+              <div className="flex items-center gap-3">
+                <Heart className="h-5 w-5 text-primary fill-primary/30" />
+                <div className="text-left">
+                  <p className="font-medium text-foreground text-sm">Liked Videos</p>
+                  <p className="text-xs text-muted-foreground">Videos you've saved</p>
+                </div>
+              </div>
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            </button>
+          </section>
+
           {/* Privacy Section */}
           <section className="space-y-3">
             <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wider">

@@ -6,7 +6,7 @@ import { useDiscoverVideos } from "@/hooks/useDiscoverVideos";
 import { useStages } from "@/hooks/useStages";
 import { useAllLessons } from "@/hooks/useLessons";
 import { Button } from "@/components/design-system";
-import { Settings, Brain, LogIn, LogOut, Mic, BookOpen, Sparkles, GraduationCap, Laugh, Play, ChevronRight, Twitter, MessageCircleQuestion, Compass, MessageSquare } from "lucide-react";
+import { Settings, Brain, LogIn, LogOut, Mic, BookOpen, Sparkles, GraduationCap, Laugh, Play, ChevronRight, Twitter, MessageCircleQuestion, Compass, MessageSquare, Globe2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AppShell } from "@/components/layout/AppShell";
 import { Badge } from "@/components/ui/badge";
@@ -446,6 +446,28 @@ const Index = () => {
             </div>
           </button>
         </div>
+
+        {/* Dialect Compare */}
+        <button
+          onClick={() => navigate("/dialect-compare")}
+          className={cn(
+            "w-full p-4 rounded-xl",
+            "bg-gradient-to-r from-emerald-500/10 to-sky-500/10 border border-emerald-500/20",
+            "flex items-center gap-3",
+            "transition-all duration-200",
+            "hover:border-emerald-500/40 active:scale-[0.98]"
+          )}
+        >
+          <div className="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0">
+            <Globe2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+          </div>
+          <div className="text-left">
+            <p className="font-semibold text-foreground">Dialect Compare</p>
+            <p className="text-xs text-muted-foreground">
+              See how words differ across Gulf, Egyptian & Levantine
+            </p>
+          </div>
+        </button>
 
         {/* Meme Analyzer */}
         <button

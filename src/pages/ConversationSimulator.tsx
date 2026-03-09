@@ -169,7 +169,7 @@ const ConversationSimulator = () => {
       return;
     }
 
-    const recognition: SpeechRecognition = new SpeechRecognition();
+    const recognition = new SpeechRecognition();
     recognition.lang = "ar";
     recognition.interimResults = true;
     recognition.continuous = false;

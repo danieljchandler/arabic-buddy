@@ -168,16 +168,69 @@ const ConversationSimulator = () => {
     setInput("");
   };
 
-  const speakText = (text: string) => {
-    // Extract just the Arabic text (before parentheses)
+  const speakText = async (text: string, messageIndex: number) => {
+    // Extract just the Arabic text (before parentheses/translation)
     const arabicText = text.split("\n")[0].replace(/\(.*?\)/g, "").trim();
     if (!arabicText) return;
 
-    // Use browser speech synthesis as a fallback
-    const utterance = new SpeechSynthesisUtterance(arabicText);
-    utterance.lang = "ar-SA";
-    utterance.rate = 0.8;
-    speechSynthesis.speak(utterance);
+    // Stop any currently playing audio
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+
+    setIsSpeaking(messageIndex);
+
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/elevenlabs-tts`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({ 
+            text: arabicText, 
+            voiceId: "JBFqnCBsd6RMkjVDRZzb" // George - male Arabic voice
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`TTS request failed: ${response.status}`);
+      }
+
+      const audioBlob = await response.blob();
+      const audioUrl = URL.createObjectURL(audioBlob);
+      const audio = new Audio(audioUrl);
+      audioRef.current = audio;
+
+      audio.onended = () => {
+        setIsSpeaking(null);
+        URL.revokeObjectURL(audioUrl);
+        audioRef.current = null;
+      };
+
+      audio.onerror = () => {
+        setIsSpeaking(null);
+        URL.revokeObjectURL(audioUrl);
+        audioRef.current = null;
+      };
+
+      await audio.play();
+    } catch (err) {
+      console.error("TTS error:", err);
+      setIsSpeaking(null);
+      
+      // Fallback to browser speech synthesis
+      const utterance = new SpeechSynthesisUtterance(arabicText);
+      utterance.lang = "ar-SA";
+      utterance.rate = 0.8;
+      utterance.onend = () => setIsSpeaking(null);
+      speechSynthesis.speak(utterance);
+    }
   };
 
   if (authLoading) {

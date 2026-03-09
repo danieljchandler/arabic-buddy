@@ -231,15 +231,24 @@ export function useAddXP() {
 
       return { newTotalXP, levelUp: newLevel > oldLevel, newLevel };
     },
-    onSuccess: (result, { reason }) => {
+    onSuccess: (result, { amount, reason }) => {
       queryClient.invalidateQueries({ queryKey: ["user-xp"] });
       queryClient.invalidateQueries({ queryKey: ["weekly-goal"] });
 
+      // Show XP earned toast
+      toast({
+        title: `+${amount} XP`,
+        description: reason === "review" ? "Review completed!" : "Keep it up!",
+        duration: 2000,
+      });
+
       if (result.levelUp) {
-        toast({
-          title: `🎉 Level Up!`,
-          description: `You've reached Level ${result.newLevel}!`,
-        });
+        setTimeout(() => {
+          toast({
+            title: `🎉 Level Up!`,
+            description: `You've reached Level ${result.newLevel}!`,
+          });
+        }, 500);
       }
     },
   });

@@ -605,13 +605,81 @@ serve(async (req) => {
       });
     }
 
-    const { url } = await req.json();
+    const { url, bypassCache } = await req.json();
 
     if (!url || typeof url !== 'string') {
       return new Response(
         JSON.stringify({ error: "URL is required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    // Check for cached result unless explicitly bypassed
+    if (!bypassCache) {
+      try {
+        const supabaseUrl = Deno.env.get('SUPABASE_URL');
+        const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+        
+        if (supabaseUrl && supabaseKey) {
+          const supabase = createClient(supabaseUrl, supabaseKey);
+          
+          // Generate content hash from URL
+          const parsedUrl = new URL(url);
+          const hostname = parsedUrl.hostname.replace(/^www\./, '').replace(/^m\./, '');
+          
+          let platform = 'other';
+          let videoId = '';
+          
+          // Extract platform and video ID
+          if (hostname.includes('youtube.com') || hostname === 'youtu.be') {
+            platform = 'youtube';
+            videoId = extractYouTubeVideoId(url) || '';
+          } else if (hostname.includes('tiktok.com')) {
+            platform = 'tiktok';
+            const match = url.match(/\/video\/(\d+)/);
+            videoId = match?.[1] || '';
+          }
+          
+          // Generate simple content hash: platform:videoId
+          if (videoId) {
+            const contentHash = `${platform}:${videoId}`;
+            
+            // Check for existing processed video
+            const { data: cached, error: cacheError } = await supabase
+              .from('processed_videos')
+              .select('*')
+              .eq('content_hash', contentHash)
+              .maybeSingle();
+            
+            if (!cacheError && cached) {
+              // Check if cache is recent (< 30 days)
+              const processedAt = new Date(cached.processed_at);
+              const now = new Date();
+              const ageInDays = (now.getTime() - processedAt.getTime()) / (1000 * 60 * 60 * 24);
+              
+              if (ageInDays < 30) {
+                console.log(`Cache hit for ${contentHash} (${ageInDays.toFixed(1)} days old)`);
+                return new Response(
+                  JSON.stringify({
+                    cached: true,
+                    transcriptionData: cached.transcription_data,
+                    cacheAge: ageInDays,
+                    processingEngines: cached.processing_engines,
+                  }),
+                  {
+                    status: 200,
+                    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                  }
+                );
+              } else {
+                console.log(`Cache expired for ${contentHash} (${ageInDays.toFixed(1)} days old)`);
+              }
+            }
+          }
+        }
+      } catch (cacheCheckError) {
+        console.warn('Cache check failed (continuing with download):', cacheCheckError);
+      }
     }
 
     let normalizedUrl = url.trim();
@@ -654,6 +722,7 @@ serve(async (req) => {
               contentType: audioData.contentType,
               size: audioData.size,
               filename: new URL(finalUrl).pathname.split('/').pop() || 'audio.mp4',
+              originalUrl: normalizedUrl,
             }),
             { headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
@@ -689,6 +758,7 @@ serve(async (req) => {
             contentType: rapidResult.contentType,
             size: rapidResult.size,
             filename: rapidResult.filename,
+            originalUrl: normalizedUrl,
           }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
@@ -702,6 +772,7 @@ serve(async (req) => {
             contentType: ytResult.contentType,
             size: ytResult.size,
             filename: ytResult.filename,
+            originalUrl: normalizedUrl,
           }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );

@@ -204,6 +204,15 @@ const Transcribe = () => {
   const culturalContext = transcriptResult?.culturalContext;
   const lines = transcriptResult?.lines ?? [];
 
+  // Check if current URL is in URL params (indicates this was loaded from cache)
+  const currentUrlFromParams = useMemo(() => {
+    try {
+      return new URLSearchParams(window.location.search).get('url');
+    } catch {
+      return null;
+    }
+  }, []);
+
   const debugEnabled = useMemo(() => {
     try {
       return new URLSearchParams(window.location.search).has("debug");
@@ -372,6 +381,10 @@ const Transcribe = () => {
     let trimmed = urlInput.trim();
     if (!trimmed) return;
 
+    // Store URL in component state and URL params for caching
+    const searchParams = new URLSearchParams(window.location.search);
+    searchParams.set('url', trimmed);
+    window.history.replaceState({}, '', `${window.location.pathname}?${searchParams}`);
     // Auto-prepend https:// if missing
     if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) {
       trimmed = `https://${trimmed}`;
@@ -413,6 +426,21 @@ const Transcribe = () => {
       });
 
       if (error) throw new Error(error.message);
+      
+      // Check if we got cached transcription data
+      if (data?.cached && data?.transcriptionData) {
+        toast.success("Using cached transcription!", {
+          description: `Processed ${data.cacheAge ? Math.floor(data.cacheAge) : '?'} days ago • ${data.processingEngines?.length || 0} engines`,
+          duration: 5000,
+        });
+        
+        // Set the cached result directly
+        const cached = normalizeTranscriptResult(data.transcriptionData);
+        setTranscriptResult(cached);
+        setIsLoadingUrl(false);
+        return;
+      }
+      
       if (!data?.audioBase64) throw new Error("No audio file found");
 
       // Convert base64 to File
@@ -464,6 +492,10 @@ const Transcribe = () => {
       if (munsitText) body.munsitTranscript = munsitText;
       if (fanarText) body.fanarTranscript = fanarText;
       if (sonioxText) body.sonioxTranscript = sonioxText;
+      
+      // Add original URL if this analysis came from a URL import (for caching)
+      const currentUrlParam = new URLSearchParams(window.location.search).get('url');
+      if (currentUrlParam) body.originalUrl = currentUrlParam;
 
       const { data, error } = await supabase.functions.invoke<{
         success: boolean;
@@ -1061,6 +1093,16 @@ const Transcribe = () => {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Cache Status Badge */}
+        {currentUrlFromParams && lines.length > 0 && (
+          <div className="mb-4">
+            <Badge variant="secondary" className="bg-accent text-accent-foreground border-border">
+              <Sparkles className="w-3 h-3 mr-1" />
+              Instant result from cache
+            </Badge>
+          </div>
+        )}
 
         {/* Transcript Display */}
         {lines.length > 0 ? (

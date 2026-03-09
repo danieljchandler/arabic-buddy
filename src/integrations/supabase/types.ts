@@ -155,6 +155,54 @@ export type Database = {
         }
         Relationships: []
       }
+      processed_videos: {
+        Row: {
+          content_hash: string
+          created_at: string
+          dialect: string | null
+          duration_seconds: number | null
+          id: string
+          original_url: string
+          platform: string
+          processed_at: string
+          processing_engines: string[] | null
+          source_language: string | null
+          transcription_data: Json
+          updated_at: string
+          video_id: string
+        }
+        Insert: {
+          content_hash: string
+          created_at?: string
+          dialect?: string | null
+          duration_seconds?: number | null
+          id?: string
+          original_url: string
+          platform: string
+          processed_at?: string
+          processing_engines?: string[] | null
+          source_language?: string | null
+          transcription_data?: Json
+          updated_at?: string
+          video_id: string
+        }
+        Update: {
+          content_hash?: string
+          created_at?: string
+          dialect?: string | null
+          duration_seconds?: number | null
+          id?: string
+          original_url?: string
+          platform?: string
+          processed_at?: string
+          processing_engines?: string[] | null
+          source_language?: string | null
+          transcription_data?: Json
+          updated_at?: string
+          video_id?: string
+        }
+        Relationships: []
+      }
       review_streaks: {
         Row: {
           created_at: string

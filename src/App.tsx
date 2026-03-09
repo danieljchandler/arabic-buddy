@@ -225,6 +225,11 @@ const App = () => {
                 <Onboarding />
               </ErrorBoundary>
             } />
+            <Route path="/settings" element={
+              <ErrorBoundary name="SettingsRoute">
+                <Settings />
+              </ErrorBoundary>
+            } />
 
 
             <Route path="/admin/login" element={<AdminLogin />} />

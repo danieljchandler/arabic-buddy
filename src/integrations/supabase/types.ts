@@ -53,6 +53,54 @@ export type Database = {
         }
         Relationships: []
       }
+      challenges: {
+        Row: {
+          challenge_type: string
+          challenged_id: string
+          challenged_progress: number
+          challenger_id: string
+          challenger_progress: number
+          completed_at: string | null
+          created_at: string
+          duration_days: number
+          expires_at: string
+          id: string
+          status: string
+          target_xp: number
+          winner_id: string | null
+        }
+        Insert: {
+          challenge_type?: string
+          challenged_id: string
+          challenged_progress?: number
+          challenger_id: string
+          challenger_progress?: number
+          completed_at?: string | null
+          created_at?: string
+          duration_days?: number
+          expires_at?: string
+          id?: string
+          status?: string
+          target_xp?: number
+          winner_id?: string | null
+        }
+        Update: {
+          challenge_type?: string
+          challenged_id?: string
+          challenged_progress?: number
+          challenger_id?: string
+          challenger_progress?: number
+          completed_at?: string | null
+          created_at?: string
+          duration_days?: number
+          expires_at?: string
+          id?: string
+          status?: string
+          target_xp?: number
+          winner_id?: string | null
+        }
+        Relationships: []
+      }
       content_import_logs: {
         Row: {
           created_at: string
@@ -887,6 +935,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_follows: {
+        Row: {
+          created_at: string
+          follower_id: string
+          following_id: string
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          follower_id: string
+          following_id: string
+          id?: string
+        }
+        Update: {
+          created_at?: string
+          follower_id?: string
+          following_id?: string
+          id?: string
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {

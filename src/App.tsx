@@ -29,6 +29,7 @@ import DialectCompare from "./pages/DialectCompare";
 import ListeningPractice from "./pages/ListeningPractice";
 import Leaderboard from "./pages/Leaderboard";
 import ReadingPractice from "./pages/ReadingPractice";
+import DailyChallenge from "./pages/DailyChallenge";
 import AdminLogin from "./pages/admin/AdminLogin";
 import AdminLayout from "./pages/admin/AdminLayout";
 import Dashboard from "./pages/admin/Dashboard";
@@ -194,8 +195,12 @@ const App = () => {
                 <ReadingPractice />
               </ErrorBoundary>
             } />
+            <Route path="/daily-challenge" element={
+              <ErrorBoundary name="DailyChallengeRoute">
+                <DailyChallenge />
+              </ErrorBoundary>
+            } />
 
-            <Route path="/admin/login" element={<AdminLogin />} />
             <Route path="/admin" element={<ErrorBoundary name="AdminRoute"><AdminLayout /></ErrorBoundary>}>
               <Route index element={<Dashboard />} />
               {/* Curriculum routes */}

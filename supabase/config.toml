@@ -95,3 +95,6 @@ verify_jwt = false
 
 [functions.reading-passage]
 verify_jwt = false
+
+[functions.daily-challenge]
+verify_jwt = false

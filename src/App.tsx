@@ -36,6 +36,7 @@ import VocabGames from "./pages/VocabGames";
 import Onboarding from "./pages/Onboarding";
 import Settings from "./pages/Settings";
 import Friends from "./pages/Friends";
+import LikedVideos from "./pages/LikedVideos";
 import AdminLogin from "./pages/admin/AdminLogin";
 import AdminLayout from "./pages/admin/AdminLayout";
 import Dashboard from "./pages/admin/Dashboard";
@@ -233,6 +234,9 @@ const App = () => {
             } />
             <Route path="/friends" element={
               <ErrorBoundary name="FriendsRoute"><Friends /></ErrorBoundary>
+            } />
+            <Route path="/liked-videos" element={
+              <ErrorBoundary name="LikedVideosRoute"><LikedVideos /></ErrorBoundary>
             } />
 
             <Route path="/admin/login" element={<AdminLogin />} />

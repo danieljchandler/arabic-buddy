@@ -15,6 +15,8 @@ import type { MemeAnalysisResult } from "@/types/meme";
 import type { VocabItem } from "@/types/transcript";
 import { AppShell } from "@/components/layout/AppShell";
 import { extractFramesWithTimestamps } from "@/lib/videoFrameExtractor";
+import { decodeAudioFile, clipToWav } from "@/lib/audioClipper";
+import { findLineContainingWord } from "@/lib/vocabularyAudioContext";
 
 /**
  * Convert an image file to base64 data URI

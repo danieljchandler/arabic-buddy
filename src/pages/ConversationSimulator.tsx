@@ -86,8 +86,10 @@ const ConversationSimulator = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState<number | null>(null);
   const [isRecording, setIsRecording] = useState(false);
+  const [autoPlay, setAutoPlay] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const pendingAutoPlayRef = useRef<string | null>(null);
 
   // ElevenLabs realtime speech-to-text
   const scribe = useScribe({

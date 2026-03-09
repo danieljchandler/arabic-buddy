@@ -1659,10 +1659,71 @@ serve(async (req) => {
        partial ? '(partial)' : ''
      );
 
-     return new Response(
-       JSON.stringify({ success: true, result: transcriptResult, partial }),
-       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-     );
+      console.log(
+        'Analysis complete:',
+        transcriptResult.lines.length,
+        'lines,',
+        transcriptResult.vocabulary.length,
+        'vocab items',
+        partial ? '(partial)' : ''
+      );
+
+      // Store result in cache for future use (fire and forget)
+      if (originalUrl) {
+        try {
+          const parsedUrl = new URL(originalUrl);
+          const hostname = parsedUrl.hostname.replace(/^www\./, '').replace(/^m\./, '');
+          
+          let platform = 'other';
+          let videoId = '';
+          
+          // Extract platform and video ID
+          if (hostname.includes('youtube.com') || hostname === 'youtu.be') {
+            platform = 'youtube';
+            const ytMatch = originalUrl.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/|live\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+            videoId = ytMatch?.[1] || '';
+          } else if (hostname.includes('tiktok.com')) {
+            platform = 'tiktok';
+            const match = originalUrl.match(/\/video\/(\d+)/);
+            videoId = match?.[1] || '';
+          }
+          
+          if (videoId) {
+            const contentHash = `${platform}:${videoId}`;
+            const engines = [];
+            if (deepgramRawText) engines.push('deepgram');
+            if (munsitRawText) engines.push('munsit');
+            if (fanarRawText) engines.push('fanar');
+            if (sonioxRawText) engines.push('soniox');
+            
+            // Use existing supabase client (service role)
+            supabaseClient.from('processed_videos').upsert({
+              content_hash: contentHash,
+              original_url: originalUrl,
+              platform,
+              video_id: videoId,
+              processed_at: new Date().toISOString(),
+              transcription_data: transcriptResult,
+              processing_engines: engines,
+              source_language: 'ar',
+              dialect: detectedDialect || 'Gulf'
+            }).then(({ error: cacheError }) => {
+              if (cacheError) {
+                console.warn('Failed to cache result:', cacheError.message);
+              } else {
+                console.log(`Cached result for ${contentHash}`);
+              }
+            });
+          }
+        } catch (cacheStoreError) {
+          console.warn('Cache storage failed (non-blocking):', cacheStoreError);
+        }
+      }
+
+      return new Response(
+        JSON.stringify({ success: true, result: transcriptResult, partial }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
 
   } catch (error) {
     console.error('Error in analyze-gulf-arabic function:', error);

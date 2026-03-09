@@ -25,6 +25,7 @@ import {
   FriendWithProfile,
   Challenge,
 } from "@/hooks/useSocial";
+import { useLikedVideos } from "@/hooks/useVideoLikes";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
@@ -42,7 +43,11 @@ import {
   X,
   Zap,
   ChevronRight,
+  Heart,
+  Play,
 } from "lucide-react";
+import { formatDuration } from "@/lib/videoEmbed";
+import type { DiscoverVideo } from "@/hooks/useDiscoverVideos";
 
 const FriendCard = ({
   friend,

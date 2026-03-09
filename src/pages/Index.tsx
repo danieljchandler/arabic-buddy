@@ -6,7 +6,7 @@ import { useDiscoverVideos } from "@/hooks/useDiscoverVideos";
 import { useStages } from "@/hooks/useStages";
 import { useAllLessons } from "@/hooks/useLessons";
 import { Button } from "@/components/design-system";
-import { Settings, Brain, LogIn, LogOut, Mic, BookOpen, Sparkles, GraduationCap, Laugh, Play, ChevronRight, Twitter, MessageCircleQuestion, Compass, MessageSquare, Globe2, Headphones, Trophy, FileText, Flame, BarChart3, PenTool } from "lucide-react";
+import { Settings, Brain, LogIn, LogOut, Mic, BookOpen, Sparkles, GraduationCap, Laugh, Play, ChevronRight, Twitter, MessageCircleQuestion, Compass, MessageSquare, Globe2, Headphones, Trophy, FileText, Flame, BarChart3, PenTool, Gamepad2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AppShell } from "@/components/layout/AppShell";
 import { Badge } from "@/components/ui/badge";
@@ -512,6 +512,33 @@ const Index = () => {
               <p className="font-semibold text-foreground">Grammar Drills</p>
               <p className="text-xs text-muted-foreground">
                 AI-powered conjugation, pronouns & more
+              </p>
+            </div>
+          </button>
+        </div>
+
+        {/* Vocabulary Games */}
+        <div className="pt-4">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1 mb-2">
+            Games
+          </p>
+          <button
+            onClick={() => navigate("/vocab-games")}
+            className={cn(
+              "w-full p-4 rounded-xl",
+              "bg-gradient-to-r from-primary/10 to-accent/10 border border-primary/20",
+              "flex items-center gap-3",
+              "transition-all duration-200",
+              "hover:border-primary/40 active:scale-[0.98]"
+            )}
+          >
+            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+              <Gamepad2 className="h-5 w-5 text-primary" />
+            </div>
+            <div className="text-left">
+              <p className="font-semibold text-foreground">Vocabulary Games</p>
+              <p className="text-xs text-muted-foreground">
+                Word matching, memory cards & fill-in-the-blank
               </p>
             </div>
           </button>

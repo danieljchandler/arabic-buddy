@@ -32,6 +32,7 @@ import ReadingPractice from "./pages/ReadingPractice";
 import DailyChallenge from "./pages/DailyChallenge";
 import LearningAnalytics from "./pages/LearningAnalytics";
 import GrammarDrills from "./pages/GrammarDrills";
+import VocabGames from "./pages/VocabGames";
 import AdminLogin from "./pages/admin/AdminLogin";
 import AdminLayout from "./pages/admin/AdminLayout";
 import Dashboard from "./pages/admin/Dashboard";
@@ -210,6 +211,11 @@ const App = () => {
             <Route path="/grammar" element={
               <ErrorBoundary name="GrammarRoute">
                 <GrammarDrills />
+              </ErrorBoundary>
+            } />
+            <Route path="/vocab-games" element={
+              <ErrorBoundary name="VocabGamesRoute">
+                <VocabGames />
               </ErrorBoundary>
             } />
 

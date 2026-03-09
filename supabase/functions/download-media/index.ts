@@ -772,6 +772,7 @@ serve(async (req) => {
             contentType: ytResult.contentType,
             size: ytResult.size,
             filename: ytResult.filename,
+            originalUrl: normalizedUrl,
           }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );

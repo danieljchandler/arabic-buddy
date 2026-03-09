@@ -461,6 +461,60 @@ export type Database = {
         }
         Relationships: []
       }
+      interactive_stories: {
+        Row: {
+          cover_image_url: string | null
+          created_at: string
+          created_by: string
+          description: string
+          description_arabic: string
+          dialect: string
+          difficulty: string
+          display_order: number
+          icon_name: string
+          id: string
+          session_id: string | null
+          status: string
+          title: string
+          title_arabic: string
+          updated_at: string
+        }
+        Insert: {
+          cover_image_url?: string | null
+          created_at?: string
+          created_by: string
+          description?: string
+          description_arabic?: string
+          dialect?: string
+          difficulty?: string
+          display_order?: number
+          icon_name?: string
+          id?: string
+          session_id?: string | null
+          status?: string
+          title?: string
+          title_arabic?: string
+          updated_at?: string
+        }
+        Update: {
+          cover_image_url?: string | null
+          created_at?: string
+          created_by?: string
+          description?: string
+          description_arabic?: string
+          dialect?: string
+          difficulty?: string
+          display_order?: number
+          icon_name?: string
+          id?: string
+          session_id?: string | null
+          status?: string
+          title?: string
+          title_arabic?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       listening_exercises: {
         Row: {
           audio_text: string
@@ -744,6 +798,107 @@ export type Database = {
           vocabulary?: Json
         }
         Relationships: []
+      }
+      story_progress: {
+        Row: {
+          completed: boolean
+          completed_at: string | null
+          current_scene_id: string | null
+          id: string
+          path_taken: Json
+          started_at: string
+          story_id: string
+          user_id: string
+        }
+        Insert: {
+          completed?: boolean
+          completed_at?: string | null
+          current_scene_id?: string | null
+          id?: string
+          path_taken?: Json
+          started_at?: string
+          story_id: string
+          user_id: string
+        }
+        Update: {
+          completed?: boolean
+          completed_at?: string | null
+          current_scene_id?: string | null
+          id?: string
+          path_taken?: Json
+          started_at?: string
+          story_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "story_progress_current_scene_id_fkey"
+            columns: ["current_scene_id"]
+            isOneToOne: false
+            referencedRelation: "story_scenes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "story_progress_story_id_fkey"
+            columns: ["story_id"]
+            isOneToOne: false
+            referencedRelation: "interactive_stories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      story_scenes: {
+        Row: {
+          choices: Json
+          created_at: string
+          ending_message: string | null
+          ending_message_arabic: string | null
+          id: string
+          is_ending: boolean
+          narrative_arabic: string
+          narrative_english: string
+          scene_order: number
+          story_id: string
+          updated_at: string
+          vocabulary: Json
+        }
+        Insert: {
+          choices?: Json
+          created_at?: string
+          ending_message?: string | null
+          ending_message_arabic?: string | null
+          id?: string
+          is_ending?: boolean
+          narrative_arabic?: string
+          narrative_english?: string
+          scene_order?: number
+          story_id: string
+          updated_at?: string
+          vocabulary?: Json
+        }
+        Update: {
+          choices?: Json
+          created_at?: string
+          ending_message?: string | null
+          ending_message_arabic?: string | null
+          id?: string
+          is_ending?: boolean
+          narrative_arabic?: string
+          narrative_english?: string
+          scene_order?: number
+          story_id?: string
+          updated_at?: string
+          vocabulary?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "story_scenes_story_id_fkey"
+            columns: ["story_id"]
+            isOneToOne: false
+            referencedRelation: "interactive_stories"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       topics: {
         Row: {

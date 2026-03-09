@@ -675,21 +675,26 @@ const DiscoverVideo = () => {
 
       {/* Title bar */}
       <div className="px-4 py-3 border-b border-border bg-card">
-        <h1
-          className="text-base font-bold text-foreground"
-          style={{ fontFamily: "'Montserrat', sans-serif" }}
-        >
-          {video.title}
-        </h1>
-        {video.title_arabic && (
-          <p
-            className="text-sm text-foreground/70 mt-0.5"
-            dir="rtl"
-            style={{ fontFamily: "'Cairo', sans-serif" }}
-          >
-            {video.title_arabic}
-          </p>
-        )}
+        <div className="flex items-start gap-3">
+          <div className="flex-1 min-w-0">
+            <h1
+              className="text-base font-bold text-foreground"
+              style={{ fontFamily: "'Montserrat', sans-serif" }}
+            >
+              {video.title}
+            </h1>
+            {video.title_arabic && (
+              <p
+                className="text-sm text-foreground/70 mt-0.5"
+                dir="rtl"
+                style={{ fontFamily: "'Cairo', sans-serif" }}
+              >
+                {video.title_arabic}
+              </p>
+            )}
+          </div>
+          <LikeButton videoId={video.id} isAuthenticated={isAuthenticated} />
+        </div>
       </div>
 
       {/* Active subtitle display with navigation arrows */}

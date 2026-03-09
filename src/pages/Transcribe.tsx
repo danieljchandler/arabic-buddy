@@ -483,6 +483,8 @@ const Transcribe = () => {
     grammarPoints: GrammarPoint[];
     culturalContext?: string;
     lines?: TranscriptResult["lines"];
+    dialect?: TranscriptResult["dialect"];
+    difficulty?: TranscriptResult["difficulty"];
   } | null> => {
     setIsAnalyzing(true);
     try {
@@ -526,6 +528,8 @@ const Transcribe = () => {
         grammarPoints: normalized.grammarPoints,
         culturalContext: normalized.culturalContext,
         lines: normalized.lines,
+        dialect: data.result.dialect,
+        difficulty: data.result.difficulty,
       };
     } catch (error) {
       console.error("Analysis error:", error);

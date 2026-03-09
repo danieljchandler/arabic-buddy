@@ -60,7 +60,7 @@ export const ReviewImageQuizCard = ({
     const generate = async () => {
       try {
         const response = await fetch(
-          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/elevenlabs-tts`,
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/azure-tts`,
           {
             method: "POST",
             headers: {

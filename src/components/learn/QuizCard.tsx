@@ -66,7 +66,7 @@ export const QuizCard = ({ word, otherWords, onAnswer, topicLabel }: QuizCardPro
 
   const effectiveAudioUrl = word.audio_url ?? generatedAudioUrl;
 
-  // Generate audio via ElevenLabs TTS when no stored audio_url is available
+  // Generate audio via Azure TTS when no stored audio_url is available
   useEffect(() => {
     if (word.audio_url) return; // already have stored audio
 
@@ -81,7 +81,7 @@ export const QuizCard = ({ word, otherWords, onAnswer, topicLabel }: QuizCardPro
         const { data: sessionData } = await supabase.auth.getSession();
         const token = sessionData?.session?.access_token ?? anonKey;
 
-        const response = await fetch(`${supabaseUrl}/functions/v1/elevenlabs-tts`, {
+        const response = await fetch(`${supabaseUrl}/functions/v1/azure-tts`, {
           method: "POST",
           headers: {
             Authorization: `Bearer ${token}`,
@@ -99,7 +99,7 @@ export const QuizCard = ({ word, otherWords, onAnswer, topicLabel }: QuizCardPro
         }
       } catch (err) {
         // Audio generation failed – word is still readable without audio
-        console.error("ElevenLabs TTS generation failed:", err);
+        console.error("Azure TTS generation failed:", err);
       } finally {
         if (!cancelled) setIsGeneratingAudio(false);
       }

@@ -133,23 +133,38 @@ const ListeningPractice = () => {
     setAudioPlaying(true);
 
     try {
-      // Use ElevenLabs TTS
-      const { data, error } = await supabase.functions.invoke("elevenlabs-tts", {
-        body: { text: currentQuestion.audioText },
-      });
+      // Use Azure TTS — returns raw MP3 binary
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/azure-tts`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({ text: currentQuestion.audioText }),
+        }
+      );
 
-      if (error) throw error;
+      if (!response.ok) throw new Error(`Azure TTS error: ${response.status}`);
 
-      if (data.audioUrl) {
-        const audio = new Audio(data.audioUrl);
-        audio.playbackRate = speedRate;
-        audioRef.current = audio;
+      const blob = await response.blob();
+      const audioUrl = URL.createObjectURL(blob);
+      const audio = new Audio(audioUrl);
+      audio.playbackRate = speedRate;
+      audioRef.current = audio;
 
-        audio.onended = () => setAudioPlaying(false);
-        audio.onerror = () => setAudioPlaying(false);
+      audio.onended = () => {
+        setAudioPlaying(false);
+        URL.revokeObjectURL(audioUrl);
+      };
+      audio.onerror = () => {
+        setAudioPlaying(false);
+        URL.revokeObjectURL(audioUrl);
+      };
 
-        await audio.play();
-      }
+      await audio.play();
     } catch (e) {
       console.error("Audio playback failed:", e);
       toast.error("Could not play audio");

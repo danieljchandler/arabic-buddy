@@ -324,7 +324,7 @@ const ConversationSimulator = () => {
 
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/elevenlabs-tts`,
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/azure-tts`,
         {
           method: "POST",
           headers: {
@@ -332,9 +332,9 @@ const ConversationSimulator = () => {
             apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
             Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
           },
-          body: JSON.stringify({ 
-            text: arabicText, 
-            voiceId: "JBFqnCBsd6RMkjVDRZzb" // George - male Arabic voice
+          body: JSON.stringify({
+            text: arabicText,
+            voice: "ar-AE-HamdanNeural", // Gulf Arabic male voice
           }),
         }
       );

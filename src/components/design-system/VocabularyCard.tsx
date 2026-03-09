@@ -56,7 +56,7 @@ export const VocabularyCard = ({
     setIsLoading(true);
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/elevenlabs-tts`,
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/azure-tts`,
         {
           method: "POST",
           headers: {
@@ -110,7 +110,7 @@ export const VocabularyCard = ({
       audioRef.current.currentTime = 0;
       audioRef.current.play().catch(() => {});
     } else {
-      // Fall back to ElevenLabs TTS
+      // Fall back to Azure TTS
       playTTS();
     }
   }, [word.audio_url, playTTS]);

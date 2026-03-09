@@ -38,8 +38,14 @@
  *   }
  *
  * Required environment variables:
- *   AZURE_SPEECH_KEY     — Azure Cognitive Services speech resource key
- *   AZURE_SPEECH_REGION  — Azure region (e.g. "eastus", "uaenorth")
+ *   AZURE_SPEECH_KEY      — Azure Cognitive Services speech resource key
+ *
+ * Provide ONE of the following to identify the endpoint:
+ *   AZURE_SPEECH_ENDPOINT — Custom endpoint URL from Azure AI multi-service
+ *                           resource (e.g. https://xxx.cognitiveservices.azure.com/)
+ *                           Takes priority over AZURE_SPEECH_REGION when set.
+ *   AZURE_SPEECH_REGION   — Azure region for standard Speech resource
+ *                           (e.g. "eastus", "uaenorth")
  */
 
 const corsHeaders = {
@@ -48,7 +54,17 @@ const corsHeaders = {
 };
 
 const AZURE_SPEECH_KEY = Deno.env.get('AZURE_SPEECH_KEY') ?? '';
+const AZURE_SPEECH_ENDPOINT = Deno.env.get('AZURE_SPEECH_ENDPOINT') ?? '';
 const AZURE_SPEECH_REGION = Deno.env.get('AZURE_SPEECH_REGION') ?? 'eastus';
+
+/** Build the STT REST endpoint URL, preferring a custom endpoint if configured */
+function getSttEndpoint(): string {
+  if (AZURE_SPEECH_ENDPOINT) {
+    const base = AZURE_SPEECH_ENDPOINT.replace(/\/$/, '');
+    return `${base}/speech/recognition/conversation/cognitiveservices/v1`;
+  }
+  return `https://${AZURE_SPEECH_REGION}.stt.speech.microsoft.com/speech/recognition/conversation/cognitiveservices/v1`;
+}
 
 const SUPPORTED_LOCALES = ['ar-SA', 'ar-QA', 'ar-KW', 'ar-BH', 'ar-AE', 'ar-OM', 'ar-EG'];
 
@@ -188,7 +204,7 @@ Deno.serve(async (req: Request) => {
       : baseMime; // wav, mp4, etc. passed as-is
 
     // Azure Speech REST endpoint
-    const endpoint = `https://${AZURE_SPEECH_REGION}.stt.speech.microsoft.com/speech/recognition/conversation/cognitiveservices/v1`;
+    const endpoint = getSttEndpoint();
     const params = new URLSearchParams({ language: locale, format: 'detailed' });
 
     // Bound the Azure call with a 10s timeout to prevent edge worker stalling

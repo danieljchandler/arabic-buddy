@@ -10,7 +10,6 @@ const corsHeaders = {
 const LOVABLE_GATEWAY = "https://ai.gateway.lovable.dev/v1/chat/completions";
 const OPENROUTER_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
 
-// Map friendly model names to endpoint + model ID
 interface ModelConfig {
   endpoint: string;
   model: string;
@@ -65,6 +64,197 @@ const DIALECT_CONTEXT: Record<string, string> = {
   Omani: "Omani Arabic — using Omani-specific vocabulary and expressions, noting regional variations within Oman",
 };
 
+// ─── MODE-SPECIFIC JSON SCHEMAS ─────────────────────────
+
+const MODE_INSTRUCTIONS: Record<string, string> = {
+  generate_lesson: `
+IMPORTANT: Generate a structured lesson. Include a JSON code block:
+
+\`\`\`json
+{
+  "type": "lesson_preview",
+  "lesson": {
+    "title": "Lesson title in English",
+    "title_arabic": "عنوان الدرس",
+    "description": "Brief description",
+    "duration_minutes": 20,
+    "cefr_target": "A1",
+    "approach": "Teaching approach",
+    "icon": "📚",
+    "vocabulary": [
+      { "word_arabic": "كلمة", "word_english": "word", "transliteration": "kilma", "category": "noun", "teaching_note": "", "image_scene_description": "" }
+    ],
+    "cultural_notes": "Cultural context",
+    "dialect_notes": "Dialect variations"
+  }
+}
+\`\`\``,
+
+  generate_vocab: `
+IMPORTANT: Generate vocabulary words. Include a JSON code block:
+
+\`\`\`json
+{
+  "type": "vocab_preview",
+  "vocabulary": [
+    { "word_arabic": "كلمة", "word_english": "word", "transliteration": "kilma", "category": "noun", "teaching_note": "", "image_scene_description": "" }
+  ],
+  "dialect_notes": "How these words vary across Gulf countries"
+}
+\`\`\``,
+
+  generate_grammar: `
+IMPORTANT: Generate grammar drill exercises. Include a JSON code block with 5-10 questions:
+
+\`\`\`json
+{
+  "type": "grammar_preview",
+  "category": "verb-conjugation|pronouns|negation|possessives|questions|sentence-structure",
+  "difficulty": "beginner|intermediate|advanced",
+  "exercises": [
+    {
+      "question_arabic": "اختر الإجابة الصحيحة: أنا ___ إلى السوق",
+      "question_english": "Choose the correct answer: I ___ to the market",
+      "grammar_point": "verb conjugation - past tense",
+      "choices": [
+        { "text_arabic": "رحت", "text_english": "I went" },
+        { "text_arabic": "راح", "text_english": "He went" },
+        { "text_arabic": "رحنا", "text_english": "We went" },
+        { "text_arabic": "رحتي", "text_english": "You (f) went" }
+      ],
+      "correct_index": 0,
+      "explanation": "For 'I' (أنا) in past tense, we use رحت (ruht)"
+    }
+  ]
+}
+\`\`\``,
+
+  generate_listening: `
+IMPORTANT: Generate listening exercise content. Include a JSON code block with 3-5 exercises:
+
+\`\`\`json
+{
+  "type": "listening_preview",
+  "mode": "dictation|comprehension|speed",
+  "difficulty": "beginner|intermediate|advanced",
+  "exercises": [
+    {
+      "audio_text": "وين تبي تروح اليوم؟",
+      "audio_text_english": "Where do you want to go today?",
+      "hint": "A question about plans",
+      "options": [
+        { "text": "He's asking about your destination", "textArabic": "يسأل عن وجهتك", "correct": true },
+        { "text": "He's asking about food", "textArabic": "يسأل عن الأكل", "correct": false },
+        { "text": "He's asking about the weather", "textArabic": "يسأل عن الطقس", "correct": false }
+      ]
+    }
+  ]
+}
+\`\`\``,
+
+  generate_reading: `
+IMPORTANT: Generate a reading passage with comprehension questions. Include a JSON code block:
+
+\`\`\`json
+{
+  "type": "reading_preview",
+  "difficulty": "beginner|intermediate|advanced",
+  "passage": {
+    "title": "عنوان القصة",
+    "title_english": "Story Title",
+    "passage": "النص العربي الكامل...",
+    "passage_english": "Full English translation...",
+    "vocabulary": [
+      { "arabic": "كلمة", "english": "word", "inContext": "الكلمة في جملة" }
+    ],
+    "questions": [
+      {
+        "question": "سؤال بالعربي؟",
+        "questionEnglish": "Question in English?",
+        "options": [
+          { "text": "إجابة ١", "textEnglish": "Answer 1", "correct": true },
+          { "text": "إجابة ٢", "textEnglish": "Answer 2", "correct": false }
+        ]
+      }
+    ],
+    "cultural_note": "Cultural context about the passage"
+  }
+}
+\`\`\``,
+
+  generate_daily_challenge: `
+IMPORTANT: Generate a daily challenge set with mixed question types. Include a JSON code block:
+
+\`\`\`json
+{
+  "type": "daily_challenge_preview",
+  "challenge_type": "vocab|grammar|mixed",
+  "difficulty": "beginner|intermediate|advanced",
+  "title": "Challenge Title",
+  "title_arabic": "عنوان التحدي",
+  "questions": [
+    {
+      "type": "translate",
+      "prompt": "How do you say 'hello' in Gulf Arabic?",
+      "answer": "هلا",
+      "options": ["هلا", "مرحبا", "سلام", "أهلاً"],
+      "hint": "Common informal greeting"
+    },
+    {
+      "type": "fill-blank",
+      "sentence": "أنا ___ من الكويت",
+      "sentenceEnglish": "I am ___ from Kuwait",
+      "answer": "أكون",
+      "hint": "verb 'to be'"
+    },
+    {
+      "type": "unscramble",
+      "scrambled": "السوق إلى رحت",
+      "answer": "رحت إلى السوق",
+      "hint": "I went to the market"
+    }
+  ]
+}
+\`\`\``,
+
+  generate_conversation: `
+IMPORTANT: Generate a conversation scenario for practice. Include a JSON code block:
+
+\`\`\`json
+{
+  "type": "conversation_preview",
+  "scenario": {
+    "title": "Scenario Title",
+    "title_arabic": "عنوان السيناريو",
+    "description": "Brief description of the scenario",
+    "difficulty": "Beginner|Intermediate|Advanced",
+    "icon_name": "Coffee|MapPin|ShoppingBag|Users|UtensilsCrossed|Building2|Stethoscope|Phone|Plane|MessageCircle",
+    "system_prompt": "You are a [role] at [location]. Speak ONLY in Gulf Arabic ([dialect] dialect). Keep responses short (1-2 sentences). Start by [opening]. After each Arabic response, add a line break then provide the English translation in parentheses.",
+    "example_exchanges": [
+      { "role": "assistant", "content": "هلا والله! شلونك؟\n(Hello! How are you?)" },
+      { "role": "user", "content": "الحمد لله بخير" }
+    ]
+  }
+}
+\`\`\``,
+
+  generate_game_set: `
+IMPORTANT: Generate a vocabulary game set with word pairs. Include a JSON code block:
+
+\`\`\`json
+{
+  "type": "game_set_preview",
+  "game_type": "matching|memory|fill-blank",
+  "title": "Game Set Title",
+  "difficulty": "beginner|intermediate|advanced",
+  "word_pairs": [
+    { "word_arabic": "كتاب", "word_english": "book" },
+    { "word_arabic": "قلم", "word_english": "pen" }
+  ]
+}
+\`\`\``,
+};
+
 function buildSystemPrompt(
   dialect: string,
   stageContext?: { name?: string; cefr?: string },
@@ -75,60 +265,7 @@ function buildSystemPrompt(
     ? `\nThe admin is building content for: Stage "${stageContext.name}" (CEFR: ${stageContext.cefr || "unspecified"}).`
     : "";
 
-  let modeInstructions = "";
-  if (mode === "generate_lesson") {
-    modeInstructions = `
-
-IMPORTANT: The admin wants you to generate a structured lesson. Along with your conversational explanation, you MUST include a JSON code block with this exact schema:
-
-\`\`\`json
-{
-  "type": "lesson_preview",
-  "lesson": {
-    "title": "Lesson title in English",
-    "title_arabic": "عنوان الدرس",
-    "description": "Brief description of what students will learn",
-    "duration_minutes": 20,
-    "cefr_target": "A1",
-    "approach": "How this lesson teaches (e.g. dialogues, flashcards, real-world scenarios)",
-    "icon": "📚",
-    "vocabulary": [
-      {
-        "word_arabic": "كلمة",
-        "word_english": "word",
-        "transliteration": "kilma",
-        "category": "noun|verb|adjective|phrase|expression",
-        "teaching_note": "Optional note about usage or dialect variation",
-        "image_scene_description": "A brief scene description for AI image generation (for concrete/action words)"
-      }
-    ],
-    "cultural_notes": "Cultural context relevant to this lesson",
-    "dialect_notes": "How this content varies across Gulf countries"
-  }
-}
-\`\`\``;
-  } else if (mode === "generate_vocab") {
-    modeInstructions = `
-
-IMPORTANT: The admin wants vocabulary words. Along with your conversational explanation, you MUST include a JSON code block with this exact schema:
-
-\`\`\`json
-{
-  "type": "vocab_preview",
-  "vocabulary": [
-    {
-      "word_arabic": "كلمة",
-      "word_english": "word",
-      "transliteration": "kilma",
-      "category": "noun|verb|adjective|phrase|expression",
-      "teaching_note": "Optional note about usage or dialect variation",
-      "image_scene_description": "A brief scene description for AI image generation"
-    }
-  ],
-  "dialect_notes": "How these words vary across Gulf countries"
-}
-\`\`\``;
-  }
+  const modeInstructions = mode && MODE_INSTRUCTIONS[mode] ? MODE_INSTRUCTIONS[mode] : "";
 
   return `You are an expert Gulf Arabic curriculum designer and language teacher. You are helping an admin build lessons and vocabulary for "Lahja" (لهجة), a Gulf Arabic learning app.
 
@@ -164,13 +301,11 @@ async function callLLM(
     throw new Error(`API key ${config.keyEnv} not configured`);
   }
 
-  let endpoint = config.endpoint;
-
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 55_000);
 
   try {
-    const response = await fetch(endpoint, {
+    const response = await fetch(config.endpoint, {
       method: "POST",
       signal: controller.signal,
       headers: {
@@ -207,12 +342,10 @@ async function callLLM(
   }
 }
 
-/** Try to extract structured JSON from a response that mixes markdown + JSON code blocks. */
 function extractStructuredOutput(content: string): {
   type: string;
   data: Record<string, unknown>;
 } | null {
-  // Look for ```json ... ``` blocks
   const jsonBlockMatch = content.match(/```json\s*([\s\S]*?)```/);
   if (!jsonBlockMatch) return null;
 
@@ -233,7 +366,6 @@ serve(async (req) => {
   }
 
   try {
-    // Authenticate — admin only
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(
@@ -258,7 +390,6 @@ serve(async (req) => {
       );
     }
 
-    // Check admin role
     const { data: roles } = await supabaseAuth
       .from("user_roles")
       .select("role")
@@ -303,7 +434,6 @@ serve(async (req) => {
       );
     }
 
-    // Build the full message array with system prompt (cap history to avoid token overflow)
     const cappedMessages = messages.slice(-50);
     const systemPrompt = buildSystemPrompt(dialect, stageContext, mode);
     const fullMessages = [
@@ -316,11 +446,8 @@ serve(async (req) => {
     );
 
     const responseContent = await callLLM(config, fullMessages, 4096);
-
-    // Try to extract structured output
     const structured = extractStructuredOutput(responseContent);
 
-    // Log usage
     try {
       const supabaseService = createClient(
         Deno.env.get("SUPABASE_URL")!,

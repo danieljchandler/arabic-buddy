@@ -240,6 +240,19 @@ const Index = () => {
               <BarChart3 className="h-5 w-5 text-blue-600 dark:text-blue-400" />
               <p className="font-semibold text-foreground text-xs">Analytics</p>
             </button>
+            <button
+              onClick={() => navigate("/my-path")}
+              className={cn(
+                "p-3 rounded-xl",
+                "bg-gradient-to-b from-emerald-500/10 to-teal-500/10 border border-emerald-500/20",
+                "flex flex-col items-center gap-1.5",
+                "transition-all duration-200",
+                "hover:border-emerald-500/40 active:scale-[0.98]"
+              )}
+            >
+              <Compass className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+              <p className="font-semibold text-foreground text-xs">My Path</p>
+            </button>
           </div>
         </div>
       )}

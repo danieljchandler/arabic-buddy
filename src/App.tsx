@@ -183,6 +183,11 @@ const App = () => {
                 <ListeningPractice />
               </ErrorBoundary>
             } />
+            <Route path="/leaderboard" element={
+              <ErrorBoundary name="LeaderboardRoute">
+                <Leaderboard />
+              </ErrorBoundary>
+            } />
 
             {/* Admin routes */}
             <Route path="/admin/login" element={<AdminLogin />} />

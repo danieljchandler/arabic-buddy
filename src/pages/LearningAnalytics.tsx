@@ -17,6 +17,9 @@ import {
   Loader2,
   Zap,
   Star,
+  Clock,
+  AlertTriangle,
+  Sparkles,
 } from "lucide-react";
 import {
   BarChart,
@@ -26,6 +29,15 @@ import {
   ResponsiveContainer,
   Tooltip,
   Cell,
+  LineChart,
+  Line,
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+  Radar,
+  AreaChart,
+  Area,
 } from "recharts";
 
 const StatCard = ({
@@ -33,20 +45,25 @@ const StatCard = ({
   label,
   value,
   sublabel,
-  className,
+  accent,
 }: {
   icon: any;
   label: string;
   value: string | number;
   sublabel?: string;
-  className?: string;
+  accent?: boolean;
 }) => (
-  <div className={cn("bg-card border border-border rounded-xl p-4 space-y-1", className)}>
+  <div className={cn(
+    "rounded-xl p-4 space-y-1 border",
+    accent
+      ? "bg-primary/5 border-primary/20"
+      : "bg-card border-border"
+  )}>
     <div className="flex items-center gap-2 text-muted-foreground">
-      <Icon className="h-4 w-4" />
+      <Icon className={cn("h-4 w-4", accent && "text-primary")} />
       <span className="text-xs font-medium">{label}</span>
     </div>
-    <p className="text-2xl font-bold text-foreground">{value}</p>
+    <p className={cn("text-2xl font-bold", accent ? "text-primary" : "text-foreground")}>{value}</p>
     {sublabel && <p className="text-xs text-muted-foreground">{sublabel}</p>}
   </div>
 );
@@ -96,7 +113,7 @@ const LearningAnalytics = () => {
     <AppShell>
       <HomeButton />
 
-      <div className="py-4 space-y-6">
+      <div className="py-4 space-y-6 pb-12">
         {/* Header */}
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
@@ -104,32 +121,78 @@ const LearningAnalytics = () => {
           </div>
           <div>
             <h1 className="text-xl font-bold text-foreground">Learning Analytics</h1>
-            <p className="text-sm text-muted-foreground">Your progress at a glance</p>
+            <p className="text-sm text-muted-foreground">Your complete progress overview</p>
           </div>
         </div>
 
-        {/* Key Stats Grid */}
+        {/* Hero Stats */}
         <div className="grid grid-cols-2 gap-3">
-          <StatCard icon={BookOpen} label="Total Words" value={analytics.totalWords} />
-          <StatCard icon={Star} label="Mastered" value={analytics.masteredWords} sublabel={`${masteryPercent}% of total`} />
+          <StatCard icon={BookOpen} label="Total Words" value={analytics.totalWords} accent />
+          <StatCard icon={Star} label="Mastered" value={analytics.masteredWords} sublabel={`${masteryPercent}%`} />
           <StatCard icon={Target} label="Accuracy" value={`${analytics.accuracy}%`} sublabel={`${analytics.totalReviews} reviews`} />
-          <StatCard icon={Zap} label="Total XP" value={analytics.totalXP.toLocaleString()} sublabel={`Level ${analytics.level}`} />
-          <StatCard icon={Flame} label="Current Streak" value={analytics.currentStreak} sublabel={`Best: ${analytics.longestStreak}`} />
-          <StatCard icon={Trophy} label="Challenges" value={analytics.challengesCompleted} sublabel="completed" />
+          <StatCard icon={Zap} label="XP" value={analytics.totalXP.toLocaleString()} sublabel={`Level ${analytics.level}`} />
+          <StatCard icon={Flame} label="Streak" value={analytics.currentStreak} sublabel={`Best: ${analytics.longestStreak}`} />
+          <StatCard icon={Clock} label="Study Time" value={`${analytics.studyMinutes}m`} sublabel="estimated" />
         </div>
 
-        {/* Mastery Progress */}
+        {/* This Week Summary */}
+        <div className="bg-gradient-to-r from-primary/5 to-accent/5 border border-primary/20 rounded-2xl p-4 space-y-2">
+          <h2 className="font-semibold text-foreground flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-primary" /> This Week
+          </h2>
+          <div className="flex items-center gap-6 text-sm">
+            <div>
+              <span className="text-2xl font-bold text-primary">{analytics.wordsLearnedThisWeek}</span>
+              <span className="text-muted-foreground ml-1">new words</span>
+            </div>
+            <div>
+              <span className="text-2xl font-bold text-foreground">{analytics.challengesCompleted}</span>
+              <span className="text-muted-foreground ml-1">challenges</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Skill Radar Chart */}
+        <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
+          <h2 className="font-semibold text-foreground flex items-center gap-2">
+            <Target className="h-4 w-4 text-primary" /> Skill Breakdown
+          </h2>
+          <div className="h-52">
+            <ResponsiveContainer width="100%" height="100%">
+              <RadarChart data={analytics.skillRadar} outerRadius="70%">
+                <PolarGrid stroke="hsl(var(--border))" />
+                <PolarAngleAxis
+                  dataKey="skill"
+                  tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                />
+                <PolarRadiusAxis
+                  angle={90}
+                  domain={[0, 100]}
+                  tick={false}
+                  axisLine={false}
+                />
+                <Radar
+                  dataKey="value"
+                  stroke="hsl(var(--primary))"
+                  fill="hsl(var(--primary))"
+                  fillOpacity={0.2}
+                  strokeWidth={2}
+                />
+              </RadarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Word Mastery Breakdown */}
         <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="font-semibold text-foreground flex items-center gap-2">
-              <Brain className="h-4 w-4 text-primary" />
-              Word Mastery
+              <Brain className="h-4 w-4 text-primary" /> Word Mastery
             </h2>
             <span className="text-sm text-primary font-medium">{masteryPercent}%</span>
           </div>
           <Progress value={masteryPercent} className="h-3" />
 
-          {/* Stage breakdown bars */}
           <div className="space-y-2 pt-2">
             {analytics.stageBreakdown.map((stage, i) => (
               <div key={stage.stage} className="flex items-center gap-3">
@@ -150,11 +213,54 @@ const LearningAnalytics = () => {
           </div>
         </div>
 
-        {/* Activity Chart */}
+        {/* Vocab Growth Over Time */}
+        {analytics.vocabGrowth.length > 1 && (
+          <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
+            <h2 className="font-semibold text-foreground flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 text-primary" /> Vocabulary Growth
+            </h2>
+            <div className="h-40">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={analytics.vocabGrowth}>
+                  <defs>
+                    <linearGradient id="vocabGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <XAxis
+                    dataKey="date"
+                    tick={{ fontSize: 10 }}
+                    tickFormatter={(d: string) => {
+                      const date = new Date(d);
+                      return `${date.getMonth() + 1}/${date.getDate()}`;
+                    }}
+                  />
+                  <YAxis tick={{ fontSize: 10 }} width={30} />
+                  <Tooltip
+                    formatter={(value: number) => [`${value} words`, "Total"]}
+                    labelFormatter={(label: string) =>
+                      new Date(label).toLocaleDateString("en-US", { month: "short", day: "numeric" })
+                    }
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="total"
+                    stroke="hsl(var(--primary))"
+                    fillOpacity={1}
+                    fill="url(#vocabGrad)"
+                    strokeWidth={2}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )}
+
+        {/* Daily Activity */}
         <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
           <h2 className="font-semibold text-foreground flex items-center gap-2">
-            <TrendingUp className="h-4 w-4 text-primary" />
-            Daily Activity (14 days)
+            <BarChart3 className="h-4 w-4 text-primary" /> Daily Activity (14 days)
           </h2>
 
           {analytics.dailyActivity.some((d) => d.reviews > 0) ? (
@@ -171,19 +277,15 @@ const LearningAnalytics = () => {
                   />
                   <YAxis tick={{ fontSize: 10 }} width={30} />
                   <Tooltip
-                    formatter={(value: number) => [`${value} reviews`, "Reviews"]}
+                    formatter={(value: number, name: string) => [
+                      `${value}`,
+                      name === "reviews" ? "Reviews" : "Correct",
+                    ]}
                     labelFormatter={(label: string) =>
-                      new Date(label).toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                      })
+                      new Date(label).toLocaleDateString("en-US", { month: "short", day: "numeric" })
                     }
                   />
-                  <Bar dataKey="reviews" radius={[4, 4, 0, 0]}>
-                    {analytics.dailyActivity.map((_, index) => (
-                      <Cell key={index} fill="hsl(var(--primary))" opacity={0.8} />
-                    ))}
-                  </Bar>
+                  <Bar dataKey="reviews" radius={[4, 4, 0, 0]} fill="hsl(var(--primary))" opacity={0.8} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -193,6 +295,54 @@ const LearningAnalytics = () => {
             </div>
           )}
         </div>
+
+        {/* Weekly Accuracy Trend */}
+        {analytics.weeklyAccuracy.some((w) => w.accuracy > 0) && (
+          <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
+            <h2 className="font-semibold text-foreground flex items-center gap-2">
+              <Target className="h-4 w-4 text-primary" /> Accuracy Trend (4 weeks)
+            </h2>
+            <div className="h-36">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={analytics.weeklyAccuracy}>
+                  <XAxis dataKey="week" tick={{ fontSize: 11 }} />
+                  <YAxis domain={[0, 100]} tick={{ fontSize: 10 }} width={30} tickFormatter={(v) => `${v}%`} />
+                  <Tooltip formatter={(v: number) => [`${v}%`, "Accuracy"]} />
+                  <Line
+                    type="monotone"
+                    dataKey="accuracy"
+                    stroke="hsl(var(--primary))"
+                    strokeWidth={2.5}
+                    dot={{ r: 4, fill: "hsl(var(--primary))" }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )}
+
+        {/* Top Mistakes */}
+        {analytics.topMistakes.length > 0 && (
+          <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
+            <h2 className="font-semibold text-foreground flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-destructive" /> Words to Focus On
+            </h2>
+            <div className="space-y-2">
+              {analytics.topMistakes.map((w, i) => (
+                <div key={i} className="flex items-center gap-3">
+                  <span className="text-base font-arabic text-foreground w-24 text-right" dir="rtl">{w.word}</span>
+                  <div className="flex-1 h-4 bg-muted rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-destructive/60"
+                      style={{ width: `${w.errorRate}%` }}
+                    />
+                  </div>
+                  <span className="text-xs text-destructive font-medium w-10 text-right">{w.errorRate}%</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Insights */}
         <div className="bg-gradient-to-r from-primary/5 to-primary/10 border border-primary/20 rounded-2xl p-4 space-y-2">
@@ -218,6 +368,12 @@ const LearningAnalytics = () => {
             )}
             {analytics.learningWords > analytics.masteredWords && analytics.totalWords > 5 && (
               <li>• {analytics.learningWords} words in progress — keep reviewing daily</li>
+            )}
+            {analytics.wordsLearnedThisWeek >= 10 && (
+              <li>• {analytics.wordsLearnedThisWeek} new words this week — impressive pace! 🚀</li>
+            )}
+            {analytics.topMistakes.length > 0 && (
+              <li>• Focus on your challenging words above to boost accuracy</li>
             )}
           </ul>
         </div>

@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { XPDisplay, StreakDisplay, WeeklyGoalCard, AchievementsGrid } from "@/components/gamification";
 import lahjaLogo from "@/assets/lahja-logo.png";
 import { useState } from "react";
+import { NotificationBell } from "@/components/NotificationBell";
 import { formatDuration } from "@/lib/videoEmbed";
 
 const DiscoverPreviewCard = ({ video, onClick }: { video: any; onClick: () => void }) => {

@@ -108,7 +108,7 @@ export function useCurriculumChat() {
   const sendMessage = useCallback(
     async (
       content: string,
-      mode: 'chat' | 'generate_lesson' | 'generate_vocab' = 'chat',
+      mode: string = 'chat',
       session?: ChatSession,
     ) => {
       const currentSession = session ?? sessionsQuery.data?.find((s) => s.id === activeSessionId);

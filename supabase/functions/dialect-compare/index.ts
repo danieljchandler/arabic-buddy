@@ -103,7 +103,7 @@ IMPORTANT: Return ONLY valid JSON, no markdown formatting, no code blocks.`;
 
     const userPrompt = `Compare how "${word}" is said across Gulf Arabic, Egyptian Arabic, Levantine Arabic, and MSA. The user's source dialect is ${source_dialect}.`;
 
-    const response = await fetch("https://api.lovable.dev/v1/chat/completions", {
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${LOVABLE_API_KEY}`,

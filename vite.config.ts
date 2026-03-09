@@ -11,6 +11,9 @@ export default defineConfig(({ mode }) => ({
     hmr: {
       overlay: false,
     },
+    headers: {
+      "Permissions-Policy": "microphone=*",
+    },
   },
   define: {
     // Ensure Supabase env vars are always available at build time

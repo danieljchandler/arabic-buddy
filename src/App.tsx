@@ -235,6 +235,9 @@ const App = () => {
             <Route path="/friends" element={
               <ErrorBoundary name="FriendsRoute"><Friends /></ErrorBoundary>
             } />
+            <Route path="/liked-videos" element={
+              <ErrorBoundary name="LikedVideosRoute"><LikedVideos /></ErrorBoundary>
+            } />
 
             <Route path="/admin/login" element={<AdminLogin />} />
             <Route path="/admin" element={<ErrorBoundary name="AdminRoute"><AdminLayout /></ErrorBoundary>}>

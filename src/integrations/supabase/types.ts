@@ -101,6 +101,39 @@ export type Database = {
         }
         Relationships: []
       }
+      daily_challenge_completions: {
+        Row: {
+          challenge_date: string
+          challenge_type: string
+          completed_at: string
+          id: string
+          max_score: number
+          score: number
+          user_id: string
+          xp_earned: number
+        }
+        Insert: {
+          challenge_date?: string
+          challenge_type?: string
+          completed_at?: string
+          id?: string
+          max_score?: number
+          score?: number
+          user_id: string
+          xp_earned?: number
+        }
+        Update: {
+          challenge_date?: string
+          challenge_type?: string
+          completed_at?: string
+          id?: string
+          max_score?: number
+          score?: number
+          user_id?: string
+          xp_earned?: number
+        }
+        Relationships: []
+      }
       discover_videos: {
         Row: {
           created_at: string

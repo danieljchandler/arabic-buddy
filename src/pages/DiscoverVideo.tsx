@@ -193,6 +193,52 @@ const TranscriptRow = ({
   );
 };
 
+/* ── Like Button ──────────────────────────────────────────── */
+const LikeButton = ({ videoId, isAuthenticated }: { videoId: string; isAuthenticated: boolean }) => {
+  const isLiked = useIsVideoLiked(videoId);
+  const { data: likeCount = 0 } = useVideoLikeCount(videoId);
+  const likeVideo = useLikeVideo();
+  const unlikeVideo = useUnlikeVideo();
+
+  const handleToggle = async () => {
+    if (!isAuthenticated) {
+      toast.error("Sign in to like videos");
+      return;
+    }
+    try {
+      if (isLiked) {
+        await unlikeVideo.mutateAsync(videoId);
+      } else {
+        await likeVideo.mutateAsync(videoId);
+      }
+    } catch {
+      toast.error("Failed to update like");
+    }
+  };
+
+  const isPending = likeVideo.isPending || unlikeVideo.isPending;
+
+  return (
+    <button
+      onClick={handleToggle}
+      disabled={isPending}
+      className={cn(
+        "flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all shrink-0",
+        isLiked
+          ? "bg-primary/10 text-primary"
+          : "bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80"
+      )}
+    >
+      <Heart
+        className={cn("h-5 w-5 transition-all", isLiked && "fill-primary")}
+      />
+      {likeCount > 0 && (
+        <span className="text-sm font-semibold">{likeCount}</span>
+      )}
+    </button>
+  );
+};
+
 /* ── Main Page ────────────────────────────────────────────── */
 const DiscoverVideo = () => {
   const { videoId } = useParams<{ videoId: string }>();

@@ -23,6 +23,8 @@ import LearnFromX from "./pages/LearnFromX";
 import HowDoISay from "./pages/HowDoISay";
 import CultureGuide from "./pages/CultureGuide";
 import Pricing from "./pages/Pricing";
+import PronunciationPractice from "./pages/PronunciationPractice";
+import ConversationSimulator from "./pages/ConversationSimulator";
 import AdminLogin from "./pages/admin/AdminLogin";
 import AdminLayout from "./pages/admin/AdminLayout";
 import Dashboard from "./pages/admin/Dashboard";
@@ -156,6 +158,16 @@ const App = () => {
             <Route path="/pricing" element={
               <ErrorBoundary name="PricingRoute">
                 <Pricing />
+              </ErrorBoundary>
+            } />
+            <Route path="/pronunciation" element={
+              <ErrorBoundary name="PronunciationRoute">
+                <PronunciationPractice />
+              </ErrorBoundary>
+            } />
+            <Route path="/conversation" element={
+              <ErrorBoundary name="ConversationRoute">
+                <ConversationSimulator />
               </ErrorBoundary>
             } />
 

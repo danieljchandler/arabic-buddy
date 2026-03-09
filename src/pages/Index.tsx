@@ -151,39 +151,46 @@ const Index = () => {
           <WeeklyGoalCard />
           <AchievementsGrid />
 
-          {/* Daily Challenge + Leaderboard row */}
-          <div className="flex gap-2">
+          {/* Daily Challenge + Leaderboard + Analytics row */}
+          <div className="grid grid-cols-3 gap-2">
             <button
               onClick={() => navigate("/daily-challenge")}
               className={cn(
-                "flex-1 p-3 rounded-xl",
-                "bg-gradient-to-r from-orange-500/10 to-red-500/10 border border-orange-500/20",
-                "flex items-center gap-2",
+                "p-3 rounded-xl",
+                "bg-gradient-to-b from-orange-500/10 to-red-500/10 border border-orange-500/20",
+                "flex flex-col items-center gap-1.5",
                 "transition-all duration-200",
                 "hover:border-orange-500/40 active:scale-[0.98]"
               )}
             >
               <Flame className="h-5 w-5 text-orange-500" />
-              <div className="text-left">
-                <p className="font-semibold text-foreground text-sm">Daily Challenge</p>
-                <p className="text-xs text-muted-foreground">Earn bonus XP</p>
-              </div>
+              <p className="font-semibold text-foreground text-xs">Challenge</p>
             </button>
             <button
               onClick={() => navigate("/leaderboard")}
               className={cn(
-                "flex-1 p-3 rounded-xl",
-                "bg-gradient-to-r from-yellow-500/10 to-orange-500/10 border border-yellow-500/20",
-                "flex items-center gap-2",
+                "p-3 rounded-xl",
+                "bg-gradient-to-b from-yellow-500/10 to-orange-500/10 border border-yellow-500/20",
+                "flex flex-col items-center gap-1.5",
                 "transition-all duration-200",
                 "hover:border-yellow-500/40 active:scale-[0.98]"
               )}
             >
               <Trophy className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
-              <div className="text-left">
-                <p className="font-semibold text-foreground text-sm">Leaderboard</p>
-                <p className="text-xs text-muted-foreground">Rankings</p>
-              </div>
+              <p className="font-semibold text-foreground text-xs">Leaderboard</p>
+            </button>
+            <button
+              onClick={() => navigate("/analytics")}
+              className={cn(
+                "p-3 rounded-xl",
+                "bg-gradient-to-b from-blue-500/10 to-indigo-500/10 border border-blue-500/20",
+                "flex flex-col items-center gap-1.5",
+                "transition-all duration-200",
+                "hover:border-blue-500/40 active:scale-[0.98]"
+              )}
+            >
+              <BarChart3 className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              <p className="font-semibold text-foreground text-xs">Analytics</p>
             </button>
           </div>
         </div>

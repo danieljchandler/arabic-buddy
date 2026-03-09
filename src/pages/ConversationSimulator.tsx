@@ -209,6 +209,10 @@ const ConversationSimulator = () => {
 
       const reply = data?.reply || data?.content || "";
       setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
+      // Queue auto-play
+      if (autoPlay) {
+        pendingAutoPlayRef.current = reply;
+      }
     } catch (err) {
       toast({
         title: "Error",

@@ -171,6 +171,11 @@ const App = () => {
                 <ConversationSimulator />
               </ErrorBoundary>
             } />
+            <Route path="/dialect-compare" element={
+              <ErrorBoundary name="DialectCompareRoute">
+                <DialectCompare />
+              </ErrorBoundary>
+            } />
 
             {/* Admin routes */}
             <Route path="/admin/login" element={<AdminLogin />} />

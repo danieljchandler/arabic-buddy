@@ -11,7 +11,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Plus, Trash2, Save, Loader2, GripVertical } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Slider } from '@/components/ui/slider';
+import { ArrowLeft, Plus, Trash2, Save, Loader2, GripVertical, Sparkles, Wand2 } from 'lucide-react';
 import { toast } from 'sonner';
 import lahjaIcon from '@/assets/lahja-icon.png';
 
@@ -52,6 +54,13 @@ const AdminStoryForm = () => {
   const [difficulty, setDifficulty] = useState('Beginner');
   const [scenes, setScenes] = useState<SceneForm[]>([emptyScene(0)]);
   const [saving, setSaving] = useState(false);
+
+  // AI generation state
+  const [aiDialogOpen, setAiDialogOpen] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [aiGuidance, setAiGuidance] = useState('');
+  const [aiSceneCount, setAiSceneCount] = useState(5);
+  const [generating, setGenerating] = useState(false);
 
   const { data: existingScenes } = useStoryScenes(storyId);
 
@@ -138,6 +147,60 @@ const AdminStoryForm = () => {
     updateScene(sceneIdx, { vocabulary: scenes[sceneIdx].vocabulary.filter((_, i) => i !== vocabIdx) });
   };
 
+  const handleAiGenerate = async () => {
+    if (!aiPrompt.trim()) {
+      toast.error('Please describe the story topic');
+      return;
+    }
+    setGenerating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-story', {
+        body: {
+          prompt: aiPrompt.trim(),
+          dialect,
+          difficulty,
+          sceneCount: aiSceneCount,
+          guidance: aiGuidance.trim() || undefined,
+        },
+      });
+
+      if (error) throw new Error(error.message);
+      if (data?.error) throw new Error(data.error);
+
+      const generated = data?.story;
+      if (!generated) throw new Error('No story returned from AI');
+
+      // Apply generated content to form
+      if (generated.title) setTitle(generated.title);
+      if (generated.title_arabic) setTitleArabic(generated.title_arabic);
+      if (generated.description) setDescription(generated.description);
+      if (generated.description_arabic) setDescriptionArabic(generated.description_arabic);
+
+      if (Array.isArray(generated.scenes) && generated.scenes.length > 0) {
+        setScenes(
+          generated.scenes.map((s: SceneForm) => ({
+            scene_order: s.scene_order ?? 0,
+            narrative_arabic: s.narrative_arabic ?? '',
+            narrative_english: s.narrative_english ?? '',
+            vocabulary: Array.isArray(s.vocabulary) ? s.vocabulary : [],
+            choices: Array.isArray(s.choices) ? s.choices : [],
+            is_ending: s.is_ending ?? false,
+            ending_message: s.ending_message ?? '',
+            ending_message_arabic: s.ending_message_arabic ?? '',
+          }))
+        );
+      }
+
+      setAiDialogOpen(false);
+      toast.success('Story generated! Review and edit before saving.');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to generate story';
+      toast.error(message);
+    } finally {
+      setGenerating(false);
+    }
+  };
+
   const handleSave = async () => {
     if (!user) return;
     if (!title.trim()) {
@@ -205,10 +268,16 @@ const AdminStoryForm = () => {
             <img src={lahjaIcon} alt="Lahja" className="h-8 w-8" />
             <h1 className="text-xl font-bold font-heading">{isEdit ? 'Edit Story' : 'New Story'}</h1>
           </div>
-          <Button onClick={handleSave} disabled={saving}>
-            {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-            Save Story
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={() => setAiDialogOpen(true)} disabled={saving}>
+              <Wand2 className="h-4 w-4 mr-2" />
+              Generate with AI
+            </Button>
+            <Button onClick={handleSave} disabled={saving}>
+              {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+              Save Story
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -430,6 +499,95 @@ const AdminStoryForm = () => {
           ))}
         </div>
       </main>
+
+      {/* AI Generation Dialog */}
+      <Dialog open={aiDialogOpen} onOpenChange={setAiDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" />
+              Generate Story with AI
+            </DialogTitle>
+            <DialogDescription>
+              Describe your story idea and the AI will create a complete interactive story with scenes, choices, and vocabulary. You can edit everything after generation.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 pt-2">
+            <div>
+              <Label htmlFor="ai-prompt">Story Topic / Scenario *</Label>
+              <Textarea
+                id="ai-prompt"
+                value={aiPrompt}
+                onChange={(e) => setAiPrompt(e.target.value)}
+                placeholder="e.g. Ordering food at a traditional Gulf restaurant, negotiating a taxi fare in Cairo, visiting a souk and bargaining for spices..."
+                rows={3}
+                className="mt-1"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="ai-guidance">Additional Guidance (optional)</Label>
+              <Textarea
+                id="ai-guidance"
+                value={aiGuidance}
+                onChange={(e) => setAiGuidance(e.target.value)}
+                placeholder="e.g. Include vocabulary about numbers and prices. Make one path lead to a cultural faux pas. Focus on polite greetings..."
+                rows={2}
+                className="mt-1"
+              />
+            </div>
+
+            <div>
+              <Label className="flex items-center justify-between mb-2">
+                <span>Number of Scenes</span>
+                <Badge variant="secondary">{aiSceneCount} scenes</Badge>
+              </Label>
+              <Slider
+                min={3}
+                max={10}
+                step={1}
+                value={[aiSceneCount]}
+                onValueChange={([val]) => setAiSceneCount(val)}
+                className="w-full"
+              />
+              <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                <span>3 (short)</span>
+                <span>6 (medium)</span>
+                <span>10 (long)</span>
+              </div>
+            </div>
+
+            <div className="bg-muted/50 rounded-lg p-3 text-sm text-muted-foreground">
+              <p className="font-medium text-foreground mb-1">Using current settings:</p>
+              <ul className="space-y-0.5">
+                <li>Dialect: <span className="font-medium text-foreground">{dialect}</span></li>
+                <li>Difficulty: <span className="font-medium text-foreground">{difficulty}</span></li>
+              </ul>
+              <p className="mt-2 text-xs">To change these, close this dialog and update the Story Details first.</p>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => setAiDialogOpen(false)} disabled={generating}>
+                Cancel
+              </Button>
+              <Button onClick={handleAiGenerate} disabled={generating || !aiPrompt.trim()}>
+                {generating ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    Generate Story
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

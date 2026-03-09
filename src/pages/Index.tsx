@@ -158,7 +158,7 @@ const Index = () => {
             </Button>
           )}
           <Button variant="ghost" size="icon" onClick={() => navigate("/admin")} className="text-muted-foreground/50 hover:text-muted-foreground" title="Admin">
-            <Settings className="h-4 w-4" />
+            <GraduationCap className="h-4 w-4" />
           </Button>
         </div>
       </div>

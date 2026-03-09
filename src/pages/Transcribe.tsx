@@ -382,7 +382,6 @@ const Transcribe = () => {
     // Auto-prepend https:// if missing
     if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) {
       trimmed = `https://${trimmed}`;
-    }
 
     // Basic URL validation
     try {

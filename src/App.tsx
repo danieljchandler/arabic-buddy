@@ -258,6 +258,12 @@ const App = () => {
             <Route path="/battles/:battleId" element={
               <ErrorBoundary name="BattlePlayRoute"><BattlePlay /></ErrorBoundary>
             } />
+            <Route path="/my-path" element={
+              <ErrorBoundary name="LearningPathRoute"><LearningPathDashboard /></ErrorBoundary>
+            } />
+            <Route path="/my-path/setup" element={
+              <ErrorBoundary name="LearningPathSetupRoute"><LearningPathSetup /></ErrorBoundary>
+            } />
 
             <Route path="/admin" element={<ErrorBoundary name="AdminRoute"><AdminLayout /></ErrorBoundary>}>
               <Route index element={<Dashboard />} />

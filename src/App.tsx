@@ -189,8 +189,12 @@ const App = () => {
                 <Leaderboard />
               </ErrorBoundary>
             } />
+            <Route path="/reading" element={
+              <ErrorBoundary name="ReadingRoute">
+                <ReadingPractice />
+              </ErrorBoundary>
+            } />
 
-            {/* Admin routes */}
             <Route path="/admin/login" element={<AdminLogin />} />
             <Route path="/admin" element={<ErrorBoundary name="AdminRoute"><AdminLayout /></ErrorBoundary>}>
               <Route index element={<Dashboard />} />

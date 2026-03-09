@@ -45,6 +45,7 @@ function generateId(): string {
    culturalContext?: string;
   dialectValidation?: { content: string; timestamp: string } | null;
   dialect?: 'Saudi' | 'Kuwaiti' | 'UAE' | 'Bahraini' | 'Qatari' | 'Omani' | 'Gulf';
+  difficulty?: 'Beginner' | 'Intermediate' | 'Advanced' | 'Expert';
   /** Full merged Arabic transcript with tashkeel added by Farasa. Feed to ElevenLabs TTS for accurate pronunciation. */
   diacritizedTranscript?: string | null;
   /** Dialect identification from CAMeL-Lab BERT model (city-level, independent of LLM). */

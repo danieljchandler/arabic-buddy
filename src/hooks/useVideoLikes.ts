@@ -89,19 +89,20 @@ export function useUnlikeVideo() {
   });
 }
 
-// Get all liked videos (with full video data) for the current user
-export function useLikedVideos() {
-  const { user } = useAuth();
+// Get all liked videos (with full video data) for a user
+export function useLikedVideos(userId?: string) {
+  const { user: authUser } = useAuth();
+  const targetUserId = userId || authUser?.id;
 
   return useQuery({
-    queryKey: ["liked-videos", user?.id],
+    queryKey: ["liked-videos", targetUserId],
     queryFn: async (): Promise<DiscoverVideo[]> => {
-      if (!user) return [];
+      if (!targetUserId) return [];
       // Get liked video IDs
       const { data: likes, error: likesError } = await supabase
         .from("video_likes" as any)
         .select("video_id, created_at")
-        .eq("user_id", user.id)
+        .eq("user_id", targetUserId)
         .order("created_at", { ascending: false });
       if (likesError) throw likesError;
 
@@ -122,6 +123,6 @@ export function useLikedVideos() {
         .map((id) => videoMap.get(id))
         .filter(Boolean) as DiscoverVideo[];
     },
-    enabled: !!user,
+    enabled: !!targetUserId,
   });
 }

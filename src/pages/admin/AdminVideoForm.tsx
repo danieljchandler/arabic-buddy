@@ -567,6 +567,16 @@ const AdminVideoForm = () => {
         : audioCulturalContext;
       setCulturalContext(visualCulturalNote);
 
+      // Auto-populate dialect + difficulty from AI detection
+      if (result.dialect) setDialect(result.dialect);
+      if (result.difficulty) setDifficulty(result.difficulty);
+      if (result.dialect || result.difficulty) {
+        toast.info(
+          `Auto-detected: ${result.dialect || "Gulf"} dialect · ${result.difficulty || "Intermediate"} difficulty`,
+          { duration: 4000 }
+        );
+      }
+
       // Auto-populate title if empty
       if (!title && result.title) {
         setTitle(result.title);

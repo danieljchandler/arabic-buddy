@@ -37,6 +37,8 @@ import Onboarding from "./pages/Onboarding";
 import Settings from "./pages/Settings";
 import Friends from "./pages/Friends";
 import LikedVideos from "./pages/LikedVideos";
+import Stories from "./pages/Stories";
+import StoryPlayer from "./pages/StoryPlayer";
 import AdminLogin from "./pages/admin/AdminLogin";
 import AdminLayout from "./pages/admin/AdminLayout";
 import Dashboard from "./pages/admin/Dashboard";

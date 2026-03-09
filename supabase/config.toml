@@ -101,3 +101,9 @@ verify_jwt = false
 
 [functions.grammar-drill]
 verify_jwt = false
+
+[functions.generate-learning-path]
+verify_jwt = false
+
+[functions.weekly-coach]
+verify_jwt = false

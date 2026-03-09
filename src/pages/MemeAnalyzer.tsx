@@ -106,21 +106,61 @@ const MemeAnalyzer = () => {
       toast.error("Please log in to save words");
       return;
     }
+
+    // Resolve sentence context: use provided or auto-match from audio lines
+    let resolvedSentenceText = word.sentenceText;
+    let resolvedSentenceEnglish = word.sentenceEnglish;
+    let resolvedStartMs = word.startMs;
+    let resolvedEndMs = word.endMs;
+
+    if (!resolvedSentenceText) {
+      const allLines = [...(result?.audioText?.lines ?? []), ...(result?.onScreenText?.lines ?? [])];
+      const matched = findLineContainingWord(
+        allLines.map(l => ({ arabic: l.arabic, translation: l.translation, startMs: l.startMs, endMs: l.endMs })),
+        word.arabic
+      );
+      if (matched) {
+        resolvedSentenceText = matched.sentenceText;
+        resolvedSentenceEnglish = matched.sentenceEnglish;
+        resolvedStartMs = matched.startMs;
+        resolvedEndMs = matched.endMs;
+      }
+    }
+
+    // Clip sentence audio if video file and timing are available
+    let sentenceAudioUrl: string | undefined;
+    if (isVideo && file && resolvedStartMs !== undefined && resolvedEndMs !== undefined) {
+      try {
+        const audioBuffer = await decodeAudioFile(file);
+        const wavBlob = clipToWav(audioBuffer, resolvedStartMs, resolvedEndMs);
+        const clipPath = `sentence-clips/${user.id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.wav`;
+        const { error: uploadError } = await supabase.storage
+          .from("flashcard-audio")
+          .upload(clipPath, wavBlob, { contentType: "audio/wav" });
+        if (!uploadError) {
+          sentenceAudioUrl = supabase.storage.from("flashcard-audio").getPublicUrl(clipPath).data.publicUrl;
+        }
+      } catch (clipErr) {
+        console.warn("Sentence audio clipping failed:", clipErr);
+      }
+    }
+
     try {
       await addUserVocabulary.mutateAsync({
         word_arabic: word.arabic,
         word_english: word.english,
         root: word.root,
         source: "meme-analyzer",
-        sentence_text: word.sentenceText,
-        sentence_english: word.sentenceEnglish,
+        sentence_text: resolvedSentenceText,
+        sentence_english: resolvedSentenceEnglish,
+        sentence_audio_url: sentenceAudioUrl,
       });
       setSavedWords((prev) => new Set(prev).add(word.arabic));
       toast.success("Saved to My Words!", { description: word.arabic });
     } catch {
       toast.error("Failed to save word");
     }
-  }, [isAuthenticated, user, addUserVocabulary]);
+  }, [isAuthenticated, user, addUserVocabulary, isVideo, file, result]);
 
   const analyzeMeme = async () => {
     if (!file) return;

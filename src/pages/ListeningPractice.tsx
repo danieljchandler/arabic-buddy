@@ -77,6 +77,27 @@ const ListeningPractice = () => {
     setAnswer("");
 
     try {
+      // Try pre-approved content first
+      const { data: approved } = await supabase
+        .from("listening_exercises" as any)
+        .select("*")
+        .eq("status", "published")
+        .eq("mode", selectedMode)
+        .limit(10);
+
+      if (approved && approved.length >= 3) {
+        const shuffled = (approved as any[]).sort(() => Math.random() - 0.5).slice(0, 5);
+        setQuestions(shuffled.map((ex: any) => ({
+          type: selectedMode,
+          audioText: ex.audio_text,
+          audioTextEnglish: ex.audio_text_english,
+          options: ex.questions as any,
+          hint: ex.hint,
+        })));
+        return;
+      }
+
+      // Fallback to live AI generation
       const wordsToUse = allWords?.slice(0, 30) || [];
       
       const { data, error } = await supabase.functions.invoke("listening-quiz", {

@@ -6,6 +6,14 @@ import type { ChatMessage } from '@/hooks/useCurriculumChat';
 import { getModelName } from './ModelSelector';
 import { LessonPreviewCard } from './LessonPreviewCard';
 import { VocabPreviewCard } from './VocabPreviewCard';
+import {
+  GrammarPreviewCard,
+  ListeningPreviewCard,
+  ReadingPreviewCard,
+  DailyChallengePreviewCard,
+  ConversationPreviewCard,
+  GameSetPreviewCard,
+} from './ContentPreviewCard';
 
 interface ChatWindowProps {
   messages: ChatMessage[];
@@ -13,6 +21,7 @@ interface ChatWindowProps {
   sessionId: string | null;
   onApproveLesson: (messageId: string, data: Record<string, unknown>, stageId: string) => void;
   onApproveVocab: (messageId: string, data: Record<string, unknown>, lessonId: string, selectedIndices: number[]) => void;
+  onApproveContent: (messageId: string, outputType: string, data: Record<string, unknown>) => void;
 }
 
 export const ChatWindow = ({
@@ -21,6 +30,7 @@ export const ChatWindow = ({
   sessionId,
   onApproveLesson,
   onApproveVocab,
+  onApproveContent,
 }: ChatWindowProps) => {
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -36,7 +46,7 @@ export const ChatWindow = ({
           <h3 className="text-lg font-medium mb-2">Curriculum Builder</h3>
           <p className="text-sm max-w-md">
             Create a new session or select an existing one to start building
-            lessons and vocabulary with AI assistance.
+            lessons, exercises, and vocabulary with AI assistance.
           </p>
         </div>
       </div>
@@ -48,12 +58,15 @@ export const ChatWindow = ({
       <div className="max-w-3xl mx-auto p-4 space-y-4">
         {messages.length === 0 && !isGenerating && (
           <div className="text-center py-12 text-muted-foreground">
-            <p className="text-sm">Start the conversation. Try one of the quick actions below, or type freely.</p>
+            <p className="text-sm">Start the conversation. Use the quick actions below to generate any type of learning content.</p>
             <div className="mt-4 space-y-2 text-xs">
-              <p>&bull; "Create a lesson about greetings and introductions for beginners"</p>
-              <p>&bull; "Generate 20 food vocabulary words used in Saudi restaurants"</p>
-              <p>&bull; "Compare how people say 'how are you' across all Gulf countries"</p>
-              <p>&bull; "What topics should Stage 1 (Foundations) cover?"</p>
+              <p>&bull; <strong>Lessons</strong> — "Create a lesson about greetings for beginners"</p>
+              <p>&bull; <strong>Grammar</strong> — "Generate verb conjugation drills for intermediate"</p>
+              <p>&bull; <strong>Listening</strong> — "Create dictation exercises about daily routines"</p>
+              <p>&bull; <strong>Reading</strong> — "Write a reading passage about Saudi coffee culture"</p>
+              <p>&bull; <strong>Challenges</strong> — "Make a daily challenge about food vocabulary"</p>
+              <p>&bull; <strong>Conversations</strong> — "Create a conversation scenario at a restaurant"</p>
+              <p>&bull; <strong>Games</strong> — "Generate a matching game set for colors and numbers"</p>
             </div>
           </div>
         )}
@@ -65,7 +78,6 @@ export const ChatWindow = ({
                 msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'
               }`}
             >
-              {/* Avatar */}
               <div
                 className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
                   msg.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'
@@ -78,7 +90,6 @@ export const ChatWindow = ({
                 )}
               </div>
 
-              {/* Message bubble */}
               <div
                 className={`max-w-[85%] rounded-lg px-4 py-3 ${
                   msg.role === 'user'
@@ -98,20 +109,56 @@ export const ChatWindow = ({
             </div>
 
             {/* Structured output preview cards */}
-            {msg.structured_output && msg.output_type === 'lesson_preview' && (
+            {msg.structured_output && (
               <div className="ml-11 mt-2">
-                <LessonPreviewCard
-                  data={msg.structured_output}
-                  onApprove={(stageId) => onApproveLesson(msg.id, msg.structured_output!, stageId)}
-                />
-              </div>
-            )}
-            {msg.structured_output && msg.output_type === 'vocab_preview' && (
-              <div className="ml-11 mt-2">
-                <VocabPreviewCard
-                  data={msg.structured_output}
-                  onApprove={(lessonId, selectedIndices) => onApproveVocab(msg.id, msg.structured_output!, lessonId, selectedIndices)}
-                />
+                {msg.output_type === 'lesson_preview' && (
+                  <LessonPreviewCard
+                    data={msg.structured_output}
+                    onApprove={(stageId) => onApproveLesson(msg.id, msg.structured_output!, stageId)}
+                  />
+                )}
+                {msg.output_type === 'vocab_preview' && (
+                  <VocabPreviewCard
+                    data={msg.structured_output}
+                    onApprove={(lessonId, selectedIndices) => onApproveVocab(msg.id, msg.structured_output!, lessonId, selectedIndices)}
+                  />
+                )}
+                {msg.output_type === 'grammar_preview' && (
+                  <GrammarPreviewCard
+                    data={msg.structured_output}
+                    onApprove={() => onApproveContent(msg.id, 'grammar_preview', msg.structured_output!)}
+                  />
+                )}
+                {msg.output_type === 'listening_preview' && (
+                  <ListeningPreviewCard
+                    data={msg.structured_output}
+                    onApprove={() => onApproveContent(msg.id, 'listening_preview', msg.structured_output!)}
+                  />
+                )}
+                {msg.output_type === 'reading_preview' && (
+                  <ReadingPreviewCard
+                    data={msg.structured_output}
+                    onApprove={() => onApproveContent(msg.id, 'reading_preview', msg.structured_output!)}
+                  />
+                )}
+                {msg.output_type === 'daily_challenge_preview' && (
+                  <DailyChallengePreviewCard
+                    data={msg.structured_output}
+                    onApprove={() => onApproveContent(msg.id, 'daily_challenge_preview', msg.structured_output!)}
+                  />
+                )}
+                {msg.output_type === 'conversation_preview' && (
+                  <ConversationPreviewCard
+                    data={msg.structured_output}
+                    onApprove={() => onApproveContent(msg.id, 'conversation_preview', msg.structured_output!)}
+                  />
+                )}
+                {msg.output_type === 'game_set_preview' && (
+                  <GameSetPreviewCard
+                    data={msg.structured_output}
+                    onApprove={() => onApproveContent(msg.id, 'game_set_preview', msg.structured_output!)}
+                  />
+                )}
               </div>
             )}
           </div>
@@ -137,8 +184,6 @@ export const ChatWindow = ({
   );
 };
 
-/** Simple content renderer that strips JSON code blocks from display (they appear as preview cards instead). */
 function renderContent(content: string): string {
-  // Remove ```json ... ``` blocks since they're rendered as structured preview cards
   return content.replace(/```json[\s\S]*?```/g, '').trim();
 }

@@ -83,6 +83,31 @@ const ReadingPractice = () => {
     setShowTranslation(false);
 
     try {
+      // Try pre-approved content first
+      const { data: approved } = await supabase
+        .from("reading_passages" as any)
+        .select("*")
+        .eq("status", "published")
+        .eq("difficulty", selectedDifficulty)
+        .limit(10);
+
+      if (approved && approved.length > 0) {
+        const picked = (approved as any[])[Math.floor(Math.random() * approved.length)];
+        const p: Passage = {
+          title: picked.title,
+          titleEnglish: picked.title_english,
+          passage: picked.passage,
+          passageEnglish: picked.passage_english,
+          difficulty: selectedDifficulty,
+          vocabulary: picked.vocabulary as VocabItem[],
+          questions: picked.questions as Question[],
+        };
+        setPassage(p);
+        setAnswers(new Array(p.questions.length).fill(null));
+        return;
+      }
+
+      // Fallback to live AI generation
       const wordsToUse = allWords?.slice(0, 20) || [];
 
       const { data, error } = await supabase.functions.invoke("reading-passage", {

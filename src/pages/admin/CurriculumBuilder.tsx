@@ -7,7 +7,7 @@ import { useCurriculumChat } from '@/hooks/useCurriculumChat';
 import { useCurriculumApproval } from '@/hooks/useCurriculumApproval';
 import { ChatSidebar } from '@/components/admin/curriculum-builder/ChatSidebar';
 import { ChatWindow } from '@/components/admin/curriculum-builder/ChatWindow';
-import { ChatInput } from '@/components/admin/curriculum-builder/ChatInput';
+import { ChatInput, type ChatMode } from '@/components/admin/curriculum-builder/ChatInput';
 import { DialectSelector, type GulfDialect } from '@/components/admin/curriculum-builder/DialectSelector';
 import { ModelSelector, type LLMModelId } from '@/components/admin/curriculum-builder/ModelSelector';
 import {
@@ -37,17 +37,24 @@ const CurriculumBuilder = () => {
     updateModel,
   } = useCurriculumChat();
 
-  const { approveLesson, approveVocabulary } = useCurriculumApproval();
+  const {
+    approveLesson,
+    approveVocabulary,
+    approveGrammarExercises,
+    approveListeningExercises,
+    approveReadingPassage,
+    approveDailyChallenge,
+    approveConversationScenario,
+    approveGameSet,
+  } = useCurriculumApproval();
   const { data: stages } = useStages();
 
-  // New session dialog state
   const [showNewDialog, setShowNewDialog] = useState(false);
   const [newDialect, setNewDialect] = useState<GulfDialect>('Gulf');
   const [newModel, setNewModel] = useState<LLMModelId>('google/gemini-2.5-flash');
   const [newStageId, setNewStageId] = useState<string>('');
   const [newCefr, setNewCefr] = useState<string>('');
 
-  // Sync route param
   useEffect(() => {
     if (routeSessionId && routeSessionId !== activeSessionId) {
       setActiveSessionId(routeSessionId);
@@ -75,8 +82,8 @@ const CurriculumBuilder = () => {
   }, [createSession, newDialect, newModel, newStageId, newCefr]);
 
   const handleSend = useCallback(
-    (content: string, mode?: 'chat' | 'generate_lesson' | 'generate_vocab') => {
-      sendMessage(content, mode, activeSession);
+    (content: string, mode?: ChatMode) => {
+      sendMessage(content, mode as string, activeSession);
     },
     [sendMessage, activeSession],
   );
@@ -132,9 +139,38 @@ const CurriculumBuilder = () => {
     [activeSessionId, approveVocabulary],
   );
 
+  const handleApproveContent = useCallback(
+    (messageId: string, outputType: string, data: Record<string, unknown>) => {
+      if (!activeSessionId) return;
+
+      const params = { messageId, sessionId: activeSessionId, data };
+
+      switch (outputType) {
+        case 'grammar_preview':
+          approveGrammarExercises.mutate(params);
+          break;
+        case 'listening_preview':
+          approveListeningExercises.mutate(params);
+          break;
+        case 'reading_preview':
+          approveReadingPassage.mutate(params);
+          break;
+        case 'daily_challenge_preview':
+          approveDailyChallenge.mutate(params);
+          break;
+        case 'conversation_preview':
+          approveConversationScenario.mutate(params);
+          break;
+        case 'game_set_preview':
+          approveGameSet.mutate(params);
+          break;
+      }
+    },
+    [activeSessionId, approveGrammarExercises, approveListeningExercises, approveReadingPassage, approveDailyChallenge, approveConversationScenario, approveGameSet],
+  );
+
   return (
     <div className="h-[calc(100vh-4rem)] flex flex-col">
-      {/* Header */}
       <header className="border-b bg-card px-4 py-3 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={() => navigate('/admin')}>
@@ -149,12 +185,11 @@ const CurriculumBuilder = () => {
           )}
         </div>
 
-        {/* Session-level controls */}
         {activeSession && (
           <div className="flex items-center gap-3">
             <DialectSelector
               value={activeSession.target_dialect as GulfDialect}
-              onChange={() => {/* dialect is set at session creation */}}
+              onChange={() => {}}
               className="w-[180px] h-9"
             />
             <ModelSelector
@@ -166,7 +201,6 @@ const CurriculumBuilder = () => {
         )}
       </header>
 
-      {/* Main content */}
       <div className="flex flex-1 overflow-hidden">
         <ChatSidebar
           sessions={sessions}
@@ -183,6 +217,7 @@ const CurriculumBuilder = () => {
             sessionId={activeSessionId}
             onApproveLesson={handleApproveLesson}
             onApproveVocab={handleApproveVocab}
+            onApproveContent={handleApproveContent}
           />
 
           <ChatInput
@@ -193,7 +228,6 @@ const CurriculumBuilder = () => {
         </div>
       </div>
 
-      {/* New session dialog */}
       <Dialog open={showNewDialog} onOpenChange={setShowNewDialog}>
         <DialogContent>
           <DialogHeader>

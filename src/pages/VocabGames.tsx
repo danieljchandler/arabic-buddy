@@ -429,7 +429,28 @@ const VocabGames = () => {
   const fetchWords = useCallback(async () => {
     setLoading(true);
     try {
-      // Try user vocabulary first, fall back to curriculum words
+      // Try pre-approved game sets first
+      const { data: gameSets } = await supabase
+        .from("vocab_game_sets" as any)
+        .select("*")
+        .eq("status", "published")
+        .limit(5);
+
+      if (gameSets && gameSets.length > 0) {
+        const picked = (gameSets as any[])[Math.floor(Math.random() * gameSets.length)];
+        const pairs = (picked.word_pairs as any[]).map((wp: any, i: number) => ({
+          id: `gs-${i}`,
+          word_arabic: wp.word_arabic,
+          word_english: wp.word_english,
+        }));
+        if (pairs.length >= 6) {
+          setWords(pairs.sort(() => Math.random() - 0.5));
+          setLoading(false);
+          return;
+        }
+      }
+
+      // Try user vocabulary, fall back to curriculum words
       if (user) {
         const { data } = await supabase
           .from("user_vocabulary")

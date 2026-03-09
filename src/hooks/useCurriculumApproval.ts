@@ -25,7 +25,6 @@ interface LessonData {
 export function useCurriculumApproval() {
   const queryClient = useQueryClient();
 
-  // Approve a full lesson (creates lesson + vocabulary words)
   const approveLesson = useMutation({
     mutationFn: async ({
       messageId,
@@ -41,7 +40,6 @@ export function useCurriculumApproval() {
       const { data: userData } = await supabase.auth.getUser();
       if (!userData.user) throw new Error('Not authenticated');
 
-      // 1. Find the next lesson number for this stage
       const { data: existingLessons } = await supabase
         .from('lessons' as never)
         .select('lesson_number')
@@ -51,7 +49,6 @@ export function useCurriculumApproval() {
 
       const nextLessonNumber = ((existingLessons as unknown as { lesson_number: number }[])?.[0]?.lesson_number ?? 0) + 1;
 
-      // 2. Create the lesson
       const { data: lesson, error: lessonErr } = await supabase
         .from('lessons' as never)
         .insert({
@@ -73,20 +70,14 @@ export function useCurriculumApproval() {
       if (lessonErr) throw lessonErr;
       const lessonRecord = lesson as unknown as { id: string; title: string };
 
-      // 3. Insert vocabulary words if provided
       if (lessonData.vocabulary && lessonData.vocabulary.length > 0) {
-        // We need a topic_id for vocabulary_words — use the lesson's stage as a fallback
-        // First check if there's a topic linked to this stage already
         const vocabInserts = lessonData.vocabulary.map((word, idx) => ({
           lesson_id: lessonRecord.id,
-          // topic_id is required by the schema but we may not have one for new curriculum lessons
-          // We'll need to create a topic or use a placeholder
           word_arabic: word.word_arabic,
           word_english: word.word_english,
           display_order: idx + 1,
         }));
 
-        // Insert via the lessons-linked vocabulary (lesson_id column)
         const { error: vocabErr } = await supabase
           .from('vocabulary_words' as never)
           .insert(vocabInserts as never);
@@ -94,7 +85,6 @@ export function useCurriculumApproval() {
         if (vocabErr) throw vocabErr;
       }
 
-      // 4. Record the approval
       const { error: approvalErr } = await supabase
         .from('curriculum_chat_approvals' as never)
         .insert({
@@ -124,7 +114,6 @@ export function useCurriculumApproval() {
     },
   });
 
-  // Approve vocabulary words (add to an existing lesson)
   const approveVocabulary = useMutation({
     mutationFn: async ({
       messageId,
@@ -140,7 +129,6 @@ export function useCurriculumApproval() {
       const { data: userData } = await supabase.auth.getUser();
       if (!userData.user) throw new Error('Not authenticated');
 
-      // Get current max display_order for this lesson
       const { data: existing } = await supabase
         .from('vocabulary_words' as never)
         .select('display_order')
@@ -163,7 +151,6 @@ export function useCurriculumApproval() {
 
       if (vocabErr) throw vocabErr;
 
-      // Record approval
       await supabase
         .from('curriculum_chat_approvals' as never)
         .insert({
@@ -185,8 +172,268 @@ export function useCurriculumApproval() {
     },
   });
 
+  // ─── NEW CONTENT TYPE APPROVALS ─────────────────────────
+
+  const approveGrammarExercises = useMutation({
+    mutationFn: async ({
+      messageId,
+      sessionId,
+      data,
+    }: {
+      messageId: string;
+      sessionId: string;
+      data: Record<string, unknown>;
+    }) => {
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user) throw new Error('Not authenticated');
+
+      const exercises = data.exercises as Array<Record<string, unknown>>;
+      const category = (data.category as string) || 'verb-conjugation';
+      const difficulty = (data.difficulty as string) || 'beginner';
+
+      const inserts = exercises.map((ex) => ({
+        category,
+        difficulty,
+        question_arabic: ex.question_arabic as string,
+        question_english: ex.question_english as string,
+        grammar_point: (ex.grammar_point as string) || '',
+        choices: ex.choices,
+        correct_index: ex.correct_index as number,
+        explanation: (ex.explanation as string) || '',
+        status: 'published',
+        created_by: userData.user!.id,
+        session_id: sessionId,
+      }));
+
+      const { error } = await supabase
+        .from('grammar_exercises' as never)
+        .insert(inserts as never);
+      if (error) throw error;
+
+      return exercises.length;
+    },
+    onSuccess: (count) => {
+      toast.success(`${count} grammar exercises published!`);
+      queryClient.invalidateQueries({ queryKey: ['grammar-exercises'] });
+    },
+    onError: (err) => {
+      toast.error('Failed to publish grammar exercises', { description: (err as Error).message });
+    },
+  });
+
+  const approveListeningExercises = useMutation({
+    mutationFn: async ({
+      messageId,
+      sessionId,
+      data,
+    }: {
+      messageId: string;
+      sessionId: string;
+      data: Record<string, unknown>;
+    }) => {
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user) throw new Error('Not authenticated');
+
+      const exercises = data.exercises as Array<Record<string, unknown>>;
+      const mode = (data.mode as string) || 'dictation';
+      const difficulty = (data.difficulty as string) || 'beginner';
+
+      const inserts = exercises.map((ex) => ({
+        mode,
+        difficulty,
+        audio_text: ex.audio_text as string,
+        audio_text_english: ex.audio_text_english as string,
+        questions: ex.options || [],
+        hint: (ex.hint as string) || null,
+        status: 'published',
+        created_by: userData.user!.id,
+        session_id: sessionId,
+      }));
+
+      const { error } = await supabase
+        .from('listening_exercises' as never)
+        .insert(inserts as never);
+      if (error) throw error;
+
+      return exercises.length;
+    },
+    onSuccess: (count) => {
+      toast.success(`${count} listening exercises published!`);
+      queryClient.invalidateQueries({ queryKey: ['listening-exercises'] });
+    },
+    onError: (err) => {
+      toast.error('Failed to publish listening exercises', { description: (err as Error).message });
+    },
+  });
+
+  const approveReadingPassage = useMutation({
+    mutationFn: async ({
+      messageId,
+      sessionId,
+      data,
+    }: {
+      messageId: string;
+      sessionId: string;
+      data: Record<string, unknown>;
+    }) => {
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user) throw new Error('Not authenticated');
+
+      const passage = data.passage as Record<string, unknown>;
+
+      const { error } = await supabase
+        .from('reading_passages' as never)
+        .insert({
+          title: passage.title as string,
+          title_english: passage.title_english as string,
+          passage: passage.passage as string,
+          passage_english: passage.passage_english as string,
+          difficulty: (data.difficulty as string) || 'beginner',
+          vocabulary: passage.vocabulary || [],
+          questions: passage.questions || [],
+          cultural_note: (passage.cultural_note as string) || null,
+          status: 'published',
+          created_by: userData.user.id,
+          session_id: sessionId,
+        } as never);
+      if (error) throw error;
+
+      return passage.title_english as string;
+    },
+    onSuccess: (title) => {
+      toast.success('Reading passage published!', { description: title });
+      queryClient.invalidateQueries({ queryKey: ['reading-passages'] });
+    },
+    onError: (err) => {
+      toast.error('Failed to publish reading passage', { description: (err as Error).message });
+    },
+  });
+
+  const approveDailyChallenge = useMutation({
+    mutationFn: async ({
+      messageId,
+      sessionId,
+      data,
+    }: {
+      messageId: string;
+      sessionId: string;
+      data: Record<string, unknown>;
+    }) => {
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user) throw new Error('Not authenticated');
+
+      const { error } = await supabase
+        .from('daily_challenges' as never)
+        .insert({
+          challenge_type: (data.challenge_type as string) || 'mixed',
+          title: (data.title as string) || '',
+          title_arabic: (data.title_arabic as string) || '',
+          questions: data.questions || [],
+          difficulty: (data.difficulty as string) || 'beginner',
+          status: 'published',
+          created_by: userData.user.id,
+          session_id: sessionId,
+        } as never);
+      if (error) throw error;
+
+      return data.title as string;
+    },
+    onSuccess: (title) => {
+      toast.success('Daily challenge published!', { description: title });
+      queryClient.invalidateQueries({ queryKey: ['daily-challenges'] });
+    },
+    onError: (err) => {
+      toast.error('Failed to publish daily challenge', { description: (err as Error).message });
+    },
+  });
+
+  const approveConversationScenario = useMutation({
+    mutationFn: async ({
+      messageId,
+      sessionId,
+      data,
+    }: {
+      messageId: string;
+      sessionId: string;
+      data: Record<string, unknown>;
+    }) => {
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user) throw new Error('Not authenticated');
+
+      const scenario = data.scenario as Record<string, unknown>;
+
+      const { error } = await supabase
+        .from('conversation_scenarios' as never)
+        .insert({
+          title: scenario.title as string,
+          title_arabic: scenario.title_arabic as string,
+          description: (scenario.description as string) || '',
+          system_prompt: scenario.system_prompt as string,
+          difficulty: (scenario.difficulty as string) || 'Beginner',
+          icon_name: (scenario.icon_name as string) || 'MessageCircle',
+          example_exchanges: scenario.example_exchanges || [],
+          status: 'published',
+          created_by: userData.user.id,
+          session_id: sessionId,
+        } as never);
+      if (error) throw error;
+
+      return scenario.title as string;
+    },
+    onSuccess: (title) => {
+      toast.success('Conversation scenario published!', { description: title });
+      queryClient.invalidateQueries({ queryKey: ['conversation-scenarios'] });
+    },
+    onError: (err) => {
+      toast.error('Failed to publish conversation scenario', { description: (err as Error).message });
+    },
+  });
+
+  const approveGameSet = useMutation({
+    mutationFn: async ({
+      messageId,
+      sessionId,
+      data,
+    }: {
+      messageId: string;
+      sessionId: string;
+      data: Record<string, unknown>;
+    }) => {
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user) throw new Error('Not authenticated');
+
+      const { error } = await supabase
+        .from('vocab_game_sets' as never)
+        .insert({
+          game_type: (data.game_type as string) || 'matching',
+          title: (data.title as string) || '',
+          word_pairs: data.word_pairs || [],
+          difficulty: (data.difficulty as string) || 'beginner',
+          status: 'published',
+          created_by: userData.user.id,
+          session_id: sessionId,
+        } as never);
+      if (error) throw error;
+
+      return data.title as string;
+    },
+    onSuccess: (title) => {
+      toast.success('Game set published!', { description: title });
+      queryClient.invalidateQueries({ queryKey: ['vocab-game-sets'] });
+    },
+    onError: (err) => {
+      toast.error('Failed to publish game set', { description: (err as Error).message });
+    },
+  });
+
   return {
     approveLesson,
     approveVocabulary,
+    approveGrammarExercises,
+    approveListeningExercises,
+    approveReadingPassage,
+    approveDailyChallenge,
+    approveConversationScenario,
+    approveGameSet,
   };
 }

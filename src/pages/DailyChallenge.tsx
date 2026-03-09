@@ -117,6 +117,33 @@ const DailyChallenge = () => {
   const startChallenge = async () => {
     setLoading(true);
     try {
+      // Try pre-approved content first
+      const { data: approved } = await supabase
+        .from("daily_challenges" as any)
+        .select("*")
+        .eq("status", "published")
+        .limit(10);
+
+      if (approved && approved.length > 0) {
+        // Pick a random challenge
+        const picked = (approved as any[])[Math.floor(Math.random() * approved.length)];
+        setChallenge({
+          type: picked.challenge_type,
+          title: picked.title,
+          titleArabic: picked.title_arabic,
+          questions: picked.questions as ChallengeQuestion[],
+        });
+        setStreakMultiplier(1 + (streakData || 0) * 0.1);
+        setBaseXP(15);
+        setCurrentIndex(0);
+        setScore(0);
+        setSelectedAnswer(null);
+        setShowResult(false);
+        setSessionComplete(false);
+        return;
+      }
+
+      // Fallback to live AI generation
       const wordsToUse = allWords?.slice(0, 20) || [];
       const { data, error } = await supabase.functions.invoke("daily-challenge", {
         body: {

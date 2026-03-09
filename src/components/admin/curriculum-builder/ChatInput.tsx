@@ -1,26 +1,73 @@
 import { useState, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Send, BookOpen, Languages, GraduationCap, GitCompare } from 'lucide-react';
+import { Send, BookOpen, Languages, GraduationCap, GitCompare, PenLine, Headphones, BookOpenCheck, Flame, MessageCircle, Gamepad2 } from 'lucide-react';
+
+export type ChatMode =
+  | 'chat'
+  | 'generate_lesson'
+  | 'generate_vocab'
+  | 'generate_grammar'
+  | 'generate_listening'
+  | 'generate_reading'
+  | 'generate_daily_challenge'
+  | 'generate_conversation'
+  | 'generate_game_set';
 
 interface ChatInputProps {
-  onSend: (message: string, mode?: 'chat' | 'generate_lesson' | 'generate_vocab') => void;
+  onSend: (message: string, mode?: ChatMode) => void;
   disabled?: boolean;
   isGenerating?: boolean;
 }
 
 const QUICK_ACTIONS = [
   {
-    label: 'Generate Lesson',
+    label: 'Lesson',
     icon: GraduationCap,
     mode: 'generate_lesson' as const,
     prompt: 'Create a complete lesson about: ',
   },
   {
-    label: 'Generate Vocabulary',
+    label: 'Vocabulary',
     icon: BookOpen,
     mode: 'generate_vocab' as const,
     prompt: 'Generate vocabulary words for the topic: ',
+  },
+  {
+    label: 'Grammar',
+    icon: PenLine,
+    mode: 'generate_grammar' as const,
+    prompt: 'Create grammar drill exercises for: ',
+  },
+  {
+    label: 'Listening',
+    icon: Headphones,
+    mode: 'generate_listening' as const,
+    prompt: 'Create listening exercises about: ',
+  },
+  {
+    label: 'Reading',
+    icon: BookOpenCheck,
+    mode: 'generate_reading' as const,
+    prompt: 'Create a reading passage about: ',
+  },
+  {
+    label: 'Challenge',
+    icon: Flame,
+    mode: 'generate_daily_challenge' as const,
+    prompt: 'Create a daily challenge set about: ',
+  },
+  {
+    label: 'Conversation',
+    icon: MessageCircle,
+    mode: 'generate_conversation' as const,
+    prompt: 'Create a conversation practice scenario for: ',
+  },
+  {
+    label: 'Game Set',
+    icon: Gamepad2,
+    mode: 'generate_game_set' as const,
+    prompt: 'Create a vocabulary game set for: ',
   },
   {
     label: 'Compare Dialects',
@@ -39,7 +86,7 @@ const QUICK_ACTIONS = [
 
 export const ChatInput = ({ onSend, disabled, isGenerating }: ChatInputProps) => {
   const [value, setValue] = useState('');
-  const [currentMode, setCurrentMode] = useState<'chat' | 'generate_lesson' | 'generate_vocab'>('chat');
+  const [currentMode, setCurrentMode] = useState<ChatMode>('chat');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const handleSend = useCallback(() => {
@@ -69,17 +116,17 @@ export const ChatInput = ({ onSend, disabled, isGenerating }: ChatInputProps) =>
   return (
     <div className="border-t bg-card p-4">
       {/* Quick action buttons */}
-      <div className="flex flex-wrap gap-2 mb-3">
+      <div className="flex flex-wrap gap-1.5 mb-3">
         {QUICK_ACTIONS.map((action) => (
           <Button
             key={action.label}
-            variant="outline"
+            variant={currentMode === action.mode && action.mode !== 'chat' ? 'default' : 'outline'}
             size="sm"
             onClick={() => handleQuickAction(action)}
             disabled={disabled || isGenerating}
-            className="text-xs"
+            className="text-[11px] h-7 px-2"
           >
-            <action.icon className="h-3.5 w-3.5 mr-1.5" />
+            <action.icon className="h-3 w-3 mr-1" />
             {action.label}
           </Button>
         ))}

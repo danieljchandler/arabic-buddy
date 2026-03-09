@@ -6,7 +6,7 @@ import { useDiscoverVideos } from "@/hooks/useDiscoverVideos";
 import { useStages } from "@/hooks/useStages";
 import { useAllLessons } from "@/hooks/useLessons";
 import { Button } from "@/components/design-system";
-import { Settings, Brain, LogIn, LogOut, Mic, BookOpen, Sparkles, GraduationCap, Laugh, Play, ChevronRight, Twitter, MessageCircleQuestion, Compass, MessageSquare, Globe2 } from "lucide-react";
+import { Settings, Brain, LogIn, LogOut, Mic, BookOpen, Sparkles, GraduationCap, Laugh, Play, ChevronRight, Twitter, MessageCircleQuestion, Compass, MessageSquare, Globe2, Headphones } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AppShell } from "@/components/layout/AppShell";
 import { Badge } from "@/components/ui/badge";
@@ -442,6 +442,33 @@ const Index = () => {
               <p className="font-semibold text-foreground">Conversation Simulator</p>
               <p className="text-xs text-muted-foreground">
                 Practice real-world Arabic scenarios
+              </p>
+            </div>
+          </button>
+        </div>
+
+        {/* Listening Practice */}
+        <div className="pt-4">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1 mb-2">
+            Listening Practice
+          </p>
+          <button
+            onClick={() => navigate("/listening")}
+            className={cn(
+              "w-full p-4 rounded-xl",
+              "bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border border-cyan-500/20",
+              "flex items-center gap-3",
+              "transition-all duration-200",
+              "hover:border-cyan-500/40 active:scale-[0.98]"
+            )}
+          >
+            <div className="w-10 h-10 rounded-lg bg-cyan-500/10 flex items-center justify-center shrink-0">
+              <Headphones className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
+            </div>
+            <div className="text-left">
+              <p className="font-semibold text-foreground">Listening Practice</p>
+              <p className="text-xs text-muted-foreground">
+                Dictation, comprehension & speed drills
               </p>
             </div>
           </button>

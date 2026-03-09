@@ -86,3 +86,9 @@ verify_jwt = false
 
 [functions.azure-pronunciation]
 verify_jwt = false
+
+[functions.listening-quiz]
+verify_jwt = false
+
+[functions.dialect-compare]
+verify_jwt = false

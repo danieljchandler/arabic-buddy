@@ -287,6 +287,7 @@ type TranslationAI = { translations: string[] };
 type MergeOnlyAI = {
   lines: Array<{ arabic: string }>;
   dialect?: 'Saudi' | 'Kuwaiti' | 'UAE' | 'Bahraini' | 'Qatari' | 'Omani' | 'Gulf';
+  difficulty?: 'Beginner' | 'Intermediate' | 'Advanced' | 'Expert';
 };
  
 type CallAIArgs = {

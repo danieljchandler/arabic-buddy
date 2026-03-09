@@ -107,7 +107,8 @@ Compare them carefully and produce the BEST merged transcript:
 Output ONLY valid JSON matching this schema:
 {
   "lines": [{"arabic": string}],
-  "dialect": "Saudi" | "Kuwaiti" | "UAE" | "Bahraini" | "Qatari" | "Omani" | "Gulf"
+  "dialect": "Saudi" | "Kuwaiti" | "UAE" | "Bahraini" | "Qatari" | "Omani" | "Gulf",
+  "difficulty": "Beginner" | "Intermediate" | "Advanced" | "Expert"
 }
 
 DIALECT IDENTIFICATION RULES:
@@ -119,6 +120,12 @@ Identify the Gulf Arabic dialect based on vocabulary, phonology, and speech patt
 - "Qatari": "ش"-prefix interrogative patterns, "هاي" (this), Bedouin vocabulary influence, intonation distinct from Kuwaiti.
 - "Omani": "إيش"/"ايش" (what), "حق" (for/of), universal "j" for ج, "كيف" used as greeting response, Dhofari/Muscat variation.
 - "Gulf": ONLY if genuinely ambiguous — cannot be attributed to a single country with confidence.
+
+DIFFICULTY CLASSIFICATION RULES:
+- "Beginner": Very common daily vocabulary, short/simple sentences, concrete topics (greetings, food, family, routine).
+- "Intermediate": Mix of common + less common words, moderate sentence length, some idiomatic language.
+- "Advanced": Dense vocabulary, frequent idioms/cultural references, longer/complex clauses, faster conversational flow.
+- "Expert": Technical/professional jargon, heavy slang compression, very fast dialectal speech, high context dependence.
 
 KEY SIGNALS:
 - What: شنو(KW/BH/QA) | وش/إيش(SA) | شو(UAE/BH) | إيش(OM)

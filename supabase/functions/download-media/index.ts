@@ -758,6 +758,7 @@ serve(async (req) => {
             contentType: rapidResult.contentType,
             size: rapidResult.size,
             filename: rapidResult.filename,
+            originalUrl: normalizedUrl,
           }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );

@@ -135,7 +135,7 @@ const ConversationSimulator = () => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const pendingAutoPlayRef = useRef<string | null>(null);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const recognitionRef = useRef<any>(null);
 
   // Fetch DB scenarios — must be declared here before any conditional returns (Rules of Hooks)
   const { data: dbScenarios } = useQuery({
@@ -169,7 +169,7 @@ const ConversationSimulator = () => {
       return;
     }
 
-    const recognition: SpeechRecognition = new SpeechRecognition();
+    const recognition = new SpeechRecognition();
     recognition.lang = "ar";
     recognition.interimResults = true;
     recognition.continuous = false;

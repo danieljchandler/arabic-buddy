@@ -213,6 +213,11 @@ const App = () => {
                 <GrammarDrills />
               </ErrorBoundary>
             } />
+            <Route path="/vocab-games" element={
+              <ErrorBoundary name="VocabGamesRoute">
+                <VocabGames />
+              </ErrorBoundary>
+            } />
 
             {/* Admin routes */}
             <Route path="/admin/login" element={<AdminLogin />} />

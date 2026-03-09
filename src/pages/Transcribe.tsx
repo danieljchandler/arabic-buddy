@@ -376,12 +376,10 @@ const Transcribe = () => {
     const searchParams = new URLSearchParams(window.location.search);
     searchParams.set('url', trimmed);
     window.history.replaceState({}, '', `${window.location.pathname}?${searchParams}`);
-    let trimmed = urlInput.trim();
-    if (!trimmed) return;
-
     // Auto-prepend https:// if missing
     if (!trimmed.startsWith('http://') && !trimmed.startsWith('https://')) {
       trimmed = `https://${trimmed}`;
+    }
 
     // Basic URL validation
     try {

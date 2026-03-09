@@ -8,7 +8,7 @@ import { useDiscoverVideos } from "@/hooks/useDiscoverVideos";
 import { useStages } from "@/hooks/useStages";
 import { useAllLessons } from "@/hooks/useLessons";
 import { Button } from "@/components/design-system";
-import { Settings, Brain, LogIn, LogOut, Mic, BookOpen, Sparkles, GraduationCap, Laugh, Play, ChevronRight, Twitter, MessageCircleQuestion, Compass, MessageSquare, Globe2, Headphones, Trophy, FileText, Flame, BarChart3, PenTool, Gamepad2 } from "lucide-react";
+import { Settings, Brain, LogIn, LogOut, Mic, BookOpen, Sparkles, GraduationCap, Laugh, Play, ChevronRight, Twitter, MessageCircleQuestion, Compass, MessageSquare, Globe2, Headphones, Trophy, FileText, Flame, BarChart3, PenTool, Gamepad2, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AppShell } from "@/components/layout/AppShell";
 import { Badge } from "@/components/ui/badge";
@@ -173,8 +173,8 @@ const Index = () => {
           <WeeklyGoalCard />
           <AchievementsGrid />
 
-          {/* Daily Challenge + Leaderboard + Analytics row */}
-          <div className="grid grid-cols-3 gap-2">
+          {/* Daily Challenge + Leaderboard + Friends + Analytics row */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <button
               onClick={() => navigate("/daily-challenge")}
               className={cn(
@@ -200,6 +200,19 @@ const Index = () => {
             >
               <Trophy className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
               <p className="font-semibold text-foreground text-xs">Leaderboard</p>
+            </button>
+            <button
+              onClick={() => navigate("/friends")}
+              className={cn(
+                "p-3 rounded-xl",
+                "bg-gradient-to-b from-primary/10 to-primary/5 border border-primary/20",
+                "flex flex-col items-center gap-1.5",
+                "transition-all duration-200",
+                "hover:border-primary/40 active:scale-[0.98]"
+              )}
+            >
+              <Users className="h-5 w-5 text-primary" />
+              <p className="font-semibold text-foreground text-xs">Friends</p>
             </button>
             <button
               onClick={() => navigate("/analytics")}

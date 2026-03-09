@@ -35,6 +35,7 @@ import GrammarDrills from "./pages/GrammarDrills";
 import VocabGames from "./pages/VocabGames";
 import Onboarding from "./pages/Onboarding";
 import Settings from "./pages/Settings";
+import Friends from "./pages/Friends";
 import AdminLogin from "./pages/admin/AdminLogin";
 import AdminLayout from "./pages/admin/AdminLayout";
 import Dashboard from "./pages/admin/Dashboard";
@@ -230,7 +231,9 @@ const App = () => {
                 <Settings />
               </ErrorBoundary>
             } />
-
+            <Route path="/friends" element={
+              <ErrorBoundary name="FriendsRoute"><Friends /></ErrorBoundary>
+            } />
 
             <Route path="/admin/login" element={<AdminLogin />} />
             <Route path="/admin" element={<ErrorBoundary name="AdminRoute"><AdminLayout /></ErrorBoundary>}>

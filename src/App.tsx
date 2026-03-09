@@ -31,6 +31,7 @@ import Leaderboard from "./pages/Leaderboard";
 import ReadingPractice from "./pages/ReadingPractice";
 import DailyChallenge from "./pages/DailyChallenge";
 import LearningAnalytics from "./pages/LearningAnalytics";
+import GrammarDrills from "./pages/GrammarDrills";
 import AdminLogin from "./pages/admin/AdminLogin";
 import AdminLayout from "./pages/admin/AdminLayout";
 import Dashboard from "./pages/admin/Dashboard";

@@ -242,6 +242,36 @@ export type Database = {
         }
         Relationships: []
       }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          display_name: string | null
+          id: string
+          show_on_leaderboard: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          show_on_leaderboard?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          show_on_leaderboard?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       review_streaks: {
         Row: {
           created_at: string

@@ -207,6 +207,11 @@ const App = () => {
                 <LearningAnalytics />
               </ErrorBoundary>
             } />
+            <Route path="/grammar" element={
+              <ErrorBoundary name="GrammarRoute">
+                <GrammarDrills />
+              </ErrorBoundary>
+            } />
 
             {/* Admin routes */}
             <Route path="/admin/login" element={<AdminLogin />} />

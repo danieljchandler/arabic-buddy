@@ -39,6 +39,8 @@ import Friends from "./pages/Friends";
 import LikedVideos from "./pages/LikedVideos";
 import Stories from "./pages/Stories";
 import StoryPlayer from "./pages/StoryPlayer";
+import VocabBattles from "./pages/VocabBattles";
+import BattlePlay from "./pages/BattlePlay";
 import AdminLogin from "./pages/admin/AdminLogin";
 import AdminLayout from "./pages/admin/AdminLayout";
 import Dashboard from "./pages/admin/Dashboard";
@@ -248,8 +250,13 @@ const App = () => {
             <Route path="/stories/:storyId" element={
               <ErrorBoundary name="StoryPlayerRoute"><StoryPlayer /></ErrorBoundary>
             } />
+            <Route path="/battles" element={
+              <ErrorBoundary name="VocabBattlesRoute"><VocabBattles /></ErrorBoundary>
+            } />
+            <Route path="/battles/:battleId" element={
+              <ErrorBoundary name="BattlePlayRoute"><BattlePlay /></ErrorBoundary>
+            } />
 
-            <Route path="/admin/login" element={<AdminLogin />} />
             <Route path="/admin" element={<ErrorBoundary name="AdminRoute"><AdminLayout /></ErrorBoundary>}>
               <Route index element={<Dashboard />} />
               {/* Curriculum routes */}

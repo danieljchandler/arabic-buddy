@@ -1,0 +1,308 @@
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { AppShell } from "@/components/layout/AppShell";
+import { HomeButton } from "@/components/HomeButton";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { useAuth } from "@/hooks/useAuth";
+import {
+  useWeeklyLeaderboard,
+  useAllTimeLeaderboard,
+  useMyProfile,
+  useUpdateProfile,
+  useMyRank,
+  LeaderboardEntry,
+} from "@/hooks/useLeaderboard";
+import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+import {
+  Trophy,
+  Medal,
+  Crown,
+  Flame,
+  Star,
+  Settings,
+  Loader2,
+  User,
+} from "lucide-react";
+
+type Tab = "weekly" | "all-time";
+
+const RankBadge = ({ rank }: { rank: number }) => {
+  if (rank === 1) {
+    return (
+      <div className="w-8 h-8 rounded-full bg-yellow-500/20 flex items-center justify-center">
+        <Crown className="h-4 w-4 text-yellow-500" />
+      </div>
+    );
+  }
+  if (rank === 2) {
+    return (
+      <div className="w-8 h-8 rounded-full bg-slate-400/20 flex items-center justify-center">
+        <Medal className="h-4 w-4 text-slate-400" />
+      </div>
+    );
+  }
+  if (rank === 3) {
+    return (
+      <div className="w-8 h-8 rounded-full bg-amber-600/20 flex items-center justify-center">
+        <Medal className="h-4 w-4 text-amber-600" />
+      </div>
+    );
+  }
+  return (
+    <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+      <span className="text-sm font-semibold text-muted-foreground">{rank}</span>
+    </div>
+  );
+};
+
+const LeaderboardRow = ({
+  entry,
+  isCurrentUser,
+}: {
+  entry: LeaderboardEntry;
+  isCurrentUser: boolean;
+}) => {
+  return (
+    <div
+      className={cn(
+        "flex items-center gap-3 p-3 rounded-xl transition-all",
+        isCurrentUser
+          ? "bg-primary/10 border-2 border-primary/30"
+          : "bg-card border border-border"
+      )}
+    >
+      <RankBadge rank={entry.rank} />
+
+      <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center shrink-0 overflow-hidden">
+        {entry.avatar_url ? (
+          <img src={entry.avatar_url} alt="" className="w-full h-full object-cover" />
+        ) : (
+          <User className="h-5 w-5 text-muted-foreground" />
+        )}
+      </div>
+
+      <div className="flex-1 min-w-0">
+        <p className="font-semibold text-foreground truncate">
+          {entry.display_name || "Anonymous"}
+          {isCurrentUser && (
+            <span className="text-primary text-xs ml-1.5">(you)</span>
+          )}
+        </p>
+        <p className="text-xs text-muted-foreground">Level {entry.level}</p>
+      </div>
+
+      <div className="text-right">
+        <p className="font-bold text-primary">{entry.xp_this_week.toLocaleString()}</p>
+        <p className="text-xs text-muted-foreground">XP this week</p>
+      </div>
+    </div>
+  );
+};
+
+const ProfileEditDialog = () => {
+  const { data: profile, isLoading } = useMyProfile();
+  const updateProfile = useUpdateProfile();
+  const [displayName, setDisplayName] = useState("");
+  const [showOnLeaderboard, setShowOnLeaderboard] = useState(true);
+  const [open, setOpen] = useState(false);
+
+  const handleOpen = (isOpen: boolean) => {
+    setOpen(isOpen);
+    if (isOpen && profile) {
+      setDisplayName(profile.display_name || "");
+      setShowOnLeaderboard(profile.show_on_leaderboard);
+    }
+  };
+
+  const handleSave = async () => {
+    try {
+      await updateProfile.mutateAsync({
+        display_name: displayName.trim() || null,
+        show_on_leaderboard: showOnLeaderboard,
+      });
+      toast.success("Profile updated!");
+      setOpen(false);
+    } catch (e) {
+      toast.error("Failed to update profile");
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpen}>
+      <DialogTrigger asChild>
+        <Button variant="ghost" size="icon">
+          <Settings className="h-4 w-4" />
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Edit Profile</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 pt-4">
+          <div className="space-y-2">
+            <Label htmlFor="displayName">Display Name</Label>
+            <Input
+              id="displayName"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              placeholder="Your name on the leaderboard"
+            />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <Label htmlFor="showOnLeaderboard">Show on Leaderboard</Label>
+            <Switch
+              id="showOnLeaderboard"
+              checked={showOnLeaderboard}
+              onCheckedChange={setShowOnLeaderboard}
+            />
+          </div>
+
+          <Button
+            onClick={handleSave}
+            className="w-full"
+            disabled={updateProfile.isPending}
+          >
+            {updateProfile.isPending && (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            )}
+            Save Changes
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+const Leaderboard = () => {
+  const navigate = useNavigate();
+  const { user, isAuthenticated } = useAuth();
+  const [tab, setTab] = useState<Tab>("weekly");
+
+  const { data: weeklyData, isLoading: weeklyLoading } = useWeeklyLeaderboard();
+  const { data: allTimeData, isLoading: allTimeLoading } = useAllTimeLeaderboard();
+  const { data: myRank } = useMyRank();
+
+  const data = tab === "weekly" ? weeklyData : allTimeData;
+  const isLoading = tab === "weekly" ? weeklyLoading : allTimeLoading;
+
+  return (
+    <AppShell>
+      <HomeButton />
+
+      <div className="py-4 space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
+              <Trophy className="h-6 w-6 text-primary" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-foreground">Leaderboard</h1>
+              <p className="text-sm text-muted-foreground">
+                Compete with other learners
+              </p>
+            </div>
+          </div>
+          {isAuthenticated && <ProfileEditDialog />}
+        </div>
+
+        {/* My Rank Card */}
+        {isAuthenticated && myRank && (
+          <div className="bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20 rounded-2xl p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Flame className="h-6 w-6 text-primary" />
+                <div>
+                  <p className="text-sm text-muted-foreground">Your Rank</p>
+                  <p className="text-2xl font-bold text-foreground">
+                    #{tab === "weekly" ? myRank.weeklyRank : myRank.allTimeRank}
+                  </p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-xs text-muted-foreground">
+                  {tab === "weekly" ? "This Week" : "All Time"}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Tab Switcher */}
+        <div className="flex gap-2 p-1 bg-muted rounded-xl">
+          <button
+            onClick={() => setTab("weekly")}
+            className={cn(
+              "flex-1 py-2.5 rounded-lg text-sm font-medium transition-all",
+              tab === "weekly"
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <Flame className="h-4 w-4 inline mr-1.5" />
+            This Week
+          </button>
+          <button
+            onClick={() => setTab("all-time")}
+            className={cn(
+              "flex-1 py-2.5 rounded-lg text-sm font-medium transition-all",
+              tab === "all-time"
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <Star className="h-4 w-4 inline mr-1.5" />
+            All Time
+          </button>
+        </div>
+
+        {/* Leaderboard List */}
+        <div className="space-y-2">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : data && data.length > 0 ? (
+            data.map((entry) => (
+              <LeaderboardRow
+                key={entry.user_id}
+                entry={entry}
+                isCurrentUser={entry.user_id === user?.id}
+              />
+            ))
+          ) : (
+            <div className="text-center py-12">
+              <Trophy className="h-12 w-12 text-muted-foreground/30 mx-auto mb-3" />
+              <p className="text-muted-foreground">No rankings yet</p>
+              <p className="text-sm text-muted-foreground/70">
+                Start learning to appear on the leaderboard!
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* CTA for non-authenticated users */}
+        {!isAuthenticated && (
+          <Button onClick={() => navigate("/auth")} className="w-full">
+            Sign in to join the leaderboard
+          </Button>
+        )}
+      </div>
+    </AppShell>
+  );
+};
+
+export default Leaderboard;

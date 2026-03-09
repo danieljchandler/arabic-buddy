@@ -1,13 +1,13 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { useScribe } from "@elevenlabs/react";
 import { useAuth } from "@/hooks/useAuth";
 import { AppShell } from "@/components/layout/AppShell";
 import { HomeButton } from "@/components/HomeButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Send, RotateCcw, MessageCircle, Coffee, MapPin, ShoppingBag, Users, Mic, Volume2 } from "lucide-react";
+import { Loader2, Send, RotateCcw, MessageCircle, Coffee, MapPin, ShoppingBag, Users, Mic, MicOff, Volume2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -85,8 +85,60 @@ const ConversationSimulator = () => {
   const [input, setInput] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState<number | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // ElevenLabs realtime speech-to-text
+  const scribe = useScribe({
+    onPartialTranscript: (data) => {
+      if (data.text) {
+        setInput(data.text);
+      }
+    },
+    onCommittedTranscript: (data) => {
+      if (data.text) {
+        setInput(data.text);
+      }
+    },
+  });
+
+  // Voice recording toggle
+  const toggleRecording = useCallback(async () => {
+    if (scribe.isConnected) {
+      scribe.disconnect();
+      setIsRecording(false);
+    } else {
+      try {
+        // Request microphone permission
+        await navigator.mediaDevices.getUserMedia({ audio: true });
+        
+        // Get token from edge function
+        const { data, error } = await supabase.functions.invoke("elevenlabs-scribe-token");
+        
+        if (error || !data?.token) {
+          throw new Error("Failed to get speech recognition token");
+        }
+
+        // Start the transcription session
+        await scribe.connect({
+          token: data.token,
+          microphone: {
+            echoCancellation: true,
+            noiseSuppression: true,
+          },
+        });
+        setIsRecording(true);
+      } catch (err) {
+        console.error("Voice recording error:", err);
+        toast({
+          title: "Voice input unavailable",
+          description: "Could not start voice recording. Please type instead.",
+          variant: "destructive",
+        });
+      }
+    }
+  }, [scribe, toast]);
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
@@ -383,12 +435,28 @@ const ConversationSimulator = () => {
 
         {/* Input area */}
         <div className="flex gap-2 pb-2">
+          <Button
+            onClick={toggleRecording}
+            variant={isRecording ? "destructive" : "outline"}
+            size="icon"
+            className={cn(
+              "h-11 w-11 rounded-xl shrink-0 transition-all",
+              isRecording && "animate-pulse"
+            )}
+            disabled={isGenerating}
+            title={isRecording ? "Stop recording" : "Start voice input"}
+          >
+            {isRecording ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+          </Button>
           <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && sendMessage()}
-            placeholder="Type in Arabic or English..."
-            className="flex-1 h-11 rounded-xl"
+            placeholder={isRecording ? "Listening..." : "Type or tap mic to speak..."}
+            className={cn(
+              "flex-1 h-11 rounded-xl transition-all",
+              isRecording && "border-destructive/50 bg-destructive/5"
+            )}
             disabled={isGenerating}
             dir="auto"
           />
@@ -403,7 +471,9 @@ const ConversationSimulator = () => {
         </div>
 
         <p className="text-xs text-muted-foreground text-center">
-          Try typing in Arabic or English — the AI will respond in Gulf Arabic with translations
+          {isRecording 
+            ? "🎤 Speak now — your words will appear above" 
+            : "Type or use the mic to speak in Arabic or English"}
         </p>
       </div>
     </AppShell>

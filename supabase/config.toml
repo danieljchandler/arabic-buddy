@@ -80,3 +80,9 @@ verify_jwt = false
 
 [functions.conversation-practice]
 verify_jwt = false
+
+[functions.elevenlabs-scribe-token]
+verify_jwt = false
+
+[functions.azure-pronunciation]
+verify_jwt = false

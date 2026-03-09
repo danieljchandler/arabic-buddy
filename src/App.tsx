@@ -250,8 +250,13 @@ const App = () => {
             <Route path="/stories/:storyId" element={
               <ErrorBoundary name="StoryPlayerRoute"><StoryPlayer /></ErrorBoundary>
             } />
+            <Route path="/battles" element={
+              <ErrorBoundary name="VocabBattlesRoute"><VocabBattles /></ErrorBoundary>
+            } />
+            <Route path="/battles/:battleId" element={
+              <ErrorBoundary name="BattlePlayRoute"><BattlePlay /></ErrorBoundary>
+            } />
 
-            <Route path="/admin/login" element={<AdminLogin />} />
             <Route path="/admin" element={<ErrorBoundary name="AdminRoute"><AdminLayout /></ErrorBoundary>}>
               <Route index element={<Dashboard />} />
               {/* Curriculum routes */}

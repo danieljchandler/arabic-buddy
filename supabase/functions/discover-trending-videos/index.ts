@@ -145,7 +145,7 @@ Deno.serve(async (req) => {
 
     console.log(`Total Gulf Arabic candidates found: ${allCandidates.length}`);
 
-    // Save candidates to database
+    // Save candidates to database (ignore duplicates)
     if (allCandidates.length > 0) {
       const insertResponse = await fetch(`${supabaseUrl}/rest/v1/trending_video_candidates`, {
         method: 'POST',
@@ -153,7 +153,7 @@ Deno.serve(async (req) => {
           'Authorization': `Bearer ${supabaseServiceKey}`,
           'apikey': supabaseServiceKey,
           'Content-Type': 'application/json',
-          'Prefer': 'resolution=merge-duplicates'
+          'Prefer': 'resolution=ignore-duplicates'
         },
         body: JSON.stringify(allCandidates)
       });

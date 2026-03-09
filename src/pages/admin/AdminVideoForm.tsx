@@ -20,7 +20,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { TranscriptLine } from "@/types/transcript";
 import { TimeRangeSelector } from "@/components/transcript/TimeRangeSelector";
 
-const DIALECTS = ["Gulf", "MSA", "Egyptian", "Levantine", "Maghrebi"];
+const DIALECTS = ["Saudi", "Kuwaiti", "UAE", "Bahraini", "Qatari", "Omani", "Gulf", "MSA", "Egyptian", "Levantine", "Maghrebi"];
 const DIFFICULTIES = ["Beginner", "Intermediate", "Advanced", "Expert"];
 
 const AdminVideoForm = () => {
@@ -566,6 +566,16 @@ const AdminVideoForm = () => {
         ? (audioCulturalContext ? `${audioCulturalContext}\n\nVisual context: ${visualContextData.culturalContext}` : visualContextData.culturalContext)
         : audioCulturalContext;
       setCulturalContext(visualCulturalNote);
+
+      // Auto-populate dialect + difficulty from AI detection
+      if (result.dialect) setDialect(result.dialect);
+      if (result.difficulty) setDifficulty(result.difficulty);
+      if (result.dialect || result.difficulty) {
+        toast.info(
+          `Auto-detected: ${result.dialect || "Gulf"} dialect · ${result.difficulty || "Intermediate"} difficulty`,
+          { duration: 4000 }
+        );
+      }
 
       // Auto-populate title if empty
       if (!title && result.title) {

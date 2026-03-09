@@ -45,6 +45,7 @@ function generateId(): string {
    culturalContext?: string;
   dialectValidation?: { content: string; timestamp: string } | null;
   dialect?: 'Saudi' | 'Kuwaiti' | 'UAE' | 'Bahraini' | 'Qatari' | 'Omani' | 'Gulf';
+  difficulty?: 'Beginner' | 'Intermediate' | 'Advanced' | 'Expert';
   /** Full merged Arabic transcript with tashkeel added by Farasa. Feed to ElevenLabs TTS for accurate pronunciation. */
   diacritizedTranscript?: string | null;
   /** Dialect identification from CAMeL-Lab BERT model (city-level, independent of LLM). */
@@ -106,7 +107,8 @@ Compare them carefully and produce the BEST merged transcript:
 Output ONLY valid JSON matching this schema:
 {
   "lines": [{"arabic": string}],
-  "dialect": "Saudi" | "Kuwaiti" | "UAE" | "Bahraini" | "Qatari" | "Omani" | "Gulf"
+  "dialect": "Saudi" | "Kuwaiti" | "UAE" | "Bahraini" | "Qatari" | "Omani" | "Gulf",
+  "difficulty": "Beginner" | "Intermediate" | "Advanced" | "Expert"
 }
 
 DIALECT IDENTIFICATION RULES:
@@ -118,6 +120,12 @@ Identify the Gulf Arabic dialect based on vocabulary, phonology, and speech patt
 - "Qatari": "ش"-prefix interrogative patterns, "هاي" (this), Bedouin vocabulary influence, intonation distinct from Kuwaiti.
 - "Omani": "إيش"/"ايش" (what), "حق" (for/of), universal "j" for ج, "كيف" used as greeting response, Dhofari/Muscat variation.
 - "Gulf": ONLY if genuinely ambiguous — cannot be attributed to a single country with confidence.
+
+DIFFICULTY CLASSIFICATION RULES:
+- "Beginner": Very common daily vocabulary, short/simple sentences, concrete topics (greetings, food, family, routine).
+- "Intermediate": Mix of common + less common words, moderate sentence length, some idiomatic language.
+- "Advanced": Dense vocabulary, frequent idioms/cultural references, longer/complex clauses, faster conversational flow.
+- "Expert": Technical/professional jargon, heavy slang compression, very fast dialectal speech, high context dependence.
 
 KEY SIGNALS:
 - What: شنو(KW/BH/QA) | وش/إيش(SA) | شو(UAE/BH) | إيش(OM)
@@ -279,6 +287,7 @@ type TranslationAI = { translations: string[] };
 type MergeOnlyAI = {
   lines: Array<{ arabic: string }>;
   dialect?: 'Saudi' | 'Kuwaiti' | 'UAE' | 'Bahraini' | 'Qatari' | 'Omani' | 'Gulf';
+  difficulty?: 'Beginner' | 'Intermediate' | 'Advanced' | 'Expert';
 };
  
 type CallAIArgs = {
@@ -1253,7 +1262,8 @@ serve(async (req) => {
      // Store the merged transcript from Call 1
      const mergedLines = mergeOnlyAi.lines;
      const detectedDialect = mergeOnlyAi.dialect ?? 'Gulf';
-     console.log('Call 1 complete:', mergedLines.length, 'merged Arabic lines. Detected dialect:', detectedDialect);
+     const detectedDifficulty = mergeOnlyAi.difficulty ?? 'Intermediate';
+     console.log('Call 1 complete:', mergedLines.length, 'merged Arabic lines. Detected dialect:', detectedDialect, '| Difficulty:', detectedDifficulty);
 
      // Build numbered merged transcript text to feed into translation and Call 2
      const mergedTranscriptText = mergedLines
@@ -1646,6 +1656,7 @@ serve(async (req) => {
        culturalContext,
        dialectValidation,
        dialect: detectedDialect,
+       difficulty: detectedDifficulty,
        diacritizedTranscript: diacritizedTranscript ?? null,
        camelDialect: camelDialectResult ?? null,
      };

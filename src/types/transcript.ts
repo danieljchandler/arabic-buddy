@@ -31,14 +31,15 @@ export type VocabItem = {
    examples?: string[];
  };
  
- export type TranscriptResult = {
-   rawTranscriptArabic: string;     // original blob
-   lines: TranscriptLine[];
-   vocabulary: VocabItem[];
-   grammarPoints: GrammarPoint[];
+export type TranscriptResult = {
+  rawTranscriptArabic: string;     // original blob
+  lines: TranscriptLine[];
+  vocabulary: VocabItem[];
+  grammarPoints: GrammarPoint[];
   culturalContext?: string;
   dialectValidation?: { content: string; timestamp: string } | null;
   dialect?: 'Saudi' | 'Kuwaiti' | 'UAE' | 'Bahraini' | 'Qatari' | 'Omani' | 'Gulf';
+  difficulty?: 'Beginner' | 'Intermediate' | 'Advanced' | 'Expert';
   /** Full merged Arabic with tashkeel from Farasa — feed to ElevenLabs TTS for accurate pronunciation. */
   diacritizedTranscript?: string | null;
   /** City-level Gulf dialect from CAMeL-Lab BERT model, independent of LLM detection. */

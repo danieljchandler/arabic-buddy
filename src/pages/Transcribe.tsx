@@ -483,6 +483,8 @@ const Transcribe = () => {
     grammarPoints: GrammarPoint[];
     culturalContext?: string;
     lines?: TranscriptResult["lines"];
+    dialect?: TranscriptResult["dialect"];
+    difficulty?: TranscriptResult["difficulty"];
   } | null> => {
     setIsAnalyzing(true);
     try {
@@ -526,6 +528,8 @@ const Transcribe = () => {
         grammarPoints: normalized.grammarPoints,
         culturalContext: normalized.culturalContext,
         lines: normalized.lines,
+        dialect: data.result.dialect,
+        difficulty: data.result.difficulty,
       };
     } catch (error) {
       console.error("Analysis error:", error);
@@ -770,6 +774,8 @@ const Transcribe = () => {
           grammarPoints: analysisData.grammarPoints,
           culturalContext: analysisData.culturalContext,
           lines: linesWithTimestamps,
+          dialect: analysisData.dialect,
+          difficulty: analysisData.difficulty,
         } : null);
       }
     } catch (error) {
@@ -1108,9 +1114,36 @@ const Transcribe = () => {
         {lines.length > 0 ? (
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
-              <div>
+              <div className="space-y-2">
                 <CardTitle>Transcript</CardTitle>
                 <CardDescription>{lines.length} {lines.length === 1 ? "sentence" : "sentences"}</CardDescription>
+                {(transcriptResult?.dialect || transcriptResult?.difficulty) && (
+                  <div className="flex gap-2 flex-wrap">
+                    {transcriptResult.dialect && (
+                      <Badge variant="secondary" className="text-xs">
+                        {transcriptResult.dialect === 'Saudi' ? '🇸🇦' :
+                         transcriptResult.dialect === 'Kuwaiti' ? '🇰🇼' :
+                         transcriptResult.dialect === 'UAE' ? '🇦🇪' :
+                         transcriptResult.dialect === 'Bahraini' ? '🇧🇭' :
+                         transcriptResult.dialect === 'Qatari' ? '🇶🇦' :
+                         transcriptResult.dialect === 'Omani' ? '🇴🇲' : '🌍'} {transcriptResult.dialect} Arabic
+                      </Badge>
+                    )}
+                    {transcriptResult.difficulty && (
+                      <Badge
+                        variant="outline"
+                        className={`text-xs ${
+                          transcriptResult.difficulty === 'Beginner' ? 'border-green-500 text-green-600' :
+                          transcriptResult.difficulty === 'Intermediate' ? 'border-yellow-500 text-yellow-600' :
+                          transcriptResult.difficulty === 'Advanced' ? 'border-orange-500 text-orange-600' :
+                          'border-red-500 text-red-600'
+                        }`}
+                      >
+                        {transcriptResult.difficulty}
+                      </Badge>
+                    )}
+                  </div>
+                )}
               </div>
               <div className="flex gap-2">
                 <Button onClick={handleSaveClick} variant={isSaved ? "secondary" : "default"} disabled={isSaved}>

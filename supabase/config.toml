@@ -98,3 +98,6 @@ verify_jwt = false
 
 [functions.daily-challenge]
 verify_jwt = false
+
+[functions.grammar-drill]
+verify_jwt = false

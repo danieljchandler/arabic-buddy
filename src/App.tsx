@@ -28,6 +28,7 @@ import ConversationSimulator from "./pages/ConversationSimulator";
 import DialectCompare from "./pages/DialectCompare";
 import ListeningPractice from "./pages/ListeningPractice";
 import Leaderboard from "./pages/Leaderboard";
+import ReadingPractice from "./pages/ReadingPractice";
 import AdminLogin from "./pages/admin/AdminLogin";
 import AdminLayout from "./pages/admin/AdminLayout";
 import Dashboard from "./pages/admin/Dashboard";
@@ -188,8 +189,12 @@ const App = () => {
                 <Leaderboard />
               </ErrorBoundary>
             } />
+            <Route path="/reading" element={
+              <ErrorBoundary name="ReadingRoute">
+                <ReadingPractice />
+              </ErrorBoundary>
+            } />
 
-            {/* Admin routes */}
             <Route path="/admin/login" element={<AdminLogin />} />
             <Route path="/admin" element={<ErrorBoundary name="AdminRoute"><AdminLayout /></ErrorBoundary>}>
               <Route index element={<Dashboard />} />

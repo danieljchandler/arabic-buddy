@@ -92,3 +92,6 @@ verify_jwt = false
 
 [functions.dialect-compare]
 verify_jwt = false
+
+[functions.reading-passage]
+verify_jwt = false

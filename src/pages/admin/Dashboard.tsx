@@ -3,7 +3,7 @@ import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { useTopics } from '@/hooks/useTopics';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, LogOut, BookOpen, Plus, Settings, Mic, PlayCircle, Upload, GraduationCap, Sparkles } from 'lucide-react';
+import { Loader2, LogOut, BookOpen, Plus, Settings, Mic, PlayCircle, Upload, GraduationCap, Sparkles, BookMarked } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 import lahjaIcon from '@/assets/lahja-icon.png';
@@ -178,6 +178,20 @@ const Dashboard = () => {
                     <div>
                       <h3 className="font-semibold text-lg">Manage Videos</h3>
                       <p className="text-muted-foreground">Add and manage Discover videos</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="cursor-pointer hover:shadow-lg transition-shadow border-accent/30" onClick={() => navigate('/admin/stories')}>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-4">
+                    <div className="bg-accent/10 rounded-full p-4">
+                      <BookMarked className="h-8 w-8 text-accent-foreground" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-lg">Interactive Stories</h3>
+                      <p className="text-muted-foreground">Create choose-your-adventure stories</p>
                     </div>
                   </div>
                 </CardContent>

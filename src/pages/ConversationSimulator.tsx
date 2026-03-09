@@ -7,7 +7,7 @@ import { HomeButton } from "@/components/HomeButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Send, RotateCcw, MessageCircle, Coffee, MapPin, ShoppingBag, Users, Mic, MicOff, Volume2 } from "lucide-react";
+import { Loader2, Send, RotateCcw, MessageCircle, Coffee, MapPin, ShoppingBag, Users, Mic, MicOff, Volume2, UtensilsCrossed, Building2, Stethoscope, Phone, Plane } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";

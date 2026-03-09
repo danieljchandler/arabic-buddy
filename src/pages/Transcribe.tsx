@@ -479,6 +479,10 @@ const Transcribe = () => {
       if (munsitText) body.munsitTranscript = munsitText;
       if (fanarText) body.fanarTranscript = fanarText;
       if (sonioxText) body.sonioxTranscript = sonioxText;
+      
+      // Add original URL if this analysis came from a URL import (for caching)
+      const currentUrlParam = new URLSearchParams(window.location.search).get('url');
+      if (currentUrlParam) body.originalUrl = currentUrlParam;
 
       const { data, error } = await supabase.functions.invoke<{
         success: boolean;

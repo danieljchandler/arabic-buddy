@@ -23,8 +23,14 @@
  *   Raw MP3 audio (Content-Type: audio/mpeg) on success.
  *
  * Required environment variables:
- *   AZURE_SPEECH_KEY     — Azure Cognitive Services speech resource key
- *   AZURE_SPEECH_REGION  — Azure region (e.g. "eastus", "uaenorth")
+ *   AZURE_SPEECH_KEY      — Azure Cognitive Services speech resource key
+ *
+ * Provide ONE of the following to identify the endpoint:
+ *   AZURE_SPEECH_ENDPOINT — Custom endpoint URL from Azure AI multi-service
+ *                           resource (e.g. https://xxx.cognitiveservices.azure.com/)
+ *                           Takes priority over AZURE_SPEECH_REGION when set.
+ *   AZURE_SPEECH_REGION   — Azure region for standard Speech resource
+ *                           (e.g. "eastus", "uaenorth")
  */
 
 const corsHeaders = {
@@ -33,7 +39,17 @@ const corsHeaders = {
 };
 
 const AZURE_SPEECH_KEY = Deno.env.get('AZURE_SPEECH_KEY') ?? '';
+const AZURE_SPEECH_ENDPOINT = Deno.env.get('AZURE_SPEECH_ENDPOINT') ?? '';
 const AZURE_SPEECH_REGION = Deno.env.get('AZURE_SPEECH_REGION') ?? 'eastus';
+
+/** Build the TTS REST endpoint URL, preferring a custom endpoint if configured */
+function getTtsEndpoint(): string {
+  if (AZURE_SPEECH_ENDPOINT) {
+    const base = AZURE_SPEECH_ENDPOINT.replace(/\/$/, '');
+    return `${base}/cognitiveservices/v1`;
+  }
+  return `https://${AZURE_SPEECH_REGION}.tts.speech.microsoft.com/cognitiveservices/v1`;
+}
 
 const DEFAULT_VOICE = 'ar-AE-HamdanNeural';
 
@@ -103,7 +119,7 @@ Deno.serve(async (req: Request) => {
 
     const ssml = buildSsml(text.trim(), voice);
 
-    const endpoint = `https://${AZURE_SPEECH_REGION}.tts.speech.microsoft.com/cognitiveservices/v1`;
+    const endpoint = getTtsEndpoint();
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15_000);

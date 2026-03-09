@@ -33,6 +33,7 @@ import DailyChallenge from "./pages/DailyChallenge";
 import LearningAnalytics from "./pages/LearningAnalytics";
 import GrammarDrills from "./pages/GrammarDrills";
 import VocabGames from "./pages/VocabGames";
+import Onboarding from "./pages/Onboarding";
 import AdminLogin from "./pages/admin/AdminLogin";
 import AdminLayout from "./pages/admin/AdminLayout";
 import Dashboard from "./pages/admin/Dashboard";

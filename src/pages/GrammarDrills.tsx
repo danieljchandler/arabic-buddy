@@ -69,6 +69,29 @@ const GrammarDrills = () => {
     setShowResult(false);
 
     try {
+      // Try pre-approved content first
+      const { data: approved } = await supabase
+        .from("grammar_exercises" as any)
+        .select("*")
+        .eq("status", "published")
+        .eq("category", cat)
+        .eq("difficulty", difficulty)
+        .limit(10);
+
+      if (approved && approved.length >= 3) {
+        const shuffled = (approved as any[]).sort(() => Math.random() - 0.5).slice(0, 5);
+        setQuestions(shuffled.map((q: any) => ({
+          question_arabic: q.question_arabic,
+          question_english: q.question_english,
+          grammar_point: q.grammar_point,
+          choices: q.choices as Choice[],
+          correct_index: q.correct_index,
+          explanation: q.explanation,
+        })));
+        return;
+      }
+
+      // Fallback to live AI generation
       const { data, error } = await supabase.functions.invoke("grammar-drill", {
         body: { category: cat, difficulty },
       });

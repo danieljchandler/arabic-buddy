@@ -29,7 +29,20 @@ const Auth = () => {
 
   useEffect(() => {
     if (isAuthenticated && !loading) {
-      navigate("/");
+      // Check if onboarding is completed
+      const checkOnboarding = async () => {
+        const { data } = await supabase
+          .from('profiles' as any)
+          .select('onboarding_completed')
+          .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
+          .maybeSingle();
+        if (data && !(data as any).onboarding_completed) {
+          navigate('/onboarding');
+        } else {
+          navigate('/');
+        }
+      };
+      checkOnboarding();
     }
   }, [isAuthenticated, loading, navigate]);
 

@@ -473,12 +473,14 @@ const Index = () => {
         {/* Listening Practice */}
         <div className="pt-4">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1 mb-2">
-            Listening Practice
+            Comprehension
           </p>
+          
+          {/* Listening Practice */}
           <button
             onClick={() => navigate("/listening")}
             className={cn(
-              "w-full p-4 rounded-xl",
+              "w-full p-4 rounded-xl mb-2",
               "bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border border-cyan-500/20",
               "flex items-center gap-3",
               "transition-all duration-200",
@@ -492,6 +494,28 @@ const Index = () => {
               <p className="font-semibold text-foreground">Listening Practice</p>
               <p className="text-xs text-muted-foreground">
                 Dictation, comprehension & speed drills
+              </p>
+            </div>
+          </button>
+
+          {/* Reading Practice */}
+          <button
+            onClick={() => navigate("/reading")}
+            className={cn(
+              "w-full p-4 rounded-xl",
+              "bg-gradient-to-r from-indigo-500/10 to-violet-500/10 border border-indigo-500/20",
+              "flex items-center gap-3",
+              "transition-all duration-200",
+              "hover:border-indigo-500/40 active:scale-[0.98]"
+            )}
+          >
+            <div className="w-10 h-10 rounded-lg bg-indigo-500/10 flex items-center justify-center shrink-0">
+              <FileText className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
+            </div>
+            <div className="text-left">
+              <p className="font-semibold text-foreground">Reading Practice</p>
+              <p className="text-xs text-muted-foreground">
+                Passages with tap-to-translate & comprehension quiz
               </p>
             </div>
           </button>

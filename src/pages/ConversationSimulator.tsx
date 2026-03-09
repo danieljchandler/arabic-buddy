@@ -435,12 +435,28 @@ const ConversationSimulator = () => {
 
         {/* Input area */}
         <div className="flex gap-2 pb-2">
+          <Button
+            onClick={toggleRecording}
+            variant={isRecording ? "destructive" : "outline"}
+            size="icon"
+            className={cn(
+              "h-11 w-11 rounded-xl shrink-0 transition-all",
+              isRecording && "animate-pulse"
+            )}
+            disabled={isGenerating}
+            title={isRecording ? "Stop recording" : "Start voice input"}
+          >
+            {isRecording ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+          </Button>
           <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && sendMessage()}
-            placeholder="Type in Arabic or English..."
-            className="flex-1 h-11 rounded-xl"
+            placeholder={isRecording ? "Listening..." : "Type or tap mic to speak..."}
+            className={cn(
+              "flex-1 h-11 rounded-xl transition-all",
+              isRecording && "border-destructive/50 bg-destructive/5"
+            )}
             disabled={isGenerating}
             dir="auto"
           />
@@ -455,7 +471,9 @@ const ConversationSimulator = () => {
         </div>
 
         <p className="text-xs text-muted-foreground text-center">
-          Try typing in Arabic or English — the AI will respond in Gulf Arabic with translations
+          {isRecording 
+            ? "🎤 Speak now — your words will appear above" 
+            : "Type or use the mic to speak in Arabic or English"}
         </p>
       </div>
     </AppShell>

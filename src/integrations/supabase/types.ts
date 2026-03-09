@@ -227,6 +227,39 @@ export type Database = {
         }
         Relationships: []
       }
+      institutions: {
+        Row: {
+          created_at: string
+          id: string
+          institution_type: string
+          logo_url: string | null
+          name: string
+          name_arabic: string | null
+          updated_at: string
+          verified: boolean
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          institution_type?: string
+          logo_url?: string | null
+          name: string
+          name_arabic?: string | null
+          updated_at?: string
+          verified?: boolean
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          institution_type?: string
+          logo_url?: string | null
+          name?: string
+          name_arabic?: string | null
+          updated_at?: string
+          verified?: boolean
+        }
+        Relationships: []
+      }
       processed_videos: {
         Row: {
           content_hash: string
@@ -279,8 +312,11 @@ export type Database = {
         Row: {
           avatar_url: string | null
           created_at: string
+          custom_institution: string | null
           display_name: string | null
           id: string
+          institution_id: string | null
+          show_institution: boolean
           show_on_leaderboard: boolean
           updated_at: string
           user_id: string
@@ -288,8 +324,11 @@ export type Database = {
         Insert: {
           avatar_url?: string | null
           created_at?: string
+          custom_institution?: string | null
           display_name?: string | null
           id?: string
+          institution_id?: string | null
+          show_institution?: boolean
           show_on_leaderboard?: boolean
           updated_at?: string
           user_id: string
@@ -297,13 +336,24 @@ export type Database = {
         Update: {
           avatar_url?: string | null
           created_at?: string
+          custom_institution?: string | null
           display_name?: string | null
           id?: string
+          institution_id?: string | null
+          show_institution?: boolean
           show_on_leaderboard?: boolean
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_institution_id_fkey"
+            columns: ["institution_id"]
+            isOneToOne: false
+            referencedRelation: "institutions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       review_streaks: {
         Row: {

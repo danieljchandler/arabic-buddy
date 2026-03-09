@@ -14,6 +14,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useAuth } from "@/hooks/useAuth";
 import {
   useWeeklyLeaderboard,
@@ -21,6 +28,7 @@ import {
   useMyProfile,
   useUpdateProfile,
   useMyRank,
+  useInstitutions,
   LeaderboardEntry,
 } from "@/hooks/useLeaderboard";
 import { cn } from "@/lib/utils";
@@ -34,6 +42,8 @@ import {
   Settings,
   Loader2,
   User,
+  Building2,
+  BadgeCheck,
 } from "lucide-react";
 
 type Tab = "weekly" | "all-time";
@@ -74,6 +84,8 @@ const LeaderboardRow = ({
   entry: LeaderboardEntry;
   isCurrentUser: boolean;
 }) => {
+  const showInst = entry.show_institution && entry.institution_name;
+
   return (
     <div
       className={cn(
@@ -100,10 +112,24 @@ const LeaderboardRow = ({
             <span className="text-primary text-xs ml-1.5">(you)</span>
           )}
         </p>
-        <p className="text-xs text-muted-foreground">Level {entry.level}</p>
+        <div className="flex items-center gap-1.5">
+          <p className="text-xs text-muted-foreground">Level {entry.level}</p>
+          {showInst && (
+            <>
+              <span className="text-muted-foreground/40 text-xs">·</span>
+              <span className="text-xs text-muted-foreground flex items-center gap-0.5 truncate">
+                <Building2 className="h-3 w-3 shrink-0" />
+                <span className="truncate">{entry.institution_name}</span>
+                {entry.institution_verified && (
+                  <BadgeCheck className="h-3 w-3 text-primary shrink-0" />
+                )}
+              </span>
+            </>
+          )}
+        </div>
       </div>
 
-      <div className="text-right">
+      <div className="text-right shrink-0">
         <p className="font-bold text-primary">{entry.xp_this_week.toLocaleString()}</p>
         <p className="text-xs text-muted-foreground">XP this week</p>
       </div>
@@ -113,9 +139,13 @@ const LeaderboardRow = ({
 
 const ProfileEditDialog = () => {
   const { data: profile, isLoading } = useMyProfile();
+  const { data: institutions } = useInstitutions();
   const updateProfile = useUpdateProfile();
   const [displayName, setDisplayName] = useState("");
   const [showOnLeaderboard, setShowOnLeaderboard] = useState(true);
+  const [institutionId, setInstitutionId] = useState<string>("none");
+  const [customInstitution, setCustomInstitution] = useState("");
+  const [showInstitution, setShowInstitution] = useState(true);
   const [open, setOpen] = useState(false);
 
   const handleOpen = (isOpen: boolean) => {
@@ -123,6 +153,9 @@ const ProfileEditDialog = () => {
     if (isOpen && profile) {
       setDisplayName(profile.display_name || "");
       setShowOnLeaderboard(profile.show_on_leaderboard);
+      setInstitutionId(profile.institution_id || "none");
+      setCustomInstitution(profile.custom_institution || "");
+      setShowInstitution(profile.show_institution);
     }
   };
 
@@ -131,6 +164,9 @@ const ProfileEditDialog = () => {
       await updateProfile.mutateAsync({
         display_name: displayName.trim() || null,
         show_on_leaderboard: showOnLeaderboard,
+        institution_id: institutionId === "none" ? null : institutionId === "other" ? null : institutionId,
+        custom_institution: institutionId === "other" ? customInstitution.trim() || null : null,
+        show_institution: showInstitution,
       });
       toast.success("Profile updated!");
       setOpen(false);
@@ -138,6 +174,8 @@ const ProfileEditDialog = () => {
       toast.error("Failed to update profile");
     }
   };
+
+  const hasInstitution = institutionId !== "none";
 
   return (
     <Dialog open={open} onOpenChange={handleOpen}>
@@ -160,6 +198,54 @@ const ProfileEditDialog = () => {
               placeholder="Your name on the leaderboard"
             />
           </div>
+
+          {/* Institution Selection */}
+          <div className="space-y-2">
+            <Label className="flex items-center gap-1.5">
+              <Building2 className="h-4 w-4 text-muted-foreground" />
+              Institution / School
+            </Label>
+            <Select value={institutionId} onValueChange={setInstitutionId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select your institution" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">None</SelectItem>
+                {institutions?.map((inst) => (
+                  <SelectItem key={inst.id} value={inst.id}>
+                    <span className="flex items-center gap-1.5">
+                      {inst.name}
+                      {inst.verified && <BadgeCheck className="h-3.5 w-3.5 text-primary inline" />}
+                    </span>
+                  </SelectItem>
+                ))}
+                <SelectItem value="other">Other (type your own)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {institutionId === "other" && (
+            <div className="space-y-2">
+              <Label htmlFor="customInstitution">Institution Name</Label>
+              <Input
+                id="customInstitution"
+                value={customInstitution}
+                onChange={(e) => setCustomInstitution(e.target.value)}
+                placeholder="e.g. King Saud University"
+              />
+            </div>
+          )}
+
+          {hasInstitution && (
+            <div className="flex items-center justify-between">
+              <Label htmlFor="showInstitution">Show institution on profile</Label>
+              <Switch
+                id="showInstitution"
+                checked={showInstitution}
+                onCheckedChange={setShowInstitution}
+              />
+            </div>
+          )}
 
           <div className="flex items-center justify-between">
             <Label htmlFor="showOnLeaderboard">Show on Leaderboard</Label>

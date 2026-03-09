@@ -10,6 +10,7 @@ import { Settings, Brain, LogIn, LogOut, Mic, BookOpen, Sparkles, GraduationCap,
 import { cn } from "@/lib/utils";
 import { AppShell } from "@/components/layout/AppShell";
 import { Badge } from "@/components/ui/badge";
+import { XPDisplay, StreakDisplay, WeeklyGoalCard, AchievementsGrid } from "@/components/gamification";
 import lahjaLogo from "@/assets/lahja-logo.png";
 import { useState } from "react";
 import { formatDuration } from "@/lib/videoEmbed";

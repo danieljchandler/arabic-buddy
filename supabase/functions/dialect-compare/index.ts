@@ -1,3 +1,4 @@
+// dialect-compare — redeployed after API URL fix (ai.gateway.lovable.dev)
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 const corsHeaders = {

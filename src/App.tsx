@@ -242,6 +242,12 @@ const App = () => {
             <Route path="/liked-videos" element={
               <ErrorBoundary name="LikedVideosRoute"><LikedVideos /></ErrorBoundary>
             } />
+            <Route path="/stories" element={
+              <ErrorBoundary name="StoriesRoute"><Stories /></ErrorBoundary>
+            } />
+            <Route path="/stories/:storyId" element={
+              <ErrorBoundary name="StoryPlayerRoute"><StoryPlayer /></ErrorBoundary>
+            } />
 
             <Route path="/admin/login" element={<AdminLogin />} />
             <Route path="/admin" element={<ErrorBoundary name="AdminRoute"><AdminLayout /></ErrorBoundary>}>

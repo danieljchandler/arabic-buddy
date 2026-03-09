@@ -1285,3 +1285,4 @@ const Transcribe = () => {
 };
 
 export default Transcribe;
+};

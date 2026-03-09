@@ -1097,7 +1097,7 @@ const Transcribe = () => {
         {/* Cache Status Badge */}
         {currentUrlFromParams && lines.length > 0 && (
           <div className="mb-4">
-            <Badge variant="secondary" className="bg-green-100 text-green-800 border-green-200">
+            <Badge variant="secondary" className="bg-accent text-accent-foreground border-border">
               <Sparkles className="w-3 h-3 mr-1" />
               Instant result from cache
             </Badge>

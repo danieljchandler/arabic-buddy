@@ -115,8 +115,8 @@ const Index = () => {
   return (
     <AppShell>
       {/* Top bar with logo and auth */}
-      <div className="flex items-center justify-between mb-8">
-        <img src={lahjaLogo} alt="Lahja" className="h-24" />
+      <div className="flex items-center justify-between mb-4">
+        <img src={lahjaLogo} alt="Lahja" className="h-20" />
         
         <div className="flex items-center gap-3">
           {!authLoading && (isAuthenticated ? (
@@ -140,6 +140,18 @@ const Index = () => {
           </Button>
         </div>
       </div>
+
+      {/* ===== GAMIFICATION STATS (for logged in users) ===== */}
+      {isAuthenticated && (
+        <div className="space-y-3 mb-6">
+          <div className="flex gap-3">
+            <XPDisplay compact className="flex-1" />
+            <StreakDisplay compact />
+          </div>
+          <WeeklyGoalCard />
+          <AchievementsGrid />
+        </div>
+      )}
 
       {/* ===== DISCOVER - Hero Section ===== */}
       <div className="mb-8">

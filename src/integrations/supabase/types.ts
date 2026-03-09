@@ -517,10 +517,15 @@ export type Database = {
           display_name: string | null
           id: string
           institution_id: string | null
+          learning_reason: string | null
+          onboarding_completed: boolean
+          preferred_dialect: string | null
+          proficiency_level: string | null
           show_institution: boolean
           show_on_leaderboard: boolean
           updated_at: string
           user_id: string
+          weekly_goal: string | null
         }
         Insert: {
           avatar_url?: string | null
@@ -529,10 +534,15 @@ export type Database = {
           display_name?: string | null
           id?: string
           institution_id?: string | null
+          learning_reason?: string | null
+          onboarding_completed?: boolean
+          preferred_dialect?: string | null
+          proficiency_level?: string | null
           show_institution?: boolean
           show_on_leaderboard?: boolean
           updated_at?: string
           user_id: string
+          weekly_goal?: string | null
         }
         Update: {
           avatar_url?: string | null
@@ -541,10 +551,15 @@ export type Database = {
           display_name?: string | null
           id?: string
           institution_id?: string | null
+          learning_reason?: string | null
+          onboarding_completed?: boolean
+          preferred_dialect?: string | null
+          proficiency_level?: string | null
           show_institution?: boolean
           show_on_leaderboard?: boolean
           updated_at?: string
           user_id?: string
+          weekly_goal?: string | null
         }
         Relationships: [
           {

@@ -204,6 +204,15 @@ const Transcribe = () => {
   const culturalContext = transcriptResult?.culturalContext;
   const lines = transcriptResult?.lines ?? [];
 
+  // Check if current URL is in URL params (indicates this was loaded from cache)
+  const currentUrlFromParams = useMemo(() => {
+    try {
+      return new URLSearchParams(window.location.search).get('url');
+    } catch {
+      return null;
+    }
+  }, []);
+
   const debugEnabled = useMemo(() => {
     try {
       return new URLSearchParams(window.location.search).has("debug");

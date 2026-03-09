@@ -49,6 +49,56 @@ import {
 import { formatDuration } from "@/lib/videoEmbed";
 import type { DiscoverVideo } from "@/hooks/useDiscoverVideos";
 
+const LikedVideoCard = ({
+  video,
+  onClick,
+}: {
+  video: DiscoverVideo;
+  onClick: () => void;
+}) => (
+  <button
+    onClick={onClick}
+    className={cn(
+      "w-full rounded-xl overflow-hidden border border-border bg-card/50 text-left",
+      "transition-all duration-200 hover:border-primary/40 hover:shadow-sm active:scale-[0.99]",
+      "flex gap-0"
+    )}
+  >
+    {/* Thumbnail */}
+    <div className="relative w-20 shrink-0 bg-muted overflow-hidden">
+      {video.thumbnail_url ? (
+        <img
+          src={video.thumbnail_url}
+          alt={video.title}
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+      ) : (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <Play className="h-6 w-6 text-muted-foreground/30" />
+        </div>
+      )}
+      {video.duration_seconds && (
+        <div className="absolute bottom-1 right-1">
+          <span className="text-[10px] font-medium text-white bg-black/60 px-1 py-0.5 rounded">
+            {formatDuration(video.duration_seconds)}
+          </span>
+        </div>
+      )}
+    </div>
+
+    {/* Content */}
+    <div className="flex-1 p-2 min-w-0">
+      <p className="font-medium text-foreground text-xs line-clamp-2">
+        {video.title}
+      </p>
+      <div className="flex gap-1 mt-1">
+        <Badge variant="outline" className="text-[10px] px-1 py-0">{video.dialect}</Badge>
+        <Badge variant="outline" className="text-[10px] px-1 py-0">{video.difficulty}</Badge>
+      </div>
+    </div>
+  </button>
+);
+
 const FriendCard = ({
   friend,
   onChallenge,
@@ -56,8 +106,10 @@ const FriendCard = ({
   friend: FriendWithProfile;
   onChallenge: (userId: string) => void;
 }) => {
+  const navigate = useNavigate();
   const followUser = useFollowUser();
   const unfollowUser = useUnfollowUser();
+  const { data: likedVideos, isLoading: videosLoading } = useLikedVideos(friend.user_id);
 
   const handleToggleFollow = async () => {
     try {
@@ -146,6 +198,40 @@ const FriendCard = ({
           </Button>
         )}
       </div>
+
+      {/* Liked Videos Section */}
+      {friend.is_following && (
+        <div className="mt-4 pt-4 border-t border-border">
+          <div className="flex items-center gap-2 mb-2">
+            <Heart className="h-4 w-4 text-primary fill-primary/30" />
+            <span className="text-sm font-medium text-muted-foreground">
+              Liked Videos {likedVideos && likedVideos.length > 0 ? `(${likedVideos.length})` : ""}
+            </span>
+          </div>
+          {videosLoading ? (
+            <div className="flex items-center justify-center py-4">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : likedVideos && likedVideos.length > 0 ? (
+            <div className="space-y-2">
+              {likedVideos.slice(0, 3).map((video) => (
+                <LikedVideoCard
+                  key={video.id}
+                  video={video}
+                  onClick={() => navigate(`/discover/${video.id}`)}
+                />
+              ))}
+              {likedVideos.length > 3 && (
+                <p className="text-xs text-muted-foreground text-center pt-1">
+                  +{likedVideos.length - 3} more
+                </p>
+              )}
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground py-2">No liked videos yet</p>
+          )}
+        </div>
+      )}
     </div>
   );
 };

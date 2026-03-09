@@ -405,23 +405,42 @@ const CreateChallengeDialog = ({
   friendName: string;
   onClose: () => void;
 }) => {
+  const navigate = useNavigate();
+  const [challengeType, setChallengeType] = useState<'xp' | 'vocab'>('vocab');
   const [targetXp, setTargetXp] = useState(100);
   const [durationDays, setDurationDays] = useState(7);
   const createChallenge = useCreateChallenge();
 
+  // Import vocab battle hook
+  const { useCreateBattle } = require('@/hooks/useVocabBattles');
+  const createBattle = useCreateBattle();
+
   const handleCreate = async () => {
     try {
-      await createChallenge.mutateAsync({
-        challengedId: friendId,
-        targetXp,
-        durationDays,
-      });
-      toast.success("Challenge sent!");
-      onClose();
+      if (challengeType === 'vocab') {
+        const battle = await createBattle.mutateAsync({
+          opponentId: friendId,
+          questionCount: 10,
+          timeLimitSeconds: 60,
+        });
+        toast.success("Vocab battle created! Play your turn now.");
+        onClose();
+        navigate(`/battles/${battle.id}`);
+      } else {
+        await createChallenge.mutateAsync({
+          challengedId: friendId,
+          targetXp,
+          durationDays,
+        });
+        toast.success("Challenge sent!");
+        onClose();
+      }
     } catch {
       toast.error("Failed to send challenge");
     }
   };
+
+  const isPending = createChallenge.isPending || createBattle.isPending;
 
   return (
     <DialogContent>
@@ -429,54 +448,99 @@ const CreateChallengeDialog = ({
         <DialogTitle>Challenge {friendName}</DialogTitle>
       </DialogHeader>
       <div className="space-y-4 pt-4">
+        {/* Challenge Type Selector */}
         <div className="space-y-2">
-          <label className="text-sm font-medium">Target XP</label>
-          <div className="flex gap-2">
-            {[50, 100, 200, 500].map((xp) => (
-              <Button
-                key={xp}
-                variant={targetXp === xp ? "default" : "outline"}
-                size="sm"
-                onClick={() => setTargetXp(xp)}
-              >
-                {xp}
-              </Button>
-            ))}
+          <label className="text-sm font-medium">Challenge Type</label>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={() => setChallengeType('vocab')}
+              className={cn(
+                "p-3 rounded-xl border-2 text-left transition-all",
+                challengeType === 'vocab'
+                  ? "border-primary bg-primary/5"
+                  : "border-border hover:border-primary/40"
+              )}
+            >
+              <Swords className="h-5 w-5 text-primary mb-1" />
+              <p className="font-semibold text-sm">Vocab Battle</p>
+              <p className="text-xs text-muted-foreground">Timed vocabulary quiz</p>
+            </button>
+            <button
+              onClick={() => setChallengeType('xp')}
+              className={cn(
+                "p-3 rounded-xl border-2 text-left transition-all",
+                challengeType === 'xp'
+                  ? "border-primary bg-primary/5"
+                  : "border-border hover:border-primary/40"
+              )}
+            >
+              <Zap className="h-5 w-5 text-yellow-500 mb-1" />
+              <p className="font-semibold text-sm">XP Race</p>
+              <p className="text-xs text-muted-foreground">First to target XP wins</p>
+            </button>
           </div>
         </div>
 
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Duration</label>
-          <div className="flex gap-2">
-            {[3, 7, 14].map((days) => (
-              <Button
-                key={days}
-                variant={durationDays === days ? "default" : "outline"}
-                size="sm"
-                onClick={() => setDurationDays(days)}
-              >
-                {days} days
-              </Button>
-            ))}
-          </div>
-        </div>
+        {challengeType === 'xp' && (
+          <>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Target XP</label>
+              <div className="flex gap-2">
+                {[50, 100, 200, 500].map((xp) => (
+                  <Button
+                    key={xp}
+                    variant={targetXp === xp ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setTargetXp(xp)}
+                  >
+                    {xp}
+                  </Button>
+                ))}
+              </div>
+            </div>
 
-        <div className="bg-muted rounded-xl p-4 text-sm text-muted-foreground">
-          First to earn <strong className="text-foreground">{targetXp} XP</strong> within{" "}
-          <strong className="text-foreground">{durationDays} days</strong> wins!
-        </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Duration</label>
+              <div className="flex gap-2">
+                {[3, 7, 14].map((days) => (
+                  <Button
+                    key={days}
+                    variant={durationDays === days ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setDurationDays(days)}
+                  >
+                    {days} days
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-muted rounded-xl p-4 text-sm text-muted-foreground">
+              First to earn <strong className="text-foreground">{targetXp} XP</strong> within{" "}
+              <strong className="text-foreground">{durationDays} days</strong> wins!
+            </div>
+          </>
+        )}
+
+        {challengeType === 'vocab' && (
+          <div className="bg-muted rounded-xl p-4 text-sm text-muted-foreground">
+            <strong className="text-foreground">10 questions</strong> · <strong className="text-foreground">60 seconds</strong>
+            <br />
+            Answer vocabulary questions as fast as you can. Highest score wins!
+          </div>
+        )}
 
         <Button
           onClick={handleCreate}
           className="w-full"
-          disabled={createChallenge.isPending}
+          disabled={isPending}
         >
-          {createChallenge.isPending ? (
+          {isPending ? (
             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
           ) : (
             <Swords className="h-4 w-4 mr-2" />
           )}
-          Send Challenge
+          {challengeType === 'vocab' ? 'Start Vocab Battle' : 'Send XP Challenge'}
         </Button>
       </div>
     </DialogContent>

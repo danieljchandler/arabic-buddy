@@ -387,6 +387,19 @@ const ConversationSimulator = () => {
       <div className="mb-4 flex items-center justify-between">
         <HomeButton />
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setAutoPlay(!autoPlay)}
+            className={cn(
+              "flex items-center gap-1 px-2 py-1 rounded-md text-xs transition-colors",
+              autoPlay 
+                ? "bg-primary/10 text-primary" 
+                : "bg-muted text-muted-foreground"
+            )}
+            title={autoPlay ? "Auto-play is on" : "Auto-play is off"}
+          >
+            <Volume2 className="h-3 w-3" />
+            {autoPlay ? "Auto" : "Manual"}
+          </button>
           <Badge variant="outline">{selectedScenario.title}</Badge>
           <Button variant="ghost" size="sm" onClick={resetConversation}>
             <RotateCcw className="h-4 w-4" />

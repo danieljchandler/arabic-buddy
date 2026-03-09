@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      achievements: {
+        Row: {
+          created_at: string
+          description: string
+          display_order: number
+          icon: string
+          id: string
+          name: string
+          name_arabic: string
+          requirement_type: string
+          requirement_value: number | null
+          xp_reward: number
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          display_order?: number
+          icon?: string
+          id?: string
+          name: string
+          name_arabic: string
+          requirement_type?: string
+          requirement_value?: number | null
+          xp_reward?: number
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          display_order?: number
+          icon?: string
+          id?: string
+          name?: string
+          name_arabic?: string
+          requirement_type?: string
+          requirement_value?: number | null
+          xp_reward?: number
+        }
+        Relationships: []
+      }
       content_import_logs: {
         Row: {
           created_at: string
@@ -437,6 +476,35 @@ export type Database = {
         }
         Relationships: []
       }
+      user_achievements: {
+        Row: {
+          achievement_id: string
+          earned_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          achievement_id: string
+          earned_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          achievement_id?: string
+          earned_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_achievements_achievement_id_fkey"
+            columns: ["achievement_id"]
+            isOneToOne: false
+            referencedRelation: "achievements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -536,6 +604,39 @@ export type Database = {
         }
         Relationships: []
       }
+      user_xp: {
+        Row: {
+          created_at: string
+          id: string
+          level: number
+          total_xp: number
+          updated_at: string
+          user_id: string
+          week_start_date: string
+          xp_this_week: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          level?: number
+          total_xp?: number
+          updated_at?: string
+          user_id: string
+          week_start_date?: string
+          xp_this_week?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          level?: number
+          total_xp?: number
+          updated_at?: string
+          user_id?: string
+          week_start_date?: string
+          xp_this_week?: number
+        }
+        Relationships: []
+      }
       video_ratings: {
         Row: {
           created_at: string
@@ -617,6 +718,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      weekly_goals: {
+        Row: {
+          completed_reviews: number
+          created_at: string
+          earned_xp: number
+          id: string
+          target_reviews: number
+          target_xp: number
+          updated_at: string
+          user_id: string
+          week_start_date: string
+        }
+        Insert: {
+          completed_reviews?: number
+          created_at?: string
+          earned_xp?: number
+          id?: string
+          target_reviews?: number
+          target_xp?: number
+          updated_at?: string
+          user_id: string
+          week_start_date?: string
+        }
+        Update: {
+          completed_reviews?: number
+          created_at?: string
+          earned_xp?: number
+          id?: string
+          target_reviews?: number
+          target_xp?: number
+          updated_at?: string
+          user_id?: string
+          week_start_date?: string
+        }
+        Relationships: []
       }
       word_reviews: {
         Row: {

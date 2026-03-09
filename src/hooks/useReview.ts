@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { calculateNextReview, Rating } from '@/lib/spacedRepetition';
+import { useAddXP, useIncrementReviews } from './useGamification';
 
 interface WordReview {
   id: string;
@@ -136,6 +137,8 @@ export const useReviewStats = () => {
 export const useSubmitReview = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const addXP = useAddXP();
+  const incrementReviews = useIncrementReviews();
 
   return useMutation({
     mutationFn: async ({ 
@@ -181,11 +184,22 @@ export const useSubmitReview = () => {
         if (error) throw error;
       }
 
-      return result;
+      return { result, rating };
     },
-    onSuccess: () => {
+    onSuccess: ({ rating }) => {
       queryClient.invalidateQueries({ queryKey: ['due-words'] });
       queryClient.invalidateQueries({ queryKey: ['review-stats'] });
+      
+      // Award XP based on rating
+      const xpAmounts: Record<Rating, number> = {
+        'again': 5,
+        'hard': 10,
+        'good': 15,
+        'easy': 20,
+      };
+      
+      addXP.mutate({ amount: xpAmounts[rating], reason: 'review' });
+      incrementReviews.mutate();
     },
   });
 };

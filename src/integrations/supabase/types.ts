@@ -515,6 +515,60 @@ export type Database = {
         }
         Relationships: []
       }
+      learning_paths: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          current_week: number
+          curriculum: Json
+          goal_description: string
+          goal_type: string
+          id: string
+          last_activity_at: string | null
+          started_at: string
+          status: string
+          target_dialect: string
+          target_level: string
+          timeline_weeks: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          current_week?: number
+          curriculum?: Json
+          goal_description?: string
+          goal_type?: string
+          id?: string
+          last_activity_at?: string | null
+          started_at?: string
+          status?: string
+          target_dialect?: string
+          target_level?: string
+          timeline_weeks?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          current_week?: number
+          curriculum?: Json
+          goal_description?: string
+          goal_type?: string
+          id?: string
+          last_activity_at?: string | null
+          started_at?: string
+          status?: string
+          target_dialect?: string
+          target_level?: string
+          timeline_weeks?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       listening_exercises: {
         Row: {
           audio_text: string
@@ -1091,6 +1145,48 @@ export type Database = {
           },
         ]
       }
+      user_difficulty: {
+        Row: {
+          id: string
+          listening_difficulty: number
+          listening_history: Json
+          reading_difficulty: number
+          reading_history: Json
+          speaking_difficulty: number
+          speaking_history: Json
+          updated_at: string
+          user_id: string
+          vocab_difficulty: number
+          vocab_history: Json
+        }
+        Insert: {
+          id?: string
+          listening_difficulty?: number
+          listening_history?: Json
+          reading_difficulty?: number
+          reading_history?: Json
+          speaking_difficulty?: number
+          speaking_history?: Json
+          updated_at?: string
+          user_id: string
+          vocab_difficulty?: number
+          vocab_history?: Json
+        }
+        Update: {
+          id?: string
+          listening_difficulty?: number
+          listening_history?: Json
+          reading_difficulty?: number
+          reading_history?: Json
+          speaking_difficulty?: number
+          speaking_history?: Json
+          updated_at?: string
+          user_id?: string
+          vocab_difficulty?: number
+          vocab_history?: Json
+        }
+        Relationships: []
+      }
       user_follows: {
         Row: {
           created_at: string
@@ -1492,6 +1588,62 @@ export type Database = {
           week_start_date?: string
         }
         Relationships: []
+      }
+      weekly_recommendations: {
+        Row: {
+          created_at: string
+          difficulty_adjustment: string | null
+          focus_areas: Json
+          id: string
+          learning_path_id: string | null
+          motivation_message: string | null
+          motivation_message_arabic: string | null
+          performance_summary: Json
+          suggested_content: Json
+          user_id: string
+          viewed_at: string | null
+          vocab_to_review: Json
+          week_start: string
+        }
+        Insert: {
+          created_at?: string
+          difficulty_adjustment?: string | null
+          focus_areas?: Json
+          id?: string
+          learning_path_id?: string | null
+          motivation_message?: string | null
+          motivation_message_arabic?: string | null
+          performance_summary?: Json
+          suggested_content?: Json
+          user_id: string
+          viewed_at?: string | null
+          vocab_to_review?: Json
+          week_start?: string
+        }
+        Update: {
+          created_at?: string
+          difficulty_adjustment?: string | null
+          focus_areas?: Json
+          id?: string
+          learning_path_id?: string | null
+          motivation_message?: string | null
+          motivation_message_arabic?: string | null
+          performance_summary?: Json
+          suggested_content?: Json
+          user_id?: string
+          viewed_at?: string | null
+          vocab_to_review?: Json
+          week_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "weekly_recommendations_learning_path_id_fkey"
+            columns: ["learning_path_id"]
+            isOneToOne: false
+            referencedRelation: "learning_paths"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       word_reviews: {
         Row: {

@@ -1308,6 +1308,66 @@ export type Database = {
           },
         ]
       }
+      vocab_battles: {
+        Row: {
+          challenger_id: string
+          challenger_played_at: string | null
+          challenger_score: number | null
+          challenger_time_ms: number | null
+          completed_at: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          opponent_id: string
+          opponent_played_at: string | null
+          opponent_score: number | null
+          opponent_time_ms: number | null
+          question_count: number
+          questions: Json
+          status: string
+          time_limit_seconds: number
+          winner_id: string | null
+        }
+        Insert: {
+          challenger_id: string
+          challenger_played_at?: string | null
+          challenger_score?: number | null
+          challenger_time_ms?: number | null
+          completed_at?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          opponent_id: string
+          opponent_played_at?: string | null
+          opponent_score?: number | null
+          opponent_time_ms?: number | null
+          question_count?: number
+          questions?: Json
+          status?: string
+          time_limit_seconds?: number
+          winner_id?: string | null
+        }
+        Update: {
+          challenger_id?: string
+          challenger_played_at?: string | null
+          challenger_score?: number | null
+          challenger_time_ms?: number | null
+          completed_at?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          opponent_id?: string
+          opponent_played_at?: string | null
+          opponent_score?: number | null
+          opponent_time_ms?: number | null
+          question_count?: number
+          questions?: Json
+          status?: string
+          time_limit_seconds?: number
+          winner_id?: string | null
+        }
+        Relationships: []
+      }
       vocab_game_sets: {
         Row: {
           created_at: string

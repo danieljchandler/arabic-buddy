@@ -150,6 +150,29 @@ const Index = () => {
           </div>
           <WeeklyGoalCard />
           <AchievementsGrid />
+          
+          {/* Leaderboard button */}
+          <button
+            onClick={() => navigate("/leaderboard")}
+            className={cn(
+              "w-full p-4 rounded-xl",
+              "bg-gradient-to-r from-yellow-500/10 to-orange-500/10 border border-yellow-500/20",
+              "flex items-center gap-3",
+              "transition-all duration-200",
+              "hover:border-yellow-500/40 active:scale-[0.98]"
+            )}
+          >
+            <div className="w-10 h-10 rounded-lg bg-yellow-500/10 flex items-center justify-center shrink-0">
+              <Trophy className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
+            </div>
+            <div className="text-left flex-1">
+              <p className="font-semibold text-foreground">Leaderboard</p>
+              <p className="text-xs text-muted-foreground">
+                Compete with other learners
+              </p>
+            </div>
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          </button>
         </div>
       )}
 

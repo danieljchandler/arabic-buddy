@@ -137,7 +137,7 @@ export function useInstitutions() {
         .order("name");
 
       if (error) throw error;
-      return (data || []) as Institution[];
+      return (data || []) as unknown as Institution[];
     },
     staleTime: 5 * 60 * 1000,
   });

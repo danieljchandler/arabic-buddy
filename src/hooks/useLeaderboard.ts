@@ -10,6 +10,9 @@ export interface LeaderboardEntry {
   level: number;
   xp_this_week: number;
   rank: number;
+  institution_name: string | null;
+  institution_verified: boolean;
+  show_institution: boolean;
 }
 
 export interface Profile {
@@ -18,25 +21,59 @@ export interface Profile {
   display_name: string | null;
   avatar_url: string | null;
   show_on_leaderboard: boolean;
+  institution_id: string | null;
+  custom_institution: string | null;
+  show_institution: boolean;
+}
+
+export interface Institution {
+  id: string;
+  name: string;
+  name_arabic: string | null;
+  institution_type: string;
+  logo_url: string | null;
+  verified: boolean;
+}
+
+function buildEntries(
+  xpData: any[],
+  profiles: any[],
+  institutions: any[]
+): LeaderboardEntry[] {
+  return xpData.map((xp, index) => {
+    const profile = profiles.find((p: any) => p.user_id === xp.user_id);
+    const inst = profile?.institution_id
+      ? institutions.find((i: any) => i.id === profile.institution_id)
+      : null;
+    return {
+      user_id: xp.user_id,
+      display_name: profile?.display_name || "Anonymous",
+      avatar_url: profile?.avatar_url || null,
+      total_xp: xp.total_xp,
+      level: xp.level,
+      xp_this_week: xp.xp_this_week,
+      rank: index + 1,
+      institution_name: inst?.name || profile?.custom_institution || null,
+      institution_verified: inst?.verified || false,
+      show_institution: profile?.show_institution ?? true,
+    };
+  });
 }
 
 export function useWeeklyLeaderboard(limit = 20) {
   return useQuery({
     queryKey: ["leaderboard", "weekly", limit],
     queryFn: async () => {
-      // Get profiles that allow leaderboard display
       const { data: profiles, error: profilesError } = await supabase
         .from("profiles")
-        .select("user_id, display_name, avatar_url")
+        .select("user_id, display_name, avatar_url, institution_id, custom_institution, show_institution" as any)
         .eq("show_on_leaderboard", true);
 
       if (profilesError) throw profilesError;
 
-      const userIds = profiles?.map((p) => p.user_id) || [];
-
+      const userIds = profiles?.map((p: any) => p.user_id) || [];
       if (userIds.length === 0) return [];
 
-      // Get XP data for those users
       const { data: xpData, error: xpError } = await supabase
         .from("user_xp")
         .select("user_id, total_xp, level, xp_this_week")
@@ -46,23 +83,14 @@ export function useWeeklyLeaderboard(limit = 20) {
 
       if (xpError) throw xpError;
 
-      // Merge profiles with XP data
-      const entries: LeaderboardEntry[] = (xpData || []).map((xp, index) => {
-        const profile = profiles?.find((p) => p.user_id === xp.user_id);
-        return {
-          user_id: xp.user_id,
-          display_name: profile?.display_name || "Anonymous",
-          avatar_url: profile?.avatar_url || null,
-          total_xp: xp.total_xp,
-          level: xp.level,
-          xp_this_week: xp.xp_this_week,
-          rank: index + 1,
-        };
-      });
+      // Fetch institutions
+      const { data: institutions } = await supabase
+        .from("institutions" as any)
+        .select("id, name, verified");
 
-      return entries;
+      return buildEntries(xpData || [], profiles || [], institutions || []);
     },
-    staleTime: 30 * 1000, // 30 seconds
+    staleTime: 30 * 1000,
   });
 }
 
@@ -70,19 +98,16 @@ export function useAllTimeLeaderboard(limit = 20) {
   return useQuery({
     queryKey: ["leaderboard", "all-time", limit],
     queryFn: async () => {
-      // Get profiles that allow leaderboard display
       const { data: profiles, error: profilesError } = await supabase
         .from("profiles")
-        .select("user_id, display_name, avatar_url")
+        .select("user_id, display_name, avatar_url, institution_id, custom_institution, show_institution" as any)
         .eq("show_on_leaderboard", true);
 
       if (profilesError) throw profilesError;
 
-      const userIds = profiles?.map((p) => p.user_id) || [];
-
+      const userIds = profiles?.map((p: any) => p.user_id) || [];
       if (userIds.length === 0) return [];
 
-      // Get XP data for those users
       const { data: xpData, error: xpError } = await supabase
         .from("user_xp")
         .select("user_id, total_xp, level, xp_this_week")
@@ -92,23 +117,29 @@ export function useAllTimeLeaderboard(limit = 20) {
 
       if (xpError) throw xpError;
 
-      // Merge profiles with XP data
-      const entries: LeaderboardEntry[] = (xpData || []).map((xp, index) => {
-        const profile = profiles?.find((p) => p.user_id === xp.user_id);
-        return {
-          user_id: xp.user_id,
-          display_name: profile?.display_name || "Anonymous",
-          avatar_url: profile?.avatar_url || null,
-          total_xp: xp.total_xp,
-          level: xp.level,
-          xp_this_week: xp.xp_this_week,
-          rank: index + 1,
-        };
-      });
+      const { data: institutions } = await supabase
+        .from("institutions" as any)
+        .select("id, name, verified");
 
-      return entries;
+      return buildEntries(xpData || [], profiles || [], institutions || []);
     },
-    staleTime: 30 * 1000, // 30 seconds
+    staleTime: 30 * 1000,
+  });
+}
+
+export function useInstitutions() {
+  return useQuery({
+    queryKey: ["institutions"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("institutions" as any)
+        .select("*")
+        .order("name");
+
+      if (error) throw error;
+      return (data || []) as Institution[];
+    },
+    staleTime: 5 * 60 * 1000,
   });
 }
 
@@ -128,7 +159,6 @@ export function useMyProfile() {
 
       if (error) throw error;
 
-      // Create profile if doesn't exist
       if (!data) {
         const { data: newProfile, error: insertError } = await supabase
           .from("profiles")
@@ -140,10 +170,10 @@ export function useMyProfile() {
           .single();
 
         if (insertError) throw insertError;
-        return newProfile as Profile;
+        return newProfile as unknown as Profile;
       }
 
-      return data as Profile;
+      return data as unknown as Profile;
     },
     enabled: !!user,
   });
@@ -159,7 +189,7 @@ export function useUpdateProfile() {
 
       const { data, error } = await supabase
         .from("profiles")
-        .update(updates)
+        .update(updates as any)
         .eq("user_id", user.id)
         .select()
         .single();
@@ -182,7 +212,6 @@ export function useMyRank() {
     queryFn: async () => {
       if (!user) return null;
 
-      // Get user's XP
       const { data: myXP, error: myXPError } = await supabase
         .from("user_xp")
         .select("total_xp, xp_this_week")
@@ -191,7 +220,6 @@ export function useMyRank() {
 
       if (myXPError || !myXP) return { weeklyRank: null, allTimeRank: null };
 
-      // Count users with more XP
       const { count: higherXPCount } = await supabase
         .from("user_xp")
         .select("*", { count: "exact", head: true })

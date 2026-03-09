@@ -6,7 +6,7 @@ import { useDiscoverVideos } from "@/hooks/useDiscoverVideos";
 import { useStages } from "@/hooks/useStages";
 import { useAllLessons } from "@/hooks/useLessons";
 import { Button } from "@/components/design-system";
-import { Settings, Brain, LogIn, LogOut, Mic, BookOpen, Sparkles, GraduationCap, Laugh, Play, ChevronRight, Twitter, MessageCircleQuestion, Compass } from "lucide-react";
+import { Settings, Brain, LogIn, LogOut, Mic, BookOpen, Sparkles, GraduationCap, Laugh, Play, ChevronRight, Twitter, MessageCircleQuestion, Compass, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AppShell } from "@/components/layout/AppShell";
 import { Badge } from "@/components/ui/badge";
@@ -381,6 +381,58 @@ const Index = () => {
             </div>
           </button>
         )}
+
+        {/* Speaking Practice Section */}
+        <div className="pt-4">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1 mb-2">
+            Speaking Practice
+          </p>
+          
+          {/* Pronunciation Practice */}
+          <button
+            onClick={() => navigate("/pronunciation")}
+            className={cn(
+              "w-full p-4 rounded-xl mb-2",
+              "bg-gradient-to-r from-primary to-primary/80 text-primary-foreground",
+              "flex items-center gap-3",
+              "transition-all duration-200",
+              "hover:opacity-90 active:scale-[0.98]",
+              "shadow-md"
+            )}
+          >
+            <div className="w-10 h-10 rounded-lg bg-primary-foreground/20 flex items-center justify-center shrink-0">
+              <Mic className="h-5 w-5" />
+            </div>
+            <div className="text-left">
+              <p className="font-bold">Pronunciation Practice</p>
+              <p className="text-xs opacity-80">
+                Record yourself & get AI feedback
+              </p>
+            </div>
+          </button>
+
+          {/* Conversation Simulator */}
+          <button
+            onClick={() => navigate("/conversation")}
+            className={cn(
+              "w-full p-4 rounded-xl",
+              "bg-card border border-primary/20",
+              "flex items-center gap-3",
+              "transition-all duration-200",
+              "hover:border-primary/40"
+            )}
+          >
+            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+              <MessageSquare className="h-5 w-5 text-primary" />
+            </div>
+            <div className="text-left">
+              <p className="font-semibold text-foreground">Conversation Simulator</p>
+              <p className="text-xs text-muted-foreground">
+                Practice real-world Arabic scenarios
+              </p>
+            </div>
+          </button>
+        </div>
 
         {/* Meme Analyzer */}
         <button

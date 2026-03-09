@@ -272,6 +272,9 @@ const App = () => {
               <Route path="llm-logs" element={<LlmLogs />} />
               <Route path="curriculum-builder" element={<CurriculumBuilder />} />
               <Route path="curriculum-builder/:sessionId" element={<CurriculumBuilder />} />
+              <Route path="stories" element={<AdminStories />} />
+              <Route path="stories/new" element={<AdminStoryForm />} />
+              <Route path="stories/:storyId/edit" element={<AdminStoryForm />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />

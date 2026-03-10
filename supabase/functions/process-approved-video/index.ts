@@ -216,122 +216,129 @@ serve(async (req) => {
       const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
       const authHeaders = { Authorization: `Bearer ${serviceKey}` };
 
-      const makeFormData = (fieldName: string) => {
-        const fd = new FormData();
-        fd.append(fieldName, audioFile);
-        return fd;
-      };
+        const makeFormData = (fieldName: string) => {
+          const fd = new FormData();
+          fd.append(fieldName, audioFile!);
+          return fd;
+        };
 
-      const munsitPromise = fetch(`${projectUrl}/functions/v1/munsit-transcribe`, {
-        method: "POST",
-        headers: authHeaders,
-        body: makeFormData("audio"),
-        signal: AbortSignal.timeout(300000),
-      })
-        .then(async (res) => {
-          const body = await res.json().catch(() => ({}));
-          if (!res.ok && !body.text)
-            throw new Error(body.error || `Munsit HTTP ${res.status}`);
-          return body as { text?: string | null; error?: string };
+        const munsitPromise = fetch(`${projectUrl}/functions/v1/munsit-transcribe`, {
+          method: "POST",
+          headers: authHeaders,
+          body: makeFormData("audio"),
+          signal: AbortSignal.timeout(300000),
         })
-        .catch((e) => {
-          console.warn("[pipeline] Munsit failed:", e);
-          return { text: null } as { text: string | null };
-        });
+          .then(async (res) => {
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok && !body.text)
+              throw new Error(body.error || `Munsit HTTP ${res.status}`);
+            return body as { text?: string | null; error?: string };
+          })
+          .catch((e) => {
+            console.warn("[pipeline] Munsit failed:", e);
+            return { text: null } as { text: string | null };
+          });
 
-      const deepgramPromise = fetch(`${projectUrl}/functions/v1/deepgram-transcribe`, {
-        method: "POST",
-        headers: authHeaders,
-        body: makeFormData("file"),
-        signal: AbortSignal.timeout(300000),
-      })
-        .then(async (res) => {
-          if (!res.ok) throw new Error(`Deepgram HTTP ${res.status}`);
-          return res.json();
+        const deepgramPromise = fetch(`${projectUrl}/functions/v1/deepgram-transcribe`, {
+          method: "POST",
+          headers: authHeaders,
+          body: makeFormData("file"),
+          signal: AbortSignal.timeout(300000),
         })
-        .catch((e) => {
-          console.warn("[pipeline] Deepgram failed:", e);
-          return null;
-        });
+          .then(async (res) => {
+            if (!res.ok) throw new Error(`Deepgram HTTP ${res.status}`);
+            return res.json();
+          })
+          .catch((e) => {
+            console.warn("[pipeline] Deepgram failed:", e);
+            return null;
+          });
 
-      const fanarPromise = fetch(`${projectUrl}/functions/v1/fanar-transcribe`, {
-        method: "POST",
-        headers: authHeaders,
-        body: makeFormData("audio"),
-        signal: AbortSignal.timeout(300000),
-      })
-        .then(async (res) => {
-          const body = await res.json().catch(() => ({}));
-          if (!res.ok && !body.text)
-            throw new Error(body.error || `Fanar HTTP ${res.status}`);
-          return body as { text?: string | null; reason?: string };
+        const fanarPromise = fetch(`${projectUrl}/functions/v1/fanar-transcribe`, {
+          method: "POST",
+          headers: authHeaders,
+          body: makeFormData("audio"),
+          signal: AbortSignal.timeout(300000),
         })
-        .catch((e) => {
-          console.warn("[pipeline] Fanar failed:", e);
-          return { text: null } as { text: string | null };
-        });
+          .then(async (res) => {
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok && !body.text)
+              throw new Error(body.error || `Fanar HTTP ${res.status}`);
+            return body as { text?: string | null; reason?: string };
+          })
+          .catch((e) => {
+            console.warn("[pipeline] Fanar failed:", e);
+            return { text: null } as { text: string | null };
+          });
 
-      const sonioxFd = new FormData();
-      sonioxFd.append(
-        "audio",
-        new File([audioFile], audioFile.name, { type: audioFile.type })
-      );
-      sonioxFd.append("includeTranslation", "true");
-      const sonioxPromise = fetch(`${projectUrl}/functions/v1/soniox-transcribe`, {
-        method: "POST",
-        headers: authHeaders,
-        body: sonioxFd,
-        signal: AbortSignal.timeout(300000),
-      })
-        .then(async (res) => {
-          const body = await res.json().catch(() => ({}));
-          if (!res.ok && !body.text)
-            throw new Error(body.error || `Soniox HTTP ${res.status}`);
-          return body as {
-            text?: string | null;
-            sonioxUsed?: boolean;
-            reason?: string;
-            translationText?: string | null;
-          };
+        const sonioxFd = new FormData();
+        sonioxFd.append(
+          "audio",
+          new File([audioFile!], audioFile!.name, { type: audioFile!.type })
+        );
+        sonioxFd.append("includeTranslation", "true");
+        const sonioxPromise = fetch(`${projectUrl}/functions/v1/soniox-transcribe`, {
+          method: "POST",
+          headers: authHeaders,
+          body: sonioxFd,
+          signal: AbortSignal.timeout(300000),
         })
-        .catch((e) => {
-          console.warn("[pipeline] Soniox failed:", e);
-          return { text: null, sonioxUsed: false } as {
-            text: string | null;
-            sonioxUsed: boolean;
-          };
-        });
+          .then(async (res) => {
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok && !body.text)
+              throw new Error(body.error || `Soniox HTTP ${res.status}`);
+            return body as {
+              text?: string | null;
+              sonioxUsed?: boolean;
+              reason?: string;
+              translationText?: string | null;
+            };
+          })
+          .catch((e) => {
+            console.warn("[pipeline] Soniox failed:", e);
+            return { text: null, sonioxUsed: false } as {
+              text: string | null;
+              sonioxUsed: boolean;
+            };
+          });
 
-      const [munsitResult, deepgramResult, fanarResult, sonioxResult] =
-        await Promise.all([munsitPromise, deepgramPromise, fanarPromise, sonioxPromise]);
+        const [munsitResult, deepgramResult, fanarResult, sonioxResult] =
+          await Promise.all([munsitPromise, deepgramPromise, fanarPromise, sonioxPromise]);
 
-      // Extract texts
-      const munsitText = munsitResult?.text || "";
-      const deepgramData = deepgramResult;
-      const deepgramText = deepgramData?.text || "";
-      const fanarText = fanarResult?.text || "";
-      const sonioxText =
-        sonioxResult && "sonioxUsed" in sonioxResult && sonioxResult.sonioxUsed
-          ? sonioxResult.text || ""
-          : "";
+        munsitText = munsitResult?.text || "";
+        deepgramData = deepgramResult;
+        const deepgramText = deepgramData?.text || "";
+        fanarText = fanarResult?.text || "";
+        sonioxText =
+          sonioxResult && "sonioxUsed" in sonioxResult && sonioxResult.sonioxUsed
+            ? sonioxResult.text || ""
+            : "";
 
-      const engines: string[] = [];
-      if (munsitText) engines.push("Munsit");
-      if (deepgramText) engines.push("Deepgram");
-      if (fanarText) engines.push("Fanar");
-      if (sonioxText) engines.push("Soniox");
+        if (munsitText) engines.push("Munsit");
+        if (deepgramText) engines.push("Deepgram");
+        if (fanarText) engines.push("Fanar");
+        if (sonioxText) engines.push("Soniox");
 
-      if (engines.length === 0) {
-        throw new Error("All transcription engines failed");
-      }
+        if (engines.length === 0) {
+          throw new Error("All transcription engines failed and no captions available");
+        }
 
-      console.log(`[pipeline] Got transcriptions from: ${engines.join(", ")}`);
+        console.log(`[pipeline] Got transcriptions from: ${engines.join(", ")}`);
 
-      // Build word timestamps from Deepgram
-      const primaryText = deepgramText || munsitText || fanarText;
-      let relativeWords: any[] = [];
-      if (deepgramData?.words?.length > 0) {
-        relativeWords = deepgramData.words;
+        primaryText = deepgramText || munsitText || fanarText;
+        if (deepgramData?.words?.length > 0) {
+          relativeWords = deepgramData.words;
+        }
+
+        sonioxTranslation =
+          sonioxResult && "translationText" in sonioxResult
+            ? sonioxResult.translationText || null
+            : null;
+      } else {
+        // Captions path
+        primaryText = captionsText!;
+        engines.push("YouTube Captions");
+        console.log("[pipeline] Using YouTube captions as primary transcript");
       }
 
       // ── Step 3: Analyze & merge via analyze-gulf-arabic ─────────────
@@ -342,11 +349,6 @@ serve(async (req) => {
       }
       if (fanarText) analyzeBody.fanarTranscript = fanarText;
       if (sonioxText) analyzeBody.sonioxTranscript = sonioxText;
-
-      const sonioxTranslation =
-        sonioxResult && "translationText" in sonioxResult
-          ? sonioxResult.translationText
-          : null;
       if (sonioxTranslation) analyzeBody.sonioxTranslation = sonioxTranslation;
 
       const analyzeResp = await fetch(

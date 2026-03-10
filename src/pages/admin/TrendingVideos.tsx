@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -34,7 +34,20 @@ interface TrendingCandidate {
   processed: boolean | null;
   rejected: boolean | null;
   rejection_reason: string | null;
+  region_code: string | null;
+  duration_seconds: number | null;
 }
+
+const REGION_LABELS: Record<string, { flag: string; name: string }> = {
+  SA: { flag: '🇸🇦', name: 'Saudi Arabia' },
+  AE: { flag: '🇦🇪', name: 'UAE' },
+  KW: { flag: '🇰🇼', name: 'Kuwait' },
+  QA: { flag: '🇶🇦', name: 'Qatar' },
+  BH: { flag: '🇧🇭', name: 'Bahrain' },
+  OM: { flag: '🇴🇲', name: 'Oman' },
+};
+
+const GULF_REGION_CODES = Object.keys(REGION_LABELS);
 
 const TOPIC_COLORS: Record<string, string> = {
   music: 'bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200',
@@ -59,7 +72,10 @@ const TrendingVideos = () => {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [filter, setFilter] = useState<FilterTab>('new');
-  
+  const [searchParams, setSearchParams] = useSearchParams();
+  const regionFilter = searchParams.get('region') ?? 'all';
+  const setRegionFilter = (value: string) =>
+    setSearchParams(value === 'all' ? {} : { region: value }, { replace: true });
 
   const { data: candidates, isLoading, isError, error: queryError } = useQuery({
     queryKey: ['trending-candidates', filter],
@@ -200,7 +216,7 @@ const TrendingVideos = () => {
 
       <main className="container mx-auto px-4 py-6">
         {/* Status filter tabs */}
-        <div className="flex gap-2 mb-4">
+        <div className="flex gap-2 mb-3">
           {tabs.map((tab) => (
             <Button
               key={tab.key}
@@ -209,6 +225,27 @@ const TrendingVideos = () => {
               onClick={() => setFilter(tab.key)}
             >
               {tab.label}
+            </Button>
+          ))}
+        </div>
+
+        {/* Region filter */}
+        <div className="flex gap-2 mb-4 flex-wrap">
+          <Button
+            size="sm"
+            variant={regionFilter === 'all' ? 'secondary' : 'ghost'}
+            onClick={() => setRegionFilter('all')}
+          >
+            All Regions
+          </Button>
+          {GULF_REGION_CODES.map((code) => (
+            <Button
+              key={code}
+              size="sm"
+              variant={regionFilter === code ? 'secondary' : 'ghost'}
+              onClick={() => setRegionFilter(code)}
+            >
+              {REGION_LABELS[code].flag} {REGION_LABELS[code].name}
             </Button>
           ))}
         </div>
@@ -272,6 +309,11 @@ const TrendingVideos = () => {
                       <Eye className="h-3 w-3" />
                       {formatViews(c.view_count)}
                     </span>
+                    {c.region_code && REGION_LABELS[c.region_code] && (
+                      <span title={REGION_LABELS[c.region_code].name}>
+                        {REGION_LABELS[c.region_code].flag} {REGION_LABELS[c.region_code].name}
+                      </span>
+                    )}
                     {c.detected_topic && (
                       <Badge
                         variant="secondary"

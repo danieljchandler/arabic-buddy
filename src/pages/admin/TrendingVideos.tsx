@@ -183,25 +183,48 @@ const TrendingVideos = () => {
         : candidate.thumbnail_url || '';
 
       // 1. Create discover_videos record with pending transcription status
-      const { data: newVideo, error: insertErr } = await (supabase
+      // Try with transcription columns first; fall back without them if the
+      // migration hasn't been applied to the live database yet.
+      const baseRecord = {
+        title: candidate.title,
+        source_url: candidate.url,
+        platform,
+        embed_url: embedUrl,
+        thumbnail_url: thumbnailUrl,
+        duration_seconds: candidate.duration_seconds,
+        dialect: 'Gulf',
+        difficulty: 'Intermediate',
+        published: false,
+        created_by: user.id,
+      };
+
+      let newVideo: { id: string } | null = null;
+
+      const { data: d1, error: err1 } = await (supabase
         .from('discover_videos' as any) as any)
         .insert({
-          title: candidate.title,
-          source_url: candidate.url,
-          platform,
-          embed_url: embedUrl,
-          thumbnail_url: thumbnailUrl,
-          duration_seconds: candidate.duration_seconds,
-          dialect: 'Gulf',
-          difficulty: 'Intermediate',
-          published: false,
-          created_by: user.id,
+          ...baseRecord,
           transcription_status: 'pending',
           trending_candidate_id: candidate.id,
         })
         .select('id')
         .single();
-      if (insertErr) throw insertErr;
+
+      if (!err1) {
+        newVideo = d1;
+      } else {
+        // Columns may not exist yet — retry without them
+        console.warn('Insert with transcription columns failed, retrying without:', err1.message);
+        const { data: d2, error: err2 } = await (supabase
+          .from('discover_videos' as any) as any)
+          .insert(baseRecord)
+          .select('id')
+          .single();
+        if (err2) throw err2;
+        newVideo = d2;
+      }
+
+      if (!newVideo) throw new Error('Failed to create video record');
 
       // 2. Mark the trending candidate as processed
       const { error: updateErr } = await supabase

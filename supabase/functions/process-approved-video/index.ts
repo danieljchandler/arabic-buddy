@@ -76,11 +76,14 @@ serve(async (req) => {
     );
   }
 
-  // Mark as processing
-  await supabase
+  // Mark as processing (ignore errors if transcription columns don't exist yet)
+  const { error: statusErr } = await supabase
     .from("discover_videos")
     .update({ transcription_status: "processing", transcription_error: null })
     .eq("id", videoId);
+  if (statusErr) {
+    console.warn("Could not set transcription_status (column may not exist):", statusErr.message);
+  }
 
   // Return immediately — the actual pipeline runs in the background
   // We use Deno's ability to keep running after response is sent
@@ -119,19 +122,25 @@ serve(async (req) => {
       if (downloadData.cached && downloadData.transcriptionData) {
         console.log("[pipeline] Cache hit — using existing transcription data");
         const cached = downloadData.transcriptionData;
-        await supabase
+        const cacheUpdate = {
+          transcript_lines: cached.lines || [],
+          vocabulary: cached.vocabulary || [],
+          grammar_points: cached.grammarPoints || [],
+          cultural_context: cached.culturalContext || null,
+          dialect: cached.dialect || "Gulf",
+          difficulty: cached.difficulty || "Intermediate",
+          transcription_status: "completed",
+          transcription_error: null,
+        };
+        const { error: cacheErr } = await supabase
           .from("discover_videos")
-          .update({
-            transcript_lines: cached.lines || [],
-            vocabulary: cached.vocabulary || [],
-            grammar_points: cached.grammarPoints || [],
-            cultural_context: cached.culturalContext || null,
-            dialect: cached.dialect || "Gulf",
-            difficulty: cached.difficulty || "Intermediate",
-            transcription_status: "completed",
-            transcription_error: null,
-          })
+          .update(cacheUpdate)
           .eq("id", videoId);
+        if (cacheErr) {
+          // Retry without transcription status columns
+          const { transcription_status: _s, transcription_error: _e, ...cacheContentOnly } = cacheUpdate;
+          await supabase.from("discover_videos").update(cacheContentOnly).eq("id", videoId);
+        }
         console.log("[pipeline] Completed (from cache)");
         return;
       }
@@ -377,24 +386,37 @@ serve(async (req) => {
 
       // ── Step 4: Save results ────────────────────────────────────────
       console.log("[pipeline] Step 4: Saving results...");
+
+      // Try saving with transcription status columns first
+      const fullUpdate = {
+        title,
+        title_arabic: titleArabic,
+        transcript_lines: sanitizedLines,
+        vocabulary: result.vocabulary || [],
+        grammar_points: result.grammarPoints || [],
+        cultural_context: result.culturalContext || null,
+        dialect: result.dialect || "Gulf",
+        difficulty: result.difficulty || "Intermediate",
+        transcription_status: "completed",
+        transcription_error: null,
+      };
+
       const { error: updateError } = await supabase
         .from("discover_videos")
-        .update({
-          title,
-          title_arabic: titleArabic,
-          transcript_lines: sanitizedLines,
-          vocabulary: result.vocabulary || [],
-          grammar_points: result.grammarPoints || [],
-          cultural_context: result.culturalContext || null,
-          dialect: result.dialect || "Gulf",
-          difficulty: result.difficulty || "Intermediate",
-          transcription_status: "completed",
-          transcription_error: null,
-        })
+        .update(fullUpdate)
         .eq("id", videoId);
 
       if (updateError) {
-        throw new Error(`Failed to save results: ${updateError.message}`);
+        // If it fails because of missing columns, retry without them
+        console.warn("Full update failed, retrying without transcription columns:", updateError.message);
+        const { transcription_status: _s, transcription_error: _e, ...contentOnly } = fullUpdate;
+        const { error: retryError } = await supabase
+          .from("discover_videos")
+          .update(contentOnly)
+          .eq("id", videoId);
+        if (retryError) {
+          throw new Error(`Failed to save results: ${retryError.message}`);
+        }
       }
 
       console.log(
@@ -404,13 +426,17 @@ serve(async (req) => {
       const errorMsg = err instanceof Error ? err.message : "Unknown error";
       console.error(`[pipeline] Failed for video ${videoId}:`, errorMsg);
 
+      // Best-effort status update — column may not exist
       await supabase
         .from("discover_videos")
         .update({
           transcription_status: "failed",
           transcription_error: errorMsg,
         })
-        .eq("id", videoId);
+        .eq("id", videoId)
+        .then(({ error }) => {
+          if (error) console.warn("Could not set failed status:", error.message);
+        });
     }
   })();
 

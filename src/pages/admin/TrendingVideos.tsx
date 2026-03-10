@@ -297,11 +297,6 @@ const TrendingVideos = () => {
                       <Eye className="h-3 w-3" />
                       {formatViews(c.view_count)}
                     </span>
-                    {c.region_code && REGION_LABELS[c.region_code] && (
-                      <span title={REGION_LABELS[c.region_code].name}>
-                        {REGION_LABELS[c.region_code].flag} {REGION_LABELS[c.region_code].name}
-                      </span>
-                    )}
                     {c.detected_topic && (
                       <Badge
                         variant="secondary"

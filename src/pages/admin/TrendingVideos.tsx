@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -30,6 +30,8 @@ interface TrendingCandidate {
   view_count: number | null;
   trending_score: number | null;
   detected_topic: string | null;
+  region_code: string | null;
+  duration_seconds: number | null;
   discovered_at: string | null;
   processed: boolean | null;
   rejected: boolean | null;
@@ -43,11 +45,24 @@ const TOPIC_COLORS: Record<string, string> = {
   news: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
   food: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
   travel: 'bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200',
+  beauty: 'bg-rose-100 text-rose-800 dark:bg-rose-900 dark:text-rose-200',
   lifestyle: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
+  kids: 'bg-lime-100 text-lime-800 dark:bg-lime-900 dark:text-lime-200',
   tech: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200',
   education: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200',
   general: 'bg-muted text-muted-foreground',
 };
+
+const REGION_LABELS: Record<string, { flag: string; name: string }> = {
+  SA: { flag: '🇸🇦', name: 'Saudi Arabia' },
+  AE: { flag: '🇦🇪', name: 'UAE' },
+  KW: { flag: '🇰🇼', name: 'Kuwait' },
+  QA: { flag: '🇶🇦', name: 'Qatar' },
+  BH: { flag: '🇧🇭', name: 'Bahrain' },
+  OM: { flag: '🇴🇲', name: 'Oman' },
+};
+
+const GULF_REGION_CODES = ['SA', 'AE', 'KW', 'QA', 'BH', 'OM'];
 
 type FilterTab = 'new' | 'approved' | 'rejected' | 'all';
 
@@ -56,6 +71,7 @@ const TrendingVideos = () => {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [filter, setFilter] = useState<FilterTab>('new');
+  const [regionFilter, setRegionFilter] = useState<string>('all');
 
   const { data: candidates, isLoading } = useQuery({
     queryKey: ['trending-candidates', filter],
@@ -78,6 +94,10 @@ const TrendingVideos = () => {
       return (data ?? []) as TrendingCandidate[];
     },
   });
+
+  const filteredCandidates = regionFilter === 'all'
+    ? candidates
+    : candidates?.filter((c) => c.region_code === regionFilter);
 
   const fetchTrending = useMutation({
     mutationFn: async () => {
@@ -103,7 +123,6 @@ const TrendingVideos = () => {
 
   const approveMutation = useMutation({
     mutationFn: async (candidate: TrendingCandidate) => {
-      // Navigate to the video form pre-filled with candidate data
       navigate(`/admin/videos/new?from_trending=${candidate.id}&url=${encodeURIComponent(candidate.url)}&title=${encodeURIComponent(candidate.title)}`);
     },
   });
@@ -141,6 +160,18 @@ const TrendingVideos = () => {
     if (count >= 1_000_000) return `${(count / 1_000_000).toFixed(1)}M`;
     if (count >= 1_000) return `${(count / 1_000).toFixed(1)}K`;
     return count.toString();
+  };
+
+  const formatDuration = (seconds: number | null) => {
+    if (!seconds) return null;
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    if (m >= 60) {
+      const h = Math.floor(m / 60);
+      const rem = m % 60;
+      return `${h}:${String(rem).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    }
+    return `${m}:${String(s).padStart(2, '0')}`;
   };
 
   const tabs: { key: FilterTab; label: string }[] = [
@@ -185,8 +216,8 @@ const TrendingVideos = () => {
       </header>
 
       <main className="container mx-auto px-4 py-6">
-        {/* Filter tabs */}
-        <div className="flex gap-2 mb-6">
+        {/* Status filter tabs */}
+        <div className="flex gap-2 mb-4">
           {tabs.map((tab) => (
             <Button
               key={tab.key}
@@ -199,11 +230,35 @@ const TrendingVideos = () => {
           ))}
         </div>
 
+        {/* Country filter */}
+        <div className="flex gap-2 mb-6 flex-wrap">
+          <Button
+            variant={regionFilter === 'all' ? 'secondary' : 'ghost'}
+            size="sm"
+            onClick={() => setRegionFilter('all')}
+          >
+            All Countries
+          </Button>
+          {GULF_REGION_CODES.map((code) => {
+            const region = REGION_LABELS[code];
+            return (
+              <Button
+                key={code}
+                variant={regionFilter === code ? 'secondary' : 'ghost'}
+                size="sm"
+                onClick={() => setRegionFilter(code)}
+              >
+                {region.flag} {region.name}
+              </Button>
+            );
+          })}
+        </div>
+
         {isLoading ? (
           <div className="flex justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
-        ) : !candidates?.length ? (
+        ) : !filteredCandidates?.length ? (
           <Card>
             <CardContent className="py-12 text-center text-muted-foreground">
               <TrendingUp className="h-12 w-12 mx-auto mb-4 opacity-30" />
@@ -215,7 +270,7 @@ const TrendingVideos = () => {
           </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {candidates.map((c) => (
+            {filteredCandidates.map((c) => (
               <Card key={c.id} className="overflow-hidden hover:shadow-md transition-shadow">
                 {/* Thumbnail */}
                 {c.thumbnail_url && (
@@ -229,6 +284,11 @@ const TrendingVideos = () => {
                       <Badge className="absolute top-2 right-2 bg-primary/90">
                         Score: {c.trending_score.toLocaleString()}
                       </Badge>
+                    )}
+                    {c.duration_seconds && (
+                      <span className="absolute bottom-2 right-2 bg-black/75 text-white text-xs px-1.5 py-0.5 rounded font-mono">
+                        {formatDuration(c.duration_seconds)}
+                      </span>
                     )}
                   </div>
                 )}
@@ -246,6 +306,11 @@ const TrendingVideos = () => {
                       <Eye className="h-3 w-3" />
                       {formatViews(c.view_count)}
                     </span>
+                    {c.region_code && REGION_LABELS[c.region_code] && (
+                      <span title={REGION_LABELS[c.region_code].name}>
+                        {REGION_LABELS[c.region_code].flag} {REGION_LABELS[c.region_code].name}
+                      </span>
+                    )}
                     {c.detected_topic && (
                       <Badge
                         variant="secondary"

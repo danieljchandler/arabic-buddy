@@ -59,7 +59,7 @@ const TrendingVideos = () => {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [filter, setFilter] = useState<FilterTab>('new');
-  const [regionFilter, setRegionFilter] = useState<string>('all');
+  
 
   const { data: candidates, isLoading } = useQuery({
     queryKey: ['trending-candidates', filter],

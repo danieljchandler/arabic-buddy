@@ -167,7 +167,7 @@ Deno.serve(async (req) => {
           'Authorization': `Bearer ${supabaseServiceKey}`,
           'apikey': supabaseServiceKey,
           'Content-Type': 'application/json',
-          'Prefer': 'resolution=ignore-duplicates',
+          'Prefer': 'resolution=merge-duplicates',
         },
         body: JSON.stringify(allCandidates),
       });

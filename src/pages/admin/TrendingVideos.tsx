@@ -1,0 +1,311 @@
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/hooks/use-toast';
+import {
+  ArrowLeft,
+  Loader2,
+  RefreshCw,
+  ExternalLink,
+  ThumbsUp,
+  ThumbsDown,
+  TrendingUp,
+  Eye,
+  Trash2,
+} from 'lucide-react';
+
+interface TrendingCandidate {
+  id: string;
+  video_id: string;
+  platform: string;
+  url: string;
+  title: string;
+  creator_name: string;
+  creator_handle: string | null;
+  thumbnail_url: string | null;
+  view_count: number | null;
+  trending_score: number | null;
+  detected_topic: string | null;
+  discovered_at: string | null;
+  processed: boolean | null;
+  rejected: boolean | null;
+  rejection_reason: string | null;
+}
+
+const TOPIC_COLORS: Record<string, string> = {
+  music: 'bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200',
+  comedy: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
+  sports: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+  news: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+  food: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
+  travel: 'bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200',
+  lifestyle: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
+  tech: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200',
+  education: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200',
+  general: 'bg-muted text-muted-foreground',
+};
+
+type FilterTab = 'new' | 'approved' | 'rejected' | 'all';
+
+const TrendingVideos = () => {
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [filter, setFilter] = useState<FilterTab>('new');
+
+  const { data: candidates, isLoading } = useQuery({
+    queryKey: ['trending-candidates', filter],
+    queryFn: async () => {
+      let query = supabase
+        .from('trending_video_candidates')
+        .select('*')
+        .order('trending_score', { ascending: false });
+
+      if (filter === 'new') {
+        query = query.eq('processed', false).eq('rejected', false);
+      } else if (filter === 'approved') {
+        query = query.eq('processed', true);
+      } else if (filter === 'rejected') {
+        query = query.eq('rejected', true);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return (data ?? []) as TrendingCandidate[];
+    },
+  });
+
+  const fetchTrending = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke('discover-trending-videos');
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      toast({
+        title: 'Trending videos fetched',
+        description: `Found ${data?.candidates_found ?? 0} new candidates`,
+      });
+      qc.invalidateQueries({ queryKey: ['trending-candidates'] });
+    },
+    onError: (err: any) => {
+      toast({
+        variant: 'destructive',
+        title: 'Fetch failed',
+        description: err.message,
+      });
+    },
+  });
+
+  const approveMutation = useMutation({
+    mutationFn: async (candidate: TrendingCandidate) => {
+      // Navigate to the video form pre-filled with candidate data
+      navigate(`/admin/videos/new?from_trending=${candidate.id}&url=${encodeURIComponent(candidate.url)}&title=${encodeURIComponent(candidate.title)}`);
+    },
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('trending_video_candidates')
+        .update({ rejected: true, rejection_reason: 'manually_rejected' })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({ title: 'Video rejected' });
+      qc.invalidateQueries({ queryKey: ['trending-candidates'] });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('trending_video_candidates')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({ title: 'Candidate deleted' });
+      qc.invalidateQueries({ queryKey: ['trending-candidates'] });
+    },
+  });
+
+  const formatViews = (count: number | null) => {
+    if (!count) return '—';
+    if (count >= 1_000_000) return `${(count / 1_000_000).toFixed(1)}M`;
+    if (count >= 1_000) return `${(count / 1_000).toFixed(1)}K`;
+    return count.toString();
+  };
+
+  const tabs: { key: FilterTab; label: string }[] = [
+    { key: 'new', label: 'New' },
+    { key: 'approved', label: 'Approved' },
+    { key: 'rejected', label: 'Rejected' },
+    { key: 'all', label: 'All' },
+  ];
+
+  return (
+    <div className="min-h-screen bg-background">
+      <header className="border-b bg-card">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Button variant="ghost" size="icon" onClick={() => navigate('/admin')}>
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+              <div>
+                <h1 className="text-xl font-bold font-heading flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5 text-primary" />
+                  Trending Videos
+                </h1>
+                <p className="text-sm text-muted-foreground">
+                  Discover and curate trending Gulf Arabic YouTube videos
+                </p>
+              </div>
+            </div>
+            <Button
+              onClick={() => fetchTrending.mutate()}
+              disabled={fetchTrending.isPending}
+            >
+              {fetchTrending.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4 mr-2" />
+              )}
+              Fetch Trending
+            </Button>
+          </div>
+        </div>
+      </header>
+
+      <main className="container mx-auto px-4 py-6">
+        {/* Filter tabs */}
+        <div className="flex gap-2 mb-6">
+          {tabs.map((tab) => (
+            <Button
+              key={tab.key}
+              variant={filter === tab.key ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setFilter(tab.key)}
+            >
+              {tab.label}
+            </Button>
+          ))}
+        </div>
+
+        {isLoading ? (
+          <div className="flex justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        ) : !candidates?.length ? (
+          <Card>
+            <CardContent className="py-12 text-center text-muted-foreground">
+              <TrendingUp className="h-12 w-12 mx-auto mb-4 opacity-30" />
+              <p className="text-lg font-medium">No candidates found</p>
+              <p className="text-sm mt-1">
+                Click "Fetch Trending" to discover new Gulf Arabic videos from YouTube.
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {candidates.map((c) => (
+              <Card key={c.id} className="overflow-hidden hover:shadow-md transition-shadow">
+                {/* Thumbnail */}
+                {c.thumbnail_url && (
+                  <div className="relative aspect-video bg-muted">
+                    <img
+                      src={c.thumbnail_url}
+                      alt={c.title}
+                      className="w-full h-full object-cover"
+                    />
+                    {c.trending_score && (
+                      <Badge className="absolute top-2 right-2 bg-primary/90">
+                        Score: {c.trending_score.toLocaleString()}
+                      </Badge>
+                    )}
+                  </div>
+                )}
+
+                <CardContent className="p-4 space-y-3">
+                  {/* Title */}
+                  <h3 className="font-semibold text-sm line-clamp-2 leading-tight" dir="auto">
+                    {c.title}
+                  </h3>
+
+                  {/* Meta row */}
+                  <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
+                    <span className="font-medium">{c.creator_name}</span>
+                    <span className="flex items-center gap-1">
+                      <Eye className="h-3 w-3" />
+                      {formatViews(c.view_count)}
+                    </span>
+                    {c.detected_topic && (
+                      <Badge
+                        variant="secondary"
+                        className={`text-[10px] ${TOPIC_COLORS[c.detected_topic] || TOPIC_COLORS.general}`}
+                      >
+                        {c.detected_topic}
+                      </Badge>
+                    )}
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex gap-2 pt-1">
+                    {!c.processed && !c.rejected && (
+                      <>
+                        <Button
+                          size="sm"
+                          className="flex-1"
+                          onClick={() => approveMutation.mutate(c)}
+                        >
+                          <ThumbsUp className="h-3.5 w-3.5 mr-1" />
+                          Approve
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="flex-1"
+                          onClick={() => rejectMutation.mutate(c.id)}
+                          disabled={rejectMutation.isPending}
+                        >
+                          <ThumbsDown className="h-3.5 w-3.5 mr-1" />
+                          Reject
+                        </Button>
+                      </>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      asChild
+                    >
+                      <a href={c.url} target="_blank" rel="noopener noreferrer">
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </a>
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => deleteMutation.mutate(c.id)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </main>
+    </div>
+  );
+};
+
+export default TrendingVideos;

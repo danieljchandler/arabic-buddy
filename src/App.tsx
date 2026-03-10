@@ -59,6 +59,7 @@ import LlmLogs from "./pages/admin/LlmLogs";
 import CurriculumBuilder from "./pages/admin/CurriculumBuilder";
 import AdminStories from "./pages/admin/AdminStories";
 import AdminStoryForm from "./pages/admin/AdminStoryForm";
+import TrendingVideos from "./pages/admin/TrendingVideos";
 
 const queryClient = new QueryClient();
 
@@ -290,6 +291,7 @@ const App = () => {
               <Route path="stories" element={<AdminStories />} />
               <Route path="stories/new" element={<AdminStoryForm />} />
               <Route path="stories/:storyId/edit" element={<AdminStoryForm />} />
+              <Route path="trending" element={<TrendingVideos />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />

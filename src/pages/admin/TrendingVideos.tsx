@@ -30,8 +30,6 @@ interface TrendingCandidate {
   view_count: number | null;
   trending_score: number | null;
   detected_topic: string | null;
-  region_code: string | null;
-  duration_seconds: number | null;
   discovered_at: string | null;
   processed: boolean | null;
   rejected: boolean | null;

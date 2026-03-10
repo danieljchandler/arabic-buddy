@@ -299,9 +299,6 @@ export type Database = {
           title: string
           title_arabic: string | null
           transcript_lines: Json
-          transcription_error: string | null
-          transcription_status: string
-          trending_candidate_id: string | null
           updated_at: string
           vocabulary: Json
         }
@@ -322,9 +319,6 @@ export type Database = {
           title: string
           title_arabic?: string | null
           transcript_lines?: Json
-          transcription_error?: string | null
-          transcription_status?: string
-          trending_candidate_id?: string | null
           updated_at?: string
           vocabulary?: Json
         }
@@ -345,9 +339,6 @@ export type Database = {
           title?: string
           title_arabic?: string | null
           transcript_lines?: Json
-          transcription_error?: string | null
-          transcription_status?: string
-          trending_candidate_id?: string | null
           updated_at?: string
           vocabulary?: Json
         }

@@ -994,9 +994,11 @@ export type Database = {
           creator_name: string
           detected_topic: string | null
           discovered_at: string | null
+          duration_seconds: number | null
           id: string
           platform: string
           processed: boolean | null
+          region_code: string | null
           rejected: boolean | null
           rejection_reason: string | null
           thumbnail_url: string | null
@@ -1013,9 +1015,11 @@ export type Database = {
           creator_name: string
           detected_topic?: string | null
           discovered_at?: string | null
+          duration_seconds?: number | null
           id?: string
           platform: string
           processed?: boolean | null
+          region_code?: string | null
           rejected?: boolean | null
           rejection_reason?: string | null
           thumbnail_url?: string | null
@@ -1032,9 +1036,11 @@ export type Database = {
           creator_name?: string
           detected_topic?: string | null
           discovered_at?: string | null
+          duration_seconds?: number | null
           id?: string
           platform?: string
           processed?: boolean | null
+          region_code?: string | null
           rejected?: boolean | null
           rejection_reason?: string | null
           thumbnail_url?: string | null

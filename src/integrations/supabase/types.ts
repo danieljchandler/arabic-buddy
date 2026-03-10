@@ -1003,8 +1003,6 @@ export type Database = {
           title: string
           trending_score: number | null
           updated_at: string | null
-          duration_seconds: number | null
-          region_code: string | null
           url: string
           video_id: string
           view_count: number | null
@@ -1015,11 +1013,9 @@ export type Database = {
           creator_name: string
           detected_topic?: string | null
           discovered_at?: string | null
-          duration_seconds?: number | null
           id?: string
           platform: string
           processed?: boolean | null
-          region_code?: string | null
           rejected?: boolean | null
           rejection_reason?: string | null
           thumbnail_url?: string | null
@@ -1036,11 +1032,9 @@ export type Database = {
           creator_name?: string
           detected_topic?: string | null
           discovered_at?: string | null
-          duration_seconds?: number | null
           id?: string
           platform?: string
           processed?: boolean | null
-          region_code?: string | null
           rejected?: boolean | null
           rejection_reason?: string | null
           thumbnail_url?: string | null

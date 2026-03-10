@@ -51,16 +51,6 @@ const TOPIC_COLORS: Record<string, string> = {
   general: 'bg-muted text-muted-foreground',
 };
 
-const REGION_LABELS: Record<string, { flag: string; name: string }> = {
-  SA: { flag: '🇸🇦', name: 'Saudi Arabia' },
-  AE: { flag: '🇦🇪', name: 'UAE' },
-  KW: { flag: '🇰🇼', name: 'Kuwait' },
-  QA: { flag: '🇶🇦', name: 'Qatar' },
-  BH: { flag: '🇧🇭', name: 'Bahrain' },
-  OM: { flag: '🇴🇲', name: 'Oman' },
-};
-
-const GULF_REGION_CODES = ['SA', 'AE', 'KW', 'QA', 'BH', 'OM'];
 
 type FilterTab = 'new' | 'approved' | 'rejected' | 'all';
 

@@ -79,6 +79,27 @@ const AdminVideos = () => {
                         <Badge variant={video.published ? "default" : "secondary"} className="text-xs">
                           {video.published ? "Published" : "Draft"}
                         </Badge>
+                        {video.transcription_status === 'pending' && (
+                          <Badge variant="outline" className="text-xs text-amber-600 border-amber-300">
+                            Queued
+                          </Badge>
+                        )}
+                        {video.transcription_status === 'processing' && (
+                          <Badge variant="outline" className="text-xs text-blue-600 border-blue-300">
+                            <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                            Transcribing
+                          </Badge>
+                        )}
+                        {video.transcription_status === 'failed' && (
+                          <Badge variant="destructive" className="text-xs">
+                            Failed
+                          </Badge>
+                        )}
+                        {video.transcription_status === 'completed' && !video.published && (
+                          <Badge variant="outline" className="text-xs text-green-600 border-green-300">
+                            Ready to review
+                          </Badge>
+                        )}
                       </div>
                     </div>
                   </div>

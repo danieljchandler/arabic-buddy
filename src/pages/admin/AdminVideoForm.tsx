@@ -726,6 +726,42 @@ const AdminVideoForm = () => {
       </header>
 
       <main className="container mx-auto px-4 py-8 max-w-2xl space-y-6">
+        {/* Background transcription status banner */}
+        {isEditing && existingVideo && (existingVideo as any).transcription_status === 'processing' && (
+          <Card className="border-blue-300 bg-blue-50 dark:bg-blue-950/30">
+            <CardContent className="py-3 flex items-center gap-2 text-blue-700 dark:text-blue-300">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span className="text-sm font-medium">
+                Transcription is being processed in the background. This page will update automatically when complete.
+              </span>
+            </CardContent>
+          </Card>
+        )}
+        {isEditing && existingVideo && (existingVideo as any).transcription_status === 'failed' && (
+          <Card className="border-destructive bg-destructive/10">
+            <CardContent className="py-3 space-y-2">
+              <p className="text-sm font-medium text-destructive">
+                Background transcription failed
+              </p>
+              {(existingVideo as any).transcription_error && (
+                <p className="text-xs text-destructive/80">{(existingVideo as any).transcription_error}</p>
+              )}
+              <p className="text-xs text-muted-foreground">
+                You can manually download and transcribe the audio using the controls below.
+              </p>
+            </CardContent>
+          </Card>
+        )}
+        {isEditing && existingVideo && (existingVideo as any).transcription_status === 'pending' && (
+          <Card className="border-amber-300 bg-amber-50 dark:bg-amber-950/30">
+            <CardContent className="py-3 flex items-center gap-2 text-amber-700 dark:text-amber-300">
+              <span className="text-sm font-medium">
+                Transcription is queued and will start shortly.
+              </span>
+            </CardContent>
+          </Card>
+        )}
+
         {/* URL Input */}
         <Card>
           <CardHeader>

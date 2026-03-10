@@ -148,17 +148,6 @@ const TrendingVideos = () => {
     return count.toString();
   };
 
-  const formatDuration = (seconds: number | null) => {
-    if (!seconds) return null;
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    if (m >= 60) {
-      const h = Math.floor(m / 60);
-      const rem = m % 60;
-      return `${h}:${String(rem).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-    }
-    return `${m}:${String(s).padStart(2, '0')}`;
-  };
 
   const tabs: { key: FilterTab; label: string }[] = [
     { key: 'new', label: 'New' },

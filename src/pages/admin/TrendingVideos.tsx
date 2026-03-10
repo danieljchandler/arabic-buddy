@@ -109,13 +109,41 @@ const TrendingVideos = () => {
       const { data, error } = await supabase.functions.invoke('discover-trending-videos');
       if (error) throw error;
 
-      const candidates: Record<string, unknown>[] = data?.candidates ?? [];
+      // Map to only the columns that exist in the table (prevents TS errors and unknown-field rejections)
+      type CandidateRow = {
+        platform: string;
+        video_id: string;
+        url: string;
+        title: string;
+        creator_name: string;
+        creator_handle: string | null;
+        thumbnail_url: string | null;
+        view_count: number | null;
+        trending_score: number | null;
+        detected_topic: string | null;
+        region_code: string | null;
+        duration_seconds: number | null;
+      };
+      const rows: CandidateRow[] = (data?.candidates ?? []).map((c: Record<string, unknown>) => ({
+        platform: c.platform as string,
+        video_id: c.video_id as string,
+        url: c.url as string,
+        title: c.title as string,
+        creator_name: c.creator_name as string,
+        creator_handle: (c.creator_handle as string | null) ?? null,
+        thumbnail_url: (c.thumbnail_url as string | null) ?? null,
+        view_count: (c.view_count as number | null) ?? null,
+        trending_score: (c.trending_score as number | null) ?? null,
+        detected_topic: (c.detected_topic as string | null) ?? null,
+        region_code: (c.region_code as string | null) ?? null,
+        duration_seconds: (c.duration_seconds as number | null) ?? null,
+      }));
 
       // Step 2: save to DB using the Supabase JS client (handles upsert correctly)
-      if (candidates.length > 0) {
+      if (rows.length > 0) {
         const { error: upsertError } = await supabase
           .from('trending_video_candidates')
-          .upsert(candidates, { onConflict: 'platform,video_id' });
+          .upsert(rows as any, { onConflict: 'platform,video_id' });
         if (upsertError) throw upsertError;
       }
 

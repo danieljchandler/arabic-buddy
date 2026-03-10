@@ -375,9 +375,10 @@ serve(async (req) => {
 
       const result = analyzeData.result;
 
-      // Map Deepgram timestamps to lines
+      // Map timestamps to lines
       let lines = result.lines || [];
       if (relativeWords.length > 0 && lines.length > 0) {
+        // Audio pipeline: use Deepgram word timestamps
         let wordIdx = 0;
         lines = lines.map((line: any) => {
           const lineWords =
@@ -395,6 +396,17 @@ serve(async (req) => {
           }
           return { ...line, startMs, endMs };
         });
+      } else if (captionLines && captionLines.length > 0 && lines.length > 0) {
+        // Captions pipeline: map caption timestamps to analyzed lines
+        // Simple proportional mapping: distribute caption timestamps across analysis lines
+        const totalCaptionDuration = captionLines[captionLines.length - 1].endMs - captionLines[0].startMs;
+        const avgLineMs = totalCaptionDuration / lines.length;
+        const baseMs = captionLines[0].startMs;
+        lines = lines.map((line: any, i: number) => ({
+          ...line,
+          startMs: Math.round(baseMs + i * avgLineMs),
+          endMs: Math.round(baseMs + (i + 1) * avgLineMs),
+        }));
       }
 
       // Ensure every line has a valid tokens array

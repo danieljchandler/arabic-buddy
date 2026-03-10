@@ -94,80 +94,124 @@ serve(async (req) => {
     try {
       console.log(`[pipeline] Starting for video ${videoId}: ${video.source_url}`);
 
-      // ── Step 1: Download audio ──────────────────────────────────────
-      console.log("[pipeline] Step 1: Downloading audio...");
-      const downloadResp = await fetch(
-        `${Deno.env.get("SUPABASE_URL")}/functions/v1/download-media`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ url: video.source_url }),
+      // ── Step 1: Try YouTube captions first (fast, no download needed) ──
+      console.log("[pipeline] Step 1: Trying YouTube captions first...");
+      const projectUrl = Deno.env.get("SUPABASE_URL")!;
+      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const authHeaders = { Authorization: `Bearer ${serviceKey}` };
+
+      let captionsText: string | null = null;
+      let captionLines: any[] | null = null;
+
+      try {
+        const captionsResp = await fetch(
+          `${projectUrl}/functions/v1/fetch-youtube-captions`,
+          {
+            method: "POST",
+            headers: { ...authHeaders, "Content-Type": "application/json" },
+            body: JSON.stringify({ url: video.source_url }),
+          }
+        );
+
+        if (captionsResp.ok) {
+          const captionsData = await captionsResp.json();
+          if (captionsData.rawText && captionsData.lines?.length > 0) {
+            captionsText = captionsData.rawText;
+            captionLines = captionsData.lines;
+            console.log(`[pipeline] Got ${captionsData.count} caption lines (lang: ${captionsData.lang})`);
+          }
+        } else {
+          console.log(`[pipeline] Captions not available (${captionsResp.status}), will try audio download`);
         }
-      );
-
-      if (!downloadResp.ok) {
-        const errBody = await downloadResp.text();
-        throw new Error(`Download failed (${downloadResp.status}): ${errBody}`);
+      } catch (e) {
+        console.warn("[pipeline] Captions fetch error:", e);
       }
 
-      const downloadData = await downloadResp.json();
+      // If we got captions, skip audio download entirely and go straight to analysis
+      let useAudioPipeline = !captionsText;
+      let audioFile: File | null = null;
+      let relativeWords: any[] = [];
+      let engines: string[] = [];
 
-      // Check if we got a cache hit with existing transcription data
-      if (downloadData.cached && downloadData.transcriptionData) {
-        console.log("[pipeline] Cache hit — using existing transcription data");
-        const cached = downloadData.transcriptionData;
-        await supabase
-          .from("discover_videos")
-          .update({
-            transcript_lines: cached.lines || [],
-            vocabulary: cached.vocabulary || [],
-            grammar_points: cached.grammarPoints || [],
-            cultural_context: cached.culturalContext || null,
-            dialect: cached.dialect || "Gulf",
-            difficulty: cached.difficulty || "Intermediate",
-            transcription_status: "completed",
-            transcription_error: null,
-          })
-          .eq("id", videoId);
-        console.log("[pipeline] Completed (from cache)");
-        return;
+      if (useAudioPipeline) {
+        // ── Step 1b: Download audio (fallback) ──────────────────────────
+        console.log("[pipeline] Step 1b: Downloading audio...");
+        const downloadResp = await fetch(
+          `${projectUrl}/functions/v1/download-media`,
+          {
+            method: "POST",
+            headers: { ...authHeaders, "Content-Type": "application/json" },
+            body: JSON.stringify({ url: video.source_url }),
+          }
+        );
+
+        if (!downloadResp.ok) {
+          const errBody = await downloadResp.text();
+          throw new Error(`Download failed (${downloadResp.status}): ${errBody}`);
+        }
+
+        const downloadData = await downloadResp.json();
+
+        // Check if we got a cache hit with existing transcription data
+        if (downloadData.cached && downloadData.transcriptionData) {
+          console.log("[pipeline] Cache hit — using existing transcription data");
+          const cached = downloadData.transcriptionData;
+          await supabase
+            .from("discover_videos")
+            .update({
+              transcript_lines: cached.lines || [],
+              vocabulary: cached.vocabulary || [],
+              grammar_points: cached.grammarPoints || [],
+              cultural_context: cached.culturalContext || null,
+              dialect: cached.dialect || "Gulf",
+              difficulty: cached.difficulty || "Intermediate",
+              transcription_status: "completed",
+              transcription_error: null,
+            })
+            .eq("id", videoId);
+          console.log("[pipeline] Completed (from cache)");
+          return;
+        }
+
+        if (!downloadData.audioBase64) {
+          throw new Error("No audio data received from download");
+        }
+
+        const binaryStr = atob(downloadData.audioBase64);
+        const bytes = new Uint8Array(binaryStr.length);
+        for (let i = 0; i < binaryStr.length; i++) {
+          bytes[i] = binaryStr.charCodeAt(i);
+        }
+        const audioBlob = new Blob([bytes], {
+          type: downloadData.contentType || "audio/mp4",
+        });
+        audioFile = new File(
+          [audioBlob],
+          downloadData.filename || "audio.mp4",
+          { type: audioBlob.type }
+        );
+
+        const fileSizeMB = (audioFile.size / (1024 * 1024)).toFixed(2);
+        console.log(`[pipeline] Audio downloaded: ${fileSizeMB} MB`);
+
+        if (downloadData.duration) {
+          await supabase
+            .from("discover_videos")
+            .update({ duration_seconds: Math.round(downloadData.duration) })
+            .eq("id", videoId);
+        }
       }
 
-      if (!downloadData.audioBase64) {
-        throw new Error("No audio data received from download");
-      }
+      // ── Step 2: Transcribe (audio pipeline) or use captions ─────────
+      let primaryText = "";
+      let munsitText = "";
+      let fanarText = "";
+      let sonioxText = "";
+      let sonioxTranslation: string | null = null;
+      let deepgramData: any = null;
 
-      // Convert base64 to binary for sending to transcription engines
-      const binaryStr = atob(downloadData.audioBase64);
-      const bytes = new Uint8Array(binaryStr.length);
-      for (let i = 0; i < binaryStr.length; i++) {
-        bytes[i] = binaryStr.charCodeAt(i);
-      }
-      const audioBlob = new Blob([bytes], {
-        type: downloadData.contentType || "audio/mp4",
-      });
-      const audioFile = new File(
-        [audioBlob],
-        downloadData.filename || "audio.mp4",
-        { type: audioBlob.type }
-      );
-
-      const fileSizeMB = (audioFile.size / (1024 * 1024)).toFixed(2);
-      console.log(`[pipeline] Audio downloaded: ${fileSizeMB} MB`);
-
-      // Update duration if provided
-      if (downloadData.duration) {
-        await supabase
-          .from("discover_videos")
-          .update({ duration_seconds: Math.round(downloadData.duration) })
-          .eq("id", videoId);
-      }
-
-      // ── Step 2: Transcribe with all engines in parallel ─────────────
-      console.log("[pipeline] Step 2: Transcribing with all engines...");
+      if (useAudioPipeline && audioFile) {
+        console.log("[pipeline] Step 2: Transcribing with all engines...");
       const projectUrl = Deno.env.get("SUPABASE_URL")!;
       const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
       const authHeaders = { Authorization: `Bearer ${serviceKey}` };

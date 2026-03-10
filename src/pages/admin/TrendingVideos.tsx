@@ -73,7 +73,7 @@ const TrendingVideos = () => {
   const [filter, setFilter] = useState<FilterTab>('new');
   const [regionFilter, setRegionFilter] = useState<string>('all');
 
-  const { data: candidates, isLoading } = useQuery({
+  const { data: candidates, isLoading, isError, error: queryError } = useQuery({
     queryKey: ['trending-candidates', filter, regionFilter],
     queryFn: async () => {
       let query = supabase
@@ -266,6 +266,15 @@ const TrendingVideos = () => {
           <div className="flex justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
+        ) : isError ? (
+          <Card>
+            <CardContent className="py-12 text-center text-destructive">
+              <p className="text-lg font-medium">Failed to load candidates</p>
+              <pre className="text-xs mt-2 text-left bg-muted rounded p-3 overflow-auto max-h-40">
+                {queryError instanceof Error ? queryError.message : String(queryError)}
+              </pre>
+            </CardContent>
+          </Card>
         ) : !filteredCandidates?.length ? (
           <Card>
             <CardContent className="py-12 text-center text-muted-foreground">

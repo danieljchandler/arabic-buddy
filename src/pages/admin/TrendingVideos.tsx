@@ -281,11 +281,6 @@ const TrendingVideos = () => {
                         Score: {c.trending_score.toLocaleString()}
                       </Badge>
                     )}
-                    {c.duration_seconds && (
-                      <span className="absolute bottom-2 right-2 bg-black/75 text-white text-xs px-1.5 py-0.5 rounded font-mono">
-                        {formatDuration(c.duration_seconds)}
-                      </span>
-                    )}
                   </div>
                 )}
 

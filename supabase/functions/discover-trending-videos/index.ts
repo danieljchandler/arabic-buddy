@@ -161,16 +161,19 @@ Deno.serve(async (req) => {
     console.log(`Total Gulf Arabic candidates to save: ${allCandidates.length}`);
 
     if (allCandidates.length > 0) {
-      const insertResponse = await fetch(`${supabaseUrl}/rest/v1/trending_video_candidates`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${supabaseServiceKey}`,
-          'apikey': supabaseServiceKey,
-          'Content-Type': 'application/json',
-          'Prefer': 'resolution=merge-duplicates',
-        },
-        body: JSON.stringify(allCandidates),
-      });
+      const insertResponse = await fetch(
+        `${supabaseUrl}/rest/v1/trending_video_candidates?on_conflict=platform,video_id`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${supabaseServiceKey}`,
+            'apikey': supabaseServiceKey,
+            'Content-Type': 'application/json',
+            'Prefer': 'resolution=merge-duplicates',
+          },
+          body: JSON.stringify(allCandidates),
+        }
+      );
 
       if (!insertResponse.ok) {
         const errText = await insertResponse.text();

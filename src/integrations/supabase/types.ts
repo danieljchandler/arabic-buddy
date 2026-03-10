@@ -351,7 +351,15 @@ export type Database = {
           updated_at?: string
           vocabulary?: Json
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "discover_videos_trending_candidate_id_fkey"
+            columns: ["trending_candidate_id"]
+            isOneToOne: false
+            referencedRelation: "trending_video_candidates"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       grammar_exercises: {
         Row: {

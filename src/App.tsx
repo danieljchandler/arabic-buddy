@@ -59,6 +59,7 @@ import LlmLogs from "./pages/admin/LlmLogs";
 import CurriculumBuilder from "./pages/admin/CurriculumBuilder";
 import AdminStories from "./pages/admin/AdminStories";
 import AdminStoryForm from "./pages/admin/AdminStoryForm";
+import TrendingVideos from "./pages/admin/TrendingVideos";
 
 const queryClient = new QueryClient();
 

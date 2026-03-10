@@ -21,6 +21,9 @@ export interface DiscoverVideo {
   created_by: string;
   created_at: string;
   updated_at: string;
+  transcription_status?: string;
+  transcription_error?: string | null;
+  trending_candidate_id?: string | null;
 }
 
 export function useDiscoverVideos(filters?: { dialect?: string; difficulty?: string; search?: string }) {
@@ -64,6 +67,14 @@ export function useDiscoverVideo(videoId: string | undefined) {
       return data as unknown as DiscoverVideo;
     },
     enabled: !!videoId,
+    // Auto-refresh when video is still being processed
+    refetchInterval: (query) => {
+      const video = query.state.data;
+      const isProcessing =
+        video?.transcription_status === 'pending' ||
+        video?.transcription_status === 'processing';
+      return isProcessing ? 5000 : false;
+    },
   });
 }
 
@@ -77,6 +88,14 @@ export function useAdminDiscoverVideos() {
         .order("created_at", { ascending: false });
       if (error) throw error;
       return (data ?? []) as unknown as DiscoverVideo[];
+    },
+    // Auto-refresh every 10s when any video is still processing
+    refetchInterval: (query) => {
+      const videos = query.state.data;
+      const hasProcessing = videos?.some(
+        (v) => v.transcription_status === 'pending' || v.transcription_status === 'processing'
+      );
+      return hasProcessing ? 10000 : false;
     },
   });
 }

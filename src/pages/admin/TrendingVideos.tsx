@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { parseVideoUrl, getYouTubeThumbnail } from '@/lib/videoEmbed';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -70,6 +72,7 @@ type FilterTab = 'new' | 'approved' | 'rejected' | 'all';
 const TrendingVideos = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
   const qc = useQueryClient();
   const [filter, setFilter] = useState<FilterTab>('new');
   const [searchParams, setSearchParams] = useSearchParams();
@@ -169,7 +172,67 @@ const TrendingVideos = () => {
 
   const approveMutation = useMutation({
     mutationFn: async (candidate: TrendingCandidate) => {
-      navigate(`/admin/videos/new?from_trending=${candidate.id}&url=${encodeURIComponent(candidate.url)}&title=${encodeURIComponent(candidate.title)}`);
+      if (!user) throw new Error('Not authenticated');
+
+      // Parse URL to get embed URL and thumbnail
+      const parsed = parseVideoUrl(candidate.url);
+      const embedUrl = parsed?.embedUrl || candidate.url;
+      const platform = parsed?.platform || candidate.platform || 'youtube';
+      const thumbnailUrl = parsed?.platform === 'youtube'
+        ? getYouTubeThumbnail(parsed.videoId)
+        : candidate.thumbnail_url || '';
+
+      // 1. Create discover_videos record with pending transcription status
+      const { data: newVideo, error: insertErr } = await (supabase
+        .from('discover_videos' as any) as any)
+        .insert({
+          title: candidate.title,
+          source_url: candidate.url,
+          platform,
+          embed_url: embedUrl,
+          thumbnail_url: thumbnailUrl,
+          duration_seconds: candidate.duration_seconds,
+          dialect: 'Gulf',
+          difficulty: 'Intermediate',
+          published: false,
+          created_by: user.id,
+          transcription_status: 'pending',
+          trending_candidate_id: candidate.id,
+        })
+        .select('id')
+        .single();
+      if (insertErr) throw insertErr;
+
+      // 2. Mark the trending candidate as processed
+      const { error: updateErr } = await supabase
+        .from('trending_video_candidates')
+        .update({ processed: true })
+        .eq('id', candidate.id);
+      if (updateErr) throw updateErr;
+
+      // 3. Fire-and-forget: trigger the background transcription pipeline
+      supabase.functions.invoke('process-approved-video', {
+        body: { videoId: newVideo.id },
+      }).catch((err) => {
+        console.error('Failed to trigger processing pipeline:', err);
+      });
+
+      return { videoId: newVideo.id, title: candidate.title };
+    },
+    onSuccess: (result) => {
+      toast({
+        title: 'Video approved',
+        description: `"${result.title}" — transcription pipeline started in background`,
+      });
+      qc.invalidateQueries({ queryKey: ['trending-candidates'] });
+      qc.invalidateQueries({ queryKey: ['admin-discover-videos'] });
+    },
+    onError: (err: any) => {
+      toast({
+        variant: 'destructive',
+        title: 'Approve failed',
+        description: err?.message ?? 'Unknown error',
+      });
     },
   });
 
@@ -368,8 +431,13 @@ const TrendingVideos = () => {
                           size="sm"
                           className="flex-1"
                           onClick={() => approveMutation.mutate(c)}
+                          disabled={approveMutation.isPending}
                         >
-                          <ThumbsUp className="h-3.5 w-3.5 mr-1" />
+                          {approveMutation.isPending ? (
+                            <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                          ) : (
+                            <ThumbsUp className="h-3.5 w-3.5 mr-1" />
+                          )}
                           Approve
                         </Button>
                         <Button

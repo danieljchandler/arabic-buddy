@@ -93,9 +93,7 @@ const TrendingVideos = () => {
     },
   });
 
-  const filteredCandidates = regionFilter === 'all'
-    ? candidates
-    : candidates?.filter((c) => c.region_code === regionFilter);
+  const filteredCandidates = candidates;
 
   const fetchTrending = useMutation({
     mutationFn: async () => {

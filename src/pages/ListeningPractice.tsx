@@ -164,7 +164,13 @@ const ListeningPractice = () => {
         URL.revokeObjectURL(audioUrl);
       };
 
-      await audio.play();
+      try {
+        await audio.play();
+      } catch (playErr) {
+        console.warn("Audio play failed:", playErr);
+        setAudioPlaying(false);
+        URL.revokeObjectURL(audioUrl);
+      }
     } catch (e) {
       console.error("Audio playback failed:", e);
       toast.error("Could not play audio");

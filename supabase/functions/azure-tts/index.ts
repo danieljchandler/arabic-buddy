@@ -46,7 +46,8 @@ const AZURE_SPEECH_REGION = Deno.env.get('AZURE_SPEECH_REGION') ?? 'eastus';
 function getTtsEndpoint(): string {
   if (AZURE_SPEECH_ENDPOINT) {
     const base = AZURE_SPEECH_ENDPOINT.replace(/\/$/, '');
-    return `${base}/cognitiveservices/v1`;
+    // Azure AI multi-service resources require /tts/ prefix
+    return `${base}/tts/cognitiveservices/v1`;
   }
   return `https://${AZURE_SPEECH_REGION}.tts.speech.microsoft.com/cognitiveservices/v1`;
 }

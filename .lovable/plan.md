@@ -1,12 +1,21 @@
 
 
-# Update Falcon HF Endpoint URL
+## Fix Trending Videos Fetch
 
-Update the `FALCON_HF_ENDPOINT_URL` secret to the new Hugging Face endpoint:
+### Problem
+The edge function discovers candidates successfully (logs confirm videos are found and filtered). The upsert on the frontend fails because `region_code` and `duration_seconds` columns don't exist in the `trending_video_candidates` table, but the frontend code (lines 138-139) includes them in the upsert payload.
 
+### Solution
+
+**1. Database migration — add two missing columns**
+
+```sql
+ALTER TABLE trending_video_candidates 
+  ADD COLUMN region_code text,
+  ADD COLUMN duration_seconds integer;
 ```
-https://efsmvsds6b9u2s0q.us-east-1.aws.endpoints.huggingface.cloud
-```
 
-Single step: use the secrets tool to update the existing `FALCON_HF_ENDPOINT_URL` value. No code changes needed since the edge function already reads this from the environment.
+This is the cleanest fix since both the edge function and frontend already handle these fields. No code changes needed — the existing `TrendingVideos.tsx` and edge function are already correct.
 
+### What this fixes
+- The "Fetch

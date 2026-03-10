@@ -121,8 +121,16 @@ const TrendingVideos = () => {
       });
       qc.invalidateQueries({ queryKey: ['trending-candidates'] });
     },
-    onError: (err: any) => {
-      const detail = err?.context?.message ?? err?.message ?? 'Unknown error';
+    onError: async (err: any) => {
+      let detail = err?.message ?? 'Unknown error';
+      try {
+        if (err?.context?.json) {
+          const body = await err.context.json();
+          detail = body?.error ?? body?.detail ?? body?.message ?? detail;
+        }
+      } catch {
+        // ignore parse errors
+      }
       toast({
         variant: 'destructive',
         title: 'Fetch failed',

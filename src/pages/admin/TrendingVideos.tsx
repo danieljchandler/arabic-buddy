@@ -126,7 +126,7 @@ const TrendingVideos = () => {
       try {
         if (err?.context?.json) {
           const body = await err.context.json();
-          detail = body?.error ?? body?.detail ?? body?.message ?? detail;
+          detail = body?.detail ?? body?.error ?? body?.message ?? detail;
         }
       } catch {
         // ignore parse errors

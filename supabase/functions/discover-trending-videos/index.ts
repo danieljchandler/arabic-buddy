@@ -1,3 +1,5 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
@@ -161,25 +163,18 @@ Deno.serve(async (req) => {
     console.log(`Total Gulf Arabic candidates to save: ${allCandidates.length}`);
 
     if (allCandidates.length > 0) {
-      const insertResponse = await fetch(
-        `${supabaseUrl}/rest/v1/trending_video_candidates?on_conflict=platform,video_id`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${supabaseServiceKey}`,
-            'apikey': supabaseServiceKey,
-            'Content-Type': 'application/json',
-            'Prefer': 'resolution=merge-duplicates',
-          },
-          body: JSON.stringify(allCandidates),
-        }
-      );
+      const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+        auth: { persistSession: false },
+      });
 
-      if (!insertResponse.ok) {
-        const errText = await insertResponse.text();
-        console.error('Failed to save candidates:', errText);
+      const { error: upsertError } = await supabase
+        .from('trending_video_candidates')
+        .upsert(allCandidates, { onConflict: 'platform,video_id' });
+
+      if (upsertError) {
+        console.error('Failed to save candidates:', upsertError.message);
         return new Response(
-          JSON.stringify({ error: 'Failed to save video candidates', detail: errText }),
+          JSON.stringify({ error: upsertError.message }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }

@@ -360,11 +360,18 @@ const ConversationSimulator = () => {
         audioRef.current = null;
       };
 
-      await audio.play();
+      try {
+        await audio.play();
+      } catch (playErr) {
+        console.warn("Audio play failed:", playErr);
+        setIsSpeaking(null);
+        URL.revokeObjectURL(audioUrl);
+        audioRef.current = null;
+      }
     } catch (err) {
       console.error("TTS error:", err);
       setIsSpeaking(null);
-      
+
       // Fallback to browser speech synthesis
       const utterance = new SpeechSynthesisUtterance(arabicText);
       utterance.lang = "ar-SA";

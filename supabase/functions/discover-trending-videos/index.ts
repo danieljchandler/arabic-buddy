@@ -113,16 +113,6 @@ Deno.serve(async (req) => {
   try {
     console.log('Starting discovery of trending Gulf Arabic videos...');
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-
-    if (!supabaseUrl || !supabaseServiceKey) {
-      return new Response(
-        JSON.stringify({ error: 'Supabase environment not configured' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
     // Fetch all regions in parallel — much faster than sequential and avoids timeout
     const regionSettled = await Promise.allSettled(
       GULF_REGIONS.map((region) => fetchRegion(region))
@@ -141,14 +131,10 @@ Deno.serve(async (req) => {
 
       const { region, candidates } = settled.value;
 
-      // Take top candidates for this region, excluding cross-region duplicates
       let kept = 0;
       for (const candidate of candidates) {
         if (kept >= MAX_PER_REGION) break;
-        if (seenVideoIds.has(candidate.video_id)) {
-          console.log(`Skipping cross-region duplicate: ${candidate.title}`);
-          continue;
-        }
+        if (seenVideoIds.has(candidate.video_id)) continue;
         seenVideoIds.add(candidate.video_id);
         allCandidates.push(candidate);
         kept++;
@@ -158,46 +144,16 @@ Deno.serve(async (req) => {
       console.log(`Region ${region}: kept ${kept} videos`);
     }
 
-    console.log(`Total Gulf Arabic candidates to save: ${allCandidates.length}`);
+    console.log(`Discovered ${allCandidates.length} Gulf Arabic candidates`);
 
-    if (allCandidates.length > 0) {
-      // Strip columns that may not exist yet if the migration hasn't been applied
-      // (region_code, duration_seconds added later). Core columns are always safe.
-      const rows = allCandidates.map(({ region_code: _r, duration_seconds: _d, ...rest }) => rest);
-
-      const insertResponse = await fetch(
-        `${supabaseUrl}/rest/v1/trending_video_candidates?on_conflict=platform,video_id`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${supabaseServiceKey}`,
-            'apikey': supabaseServiceKey,
-            'Content-Type': 'application/json',
-            'Prefer': 'resolution=merge-duplicates',
-          },
-          body: JSON.stringify(rows),
-        }
-      );
-
-      if (!insertResponse.ok) {
-        const errText = await insertResponse.text();
-        console.error('Failed to save candidates:', errText);
-        return new Response(
-          JSON.stringify({ error: errText || 'Failed to save video candidates' }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      console.log(`Successfully saved ${allCandidates.length} Gulf Arabic video candidates`);
-    }
-
+    // Return candidates to the caller — the frontend saves them using the Supabase JS client
+    // (avoids direct PostgREST calls which are fragile in the edge function environment)
     return new Response(
       JSON.stringify({
         success: true,
         candidates_found: allCandidates.length,
-        regions_processed: GULF_REGIONS,
+        candidates: allCandidates,
         region_summary: regionSummary,
-        message: `Discovered ${allCandidates.length} trending Gulf Arabic videos (max ${MAX_PER_REGION} per country)`,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

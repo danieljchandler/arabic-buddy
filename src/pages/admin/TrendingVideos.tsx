@@ -105,8 +105,20 @@ const TrendingVideos = () => {
 
   const fetchTrending = useMutation({
     mutationFn: async () => {
+      // Step 1: fetch candidates from YouTube via the edge function
       const { data, error } = await supabase.functions.invoke('discover-trending-videos');
       if (error) throw error;
+
+      const candidates: Record<string, unknown>[] = data?.candidates ?? [];
+
+      // Step 2: save to DB using the Supabase JS client (handles upsert correctly)
+      if (candidates.length > 0) {
+        const { error: upsertError } = await supabase
+          .from('trending_video_candidates')
+          .upsert(candidates, { onConflict: 'platform,video_id' });
+        if (upsertError) throw upsertError;
+      }
+
       return data;
     },
     onSuccess: (data) => {
@@ -121,21 +133,9 @@ const TrendingVideos = () => {
       });
       qc.invalidateQueries({ queryKey: ['trending-candidates'] });
     },
-    onError: async (err: any) => {
-      let detail = err?.message ?? 'Unknown error';
-      try {
-        if (err?.context?.json) {
-          const body = await err.context.json();
-          detail = body?.detail ?? body?.error ?? body?.message ?? detail;
-        }
-      } catch {
-        // ignore parse errors
-      }
-      toast({
-        variant: 'destructive',
-        title: 'Fetch failed',
-        description: detail,
-      });
+    onError: (err: any) => {
+      const detail = err?.message ?? 'Unknown error';
+      toast({ variant: 'destructive', title: 'Fetch failed', description: detail });
     },
   });
 

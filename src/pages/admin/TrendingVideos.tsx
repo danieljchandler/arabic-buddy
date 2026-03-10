@@ -74,7 +74,7 @@ const TrendingVideos = () => {
   const [regionFilter, setRegionFilter] = useState<string>('all');
 
   const { data: candidates, isLoading } = useQuery({
-    queryKey: ['trending-candidates', filter],
+    queryKey: ['trending-candidates', filter, regionFilter],
     queryFn: async () => {
       let query = supabase
         .from('trending_video_candidates')
@@ -89,15 +89,17 @@ const TrendingVideos = () => {
         query = query.eq('rejected', true);
       }
 
+      if (regionFilter !== 'all') {
+        query = query.eq('region_code', regionFilter);
+      }
+
       const { data, error } = await query;
       if (error) throw error;
       return (data ?? []) as TrendingCandidate[];
     },
   });
 
-  const filteredCandidates = regionFilter === 'all'
-    ? candidates
-    : candidates?.filter((c) => c.region_code === regionFilter);
+  const filteredCandidates = candidates;
 
   const fetchTrending = useMutation({
     mutationFn: async () => {
@@ -106,17 +108,23 @@ const TrendingVideos = () => {
       return data;
     },
     onSuccess: (data) => {
+      const summary = data?.region_summary
+        ? Object.entries(data.region_summary as Record<string, number>)
+            .map(([code, count]) => `${REGION_LABELS[code]?.flag ?? code} ${count}`)
+            .join('  ')
+        : '';
       toast({
-        title: 'Trending videos fetched',
-        description: `Found ${data?.candidates_found ?? 0} new candidates`,
+        title: `Found ${data?.candidates_found ?? 0} new candidates`,
+        description: summary || undefined,
       });
       qc.invalidateQueries({ queryKey: ['trending-candidates'] });
     },
     onError: (err: any) => {
+      const detail = err?.context?.message ?? err?.message ?? 'Unknown error';
       toast({
         variant: 'destructive',
         title: 'Fetch failed',
-        description: err.message,
+        description: detail,
       });
     },
   });

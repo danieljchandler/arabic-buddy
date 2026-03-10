@@ -74,7 +74,7 @@ const TrendingVideos = () => {
   const [regionFilter, setRegionFilter] = useState<string>('all');
 
   const { data: candidates, isLoading, isError, error: queryError } = useQuery({
-    queryKey: ['trending-candidates', filter, regionFilter],
+    queryKey: ['trending-candidates', filter],
     queryFn: async () => {
       let query = supabase
         .from('trending_video_candidates')
@@ -89,17 +89,15 @@ const TrendingVideos = () => {
         query = query.eq('rejected', true);
       }
 
-      if (regionFilter !== 'all') {
-        query = query.eq('region_code', regionFilter);
-      }
-
       const { data, error } = await query;
       if (error) throw error;
       return (data ?? []) as TrendingCandidate[];
     },
   });
 
-  const filteredCandidates = candidates;
+  const filteredCandidates = regionFilter === 'all'
+    ? candidates
+    : candidates?.filter((c) => c.region_code === regionFilter);
 
   const fetchTrending = useMutation({
     mutationFn: async () => {
@@ -271,7 +269,9 @@ const TrendingVideos = () => {
             <CardContent className="py-12 text-center text-destructive">
               <p className="text-lg font-medium">Failed to load candidates</p>
               <pre className="text-xs mt-2 text-left bg-muted rounded p-3 overflow-auto max-h-40">
-                {queryError instanceof Error ? queryError.message : String(queryError)}
+                {queryError instanceof Error
+                  ? queryError.message
+                  : (queryError as any)?.message ?? JSON.stringify(queryError, null, 2)}
               </pre>
             </CardContent>
           </Card>

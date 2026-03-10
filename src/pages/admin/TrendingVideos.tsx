@@ -216,29 +216,6 @@ const TrendingVideos = () => {
           ))}
         </div>
 
-        {/* Country filter */}
-        <div className="flex gap-2 mb-6 flex-wrap">
-          <Button
-            variant={regionFilter === 'all' ? 'secondary' : 'ghost'}
-            size="sm"
-            onClick={() => setRegionFilter('all')}
-          >
-            All Countries
-          </Button>
-          {GULF_REGION_CODES.map((code) => {
-            const region = REGION_LABELS[code];
-            return (
-              <Button
-                key={code}
-                variant={regionFilter === code ? 'secondary' : 'ghost'}
-                size="sm"
-                onClick={() => setRegionFilter(code)}
-              >
-                {region.flag} {region.name}
-              </Button>
-            );
-          })}
-        </div>
 
         {isLoading ? (
           <div className="flex justify-center py-12">

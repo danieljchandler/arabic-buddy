@@ -65,10 +65,102 @@ function extractYouTubeVideoId(url: string): string | null {
   }
 }
 
-/**
- * YouTube audio download via RapidAPI services (requires RAPIDAPI_KEY secret).
- * Tries multiple RapidAPI endpoints as fallbacks.
- */
+// ─── Cobalt API ─────────────────────────────────────────────────────────────
+// Cobalt is the most reliable approach for YouTube audio.
+// Uses youtubeHLS to bypass PO token restrictions.
+async function downloadViaCobalt(url: string): Promise<{ base64: string; contentType: string; size: number; filename: string } | null> {
+  const cobaltApiKey = Deno.env.get('COBALT_API_KEY');
+
+  // Community Cobalt instances — try instances that don't require auth first,
+  // then the official one (which does require auth) if we have a key.
+  const instances: { url: string; needsKey: boolean }[] = [
+    { url: "https://co.imput.net", needsKey: false },
+    { url: "https://cobalt.canine.tools", needsKey: false },
+    { url: "https://api.cobalt.tools", needsKey: true },
+  ];
+
+  for (const instance of instances) {
+    if (instance.needsKey && !cobaltApiKey) {
+      console.log(`Skipping ${instance.url} (needs COBALT_API_KEY)`);
+      continue;
+    }
+
+    console.log(`Trying Cobalt: ${instance.url}`);
+    try {
+      const headers: Record<string, string> = {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (compatible; arabic-buddy/1.0)',
+      };
+      if (instance.needsKey && cobaltApiKey) {
+        headers['Authorization'] = `Api-Key ${cobaltApiKey}`;
+      }
+
+      const cobaltResp = await fetch(`${instance.url}/`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          url,
+          downloadMode: 'audio',
+          audioFormat: 'mp3',
+          audioBitrate: '128',
+          filenameStyle: 'basic',
+          youtubeHLS: true,  // HLS avoids PO token requirement
+        }),
+        signal: AbortSignal.timeout(30000),
+      });
+
+      if (!cobaltResp.ok) {
+        const errText = await cobaltResp.text().catch(() => '');
+        console.error(`Cobalt ${instance.url} returned ${cobaltResp.status}: ${errText.substring(0, 200)}`);
+        continue;
+      }
+
+      const cobaltData = await cobaltResp.json();
+      console.log(`Cobalt response: ${JSON.stringify(cobaltData).substring(0, 300)}`);
+
+      let downloadUrl: string | null = null;
+      let filename = 'audio.mp3';
+
+      if (cobaltData.status === 'tunnel' || cobaltData.status === 'stream' ||
+          cobaltData.status === 'success' || cobaltData.status === 'redirect') {
+        downloadUrl = cobaltData.url;
+        filename = cobaltData.filename || filename;
+      } else if (cobaltData.status === 'local-processing') {
+        // local-processing returns tunnel URLs to download from
+        const tunnelUrls = cobaltData.tunnel || [];
+        if (tunnelUrls.length > 0) {
+          downloadUrl = tunnelUrls[0];
+          filename = cobaltData.output?.filename || filename;
+        }
+      } else if (cobaltData.url && !cobaltData.error) {
+        downloadUrl = cobaltData.url;
+        filename = cobaltData.filename || filename;
+      } else {
+        const errInfo = cobaltData.error?.code || cobaltData.error || cobaltData.text || 'unknown';
+        console.error(`Cobalt error: ${JSON.stringify(errInfo)}`);
+        continue;
+      }
+
+      if (!downloadUrl) continue;
+
+      const data = await downloadAsBase64(downloadUrl);
+      if (data) {
+        return { ...data, filename };
+      }
+    } catch (e) {
+      if (e instanceof DOMException && e.name === 'AbortError') {
+        console.error(`Cobalt ${instance.url} timed out`);
+      } else {
+        console.error(`Cobalt ${instance.url} error:`, e);
+      }
+    }
+  }
+
+  return null;
+}
+
+// ─── RapidAPI services ──────────────────────────────────────────────────────
 async function downloadYouTubeViaRapidApi(url: string): Promise<{ base64: string; contentType: string; size: number; filename: string } | null> {
   const videoId = extractYouTubeVideoId(url);
   if (!videoId) return null;
@@ -79,13 +171,18 @@ async function downloadYouTubeViaRapidApi(url: string): Promise<{ base64: string
     return null;
   }
 
-  // Strategy A: youtube-mp36
-  const resultA = await tryRapidApiMp36(videoId, apiKey);
-  if (resultA) return resultA;
+  // Try multiple RapidAPI endpoints as fallbacks
+  const strategies = [
+    () => tryRapidApiMp36(videoId, apiKey),
+    () => tryRapidApiMp3Download3(videoId, apiKey),
+    () => tryRapidApiMp3_2025(videoId, apiKey),
+    () => tryRapidApiYtToMp3(videoId, apiKey),
+  ];
 
-  // Strategy B: youtube-mp3-2025 (streams through its own CDN, avoids IP-lock)
-  const resultB = await tryRapidApiMp3_2025(videoId, apiKey);
-  if (resultB) return resultB;
+  for (const strategy of strategies) {
+    const result = await strategy();
+    if (result) return result;
+  }
 
   return null;
 }
@@ -101,6 +198,7 @@ async function tryRapidApiMp36(videoId: string, apiKey: string): Promise<{ base6
           'X-RapidAPI-Key': apiKey,
           'X-RapidAPI-Host': 'youtube-mp36.p.rapidapi.com',
         },
+        signal: AbortSignal.timeout(15000),
       });
 
       if (!resp.ok) {
@@ -133,6 +231,40 @@ async function tryRapidApiMp36(videoId: string, apiKey: string): Promise<{ base6
   }
 }
 
+async function tryRapidApiMp3Download3(videoId: string, apiKey: string): Promise<{ base64: string; contentType: string; size: number; filename: string } | null> {
+  console.log(`Trying RapidAPI (youtube-mp3-download3) for video: ${videoId}`);
+  try {
+    const resp = await fetch(`https://youtube-mp3-download3.p.rapidapi.com/download-mp3?yt=https://www.youtube.com/watch?v=${videoId}`, {
+      headers: {
+        'X-RapidAPI-Key': apiKey,
+        'X-RapidAPI-Host': 'youtube-mp3-download3.p.rapidapi.com',
+      },
+      signal: AbortSignal.timeout(30000),
+    });
+
+    if (!resp.ok) {
+      console.error(`RapidAPI mp3-download3 returned ${resp.status}`);
+      return null;
+    }
+
+    const data = await resp.json();
+    console.log(`RapidAPI mp3-download3 response keys: ${Object.keys(data).join(', ')}`);
+
+    const downloadUrl = data.mp3_url || data.url || data.link || data.download_url;
+    if (!downloadUrl) {
+      console.error('RapidAPI mp3-download3: no download URL in response');
+      return null;
+    }
+
+    const audioData = await downloadAsBase64(downloadUrl);
+    if (audioData) return { ...audioData, filename: `youtube_${videoId}.mp3` };
+    return null;
+  } catch (e) {
+    console.error('RapidAPI mp3-download3 error:', e);
+    return null;
+  }
+}
+
 async function tryRapidApiMp3_2025(videoId: string, apiKey: string): Promise<{ base64: string; contentType: string; size: number; filename: string } | null> {
   console.log(`Trying RapidAPI (youtube-mp3-2025) for video: ${videoId}`);
   try {
@@ -148,127 +280,84 @@ async function tryRapidApiMp3_2025(videoId: string, apiKey: string): Promise<{ b
         quality: '128kbps',
         ext: 'mp3',
       }),
+      signal: AbortSignal.timeout(30000),
     });
 
     if (!resp.ok) {
       console.error(`RapidAPI mp3-2025 returned ${resp.status}`);
-      const text = await resp.text();
-      console.error(`Response: ${text.substring(0, 300)}`);
       return null;
     }
 
     const data = await resp.json();
     console.log(`RapidAPI mp3-2025 response keys: ${Object.keys(data).join(', ')}`);
 
-    // The API may return a direct download URL or stream URL
     const downloadUrl = data.url || data.link || data.download_url || data.audioUrl;
     if (!downloadUrl) {
-      console.error('RapidAPI mp3-2025: no download URL in response:', JSON.stringify(data).substring(0, 300));
+      console.error('RapidAPI mp3-2025: no download URL in response');
       return null;
     }
 
-    console.log(`RapidAPI mp3-2025 download URL: ${downloadUrl.substring(0, 120)}...`);
     const audioData = await downloadAsBase64(downloadUrl);
-    if (audioData) {
-      return { ...audioData, filename: `youtube_${videoId}.mp3` };
-    }
+    if (audioData) return { ...audioData, filename: `youtube_${videoId}.mp3` };
     return null;
   } catch (e) {
     console.error('RapidAPI mp3-2025 error:', e);
     return null;
   }
 }
-/**
- * YouTube-specific download using loader.to (free, no key), then Innertube API
- * with multiple client strategies (ANDROID, IOS, TVHTML5_SIMPLY_EMBEDDED)
- */
-async function downloadYouTube(url: string): Promise<{ base64: string; contentType: string; size: number; filename: string } | null> {
+
+async function tryRapidApiYtToMp3(videoId: string, apiKey: string): Promise<{ base64: string; contentType: string; size: number; filename: string } | null> {
+  console.log(`Trying RapidAPI (youtube-to-mp3-download) for video: ${videoId}`);
+  try {
+    const resp = await fetch(`https://youtube-to-mp3-download.p.rapidapi.com/mp3?videoId=${videoId}`, {
+      headers: {
+        'X-RapidAPI-Key': apiKey,
+        'X-RapidAPI-Host': 'youtube-to-mp3-download.p.rapidapi.com',
+      },
+      signal: AbortSignal.timeout(30000),
+    });
+
+    if (!resp.ok) {
+      console.error(`RapidAPI yt-to-mp3 returned ${resp.status}`);
+      return null;
+    }
+
+    const data = await resp.json();
+    console.log(`RapidAPI yt-to-mp3 response keys: ${Object.keys(data).join(', ')}`);
+
+    const downloadUrl = data.url || data.link || data.download_url || data.mp3;
+    if (!downloadUrl) {
+      console.error('RapidAPI yt-to-mp3: no download URL');
+      return null;
+    }
+
+    const audioData = await downloadAsBase64(downloadUrl);
+    if (audioData) return { ...audioData, filename: `youtube_${videoId}.mp3` };
+    return null;
+  } catch (e) {
+    console.error('RapidAPI yt-to-mp3 error:', e);
+    return null;
+  }
+}
+
+// ─── Innertube API ──────────────────────────────────────────────────────────
+// YouTube's internal API. Clients updated to current versions.
+// TV_EMBEDDED is the least restricted client that doesn't need PO tokens.
+async function downloadYouTubeViaInnertube(url: string): Promise<{ base64: string; contentType: string; size: number; filename: string } | null> {
   const videoId = extractYouTubeVideoId(url);
   if (!videoId) {
     console.error('Could not extract YouTube video ID from:', url);
     return null;
   }
 
-  // Strategy 1: Try yt-dlp API services
-  const ytdlpApis = [
-    {
-      name: 'loader.to',
-      getUrl: async () => {
-        // Use loader.to API to get download link
-        const apiUrl = `https://loader.to/api/button/?url=${encodeURIComponent(url)}&f=mp3`;
-        const r = await fetch(apiUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } });
-        if (!r.ok) return null;
-        const text = await r.text();
-        const match = text.match(/href="(https?:\/\/[^"]+\.mp3[^"]*)"/i);
-        return match ? match[1] : null;
-      }
-    },
-  ];
-
-  for (const api of ytdlpApis) {
-    try {
-      console.log(`Trying yt-dlp API: ${api.name}`);
-      const downloadUrl = await api.getUrl();
-      if (downloadUrl) {
-        const data = await downloadAsBase64(downloadUrl, 'https://www.youtube.com/');
-        if (data) {
-          return { ...data, filename: `youtube_${videoId}.mp3` };
-        }
-      }
-    } catch (e) {
-      console.error(`${api.name} error:`, e);
-    }
-  }
-
-  // Strategy 2: Innertube API with ANDROID client (less restricted)
   console.log(`Trying Innertube API for YouTube video: ${videoId}`);
 
+  // TV_EMBEDDED is the least restricted — doesn't need PO tokens and works
+  // for most videos. ANDROID_TESTSUITE is another fallback.
   const clients = [
     {
-      name: 'ANDROID',
-      headers: {
-        'Content-Type': 'application/json',
-        'User-Agent': 'com.google.android.youtube/18.11.34 (Linux; U; Android 11) gzip',
-        'X-YouTube-Client-Name': '3',
-        'X-YouTube-Client-Version': '18.11.34',
-      } as Record<string, string>,
-      body: {
-        context: {
-          client: {
-            clientName: 'ANDROID',
-            clientVersion: '18.11.34',
-            androidSdkVersion: 30,
-            hl: 'en',
-            gl: 'US',
-          },
-        },
-      },
-    },
-    {
-      name: 'IOS',
-      headers: {
-        'Content-Type': 'application/json',
-        'User-Agent': 'com.google.ios.youtube/19.09.3 (iPhone16,2; U; CPU iOS 17_5_1 like Mac OS X)',
-        'X-YouTube-Client-Name': '5',
-        'X-YouTube-Client-Version': '19.09.3',
-      } as Record<string, string>,
-      body: {
-        context: {
-          client: {
-            clientName: 'IOS',
-            clientVersion: '19.09.3',
-            deviceMake: 'Apple',
-            deviceModel: 'iPhone16,2',
-            osName: 'iOS',
-            osVersion: '17.5.1.21F90',
-            hl: 'en',
-            gl: 'US',
-          },
-        },
-      },
-    },
-    {
       name: 'TVHTML5_SIMPLY_EMBEDDED',
+      endpoint: 'https://www.youtube.com/youtubei/v1/player?prettyPrint=false',
       headers: {
         'Content-Type': 'application/json',
         'User-Agent': 'Mozilla/5.0',
@@ -287,20 +376,87 @@ async function downloadYouTube(url: string): Promise<{ base64: string; contentTy
         },
       },
     },
+    {
+      name: 'ANDROID_MUSIC',
+      endpoint: 'https://music.youtube.com/youtubei/v1/player?prettyPrint=false',
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': 'com.google.android.apps.youtube.music/7.27.52 (Linux; U; Android 14; en_US) gzip',
+        'X-YouTube-Client-Name': '21',
+        'X-YouTube-Client-Version': '7.27.52',
+      } as Record<string, string>,
+      body: {
+        context: {
+          client: {
+            clientName: 'ANDROID_MUSIC',
+            clientVersion: '7.27.52',
+            androidSdkVersion: 34,
+            hl: 'en',
+            gl: 'US',
+          },
+        },
+      },
+    },
+    {
+      name: 'ANDROID',
+      endpoint: 'https://www.youtube.com/youtubei/v1/player?prettyPrint=false',
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': 'com.google.android.youtube/19.44.38 (Linux; U; Android 14) gzip',
+        'X-YouTube-Client-Name': '3',
+        'X-YouTube-Client-Version': '19.44.38',
+      } as Record<string, string>,
+      body: {
+        context: {
+          client: {
+            clientName: 'ANDROID',
+            clientVersion: '19.44.38',
+            androidSdkVersion: 34,
+            hl: 'en',
+            gl: 'US',
+          },
+        },
+      },
+    },
+    {
+      name: 'IOS',
+      endpoint: 'https://www.youtube.com/youtubei/v1/player?prettyPrint=false',
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': 'com.google.ios.youtube/19.45.4 (iPhone16,2; U; CPU iOS 18_1 like Mac OS X)',
+        'X-YouTube-Client-Name': '5',
+        'X-YouTube-Client-Version': '19.45.4',
+      } as Record<string, string>,
+      body: {
+        context: {
+          client: {
+            clientName: 'IOS',
+            clientVersion: '19.45.4',
+            deviceMake: 'Apple',
+            deviceModel: 'iPhone16,2',
+            osName: 'iOS',
+            osVersion: '18.1.0',
+            hl: 'en',
+            gl: 'US',
+          },
+        },
+      },
+    },
   ];
 
   for (const client of clients) {
     try {
       console.log(`Trying YouTube client: ${client.name}`);
-      const playerResp = await fetch('https://www.youtube.com/youtubei/v1/player?prettyPrint=false', {
+      const playerResp = await fetch(client.endpoint, {
         method: 'POST',
-        headers: client.headers as Record<string, string>,
+        headers: client.headers,
         body: JSON.stringify({
           videoId,
           ...client.body,
           contentCheckOk: true,
           racyCheckOk: true,
         }),
+        signal: AbortSignal.timeout(15000),
       });
 
       if (!playerResp.ok) {
@@ -320,8 +476,17 @@ async function downloadYouTube(url: string): Promise<{ base64: string; contentTy
         ...(playerData.streamingData?.formats || []),
       ];
 
+      // Check for HLS manifest as fallback (no PO token needed)
+      const hlsUrl = playerData.streamingData?.hlsManifestUrl;
+
+      // Get formats with direct URLs
       const audioFormats = formats
         .filter((f: any) => f.mimeType?.startsWith('audio/') && f.url)
+        .sort((a: any, b: any) => (b.bitrate || 0) - (a.bitrate || 0));
+
+      // Also try formats with signatureCipher (need to decode)
+      const cipherAudioFormats = formats
+        .filter((f: any) => f.mimeType?.startsWith('audio/') && !f.url && f.signatureCipher)
         .sort((a: any, b: any) => (b.bitrate || 0) - (a.bitrate || 0));
 
       const videoFormats = formats
@@ -330,11 +495,7 @@ async function downloadYouTube(url: string): Promise<{ base64: string; contentTy
 
       const tryFormats = [...audioFormats.slice(0, 3), ...videoFormats.slice(0, 2)];
 
-      if (tryFormats.length === 0) {
-        console.error(`${client.name}: No formats with direct URLs found`);
-        continue;
-      }
-
+      // Try direct URL formats first
       for (const format of tryFormats) {
         const contentLength = parseInt(format.contentLength || '0');
         if (contentLength > MAX_FILE_SIZE) {
@@ -350,15 +511,100 @@ async function downloadYouTube(url: string): Promise<{ base64: string; contentTy
           return { ...data, filename: `youtube_${videoId}.${ext}` };
         }
       }
+
+      // Try signatureCipher formats (basic decode)
+      for (const format of cipherAudioFormats.slice(0, 2)) {
+        try {
+          const params = new URLSearchParams(format.signatureCipher);
+          const cipherUrl = params.get('url');
+          if (!cipherUrl) continue;
+
+          // Try the URL directly — some ciphered URLs work without decoding
+          // (YouTube sometimes includes the signature in the URL itself)
+          const contentLength = parseInt(format.contentLength || '0');
+          if (contentLength > MAX_FILE_SIZE) continue;
+
+          console.log(`Trying cipher format: ${format.mimeType}, bitrate: ${format.bitrate}`);
+          const data = await downloadAsBase64(cipherUrl, 'https://www.youtube.com/');
+          if (data) {
+            const ext = format.mimeType?.includes('webm') ? 'webm' : 'm4a';
+            return { ...data, filename: `youtube_${videoId}.${ext}` };
+          }
+        } catch {
+          // Skip cipher formats we can't handle
+        }
+      }
+
+      // Try HLS manifest as last resort
+      if (hlsUrl) {
+        console.log(`Trying HLS manifest for ${client.name}`);
+        try {
+          const hlsResp = await fetch(hlsUrl, {
+            headers: { 'User-Agent': 'Mozilla/5.0' },
+            signal: AbortSignal.timeout(10000),
+          });
+          if (hlsResp.ok) {
+            const manifest = await hlsResp.text();
+            // Find audio-only stream URLs in the manifest
+            const audioLines = manifest.split('\n')
+              .filter((line: string) => line.includes('TYPE=AUDIO') || (line.startsWith('http') && !line.includes('video')));
+
+            // Find the best audio playlist URL
+            let audioPlaylistUrl: string | null = null;
+            const lines = manifest.split('\n');
+            for (let i = 0; i < lines.length; i++) {
+              if (lines[i].includes('TYPE=AUDIO') && lines[i].includes('URI="')) {
+                const uriMatch = lines[i].match(/URI="([^"]+)"/);
+                if (uriMatch) {
+                  audioPlaylistUrl = uriMatch[1];
+                  break;
+                }
+              }
+            }
+
+            // If no explicit audio track, try to find a low-bandwidth stream
+            if (!audioPlaylistUrl) {
+              for (let i = 0; i < lines.length; i++) {
+                if (lines[i].startsWith('#EXT-X-STREAM-INF') && lines[i + 1]?.startsWith('http')) {
+                  const bwMatch = lines[i].match(/BANDWIDTH=(\d+)/);
+                  const bandwidth = bwMatch ? parseInt(bwMatch[1]) : 0;
+                  // Take lowest bandwidth stream (likely audio-only or low quality)
+                  if (bandwidth > 0 && bandwidth < 200000) {
+                    audioPlaylistUrl = lines[i + 1].trim();
+                    break;
+                  }
+                }
+              }
+            }
+
+            if (audioPlaylistUrl) {
+              console.log(`Found HLS audio stream, downloading...`);
+              const data = await downloadAsBase64(audioPlaylistUrl, 'https://www.youtube.com/');
+              if (data) {
+                return { ...data, filename: `youtube_${videoId}.m4a` };
+              }
+            }
+          }
+        } catch (hlsErr) {
+          console.warn('HLS fallback failed:', hlsErr);
+        }
+      }
+
+      if (tryFormats.length === 0 && cipherAudioFormats.length === 0 && !hlsUrl) {
+        console.error(`${client.name}: No formats found at all`);
+      } else {
+        console.error(`${client.name}: All format downloads failed`);
+      }
     } catch (e) {
       console.error(`YouTube ${client.name} error:`, e);
     }
   }
 
-  console.log('All YouTube client strategies failed');
+  console.log('All YouTube Innertube strategies failed');
   return null;
 }
 
+// ─── Download helper ────────────────────────────────────────────────────────
 function looksLikeMedia(url: string, contentType?: string): boolean {
   if (contentType) {
     if (contentType.startsWith('audio/') || contentType.startsWith('video/')) return true;
@@ -367,20 +613,18 @@ function looksLikeMedia(url: string, contentType?: string): boolean {
   return /\.(mp3|mp4|m4a|wav|ogg|webm|mov|aac|flac)(\?|$)/i.test(url);
 }
 
-/**
- * Download bytes from a URL with browser-like headers and return as base64.
- */
 async function downloadAsBase64(url: string, referer?: string): Promise<{ base64: string; contentType: string; size: number } | null> {
   try {
     console.log(`Downloading: ${url.substring(0, 120)}...`);
     const resp = await fetch(url, {
       redirect: 'follow',
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Linux; Android 13; SM-G991B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
+        'User-Agent': 'Mozilla/5.0 (Linux; Android 14; SM-S928B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36',
         'Accept': '*/*',
-        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept-Language': 'en-US,en;q=0.9,ar;q=0.8',
         'Referer': referer || new URL(url).origin + '/',
       },
+      signal: AbortSignal.timeout(120000),
     });
 
     if (!resp.ok) {
@@ -406,64 +650,61 @@ async function downloadAsBase64(url: string, referer?: string): Promise<{ base64
     const base64 = encodeBase64(new Uint8Array(arrayBuffer));
     return { base64, contentType, size };
   } catch (e) {
-    console.error(`Download error:`, e);
+    if (e instanceof DOMException && e.name === 'AbortError') {
+      console.error('Download timed out');
+    } else {
+      console.error(`Download error:`, e);
+    }
     return null;
   }
 }
 
-/**
- * TikTok-specific: resolve short URL, get video ID, fetch via TikTok's webapp API.
- */
+// ─── TikTok ─────────────────────────────────────────────────────────────────
 async function downloadTikTok(url: string): Promise<{ base64: string; contentType: string; size: number; filename: string } | null> {
   console.log('Trying TikTok-specific download...');
-  
+
   try {
-    // Step 1: Resolve short URL to full URL and extract video ID
     const resolveResp = await fetch(url, {
       redirect: 'follow',
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Linux; Android 13; SM-G991B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
+        'User-Agent': 'Mozilla/5.0 (Linux; Android 14; SM-S928B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36',
       },
+      signal: AbortSignal.timeout(15000),
     });
-    
+
     const finalUrl = resolveResp.url;
     console.log(`Resolved to: ${finalUrl}`);
-    
-    // Extract video ID from URL like /video/1234567890 or /@user/video/1234567890
+
     const videoIdMatch = finalUrl.match(/\/video\/(\d+)/);
     if (!videoIdMatch) {
       console.error('Could not extract TikTok video ID');
       return null;
     }
-    
+
     const videoId = videoIdMatch[1];
     console.log(`TikTok video ID: ${videoId}`);
-    
-    // Step 2: Use TikTok's oEmbed API to get info
+
     const oembedUrl = `https://www.tiktok.com/oembed?url=https://www.tiktok.com/video/${videoId}`;
     const oembedResp = await fetch(oembedUrl, {
       headers: { 'User-Agent': 'Mozilla/5.0 (compatible; bot)' },
     });
-    
+
     if (oembedResp.ok) {
       const oembedData = await oembedResp.json();
       console.log(`oEmbed title: ${oembedData.title?.substring(0, 50)}`);
     }
-    
-    // Step 3: Fetch the full HTML page to extract video URLs
+
     const html = await resolveResp.text();
-    
-    // Extract video URLs from SIGI_STATE or __UNIVERSAL_DATA_FOR_REHYDRATION__
+
     const videoUrls: string[] = [];
-    
-    // Pattern 1: playAddr in JSON
+
     const playAddrPatterns = [
       /"playAddr"\s*:\s*"(https?:[^"]+)"/gi,
       /"downloadAddr"\s*:\s*"(https?:[^"]+)"/gi,
       /"play_addr"\s*:\s*\{[^}]*"url_list"\s*:\s*\["(https?:[^"]+)"/gi,
       /"download_addr"\s*:\s*\{[^}]*"url_list"\s*:\s*\["(https?:[^"]+)"/gi,
     ];
-    
+
     for (const pattern of playAddrPatterns) {
       let match;
       while ((match = pattern.exec(html)) !== null) {
@@ -476,8 +717,7 @@ async function downloadTikTok(url: string): Promise<{ base64: string; contentTyp
         }
       }
     }
-    
-    // Pattern 2: Generic video URLs
+
     const genericPattern = /https?:[\\\/]+[^"'\s]+v\d+-[^"'\s]+\.(?:mp4|mp3|m4a)(?:[^"'\s]*)/gi;
     let gMatch;
     while ((gMatch = genericPattern.exec(html)) !== null) {
@@ -487,12 +727,10 @@ async function downloadTikTok(url: string): Promise<{ base64: string; contentTyp
         .replace(/\\\//g, '/');
       videoUrls.push(decoded);
     }
-    
-    // Deduplicate
+
     const uniqueUrls = [...new Set(videoUrls)];
     console.log(`Found ${uniqueUrls.length} TikTok video URL candidates`);
-    
-    // Step 4: Try downloading each (use mobile User-Agent + TikTok referer)
+
     for (const videoUrl of uniqueUrls.slice(0, 5)) {
       const data = await downloadAsBase64(videoUrl, 'https://www.tiktok.com/');
       if (data) {
@@ -502,7 +740,7 @@ async function downloadTikTok(url: string): Promise<{ base64: string; contentTyp
         };
       }
     }
-    
+
     console.log('All TikTok video URLs failed to download');
     return null;
   } catch (e) {
@@ -511,75 +749,7 @@ async function downloadTikTok(url: string): Promise<{ base64: string; contentTyp
   }
 }
 
-/**
- * Try multiple download APIs as fallbacks.
- */
-async function downloadViaCobalt(url: string): Promise<{ base64: string; contentType: string; size: number; filename: string } | null> {
-  // Community Cobalt instances (v10 API). List sourced from cobalt.tools/instances.
-  const instances = [
-    "https://api.cobalt.tools",
-    "https://co.imput.net",
-    "https://cobalt.api.timelessnesses.com",
-    "https://cobalt.canine.tools",
-  ];
-
-  for (const instanceUrl of instances) {
-    console.log(`Trying Cobalt: ${instanceUrl}`);
-    try {
-      let cobaltResp: Response;
-
-      cobaltResp = await fetch(`${instanceUrl}/`, {
-          method: 'POST',
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-            'User-Agent': 'Mozilla/5.0 (compatible; arabic-buddy/1.0)',
-          },
-          body: JSON.stringify({
-            url,
-            downloadMode: 'audio',
-            audioFormat: 'mp3',
-            filenameStyle: 'basic',
-          }),
-        });
-
-      if (!cobaltResp.ok) {
-        const errText = await cobaltResp.text();
-        console.error(`Cobalt ${instanceUrl} returned ${cobaltResp.status}: ${errText.substring(0, 200)}`);
-        continue;
-      }
-
-      const cobaltData = await cobaltResp.json();
-      console.log(`Cobalt response: ${JSON.stringify(cobaltData).substring(0, 300)}`);
-
-      let downloadUrl: string | null = null;
-      let filename = 'audio.mp3';
-
-      if (cobaltData.status === 'tunnel' || cobaltData.status === 'stream' || cobaltData.status === 'success' || cobaltData.status === 'redirect') {
-        downloadUrl = cobaltData.url;
-        filename = cobaltData.filename || filename;
-      } else if (cobaltData.url && !cobaltData.error) {
-        downloadUrl = cobaltData.url;
-        filename = cobaltData.filename || filename;
-      } else {
-        console.error(`Cobalt error: ${JSON.stringify(cobaltData.error || cobaltData.text || cobaltData)}`);
-        continue;
-      }
-
-      if (!downloadUrl) continue;
-
-      const data = await downloadAsBase64(downloadUrl);
-      if (data) {
-        return { ...data, filename };
-      }
-    } catch (e) {
-      console.error(`Cobalt ${instanceUrl} error:`, e);
-    }
-  }
-
-  return null;
-}
-
+// ─── Main handler ───────────────────────────────────────────────────────────
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -619,18 +789,16 @@ serve(async (req) => {
       try {
         const supabaseUrl = Deno.env.get('SUPABASE_URL');
         const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-        
+
         if (supabaseUrl && supabaseKey) {
           const supabase = createClient(supabaseUrl, supabaseKey);
-          
-          // Generate content hash from URL
+
           const parsedUrl = new URL(url);
           const hostname = parsedUrl.hostname.replace(/^www\./, '').replace(/^m\./, '');
-          
+
           let platform = 'other';
           let videoId = '';
-          
-          // Extract platform and video ID
+
           if (hostname.includes('youtube.com') || hostname === 'youtu.be') {
             platform = 'youtube';
             videoId = extractYouTubeVideoId(url) || '';
@@ -639,24 +807,21 @@ serve(async (req) => {
             const match = url.match(/\/video\/(\d+)/);
             videoId = match?.[1] || '';
           }
-          
-          // Generate simple content hash: platform:videoId
+
           if (videoId) {
             const contentHash = `${platform}:${videoId}`;
-            
-            // Check for existing processed video
+
             const { data: cached, error: cacheError } = await supabase
               .from('processed_videos')
               .select('*')
               .eq('content_hash', contentHash)
               .maybeSingle();
-            
+
             if (!cacheError && cached) {
-              // Check if cache is recent (< 30 days)
               const processedAt = new Date(cached.processed_at);
               const now = new Date();
               const ageInDays = (now.getTime() - processedAt.getTime()) / (1000 * 60 * 60 * 24);
-              
+
               if (ageInDays < 30) {
                 console.log(`Cache hit for ${contentHash} (${ageInDays.toFixed(1)} days old)`);
                 return new Response(
@@ -706,9 +871,26 @@ serve(async (req) => {
       );
     }
 
+    const makeSuccessResponse = (result: { base64: string; contentType: string; size: number; filename: string }, extras?: Record<string, unknown>) =>
+      new Response(
+        JSON.stringify({
+          audioBase64: result.base64,
+          contentType: result.contentType,
+          size: result.size,
+          filename: result.filename,
+          originalUrl: normalizedUrl,
+          ...extras,
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+
     // Strategy 1: Direct media file check
     try {
-      const headResp = await fetch(normalizedUrl, { method: 'HEAD', redirect: 'follow' });
+      const headResp = await fetch(normalizedUrl, {
+        method: 'HEAD',
+        redirect: 'follow',
+        signal: AbortSignal.timeout(10000),
+      });
       const ct = headResp.headers.get('content-type') || '';
       const finalUrl = headResp.url || normalizedUrl;
 
@@ -716,16 +898,10 @@ serve(async (req) => {
         console.log(`Direct media URL detected (${ct}), downloading...`);
         const audioData = await downloadAsBase64(finalUrl);
         if (audioData) {
-          return new Response(
-            JSON.stringify({
-              audioBase64: audioData.base64,
-              contentType: audioData.contentType,
-              size: audioData.size,
-              filename: new URL(finalUrl).pathname.split('/').pop() || 'audio.mp4',
-              originalUrl: normalizedUrl,
-            }),
-            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
+          return makeSuccessResponse({
+            ...audioData,
+            filename: new URL(finalUrl).pathname.split('/').pop() || 'audio.mp4',
+          });
         }
       }
     } catch (e) {
@@ -735,64 +911,29 @@ serve(async (req) => {
     // Strategy 2: TikTok-specific download
     if (isTikTokUrl(normalizedUrl)) {
       const tiktokResult = await downloadTikTok(normalizedUrl);
-      if (tiktokResult) {
-        return new Response(
-          JSON.stringify({
-            audioBase64: tiktokResult.base64,
-            contentType: tiktokResult.contentType,
-            size: tiktokResult.size,
-            filename: tiktokResult.filename,
-          }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
+      if (tiktokResult) return makeSuccessResponse(tiktokResult);
     }
 
-    // Strategy 3: YouTube-specific download (RapidAPI first, Innertube fallback)
+    // For YouTube: Cobalt first (most reliable), then RapidAPI, then Innertube
     if (isYouTubeUrl(normalizedUrl)) {
-      const rapidResult = await downloadYouTubeViaRapidApi(normalizedUrl);
-      if (rapidResult) {
-        return new Response(
-          JSON.stringify({
-            audioBase64: rapidResult.base64,
-            contentType: rapidResult.contentType,
-            size: rapidResult.size,
-            filename: rapidResult.filename,
-            originalUrl: normalizedUrl,
-          }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      const ytResult = await downloadYouTube(normalizedUrl);
-      if (ytResult) {
-        return new Response(
-          JSON.stringify({
-            audioBase64: ytResult.base64,
-            contentType: ytResult.contentType,
-            size: ytResult.size,
-            filename: ytResult.filename,
-            originalUrl: normalizedUrl,
-          }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-    }
-
-    // Strategy 4: Cobalt API for social media
-    if (isSocialMediaUrl(normalizedUrl)) {
+      // Strategy 3a: Cobalt API (most reliable for YouTube)
+      console.log('=== YouTube: trying Cobalt first ===');
       const cobaltResult = await downloadViaCobalt(normalizedUrl);
-      if (cobaltResult) {
-        return new Response(
-          JSON.stringify({
-            audioBase64: cobaltResult.base64,
-            contentType: cobaltResult.contentType,
-            size: cobaltResult.size,
-            filename: cobaltResult.filename,
-          }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
+      if (cobaltResult) return makeSuccessResponse(cobaltResult);
+
+      // Strategy 3b: RapidAPI services
+      console.log('=== YouTube: trying RapidAPI ===');
+      const rapidResult = await downloadYouTubeViaRapidApi(normalizedUrl);
+      if (rapidResult) return makeSuccessResponse(rapidResult);
+
+      // Strategy 3c: Innertube API (direct YouTube API — least reliable due to PO tokens)
+      console.log('=== YouTube: trying Innertube ===');
+      const ytResult = await downloadYouTubeViaInnertube(normalizedUrl);
+      if (ytResult) return makeSuccessResponse(ytResult);
+    } else if (isSocialMediaUrl(normalizedUrl)) {
+      // For other social media: Cobalt is the primary strategy
+      const cobaltResult = await downloadViaCobalt(normalizedUrl);
+      if (cobaltResult) return makeSuccessResponse(cobaltResult);
     }
 
     return new Response(

@@ -225,7 +225,7 @@ const TrendingVideos = () => {
               <pre className="text-xs mt-2 text-left bg-muted rounded p-3 overflow-auto max-h-40">
                 {queryError instanceof Error
                   ? queryError.message
-                  : (queryError as any)?.message ?? JSON.stringify(queryError, null, 2)}
+                  : (queryError as any)?.message ?? (queryError as any)?.code ?? 'See browser console for details'}
               </pre>
             </CardContent>
           </Card>

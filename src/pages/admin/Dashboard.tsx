@@ -196,6 +196,20 @@ const Dashboard = () => {
                   </div>
                 </CardContent>
               </Card>
+
+              <Card className="cursor-pointer hover:shadow-lg transition-shadow border-primary/30" onClick={() => navigate('/admin/trending')}>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-4">
+                    <div className="bg-primary/10 rounded-full p-4">
+                      <TrendingUp className="h-8 w-8 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-lg">Trending Videos</h3>
+                      <p className="text-muted-foreground">Discover & curate trending Gulf Arabic YouTube videos</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </>
           )}
 

@@ -291,6 +291,7 @@ const App = () => {
               <Route path="stories" element={<AdminStories />} />
               <Route path="stories/new" element={<AdminStoryForm />} />
               <Route path="stories/:storyId/edit" element={<AdminStoryForm />} />
+              <Route path="trending" element={<TrendingVideos />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />

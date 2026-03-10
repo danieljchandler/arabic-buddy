@@ -30,8 +30,6 @@ interface TrendingCandidate {
   view_count: number | null;
   trending_score: number | null;
   detected_topic: string | null;
-  region_code: string | null;
-  duration_seconds: number | null;
   discovered_at: string | null;
   processed: boolean | null;
   rejected: boolean | null;
@@ -53,16 +51,6 @@ const TOPIC_COLORS: Record<string, string> = {
   general: 'bg-muted text-muted-foreground',
 };
 
-const REGION_LABELS: Record<string, { flag: string; name: string }> = {
-  SA: { flag: '🇸🇦', name: 'Saudi Arabia' },
-  AE: { flag: '🇦🇪', name: 'UAE' },
-  KW: { flag: '🇰🇼', name: 'Kuwait' },
-  QA: { flag: '🇶🇦', name: 'Qatar' },
-  BH: { flag: '🇧🇭', name: 'Bahrain' },
-  OM: { flag: '🇴🇲', name: 'Oman' },
-};
-
-const GULF_REGION_CODES = ['SA', 'AE', 'KW', 'QA', 'BH', 'OM'];
 
 type FilterTab = 'new' | 'approved' | 'rejected' | 'all';
 
@@ -71,7 +59,7 @@ const TrendingVideos = () => {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [filter, setFilter] = useState<FilterTab>('new');
-  const [regionFilter, setRegionFilter] = useState<string>('all');
+  
 
   const { data: candidates, isLoading } = useQuery({
     queryKey: ['trending-candidates', filter],
@@ -95,9 +83,7 @@ const TrendingVideos = () => {
     },
   });
 
-  const filteredCandidates = regionFilter === 'all'
-    ? candidates
-    : candidates?.filter((c) => c.region_code === regionFilter);
+  const filteredCandidates = candidates;
 
   const fetchTrending = useMutation({
     mutationFn: async () => {
@@ -162,17 +148,6 @@ const TrendingVideos = () => {
     return count.toString();
   };
 
-  const formatDuration = (seconds: number | null) => {
-    if (!seconds) return null;
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    if (m >= 60) {
-      const h = Math.floor(m / 60);
-      const rem = m % 60;
-      return `${h}:${String(rem).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-    }
-    return `${m}:${String(s).padStart(2, '0')}`;
-  };
 
   const tabs: { key: FilterTab; label: string }[] = [
     { key: 'new', label: 'New' },
@@ -230,29 +205,6 @@ const TrendingVideos = () => {
           ))}
         </div>
 
-        {/* Country filter */}
-        <div className="flex gap-2 mb-6 flex-wrap">
-          <Button
-            variant={regionFilter === 'all' ? 'secondary' : 'ghost'}
-            size="sm"
-            onClick={() => setRegionFilter('all')}
-          >
-            All Countries
-          </Button>
-          {GULF_REGION_CODES.map((code) => {
-            const region = REGION_LABELS[code];
-            return (
-              <Button
-                key={code}
-                variant={regionFilter === code ? 'secondary' : 'ghost'}
-                size="sm"
-                onClick={() => setRegionFilter(code)}
-              >
-                {region.flag} {region.name}
-              </Button>
-            );
-          })}
-        </div>
 
         {isLoading ? (
           <div className="flex justify-center py-12">
@@ -285,11 +237,6 @@ const TrendingVideos = () => {
                         Score: {c.trending_score.toLocaleString()}
                       </Badge>
                     )}
-                    {c.duration_seconds && (
-                      <span className="absolute bottom-2 right-2 bg-black/75 text-white text-xs px-1.5 py-0.5 rounded font-mono">
-                        {formatDuration(c.duration_seconds)}
-                      </span>
-                    )}
                   </div>
                 )}
 
@@ -306,11 +253,6 @@ const TrendingVideos = () => {
                       <Eye className="h-3 w-3" />
                       {formatViews(c.view_count)}
                     </span>
-                    {c.region_code && REGION_LABELS[c.region_code] && (
-                      <span title={REGION_LABELS[c.region_code].name}>
-                        {REGION_LABELS[c.region_code].flag} {REGION_LABELS[c.region_code].name}
-                      </span>
-                    )}
                     {c.detected_topic && (
                       <Badge
                         variant="secondary"

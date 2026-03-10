@@ -1,9 +1,13 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
 const YOUTUBE_API_KEY = Deno.env.get('YOUTUBE_API_KEY');
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
 // All six Gulf Cooperation Council (GCC) countries
 const GULF_REGIONS = [
@@ -28,6 +32,15 @@ const QURAN_KEYWORDS = [
   'hafiz', 'tajweed', 'koran',
 ];
 
+// Keywords that indicate nasheed / devotional music to exclude
+const NASHEED_KEYWORDS = [
+  // Arabic
+  'نشيد', 'أنشودة', 'انشودة', 'إنشاد', 'ابتهال', 'مديح', 'تواشيح',
+  'أناشيد', 'اناشيد', 'صوت إسلامي', 'نشيد إسلامي',
+  // English
+  'nasheed', 'anasheed', 'islamic song', 'devotional', 'salawat',
+];
+
 // Keywords that indicate gaming content to exclude
 const GAMING_KEYWORDS = [
   // Arabic
@@ -47,6 +60,8 @@ interface YouTubeVideo {
     channelId: string;
     description: string;
     categoryId?: string;
+    defaultLanguage?: string;
+    defaultAudioLanguage?: string;
     thumbnails: {
       high?: { url: string };
       medium?: { url: string };
@@ -94,8 +109,8 @@ interface VideoCandidate {
 // Max videos to keep per Gulf country after filtering
 const MAX_PER_REGION = 5;
 
-// Duration limits: skip very short clips (Shorts/ads) and very long ones (full films)
-const MIN_DURATION_SECONDS = 60;
+// Duration limits: allow Shorts (≥ 30s) but skip ultra-short clips and full films
+const MIN_DURATION_SECONDS = 30;
 const MAX_DURATION_SECONDS = 3600;
 
 Deno.serve(async (req) => {
@@ -111,15 +126,32 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Parse optional exclude list from request body (video IDs already seen by the admin)
+    const body = await req.json().catch(() => ({}));
+    const excludeVideoIds: string[] = body.exclude_video_ids ?? [];
+
     console.log('Starting discovery of trending Gulf Arabic videos...');
+    if (excludeVideoIds.length > 0) {
+      console.log(`Excluding ${excludeVideoIds.length} already-seen video IDs`);
+    }
+
+    // Load channel blocklist from DB once, share across all region fetches
+    const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+    const { data: blockedRows } = await supabaseAdmin
+      .from('discovery_channel_blocklist')
+      .select('channel_id');
+    const blockedChannels = new Set<string>((blockedRows ?? []).map((r: { channel_id: string }) => r.channel_id));
+    if (blockedChannels.size > 0) {
+      console.log(`Blocking ${blockedChannels.size} channels from blocklist`);
+    }
 
     // Fetch all regions in parallel — much faster than sequential and avoids timeout
     const regionSettled = await Promise.allSettled(
-      GULF_REGIONS.map((region) => fetchRegion(region))
+      GULF_REGIONS.map((region) => fetchRegion(region, blockedChannels))
     );
 
-    // Collect results, dedup video IDs across regions (first-region wins)
-    const seenVideoIds = new Set<string>();
+    // Collect results — seed dedup set with excluded IDs so they're never returned
+    const seenVideoIds = new Set<string>(excludeVideoIds);
     const allCandidates: VideoCandidate[] = [];
     const regionSummary: Record<string, number> = {};
 
@@ -147,7 +179,6 @@ Deno.serve(async (req) => {
     console.log(`Discovered ${allCandidates.length} Gulf Arabic candidates`);
 
     // Return candidates to the caller — the frontend saves them using the Supabase JS client
-    // (avoids direct PostgREST calls which are fragile in the edge function environment)
     return new Response(
       JSON.stringify({
         success: true,
@@ -168,7 +199,7 @@ Deno.serve(async (req) => {
   }
 });
 
-async function fetchRegion(region: string): Promise<RegionResult> {
+async function fetchRegion(region: string, blockedChannels: Set<string>): Promise<RegionResult> {
   // hl=ar biases returned metadata toward Arabic — helps surface Gulf dialect content
   const url =
     `https://www.googleapis.com/youtube/v3/videos` +
@@ -176,7 +207,7 @@ async function fetchRegion(region: string): Promise<RegionResult> {
     `&chart=mostPopular` +
     `&regionCode=${region}` +
     `&hl=ar` +
-    `&maxResults=25` +
+    `&maxResults=50` +
     `&key=${YOUTUBE_API_KEY}`;
 
   const response = await fetch(url);
@@ -200,16 +231,25 @@ async function fetchRegion(region: string): Promise<RegionResult> {
     const title = video.snippet.title;
     const description = video.snippet.description ?? '';
 
-    // Must have Arabic in title or description
+    // Skip channels on the blocklist
+    if (blockedChannels.has(video.snippet.channelId)) {
+      skipped++;
+      continue;
+    }
+
+    // Must have Arabic in title/description OR YouTube's own language metadata says Arabic
     const hasArabicTitle = /[\u0600-\u06FF]/.test(title);
     const hasArabicDescription = /[\u0600-\u06FF]/.test(description);
-    if (!hasArabicTitle && !hasArabicDescription) {
+    const markedAsArabic =
+      video.snippet.defaultAudioLanguage?.startsWith('ar') ||
+      video.snippet.defaultLanguage?.startsWith('ar');
+    if (!hasArabicTitle && !hasArabicDescription && !markedAsArabic) {
       skipped++;
       continue;
     }
 
     // Exclude Quran / religious recitation
-    if (isQuranContent(title, description)) {
+    if (isReligiousContent(title, description)) {
       skipped++;
       continue;
     }
@@ -220,7 +260,7 @@ async function fetchRegion(region: string): Promise<RegionResult> {
       continue;
     }
 
-    // Duration filter: skip Shorts (< 60s) and full films (> 60min)
+    // Duration filter: allow Shorts (≥ 30s), skip full films (> 60min)
     const durationSeconds = parseDuration(video.contentDetails?.duration);
     if (durationSeconds > 0 && (durationSeconds < MIN_DURATION_SECONDS || durationSeconds > MAX_DURATION_SECONDS)) {
       skipped++;
@@ -239,7 +279,7 @@ async function fetchRegion(region: string): Promise<RegionResult> {
       (commentCount / 1000) * 30
     );
 
-    if (trendingScore < 10) {
+    if (trendingScore < 3) {
       skipped++;
       continue;
     }
@@ -272,9 +312,13 @@ async function fetchRegion(region: string): Promise<RegionResult> {
   return { region, candidates, skipped };
 }
 
-function isQuranContent(title: string, description: string): boolean {
+// Combines Quran recitation and nasheed/devotional music exclusions
+function isReligiousContent(title: string, description: string): boolean {
   const text = (title + ' ' + description).toLowerCase();
-  return QURAN_KEYWORDS.some((kw) => text.includes(kw.toLowerCase()));
+  return (
+    QURAN_KEYWORDS.some((kw) => text.includes(kw.toLowerCase())) ||
+    NASHEED_KEYWORDS.some((kw) => text.includes(kw.toLowerCase()))
+  );
 }
 
 function isGamingContent(title: string, description: string, categoryId?: string): boolean {

@@ -105,8 +105,16 @@ const TrendingVideos = () => {
 
   const fetchTrending = useMutation({
     mutationFn: async () => {
+      // Collect all video IDs already in the DB so the edge function can skip them
+      const { data: existing } = await supabase
+        .from('trending_video_candidates')
+        .select('video_id');
+      const excludeVideoIds = (existing ?? []).map((r: { video_id: string }) => r.video_id);
+
       // Step 1: fetch candidates from YouTube via the edge function
-      const { data, error } = await supabase.functions.invoke('discover-trending-videos');
+      const { data, error } = await supabase.functions.invoke('discover-trending-videos', {
+        body: { exclude_video_ids: excludeVideoIds },
+      });
       if (error) throw error;
 
       // Map to only the columns that exist in the table (prevents TS errors and unknown-field rejections)
@@ -174,12 +182,28 @@ const TrendingVideos = () => {
   });
 
   const rejectMutation = useMutation({
-    mutationFn: async (id: string) => {
+    mutationFn: async (candidate: TrendingCandidate) => {
+      // Mark the video as rejected
       const { error } = await supabase
         .from('trending_video_candidates')
         .update({ rejected: true, rejection_reason: 'manually_rejected' })
-        .eq('id', id);
+        .eq('id', candidate.id);
       if (error) throw error;
+
+      // Record the channel in the blocklist so future fetches skip it.
+      // Read current rejection_count first so we can increment it.
+      const { data: existing } = await supabase
+        .from('discovery_channel_blocklist')
+        .select('rejection_count')
+        .eq('channel_id', candidate.creator_handle)
+        .maybeSingle();
+      await supabase.from('discovery_channel_blocklist').upsert({
+        channel_id: candidate.creator_handle,
+        channel_name: candidate.creator_name,
+        rejection_count: (existing?.rejection_count ?? 0) + 1,
+        sample_title: candidate.title,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'channel_id' });
     },
     onSuccess: () => {
       toast({ title: 'Video rejected' });
@@ -376,7 +400,7 @@ const TrendingVideos = () => {
                           size="sm"
                           variant="outline"
                           className="flex-1"
-                          onClick={() => rejectMutation.mutate(c.id)}
+                          onClick={() => rejectMutation.mutate(c)}
                           disabled={rejectMutation.isPending}
                         >
                           <ThumbsDown className="h-3.5 w-3.5 mr-1" />

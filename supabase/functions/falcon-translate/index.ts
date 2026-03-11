@@ -185,7 +185,7 @@ serve(async (req) => {
     // Fallback to RunPod Jais then Falcon if OpenRouter calls both fail
     if (!generatedText && RUNPOD_API_KEY) {
       console.log('OpenRouter failed, trying Jais via RunPod...');
-      generatedText = await callRunPodTranslate(RUNPOD_JAIS_ENDPOINT, 'inceptionai/Jais-2-8B-Chat', numberedLines, RUNPOD_API_KEY)
+      generatedText = await callRunPodTranslate(RUNPOD_JAIS_RUNSYNC, 'inceptionai/Jais-2-8B-Chat', numberedLines, RUNPOD_API_KEY, true)
         .catch((e) => { console.warn('Jais RunPod fallback failed:', e); return null; }) ?? '';
 
       if (!generatedText) {

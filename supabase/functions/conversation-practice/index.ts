@@ -32,9 +32,13 @@ serve(async (req) => {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 30_000);
 
-    let response: Response;
+    let reply = "";
+
+    // Primary: Gemini via Lovable gateway
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30_000);
     try {
-      response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         signal: controller.signal,
         headers: {
@@ -48,33 +52,63 @@ serve(async (req) => {
           temperature: 0.8,
         }),
       });
+
+      if (response.ok) {
+        const data = await response.json();
+        reply = data.choices?.[0]?.message?.content || "";
+      } else {
+        const errorText = await response.text();
+        console.warn("conversation-practice: Gemini error", response.status, errorText.slice(0, 200));
+        if (response.status === 402) {
+          return new Response(
+            JSON.stringify({ error: "Not enough AI credits. Please add credits to your workspace." }),
+            { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        if (response.status === 429) {
+          return new Response(
+            JSON.stringify({ error: "Rate limit exceeded. Please wait a moment and try again." }),
+            { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+      }
     } finally {
       clearTimeout(timeout);
     }
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("conversation-practice: AI gateway error", response.status, errorText.slice(0, 200));
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "Not enough AI credits. Please add credits to your workspace." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+    // Fallback: Jais via RunPod if Gemini failed
+    if (!reply) {
+      const RUNPOD_API_KEY = Deno.env.get("RUNPOD_API_KEY");
+      if (RUNPOD_API_KEY) {
+        console.log("conversation-practice: falling back to Jais via RunPod...");
+        try {
+          const systemMsg = messages.find((m: any) => m.role === "system")?.content || "";
+          const userMsgs = messages.filter((m: any) => m.role !== "system").map((m: any) => `${m.role}: ${m.content}`).join("\n");
+          const jaisPrompt = `### Instruction: ${systemMsg}\n\n### Input: ${userMsgs}\n\n### Response:`;
+          const jaisResp = await fetch("https://api.runpod.ai/v2/flt01o21vejrsb/runsync", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${RUNPOD_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ input: { prompt: jaisPrompt } }),
+          });
+          if (jaisResp.ok) {
+            const jaisData = await jaisResp.json();
+            reply = typeof jaisData.output === "string" ? jaisData.output : jaisData.output?.text ?? "";
+          }
+        } catch (e) {
+          console.warn("Jais conversation fallback failed:", e);
+        }
       }
-      if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ error: "Rate limit exceeded. Please wait a moment and try again." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
+    }
+
+    if (!reply) {
       return new Response(
-        JSON.stringify({ error: `AI service returned ${response.status}` }),
+        JSON.stringify({ error: "AI service unavailable" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-
-    const data = await response.json();
-    const reply = data.choices?.[0]?.message?.content || "";
 
     return new Response(
       JSON.stringify({ reply }),

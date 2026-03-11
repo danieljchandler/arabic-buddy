@@ -104,6 +104,9 @@ IMPORTANT: Return ONLY valid JSON, no markdown formatting, no code blocks.`;
 
     const userPrompt = `Compare how "${word}" is said across Gulf Arabic, Egyptian Arabic, Levantine Arabic, and MSA. The user's source dialect is ${source_dialect}.`;
 
+    let content = "";
+    
+    // Primary: Gemini via Lovable gateway
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -121,14 +124,41 @@ IMPORTANT: Return ONLY valid JSON, no markdown formatting, no code blocks.`;
       }),
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("Lovable API error:", errorText);
-      throw new Error(`AI API error: ${response.status}`);
+    if (response.ok) {
+      const data = await response.json();
+      content = data.choices?.[0]?.message?.content || "";
+    } else {
+      console.warn("Gemini dialect-compare error:", response.status);
     }
 
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content || "";
+    // Fallback: Jais via RunPod if Gemini failed
+    if (!content) {
+      const RUNPOD_API_KEY = Deno.env.get("RUNPOD_API_KEY");
+      if (RUNPOD_API_KEY) {
+        console.log("dialect-compare: falling back to Jais via RunPod...");
+        try {
+          const jaisPrompt = `### Instruction: ${systemPrompt}\n\n### Input: ${userPrompt}\n\n### Response:`;
+          const jaisResp = await fetch("https://api.runpod.ai/v2/flt01o21vejrsb/runsync", {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${RUNPOD_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ input: { prompt: jaisPrompt } }),
+          });
+          if (jaisResp.ok) {
+            const jaisData = await jaisResp.json();
+            content = typeof jaisData.output === "string" ? jaisData.output : jaisData.output?.text ?? "";
+          }
+        } catch (e) {
+          console.warn("Jais dialect-compare fallback failed:", e);
+        }
+      }
+    }
+
+    if (!content) {
+      throw new Error("All AI models failed for dialect comparison");
+    }
 
     // Parse the JSON response
     let comparison: DialectComparison;

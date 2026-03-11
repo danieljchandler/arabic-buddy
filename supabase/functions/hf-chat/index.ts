@@ -5,19 +5,31 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const RUNPOD_JAIS_ENDPOINT = 'https://api.runpod.ai/v2/bbdh3g1cocdnhl/openai/v1/chat/completions';
+// Native RunPod endpoints
+const RUNPOD_JAIS_RUNSYNC = 'https://api.runpod.ai/v2/bbdh3g1cocdnhl/runsync';
 const RUNPOD_FALCON_ENDPOINT = 'https://api.runpod.ai/v2/owodjrizyv47m0/openai/v1/chat/completions';
 
-const MODEL_MAP: Record<string, { model: string; endpoint: string }> = {
+type ModelConfig = {
+  model: string;
+  endpoint: string;
+  native?: boolean; // true = use native RunPod /runsync API
+};
+
+const MODEL_MAP: Record<string, ModelConfig> = {
   standard: {
     model: 'tiiuae/Falcon-H1R-7B',
     endpoint: RUNPOD_FALCON_ENDPOINT,
   },
   premium: {
     model: 'inceptionai/Jais-2-8B-Chat',
-    endpoint: RUNPOD_JAIS_ENDPOINT,
+    endpoint: RUNPOD_JAIS_RUNSYNC,
+    native: true,
   },
 };
+
+function formatChatPrompt(systemPrompt: string, userPrompt: string): string {
+  return `### Instruction: ${systemPrompt}\n\n### Input: ${userPrompt}\n\n### Response:`;
+}
 
 const DEFAULT_SYSTEM_PROMPT =
   'You are an expert Gulf Arabic of all varieties language tutor. Respond accurately using the specific dialect requested, focusing on authenticity and cultural nuance.';

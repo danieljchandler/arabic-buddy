@@ -1302,7 +1302,7 @@ serve(async (req) => {
      const arabicOnlyText = mergedLines.map(l => l.arabic).join('\n');
      const hfApiKey = Deno.env.get('HUGGINGFACE_API_KEY') ?? '';
 
-      const [geminiTransResp, analysisResp, fanarMetaResp, fanarValidResp, jaisMetaResp, falconMetaResp, camelDialectResult, diacritizedTranscript] = await Promise.all([
+      const [geminiTransResp, analysisResp, fanarMetaResp, fanarValidResp, jaisMetaResp, camelDialectResult, diacritizedTranscript] = await Promise.all([
         // Translation primary: Gemini 2.5 Pro via Lovable AI gateway
         callAI({
           model: 'google/gemini-2.5-pro',

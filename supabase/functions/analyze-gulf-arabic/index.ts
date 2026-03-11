@@ -1577,36 +1577,10 @@ serve(async (req) => {
        }
      }
 
-     // Merge Falcon H1 meta results if available
-     if (falconMetaResp.content) {
-       const falconMetaAi = safeJsonParse<MetaAI>(falconMetaResp.content);
-       if (falconMetaAi) {
-         console.log('Merging Falcon H1 meta results...');
-         if (Array.isArray(falconMetaAi.vocabulary)) {
-           const existingArabic = new Set(vocab.map(v => v.arabic));
-           const newVocab = falconMetaAi.vocabulary.filter(v => v.arabic && !existingArabic.has(v.arabic));
-           if (newVocab.length > 0) {
-             vocab = [...vocab, ...newVocab];
-             console.log(`Added ${newVocab.length} vocab items from Falcon H1`);
-           }
-         }
-         if (Array.isArray(falconMetaAi.grammarPoints)) {
-           const existingTitles = new Set(grammarPoints.map(g => g.title.toLowerCase()));
-           const newGrammar = falconMetaAi.grammarPoints.filter(g => g.title && !existingTitles.has(g.title.toLowerCase()));
-           if (newGrammar.length > 0) {
-             grammarPoints = [...grammarPoints, ...newGrammar];
-             console.log(`Added ${newGrammar.length} grammar points from Falcon H1`);
-           }
-         }
-         if (falconMetaAi.culturalContext && (!culturalContext || falconMetaAi.culturalContext.length > culturalContext.length)) {
-           culturalContext = falconMetaAi.culturalContext;
-           console.log('Using Falcon H1 cultural context (richer)');
-         }
-       }
-     }
+     // Falcon meta merge removed — endpoint decommissioned
 
      // ── Step 5: Claude Sonnet vocabulary enrichment ──────────────────────────
-     // Runs after full vocab assembly (Qwen + Fanar + Jais + Falcon union). Sequential.
+     // Runs after full vocab assembly (Qwen + Fanar + Jais union). Sequential.
      // Non-blocking: any failure leaves vocab unchanged.
      if (vocab.length > 0) {
        try {

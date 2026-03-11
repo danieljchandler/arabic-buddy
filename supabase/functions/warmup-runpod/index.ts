@@ -16,7 +16,7 @@ const corsHeaders = {
 };
 
 // Native RunPod async /run endpoint (NOT OpenAI-compatible path)
-const RUNPOD_JAIS_RUN = 'https://api.runpod.ai/v2/bbdh3g1cocdnhl/run';
+const RUNPOD_JAIS_RUN = 'https://api.runpod.ai/v2/flt01o21vejrsb/run';
 // Falcon still uses OpenAI-compatible path
 const RUNPOD_FALCON_ENDPOINT = 'https://api.runpod.ai/v2/owodjrizyv47m0/openai/v1/chat/completions';
 

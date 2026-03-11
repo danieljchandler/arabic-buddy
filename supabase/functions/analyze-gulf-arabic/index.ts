@@ -1360,21 +1360,7 @@ serve(async (req) => {
             ]))
          : (console.log('Jais meta enrichment: SKIPPED (no RUNPOD_API_KEY)'),
             Promise.resolve({ content: null } as { content: string | null })),
-       // Falcon H1 meta enrichment via RunPod — wrapped in 45s Promise.race
-       falconAvailable
-         ? (console.log('Falcon meta enrichment: FIRING via RunPod (45s race)...'),
-            Promise.race([
-              callRunPodModel(RUNPOD_FALCON_ENDPOINT, 'tiiuae/Falcon-H1R-7B', getMetaSystemPrompt(true), mergedTranscriptText, RUNPOD_API_KEY!, 2048).catch((e) => {
-                console.warn('Falcon meta enrichment failed (non-blocking):', e instanceof Error ? e.message : String(e));
-                return { content: null } as { content: string | null };
-              }),
-              new Promise<{ content: string | null }>(resolve => setTimeout(() => {
-                console.warn('RunPod Falcon: timed out at 45s, skipping');
-                resolve({ content: null });
-              }, 45_000)),
-            ]))
-         : (console.log('Falcon meta enrichment: SKIPPED (no RUNPOD_API_KEY)'),
-            Promise.resolve({ content: null } as { content: string | null })),
+       // Falcon removed — endpoint consistently returns HTTP 500 / timeouts
        // CAMeL-Lab BERT dialect ID — validates/confirms the LLM-detected dialect.
        // Uses the MADAR-Twitter model: city-level (Kuwait/Doha/Riyadh/Abu Dhabi/…).
        // Non-blocking: any failure returns null and the pipeline continues.

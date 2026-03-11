@@ -491,10 +491,32 @@ const AdminVideoForm = () => {
       }
 
       toast.info("Analyzing transcript...");
-      const { data: analyzeData, error: analyzeError } = await supabase.functions.invoke("analyze-gulf-arabic", {
-        body: analyzeBody,
-      });
-      if (analyzeError) throw new Error(analyzeError.message);
+
+      // Use direct fetch with 5-minute timeout to avoid client-side abort on long-running analysis
+      const analyzeController = new AbortController();
+      const analyzeTimeout = setTimeout(() => analyzeController.abort(), 300_000); // 5 min
+      try {
+        const analyzeResp = await fetch(
+          `${projectUrl}/functions/v1/analyze-gulf-arabic`,
+          {
+            method: "POST",
+            signal: analyzeController.signal,
+            headers: {
+              ...authHeaders,
+              "Content-Type": "application/json",
+              apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            },
+            body: JSON.stringify(analyzeBody),
+          }
+        );
+        if (!analyzeResp.ok) {
+          const errBody = await analyzeResp.text().catch(() => "");
+          throw new Error(`Analysis HTTP ${analyzeResp.status}: ${errBody.slice(0, 200)}`);
+        }
+        var analyzeData = await analyzeResp.json();
+      } finally {
+        clearTimeout(analyzeTimeout);
+      }
       if (!analyzeData?.success) throw new Error(analyzeData?.error || "Analysis failed");
 
       const result = analyzeData.result;

@@ -15,6 +15,7 @@ interface ModelConfig {
   model: string;
   keyEnv: string;
   isFanar?: boolean;
+  native?: boolean; // true = native RunPod /runsync API
 }
 
 const RUNPOD_JAIS_RUNSYNC = "https://api.runpod.ai/v2/bbdh3g1cocdnhl/runsync";

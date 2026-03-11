@@ -1159,13 +1159,11 @@ serve(async (req) => {
 
     const RUNPOD_API_KEY = Deno.env.get('RUNPOD_API_KEY');
     const RUNPOD_JAIS_RUNSYNC = 'https://api.runpod.ai/v2/flt01o21vejrsb/runsync';
-    const RUNPOD_FALCON_ENDPOINT = 'https://api.runpod.ai/v2/owodjrizyv47m0/openai/v1/chat/completions';
     const jaisAvailable = Boolean(RUNPOD_API_KEY);
-    const falconAvailable = Boolean(RUNPOD_API_KEY);
     if (!RUNPOD_API_KEY) {
-      console.warn('RUNPOD_API_KEY not set — Jais and Falcon will be skipped');
+      console.warn('RUNPOD_API_KEY not set — Jais will be skipped');
     } else {
-      console.log('RunPod available — Jais + Falcon will run in parallel enrichment');
+      console.log('RunPod available — Jais will run in parallel enrichment');
     }
 
      let partial = false;
@@ -1297,12 +1295,12 @@ serve(async (req) => {
      //
      // All run in parallel. Translation is a separate concern from analysis.
      // =====================================================================
-     console.log('Translation (Gemini), analysis (Qwen), meta (Fanar+Jais+Falcon), CAMeL dialect, Farasa diac running in parallel...');
+     console.log('Translation (Gemini), analysis (Qwen), meta (Fanar+Jais), CAMeL dialect, Farasa diac running in parallel...');
 
      const arabicOnlyText = mergedLines.map(l => l.arabic).join('\n');
      const hfApiKey = Deno.env.get('HUGGINGFACE_API_KEY') ?? '';
 
-      const [geminiTransResp, analysisResp, fanarMetaResp, fanarValidResp, jaisMetaResp, falconMetaResp, camelDialectResult, diacritizedTranscript] = await Promise.all([
+      const [geminiTransResp, analysisResp, fanarMetaResp, fanarValidResp, jaisMetaResp, camelDialectResult, diacritizedTranscript] = await Promise.all([
         // Translation primary: Gemini 2.5 Pro via Lovable AI gateway
         callAI({
           model: 'google/gemini-2.5-pro',
@@ -1360,21 +1358,7 @@ serve(async (req) => {
             ]))
          : (console.log('Jais meta enrichment: SKIPPED (no RUNPOD_API_KEY)'),
             Promise.resolve({ content: null } as { content: string | null })),
-       // Falcon H1 meta enrichment via RunPod — wrapped in 45s Promise.race
-       falconAvailable
-         ? (console.log('Falcon meta enrichment: FIRING via RunPod (45s race)...'),
-            Promise.race([
-              callRunPodModel(RUNPOD_FALCON_ENDPOINT, 'tiiuae/Falcon-H1R-7B', getMetaSystemPrompt(true), mergedTranscriptText, RUNPOD_API_KEY!, 2048).catch((e) => {
-                console.warn('Falcon meta enrichment failed (non-blocking):', e instanceof Error ? e.message : String(e));
-                return { content: null } as { content: string | null };
-              }),
-              new Promise<{ content: string | null }>(resolve => setTimeout(() => {
-                console.warn('RunPod Falcon: timed out at 45s, skipping');
-                resolve({ content: null });
-              }, 45_000)),
-            ]))
-         : (console.log('Falcon meta enrichment: SKIPPED (no RUNPOD_API_KEY)'),
-            Promise.resolve({ content: null } as { content: string | null })),
+       // Falcon removed — endpoint consistently returns HTTP 500 / timeouts
        // CAMeL-Lab BERT dialect ID — validates/confirms the LLM-detected dialect.
        // Uses the MADAR-Twitter model: city-level (Kuwait/Doha/Riyadh/Abu Dhabi/…).
        // Non-blocking: any failure returns null and the pipeline continues.
@@ -1471,33 +1455,7 @@ serve(async (req) => {
         }
       }
 
-      // --- Fallback: Falcon via RunPod if Gemini, Qwen, and Jais all failed (45s race) ---
-      if ((!translationAi?.translations || translationAi.translations.length === 0) && falconAvailable) {
-        console.log('Jais translation failed or empty, falling back to Falcon via RunPod for translation (45s race)...');
-        const falconTransResp = await Promise.race([
-          callRunPodModel(
-            RUNPOD_FALCON_ENDPOINT,
-            'tiiuae/Falcon-H1R-7B',
-            getTranslationSystemPrompt(detectedDialect, visualContext, sonioxTranslation),
-            mergedTranscriptText,
-            RUNPOD_API_KEY!,
-            4096,
-          ).catch((e) => {
-            console.warn('Falcon RunPod translation fallback failed (non-blocking):', e);
-            return { content: null };
-          }),
-          new Promise<{ content: string | null }>(resolve => setTimeout(() => {
-            console.warn('RunPod Falcon translation fallback: timed out at 45s');
-            resolve({ content: null });
-          }, 45_000)),
-        ]);
-        if (falconTransResp.content) {
-          translationAi = safeJsonParse<TranslationAI>(falconTransResp.content);
-          if (translationAi?.translations) {
-            console.log('Falcon RunPod translation fallback: parsed', translationAi.translations.length, 'lines.');
-          }
-        }
-      }
+      // Falcon fallback removed — endpoint consistently returns HTTP 500
 
      const dedicatedTranslations = translationAi?.translations ?? [];
      if (dedicatedTranslations.length === 0) {
@@ -1619,36 +1577,10 @@ serve(async (req) => {
        }
      }
 
-     // Merge Falcon H1 meta results if available
-     if (falconMetaResp.content) {
-       const falconMetaAi = safeJsonParse<MetaAI>(falconMetaResp.content);
-       if (falconMetaAi) {
-         console.log('Merging Falcon H1 meta results...');
-         if (Array.isArray(falconMetaAi.vocabulary)) {
-           const existingArabic = new Set(vocab.map(v => v.arabic));
-           const newVocab = falconMetaAi.vocabulary.filter(v => v.arabic && !existingArabic.has(v.arabic));
-           if (newVocab.length > 0) {
-             vocab = [...vocab, ...newVocab];
-             console.log(`Added ${newVocab.length} vocab items from Falcon H1`);
-           }
-         }
-         if (Array.isArray(falconMetaAi.grammarPoints)) {
-           const existingTitles = new Set(grammarPoints.map(g => g.title.toLowerCase()));
-           const newGrammar = falconMetaAi.grammarPoints.filter(g => g.title && !existingTitles.has(g.title.toLowerCase()));
-           if (newGrammar.length > 0) {
-             grammarPoints = [...grammarPoints, ...newGrammar];
-             console.log(`Added ${newGrammar.length} grammar points from Falcon H1`);
-           }
-         }
-         if (falconMetaAi.culturalContext && (!culturalContext || falconMetaAi.culturalContext.length > culturalContext.length)) {
-           culturalContext = falconMetaAi.culturalContext;
-           console.log('Using Falcon H1 cultural context (richer)');
-         }
-       }
-     }
+     // Falcon meta merge removed — endpoint decommissioned
 
      // ── Step 5: Claude Sonnet vocabulary enrichment ──────────────────────────
-     // Runs after full vocab assembly (Qwen + Fanar + Jais + Falcon union). Sequential.
+     // Runs after full vocab assembly (Qwen + Fanar + Jais union). Sequential.
      // Non-blocking: any failure leaves vocab unchanged.
      if (vocab.length > 0) {
        try {

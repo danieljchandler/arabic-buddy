@@ -58,33 +58,64 @@ serve(async (req) => {
       );
     }
 
-    const response = await fetch(config.endpoint, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: config.model,
-        messages: [
-          { role: 'system', content: DEFAULT_SYSTEM_PROMPT },
-          { role: 'user', content: prompt },
-        ],
-        temperature: 0.3,
-        max_tokens: 1024,
-      }),
-    });
+    let content: string | undefined;
 
-    if (!response.ok) {
-      const errText = await response.text();
-      return new Response(
-        JSON.stringify({ error: errText }),
-        { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      );
+    if (config.native) {
+      // Native RunPod /runsync API
+      const response = await fetch(config.endpoint, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          input: {
+            prompt: formatChatPrompt(DEFAULT_SYSTEM_PROMPT, prompt),
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        const errText = await response.text();
+        return new Response(
+          JSON.stringify({ error: errText }),
+          { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
+      }
+
+      const data = await response.json();
+      // Native RunPod returns { output: ... } or { output: { text: ... } }
+      content = typeof data.output === 'string' ? data.output : data.output?.text ?? data.output?.choices?.[0]?.message?.content;
+    } else {
+      // OpenAI-compatible API
+      const response = await fetch(config.endpoint, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: config.model,
+          messages: [
+            { role: 'system', content: DEFAULT_SYSTEM_PROMPT },
+            { role: 'user', content: prompt },
+          ],
+          temperature: 0.3,
+          max_tokens: 1024,
+        }),
+      });
+
+      if (!response.ok) {
+        const errText = await response.text();
+        return new Response(
+          JSON.stringify({ error: errText }),
+          { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
+      }
+
+      const data = await response.json();
+      content = data.choices?.[0]?.message?.content;
     }
-
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
 
     if (!content) {
       return new Response(

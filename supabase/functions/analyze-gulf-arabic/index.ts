@@ -1349,7 +1349,7 @@ serve(async (req) => {
        jaisAvailable
          ? (console.log('Jais meta enrichment: FIRING via RunPod (45s race)...'),
             Promise.race([
-              callRunPodModel(RUNPOD_JAIS_ENDPOINT, 'inceptionai/Jais-2-8B-Chat', getMetaSystemPrompt(true), mergedTranscriptText, RUNPOD_API_KEY!, 2048).catch((e) => {
+              callRunPodModel(RUNPOD_JAIS_RUNSYNC, 'inceptionai/Jais-2-8B-Chat', getMetaSystemPrompt(true), mergedTranscriptText, RUNPOD_API_KEY!, 2048, true).catch((e) => {
                 console.warn('Jais meta enrichment failed (non-blocking):', e instanceof Error ? e.message : String(e));
                 return { content: null } as { content: string | null };
               }),

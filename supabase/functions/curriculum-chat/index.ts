@@ -15,9 +15,10 @@ interface ModelConfig {
   model: string;
   keyEnv: string;
   isFanar?: boolean;
+  native?: boolean; // true = native RunPod /runsync API
 }
 
-const RUNPOD_JAIS_ENDPOINT = "https://api.runpod.ai/v2/bbdh3g1cocdnhl/openai/v1/chat/completions";
+const RUNPOD_JAIS_RUNSYNC = "https://api.runpod.ai/v2/bbdh3g1cocdnhl/runsync";
 const RUNPOD_FALCON_ENDPOINT = "https://api.runpod.ai/v2/owodjrizyv47m0/openai/v1/chat/completions";
 
 const MODEL_REGISTRY: Record<string, ModelConfig> = {
@@ -43,9 +44,10 @@ const MODEL_REGISTRY: Record<string, ModelConfig> = {
     isFanar: true,
   },
   "jais-hf": {
-    endpoint: RUNPOD_JAIS_ENDPOINT,
+    endpoint: RUNPOD_JAIS_RUNSYNC,
     model: "inceptionai/Jais-2-8B-Chat",
     keyEnv: "RUNPOD_API_KEY",
+    native: true,
   },
   "falcon-h1r": {
     endpoint: RUNPOD_FALCON_ENDPOINT,
@@ -305,6 +307,25 @@ async function callLLM(
   const timeout = setTimeout(() => controller.abort(), 55_000);
 
   try {
+    let body: string;
+    if (config.native) {
+      // Native RunPod /runsync API — format messages into a single prompt
+      const systemMsg = messages.find(m => m.role === 'system')?.content || '';
+      const userMsgs = messages.filter(m => m.role !== 'system').map(m => `${m.role}: ${m.content}`).join('\n');
+      body = JSON.stringify({
+        input: {
+          prompt: `### Instruction: ${systemMsg}\n\n### Input: ${userMsgs}\n\n### Response:`,
+        },
+      });
+    } else {
+      body = JSON.stringify({
+        model: config.model,
+        messages,
+        max_tokens: maxTokens,
+        temperature: 0.4,
+      });
+    }
+
     const response = await fetch(config.endpoint, {
       method: "POST",
       signal: controller.signal,
@@ -312,12 +333,7 @@ async function callLLM(
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        model: config.model,
-        messages,
-        max_tokens: maxTokens,
-        temperature: 0.4,
-      }),
+      body,
     });
 
     if (!response.ok) {
@@ -332,7 +348,12 @@ async function callLLM(
     }
 
     const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
+    let content: string | undefined;
+    if (config.native) {
+      content = typeof data.output === 'string' ? data.output : data.output?.text ?? data.output?.choices?.[0]?.message?.content;
+    } else {
+      content = data.choices?.[0]?.message?.content;
+    }
     if (!content) {
       throw new Error(`LLM ${config.model} returned empty response`);
     }

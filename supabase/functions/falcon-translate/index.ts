@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 const OPENROUTER_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
-const RUNPOD_JAIS_ENDPOINT = 'https://api.runpod.ai/v2/bbdh3g1cocdnhl/openai/v1/chat/completions';
+const RUNPOD_JAIS_RUNSYNC = 'https://api.runpod.ai/v2/bbdh3g1cocdnhl/runsync';
 const RUNPOD_FALCON_ENDPOINT = 'https://api.runpod.ai/v2/owodjrizyv47m0/openai/v1/chat/completions';
 
 function parseNumberedTranslations(generatedText: string, arabicLines: string[]): string[] {
@@ -78,18 +78,17 @@ async function callRunPodTranslate(
   model: string,
   numberedLines: string,
   apiKey: string,
+  native = false,
 ): Promise<string | null> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 90_000);
   try {
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      signal: controller.signal,
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
+    let body: string;
+    if (native) {
+      const prompt = `### Instruction: You are an expert translator specializing in Gulf Arabic (Khaliji) dialect. Translate each numbered Arabic line to natural English. Return ONLY the translations, numbered to match. No commentary.\n\n### Input: Translate these Gulf Arabic lines to English:\n\n${numberedLines}\n\n### Response:`;
+      body = JSON.stringify({ input: { prompt } });
+    } else {
+      body = JSON.stringify({
         model,
         messages: [
           {
@@ -101,13 +100,25 @@ async function callRunPodTranslate(
             content: `Translate these Gulf Arabic lines to English:\n\n${numberedLines}`,
           },
         ],
-      }),
+      });
+    }
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body,
     });
     if (!response.ok) {
       console.warn(`RunPod ${model} error:`, response.status);
       return null;
     }
     const data = await response.json();
+    if (native) {
+      return typeof data.output === 'string' ? data.output : data.output?.text ?? null;
+    }
     return data?.choices?.[0]?.message?.content || null;
   } catch (e) {
     console.warn(`RunPod ${model} failed:`, e instanceof Error ? e.message : String(e));
@@ -174,7 +185,7 @@ serve(async (req) => {
     // Fallback to RunPod Jais then Falcon if OpenRouter calls both fail
     if (!generatedText && RUNPOD_API_KEY) {
       console.log('OpenRouter failed, trying Jais via RunPod...');
-      generatedText = await callRunPodTranslate(RUNPOD_JAIS_ENDPOINT, 'inceptionai/Jais-2-8B-Chat', numberedLines, RUNPOD_API_KEY)
+      generatedText = await callRunPodTranslate(RUNPOD_JAIS_RUNSYNC, 'inceptionai/Jais-2-8B-Chat', numberedLines, RUNPOD_API_KEY, true)
         .catch((e) => { console.warn('Jais RunPod fallback failed:', e); return null; }) ?? '';
 
       if (!generatedText) {

@@ -5,19 +5,31 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const RUNPOD_JAIS_ENDPOINT = 'https://api.runpod.ai/v2/bbdh3g1cocdnhl/openai/v1/chat/completions';
+// Native RunPod endpoints
+const RUNPOD_JAIS_RUNSYNC = 'https://api.runpod.ai/v2/bbdh3g1cocdnhl/runsync';
 const RUNPOD_FALCON_ENDPOINT = 'https://api.runpod.ai/v2/owodjrizyv47m0/openai/v1/chat/completions';
 
-const MODEL_MAP: Record<string, { model: string; endpoint: string }> = {
+type ModelConfig = {
+  model: string;
+  endpoint: string;
+  native?: boolean; // true = use native RunPod /runsync API
+};
+
+const MODEL_MAP: Record<string, ModelConfig> = {
   standard: {
     model: 'tiiuae/Falcon-H1R-7B',
     endpoint: RUNPOD_FALCON_ENDPOINT,
   },
   premium: {
     model: 'inceptionai/Jais-2-8B-Chat',
-    endpoint: RUNPOD_JAIS_ENDPOINT,
+    endpoint: RUNPOD_JAIS_RUNSYNC,
+    native: true,
   },
 };
+
+function formatChatPrompt(systemPrompt: string, userPrompt: string): string {
+  return `### Instruction: ${systemPrompt}\n\n### Input: ${userPrompt}\n\n### Response:`;
+}
 
 const DEFAULT_SYSTEM_PROMPT =
   'You are an expert Gulf Arabic of all varieties language tutor. Respond accurately using the specific dialect requested, focusing on authenticity and cultural nuance.';
@@ -46,33 +58,64 @@ serve(async (req) => {
       );
     }
 
-    const response = await fetch(config.endpoint, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: config.model,
-        messages: [
-          { role: 'system', content: DEFAULT_SYSTEM_PROMPT },
-          { role: 'user', content: prompt },
-        ],
-        temperature: 0.3,
-        max_tokens: 1024,
-      }),
-    });
+    let content: string | undefined;
 
-    if (!response.ok) {
-      const errText = await response.text();
-      return new Response(
-        JSON.stringify({ error: errText }),
-        { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
-      );
+    if (config.native) {
+      // Native RunPod /runsync API
+      const response = await fetch(config.endpoint, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          input: {
+            prompt: formatChatPrompt(DEFAULT_SYSTEM_PROMPT, prompt),
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        const errText = await response.text();
+        return new Response(
+          JSON.stringify({ error: errText }),
+          { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
+      }
+
+      const data = await response.json();
+      // Native RunPod returns { output: ... } or { output: { text: ... } }
+      content = typeof data.output === 'string' ? data.output : data.output?.text ?? data.output?.choices?.[0]?.message?.content;
+    } else {
+      // OpenAI-compatible API
+      const response = await fetch(config.endpoint, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: config.model,
+          messages: [
+            { role: 'system', content: DEFAULT_SYSTEM_PROMPT },
+            { role: 'user', content: prompt },
+          ],
+          temperature: 0.3,
+          max_tokens: 1024,
+        }),
+      });
+
+      if (!response.ok) {
+        const errText = await response.text();
+        return new Response(
+          JSON.stringify({ error: errText }),
+          { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+        );
+      }
+
+      const data = await response.json();
+      content = data.choices?.[0]?.message?.content;
     }
-
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
 
     if (!content) {
       return new Response(

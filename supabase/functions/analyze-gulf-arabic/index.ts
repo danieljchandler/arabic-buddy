@@ -484,30 +484,34 @@ async function callRunPodModel(
   userContent: string,
   apiKey: string,
   maxTokens = 4096,
+  native = false,
 ): Promise<{ content: string | null }> {
-  // RunPod serverless endpoints need cold-start time (up to 90s+).
-  // Use a 50s AbortController timeout as safety net — the caller wraps
-  // this in a 45s Promise.race so the pipeline never stalls.
-  // Retries on 500-503 with 3s backoff, up to 2 attempts.
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 50_000);
 
   const startMs = Date.now();
   const MAX_RETRIES = 2;
   const RETRY_DELAY_MS = 3_000;
-  const requestBody = JSON.stringify({
-    model,
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: userContent },
-    ],
-    max_tokens: maxTokens,
-    temperature: 0.3,
-  });
+
+  let requestBody: string;
+  if (native) {
+    const prompt = `### Instruction: ${systemPrompt}\n\n### Input: ${userContent}\n\n### Response:`;
+    requestBody = JSON.stringify({ input: { prompt } });
+  } else {
+    requestBody = JSON.stringify({
+      model,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userContent },
+      ],
+      max_tokens: maxTokens,
+      temperature: 0.3,
+    });
+  }
 
   try {
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-      console.log(`RunPod ${model}: attempt ${attempt}/${MAX_RETRIES}...`);
+      console.log(`RunPod ${model}: attempt ${attempt}/${MAX_RETRIES}${native ? ' (native)' : ''}...`);
       const response = await fetch(endpoint, {
         method: 'POST',
         signal: controller.signal,
@@ -522,7 +526,12 @@ async function callRunPodModel(
 
       if (response.ok) {
         const data = await response.json();
-        const content = data?.choices?.[0]?.message?.content ?? null;
+        let content: string | null;
+        if (native) {
+          content = typeof data.output === 'string' ? data.output : data.output?.text ?? data.output?.choices?.[0]?.message?.content ?? null;
+        } else {
+          content = data?.choices?.[0]?.message?.content ?? null;
+        }
         console.log(`RunPod ${model} response in ${elapsedSec}s:`, content?.slice(0, 200));
         return { content };
       }
@@ -530,7 +539,6 @@ async function callRunPodModel(
       const errBody = await response.text().catch(() => '');
       console.warn(`RunPod ${model} error: HTTP ${response.status} in ${elapsedSec}s — ${errBody.slice(0, 200)}`);
 
-      // Retry on 500/502/503 (worker cold-starting, scaling up, or transient error)
       if ((response.status >= 500 && response.status <= 503) && attempt < MAX_RETRIES) {
         console.log(`RunPod ${model}: retrying in ${RETRY_DELAY_MS / 1000}s (worker may be starting)...`);
         await new Promise(r => setTimeout(r, RETRY_DELAY_MS));
@@ -1150,7 +1158,7 @@ serve(async (req) => {
     }
 
     const RUNPOD_API_KEY = Deno.env.get('RUNPOD_API_KEY');
-    const RUNPOD_JAIS_ENDPOINT = 'https://api.runpod.ai/v2/bbdh3g1cocdnhl/openai/v1/chat/completions';
+    const RUNPOD_JAIS_RUNSYNC = 'https://api.runpod.ai/v2/bbdh3g1cocdnhl/runsync';
     const RUNPOD_FALCON_ENDPOINT = 'https://api.runpod.ai/v2/owodjrizyv47m0/openai/v1/chat/completions';
     const jaisAvailable = Boolean(RUNPOD_API_KEY);
     const falconAvailable = Boolean(RUNPOD_API_KEY);
@@ -1341,7 +1349,7 @@ serve(async (req) => {
        jaisAvailable
          ? (console.log('Jais meta enrichment: FIRING via RunPod (45s race)...'),
             Promise.race([
-              callRunPodModel(RUNPOD_JAIS_ENDPOINT, 'inceptionai/Jais-2-8B-Chat', getMetaSystemPrompt(true), mergedTranscriptText, RUNPOD_API_KEY!, 2048).catch((e) => {
+              callRunPodModel(RUNPOD_JAIS_RUNSYNC, 'inceptionai/Jais-2-8B-Chat', getMetaSystemPrompt(true), mergedTranscriptText, RUNPOD_API_KEY!, 2048, true).catch((e) => {
                 console.warn('Jais meta enrichment failed (non-blocking):', e instanceof Error ? e.message : String(e));
                 return { content: null } as { content: string | null };
               }),

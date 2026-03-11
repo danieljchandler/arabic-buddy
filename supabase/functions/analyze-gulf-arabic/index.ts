@@ -1442,33 +1442,62 @@ serve(async (req) => {
        }
      }
 
-     // --- Fallback: Falcon via RunPod if both Gemini and Qwen failed (45s race) ---
-     if ((!translationAi?.translations || translationAi.translations.length === 0) && falconAvailable) {
-       console.log('Qwen translation failed or empty, falling back to Falcon via RunPod for translation (45s race)...');
-       const falconTransResp = await Promise.race([
-         callRunPodModel(
-           RUNPOD_FALCON_ENDPOINT,
-           'tiiuae/Falcon-H1R-7B',
-           getTranslationSystemPrompt(detectedDialect, visualContext, sonioxTranslation),
-           mergedTranscriptText,
-           RUNPOD_API_KEY!,
-           4096,
-         ).catch((e) => {
-           console.warn('Falcon RunPod translation fallback failed (non-blocking):', e);
-           return { content: null };
-         }),
-         new Promise<{ content: string | null }>(resolve => setTimeout(() => {
-           console.warn('RunPod Falcon translation fallback: timed out at 45s');
-           resolve({ content: null });
-         }, 45_000)),
-       ]);
-       if (falconTransResp.content) {
-         translationAi = safeJsonParse<TranslationAI>(falconTransResp.content);
-         if (translationAi?.translations) {
-           console.log('Falcon RunPod translation fallback: parsed', translationAi.translations.length, 'lines.');
-         }
-       }
-     }
+      // --- Fallback: Jais via RunPod if both Gemini and Qwen failed (45s race) ---
+      if ((!translationAi?.translations || translationAi.translations.length === 0) && jaisAvailable) {
+        console.log('Qwen translation failed or empty, falling back to Jais via RunPod for translation (45s race)...');
+        const jaisTransResp = await Promise.race([
+          callRunPodModel(
+            RUNPOD_JAIS_RUNSYNC,
+            'inceptionai/Jais-2-8B-Chat',
+            getTranslationSystemPrompt(detectedDialect, visualContext, sonioxTranslation),
+            mergedTranscriptText,
+            RUNPOD_API_KEY!,
+            4096,
+            true, // native
+          ).catch((e) => {
+            console.warn('Jais RunPod translation fallback failed (non-blocking):', e);
+            return { content: null };
+          }),
+          new Promise<{ content: string | null }>(resolve => setTimeout(() => {
+            console.warn('RunPod Jais translation fallback: timed out at 45s');
+            resolve({ content: null });
+          }, 45_000)),
+        ]);
+        if (jaisTransResp.content) {
+          translationAi = safeJsonParse<TranslationAI>(jaisTransResp.content);
+          if (translationAi?.translations) {
+            console.log('Jais RunPod translation fallback: parsed', translationAi.translations.length, 'lines.');
+          }
+        }
+      }
+
+      // --- Fallback: Falcon via RunPod if Gemini, Qwen, and Jais all failed (45s race) ---
+      if ((!translationAi?.translations || translationAi.translations.length === 0) && falconAvailable) {
+        console.log('Jais translation failed or empty, falling back to Falcon via RunPod for translation (45s race)...');
+        const falconTransResp = await Promise.race([
+          callRunPodModel(
+            RUNPOD_FALCON_ENDPOINT,
+            'tiiuae/Falcon-H1R-7B',
+            getTranslationSystemPrompt(detectedDialect, visualContext, sonioxTranslation),
+            mergedTranscriptText,
+            RUNPOD_API_KEY!,
+            4096,
+          ).catch((e) => {
+            console.warn('Falcon RunPod translation fallback failed (non-blocking):', e);
+            return { content: null };
+          }),
+          new Promise<{ content: string | null }>(resolve => setTimeout(() => {
+            console.warn('RunPod Falcon translation fallback: timed out at 45s');
+            resolve({ content: null });
+          }, 45_000)),
+        ]);
+        if (falconTransResp.content) {
+          translationAi = safeJsonParse<TranslationAI>(falconTransResp.content);
+          if (translationAi?.translations) {
+            console.log('Falcon RunPod translation fallback: parsed', translationAi.translations.length, 'lines.');
+          }
+        }
+      }
 
      const dedicatedTranslations = translationAi?.translations ?? [];
      if (dedicatedTranslations.length === 0) {

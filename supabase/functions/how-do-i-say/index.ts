@@ -279,6 +279,42 @@ serve(async (req) => {
       });
     }
 
+    // Jais via RunPod native API
+    const RUNPOD_API_KEY = Deno.env.get('RUNPOD_API_KEY');
+    if (RUNPOD_API_KEY) {
+      llmsUsed.push('inceptionai/Jais-2-8B-Chat (RunPod)');
+      calls.push({
+        label: 'jais-runpod',
+        call: (async () => {
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 45_000);
+          try {
+            const prompt = `### Instruction: ${SYSTEM_PROMPT}\n\n### Input: ${userContent}\n\n### Response:`;
+            const response = await fetch(RUNPOD_JAIS_RUNSYNC, {
+              method: 'POST',
+              signal: controller.signal,
+              headers: {
+                'Authorization': `Bearer ${RUNPOD_API_KEY}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ input: { prompt } }),
+            });
+            if (!response.ok) {
+              console.warn('Jais RunPod error:', response.status);
+              return null;
+            }
+            const data = await response.json();
+            return typeof data.output === 'string' ? data.output : data.output?.text ?? null;
+          } catch (e) {
+            console.warn('Jais RunPod failed (non-fatal):', e instanceof Error ? e.message : String(e));
+            return null;
+          } finally {
+            clearTimeout(timeout);
+          }
+        })(),
+      });
+    }
+
     const llmUsed = llmsUsed.join(' + ');
     console.log(`how-do-i-say: LLMs = ${llmUsed}, phrase = "${trimmedPhrase}"`);
 

@@ -17,7 +17,7 @@ interface ModelConfig {
   isFanar?: boolean;
 }
 
-const RUNPOD_JAIS_ENDPOINT = "https://api.runpod.ai/v2/xx0wek543611i5/openai/v1/chat/completions";
+const RUNPOD_JAIS_ENDPOINT = "https://api.runpod.ai/v2/bbdh3g1cocdnhl/openai/v1/chat/completions";
 const RUNPOD_FALCON_ENDPOINT = "https://api.runpod.ai/v2/owodjrizyv47m0/openai/v1/chat/completions";
 
 const MODEL_REGISTRY: Record<string, ModelConfig> = {

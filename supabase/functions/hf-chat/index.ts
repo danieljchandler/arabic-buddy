@@ -5,7 +5,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const RUNPOD_JAIS_ENDPOINT = 'https://api.runpod.ai/v2/xx0wek543611i5/openai/v1/chat/completions';
+const RUNPOD_JAIS_ENDPOINT = 'https://api.runpod.ai/v2/bbdh3g1cocdnhl/openai/v1/chat/completions';
 const RUNPOD_FALCON_ENDPOINT = 'https://api.runpod.ai/v2/owodjrizyv47m0/openai/v1/chat/completions';
 
 const MODEL_MAP: Record<string, { model: string; endpoint: string }> = {

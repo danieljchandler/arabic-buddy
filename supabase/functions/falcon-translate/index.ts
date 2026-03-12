@@ -7,8 +7,7 @@ const corsHeaders = {
 };
 
 const OPENROUTER_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
-const RUNPOD_JAIS_RUNSYNC = 'https://api.runpod.ai/v2/hqckbihez3499f/runsync';
-const RUNPOD_FALCON_ENDPOINT = 'https://api.runpod.ai/v2/owodjrizyv47m0/openai/v1/chat/completions';
+const JAIS_HF_ENDPOINT = 'https://u1lf1x17ye91ruw5.us-east-1.aws.endpoints.huggingface.cloud/v1/chat/completions';
 
 function parseNumberedTranslations(generatedText: string, arabicLines: string[]): string[] {
   const translations: string[] = [];
@@ -169,7 +168,7 @@ serve(async (req) => {
       );
     }
 
-    const RUNPOD_API_KEY = Deno.env.get('RUNPOD_API_KEY');
+    const HF_TOKEN = Deno.env.get('VITE_HF_TOKEN');
 
     console.log(`falcon-translate: processing ${arabicLines.length} lines`);
 
@@ -182,20 +181,40 @@ serve(async (req) => {
 
     let generatedText = qwenText ?? geminiText ?? '';
 
-    // Fallback to RunPod Jais then Falcon if OpenRouter calls both fail
-    if (!generatedText && RUNPOD_API_KEY) {
-      console.log('OpenRouter failed, trying Jais via RunPod...');
-      generatedText = await callRunPodTranslate(RUNPOD_JAIS_RUNSYNC, 'inceptionai/Jais-2-8B-Chat', numberedLines, RUNPOD_API_KEY, true)
-        .catch((e) => { console.warn('Jais RunPod fallback failed:', e); return null; }) ?? '';
-
-      if (!generatedText) {
-        console.log('Jais RunPod failed, trying Falcon via RunPod...');
-        generatedText = await callRunPodTranslate(RUNPOD_FALCON_ENDPOINT, 'tiiuae/Falcon-H1R-7B', numberedLines, RUNPOD_API_KEY)
-          .catch((e) => { console.warn('Falcon RunPod fallback failed:', e); return null; }) ?? '';
+    // Fallback to Jais via HF Endpoint if OpenRouter calls both fail
+    if (!generatedText && HF_TOKEN) {
+      console.log('OpenRouter failed, trying Jais via HF Endpoint...');
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 90_000);
+        const resp = await fetch(JAIS_HF_ENDPOINT, {
+          method: 'POST',
+          signal: controller.signal,
+          headers: {
+            'Authorization': `Bearer ${HF_TOKEN}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'tgi',
+            messages: [
+              { role: 'system', content: 'You are an expert translator specializing in Gulf Arabic (Khaliji) dialect. Translate each numbered Arabic line to natural English. Return ONLY the translations, numbered to match. No commentary.' },
+              { role: 'user', content: `Translate these Gulf Arabic lines to English:\n\n${numberedLines}` },
+            ],
+            temperature: 0.3,
+            max_tokens: 4096,
+          }),
+        });
+        clearTimeout(timeout);
+        if (resp.ok) {
+          const data = await resp.json();
+          generatedText = data.choices?.[0]?.message?.content ?? '';
+        }
+      } catch (e) {
+        console.warn('Jais HF fallback failed:', e instanceof Error ? e.message : String(e));
       }
     }
 
-    const runpodFallbackText = generatedText && !qwenText && !geminiText ? generatedText : null;
+    const hfFallbackText = generatedText && !qwenText && !geminiText ? generatedText : null;
 
     if (!generatedText) {
       console.error('All translation models returned empty content');
@@ -205,7 +224,7 @@ serve(async (req) => {
       );
     }
 
-    console.log(`falcon-translate: response length=${generatedText.length} (qwen=${!!qwenText}, gemini=${!!geminiText}, runpod-fallback=${!!runpodFallbackText})`);
+    console.log(`falcon-translate: response length=${generatedText.length} (qwen=${!!qwenText}, gemini=${!!geminiText}, hf-fallback=${!!hfFallbackText})`);
 
     const translations = parseNumberedTranslations(generatedText, arabicLines);
 

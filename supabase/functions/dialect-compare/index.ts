@@ -131,24 +131,31 @@ IMPORTANT: Return ONLY valid JSON, no markdown formatting, no code blocks.`;
       console.warn("Gemini dialect-compare error:", response.status);
     }
 
-    // Fallback: Jais via RunPod if Gemini failed
+    // Fallback: Jais via HF Inference Endpoint if Gemini failed
     if (!content) {
-      const RUNPOD_API_KEY = Deno.env.get("RUNPOD_API_KEY");
-      if (RUNPOD_API_KEY) {
-        console.log("dialect-compare: falling back to Jais via RunPod...");
+      const HF_TOKEN = Deno.env.get("VITE_HF_TOKEN");
+      if (HF_TOKEN) {
+        console.log("dialect-compare: falling back to Jais via HF Endpoint...");
         try {
-          const jaisPrompt = `### Instruction: ${systemPrompt}\n\n### Input: ${userPrompt}\n\n### Response:`;
-          const jaisResp = await fetch("https://api.runpod.ai/v2/hqckbihez3499f/runsync", {
+          const jaisResp = await fetch("https://u1lf1x17ye91ruw5.us-east-1.aws.endpoints.huggingface.cloud/v1/chat/completions", {
             method: "POST",
             headers: {
-              "Authorization": `Bearer ${RUNPOD_API_KEY}`,
+              "Authorization": `Bearer ${HF_TOKEN}`,
               "Content-Type": "application/json",
             },
-            body: JSON.stringify({ input: { prompt: jaisPrompt } }),
+            body: JSON.stringify({
+              model: "tgi",
+              messages: [
+                { role: "system", content: systemPrompt },
+                { role: "user", content: userPrompt },
+              ],
+              temperature: 0.3,
+              max_tokens: 2048,
+            }),
           });
           if (jaisResp.ok) {
             const jaisData = await jaisResp.json();
-            content = typeof jaisData.output === "string" ? jaisData.output : jaisData.output?.text ?? "";
+            content = jaisData.choices?.[0]?.message?.content ?? "";
           }
         } catch (e) {
           console.warn("Jais dialect-compare fallback failed:", e);

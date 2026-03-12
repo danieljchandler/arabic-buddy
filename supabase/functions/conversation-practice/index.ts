@@ -76,26 +76,28 @@ serve(async (req) => {
       clearTimeout(timeout);
     }
 
-    // Fallback: Jais via RunPod if Gemini failed
+    // Fallback: Jais via HF Inference Endpoint if Gemini failed
     if (!reply) {
-      const RUNPOD_API_KEY = Deno.env.get("RUNPOD_API_KEY");
-      if (RUNPOD_API_KEY) {
-        console.log("conversation-practice: falling back to Jais via RunPod...");
+      const HF_TOKEN = Deno.env.get("VITE_HF_TOKEN");
+      if (HF_TOKEN) {
+        console.log("conversation-practice: falling back to Jais via HF Endpoint...");
         try {
-          const systemMsg = messages.find((m: any) => m.role === "system")?.content || "";
-          const userMsgs = messages.filter((m: any) => m.role !== "system").map((m: any) => `${m.role}: ${m.content}`).join("\n");
-          const jaisPrompt = `### Instruction: ${systemMsg}\n\n### Input: ${userMsgs}\n\n### Response:`;
-          const jaisResp = await fetch("https://api.runpod.ai/v2/hqckbihez3499f/runsync", {
+          const jaisResp = await fetch("https://u1lf1x17ye91ruw5.us-east-1.aws.endpoints.huggingface.cloud/v1/chat/completions", {
             method: "POST",
             headers: {
-              Authorization: `Bearer ${RUNPOD_API_KEY}`,
+              Authorization: `Bearer ${HF_TOKEN}`,
               "Content-Type": "application/json",
             },
-            body: JSON.stringify({ input: { prompt: jaisPrompt } }),
+            body: JSON.stringify({
+              model: "tgi",
+              messages,
+              temperature: 0.7,
+              max_tokens: 1024,
+            }),
           });
           if (jaisResp.ok) {
             const jaisData = await jaisResp.json();
-            reply = typeof jaisData.output === "string" ? jaisData.output : jaisData.output?.text ?? "";
+            reply = jaisData.choices?.[0]?.message?.content ?? "";
           }
         } catch (e) {
           console.warn("Jais conversation fallback failed:", e);

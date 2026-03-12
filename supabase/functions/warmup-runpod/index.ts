@@ -1,5 +1,5 @@
 /**
- * warmup-runpod — Pre-warms RunPod serverless endpoint (Jais).
+ * warmup-runpod — Pre-warms Jais HF Inference Endpoint (scaled to zero).
  *
  * Called from the Transcribe page on mount so that cold-start spin-up happens
  * *before* the user submits audio. The endpoint receives a tiny request
@@ -15,27 +15,29 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Native RunPod async /run endpoint (NOT OpenAI-compatible path)
-const RUNPOD_JAIS_RUN = 'https://api.runpod.ai/v2/hqckbihez3499f/run';
+const JAIS_HF_ENDPOINT = 'https://u1lf1x17ye91ruw5.us-east-1.aws.endpoints.huggingface.cloud/v1/chat/completions';
 
-async function warmJaisNative(apiKey: string): Promise<'ok' | 'error'> {
+async function warmJaisHF(apiKey: string): Promise<'ok' | 'error'> {
   const startMs = Date.now();
   try {
-    console.log('warmup jais: sending native /run ping...');
-    const resp = await fetch(RUNPOD_JAIS_RUN, {
+    console.log('warmup jais: sending HF endpoint ping...');
+    const resp = await fetch(JAIS_HF_ENDPOINT, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        input: { prompt: 'hi' },
+        model: 'tgi',
+        messages: [{ role: 'user', content: 'hi' }],
+        max_tokens: 1,
       }),
     });
     const elapsedSec = ((Date.now() - startMs) / 1000).toFixed(1);
     const body = await resp.text();
     console.log(`warmup jais: HTTP ${resp.status} in ${elapsedSec}s — ${body.slice(0, 200)}`);
-    return resp.ok ? 'ok' : 'error';
+    // 200 = ready, 503 = waking up (still triggers scale-up)
+    return (resp.ok || resp.status === 503) ? 'ok' : 'error';
   } catch (e) {
     const elapsedSec = ((Date.now() - startMs) / 1000).toFixed(1);
     console.warn(`warmup jais failed in ${elapsedSec}s:`, e instanceof Error ? e.message : String(e));
@@ -48,17 +50,17 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders });
   }
 
-  const RUNPOD_API_KEY = Deno.env.get('RUNPOD_API_KEY');
-  if (!RUNPOD_API_KEY) {
+  const HF_TOKEN = Deno.env.get('VITE_HF_TOKEN');
+  if (!HF_TOKEN) {
     return new Response(
-      JSON.stringify({ jais: 'skip', reason: 'RUNPOD_API_KEY not set' }),
+      JSON.stringify({ jais: 'skip', reason: 'VITE_HF_TOKEN not set' }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
     );
   }
 
-  console.log('warmup-runpod: waking Jais (native /run) endpoint...');
+  console.log('warmup-runpod: waking Jais HF Inference Endpoint...');
 
-  const jais = await warmJaisNative(RUNPOD_API_KEY);
+  const jais = await warmJaisHF(HF_TOKEN);
 
   console.log(`warmup-runpod: jais=${jais}`);
 

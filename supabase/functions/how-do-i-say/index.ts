@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const RUNPOD_JAIS_RUNSYNC = 'https://api.runpod.ai/v2/hqckbihez3499f/runsync';
+const JAIS_HF_ENDPOINT = 'https://u1lf1x17ye91ruw5.us-east-1.aws.endpoints.huggingface.cloud/v1/chat/completions';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -279,34 +279,41 @@ serve(async (req) => {
       });
     }
 
-    // Jais via RunPod native API
-    const RUNPOD_API_KEY = Deno.env.get('RUNPOD_API_KEY');
-    if (RUNPOD_API_KEY) {
-      llmsUsed.push('inceptionai/Jais-2-8B-Chat (RunPod)');
+    // Jais via HF Inference Endpoint
+    const HF_TOKEN = Deno.env.get('VITE_HF_TOKEN');
+    if (HF_TOKEN) {
+      llmsUsed.push('inceptionai/Jais-2-8B-Chat (HF)');
       calls.push({
-        label: 'jais-runpod',
+        label: 'jais-hf',
         call: (async () => {
           const controller = new AbortController();
           const timeout = setTimeout(() => controller.abort(), 45_000);
           try {
-            const prompt = `### Instruction: ${SYSTEM_PROMPT}\n\n### Input: ${userContent}\n\n### Response:`;
-            const response = await fetch(RUNPOD_JAIS_RUNSYNC, {
+            const response = await fetch(JAIS_HF_ENDPOINT, {
               method: 'POST',
               signal: controller.signal,
               headers: {
-                'Authorization': `Bearer ${RUNPOD_API_KEY}`,
+                'Authorization': `Bearer ${HF_TOKEN}`,
                 'Content-Type': 'application/json',
               },
-              body: JSON.stringify({ input: { prompt } }),
+              body: JSON.stringify({
+                model: 'tgi',
+                messages: [
+                  { role: 'system', content: SYSTEM_PROMPT },
+                  { role: 'user', content: userContent },
+                ],
+                temperature: 0.3,
+                max_tokens: 2048,
+              }),
             });
             if (!response.ok) {
-              console.warn('Jais RunPod error:', response.status);
+              console.warn('Jais HF error:', response.status);
               return null;
             }
             const data = await response.json();
-            return typeof data.output === 'string' ? data.output : data.output?.text ?? null;
+            return data.choices?.[0]?.message?.content ?? null;
           } catch (e) {
-            console.warn('Jais RunPod failed (non-fatal):', e instanceof Error ? e.message : String(e));
+            console.warn('Jais HF failed (non-fatal):', e instanceof Error ? e.message : String(e));
             return null;
           } finally {
             clearTimeout(timeout);

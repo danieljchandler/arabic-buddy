@@ -558,7 +558,72 @@ async function callRunPodModel(
   }
 }
 
-function extractJsonObject(text: string): string {
+async function callJaisHF(
+  endpoint: string,
+  systemPrompt: string,
+  userContent: string,
+  apiKey: string,
+  maxTokens = 4096,
+): Promise<{ content: string | null }> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 50_000);
+  const startMs = Date.now();
+  const MAX_RETRIES = 2;
+  const RETRY_DELAY_MS = 3_000;
+
+  try {
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      console.log(`Jais HF: attempt ${attempt}/${MAX_RETRIES}...`);
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        signal: controller.signal,
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'tgi',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userContent },
+          ],
+          max_tokens: maxTokens,
+          temperature: 0.3,
+        }),
+      });
+
+      const elapsedSec = ((Date.now() - startMs) / 1000).toFixed(1);
+
+      if (response.ok) {
+        const data = await response.json();
+        const content = data.choices?.[0]?.message?.content ?? null;
+        console.log(`Jais HF response in ${elapsedSec}s:`, content?.slice(0, 200));
+        return { content };
+      }
+
+      const errBody = await response.text().catch(() => '');
+      console.warn(`Jais HF error: HTTP ${response.status} in ${elapsedSec}s — ${errBody.slice(0, 200)}`);
+
+      if ((response.status >= 500 && response.status <= 503) && attempt < MAX_RETRIES) {
+        console.log(`Jais HF: retrying in ${RETRY_DELAY_MS / 1000}s (endpoint may be waking up)...`);
+        await new Promise(r => setTimeout(r, RETRY_DELAY_MS));
+        continue;
+      }
+
+      return { content: null };
+    }
+    return { content: null };
+  } catch (e) {
+    const elapsedSec = ((Date.now() - startMs) / 1000).toFixed(1);
+    const msg = e instanceof Error ? e.message : String(e);
+    console.warn(`Jais HF failed in ${elapsedSec}s (non-fatal): ${msg}`);
+    return { content: null };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+
   const cleaned = text
     .replace(/<think>[\s\S]*?<\/think>/gi, '')
     .replace(/```json\n?/g, '')
@@ -1157,13 +1222,13 @@ serve(async (req) => {
       console.log('Fanar LLM conjunction enabled');
     }
 
-    const RUNPOD_API_KEY = Deno.env.get('RUNPOD_API_KEY');
-    const RUNPOD_JAIS_RUNSYNC = 'https://api.runpod.ai/v2/hqckbihez3499f/runsync';
-    const jaisAvailable = Boolean(RUNPOD_API_KEY);
-    if (!RUNPOD_API_KEY) {
-      console.warn('RUNPOD_API_KEY not set — Jais will be skipped');
+    const HF_TOKEN = Deno.env.get('VITE_HF_TOKEN');
+    const JAIS_HF_ENDPOINT = 'https://u1lf1x17ye91ruw5.us-east-1.aws.endpoints.huggingface.cloud/v1/chat/completions';
+    const jaisAvailable = Boolean(HF_TOKEN);
+    if (!HF_TOKEN) {
+      console.warn('VITE_HF_TOKEN not set — Jais will be skipped');
     } else {
-      console.log('RunPod available — Jais will run in parallel enrichment');
+      console.log('HF Endpoint available — Jais will run in parallel enrichment');
     }
 
      let partial = false;
@@ -1343,20 +1408,20 @@ serve(async (req) => {
              return { content: null } as { content: string | null };
            })
          : Promise.resolve({ content: null } as { content: string | null }),
-       // Jais meta enrichment via RunPod — wrapped in 45s Promise.race so cold starts can't stall the pipeline
+       // Jais meta enrichment via HF Endpoint — wrapped in 45s Promise.race so cold starts can't stall the pipeline
        jaisAvailable
-         ? (console.log('Jais meta enrichment: FIRING via RunPod (45s race)...'),
+         ? (console.log('Jais meta enrichment: FIRING via HF Endpoint (45s race)...'),
             Promise.race([
-              callRunPodModel(RUNPOD_JAIS_RUNSYNC, 'inceptionai/Jais-2-8B-Chat', getMetaSystemPrompt(true), mergedTranscriptText, RUNPOD_API_KEY!, 2048, true).catch((e) => {
+              callJaisHF(JAIS_HF_ENDPOINT, getMetaSystemPrompt(true), mergedTranscriptText, HF_TOKEN!, 2048).catch((e) => {
                 console.warn('Jais meta enrichment failed (non-blocking):', e instanceof Error ? e.message : String(e));
                 return { content: null } as { content: string | null };
               }),
               new Promise<{ content: string | null }>(resolve => setTimeout(() => {
-                console.warn('RunPod Jais: timed out at 45s, skipping');
+                console.warn('Jais HF: timed out at 45s, skipping');
                 resolve({ content: null });
               }, 45_000)),
             ]))
-         : (console.log('Jais meta enrichment: SKIPPED (no RUNPOD_API_KEY)'),
+         : (console.log('Jais meta enrichment: SKIPPED (no VITE_HF_TOKEN)'),
             Promise.resolve({ content: null } as { content: string | null })),
        // Falcon removed — endpoint consistently returns HTTP 500 / timeouts
        // CAMeL-Lab BERT dialect ID — validates/confirms the LLM-detected dialect.
@@ -1426,24 +1491,22 @@ serve(async (req) => {
        }
      }
 
-      // --- Fallback: Jais via RunPod if both Gemini and Qwen failed (45s race) ---
+      // --- Fallback: Jais via HF Endpoint if both Gemini and Qwen failed (45s race) ---
       if ((!translationAi?.translations || translationAi.translations.length === 0) && jaisAvailable) {
-        console.log('Qwen translation failed or empty, falling back to Jais via RunPod for translation (45s race)...');
+        console.log('Qwen translation failed or empty, falling back to Jais via HF Endpoint for translation (45s race)...');
         const jaisTransResp = await Promise.race([
-          callRunPodModel(
-            RUNPOD_JAIS_RUNSYNC,
-            'inceptionai/Jais-2-8B-Chat',
+          callJaisHF(
+            JAIS_HF_ENDPOINT,
             getTranslationSystemPrompt(detectedDialect, visualContext, sonioxTranslation),
             mergedTranscriptText,
-            RUNPOD_API_KEY!,
+            HF_TOKEN!,
             4096,
-            true, // native
           ).catch((e) => {
-            console.warn('Jais RunPod translation fallback failed (non-blocking):', e);
+            console.warn('Jais HF translation fallback failed (non-blocking):', e);
             return { content: null };
           }),
           new Promise<{ content: string | null }>(resolve => setTimeout(() => {
-            console.warn('RunPod Jais translation fallback: timed out at 45s');
+            console.warn('Jais HF translation fallback: timed out at 45s');
             resolve({ content: null });
           }, 45_000)),
         ]);

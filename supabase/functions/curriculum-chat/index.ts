@@ -18,8 +18,7 @@ interface ModelConfig {
   native?: boolean; // true = native RunPod /runsync API
 }
 
-const RUNPOD_JAIS_RUNSYNC = "https://api.runpod.ai/v2/hqckbihez3499f/runsync";
-const RUNPOD_FALCON_ENDPOINT = "https://api.runpod.ai/v2/owodjrizyv47m0/openai/v1/chat/completions";
+const JAIS_HF_ENDPOINT = "https://u1lf1x17ye91ruw5.us-east-1.aws.endpoints.huggingface.cloud/v1/chat/completions";
 
 const MODEL_REGISTRY: Record<string, ModelConfig> = {
   "google/gemini-2.5-flash": {
@@ -44,15 +43,9 @@ const MODEL_REGISTRY: Record<string, ModelConfig> = {
     isFanar: true,
   },
   "jais-hf": {
-    endpoint: RUNPOD_JAIS_RUNSYNC,
-    model: "inceptionai/Jais-2-8B-Chat",
-    keyEnv: "RUNPOD_API_KEY",
-    native: true,
-  },
-  "falcon-h1r": {
-    endpoint: RUNPOD_FALCON_ENDPOINT,
-    model: "tiiuae/Falcon-H1R-7B",
-    keyEnv: "RUNPOD_API_KEY",
+    endpoint: JAIS_HF_ENDPOINT,
+    model: "tgi",
+    keyEnv: "VITE_HF_TOKEN",
   },
 };
 

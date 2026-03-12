@@ -38,6 +38,7 @@ interface TrendingCandidate {
   rejection_reason: string | null;
   region_code: string | null;
   duration_seconds: number | null;
+  dismissed: boolean | null;
 }
 
 const REGION_LABELS: Record<string, { flag: string; name: string }> = {
@@ -86,6 +87,7 @@ const TrendingVideos = () => {
       let query = supabase
         .from('trending_video_candidates')
         .select('*')
+        .eq('dismissed', false)
         .order('trending_score', { ascending: false });
 
       if (filter === 'new') {
@@ -142,11 +144,12 @@ const TrendingVideos = () => {
         duration_seconds: (c.duration_seconds as number | null) ?? null,
       }));
 
-      // Step 2: save to DB using the Supabase JS client (handles upsert correctly)
+      // Step 2: save to DB — only INSERT new video IDs, never overwrite existing records.
+      // ignoreDuplicates ensures rejected/dismissed videos are not resurrected on re-fetch.
       if (rows.length > 0) {
         const { error: upsertError } = await supabase
           .from('trending_video_candidates')
-          .upsert(rows as any, { onConflict: 'platform,video_id' });
+          .upsert(rows as any, { onConflict: 'platform,video_id', ignoreDuplicates: true });
         if (upsertError) throw upsertError;
       }
 
@@ -251,15 +254,18 @@ const TrendingVideos = () => {
   });
 
   const deleteMutation = useMutation({
+    // Soft-delete: mark as dismissed rather than physically removing the row.
+    // Keeping the row means the video_id stays in the unique index, so future
+    // "Fetch Trending" calls cannot re-insert the same video as a new candidate.
     mutationFn: async (id: string) => {
       const { error } = await supabase
         .from('trending_video_candidates')
-        .delete()
+        .update({ dismissed: true })
         .eq('id', id);
       if (error) throw error;
     },
     onSuccess: () => {
-      toast({ title: 'Candidate deleted' });
+      toast({ title: 'Video dismissed — won\'t appear again' });
       qc.invalidateQueries({ queryKey: ['trending-candidates'] });
     },
   });

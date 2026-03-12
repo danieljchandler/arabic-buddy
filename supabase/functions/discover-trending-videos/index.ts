@@ -97,6 +97,21 @@ const MAX_PER_REGION = 5;
 // YouTube Shorts are 60 seconds or less
 const MAX_SHORTS_DURATION = 60;
 
+// Creators consistently tag actual Shorts with #shorts in title or description.
+// This ensures we only surface real Shorts, not just any short-duration video.
+// Arabic creators also use #شورتس, #قصير, or #شورت.
+function isYouTubeShort(title: string, description: string): boolean {
+  const combined = title + ' ' + description;
+  const lower = combined.toLowerCase();
+  return (
+    lower.includes('#shorts') ||
+    lower.includes('# shorts') ||
+    combined.includes('#شورتس') ||
+    combined.includes('#شورت') ||
+    combined.includes('#قصير')
+  );
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -219,9 +234,15 @@ async function fetchRegion(region: string): Promise<RegionResult> {
       continue;
     }
 
-    // Shorts-only filter: must be 60 seconds or less
+    // Shorts-only filter: must be 60 seconds or less AND tagged with #shorts.
+    // The mostPopular chart includes all video types; the #shorts tag is the
+    // reliable signal that creators use to upload proper vertical Shorts content.
     const durationSeconds = parseDuration(video.contentDetails?.duration);
     if (durationSeconds <= 0 || durationSeconds > MAX_SHORTS_DURATION) {
+      skipped++;
+      continue;
+    }
+    if (!isYouTubeShort(title, description)) {
       skipped++;
       continue;
     }

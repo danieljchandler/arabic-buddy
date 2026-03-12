@@ -1426,24 +1426,22 @@ serve(async (req) => {
        }
      }
 
-      // --- Fallback: Jais via RunPod if both Gemini and Qwen failed (45s race) ---
+      // --- Fallback: Jais via HF Endpoint if both Gemini and Qwen failed (45s race) ---
       if ((!translationAi?.translations || translationAi.translations.length === 0) && jaisAvailable) {
-        console.log('Qwen translation failed or empty, falling back to Jais via RunPod for translation (45s race)...');
+        console.log('Qwen translation failed or empty, falling back to Jais via HF Endpoint for translation (45s race)...');
         const jaisTransResp = await Promise.race([
-          callRunPodModel(
-            RUNPOD_JAIS_RUNSYNC,
-            'inceptionai/Jais-2-8B-Chat',
+          callJaisHF(
+            JAIS_HF_ENDPOINT,
             getTranslationSystemPrompt(detectedDialect, visualContext, sonioxTranslation),
             mergedTranscriptText,
-            RUNPOD_API_KEY!,
+            HF_TOKEN!,
             4096,
-            true, // native
           ).catch((e) => {
-            console.warn('Jais RunPod translation fallback failed (non-blocking):', e);
+            console.warn('Jais HF translation fallback failed (non-blocking):', e);
             return { content: null };
           }),
           new Promise<{ content: string | null }>(resolve => setTimeout(() => {
-            console.warn('RunPod Jais translation fallback: timed out at 45s');
+            console.warn('Jais HF translation fallback: timed out at 45s');
             resolve({ content: null });
           }, 45_000)),
         ]);

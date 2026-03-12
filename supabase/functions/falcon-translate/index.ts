@@ -168,7 +168,7 @@ serve(async (req) => {
       );
     }
 
-    const RUNPOD_API_KEY = Deno.env.get('RUNPOD_API_KEY');
+    const HF_TOKEN = Deno.env.get('VITE_HF_TOKEN');
 
     console.log(`falcon-translate: processing ${arabicLines.length} lines`);
 
@@ -181,20 +181,40 @@ serve(async (req) => {
 
     let generatedText = qwenText ?? geminiText ?? '';
 
-    // Fallback to RunPod Jais then Falcon if OpenRouter calls both fail
-    if (!generatedText && RUNPOD_API_KEY) {
-      console.log('OpenRouter failed, trying Jais via RunPod...');
-      generatedText = await callRunPodTranslate(RUNPOD_JAIS_RUNSYNC, 'inceptionai/Jais-2-8B-Chat', numberedLines, RUNPOD_API_KEY, true)
-        .catch((e) => { console.warn('Jais RunPod fallback failed:', e); return null; }) ?? '';
-
-      if (!generatedText) {
-        console.log('Jais RunPod failed, trying Falcon via RunPod...');
-        generatedText = await callRunPodTranslate(RUNPOD_FALCON_ENDPOINT, 'tiiuae/Falcon-H1R-7B', numberedLines, RUNPOD_API_KEY)
-          .catch((e) => { console.warn('Falcon RunPod fallback failed:', e); return null; }) ?? '';
+    // Fallback to Jais via HF Endpoint if OpenRouter calls both fail
+    if (!generatedText && HF_TOKEN) {
+      console.log('OpenRouter failed, trying Jais via HF Endpoint...');
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 90_000);
+        const resp = await fetch(JAIS_HF_ENDPOINT, {
+          method: 'POST',
+          signal: controller.signal,
+          headers: {
+            'Authorization': `Bearer ${HF_TOKEN}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'tgi',
+            messages: [
+              { role: 'system', content: 'You are an expert translator specializing in Gulf Arabic (Khaliji) dialect. Translate each numbered Arabic line to natural English. Return ONLY the translations, numbered to match. No commentary.' },
+              { role: 'user', content: `Translate these Gulf Arabic lines to English:\n\n${numberedLines}` },
+            ],
+            temperature: 0.3,
+            max_tokens: 4096,
+          }),
+        });
+        clearTimeout(timeout);
+        if (resp.ok) {
+          const data = await resp.json();
+          generatedText = data.choices?.[0]?.message?.content ?? '';
+        }
+      } catch (e) {
+        console.warn('Jais HF fallback failed:', e instanceof Error ? e.message : String(e));
       }
     }
 
-    const runpodFallbackText = generatedText && !qwenText && !geminiText ? generatedText : null;
+    const hfFallbackText = generatedText && !qwenText && !geminiText ? generatedText : null;
 
     if (!generatedText) {
       console.error('All translation models returned empty content');

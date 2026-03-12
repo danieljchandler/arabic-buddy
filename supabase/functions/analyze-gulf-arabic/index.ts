@@ -1157,13 +1157,13 @@ serve(async (req) => {
       console.log('Fanar LLM conjunction enabled');
     }
 
-    const RUNPOD_API_KEY = Deno.env.get('RUNPOD_API_KEY');
-    const RUNPOD_JAIS_RUNSYNC = 'https://api.runpod.ai/v2/hqckbihez3499f/runsync';
-    const jaisAvailable = Boolean(RUNPOD_API_KEY);
-    if (!RUNPOD_API_KEY) {
-      console.warn('RUNPOD_API_KEY not set — Jais will be skipped');
+    const HF_TOKEN = Deno.env.get('VITE_HF_TOKEN');
+    const JAIS_HF_ENDPOINT = 'https://u1lf1x17ye91ruw5.us-east-1.aws.endpoints.huggingface.cloud/v1/chat/completions';
+    const jaisAvailable = Boolean(HF_TOKEN);
+    if (!HF_TOKEN) {
+      console.warn('VITE_HF_TOKEN not set — Jais will be skipped');
     } else {
-      console.log('RunPod available — Jais will run in parallel enrichment');
+      console.log('HF Endpoint available — Jais will run in parallel enrichment');
     }
 
      let partial = false;

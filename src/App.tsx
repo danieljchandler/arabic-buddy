@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { toast } from "sonner";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { TranscriptionJobProvider } from "@/contexts/TranscriptionJobContext";
 import Index from "./pages/Index";
 import Learn from "./pages/Learn";
 import NotFound from "./pages/NotFound";
@@ -131,6 +132,7 @@ const App = () => {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <TranscriptionJobProvider>
       <TooltipProvider>
         <Toaster />
         <Sonner />
@@ -298,6 +300,7 @@ const App = () => {
           </Routes>
         </BrowserRouter>
       </TooltipProvider>
+      </TranscriptionJobProvider>
     </QueryClientProvider>
   );
 };

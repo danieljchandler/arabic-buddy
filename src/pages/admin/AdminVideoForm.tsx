@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useDiscoverVideo } from "@/hooks/useDiscoverVideos";
 import { extractTikTokVideoId, parseVideoUrl, getYouTubeThumbnail } from "@/lib/videoEmbed";
-import { extractFramesWithTimestamps } from "@/lib/videoFrameExtractor";
+import { useTranscriptionJob } from "@/contexts/TranscriptionJobContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -51,7 +51,8 @@ const AdminVideoForm = () => {
   const [vocabulary, setVocabulary] = useState<any[]>([]);
   const [grammarPoints, setGrammarPoints] = useState<any[]>([]);
 
-  const [isProcessing, setIsProcessing] = useState(false);
+  const { job, startJob, consumeResult } = useTranscriptionJob();
+  const isProcessing = job?.status === "running";
   const [isSaving, setIsSaving] = useState(false);
 
   // Time range selection (no limit for admin discover videos)
@@ -117,6 +118,23 @@ const AdminVideoForm = () => {
       setGrammarPoints(((existingVideo.grammar_points as any[]) ?? []) as any[]);
     }
   }, [existingVideo]);
+
+  // Apply background transcription result when the form mounts or a job completes
+  useEffect(() => {
+    const result = consumeResult(videoId);
+    if (!result) return;
+    setTranscriptLines(result.transcriptLines);
+    setVocabulary(result.vocabulary);
+    setGrammarPoints(result.grammarPoints);
+    setCulturalContext(result.culturalContext);
+    if (result.dialect) setDialect(result.dialect);
+    if (result.difficulty) setDifficulty(result.difficulty);
+    if (!title && result.title) setTitle(result.title);
+    if (!titleArabic && result.titleArabic) setTitleArabic(result.titleArabic);
+    toast.success("Transcription results applied!", {
+      description: `${result.transcriptLines.length} segments, ${result.vocabulary.length} vocab items`,
+    });
+  }, [job?.status]); // re-run when job status changes so we catch completions while on this page
 
   const handleUrlParse = async () => {
     // Check if it's a TikTok URL first (including short URLs)
@@ -228,7 +246,7 @@ const AdminVideoForm = () => {
         setMediaDuration(dur);
         setTimeRange([0, dur]);
       }
-      toast.success("Audio downloaded! Starting transcription...");
+      toast.success("Audio downloaded! Starting transcription in background…");
     } catch (err) {
       console.error("Download error:", err);
       toast.error("Download failed — use 'Upload File' instead", {
@@ -238,7 +256,14 @@ const AdminVideoForm = () => {
     } finally {
       setIsDownloading(false);
     }
-    if (downloadedFile) await handleProcess(downloadedFile);
+    if (downloadedFile) {
+      startJob({
+        audioFile: downloadedFile,
+        timeRange,
+        mediaDuration,
+        videoId,
+      });
+    }
   };
 
   const handleDownloadAudio = async () => {
@@ -288,338 +313,6 @@ const AdminVideoForm = () => {
       });
     } finally {
       setIsDownloading(false);
-    }
-  };
-
-  const handleProcess = async (fileOverride?: File) => {
-    const targetFile = fileOverride ?? audioFile;
-    if (!targetFile) {
-      toast.error("Download audio first");
-      return;
-    }
-    setIsProcessing(true);
-
-    try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      const projectUrl = import.meta.env.VITE_SUPABASE_URL;
-      const authHeaders = { Authorization: `Bearer ${session?.access_token}` };
-
-      // Start visual analysis in parallel if the file is a video
-      const isVideoFile = targetFile.type.startsWith("video/");
-      const visualPromise = isVideoFile
-        ? (async () => {
-            try {
-              const frames = await extractFramesWithTimestamps(targetFile, 4, 12, 640);
-              const { data, error } = await supabase.functions.invoke("extract-visual-context", {
-                body: { frames, audioDuration: mediaDuration ?? undefined },
-              });
-              if (error || !data?.success) return null;
-              return data.result;
-            } catch (err) {
-              console.warn("Visual analysis failed (non-blocking):", err);
-              return null;
-            }
-          })()
-        : Promise.resolve(null);
-
-      // Run all ASR engines in parallel
-      toast.info("Transcribing with Deepgram, Fanar & Soniox...");
-
-      const munsitFormData = new FormData();
-      munsitFormData.append("audio", targetFile);
-      const munsitPromise = fetch(`${projectUrl}/functions/v1/munsit-transcribe`, {
-        method: "POST",
-        headers: authHeaders,
-        body: munsitFormData,
-        signal: AbortSignal.timeout(300000),
-      }).then(async (res) => {
-        const body = await res.json().catch(() => ({}));
-        if (!res.ok && !body.text) throw new Error(body.error || `Munsit HTTP ${res.status}`);
-        return body as { text?: string | null; error?: string };
-      });
-
-      const deepgramFormData = new FormData();
-      deepgramFormData.append("file", targetFile);
-      const deepgramPromise = fetch(`${projectUrl}/functions/v1/deepgram-transcribe`, {
-        method: "POST",
-        headers: authHeaders,
-        body: deepgramFormData,
-        signal: AbortSignal.timeout(300000),
-      }).then(async (res) => {
-        if (!res.ok) throw new Error(`Deepgram HTTP ${res.status}`);
-        return res.json();
-      });
-
-      const fanarFormData = new FormData();
-      fanarFormData.append("audio", targetFile);
-      const fanarPromise = fetch(`${projectUrl}/functions/v1/fanar-transcribe`, {
-        method: "POST",
-        headers: authHeaders,
-        body: fanarFormData,
-        signal: AbortSignal.timeout(300000),
-      }).then(async (res) => {
-        const body = await res.json().catch(() => ({}));
-        if (!res.ok && !body.text) throw new Error(body.error || `Fanar HTTP ${res.status}`);
-        return body as { text?: string | null; reason?: string };
-      });
-
-      const sonioxFormData = new FormData();
-      sonioxFormData.append("audio", new File([targetFile], targetFile.name, { type: targetFile.type }));
-      sonioxFormData.append("includeTranslation", "true");
-      const sonioxPromise = fetch(`${projectUrl}/functions/v1/soniox-transcribe`, {
-        method: "POST",
-        headers: authHeaders,
-        body: sonioxFormData,
-        signal: AbortSignal.timeout(300000),
-      }).then(async (res) => {
-        const body = await res.json().catch(() => ({}));
-        if (!res.ok && !body.text) throw new Error(body.error || `Soniox HTTP ${res.status}`);
-        return body as { text?: string | null; sonioxUsed?: boolean; reason?: string; translationText?: string | null };
-      });
-
-      const [munsitResult, deepgramResult, fanarResult, sonioxResult, visualResult] = await Promise.allSettled([
-        munsitPromise,
-        deepgramPromise,
-        fanarPromise,
-        sonioxPromise,
-        visualPromise,
-      ]);
-
-      // Extract texts from each engine
-      const munsitText = munsitResult.status === "fulfilled" ? (munsitResult.value.text || "") : "";
-      const deepgramData = deepgramResult.status === "fulfilled" ? deepgramResult.value : null;
-      const deepgramText = deepgramData?.text || "";
-      const fanarText = fanarResult.status === "fulfilled" ? (fanarResult.value.text || "") : "";
-      const sonioxText = sonioxResult.status === "fulfilled" && sonioxResult.value.sonioxUsed ? (sonioxResult.value.text || "") : "";
-
-      // Log results
-      if (munsitResult.status === "rejected") console.warn("Munsit failed:", munsitResult.reason);
-      else if (munsitResult.status === "fulfilled" && !munsitResult.value.text && munsitResult.value.error) {
-        console.warn("Munsit failed (non-blocking):", munsitResult.value.error);
-      }
-      if (deepgramResult.status === "rejected") console.warn("Deepgram failed:", deepgramResult.reason);
-      if (fanarResult.status === "rejected") console.warn("Fanar failed:", fanarResult.reason);
-      else if (fanarResult.status === "fulfilled" && !fanarResult.value.text && fanarResult.value.reason) {
-        console.log(`Fanar excluded: ${fanarResult.value.reason}`);
-      }
-      if (sonioxResult.status === "rejected") console.warn("Soniox failed:", sonioxResult.reason);
-      else if (sonioxResult.status === "fulfilled" && !sonioxResult.value.sonioxUsed) {
-        console.log(`Soniox excluded: ${sonioxResult.value.reason || 'not used'}`);
-      }
-
-      const engines: string[] = [];
-      if (munsitText) engines.push("Munsit");
-      if (deepgramText) engines.push("Deepgram");
-      if (fanarText) engines.push("Fanar");
-      if (sonioxText) engines.push("Soniox");
-
-      if (engines.length === 0) {
-        throw new Error("All transcription engines failed. Please try again.");
-      }
-
-      toast.info(`Got transcriptions from: ${engines.join(", ")}. Analyzing...`);
-
-      // Use Deepgram as the primary transcript (has word-level timestamps).
-      // Fall back to Munsit or Fanar if Deepgram failed.
-      const primaryText = deepgramText || munsitText || fanarText;
-
-      // Filter Deepgram words by selected time range for timestamp mapping
-      let relativeWords: any[] = [];
-      let filteredPrimaryText = primaryText;
-
-      if (deepgramData?.words && deepgramData.words.length > 0) {
-        const [startSec, endSec] = timeRange;
-        let filteredWords = deepgramData.words;
-
-        if (startSec > 0 || endSec < (mediaDuration || Infinity)) {
-          filteredWords = filteredWords.filter((w: any) => w.start >= startSec && w.end <= endSec);
-          filteredPrimaryText = filteredWords.map((w: any) => w.text).join(" ") || primaryText;
-        }
-
-        const clipOffsetSec = Math.max(0, startSec);
-        relativeWords = filteredWords.map((w: any) => ({
-          ...w,
-          start: Math.max(0, w.start - clipOffsetSec),
-          end: Math.max(0, w.end - clipOffsetSec),
-        }));
-      }
-
-      // Extract visual context result (non-blocking — undefined if failed or not a video)
-      const visualContextData = visualResult.status === "fulfilled" ? visualResult.value : null;
-      if (visualContextData) {
-        const segmentCount = visualContextData.onScreenTextSegments?.length ?? 0;
-        toast.info(`Visual analysis complete — ${segmentCount} on-screen text segment${segmentCount !== 1 ? "s" : ""} detected`);
-      }
-
-      // Build a compact visual context string to pass to the translation model
-      const visualContextStr = visualContextData
-        ? (() => {
-            const parts: string[] = [];
-            if (visualContextData.sceneContext) parts.push(`Scene: ${visualContextData.sceneContext}`);
-            if (visualContextData.culturalContext) parts.push(visualContextData.culturalContext);
-            if (visualContextData.onScreenTextSegments?.length > 0) {
-              const texts = visualContextData.onScreenTextSegments.map((s: any) => s.text).join("; ");
-              parts.push(`On-screen text: ${texts}`);
-            }
-            if (visualContextData.detectedDialectCues?.length > 0) {
-              parts.push(`Visual dialect cues: ${visualContextData.detectedDialectCues.join(", ")}`);
-            }
-            return parts.join(". ");
-          })()
-        : undefined;
-
-      // Send all available transcripts to the analysis function for intelligent merging
-      const analyzeBody: Record<string, string> = { transcript: filteredPrimaryText };
-      if (munsitText && munsitText !== filteredPrimaryText) {
-        analyzeBody.munsitTranscript = munsitText;
-      }
-      if (fanarText) {
-        analyzeBody.fanarTranscript = fanarText;
-      }
-      if (sonioxText) {
-        analyzeBody.sonioxTranscript = sonioxText;
-      }
-      // Pass Soniox translation as an additional reference for the analysis
-      const sonioxTranslation = sonioxResult.status === "fulfilled" ? sonioxResult.value.translationText : null;
-      if (sonioxTranslation) {
-        analyzeBody.sonioxTranslation = sonioxTranslation;
-      }
-      if (visualContextStr) {
-        analyzeBody.visualContext = visualContextStr;
-      }
-
-      toast.info("Analyzing transcript...");
-
-      // Use direct fetch with 5-minute timeout to avoid client-side abort on long-running analysis
-      const analyzeController = new AbortController();
-      const analyzeTimeout = setTimeout(() => analyzeController.abort(), 300_000); // 5 min
-      try {
-        const analyzeResp = await fetch(
-          `${projectUrl}/functions/v1/analyze-gulf-arabic`,
-          {
-            method: "POST",
-            signal: analyzeController.signal,
-            headers: {
-              ...authHeaders,
-              "Content-Type": "application/json",
-              apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            },
-            body: JSON.stringify(analyzeBody),
-          }
-        );
-        if (!analyzeResp.ok) {
-          const errBody = await analyzeResp.text().catch(() => "");
-          throw new Error(`Analysis HTTP ${analyzeResp.status}: ${errBody.slice(0, 200)}`);
-        }
-        var analyzeData = await analyzeResp.json();
-      } finally {
-        clearTimeout(analyzeTimeout);
-      }
-      if (!analyzeData?.success) throw new Error(analyzeData?.error || "Analysis failed");
-
-      const result = analyzeData.result;
-
-      // Map timestamps to lines if available
-      let lines = result.lines || [];
-      if (relativeWords.length > 0 && lines.length > 0) {
-        const words = relativeWords;
-        let wordIdx = 0;
-        lines = lines.map((line: any) => {
-          const lineWords = line.arabic?.split(/\s+/).filter(Boolean) || [];
-          let startMs: number | undefined;
-          let endMs: number | undefined;
-
-          for (const _lw of lineWords) {
-            if (wordIdx < words.length) {
-              if (startMs === undefined) startMs = Math.round(words[wordIdx].start * 1000);
-              endMs = Math.round(words[wordIdx].end * 1000);
-              wordIdx++;
-            }
-          }
-
-          return { ...line, startMs, endMs };
-        });
-      }
-
-      // Merge on-screen text segments as text_overlay lines
-      let mergedLines = lines;
-      if (visualContextData?.onScreenTextSegments?.length > 0) {
-        const overlayLines: TranscriptLine[] = visualContextData.onScreenTextSegments.map(
-          (seg: any, idx: number) => ({
-            id: `overlay-${idx}-${Date.now()}`,
-            arabic: String(seg.text ?? ""),
-            translation: String(seg.translation ?? ""),
-            tokens: String(seg.text ?? "").split(/\s+/).filter(Boolean).map((w: string, wi: number) => ({
-              id: `otok-${idx}-${wi}`,
-              surface: w,
-            })),
-            startMs: typeof seg.startSeconds === "number" ? Math.round(seg.startSeconds * 1000) : undefined,
-            endMs: typeof seg.endSeconds === "number" ? Math.round(seg.endSeconds * 1000) : undefined,
-            segmentType: "text_overlay" as const,
-          })
-        );
-        // Interleave overlay lines with audio lines ordered by startMs
-        const allLines = [...mergedLines, ...overlayLines].sort((a, b) => {
-          const aMs = a.startMs ?? Infinity;
-          const bMs = b.startMs ?? Infinity;
-          return aMs - bMs;
-        });
-        mergedLines = allLines;
-      }
-
-      // Ensure every line has a valid tokens array (guards against API returning lines without tokens)
-      const sanitizedLines = mergedLines.map((line: any) => ({
-        ...line,
-        tokens: Array.isArray(line.tokens)
-          ? line.tokens
-          : String(line.arabic ?? "").split(/\s+/).filter(Boolean).map((w: string, wi: number) => ({
-              id: `tok-${line.id ?? wi}-${wi}`,
-              surface: w,
-            })),
-      }));
-      setTranscriptLines(sanitizedLines);
-      setVocabulary(result.vocabulary || []);
-      setGrammarPoints(result.grammarPoints || []);
-      // Merge visual cultural context with audio analysis cultural context
-      const audioCulturalContext = result.culturalContext || "";
-      const visualCulturalNote = visualContextData?.culturalContext
-        ? (audioCulturalContext ? `${audioCulturalContext}\n\nVisual context: ${visualContextData.culturalContext}` : visualContextData.culturalContext)
-        : audioCulturalContext;
-      setCulturalContext(visualCulturalNote);
-
-      // Auto-populate dialect + difficulty from AI detection
-      if (result.dialect) setDialect(result.dialect);
-      if (result.difficulty) setDifficulty(result.difficulty);
-      if (result.dialect || result.difficulty) {
-        toast.info(
-          `Auto-detected: ${result.dialect || "Gulf"} dialect · ${result.difficulty || "Intermediate"} difficulty`,
-          { duration: 4000 }
-        );
-      }
-
-      // Auto-populate title if empty
-      if (!title && result.title) {
-        setTitle(result.title);
-      }
-      if (!titleArabic && result.titleArabic) {
-        setTitleArabic(result.titleArabic);
-      }
-
-      // Duration already set during download step
-
-      const overlayCount = visualContextData?.onScreenTextSegments?.length ?? 0;
-      toast.success("Processing complete!", {
-        description: `${mergedLines.length} segments from ${engines.length} engine${engines.length > 1 ? "s" : ""}${overlayCount > 0 ? `, ${overlayCount} screen text overlay${overlayCount !== 1 ? "s" : ""}` : ""}, ${(result.vocabulary || []).length} vocab items`,
-      });
-    } catch (err) {
-      console.error("Processing error:", err);
-      toast.error("Processing failed", {
-        description: err instanceof Error ? err.message : "Unknown error",
-      });
-    } finally {
-      setIsProcessing(false);
     }
   };
 
@@ -825,7 +518,7 @@ const AdminVideoForm = () => {
                     {isDownloading ? (
                       <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Downloading...</>
                     ) : isProcessing ? (
-                      <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Transcribing...</>
+                      <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Running in background…</>
                     ) : (
                       <><Download className="h-4 w-4 mr-2" />{isEditing ? "Download & Re-transcribe" : "Download Audio and Transcribe"}</>
                     )}
@@ -861,8 +554,19 @@ const AdminVideoForm = () => {
                 {mediaDuration && mediaDuration > 0 && (
                   <TimeRangeSelector duration={mediaDuration} maxRange={mediaDuration} value={timeRange} onChange={setTimeRange} />
                 )}
-                <Button onClick={() => handleProcess()} disabled={isProcessing} className="w-full">
-                  {isProcessing ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Processing...</> : <><Sparkles className="h-4 w-4 mr-2" />Transcribe & Analyze</>}
+                <Button
+                  onClick={() => {
+                    if (!audioFile) return;
+                    startJob({ audioFile, timeRange, mediaDuration, videoId });
+                  }}
+                  disabled={isProcessing}
+                  className="w-full"
+                >
+                  {isProcessing ? (
+                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Running in background — you can navigate away</>
+                  ) : (
+                    <><Sparkles className="h-4 w-4 mr-2" />Transcribe & Analyze</>
+                  )}
                 </Button>
               </div>
             )}

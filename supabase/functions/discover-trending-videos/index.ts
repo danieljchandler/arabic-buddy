@@ -94,9 +94,8 @@ interface VideoCandidate {
 // Max videos to keep per Gulf country after filtering
 const MAX_PER_REGION = 5;
 
-// Duration limits: skip very short clips (Shorts/ads) and very long ones (full films)
-const MIN_DURATION_SECONDS = 60;
-const MAX_DURATION_SECONDS = 3600;
+// YouTube Shorts are 60 seconds or less
+const MAX_SHORTS_DURATION = 60;
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -111,7 +110,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    console.log('Starting discovery of trending Gulf Arabic videos...');
+    console.log('Starting discovery of trending Gulf Arabic YouTube Shorts...');
 
     // Fetch all regions in parallel — much faster than sequential and avoids timeout
     const regionSettled = await Promise.allSettled(
@@ -176,7 +175,7 @@ async function fetchRegion(region: string): Promise<RegionResult> {
     `&chart=mostPopular` +
     `&regionCode=${region}` +
     `&hl=ar` +
-    `&maxResults=25` +
+    `&maxResults=50` +
     `&key=${YOUTUBE_API_KEY}`;
 
   const response = await fetch(url);
@@ -220,9 +219,9 @@ async function fetchRegion(region: string): Promise<RegionResult> {
       continue;
     }
 
-    // Duration filter: skip Shorts (< 60s) and full films (> 60min)
+    // Shorts-only filter: must be 60 seconds or less
     const durationSeconds = parseDuration(video.contentDetails?.duration);
-    if (durationSeconds > 0 && (durationSeconds < MIN_DURATION_SECONDS || durationSeconds > MAX_DURATION_SECONDS)) {
+    if (durationSeconds <= 0 || durationSeconds > MAX_SHORTS_DURATION) {
       skipped++;
       continue;
     }
@@ -247,7 +246,7 @@ async function fetchRegion(region: string): Promise<RegionResult> {
     candidates.push({
       video_id: video.id,
       platform: 'youtube',
-      url: `https://www.youtube.com/watch?v=${video.id}`,
+      url: `https://www.youtube.com/shorts/${video.id}`,
       title,
       creator_name: video.snippet.channelTitle,
       creator_handle: video.snippet.channelId,

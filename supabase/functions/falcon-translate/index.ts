@@ -224,7 +224,7 @@ serve(async (req) => {
       );
     }
 
-    console.log(`falcon-translate: response length=${generatedText.length} (qwen=${!!qwenText}, gemini=${!!geminiText}, runpod-fallback=${!!runpodFallbackText})`);
+    console.log(`falcon-translate: response length=${generatedText.length} (qwen=${!!qwenText}, gemini=${!!geminiText}, hf-fallback=${!!hfFallbackText})`);
 
     const translations = parseNumberedTranslations(generatedText, arabicLines);
 

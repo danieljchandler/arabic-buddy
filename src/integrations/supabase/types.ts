@@ -1011,6 +1011,7 @@ export type Database = {
           creator_name: string
           detected_topic: string | null
           discovered_at: string | null
+          dismissed: boolean | null
           duration_seconds: number | null
           id: string
           platform: string
@@ -1032,6 +1033,7 @@ export type Database = {
           creator_name: string
           detected_topic?: string | null
           discovered_at?: string | null
+          dismissed?: boolean | null
           duration_seconds?: number | null
           id?: string
           platform: string
@@ -1053,6 +1055,7 @@ export type Database = {
           creator_name?: string
           detected_topic?: string | null
           discovered_at?: string | null
+          dismissed?: boolean | null
           duration_seconds?: number | null
           id?: string
           platform?: string

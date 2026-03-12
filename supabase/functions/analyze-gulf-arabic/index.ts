@@ -1513,7 +1513,7 @@ serve(async (req) => {
         if (jaisTransResp.content) {
           translationAi = safeJsonParse<TranslationAI>(jaisTransResp.content);
           if (translationAi?.translations) {
-            console.log('Jais RunPod translation fallback: parsed', translationAi.translations.length, 'lines.');
+            console.log('Jais HF translation fallback: parsed', translationAi.translations.length, 'lines.');
           }
         }
       }

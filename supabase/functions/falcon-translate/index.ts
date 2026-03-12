@@ -7,8 +7,7 @@ const corsHeaders = {
 };
 
 const OPENROUTER_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
-const RUNPOD_JAIS_RUNSYNC = 'https://api.runpod.ai/v2/hqckbihez3499f/runsync';
-const RUNPOD_FALCON_ENDPOINT = 'https://api.runpod.ai/v2/owodjrizyv47m0/openai/v1/chat/completions';
+const JAIS_HF_ENDPOINT = 'https://u1lf1x17ye91ruw5.us-east-1.aws.endpoints.huggingface.cloud/v1/chat/completions';
 
 function parseNumberedTranslations(generatedText: string, arabicLines: string[]): string[] {
   const translations: string[] = [];

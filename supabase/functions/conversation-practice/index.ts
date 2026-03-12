@@ -85,7 +85,7 @@ serve(async (req) => {
           const systemMsg = messages.find((m: any) => m.role === "system")?.content || "";
           const userMsgs = messages.filter((m: any) => m.role !== "system").map((m: any) => `${m.role}: ${m.content}`).join("\n");
           const jaisPrompt = `### Instruction: ${systemMsg}\n\n### Input: ${userMsgs}\n\n### Response:`;
-          const jaisResp = await fetch("https://api.runpod.ai/v2/flt01o21vejrsb/runsync", {
+          const jaisResp = await fetch("https://api.runpod.ai/v2/hqckbihez3499f/runsync", {
             method: "POST",
             headers: {
               Authorization: `Bearer ${RUNPOD_API_KEY}`,

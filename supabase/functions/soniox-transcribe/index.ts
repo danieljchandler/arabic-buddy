@@ -109,79 +109,87 @@ serve(async (req) => {
       console.log(`soniox-transcribe: file uploaded, id=${fileId}`);
     }
 
-    // Create transcription
-    const transcriptionBody: Record<string, unknown> = {
-      model: "stt-async-v4",
-      language_hints: ["ar"],
-      language_hints_strict: true,
-    };
-
-    if (fileId) {
-      transcriptionBody.file_id = fileId;
-    } else if (audioUrl) {
-      transcriptionBody.audio_url = audioUrl;
-    }
-
-    if (includeTranslation) {
-      transcriptionBody.translation = {
-        type: "one_way",
-        target_language: "en",
+    // Helper: create transcription and poll to completion
+    async function createAndPoll(withTranslation: boolean): Promise<{ ok: boolean; transcriptionId?: string; error?: string }> {
+      const body: Record<string, unknown> = {
+        model: "stt-async-v4",
+        language_hints: ["ar"],
+        language_hints_strict: true,
       };
+
+      if (fileId) body.file_id = fileId;
+      else if (audioUrl) body.audio_url = audioUrl;
+
+      if (withTranslation) {
+        body.translation = { type: "one_way", target_language: "en" };
+      }
+
+      console.log(`soniox-transcribe: creating transcription (translation=${withTranslation})...`);
+
+      const createResp = await fetch(`${SONIOX_BASE}/transcriptions`, {
+        method: "POST",
+        headers: jsonHeaders,
+        body: JSON.stringify(body),
+      });
+
+      if (!createResp.ok) {
+        const errText = await createResp.text();
+        console.error(`soniox-transcribe: create failed: ${createResp.status} — ${errText}`);
+        return { ok: false, error: `create_error_${createResp.status}: ${errText}` };
+      }
+
+      const transcription = await createResp.json();
+      const tId = transcription.id;
+      console.log(`soniox-transcribe: transcription created, id=${tId}, status=${transcription.status}`);
+
+      let status = transcription.status;
+      let lastPollData = transcription;
+
+      while (status !== "completed" && status !== "error") {
+        if (Date.now() - startTime > MAX_POLL_MS) {
+          console.error(`soniox-transcribe: polling timed out after ${MAX_POLL_MS / 1000}s`);
+          return { ok: false, error: "polling_timeout" };
+        }
+
+        await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
+
+        const pollResp = await fetch(`${SONIOX_BASE}/transcriptions/${tId}`, { headers });
+        if (!pollResp.ok) {
+          console.warn(`soniox-transcribe: poll error ${pollResp.status}`);
+          await pollResp.text(); // consume body
+          continue;
+        }
+        lastPollData = await pollResp.json();
+        status = lastPollData.status;
+      }
+
+      if (status === "error") {
+        console.error(`soniox-transcribe: transcription failed. Full error response:`, JSON.stringify(lastPollData));
+        return { ok: false, transcriptionId: tId, error: `transcription_error: ${lastPollData.error_message || lastPollData.error || JSON.stringify(lastPollData)}` };
+      }
+
+      return { ok: true, transcriptionId: tId };
     }
 
-    console.log(`soniox-transcribe: creating transcription (translation=${includeTranslation})...`);
     const startTime = Date.now();
 
-    const createResp = await fetch(`${SONIOX_BASE}/transcriptions`, {
-      method: "POST",
-      headers: jsonHeaders,
-      body: JSON.stringify(transcriptionBody),
-    });
+    // Attempt with translation if requested; retry without on failure
+    let result = await createAndPoll(includeTranslation);
 
-    if (!createResp.ok) {
-      const errText = await createResp.text();
-      console.error(`soniox-transcribe: create failed: ${createResp.status} — ${errText}`);
+    if (!result.ok && includeTranslation) {
+      console.warn(`soniox-transcribe: failed with translation enabled, retrying without translation. Error: ${result.error}`);
+      result = await createAndPoll(false);
+    }
+
+    if (!result.ok) {
+      console.error(`soniox-transcribe: final failure — ${result.error}`);
       return new Response(
-        JSON.stringify({ text: null, sonioxUsed: false, reason: `create_error_${createResp.status}` }),
+        JSON.stringify({ text: null, sonioxUsed: false, reason: result.error || "transcription_error" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const transcription = await createResp.json();
-    const transcriptionId = transcription.id;
-    console.log(`soniox-transcribe: transcription created, id=${transcriptionId}, status=${transcription.status}`);
-
-    // Poll until completed
-    let status = transcription.status;
-    while (status !== "completed" && status !== "error") {
-      if (Date.now() - startTime > MAX_POLL_MS) {
-        console.error(`soniox-transcribe: polling timed out after ${MAX_POLL_MS / 1000}s`);
-        return new Response(
-          JSON.stringify({ text: null, sonioxUsed: false, reason: "polling_timeout" }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
-
-      const pollResp = await fetch(`${SONIOX_BASE}/transcriptions/${transcriptionId}`, {
-        headers,
-      });
-      if (!pollResp.ok) {
-        console.warn(`soniox-transcribe: poll error ${pollResp.status}`);
-        continue;
-      }
-      const pollData = await pollResp.json();
-      status = pollData.status;
-    }
-
-    if (status === "error") {
-      console.error(`soniox-transcribe: transcription failed`);
-      return new Response(
-        JSON.stringify({ text: null, sonioxUsed: false, reason: "transcription_error" }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    const transcriptionId = result.transcriptionId!;
 
     const elapsedSec = ((Date.now() - startTime) / 1000).toFixed(1);
     console.log(`soniox-transcribe: transcription completed in ${elapsedSec}s`);

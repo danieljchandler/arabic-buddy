@@ -138,7 +138,7 @@ IMPORTANT: Return ONLY valid JSON, no markdown formatting, no code blocks.`;
         console.log("dialect-compare: falling back to Jais via RunPod...");
         try {
           const jaisPrompt = `### Instruction: ${systemPrompt}\n\n### Input: ${userPrompt}\n\n### Response:`;
-          const jaisResp = await fetch("https://api.runpod.ai/v2/flt01o21vejrsb/runsync", {
+          const jaisResp = await fetch("https://api.runpod.ai/v2/hqckbihez3499f/runsync", {
             method: "POST",
             headers: {
               "Authorization": `Bearer ${RUNPOD_API_KEY}`,

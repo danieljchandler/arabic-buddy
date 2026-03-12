@@ -6,7 +6,7 @@ const corsHeaders = {
 };
 
 // Native RunPod endpoints
-const RUNPOD_JAIS_RUNSYNC = 'https://api.runpod.ai/v2/flt01o21vejrsb/runsync';
+const RUNPOD_JAIS_RUNSYNC = 'https://api.runpod.ai/v2/hqckbihez3499f/runsync';
 const RUNPOD_FALCON_ENDPOINT = 'https://api.runpod.ai/v2/owodjrizyv47m0/openai/v1/chat/completions';
 
 type ModelConfig = {

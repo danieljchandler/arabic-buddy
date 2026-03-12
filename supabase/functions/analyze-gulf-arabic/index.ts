@@ -1158,7 +1158,7 @@ serve(async (req) => {
     }
 
     const RUNPOD_API_KEY = Deno.env.get('RUNPOD_API_KEY');
-    const RUNPOD_JAIS_RUNSYNC = 'https://api.runpod.ai/v2/flt01o21vejrsb/runsync';
+    const RUNPOD_JAIS_RUNSYNC = 'https://api.runpod.ai/v2/hqckbihez3499f/runsync';
     const jaisAvailable = Boolean(RUNPOD_API_KEY);
     if (!RUNPOD_API_KEY) {
       console.warn('RUNPOD_API_KEY not set — Jais will be skipped');

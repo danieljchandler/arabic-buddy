@@ -16,7 +16,7 @@ const corsHeaders = {
 };
 
 // Native RunPod async /run endpoint (NOT OpenAI-compatible path)
-const RUNPOD_JAIS_RUN = 'https://api.runpod.ai/v2/flt01o21vejrsb/run';
+const RUNPOD_JAIS_RUN = 'https://api.runpod.ai/v2/hqckbihez3499f/run';
 
 async function warmJaisNative(apiKey: string): Promise<'ok' | 'error'> {
   const startMs = Date.now();

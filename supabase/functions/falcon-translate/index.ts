@@ -195,7 +195,7 @@ serve(async (req) => {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            model: 'tgi',
+            model: 'inceptionai/jais-13b-chat',
             messages: [
               { role: 'system', content: 'You are an expert translator specializing in Gulf Arabic (Khaliji) dialect. Translate each numbered Arabic line to natural English. Return ONLY the translations, numbered to match. No commentary.' },
               { role: 'user', content: `Translate these Gulf Arabic lines to English:\n\n${numberedLines}` },

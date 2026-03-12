@@ -28,7 +28,7 @@ async function warmJaisHF(apiKey: string): Promise<'ok' | 'error'> {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'tgi',
+        model: 'inceptionai/jais-13b-chat',
         messages: [{ role: 'user', content: 'hi' }],
         max_tokens: 1,
       }),

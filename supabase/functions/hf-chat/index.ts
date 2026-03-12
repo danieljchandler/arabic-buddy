@@ -34,7 +34,7 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'tgi',
+        model: 'inceptionai/jais-13b-chat',
         messages: [
           { role: 'system', content: DEFAULT_SYSTEM_PROMPT },
           { role: 'user', content: prompt },

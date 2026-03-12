@@ -144,7 +144,7 @@ IMPORTANT: Return ONLY valid JSON, no markdown formatting, no code blocks.`;
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              model: "tgi",
+              model: "inceptionai/jais-13b-chat",
               messages: [
                 { role: "system", content: systemPrompt },
                 { role: "user", content: userPrompt },

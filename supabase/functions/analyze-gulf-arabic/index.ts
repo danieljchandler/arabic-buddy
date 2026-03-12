@@ -1343,20 +1343,20 @@ serve(async (req) => {
              return { content: null } as { content: string | null };
            })
          : Promise.resolve({ content: null } as { content: string | null }),
-       // Jais meta enrichment via RunPod — wrapped in 45s Promise.race so cold starts can't stall the pipeline
+       // Jais meta enrichment via HF Endpoint — wrapped in 45s Promise.race so cold starts can't stall the pipeline
        jaisAvailable
-         ? (console.log('Jais meta enrichment: FIRING via RunPod (45s race)...'),
+         ? (console.log('Jais meta enrichment: FIRING via HF Endpoint (45s race)...'),
             Promise.race([
-              callRunPodModel(RUNPOD_JAIS_RUNSYNC, 'inceptionai/Jais-2-8B-Chat', getMetaSystemPrompt(true), mergedTranscriptText, RUNPOD_API_KEY!, 2048, true).catch((e) => {
+              callJaisHF(JAIS_HF_ENDPOINT, getMetaSystemPrompt(true), mergedTranscriptText, HF_TOKEN!, 2048).catch((e) => {
                 console.warn('Jais meta enrichment failed (non-blocking):', e instanceof Error ? e.message : String(e));
                 return { content: null } as { content: string | null };
               }),
               new Promise<{ content: string | null }>(resolve => setTimeout(() => {
-                console.warn('RunPod Jais: timed out at 45s, skipping');
+                console.warn('Jais HF: timed out at 45s, skipping');
                 resolve({ content: null });
               }, 45_000)),
             ]))
-         : (console.log('Jais meta enrichment: SKIPPED (no RUNPOD_API_KEY)'),
+         : (console.log('Jais meta enrichment: SKIPPED (no VITE_HF_TOKEN)'),
             Promise.resolve({ content: null } as { content: string | null })),
        // Falcon removed — endpoint consistently returns HTTP 500 / timeouts
        // CAMeL-Lab BERT dialect ID — validates/confirms the LLM-detected dialect.

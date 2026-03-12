@@ -545,6 +545,7 @@ async function callJaisHF(
 }
 
 
+function extractJsonObject(text: string): string {
   const cleaned = text
     .replace(/<think>[\s\S]*?<\/think>/gi, '')
     .replace(/```json\n?/g, '')

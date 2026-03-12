@@ -44,7 +44,7 @@ const MODEL_REGISTRY: Record<string, ModelConfig> = {
   },
   "jais-hf": {
     endpoint: JAIS_HF_ENDPOINT,
-    model: "tgi",
+    model: "inceptionai/jais-13b-chat",
     keyEnv: "VITE_HF_TOKEN",
   },
 };

@@ -89,7 +89,7 @@ serve(async (req) => {
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              model: "tgi",
+              model: "inceptionai/jais-13b-chat",
               messages,
               temperature: 0.7,
               max_tokens: 1024,

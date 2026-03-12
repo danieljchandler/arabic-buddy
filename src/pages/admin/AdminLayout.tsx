@@ -3,6 +3,7 @@ import { useNavigate, Outlet } from 'react-router-dom';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { TranscriptionStatusBanner } from '@/components/admin/TranscriptionStatusBanner';
 
 const AdminLayout = () => {
   const navigate = useNavigate();
@@ -48,7 +49,12 @@ const AdminLayout = () => {
     );
   }
 
-  return <Outlet />;
+  return (
+    <>
+      <Outlet />
+      <TranscriptionStatusBanner />
+    </>
+  );
 };
 
 export default AdminLayout;

@@ -477,86 +477,7 @@ async function callFanar({
   return { content };
 }
 
-async function callRunPodModel(
-  endpoint: string,
-  model: string,
-  systemPrompt: string,
-  userContent: string,
-  apiKey: string,
-  maxTokens = 4096,
-  native = false,
-): Promise<{ content: string | null }> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 50_000);
-
-  const startMs = Date.now();
-  const MAX_RETRIES = 2;
-  const RETRY_DELAY_MS = 3_000;
-
-  let requestBody: string;
-  if (native) {
-    const prompt = `### Instruction: ${systemPrompt}\n\n### Input: ${userContent}\n\n### Response:`;
-    requestBody = JSON.stringify({ input: { prompt } });
-  } else {
-    requestBody = JSON.stringify({
-      model,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userContent },
-      ],
-      max_tokens: maxTokens,
-      temperature: 0.3,
-    });
-  }
-
-  try {
-    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-      console.log(`RunPod ${model}: attempt ${attempt}/${MAX_RETRIES}${native ? ' (native)' : ''}...`);
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        signal: controller.signal,
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: requestBody,
-      });
-
-      const elapsedSec = ((Date.now() - startMs) / 1000).toFixed(1);
-
-      if (response.ok) {
-        const data = await response.json();
-        let content: string | null;
-        if (native) {
-          content = typeof data.output === 'string' ? data.output : data.output?.text ?? data.output?.choices?.[0]?.message?.content ?? null;
-        } else {
-          content = data?.choices?.[0]?.message?.content ?? null;
-        }
-        console.log(`RunPod ${model} response in ${elapsedSec}s:`, content?.slice(0, 200));
-        return { content };
-      }
-
-      const errBody = await response.text().catch(() => '');
-      console.warn(`RunPod ${model} error: HTTP ${response.status} in ${elapsedSec}s — ${errBody.slice(0, 200)}`);
-
-      if ((response.status >= 500 && response.status <= 503) && attempt < MAX_RETRIES) {
-        console.log(`RunPod ${model}: retrying in ${RETRY_DELAY_MS / 1000}s (worker may be starting)...`);
-        await new Promise(r => setTimeout(r, RETRY_DELAY_MS));
-        continue;
-      }
-
-      return { content: null };
-    }
-    return { content: null };
-  } catch (e) {
-    const elapsedSec = ((Date.now() - startMs) / 1000).toFixed(1);
-    const msg = e instanceof Error ? e.message : String(e);
-    console.warn(`RunPod ${model} failed in ${elapsedSec}s (non-fatal): ${msg}`);
-    return { content: null };
-  } finally {
-    clearTimeout(timeout);
-  }
-}
+// callRunPodModel removed — Jais now uses callJaisHF below
 
 async function callJaisHF(
   endpoint: string,
@@ -1513,7 +1434,7 @@ serve(async (req) => {
         if (jaisTransResp.content) {
           translationAi = safeJsonParse<TranslationAI>(jaisTransResp.content);
           if (translationAi?.translations) {
-            console.log('Jais RunPod translation fallback: parsed', translationAi.translations.length, 'lines.');
+            console.log('Jais HF translation fallback: parsed', translationAi.translations.length, 'lines.');
           }
         }
       }

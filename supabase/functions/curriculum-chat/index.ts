@@ -43,15 +43,9 @@ const MODEL_REGISTRY: Record<string, ModelConfig> = {
     isFanar: true,
   },
   "jais-hf": {
-    endpoint: RUNPOD_JAIS_RUNSYNC,
-    model: "inceptionai/Jais-2-8B-Chat",
-    keyEnv: "RUNPOD_API_KEY",
-    native: true,
-  },
-  "falcon-h1r": {
-    endpoint: RUNPOD_FALCON_ENDPOINT,
-    model: "tiiuae/Falcon-H1R-7B",
-    keyEnv: "RUNPOD_API_KEY",
+    endpoint: JAIS_HF_ENDPOINT,
+    model: "tgi",
+    keyEnv: "VITE_HF_TOKEN",
   },
 };
 

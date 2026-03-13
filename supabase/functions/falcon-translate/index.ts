@@ -197,12 +197,10 @@ serve(async (req) => {
           body: JSON.stringify({
             model: 'inceptionai/jais-13b-chat',
             messages: [
-              { role: 'system', content: 'You are an expert translator specializing in Gulf Arabic (Khaliji) dialect. Translate each numbered Arabic line to natural English. Return ONLY the translations, numbered to match. No commentary.' },
-              { role: 'user', content: `Translate these Gulf Arabic lines to English:\n\n${numberedLines}` },
+              { role: 'user', content: `### Instruction: Your name is Jais, and you are named after Jebel Jais, the highest mountain in UAE. You are a helpful Arabic-English translator specializing in Gulf Arabic dialect.\n[|Human|]: Translate these Gulf Arabic lines to English:\n\n${numberedLines}\n[|AI|]:` },
             ],
             temperature: 0.3,
             max_tokens: 4096,
-            chat_template: "{% for message in messages %}{% if message['role'] == 'user' %}### Instruction: Your name is Jais, and you are named after Jebel Jais, the highest mountain in UAE. You are helpful, respectful, and honest.\n[|Human|]: {{ message['content'] }}\n[|AI|]:{% elif message['role'] == 'assistant' %} {{ message['content'] }}{% endif %}{% endfor %}",
           }),
         });
         clearTimeout(timeout);

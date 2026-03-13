@@ -53,6 +53,48 @@ export type Database = {
         }
         Relationships: []
       }
+      audio_files: {
+        Row: {
+          channel: string | null
+          created_at: string
+          duration: number | null
+          id: string
+          source_url: string | null
+          status: string
+          storage_path: string
+          thumbnail: string | null
+          title: string | null
+          updated_at: string
+          video_id: string
+        }
+        Insert: {
+          channel?: string | null
+          created_at?: string
+          duration?: number | null
+          id?: string
+          source_url?: string | null
+          status?: string
+          storage_path: string
+          thumbnail?: string | null
+          title?: string | null
+          updated_at?: string
+          video_id: string
+        }
+        Update: {
+          channel?: string | null
+          created_at?: string
+          duration?: number | null
+          id?: string
+          source_url?: string | null
+          status?: string
+          storage_path?: string
+          thumbnail?: string | null
+          title?: string | null
+          updated_at?: string
+          video_id?: string
+        }
+        Relationships: []
+      }
       challenges: {
         Row: {
           challenge_type: string

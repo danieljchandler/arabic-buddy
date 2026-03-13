@@ -81,15 +81,10 @@ serve(async (req) => {
     .update({ transcription_status: "processing", transcription_error: null })
     .eq("id", videoId);
 
-  // Return immediately — the actual pipeline runs in the background
-  const responsePromise = new Response(
-    JSON.stringify({ success: true, message: "Processing started" }),
-    { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-  );
-
-  // Run the pipeline asynchronously
-  const pipelinePromise = (async () => {
-    try {
+  // Run the full pipeline synchronously — the client fires-and-forgets,
+  // so this function can take as long as needed without the runtime killing it.
+  try {
+    {
       console.log(`[pipeline] Starting for video ${videoId}: ${video.source_url}`);
 
       const projectUrl = Deno.env.get("SUPABASE_URL")!;
@@ -425,30 +420,27 @@ serve(async (req) => {
       console.log(
         `[pipeline] Completed! ${sanitizedLines.length} lines, ${(result.vocabulary || []).length} vocab items from ${engines.length} engine(s)`
       );
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : "Unknown error";
-      console.error(`[pipeline] Failed for video ${videoId}:`, errorMsg);
-
-      await supabase
-        .from("discover_videos")
-        .update({
-          transcription_status: "failed",
-          transcription_error: errorMsg,
-        })
-        .eq("id", videoId);
     }
-  })();
 
-  // Wait for both the response and the pipeline to complete
-  try {
-    // @ts-ignore - Deno.serve context allows background work
-    if (typeof EdgeRuntime !== "undefined" && EdgeRuntime.waitUntil) {
-      // @ts-ignore
-      EdgeRuntime.waitUntil(pipelinePromise);
-    }
-  } catch {
-    // Fallback: just let the promise run
+    return new Response(
+      JSON.stringify({ success: true, message: "Pipeline completed" }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : "Unknown error";
+    console.error(`[pipeline] Failed for video ${videoId}:`, errorMsg);
+
+    await supabase
+      .from("discover_videos")
+      .update({
+        transcription_status: "failed",
+        transcription_error: errorMsg,
+      })
+      .eq("id", videoId);
+
+    return new Response(
+      JSON.stringify({ success: false, error: errorMsg }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
   }
-
-  return responsePromise;
 });

@@ -7,22 +7,13 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-/**
- * Orchestrates the full transcription/translation pipeline for a video.
- * Steps:
- *  1. Check storage for uploaded audio, or download via download-media
- *  2. Transcribe with all engines in parallel (Deepgram, Fanar, Soniox, Munsit)
- *  3. Merge + translate via analyze-gulf-arabic
- *  4. Save results to the discover_videos row
- *
- * Called fire-and-forget from the frontend. Runs entirely server-side.
- */
+const ASR_TIMEOUT_MS = 5 * 60 * 1000;
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
 
-  // Authenticate caller (admin user)
   const authHeader = req.headers.get("Authorization");
   if (!authHeader?.startsWith("Bearer ")) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -36,10 +27,7 @@ serve(async (req) => {
     Deno.env.get("SUPABASE_ANON_KEY")!,
     { global: { headers: { Authorization: authHeader } } }
   );
-  const {
-    data: { user },
-    error: userError,
-  } = await supabaseAuth.auth.getUser();
+  const { data: { user }, error: userError } = await supabaseAuth.auth.getUser();
   if (userError || !user) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
       status: 401,
@@ -55,13 +43,11 @@ serve(async (req) => {
     );
   }
 
-  // Use service-role client for DB writes (background processing)
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
   );
 
-  // Fetch the discover_videos row
   const { data: video, error: fetchErr } = await supabase
     .from("discover_videos")
     .select("*")
@@ -75,352 +61,309 @@ serve(async (req) => {
     );
   }
 
-  // Mark as processing
   await supabase
     .from("discover_videos")
     .update({ transcription_status: "processing", transcription_error: null })
     .eq("id", videoId);
 
-  // Run the full pipeline synchronously — the client fires-and-forgets,
-  // so this function can take as long as needed without the runtime killing it.
   try {
-    {
-      console.log(`[pipeline] Starting for video ${videoId}: ${video.source_url}`);
+    console.log(`[pipeline] Starting for video ${videoId}: ${video.source_url}`);
 
-      const projectUrl = Deno.env.get("SUPABASE_URL")!;
-      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-      const authHeaders = { Authorization: `Bearer ${serviceKey}` };
+    const projectUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-      // ── Step 1: Get audio (storage first, then download-media) ──────
-      console.log("[pipeline] Step 1: Getting audio...");
+    // ── Step 1: Get audio ──────────────────────────────────────────
+    console.log("[pipeline] Step 1: Getting audio...");
 
-      let audioFile: File | null = null;
-      let downloadDuration: number | null = null;
+    let audioBytes: ArrayBuffer | null = null;
+    let audioContentType = "audio/mp4";
+    let downloadDuration: number | null = null;
 
-      // Check storage for uploaded audio first
-      const storagePaths = [`${videoId}.mp4`, `${videoId}.m4a`, `${videoId}.webm`, `${videoId}.mp3`];
-      for (const path of storagePaths) {
-        const { data: fileData, error: fileErr } = await supabase.storage
-          .from("video-audio")
-          .download(path);
-        if (!fileErr && fileData) {
-          console.log(`[pipeline] Found audio in storage: video-audio/${path}`);
-          audioFile = new File([fileData], path, { type: fileData.type || "audio/mp4" });
-          break;
-        }
+    // Check storage first
+    const storagePaths = [`${videoId}.mp4`, `${videoId}.m4a`, `${videoId}.webm`, `${videoId}.mp3`];
+    for (const path of storagePaths) {
+      const { data: fileData, error: fileErr } = await supabase.storage
+        .from("video-audio")
+        .download(path);
+      if (!fileErr && fileData) {
+        console.log(`[pipeline] Found audio in storage: video-audio/${path}`);
+        audioBytes = await fileData.arrayBuffer();
+        audioContentType = fileData.type || (path.endsWith(".mp3") ? "audio/mpeg" : "audio/mp4");
+        break;
       }
+    }
 
-      // Fallback: download from URL
-      if (!audioFile) {
-        console.log("[pipeline] No storage audio found, downloading from URL...");
-        const downloadResp = await fetch(
-          `${projectUrl}/functions/v1/download-media`,
-          {
-            method: "POST",
-            headers: { ...authHeaders, "Content-Type": "application/json" },
-            body: JSON.stringify({ url: video.source_url }),
-          }
-        );
-
-        if (!downloadResp.ok) {
-          const errBody = await downloadResp.text();
-          throw new Error(`Download failed (${downloadResp.status}): ${errBody}`);
-        }
-
-        const downloadData = await downloadResp.json();
-
-        // Check if we got a cache hit with existing transcription data
-        if (downloadData.cached && downloadData.transcriptionData) {
-          console.log("[pipeline] Cache hit — using existing transcription data");
-          const cached = downloadData.transcriptionData;
-          await supabase
-            .from("discover_videos")
-            .update({
-              transcript_lines: cached.lines || [],
-              vocabulary: cached.vocabulary || [],
-              grammar_points: cached.grammarPoints || [],
-              cultural_context: cached.culturalContext || null,
-              dialect: cached.dialect || "Gulf",
-              difficulty: cached.difficulty || "Intermediate",
-              transcription_status: "completed",
-              transcription_error: null,
-            })
-            .eq("id", videoId);
-          console.log("[pipeline] Completed (from cache)");
-          return;
-        }
-
-        if (!downloadData.audioBase64) {
-          throw new Error("No audio data received from download. Try uploading the audio file manually on the video edit page.");
-        }
-
-        const binaryStr = atob(downloadData.audioBase64);
-        const bytes = new Uint8Array(binaryStr.length);
-        for (let i = 0; i < binaryStr.length; i++) {
-          bytes[i] = binaryStr.charCodeAt(i);
-        }
-        const audioBlob = new Blob([bytes], {
-          type: downloadData.contentType || "audio/mp4",
-        });
-        audioFile = new File(
-          [audioBlob],
-          downloadData.filename || "audio.mp4",
-          { type: audioBlob.type }
-        );
-
-        if (downloadData.duration) {
-          downloadDuration = Math.round(downloadData.duration);
-        }
-      }
-
-      const fileSizeMB = (audioFile.size / (1024 * 1024)).toFixed(2);
-      console.log(`[pipeline] Audio ready: ${fileSizeMB} MB`);
-
-      // Update duration if provided
-      if (downloadDuration) {
-        await supabase
-          .from("discover_videos")
-          .update({ duration_seconds: downloadDuration })
-          .eq("id", videoId);
-      }
-
-      // ── Step 2: Transcribe with all engines in parallel ─────────────
-      console.log("[pipeline] Step 2: Transcribing with all engines...");
-
-      const makeFormData = (fieldName: string) => {
-        const fd = new FormData();
-        fd.append(fieldName, audioFile!);
-        return fd;
-      };
-
-      const munsitPromise = fetch(`${projectUrl}/functions/v1/munsit-transcribe`, {
+    // Fallback: download from URL via download-media
+    if (!audioBytes) {
+      console.log("[pipeline] No storage audio found, downloading from URL...");
+      const downloadResp = await fetch(`${projectUrl}/functions/v1/download-media`, {
         method: "POST",
-        headers: authHeaders,
-        body: makeFormData("audio"),
-        signal: AbortSignal.timeout(300000),
-      })
-        .then(async (res) => {
-          const body = await res.json().catch(() => ({}));
-          if (!res.ok && !body.text)
-            throw new Error(body.error || `Munsit HTTP ${res.status}`);
-          return body as { text?: string | null; error?: string };
-        })
-        .catch((e) => {
-          console.warn("[pipeline] Munsit failed:", e);
-          return { text: null } as { text: string | null };
-        });
+        headers: { Authorization: `Bearer ${serviceKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ url: video.source_url }),
+      });
 
-      const deepgramPromise = fetch(`${projectUrl}/functions/v1/deepgram-transcribe`, {
-        method: "POST",
-        headers: authHeaders,
-        body: makeFormData("file"),
-        signal: AbortSignal.timeout(300000),
-      })
-        .then(async (res) => {
-          if (!res.ok) throw new Error(`Deepgram HTTP ${res.status}`);
-          return res.json();
-        })
-        .catch((e) => {
-          console.warn("[pipeline] Deepgram failed:", e);
-          return null;
-        });
-
-      const fanarPromise = fetch(`${projectUrl}/functions/v1/fanar-transcribe`, {
-        method: "POST",
-        headers: authHeaders,
-        body: makeFormData("audio"),
-        signal: AbortSignal.timeout(300000),
-      })
-        .then(async (res) => {
-          const body = await res.json().catch(() => ({}));
-          if (!res.ok && !body.text)
-            throw new Error(body.error || `Fanar HTTP ${res.status}`);
-          return body as { text?: string | null; reason?: string };
-        })
-        .catch((e) => {
-          console.warn("[pipeline] Fanar failed:", e);
-          return { text: null } as { text: string | null };
-        });
-
-      const sonioxFd = new FormData();
-      sonioxFd.append(
-        "audio",
-        new File([audioFile], audioFile.name, { type: audioFile.type })
-      );
-      sonioxFd.append("includeTranslation", "true");
-      const sonioxPromise = fetch(`${projectUrl}/functions/v1/soniox-transcribe`, {
-        method: "POST",
-        headers: authHeaders,
-        body: sonioxFd,
-        signal: AbortSignal.timeout(300000),
-      })
-        .then(async (res) => {
-          const body = await res.json().catch(() => ({}));
-          if (!res.ok && !body.text)
-            throw new Error(body.error || `Soniox HTTP ${res.status}`);
-          return body as {
-            text?: string | null;
-            sonioxUsed?: boolean;
-            reason?: string;
-            translationText?: string | null;
-          };
-        })
-        .catch((e) => {
-          console.warn("[pipeline] Soniox failed:", e);
-          return { text: null, sonioxUsed: false } as {
-            text: string | null;
-            sonioxUsed: boolean;
-          };
-        });
-
-      const [munsitResult, deepgramResult, fanarResult, sonioxResult] =
-        await Promise.all([munsitPromise, deepgramPromise, fanarPromise, sonioxPromise]);
-
-      // Extract texts
-      const munsitText = munsitResult?.text || "";
-      const deepgramData = deepgramResult;
-      const deepgramText = deepgramData?.text || "";
-      const fanarText = fanarResult?.text || "";
-      const sonioxText =
-        sonioxResult && "sonioxUsed" in sonioxResult && sonioxResult.sonioxUsed
-          ? sonioxResult.text || ""
-          : "";
-
-      const engines: string[] = [];
-      if (munsitText) engines.push("Munsit");
-      if (deepgramText) engines.push("Deepgram");
-      if (fanarText) engines.push("Fanar");
-      if (sonioxText) engines.push("Soniox");
-
-      if (engines.length === 0) {
-        throw new Error("All transcription engines failed");
+      if (!downloadResp.ok) {
+        const errBody = await downloadResp.text();
+        throw new Error(`Download failed (${downloadResp.status}): ${errBody}`);
       }
 
-      console.log(`[pipeline] Got transcriptions from: ${engines.join(", ")}`);
+      const downloadData = await downloadResp.json();
 
-      // Build word timestamps from Deepgram
-      const primaryText = deepgramText || munsitText || fanarText;
-      let relativeWords: any[] = [];
-      if (deepgramData?.words?.length > 0) {
-        relativeWords = deepgramData.words;
-      }
-
-      // ── Step 3: Analyze & merge via analyze-gulf-arabic ─────────────
-      console.log("[pipeline] Step 3: Analyzing transcript...");
-      const analyzeBody: Record<string, string> = { transcript: primaryText };
-      if (munsitText && munsitText !== primaryText) {
-        analyzeBody.munsitTranscript = munsitText;
-      }
-      if (fanarText) analyzeBody.fanarTranscript = fanarText;
-      if (sonioxText) analyzeBody.sonioxTranscript = sonioxText;
-
-      const sonioxTranslation =
-        sonioxResult && "translationText" in sonioxResult
-          ? sonioxResult.translationText
-          : null;
-      if (sonioxTranslation) analyzeBody.sonioxTranslation = sonioxTranslation;
-
-      const analyzeResp = await fetch(
-        `${projectUrl}/functions/v1/analyze-gulf-arabic`,
-        {
-          method: "POST",
-          headers: {
-            ...authHeaders,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(analyzeBody),
-        }
-      );
-
-      if (!analyzeResp.ok) {
-        const errText = await analyzeResp.text();
-        throw new Error(`Analysis failed (${analyzeResp.status}): ${errText}`);
-      }
-
-      const analyzeData = await analyzeResp.json();
-      if (!analyzeData?.success) {
-        throw new Error(analyzeData?.error || "Analysis failed");
-      }
-
-      const result = analyzeData.result;
-
-      // Map Deepgram timestamps to lines
-      let lines = result.lines || [];
-      if (relativeWords.length > 0 && lines.length > 0) {
-        let wordIdx = 0;
-        lines = lines.map((line: any) => {
-          const lineWords =
-            line.arabic?.split(/\s+/).filter(Boolean) || [];
-          let startMs: number | undefined;
-          let endMs: number | undefined;
-
-          for (const _lw of lineWords) {
-            if (wordIdx < relativeWords.length) {
-              if (startMs === undefined)
-                startMs = Math.round(relativeWords[wordIdx].start * 1000);
-              endMs = Math.round(relativeWords[wordIdx].end * 1000);
-              wordIdx++;
-            }
-          }
-          return { ...line, startMs, endMs };
-        });
-      }
-
-      // Ensure every line has a valid tokens array
-      const sanitizedLines = lines.map((line: any) => ({
-        ...line,
-        tokens: Array.isArray(line.tokens)
-          ? line.tokens
-          : String(line.arabic ?? "")
-              .split(/\s+/)
-              .filter(Boolean)
-              .map((w: string, wi: number) => ({
-                id: `tok-${line.id ?? wi}-${wi}`,
-                surface: w,
-              })),
-      }));
-
-      // Auto-generate title from first transcript line if missing
-      let title = video.title;
-      if ((!title || title === "Untitled Video") && result.title) {
-        title = result.title;
-      }
-      let titleArabic = video.title_arabic;
-      if (!titleArabic && result.titleArabic) {
-        titleArabic = result.titleArabic;
-      }
-
-      // ── Step 4: Save results ────────────────────────────────────────
-      console.log("[pipeline] Step 4: Saving results...");
-      const { error: updateError } = await supabase
-        .from("discover_videos")
-        .update({
-          title,
-          title_arabic: titleArabic,
-          transcript_lines: sanitizedLines,
-          vocabulary: result.vocabulary || [],
-          grammar_points: result.grammarPoints || [],
-          cultural_context: result.culturalContext || null,
-          dialect: result.dialect || "Gulf",
-          difficulty: result.difficulty || "Intermediate",
+      if (downloadData.cached && downloadData.transcriptionData) {
+        console.log("[pipeline] Cache hit — using existing transcription data");
+        const cached = downloadData.transcriptionData;
+        await supabase.from("discover_videos").update({
+          transcript_lines: cached.lines || [],
+          vocabulary: cached.vocabulary || [],
+          grammar_points: cached.grammarPoints || [],
+          cultural_context: cached.culturalContext || null,
+          dialect: cached.dialect || "Gulf",
+          difficulty: cached.difficulty || "Intermediate",
           transcription_status: "completed",
           transcription_error: null,
-        })
-        .eq("id", videoId);
-
-      if (updateError) {
-        throw new Error(`Failed to save results: ${updateError.message}`);
+        }).eq("id", videoId);
+        return new Response(JSON.stringify({ success: true, message: "Completed from cache" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
 
-      // Clean up storage audio after successful processing
-      for (const path of storagePaths) {
-        await supabase.storage.from("video-audio").remove([path]).catch(() => {});
+      if (!downloadData.audioBase64) {
+        throw new Error("No audio data received. Try uploading the audio file manually.");
       }
 
-      console.log(
-        `[pipeline] Completed! ${sanitizedLines.length} lines, ${(result.vocabulary || []).length} vocab items from ${engines.length} engine(s)`
-      );
+      const binaryStr = atob(downloadData.audioBase64);
+      const bytes = new Uint8Array(binaryStr.length);
+      for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
+      audioBytes = bytes.buffer;
+      audioContentType = downloadData.contentType || "audio/mp4";
+
+      if (downloadData.duration) downloadDuration = Math.round(downloadData.duration);
     }
+
+    const fileSizeMB = (audioBytes.byteLength / (1024 * 1024)).toFixed(2);
+    console.log(`[pipeline] Audio ready: ${fileSizeMB} MB`);
+
+    if (downloadDuration) {
+      await supabase.from("discover_videos").update({ duration_seconds: downloadDuration }).eq("id", videoId);
+    }
+
+    // ── Step 2: Call ASR APIs directly (no sub-edge-functions) ────
+    console.log("[pipeline] Step 2: Transcribing with all engines directly...");
+
+    // --- Deepgram ---
+    const deepgramPromise = (async () => {
+      const DEEPGRAM_API_KEY = Deno.env.get("DEEPGRAM_API_KEY");
+      if (!DEEPGRAM_API_KEY) { console.warn("[pipeline] Deepgram: no API key"); return null; }
+
+      const params = new URLSearchParams({
+        model: "nova-3", language: "ar", diarize: "true", punctuate: "true", smart_format: "true",
+      });
+
+      try {
+        const resp = await fetch(`https://api.deepgram.com/v1/listen?${params}`, {
+          method: "POST",
+          headers: { Authorization: `Token ${DEEPGRAM_API_KEY}`, "Content-Type": audioContentType },
+          body: audioBytes,
+          signal: AbortSignal.timeout(ASR_TIMEOUT_MS),
+        });
+        if (!resp.ok) { const t = await resp.text(); throw new Error(`HTTP ${resp.status}: ${t}`); }
+        const data = await resp.json();
+        const alt = data?.results?.channels?.[0]?.alternatives?.[0];
+        const text = alt?.transcript ?? "";
+        const words = (alt?.words ?? []).map((w: any) => ({
+          text: w.punctuated_word ?? w.word ?? "", start: w.start, end: w.end,
+        }));
+        console.log(`[pipeline] Deepgram: ${text.length} chars, ${words.length} words`);
+        return { text, words };
+      } catch (e) { console.warn("[pipeline] Deepgram failed:", e); return null; }
+    })();
+
+    // --- Fanar ---
+    const fanarPromise = (async () => {
+      const FANAR_API_KEY = Deno.env.get("FANAR_API_KEY")?.trim();
+      if (!FANAR_API_KEY) { console.warn("[pipeline] Fanar: no API key"); return { text: null }; }
+
+      try {
+        const fd = new FormData();
+        fd.append("file", new File([audioBytes!], "audio.mp3", { type: audioContentType }));
+        fd.append("model", "Fanar-Aura-STT-1");
+        fd.append("response_format", "json");
+        fd.append("language", "ar");
+
+        const resp = await fetch("https://api.fanar.qa/v1/audio/transcriptions", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${FANAR_API_KEY}` },
+          body: fd,
+          signal: AbortSignal.timeout(ASR_TIMEOUT_MS),
+        });
+        if (!resp.ok) { const t = await resp.text(); throw new Error(`HTTP ${resp.status}: ${t}`); }
+        const data = await resp.json();
+        console.log(`[pipeline] Fanar: ${data.text?.length || 0} chars`);
+        return { text: data.text || null };
+      } catch (e) { console.warn("[pipeline] Fanar failed:", e); return { text: null }; }
+    })();
+
+    // --- Soniox ---
+    const sonioxPromise = (async () => {
+      const SONIOX_API_KEY = Deno.env.get("SONIOX_API_KEY");
+      if (!SONIOX_API_KEY) { console.warn("[pipeline] Soniox: no API key"); return { text: null, sonioxUsed: false }; }
+
+      const SONIOX_BASE = "https://api.soniox.com/v1";
+      const sHeaders = { Authorization: `Bearer ${SONIOX_API_KEY}` };
+
+      try {
+        // Upload file
+        const fd = new FormData();
+        fd.append("file", new File([audioBytes!], "audio.mp3", { type: audioContentType }));
+        const uploadResp = await fetch(`${SONIOX_BASE}/files`, { method: "POST", headers: sHeaders, body: fd });
+        if (!uploadResp.ok) { const t = await uploadResp.text(); throw new Error(`Upload ${uploadResp.status}: ${t}`); }
+        const { id: fileId } = await uploadResp.json();
+
+        // Create transcription with translation
+        let createBody: Record<string, unknown> = {
+          model: "stt-async-v4", file_id: fileId, language_hints: ["ar"], language_hints_strict: true,
+          translation: { type: "one_way", target_language: "en" },
+        };
+        let createResp = await fetch(`${SONIOX_BASE}/transcriptions`, {
+          method: "POST", headers: { ...sHeaders, "Content-Type": "application/json" }, body: JSON.stringify(createBody),
+        });
+        // Retry without translation if it fails
+        if (!createResp.ok) {
+          await createResp.text();
+          delete createBody.translation;
+          createResp = await fetch(`${SONIOX_BASE}/transcriptions`, {
+            method: "POST", headers: { ...sHeaders, "Content-Type": "application/json" }, body: JSON.stringify(createBody),
+          });
+        }
+        if (!createResp.ok) { const t = await createResp.text(); throw new Error(`Create ${createResp.status}: ${t}`); }
+        const transcription = await createResp.json();
+
+        // Poll
+        let status = transcription.status;
+        const startPoll = Date.now();
+        while (status !== "completed" && status !== "error") {
+          if (Date.now() - startPoll > 4 * 60 * 1000) throw new Error("Soniox polling timeout");
+          await new Promise(r => setTimeout(r, 2000));
+          const pollResp = await fetch(`${SONIOX_BASE}/transcriptions/${transcription.id}`, { headers: sHeaders });
+          if (!pollResp.ok) { await pollResp.text(); continue; }
+          const pd = await pollResp.json();
+          status = pd.status;
+        }
+        if (status === "error") throw new Error("Soniox transcription error");
+
+        // Get transcript
+        const tResp = await fetch(`${SONIOX_BASE}/transcriptions/${transcription.id}/transcript`, { headers: sHeaders });
+        if (!tResp.ok) throw new Error(`Transcript fetch ${tResp.status}`);
+        const tData = await tResp.json();
+
+        // Cleanup
+        fetch(`${SONIOX_BASE}/files/${fileId}`, { method: "DELETE", headers: sHeaders }).catch(() => {});
+
+        console.log(`[pipeline] Soniox: ${tData.text?.length || 0} chars`);
+        return { text: tData.text || null, sonioxUsed: true, translationText: tData.translation_text || null };
+      } catch (e) { console.warn("[pipeline] Soniox failed:", e); return { text: null, sonioxUsed: false }; }
+    })();
+
+    // Munsit is disabled
+    const munsitResult = { text: null };
+
+    const [deepgramResult, fanarResult, sonioxResult] = await Promise.all([
+      deepgramPromise, fanarPromise, sonioxPromise,
+    ]);
+
+    const munsitText = "";
+    const deepgramText = deepgramResult?.text || "";
+    const fanarText = fanarResult?.text || "";
+    const sonioxText = sonioxResult?.sonioxUsed ? (sonioxResult.text || "") : "";
+
+    const engines: string[] = [];
+    if (deepgramText) engines.push("Deepgram");
+    if (fanarText) engines.push("Fanar");
+    if (sonioxText) engines.push("Soniox");
+
+    if (engines.length === 0) throw new Error("All transcription engines failed");
+
+    console.log(`[pipeline] Got transcriptions from: ${engines.join(", ")}`);
+
+    const primaryText = deepgramText || fanarText || sonioxText;
+    const relativeWords = deepgramResult?.words || [];
+
+    // ── Step 3: Analyze via analyze-gulf-arabic ──────────────────
+    console.log("[pipeline] Step 3: Analyzing transcript...");
+    const analyzeBody: Record<string, string> = { transcript: primaryText };
+    if (fanarText && fanarText !== primaryText) analyzeBody.fanarTranscript = fanarText;
+    if (sonioxText) analyzeBody.sonioxTranscript = sonioxText;
+    const sonioxTranslation = sonioxResult?.translationText;
+    if (sonioxTranslation) analyzeBody.sonioxTranslation = sonioxTranslation;
+
+    const analyzeResp = await fetch(`${projectUrl}/functions/v1/analyze-gulf-arabic`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${serviceKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify(analyzeBody),
+    });
+
+    if (!analyzeResp.ok) {
+      const errText = await analyzeResp.text();
+      throw new Error(`Analysis failed (${analyzeResp.status}): ${errText}`);
+    }
+
+    const analyzeData = await analyzeResp.json();
+    if (!analyzeData?.success) throw new Error(analyzeData?.error || "Analysis failed");
+
+    const result = analyzeData.result;
+
+    // Map Deepgram timestamps to lines
+    let lines = result.lines || [];
+    if (relativeWords.length > 0 && lines.length > 0) {
+      let wordIdx = 0;
+      lines = lines.map((line: any) => {
+        const lineWords = line.arabic?.split(/\s+/).filter(Boolean) || [];
+        let startMs: number | undefined;
+        let endMs: number | undefined;
+        for (const _lw of lineWords) {
+          if (wordIdx < relativeWords.length) {
+            if (startMs === undefined) startMs = Math.round(relativeWords[wordIdx].start * 1000);
+            endMs = Math.round(relativeWords[wordIdx].end * 1000);
+            wordIdx++;
+          }
+        }
+        return { ...line, startMs, endMs };
+      });
+    }
+
+    const sanitizedLines = lines.map((line: any) => ({
+      ...line,
+      tokens: Array.isArray(line.tokens) ? line.tokens
+        : String(line.arabic ?? "").split(/\s+/).filter(Boolean)
+            .map((w: string, wi: number) => ({ id: `tok-${line.id ?? wi}-${wi}`, surface: w })),
+    }));
+
+    let title = video.title;
+    if ((!title || title === "Untitled Video") && result.title) title = result.title;
+    let titleArabic = video.title_arabic;
+    if (!titleArabic && result.titleArabic) titleArabic = result.titleArabic;
+
+    // ── Step 4: Save results ────────────────────────────────────
+    console.log("[pipeline] Step 4: Saving results...");
+    const { error: updateError } = await supabase.from("discover_videos").update({
+      title, title_arabic: titleArabic,
+      transcript_lines: sanitizedLines,
+      vocabulary: result.vocabulary || [],
+      grammar_points: result.grammarPoints || [],
+      cultural_context: result.culturalContext || null,
+      dialect: result.dialect || "Gulf",
+      difficulty: result.difficulty || "Intermediate",
+      transcription_status: "completed",
+      transcription_error: null,
+    }).eq("id", videoId);
+
+    if (updateError) throw new Error(`Failed to save results: ${updateError.message}`);
+
+    for (const path of storagePaths) {
+      await supabase.storage.from("video-audio").remove([path]).catch(() => {});
+    }
+
+    console.log(`[pipeline] Completed! ${sanitizedLines.length} lines, ${(result.vocabulary || []).length} vocab from ${engines.length} engine(s)`);
 
     return new Response(
       JSON.stringify({ success: true, message: "Pipeline completed" }),
@@ -430,13 +373,10 @@ serve(async (req) => {
     const errorMsg = err instanceof Error ? err.message : "Unknown error";
     console.error(`[pipeline] Failed for video ${videoId}:`, errorMsg);
 
-    await supabase
-      .from("discover_videos")
-      .update({
-        transcription_status: "failed",
-        transcription_error: errorMsg,
-      })
-      .eq("id", videoId);
+    await supabase.from("discover_videos").update({
+      transcription_status: "failed",
+      transcription_error: errorMsg,
+    }).eq("id", videoId);
 
     return new Response(
       JSON.stringify({ success: false, error: errorMsg }),

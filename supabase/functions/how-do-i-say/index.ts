@@ -299,12 +299,10 @@ serve(async (req) => {
               body: JSON.stringify({
                 model: 'inceptionai/jais-13b-chat',
                 messages: [
-                  { role: 'system', content: SYSTEM_PROMPT },
-                  { role: 'user', content: userContent },
+                  { role: 'user', content: `### Instruction: Your name is Jais, and you are named after Jebel Jais, the highest mountain in UAE. You are a helpful Arabic-English translator specializing in Gulf Arabic dialect.\n[|Human|]: ${SYSTEM_PROMPT}\n\n${userContent}\n[|AI|]:` },
                 ],
                 temperature: 0.3,
                 max_tokens: 2048,
-                chat_template: "{% for message in messages %}{% if message['role'] == 'user' %}### Instruction: Your name is Jais, and you are named after Jebel Jais, the highest mountain in UAE. You are helpful, respectful, and honest.\n[|Human|]: {{ message['content'] }}\n[|AI|]:{% elif message['role'] == 'assistant' %} {{ message['content'] }}{% endif %}{% endfor %}",
               }),
             });
             if (!response.ok) {

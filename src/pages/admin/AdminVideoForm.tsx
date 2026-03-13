@@ -4,7 +4,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useDiscoverVideo } from "@/hooks/useDiscoverVideos";
 import { extractTikTokVideoId, parseVideoUrl, getYouTubeThumbnail } from "@/lib/videoEmbed";
-import { useTranscriptionJob } from "@/contexts/TranscriptionJobContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -29,7 +28,7 @@ const AdminVideoForm = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  // Pre-warm RunPod endpoints (Jais + Falcon) so cold starts happen before pipeline runs
+  // Pre-warm RunPod endpoints
   useEffect(() => {
     supabase.functions.invoke("warmup-runpod").catch(() => {});
   }, []);
@@ -51,11 +50,10 @@ const AdminVideoForm = () => {
   const [vocabulary, setVocabulary] = useState<any[]>([]);
   const [grammarPoints, setGrammarPoints] = useState<any[]>([]);
 
-  const { job, startJob, consumeResult } = useTranscriptionJob();
-  const isProcessing = job?.status === "running";
   const [isSaving, setIsSaving] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
 
-  // Time range selection (no limit for admin discover videos)
+  // Time range selection
   const [mediaDuration, setMediaDuration] = useState<number | null>(null);
   const [timeRange, setTimeRange] = useState<[number, number]>([0, 0]);
   const [audioFile, setAudioFile] = useState<File | null>(null);
@@ -74,6 +72,16 @@ const AdminVideoForm = () => {
       URL.revokeObjectURL(url);
     };
   }, [audioFile]);
+
+  // Track server-side processing status from polling
+  const serverStatus = existingVideo?.transcription_status;
+  useEffect(() => {
+    if (serverStatus === 'processing' || serverStatus === 'pending') {
+      setIsProcessing(true);
+    } else if (serverStatus === 'completed' || serverStatus === 'failed') {
+      setIsProcessing(false);
+    }
+  }, [serverStatus]);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -99,7 +107,7 @@ const AdminVideoForm = () => {
     el.onerror = () => URL.revokeObjectURL(url);
   }, []);
 
-  // Populate form when editing
+  // Populate form when editing (or when server-side processing completes)
   useEffect(() => {
     if (existingVideo) {
       setSourceUrl(existingVideo.source_url);
@@ -119,32 +127,12 @@ const AdminVideoForm = () => {
     }
   }, [existingVideo]);
 
-  // Apply background transcription result when the form mounts or a job completes
-  useEffect(() => {
-    const result = consumeResult(videoId);
-    if (!result) return;
-    setTranscriptLines(result.transcriptLines);
-    setVocabulary(result.vocabulary);
-    setGrammarPoints(result.grammarPoints);
-    setCulturalContext(result.culturalContext);
-    if (result.dialect) setDialect(result.dialect);
-    if (result.difficulty) setDifficulty(result.difficulty);
-    if (!title && result.title) setTitle(result.title);
-    if (!titleArabic && result.titleArabic) setTitleArabic(result.titleArabic);
-    toast.success("Transcription results applied!", {
-      description: `${result.transcriptLines.length} segments, ${result.vocabulary.length} vocab items`,
-    });
-  }, [job?.status]); // re-run when job status changes so we catch completions while on this page
-
   const handleUrlParse = async () => {
-    // Check if it's a TikTok URL first (including short URLs)
     if (sourceUrl.includes("tiktok.com")) {
       toast.info("Resolving TikTok URL...");
       try {
-        // Use TikTok's oEmbed API to get proper embed URL
         const response = await fetch(`https://www.tiktok.com/oembed?url=${encodeURIComponent(sourceUrl)}`);
         const data = await response.json();
-
         const videoId = extractTikTokVideoId(`${data?.html ?? ""} ${data?.author_url ?? ""} ${sourceUrl}`);
         if (videoId) {
           const embedUrl = `https://www.tiktok.com/player/v1/${videoId}`;
@@ -155,14 +143,11 @@ const AdminVideoForm = () => {
         }
       } catch (err) {
         console.error("TikTok oEmbed error:", err);
-        toast.error("Could not resolve TikTok URL", {
-          description: "Please try copying the full URL from the TikTok video page",
-        });
+        toast.error("Could not resolve TikTok URL");
         return;
       }
     }
 
-    // For non-TikTok URLs, use the original parser
     const parsed = parseVideoUrl(sourceUrl);
     if (!parsed) {
       toast.error("Unsupported URL", { description: "Please use a YouTube, TikTok, or Instagram URL" });
@@ -173,31 +158,25 @@ const AdminVideoForm = () => {
     if (parsed.platform === "youtube") {
       setThumbnailUrl(getYouTubeThumbnail(parsed.videoId));
     }
-
     toast.success(`Detected ${parsed.platform} video`);
   };
 
-  // Auto-parse URL if not already parsed
   const ensureUrlParsed = useCallback(async () => {
     if (sourceUrl && !embedUrl) {
-      // Handle TikTok URLs specially
       if (sourceUrl.includes("tiktok.com")) {
         try {
           const response = await fetch(`https://www.tiktok.com/oembed?url=${encodeURIComponent(sourceUrl)}`);
           const data = await response.json();
           const videoId = extractTikTokVideoId(`${data?.html ?? ""} ${data?.author_url ?? ""} ${sourceUrl}`);
           if (videoId) {
-            const embedUrl = `https://www.tiktok.com/player/v1/${videoId}`;
             setPlatform("tiktok");
-            setEmbedUrl(embedUrl);
+            setEmbedUrl(`https://www.tiktok.com/player/v1/${videoId}`);
             return;
           }
         } catch (err) {
           console.error("TikTok auto-parse error:", err);
         }
       }
-
-      // Fallback to regular parser
       const parsed = parseVideoUrl(sourceUrl);
       if (parsed) {
         setPlatform(parsed.platform);
@@ -209,18 +188,108 @@ const AdminVideoForm = () => {
     }
   }, [sourceUrl, embedUrl]);
 
+  /**
+   * Creates (or reuses) the DB row, uploads audio to storage, and
+   * kicks off the server-side pipeline. The user can leave immediately.
+   */
+  const kickOffServerPipeline = async (file: File) => {
+    if (!user) return;
+    await ensureUrlParsed();
+
+    // Resolve embed URL
+    let savePlatform = platform || "youtube";
+    let saveEmbedUrl = embedUrl || sourceUrl;
+    let saveThumbnail = thumbnailUrl;
+    if (sourceUrl && !embedUrl) {
+      const parsed = parseVideoUrl(sourceUrl);
+      if (parsed) {
+        savePlatform = parsed.platform;
+        saveEmbedUrl = parsed.embedUrl;
+        if (parsed.platform === "youtube") saveThumbnail = getYouTubeThumbnail(parsed.videoId);
+      }
+    }
+
+    let targetVideoId = videoId;
+
+    try {
+      setIsProcessing(true);
+
+      if (!targetVideoId) {
+        // Create the DB row first
+        const record = {
+          title: title || "Untitled Video",
+          title_arabic: titleArabic || null,
+          source_url: sourceUrl,
+          platform: savePlatform,
+          embed_url: saveEmbedUrl,
+          thumbnail_url: saveThumbnail || null,
+          duration_seconds: durationSeconds,
+          dialect,
+          difficulty,
+          cultural_context: culturalContext || null,
+          published: false,
+          created_by: user.id,
+          transcription_status: "pending",
+        };
+        const { data: inserted, error: insertErr } = await (supabase.from("discover_videos" as any) as any)
+          .insert(record)
+          .select("id")
+          .single();
+        if (insertErr) throw insertErr;
+        targetVideoId = inserted.id;
+      } else {
+        // Mark existing row as pending
+        await (supabase.from("discover_videos" as any) as any)
+          .update({ transcription_status: "pending" })
+          .eq("id", targetVideoId);
+      }
+
+      // Upload audio to storage
+      const ext = file.name.split(".").pop() || "mp4";
+      const storagePath = `${targetVideoId}.${ext}`;
+      const { error: uploadErr } = await supabase.storage
+        .from("video-audio")
+        .upload(storagePath, file, { upsert: true });
+      if (uploadErr) {
+        console.error("Storage upload error:", uploadErr);
+        // Non-fatal — edge function will try download-media as fallback
+      }
+
+      // Fire-and-forget: call process-approved-video
+      supabase.functions.invoke("process-approved-video", {
+        body: { videoId: targetVideoId },
+      }).catch((err) => console.error("process-approved-video invoke error:", err));
+
+      toast.success("Processing started on server!", {
+        description: "You can safely leave this page. Results will appear automatically.",
+        duration: 6000,
+      });
+
+      // Navigate to edit page so polling picks up results
+      if (!videoId) {
+        navigate(`/admin/videos/${targetVideoId}/edit`);
+      }
+
+      queryClient.invalidateQueries({ queryKey: ["admin-discover-videos"] });
+    } catch (err) {
+      console.error("Pipeline kickoff error:", err);
+      setIsProcessing(false);
+      toast.error("Failed to start processing", {
+        description: err instanceof Error ? err.message : "Unknown error",
+      });
+    }
+  };
+
   const handleDownloadAndProcess = async () => {
     if (!sourceUrl) return;
     await ensureUrlParsed();
     setIsDownloading(true);
-    let downloadedFile: File | null = null;
     try {
       toast.info("Downloading audio...");
       const { data, error } = await supabase.functions.invoke("download-media", {
         body: { url: sourceUrl },
       });
       if (error) {
-        console.error("download-media error:", error);
         let realMsg = error.message;
         try {
           const resp = (error as any)?.context;
@@ -228,7 +297,7 @@ const AdminVideoForm = () => {
             const body = await resp.json();
             realMsg = body?.error || body?.message || realMsg;
           }
-        } catch { /* ignore parse errors */ }
+        } catch { /* ignore */ }
         throw new Error(realMsg);
       }
       if (!data?.audioBase64) throw new Error("No audio found");
@@ -237,7 +306,7 @@ const AdminVideoForm = () => {
       const bytes = new Uint8Array(binaryStr.length);
       for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
       const blob = new Blob([bytes], { type: data.contentType || "audio/mp4" });
-      downloadedFile = new File([blob], data.filename || "audio.mp4", { type: blob.type });
+      const downloadedFile = new File([blob], data.filename || "audio.mp4", { type: blob.type });
       setAudioFile(downloadedFile);
       detectFileDuration(downloadedFile);
       if (data.duration) {
@@ -246,22 +315,16 @@ const AdminVideoForm = () => {
         setMediaDuration(dur);
         setTimeRange([0, dur]);
       }
-      toast.success("Audio downloaded! Starting transcription in background…");
+      toast.success("Audio downloaded! Starting server-side transcription…");
+      setIsDownloading(false);
+
+      // Kick off server pipeline immediately
+      await kickOffServerPipeline(downloadedFile);
     } catch (err) {
       console.error("Download error:", err);
+      setIsDownloading(false);
       toast.error("Download failed — use 'Upload File' instead", {
         description: err instanceof Error ? err.message : "Unknown error",
-      });
-      return;
-    } finally {
-      setIsDownloading(false);
-    }
-    if (downloadedFile) {
-      startJob({
-        audioFile: downloadedFile,
-        timeRange,
-        mediaDuration,
-        videoId,
       });
     }
   };
@@ -275,7 +338,6 @@ const AdminVideoForm = () => {
         body: { url: sourceUrl },
       });
       if (downloadError) {
-        console.error("download-media error:", downloadError);
         let realMsg = downloadError.message;
         try {
           const resp = (downloadError as any)?.context;
@@ -283,16 +345,14 @@ const AdminVideoForm = () => {
             const body = await resp.json();
             realMsg = body?.error || body?.message || realMsg;
           }
-        } catch { /* ignore parse errors */ }
+        } catch { /* ignore */ }
         throw new Error(realMsg);
       }
       if (!downloadData?.audioBase64) throw new Error("No audio found");
 
       const binaryStr = atob(downloadData.audioBase64);
       const bytes = new Uint8Array(binaryStr.length);
-      for (let i = 0; i < binaryStr.length; i++) {
-        bytes[i] = binaryStr.charCodeAt(i);
-      }
+      for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
       const blob = new Blob([bytes], { type: downloadData.contentType || "audio/mp4" });
       const file = new File([blob], "audio.mp4", { type: blob.type });
       setAudioFile(file);
@@ -317,19 +377,17 @@ const AdminVideoForm = () => {
   };
 
   const handleSave = async () => {
-    // Auto-parse URL if not done yet
     let savePlatform = platform;
     let saveEmbedUrl = embedUrl;
     let saveThumbnail = thumbnailUrl;
     if (sourceUrl && !saveEmbedUrl) {
-      // Handle TikTok specially
       if (sourceUrl.includes("tiktok.com")) {
         try {
           const response = await fetch(`https://www.tiktok.com/oembed?url=${encodeURIComponent(sourceUrl)}`);
           const data = await response.json();
-          const videoId = extractTikTokVideoId(`${data?.html ?? ""} ${data?.author_url ?? ""} ${sourceUrl}`);
-          if (videoId) {
-            saveEmbedUrl = `https://www.tiktok.com/player/v1/${videoId}`;
+          const vid = extractTikTokVideoId(`${data?.html ?? ""} ${data?.author_url ?? ""} ${sourceUrl}`);
+          if (vid) {
+            saveEmbedUrl = `https://www.tiktok.com/player/v1/${vid}`;
             savePlatform = "tiktok";
             setPlatform(savePlatform);
             setEmbedUrl(saveEmbedUrl);
@@ -338,8 +396,6 @@ const AdminVideoForm = () => {
           console.error("TikTok save parse error:", err);
         }
       }
-
-      // If still no embed URL, try regular parser
       if (!saveEmbedUrl) {
         const parsed = parseVideoUrl(sourceUrl);
         if (parsed) {
@@ -352,7 +408,6 @@ const AdminVideoForm = () => {
             setThumbnailUrl(saveThumbnail);
           }
         } else {
-          // Final fallback: use sourceUrl directly as embed URL
           saveEmbedUrl = sourceUrl;
           savePlatform = savePlatform || "youtube";
           setEmbedUrl(saveEmbedUrl);
@@ -361,7 +416,6 @@ const AdminVideoForm = () => {
       }
     }
 
-    // Auto-generate title from first transcript line if still empty
     let saveTitle = title;
     if (!saveTitle && transcriptLines.length > 0) {
       saveTitle = (transcriptLines[0] as any).arabic?.slice(0, 60) || "Untitled Video";
@@ -447,7 +501,7 @@ const AdminVideoForm = () => {
             <CardContent className="py-3 flex items-center gap-2 text-blue-700 dark:text-blue-300">
               <Loader2 className="h-4 w-4 animate-spin" />
               <span className="text-sm font-medium">
-                Transcription is being processed in the background. This page will update automatically when complete.
+                Transcription is being processed on the server. This page will update automatically when complete.
               </span>
             </CardContent>
           </Card>
@@ -470,8 +524,9 @@ const AdminVideoForm = () => {
         {isEditing && existingVideo && (existingVideo as any).transcription_status === 'pending' && (
           <Card className="border-amber-300 bg-amber-50 dark:bg-amber-950/30">
             <CardContent className="py-3 flex items-center gap-2 text-amber-700 dark:text-amber-300">
+              <Loader2 className="h-4 w-4 animate-spin" />
               <span className="text-sm font-medium">
-                Transcription is queued and will start shortly.
+                Transcription is queued and will start shortly. You can safely leave this page.
               </span>
             </CardContent>
           </Card>
@@ -518,7 +573,7 @@ const AdminVideoForm = () => {
                     {isDownloading ? (
                       <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Downloading...</>
                     ) : isProcessing ? (
-                      <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Running in background…</>
+                      <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Processing on server…</>
                     ) : (
                       <><Download className="h-4 w-4 mr-2" />{isEditing ? "Download & Re-transcribe" : "Download Audio and Transcribe"}</>
                     )}
@@ -557,15 +612,15 @@ const AdminVideoForm = () => {
                 <Button
                   onClick={() => {
                     if (!audioFile) return;
-                    startJob({ audioFile, timeRange, mediaDuration, videoId });
+                    kickOffServerPipeline(audioFile);
                   }}
                   disabled={isProcessing}
                   className="w-full"
                 >
                   {isProcessing ? (
-                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Running in background — you can navigate away</>
+                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Processing on server — you can navigate away</>
                   ) : (
-                    <><Sparkles className="h-4 w-4 mr-2" />Transcribe & Analyze</>
+                    <><Sparkles className="h-4 w-4 mr-2" />Transcribe & Analyze (server-side)</>
                   )}
                 </Button>
               </div>

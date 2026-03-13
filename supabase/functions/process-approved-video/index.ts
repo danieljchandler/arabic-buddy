@@ -8,15 +8,14 @@ const corsHeaders = {
 };
 
 /**
- * Orchestrates the full transcription/translation pipeline for an approved
- * trending video. Steps:
- *  1. Download YouTube audio (via the existing download-media function)
+ * Orchestrates the full transcription/translation pipeline for a video.
+ * Steps:
+ *  1. Check storage for uploaded audio, or download via download-media
  *  2. Transcribe with all engines in parallel (Deepgram, Fanar, Soniox, Munsit)
  *  3. Merge + translate via analyze-gulf-arabic
  *  4. Save results to the discover_videos row
  *
- * Called fire-and-forget from the frontend when admin clicks Approve.
- * Uses the service-role key so the pipeline can run without a user session.
+ * Called fire-and-forget from the frontend. Runs entirely server-side.
  */
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -97,71 +96,96 @@ serve(async (req) => {
       const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
       const authHeaders = { Authorization: `Bearer ${serviceKey}` };
 
-      // ── Step 1: Download audio ──────────────────────────────────────
-      console.log("[pipeline] Step 1: Downloading audio...");
-      const downloadResp = await fetch(
-        `${projectUrl}/functions/v1/download-media`,
-        {
-          method: "POST",
-          headers: { ...authHeaders, "Content-Type": "application/json" },
-          body: JSON.stringify({ url: video.source_url }),
+      // ── Step 1: Get audio (storage first, then download-media) ──────
+      console.log("[pipeline] Step 1: Getting audio...");
+
+      let audioFile: File | null = null;
+      let downloadDuration: number | null = null;
+
+      // Check storage for uploaded audio first
+      const storagePaths = [`${videoId}.mp4`, `${videoId}.m4a`, `${videoId}.webm`, `${videoId}.mp3`];
+      for (const path of storagePaths) {
+        const { data: fileData, error: fileErr } = await supabase.storage
+          .from("video-audio")
+          .download(path);
+        if (!fileErr && fileData) {
+          console.log(`[pipeline] Found audio in storage: video-audio/${path}`);
+          audioFile = new File([fileData], path, { type: fileData.type || "audio/mp4" });
+          break;
         }
-      );
-
-      if (!downloadResp.ok) {
-        const errBody = await downloadResp.text();
-        throw new Error(`Download failed (${downloadResp.status}): ${errBody}`);
       }
 
-      const downloadData = await downloadResp.json();
+      // Fallback: download from URL
+      if (!audioFile) {
+        console.log("[pipeline] No storage audio found, downloading from URL...");
+        const downloadResp = await fetch(
+          `${projectUrl}/functions/v1/download-media`,
+          {
+            method: "POST",
+            headers: { ...authHeaders, "Content-Type": "application/json" },
+            body: JSON.stringify({ url: video.source_url }),
+          }
+        );
 
-      // Check if we got a cache hit with existing transcription data
-      if (downloadData.cached && downloadData.transcriptionData) {
-        console.log("[pipeline] Cache hit — using existing transcription data");
-        const cached = downloadData.transcriptionData;
-        await supabase
-          .from("discover_videos")
-          .update({
-            transcript_lines: cached.lines || [],
-            vocabulary: cached.vocabulary || [],
-            grammar_points: cached.grammarPoints || [],
-            cultural_context: cached.culturalContext || null,
-            dialect: cached.dialect || "Gulf",
-            difficulty: cached.difficulty || "Intermediate",
-            transcription_status: "completed",
-            transcription_error: null,
-          })
-          .eq("id", videoId);
-        console.log("[pipeline] Completed (from cache)");
-        return;
-      }
+        if (!downloadResp.ok) {
+          const errBody = await downloadResp.text();
+          throw new Error(`Download failed (${downloadResp.status}): ${errBody}`);
+        }
 
-      if (!downloadData.audioBase64) {
-        throw new Error("No audio data received from download. Try uploading the audio file manually on the video edit page.");
-      }
+        const downloadData = await downloadResp.json();
 
-      const binaryStr = atob(downloadData.audioBase64);
-      const bytes = new Uint8Array(binaryStr.length);
-      for (let i = 0; i < binaryStr.length; i++) {
-        bytes[i] = binaryStr.charCodeAt(i);
+        // Check if we got a cache hit with existing transcription data
+        if (downloadData.cached && downloadData.transcriptionData) {
+          console.log("[pipeline] Cache hit — using existing transcription data");
+          const cached = downloadData.transcriptionData;
+          await supabase
+            .from("discover_videos")
+            .update({
+              transcript_lines: cached.lines || [],
+              vocabulary: cached.vocabulary || [],
+              grammar_points: cached.grammarPoints || [],
+              cultural_context: cached.culturalContext || null,
+              dialect: cached.dialect || "Gulf",
+              difficulty: cached.difficulty || "Intermediate",
+              transcription_status: "completed",
+              transcription_error: null,
+            })
+            .eq("id", videoId);
+          console.log("[pipeline] Completed (from cache)");
+          return;
+        }
+
+        if (!downloadData.audioBase64) {
+          throw new Error("No audio data received from download. Try uploading the audio file manually on the video edit page.");
+        }
+
+        const binaryStr = atob(downloadData.audioBase64);
+        const bytes = new Uint8Array(binaryStr.length);
+        for (let i = 0; i < binaryStr.length; i++) {
+          bytes[i] = binaryStr.charCodeAt(i);
+        }
+        const audioBlob = new Blob([bytes], {
+          type: downloadData.contentType || "audio/mp4",
+        });
+        audioFile = new File(
+          [audioBlob],
+          downloadData.filename || "audio.mp4",
+          { type: audioBlob.type }
+        );
+
+        if (downloadData.duration) {
+          downloadDuration = Math.round(downloadData.duration);
+        }
       }
-      const audioBlob = new Blob([bytes], {
-        type: downloadData.contentType || "audio/mp4",
-      });
-      const audioFile = new File(
-        [audioBlob],
-        downloadData.filename || "audio.mp4",
-        { type: audioBlob.type }
-      );
 
       const fileSizeMB = (audioFile.size / (1024 * 1024)).toFixed(2);
-      console.log(`[pipeline] Audio downloaded: ${fileSizeMB} MB`);
+      console.log(`[pipeline] Audio ready: ${fileSizeMB} MB`);
 
       // Update duration if provided
-      if (downloadData.duration) {
+      if (downloadDuration) {
         await supabase
           .from("discover_videos")
-          .update({ duration_seconds: Math.round(downloadData.duration) })
+          .update({ duration_seconds: downloadDuration })
           .eq("id", videoId);
       }
 
@@ -170,7 +194,7 @@ serve(async (req) => {
 
       const makeFormData = (fieldName: string) => {
         const fd = new FormData();
-        fd.append(fieldName, audioFile);
+        fd.append(fieldName, audioFile!);
         return fd;
       };
 
@@ -391,6 +415,11 @@ serve(async (req) => {
 
       if (updateError) {
         throw new Error(`Failed to save results: ${updateError.message}`);
+      }
+
+      // Clean up storage audio after successful processing
+      for (const path of storagePaths) {
+        await supabase.storage.from("video-audio").remove([path]).catch(() => {});
       }
 
       console.log(

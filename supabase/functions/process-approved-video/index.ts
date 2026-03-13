@@ -81,15 +81,10 @@ serve(async (req) => {
     .update({ transcription_status: "processing", transcription_error: null })
     .eq("id", videoId);
 
-  // Return immediately — the actual pipeline runs in the background
-  const responsePromise = new Response(
-    JSON.stringify({ success: true, message: "Processing started" }),
-    { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-  );
-
-  // Run the pipeline asynchronously
-  const pipelinePromise = (async () => {
-    try {
+  // Run the full pipeline synchronously — the client fires-and-forgets,
+  // so this function can take as long as needed without the runtime killing it.
+  try {
+    {
       console.log(`[pipeline] Starting for video ${videoId}: ${video.source_url}`);
 
       const projectUrl = Deno.env.get("SUPABASE_URL")!;

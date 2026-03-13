@@ -311,12 +311,17 @@ async function callLLM(
         },
       });
     } else {
-      body = JSON.stringify({
+      const payload: Record<string, unknown> = {
         model: config.model,
         messages,
         max_tokens: maxTokens,
         temperature: 0.4,
-      });
+      };
+      // Jais HF endpoint requires explicit chat_template (transformers v4.44+)
+      if (config.model === 'inceptionai/jais-13b-chat') {
+        payload.chat_template = "{% for message in messages %}{% if message['role'] == 'user' %}### Instruction: Your name is Jais, and you are named after Jebel Jais, the highest mountain in UAE. You are helpful, respectful, and honest.\n[|Human|]: {{ message['content'] }}\n[|AI|]:{% elif message['role'] == 'assistant' %} {{ message['content'] }}{% endif %}{% endfor %}";
+      }
+      body = JSON.stringify(payload);
     }
 
     const response = await fetch(config.endpoint, {

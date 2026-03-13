@@ -107,3 +107,6 @@ verify_jwt = false
 
 [functions.weekly-coach]
 verify_jwt = false
+
+[functions.receive-audio]
+verify_jwt = false

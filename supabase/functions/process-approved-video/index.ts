@@ -420,30 +420,27 @@ serve(async (req) => {
       console.log(
         `[pipeline] Completed! ${sanitizedLines.length} lines, ${(result.vocabulary || []).length} vocab items from ${engines.length} engine(s)`
       );
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : "Unknown error";
-      console.error(`[pipeline] Failed for video ${videoId}:`, errorMsg);
-
-      await supabase
-        .from("discover_videos")
-        .update({
-          transcription_status: "failed",
-          transcription_error: errorMsg,
-        })
-        .eq("id", videoId);
     }
-  })();
 
-  // Wait for both the response and the pipeline to complete
-  try {
-    // @ts-ignore - Deno.serve context allows background work
-    if (typeof EdgeRuntime !== "undefined" && EdgeRuntime.waitUntil) {
-      // @ts-ignore
-      EdgeRuntime.waitUntil(pipelinePromise);
-    }
-  } catch {
-    // Fallback: just let the promise run
+    return new Response(
+      JSON.stringify({ success: true, message: "Pipeline completed" }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : "Unknown error";
+    console.error(`[pipeline] Failed for video ${videoId}:`, errorMsg);
+
+    await supabase
+      .from("discover_videos")
+      .update({
+        transcription_status: "failed",
+        transcription_error: errorMsg,
+      })
+      .eq("id", videoId);
+
+    return new Response(
+      JSON.stringify({ success: false, error: errorMsg }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
   }
-
-  return responsePromise;
 });

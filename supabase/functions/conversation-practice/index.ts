@@ -93,6 +93,7 @@ serve(async (req) => {
               messages,
               temperature: 0.7,
               max_tokens: 1024,
+              chat_template: "{% for message in messages %}{% if message['role'] == 'user' %}### Instruction: Your name is Jais, and you are named after Jebel Jais, the highest mountain in UAE. You are helpful, respectful, and honest.\n[|Human|]: {{ message['content'] }}\n[|AI|]:{% elif message['role'] == 'assistant' %} {{ message['content'] }}{% endif %}{% endfor %}",
             }),
           });
           if (jaisResp.ok) {

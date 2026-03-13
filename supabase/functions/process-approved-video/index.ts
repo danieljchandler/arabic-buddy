@@ -298,7 +298,7 @@ serve(async (req) => {
 
     const analyzeResp = await fetch(`${projectUrl}/functions/v1/analyze-gulf-arabic`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${serviceKey}`, "Content-Type": "application/json" },
+      headers: { Authorization: authHeader, "Content-Type": "application/json" },
       body: JSON.stringify(analyzeBody),
     });
 

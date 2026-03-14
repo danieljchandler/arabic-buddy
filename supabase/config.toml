@@ -110,3 +110,6 @@ verify_jwt = false
 
 [functions.receive-audio]
 verify_jwt = false
+
+[functions.trigger-download]
+verify_jwt = false

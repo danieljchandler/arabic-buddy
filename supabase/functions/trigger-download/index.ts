@@ -12,7 +12,7 @@ Deno.serve(async (req) => {
   }
 
   const RUNPOD_API_KEY = Deno.env.get("RUNPOD_API_KEY");
-  const RUNPOD_ENDPOINT = Deno.env.get("RUNPOD_ENDPOINT_URL") || DEFAULT_RUNPOD_ENDPOINT;
+  const RUNPOD_ENDPOINT_OVERRIDE = Deno.env.get("RUNPOD_ENDPOINT_URL")?.trim();
   const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
   const CALLBACK_SECRET = Deno.env.get("RUNPOD_CALLBACK_SECRET");
 
@@ -51,26 +51,47 @@ Deno.serve(async (req) => {
     },
   };
 
-  const runpodRes = await fetch(RUNPOD_ENDPOINT, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${RUNPOD_API_KEY}`,
-    },
-    body: JSON.stringify(runpodPayload),
-  });
+  const endpointCandidates = [RUNPOD_ENDPOINT_OVERRIDE, DEFAULT_RUNPOD_ENDPOINT].filter(
+    (value, index, arr): value is string => !!value && arr.indexOf(value) === index
+  );
 
-  const runpodData = await runpodRes.json();
+  let lastFailure: unknown = null;
 
-  if (!runpodRes.ok) {
-    return new Response(
-      JSON.stringify({ error: "RunPod request failed", details: runpodData }),
-      { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+  for (const endpoint of endpointCandidates) {
+    try {
+      const runpodRes = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${RUNPOD_API_KEY}`,
+        },
+        body: JSON.stringify(runpodPayload),
+      });
+
+      const raw = await runpodRes.text();
+      let runpodData: any = null;
+      try {
+        runpodData = raw ? JSON.parse(raw) : null;
+      } catch {
+        runpodData = { raw };
+      }
+
+      if (!runpodRes.ok) {
+        lastFailure = { endpoint, status: runpodRes.status, details: runpodData };
+        continue;
+      }
+
+      return new Response(
+        JSON.stringify({ job_id: runpodData?.id, status: runpodData?.status }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    } catch (error) {
+      lastFailure = { endpoint, error: error instanceof Error ? error.message : "Unknown error" };
+    }
   }
 
   return new Response(
-    JSON.stringify({ job_id: runpodData.id, status: runpodData.status }),
-    { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    JSON.stringify({ error: "RunPod request failed", details: lastFailure }),
+    { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
   );
 });

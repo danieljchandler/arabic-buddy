@@ -1064,17 +1064,24 @@ serve(async (req) => {
       status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   }
+
+  // Allow internal service-role calls (e.g. from process-approved-video)
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  const isInternalServiceCall = serviceRoleKey && authHeader === `Bearer ${serviceRoleKey}`;
+
   try {
-    const supabaseAuth = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_ANON_KEY')!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-    const { data: { user }, error: userError } = await supabaseAuth.auth.getUser();
-    if (userError || !user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+    if (!isInternalServiceCall) {
+      const supabaseAuth = createClient(
+        Deno.env.get('SUPABASE_URL')!,
+        Deno.env.get('SUPABASE_ANON_KEY')!,
+        { global: { headers: { Authorization: authHeader } } }
+      );
+      const { data: { user }, error: userError } = await supabaseAuth.auth.getUser();
+      if (userError || !user) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+          status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
     }
     const body = await req.json();
     const { transcript, munsitTranscript, fanarTranscript, sonioxTranscript, sonioxTranslation, visualContext, originalUrl } = body;

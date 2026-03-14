@@ -4,7 +4,8 @@ import type { Segment } from '@/types/transcript';
 /**
  * Sync video playback with transcript segments.
  *
- * - Clicking a segment seeks the video to `segment.start`
+ * - Clicking a segment seeks the video to `segment.start` and plays only
+ *   until `segment.end`, then pauses automatically.
  * - `activeSegmentId` / `activeWordIndex` update on video `timeupdate`
  */
 export function useVideoSync(
@@ -15,38 +16,54 @@ export function useVideoSync(
   const [activeWordIndex, setActiveWordIndex] = useState<number>(-1);
   const segmentsRef = useRef(segments);
   segmentsRef.current = segments;
-  // End time for single-segment playback; null means play freely
-  const segmentEndRef = useRef<number | null>(null);
-  // True when WE programmatically called pause (to stop at segment end)
-  const programmaticPauseRef = useRef(false);
 
-  /** Seek the video to the start of a segment and play only that segment. */
+  /**
+   * Seek the video to the start of a segment and play only that segment.
+   *
+   * The stop-at-end listener is attached here rather than in the useEffect
+   * because videoRef.current is guaranteed to be set at this point (the user
+   * just clicked a button in the rendered UI). The useEffect can miss the
+   * video element if audioUrl is set after the initial mount.
+   */
   const seekToSegment = useCallback(
     (segmentId: string) => {
       const seg = segmentsRef.current.find(s => s.id === segmentId);
-      if (seg && videoRef.current) {
-        videoRef.current.currentTime = seg.start;
-        segmentEndRef.current = seg.end;
-        videoRef.current.play().catch(() => {});
-      }
+      if (!seg || !videoRef.current) return;
+
+      const video = videoRef.current;
+      const endTime = seg.end;
+
+      // Remove any previous stop-at-end listener before adding a new one
+      // by using a named function stored on the element.
+      const prev = (video as any).__stopAtEnd;
+      if (prev) video.removeEventListener('timeupdate', prev);
+
+      const stopAtEnd = () => {
+        if (video.currentTime >= endTime) {
+          video.pause();
+          video.removeEventListener('timeupdate', stopAtEnd);
+          (video as any).__stopAtEnd = null;
+        }
+      };
+      (video as any).__stopAtEnd = stopAtEnd;
+
+      video.currentTime = seg.start;
+      video.addEventListener('timeupdate', stopAtEnd);
+      video.play().catch(() => {
+        video.removeEventListener('timeupdate', stopAtEnd);
+        (video as any).__stopAtEnd = null;
+      });
     },
     [videoRef],
   );
 
+  // Track active segment/word for UI highlighting
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
     const onTimeUpdate = () => {
       const t = video.currentTime;
-
-      // Stop at segment end if triggered via seekToSegment
-      if (segmentEndRef.current !== null && t >= segmentEndRef.current) {
-        segmentEndRef.current = null;
-        programmaticPauseRef.current = true;
-        video.pause();
-      }
-
       const segs = segmentsRef.current;
       let foundSeg: Segment | null = null;
       let foundWord = -1;
@@ -68,22 +85,8 @@ export function useVideoSync(
       setActiveWordIndex(foundWord);
     };
 
-    // If the user manually pauses (not us), clear the segment lock so
-    // resuming playback via the top controls works without re-triggering stop.
-    const onPause = () => {
-      if (programmaticPauseRef.current) {
-        programmaticPauseRef.current = false;
-      } else {
-        segmentEndRef.current = null;
-      }
-    };
-
     video.addEventListener('timeupdate', onTimeUpdate);
-    video.addEventListener('pause', onPause);
-    return () => {
-      video.removeEventListener('timeupdate', onTimeUpdate);
-      video.removeEventListener('pause', onPause);
-    };
+    return () => video.removeEventListener('timeupdate', onTimeUpdate);
   }, [videoRef]);
 
   return { activeSegmentId, activeWordIndex, seekToSegment };

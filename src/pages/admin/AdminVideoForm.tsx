@@ -389,9 +389,13 @@ const AdminVideoForm = () => {
       toast.success("Audio downloaded! Select the time range, then process.");
     } catch (err) {
       console.error("Download error:", err);
-      toast.error("Download failed — use 'Upload File' instead", {
-        description: err instanceof Error ? err.message : "Unknown error",
-      });
+      // Fallback to RunPod for YouTube URLs
+      const queued = await triggerRunPodFallback();
+      if (!queued) {
+        toast.error("Download failed — use 'Upload File' instead", {
+          description: err instanceof Error ? err.message : "Unknown error",
+        });
+      }
     } finally {
       setIsDownloading(false);
     }

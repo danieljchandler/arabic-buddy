@@ -1,21 +1,27 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const EXPECTED_SECRET = "VkXg2vi3k6W_cEwzFSCZxI5hTnGApUPUfeIw-SsOXt0";
-
 Deno.serve(async (req) => {
   if (req.method !== "POST") {
     return new Response("Method not allowed", { status: 405 });
   }
 
+  const callbackSecret = Deno.env.get("RUNPOD_CALLBACK_SECRET");
+  if (!callbackSecret) {
+    return new Response(JSON.stringify({ error: "RUNPOD_CALLBACK_SECRET not configured" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
   const auth = req.headers.get("Authorization") ?? "";
-  if (auth !== `Bearer ${EXPECTED_SECRET}`) {
+  if (auth !== `Bearer ${callbackSecret}`) {
     return new Response("Unauthorized", { status: 401 });
   }
 
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-  );
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+  const supabase = createClient(supabaseUrl, serviceRoleKey);
 
   const form = await req.formData();
   const audioFile = form.get("audio") as File;
@@ -25,6 +31,7 @@ Deno.serve(async (req) => {
   const duration = form.get("duration") as string;
   const thumbnail = form.get("thumbnail") as string;
   const channel = form.get("channel") as string;
+  const discover_video_id = form.get("discover_video_id") as string | null;
 
   if (!audioFile || !video_id) {
     return new Response(JSON.stringify({ error: "Missing audio or video_id" }), {
@@ -33,8 +40,8 @@ Deno.serve(async (req) => {
     });
   }
 
-  const storagePath = `${video_id}.opus`;
   const audioBytes = await audioFile.arrayBuffer();
+  const storagePath = `${video_id}.opus`;
 
   const { error: uploadError } = await supabase.storage
     .from("audio")
@@ -50,9 +57,7 @@ Deno.serve(async (req) => {
     });
   }
 
-  const { data: urlData } = supabase.storage
-    .from("audio")
-    .getPublicUrl(storagePath);
+  const { data: urlData } = supabase.storage.from("audio").getPublicUrl(storagePath);
 
   const { error: dbError } = await supabase.from("audio_files").insert({
     video_id,
@@ -72,8 +77,57 @@ Deno.serve(async (req) => {
     });
   }
 
+  let targetDiscoverVideoId: string | null = discover_video_id || null;
+
+  if (!targetDiscoverVideoId) {
+    const { data: matchedVideo } = await supabase
+      .from("discover_videos")
+      .select("id")
+      .ilike("source_url", `%${video_id}%`)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    targetDiscoverVideoId = matchedVideo?.id ?? null;
+  }
+
+  let processingTriggered = false;
+  if (targetDiscoverVideoId) {
+    const ingestionPath = `${targetDiscoverVideoId}.mp4`;
+
+    const { error: stagingError } = await supabase.storage
+      .from("video-audio")
+      .upload(ingestionPath, audioBytes, {
+        contentType: audioFile.type || "audio/ogg; codecs=opus",
+        upsert: true,
+      });
+
+    if (!stagingError) {
+      const pipelineRes = await fetch(`${supabaseUrl}/functions/v1/process-approved-video`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${serviceRoleKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ videoId: targetDiscoverVideoId }),
+      });
+
+      processingTriggered = pipelineRes.ok;
+      if (!pipelineRes.ok) {
+        const pipelineErr = await pipelineRes.text();
+        console.error("receive-audio: process-approved-video failed", pipelineErr);
+      }
+    } else {
+      console.error("receive-audio: failed to stage file in video-audio", stagingError.message);
+    }
+  }
+
   return new Response(
-    JSON.stringify({ storage_url: urlData.publicUrl }),
-    { headers: { "Content-Type": "application/json" } }
+    JSON.stringify({
+      storage_url: urlData.publicUrl,
+      discover_video_id: targetDiscoverVideoId,
+      processing_triggered: processingTriggered,
+    }),
+    { headers: { "Content-Type": "application/json" } },
   );
 });

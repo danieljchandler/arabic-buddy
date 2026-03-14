@@ -9,6 +9,30 @@ const corsHeaders = {
 
 const ASR_TIMEOUT_MS = 5 * 60 * 1000;
 
+function extractYouTubeVideoId(url: string): string | null {
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.replace(/^www\./, "").replace(/^m\./, "");
+
+    if (host === "youtu.be") {
+      const id = parsed.pathname.slice(1).split("/")[0];
+      return id || null;
+    }
+
+    if (host === "youtube.com") {
+      const direct = parsed.searchParams.get("v");
+      if (direct) return direct;
+
+      const pathMatch = parsed.pathname.match(/^\/(shorts|live|embed)\/([a-zA-Z0-9_-]{11})/);
+      if (pathMatch?.[2]) return pathMatch[2];
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });

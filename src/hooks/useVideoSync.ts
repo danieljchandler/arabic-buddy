@@ -16,12 +16,13 @@ export function useVideoSync(
   const segmentsRef = useRef(segments);
   segmentsRef.current = segments;
 
-  /** Seek the video to the start of a segment. */
+  /** Seek the video to the start of a segment and play. */
   const seekToSegment = useCallback(
     (segmentId: string) => {
       const seg = segmentsRef.current.find(s => s.id === segmentId);
       if (seg && videoRef.current) {
         videoRef.current.currentTime = seg.start;
+        videoRef.current.play().catch(() => {});
       }
     },
     [videoRef],

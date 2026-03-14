@@ -73,6 +73,50 @@ const AdminVideoForm = () => {
     };
   }, [audioFile]);
 
+  // Auto-load audio from storage when editing an existing video
+  useEffect(() => {
+    if (!videoId || !existingVideo) return;
+    if (stableAudioUrl) return; // already loaded (user uploaded or blob)
+    if (audioFile) return; // user already picked a file
+
+    const tryLoadAudio = async () => {
+      // Strategy 1: video-audio bucket (private) — try signed URLs
+      const extensions = ['.mp4', '.opus', '.m4a', '.webm'];
+      for (const ext of extensions) {
+        const { data } = await supabase.storage
+          .from('video-audio')
+          .createSignedUrl(`${videoId}${ext}`, 3600);
+        if (data?.signedUrl) {
+          setStableAudioUrl(data.signedUrl);
+          return;
+        }
+      }
+
+      // Strategy 2: audio bucket (public) via audio_files table lookup
+      const parsed = parseVideoUrl(existingVideo.source_url);
+      const ytId = parsed?.videoId;
+      if (ytId) {
+        const { data: audioRecord } = await supabase
+          .from('audio_files')
+          .select('storage_path')
+          .eq('video_id', ytId)
+          .limit(1)
+          .maybeSingle();
+        if (audioRecord?.storage_path) {
+          const { data: urlData } = supabase.storage
+            .from('audio')
+            .getPublicUrl(audioRecord.storage_path);
+          if (urlData?.publicUrl) {
+            setStableAudioUrl(urlData.publicUrl);
+            return;
+          }
+        }
+      }
+    };
+
+    tryLoadAudio();
+  }, [videoId, existingVideo, stableAudioUrl, audioFile]);
+
   // Track server-side processing status from polling
   const serverStatus = existingVideo?.transcription_status;
   useEffect(() => {

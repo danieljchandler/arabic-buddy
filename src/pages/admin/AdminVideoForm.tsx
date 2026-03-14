@@ -427,7 +427,7 @@ const AdminVideoForm = () => {
     const { data, errorMessage } = await downloadMediaAudio();
 
     if (!data) {
-      const queued = await triggerRunPodFallback();
+      const queued = await triggerRunPodFallback({ createPendingRecord: true });
       setIsDownloading(false);
       if (!queued) {
         toast.error("Download failed — use 'Upload File' instead", {

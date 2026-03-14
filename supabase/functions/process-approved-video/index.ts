@@ -109,8 +109,8 @@ serve(async (req) => {
     let audioContentType = "audio/mp4";
     let downloadDuration: number | null = null;
 
-    // Check storage first
-    const storagePaths = [`${videoId}.mp4`, `${videoId}.m4a`, `${videoId}.webm`, `${videoId}.mp3`];
+    // Check staged storage first
+    const storagePaths = [`${videoId}.mp4`, `${videoId}.m4a`, `${videoId}.webm`, `${videoId}.mp3`, `${videoId}.opus`];
     for (const path of storagePaths) {
       const { data: fileData, error: fileErr } = await supabase.storage
         .from("video-audio")
@@ -123,7 +123,53 @@ serve(async (req) => {
       }
     }
 
-    // Fallback: download from URL via download-media
+    // Fallback 1: reuse already extracted audio from `audio` bucket
+    if (!audioBytes) {
+      const extractedVideoId = extractYouTubeVideoId(video.source_url || "");
+      let candidatePath: string | null = null;
+
+      if (extractedVideoId) {
+        const { data: byVideoId } = await supabase
+          .from("audio_files")
+          .select("storage_path")
+          .eq("status", "ready")
+          .eq("video_id", extractedVideoId)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        candidatePath = byVideoId?.storage_path ?? null;
+      }
+
+      if (!candidatePath) {
+        const { data: bySourceUrl } = await supabase
+          .from("audio_files")
+          .select("storage_path")
+          .eq("status", "ready")
+          .eq("source_url", video.source_url)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        candidatePath = bySourceUrl?.storage_path ?? null;
+      }
+
+      if (candidatePath) {
+        const { data: extractedAudio, error: extractedAudioErr } = await supabase.storage
+          .from("audio")
+          .download(candidatePath);
+
+        if (!extractedAudioErr && extractedAudio) {
+          console.log(`[pipeline] Reusing extracted audio: audio/${candidatePath}`);
+          audioBytes = await extractedAudio.arrayBuffer();
+          audioContentType = extractedAudio.type || (candidatePath.endsWith(".opus") ? "audio/ogg; codecs=opus" : "audio/mp4");
+        } else {
+          console.warn(`[pipeline] Failed to load audio/${candidatePath}: ${extractedAudioErr?.message ?? "unknown error"}`);
+        }
+      }
+    }
+
+    // Fallback 2: download from URL via download-media
     if (!audioBytes) {
       console.log("[pipeline] No storage audio found, downloading from URL...");
       const downloadResp = await fetch(`${projectUrl}/functions/v1/download-media`, {

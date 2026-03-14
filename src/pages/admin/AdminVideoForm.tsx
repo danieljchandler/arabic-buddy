@@ -61,17 +61,18 @@ const AdminVideoForm = () => {
 
   // Stable blob URL for audio playback in transcript editor
   const [stableAudioUrl, setStableAudioUrl] = useState<string | undefined>(undefined);
+  // Tracks blob URLs created for playback-only (not tied to audioFile) so we can revoke them
+  const playbackBlobUrlRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!audioFile) {
-      setStableAudioUrl(undefined);
-      return;
-    }
+    if (!audioFile) return; // don't clear — may have been set by playback-only loader
     const url = URL.createObjectURL(audioFile);
     setStableAudioUrl(url);
     return () => {
       URL.revokeObjectURL(url);
     };
   }, [audioFile]);
+  // Revoke playback-only blob URL on unmount
+  useEffect(() => () => { if (playbackBlobUrlRef.current) URL.revokeObjectURL(playbackBlobUrlRef.current); }, []);
 
   // Auto-load audio from storage when editing an existing video
   useEffect(() => {
@@ -551,6 +552,36 @@ const AdminVideoForm = () => {
     }
   };
 
+  // Downloads audio for playback only — does NOT set audioFile or trigger the pipeline
+  const handleLoadAudioForPlayback = async () => {
+    if (!sourceUrl) return;
+    setIsDownloading(true);
+    try {
+      const { data: downloadData, errorMessage } = await downloadMediaAudio();
+      if (!downloadData) {
+        toast.error("Download failed — use 'Upload File' instead", {
+          description: errorMessage || "Unknown error",
+        });
+        return;
+      }
+      const binaryStr = atob(downloadData.audioBase64);
+      const bytes = new Uint8Array(binaryStr.length);
+      for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
+      const blob = new Blob([bytes], { type: downloadData.contentType || "audio/mp4" });
+      if (playbackBlobUrlRef.current) URL.revokeObjectURL(playbackBlobUrlRef.current);
+      const url = URL.createObjectURL(blob);
+      playbackBlobUrlRef.current = url;
+      setStableAudioUrl(url);
+      toast.success("Audio loaded for playback.");
+    } catch (err) {
+      toast.error("Could not load audio", {
+        description: err instanceof Error ? err.message : "Unknown error",
+      });
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
   const handleSave = async () => {
     let savePlatform = platform;
     let saveEmbedUrl = embedUrl;
@@ -779,7 +810,7 @@ const AdminVideoForm = () => {
               <div className="space-y-3">
                 <div className="flex gap-2 items-center">
                   <Badge variant="secondary" className="py-1.5">✓ Audio Ready</Badge>
-                  <Button variant="ghost" size="sm" onClick={() => { setAudioFile(null); setMediaDuration(null); }}>Change</Button>
+                  <Button variant="ghost" size="sm" onClick={() => { setAudioFile(null); setMediaDuration(null); setStableAudioUrl(undefined); }}>Change</Button>
                 </div>
                 {mediaDuration && mediaDuration > 0 && (
                   <TimeRangeSelector duration={mediaDuration} maxRange={mediaDuration} value={timeRange} onChange={setTimeRange} />
@@ -893,7 +924,7 @@ const AdminVideoForm = () => {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={handleDownloadAudio}
+                    onClick={handleLoadAudioForPlayback}
                     disabled={!sourceUrl || isDownloading}
                   >
                     {isDownloading ? (

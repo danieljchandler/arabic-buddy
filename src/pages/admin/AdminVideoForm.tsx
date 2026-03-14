@@ -280,19 +280,69 @@ const AdminVideoForm = () => {
     }
   };
 
+  const extractFunctionErrorMessage = async (fnError: any): Promise<string> => {
+    let message = fnError?.message || "Request failed";
+
+    try {
+      const resp = fnError?.context;
+      if (resp && typeof resp.json === "function") {
+        const body = await resp.json();
+        message = body?.error || body?.message || message;
+      }
+    } catch {
+      // ignore parsing errors and keep fallback message
+    }
+
+    return message;
+  };
+
+  const downloadMediaAudio = async () => {
+    const { data, error } = await supabase.functions.invoke("download-media", {
+      body: { url: sourceUrl },
+    });
+
+    if (error) {
+      return {
+        data: null,
+        errorMessage: await extractFunctionErrorMessage(error),
+      };
+    }
+
+    if (!data?.audioBase64) {
+      return {
+        data: null,
+        errorMessage: "No audio found",
+      };
+    }
+
+    return { data, errorMessage: null as string | null };
+  };
+
   const triggerRunPodFallback = async () => {
-    const parsed = parseVideoUrl(sourceUrl);
-    if (!parsed || parsed.platform !== "youtube") return false;
+    const trimmedUrl = sourceUrl.trim();
+    const parsed = parseVideoUrl(trimmedUrl);
+    const extractedVideoId =
+      parsed?.videoId ||
+      trimmedUrl.match(/(?:youtube\.com\/(?:watch\?v=|shorts\/|live\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/)?.[1];
+
+    if (!extractedVideoId || (parsed && parsed.platform !== "youtube")) return false;
+
     try {
       toast.info("Queuing audio extraction via RunPod…");
       const { data: rpData, error: rpError } = await supabase.functions.invoke("trigger-download", {
-        body: { youtube_url: sourceUrl, video_id: parsed.videoId },
+        body: { youtube_url: trimmedUrl, video_id: extractedVideoId },
       });
-      if (rpError) throw rpError;
+
+      if (rpError) {
+        const message = await extractFunctionErrorMessage(rpError);
+        toast.error("Could not queue RunPod fallback", { description: message });
+        return false;
+      }
+
       toast.success(`RunPod job queued (${rpData?.job_id}). Audio will appear in storage once ready — refresh later.`);
       return true;
     } catch (rpErr) {
-      console.error("RunPod fallback error:", rpErr);
+      console.warn("RunPod fallback error:", rpErr);
       return false;
     }
   };
@@ -301,24 +351,22 @@ const AdminVideoForm = () => {
     if (!sourceUrl) return;
     await ensureUrlParsed();
     setIsDownloading(true);
-    try {
-      toast.info("Downloading audio...");
-      const { data, error } = await supabase.functions.invoke("download-media", {
-        body: { url: sourceUrl },
-      });
-      if (error) {
-        let realMsg = error.message;
-        try {
-          const resp = (error as any)?.context;
-          if (resp && typeof resp.json === "function") {
-            const body = await resp.json();
-            realMsg = body?.error || body?.message || realMsg;
-          }
-        } catch { /* ignore */ }
-        throw new Error(realMsg);
-      }
-      if (!data?.audioBase64) throw new Error("No audio found");
 
+    toast.info("Downloading audio...");
+    const { data, errorMessage } = await downloadMediaAudio();
+
+    if (!data) {
+      const queued = await triggerRunPodFallback();
+      setIsDownloading(false);
+      if (!queued) {
+        toast.error("Download failed — use 'Upload File' instead", {
+          description: errorMessage || "Unknown error",
+        });
+      }
+      return;
+    }
+
+    try {
       const binaryStr = atob(data.audioBase64);
       const bytes = new Uint8Array(binaryStr.length);
       for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
@@ -326,27 +374,22 @@ const AdminVideoForm = () => {
       const downloadedFile = new File([blob], data.filename || "audio.mp4", { type: blob.type });
       setAudioFile(downloadedFile);
       detectFileDuration(downloadedFile);
+
       if (data.duration) {
         const dur = Math.round(data.duration);
         setDurationSeconds(dur);
         setMediaDuration(dur);
         setTimeRange([0, dur]);
       }
+
       toast.success("Audio downloaded! Starting server-side transcription…");
       setIsDownloading(false);
-
-      // Kick off server pipeline immediately
       await kickOffServerPipeline(downloadedFile);
     } catch (err) {
-      console.error("Download error:", err);
-      // Fallback to RunPod for YouTube URLs
-      const queued = await triggerRunPodFallback();
       setIsDownloading(false);
-      if (!queued) {
-        toast.error("Download failed — use 'Upload File' instead", {
-          description: err instanceof Error ? err.message : "Unknown error",
-        });
-      }
+      toast.error("Downloaded audio could not be processed", {
+        description: err instanceof Error ? err.message : "Unknown error",
+      });
     }
   };
 
@@ -354,22 +397,19 @@ const AdminVideoForm = () => {
     if (!sourceUrl) return;
     await ensureUrlParsed();
     setIsDownloading(true);
+
     try {
-      const { data: downloadData, error: downloadError } = await supabase.functions.invoke("download-media", {
-        body: { url: sourceUrl },
-      });
-      if (downloadError) {
-        let realMsg = downloadError.message;
-        try {
-          const resp = (downloadError as any)?.context;
-          if (resp && typeof resp.json === "function") {
-            const body = await resp.json();
-            realMsg = body?.error || body?.message || realMsg;
-          }
-        } catch { /* ignore */ }
-        throw new Error(realMsg);
+      const { data: downloadData, errorMessage } = await downloadMediaAudio();
+
+      if (!downloadData) {
+        const queued = await triggerRunPodFallback();
+        if (!queued) {
+          toast.error("Download failed — use 'Upload File' instead", {
+            description: errorMessage || "Unknown error",
+          });
+        }
+        return;
       }
-      if (!downloadData?.audioBase64) throw new Error("No audio found");
 
       const binaryStr = atob(downloadData.audioBase64);
       const bytes = new Uint8Array(binaryStr.length);
@@ -388,14 +428,9 @@ const AdminVideoForm = () => {
 
       toast.success("Audio downloaded! Select the time range, then process.");
     } catch (err) {
-      console.error("Download error:", err);
-      // Fallback to RunPod for YouTube URLs
-      const queued = await triggerRunPodFallback();
-      if (!queued) {
-        toast.error("Download failed — use 'Upload File' instead", {
-          description: err instanceof Error ? err.message : "Unknown error",
-        });
-      }
+      toast.error("Downloaded audio could not be processed", {
+        description: err instanceof Error ? err.message : "Unknown error",
+      });
     } finally {
       setIsDownloading(false);
     }

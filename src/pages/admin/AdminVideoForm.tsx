@@ -280,6 +280,23 @@ const AdminVideoForm = () => {
     }
   };
 
+  const triggerRunPodFallback = async () => {
+    const parsed = parseVideoUrl(sourceUrl);
+    if (!parsed || parsed.platform !== "youtube") return false;
+    try {
+      toast.info("Queuing audio extraction via RunPod…");
+      const { data: rpData, error: rpError } = await supabase.functions.invoke("trigger-download", {
+        body: { youtube_url: sourceUrl, video_id: parsed.videoId },
+      });
+      if (rpError) throw rpError;
+      toast.success(`RunPod job queued (${rpData?.job_id}). Audio will appear in storage once ready — refresh later.`);
+      return true;
+    } catch (rpErr) {
+      console.error("RunPod fallback error:", rpErr);
+      return false;
+    }
+  };
+
   const handleDownloadAndProcess = async () => {
     if (!sourceUrl) return;
     await ensureUrlParsed();
@@ -322,10 +339,14 @@ const AdminVideoForm = () => {
       await kickOffServerPipeline(downloadedFile);
     } catch (err) {
       console.error("Download error:", err);
+      // Fallback to RunPod for YouTube URLs
+      const queued = await triggerRunPodFallback();
       setIsDownloading(false);
-      toast.error("Download failed — use 'Upload File' instead", {
-        description: err instanceof Error ? err.message : "Unknown error",
-      });
+      if (!queued) {
+        toast.error("Download failed — use 'Upload File' instead", {
+          description: err instanceof Error ? err.message : "Unknown error",
+        });
+      }
     }
   };
 
@@ -368,9 +389,13 @@ const AdminVideoForm = () => {
       toast.success("Audio downloaded! Select the time range, then process.");
     } catch (err) {
       console.error("Download error:", err);
-      toast.error("Download failed — use 'Upload File' instead", {
-        description: err instanceof Error ? err.message : "Unknown error",
-      });
+      // Fallback to RunPod for YouTube URLs
+      const queued = await triggerRunPodFallback();
+      if (!queued) {
+        toast.error("Download failed — use 'Upload File' instead", {
+          description: err instanceof Error ? err.message : "Unknown error",
+        });
+      }
     } finally {
       setIsDownloading(false);
     }

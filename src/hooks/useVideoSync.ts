@@ -15,13 +15,18 @@ export function useVideoSync(
   const [activeWordIndex, setActiveWordIndex] = useState<number>(-1);
   const segmentsRef = useRef(segments);
   segmentsRef.current = segments;
+  // End time for single-segment playback; null means play freely
+  const segmentEndRef = useRef<number | null>(null);
+  // True when WE programmatically called pause (to stop at segment end)
+  const programmaticPauseRef = useRef(false);
 
-  /** Seek the video to the start of a segment and play. */
+  /** Seek the video to the start of a segment and play only that segment. */
   const seekToSegment = useCallback(
     (segmentId: string) => {
       const seg = segmentsRef.current.find(s => s.id === segmentId);
       if (seg && videoRef.current) {
         videoRef.current.currentTime = seg.start;
+        segmentEndRef.current = seg.end;
         videoRef.current.play().catch(() => {});
       }
     },
@@ -34,6 +39,14 @@ export function useVideoSync(
 
     const onTimeUpdate = () => {
       const t = video.currentTime;
+
+      // Stop at segment end if triggered via seekToSegment
+      if (segmentEndRef.current !== null && t >= segmentEndRef.current) {
+        segmentEndRef.current = null;
+        programmaticPauseRef.current = true;
+        video.pause();
+      }
+
       const segs = segmentsRef.current;
       let foundSeg: Segment | null = null;
       let foundWord = -1;
@@ -55,8 +68,22 @@ export function useVideoSync(
       setActiveWordIndex(foundWord);
     };
 
+    // If the user manually pauses (not us), clear the segment lock so
+    // resuming playback via the top controls works without re-triggering stop.
+    const onPause = () => {
+      if (programmaticPauseRef.current) {
+        programmaticPauseRef.current = false;
+      } else {
+        segmentEndRef.current = null;
+      }
+    };
+
     video.addEventListener('timeupdate', onTimeUpdate);
-    return () => video.removeEventListener('timeupdate', onTimeUpdate);
+    video.addEventListener('pause', onPause);
+    return () => {
+      video.removeEventListener('timeupdate', onTimeUpdate);
+      video.removeEventListener('pause', onPause);
+    };
   }, [videoRef]);
 
   return { activeSegmentId, activeWordIndex, seekToSegment };

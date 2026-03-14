@@ -318,7 +318,58 @@ const AdminVideoForm = () => {
     return { data, errorMessage: null as string | null };
   };
 
-  const triggerRunPodFallback = async () => {
+  const ensurePendingVideoRecord = async () => {
+    if (!user) return null;
+
+    let savePlatform = platform || "youtube";
+    let saveEmbedUrl = embedUrl || sourceUrl;
+    let saveThumbnail = thumbnailUrl;
+
+    if (sourceUrl && !embedUrl) {
+      const parsed = parseVideoUrl(sourceUrl);
+      if (parsed) {
+        savePlatform = parsed.platform;
+        saveEmbedUrl = parsed.embedUrl;
+        if (parsed.platform === "youtube") saveThumbnail = getYouTubeThumbnail(parsed.videoId);
+      }
+    }
+
+    let targetVideoId = videoId;
+
+    if (!targetVideoId) {
+      const record = {
+        title: title || "Untitled Video",
+        title_arabic: titleArabic || null,
+        source_url: sourceUrl,
+        platform: savePlatform,
+        embed_url: saveEmbedUrl,
+        thumbnail_url: saveThumbnail || null,
+        duration_seconds: durationSeconds,
+        dialect,
+        difficulty,
+        cultural_context: culturalContext || null,
+        published: false,
+        created_by: user.id,
+        transcription_status: "pending",
+      };
+
+      const { data: inserted, error: insertErr } = await (supabase.from("discover_videos" as any) as any)
+        .insert(record)
+        .select("id")
+        .single();
+
+      if (insertErr) throw insertErr;
+      targetVideoId = inserted.id;
+    } else {
+      await (supabase.from("discover_videos" as any) as any)
+        .update({ transcription_status: "pending", transcription_error: null })
+        .eq("id", targetVideoId);
+    }
+
+    return targetVideoId;
+  };
+
+  const triggerRunPodFallback = async (options?: { createPendingRecord?: boolean }) => {
     const trimmedUrl = sourceUrl.trim();
     const parsed = parseVideoUrl(trimmedUrl);
     const extractedVideoId =
@@ -327,10 +378,24 @@ const AdminVideoForm = () => {
 
     if (!extractedVideoId || (parsed && parsed.platform !== "youtube")) return false;
 
+    let targetVideoId: string | null = videoId ?? null;
+
     try {
+      if (options?.createPendingRecord) {
+        targetVideoId = await ensurePendingVideoRecord();
+        if (!targetVideoId) {
+          toast.error("Please sign in to queue processing");
+          return false;
+        }
+      }
+
       toast.info("Queuing audio extraction via RunPod…");
       const { data: rpData, error: rpError } = await supabase.functions.invoke("trigger-download", {
-        body: { youtube_url: trimmedUrl, video_id: extractedVideoId },
+        body: {
+          youtube_url: trimmedUrl,
+          video_id: extractedVideoId,
+          discover_video_id: targetVideoId,
+        },
       });
 
       if (rpError) {
@@ -339,7 +404,13 @@ const AdminVideoForm = () => {
         return false;
       }
 
-      toast.success(`RunPod job queued (${rpData?.job_id}). Audio will appear in storage once ready — refresh later.`);
+      if (options?.createPendingRecord && targetVideoId && !videoId) {
+        navigate(`/admin/videos/${targetVideoId}/edit`);
+      }
+
+      setIsProcessing(true);
+      queryClient.invalidateQueries({ queryKey: ["admin-discover-videos"] });
+      toast.success(`RunPod job queued (${rpData?.job_id}). Transcription will continue automatically when audio arrives.`);
       return true;
     } catch (rpErr) {
       console.warn("RunPod fallback error:", rpErr);
@@ -356,7 +427,7 @@ const AdminVideoForm = () => {
     const { data, errorMessage } = await downloadMediaAudio();
 
     if (!data) {
-      const queued = await triggerRunPodFallback();
+      const queued = await triggerRunPodFallback({ createPendingRecord: true });
       setIsDownloading(false);
       if (!queued) {
         toast.error("Download failed — use 'Upload File' instead", {

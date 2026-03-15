@@ -1762,6 +1762,43 @@ serve(async (req) => {
         }
       }
 
+      // If called from the pipeline with a videoId, persist results directly to DB.
+      // This prevents data loss when the Supabase gateway kills the HTTP connection
+      // at ~150s even though analysis completed successfully.
+      if (pipelineVideoId && typeof pipelineVideoId === 'string') {
+        try {
+          const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+          const svcKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+          const svc = createClient(supabaseUrl, svcKey);
+
+          const sanitizedLines = transcriptResult.lines.map((line) => ({
+            ...line,
+            tokens: Array.isArray(line.tokens) ? line.tokens
+              : String(line.arabic ?? '').split(/\s+/).filter(Boolean)
+                  .map((w: string, wi: number) => ({ id: `tok-${line.id ?? wi}-${wi}`, surface: w })),
+          }));
+
+          const { error: saveErr } = await svc.from('discover_videos').update({
+            transcript_lines: sanitizedLines,
+            vocabulary: transcriptResult.vocabulary || [],
+            grammar_points: transcriptResult.grammarPoints || [],
+            cultural_context: transcriptResult.culturalContext || null,
+            dialect: transcriptResult.dialect || 'Gulf',
+            difficulty: transcriptResult.difficulty || 'Intermediate',
+            transcription_status: 'analysis_complete',
+            transcription_error: null,
+          }).eq('id', pipelineVideoId);
+
+          if (saveErr) {
+            console.error(`[analyze] Failed to persist results for video ${pipelineVideoId}:`, saveErr.message);
+          } else {
+            console.log(`[analyze] Persisted results directly for video ${pipelineVideoId}`);
+          }
+        } catch (persistErr) {
+          console.error('[analyze] Direct DB persist failed:', persistErr);
+        }
+      }
+
       return new Response(
         JSON.stringify({ success: true, result: transcriptResult, partial }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

@@ -5,75 +5,33 @@ const corsHeaders = {
 
 const YOUTUBE_API_KEY = Deno.env.get('YOUTUBE_API_KEY');
 
-// All six Gulf Cooperation Council (GCC) countries
-const GULF_REGIONS = [
-  'SA', // Saudi Arabia
-  'AE', // United Arab Emirates
-  'KW', // Kuwait
-  'QA', // Qatar
-  'BH', // Bahrain
-  'OM', // Oman
+const GULF_REGIONS = ['SA', 'AE', 'KW', 'QA', 'BH', 'OM'];
+
+// Search queries that surface Gulf Arabic Shorts (rotated per fetch)
+const SEARCH_QUERIES = [
+  'شورتس',        // "shorts" in Arabic
+  'يوميات',       // daily vlogs
+  'مضحك',         // funny
+  'طبخ عربي',     // Arabic cooking
+  'كوميديا',      // comedy
+  'سعودي',        // Saudi
+  'إماراتي',      // Emirati
+  'كويتي',        // Kuwaiti
+  'خليجي',        // Gulf / Khaleeji
+  'تحدي',         // challenge
 ];
 
-// YouTube category ID for Gaming — used as an additional signal
-const GAMING_CATEGORY_ID = '20';
-
-// Keywords that indicate Quran / religious recitation content to exclude
 const QURAN_KEYWORDS = [
-  // Arabic
   'قرآن', 'تلاوة', 'سورة', 'آية', 'حفص', 'ورش', 'ختمة', 'مصحف', 'تجويد',
-  'القرآن', 'الكريم', 'رمضان كريم', 'ختم', 'حفظ القرآن', 'قارئ',
-  // English
-  'quran', 'quran recitation', 'recitation', 'tilawah', 'surah', 'ayah',
-  'hafiz', 'tajweed', 'koran',
+  'القرآن', 'الكريم', 'ختم', 'حفظ القرآن', 'قارئ',
+  'quran', 'recitation', 'tilawah', 'surah', 'ayah', 'hafiz', 'tajweed',
 ];
 
-// Keywords that indicate gaming content to exclude
 const GAMING_KEYWORDS = [
-  // Arabic
   'ألعاب', 'لعبة', 'جيمنج', 'بلايستيشن', 'ببجي', 'فورت نايت', 'ماين كرافت',
-  'جيمر', 'تحديات الألعاب', 'فري فاير', 'كلاش', 'ليغ أوف ليجيندز',
-  // English
-  'gaming', 'gameplay', 'gamer', 'game review', "let's play", 'playthrough',
-  'fortnite', 'pubg', 'ps5', 'xbox', 'minecraft', 'free fire', 'cod', 'warzone',
-  'roblox', 'valorant', 'league of legends', 'fifa', 'pes', 'steam',
+  'جيمر', 'فري فاير', 'كلاش', 'gaming', 'gameplay', 'gamer', 'fortnite',
+  'pubg', 'ps5', 'xbox', 'minecraft', 'free fire', 'warzone', 'roblox', 'valorant',
 ];
-
-interface YouTubeVideo {
-  id: string;
-  snippet: {
-    title: string;
-    channelTitle: string;
-    channelId: string;
-    description: string;
-    categoryId?: string;
-    thumbnails: {
-      high?: { url: string };
-      medium?: { url: string };
-      default?: { url: string };
-    };
-    publishedAt: string;
-  };
-  statistics?: {
-    viewCount: string;
-    likeCount?: string;
-    commentCount?: string;
-  };
-  contentDetails?: {
-    duration: string;
-  };
-}
-
-interface YouTubeResponse {
-  items?: YouTubeVideo[];
-  error?: { message: string; code: number };
-}
-
-interface RegionResult {
-  region: string;
-  candidates: VideoCandidate[];
-  skipped: number;
-}
 
 interface VideoCandidate {
   video_id: string;
@@ -91,26 +49,7 @@ interface VideoCandidate {
   discovered_at: string;
 }
 
-// Max videos to keep per Gulf country after filtering
-const MAX_PER_REGION = 5;
-
-// YouTube Shorts are 60 seconds or less
-const MAX_SHORTS_DURATION = 60;
-
-// Creators consistently tag actual Shorts with #shorts in title or description.
-// This ensures we only surface real Shorts, not just any short-duration video.
-// Arabic creators also use #شورتس, #قصير, or #شورت.
-function isYouTubeShort(title: string, description: string): boolean {
-  const combined = title + ' ' + description;
-  const lower = combined.toLowerCase();
-  return (
-    lower.includes('#shorts') ||
-    lower.includes('# shorts') ||
-    combined.includes('#شورتس') ||
-    combined.includes('#شورت') ||
-    combined.includes('#قصير')
-  );
-}
+const MAX_PER_REGION = 8;
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -127,41 +66,56 @@ Deno.serve(async (req) => {
   try {
     console.log('Starting discovery of trending Gulf Arabic YouTube Shorts...');
 
-    // Fetch all regions in parallel — much faster than sequential and avoids timeout
-    const regionSettled = await Promise.allSettled(
-      GULF_REGIONS.map((region) => fetchRegion(region))
-    );
+    // Pick 2 random search queries per fetch to vary results
+    const shuffled = [...SEARCH_QUERIES].sort(() => Math.random() - 0.5);
+    const queries = shuffled.slice(0, 2);
+    console.log('Search queries:', queries);
 
-    // Collect results, dedup video IDs across regions (first-region wins)
+    // For each region, search with each query in parallel
+    const tasks: Promise<{ region: string; candidates: VideoCandidate[] }>[] = [];
+
+    for (const region of GULF_REGIONS) {
+      for (const query of queries) {
+        tasks.push(searchShorts(region, query));
+      }
+    }
+
+    const settled = await Promise.allSettled(tasks);
+
+    // Collect and dedup
     const seenVideoIds = new Set<string>();
+    const regionBuckets: Record<string, VideoCandidate[]> = {};
+
+    for (const s of settled) {
+      if (s.status === 'rejected') {
+        console.error('Search failed:', s.reason);
+        continue;
+      }
+      const { region, candidates } = s.value;
+      if (!regionBuckets[region]) regionBuckets[region] = [];
+
+      for (const c of candidates) {
+        if (seenVideoIds.has(c.video_id)) continue;
+        seenVideoIds.add(c.video_id);
+        regionBuckets[region].push(c);
+      }
+    }
+
+    // Sort each region by trending score, take top N
     const allCandidates: VideoCandidate[] = [];
     const regionSummary: Record<string, number> = {};
 
-    for (const settled of regionSettled) {
-      if (settled.status === 'rejected') {
-        console.error('Region fetch failed:', settled.reason);
-        continue;
-      }
-
-      const { region, candidates } = settled.value;
-
-      let kept = 0;
-      for (const candidate of candidates) {
-        if (kept >= MAX_PER_REGION) break;
-        if (seenVideoIds.has(candidate.video_id)) continue;
-        seenVideoIds.add(candidate.video_id);
-        allCandidates.push(candidate);
-        kept++;
-      }
-
-      regionSummary[region] = kept;
-      console.log(`Region ${region}: kept ${kept} videos`);
+    for (const region of GULF_REGIONS) {
+      const bucket = regionBuckets[region] ?? [];
+      bucket.sort((a, b) => b.trending_score - a.trending_score);
+      const kept = bucket.slice(0, MAX_PER_REGION);
+      allCandidates.push(...kept);
+      regionSummary[region] = kept.length;
+      console.log(`Region ${region}: ${kept.length} videos kept from ${bucket.length} found`);
     }
 
-    console.log(`Discovered ${allCandidates.length} Gulf Arabic candidates`);
+    console.log(`Total: ${allCandidates.length} Gulf Arabic Shorts candidates`);
 
-    // Return candidates to the caller — the frontend saves them using the Supabase JS client
-    // (avoids direct PostgREST calls which are fragile in the edge function environment)
     return new Response(
       JSON.stringify({
         success: true,
@@ -171,7 +125,6 @@ Deno.serve(async (req) => {
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
-
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error('Error in discover-trending-videos:', message);
@@ -182,87 +135,85 @@ Deno.serve(async (req) => {
   }
 });
 
-async function fetchRegion(region: string): Promise<RegionResult> {
-  // hl=ar biases returned metadata toward Arabic — helps surface Gulf dialect content
-  const url =
-    `https://www.googleapis.com/youtube/v3/videos` +
-    `?part=snippet,statistics,contentDetails` +
-    `&chart=mostPopular` +
+async function searchShorts(
+  region: string,
+  query: string
+): Promise<{ region: string; candidates: VideoCandidate[] }> {
+  // Step 1: Search for short videos
+  const searchUrl =
+    `https://www.googleapis.com/youtube/v3/search` +
+    `?part=snippet` +
+    `&type=video` +
+    `&videoDuration=short` +
+    `&order=viewCount` +
     `&regionCode=${region}` +
-    `&hl=ar` +
-    `&maxResults=50` +
+    `&relevanceLanguage=ar` +
+    `&q=${encodeURIComponent(query)}` +
+    `&maxResults=25` +
+    `&publishedAfter=${getRecentDate()}` +
     `&key=${YOUTUBE_API_KEY}`;
 
-  const response = await fetch(url);
-
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`YouTube API ${response.status} for ${region}: ${text}`);
+  const searchRes = await fetch(searchUrl);
+  if (!searchRes.ok) {
+    const text = await searchRes.text();
+    throw new Error(`YouTube search API ${searchRes.status} for ${region}/${query}: ${text}`);
   }
 
-  const data: YouTubeResponse = await response.json();
+  const searchData = await searchRes.json();
+  const items = searchData.items ?? [];
 
-  if (data.error) {
-    throw new Error(`YouTube API error for ${region}: ${data.error.message}`);
+  if (items.length === 0) {
+    return { region, candidates: [] };
   }
 
-  const items = data.items ?? [];
+  // Step 2: Get video details (statistics + contentDetails) for the found IDs
+  const videoIds = items.map((i: any) => i.id.videoId).filter(Boolean);
+  if (videoIds.length === 0) return { region, candidates: [] };
+
+  const detailsUrl =
+    `https://www.googleapis.com/youtube/v3/videos` +
+    `?part=snippet,statistics,contentDetails` +
+    `&id=${videoIds.join(',')}` +
+    `&key=${YOUTUBE_API_KEY}`;
+
+  const detailsRes = await fetch(detailsUrl);
+  if (!detailsRes.ok) {
+    const text = await detailsRes.text();
+    throw new Error(`YouTube videos API ${detailsRes.status}: ${text}`);
+  }
+
+  const detailsData = await detailsRes.json();
+  const videos = detailsData.items ?? [];
+
   const candidates: VideoCandidate[] = [];
-  let skipped = 0;
 
-  for (const video of items) {
+  for (const video of videos) {
     const title = video.snippet.title;
     const description = video.snippet.description ?? '';
 
     // Must have Arabic in title or description
-    const hasArabicTitle = /[\u0600-\u06FF]/.test(title);
-    const hasArabicDescription = /[\u0600-\u06FF]/.test(description);
-    if (!hasArabicTitle && !hasArabicDescription) {
-      skipped++;
-      continue;
-    }
+    if (!/[\u0600-\u06FF]/.test(title) && !/[\u0600-\u06FF]/.test(description)) continue;
 
-    // Exclude Quran / religious recitation
-    if (isQuranContent(title, description)) {
-      skipped++;
-      continue;
-    }
+    // Exclude Quran/religious and gaming
+    if (isExcluded(title, description, video.snippet.categoryId)) continue;
 
-    // Exclude gaming content
-    if (isGamingContent(title, description, video.snippet.categoryId)) {
-      skipped++;
-      continue;
-    }
-
-    // Shorts-only filter: must be 60 seconds or less AND tagged with #shorts.
-    // The mostPopular chart includes all video types; the #shorts tag is the
-    // reliable signal that creators use to upload proper vertical Shorts content.
     const durationSeconds = parseDuration(video.contentDetails?.duration);
-    if (durationSeconds <= 0 || durationSeconds > MAX_SHORTS_DURATION) {
-      skipped++;
-      continue;
-    }
-    if (!isYouTubeShort(title, description)) {
-      skipped++;
-      continue;
-    }
+    // Shorts should be ≤ 180s (YouTube expanded Shorts to 3 min)
+    if (durationSeconds <= 0 || durationSeconds > 180) continue;
 
     const viewCount = parseInt(video.statistics?.viewCount ?? '0', 10);
     const likeCount = parseInt(video.statistics?.likeCount ?? '0', 10);
     const commentCount = parseInt(video.statistics?.commentCount ?? '0', 10);
 
-    // Trending score: 40% reach, 30% like-rate, 30% discussion
+    // Minimum view threshold
+    if (viewCount < 1000) continue;
+
     const likeRatio = viewCount > 0 ? (likeCount / viewCount) * 100 : 0;
     const trendingScore = Math.floor(
       (viewCount / 10000) * 40 +
       likeRatio * 30 +
       (commentCount / 1000) * 30
     );
-
-    if (trendingScore < 10) {
-      skipped++;
-      continue;
-    }
 
     candidates.push({
       video_id: video.id,
@@ -274,7 +225,6 @@ async function fetchRegion(region: string): Promise<RegionResult> {
       thumbnail_url:
         video.snippet.thumbnails.high?.url ??
         video.snippet.thumbnails.medium?.url ??
-        video.snippet.thumbnails.default?.url ??
         null,
       view_count: viewCount,
       trending_score: trendingScore,
@@ -285,55 +235,53 @@ async function fetchRegion(region: string): Promise<RegionResult> {
     });
   }
 
-  // Sort best first, caller will slice to MAX_PER_REGION after cross-region dedup
-  candidates.sort((a, b) => b.trending_score - a.trending_score);
-
-  console.log(`Region ${region}: ${candidates.length} passed filters, ${skipped} skipped`);
-  return { region, candidates, skipped };
+  return { region, candidates };
 }
 
-function isQuranContent(title: string, description: string): boolean {
-  const text = (title + ' ' + description).toLowerCase();
-  return QURAN_KEYWORDS.some((kw) => text.includes(kw.toLowerCase()));
+function getRecentDate(): string {
+  const d = new Date();
+  d.setDate(d.getDate() - 14); // Last 2 weeks
+  return d.toISOString();
 }
 
-function isGamingContent(title: string, description: string, categoryId?: string): boolean {
-  if (categoryId === GAMING_CATEGORY_ID) return true;
+function isExcluded(title: string, description: string, categoryId?: string): boolean {
+  if (categoryId === '20') return true; // Gaming category
   const text = (title + ' ' + description).toLowerCase();
-  return GAMING_KEYWORDS.some((kw) => text.includes(kw.toLowerCase()));
+  return (
+    QURAN_KEYWORDS.some((kw) => text.includes(kw.toLowerCase())) ||
+    GAMING_KEYWORDS.some((kw) => text.includes(kw.toLowerCase()))
+  );
 }
 
 function parseDuration(iso?: string): number {
   if (!iso) return 0;
   const match = iso.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
   if (!match) return 0;
-  return (parseInt(match[1] ?? '0', 10) * 3600) +
-         (parseInt(match[2] ?? '0', 10) * 60) +
-         parseInt(match[3] ?? '0', 10);
+  return (
+    (parseInt(match[1] ?? '0', 10) * 3600) +
+    (parseInt(match[2] ?? '0', 10) * 60) +
+    parseInt(match[3] ?? '0', 10)
+  );
 }
 
 function detectTopic(title: string, description: string): string {
   const text = (title + ' ' + description).toLowerCase();
-
   const topics: Record<string, string[]> = {
-    music: ['موسيقى', 'أغنية', 'مطرب', 'مطربة', 'music', 'song', 'singer', 'نغمة', 'لحن', 'كليب'],
-    comedy: ['كوميديا', 'مضحك', 'نكتة', 'comedy', 'funny', 'joke', 'humor', 'ضحك', 'فكاهة'],
-    sports: ['رياضة', 'كرة', 'مباراة', 'sports', 'football', 'soccer', 'match', 'لاعب', 'دوري'],
-    news: ['أخبار', 'خبر', 'news', 'breaking', 'تقرير', 'إعلام', 'سياسة'],
-    food: ['طعام', 'طبخ', 'وصفة', 'food', 'cooking', 'recipe', 'مطبخ', 'أكل', 'مطعم', 'شيف'],
-    travel: ['سفر', 'سياحة', 'travel', 'tourism', 'رحلة', 'زيارة', 'فندق', 'مطار'],
-    beauty: ['مكياج', 'ميكاب', 'makeup', 'skincare', 'عناية', 'جمال', 'بيوتي', 'beauty', 'hair', 'شعر'],
-    lifestyle: ['حياة', 'يوميات', 'lifestyle', 'daily', 'vlog', 'روتين', 'تجربة'],
-    kids: ['أطفال', 'kids', 'children', 'cartoon', 'كرتون', 'قصة', 'أنيمي'],
-    tech: ['تقنية', 'تكنولوجيا', 'tech', 'technology', 'برمجة', 'كمبيوتر', 'هاتف', 'آيفون', 'مراجعة'],
-    education: ['تعليم', 'درس', 'education', 'lesson', 'tutorial', 'شرح', 'تعلم', 'دورة'],
+    music: ['موسيقى', 'أغنية', 'مطرب', 'music', 'song', 'كليب'],
+    comedy: ['كوميديا', 'مضحك', 'نكتة', 'comedy', 'funny', 'ضحك'],
+    sports: ['رياضة', 'كرة', 'مباراة', 'sports', 'football', 'دوري'],
+    news: ['أخبار', 'خبر', 'news', 'breaking'],
+    food: ['طعام', 'طبخ', 'وصفة', 'food', 'cooking', 'recipe', 'أكل', 'شيف'],
+    travel: ['سفر', 'سياحة', 'travel', 'tourism', 'رحلة'],
+    beauty: ['مكياج', 'makeup', 'skincare', 'جمال', 'beauty'],
+    lifestyle: ['حياة', 'يوميات', 'lifestyle', 'vlog', 'روتين'],
+    kids: ['أطفال', 'kids', 'children', 'كرتون'],
+    tech: ['تقنية', 'tech', 'technology', 'آيفون', 'مراجعة'],
+    education: ['تعليم', 'درس', 'education', 'lesson', 'شرح', 'تعلم'],
   };
 
   for (const [topic, keywords] of Object.entries(topics)) {
-    if (keywords.some((kw) => text.includes(kw))) {
-      return topic;
-    }
+    if (keywords.some((kw) => text.includes(kw))) return topic;
   }
-
   return 'general';
 }

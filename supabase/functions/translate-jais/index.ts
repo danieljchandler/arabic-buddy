@@ -463,8 +463,9 @@ serve(async (req) => {
     const geminiParsed = geminiRawResponse ? safeJsonParse<TranslationPayload>(geminiRawResponse) : null;
     const fanarParsed = fanarRawResponse ? safeJsonParse<TranslationPayload>(fanarRawResponse) : null;
     const jaisParsed = jaisRawResponse ? safeJsonParse<TranslationPayload>(jaisRawResponse) : null;
+    const allamParsed = allamRawResponse ? safeJsonParse<TranslationPayload>(allamRawResponse) : null;
 
-    if (!parsed && !geminiParsed && !fanarParsed && !jaisParsed) {
+    if (!parsed && !geminiParsed && !fanarParsed && !jaisParsed && !allamParsed) {
       throw firstLlmError ?? new Error('Failed to parse translation responses. Please try again.');
     }
 

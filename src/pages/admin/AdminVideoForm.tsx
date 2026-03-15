@@ -444,7 +444,7 @@ const AdminVideoForm = () => {
 
       if (rpError) {
         const message = await extractFunctionErrorMessage(rpError);
-        toast.error("Could not queue RunPod fallback", { description: message });
+        toast.error("Could not queue RunPod job", { description: message });
         return false;
       }
 
@@ -457,7 +457,7 @@ const AdminVideoForm = () => {
       toast.success(`RunPod job queued (${rpData?.job_id}). Transcription will continue automatically when audio arrives.`);
       return true;
     } catch (rpErr) {
-      console.warn("RunPod fallback error:", rpErr);
+      console.warn("RunPod queue error:", rpErr);
       return false;
     }
   };
@@ -467,17 +467,26 @@ const AdminVideoForm = () => {
     await ensureUrlParsed();
     setIsDownloading(true);
 
+    const parsed = parseVideoUrl(sourceUrl.trim());
+    if (parsed?.platform === "youtube") {
+      const queued = await triggerRunPodFallback({ createPendingRecord: true });
+      setIsDownloading(false);
+      if (!queued) {
+        toast.error("Could not queue RunPod extraction", {
+          description: "Please retry or upload an audio file manually.",
+        });
+      }
+      return;
+    }
+
     toast.info("Downloading audio...");
     const { data, errorMessage } = await downloadMediaAudio();
 
     if (!data) {
-      const queued = await triggerRunPodFallback({ createPendingRecord: true });
       setIsDownloading(false);
-      if (!queued) {
-        toast.error("Download failed — use 'Upload File' instead", {
-          description: errorMessage || "Unknown error",
-        });
-      }
+      toast.error("Download failed — use 'Upload File' instead", {
+        description: errorMessage || "Unknown error",
+      });
       return;
     }
 
@@ -513,16 +522,25 @@ const AdminVideoForm = () => {
     await ensureUrlParsed();
     setIsDownloading(true);
 
+    const parsed = parseVideoUrl(sourceUrl.trim());
+    if (parsed?.platform === "youtube") {
+      const queued = await triggerRunPodFallback();
+      setIsDownloading(false);
+      if (!queued) {
+        toast.error("Could not queue RunPod extraction", {
+          description: "Please retry or upload an audio file manually.",
+        });
+      }
+      return;
+    }
+
     try {
       const { data: downloadData, errorMessage } = await downloadMediaAudio();
 
       if (!downloadData) {
-        const queued = await triggerRunPodFallback();
-        if (!queued) {
-          toast.error("Download failed — use 'Upload File' instead", {
-            description: errorMessage || "Unknown error",
-          });
-        }
+        toast.error("Download failed — use 'Upload File' instead", {
+          description: errorMessage || "Unknown error",
+        });
         return;
       }
 

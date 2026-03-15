@@ -213,12 +213,26 @@ const TrendingVideos = () => {
         .eq('id', candidate.id);
       if (updateErr) throw updateErr;
 
-      // 3. Fire-and-forget: trigger the background transcription pipeline
-      supabase.functions.invoke('process-approved-video', {
-        body: { videoId: newVideo.id },
-      }).catch((err) => {
-        console.error('Failed to trigger processing pipeline:', err);
-      });
+      // 3. Queue ingestion/transcription pipeline
+      const youtubeVideoId = parsed?.platform === 'youtube' ? parsed.videoId : null;
+
+      if (youtubeVideoId) {
+        const { error: queueErr } = await supabase.functions.invoke('trigger-download', {
+          body: {
+            youtube_url: candidate.url,
+            video_id: youtubeVideoId,
+            discover_video_id: newVideo.id,
+          },
+        });
+
+        if (queueErr) throw queueErr;
+      } else {
+        supabase.functions.invoke('process-approved-video', {
+          body: { videoId: newVideo.id },
+        }).catch((err) => {
+          console.error('Failed to trigger processing pipeline:', err);
+        });
+      }
 
       return { videoId: newVideo.id, title: candidate.title };
     },

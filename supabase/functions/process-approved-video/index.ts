@@ -42,74 +42,23 @@ function isYouTubeUrl(url: string): boolean {
   }
 }
 
-serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
-
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader?.startsWith("Bearer ")) {
-    return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
-
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  const isInternalServiceCall = authHeader === `Bearer ${serviceRoleKey}`;
-
-  if (!isInternalServiceCall) {
-    const supabaseAuth = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    const { data: { user }, error: userError } = await supabaseAuth.auth.getUser();
-    if (userError || !user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-  }
-
-  const { videoId } = await req.json();
-  if (!videoId) {
-    return new Response(
-      JSON.stringify({ error: "videoId is required" }),
-      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  }
-
-  const supabase = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-  );
-
-  const { data: video, error: fetchErr } = await supabase
-    .from("discover_videos")
-    .select("*")
-    .eq("id", videoId)
-    .single();
-
-  if (fetchErr || !video) {
-    return new Response(
-      JSON.stringify({ error: "Video not found", details: fetchErr?.message }),
-      { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  }
-
-  await supabase
-    .from("discover_videos")
-    .update({ transcription_status: "processing", transcription_error: null })
-    .eq("id", videoId);
+// ── Background pipeline ────────────────────────────────────────────────────
+// Runs entirely decoupled from the HTTP request lifecycle so that req.signal
+// (fired by the platform when the request connection closes) cannot abort it.
+async function runPipeline(
+  videoId: string,
+  video: any,
+  supabase: any,
+  authHeader: string,
+  projectUrl: string,
+): Promise<void> {
+  const storagePaths = [
+    `${videoId}.mp4`, `${videoId}.m4a`, `${videoId}.webm`,
+    `${videoId}.mp3`, `${videoId}.opus`,
+  ];
 
   try {
     console.log(`[pipeline] Starting for video ${videoId}: ${video.source_url}`);
-
-    const projectUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
     // ── Step 1: Get audio ──────────────────────────────────────────
     console.log("[pipeline] Step 1: Getting audio...");
@@ -119,7 +68,6 @@ serve(async (req) => {
     let downloadDuration: number | null = null;
 
     // Check staged storage first
-    const storagePaths = [`${videoId}.mp4`, `${videoId}.m4a`, `${videoId}.webm`, `${videoId}.mp3`, `${videoId}.opus`];
     for (const path of storagePaths) {
       const { data: fileData, error: fileErr } = await supabase.storage
         .from("video-audio")
@@ -206,10 +154,8 @@ serve(async (req) => {
         transcription_error: null,
       }).eq("id", videoId);
 
-      return new Response(
-        JSON.stringify({ success: true, queued: true, message: "RunPod extraction queued" }),
-        { status: 202, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+      console.log("[pipeline] RunPod extraction queued, pipeline will resume via receive-audio callback");
+      return;
     }
 
     // Fallback 3: non-YouTube sources still use download-media
@@ -241,9 +187,7 @@ serve(async (req) => {
           transcription_status: "completed",
           transcription_error: null,
         }).eq("id", videoId);
-        return new Response(JSON.stringify({ success: true, message: "Completed from cache" }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        return;
       }
 
       if (!downloadData.audioBase64) {
@@ -383,14 +327,10 @@ serve(async (req) => {
       } catch (e) { console.warn("[pipeline] Soniox failed:", e); return { text: null, sonioxUsed: false }; }
     })();
 
-    // Munsit is disabled
-    const munsitResult = { text: null };
-
     const [deepgramResult, fanarResult, sonioxResult] = await Promise.all([
       deepgramPromise, fanarPromise, sonioxPromise,
     ]);
 
-    const munsitText = "";
     const deepgramText = deepgramResult?.text || "";
     const fanarText = fanarResult?.text || "";
     const sonioxText = sonioxResult?.sonioxUsed ? (sonioxResult.text || "") : "";
@@ -415,6 +355,8 @@ serve(async (req) => {
     const sonioxTranslation = sonioxResult?.translationText;
     if (sonioxTranslation) analyzeBody.sonioxTranslation = sonioxTranslation;
 
+    // No AbortSignal here — analyze-gulf-arabic manages its own per-call timeouts
+    // internally and may legitimately take several minutes for complex transcripts.
     const analyzeResp = await fetch(`${projectUrl}/functions/v1/analyze-gulf-arabic`, {
       method: "POST",
       headers: { Authorization: authHeader, "Content-Type": "application/json" },
@@ -483,11 +425,6 @@ serve(async (req) => {
     }
 
     console.log(`[pipeline] Completed! ${sanitizedLines.length} lines, ${(result.vocabulary || []).length} vocab from ${engines.length} engine(s)`);
-
-    return new Response(
-      JSON.stringify({ success: true, message: "Pipeline completed" }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : "Unknown error";
     console.error(`[pipeline] Failed for video ${videoId}:`, errorMsg);
@@ -496,10 +433,94 @@ serve(async (req) => {
       transcription_status: "failed",
       transcription_error: errorMsg,
     }).eq("id", videoId);
+  }
+}
 
+// ── HTTP handler ───────────────────────────────────────────────────────────
+serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader?.startsWith("Bearer ")) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const isInternalServiceCall = authHeader === `Bearer ${serviceRoleKey}`;
+
+  if (!isInternalServiceCall) {
+    const supabaseAuth = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    const { data: { user }, error: userError } = await supabaseAuth.auth.getUser();
+    if (userError || !user) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+  }
+
+  const { videoId } = await req.json();
+  if (!videoId) {
     return new Response(
-      JSON.stringify({ success: false, error: errorMsg }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ error: "videoId is required" }),
+      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
+
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+  );
+
+  const { data: video, error: fetchErr } = await supabase
+    .from("discover_videos")
+    .select("*")
+    .eq("id", videoId)
+    .single();
+
+  if (fetchErr || !video) {
+    return new Response(
+      JSON.stringify({ error: "Video not found", details: fetchErr?.message }),
+      { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  await supabase
+    .from("discover_videos")
+    .update({ transcription_status: "processing", transcription_error: null })
+    .eq("id", videoId);
+
+  const projectUrl = Deno.env.get("SUPABASE_URL")!;
+  // Always use service-role key for inter-function calls so the pipeline
+  // keeps working even after the original user JWT expires mid-run.
+  const pipelineAuth = `Bearer ${serviceRoleKey}`;
+
+  // Launch the pipeline as a background task that is fully decoupled from this
+  // HTTP request. When the response is returned below, req.signal fires (the
+  // platform considers the request done), but runPipeline() continues running
+  // inside waitUntil and cannot be aborted by req.signal.
+  const pipeline = runPipeline(videoId, video, supabase, pipelineAuth, projectUrl);
+
+  try {
+    // deno-lint-ignore no-explicit-any
+    (globalThis as any).EdgeRuntime?.waitUntil(pipeline);
+  } catch {
+    // Fallback: keep the promise alive as a detached task
+    pipeline.catch((err: unknown) => console.error("[pipeline] Unhandled background error:", err));
+  }
+
+  return new Response(
+    JSON.stringify({ success: true, message: "Processing started" }),
+    { status: 202, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+  );
 });

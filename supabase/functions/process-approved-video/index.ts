@@ -33,6 +33,15 @@ function extractYouTubeVideoId(url: string): string | null {
   }
 }
 
+function isYouTubeUrl(url: string): boolean {
+  try {
+    const host = new URL(url).hostname.replace(/^www\./, "").replace(/^m\./, "");
+    return host === "youtube.com" || host === "youtu.be";
+  } catch {
+    return false;
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });

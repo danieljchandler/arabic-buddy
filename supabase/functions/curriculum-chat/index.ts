@@ -50,7 +50,7 @@ const MODEL_REGISTRY: Record<string, ModelConfig> = {
   },
   "allam-hf": {
     endpoint: ALLAM_HF_ENDPOINT,
-    model: "sdaia/allam-2-7b-instruct",
+    model: "humain-ai/ALLaM-7B-Instruct-preview",
     keyEnv: "VITE_HF_TOKEN",
   },
 };

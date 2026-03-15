@@ -174,7 +174,7 @@ IMPORTANT: Return ONLY valid JSON, no markdown formatting, no code blocks.`;
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              model: "sdaia/allam-2-7b-instruct",
+              model: "humain-ai/ALLaM-7B-Instruct-preview",
               messages: [
                 { role: "system", content: systemPrompt },
                 { role: "user", content: userPrompt },

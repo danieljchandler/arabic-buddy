@@ -1295,7 +1295,7 @@ serve(async (req) => {
      const arabicOnlyText = mergedLines.map(l => l.arabic).join('\n');
      const hfApiKey = Deno.env.get('HUGGINGFACE_API_KEY') ?? '';
 
-      const [geminiTransResp, analysisResp, fanarMetaResp, fanarValidResp, jaisMetaResp, camelDialectResult, diacritizedTranscript] = await Promise.all([
+      const [geminiTransResp, analysisResp, fanarMetaResp, fanarValidResp, jaisMetaResp, allamMetaResp, camelDialectResult, diacritizedTranscript] = await Promise.all([
         // Translation primary: Gemini 2.5 Pro via Lovable AI gateway
         callAI({
           model: 'google/gemini-2.5-pro',
@@ -1324,8 +1324,6 @@ serve(async (req) => {
            })
          : Promise.resolve({ content: null } as { content: string | null }),
        // Fanar-C-2-27B dialect validation — read-only, never blocks pipeline
-       // Fanar-Sadiq is RAG/knowledge-base only — it returns "no info in my KB"
-       // for linguistic analysis tasks. Fanar-C-2-27B is the general chat model.
        fanarLlmAvailable
          ? callFanar({
              systemPrompt: getFanarValidationSystemPrompt(),
@@ -1353,18 +1351,61 @@ serve(async (req) => {
             ]))
          : (console.log('Jais meta enrichment: SKIPPED (no VITE_HF_TOKEN)'),
             Promise.resolve({ content: null } as { content: string | null })),
-       // Falcon removed — endpoint consistently returns HTTP 500 / timeouts
-       // CAMeL-Lab BERT dialect ID — validates/confirms the LLM-detected dialect.
-       // Uses the MADAR-Twitter model: city-level (Kuwait/Doha/Riyadh/Abu Dhabi/…).
-       // Non-blocking: any failure returns null and the pipeline continues.
+       // ALLaM meta enrichment via HF Endpoint — Arabic-native model by SDAIA
+       allamAvailable
+         ? (console.log('ALLaM meta enrichment: FIRING via HF Endpoint (45s race)...'),
+            Promise.race([
+              (async () => {
+                const controller = new AbortController();
+                const timeout = setTimeout(() => controller.abort(), 45_000);
+                try {
+                  const resp = await fetch(ALLAM_HF_ENDPOINT, {
+                    method: 'POST',
+                    signal: controller.signal,
+                    headers: {
+                      'Authorization': `Bearer ${HF_TOKEN}`,
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                      model: 'sdaia/allam-2-7b-instruct',
+                      messages: [
+                        { role: 'system', content: getMetaSystemPrompt(true) },
+                        { role: 'user', content: mergedTranscriptText },
+                      ],
+                      max_tokens: 2048,
+                      temperature: 0.2,
+                    }),
+                  });
+                  if (!resp.ok) {
+                    console.warn('ALLaM meta enrichment error:', resp.status);
+                    return { content: null } as { content: string | null };
+                  }
+                  const data = await resp.json();
+                  const content = data.choices?.[0]?.message?.content ?? null;
+                  console.log('ALLaM meta enrichment response:', content?.slice(0, 200));
+                  return { content };
+                } catch (e) {
+                  console.warn('ALLaM meta enrichment failed (non-blocking):', e instanceof Error ? e.message : String(e));
+                  return { content: null } as { content: string | null };
+                } finally {
+                  clearTimeout(timeout);
+                }
+              })(),
+              new Promise<{ content: string | null }>(resolve => setTimeout(() => {
+                console.warn('ALLaM HF: timed out at 45s, skipping');
+                resolve({ content: null });
+              }, 45_000)),
+            ]))
+         : (console.log('ALLaM meta enrichment: SKIPPED (no VITE_HF_TOKEN)'),
+            Promise.resolve({ content: null } as { content: string | null })),
+       // CAMeL-Lab BERT dialect ID
        hfApiKey
          ? callCamelDialect(arabicOnlyText, hfApiKey).catch((e) => {
              console.warn('CAMeL dialect call failed (non-blocking):', e);
              return null;
            })
          : Promise.resolve(null),
-       // Farasa diacritize — adds short vowels (tashkeel) to the merged Arabic.
-       // The result is stored in diacritizedTranscript for ElevenLabs TTS calls.
+       // Farasa diacritize
        callFarasaDiacritize(arabicOnlyText).catch((e) => {
          console.warn('Farasa diacritize failed (non-blocking):', e);
          return null;

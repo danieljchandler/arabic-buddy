@@ -86,7 +86,6 @@ async function callJaisHF(
   maxTokens = 4096,
 ): Promise<string | null> {
   const controller = new AbortController();
-  // HF serverless can be slow on cold starts — generous 90s timeout
   const timeout = setTimeout(() => controller.abort(), 90_000);
 
   try {
@@ -119,6 +118,51 @@ async function callJaisHF(
     return content || null;
   } catch (e) {
     console.warn('Jais HF failed (non-fatal):', e instanceof Error ? e.message : String(e));
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function callAllamHF(
+  systemPrompt: string,
+  userContent: string,
+  hfToken: string,
+  maxTokens = 4096,
+): Promise<string | null> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 55_000);
+
+  try {
+    const response = await fetch(ALLAM_HF_ENDPOINT, {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        'Authorization': `Bearer ${hfToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'sdaia/allam-2-7b-instruct',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userContent },
+        ],
+        max_tokens: maxTokens,
+        temperature: 0.3,
+      }),
+    });
+
+    if (!response.ok) {
+      console.warn('ALLaM HF error:', response.status);
+      return null;
+    }
+
+    const data = await response.json();
+    const content = data?.choices?.[0]?.message?.content;
+    console.log('ALLaM HF response:', content?.slice(0, 200));
+    return content || null;
+  } catch (e) {
+    console.warn('ALLaM HF failed (non-fatal):', e instanceof Error ? e.message : String(e));
     return null;
   } finally {
     clearTimeout(timeout);

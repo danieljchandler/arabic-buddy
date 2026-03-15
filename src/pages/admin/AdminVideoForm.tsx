@@ -522,16 +522,25 @@ const AdminVideoForm = () => {
     await ensureUrlParsed();
     setIsDownloading(true);
 
+    const parsed = parseVideoUrl(sourceUrl.trim());
+    if (parsed?.platform === "youtube") {
+      const queued = await triggerRunPodFallback();
+      setIsDownloading(false);
+      if (!queued) {
+        toast.error("Could not queue RunPod extraction", {
+          description: "Please retry or upload an audio file manually.",
+        });
+      }
+      return;
+    }
+
     try {
       const { data: downloadData, errorMessage } = await downloadMediaAudio();
 
       if (!downloadData) {
-        const queued = await triggerRunPodFallback();
-        if (!queued) {
-          toast.error("Download failed — use 'Upload File' instead", {
-            description: errorMessage || "Unknown error",
-          });
-        }
+        toast.error("Download failed — use 'Upload File' instead", {
+          description: errorMessage || "Unknown error",
+        });
         return;
       }
 

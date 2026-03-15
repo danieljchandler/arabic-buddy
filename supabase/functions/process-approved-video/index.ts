@@ -348,83 +348,145 @@ async function runPipeline(
     const relativeWords = deepgramResult?.words || [];
 
     // ── Step 3: Analyze via analyze-gulf-arabic ──────────────────
+    // Pass videoId so analyze-gulf-arabic persists results directly to DB,
+    // making the pipeline resilient to Supabase gateway ~150s timeouts.
     console.log("[pipeline] Step 3: Analyzing transcript...");
-    const analyzeBody: Record<string, string> = { transcript: primaryText };
+    const analyzeBody: Record<string, string> = { transcript: primaryText, videoId };
     if (fanarText && fanarText !== primaryText) analyzeBody.fanarTranscript = fanarText;
     if (sonioxText) analyzeBody.sonioxTranscript = sonioxText;
     const sonioxTranslation = sonioxResult?.translationText;
     if (sonioxTranslation) analyzeBody.sonioxTranslation = sonioxTranslation;
 
-    const analyzeResp = await fetch(`${projectUrl}/functions/v1/analyze-gulf-arabic`, {
-      method: "POST",
-      headers: { Authorization: authHeader, "Content-Type": "application/json" },
-      body: JSON.stringify(analyzeBody),
-      // Prevent discover videos from getting stuck in "processing" forever.
-      signal: AbortSignal.timeout(3 * 60 * 1000),
-    });
-
-    if (!analyzeResp.ok) {
-      const errText = await analyzeResp.text();
-      throw new Error(`Analysis failed (${analyzeResp.status}): ${errText}`);
-    }
-
-    const analyzeData = await analyzeResp.json();
-    if (!analyzeData?.success) throw new Error(analyzeData?.error || "Analysis failed");
-
-    const result = analyzeData.result;
-
-    // Map Deepgram timestamps to lines
-    let lines = result.lines || [];
-    if (relativeWords.length > 0 && lines.length > 0) {
-      let wordIdx = 0;
-      lines = lines.map((line: any) => {
-        const lineWords = line.arabic?.split(/\s+/).filter(Boolean) || [];
-        let startMs: number | undefined;
-        let endMs: number | undefined;
-        for (const _lw of lineWords) {
-          if (wordIdx < relativeWords.length) {
-            if (startMs === undefined) startMs = Math.round(relativeWords[wordIdx].start * 1000);
-            endMs = Math.round(relativeWords[wordIdx].end * 1000);
-            wordIdx++;
-          }
-        }
-        return { ...line, startMs, endMs };
+    // Fire the analysis — it saves results directly to DB via videoId.
+    // We still try to read the response, but a 504 is non-fatal now.
+    let analyzeData: any = null;
+    try {
+      const analyzeResp = await fetch(`${projectUrl}/functions/v1/analyze-gulf-arabic`, {
+        method: "POST",
+        headers: { Authorization: authHeader, "Content-Type": "application/json" },
+        body: JSON.stringify(analyzeBody),
+        signal: AbortSignal.timeout(3 * 60 * 1000),
       });
+
+      if (analyzeResp.ok) {
+        analyzeData = await analyzeResp.json();
+      } else {
+        const errText = await analyzeResp.text().catch(() => "");
+        console.warn(`[pipeline] analyze-gulf-arabic HTTP ${analyzeResp.status}: ${errText.slice(0, 200)}`);
+      }
+    } catch (fetchErr) {
+      console.warn("[pipeline] analyze-gulf-arabic fetch error (checking DB for direct-persist):", fetchErr instanceof Error ? fetchErr.message : String(fetchErr));
     }
 
-    const sanitizedLines = lines.map((line: any) => ({
-      ...line,
-      tokens: Array.isArray(line.tokens) ? line.tokens
-        : String(line.arabic ?? "").split(/\s+/).filter(Boolean)
-            .map((w: string, wi: number) => ({ id: `tok-${line.id ?? wi}-${wi}`, surface: w })),
-    }));
+    // Check if analyze-gulf-arabic persisted results directly (status = 'analysis_complete')
+    const { data: refreshed } = await supabase.from("discover_videos")
+      .select("transcription_status, transcript_lines, vocabulary, grammar_points, cultural_context, dialect, difficulty, title, title_arabic")
+      .eq("id", videoId)
+      .single();
 
-    let title = video.title;
-    if ((!title || title === "Untitled Video") && result.title) title = result.title;
-    let titleArabic = video.title_arabic;
-    if (!titleArabic && result.titleArabic) titleArabic = result.titleArabic;
+    if (refreshed?.transcription_status === "analysis_complete") {
+      console.log("[pipeline] Results persisted directly by analyze-gulf-arabic");
 
-    // ── Step 4: Save results ────────────────────────────────────
-    console.log("[pipeline] Step 4: Saving results...");
-    const { error: updateError } = await supabase.from("discover_videos").update({
-      title, title_arabic: titleArabic,
-      transcript_lines: sanitizedLines,
-      vocabulary: result.vocabulary || [],
-      grammar_points: result.grammarPoints || [],
-      cultural_context: result.culturalContext || null,
-      dialect: result.dialect || "Gulf",
-      difficulty: result.difficulty || "Intermediate",
-      transcription_status: "completed",
-      transcription_error: null,
-    }).eq("id", videoId);
+      // Apply Deepgram timestamps to the persisted lines
+      let lines = (refreshed.transcript_lines as any[]) || [];
+      if (relativeWords.length > 0 && lines.length > 0) {
+        let wordIdx = 0;
+        lines = lines.map((line: any) => {
+          const lineWords = line.arabic?.split(/\s+/).filter(Boolean) || [];
+          let startMs: number | undefined;
+          let endMs: number | undefined;
+          for (const _lw of lineWords) {
+            if (wordIdx < relativeWords.length) {
+              if (startMs === undefined) startMs = Math.round(relativeWords[wordIdx].start * 1000);
+              endMs = Math.round(relativeWords[wordIdx].end * 1000);
+              wordIdx++;
+            }
+          }
+          return { ...line, startMs, endMs };
+        });
+      }
 
-    if (updateError) throw new Error(`Failed to save results: ${updateError.message}`);
+      let title = refreshed.title || video.title;
+      let titleArabic = refreshed.title_arabic || video.title_arabic;
+
+      // Finalize: add timestamps and mark completed
+      const { error: finalErr } = await supabase.from("discover_videos").update({
+        title, title_arabic: titleArabic,
+        transcript_lines: lines,
+        transcription_status: "completed",
+      }).eq("id", videoId);
+
+      if (finalErr) throw new Error(`Failed to finalize results: ${finalErr.message}`);
+    } else if (analyzeData?.success) {
+      // Fallback: HTTP response arrived before gateway timeout
+      const result = analyzeData.result;
+
+      let lines = result.lines || [];
+      if (relativeWords.length > 0 && lines.length > 0) {
+        let wordIdx = 0;
+        lines = lines.map((line: any) => {
+          const lineWords = line.arabic?.split(/\s+/).filter(Boolean) || [];
+          let startMs: number | undefined;
+          let endMs: number | undefined;
+          for (const _lw of lineWords) {
+            if (wordIdx < relativeWords.length) {
+              if (startMs === undefined) startMs = Math.round(relativeWords[wordIdx].start * 1000);
+              endMs = Math.round(relativeWords[wordIdx].end * 1000);
+              wordIdx++;
+            }
+          }
+          return { ...line, startMs, endMs };
+        });
+      }
+
+      const sanitizedLines = lines.map((line: any) => ({
+        ...line,
+        tokens: Array.isArray(line.tokens) ? line.tokens
+          : String(line.arabic ?? "").split(/\s+/).filter(Boolean)
+              .map((w: string, wi: number) => ({ id: `tok-${line.id ?? wi}-${wi}`, surface: w })),
+      }));
+
+      let title = video.title;
+      if ((!title || title === "Untitled Video") && result.title) title = result.title;
+      let titleArabic = video.title_arabic;
+      if (!titleArabic && result.titleArabic) titleArabic = result.titleArabic;
+
+      const { error: updateError } = await supabase.from("discover_videos").update({
+        title, title_arabic: titleArabic,
+        transcript_lines: sanitizedLines,
+        vocabulary: result.vocabulary || [],
+        grammar_points: result.grammarPoints || [],
+        cultural_context: result.culturalContext || null,
+        dialect: result.dialect || "Gulf",
+        difficulty: result.difficulty || "Intermediate",
+        transcription_status: "completed",
+        transcription_error: null,
+      }).eq("id", videoId);
+
+      if (updateError) throw new Error(`Failed to save results: ${updateError.message}`);
+    } else {
+      // Neither direct-persist nor HTTP response succeeded — wait briefly and retry DB check
+      console.log("[pipeline] Waiting 30s for analyze-gulf-arabic to finish persisting...");
+      await new Promise(r => setTimeout(r, 30_000));
+
+      const { data: retry } = await supabase.from("discover_videos")
+        .select("transcription_status")
+        .eq("id", videoId)
+        .single();
+
+      if (retry?.transcription_status === "analysis_complete") {
+        await supabase.from("discover_videos").update({ transcription_status: "completed" }).eq("id", videoId);
+        console.log("[pipeline] Results found on retry check");
+      } else {
+        throw new Error("Analysis did not complete — no HTTP response and no direct-persist results found");
+      }
+    }
 
     for (const path of storagePaths) {
       await supabase.storage.from("video-audio").remove([path]).catch(() => {});
     }
 
-    console.log(`[pipeline] Completed! ${sanitizedLines.length} lines, ${(result.vocabulary || []).length} vocab from ${engines.length} engine(s)`);
+    console.log(`[pipeline] Completed for video ${videoId}`);
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : "Unknown error";
     console.error(`[pipeline] Failed for video ${videoId}:`, errorMsg);

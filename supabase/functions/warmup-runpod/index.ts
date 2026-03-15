@@ -16,6 +16,7 @@ const corsHeaders = {
 };
 
 const JAIS_HF_ENDPOINT = 'https://u1lf1x17ye91ruw5.us-east-1.aws.endpoints.huggingface.cloud/v1/chat/completions';
+const ALLAM_HF_ENDPOINT = 'https://c9fwzzvaafq3cgfv.us-east4.gcp.endpoints.huggingface.cloud/v1/chat/completions';
 
 async function warmJaisHF(apiKey: string): Promise<'ok' | 'error'> {
   const startMs = Date.now();

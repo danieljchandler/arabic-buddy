@@ -162,6 +162,38 @@ IMPORTANT: Return ONLY valid JSON, no markdown formatting, no code blocks.`;
       }
     }
 
+    // Fallback: ALLaM via HF Endpoint if Jais also failed
+    if (!content) {
+      const HF_TOKEN = Deno.env.get("VITE_HF_TOKEN");
+      if (HF_TOKEN) {
+        console.log("dialect-compare: falling back to ALLaM via HF Endpoint...");
+        try {
+          const allamResp = await fetch("https://c9fwzzvaafq3cgfv.us-east4.gcp.endpoints.huggingface.cloud/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${HF_TOKEN}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              model: "sdaia/allam-2-7b-instruct",
+              messages: [
+                { role: "system", content: systemPrompt },
+                { role: "user", content: userPrompt },
+              ],
+              temperature: 0.3,
+              max_tokens: 2048,
+            }),
+          });
+          if (allamResp.ok) {
+            const allamData = await allamResp.json();
+            content = allamData.choices?.[0]?.message?.content ?? "";
+          }
+        } catch (e) {
+          console.warn("ALLaM dialect-compare fallback failed:", e);
+        }
+      }
+    }
+
     if (!content) {
       throw new Error("All AI models failed for dialect comparison");
     }

@@ -1,44 +1,74 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+function jsonResponse(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
 Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
+
   if (req.method !== "POST") {
     return new Response("Method not allowed", { status: 405 });
   }
 
   const callbackSecret = Deno.env.get("RUNPOD_CALLBACK_SECRET");
   if (!callbackSecret) {
-    return new Response(JSON.stringify({ error: "RUNPOD_CALLBACK_SECRET not configured" }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
+    return jsonResponse({ error: "RUNPOD_CALLBACK_SECRET not configured" }, 500);
   }
 
-  const auth = req.headers.get("Authorization") ?? "";
-  if (auth !== `Bearer ${callbackSecret}`) {
+  const auth = req.headers.get("Authorization")?.trim() ?? "";
+  const expectedAuth = `Bearer ${callbackSecret}`.trim();
+
+  if (auth !== expectedAuth) {
+    console.warn("receive-audio: unauthorized callback", {
+      authPrefix: auth.slice(0, 20),
+      hasAuthHeader: Boolean(auth),
+    });
     return new Response("Unauthorized", { status: 401 });
   }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-
   const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-  const form = await req.formData();
-  const audioFile = form.get("audio") as File;
-  const video_id = form.get("video_id") as string;
-  const source_url = form.get("source_url") as string;
-  const title = form.get("title") as string;
-  const duration = form.get("duration") as string;
-  const thumbnail = form.get("thumbnail") as string;
-  const channel = form.get("channel") as string;
-  const discover_video_id = form.get("discover_video_id") as string | null;
+  let form: FormData;
+  try {
+    form = await req.formData();
+  } catch (error) {
+    console.error("receive-audio: invalid form payload", error);
+    return jsonResponse({ error: "Invalid form-data payload" }, 400);
+  }
+
+  const audioFile = form.get("audio") as File | null;
+  const video_id = (form.get("video_id") as string | null)?.trim() || "";
+  const source_url = (form.get("source_url") as string | null) ?? null;
+  const title = (form.get("title") as string | null) ?? null;
+  const duration = (form.get("duration") as string | null) ?? null;
+  const thumbnail = (form.get("thumbnail") as string | null) ?? null;
+  const channel = (form.get("channel") as string | null) ?? null;
+  const discover_video_id = (form.get("discover_video_id") as string | null)?.trim() || null;
 
   if (!audioFile || !video_id) {
-    return new Response(JSON.stringify({ error: "Missing audio or video_id" }), {
-      status: 400,
-      headers: { "Content-Type": "application/json" },
+    console.error("receive-audio: missing required fields", {
+      hasAudio: Boolean(audioFile),
+      hasVideoId: Boolean(video_id),
     });
+    return jsonResponse({ error: "Missing audio or video_id" }, 400);
   }
+
+  console.log(
+    `receive-audio: callback received (video_id=${video_id}, discover_video_id=${discover_video_id ?? "none"}, size=${audioFile.size})`,
+  );
 
   const audioBytes = await audioFile.arrayBuffer();
   const storagePath = `${video_id}.opus`;
@@ -51,10 +81,8 @@ Deno.serve(async (req) => {
     });
 
   if (uploadError) {
-    return new Response(JSON.stringify({ error: uploadError.message }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
+    console.error("receive-audio: failed audio bucket upload", uploadError.message);
+    return jsonResponse({ error: uploadError.message }, 500);
   }
 
   const { data: urlData } = supabase.storage.from("audio").getPublicUrl(storagePath);
@@ -71,10 +99,8 @@ Deno.serve(async (req) => {
   });
 
   if (dbError) {
-    return new Response(JSON.stringify({ error: dbError.message }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
+    console.error("receive-audio: failed audio_files insert", dbError.message);
+    return jsonResponse({ error: dbError.message }, 500);
   }
 
   let targetDiscoverVideoId: string | null = discover_video_id || null;
@@ -96,6 +122,7 @@ Deno.serve(async (req) => {
 
   const markVideoFailed = async (message: string) => {
     if (!targetDiscoverVideoId) return;
+
     await supabase.from("discover_videos").update({
       transcription_status: "failed",
       transcription_error: message,
@@ -103,6 +130,11 @@ Deno.serve(async (req) => {
   };
 
   if (targetDiscoverVideoId) {
+    await supabase.from("discover_videos").update({
+      transcription_status: "pending",
+      transcription_error: null,
+    }).eq("id", targetDiscoverVideoId);
+
     const ingestionPath = `${targetDiscoverVideoId}.mp4`;
 
     const { error: stagingError } = await supabase.storage
@@ -121,7 +153,7 @@ Deno.serve(async (req) => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({ videoId: targetDiscoverVideoId }),
-          signal: AbortSignal.timeout(20000),
+          signal: AbortSignal.timeout(60_000),
         });
 
         if (!pipelineRes.ok) {
@@ -132,7 +164,7 @@ Deno.serve(async (req) => {
         } else {
           await pipelineRes.text().catch(() => "");
           processingTriggered = true;
-          console.log("receive-audio: pipeline triggered successfully");
+          console.log(`receive-audio: process-approved-video triggered for ${targetDiscoverVideoId}`);
         }
       } catch (err) {
         processingError = `process-approved-video trigger error: ${err instanceof Error ? err.message : String(err)}`;
@@ -154,13 +186,10 @@ Deno.serve(async (req) => {
     }).ilike("source_url", `%${video_id}%`).eq("transcription_status", "pending");
   }
 
-  return new Response(
-    JSON.stringify({
-      storage_url: urlData.publicUrl,
-      discover_video_id: targetDiscoverVideoId,
-      processing_triggered: processingTriggered,
-      processing_error: processingError,
-    }),
-    { headers: { "Content-Type": "application/json" } },
-  );
+  return jsonResponse({
+    storage_url: urlData.publicUrl,
+    discover_video_id: targetDiscoverVideoId,
+    processing_triggered: processingTriggered,
+    processing_error: processingError,
+  });
 });

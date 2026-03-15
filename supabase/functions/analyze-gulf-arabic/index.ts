@@ -1641,8 +1641,8 @@ serve(async (req) => {
 
      // Falcon meta merge removed — endpoint decommissioned
 
-     // ── Step 5: Claude Sonnet vocabulary enrichment ──────────────────────────
-     // Runs after full vocab assembly (Qwen + Fanar + Jais union). Sequential.
+      // ── Step 5: Claude Sonnet vocabulary enrichment ──────────────────────────
+      // Runs after full vocab assembly (Qwen + Fanar + Jais + ALLaM union). Sequential.
      // Non-blocking: any failure leaves vocab unchanged.
      if (vocab.length > 0) {
        try {

@@ -355,12 +355,12 @@ async function runPipeline(
     const sonioxTranslation = sonioxResult?.translationText;
     if (sonioxTranslation) analyzeBody.sonioxTranslation = sonioxTranslation;
 
-    // No AbortSignal here — analyze-gulf-arabic manages its own per-call timeouts
-    // internally and may legitimately take several minutes for complex transcripts.
     const analyzeResp = await fetch(`${projectUrl}/functions/v1/analyze-gulf-arabic`, {
       method: "POST",
       headers: { Authorization: authHeader, "Content-Type": "application/json" },
       body: JSON.stringify(analyzeBody),
+      // Prevent discover videos from getting stuck in "processing" forever.
+      signal: AbortSignal.timeout(3 * 60 * 1000),
     });
 
     if (!analyzeResp.ok) {

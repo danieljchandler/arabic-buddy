@@ -178,7 +178,41 @@ serve(async (req) => {
       }
     }
 
-    // Fallback 2: download from URL via download-media
+    // Fallback 2: queue RunPod for YouTube URLs (runpod-only ingestion)
+    if (!audioBytes && isYouTubeUrl(video.source_url || "")) {
+      const extractedVideoId = extractYouTubeVideoId(video.source_url || "");
+      if (!extractedVideoId) {
+        throw new Error("Could not extract YouTube video ID for RunPod ingestion");
+      }
+
+      console.log("[pipeline] No audio found, queuing RunPod extraction...");
+      const queueResp = await fetch(`${projectUrl}/functions/v1/trigger-download`, {
+        method: "POST",
+        headers: { Authorization: authHeader, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          youtube_url: video.source_url,
+          video_id: extractedVideoId,
+          discover_video_id: videoId,
+        }),
+      });
+
+      if (!queueResp.ok) {
+        const errBody = await queueResp.text();
+        throw new Error(`RunPod queue failed (${queueResp.status}): ${errBody}`);
+      }
+
+      await supabase.from("discover_videos").update({
+        transcription_status: "pending",
+        transcription_error: null,
+      }).eq("id", videoId);
+
+      return new Response(
+        JSON.stringify({ success: true, queued: true, message: "RunPod extraction queued" }),
+        { status: 202, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    // Fallback 3: non-YouTube sources still use download-media
     if (!audioBytes) {
       console.log("[pipeline] No storage audio found, downloading from URL...");
       const downloadResp = await fetch(`${projectUrl}/functions/v1/download-media`, {

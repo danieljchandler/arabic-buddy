@@ -7,6 +7,7 @@ export type LLMModelId =
   | 'google/gemma-3-12b-it'
   | 'fanar'
   | 'jais-hf'
+  | 'allam-hf'
   | 'falcon-h1r';
 
 interface ModelOption {

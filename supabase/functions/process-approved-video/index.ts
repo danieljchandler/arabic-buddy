@@ -419,7 +419,7 @@ serve(async (req) => {
       method: "POST",
       headers: { Authorization: authHeader, "Content-Type": "application/json" },
       body: JSON.stringify(analyzeBody),
-      signal: AbortSignal.timeout(120_000), // 2 min timeout to avoid 504
+      signal: AbortSignal.timeout(300_000), // 5 min timeout
     });
 
     if (!analyzeResp.ok) {

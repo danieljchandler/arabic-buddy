@@ -517,6 +517,84 @@ const AdminVideoForm = () => {
     }
   };
 
+  /**
+   * Used by the "Load Audio" button in the transcript section.
+   * Fetches existing audio for playback only — never triggers RunPod or the
+   * transcription pipeline.
+   */
+  const handleLoadAudioForPlayback = async () => {
+    if (!sourceUrl) return;
+    setIsDownloading(true);
+
+    try {
+      // Strategy 1: video-audio bucket (staged / recently uploaded)
+      if (videoId) {
+        const extensions = ['.mp4', '.opus', '.m4a', '.webm', '.mp3'];
+        for (const ext of extensions) {
+          const { data } = await supabase.storage
+            .from('video-audio')
+            .createSignedUrl(`${videoId}${ext}`, 3600);
+          if (data?.signedUrl) {
+            setStableAudioUrl(data.signedUrl);
+            toast.success("Audio loaded!");
+            return;
+          }
+        }
+      }
+
+      // Strategy 2: audio bucket via audio_files table (YouTube)
+      const parsed = parseVideoUrl(sourceUrl.trim());
+      const ytId = parsed?.videoId;
+      if (ytId) {
+        const { data: audioRecord } = await supabase
+          .from('audio_files')
+          .select('storage_path')
+          .eq('video_id', ytId)
+          .limit(1)
+          .maybeSingle();
+        if (audioRecord?.storage_path) {
+          const { data: urlData } = supabase.storage
+            .from('audio')
+            .getPublicUrl(audioRecord.storage_path);
+          if (urlData?.publicUrl) {
+            setStableAudioUrl(urlData.publicUrl);
+            toast.success("Audio loaded!");
+            return;
+          }
+        }
+        // No cached audio found — don't trigger RunPod/pipeline from here
+        toast.error("Audio not yet available", {
+          description: "Use 'Upload File' to load audio, or re-transcribe the video first.",
+        });
+        return;
+      }
+
+      // Strategy 3: non-YouTube — download via download-media (no pipeline trigger)
+      const { data: downloadData, errorMessage } = await downloadMediaAudio();
+      if (!downloadData) {
+        toast.error("Could not load audio", {
+          description: errorMessage || "Please upload the audio file manually.",
+        });
+        return;
+      }
+
+      const binaryStr = atob(downloadData.audioBase64);
+      const bytes = new Uint8Array(binaryStr.length);
+      for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i);
+      const blob = new Blob([bytes], { type: downloadData.contentType || "audio/mp4" });
+      const file = new File([blob], "audio.mp4", { type: blob.type });
+      setAudioFile(file);
+      detectFileDuration(file);
+      toast.success("Audio loaded!");
+    } catch (err) {
+      toast.error("Could not load audio", {
+        description: err instanceof Error ? err.message : "Unknown error",
+      });
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
   const handleDownloadAudio = async () => {
     if (!sourceUrl) return;
     await ensureUrlParsed();
@@ -911,7 +989,7 @@ const AdminVideoForm = () => {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={handleDownloadAudio}
+                    onClick={handleLoadAudioForPlayback}
                     disabled={!sourceUrl || isDownloading}
                   >
                     {isDownloading ? (

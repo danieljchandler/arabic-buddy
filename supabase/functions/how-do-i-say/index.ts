@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const JAIS_HF_ENDPOINT = 'https://u1lf1x17ye91ruw5.us-east-1.aws.endpoints.huggingface.cloud/v1/chat/completions';
+const ALLAM_HF_ENDPOINT = 'https://c9fwzzvaafq3cgfv.us-east4.gcp.endpoints.huggingface.cloud/v1/chat/completions';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -313,6 +314,48 @@ serve(async (req) => {
             return data.choices?.[0]?.message?.content ?? null;
           } catch (e) {
             console.warn('Jais HF failed (non-fatal):', e instanceof Error ? e.message : String(e));
+            return null;
+          } finally {
+            clearTimeout(timeout);
+          }
+        })(),
+      });
+    }
+
+    // ALLaM via HF Inference Endpoint
+    if (HF_TOKEN) {
+      llmsUsed.push('sdaia/ALLaM (HF)');
+      calls.push({
+        label: 'allam-hf',
+        call: (async () => {
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 45_000);
+          try {
+            const response = await fetch(ALLAM_HF_ENDPOINT, {
+              method: 'POST',
+              signal: controller.signal,
+              headers: {
+                'Authorization': `Bearer ${HF_TOKEN}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                model: 'sdaia/allam-2-7b-instruct',
+                messages: [
+                  { role: 'system', content: SYSTEM_PROMPT },
+                  { role: 'user', content: userContent },
+                ],
+                temperature: 0.3,
+                max_tokens: 2048,
+              }),
+            });
+            if (!response.ok) {
+              console.warn('ALLaM HF error:', response.status);
+              return null;
+            }
+            const data = await response.json();
+            return data.choices?.[0]?.message?.content ?? null;
+          } catch (e) {
+            console.warn('ALLaM HF failed (non-fatal):', e instanceof Error ? e.message : String(e));
             return null;
           } finally {
             clearTimeout(timeout);

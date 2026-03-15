@@ -10,6 +10,7 @@ const OPENROUTER_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
 const QWEN_MODEL = 'qwen/qwen3-235b-a22b';
 const GEMINI_MODEL = 'google/gemini-2.5-flash';
 const JAIS_HF_ENDPOINT = 'https://router.huggingface.co/together/v1/chat/completions';
+const ALLAM_HF_ENDPOINT = 'https://c9fwzzvaafq3cgfv.us-east4.gcp.endpoints.huggingface.cloud/v1/chat/completions';
 
 interface RawTranslation {
   arabic?: unknown;
@@ -85,7 +86,6 @@ async function callJaisHF(
   maxTokens = 4096,
 ): Promise<string | null> {
   const controller = new AbortController();
-  // HF serverless can be slow on cold starts — generous 90s timeout
   const timeout = setTimeout(() => controller.abort(), 90_000);
 
   try {
@@ -118,6 +118,51 @@ async function callJaisHF(
     return content || null;
   } catch (e) {
     console.warn('Jais HF failed (non-fatal):', e instanceof Error ? e.message : String(e));
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function callAllamHF(
+  systemPrompt: string,
+  userContent: string,
+  hfToken: string,
+  maxTokens = 4096,
+): Promise<string | null> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 55_000);
+
+  try {
+    const response = await fetch(ALLAM_HF_ENDPOINT, {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        'Authorization': `Bearer ${hfToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'sdaia/allam-2-7b-instruct',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userContent },
+        ],
+        max_tokens: maxTokens,
+        temperature: 0.3,
+      }),
+    });
+
+    if (!response.ok) {
+      console.warn('ALLaM HF error:', response.status);
+      return null;
+    }
+
+    const data = await response.json();
+    const content = data?.choices?.[0]?.message?.content;
+    console.log('ALLaM HF response:', content?.slice(0, 200));
+    return content || null;
+  } catch (e) {
+    console.warn('ALLaM HF failed (non-fatal):', e instanceof Error ? e.message : String(e));
     return null;
   } finally {
     clearTimeout(timeout);
@@ -380,6 +425,7 @@ serve(async (req) => {
     const llmsUsed = [`${QWEN_MODEL} (OpenRouter)`, `${GEMINI_MODEL} (OpenRouter)`];
     if (fanarAvailable) llmsUsed.push('Fanar');
     if (jaisAvailable) llmsUsed.push('Jais (HF Serverless)');
+    if (jaisAvailable) llmsUsed.push('ALLaM (HF Endpoint)');
     const llmUsed = llmsUsed.join(' + ');
     console.log(`gulf-translate: LLMs = ${llmUsed}, phrase = "${trimmedPhrase}"`);
 
@@ -399,7 +445,7 @@ serve(async (req) => {
       if (!firstLlmError) firstLlmError = e instanceof Error ? e : new Error(String(e));
       return null;
     };
-    const [rawResponse, geminiRawResponse, fanarRawResponse, jaisRawResponse] = await Promise.all([
+    const [rawResponse, geminiRawResponse, fanarRawResponse, jaisRawResponse, allamRawResponse] = await Promise.all([
       callOpenRouter(QWEN_MODEL, TRANSLATION_SYSTEM_PROMPT, userContent, OPENROUTER_API_KEY, 4096).catch(captureLlmError),
       callOpenRouter(GEMINI_MODEL, TRANSLATION_SYSTEM_PROMPT, userContent, OPENROUTER_API_KEY, 4096).catch(captureLlmError),
       fanarAvailable
@@ -408,14 +454,18 @@ serve(async (req) => {
       jaisAvailable
         ? callJaisHF(TRANSLATION_SYSTEM_PROMPT, userContent, HF_TOKEN!, 4096).catch(captureLlmError)
         : Promise.resolve(null),
+      jaisAvailable
+        ? callAllamHF(TRANSLATION_SYSTEM_PROMPT, userContent, HF_TOKEN!, 4096).catch(captureLlmError)
+        : Promise.resolve(null),
     ]);
 
     const parsed = rawResponse ? safeJsonParse<TranslationPayload>(rawResponse) : null;
     const geminiParsed = geminiRawResponse ? safeJsonParse<TranslationPayload>(geminiRawResponse) : null;
     const fanarParsed = fanarRawResponse ? safeJsonParse<TranslationPayload>(fanarRawResponse) : null;
     const jaisParsed = jaisRawResponse ? safeJsonParse<TranslationPayload>(jaisRawResponse) : null;
+    const allamParsed = allamRawResponse ? safeJsonParse<TranslationPayload>(allamRawResponse) : null;
 
-    if (!parsed && !geminiParsed && !fanarParsed && !jaisParsed) {
+    if (!parsed && !geminiParsed && !fanarParsed && !jaisParsed && !allamParsed) {
       throw firstLlmError ?? new Error('Failed to parse translation responses. Please try again.');
     }
 
@@ -438,14 +488,17 @@ serve(async (req) => {
     const geminiTranslations = normTranslations(geminiParsed);
     const fanarTranslations = normTranslations(fanarParsed);
     const jaisTranslations = normTranslations(jaisParsed);
+    const allamTranslations = normTranslations(allamParsed);
 
-    // Merge: start with Qwen, add unique Gemini translations, then unique Fanar, then unique Jais
+    // Merge: start with Qwen, add unique Gemini translations, then unique Fanar, then unique Jais, then unique ALLaM
     const seenArabic = new Set(qwenTranslations.map(t => t.arabic));
     const mergedFromGemini = geminiTranslations.filter(t => !seenArabic.has(t.arabic));
     mergedFromGemini.forEach(t => seenArabic.add(t.arabic));
     const mergedFromFanar = fanarTranslations.filter(t => !seenArabic.has(t.arabic));
     mergedFromFanar.forEach(t => seenArabic.add(t.arabic));
     const mergedFromJais = jaisTranslations.filter(t => !seenArabic.has(t.arabic));
+    mergedFromJais.forEach(t => seenArabic.add(t.arabic));
+    const mergedFromAllam = allamTranslations.filter(t => !seenArabic.has(t.arabic));
     if (mergedFromGemini.length > 0) {
       console.log(`gulf-translate: added ${mergedFromGemini.length} unique translation(s) from Gemini`);
     }
@@ -455,8 +508,11 @@ serve(async (req) => {
     if (mergedFromJais.length > 0) {
       console.log(`gulf-translate: added ${mergedFromJais.length} unique translation(s) from Jais`);
     }
+    if (mergedFromAllam.length > 0) {
+      console.log(`gulf-translate: added ${mergedFromAllam.length} unique translation(s) from ALLaM`);
+    }
 
-    let translations: NormalisedTranslation[] = [...qwenTranslations, ...mergedFromGemini, ...mergedFromFanar, ...mergedFromJais];
+    let translations: NormalisedTranslation[] = [...qwenTranslations, ...mergedFromGemini, ...mergedFromFanar, ...mergedFromJais, ...mergedFromAllam];
 
     if (translations.length === 0) {
       throw new Error('Could not produce translations. Please try rephrasing.');

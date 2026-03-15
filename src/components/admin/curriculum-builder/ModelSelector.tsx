@@ -7,6 +7,7 @@ export type LLMModelId =
   | 'google/gemma-3-12b-it'
   | 'fanar'
   | 'jais-hf'
+  | 'allam-hf'
   | 'falcon-h1r';
 
 interface ModelOption {
@@ -50,6 +51,13 @@ const MODEL_OPTIONS: ModelOption[] = [
     provider: 'RunPod',
     description: 'Arabic-first, dialect expert',
     badge: 'Arabic Expert',
+  },
+  {
+    id: 'allam-hf',
+    name: 'ALLaM',
+    provider: 'HF Endpoint',
+    description: 'Arabic large language model by SDAIA',
+    badge: 'Arabic Native',
   },
   {
     id: 'falcon-h1r',

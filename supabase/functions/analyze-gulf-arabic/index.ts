@@ -1152,11 +1152,13 @@ serve(async (req) => {
 
     const HF_TOKEN = Deno.env.get('VITE_HF_TOKEN');
     const JAIS_HF_ENDPOINT = 'https://u1lf1x17ye91ruw5.us-east-1.aws.endpoints.huggingface.cloud/v1/chat/completions';
+    const ALLAM_HF_ENDPOINT = 'https://c9fwzzvaafq3cgfv.us-east4.gcp.endpoints.huggingface.cloud/v1/chat/completions';
     const jaisAvailable = Boolean(HF_TOKEN);
+    const allamAvailable = Boolean(HF_TOKEN);
     if (!HF_TOKEN) {
-      console.warn('VITE_HF_TOKEN not set — Jais will be skipped');
+      console.warn('VITE_HF_TOKEN not set — Jais and ALLaM will be skipped');
     } else {
-      console.log('HF Endpoint available — Jais will run in parallel enrichment');
+      console.log('HF Endpoint available — Jais + ALLaM will run in parallel enrichment');
     }
 
      let partial = false;

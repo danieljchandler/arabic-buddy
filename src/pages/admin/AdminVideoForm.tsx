@@ -444,7 +444,7 @@ const AdminVideoForm = () => {
 
       if (rpError) {
         const message = await extractFunctionErrorMessage(rpError);
-        toast.error("Could not queue RunPod fallback", { description: message });
+        toast.error("Could not queue RunPod job", { description: message });
         return false;
       }
 
@@ -457,7 +457,7 @@ const AdminVideoForm = () => {
       toast.success(`RunPod job queued (${rpData?.job_id}). Transcription will continue automatically when audio arrives.`);
       return true;
     } catch (rpErr) {
-      console.warn("RunPod fallback error:", rpErr);
+      console.warn("RunPod queue error:", rpErr);
       return false;
     }
   };

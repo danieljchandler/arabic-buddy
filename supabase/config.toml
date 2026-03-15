@@ -113,3 +113,24 @@ verify_jwt = false
 
 [functions.trigger-download]
 verify_jwt = false
+
+[functions.process-approved-video]
+verify_jwt = false
+
+[functions.azure-tts]
+verify_jwt = false
+
+[functions.camel-analyze]
+verify_jwt = false
+
+[functions.curriculum-chat]
+verify_jwt = false
+
+[functions.extract-visual-context]
+verify_jwt = false
+
+[functions.generate-story]
+verify_jwt = false
+
+[functions.soniox-transcribe]
+verify_jwt = false

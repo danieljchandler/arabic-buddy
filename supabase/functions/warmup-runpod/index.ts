@@ -61,7 +61,7 @@ serve(async (req) => {
 
   const [jais, allam] = await Promise.all([
     warmEndpoint('jais', JAIS_HF_ENDPOINT, 'inceptionai/jais-13b-chat', HF_TOKEN),
-    warmEndpoint('allam', ALLAM_HF_ENDPOINT, 'sdaia/allam-2-7b-instruct', HF_TOKEN),
+    warmEndpoint('allam', ALLAM_HF_ENDPOINT, 'humain-ai/ALLaM-7B-Instruct-preview', HF_TOKEN),
   ]);
 
   console.log(`warmup-runpod: jais=${jais}, allam=${allam}`);

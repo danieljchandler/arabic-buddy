@@ -339,7 +339,7 @@ serve(async (req) => {
                 'Content-Type': 'application/json',
               },
               body: JSON.stringify({
-                model: 'sdaia/allam-2-7b-instruct',
+                model: 'humain-ai/ALLaM-7B-Instruct-preview',
                 messages: [
                   { role: 'system', content: SYSTEM_PROMPT },
                   { role: 'user', content: userContent },

@@ -445,7 +445,7 @@ serve(async (req) => {
       if (!firstLlmError) firstLlmError = e instanceof Error ? e : new Error(String(e));
       return null;
     };
-    const [rawResponse, geminiRawResponse, fanarRawResponse, jaisRawResponse] = await Promise.all([
+    const [rawResponse, geminiRawResponse, fanarRawResponse, jaisRawResponse, allamRawResponse] = await Promise.all([
       callOpenRouter(QWEN_MODEL, TRANSLATION_SYSTEM_PROMPT, userContent, OPENROUTER_API_KEY, 4096).catch(captureLlmError),
       callOpenRouter(GEMINI_MODEL, TRANSLATION_SYSTEM_PROMPT, userContent, OPENROUTER_API_KEY, 4096).catch(captureLlmError),
       fanarAvailable
@@ -453,6 +453,9 @@ serve(async (req) => {
         : Promise.resolve(null),
       jaisAvailable
         ? callJaisHF(TRANSLATION_SYSTEM_PROMPT, userContent, HF_TOKEN!, 4096).catch(captureLlmError)
+        : Promise.resolve(null),
+      jaisAvailable
+        ? callAllamHF(TRANSLATION_SYSTEM_PROMPT, userContent, HF_TOKEN!, 4096).catch(captureLlmError)
         : Promise.resolve(null),
     ]);
 

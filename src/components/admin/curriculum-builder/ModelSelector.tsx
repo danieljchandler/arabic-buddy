@@ -53,6 +53,13 @@ const MODEL_OPTIONS: ModelOption[] = [
     badge: 'Arabic Expert',
   },
   {
+    id: 'allam-hf',
+    name: 'ALLaM',
+    provider: 'HF Endpoint',
+    description: 'Arabic large language model by SDAIA',
+    badge: 'Arabic Native',
+  },
+  {
     id: 'falcon-h1r',
     name: 'Falcon H1R 7B',
     provider: 'RunPod',

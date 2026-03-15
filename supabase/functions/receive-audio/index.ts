@@ -103,20 +103,26 @@ Deno.serve(async (req) => {
       });
 
     if (!stagingError) {
-      const pipelineRes = await fetch(`${supabaseUrl}/functions/v1/process-approved-video`, {
+      // Fire-and-forget: don't await the pipeline to avoid timeout chains
+      fetch(`${supabaseUrl}/functions/v1/process-approved-video`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${serviceRoleKey}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ videoId: targetDiscoverVideoId }),
+      }).then(async (pipelineRes) => {
+        if (!pipelineRes.ok) {
+          const pipelineErr = await pipelineRes.text();
+          console.error("receive-audio: process-approved-video failed", pipelineErr);
+        } else {
+          console.log("receive-audio: pipeline triggered successfully");
+        }
+      }).catch((err) => {
+        console.error("receive-audio: pipeline fetch error", err);
       });
 
-      processingTriggered = pipelineRes.ok;
-      if (!pipelineRes.ok) {
-        const pipelineErr = await pipelineRes.text();
-        console.error("receive-audio: process-approved-video failed", pipelineErr);
-      }
+      processingTriggered = true;
     } else {
       console.error("receive-audio: failed to stage file in video-audio", stagingError.message);
     }

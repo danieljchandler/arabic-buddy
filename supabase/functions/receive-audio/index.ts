@@ -92,6 +92,16 @@ Deno.serve(async (req) => {
   }
 
   let processingTriggered = false;
+  let processingError: string | null = null;
+
+  const markVideoFailed = async (message: string) => {
+    if (!targetDiscoverVideoId) return;
+    await supabase.from("discover_videos").update({
+      transcription_status: "failed",
+      transcription_error: message,
+    }).eq("id", targetDiscoverVideoId);
+  };
+
   if (targetDiscoverVideoId) {
     const ingestionPath = `${targetDiscoverVideoId}.mp4`;
 
@@ -103,29 +113,45 @@ Deno.serve(async (req) => {
       });
 
     if (!stagingError) {
-      // Fire-and-forget: don't await the pipeline to avoid timeout chains
-      fetch(`${supabaseUrl}/functions/v1/process-approved-video`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${serviceRoleKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ videoId: targetDiscoverVideoId }),
-      }).then(async (pipelineRes) => {
+      try {
+        const pipelineRes = await fetch(`${supabaseUrl}/functions/v1/process-approved-video`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${serviceRoleKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ videoId: targetDiscoverVideoId }),
+          signal: AbortSignal.timeout(20000),
+        });
+
         if (!pipelineRes.ok) {
           const pipelineErr = await pipelineRes.text();
-          console.error("receive-audio: process-approved-video failed", pipelineErr);
+          processingError = `process-approved-video failed (${pipelineRes.status}): ${pipelineErr}`;
+          console.error("receive-audio:", processingError);
+          await markVideoFailed(processingError);
         } else {
+          await pipelineRes.text().catch(() => "");
+          processingTriggered = true;
           console.log("receive-audio: pipeline triggered successfully");
         }
-      }).catch((err) => {
-        console.error("receive-audio: pipeline fetch error", err);
-      });
-
-      processingTriggered = true;
+      } catch (err) {
+        processingError = `process-approved-video trigger error: ${err instanceof Error ? err.message : String(err)}`;
+        console.error("receive-audio:", processingError);
+        await markVideoFailed(processingError);
+      }
     } else {
-      console.error("receive-audio: failed to stage file in video-audio", stagingError.message);
+      processingError = `failed to stage file in video-audio: ${stagingError.message}`;
+      console.error("receive-audio:", processingError);
+      await markVideoFailed(processingError);
     }
+  } else {
+    processingError = `No matching discover video found for callback video_id=${video_id}`;
+    console.error("receive-audio:", processingError);
+
+    await supabase.from("discover_videos").update({
+      transcription_status: "failed",
+      transcription_error: processingError,
+    }).ilike("source_url", `%${video_id}%`).eq("transcription_status", "pending");
   }
 
   return new Response(
@@ -133,6 +159,7 @@ Deno.serve(async (req) => {
       storage_url: urlData.publicUrl,
       discover_video_id: targetDiscoverVideoId,
       processing_triggered: processingTriggered,
+      processing_error: processingError,
     }),
     { headers: { "Content-Type": "application/json" } },
   );

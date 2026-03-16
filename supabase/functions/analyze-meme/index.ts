@@ -342,45 +342,14 @@ serve(async (req) => {
 
     // If we have audio transcript but no image analysis, or need separate audio analysis
     if (audioTranscript && !imageBase64) {
-      console.log('Analyzing audio transcript (Qwen + Jais in parallel)...');
-      const [qwenRaw, jaisRaw] = await Promise.all([
-        callQwen(AUDIO_ANALYSIS_PROMPT, audioTranscript, OPENROUTER_API_KEY, 4096).catch((e: unknown) => {
-          console.warn('Qwen audio analysis failed (non-fatal):', e instanceof Error ? e.message : String(e));
-          return null;
-        }),
-        jaisAvailable
-          ? callJaisHF(AUDIO_ANALYSIS_PROMPT, audioTranscript, HF_TOKEN!, 4096).catch((e: unknown) => {
-              console.warn('Jais audio analysis failed (non-fatal):', e instanceof Error ? e.message : String(e));
-              return null;
-            })
-          : Promise.resolve(null),
-      ]);
+      console.log('Analyzing audio transcript with Qwen...');
+      const qwenRaw = await callQwen(AUDIO_ANALYSIS_PROMPT, audioTranscript, OPENROUTER_API_KEY, 4096).catch((e: unknown) => {
+        console.warn('Qwen audio analysis failed (non-fatal):', e instanceof Error ? e.message : String(e));
+        return null;
+      });
 
-      const qwenAudioResult = qwenRaw ? safeJsonParse<any>(qwenRaw) : null;
-      const jaisAudioResult = jaisRaw ? safeJsonParse<any>(jaisRaw) : null;
-
-      // Use Qwen as primary, merge Jais vocabulary and grammar points
-      audioResult = qwenAudioResult ?? jaisAudioResult;
-      if (qwenAudioResult && jaisAudioResult) {
-        // Merge Jais vocabulary (deduplicate by arabic field)
-        if (Array.isArray(jaisAudioResult.vocabulary)) {
-          const existingArabic = new Set((qwenAudioResult.vocabulary ?? []).map((v: any) => v.arabic));
-          const extraVocab = jaisAudioResult.vocabulary.filter((v: any) => v?.arabic && !existingArabic.has(v.arabic));
-          if (extraVocab.length > 0) {
-            audioResult = { ...audioResult, vocabulary: [...(audioResult.vocabulary ?? []), ...extraVocab] };
-            console.log(`Merged ${extraVocab.length} vocab item(s) from Jais audio analysis`);
-          }
-        }
-        // Merge Jais grammar points (deduplicate by title)
-        if (Array.isArray(jaisAudioResult.grammarPoints)) {
-          const existingTitles = new Set((qwenAudioResult.grammarPoints ?? []).map((g: any) => String(g.title ?? '').toLowerCase()));
-          const extraGrammar = jaisAudioResult.grammarPoints.filter((g: any) => g?.title && !existingTitles.has(String(g.title).toLowerCase()));
-          if (extraGrammar.length > 0) {
-            audioResult = { ...audioResult, grammarPoints: [...(audioResult.grammarPoints ?? []), ...extraGrammar] };
-            console.log(`Merged ${extraGrammar.length} grammar point(s) from Jais audio analysis`);
-          }
-        }
-      }
+      audioResult = qwenRaw ? safeJsonParse<any>(qwenRaw) : null;
+    }
     }
 
     // Build the final structured result

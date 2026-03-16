@@ -315,8 +315,7 @@ async function callLLM(
         max_tokens: maxTokens,
         temperature: 0.4,
       };
-      // Jais HF endpoint: bake prompt format into message content instead of chat_template
-      if (config.model === 'inceptionai/jais-13b-chat') {
+      body = JSON.stringify(payload);
         const systemMsg = messages.find(m => m.role === 'system')?.content || '';
         const userMsgs = messages.filter(m => m.role !== 'system').map(m => m.content).join('\n');
         payload.messages = [

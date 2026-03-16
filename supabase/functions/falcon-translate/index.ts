@@ -7,7 +7,6 @@ const corsHeaders = {
 };
 
 const OPENROUTER_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
-const JAIS_HF_ENDPOINT = 'https://u1lf1x17ye91ruw5.us-east-1.aws.endpoints.huggingface.cloud/v1/chat/completions';
 
 function parseNumberedTranslations(generatedText: string, arabicLines: string[]): string[] {
   const translations: string[] = [];
@@ -72,67 +71,11 @@ async function callOpenRouterTranslate(
   }
 }
 
-async function callRunPodTranslate(
-  endpoint: string,
-  model: string,
-  numberedLines: string,
-  apiKey: string,
-  native = false,
-): Promise<string | null> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 90_000);
-  try {
-    let body: string;
-    if (native) {
-      const prompt = `### Instruction: You are an expert translator specializing in Gulf Arabic (Khaliji) dialect. Translate each numbered Arabic line to natural English. Return ONLY the translations, numbered to match. No commentary.\n\n### Input: Translate these Gulf Arabic lines to English:\n\n${numberedLines}\n\n### Response:`;
-      body = JSON.stringify({ input: { prompt } });
-    } else {
-      body = JSON.stringify({
-        model,
-        messages: [
-          {
-            role: 'system',
-            content: 'You are an expert translator specializing in Gulf Arabic (Khaliji) dialect. Translate each numbered Arabic line to natural English. Return ONLY the translations, numbered to match. No commentary.',
-          },
-          {
-            role: 'user',
-            content: `Translate these Gulf Arabic lines to English:\n\n${numberedLines}`,
-          },
-        ],
-      });
-    }
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      signal: controller.signal,
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body,
-    });
-    if (!response.ok) {
-      console.warn(`RunPod ${model} error:`, response.status);
-      return null;
-    }
-    const data = await response.json();
-    if (native) {
-      return typeof data.output === 'string' ? data.output : data.output?.text ?? null;
-    }
-    return data?.choices?.[0]?.message?.content || null;
-  } catch (e) {
-    console.warn(`RunPod ${model} failed:`, e instanceof Error ? e.message : String(e));
-    return null;
-  } finally {
-    clearTimeout(timeout);
-  }
-}
-
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
 
-  // Authenticate user
   const authHeader = req.headers.get('Authorization');
   if (!authHeader?.startsWith('Bearer ')) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
@@ -168,8 +111,6 @@ serve(async (req) => {
       );
     }
 
-    const HF_TOKEN = Deno.env.get('VITE_HF_TOKEN');
-
     console.log(`falcon-translate: processing ${arabicLines.length} lines`);
 
     const numberedLines = arabicLines.map((line: string, i: number) => `${i + 1}. ${line}`).join('\n');
@@ -179,41 +120,7 @@ serve(async (req) => {
       callOpenRouterTranslate('google/gemini-2.5-flash', numberedLines, OPENROUTER_API_KEY),
     ]);
 
-    let generatedText = qwenText ?? geminiText ?? '';
-
-    // Fallback to Jais via HF Endpoint if OpenRouter calls both fail
-    if (!generatedText && HF_TOKEN) {
-      console.log('OpenRouter failed, trying Jais via HF Endpoint...');
-      try {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 90_000);
-        const resp = await fetch(JAIS_HF_ENDPOINT, {
-          method: 'POST',
-          signal: controller.signal,
-          headers: {
-            'Authorization': `Bearer ${HF_TOKEN}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'inceptionai/jais-13b-chat',
-            messages: [
-              { role: 'user', content: `### Instruction: Your name is Jais, and you are named after Jebel Jais, the highest mountain in UAE. You are a helpful Arabic-English translator specializing in Gulf Arabic dialect.\n[|Human|]: Translate these Gulf Arabic lines to English:\n\n${numberedLines}\n[|AI|]:` },
-            ],
-            temperature: 0.3,
-            max_tokens: 4096,
-          }),
-        });
-        clearTimeout(timeout);
-        if (resp.ok) {
-          const data = await resp.json();
-          generatedText = data.choices?.[0]?.message?.content ?? '';
-        }
-      } catch (e) {
-        console.warn('Jais HF fallback failed:', e instanceof Error ? e.message : String(e));
-      }
-    }
-
-    const hfFallbackText = generatedText && !qwenText && !geminiText ? generatedText : null;
+    const generatedText = qwenText ?? geminiText ?? '';
 
     if (!generatedText) {
       console.error('All translation models returned empty content');
@@ -223,7 +130,7 @@ serve(async (req) => {
       );
     }
 
-    console.log(`falcon-translate: response length=${generatedText.length} (qwen=${!!qwenText}, gemini=${!!geminiText}, hf-fallback=${!!hfFallbackText})`);
+    console.log(`falcon-translate: response length=${generatedText.length} (qwen=${!!qwenText}, gemini=${!!geminiText})`);
 
     const translations = parseNumberedTranslations(generatedText, arabicLines);
 

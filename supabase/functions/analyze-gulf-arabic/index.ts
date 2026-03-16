@@ -1443,69 +1443,9 @@ serve(async (req) => {
        }
      }
 
-     // Merge Jais meta results if available
-     if (jaisMetaResp.content) {
-       const jaisMetaAi = safeJsonParse<MetaAI>(jaisMetaResp.content);
-       if (jaisMetaAi) {
-         console.log('Merging Jais meta results...');
-         // Union vocabularies (deduplicate by Arabic text)
-         if (Array.isArray(jaisMetaAi.vocabulary)) {
-           const existingArabic = new Set(vocab.map(v => v.arabic));
-           const newVocab = jaisMetaAi.vocabulary.filter(v => v.arabic && !existingArabic.has(v.arabic));
-           if (newVocab.length > 0) {
-             vocab = [...vocab, ...newVocab];
-             console.log(`Added ${newVocab.length} vocab items from Jais`);
-           }
-         }
-         // Union grammar points (deduplicate by title)
-         if (Array.isArray(jaisMetaAi.grammarPoints)) {
-           const existingTitles = new Set(grammarPoints.map(g => g.title.toLowerCase()));
-           const newGrammar = jaisMetaAi.grammarPoints.filter(g => g.title && !existingTitles.has(g.title.toLowerCase()));
-           if (newGrammar.length > 0) {
-             grammarPoints = [...grammarPoints, ...newGrammar];
-             console.log(`Added ${newGrammar.length} grammar points from Jais`);
-           }
-         }
-         // Prefer Jais cultural context if richer (longer)
-         if (jaisMetaAi.culturalContext && (!culturalContext || jaisMetaAi.culturalContext.length > culturalContext.length)) {
-           culturalContext = jaisMetaAi.culturalContext;
-           console.log('Using Jais cultural context (richer)');
-         }
-       }
-     }
-
-     // Merge ALLaM meta results if available
-     if (allamMetaResp.content) {
-       const allamMetaAi = safeJsonParse<MetaAI>(allamMetaResp.content);
-       if (allamMetaAi) {
-         console.log('Merging ALLaM meta results...');
-         if (Array.isArray(allamMetaAi.vocabulary)) {
-           const existingArabic = new Set(vocab.map(v => v.arabic));
-           const newVocab = allamMetaAi.vocabulary.filter(v => v.arabic && !existingArabic.has(v.arabic));
-           if (newVocab.length > 0) {
-             vocab = [...vocab, ...newVocab];
-             console.log(`Added ${newVocab.length} vocab items from ALLaM`);
-           }
-         }
-         if (Array.isArray(allamMetaAi.grammarPoints)) {
-           const existingTitles = new Set(grammarPoints.map(g => g.title.toLowerCase()));
-           const newGrammar = allamMetaAi.grammarPoints.filter(g => g.title && !existingTitles.has(g.title.toLowerCase()));
-           if (newGrammar.length > 0) {
-             grammarPoints = [...grammarPoints, ...newGrammar];
-             console.log(`Added ${newGrammar.length} grammar points from ALLaM`);
-           }
-         }
-         if (allamMetaAi.culturalContext && (!culturalContext || allamMetaAi.culturalContext.length > culturalContext.length)) {
-           culturalContext = allamMetaAi.culturalContext;
-           console.log('Using ALLaM cultural context (richer)');
-         }
-       }
-     }
-
-     // Falcon meta merge removed — endpoint decommissioned
 
       // ── Step 5: Claude Sonnet vocabulary enrichment ──────────────────────────
-      // Runs after full vocab assembly (Qwen + Fanar + Jais + ALLaM union). Sequential.
+      // Runs after full vocab assembly (Qwen + Fanar union). Sequential.
      // Non-blocking: any failure leaves vocab unchanged.
      if (vocab.length > 0) {
        try {

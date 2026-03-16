@@ -28,10 +28,6 @@ const AdminVideoForm = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
-  // Pre-warm RunPod endpoints
-  useEffect(() => {
-    supabase.functions.invoke("warmup-runpod").catch(() => {});
-  }, []);
   const isEditing = !!videoId;
   const { data: existingVideo, isLoading: loadingVideo } = useDiscoverVideo(videoId);
 

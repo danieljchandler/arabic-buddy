@@ -9,8 +9,6 @@ const corsHeaders = {
 const OPENROUTER_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
 const QWEN_MODEL = 'qwen/qwen3-235b-a22b';
 const GEMINI_MODEL = 'google/gemini-2.5-flash';
-const JAIS_HF_ENDPOINT = 'https://router.huggingface.co/together/v1/chat/completions';
-const ALLAM_HF_ENDPOINT = 'https://c9fwzzvaafq3cgfv.us-east4.gcp.endpoints.huggingface.cloud/v1/chat/completions';
 
 interface RawTranslation {
   arabic?: unknown;

@@ -334,7 +334,7 @@ serve(async (req) => {
     const llmUsed = llmsUsed.join(' + ');
     console.log(`gulf-translate: LLMs = ${llmUsed}, phrase = "${trimmedPhrase}"`);
 
-    // Step 1: Get translations from Qwen + Gemini + Fanar + Jais in parallel
+    // Step 1: Get translations from Qwen + Gemini + Fanar in parallel
     const userContent = `How do I say this in Omani Gulf Arabic: "${trimmedPhrase}"`;
 
     // Track wall-clock time so we can skip the sequential dialect-check step

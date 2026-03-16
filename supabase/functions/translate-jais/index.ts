@@ -448,7 +448,7 @@ serve(async (req) => {
       return b.naturalness - a.naturalness;
     });
 
-    // Merge vocabularies from Qwen + Gemini + Fanar + Jais
+    // Merge vocabularies from Qwen + Gemini + Fanar
     const qwenVocab: NormalisedVocabularyItem[] = parsed && Array.isArray(parsed.vocabulary)
       ? parsed.vocabulary
           .filter((v: RawVocabularyItem) => v?.arabic)
@@ -476,31 +476,20 @@ serve(async (req) => {
             root: v.root ? String(v.root) : undefined,
           }))
       : [];
-    const jaisVocab: NormalisedVocabularyItem[] = jaisParsed && Array.isArray(jaisParsed.vocabulary)
-      ? jaisParsed.vocabulary
-          .filter((v: RawVocabularyItem) => v?.arabic)
-          .map((v: RawVocabularyItem) => ({
-            arabic: String(v.arabic),
-            english: String(v.english ?? ''),
-            root: v.root ? String(v.root) : undefined,
-          }))
-      : [];
     const vocabArabicSet = new Set(qwenVocab.map(v => v.arabic));
     const extraGeminiVocab = geminiVocab.filter(v => !vocabArabicSet.has(v.arabic));
     extraGeminiVocab.forEach(v => vocabArabicSet.add(v.arabic));
     const extraFanarVocab = fanarVocab.filter(v => !vocabArabicSet.has(v.arabic));
-    extraFanarVocab.forEach(v => vocabArabicSet.add(v.arabic));
-    const vocabulary = [...qwenVocab, ...extraGeminiVocab, ...extraFanarVocab, ...jaisVocab.filter(v => !vocabArabicSet.has(v.arabic))];
+    const vocabulary = [...qwenVocab, ...extraGeminiVocab, ...extraFanarVocab];
 
     // Prefer richer cultural notes
     const qwenNotes = parsed?.culturalNotes ? String(parsed.culturalNotes) : undefined;
     const geminiNotes = geminiParsed?.culturalNotes ? String(geminiParsed.culturalNotes) : undefined;
     const fanarNotes = fanarParsed?.culturalNotes ? String(fanarParsed.culturalNotes) : undefined;
-    const jaisNotes = jaisParsed?.culturalNotes ? String(jaisParsed.culturalNotes) : undefined;
-    const allNotes = [qwenNotes, geminiNotes, fanarNotes, jaisNotes].filter(Boolean) as string[];
+    const allNotes = [qwenNotes, geminiNotes, fanarNotes].filter(Boolean) as string[];
     const culturalNotes = allNotes.reduce((best, n) => (!best || n.length > best.length ? n : best), undefined as string | undefined);
 
-    const genderVariantsSource = [parsed, geminiParsed, fanarParsed, jaisParsed].find(p => p?.genderVariants);
+    const genderVariantsSource = [parsed, geminiParsed, fanarParsed].find(p => p?.genderVariants);
     const genderVariants = genderVariantsSource?.genderVariants ? String(genderVariantsSource.genderVariants) : undefined;
 
     const result = {

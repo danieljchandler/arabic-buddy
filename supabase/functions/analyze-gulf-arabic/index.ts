@@ -1220,7 +1220,7 @@ serve(async (req) => {
      const arabicOnlyText = mergedLines.map(l => l.arabic).join('\n');
      const hfApiKey = Deno.env.get('HUGGINGFACE_API_KEY') ?? '';
 
-      const [geminiTransResp, analysisResp, fanarMetaResp, fanarValidResp, jaisMetaResp, allamMetaResp, camelDialectResult, diacritizedTranscript] = await Promise.all([
+      const [geminiTransResp, analysisResp, fanarMetaResp, fanarValidResp, camelDialectResult, diacritizedTranscript] = await Promise.all([
         // Translation primary: Gemini 2.5 Pro via Lovable AI gateway
         callAI({
           model: 'google/gemini-2.5-pro',
@@ -1238,7 +1238,7 @@ serve(async (req) => {
          isRetry: false,
          maxTokens: 8192,
        }),
-       // Fanar-Sadiq meta enrichment (unchanged)
+       // Fanar-Sadiq meta enrichment
        fanarLlmAvailable
          ? callFanar({
              systemPrompt: getMetaSystemPrompt(true),
@@ -1248,7 +1248,7 @@ serve(async (req) => {
              maxTokens: 2048,
            })
          : Promise.resolve({ content: null } as { content: string | null }),
-       // Fanar-C-2-27B dialect validation — read-only, never blocks pipeline
+       // Fanar-C-2-27B dialect validation
        fanarLlmAvailable
          ? callFanar({
              systemPrompt: getFanarValidationSystemPrompt(),
@@ -1261,68 +1261,6 @@ serve(async (req) => {
              return { content: null } as { content: string | null };
            })
          : Promise.resolve({ content: null } as { content: string | null }),
-       // Jais meta enrichment via HF Endpoint — wrapped in 45s Promise.race so cold starts can't stall the pipeline
-       jaisAvailable
-         ? (console.log('Jais meta enrichment: FIRING via HF Endpoint (45s race)...'),
-            Promise.race([
-              callJaisHF(JAIS_HF_ENDPOINT, getMetaSystemPrompt(true), mergedTranscriptText, HF_TOKEN!, 2048).catch((e) => {
-                console.warn('Jais meta enrichment failed (non-blocking):', e instanceof Error ? e.message : String(e));
-                return { content: null } as { content: string | null };
-              }),
-              new Promise<{ content: string | null }>(resolve => setTimeout(() => {
-                console.warn('Jais HF: timed out at 45s, skipping');
-                resolve({ content: null });
-              }, 45_000)),
-            ]))
-         : (console.log('Jais meta enrichment: SKIPPED (no VITE_HF_TOKEN)'),
-            Promise.resolve({ content: null } as { content: string | null })),
-       // ALLaM meta enrichment via HF Endpoint — Arabic-native model by SDAIA
-       allamAvailable
-         ? (console.log('ALLaM meta enrichment: FIRING via HF Endpoint (45s race)...'),
-            Promise.race([
-              (async () => {
-                const controller = new AbortController();
-                const timeout = setTimeout(() => controller.abort(), 45_000);
-                try {
-                  const resp = await fetch(ALLAM_HF_ENDPOINT, {
-                    method: 'POST',
-                    signal: controller.signal,
-                    headers: {
-                      'Authorization': `Bearer ${HF_TOKEN}`,
-                      'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                      model: 'humain-ai/ALLaM-7B-Instruct-preview',
-                      messages: [
-                        { role: 'system', content: getMetaSystemPrompt(true) },
-                        { role: 'user', content: mergedTranscriptText },
-                      ],
-                      max_tokens: 2048,
-                      temperature: 0.2,
-                    }),
-                  });
-                  if (!resp.ok) {
-                    console.warn('ALLaM meta enrichment error:', resp.status);
-                    return { content: null } as { content: string | null };
-                  }
-                  const data = await resp.json();
-                  const content = data.choices?.[0]?.message?.content ?? null;
-                  console.log('ALLaM meta enrichment response:', content?.slice(0, 200));
-                  return { content };
-                } catch (e) {
-                  console.warn('ALLaM meta enrichment failed (non-blocking):', e instanceof Error ? e.message : String(e));
-                  return { content: null } as { content: string | null };
-                } finally {
-                  clearTimeout(timeout);
-                }
-              })(),
-              new Promise<{ content: string | null }>(resolve => setTimeout(() => {
-                console.warn('ALLaM HF: timed out at 45s, skipping');
-                resolve({ content: null });
-              }, 45_000)),
-            ]))
-         : (console.log('ALLaM meta enrichment: SKIPPED (no VITE_HF_TOKEN)'),
-            Promise.resolve({ content: null } as { content: string | null })),
        // CAMeL-Lab BERT dialect ID
        hfApiKey
          ? callCamelDialect(arabicOnlyText, hfApiKey).catch((e) => {

@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge';
 
 export type LLMModelId =
   | 'google/gemini-2.5-flash'
+  | 'anthropic/claude-sonnet-4-5'
   | 'qwen/qwen3-235b-a22b'
   | 'google/gemma-3-12b-it'
   | 'fanar'
@@ -25,6 +26,12 @@ const MODEL_OPTIONS: ModelOption[] = [
     provider: 'Lovable',
     description: 'Fast, reliable, good Arabic support',
     badge: 'Recommended',
+  },
+  {
+    id: 'anthropic/claude-sonnet-4-5',
+    name: 'Claude Sonnet',
+    provider: 'OpenRouter',
+    description: 'Excellent reasoning and instruction following',
   },
   {
     id: 'qwen/qwen3-235b-a22b',

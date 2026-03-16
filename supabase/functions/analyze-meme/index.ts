@@ -297,8 +297,6 @@ serve(async (req) => {
       );
     }
 
-    const HF_TOKEN = Deno.env.get('VITE_HF_TOKEN');
-    const jaisAvailable = Boolean(HF_TOKEN);
 
     // Build vision content for image analysis
     let onScreenResult: any = null;

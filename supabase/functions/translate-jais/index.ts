@@ -333,8 +333,6 @@ serve(async (req) => {
 
     const llmsUsed = [`${QWEN_MODEL} (OpenRouter)`, `${GEMINI_MODEL} (OpenRouter)`];
     if (fanarAvailable) llmsUsed.push('Fanar');
-    if (jaisAvailable) llmsUsed.push('Jais (HF Serverless)');
-    if (jaisAvailable) llmsUsed.push('ALLaM (HF Endpoint)');
     const llmUsed = llmsUsed.join(' + ');
     console.log(`gulf-translate: LLMs = ${llmUsed}, phrase = "${trimmedPhrase}"`);
 

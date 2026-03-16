@@ -115,50 +115,6 @@ async function callQwen(
   }
 }
 
-async function callJaisHF(
-  systemPrompt: string,
-  userContent: string,
-  hfToken: string,
-  maxTokens = 4096,
-): Promise<string | null> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 45_000);
-
-  try {
-    const response = await fetch('https://router.huggingface.co/together/v1/chat/completions', {
-      method: 'POST',
-      signal: controller.signal,
-      headers: {
-        'Authorization': `Bearer ${hfToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'inceptionai/Jais-2-8B-Chat',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userContent },
-        ],
-        max_tokens: maxTokens,
-        temperature: 0.3,
-      }),
-    });
-
-    if (!response.ok) {
-      console.warn('Jais HF error:', response.status);
-      return null;
-    }
-
-    const data = await response.json();
-    const content = data?.choices?.[0]?.message?.content;
-    console.log('Jais HF response:', content?.slice(0, 200));
-    return content || null;
-  } catch (e) {
-    console.warn('Jais HF failed (non-fatal):', e instanceof Error ? e.message : String(e));
-    return null;
-  } finally {
-    clearTimeout(timeout);
-  }
-}
 
 async function callAI(
   systemPrompt: string,

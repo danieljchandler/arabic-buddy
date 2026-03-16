@@ -350,27 +350,19 @@ serve(async (req) => {
       if (!firstLlmError) firstLlmError = e instanceof Error ? e : new Error(String(e));
       return null;
     };
-    const [rawResponse, geminiRawResponse, fanarRawResponse, jaisRawResponse, allamRawResponse] = await Promise.all([
+    const [rawResponse, geminiRawResponse, fanarRawResponse] = await Promise.all([
       callOpenRouter(QWEN_MODEL, TRANSLATION_SYSTEM_PROMPT, userContent, OPENROUTER_API_KEY, 4096).catch(captureLlmError),
       callOpenRouter(GEMINI_MODEL, TRANSLATION_SYSTEM_PROMPT, userContent, OPENROUTER_API_KEY, 4096).catch(captureLlmError),
       fanarAvailable
         ? callFanar(TRANSLATION_SYSTEM_PROMPT, userContent, FANAR_API_KEY!, 4096).catch(captureLlmError)
-        : Promise.resolve(null),
-      jaisAvailable
-        ? callJaisHF(TRANSLATION_SYSTEM_PROMPT, userContent, HF_TOKEN!, 4096).catch(captureLlmError)
-        : Promise.resolve(null),
-      jaisAvailable
-        ? callAllamHF(TRANSLATION_SYSTEM_PROMPT, userContent, HF_TOKEN!, 4096).catch(captureLlmError)
         : Promise.resolve(null),
     ]);
 
     const parsed = rawResponse ? safeJsonParse<TranslationPayload>(rawResponse) : null;
     const geminiParsed = geminiRawResponse ? safeJsonParse<TranslationPayload>(geminiRawResponse) : null;
     const fanarParsed = fanarRawResponse ? safeJsonParse<TranslationPayload>(fanarRawResponse) : null;
-    const jaisParsed = jaisRawResponse ? safeJsonParse<TranslationPayload>(jaisRawResponse) : null;
-    const allamParsed = allamRawResponse ? safeJsonParse<TranslationPayload>(allamRawResponse) : null;
 
-    if (!parsed && !geminiParsed && !fanarParsed && !jaisParsed && !allamParsed) {
+    if (!parsed && !geminiParsed && !fanarParsed) {
       throw firstLlmError ?? new Error('Failed to parse translation responses. Please try again.');
     }
 

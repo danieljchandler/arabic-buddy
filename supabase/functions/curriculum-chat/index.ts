@@ -316,13 +316,6 @@ async function callLLM(
         temperature: 0.4,
       };
       body = JSON.stringify(payload);
-        const systemMsg = messages.find(m => m.role === 'system')?.content || '';
-        const userMsgs = messages.filter(m => m.role !== 'system').map(m => m.content).join('\n');
-        payload.messages = [
-          { role: 'user', content: `### Instruction: Your name is Jais, and you are named after Jebel Jais, the highest mountain in UAE. You are a helpful Arabic-English translator specializing in Gulf Arabic dialect.\n[|Human|]: ${systemMsg}\n\n${userMsgs}\n[|AI|]:` },
-        ];
-      }
-      body = JSON.stringify(payload);
     }
 
     const response = await fetch(config.endpoint, {

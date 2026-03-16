@@ -1215,7 +1215,7 @@ serve(async (req) => {
      //
      // All run in parallel. Translation is a separate concern from analysis.
      // =====================================================================
-     console.log('Translation (Gemini), analysis (Qwen), meta (Fanar+Jais+ALLaM), CAMeL dialect, Farasa diac running in parallel...');
+     console.log('Translation (Gemini), analysis (Qwen), meta (Fanar), CAMeL dialect, Farasa diac running in parallel...');
 
      const arabicOnlyText = mergedLines.map(l => l.arabic).join('\n');
      const hfApiKey = Deno.env.get('HUGGINGFACE_API_KEY') ?? '';

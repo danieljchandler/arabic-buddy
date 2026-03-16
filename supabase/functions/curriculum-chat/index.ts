@@ -18,9 +18,6 @@ interface ModelConfig {
   native?: boolean; // true = native RunPod /runsync API
 }
 
-const JAIS_HF_ENDPOINT = "https://u1lf1x17ye91ruw5.us-east-1.aws.endpoints.huggingface.cloud/v1/chat/completions";
-const ALLAM_HF_ENDPOINT = "https://c9fwzzvaafq3cgfv.us-east4.gcp.endpoints.huggingface.cloud/v1/chat/completions";
-
 const MODEL_REGISTRY: Record<string, ModelConfig> = {
   "google/gemini-2.5-flash": {
     endpoint: LOVABLE_GATEWAY,
@@ -47,16 +44,6 @@ const MODEL_REGISTRY: Record<string, ModelConfig> = {
     model: "Fanar",
     keyEnv: "FANAR_API_KEY",
     isFanar: true,
-  },
-  "jais-hf": {
-    endpoint: JAIS_HF_ENDPOINT,
-    model: "inceptionai/jais-13b-chat",
-    keyEnv: "VITE_HF_TOKEN",
-  },
-  "allam-hf": {
-    endpoint: ALLAM_HF_ENDPOINT,
-    model: "humain-ai/ALLaM-7B-Instruct-preview",
-    keyEnv: "VITE_HF_TOKEN",
   },
 };
 

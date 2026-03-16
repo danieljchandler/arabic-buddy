@@ -328,8 +328,6 @@ serve(async (req) => {
     const FANAR_API_KEY = Deno.env.get('FANAR_API_KEY')?.trim();
     const fanarAvailable = Boolean(FANAR_API_KEY);
 
-    const HF_TOKEN = Deno.env.get('VITE_HF_TOKEN');
-    const jaisAvailable = Boolean(HF_TOKEN);
 
     const llmsUsed = [`${QWEN_MODEL} (OpenRouter)`, `${GEMINI_MODEL} (OpenRouter)`];
     if (fanarAvailable) llmsUsed.push('Fanar');

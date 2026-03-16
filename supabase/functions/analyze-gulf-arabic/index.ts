@@ -1507,14 +1507,17 @@ serve(async (req) => {
           
           if (videoId) {
             const contentHash = `${platform}:${videoId}`;
-            const engines = [];
-            if (deepgramRawText) engines.push('deepgram');
-            if (munsitRawText) engines.push('munsit');
-            if (fanarRawText) engines.push('fanar');
-            if (sonioxRawText) engines.push('soniox');
+            const engines: string[] = [];
+            if (transcript) engines.push('deepgram');
+            if (hasDual) engines.push('munsit');
+            if (hasFanar) engines.push('fanar');
+            if (hasSoniox) engines.push('soniox');
             
-            // Use existing supabase client (service role)
-            supabaseClient.from('processed_videos').upsert({
+            // Use service role client to cache
+            const cacheUrl = Deno.env.get('SUPABASE_URL')!;
+            const cacheKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+            const cacheClient = createClient(cacheUrl, cacheKey);
+            cacheClient.from('processed_videos').upsert({
               content_hash: contentHash,
               original_url: originalUrl,
               platform,
@@ -1524,7 +1527,7 @@ serve(async (req) => {
               processing_engines: engines,
               source_language: 'ar',
               dialect: detectedDialect || 'Gulf'
-            }).then(({ error: cacheError }) => {
+            }).then(({ error: cacheError }: { error: any }) => {
               if (cacheError) {
                 console.warn('Failed to cache result:', cacheError.message);
               } else {

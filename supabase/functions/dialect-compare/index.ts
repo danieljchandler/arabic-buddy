@@ -1,4 +1,4 @@
-// dialect-compare — redeployed after API URL fix (ai.gateway.lovable.dev)
+// dialect-compare — uses Gemini via Lovable AI gateway
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -103,9 +103,6 @@ IMPORTANT: Return ONLY valid JSON, no markdown formatting, no code blocks.`;
 
     const userPrompt = `Compare how "${word}" is said across Gulf Arabic, Egyptian Arabic, Levantine Arabic, and MSA. The user's source dialect is ${source_dialect}.`;
 
-    let content = "";
-    
-    // Primary: Gemini via Lovable gateway
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -123,84 +120,22 @@ IMPORTANT: Return ONLY valid JSON, no markdown formatting, no code blocks.`;
       }),
     });
 
-    if (response.ok) {
-      const data = await response.json();
-      content = data.choices?.[0]?.message?.content || "";
-    } else {
-      console.warn("Gemini dialect-compare error:", response.status);
+    if (!response.ok) {
+      const errText = await response.text();
+      console.warn("Gemini dialect-compare error:", response.status, errText.slice(0, 200));
+      throw new Error("AI model failed for dialect comparison");
     }
 
-    // Fallback: Jais via HF Inference Endpoint if Gemini failed
-    if (!content) {
-      const HF_TOKEN = Deno.env.get("VITE_HF_TOKEN");
-      if (HF_TOKEN) {
-        console.log("dialect-compare: falling back to Jais via HF Endpoint...");
-        try {
-          const jaisResp = await fetch("https://u1lf1x17ye91ruw5.us-east-1.aws.endpoints.huggingface.cloud/v1/chat/completions", {
-            method: "POST",
-            headers: {
-              "Authorization": `Bearer ${HF_TOKEN}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              model: "inceptionai/jais-13b-chat",
-              messages: [
-                { role: "user", content: `### Instruction: Your name is Jais, and you are named after Jebel Jais, the highest mountain in UAE. You are a helpful Arabic-English translator specializing in Gulf Arabic dialect.\n[|Human|]: ${systemPrompt}\n\n${userPrompt}\n[|AI|]:` },
-              ],
-              temperature: 0.3,
-              max_tokens: 2048,
-            }),
-          });
-          if (jaisResp.ok) {
-            const jaisData = await jaisResp.json();
-            content = jaisData.choices?.[0]?.message?.content ?? "";
-          }
-        } catch (e) {
-          console.warn("Jais dialect-compare fallback failed:", e);
-        }
-      }
-    }
-
-    // Fallback: ALLaM via HF Endpoint if Jais also failed
-    if (!content) {
-      const HF_TOKEN = Deno.env.get("VITE_HF_TOKEN");
-      if (HF_TOKEN) {
-        console.log("dialect-compare: falling back to ALLaM via HF Endpoint...");
-        try {
-          const allamResp = await fetch("https://c9fwzzvaafq3cgfv.us-east4.gcp.endpoints.huggingface.cloud/v1/chat/completions", {
-            method: "POST",
-            headers: {
-              "Authorization": `Bearer ${HF_TOKEN}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              model: "humain-ai/ALLaM-7B-Instruct-preview",
-              messages: [
-                { role: "system", content: systemPrompt },
-                { role: "user", content: userPrompt },
-              ],
-              temperature: 0.3,
-              max_tokens: 2048,
-            }),
-          });
-          if (allamResp.ok) {
-            const allamData = await allamResp.json();
-            content = allamData.choices?.[0]?.message?.content ?? "";
-          }
-        } catch (e) {
-          console.warn("ALLaM dialect-compare fallback failed:", e);
-        }
-      }
-    }
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content || "";
 
     if (!content) {
-      throw new Error("All AI models failed for dialect comparison");
+      throw new Error("AI model returned empty response");
     }
 
     // Parse the JSON response
     let comparison: DialectComparison;
     try {
-      // Clean up potential markdown formatting
       let cleanContent = content.trim();
       if (cleanContent.startsWith("```json")) {
         cleanContent = cleanContent.slice(7);
@@ -227,10 +162,11 @@ IMPORTANT: Return ONLY valid JSON, no markdown formatting, no code blocks.`;
       JSON.stringify({ comparison }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Dialect compare error:", error);
+    const message = error instanceof Error ? error.message : "Internal server error";
     return new Response(
-      JSON.stringify({ error: error.message || "Internal server error" }),
+      JSON.stringify({ error: message }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

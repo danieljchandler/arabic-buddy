@@ -34,9 +34,6 @@ serve(async (req) => {
 
     let reply = "";
 
-    // Primary: Gemini via Lovable gateway
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 30_000);
     try {
       const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
@@ -74,66 +71,6 @@ serve(async (req) => {
       }
     } finally {
       clearTimeout(timeout);
-    }
-
-    // Fallback: Jais via HF Inference Endpoint if Gemini failed
-    if (!reply) {
-      const HF_TOKEN = Deno.env.get("VITE_HF_TOKEN");
-      if (HF_TOKEN) {
-        console.log("conversation-practice: falling back to Jais via HF Endpoint...");
-        try {
-          const jaisResp = await fetch("https://u1lf1x17ye91ruw5.us-east-1.aws.endpoints.huggingface.cloud/v1/chat/completions", {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${HF_TOKEN}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              model: "inceptionai/jais-13b-chat",
-              messages: [
-                { role: "user", content: `### Instruction: Your name is Jais, and you are named after Jebel Jais, the highest mountain in UAE. You are a helpful Arabic-English translator specializing in Gulf Arabic dialect.\n[|Human|]: ${messages.map((m: any) => m.content).join('\n')}\n[|AI|]:` },
-              ],
-              temperature: 0.7,
-              max_tokens: 1024,
-            }),
-          });
-          if (jaisResp.ok) {
-            const jaisData = await jaisResp.json();
-            reply = jaisData.choices?.[0]?.message?.content ?? "";
-          }
-        } catch (e) {
-          console.warn("Jais conversation fallback failed:", e);
-        }
-      }
-    }
-
-    // Fallback: ALLaM via HF Inference Endpoint if Jais also failed
-    if (!reply) {
-      const HF_TOKEN = Deno.env.get("VITE_HF_TOKEN");
-      if (HF_TOKEN) {
-        console.log("conversation-practice: falling back to ALLaM via HF Endpoint...");
-        try {
-          const allamResp = await fetch("https://c9fwzzvaafq3cgfv.us-east4.gcp.endpoints.huggingface.cloud/v1/chat/completions", {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${HF_TOKEN}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              model: "humain-ai/ALLaM-7B-Instruct-preview",
-              messages,
-              temperature: 0.7,
-              max_tokens: 1024,
-            }),
-          });
-          if (allamResp.ok) {
-            const allamData = await allamResp.json();
-            reply = allamData.choices?.[0]?.message?.content ?? "";
-          }
-        } catch (e) {
-          console.warn("ALLaM conversation fallback failed:", e);
-        }
-      }
     }
 
     if (!reply) {

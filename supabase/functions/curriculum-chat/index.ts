@@ -27,6 +27,11 @@ const MODEL_REGISTRY: Record<string, ModelConfig> = {
     model: "google/gemini-2.5-flash",
     keyEnv: "LOVABLE_API_KEY",
   },
+  "anthropic/claude-sonnet-4-5": {
+    endpoint: OPENROUTER_ENDPOINT,
+    model: "anthropic/claude-sonnet-4-5",
+    keyEnv: "OPENROUTER_API_KEY",
+  },
   "qwen/qwen3-235b-a22b": {
     endpoint: OPENROUTER_ENDPOINT,
     model: "qwen/qwen3-235b-a22b",

@@ -384,32 +384,20 @@ serve(async (req) => {
     const qwenTranslations = normTranslations(parsed);
     const geminiTranslations = normTranslations(geminiParsed);
     const fanarTranslations = normTranslations(fanarParsed);
-    const jaisTranslations = normTranslations(jaisParsed);
-    const allamTranslations = normTranslations(allamParsed);
 
-    // Merge: start with Qwen, add unique Gemini translations, then unique Fanar, then unique Jais, then unique ALLaM
+    // Merge: start with Qwen, add unique Gemini translations, then unique Fanar
     const seenArabic = new Set(qwenTranslations.map(t => t.arabic));
     const mergedFromGemini = geminiTranslations.filter(t => !seenArabic.has(t.arabic));
     mergedFromGemini.forEach(t => seenArabic.add(t.arabic));
     const mergedFromFanar = fanarTranslations.filter(t => !seenArabic.has(t.arabic));
-    mergedFromFanar.forEach(t => seenArabic.add(t.arabic));
-    const mergedFromJais = jaisTranslations.filter(t => !seenArabic.has(t.arabic));
-    mergedFromJais.forEach(t => seenArabic.add(t.arabic));
-    const mergedFromAllam = allamTranslations.filter(t => !seenArabic.has(t.arabic));
     if (mergedFromGemini.length > 0) {
       console.log(`gulf-translate: added ${mergedFromGemini.length} unique translation(s) from Gemini`);
     }
     if (mergedFromFanar.length > 0) {
       console.log(`gulf-translate: added ${mergedFromFanar.length} unique translation(s) from Fanar`);
     }
-    if (mergedFromJais.length > 0) {
-      console.log(`gulf-translate: added ${mergedFromJais.length} unique translation(s) from Jais`);
-    }
-    if (mergedFromAllam.length > 0) {
-      console.log(`gulf-translate: added ${mergedFromAllam.length} unique translation(s) from ALLaM`);
-    }
 
-    let translations: NormalisedTranslation[] = [...qwenTranslations, ...mergedFromGemini, ...mergedFromFanar, ...mergedFromJais, ...mergedFromAllam];
+    let translations: NormalisedTranslation[] = [...qwenTranslations, ...mergedFromGemini, ...mergedFromFanar];
 
     if (translations.length === 0) {
       throw new Error('Could not produce translations. Please try rephrasing.');

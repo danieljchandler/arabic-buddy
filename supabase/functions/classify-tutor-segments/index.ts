@@ -36,7 +36,6 @@ interface ClassifiedCandidate {
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
-  // Authenticate user
   const authHeader = req.headers.get('Authorization');
   if (!authHeader?.startsWith('Bearer ')) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {
@@ -70,10 +69,6 @@ serve(async (req) => {
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
-
-    const RUNPOD_API_KEY = Deno.env.get("RUNPOD_API_KEY");
-    const RUNPOD_FALCON_ENDPOINT = "https://api.runpod.ai/v2/owodjrizyv47m0/openai/v1/chat/completions";
-    const falconAvailable = Boolean(RUNPOD_API_KEY);
 
     // Build segment list
     const segmentList = segments.map((s, i) => 
@@ -115,7 +110,6 @@ Return the results using the extract_candidates tool.`;
       classification: { type: "string", enum: ["CONCRETE", "ACTION", "ABSTRACT"], description: "Type of vocabulary item" },
     };
 
-    // Add word-level index fields when word timestamps are available
     if (rawWords?.length) {
       toolProperties.word_start_index = { type: "number", description: "Index of the first word-level token (W index) for the tutor's utterance of this vocabulary word" };
       toolProperties.word_end_index = { type: "number", description: "Index of the last word-level token (W index) for the tutor's utterance of this vocabulary word" };
@@ -149,70 +143,17 @@ Return the results using the extract_candidates tool.`;
 
     const userMessage = `Here are the transcript segments:\n\n${segmentList}${wordList}`;
 
-    // Try Falcon via RunPod first (Arabic-native), fall back to Lovable AI (Gemini)
-    let response: Response;
-    if (falconAvailable) {
-      try {
-        const falconResp = await fetch(
-          `https://api.runpod.ai/v2/owodjrizyv47m0/openai/v1/chat/completions`,
-          {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${RUNPOD_API_KEY}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              model: "tiiuae/Falcon-H1R-7B",
-              messages: [
-                { role: "system", content: systemPrompt },
-                { role: "user", content: userMessage },
-              ],
-              tools: requestTools,
-              tool_choice: { type: "function", function: { name: "extract_candidates" } },
-            }),
-          },
-        );
-        if (falconResp.ok) {
-          response = falconResp;
-          console.log("Using Falcon via RunPod for segment classification");
-        } else {
-          console.warn("Falcon RunPod error:", falconResp.status, "- falling back to Lovable AI");
-          response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-            method: "POST",
-            headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-            body: JSON.stringify({
-              model: "google/gemini-2.5-flash",
-              messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userMessage }],
-              tools: requestTools,
-              tool_choice: { type: "function", function: { name: "extract_candidates" } },
-            }),
-          });
-        }
-      } catch (e) {
-        console.warn("Falcon RunPod fetch failed, falling back:", e instanceof Error ? e.message : String(e));
-        response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-          method: "POST",
-          headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-          body: JSON.stringify({
-            model: "google/gemini-2.5-flash",
-            messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userMessage }],
-            tools: requestTools,
-            tool_choice: { type: "function", function: { name: "extract_candidates" } },
-          }),
-        });
-      }
-    } else {
-      response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
-          messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userMessage }],
-          tools: requestTools,
-          tool_choice: { type: "function", function: { name: "extract_candidates" } },
-        }),
-      });
-    }
+    // Use Gemini via Lovable AI gateway
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userMessage }],
+        tools: requestTools,
+        tool_choice: { type: "function", function: { name: "extract_candidates" } },
+      }),
+    });
 
     if (!response.ok) {
       if (response.status === 429) {
@@ -240,12 +181,10 @@ Return the results using the extract_candidates tool.`;
     const parsed = JSON.parse(toolCall.function.arguments);
     const rawCandidates = parsed.candidates || [];
 
-    // Map AI output back to timestamps
     const candidates: ClassifiedCandidate[] = rawCandidates.map((c: any) => {
       const wordSeg = segments[c.word_segment_index];
       const sentSeg = c.sentence_segment_index >= 0 ? segments[c.sentence_segment_index] : null;
 
-      // Prefer word-level timestamps for precise clipping (tutor only, no student repetition)
       let wordStartMs = wordSeg?.startMs ?? 0;
       let wordEndMs = wordSeg?.endMs ?? 0;
 

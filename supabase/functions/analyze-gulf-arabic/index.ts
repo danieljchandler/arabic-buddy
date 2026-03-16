@@ -477,71 +477,6 @@ async function callFanar({
   return { content };
 }
 
-// callRunPodModel removed — Jais now uses callJaisHF below
-
-async function callJaisHF(
-  endpoint: string,
-  systemPrompt: string,
-  userContent: string,
-  apiKey: string,
-  maxTokens = 4096,
-): Promise<{ content: string | null }> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 50_000);
-  const startMs = Date.now();
-  const MAX_RETRIES = 2;
-  const RETRY_DELAY_MS = 3_000;
-
-  try {
-    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-      console.log(`Jais HF: attempt ${attempt}/${MAX_RETRIES}...`);
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        signal: controller.signal,
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'inceptionai/jais-13b-chat',
-          messages: [
-            { role: 'user', content: `### Instruction: Your name is Jais, and you are named after Jebel Jais, the highest mountain in UAE. You are a helpful Arabic-English translator specializing in Gulf Arabic dialect.\n[|Human|]: ${systemPrompt}\n\n${userContent}\n[|AI|]:` },
-          ],
-          max_tokens: maxTokens,
-          temperature: 0.3,
-        }),
-      });
-
-      const elapsedSec = ((Date.now() - startMs) / 1000).toFixed(1);
-
-      if (response.ok) {
-        const data = await response.json();
-        const content = data.choices?.[0]?.message?.content ?? null;
-        console.log(`Jais HF response in ${elapsedSec}s:`, content?.slice(0, 200));
-        return { content };
-      }
-
-      const errBody = await response.text().catch(() => '');
-      console.warn(`Jais HF error: HTTP ${response.status} in ${elapsedSec}s — ${errBody.slice(0, 200)}`);
-
-      if ((response.status >= 500 && response.status <= 503) && attempt < MAX_RETRIES) {
-        console.log(`Jais HF: retrying in ${RETRY_DELAY_MS / 1000}s (endpoint may be waking up)...`);
-        await new Promise(r => setTimeout(r, RETRY_DELAY_MS));
-        continue;
-      }
-
-      return { content: null };
-    }
-    return { content: null };
-  } catch (e) {
-    const elapsedSec = ((Date.now() - startMs) / 1000).toFixed(1);
-    const msg = e instanceof Error ? e.message : String(e);
-    console.warn(`Jais HF failed in ${elapsedSec}s (non-fatal): ${msg}`);
-    return { content: null };
-  } finally {
-    clearTimeout(timeout);
-  }
-}
 
 
 function extractJsonObject(text: string): string {
@@ -1150,16 +1085,6 @@ serve(async (req) => {
       console.log('Fanar LLM conjunction enabled');
     }
 
-    const HF_TOKEN = Deno.env.get('VITE_HF_TOKEN');
-    const JAIS_HF_ENDPOINT = 'https://u1lf1x17ye91ruw5.us-east-1.aws.endpoints.huggingface.cloud/v1/chat/completions';
-    const ALLAM_HF_ENDPOINT = 'https://c9fwzzvaafq3cgfv.us-east4.gcp.endpoints.huggingface.cloud/v1/chat/completions';
-    const jaisAvailable = Boolean(HF_TOKEN);
-    const allamAvailable = Boolean(HF_TOKEN);
-    if (!HF_TOKEN) {
-      console.warn('VITE_HF_TOKEN not set — Jais and ALLaM will be skipped');
-    } else {
-      console.log('HF Endpoint available — Jais + ALLaM will run in parallel enrichment');
-    }
 
      let partial = false;
 
@@ -1290,12 +1215,12 @@ serve(async (req) => {
      //
      // All run in parallel. Translation is a separate concern from analysis.
      // =====================================================================
-     console.log('Translation (Gemini), analysis (Qwen), meta (Fanar+Jais+ALLaM), CAMeL dialect, Farasa diac running in parallel...');
+     console.log('Translation (Gemini), analysis (Qwen), meta (Fanar), CAMeL dialect, Farasa diac running in parallel...');
 
      const arabicOnlyText = mergedLines.map(l => l.arabic).join('\n');
      const hfApiKey = Deno.env.get('HUGGINGFACE_API_KEY') ?? '';
 
-      const [geminiTransResp, analysisResp, fanarMetaResp, fanarValidResp, jaisMetaResp, allamMetaResp, camelDialectResult, diacritizedTranscript] = await Promise.all([
+      const [geminiTransResp, analysisResp, fanarMetaResp, fanarValidResp, camelDialectResult, diacritizedTranscript] = await Promise.all([
         // Translation primary: Gemini 2.5 Pro via Lovable AI gateway
         callAI({
           model: 'google/gemini-2.5-pro',
@@ -1313,7 +1238,7 @@ serve(async (req) => {
          isRetry: false,
          maxTokens: 8192,
        }),
-       // Fanar-Sadiq meta enrichment (unchanged)
+       // Fanar-Sadiq meta enrichment
        fanarLlmAvailable
          ? callFanar({
              systemPrompt: getMetaSystemPrompt(true),
@@ -1323,7 +1248,7 @@ serve(async (req) => {
              maxTokens: 2048,
            })
          : Promise.resolve({ content: null } as { content: string | null }),
-       // Fanar-C-2-27B dialect validation — read-only, never blocks pipeline
+       // Fanar-C-2-27B dialect validation
        fanarLlmAvailable
          ? callFanar({
              systemPrompt: getFanarValidationSystemPrompt(),
@@ -1336,68 +1261,6 @@ serve(async (req) => {
              return { content: null } as { content: string | null };
            })
          : Promise.resolve({ content: null } as { content: string | null }),
-       // Jais meta enrichment via HF Endpoint — wrapped in 45s Promise.race so cold starts can't stall the pipeline
-       jaisAvailable
-         ? (console.log('Jais meta enrichment: FIRING via HF Endpoint (45s race)...'),
-            Promise.race([
-              callJaisHF(JAIS_HF_ENDPOINT, getMetaSystemPrompt(true), mergedTranscriptText, HF_TOKEN!, 2048).catch((e) => {
-                console.warn('Jais meta enrichment failed (non-blocking):', e instanceof Error ? e.message : String(e));
-                return { content: null } as { content: string | null };
-              }),
-              new Promise<{ content: string | null }>(resolve => setTimeout(() => {
-                console.warn('Jais HF: timed out at 45s, skipping');
-                resolve({ content: null });
-              }, 45_000)),
-            ]))
-         : (console.log('Jais meta enrichment: SKIPPED (no VITE_HF_TOKEN)'),
-            Promise.resolve({ content: null } as { content: string | null })),
-       // ALLaM meta enrichment via HF Endpoint — Arabic-native model by SDAIA
-       allamAvailable
-         ? (console.log('ALLaM meta enrichment: FIRING via HF Endpoint (45s race)...'),
-            Promise.race([
-              (async () => {
-                const controller = new AbortController();
-                const timeout = setTimeout(() => controller.abort(), 45_000);
-                try {
-                  const resp = await fetch(ALLAM_HF_ENDPOINT, {
-                    method: 'POST',
-                    signal: controller.signal,
-                    headers: {
-                      'Authorization': `Bearer ${HF_TOKEN}`,
-                      'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                      model: 'humain-ai/ALLaM-7B-Instruct-preview',
-                      messages: [
-                        { role: 'system', content: getMetaSystemPrompt(true) },
-                        { role: 'user', content: mergedTranscriptText },
-                      ],
-                      max_tokens: 2048,
-                      temperature: 0.2,
-                    }),
-                  });
-                  if (!resp.ok) {
-                    console.warn('ALLaM meta enrichment error:', resp.status);
-                    return { content: null } as { content: string | null };
-                  }
-                  const data = await resp.json();
-                  const content = data.choices?.[0]?.message?.content ?? null;
-                  console.log('ALLaM meta enrichment response:', content?.slice(0, 200));
-                  return { content };
-                } catch (e) {
-                  console.warn('ALLaM meta enrichment failed (non-blocking):', e instanceof Error ? e.message : String(e));
-                  return { content: null } as { content: string | null };
-                } finally {
-                  clearTimeout(timeout);
-                }
-              })(),
-              new Promise<{ content: string | null }>(resolve => setTimeout(() => {
-                console.warn('ALLaM HF: timed out at 45s, skipping');
-                resolve({ content: null });
-              }, 45_000)),
-            ]))
-         : (console.log('ALLaM meta enrichment: SKIPPED (no VITE_HF_TOKEN)'),
-            Promise.resolve({ content: null } as { content: string | null })),
        // CAMeL-Lab BERT dialect ID
        hfApiKey
          ? callCamelDialect(arabicOnlyText, hfApiKey).catch((e) => {
@@ -1462,34 +1325,6 @@ serve(async (req) => {
        }
      }
 
-      // --- Fallback: Jais via HF Endpoint if both Gemini and Qwen failed (45s race) ---
-      if ((!translationAi?.translations || translationAi.translations.length === 0) && jaisAvailable) {
-        console.log('Qwen translation failed or empty, falling back to Jais via HF Endpoint for translation (45s race)...');
-        const jaisTransResp = await Promise.race([
-          callJaisHF(
-            JAIS_HF_ENDPOINT,
-            getTranslationSystemPrompt(detectedDialect, visualContext, sonioxTranslation),
-            mergedTranscriptText,
-            HF_TOKEN!,
-            4096,
-          ).catch((e) => {
-            console.warn('Jais HF translation fallback failed (non-blocking):', e);
-            return { content: null };
-          }),
-          new Promise<{ content: string | null }>(resolve => setTimeout(() => {
-            console.warn('Jais HF translation fallback: timed out at 45s');
-            resolve({ content: null });
-          }, 45_000)),
-        ]);
-        if (jaisTransResp.content) {
-          translationAi = safeJsonParse<TranslationAI>(jaisTransResp.content);
-          if (translationAi?.translations) {
-            console.log('Jais HF translation fallback: parsed', translationAi.translations.length, 'lines.');
-          }
-        }
-      }
-
-      // Falcon fallback removed — endpoint consistently returns HTTP 500
 
      const dedicatedTranslations = translationAi?.translations ?? [];
      if (dedicatedTranslations.length === 0) {
@@ -1580,69 +1415,9 @@ serve(async (req) => {
        }
      }
 
-     // Merge Jais meta results if available
-     if (jaisMetaResp.content) {
-       const jaisMetaAi = safeJsonParse<MetaAI>(jaisMetaResp.content);
-       if (jaisMetaAi) {
-         console.log('Merging Jais meta results...');
-         // Union vocabularies (deduplicate by Arabic text)
-         if (Array.isArray(jaisMetaAi.vocabulary)) {
-           const existingArabic = new Set(vocab.map(v => v.arabic));
-           const newVocab = jaisMetaAi.vocabulary.filter(v => v.arabic && !existingArabic.has(v.arabic));
-           if (newVocab.length > 0) {
-             vocab = [...vocab, ...newVocab];
-             console.log(`Added ${newVocab.length} vocab items from Jais`);
-           }
-         }
-         // Union grammar points (deduplicate by title)
-         if (Array.isArray(jaisMetaAi.grammarPoints)) {
-           const existingTitles = new Set(grammarPoints.map(g => g.title.toLowerCase()));
-           const newGrammar = jaisMetaAi.grammarPoints.filter(g => g.title && !existingTitles.has(g.title.toLowerCase()));
-           if (newGrammar.length > 0) {
-             grammarPoints = [...grammarPoints, ...newGrammar];
-             console.log(`Added ${newGrammar.length} grammar points from Jais`);
-           }
-         }
-         // Prefer Jais cultural context if richer (longer)
-         if (jaisMetaAi.culturalContext && (!culturalContext || jaisMetaAi.culturalContext.length > culturalContext.length)) {
-           culturalContext = jaisMetaAi.culturalContext;
-           console.log('Using Jais cultural context (richer)');
-         }
-       }
-     }
-
-     // Merge ALLaM meta results if available
-     if (allamMetaResp.content) {
-       const allamMetaAi = safeJsonParse<MetaAI>(allamMetaResp.content);
-       if (allamMetaAi) {
-         console.log('Merging ALLaM meta results...');
-         if (Array.isArray(allamMetaAi.vocabulary)) {
-           const existingArabic = new Set(vocab.map(v => v.arabic));
-           const newVocab = allamMetaAi.vocabulary.filter(v => v.arabic && !existingArabic.has(v.arabic));
-           if (newVocab.length > 0) {
-             vocab = [...vocab, ...newVocab];
-             console.log(`Added ${newVocab.length} vocab items from ALLaM`);
-           }
-         }
-         if (Array.isArray(allamMetaAi.grammarPoints)) {
-           const existingTitles = new Set(grammarPoints.map(g => g.title.toLowerCase()));
-           const newGrammar = allamMetaAi.grammarPoints.filter(g => g.title && !existingTitles.has(g.title.toLowerCase()));
-           if (newGrammar.length > 0) {
-             grammarPoints = [...grammarPoints, ...newGrammar];
-             console.log(`Added ${newGrammar.length} grammar points from ALLaM`);
-           }
-         }
-         if (allamMetaAi.culturalContext && (!culturalContext || allamMetaAi.culturalContext.length > culturalContext.length)) {
-           culturalContext = allamMetaAi.culturalContext;
-           console.log('Using ALLaM cultural context (richer)');
-         }
-       }
-     }
-
-     // Falcon meta merge removed — endpoint decommissioned
 
       // ── Step 5: Claude Sonnet vocabulary enrichment ──────────────────────────
-      // Runs after full vocab assembly (Qwen + Fanar + Jais + ALLaM union). Sequential.
+      // Runs after full vocab assembly (Qwen + Fanar union). Sequential.
      // Non-blocking: any failure leaves vocab unchanged.
      if (vocab.length > 0) {
        try {
@@ -1732,14 +1507,17 @@ serve(async (req) => {
           
           if (videoId) {
             const contentHash = `${platform}:${videoId}`;
-            const engines = [];
-            if (deepgramRawText) engines.push('deepgram');
-            if (munsitRawText) engines.push('munsit');
-            if (fanarRawText) engines.push('fanar');
-            if (sonioxRawText) engines.push('soniox');
+            const engines: string[] = [];
+            if (transcript) engines.push('deepgram');
+            if (hasDual) engines.push('munsit');
+            if (hasFanar) engines.push('fanar');
+            if (hasSoniox) engines.push('soniox');
             
-            // Use existing supabase client (service role)
-            supabaseClient.from('processed_videos').upsert({
+            // Use service role client to cache
+            const cacheUrl = Deno.env.get('SUPABASE_URL')!;
+            const cacheKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+            const cacheClient = createClient(cacheUrl, cacheKey);
+            cacheClient.from('processed_videos').upsert({
               content_hash: contentHash,
               original_url: originalUrl,
               platform,
@@ -1749,7 +1527,7 @@ serve(async (req) => {
               processing_engines: engines,
               source_language: 'ar',
               dialect: detectedDialect || 'Gulf'
-            }).then(({ error: cacheError }) => {
+            }).then(({ error: cacheError }: { error: any }) => {
               if (cacheError) {
                 console.warn('Failed to cache result:', cacheError.message);
               } else {

@@ -259,14 +259,6 @@ const Transcribe = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Pre-warm RunPod serverless endpoints (Jais + Falcon) on page load.
-  // These models take 60-90s to cold-start; warming them now means they're
-  // ready by the time the analysis pipeline needs them.
-  useEffect(() => {
-    supabase.functions.invoke("warmup-runpod").catch(() => {
-      // Non-blocking — if the warmup fails the pipeline still works.
-    });
-  }, []);
 
   useEffect(() => {
     const onBeforeUnload = () => {

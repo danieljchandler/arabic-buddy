@@ -5,38 +5,33 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const JAIS_HF_ENDPOINT = 'https://u1lf1x17ye91ruw5.us-east-1.aws.endpoints.huggingface.cloud/v1/chat/completions';
-
-const DEFAULT_SYSTEM_PROMPT =
-  'You are an expert Gulf Arabic of all varieties language tutor. Respond accurately using the specific dialect requested, focusing on authenticity and cultural nuance.';
-
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
 
   try {
-    const { prompt, modelTier } = await req.json() as { prompt: string; modelTier: 'standard' | 'premium' };
+    const { prompt } = await req.json() as { prompt: string; modelTier?: string };
 
-    const apiKey = Deno.env.get('VITE_HF_TOKEN');
-    if (!apiKey) {
+    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+    if (!LOVABLE_API_KEY) {
       return new Response(
-        JSON.stringify({ error: 'VITE_HF_TOKEN is not configured' }),
+        JSON.stringify({ error: 'LOVABLE_API_KEY is not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
       );
     }
 
-    // Both tiers now use Jais via HF Inference Endpoint
-    const response = await fetch(JAIS_HF_ENDPOINT, {
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
+        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'inceptionai/jais-13b-chat',
+        model: 'google/gemini-2.5-flash',
         messages: [
-          { role: 'user', content: `### Instruction: Your name is Jais, and you are named after Jebel Jais, the highest mountain in UAE. You are a helpful Arabic-English translator specializing in Gulf Arabic dialect.\n[|Human|]: ${prompt}\n[|AI|]:` },
+          { role: 'system', content: 'You are an expert Gulf Arabic of all varieties language tutor. Respond accurately using the specific dialect requested, focusing on authenticity and cultural nuance.' },
+          { role: 'user', content: prompt },
         ],
         temperature: 0.3,
         max_tokens: 1024,

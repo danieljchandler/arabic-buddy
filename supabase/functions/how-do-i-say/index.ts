@@ -1,9 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const JAIS_HF_ENDPOINT = 'https://u1lf1x17ye91ruw5.us-east-1.aws.endpoints.huggingface.cloud/v1/chat/completions';
-const ALLAM_HF_ENDPOINT = 'https://c9fwzzvaafq3cgfv.us-east4.gcp.endpoints.huggingface.cloud/v1/chat/completions';
-
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
@@ -280,89 +277,6 @@ serve(async (req) => {
       });
     }
 
-    // Jais via HF Inference Endpoint
-    const HF_TOKEN = Deno.env.get('VITE_HF_TOKEN');
-    if (HF_TOKEN) {
-      llmsUsed.push('inceptionai/Jais-2-8B-Chat (HF)');
-      calls.push({
-        label: 'jais-hf',
-        call: (async () => {
-          const controller = new AbortController();
-          const timeout = setTimeout(() => controller.abort(), 45_000);
-          try {
-            const response = await fetch(JAIS_HF_ENDPOINT, {
-              method: 'POST',
-              signal: controller.signal,
-              headers: {
-                'Authorization': `Bearer ${HF_TOKEN}`,
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                model: 'inceptionai/jais-13b-chat',
-                messages: [
-                  { role: 'user', content: `### Instruction: Your name is Jais, and you are named after Jebel Jais, the highest mountain in UAE. You are a helpful Arabic-English translator specializing in Gulf Arabic dialect.\n[|Human|]: ${SYSTEM_PROMPT}\n\n${userContent}\n[|AI|]:` },
-                ],
-                temperature: 0.3,
-                max_tokens: 2048,
-              }),
-            });
-            if (!response.ok) {
-              console.warn('Jais HF error:', response.status);
-              return null;
-            }
-            const data = await response.json();
-            return data.choices?.[0]?.message?.content ?? null;
-          } catch (e) {
-            console.warn('Jais HF failed (non-fatal):', e instanceof Error ? e.message : String(e));
-            return null;
-          } finally {
-            clearTimeout(timeout);
-          }
-        })(),
-      });
-    }
-
-    // ALLaM via HF Inference Endpoint
-    if (HF_TOKEN) {
-      llmsUsed.push('sdaia/ALLaM (HF)');
-      calls.push({
-        label: 'allam-hf',
-        call: (async () => {
-          const controller = new AbortController();
-          const timeout = setTimeout(() => controller.abort(), 45_000);
-          try {
-            const response = await fetch(ALLAM_HF_ENDPOINT, {
-              method: 'POST',
-              signal: controller.signal,
-              headers: {
-                'Authorization': `Bearer ${HF_TOKEN}`,
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                model: 'humain-ai/ALLaM-7B-Instruct-preview',
-                messages: [
-                  { role: 'system', content: SYSTEM_PROMPT },
-                  { role: 'user', content: userContent },
-                ],
-                temperature: 0.3,
-                max_tokens: 2048,
-              }),
-            });
-            if (!response.ok) {
-              console.warn('ALLaM HF error:', response.status);
-              return null;
-            }
-            const data = await response.json();
-            return data.choices?.[0]?.message?.content ?? null;
-          } catch (e) {
-            console.warn('ALLaM HF failed (non-fatal):', e instanceof Error ? e.message : String(e));
-            return null;
-          } finally {
-            clearTimeout(timeout);
-          }
-        })(),
-      });
-    }
 
     const llmUsed = llmsUsed.join(' + ');
     console.log(`how-do-i-say: LLMs = ${llmUsed}, phrase = "${trimmedPhrase}"`);

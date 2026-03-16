@@ -30,9 +30,6 @@ verify_jwt = false
 [functions.generate-flashcard-image]
 verify_jwt = false
 
-[functions.falcon-warmup]
-verify_jwt = false
-
 [functions.scrape-x-post]
 verify_jwt = false
 
@@ -51,8 +48,6 @@ verify_jwt = false
 [functions.hf-chat]
 verify_jwt = false
 
-[functions.warmup-runpod]
-verify_jwt = false
 
 [functions.farasa]
 verify_jwt = false

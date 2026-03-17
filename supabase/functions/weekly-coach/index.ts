@@ -64,7 +64,8 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
-    const prompt = `You are an encouraging Gulf Arabic learning coach. Based on this student's weekly performance, provide personalized recommendations.
+    const prompt = `You are an encouraging Gulf Arabic (Khaliji) learning coach. Based on this student's weekly performance, provide personalized recommendations.
+Use Gulf Arabic (Khaliji) dialect for all Arabic text in your response, NOT Modern Standard Arabic (فصحى). Use dialectal expressions like يالله، خوش، زين، واجد.
 
 Performance: ${JSON.stringify(performanceSummary)}
 Curriculum week ${path.current_week} of ${path.timeline_weeks}.
@@ -73,7 +74,7 @@ Goal: ${path.goal_description}
 Return JSON only:
 {
   "motivation_message": "Short encouraging message in English",
-  "motivation_message_arabic": "Same in Arabic",
+  "motivation_message_arabic": "Same in Gulf Arabic dialect",
   "focus_areas": ["area1", "area2"],
   "suggested_content": [
     {"type": "vocab|listening|reading|speaking|review", "title": "Activity title", "reason": "Why this helps"}
@@ -89,7 +90,7 @@ Return JSON only:
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "google/gemini-3-flash-preview",
         messages: [{ role: "user", content: prompt }],
       }),
     });

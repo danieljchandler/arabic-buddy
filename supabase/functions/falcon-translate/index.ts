@@ -1,3 +1,11 @@
+// =============================================================================
+// falcon-translate (Gulf Arabic Line-by-Line Translation Engine)
+// =============================================================================
+// LEGACY NAME: This function was originally built on the Falcon model but now uses
+// a Qwen 3 235B + Gemini 2.5 Flash parallel ensemble via OpenRouter for
+// translating Gulf Arabic (Khaliji) transcript lines to English.
+// =============================================================================
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 

@@ -148,7 +148,7 @@ Return the results using the extract_candidates tool.`;
       method: "POST",
       headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "google/gemini-3-flash-preview",
         messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userMessage }],
         tools: requestTools,
         tool_choice: { type: "function", function: { name: "extract_candidates" } },

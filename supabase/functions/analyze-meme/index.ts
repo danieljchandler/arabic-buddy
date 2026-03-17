@@ -350,7 +350,6 @@ serve(async (req) => {
 
       audioResult = qwenRaw ? safeJsonParse<any>(qwenRaw) : null;
     }
-    }
 
     // Build the final structured result
     const result: any = {

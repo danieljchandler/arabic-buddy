@@ -32,34 +32,38 @@ serve(async (req) => {
       .map((w: any) => `${w.word_arabic} (${w.word_english})`)
       .join(", ");
 
-    const systemPrompt = `You are an Arabic language tutor creating listening comprehension exercises.
-Focus on Gulf Arabic dialect when possible.
-Generate exercises using these vocabulary words the student knows: ${vocabContext}
+    const systemPrompt = `You are a Gulf Arabic (Khaliji) language tutor creating listening comprehension exercises.
+
+CRITICAL DIALECT RULES:
+- Always use Gulf Arabic (Khaliji) vocabulary and expressions. Do NOT use Modern Standard Arabic (فصحى).
+- Use dialectal forms like شلونك، وين، هالحين، ليش، واجد، يبي instead of MSA equivalents.
+- Arabic text must reflect Gulf pronunciation and spelling conventions.
+- Generate exercises using these vocabulary words the student knows: ${vocabContext}
 
 IMPORTANT: Return valid JSON only, no markdown.`;
 
     let userPrompt = "";
 
     if (mode === "dictation") {
-      userPrompt = `Generate ${count} Arabic sentences for dictation practice.
+      userPrompt = `Generate ${count} Gulf Arabic sentences for dictation practice.
 Use simple, clear sentences with vocabulary the student knows.
 Return JSON array:
 [
   {
     "type": "dictation",
-    "audioText": "Arabic sentence",
+    "audioText": "Gulf Arabic sentence",
     "audioTextEnglish": "English translation",
     "hint": "First word hint"
   }
 ]`;
     } else if (mode === "comprehension") {
-      userPrompt = `Generate ${count} listening comprehension questions.
-Create a sentence in Arabic, then ask what a word means or what the sentence is about.
+      userPrompt = `Generate ${count} listening comprehension questions in Gulf Arabic.
+Create a sentence in Gulf Arabic, then ask what a word means or what the sentence is about.
 Return JSON array:
 [
   {
     "type": "comprehension",
-    "audioText": "Arabic sentence to listen to",
+    "audioText": "Gulf Arabic sentence to listen to",
     "audioTextEnglish": "English translation",
     "options": [
       {"text": "Correct answer in English", "textArabic": "صحيح", "correct": true},
@@ -70,13 +74,13 @@ Return JSON array:
 ]`;
     } else {
       // speed mode - shorter, clearer phrases
-      userPrompt = `Generate ${count} short Arabic phrases for speed listening practice.
+      userPrompt = `Generate ${count} short Gulf Arabic phrases for speed listening practice.
 Keep them 2-4 words, clear and distinct.
 Return JSON array:
 [
   {
     "type": "speed",
-    "audioText": "Short Arabic phrase",
+    "audioText": "Short Gulf Arabic phrase",
     "audioTextEnglish": "English translation"
   }
 ]`;
@@ -89,7 +93,7 @@ Return JSON array:
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "google/gemini-3-flash-preview",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
@@ -101,6 +105,18 @@ Return JSON array:
     if (!response.ok) {
       const errorText = await response.text();
       console.error("AI gateway error:", response.status, errorText);
+      if (response.status === 402) {
+        return new Response(
+          JSON.stringify({ error: "Not enough AI credits. Please add credits to your workspace." }),
+          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      if (response.status === 429) {
+        return new Response(
+          JSON.stringify({ error: "Rate limit exceeded. Please wait a moment and try again." }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
       throw new Error(`AI gateway error: ${response.status}`);
     }
 
@@ -120,9 +136,9 @@ Return JSON array:
       questions = [
         {
           type: mode,
-          audioText: "مرحبا",
+          audioText: "هلا",
           audioTextEnglish: "Hello",
-          hint: "م",
+          hint: "ه",
         },
       ];
     }

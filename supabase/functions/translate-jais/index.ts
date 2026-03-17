@@ -1,3 +1,12 @@
+// =============================================================================
+// translate-jais (Gulf Arabic Translation Engine)
+// =============================================================================
+// LEGACY NAME: This function was originally built on the Jais model but now uses
+// a multi-model ensemble: Qwen 3 235B (primary Arabic linguist) + Gemini 2.5 Flash
+// (secondary) + Fanar (native Gulf dialect validator), all running in parallel.
+// A Qwen dialect-check step verifies authenticity of the preferred translation.
+// =============================================================================
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -122,9 +131,10 @@ async function callFanar(
   }
 }
 
-const TRANSLATION_SYSTEM_PROMPT = `You are an expert Gulf Arabic language teacher specialising in the dialects of the UAE, Saudi Arabia, Kuwait, Bahrain, Qatar, and Oman, with deep expertise in the Omani dialect.
+function buildTranslationSystemPrompt(dialect: string): string {
+  return `You are an expert Gulf Arabic language teacher specialising in the dialects of the UAE, Saudi Arabia, Kuwait, Bahrain, Qatar, and Oman, with deep expertise in the ${dialect} dialect.
 
-Given an English phrase or question, provide multiple natural ways to say it in authentic Omani Gulf Arabic.
+Given an English phrase or question, provide multiple natural ways to say it in authentic ${dialect} Gulf Arabic.
 
 Output ONLY valid JSON matching this exact schema:
 {
@@ -151,24 +161,27 @@ Output ONLY valid JSON matching this exact schema:
 
 Rules:
 - Provide 2-4 translations ordered from most natural / most used to least common. The most natural one must have isPreferred: true.
-- Use authentic Omani/Gulf Arabic vocabulary and spelling (not Modern Standard Arabic / فصحى).
+- Use authentic ${dialect}/Gulf Arabic vocabulary and spelling (not Modern Standard Arabic / فصحى).
 - Transliteration: use simple Latin letters that are easy for English speakers to read.
 - Vocabulary: list 3-8 of the most useful individual words from the translations, with roots where helpful.
 - Keep culturalNotes practical and beginner-friendly.
 - If the phrase is not something typically said in Arabic culture, still provide the closest equivalents and explain in culturalNotes.
 - No additional text outside JSON.`;
+}
 
-const QWEN_DIALECT_CHECK_PROMPT = `You are an expert in Omani Arabic dialect. You will be given an English phrase and an Arabic translation claimed to be in authentic Omani Gulf Arabic.
+function buildDialectCheckPrompt(dialect: string): string {
+  return `You are an expert in ${dialect} Arabic dialect. You will be given an English phrase and an Arabic translation claimed to be in authentic ${dialect} Gulf Arabic.
 
-Evaluate whether the Arabic translation uses authentic Omani dialect vocabulary and expressions (not MSA or other dialects).
+Evaluate whether the Arabic translation uses authentic ${dialect} dialect vocabulary and expressions (not MSA or other dialects).
 
 Return ONLY valid JSON:
 {
-  "dialectScore": number 1-5 (5 = perfectly authentic Omani dialect),
+  "dialectScore": number 1-5 (5 = perfectly authentic ${dialect} dialect),
   "isAuthentic": boolean (true if dialectScore >= 3),
   "feedback": "string - brief note on dialect accuracy",
   "correctedArabic": "string or null - provide a corrected version only if dialectScore < 3"
 }`;
+}
 
 async function callOpenRouter(
   model: string,
@@ -227,6 +240,7 @@ async function runQwenDialectCheck(
   phrase: string,
   arabicTranslation: string,
   apiKey: string,
+  dialectCheckPrompt: string,
   timeoutMs = 30_000,
 ): Promise<QwenDialectCheckResult> {
   const controller = new AbortController();
@@ -243,7 +257,7 @@ async function runQwenDialectCheck(
       body: JSON.stringify({
         model: QWEN_MODEL,
         messages: [
-          { role: 'system', content: QWEN_DIALECT_CHECK_PROMPT },
+          { role: 'system', content: dialectCheckPrompt },
           { role: 'user', content: `English: "${phrase}"\nArabic translation: "${arabicTranslation}"` },
         ],
         max_tokens: 300,
@@ -305,7 +319,8 @@ serve(async (req) => {
     }
 
     const body = await req.json();
-    const { phrase } = body;
+    const { phrase, dialect: requestedDialect } = body;
+    const dialect = requestedDialect || 'Gulf';
 
     if (!phrase || typeof phrase !== 'string' || phrase.trim().length === 0) {
       return new Response(
@@ -328,33 +343,30 @@ serve(async (req) => {
     const FANAR_API_KEY = Deno.env.get('FANAR_API_KEY')?.trim();
     const fanarAvailable = Boolean(FANAR_API_KEY);
 
+    // Build dialect-specific prompts
+    const translationSystemPrompt = buildTranslationSystemPrompt(dialect);
+    const dialectCheckPrompt = buildDialectCheckPrompt(dialect);
 
     const llmsUsed = [`${QWEN_MODEL} (OpenRouter)`, `${GEMINI_MODEL} (OpenRouter)`];
     if (fanarAvailable) llmsUsed.push('Fanar');
     const llmUsed = llmsUsed.join(' + ');
-    console.log(`gulf-translate: LLMs = ${llmUsed}, phrase = "${trimmedPhrase}"`);
+    console.log(`gulf-translate: LLMs = ${llmUsed}, dialect = ${dialect}, phrase = "${trimmedPhrase}"`);
 
     // Step 1: Get translations from Qwen + Gemini + Fanar in parallel
-    const userContent = `How do I say this in Omani Gulf Arabic: "${trimmedPhrase}"`;
+    const userContent = `How do I say this in ${dialect} Gulf Arabic: "${trimmedPhrase}"`;
 
-    // Track wall-clock time so we can skip the sequential dialect-check step
-    // if the parallel LLM calls have already consumed most of the 60 s function
-    // budget (leaving insufficient room for the extra round-trip).
     const requestStartMs = Date.now();
 
-    // Use .catch() on each call so that if multiple models reject simultaneously
-    // (e.g. both return 429), the second rejection is not an unhandled promise
-    // rejection that would crash the Deno process with a RUNTIME_ERROR.
     let firstLlmError: Error | null = null;
     const captureLlmError = (e: unknown): null => {
       if (!firstLlmError) firstLlmError = e instanceof Error ? e : new Error(String(e));
       return null;
     };
     const [rawResponse, geminiRawResponse, fanarRawResponse] = await Promise.all([
-      callOpenRouter(QWEN_MODEL, TRANSLATION_SYSTEM_PROMPT, userContent, OPENROUTER_API_KEY, 4096).catch(captureLlmError),
-      callOpenRouter(GEMINI_MODEL, TRANSLATION_SYSTEM_PROMPT, userContent, OPENROUTER_API_KEY, 4096).catch(captureLlmError),
+      callOpenRouter(QWEN_MODEL, translationSystemPrompt, userContent, OPENROUTER_API_KEY, 4096).catch(captureLlmError),
+      callOpenRouter(GEMINI_MODEL, translationSystemPrompt, userContent, OPENROUTER_API_KEY, 4096).catch(captureLlmError),
       fanarAvailable
-        ? callFanar(TRANSLATION_SYSTEM_PROMPT, userContent, FANAR_API_KEY!, 4096).catch(captureLlmError)
+        ? callFanar(translationSystemPrompt, userContent, FANAR_API_KEY!, 4096).catch(captureLlmError)
         : Promise.resolve(null),
     ]);
 
@@ -403,24 +415,17 @@ serve(async (req) => {
       throw new Error('Could not produce translations. Please try rephrasing.');
     }
 
-    // Step 2: Cross-check preferred translation with Qwen for Omani dialect authenticity.
-    // Only run if enough wall-clock budget remains (Supabase Edge Functions have a
-    // 60 s hard timeout; the parallel calls above can each take up to 55 s, so skip
-    // the extra sequential round-trip when we are already close to the limit).
+    // Step 2: Cross-check preferred translation with Qwen for dialect authenticity.
     const preferredIdx = translations.findIndex((t: NormalisedTranslation) => t.isPreferred);
     const preferredTranslation = preferredIdx >= 0 ? translations[preferredIdx] : translations[0];
 
     const elapsedMs = Date.now() - requestStartMs;
-    // Reserve 3 s for response serialisation; cap the dialect check at 30 s.
-    // Using a dynamic abort timeout ensures the function never exceeds the 60 s
-    // Supabase hard limit regardless of how long the parallel LLM calls took.
     const FUNCTION_HARD_LIMIT_MS = 60_000;
     const RESPONSE_OVERHEAD_MS = 3_000;
     const MAX_DIALECT_CHECK_MS = 30_000;
     const dialectCheckBudgetMs = Math.max(0, Math.min(MAX_DIALECT_CHECK_MS, FUNCTION_HARD_LIMIT_MS - elapsedMs - RESPONSE_OVERHEAD_MS));
-    // dialectScore 5 = perfectly authentic (neutral/passing default when skipped).
     const dialectCheck = dialectCheckBudgetMs > 3_000
-      ? await runQwenDialectCheck(trimmedPhrase, preferredTranslation.arabic, OPENROUTER_API_KEY, dialectCheckBudgetMs)
+      ? await runQwenDialectCheck(trimmedPhrase, preferredTranslation.arabic, OPENROUTER_API_KEY, dialectCheckPrompt, dialectCheckBudgetMs)
       : { dialectScore: 5, isAuthentic: true, feedback: 'skipped (budget)', correctedArabic: null };
     console.log(`gulf-translate: Qwen dialect check score=${dialectCheck.dialectScore}, authentic=${dialectCheck.isAuthentic}, feedback="${dialectCheck.feedback}"`);
 
@@ -494,6 +499,7 @@ serve(async (req) => {
 
     const result = {
       phrase: trimmedPhrase,
+      dialect,
       translations,
       vocabulary,
       culturalNotes,

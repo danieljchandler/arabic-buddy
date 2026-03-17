@@ -37,18 +37,23 @@ serve(async (req) => {
       ? `Include some of these words the student knows: ${userVocab.slice(0, 15).map((w: any) => w.word_arabic).join(", ")}`
       : "";
 
-    const topicContext = topic ? `Topic: ${topic}` : "Topic: daily life, culture, or social situations";
+    const topicContext = topic ? `Topic: ${topic}` : "Topic: daily life, culture, or social situations in the Gulf";
 
-    const systemPrompt = `You are an Arabic language instructor creating reading comprehension exercises.
-Focus on Gulf Arabic dialect with some Modern Standard Arabic.
-Generate engaging, culturally relevant passages appropriate for the difficulty level.
+    const systemPrompt = `You are a Gulf Arabic (Khaliji) language instructor creating reading comprehension exercises.
+
+CRITICAL DIALECT RULES:
+- For beginner and intermediate levels, use Gulf Arabic dialect EXCLUSIVELY. Do NOT use Modern Standard Arabic (فصحى).
+- Use dialectal vocabulary: شلون، وين، هالحين، ليش، واجد، يبي، إمبي، خوش، زين instead of MSA equivalents.
+- For advanced levels, you may introduce MSA comparisons but the primary text MUST be in Gulf Arabic dialect.
+- Set passages in culturally authentic Gulf contexts (مجلس، سوق، مطار، كافيه، فريج).
+- Generate engaging, culturally relevant passages appropriate for the difficulty level.
 
 IMPORTANT: Return valid JSON only, no markdown code blocks.`;
 
     const difficultyGuide = {
-      beginner: "2-3 short sentences, simple vocabulary, common phrases",
-      intermediate: "4-5 sentences, varied vocabulary, some idiomatic expressions",
-      advanced: "6-8 sentences, complex structures, cultural nuances, formal/informal mix",
+      beginner: "2-3 short sentences, simple Gulf Arabic vocabulary, common everyday phrases",
+      intermediate: "4-5 sentences, varied Gulf vocabulary, colloquial expressions and cultural references",
+      advanced: "6-8 sentences, complex structures, idiomatic Gulf Arabic expressions, may include MSA comparisons",
     };
 
     const userPrompt = `Generate a reading comprehension exercise.
@@ -59,9 +64,9 @@ ${vocabContext}
 
 Return JSON in this exact format:
 {
-  "title": "Arabic title",
+  "title": "Gulf Arabic title",
   "titleEnglish": "English title",
-  "passage": "Full Arabic passage text",
+  "passage": "Full Gulf Arabic passage text",
   "passageEnglish": "Full English translation",
   "difficulty": "${difficulty}",
   "vocabulary": [
@@ -69,12 +74,12 @@ Return JSON in this exact format:
   ],
   "questions": [
     {
-      "question": "Arabic question about the passage",
+      "question": "Gulf Arabic question about the passage",
       "questionEnglish": "English translation of question",
       "options": [
-        {"text": "Arabic option", "textEnglish": "English", "correct": true},
-        {"text": "Arabic option", "textEnglish": "English", "correct": false},
-        {"text": "Arabic option", "textEnglish": "English", "correct": false}
+        {"text": "Gulf Arabic option", "textEnglish": "English", "correct": true},
+        {"text": "Gulf Arabic option", "textEnglish": "English", "correct": false},
+        {"text": "Gulf Arabic option", "textEnglish": "English", "correct": false}
       ]
     }
   ]
@@ -90,7 +95,7 @@ Questions should test understanding, not just word lookup.`;
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "google/gemini-3-flash-preview",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
@@ -102,6 +107,18 @@ Questions should test understanding, not just word lookup.`;
     if (!response.ok) {
       const errorText = await response.text();
       console.error("AI gateway error:", response.status, errorText);
+      if (response.status === 402) {
+        return new Response(
+          JSON.stringify({ error: "Not enough AI credits. Please add credits to your workspace." }),
+          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      if (response.status === 429) {
+        return new Response(
+          JSON.stringify({ error: "Rate limit exceeded. Please wait a moment and try again." }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
       throw new Error(`AI gateway error: ${response.status}`);
     }
 
@@ -119,25 +136,25 @@ Questions should test understanding, not just word lookup.`;
       }
     } catch (e) {
       console.error("Failed to parse passage:", e, content);
-      // Return fallback passage
+      // Return fallback passage in Gulf Arabic
       passage = {
         title: "في السوق",
         titleEnglish: "At the Market",
-        passage: "ذهبت إلى السوق اليوم. اشتريت خضار وفواكه طازجة.",
+        passage: "رحت السوق اليوم. شريت خضار وفواكه طازجة.",
         passageEnglish: "I went to the market today. I bought fresh vegetables and fruits.",
         difficulty: "beginner",
         vocabulary: [
           { arabic: "السوق", english: "the market", inContext: "place of shopping" },
-          { arabic: "خضار", english: "vegetables", inContext: "fresh produce" },
+          { arabic: "شريت", english: "I bought (Gulf)", inContext: "Gulf Arabic past tense of buy" },
         ],
         questions: [
           {
-            question: "أين ذهب الكاتب؟",
+            question: "وين راح الكاتب؟",
             questionEnglish: "Where did the writer go?",
             options: [
-              { text: "إلى السوق", textEnglish: "To the market", correct: true },
-              { text: "إلى المدرسة", textEnglish: "To school", correct: false },
-              { text: "إلى البيت", textEnglish: "To home", correct: false },
+              { text: "السوق", textEnglish: "The market", correct: true },
+              { text: "المدرسة", textEnglish: "School", correct: false },
+              { text: "البيت", textEnglish: "Home", correct: false },
             ],
           },
         ],

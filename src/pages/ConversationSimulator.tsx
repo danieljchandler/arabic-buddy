@@ -487,6 +487,14 @@ const ConversationSimulator = () => {
       <div className="mb-4 flex items-center justify-between">
         <HomeButton />
         <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-muted-foreground">EN</span>
+            <Switch
+              checked={showTranslation}
+              onCheckedChange={setShowTranslation}
+              className="h-5 w-9 data-[state=checked]:bg-primary data-[state=unchecked]:bg-input [&>span]:h-4 [&>span]:w-4 [&>span]:data-[state=checked]:translate-x-4"
+            />
+          </div>
           <button
             onClick={() => setAutoPlay(!autoPlay)}
             className={cn(

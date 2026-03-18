@@ -133,6 +133,7 @@ const ConversationSimulator = () => {
   const [isSpeaking, setIsSpeaking] = useState<number | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [autoPlay, setAutoPlay] = useState(true);
+  const [showTranslation, setShowTranslation] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const pendingAutoPlayRef = useRef<string | null>(null);

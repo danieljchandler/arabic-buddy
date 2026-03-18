@@ -534,9 +534,39 @@ const ConversationSimulator = () => {
                     : "bg-card border border-border rounded-bl-sm"
                 )}
               >
-                <p className="text-sm whitespace-pre-wrap leading-relaxed" dir={msg.role === "assistant" ? "rtl" : "ltr"}>
-                  {msg.content}
-                </p>
+                {(() => {
+                  if (msg.role === "assistant") {
+                    // Split Arabic from English translation
+                    const lines = msg.content.split("\n");
+                    const arabicLines: string[] = [];
+                    const translationLines: string[] = [];
+                    for (const line of lines) {
+                      const trimmed = line.trim();
+                      if (trimmed.startsWith("(") && trimmed.endsWith(")")) {
+                        translationLines.push(trimmed.slice(1, -1));
+                      } else if (trimmed) {
+                        arabicLines.push(trimmed);
+                      }
+                    }
+                    return (
+                      <>
+                        <p className="text-sm whitespace-pre-wrap leading-relaxed" dir="rtl">
+                          {arabicLines.join("\n")}
+                        </p>
+                        {showTranslation && translationLines.length > 0 && (
+                          <p className="text-xs text-muted-foreground mt-2 leading-relaxed border-t border-border/50 pt-2" dir="ltr">
+                            {translationLines.join("\n")}
+                          </p>
+                        )}
+                      </>
+                    );
+                  }
+                  return (
+                    <p className="text-sm whitespace-pre-wrap leading-relaxed" dir="ltr">
+                      {msg.content}
+                    </p>
+                  );
+                })()}
                 {msg.role === "assistant" && (
                   <button
                     onClick={() => speakText(msg.content, i)}

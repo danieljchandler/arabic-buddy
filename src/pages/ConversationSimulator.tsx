@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Send, RotateCcw, MessageCircle, Coffee, MapPin, ShoppingBag, Users, Mic, MicOff, Volume2, UtensilsCrossed, Building2, Stethoscope, Phone, Plane } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -132,6 +133,7 @@ const ConversationSimulator = () => {
   const [isSpeaking, setIsSpeaking] = useState<number | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [autoPlay, setAutoPlay] = useState(true);
+  const [showTranslation, setShowTranslation] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const pendingAutoPlayRef = useRef<string | null>(null);
@@ -485,6 +487,14 @@ const ConversationSimulator = () => {
       <div className="mb-4 flex items-center justify-between">
         <HomeButton />
         <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-muted-foreground">EN</span>
+            <Switch
+              checked={showTranslation}
+              onCheckedChange={setShowTranslation}
+              className="h-5 w-9 data-[state=checked]:bg-primary data-[state=unchecked]:bg-input [&>span]:h-4 [&>span]:w-4 [&>span]:data-[state=checked]:translate-x-4"
+            />
+          </div>
           <button
             onClick={() => setAutoPlay(!autoPlay)}
             className={cn(
@@ -524,9 +534,39 @@ const ConversationSimulator = () => {
                     : "bg-card border border-border rounded-bl-sm"
                 )}
               >
-                <p className="text-sm whitespace-pre-wrap leading-relaxed" dir={msg.role === "assistant" ? "rtl" : "ltr"}>
-                  {msg.content}
-                </p>
+                {(() => {
+                  if (msg.role === "assistant") {
+                    // Split Arabic from English translation
+                    const lines = msg.content.split("\n");
+                    const arabicLines: string[] = [];
+                    const translationLines: string[] = [];
+                    for (const line of lines) {
+                      const trimmed = line.trim();
+                      if (trimmed.startsWith("(") && trimmed.endsWith(")")) {
+                        translationLines.push(trimmed.slice(1, -1));
+                      } else if (trimmed) {
+                        arabicLines.push(trimmed);
+                      }
+                    }
+                    return (
+                      <>
+                        <p className="text-sm whitespace-pre-wrap leading-relaxed" dir="rtl">
+                          {arabicLines.join("\n")}
+                        </p>
+                        {showTranslation && translationLines.length > 0 && (
+                          <p className="text-xs text-muted-foreground mt-2 leading-relaxed border-t border-border/50 pt-2" dir="ltr">
+                            {translationLines.join("\n")}
+                          </p>
+                        )}
+                      </>
+                    );
+                  }
+                  return (
+                    <p className="text-sm whitespace-pre-wrap leading-relaxed" dir="ltr">
+                      {msg.content}
+                    </p>
+                  );
+                })()}
                 {msg.role === "assistant" && (
                   <button
                     onClick={() => speakText(msg.content, i)}

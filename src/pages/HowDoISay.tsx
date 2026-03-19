@@ -86,6 +86,7 @@ const NaturalnessStars = ({ value }: { value: number }) => (
 
 const HowDoISay = () => {
   const { isAuthenticated } = useAuth();
+  const { activeDialect } = useDialect();
   const addUserVocabulary = useAddUserVocabulary();
   const addUserPhrase = useAddUserPhrase();
 

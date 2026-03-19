@@ -133,6 +133,7 @@ const App = () => {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <DialectProvider>
       <TranscriptionJobProvider>
       <TooltipProvider>
         <Toaster />

@@ -48,6 +48,7 @@ const SPEED_RATES = [
 const ListeningPractice = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
+  const { activeDialect } = useDialect();
   const { data: allWords } = useAllWords();
   const addXP = useAddXP();
 

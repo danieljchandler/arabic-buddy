@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { HomeButton } from "@/components/HomeButton";
 import { AppShell } from "@/components/layout/AppShell";
 import { supabase } from "@/integrations/supabase/client";
+import { useDialect } from "@/contexts/DialectContext";
 import { useAuth } from "@/hooks/useAuth";
 import { useAddUserVocabulary } from "@/hooks/useUserVocabulary";
 import { useAddUserPhrase } from "@/hooks/useUserPhrases";
@@ -85,6 +86,7 @@ const NaturalnessStars = ({ value }: { value: number }) => (
 
 const HowDoISay = () => {
   const { isAuthenticated } = useAuth();
+  const { activeDialect } = useDialect();
   const addUserVocabulary = useAddUserVocabulary();
   const addUserPhrase = useAddUserPhrase();
 
@@ -106,7 +108,7 @@ const HowDoISay = () => {
 
     try {
       const { data, error } = await supabase.functions.invoke("how-do-i-say", {
-        body: { phrase: trimmed },
+        body: { phrase: trimmed, dialect: activeDialect },
       });
 
       if (error) throw new Error(await readInvokeError(error));

@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getDialectVocabRules, getDialectLabel } from "../_shared/dialectHelpers.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -64,8 +65,15 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
-    const prompt = `You are an encouraging Gulf Arabic (Khaliji) learning coach. Based on this student's weekly performance, provide personalized recommendations.
-Use Gulf Arabic (Khaliji) dialect for all Arabic text in your response, NOT Modern Standard Arabic (فصحى). Use dialectal expressions like يالله، خوش، زين، واجد.
+    const dialect = path.target_dialect || 'Gulf';
+    const dialectLabel = getDialectLabel(dialect);
+    const vocabRules = getDialectVocabRules(dialect);
+
+    const prompt = `You are an encouraging ${dialectLabel} learning coach.
+${vocabRules}
+
+Based on this student's weekly performance, provide personalized recommendations.
+Use ${dialectLabel} for all Arabic text in your response, NOT Modern Standard Arabic (فصحى).
 
 Performance: ${JSON.stringify(performanceSummary)}
 Curriculum week ${path.current_week} of ${path.timeline_weeks}.
@@ -74,7 +82,7 @@ Goal: ${path.goal_description}
 Return JSON only:
 {
   "motivation_message": "Short encouraging message in English",
-  "motivation_message_arabic": "Same in Gulf Arabic dialect",
+  "motivation_message_arabic": "Same in ${dialectLabel}",
   "focus_areas": ["area1", "area2"],
   "suggested_content": [
     {"type": "vocab|listening|reading|speaking|review", "title": "Activity title", "reason": "Why this helps"}

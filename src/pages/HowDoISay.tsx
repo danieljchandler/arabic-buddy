@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { HomeButton } from "@/components/HomeButton";
 import { AppShell } from "@/components/layout/AppShell";
 import { supabase } from "@/integrations/supabase/client";
+import { useDialect } from "@/contexts/DialectContext";
 import { useAuth } from "@/hooks/useAuth";
 import { useAddUserVocabulary } from "@/hooks/useUserVocabulary";
 import { useAddUserPhrase } from "@/hooks/useUserPhrases";

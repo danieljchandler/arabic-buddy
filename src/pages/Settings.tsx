@@ -13,6 +13,7 @@ import { Loader2, Check, ArrowLeft, User, Globe2, Target, Eye, Heart, ChevronRig
 
 const DIALECTS = [
   { id: 'Gulf', label: 'Gulf Arabic', labelAr: 'خليجي', flag: '🌊' },
+  { id: 'Egyptian', label: 'Egyptian Arabic', labelAr: 'مصري', flag: '🇪🇬' },
   { id: 'Saudi', label: 'Saudi', labelAr: 'سعودي', flag: '🇸🇦' },
   { id: 'Kuwaiti', label: 'Kuwaiti', labelAr: 'كويتي', flag: '🇰🇼' },
   { id: 'Emirati', label: 'Emirati', labelAr: 'إماراتي', flag: '🇦🇪' },

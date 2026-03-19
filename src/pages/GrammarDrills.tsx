@@ -95,7 +95,7 @@ const GrammarDrills = () => {
 
       // Fallback to live AI generation
       const { data, error } = await supabase.functions.invoke("grammar-drill", {
-        body: { category: cat, difficulty },
+        body: { category: cat, difficulty, dialect: activeDialect },
       });
       if (error) throw error;
       if (data?.questions) {

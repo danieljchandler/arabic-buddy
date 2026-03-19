@@ -286,7 +286,7 @@ const ConversationSimulator = () => {
       ];
 
       const { data, error } = await supabase.functions.invoke("conversation-practice", {
-        body: { messages: apiMessages },
+        body: { messages: apiMessages, dialect: activeDialect },
       });
 
       if (error) throw error;

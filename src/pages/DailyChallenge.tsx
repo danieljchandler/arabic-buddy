@@ -154,6 +154,7 @@ const DailyChallenge = () => {
             word_english: w.word_english,
           })),
           streakDays: streakData || 0,
+          dialect: activeDialect,
         },
       });
 

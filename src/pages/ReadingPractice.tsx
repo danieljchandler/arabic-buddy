@@ -119,6 +119,7 @@ const ReadingPractice = () => {
             word_arabic: w.word_arabic,
             word_english: w.word_english,
           })),
+          dialect: activeDialect,
         },
       });
 

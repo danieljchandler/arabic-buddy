@@ -110,6 +110,7 @@ const ListeningPractice = () => {
             word_english: w.word_english,
           })),
           count: 5,
+          dialect: activeDialect,
         },
       });
 

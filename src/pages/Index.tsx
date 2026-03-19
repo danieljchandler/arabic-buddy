@@ -94,8 +94,14 @@ const DiscoverPreviewCard = ({ video, onClick }: { video: any; onClick: () => vo
   );
 };
 
+const DIALECT_MODULES: { id: DialectModule; label: string; flag: string }[] = [
+  { id: 'Gulf', label: 'Gulf Arabic', flag: '🌊' },
+  { id: 'Egyptian', label: 'Egyptian Arabic', flag: '🇪🇬' },
+];
+
 const Index = () => {
   const navigate = useNavigate();
+  const { activeDialect, setDialect } = useDialect();
   const {
     user,
     isAuthenticated,

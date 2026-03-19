@@ -1,11 +1,10 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { getDialectIdentity } from "../_shared/dialectHelpers.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
-
-const GULF_ARABIC_IDENTITY = `You are a native Gulf Arabic conversation partner. Always respond in Gulf Arabic (Khaliji) dialect, NOT Modern Standard Arabic (فصحى). Use authentic vocabulary and expressions from the Gulf region (UAE, Saudi, Kuwait, Qatar, Bahrain, Oman). Include transliteration in parentheses for key phrases. Be warm, encouraging, and culturally authentic. Use dialectal forms like شلونك، وين، هالحين، يالله، إن شاء الله instead of MSA equivalents.`;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -13,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { messages } = await req.json();
+    const { messages, dialect = "Gulf" } = await req.json();
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return new Response(
@@ -31,17 +30,18 @@ serve(async (req) => {
       );
     }
 
-    // Prepend server-side Gulf Arabic identity to ensure consistent dialect output
+    const DIALECT_IDENTITY = getDialectIdentity(dialect);
+
+    // Prepend server-side dialect identity to ensure consistent dialect output
     const enrichedMessages = [...messages];
     const hasSystemMsg = enrichedMessages[0]?.role === "system";
     if (hasSystemMsg) {
-      // Wrap the client system prompt with our Gulf Arabic identity
       enrichedMessages[0] = {
         ...enrichedMessages[0],
-        content: `${GULF_ARABIC_IDENTITY}\n\nAdditional context:\n${enrichedMessages[0].content}`,
+        content: `${DIALECT_IDENTITY}\n\nAdditional context:\n${enrichedMessages[0].content}`,
       };
     } else {
-      enrichedMessages.unshift({ role: "system", content: GULF_ARABIC_IDENTITY });
+      enrichedMessages.unshift({ role: "system", content: DIALECT_IDENTITY });
     }
 
     const controller = new AbortController();

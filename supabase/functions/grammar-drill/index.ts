@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { getDialectVocabRules, getDialectLabel } from "../_shared/dialectHelpers.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -9,20 +10,25 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { category, difficulty } = await req.json();
+    const { category, difficulty, dialect = "Gulf" } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    const systemPrompt = `You are a Gulf Arabic grammar teacher. Generate exactly 5 multiple-choice grammar drill questions.
+    const dialectLabel = getDialectLabel(dialect);
+    const dialectRules = getDialectVocabRules(dialect);
+
+    const systemPrompt = `You are a ${dialectLabel} grammar teacher. Generate exactly 5 multiple-choice grammar drill questions.
+
+${dialectRules}
 
 Category: ${category || "mixed"}
 Difficulty: ${difficulty || "beginner"}
 
-Each question should test a specific Gulf Arabic grammar concept. Include verb conjugation, pronoun usage, sentence structure, negation, and possessives as appropriate.
+Each question should test a specific ${dialectLabel} grammar concept. Include verb conjugation, pronoun usage, sentence structure, negation, and possessives as appropriate.
 
 You MUST call the suggest_questions function with your response.`;
 
-    const userPrompt = `Generate 5 ${difficulty || "beginner"} level Gulf Arabic grammar questions about "${category || "mixed grammar"}". Each question should have the Arabic text, an English explanation of what's being tested, 4 answer choices (with Arabic text), and indicate the correct answer index (0-3). Include a brief explanation for why the correct answer is right.`;
+    const userPrompt = `Generate 5 ${difficulty || "beginner"} level ${dialectLabel} grammar questions about "${category || "mixed grammar"}". Each question should have the Arabic text, an English explanation of what's being tested, 4 answer choices (with Arabic text), and indicate the correct answer index (0-3). Include a brief explanation for why the correct answer is right.`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -50,9 +56,9 @@ You MUST call the suggest_questions function with your response.`;
                     items: {
                       type: "object",
                       properties: {
-                        question_arabic: { type: "string", description: "The question or sentence in Arabic with a blank or prompt" },
-                        question_english: { type: "string", description: "English translation/explanation of what is being asked" },
-                        grammar_point: { type: "string", description: "The grammar concept being tested (e.g. verb conjugation, negation)" },
+                        question_arabic: { type: "string" },
+                        question_english: { type: "string" },
+                        grammar_point: { type: "string" },
                         choices: {
                           type: "array",
                           items: {
@@ -65,8 +71,8 @@ You MUST call the suggest_questions function with your response.`;
                             additionalProperties: false,
                           },
                         },
-                        correct_index: { type: "number", description: "0-based index of the correct answer" },
-                        explanation: { type: "string", description: "Why the correct answer is right" },
+                        correct_index: { type: "number" },
+                        explanation: { type: "string" },
                       },
                       required: ["question_arabic", "question_english", "grammar_point", "choices", "correct_index", "explanation"],
                       additionalProperties: false,

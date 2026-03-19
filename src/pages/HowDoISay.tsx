@@ -107,7 +107,7 @@ const HowDoISay = () => {
 
     try {
       const { data, error } = await supabase.functions.invoke("how-do-i-say", {
-        body: { phrase: trimmed },
+        body: { phrase: trimmed, dialect: activeDialect },
       });
 
       if (error) throw new Error(await readInvokeError(error));

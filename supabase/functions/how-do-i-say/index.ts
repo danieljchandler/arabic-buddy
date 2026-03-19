@@ -243,6 +243,7 @@ serve(async (req) => {
       );
     }
 
+    const SYSTEM_PROMPT = buildSystemPrompt(dialect);
     const userContent = trimmedPhrase;
 
     // Fire ALL available models in parallel (not fallback — results are merged).

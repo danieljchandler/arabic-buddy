@@ -244,6 +244,7 @@ const ConversationSimulator = () => {
             { role: "system", content: scenario.systemPrompt },
             { role: "user", content: "Start the conversation." },
           ],
+          dialect: activeDialect,
         },
       });
 

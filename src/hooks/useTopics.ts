@@ -20,11 +20,12 @@ export const useTopics = () => {
   return useQuery({
     queryKey: ['topics', activeDialect],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const query = supabase
         .from('topics')
         .select('*')
-        .eq('dialect_module' as any, activeDialect)
         .order('display_order', { ascending: true });
+
+      const { data, error } = await (query as any).eq('dialect_module', activeDialect);
 
       if (error) throw error;
       return data as Topic[];

@@ -51,6 +51,7 @@ const DIFFICULTIES = [
 const GrammarDrills = () => {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
+  const { activeDialect } = useDialect();
   const [category, setCategory] = useState<string | null>(null);
   const [difficulty, setDifficulty] = useState("beginner");
   const [questions, setQuestions] = useState<DrillQuestion[]>([]);

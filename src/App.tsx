@@ -303,6 +303,7 @@ const App = () => {
         </BrowserRouter>
       </TooltipProvider>
       </TranscriptionJobProvider>
+      </DialectProvider>
     </QueryClientProvider>
   );
 };

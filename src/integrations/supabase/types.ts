@@ -1016,6 +1016,7 @@ export type Database = {
       topics: {
         Row: {
           created_at: string
+          dialect_module: string
           display_order: number
           gradient: string
           icon: string
@@ -1026,6 +1027,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          dialect_module?: string
           display_order?: number
           gradient?: string
           icon?: string
@@ -1036,6 +1038,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          dialect_module?: string
           display_order?: number
           gradient?: string
           icon?: string
@@ -1578,6 +1581,7 @@ export type Database = {
         Row: {
           audio_url: string | null
           created_at: string
+          dialect_module: string
           display_order: number
           id: string
           image_position: string | null
@@ -1590,6 +1594,7 @@ export type Database = {
         Insert: {
           audio_url?: string | null
           created_at?: string
+          dialect_module?: string
           display_order?: number
           id?: string
           image_position?: string | null
@@ -1602,6 +1607,7 @@ export type Database = {
         Update: {
           audio_url?: string | null
           created_at?: string
+          dialect_module?: string
           display_order?: number
           id?: string
           image_position?: string | null

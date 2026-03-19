@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
+import { useDialect } from '@/contexts/DialectContext';
 
 export interface WordWithTopic {
   id: string;
@@ -26,9 +27,10 @@ const shuffleArray = <T,>(array: T[]): T[] => {
 
 export const useAllWords = (onlyNew = false) => {
   const { user } = useAuth();
+  const { activeDialect } = useDialect();
 
   return useQuery({
-    queryKey: ['all-words', onlyNew, user?.id],
+    queryKey: ['all-words', onlyNew, user?.id, activeDialect],
     queryFn: async (): Promise<WordWithTopic[]> => {
       const { data: words, error } = await supabase
         .from('vocabulary_words')
@@ -45,7 +47,8 @@ export const useAllWords = (onlyNew = false) => {
             name,
             name_arabic
           )
-        `);
+        `)
+        .eq('dialect_module' as any, activeDialect);
 
       if (error) throw error;
 

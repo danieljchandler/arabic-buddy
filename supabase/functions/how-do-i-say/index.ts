@@ -219,7 +219,8 @@ serve(async (req) => {
     }
 
     const body = await req.json();
-    const { phrase } = body;
+    const { phrase, dialect: requestDialect } = body;
+    const dialect = requestDialect === 'Egyptian' ? 'Egyptian' : 'Gulf';
 
     if (!phrase || typeof phrase !== 'string' || phrase.trim().length === 0) {
       return new Response(

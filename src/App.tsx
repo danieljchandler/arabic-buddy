@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { toast } from "sonner";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { TranscriptionJobProvider } from "@/contexts/TranscriptionJobContext";
+import { DialectProvider } from "@/contexts/DialectContext";
 import Index from "./pages/Index";
 import Learn from "./pages/Learn";
 import NotFound from "./pages/NotFound";
@@ -132,6 +133,7 @@ const App = () => {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <DialectProvider>
       <TranscriptionJobProvider>
       <TooltipProvider>
         <Toaster />
@@ -301,6 +303,7 @@ const App = () => {
         </BrowserRouter>
       </TooltipProvider>
       </TranscriptionJobProvider>
+      </DialectProvider>
     </QueryClientProvider>
   );
 };

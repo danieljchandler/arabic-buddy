@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { getDialectVocabRules, getDialectLabel } from "../_shared/dialectHelpers.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -19,25 +20,22 @@ serve(async (req) => {
   }
 
   try {
-    const { mode, words, count = 5 } = await req.json();
+    const { mode, words, count = 5, dialect = "Gulf" } = await req.json();
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY not configured");
-    }
+    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
-    // Build context from user's vocabulary
+    const dialectLabel = getDialectLabel(dialect);
+    const dialectRules = getDialectVocabRules(dialect);
+
     const vocabContext = words
       .slice(0, 20)
       .map((w: any) => `${w.word_arabic} (${w.word_english})`)
       .join(", ");
 
-    const systemPrompt = `You are a Gulf Arabic (Khaliji) language tutor creating listening comprehension exercises.
+    const systemPrompt = `You are a ${dialectLabel} language tutor creating listening comprehension exercises.
 
-CRITICAL DIALECT RULES:
-- Always use Gulf Arabic (Khaliji) vocabulary and expressions. Do NOT use Modern Standard Arabic (فصحى).
-- Use dialectal forms like شلونك، وين، هالحين، ليش، واجد، يبي instead of MSA equivalents.
-- Arabic text must reflect Gulf pronunciation and spelling conventions.
+${dialectRules}
 - Generate exercises using these vocabulary words the student knows: ${vocabContext}
 
 IMPORTANT: Return valid JSON only, no markdown.`;
@@ -45,45 +43,19 @@ IMPORTANT: Return valid JSON only, no markdown.`;
     let userPrompt = "";
 
     if (mode === "dictation") {
-      userPrompt = `Generate ${count} Gulf Arabic sentences for dictation practice.
+      userPrompt = `Generate ${count} ${dialectLabel} sentences for dictation practice.
 Use simple, clear sentences with vocabulary the student knows.
 Return JSON array:
-[
-  {
-    "type": "dictation",
-    "audioText": "Gulf Arabic sentence",
-    "audioTextEnglish": "English translation",
-    "hint": "First word hint"
-  }
-]`;
+[{"type": "dictation", "audioText": "${dialectLabel} sentence", "audioTextEnglish": "English translation", "hint": "First word hint"}]`;
     } else if (mode === "comprehension") {
-      userPrompt = `Generate ${count} listening comprehension questions in Gulf Arabic.
-Create a sentence in Gulf Arabic, then ask what a word means or what the sentence is about.
+      userPrompt = `Generate ${count} listening comprehension questions in ${dialectLabel}.
 Return JSON array:
-[
-  {
-    "type": "comprehension",
-    "audioText": "Gulf Arabic sentence to listen to",
-    "audioTextEnglish": "English translation",
-    "options": [
-      {"text": "Correct answer in English", "textArabic": "صحيح", "correct": true},
-      {"text": "Wrong answer 1", "textArabic": "خطأ", "correct": false},
-      {"text": "Wrong answer 2", "textArabic": "خطأ", "correct": false}
-    ]
-  }
-]`;
+[{"type": "comprehension", "audioText": "${dialectLabel} sentence to listen to", "audioTextEnglish": "English translation", "options": [{"text": "Correct answer in English", "textArabic": "صحيح", "correct": true}, {"text": "Wrong answer 1", "textArabic": "خطأ", "correct": false}, {"text": "Wrong answer 2", "textArabic": "خطأ", "correct": false}]}]`;
     } else {
-      // speed mode - shorter, clearer phrases
-      userPrompt = `Generate ${count} short Gulf Arabic phrases for speed listening practice.
+      userPrompt = `Generate ${count} short ${dialectLabel} phrases for speed listening practice.
 Keep them 2-4 words, clear and distinct.
 Return JSON array:
-[
-  {
-    "type": "speed",
-    "audioText": "Short Gulf Arabic phrase",
-    "audioTextEnglish": "English translation"
-  }
-]`;
+[{"type": "speed", "audioText": "Short ${dialectLabel} phrase", "audioTextEnglish": "English translation"}]`;
     }
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -106,16 +78,10 @@ Return JSON array:
       const errorText = await response.text();
       console.error("AI gateway error:", response.status, errorText);
       if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "Not enough AI credits. Please add credits to your workspace." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        return new Response(JSON.stringify({ error: "Not enough AI credits." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
       if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ error: "Rate limit exceeded. Please wait a moment and try again." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+        return new Response(JSON.stringify({ error: "Rate limit exceeded." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
       throw new Error(`AI gateway error: ${response.status}`);
     }
@@ -123,7 +89,6 @@ Return JSON array:
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content || "[]";
 
-    // Parse JSON from response
     let questions: QuizQuestion[] = [];
     try {
       const jsonMatch = content.match(/\[[\s\S]*\]/);
@@ -132,15 +97,8 @@ Return JSON array:
       }
     } catch (e) {
       console.error("Failed to parse quiz questions:", e, content);
-      // Return fallback questions
-      questions = [
-        {
-          type: mode,
-          audioText: "هلا",
-          audioTextEnglish: "Hello",
-          hint: "ه",
-        },
-      ];
+      const fallback = dialect === "Egyptian" ? "أهلاً" : "هلا";
+      questions = [{ type: mode, audioText: fallback, audioTextEnglish: "Hello", hint: fallback[0] }];
     }
 
     return new Response(JSON.stringify({ questions }), {
@@ -148,12 +106,8 @@ Return JSON array:
     });
   } catch (error) {
     console.error("listening-quiz error:", error);
-    return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
-    );
+    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }), {
+      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });

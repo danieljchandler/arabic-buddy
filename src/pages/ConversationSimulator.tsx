@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useDialect } from "@/contexts/DialectContext";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
@@ -125,6 +126,7 @@ const ConversationSimulator = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user, loading: authLoading } = useAuth();
+  const { activeDialect } = useDialect();
 
   const [selectedScenario, setSelectedScenario] = useState<Scenario | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -242,6 +244,7 @@ const ConversationSimulator = () => {
             { role: "system", content: scenario.systemPrompt },
             { role: "user", content: "Start the conversation." },
           ],
+          dialect: activeDialect,
         },
       });
 
@@ -283,7 +286,7 @@ const ConversationSimulator = () => {
       ];
 
       const { data, error } = await supabase.functions.invoke("conversation-practice", {
-        body: { messages: apiMessages },
+        body: { messages: apiMessages, dialect: activeDialect },
       });
 
       if (error) throw error;

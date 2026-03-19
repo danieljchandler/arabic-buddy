@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from "react";
+import { useDialect } from "@/contexts/DialectContext";
 import { useNavigate } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
@@ -47,6 +48,7 @@ const SPEED_RATES = [
 const ListeningPractice = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
+  const { activeDialect } = useDialect();
   const { data: allWords } = useAllWords();
   const addXP = useAddXP();
 
@@ -108,6 +110,7 @@ const ListeningPractice = () => {
             word_english: w.word_english,
           })),
           count: 5,
+          dialect: activeDialect,
         },
       });
 

@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
+import { useDialect } from '@/contexts/DialectContext';
 
 export interface WordWithTopic {
   id: string;
@@ -26,11 +27,12 @@ const shuffleArray = <T,>(array: T[]): T[] => {
 
 export const useAllWords = (onlyNew = false) => {
   const { user } = useAuth();
+  const { activeDialect } = useDialect();
 
   return useQuery({
-    queryKey: ['all-words', onlyNew, user?.id],
+    queryKey: ['all-words', onlyNew, user?.id, activeDialect],
     queryFn: async (): Promise<WordWithTopic[]> => {
-      const { data: words, error } = await supabase
+      const query = supabase
         .from('vocabulary_words')
         .select(`
           id,
@@ -47,10 +49,12 @@ export const useAllWords = (onlyNew = false) => {
           )
         `);
 
+      const { data: words, error } = await (query as any).eq('dialect_module', activeDialect);
+
       if (error) throw error;
 
-      let mapped = (words || []).map(w => {
-        const topic = (w as any).topics;
+      let mapped = (words || []).map((w: any) => {
+        const topic = w.topics;
         return {
           id: w.id,
           word_arabic: w.word_arabic,
@@ -72,7 +76,7 @@ export const useAllWords = (onlyNew = false) => {
           .eq('user_id', user.id);
 
         const reviewedIds = new Set(reviews?.map(r => r.word_id) || []);
-        mapped = mapped.filter(w => !reviewedIds.has(w.id));
+        mapped = mapped.filter((w: any) => !reviewedIds.has(w.id));
       }
 
       return shuffleArray(mapped);

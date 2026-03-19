@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useDialect } from "@/contexts/DialectContext";
 import { useNavigate } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
 import { HomeButton } from "@/components/HomeButton";
@@ -50,6 +51,7 @@ const DIFFICULTIES = [
 const GrammarDrills = () => {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
+  const { activeDialect } = useDialect();
   const [category, setCategory] = useState<string | null>(null);
   const [difficulty, setDifficulty] = useState("beginner");
   const [questions, setQuestions] = useState<DrillQuestion[]>([]);
@@ -93,7 +95,7 @@ const GrammarDrills = () => {
 
       // Fallback to live AI generation
       const { data, error } = await supabase.functions.invoke("grammar-drill", {
-        body: { category: cat, difficulty },
+        body: { category: cat, difficulty, dialect: activeDialect },
       });
       if (error) throw error;
       if (data?.questions) {

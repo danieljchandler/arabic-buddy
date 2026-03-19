@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useDialect } from '@/contexts/DialectContext';
 
 export interface Lesson {
   id: string;
@@ -13,15 +14,19 @@ export interface Lesson {
   word_count?: number;
 }
 
-/** Fetch all topics as lessons (lessons table doesn't exist yet) */
+/** Fetch all topics as lessons, filtered by active dialect module */
 export const useLessons = (stageId?: string | undefined) => {
+  const { activeDialect } = useDialect();
+
   return useQuery({
-    queryKey: ['lessons', stageId],
+    queryKey: ['lessons', stageId, activeDialect],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const query = supabase
         .from('topics')
         .select('*, vocabulary_words(id)')
         .order('display_order', { ascending: true });
+
+      const { data, error } = await (query as any).eq('dialect_module', activeDialect);
 
       if (error) throw error;
 

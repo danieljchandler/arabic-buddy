@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useDialect } from "@/contexts/DialectContext";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { AppShell } from "@/components/layout/AppShell";
@@ -46,6 +47,7 @@ interface Challenge {
 const DailyChallenge = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
+  const { activeDialect } = useDialect();
   const { data: allWords } = useAllWords();
   const addXP = useAddXP();
 
@@ -152,6 +154,7 @@ const DailyChallenge = () => {
             word_english: w.word_english,
           })),
           streakDays: streakData || 0,
+          dialect: activeDialect,
         },
       });
 

@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { useDialect } from "@/contexts/DialectContext";
 import { useNavigate } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
@@ -60,6 +61,7 @@ const DIFFICULTY_CONFIG = {
 const ReadingPractice = () => {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
+  const { activeDialect } = useDialect();
   const { data: allWords } = useAllWords();
   const addXP = useAddXP();
 
@@ -117,6 +119,7 @@ const ReadingPractice = () => {
             word_arabic: w.word_arabic,
             word_english: w.word_english,
           })),
+          dialect: activeDialect,
         },
       });
 

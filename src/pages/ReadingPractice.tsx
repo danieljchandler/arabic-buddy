@@ -61,6 +61,7 @@ const DIFFICULTY_CONFIG = {
 const ReadingPractice = () => {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
+  const { activeDialect } = useDialect();
   const { data: allWords } = useAllWords();
   const addXP = useAddXP();
 

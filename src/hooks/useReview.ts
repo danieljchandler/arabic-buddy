@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { calculateNextReview, Rating } from '@/lib/spacedRepetition';
 import { useAddXP, useIncrementReviews, useCheckAchievements } from './useGamification';
+import { useDialect } from '@/contexts/DialectContext';
 
 interface WordReview {
   id: string;
@@ -23,6 +24,7 @@ export interface VocabularyWord {
   audio_url: string | null;
   topic_id: string;
   image_position?: string | null;
+  dialect_module?: string;
 }
 
 interface WordWithReview extends VocabularyWord {
@@ -35,17 +37,18 @@ interface WordWithReview extends VocabularyWord {
   };
 }
 
-export const useDueWords = () => {
+export const useDueWords = (mixAll = false) => {
   const { user } = useAuth();
+  const { activeDialect } = useDialect();
 
   return useQuery({
-    queryKey: ['due-words', user?.id],
+    queryKey: ['due-words', user?.id, mixAll ? 'all' : activeDialect],
     queryFn: async (): Promise<WordWithReview[]> => {
       if (!user) return [];
 
       const now = new Date().toISOString();
 
-      const { data: words, error: wordsError } = await supabase
+      let query = supabase
         .from('vocabulary_words')
         .select(`
           id,
@@ -54,6 +57,8 @@ export const useDueWords = () => {
           image_url,
           audio_url,
           topic_id,
+          image_position,
+          dialect_module,
           topics (
             name,
             name_arabic,
@@ -62,6 +67,11 @@ export const useDueWords = () => {
           )
         `);
 
+      if (!mixAll) {
+        query = query.eq('dialect_module', activeDialect);
+      }
+
+      const { data: words, error: wordsError } = await query;
       if (wordsError) throw wordsError;
 
       const { data: reviews, error: reviewsError } = await supabase
@@ -99,35 +109,48 @@ export const useDueWords = () => {
   });
 };
 
-export const useReviewStats = () => {
+export const useReviewStats = (mixAll = false) => {
   const { user } = useAuth();
+  const { activeDialect } = useDialect();
 
   return useQuery({
-    queryKey: ['review-stats', user?.id],
+    queryKey: ['review-stats', user?.id, mixAll ? 'all' : activeDialect],
     queryFn: async () => {
       if (!user) return null;
 
       const now = new Date().toISOString();
 
-      const { count: totalWords } = await supabase
+      let wordsQuery = supabase
         .from('vocabulary_words')
-        .select('*', { count: 'exact', head: true });
+        .select('id', { count: 'exact' });
+
+      if (!mixAll) {
+        wordsQuery = wordsQuery.eq('dialect_module', activeDialect);
+      }
+
+      const { data: wordIds, count: totalWords } = await wordsQuery;
 
       const { data: reviews } = await supabase
         .from('word_reviews')
         .select('*')
         .eq('user_id', user.id);
 
-      const dueCount = reviews?.filter(r => new Date(r.next_review_at) <= new Date(now)).length || 0;
-      const learnedCount = reviews?.filter(r => r.repetitions >= 1).length || 0;
-      const masteredCount = reviews?.filter(r => r.repetitions >= 5).length || 0;
+      // If filtering by dialect, only count reviews for words in this dialect
+      const wordIdSet = !mixAll && wordIds ? new Set(wordIds.map((w: any) => w.id)) : null;
+      const filteredReviews = wordIdSet
+        ? reviews?.filter(r => wordIdSet.has(r.word_id))
+        : reviews;
+
+      const dueCount = filteredReviews?.filter(r => new Date(r.next_review_at) <= new Date(now)).length || 0;
+      const learnedCount = filteredReviews?.filter(r => r.repetitions >= 1).length || 0;
+      const masteredCount = filteredReviews?.filter(r => r.repetitions >= 5).length || 0;
 
       return {
         totalWords: totalWords || 0,
         dueCount,
         learnedCount,
         masteredCount,
-        newCount: (totalWords || 0) - (reviews?.length || 0),
+        newCount: (totalWords || 0) - (filteredReviews?.length || 0),
       };
     },
     enabled: !!user,
@@ -208,14 +231,21 @@ export const useSubmitReview = () => {
   });
 };
 
-export const useAllVocabularyWords = () => {
-  return useQuery({
-    queryKey: ['all-vocabulary-words'],
-    queryFn: async (): Promise<VocabularyWord[]> => {
-      const { data, error } = await supabase
-        .from('vocabulary_words')
-        .select('id, word_arabic, word_english, image_url, audio_url, topic_id, image_position');
+export const useAllVocabularyWords = (mixAll = false) => {
+  const { activeDialect } = useDialect();
 
+  return useQuery({
+    queryKey: ['all-vocabulary-words', mixAll ? 'all' : activeDialect],
+    queryFn: async (): Promise<VocabularyWord[]> => {
+      let query = supabase
+        .from('vocabulary_words')
+        .select('id, word_arabic, word_english, image_url, audio_url, topic_id, image_position, dialect_module');
+
+      if (!mixAll) {
+        query = query.eq('dialect_module', activeDialect);
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
       return data || [];
     },

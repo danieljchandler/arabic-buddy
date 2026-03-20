@@ -242,6 +242,86 @@ export type Database = {
         }
         Relationships: []
       }
+      curriculum_chat_messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          llm_model: string | null
+          output_type: string | null
+          role: string
+          session_id: string
+          structured_output: Json | null
+        }
+        Insert: {
+          content?: string
+          created_at?: string
+          id?: string
+          llm_model?: string | null
+          output_type?: string | null
+          role?: string
+          session_id: string
+          structured_output?: Json | null
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          llm_model?: string | null
+          output_type?: string | null
+          role?: string
+          session_id?: string
+          structured_output?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "curriculum_chat_messages_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "curriculum_chat_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      curriculum_chat_sessions: {
+        Row: {
+          admin_id: string
+          created_at: string
+          id: string
+          llm_model: string
+          status: string
+          target_cefr: string | null
+          target_dialect: string
+          target_stage_id: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          admin_id: string
+          created_at?: string
+          id?: string
+          llm_model?: string
+          status?: string
+          target_cefr?: string | null
+          target_dialect?: string
+          target_stage_id?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Update: {
+          admin_id?: string
+          created_at?: string
+          id?: string
+          llm_model?: string
+          status?: string
+          target_cefr?: string | null
+          target_dialect?: string
+          target_stage_id?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       daily_challenge_completions: {
         Row: {
           challenge_date: string

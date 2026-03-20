@@ -9,6 +9,7 @@ import { Loader2, Search, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDuration } from "@/lib/videoEmbed";
 import { ContentRequestBar } from "@/components/discover/ContentRequestBar";
+import { useDialect } from "@/contexts/DialectContext";
 import {
   Select,
   SelectContent,
@@ -22,8 +23,9 @@ const DIFFICULTIES = ["All", "Beginner", "Intermediate", "Advanced", "Expert"];
 
 const Discover = () => {
   const navigate = useNavigate();
+  const { activeDialect } = useDialect();
   const [search, setSearch] = useState("");
-  const [dialect, setDialect] = useState("All");
+  const [dialect, setDialect] = useState(activeDialect);
   const [difficulty, setDifficulty] = useState("All");
 
   const { data: videos, isLoading } = useDiscoverVideos({

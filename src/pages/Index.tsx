@@ -110,7 +110,7 @@ const Index = () => {
   } = useAuth();
   const { data: myWordsStats } = useUserVocabularyDueCount();
   const { data: stats } = useReviewStats();
-  const { data: discoverVideos } = useDiscoverVideos();
+  const { data: discoverVideos } = useDiscoverVideos({ dialect: activeDialect });
   const { data: stages } = useStages();
   const { data: allLessons } = useAllLessons();
 
@@ -326,21 +326,20 @@ const Index = () => {
             )}
           </div>
         ) : (
-          <button
-            onClick={() => navigate("/discover")}
+          <div
             className={cn(
               "w-full p-8 rounded-2xl",
-              "bg-primary text-primary-foreground",
+              "bg-muted/50 border-2 border-dashed border-primary/20",
               "flex flex-col items-center gap-3",
-              "transition-all duration-200",
-              "hover:opacity-90 active:scale-[0.98]",
-              "shadow-lg"
+              "text-center"
             )}
           >
-            <Play className="h-10 w-10" />
-            <p className="text-lg font-bold">Discover Arabic Videos</p>
-            <p className="text-sm opacity-80">Watch with synced subtitles & translations</p>
-          </button>
+            <Play className="h-10 w-10 text-muted-foreground/40" />
+            <p className="text-lg font-bold text-foreground">Coming Soon</p>
+            <p className="text-sm text-muted-foreground">
+              {activeDialect === 'Egyptian' ? 'Egyptian Arabic' : activeDialect} videos are on the way!
+            </p>
+          </div>
         )}
       </div>
 

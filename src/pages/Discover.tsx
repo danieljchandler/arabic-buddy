@@ -25,7 +25,7 @@ const Discover = () => {
   const navigate = useNavigate();
   const { activeDialect } = useDialect();
   const [search, setSearch] = useState("");
-  const [dialect, setDialect] = useState(activeDialect);
+  const [dialect, setDialect] = useState<string>(activeDialect);
   const [difficulty, setDifficulty] = useState("All");
 
   const { data: videos, isLoading } = useDiscoverVideos({

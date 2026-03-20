@@ -110,7 +110,7 @@ const Index = () => {
   } = useAuth();
   const { data: myWordsStats } = useUserVocabularyDueCount();
   const { data: stats } = useReviewStats();
-  const { data: discoverVideos } = useDiscoverVideos();
+  const { data: discoverVideos } = useDiscoverVideos({ dialect: activeDialect });
   const { data: stages } = useStages();
   const { data: allLessons } = useAllLessons();
 

@@ -15,15 +15,17 @@ interface AdminTranscriptEditorProps {
  * Token glosses are preserved via a ref map so round-tripping doesn't lose data.
  */
 export function AdminTranscriptEditor({ lines, onChange, audioUrl }: AdminTranscriptEditorProps) {
-  // Store glosses keyed by "segmentId:surface" so they survive round-trips
+  // Store glosses keyed by "segmentId:tokenIndex:surface" so they survive round-trips
+  // Using index prevents collisions when the same word appears twice in one line
   const glossMapRef = useRef<Map<string, WordToken>>(new Map());
 
   // Populate gloss map from incoming lines
   useMemo(() => {
     const map = glossMapRef.current;
     for (const line of lines) {
-      for (const token of (line.tokens ?? [])) {
-        map.set(`${line.id}:${token.surface}`, token);
+      for (let i = 0; i < (line.tokens ?? []).length; i++) {
+        const token = line.tokens[i];
+        map.set(`${line.id}:${i}:${token.surface}`, token);
       }
     }
   }, [lines]);
@@ -56,13 +58,14 @@ export function AdminTranscriptEditor({ lines, onChange, audioUrl }: AdminTransc
         translation: seg.translation,
         startMs: Math.round(seg.start * 1000),
         endMs: Math.round(seg.end * 1000),
-        tokens: seg.words.map<WordToken>((w) => {
-          const cached = glossMapRef.current.get(`${seg.id}:${w.word}`);
+        tokens: seg.words.map<WordToken>((w, i) => {
+          const cached = glossMapRef.current.get(`${seg.id}:${i}:${w.word}`);
           return {
             id: cached?.id ?? crypto.randomUUID(),
             surface: w.word,
             standard: cached?.standard,
             gloss: cached?.gloss,
+            compoundRef: cached?.compoundRef,
           };
         }),
       }));

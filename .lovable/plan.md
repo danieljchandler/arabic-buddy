@@ -1,93 +1,55 @@
 
-Fix the word-definition system end to end by correcting both the stored token data and the runtime interaction layer. Right now the issue is structural, not just a bad prompt.
 
-What I found
-- `DiscoverVideo.tsx` uses its own `ClickableWord` popover, and it only shows `token.gloss` if one already exists. It has no live fallback translation and no adjacent multi-word selection logic at all.
-- `LineByLineTranscript.tsx` does have live single-word and compound fallback, but it relies on weak token data and uses `token.gloss` for two different jobs: real word meanings and `(→ firstWord)` compound markers.
-- In `analyze-gulf-arabic`, tokens are built with `toWordTokens(..., vocab, {})`, meaning most words only get a gloss if they happen to appear in the small 5–8 item vocabulary list or the small hardcoded fallback dictionary. That guarantees low coverage.
-- Real data confirms this: several published videos only have about 24%–36% of tokens glossed.
-- Tokenization is too naive (`split(/\s+/)`), so words like `الزحمة!` keep punctuation attached, which hurts lookup and live translation.
-- Admin/manual video editing can preserve sparse token data instead of regenerating strong token metadata. `AdminTranscriptEditor` also keys cached glosses by `lineId + surface`, which can collide when the same word appears twice in one line.
+# Fix Curriculum Chat — Create Missing Tables + Clean Up Models + Add Egyptian
 
-Right fix
-This needs one unified token-enrichment pipeline plus one unified transcript interaction UI. The persisted transcript data must already contain reliable per-word glosses, and the UI must use the same fallback/compound behavior everywhere.
+## Problem
+Nothing happens when you try to create lessons because:
+1. **`curriculum_stages`, `lessons`, `curriculum_chat_approvals` tables don't exist** — the approval hook inserts into `lessons` which fails silently
+2. **`ModelSelector` still lists Jais, ALLaM, Falcon** — selecting them errors since they're removed from the backend
+3. **Edge function lacks Egyptian dialect** and still uses `gemini-2.5-flash` instead of `gemini-3-flash-preview`
+4. **`vocabulary_words` has no `lesson_id` column** — vocab can't be linked to lessons
+5. **Default model in `CurriculumBuilder.tsx`** is `google/gemini-2.5-flash` instead of the upgraded model
 
-Implementation plan
+## Changes
 
-1. Redesign token metadata so single-word glosses and phrase glosses are separate
-- Keep `gloss` for the actual individual word meaning.
-- Add separate compound metadata instead of storing `(→ word)` inside `gloss`.
-- Normalize token lookup data so punctuation does not break matching.
-- Update `src/types/transcript.ts` and the token builders accordingly.
+### 1. Database Migration
+Create the three missing tables and seed curriculum stages:
 
-2. Build a dedicated server-side gloss-enrichment step
-- In `supabase/functions/analyze-gulf-arabic/index.ts`, add a real “gloss coverage” phase after line translations are finalized.
-- Generate:
-  - a per-word gloss map for every unique normalized token
-  - a phrase/compound map for common adjacent bigrams/trigrams
-- Use the existing multi-model strategy for verification, but apply it to gloss generation directly instead of hoping the small vocabulary list covers everything.
-- Keep the hardcoded common-word dictionary only as a final fallback, not the primary source.
-- Normalize punctuation/diacritics before lookup and then map back to the displayed surface form.
+```sql
+-- curriculum_stages table with 6 levels
+-- lessons table (references curriculum_stages)
+-- curriculum_chat_approvals table
+-- Add lesson_id column to vocabulary_words
+-- RLS: admin-only for stages/lessons/approvals management, public SELECT on stages/lessons
+-- Seed 6 stages (Foundations through Mastery)
+```
 
-3. Apply the same stronger token generation to other transcript-producing tools
-- Update `supabase/functions/analyze-meme/index.ts` to use the same normalized token/gloss builder instead of the current bare `glosses[surface]` mapping.
-- Reuse shared backend helper logic so video transcripts, meme transcripts, and any other transcript-based sections behave consistently.
+### 2. `ModelSelector.tsx` — Remove dead models, add gemini-3-flash-preview
+- Remove `jais-hf`, `allam-hf`, `falcon-h1r` from `LLMModelId` type and `MODEL_OPTIONS`
+- Add `google/gemini-3-flash-preview` as the recommended model
+- Keep Gemini 2.5 Flash, Claude, Qwen, Gemma, Fanar
 
-4. Upgrade the live translation fallback so it is reliable and context-aware
-- Improve `supabase/functions/translate-phrase/index.ts` to accept dialect + optional line context + mode (`word` vs `phrase`).
-- Strip punctuation before lookup/translation.
-- Return clean single-word meaning and phrase meaning consistently.
-- Use it only as resilience when persisted token glosses are missing or when the user selects a custom adjacent phrase.
-- Make sure public transcript views do not depend on a fragile logged-in-only path for basic read-only definitions.
+### 3. `curriculum-chat/index.ts` — Add Egyptian + gemini-3-flash-preview
+- Add `google/gemini-3-flash-preview` to `MODEL_REGISTRY`
+- Add `Egyptian` to `DIALECT_CONTEXT` with appropriate vocabulary examples
+- Update system prompt to handle Egyptian vs Gulf dynamically
 
-5. Unify the frontend transcript interaction system
-- Replace the separate weak token UI in `src/pages/DiscoverVideo.tsx` with the same interaction model used by `LineByLineTranscript`, or extract a shared token/selection component and use it in both places.
-- Ensure every transcript surface supports:
-  - single-word popovers
-  - adjacent 2-word and 3-word selection
-  - fallback translation when needed
-  - the same save-to-vocabulary behavior
-- This should cover videos first, then all other transcript-based sections using the shared component.
+### 4. `CurriculumBuilder.tsx` — Fix default model
+- Change default `newModel` from `google/gemini-2.5-flash` to `google/gemini-3-flash-preview`
 
-6. Fix admin/manual content so sparse tokens never get saved again
-- In `src/pages/admin/AdminVideoForm.tsx`, regenerate/enrich tokens before saving transcript lines instead of trusting old token arrays.
-- In `src/components/admin/AdminTranscriptEditor.tsx`, stop keying gloss preservation by `lineId + surface`; use token id/index-safe mapping.
-- Preserve manual edits where possible, but rebuild token metadata whenever text changes so new/edited lines do not stay blank.
+### 5. `useCurriculumApproval.ts` — Add dialect_module to lesson/vocab inserts
+- Pass `dialect_module` when inserting lessons and vocabulary so content is tagged correctly
 
-7. Repair existing content already in the database
-- Run a one-time backfill for existing `discover_videos.transcript_lines` to regenerate full token gloss coverage.
-- Prioritize published videos first since that is where users are hitting the issue now.
-- If other persisted transcript stores use the same token shape, backfill those too.
+### 6. `useStages.ts` — Remove `as never` cast (table will exist now)
 
-8. Add verification so this does not regress
-- Add backend tests for:
-  - punctuation normalization
-  - per-word gloss coverage
-  - bigram/trigram compound metadata
-  - repeated identical words in one line
-- Add frontend tests for:
-  - single-word click behavior
-  - adjacent multi-word selection
-  - fallback translation rendering
-  - Discover video transcript using the shared behavior
+### 7. `useLessonImport.ts` — Use new `lessons` table instead of falling back to topics
 
-Technical details / files likely involved
-- `supabase/functions/analyze-gulf-arabic/index.ts`
-- `supabase/functions/analyze-meme/index.ts`
-- `supabase/functions/translate-phrase/index.ts`
-- `src/types/transcript.ts`
-- `src/components/transcript/LineByLineTranscript.tsx`
-- `src/pages/DiscoverVideo.tsx`
-- `src/components/admin/AdminTranscriptEditor.tsx`
-- `src/pages/admin/AdminVideoForm.tsx`
+## Files
+- **New migration** (1 file)
+- `src/components/admin/curriculum-builder/ModelSelector.tsx`
+- `supabase/functions/curriculum-chat/index.ts`
+- `src/pages/admin/CurriculumBuilder.tsx`
+- `src/hooks/useCurriculumApproval.ts`
+- `src/hooks/useStages.ts`
+- `src/hooks/useLessonImport.ts`
 
-No schema migration is required for this fix. The main work is:
-- stronger token generation
-- shared UI behavior
-- backfilling existing transcript JSON data
-
-Success criteria
-- Every non-punctuation token in persisted video transcripts has a non-empty individual gloss.
-- Selecting adjacent words works in video transcripts and all other transcript-based sections.
-- Manual/admin-created videos no longer save sparse token data.
-- Existing published videos are repaired, not just newly processed ones.

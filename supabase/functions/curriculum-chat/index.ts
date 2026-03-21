@@ -19,6 +19,11 @@ interface ModelConfig {
 }
 
 const MODEL_REGISTRY: Record<string, ModelConfig> = {
+  "google/gemini-3-flash-preview": {
+    endpoint: LOVABLE_GATEWAY,
+    model: "google/gemini-3-flash-preview",
+    keyEnv: "LOVABLE_API_KEY",
+  },
   "google/gemini-2.5-flash": {
     endpoint: LOVABLE_GATEWAY,
     model: "google/gemini-2.5-flash",
@@ -55,6 +60,7 @@ const DIALECT_CONTEXT: Record<string, string> = {
   Bahraini: "Bahraini Arabic — using Bahraini-specific expressions and pronunciation patterns",
   Qatari: "Qatari Arabic — using Qatari-specific vocabulary and expressions",
   Omani: "Omani Arabic — using Omani-specific vocabulary and expressions, noting regional variations within Oman",
+  Egyptian: "Egyptian Arabic (مصري) — Cairo dialect as the standard, using Egyptian-specific vocabulary (e.g., إزيك for 'how are you', فين for 'where', دلوقتي for 'now', عايز for 'want', كويس for 'good', ماشي for 'okay', يلا for 'let's go', حاضر for 'ready/sure', بتاع for 'belonging to'). Do NOT use Gulf Arabic vocabulary.",
 };
 
 // ─── MODE-SPECIFIC JSON SCHEMAS ─────────────────────────
@@ -260,7 +266,10 @@ function buildSystemPrompt(
 
   const modeInstructions = mode && MODE_INSTRUCTIONS[mode] ? MODE_INSTRUCTIONS[mode] : "";
 
-  return `You are an expert Gulf Arabic curriculum designer and language teacher. You are helping an admin build lessons and vocabulary for "Lahja" (لهجة), a Gulf Arabic learning app.
+  const isEgyptian = dialect === "Egyptian";
+  const appDesc = isEgyptian ? "an Egyptian Arabic learning module" : "a Gulf Arabic learning app";
+  
+  return `You are an expert ${isEgyptian ? "Egyptian" : "Gulf"} Arabic curriculum designer and language teacher. You are helping an admin build lessons and vocabulary for "Lahja" (لهجة), ${appDesc}.
 
 Target dialect: ${dialectDesc}
 ${stageInfo}

@@ -2,14 +2,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 
 export type LLMModelId =
+  | 'google/gemini-3-flash-preview'
   | 'google/gemini-2.5-flash'
   | 'anthropic/claude-sonnet-4-5'
   | 'qwen/qwen3-235b-a22b'
   | 'google/gemma-3-12b-it'
-  | 'fanar'
-  | 'jais-hf'
-  | 'allam-hf'
-  | 'falcon-h1r';
+  | 'fanar';
 
 interface ModelOption {
   id: LLMModelId;
@@ -21,11 +19,17 @@ interface ModelOption {
 
 const MODEL_OPTIONS: ModelOption[] = [
   {
+    id: 'google/gemini-3-flash-preview',
+    name: 'Gemini 3 Flash',
+    provider: 'Lovable',
+    description: 'Latest, fast, excellent Arabic support',
+    badge: 'Recommended',
+  },
+  {
     id: 'google/gemini-2.5-flash',
     name: 'Gemini 2.5 Flash',
     provider: 'Lovable',
     description: 'Fast, reliable, good Arabic support',
-    badge: 'Recommended',
   },
   {
     id: 'anthropic/claude-sonnet-4-5',
@@ -51,26 +55,6 @@ const MODEL_OPTIONS: ModelOption[] = [
     provider: 'Qatar',
     description: 'Gulf Arabic specialist',
     badge: 'Gulf Expert',
-  },
-  {
-    id: 'jais-hf',
-    name: 'Jais 2 8B',
-    provider: 'RunPod',
-    description: 'Arabic-first, dialect expert',
-    badge: 'Arabic Expert',
-  },
-  {
-    id: 'allam-hf',
-    name: 'ALLaM',
-    provider: 'HF Endpoint',
-    description: 'Arabic large language model by SDAIA',
-    badge: 'Arabic Native',
-  },
-  {
-    id: 'falcon-h1r',
-    name: 'Falcon H1R 7B',
-    provider: 'RunPod',
-    description: 'Arabic-native hybrid model',
   },
 ];
 

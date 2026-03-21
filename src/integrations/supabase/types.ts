@@ -242,6 +242,44 @@ export type Database = {
         }
         Relationships: []
       }
+      curriculum_chat_approvals: {
+        Row: {
+          approval_type: string
+          approved_by: string
+          created_at: string
+          id: string
+          message_id: string
+          session_id: string
+          target_lesson_id: string | null
+        }
+        Insert: {
+          approval_type: string
+          approved_by: string
+          created_at?: string
+          id?: string
+          message_id: string
+          session_id: string
+          target_lesson_id?: string | null
+        }
+        Update: {
+          approval_type?: string
+          approved_by?: string
+          created_at?: string
+          id?: string
+          message_id?: string
+          session_id?: string
+          target_lesson_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "curriculum_chat_approvals_target_lesson_id_fkey"
+            columns: ["target_lesson_id"]
+            isOneToOne: false
+            referencedRelation: "lessons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       curriculum_chat_messages: {
         Row: {
           content: string
@@ -318,6 +356,42 @@ export type Database = {
           target_dialect?: string
           target_stage_id?: string | null
           title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      curriculum_stages: {
+        Row: {
+          cefr_level: string | null
+          created_at: string
+          description: string | null
+          display_order: number
+          id: string
+          name: string
+          name_arabic: string | null
+          stage_number: number
+          updated_at: string
+        }
+        Insert: {
+          cefr_level?: string | null
+          created_at?: string
+          description?: string | null
+          display_order?: number
+          id?: string
+          name: string
+          name_arabic?: string | null
+          stage_number: number
+          updated_at?: string
+        }
+        Update: {
+          cefr_level?: string | null
+          created_at?: string
+          description?: string | null
+          display_order?: number
+          id?: string
+          name?: string
+          name_arabic?: string | null
+          stage_number?: number
           updated_at?: string
         }
         Relationships: []
@@ -707,6 +781,71 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      lessons: {
+        Row: {
+          approach: string | null
+          cefr_target: string | null
+          created_at: string
+          description: string | null
+          dialect_module: string
+          display_order: number
+          duration_minutes: number | null
+          gradient: string
+          icon: string
+          id: string
+          lesson_number: number
+          stage_id: string
+          status: string
+          title: string
+          title_arabic: string | null
+          updated_at: string
+        }
+        Insert: {
+          approach?: string | null
+          cefr_target?: string | null
+          created_at?: string
+          description?: string | null
+          dialect_module?: string
+          display_order?: number
+          duration_minutes?: number | null
+          gradient?: string
+          icon?: string
+          id?: string
+          lesson_number?: number
+          stage_id: string
+          status?: string
+          title: string
+          title_arabic?: string | null
+          updated_at?: string
+        }
+        Update: {
+          approach?: string | null
+          cefr_target?: string | null
+          created_at?: string
+          description?: string | null
+          dialect_module?: string
+          display_order?: number
+          duration_minutes?: number | null
+          gradient?: string
+          icon?: string
+          id?: string
+          lesson_number?: number
+          stage_id?: string
+          status?: string
+          title?: string
+          title_arabic?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lessons_stage_id_fkey"
+            columns: ["stage_id"]
+            isOneToOne: false
+            referencedRelation: "curriculum_stages"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       listening_exercises: {
         Row: {
@@ -1717,6 +1856,7 @@ export type Database = {
           id: string
           image_position: string | null
           image_url: string | null
+          lesson_id: string | null
           topic_id: string
           updated_at: string
           word_arabic: string
@@ -1730,6 +1870,7 @@ export type Database = {
           id?: string
           image_position?: string | null
           image_url?: string | null
+          lesson_id?: string | null
           topic_id: string
           updated_at?: string
           word_arabic: string
@@ -1743,12 +1884,20 @@ export type Database = {
           id?: string
           image_position?: string | null
           image_url?: string | null
+          lesson_id?: string | null
           topic_id?: string
           updated_at?: string
           word_arabic?: string
           word_english?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "vocabulary_words_lesson_id_fkey"
+            columns: ["lesson_id"]
+            isOneToOne: false
+            referencedRelation: "lessons"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "vocabulary_words_topic_id_fkey"
             columns: ["topic_id"]

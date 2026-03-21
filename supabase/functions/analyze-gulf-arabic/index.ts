@@ -252,6 +252,38 @@ const getFanarValidationSystemPrompt = () =>
 اذكر رقم السطر والكلمة والمشكلة بإيجاز. إذا لم تجد مشاكل، قل ذلك بجملة واحدة.
 يمكنك الإجابة بالعربية أو الإنجليزية.`;
 
+// ─── GLOSS ENRICHMENT PROMPT ─────────────────────────────────────────────────
+// Generates per-word English translations for EVERY unique Arabic token.
+// This is the critical step that was missing — previously only 5-8 vocab items
+// and a small dictionary provided glosses, leaving 60-75% of tokens unglossed.
+const getGlossEnrichmentPrompt = (dialect?: string) => {
+  const dialectNote = dialect && dialect !== 'Gulf'
+    ? `The text is ${dialect} Gulf Arabic dialect.`
+    : 'The text is Gulf Arabic (Khaliji) dialect.';
+  return `You are a Gulf Arabic lexicographer. ${dialectNote}
+
+Given a list of unique Arabic words from a transcript, provide the English meaning of EACH word.
+
+Output ONLY valid JSON matching this schema:
+{
+  "glosses": {
+    "arabicWord": "english meaning (1-4 words)"
+  }
+}
+
+Rules:
+- Translate EVERY word in the list. Do not skip any.
+- For particles/prepositions (و، في، من، على), give their function word meaning.
+- For verbs, give the contextual meaning (e.g. "went", "says", "wants").
+- For dialect-specific words, give the dialectal meaning, not the MSA meaning.
+- Keep meanings concise: 1-4 English words maximum.
+- If a word is a proper noun or untranslatable, write "proper noun" or "filler word".
+- Common compounds: if two adjacent words form a fixed phrase (e.g. "عشان كذا" = "that's why"), 
+  include the compound as a separate key AND still gloss each word individually.
+
+No additional text outside JSON.`;
+};
+
 // ─── TRANSLATION PROMPT ──────────────────────────────────────────────────────
 // Used by Gemini 2.5 Flash (primary) and Qwen (fallback).
 // Receives the numbered merged transcript produced by Call 1.

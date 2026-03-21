@@ -50,7 +50,7 @@ export function useCurriculumApproval() {
       const nextLessonNumber = ((existingLessons as unknown as { lesson_number: number }[])?.[0]?.lesson_number ?? 0) + 1;
 
       const { data: lesson, error: lessonErr } = await supabase
-        .from('lessons' as never)
+        .from('lessons')
         .insert({
           stage_id: stageId,
           lesson_number: nextLessonNumber,
@@ -63,6 +63,7 @@ export function useCurriculumApproval() {
           icon: lessonData.icon || '📚',
           gradient: 'bg-gradient-green',
           display_order: nextLessonNumber,
+          dialect_module: dialectModule || 'Gulf',
         } as never)
         .select()
         .single();

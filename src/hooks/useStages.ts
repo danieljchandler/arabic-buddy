@@ -19,11 +19,11 @@ export const useStages = () => {
     queryKey: ['curriculum-stages'],
     queryFn: async (): Promise<CurriculumStage[]> => {
       const { data, error } = await supabase
-        .from('curriculum_stages' as never)
+        .from('curriculum_stages')
         .select('*')
         .order('stage_number', { ascending: true });
       if (error) throw error;
-      return (data ?? []) as unknown as CurriculumStage[];
+      return (data ?? []) as CurriculumStage[];
     },
   });
 };

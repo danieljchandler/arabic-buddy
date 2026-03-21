@@ -31,11 +31,13 @@ export function useCurriculumApproval() {
       sessionId,
       stageId,
       lessonData,
+      dialectModule,
     }: {
       messageId: string;
       sessionId: string;
       stageId: string;
       lessonData: LessonData;
+      dialectModule?: string;
     }) => {
       const { data: userData } = await supabase.auth.getUser();
       if (!userData.user) throw new Error('Not authenticated');

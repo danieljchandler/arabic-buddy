@@ -21,6 +21,7 @@ interface ParsedLessonPlan {
   cefrTarget?: string;
   approach?: string;
   unlockCondition?: string;
+  dialectModule?: string;
   vocabulary: VocabEntry[];
   lessonSequence: any[];
   imageScenes: any[];
@@ -31,58 +32,83 @@ interface ParsedLessonPlan {
 }
 
 /**
- * Hook to import a parsed lesson plan.
- * Since lessons/curriculum_stages tables don't exist yet,
- * this creates a topic and vocabulary words instead.
+ * Hook to import a parsed lesson plan into the lessons table.
  */
 export const useLessonImport = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (plan: ParsedLessonPlan) => {
-      // Create a topic for this lesson
-      const topicName = plan.title;
-      let topicId: string;
+      // Create a lesson in the lessons table
+      const { data: lesson, error: lessonErr } = await supabase
+        .from('lessons' as never)
+        .insert({
+          stage_id: plan.stageId,
+          lesson_number: plan.lessonNumber,
+          title: plan.title,
+          title_arabic: plan.titleArabic || null,
+          description: plan.description || null,
+          duration_minutes: plan.durationMinutes || null,
+          cefr_target: plan.cefrTarget || null,
+          approach: plan.approach || null,
+          icon: '📚',
+          gradient: 'bg-gradient-green',
+          display_order: plan.lessonNumber,
+          dialect_module: plan.dialectModule || 'Gulf',
+          status: 'draft',
+        } as never)
+        .select()
+        .single();
 
-      const { data: existingTopic } = await supabase
-        .from('topics')
-        .select('id')
-        .eq('name', topicName)
-        .maybeSingle();
+      if (lessonErr) throw lessonErr;
+      const lessonRecord = lesson as unknown as { id: string; title: string };
 
-      if (existingTopic) {
-        topicId = existingTopic.id;
-      } else {
-        const { data: maxOrder } = await supabase
+      // Insert vocabulary words linked to this lesson
+      if (plan.vocabulary.length > 0) {
+        // We also need a topic_id for vocab — create or find one
+        const topicName = plan.title;
+        let topicId: string;
+
+        const { data: existingTopic } = await supabase
           .from('topics')
-          .select('display_order')
-          .order('display_order', { ascending: false })
-          .limit(1)
+          .select('id')
+          .eq('name', topicName)
           .maybeSingle();
 
-        const nextOrder = (maxOrder?.display_order ?? -1) + 1;
+        if (existingTopic) {
+          topicId = existingTopic.id;
+        } else {
+          const { data: maxOrder } = await supabase
+            .from('topics')
+            .select('display_order')
+            .order('display_order', { ascending: false })
+            .limit(1)
+            .maybeSingle();
 
-        const { data: newTopic, error: topicError } = await supabase
-          .from('topics')
-          .insert({
-            name: topicName,
-            name_arabic: plan.titleArabic || topicName,
-            display_order: nextOrder,
-          })
-          .select()
-          .single();
+          const nextOrder = (maxOrder?.display_order ?? -1) + 1;
 
-        if (topicError) throw topicError;
-        topicId = newTopic.id;
-      }
+          const { data: newTopic, error: topicError } = await supabase
+            .from('topics')
+            .insert({
+              name: topicName,
+              name_arabic: plan.titleArabic || topicName,
+              display_order: nextOrder,
+              dialect_module: plan.dialectModule || 'Gulf',
+            })
+            .select()
+            .single();
 
-      // Insert vocabulary words
-      if (plan.vocabulary.length > 0) {
+          if (topicError) throw topicError;
+          topicId = newTopic.id;
+        }
+
         const wordsToInsert = plan.vocabulary.map((v, idx) => ({
           topic_id: topicId,
+          lesson_id: lessonRecord.id,
           word_arabic: v.arabic,
           word_english: v.english,
           display_order: idx,
+          dialect_module: plan.dialectModule || 'Gulf',
         }));
 
         const { error: wordsError } = await supabase
@@ -92,10 +118,12 @@ export const useLessonImport = () => {
         if (wordsError) throw wordsError;
       }
 
-      return { id: topicId, name: topicName };
+      return { id: lessonRecord.id, name: plan.title };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['topics'] });
+      queryClient.invalidateQueries({ queryKey: ['lessons'] });
+      queryClient.invalidateQueries({ queryKey: ['all-lessons'] });
     },
   });
 };

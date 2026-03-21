@@ -12,6 +12,7 @@ function generateId(): string {
    surface: string;
    standard?: string;
    gloss?: string;
+   compoundRef?: string;
  }
  
  interface TranscriptLine {

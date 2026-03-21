@@ -1,117 +1,93 @@
 
+Fix the word-definition system end to end by correcting both the stored token data and the runtime interaction layer. Right now the issue is structural, not just a bad prompt.
 
-# Global Dialect Module System
+What I found
+- `DiscoverVideo.tsx` uses its own `ClickableWord` popover, and it only shows `token.gloss` if one already exists. It has no live fallback translation and no adjacent multi-word selection logic at all.
+- `LineByLineTranscript.tsx` does have live single-word and compound fallback, but it relies on weak token data and uses `token.gloss` for two different jobs: real word meanings and `(→ firstWord)` compound markers.
+- In `analyze-gulf-arabic`, tokens are built with `toWordTokens(..., vocab, {})`, meaning most words only get a gloss if they happen to appear in the small 5–8 item vocabulary list or the small hardcoded fallback dictionary. That guarantees low coverage.
+- Real data confirms this: several published videos only have about 24%–36% of tokens glossed.
+- Tokenization is too naive (`split(/\s+/)`), so words like `الزحمة!` keep punctuation attached, which hurts lookup and live translation.
+- Admin/manual video editing can preserve sparse token data instead of regenerating strong token metadata. `AdminTranscriptEditor` also keys cached glosses by `lineId + surface`, which can collide when the same word appears twice in one line.
 
-## Overview
+Right fix
+This needs one unified token-enrichment pipeline plus one unified transcript interaction UI. The persisted transcript data must already contain reliable per-word glosses, and the UI must use the same fallback/compound behavior everywhere.
 
-Create a `DialectContext` that stores the user's active dialect module (starting with "Gulf" and "Egyptian"). Every page, hook, and edge function call reads from this context so the entire app switches dialect at once.
+Implementation plan
 
-## Architecture
+1. Redesign token metadata so single-word glosses and phrase glosses are separate
+- Keep `gloss` for the actual individual word meaning.
+- Add separate compound metadata instead of storing `(→ word)` inside `gloss`.
+- Normalize token lookup data so punctuation does not break matching.
+- Update `src/types/transcript.ts` and the token builders accordingly.
 
-```text
-DialectContext ("Gulf" | "Egyptian")
-  ├── Persisted: localStorage + profiles.preferred_dialect
-  ├── Pages read via useDialect() hook
-  ├── Data queries filter by dialect (where tables have dialect column)
-  └── Edge function calls pass dialect param
-```
+2. Build a dedicated server-side gloss-enrichment step
+- In `supabase/functions/analyze-gulf-arabic/index.ts`, add a real “gloss coverage” phase after line translations are finalized.
+- Generate:
+  - a per-word gloss map for every unique normalized token
+  - a phrase/compound map for common adjacent bigrams/trigrams
+- Use the existing multi-model strategy for verification, but apply it to gloss generation directly instead of hoping the small vocabulary list covers everything.
+- Keep the hardcoded common-word dictionary only as a final fallback, not the primary source.
+- Normalize punctuation/diacritics before lookup and then map back to the displayed surface form.
 
-## Step-by-step
+3. Apply the same stronger token generation to other transcript-producing tools
+- Update `supabase/functions/analyze-meme/index.ts` to use the same normalized token/gloss builder instead of the current bare `glosses[surface]` mapping.
+- Reuse shared backend helper logic so video transcripts, meme transcripts, and any other transcript-based sections behave consistently.
 
-### 1. Database Migration
-- Add `dialect_module` column to `topics` and `vocabulary_words` (default `'Gulf'`)
-- These are the core content tables that need filtering. Other tables (`daily_challenges`, `listening_exercises`, `reading_passages`, `conversation_scenarios`, `grammar_exercises`, `vocab_game_sets`, `interactive_stories`) already have a `dialect` column.
+4. Upgrade the live translation fallback so it is reliable and context-aware
+- Improve `supabase/functions/translate-phrase/index.ts` to accept dialect + optional line context + mode (`word` vs `phrase`).
+- Strip punctuation before lookup/translation.
+- Return clean single-word meaning and phrase meaning consistently.
+- Use it only as resilience when persisted token glosses are missing or when the user selects a custom adjacent phrase.
+- Make sure public transcript views do not depend on a fragile logged-in-only path for basic read-only definitions.
 
-### 2. Create `DialectContext` (new file)
-- `src/contexts/DialectContext.tsx`
-- State: `activeDialect` — `"Gulf" | "Egyptian"` (expandable later)
-- On mount: read from `localStorage`, then from `profiles.preferred_dialect` if authenticated
-- `setDialect()` updates both localStorage and profiles table
-- Export `useDialect()` convenience hook
+5. Unify the frontend transcript interaction system
+- Replace the separate weak token UI in `src/pages/DiscoverVideo.tsx` with the same interaction model used by `LineByLineTranscript`, or extract a shared token/selection component and use it in both places.
+- Ensure every transcript surface supports:
+  - single-word popovers
+  - adjacent 2-word and 3-word selection
+  - fallback translation when needed
+  - the same save-to-vocabulary behavior
+- This should cover videos first, then all other transcript-based sections using the shared component.
 
-### 3. Wrap App with DialectProvider
-- In `App.tsx`, wrap everything with `<DialectProvider>`
+6. Fix admin/manual content so sparse tokens never get saved again
+- In `src/pages/admin/AdminVideoForm.tsx`, regenerate/enrich tokens before saving transcript lines instead of trusting old token arrays.
+- In `src/components/admin/AdminTranscriptEditor.tsx`, stop keying gloss preservation by `lineId + surface`; use token id/index-safe mapping.
+- Preserve manual edits where possible, but rebuild token metadata whenever text changes so new/edited lines do not stay blank.
 
-### 4. Add Module Switcher UI
-- **Index.tsx**: Prominent Gulf/Egyptian toggle near the top of the home page
-- **Settings.tsx**: Add Egyptian to the DIALECTS array and add a module-level switcher
-- **Onboarding.tsx**: Add Egyptian to the DIALECTS array
+7. Repair existing content already in the database
+- Run a one-time backfill for existing `discover_videos.transcript_lines` to regenerate full token gloss coverage.
+- Prioritize published videos first since that is where users are hitting the issue now.
+- If other persisted transcript stores use the same token shape, backfill those too.
 
-### 5. Update Data Hooks to Filter by Dialect
-- `useTopics()` — add `.eq('dialect_module', activeDialect)` (after migration adds the column)
-- `useLessons()` — same filter
-- `useAllWords()` — same filter on `vocabulary_words.dialect_module`
-- `useDiscoverVideos()` — filter on existing `dialect` column
-- Pre-approved content queries in pages (listening, reading, grammar, daily challenges, conversation scenarios, vocab games) — filter by `dialect` column matching active module
+8. Add verification so this does not regress
+- Add backend tests for:
+  - punctuation normalization
+  - per-word gloss coverage
+  - bigram/trigram compound metadata
+  - repeated identical words in one line
+- Add frontend tests for:
+  - single-word click behavior
+  - adjacent multi-word selection
+  - fallback translation rendering
+  - Discover video transcript using the shared behavior
 
-### 6. Pass Dialect to All Edge Function Calls
-These pages call edge functions without a `dialect` param — add it:
-- **GrammarDrills.tsx** → `grammar-drill` — add `dialect` to body
-- **DailyChallenge.tsx** → `daily-challenge` — add `dialect` to body
-- **ListeningPractice.tsx** → `listening-quiz` — add `dialect` to body
-- **ReadingPractice.tsx** → `reading-passage` — add `dialect` to body
-- **HowDoISay.tsx** → `how-do-i-say` — add `dialect` to body
-- **VocabGames.tsx** — if it calls an edge function, add dialect
-- **ConversationSimulator.tsx** → `conversation-practice` — already passes some context; add `dialect` param and filter scenarios by dialect
+Technical details / files likely involved
+- `supabase/functions/analyze-gulf-arabic/index.ts`
+- `supabase/functions/analyze-meme/index.ts`
+- `supabase/functions/translate-phrase/index.ts`
+- `src/types/transcript.ts`
+- `src/components/transcript/LineByLineTranscript.tsx`
+- `src/pages/DiscoverVideo.tsx`
+- `src/components/admin/AdminTranscriptEditor.tsx`
+- `src/pages/admin/AdminVideoForm.tsx`
 
-### 7. Update ConversationSimulator Scenarios
-- The current `SCENARIOS` array is all Gulf Arabic. Add Egyptian scenarios (Cairo taxi, Ahwa café, Khan el-Khalili souq, etc.)
-- Filter displayed scenarios by `activeDialect`
-- Egyptian scenarios use Egyptian Arabic prompts (إزيك، فين، دلوقتي، عايز)
+No schema migration is required for this fix. The main work is:
+- stronger token generation
+- shared UI behavior
+- backfilling existing transcript JSON data
 
-### 8. Update Edge Functions for Egyptian Support
-Each function already accepts (or should accept) a `dialect` param. Update the identity/system prompts to handle "Egyptian":
-- **`conversation-practice`** — swap Gulf identity for Egyptian identity when dialect is "Egyptian"
-- **`daily-challenge`** — Egyptian vocabulary rules
-- **`listening-quiz`** — Egyptian vocabulary rules
-- **`reading-passage`** — Egyptian vocabulary rules
-- **`grammar-drill`** — Egyptian grammar (بتاع, مش, etc.)
-- **`how-do-i-say`** — already has dialect param, ensure Egyptian works
-- **`translate-jais`** — already dynamic, add Egyptian mapping
-- **`weekly-coach`** — accept dialect
-- **`generate-story`** — already has dialect param
-
-For Egyptian, the prompt pattern:
-```
-You are a native Egyptian Arabic (مصري) speaker. Always respond in Egyptian Arabic dialect.
-Use authentic Egyptian vocabulary: إزيك، فين، دلوقتي، عايز، كويس، ماشي، يلا، حاضر، بتاع.
-Do NOT use Gulf Arabic or MSA.
-```
-
-### 9. Update Admin Curriculum Builder
-- `DialectSelector.tsx` — add `{ value: 'Egyptian', label: 'Egyptian Arabic', flag: '🇪🇬' }`
-- Curriculum sessions already scope by `target_dialect` — this just adds the new option
-
-## Files to Create
-- `src/contexts/DialectContext.tsx`
-
-## Files to Edit (~25)
-**Frontend pages** (add `useDialect()` + pass dialect):
-- `src/App.tsx`, `src/pages/Index.tsx`, `src/pages/Settings.tsx`, `src/pages/Onboarding.tsx`
-- `src/pages/ConversationSimulator.tsx`, `src/pages/GrammarDrills.tsx`, `src/pages/DailyChallenge.tsx`
-- `src/pages/ListeningPractice.tsx`, `src/pages/ReadingPractice.tsx`, `src/pages/HowDoISay.tsx`
-- `src/pages/VocabGames.tsx`
-
-**Hooks** (filter by dialect):
-- `src/hooks/useTopics.ts`, `src/hooks/useLessons.ts`, `src/hooks/useAllWords.ts`
-
-**Admin**:
-- `src/components/admin/curriculum-builder/DialectSelector.tsx`
-
-**Edge Functions** (add Egyptian prompt support):
-- `conversation-practice`, `daily-challenge`, `listening-quiz`, `reading-passage`, `grammar-drill`, `how-do-i-say`, `weekly-coach`
-
-## Database Migration
-```sql
-ALTER TABLE public.topics ADD COLUMN IF NOT EXISTS dialect_module text NOT NULL DEFAULT 'Gulf';
-ALTER TABLE public.vocabulary_words ADD COLUMN IF NOT EXISTS dialect_module text NOT NULL DEFAULT 'Gulf';
-CREATE INDEX IF NOT EXISTS idx_topics_dialect ON public.topics(dialect_module);
-CREATE INDEX IF NOT EXISTS idx_vocab_dialect ON public.vocabulary_words(dialect_module);
-```
-
-## Implementation Order
-Due to scope, this will be done in phases across multiple messages:
-1. **Phase 1**: Context + DB migration + module switcher UI + hook filtering
-2. **Phase 2**: Edge function updates + Egyptian conversation scenarios
-3. **Phase 3**: Admin curriculum builder updates
-
+Success criteria
+- Every non-punctuation token in persisted video transcripts has a non-empty individual gloss.
+- Selecting adjacent words works in video transcripts and all other transcript-based sections.
+- Manual/admin-created videos no longer save sparse token data.
+- Existing published videos are repaired, not just newly processed ones.

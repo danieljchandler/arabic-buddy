@@ -1513,18 +1513,70 @@ serve(async (req) => {
        } catch (e) {
          console.warn('Claude vocab enrichment failed (non-blocking):', e);
        }
-     }
+      }
 
-     // Build the final TranscriptResult
-     // Token glosses come from vocabulary items and the COMMON_GLOSSES fallback dictionary.
-     const transcriptResult: TranscriptResult = {
-       rawTranscriptArabic: transcript,
-       lines: finalLines.map((l, idx) => ({
-         id: `line-${generateId()}-${idx}`,
-         arabic: String(l.arabic ?? '').trim(),
-         translation: String(l.translation ?? '').trim(),
-         tokens: toWordTokens(String(l.arabic ?? '').trim(), vocab, {}),
-       })),
+      // ── Step 6: Per-word gloss enrichment ────────────────────────────────────
+      // Generate English translations for ALL unique tokens, not just vocab items.
+      // This is what makes every word clickable with a translation.
+      let allWordGlosses: Record<string, string> = {};
+      try {
+        // Collect all unique words from all lines (stripped of punctuation)
+        const allWordsSet = new Set<string>();
+        for (const l of finalLines) {
+          const words = String(l.arabic ?? '').trim().split(/\s+/).filter(Boolean);
+          for (const w of words) {
+            const cleaned = w.replace(/^[،؟.!:؛…\-—–"'()[\]{}«»]+|[،؟.!:؛…\-—–"'()[\]{}«»]+$/g, '');
+            if (cleaned && !/^[،؟.!:؛…\-—–"'()[\]{}«»]+$/.test(cleaned)) {
+              allWordsSet.add(cleaned);
+            }
+          }
+        }
+
+        // Remove words we already have glosses for (from vocab + COMMON_GLOSSES)
+        const vocabArabicSet = new Set(vocab.map(v => v.arabic));
+        const unknownWords = [...allWordsSet].filter(w => {
+          const stripped = w.replace(/[\u064B-\u065F\u0670]/g, '');
+          return !vocabArabicSet.has(w) && !vocabArabicSet.has(stripped) &&
+                 !COMMON_GLOSSES[w] && !COMMON_GLOSSES[stripped];
+        });
+
+        if (unknownWords.length > 0) {
+          console.log(`Gloss enrichment: ${unknownWords.length} words need translation (${allWordsSet.size} total unique)`);
+          
+          const wordList = unknownWords.join('\n');
+          const glossResp = await callAI({
+            model: 'google/gemini-2.5-flash',
+            systemPrompt: getGlossEnrichmentPrompt(detectedDialect),
+            userContent: `Translate each of these Arabic words to English:\n\n${wordList}`,
+            apiKey: '',
+            gateway: 'lovable',
+            maxTokens: 4096,
+          });
+
+          if (glossResp.content) {
+            const glossResult = safeJsonParse<{ glosses: Record<string, string> }>(glossResp.content);
+            if (glossResult?.glosses) {
+              allWordGlosses = glossResult.glosses;
+              console.log(`Gloss enrichment: received ${Object.keys(allWordGlosses).length} word translations`);
+            }
+          }
+        } else {
+          console.log('Gloss enrichment: all words already covered by vocab + dictionary');
+        }
+      } catch (e) {
+        console.warn('Gloss enrichment failed (non-blocking):', e);
+      }
+
+      // Build the final TranscriptResult
+      // Token glosses come from: AI-generated per-word glosses + vocabulary items + COMMON_GLOSSES fallback.
+      const transcriptResult: TranscriptResult = {
+        rawTranscriptArabic: transcript,
+        lines: finalLines.map((l, idx) => ({
+          id: `line-${generateId()}-${idx}`,
+          arabic: String(l.arabic ?? '').trim(),
+          translation: String(l.translation ?? '').trim(),
+          tokens: toWordTokens(String(l.arabic ?? '').trim(), vocab, allWordGlosses),
+        })),
        vocabulary: vocab,
        grammarPoints,
        culturalContext,

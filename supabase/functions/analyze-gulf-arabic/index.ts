@@ -688,6 +688,16 @@ function stripDiacritics(text: string): string {
   return text.replace(/[\u064B-\u065F\u0670]/g, '');
 }
 
+// Strip punctuation from edges of a word for lookup
+function stripPunctuation(word: string): string {
+  return word.replace(/^[،؟.!:؛…\-—–"'()[\]{}«»]+|[،؟.!:؛…\-—–"'()[\]{}«»]+$/g, '');
+}
+
+// Check if a word is purely punctuation
+function isPunctuation(word: string): boolean {
+  return /^[،؟.!:؛…\-—–"'()[\]{}«»]+$/.test(word);
+}
+
 function toWordTokens(
   arabic: string,
   vocabulary: VocabItem[],
@@ -703,16 +713,25 @@ function toWordTokens(
     wordGlossesStripped[stripDiacritics(k)] = v;
   }
 
-  // Helper: lookup a single word in all dictionaries
+  // Helper: lookup a single word in all dictionaries (with punctuation stripping)
   function lookupSingle(surface: string): string | undefined {
     const stripped = stripDiacritics(surface);
+    const noPunct = stripPunctuation(surface);
+    const noPunctStripped = stripDiacritics(noPunct);
     return (
       vocabMap.get(surface) ??
       wordGlosses[surface] ??
       vocabMapStripped.get(stripped) ??
       wordGlossesStripped[stripped] ??
+      // Try without punctuation
+      vocabMap.get(noPunct) ??
+      wordGlosses[noPunct] ??
+      vocabMapStripped.get(noPunctStripped) ??
+      wordGlossesStripped[noPunctStripped] ??
       COMMON_GLOSSES[surface] ??
-      COMMON_GLOSSES[stripped]
+      COMMON_GLOSSES[stripped] ??
+      COMMON_GLOSSES[noPunct] ??
+      COMMON_GLOSSES[noPunctStripped]
     );
   }
 
@@ -720,11 +739,14 @@ function toWordTokens(
   function lookupBigram(w1: string, w2: string): string | undefined {
     const bigram = `${w1} ${w2}`;
     const strippedBigram = `${stripDiacritics(w1)} ${stripDiacritics(w2)}`;
+    const noPunctBigram = `${stripPunctuation(w1)} ${stripPunctuation(w2)}`;
     return (
       vocabMap.get(bigram) ??
       wordGlosses[bigram] ??
       vocabMapStripped.get(strippedBigram) ??
-      wordGlossesStripped[strippedBigram]
+      wordGlossesStripped[strippedBigram] ??
+      wordGlosses[noPunctBigram] ??
+      wordGlossesStripped[stripDiacritics(noPunctBigram)]
     );
   }
 
@@ -747,6 +769,17 @@ function toWordTokens(
   while (i < words.length) {
     const surface = words[i];
 
+    // Skip punctuation-only tokens — still include them but mark as punctuation
+    if (isPunctuation(surface)) {
+      tokens.push({
+        id: `tok-${generateId()}-${i}`,
+        surface,
+        gloss: undefined, // punctuation doesn't need a gloss
+      });
+      i++;
+      continue;
+    }
+
     // Try trigram first (current word + next two words)
     if (i + 2 < words.length) {
       const trigramGloss = lookupTrigram(surface, words[i + 1], words[i + 2]);
@@ -757,16 +790,19 @@ function toWordTokens(
           surface,
           gloss: trigramGloss,
         });
-        // Emit second and third words with reference markers
+        // Emit second and third words with compoundRef (NOT in gloss field)
+        // Each still gets its own individual gloss
         tokens.push({
           id: `tok-${generateId()}-${i + 1}`,
           surface: words[i + 1],
-          gloss: `(→ ${surface})`, // indicates it's part of the preceding compound
+          gloss: lookupSingle(words[i + 1]),
+          compoundRef: surface,
         });
         tokens.push({
           id: `tok-${generateId()}-${i + 2}`,
           surface: words[i + 2],
-          gloss: `(→ ${surface})`, // indicates it's part of the preceding compound
+          gloss: lookupSingle(words[i + 2]),
+          compoundRef: surface,
         });
         i += 3;
         continue;
@@ -777,17 +813,16 @@ function toWordTokens(
     if (i + 1 < words.length) {
       const bigramGloss = lookupBigram(surface, words[i + 1]);
       if (bigramGloss) {
-        // Emit first word with the compound gloss
         tokens.push({
           id: `tok-${generateId()}-${i}`,
           surface,
           gloss: bigramGloss,
         });
-        // Emit second word with a reference gloss so it's not blank
         tokens.push({
           id: `tok-${generateId()}-${i + 1}`,
           surface: words[i + 1],
-          gloss: `(→ ${surface})`, // indicates it's part of the preceding compound
+          gloss: lookupSingle(words[i + 1]),
+          compoundRef: surface,
         });
         i += 2;
         continue;

@@ -2,7 +2,8 @@
    id: string;
    surface: string;         // as spoken in transcript
    standard?: string;       // more standard spelling (optional)
-   gloss?: string;          // English meaning for this word (optional)
+   gloss?: string;          // English meaning for this individual word
+   compoundRef?: string;    // if part of a compound phrase, references the first word's surface
  };
  
  export type TranscriptLine = {

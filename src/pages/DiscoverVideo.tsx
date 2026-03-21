@@ -24,6 +24,7 @@ import { cn } from "@/lib/utils";
 import { extractTikTokVideoId, getTikTokEmbedUrl } from "@/lib/videoEmbed";
 import type { TranscriptLine, WordToken, VocabItem } from "@/types/transcript";
 import { VideoRating } from "@/components/discover/VideoRating";
+import { supabase } from "@/integrations/supabase/client";
 
 declare global {
   interface Window {
@@ -46,16 +47,39 @@ const ClickableWord = ({
   isSaved?: boolean;
 }) => {
   const [open, setOpen] = useState(false);
-  const hasGloss = !!token.gloss;
+  const [liveTranslation, setLiveTranslation] = useState<string | null>(null);
+  const [liveMsa, setLiveMsa] = useState<string | null>(null);
+  const [isTranslating, setIsTranslating] = useState(false);
+
+  // A real gloss exists if gloss is set and is not a legacy compound marker
+  const hasGloss = !!token.gloss && !token.gloss.startsWith("(→") && !token.compoundRef;
+  const displayGloss = hasGloss ? token.gloss : liveTranslation;
 
   const vocabItem: VocabItem = {
     arabic: token.surface,
-    english: token.gloss || "",
+    english: displayGloss || token.gloss || "",
     sentenceText: parentLine.arabic,
     sentenceEnglish: parentLine.translation,
     startMs: parentLine.startMs,
     endMs: parentLine.endMs,
   };
+
+  // Auto-translate when popover opens and no gloss exists
+  useEffect(() => {
+    if (open && !hasGloss && !liveTranslation && !isTranslating) {
+      setIsTranslating(true);
+      supabase.functions
+        .invoke("translate-phrase", { body: { phrase: token.surface } })
+        .then(({ data, error }) => {
+          if (!error && data?.translation) {
+            setLiveTranslation(data.translation);
+            if (data.msa) setLiveMsa(data.msa);
+          }
+        })
+        .catch((err) => console.warn("Word translation failed:", err))
+        .finally(() => setIsTranslating(false));
+    }
+  }, [open, hasGloss, liveTranslation, isTranslating, token.surface]);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -86,17 +110,23 @@ const ClickableWord = ({
             >
               {token.surface}
             </p>
-            {hasGloss && <p className="text-sm text-muted-foreground">{token.gloss}</p>}
-            {token.standard && (
+            {displayGloss && <p className="text-sm text-muted-foreground">{displayGloss}</p>}
+            {(token.standard || liveMsa) && (
               <p className="text-xs text-muted-foreground/70" dir="rtl">
-                (Standard: {token.standard})
+                (فصحى: {token.standard || liveMsa})
               </p>
             )}
-            {!hasGloss && (
+            {!displayGloss && isTranslating && (
+              <div className="flex items-center justify-center gap-2 mt-1">
+                <div className="h-3 w-3 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                <span className="text-xs text-muted-foreground">Translating…</span>
+              </div>
+            )}
+            {!displayGloss && !isTranslating && (
               <p className="text-xs text-muted-foreground italic">No definition available</p>
             )}
           </div>
-          {onSave && (
+          {onSave && displayGloss && (
             <Button
               variant="default"
               size="sm"

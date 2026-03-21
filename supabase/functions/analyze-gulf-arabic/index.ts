@@ -12,6 +12,7 @@ function generateId(): string {
    surface: string;
    standard?: string;
    gloss?: string;
+   compoundRef?: string;
  }
  
  interface TranscriptLine {
@@ -250,6 +251,38 @@ const getFanarValidationSystemPrompt = () =>
 
 اذكر رقم السطر والكلمة والمشكلة بإيجاز. إذا لم تجد مشاكل، قل ذلك بجملة واحدة.
 يمكنك الإجابة بالعربية أو الإنجليزية.`;
+
+// ─── GLOSS ENRICHMENT PROMPT ─────────────────────────────────────────────────
+// Generates per-word English translations for EVERY unique Arabic token.
+// This is the critical step that was missing — previously only 5-8 vocab items
+// and a small dictionary provided glosses, leaving 60-75% of tokens unglossed.
+const getGlossEnrichmentPrompt = (dialect?: string) => {
+  const dialectNote = dialect && dialect !== 'Gulf'
+    ? `The text is ${dialect} Gulf Arabic dialect.`
+    : 'The text is Gulf Arabic (Khaliji) dialect.';
+  return `You are a Gulf Arabic lexicographer. ${dialectNote}
+
+Given a list of unique Arabic words from a transcript, provide the English meaning of EACH word.
+
+Output ONLY valid JSON matching this schema:
+{
+  "glosses": {
+    "arabicWord": "english meaning (1-4 words)"
+  }
+}
+
+Rules:
+- Translate EVERY word in the list. Do not skip any.
+- For particles/prepositions (و، في، من، على), give their function word meaning.
+- For verbs, give the contextual meaning (e.g. "went", "says", "wants").
+- For dialect-specific words, give the dialectal meaning, not the MSA meaning.
+- Keep meanings concise: 1-4 English words maximum.
+- If a word is a proper noun or untranslatable, write "proper noun" or "filler word".
+- Common compounds: if two adjacent words form a fixed phrase (e.g. "عشان كذا" = "that's why"), 
+  include the compound as a separate key AND still gloss each word individually.
+
+No additional text outside JSON.`;
+};
 
 // ─── TRANSLATION PROMPT ──────────────────────────────────────────────────────
 // Used by Gemini 2.5 Flash (primary) and Qwen (fallback).
@@ -655,6 +688,16 @@ function stripDiacritics(text: string): string {
   return text.replace(/[\u064B-\u065F\u0670]/g, '');
 }
 
+// Strip punctuation from edges of a word for lookup
+function stripPunctuation(word: string): string {
+  return word.replace(/^[،؟.!:؛…\-—–"'()[\]{}«»]+|[،؟.!:؛…\-—–"'()[\]{}«»]+$/g, '');
+}
+
+// Check if a word is purely punctuation
+function isPunctuation(word: string): boolean {
+  return /^[،؟.!:؛…\-—–"'()[\]{}«»]+$/.test(word);
+}
+
 function toWordTokens(
   arabic: string,
   vocabulary: VocabItem[],
@@ -670,16 +713,25 @@ function toWordTokens(
     wordGlossesStripped[stripDiacritics(k)] = v;
   }
 
-  // Helper: lookup a single word in all dictionaries
+  // Helper: lookup a single word in all dictionaries (with punctuation stripping)
   function lookupSingle(surface: string): string | undefined {
     const stripped = stripDiacritics(surface);
+    const noPunct = stripPunctuation(surface);
+    const noPunctStripped = stripDiacritics(noPunct);
     return (
       vocabMap.get(surface) ??
       wordGlosses[surface] ??
       vocabMapStripped.get(stripped) ??
       wordGlossesStripped[stripped] ??
+      // Try without punctuation
+      vocabMap.get(noPunct) ??
+      wordGlosses[noPunct] ??
+      vocabMapStripped.get(noPunctStripped) ??
+      wordGlossesStripped[noPunctStripped] ??
       COMMON_GLOSSES[surface] ??
-      COMMON_GLOSSES[stripped]
+      COMMON_GLOSSES[stripped] ??
+      COMMON_GLOSSES[noPunct] ??
+      COMMON_GLOSSES[noPunctStripped]
     );
   }
 
@@ -687,11 +739,14 @@ function toWordTokens(
   function lookupBigram(w1: string, w2: string): string | undefined {
     const bigram = `${w1} ${w2}`;
     const strippedBigram = `${stripDiacritics(w1)} ${stripDiacritics(w2)}`;
+    const noPunctBigram = `${stripPunctuation(w1)} ${stripPunctuation(w2)}`;
     return (
       vocabMap.get(bigram) ??
       wordGlosses[bigram] ??
       vocabMapStripped.get(strippedBigram) ??
-      wordGlossesStripped[strippedBigram]
+      wordGlossesStripped[strippedBigram] ??
+      wordGlosses[noPunctBigram] ??
+      wordGlossesStripped[stripDiacritics(noPunctBigram)]
     );
   }
 
@@ -714,6 +769,17 @@ function toWordTokens(
   while (i < words.length) {
     const surface = words[i];
 
+    // Skip punctuation-only tokens — still include them but mark as punctuation
+    if (isPunctuation(surface)) {
+      tokens.push({
+        id: `tok-${generateId()}-${i}`,
+        surface,
+        gloss: undefined, // punctuation doesn't need a gloss
+      });
+      i++;
+      continue;
+    }
+
     // Try trigram first (current word + next two words)
     if (i + 2 < words.length) {
       const trigramGloss = lookupTrigram(surface, words[i + 1], words[i + 2]);
@@ -724,16 +790,19 @@ function toWordTokens(
           surface,
           gloss: trigramGloss,
         });
-        // Emit second and third words with reference markers
+        // Emit second and third words with compoundRef (NOT in gloss field)
+        // Each still gets its own individual gloss
         tokens.push({
           id: `tok-${generateId()}-${i + 1}`,
           surface: words[i + 1],
-          gloss: `(→ ${surface})`, // indicates it's part of the preceding compound
+          gloss: lookupSingle(words[i + 1]),
+          compoundRef: surface,
         });
         tokens.push({
           id: `tok-${generateId()}-${i + 2}`,
           surface: words[i + 2],
-          gloss: `(→ ${surface})`, // indicates it's part of the preceding compound
+          gloss: lookupSingle(words[i + 2]),
+          compoundRef: surface,
         });
         i += 3;
         continue;
@@ -744,17 +813,16 @@ function toWordTokens(
     if (i + 1 < words.length) {
       const bigramGloss = lookupBigram(surface, words[i + 1]);
       if (bigramGloss) {
-        // Emit first word with the compound gloss
         tokens.push({
           id: `tok-${generateId()}-${i}`,
           surface,
           gloss: bigramGloss,
         });
-        // Emit second word with a reference gloss so it's not blank
         tokens.push({
           id: `tok-${generateId()}-${i + 1}`,
           surface: words[i + 1],
-          gloss: `(→ ${surface})`, // indicates it's part of the preceding compound
+          gloss: lookupSingle(words[i + 1]),
+          compoundRef: surface,
         });
         i += 2;
         continue;
@@ -1445,18 +1513,70 @@ serve(async (req) => {
        } catch (e) {
          console.warn('Claude vocab enrichment failed (non-blocking):', e);
        }
-     }
+      }
 
-     // Build the final TranscriptResult
-     // Token glosses come from vocabulary items and the COMMON_GLOSSES fallback dictionary.
-     const transcriptResult: TranscriptResult = {
-       rawTranscriptArabic: transcript,
-       lines: finalLines.map((l, idx) => ({
-         id: `line-${generateId()}-${idx}`,
-         arabic: String(l.arabic ?? '').trim(),
-         translation: String(l.translation ?? '').trim(),
-         tokens: toWordTokens(String(l.arabic ?? '').trim(), vocab, {}),
-       })),
+      // ── Step 6: Per-word gloss enrichment ────────────────────────────────────
+      // Generate English translations for ALL unique tokens, not just vocab items.
+      // This is what makes every word clickable with a translation.
+      let allWordGlosses: Record<string, string> = {};
+      try {
+        // Collect all unique words from all lines (stripped of punctuation)
+        const allWordsSet = new Set<string>();
+        for (const l of finalLines) {
+          const words = String(l.arabic ?? '').trim().split(/\s+/).filter(Boolean);
+          for (const w of words) {
+            const cleaned = w.replace(/^[،؟.!:؛…\-—–"'()[\]{}«»]+|[،؟.!:؛…\-—–"'()[\]{}«»]+$/g, '');
+            if (cleaned && !/^[،؟.!:؛…\-—–"'()[\]{}«»]+$/.test(cleaned)) {
+              allWordsSet.add(cleaned);
+            }
+          }
+        }
+
+        // Remove words we already have glosses for (from vocab + COMMON_GLOSSES)
+        const vocabArabicSet = new Set(vocab.map(v => v.arabic));
+        const unknownWords = [...allWordsSet].filter(w => {
+          const stripped = w.replace(/[\u064B-\u065F\u0670]/g, '');
+          return !vocabArabicSet.has(w) && !vocabArabicSet.has(stripped) &&
+                 !COMMON_GLOSSES[w] && !COMMON_GLOSSES[stripped];
+        });
+
+        if (unknownWords.length > 0) {
+          console.log(`Gloss enrichment: ${unknownWords.length} words need translation (${allWordsSet.size} total unique)`);
+          
+          const wordList = unknownWords.join('\n');
+          const glossResp = await callAI({
+            model: 'google/gemini-2.5-flash',
+            systemPrompt: getGlossEnrichmentPrompt(detectedDialect),
+            userContent: `Translate each of these Arabic words to English:\n\n${wordList}`,
+            apiKey: '',
+            gateway: 'lovable',
+            maxTokens: 4096,
+          });
+
+          if (glossResp.content) {
+            const glossResult = safeJsonParse<{ glosses: Record<string, string> }>(glossResp.content);
+            if (glossResult?.glosses) {
+              allWordGlosses = glossResult.glosses;
+              console.log(`Gloss enrichment: received ${Object.keys(allWordGlosses).length} word translations`);
+            }
+          }
+        } else {
+          console.log('Gloss enrichment: all words already covered by vocab + dictionary');
+        }
+      } catch (e) {
+        console.warn('Gloss enrichment failed (non-blocking):', e);
+      }
+
+      // Build the final TranscriptResult
+      // Token glosses come from: AI-generated per-word glosses + vocabulary items + COMMON_GLOSSES fallback.
+      const transcriptResult: TranscriptResult = {
+        rawTranscriptArabic: transcript,
+        lines: finalLines.map((l, idx) => ({
+          id: `line-${generateId()}-${idx}`,
+          arabic: String(l.arabic ?? '').trim(),
+          translation: String(l.translation ?? '').trim(),
+          tokens: toWordTokens(String(l.arabic ?? '').trim(), vocab, allWordGlosses),
+        })),
        vocabulary: vocab,
        grammarPoints,
        culturalContext,

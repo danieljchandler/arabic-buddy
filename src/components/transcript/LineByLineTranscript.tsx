@@ -73,8 +73,8 @@ const InlineToken = ({
   const [liveTranslation, setLiveTranslation] = useState<string | null>(null);
   const [liveMsa, setLiveMsa] = useState<string | null>(null);
   const [isTranslating, setIsTranslating] = useState(false);
-  const hasGloss = !!token.gloss;
-  const displayGloss = token.gloss || liveTranslation;
+  const hasGloss = !!token.gloss && !token.gloss.startsWith("(→") && !token.compoundRef;
+  const displayGloss = hasGloss ? token.gloss : liveTranslation;
   
   // Merge forceSingleOpen from parent with local state
   const effectiveOpen = singleOpen || (forceSingleOpen ?? false);
@@ -384,7 +384,7 @@ interface TranscriptLineCardProps {
 
    // Lookup compound gloss for a range [firstIdx, lastIdx] (inclusive).
    // Supports bigrams (span=1) and trigrams (span=2).
-   // The backend marks 2nd (and 3rd) compound tokens with "(→ firstWord)" in their gloss.
+   // The backend marks compound tokens with compoundRef or legacy "(→ firstWord)" in gloss.
    const getCompoundGloss = useCallback((firstIdx: number, lastIdx: number): string | undefined => {
      if (!line.tokens) return undefined;
      const span = lastIdx - firstIdx;
@@ -394,17 +394,18 @@ interface TranscriptLineCardProps {
      const t2 = line.tokens[firstIdx + 1];
      if (!t1 || !t2) return undefined;
 
+     const isCompound = (t: WordToken) => !!t.compoundRef || t.gloss?.startsWith("(→");
+
      if (span === 1) {
-       // Bigram: second token carries "(→ ..." marker, first token has the compound gloss
-       if (t2.gloss?.startsWith("(→")) return t1.gloss;
-       if (t1.gloss?.startsWith("(→")) return t2.gloss;
+       if (isCompound(t2)) return t1.gloss;
+       if (isCompound(t1)) return t2.gloss;
        return undefined;
      }
 
-     // Trigram: both second and third tokens carry "(→ ..." markers
+     // Trigram: both second and third tokens carry compound markers
      const t3 = line.tokens[firstIdx + 2];
      if (!t3) return undefined;
-     if (t2.gloss?.startsWith("(→") && t3.gloss?.startsWith("(→")) return t1.gloss;
+     if (isCompound(t2) && isCompound(t3)) return t1.gloss;
      return undefined;
    }, [line.tokens]);
 

@@ -24,6 +24,7 @@ import { cn } from "@/lib/utils";
 import { extractTikTokVideoId, getTikTokEmbedUrl } from "@/lib/videoEmbed";
 import type { TranscriptLine, WordToken, VocabItem } from "@/types/transcript";
 import { VideoRating } from "@/components/discover/VideoRating";
+import { supabase } from "@/integrations/supabase/client";
 
 declare global {
   interface Window {

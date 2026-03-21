@@ -73,8 +73,8 @@ const InlineToken = ({
   const [liveTranslation, setLiveTranslation] = useState<string | null>(null);
   const [liveMsa, setLiveMsa] = useState<string | null>(null);
   const [isTranslating, setIsTranslating] = useState(false);
-  const hasGloss = !!token.gloss;
-  const displayGloss = token.gloss || liveTranslation;
+  const hasGloss = !!token.gloss && !token.gloss.startsWith("(→") && !token.compoundRef;
+  const displayGloss = hasGloss ? token.gloss : liveTranslation;
   
   // Merge forceSingleOpen from parent with local state
   const effectiveOpen = singleOpen || (forceSingleOpen ?? false);

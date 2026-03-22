@@ -4,11 +4,18 @@ import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { TranscriptionStatusBanner } from '@/components/admin/TranscriptionStatusBanner';
+import { useDialect } from '@/contexts/DialectContext';
+
+const DIALECT_META: Record<string, { flag: string; label: string; color: string }> = {
+  Gulf: { flag: '🌊', label: 'Gulf Arabic Module', color: 'bg-sky-600' },
+  Egyptian: { flag: '🇪🇬', label: 'Egyptian Arabic Module', color: 'bg-amber-600' },
+};
 
 const AdminLayout = () => {
   const navigate = useNavigate();
   const { user, isAdmin, isRecorder, loading } = useAdminAuth();
   const { toast } = useToast();
+  const { activeDialect, setDialect } = useDialect();
 
   useEffect(() => {
     if (!loading) {
@@ -36,8 +43,6 @@ const AdminLayout = () => {
     );
   }
 
-  // While the navigation effect fires (user not authorised), show spinner
-  // rather than returning null, which causes a white flash.
   if (!user || (!isAdmin && !isRecorder)) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -49,8 +54,26 @@ const AdminLayout = () => {
     );
   }
 
+  const meta = DIALECT_META[activeDialect] || DIALECT_META.Gulf;
+  const otherDialect = activeDialect === 'Gulf' ? 'Egyptian' : 'Gulf';
+  const otherMeta = DIALECT_META[otherDialect];
+
   return (
     <>
+      {/* Dialect indicator bar */}
+      <div className={`${meta.color} text-white px-4 py-2 flex items-center justify-between text-sm`}>
+        <div className="flex items-center gap-2 font-medium">
+          <span className="text-lg">{meta.flag}</span>
+          <span>{meta.label}</span>
+        </div>
+        <button
+          onClick={() => setDialect(otherDialect as 'Gulf' | 'Egyptian')}
+          className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 transition-colors rounded-full px-3 py-1 text-xs font-medium"
+        >
+          <span>{otherMeta.flag}</span>
+          Switch to {otherMeta.label}
+        </button>
+      </div>
       <Outlet />
       <TranscriptionStatusBanner />
     </>

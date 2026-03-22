@@ -7,19 +7,22 @@ import { Loader2, LogOut, BookOpen, Plus, Settings, Mic, PlayCircle, Upload, Gra
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 import lahjaIcon from '@/assets/lahja-icon.png';
+import { useDialect } from '@/contexts/DialectContext';
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const { activeDialect } = useDialect();
   const { user, isAdmin, isRecorder, role, signOut, loading: authLoading } = useAdminAuth();
   const { data: topics, isLoading: topicsLoading } = useTopics();
 
   // Get word counts for each topic
   const { data: wordCounts } = useQuery({
-    queryKey: ['word-counts'],
+    queryKey: ['word-counts', activeDialect],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('vocabulary_words')
-        .select('topic_id');
+        .select('topic_id')
+        .eq('dialect_module', activeDialect);
 
       if (error) throw error;
 

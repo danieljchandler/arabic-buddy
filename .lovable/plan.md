@@ -1,55 +1,38 @@
 
 
-# Fix Curriculum Chat — Create Missing Tables + Clean Up Models + Add Egyptian
+# Fix Curriculum Chat → Lesson + Flashcard Pipeline
 
-## Problem
-Nothing happens when you try to create lessons because:
-1. **`curriculum_stages`, `lessons`, `curriculum_chat_approvals` tables don't exist** — the approval hook inserts into `lessons` which fails silently
-2. **`ModelSelector` still lists Jais, ALLaM, Falcon** — selecting them errors since they're removed from the backend
-3. **Edge function lacks Egyptian dialect** and still uses `gemini-2.5-flash` instead of `gemini-3-flash-preview`
-4. **`vocabulary_words` has no `lesson_id` column** — vocab can't be linked to lessons
-5. **Default model in `CurriculumBuilder.tsx`** is `google/gemini-2.5-flash` instead of the upgraded model
+## The Problem
 
-## Changes
+Yes, this is absolutely possible — and the architecture is already 90% there. The chat generates structured JSON, preview cards render with "Approve" buttons, and approval hooks insert into the `lessons` and `vocabulary_words` tables. But it fails silently because of two bugs:
 
-### 1. Database Migration
-Create the three missing tables and seed curriculum stages:
+### Bug 1: Missing `topic_id` on vocabulary insert (FATAL)
+The `vocabulary_words` table has `topic_id` as **NOT NULL**. When approving a lesson, the code inserts vocab with only `lesson_id`, `word_arabic`, `word_english`, `display_order` — no `topic_id`. This causes a database error and the entire approval silently fails.
 
-```sql
--- curriculum_stages table with 6 levels
--- lessons table (references curriculum_stages)
--- curriculum_chat_approvals table
--- Add lesson_id column to vocabulary_words
--- RLS: admin-only for stages/lessons/approvals management, public SELECT on stages/lessons
--- Seed 6 stages (Foundations through Mastery)
-```
+### Bug 2: Edge function timeout kills Claude requests
+The edge function has a 55-second timeout. Claude via OpenRouter regularly exceeds this (seen in logs: `AbortError: The signal has been aborted`). The AI never returns a response, so no preview card ever appears.
 
-### 2. `ModelSelector.tsx` — Remove dead models, add gemini-3-flash-preview
-- Remove `jais-hf`, `allam-hf`, `falcon-h1r` from `LLMModelId` type and `MODEL_OPTIONS`
-- Add `google/gemini-3-flash-preview` as the recommended model
-- Keep Gemini 2.5 Flash, Claude, Qwen, Gemma, Fanar
+### Bug 3: `dialect_module` not passed to vocab inserts
+When vocabulary words are created alongside a lesson, they don't inherit the session's dialect, so everything defaults to "Gulf".
 
-### 3. `curriculum-chat/index.ts` — Add Egyptian + gemini-3-flash-preview
-- Add `google/gemini-3-flash-preview` to `MODEL_REGISTRY`
-- Add `Egyptian` to `DIALECT_CONTEXT` with appropriate vocabulary examples
-- Update system prompt to handle Egyptian vs Gulf dynamically
+## Fix Plan
 
-### 4. `CurriculumBuilder.tsx` — Fix default model
-- Change default `newModel` from `google/gemini-2.5-flash` to `google/gemini-3-flash-preview`
+### 1. Make `topic_id` nullable on `vocabulary_words`
+Run a migration: `ALTER TABLE vocabulary_words ALTER COLUMN topic_id DROP NOT NULL;`
+This lets vocab exist under a lesson without needing a topic. The lesson-based curriculum path and the topic-based path can coexist.
 
-### 5. `useCurriculumApproval.ts` — Add dialect_module to lesson/vocab inserts
-- Pass `dialect_module` when inserting lessons and vocabulary so content is tagged correctly
+### 2. Fix `useCurriculumApproval.ts` — add `dialect_module` to vocab inserts
+When inserting vocabulary alongside an approved lesson, pass `dialect_module` from the session context. Same fix for standalone `approveVocabulary`.
 
-### 6. `useStages.ts` — Remove `as never` cast (table will exist now)
+### 3. Increase edge function timeout for Claude
+Change the AbortController timeout from 55s to 120s. Claude structured output generation needs more time.
 
-### 7. `useLessonImport.ts` — Use new `lessons` table instead of falling back to topics
+### 4. Pass `dialectModule` through the approval flow
+Update `CurriculumBuilder.tsx` to pass `activeSession.target_dialect` as `dialectModule` to `handleApproveLesson`. Update the approval hook call accordingly.
 
-## Files
-- **New migration** (1 file)
-- `src/components/admin/curriculum-builder/ModelSelector.tsx`
-- `supabase/functions/curriculum-chat/index.ts`
-- `src/pages/admin/CurriculumBuilder.tsx`
-- `src/hooks/useCurriculumApproval.ts`
-- `src/hooks/useStages.ts`
-- `src/hooks/useLessonImport.ts`
+## Files to Edit
+- **New migration** — make `topic_id` nullable
+- `src/hooks/useCurriculumApproval.ts` — add `dialect_module` to vocab inserts
+- `src/pages/admin/CurriculumBuilder.tsx` — pass dialect to approval
+- `supabase/functions/curriculum-chat/index.ts` — increase timeout to 120s
 

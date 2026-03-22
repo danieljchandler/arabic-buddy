@@ -1,16 +1,46 @@
 import { useNavigate } from 'react-router-dom';
 import { useStages } from '@/hooks/useStages';
-import { useAllLessons } from '@/hooks/useLessons';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Loader2, ArrowLeft, Upload, ChevronRight } from 'lucide-react';
+import { useDialect } from '@/contexts/DialectContext';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+
+interface LessonRow {
+  id: string;
+  title: string;
+  title_arabic: string | null;
+  stage_id: string;
+  lesson_number: number;
+  display_order: number;
+  icon: string;
+  status: string;
+  dialect_module: string;
+  vocabulary_words: { id: string }[];
+}
 
 const Stages = () => {
   const navigate = useNavigate();
   const { isAdmin } = useAdminAuth();
   const { data: stages, isLoading: stagesLoading } = useStages();
-  const { data: allLessons, isLoading: lessonsLoading } = useAllLessons();
+  const { activeDialect } = useDialect();
+
+  // Fetch real lessons from the lessons table, filtered by dialect
+  const { data: lessons, isLoading: lessonsLoading } = useQuery({
+    queryKey: ['admin-lessons', activeDialect],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('lessons')
+        .select('id, title, title_arabic, stage_id, lesson_number, display_order, icon, status, dialect_module, vocabulary_words(id)')
+        .eq('dialect_module', activeDialect)
+        .order('display_order', { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as unknown as LessonRow[];
+    },
+  });
 
   const isLoading = stagesLoading || lessonsLoading;
 
@@ -22,12 +52,12 @@ const Stages = () => {
     );
   }
 
-  // Group lessons by stage
-  const lessonsByStage = new Map<string, typeof allLessons>();
-  allLessons?.forEach(lesson => {
-    const existing = lessonsByStage.get('default') || [];
+  // Group lessons by stage_id
+  const lessonsByStage = new Map<string, LessonRow[]>();
+  lessons?.forEach(lesson => {
+    const existing = lessonsByStage.get(lesson.stage_id) || [];
     existing.push(lesson);
-    lessonsByStage.set('default', existing);
+    lessonsByStage.set(lesson.stage_id, existing);
   });
 
   return (
@@ -52,9 +82,6 @@ const Stages = () => {
       <main className="container mx-auto px-4 py-8 space-y-6">
         {stages?.map(stage => {
           const stageLessons = lessonsByStage.get(stage.id) || [];
-
-          // Skip the legacy stage if it has no lessons
-          if (stage.stage_number === 0 && stageLessons.length === 0) return null;
 
           return (
             <Card key={stage.id}>
@@ -87,22 +114,25 @@ const Stages = () => {
                       <button
                         key={lesson.id}
                         className="w-full flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50 transition-colors text-left"
-                        onClick={() => navigate(`/admin/topics/${lesson.id}/words`)}
+                        onClick={() => navigate(`/admin/lessons/${lesson.id}/words`)}
                       >
                         <div className="flex items-center gap-3">
                           <span className="text-2xl">{lesson.icon}</span>
                           <div>
                             <p className="font-medium">
-                              Lesson {lesson.display_order}: {lesson.name}
+                              Lesson {lesson.lesson_number}: {lesson.title}
                             </p>
-                            {lesson.name_arabic && (
-                              <p className="text-sm text-muted-foreground font-arabic">{lesson.name_arabic}</p>
+                            {lesson.title_arabic && (
+                              <p className="text-sm text-muted-foreground font-arabic">{lesson.title_arabic}</p>
                             )}
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
+                          <Badge variant={lesson.status === 'published' ? 'default' : 'secondary'} className="text-xs">
+                            {lesson.status}
+                          </Badge>
                           <span className="text-sm text-muted-foreground">
-                            {lesson.word_count || 0} words
+                            {lesson.vocabulary_words?.length || 0} words
                           </span>
                           <ChevronRight className="h-4 w-4 text-muted-foreground" />
                         </div>
@@ -111,7 +141,7 @@ const Stages = () => {
                   </div>
                 ) : (
                   <p className="text-sm text-muted-foreground text-center py-4">
-                    No lessons yet. Import a lesson plan to get started.
+                    No lessons yet. Use the Curriculum Builder to create lessons.
                   </p>
                 )}
               </CardContent>

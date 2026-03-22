@@ -64,9 +64,15 @@ const CurriculumBuilder = () => {
 
   const activeSession = sessions.find((s) => s.id === activeSessionId);
 
+  // Filter sidebar sessions to current dialect
+  const dialectSessions = sessions.filter(
+    (s) => s.target_dialect === activeDialect || s.target_dialect === activeDialect
+  );
+
   const handleNewSession = useCallback(() => {
+    setNewDialect(activeDialect as GulfDialect);
     setShowNewDialog(true);
-  }, []);
+  }, [activeDialect]);
 
   const handleCreateSession = useCallback(() => {
     createSession.mutate(

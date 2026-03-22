@@ -24,6 +24,7 @@ import { useStages } from '@/hooks/useStages';
 const CurriculumBuilder = () => {
   const navigate = useNavigate();
   const { sessionId: routeSessionId } = useParams<{ sessionId?: string }>();
+  const { activeDialect } = useDialect();
 
   const {
     sessions,
@@ -50,7 +51,7 @@ const CurriculumBuilder = () => {
   const { data: stages } = useStages();
 
   const [showNewDialog, setShowNewDialog] = useState(false);
-  const [newDialect, setNewDialect] = useState<GulfDialect>('Gulf');
+  const [newDialect, setNewDialect] = useState<GulfDialect>(activeDialect as GulfDialect);
   const [newModel, setNewModel] = useState<LLMModelId>('google/gemini-3-flash-preview');
   const [newStageId, setNewStageId] = useState<string>('');
   const [newCefr, setNewCefr] = useState<string>('');

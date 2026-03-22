@@ -56,6 +56,7 @@ import BulkWordImport from "./pages/admin/BulkWordImport";
 import AdminVideos from "./pages/admin/AdminVideos";
 import AdminVideoForm from "./pages/admin/AdminVideoForm";
 import Stages from "./pages/admin/Stages";
+import LessonWords from "./pages/admin/LessonWords";
 import LessonImport from "./pages/admin/LessonImport";
 import LlmLogs from "./pages/admin/LlmLogs";
 import CurriculumBuilder from "./pages/admin/CurriculumBuilder";
@@ -275,6 +276,7 @@ const App = () => {
               {/* Curriculum routes */}
               <Route path="curriculum" element={<Stages />} />
               <Route path="lessons/import" element={<LessonImport />} />
+              <Route path="lessons/:lessonId/words" element={<LessonWords />} />
               {/* Legacy topic routes (still used for word management) */}
               <Route path="topics" element={<Topics />} />
               <Route path="topics/new" element={<TopicForm />} />

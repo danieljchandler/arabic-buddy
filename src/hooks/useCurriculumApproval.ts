@@ -74,11 +74,12 @@ export function useCurriculumApproval() {
       const lessonRecord = lesson as unknown as { id: string; title: string };
 
       if (lessonData.vocabulary && lessonData.vocabulary.length > 0) {
-        const vocabInserts = lessonData.vocabulary.map((word, idx) => ({
+      const vocabInserts = lessonData.vocabulary.map((word, idx) => ({
           lesson_id: lessonRecord.id,
           word_arabic: word.word_arabic,
           word_english: word.word_english,
           display_order: idx + 1,
+          dialect_module: dialectModule || 'Gulf',
         }));
 
         const { error: vocabErr } = await supabase
@@ -123,11 +124,13 @@ export function useCurriculumApproval() {
       sessionId,
       lessonId,
       words,
+      dialectModule,
     }: {
       messageId: string;
       sessionId: string;
       lessonId: string;
       words: VocabWord[];
+      dialectModule?: string;
     }) => {
       const { data: userData } = await supabase.auth.getUser();
       if (!userData.user) throw new Error('Not authenticated');
@@ -146,6 +149,7 @@ export function useCurriculumApproval() {
         word_arabic: word.word_arabic,
         word_english: word.word_english,
         display_order: startOrder + idx,
+        dialect_module: dialectModule || 'Gulf',
       }));
 
       const { error: vocabErr } = await supabase

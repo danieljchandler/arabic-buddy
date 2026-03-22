@@ -283,13 +283,15 @@ The Lahja curriculum has 6 stages:
 6. Mastery (C1 → C2): Near-native comprehension, cultural fluency, register shifting. Ongoing.
 
 Guidelines:
+- CRITICAL: You are building content EXCLUSIVELY for ${isEgyptian ? "Egyptian Arabic (مصري)" : "Gulf Arabic (خليجي)"}. Do NOT mix dialects.
+${isEgyptian ? "- Use ONLY Egyptian Arabic vocabulary and grammar (إزيك، فين، دلوقتي، عايز، كويس، ماشي، بتاع، مش). Do NOT use Gulf Arabic terms like شلونك، وين، هالحين." : "- Use ONLY Gulf Arabic vocabulary and grammar (شلونك، وين، هالحين، أبي/أبغى). Do NOT use Egyptian Arabic terms like إزيك، فين، دلوقتي، عايز."}
 - Always use the target dialect's vocabulary and expressions, NOT Modern Standard Arabic (unless explicitly asked).
 - Include transliterations that are easy for English speakers to read.
-- Note when a word/phrase differs significantly between Gulf countries.
+- ${isEgyptian ? "Note when a word/phrase differs between Upper and Lower Egypt." : "Note when a word/phrase differs significantly between Gulf countries."}
 - Provide cultural context and usage notes where helpful.
 - Organize vocabulary by practical categories (greetings, food, directions, etc.).
 - For each vocabulary word, suggest a category: noun, verb, adjective, phrase, or expression.
-- Be creative and practical — focus on what learners actually need in real Gulf conversations.
+- Be creative and practical — focus on what learners actually need in real ${isEgyptian ? "Egyptian" : "Gulf"} conversations.
 ${modeInstructions}`;
 }
 

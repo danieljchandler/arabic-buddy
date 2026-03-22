@@ -254,6 +254,21 @@ IMPORTANT: Generate a vocabulary game set with word pairs. Include a JSON code b
 \`\`\``,
 };
 
+function detectMode(mode: string | undefined, lastUserMessage?: string): string | undefined {
+  if (mode && mode !== "chat") return mode;
+  if (!lastUserMessage) return mode;
+  const msg = lastUserMessage.toLowerCase();
+  if (/\b(lesson|create.*lesson|build.*lesson|make.*lesson)\b/.test(msg)) return "generate_lesson";
+  if (/\b(vocab|vocabulary|words|flashcard)\b/.test(msg)) return "generate_vocab";
+  if (/\b(grammar|drill|conjugat|verb form)\b/.test(msg)) return "generate_grammar";
+  if (/\b(listen|dictation|audio exercise)\b/.test(msg)) return "generate_listening";
+  if (/\b(reading|passage|read)\b/.test(msg)) return "generate_reading";
+  if (/\b(daily.*challenge|challenge set)\b/.test(msg)) return "generate_daily_challenge";
+  if (/\b(conversation|scenario|role.?play|simulator)\b/.test(msg)) return "generate_conversation";
+  if (/\b(game|matching|memory game)\b/.test(msg)) return "generate_game_set";
+  return mode;
+}
+
 function buildSystemPrompt(
   dialect: string,
   stageContext?: { name?: string; cefr?: string },
@@ -268,6 +283,15 @@ function buildSystemPrompt(
 
   const isEgyptian = dialect === "Egyptian";
   const appDesc = isEgyptian ? "an Egyptian Arabic learning module" : "a Gulf Arabic learning app";
+
+  // Always include all available JSON schemas so the AI knows the formats
+  const allFormats = `
+CRITICAL INSTRUCTION: When the admin asks you to CREATE, GENERATE, or BUILD any content, you MUST include a properly formatted JSON code block in your response. Without it, the content cannot be saved to the platform.
+
+Available output formats (use the one matching the request):
+${Object.entries(MODE_INSTRUCTIONS).map(([k, v]) => `### When asked to ${k.replace('generate_', '')}:\n${v}`).join('\n\n')}
+
+REMEMBER: Always include the \`\`\`json code block when generating content. The "type" field inside the JSON determines which preview card appears. Without this JSON block, the admin cannot approve and save the content.`;
   
   return `You are an expert ${isEgyptian ? "Egyptian" : "Gulf"} Arabic curriculum designer and language teacher. You are helping an admin build lessons and vocabulary for "Lahja" (لهجة), ${appDesc}.
 
@@ -292,7 +316,9 @@ ${isEgyptian ? "- Use ONLY Egyptian Arabic vocabulary and grammar (إزيك، ف
 - Organize vocabulary by practical categories (greetings, food, directions, etc.).
 - For each vocabulary word, suggest a category: noun, verb, adjective, phrase, or expression.
 - Be creative and practical — focus on what learners actually need in real ${isEgyptian ? "Egyptian" : "Gulf"} conversations.
-${modeInstructions}`;
+${modeInstructions}
+
+${allFormats}`;
 }
 
 async function callLLM(
@@ -459,7 +485,9 @@ serve(async (req) => {
     }
 
     const cappedMessages = messages.slice(-50);
-    const systemPrompt = buildSystemPrompt(dialect, stageContext, mode);
+    const lastUserMsg = [...cappedMessages].reverse().find(m => m.role === 'user')?.content;
+    const resolvedMode = detectMode(mode, lastUserMsg);
+    const systemPrompt = buildSystemPrompt(dialect, stageContext, resolvedMode);
     const fullMessages = [
       { role: "system", content: systemPrompt },
       ...cappedMessages.map((m) => ({ role: m.role, content: m.content })),

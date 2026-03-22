@@ -1857,7 +1857,7 @@ export type Database = {
           image_position: string | null
           image_url: string | null
           lesson_id: string | null
-          topic_id: string
+          topic_id: string | null
           updated_at: string
           word_arabic: string
           word_english: string
@@ -1871,7 +1871,7 @@ export type Database = {
           image_position?: string | null
           image_url?: string | null
           lesson_id?: string | null
-          topic_id: string
+          topic_id?: string | null
           updated_at?: string
           word_arabic: string
           word_english: string
@@ -1885,7 +1885,7 @@ export type Database = {
           image_position?: string | null
           image_url?: string | null
           lesson_id?: string | null
-          topic_id?: string
+          topic_id?: string | null
           updated_at?: string
           word_arabic?: string
           word_english?: string

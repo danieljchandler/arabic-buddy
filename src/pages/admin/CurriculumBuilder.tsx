@@ -103,6 +103,7 @@ const CurriculumBuilder = () => {
         messageId,
         sessionId: activeSessionId,
         stageId,
+        dialectModule: activeSession?.target_dialect || activeDialect,
         lessonData: {
           title: lesson.title as string,
           title_arabic: lesson.title_arabic as string | undefined,
@@ -122,7 +123,7 @@ const CurriculumBuilder = () => {
         },
       });
     },
-    [activeSessionId, approveLesson],
+    [activeSessionId, approveLesson, activeSession, activeDialect],
   );
 
   const handleApproveVocab = useCallback(
@@ -141,9 +142,10 @@ const CurriculumBuilder = () => {
         sessionId: activeSessionId,
         lessonId,
         words: selectedWords,
+        dialectModule: activeSession?.target_dialect || activeDialect,
       });
     },
-    [activeSessionId, approveVocabulary],
+    [activeSessionId, approveVocabulary, activeSession, activeDialect],
   );
 
   const handleApproveContent = useCallback(

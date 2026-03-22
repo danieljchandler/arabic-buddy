@@ -306,7 +306,7 @@ async function callLLM(
   }
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 55_000);
+  const timeout = setTimeout(() => controller.abort(), 120_000);
 
   try {
     let body: string;

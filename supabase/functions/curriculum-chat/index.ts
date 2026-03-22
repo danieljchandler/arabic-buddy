@@ -485,7 +485,9 @@ serve(async (req) => {
     }
 
     const cappedMessages = messages.slice(-50);
-    const systemPrompt = buildSystemPrompt(dialect, stageContext, mode);
+    const lastUserMsg = [...cappedMessages].reverse().find(m => m.role === 'user')?.content;
+    const resolvedMode = detectMode(mode, lastUserMsg);
+    const systemPrompt = buildSystemPrompt(dialect, stageContext, resolvedMode);
     const fullMessages = [
       { role: "system", content: systemPrompt },
       ...cappedMessages.map((m) => ({ role: m.role, content: m.content })),

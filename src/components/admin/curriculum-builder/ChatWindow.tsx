@@ -58,12 +58,12 @@ export const ChatWindow = ({
       <div className="max-w-3xl mx-auto p-4 space-y-4">
         {messages.length === 0 && !isGenerating && (
           <div className="text-center py-12 text-muted-foreground">
-            <p className="text-sm">Start the conversation. Use the quick actions below to generate any type of learning content.</p>
+            <p className="text-sm">Start the conversation. Use the quick actions below to generate content for this dialect session.</p>
             <div className="mt-4 space-y-2 text-xs">
               <p>&bull; <strong>Lessons</strong> — "Create a lesson about greetings for beginners"</p>
               <p>&bull; <strong>Grammar</strong> — "Generate verb conjugation drills for intermediate"</p>
               <p>&bull; <strong>Listening</strong> — "Create dictation exercises about daily routines"</p>
-              <p>&bull; <strong>Reading</strong> — "Write a reading passage about Saudi coffee culture"</p>
+              <p>&bull; <strong>Reading</strong> — "Write a reading passage about local coffee culture"</p>
               <p>&bull; <strong>Challenges</strong> — "Make a daily challenge about food vocabulary"</p>
               <p>&bull; <strong>Conversations</strong> — "Create a conversation scenario at a restaurant"</p>
               <p>&bull; <strong>Games</strong> — "Generate a matching game set for colors and numbers"</p>

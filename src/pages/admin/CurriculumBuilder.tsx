@@ -1,6 +1,6 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useEffect } from 'react';
+import { useDialect } from '@/contexts/DialectContext';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Sparkles } from 'lucide-react';
 import { useCurriculumChat } from '@/hooks/useCurriculumChat';
@@ -24,6 +24,7 @@ import { useStages } from '@/hooks/useStages';
 const CurriculumBuilder = () => {
   const navigate = useNavigate();
   const { sessionId: routeSessionId } = useParams<{ sessionId?: string }>();
+  const { activeDialect } = useDialect();
 
   const {
     sessions,
@@ -50,7 +51,7 @@ const CurriculumBuilder = () => {
   const { data: stages } = useStages();
 
   const [showNewDialog, setShowNewDialog] = useState(false);
-  const [newDialect, setNewDialect] = useState<GulfDialect>('Gulf');
+  const [newDialect, setNewDialect] = useState<GulfDialect>(activeDialect as GulfDialect);
   const [newModel, setNewModel] = useState<LLMModelId>('google/gemini-3-flash-preview');
   const [newStageId, setNewStageId] = useState<string>('');
   const [newCefr, setNewCefr] = useState<string>('');
@@ -63,9 +64,15 @@ const CurriculumBuilder = () => {
 
   const activeSession = sessions.find((s) => s.id === activeSessionId);
 
+  // Filter sidebar sessions to current dialect
+  const dialectSessions = sessions.filter(
+    (s) => s.target_dialect === activeDialect || s.target_dialect === activeDialect
+  );
+
   const handleNewSession = useCallback(() => {
+    setNewDialect(activeDialect as GulfDialect);
     setShowNewDialog(true);
-  }, []);
+  }, [activeDialect]);
 
   const handleCreateSession = useCallback(() => {
     createSession.mutate(
@@ -203,7 +210,7 @@ const CurriculumBuilder = () => {
 
       <div className="flex flex-1 overflow-hidden">
         <ChatSidebar
-          sessions={sessions}
+          sessions={dialectSessions}
           activeSessionId={activeSessionId}
           onSelectSession={setActiveSessionId}
           onNewSession={handleNewSession}

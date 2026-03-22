@@ -210,7 +210,7 @@ const CurriculumBuilder = () => {
 
       <div className="flex flex-1 overflow-hidden">
         <ChatSidebar
-          sessions={sessions}
+          sessions={dialectSessions}
           activeSessionId={activeSessionId}
           onSelectSession={setActiveSessionId}
           onNewSession={handleNewSession}

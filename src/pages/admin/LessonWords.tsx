@@ -109,9 +109,11 @@ const LessonWords = () => {
       });
       if (error) throw error;
       if (data?.imageUrl) {
+        // Add cache-busting param so browser loads the new image
+        const cacheBustedUrl = data.imageUrl.split('?')[0] + `?t=${Date.now()}`;
         await supabase
           .from('vocabulary_words')
-          .update({ image_url: data.imageUrl })
+          .update({ image_url: cacheBustedUrl })
           .eq('id', word.id);
         queryClient.invalidateQueries({ queryKey: ['lesson-vocab', lessonId] });
       } else {

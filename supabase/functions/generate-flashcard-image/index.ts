@@ -42,10 +42,19 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    let prompt = `A single realistic, professional photograph of: ${word_english}. Photo-realistic style, high-quality stock photo. Warm neutral background (soft beige, cream, or light wood). No text, labels, or watermarks. Simple, clear composition. Good lighting, slightly warm tone.`;
+    let prompt = `A single realistic, professional photograph of: ${word_english}.
+STYLE GUIDE — follow exactly for every image:
+- Photo-realistic stock photo style, centered subject
+- Warm neutral background: soft beige, cream, or light wood surface
+- Soft diffused lighting, slightly warm color temperature
+- Clean minimal composition with no clutter or secondary objects
+- Subject fills roughly 60-70% of the frame
+- Shallow depth of field with gentle bokeh on background
+- No text, labels, watermarks, or overlays
+- Consistent color grading: warm highlights, soft shadows`;
     
     if (custom_instructions) {
-      prompt += ` Additional instructions: ${custom_instructions}`;
+      prompt += `\nAdditional instructions: ${custom_instructions}`;
     }
 
     console.log(`Generating image for: ${word_english}`);

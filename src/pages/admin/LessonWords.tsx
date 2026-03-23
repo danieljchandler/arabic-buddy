@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ArrowLeft, Trash2, Volume2 } from 'lucide-react';
+import { Loader2, ArrowLeft, Trash2, Volume2, ImagePlus, RefreshCw } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -48,6 +48,8 @@ const LessonWords = () => {
   const { isAdmin } = useAdminAuth();
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [playingAudio, setPlayingAudio] = useState<string | null>(null);
+  const [generatingIds, setGeneratingIds] = useState<Set<string>>(new Set());
+  const [bulkGenerating, setBulkGenerating] = useState(false);
 
   const { data: lesson, isLoading: lessonLoading } = useQuery({
     queryKey: ['admin-lesson', lessonId],
@@ -92,6 +94,56 @@ const LessonWords = () => {
     },
   });
 
+  const generateImage = async (word: VocabWord) => {
+    setGeneratingIds((prev) => new Set(prev).add(word.id));
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-flashcard-image', {
+        body: {
+          word_english: word.word_english,
+          word_arabic: word.word_arabic,
+          storage_path: `curriculum/${lessonId}/${word.id}.png`,
+        },
+      });
+      if (error) throw error;
+      if (data?.imageUrl) {
+        await supabase
+          .from('vocabulary_words')
+          .update({ image_url: data.imageUrl })
+          .eq('id', word.id);
+        queryClient.invalidateQueries({ queryKey: ['lesson-vocab', lessonId] });
+      } else {
+        throw new Error(data?.error || 'No image returned');
+      }
+    } catch (err: any) {
+      toast({ variant: 'destructive', title: 'Image generation failed', description: err.message });
+    } finally {
+      setGeneratingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(word.id);
+        return next;
+      });
+    }
+  };
+
+  const generateAllImages = async () => {
+    if (!words) return;
+    const missing = words.filter((w) => !w.image_url);
+    if (missing.length === 0) {
+      toast({ title: 'All words already have images' });
+      return;
+    }
+    setBulkGenerating(true);
+    let success = 0;
+    for (let i = 0; i < missing.length; i++) {
+      toast({ title: `Generating ${i + 1}/${missing.length}...`, description: missing[i].word_english });
+      await generateImage(missing[i]);
+      success++;
+      if (i < missing.length - 1) await new Promise((r) => setTimeout(r, 2000));
+    }
+    setBulkGenerating(false);
+    toast({ title: `Done! Generated ${success}/${missing.length} images` });
+  };
+
   const playAudio = (audioUrl: string | null, wordId: string) => {
     if (!audioUrl) return;
     const audio = new Audio(audioUrl);
@@ -102,6 +154,7 @@ const LessonWords = () => {
   };
 
   const isLoading = lessonLoading || wordsLoading;
+  const missingImageCount = words?.filter((w) => !w.image_url).length ?? 0;
 
   if (isLoading) {
     return (
@@ -140,54 +193,101 @@ const LessonWords = () => {
               {lesson.status}
             </Badge>
           </div>
-          <Badge variant="outline">{lesson.dialect_module}</Badge>
+          <div className="flex items-center gap-2">
+            {isAdmin && missingImageCount > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={bulkGenerating}
+                onClick={generateAllImages}
+              >
+                {bulkGenerating ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                ) : (
+                  <ImagePlus className="h-4 w-4 mr-1" />
+                )}
+                Generate All Images ({missingImageCount})
+              </Button>
+            )}
+            <Badge variant="outline">{lesson.dialect_module}</Badge>
+          </div>
         </div>
       </header>
 
       <main className="container mx-auto px-4 py-8">
         {words && words.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {words.map((word) => (
-              <Card key={word.id} className="overflow-hidden">
-                <div className={`aspect-square bg-gradient-to-br ${lesson.gradient} flex items-center justify-center`}>
-                  {word.image_url ? (
-                    <img src={word.image_url} alt={word.word_english} className="w-full h-full object-cover" />
-                  ) : (
-                    <span className="text-6xl opacity-50">📷</span>
-                  )}
-                </div>
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <div>
-                      <p className="font-bold text-xl" dir="rtl">{word.word_arabic}</p>
-                      <p className="text-muted-foreground">{word.word_english}</p>
-                    </div>
-                    {word.audio_url && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className={playingAudio === word.id ? 'animate-pulse text-primary' : ''}
-                        onClick={() => playAudio(word.audio_url, word.id)}
-                      >
-                        <Volume2 className="h-5 w-5" />
-                      </Button>
+            {words.map((word) => {
+              const isGenerating = generatingIds.has(word.id);
+              return (
+                <Card key={word.id} className="overflow-hidden">
+                  <div className={`aspect-square bg-gradient-to-br ${lesson.gradient} flex items-center justify-center relative`}>
+                    {isGenerating ? (
+                      <Loader2 className="h-10 w-10 animate-spin text-primary-foreground" />
+                    ) : word.image_url ? (
+                      <>
+                        <img src={word.image_url} alt={word.word_english} className="w-full h-full object-cover" />
+                        {isAdmin && (
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            className="absolute top-2 right-2 opacity-80 hover:opacity-100"
+                            onClick={() => generateImage(word)}
+                          >
+                            <RefreshCw className="h-3 w-3 mr-1" />
+                            Regen
+                          </Button>
+                        )}
+                      </>
+                    ) : (
+                      <div className="flex flex-col items-center gap-2">
+                        <span className="text-6xl opacity-50">📷</span>
+                        {isAdmin && (
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => generateImage(word)}
+                          >
+                            <ImagePlus className="h-4 w-4 mr-1" />
+                            Generate Image
+                          </Button>
+                        )}
+                      </div>
                     )}
                   </div>
-                  {isAdmin && (
-                    <div className="flex gap-2 mt-3">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="text-destructive hover:text-destructive"
-                        onClick={() => setDeleteId(word.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <div>
+                        <p className="font-bold text-xl" dir="rtl">{word.word_arabic}</p>
+                        <p className="text-muted-foreground">{word.word_english}</p>
+                      </div>
+                      {word.audio_url && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className={playingAudio === word.id ? 'animate-pulse text-primary' : ''}
+                          onClick={() => playAudio(word.audio_url, word.id)}
+                        >
+                          <Volume2 className="h-5 w-5" />
+                        </Button>
+                      )}
                     </div>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
+                    {isAdmin && (
+                      <div className="flex gap-2 mt-3">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-destructive hover:text-destructive"
+                          onClick={() => setDeleteId(word.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         ) : (
           <Card>

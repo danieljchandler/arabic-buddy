@@ -7,8 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ArrowLeft, Trash2, Volume2, ImagePlus, RefreshCw } from 'lucide-react';
-import {
+import { Loader2, ArrowLeft, Trash2, Volume2, ImagePlus, RefreshCw, Pencil } from 'lucide-react';
+import { Input } from '@/components/ui/input';
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -50,6 +50,7 @@ const LessonWords = () => {
   const [playingAudio, setPlayingAudio] = useState<string | null>(null);
   const [generatingIds, setGeneratingIds] = useState<Set<string>>(new Set());
   const [bulkGenerating, setBulkGenerating] = useState(false);
+  const [customInstructions, setCustomInstructions] = useState<Record<string, string>>({});
 
   const { data: lesson, isLoading: lessonLoading } = useQuery({
     queryKey: ['admin-lesson', lessonId],
@@ -94,7 +95,7 @@ const LessonWords = () => {
     },
   });
 
-  const generateImage = async (word: VocabWord) => {
+  const generateImage = async (word: VocabWord, instructions?: string) => {
     setGeneratingIds((prev) => new Set(prev).add(word.id));
     try {
       const { data, error } = await supabase.functions.invoke('generate-flashcard-image', {
@@ -102,6 +103,7 @@ const LessonWords = () => {
           word_english: word.word_english,
           word_arabic: word.word_arabic,
           storage_path: `curriculum/${lessonId}/${word.id}.png`,
+          ...(instructions ? { custom_instructions: instructions } : {}),
         },
       });
       if (error) throw error;
@@ -228,15 +230,17 @@ const LessonWords = () => {
                       <>
                         <img src={word.image_url} alt={word.word_english} className="w-full h-full object-cover" />
                         {isAdmin && (
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            className="absolute top-2 right-2 opacity-80 hover:opacity-100"
-                            onClick={() => generateImage(word)}
-                          >
-                            <RefreshCw className="h-3 w-3 mr-1" />
-                            Regen
-                          </Button>
+                          <div className="absolute top-2 right-2 flex gap-1">
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              className="opacity-80 hover:opacity-100"
+                              onClick={() => generateImage(word, customInstructions[word.id])}
+                            >
+                              <RefreshCw className="h-3 w-3 mr-1" />
+                              Regen
+                            </Button>
+                          </div>
                         )}
                       </>
                     ) : (
@@ -246,7 +250,7 @@ const LessonWords = () => {
                           <Button
                             variant="secondary"
                             size="sm"
-                            onClick={() => generateImage(word)}
+                            onClick={() => generateImage(word, customInstructions[word.id])}
                           >
                             <ImagePlus className="h-4 w-4 mr-1" />
                             Generate Image
@@ -256,6 +260,18 @@ const LessonWords = () => {
                     )}
                   </div>
                   <CardContent className="p-4">
+                    {isAdmin && (
+                      <div className="mb-3">
+                        <Input
+                          placeholder="Describe the image you want..."
+                          value={customInstructions[word.id] || ''}
+                          onChange={(e) =>
+                            setCustomInstructions((prev) => ({ ...prev, [word.id]: e.target.value }))
+                          }
+                          className="text-sm"
+                        />
+                      </div>
+                    )}
                     <div className="flex items-center justify-between mb-2">
                       <div>
                         <p className="font-bold text-xl" dir="rtl">{word.word_arabic}</p>

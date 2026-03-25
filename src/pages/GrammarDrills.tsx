@@ -285,7 +285,7 @@ const GrammarDrills = () => {
           </div>
           <div>
             <h1 className="text-xl font-bold text-foreground">Grammar Drills</h1>
-            <p className="text-sm text-muted-foreground">Practice Gulf Arabic grammar</p>
+            <p className="text-sm text-muted-foreground">Practice {activeDialect === 'Egyptian' ? 'Egyptian' : 'Gulf'} Arabic grammar</p>
           </div>
         </div>
 

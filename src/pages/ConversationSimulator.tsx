@@ -339,7 +339,7 @@ const ConversationSimulator = () => {
           },
           body: JSON.stringify({
             text: arabicText,
-            voice: "ar-AE-HamdanNeural", // Gulf Arabic male voice
+            voice: activeDialect === 'Egyptian' ? "ar-EG-ShakirNeural" : "ar-AE-HamdanNeural",
           }),
         }
       );

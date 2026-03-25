@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { getDialectVocabRules, getDialectLabel } from "../_shared/dialectHelpers.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -13,7 +14,17 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
-    const systemPrompt = `You are an expert Gulf Arabic curriculum designer. Generate a personalized week-by-week learning path.
+    const dialect = target_dialect === 'Egyptian' ? 'Egyptian' : 'Gulf';
+    const dialectLabel = getDialectLabel(dialect);
+    const dialectRules = getDialectVocabRules(dialect);
+
+    const dialectFocus = dialect === 'Egyptian'
+      ? 'Focus on Egyptian Arabic dialect (Cairo, Alexandria, Upper Egypt)'
+      : 'Focus on Gulf Arabic dialect (Emirati/Saudi/Kuwaiti)';
+
+    const systemPrompt = `You are an expert ${dialectLabel} curriculum designer. Generate a personalized week-by-week learning path.
+
+${dialectRules}
 
 Return a JSON object with this exact structure (no markdown, just raw JSON):
 {
@@ -31,24 +42,24 @@ Return a JSON object with this exact structure (no markdown, just raw JSON):
         {"day": 4, "type": "reading", "description": "Read short greeting texts"},
         {"day": 5, "type": "review", "description": "Review all week's content"}
       ],
-      "milestone": "Can greet people in Gulf Arabic"
+      "milestone": "Can greet people in ${dialectLabel}"
     }
   ],
   "overview": {
     "total_vocab_target": 200,
-    "final_outcome": "Can hold basic conversations in Gulf Arabic",
+    "final_outcome": "Can hold basic conversations in ${dialectLabel}",
     "key_milestones": ["Week 4: Basic conversations", "Week 8: Shopping & dining", "Week 12: Cultural discussions"]
   }
 }
 
 Rules:
-- Focus on Gulf Arabic dialect (Emirati/Saudi/Kuwaiti)
+- ${dialectFocus}
 - Each week should have 5 daily activities
 - Build progressively on previous weeks
 - Include cultural context relevant to the goal
 - Be practical and goal-oriented`;
 
-    const userPrompt = `Create a ${timeline_weeks}-week Gulf Arabic learning path for someone who wants to: ${goal_description}
+    const userPrompt = `Create a ${timeline_weeks}-week ${dialectLabel} learning path for someone who wants to: ${goal_description}
 
 Goal type: ${goal_type}
 Target dialect: ${target_dialect}

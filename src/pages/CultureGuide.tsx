@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { useDialect } from "@/contexts/DialectContext";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/layout/AppShell";
@@ -21,7 +22,7 @@ import { cn } from "@/lib/utils";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
-const SUGGESTIONS = [
+const GULF_SUGGESTIONS = [
   "My colleague invited me to their home for dinner in Saudi. What should I bring?",
   "زميلي عزمني على قهوة، شلون أرد؟",
   "How do I politely decline an invitation in the Gulf?",
@@ -29,11 +30,20 @@ const SUGGESTIONS = [
   "كيف أتصرف في مجلس رجال؟",
 ];
 
+const EGYPTIAN_SUGGESTIONS = [
+  "My colleague invited me to their home for dinner in Cairo. What should I bring?",
+  "زميلي عزمني على قهوة، أرد إزاي؟",
+  "How do I politely decline an invitation in Egypt?",
+  "What's the etiquette for meeting someone's parents for the first time in Egypt?",
+  "إزاي أتصرف في عزومة عند ناس أول مرة؟",
+];
+
 const MAX_HUMAN_REVIEWS_PER_MONTH = 5;
 
 const CultureGuide = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated, loading: authLoading } = useAuth();
+  const { activeDialect } = useDialect();
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
@@ -82,7 +92,7 @@ const CultureGuide = () => {
               "Content-Type": "application/json",
               Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
             },
-            body: JSON.stringify({ messages: allMessages }),
+            body: JSON.stringify({ messages: allMessages, dialect: activeDialect }),
             signal: controller.signal,
           }
         );
@@ -210,7 +220,7 @@ const CultureGuide = () => {
           <LogIn className="h-7 w-7 text-muted-foreground mx-auto mb-6" />
           <h1 className="text-xl font-bold text-foreground mb-3">Login Required</h1>
           <p className="text-muted-foreground mb-8">
-            Sign in to get culturally-aware advice for Gulf situations.
+            Sign in to get culturally-aware advice for {activeDialect === 'Egyptian' ? 'Egyptian' : 'Gulf'} situations.
           </p>
           <Button onClick={() => navigate("/auth")}>
             <LogIn className="h-4 w-4 mr-2" />
@@ -246,7 +256,7 @@ const CultureGuide = () => {
           What should I do?
         </h1>
         <p className="text-sm text-muted-foreground">
-          Describe a situation — get culturally appropriate Gulf Arabic advice
+          Describe a situation — get culturally appropriate {activeDialect === 'Egyptian' ? 'Egyptian' : 'Gulf'} Arabic advice
         </p>
       </div>
 
@@ -257,7 +267,7 @@ const CultureGuide = () => {
             <p className="text-xs text-muted-foreground font-medium mb-3">
               Try asking about…
             </p>
-            {SUGGESTIONS.map((s, i) => (
+            {(activeDialect === 'Egyptian' ? EGYPTIAN_SUGGESTIONS : GULF_SUGGESTIONS).map((s, i) => (
               <button
                 key={i}
                 onClick={() => handleSend(s)}

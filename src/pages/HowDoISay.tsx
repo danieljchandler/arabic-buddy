@@ -255,7 +255,7 @@ const HowDoISay = () => {
               <div>
                 <p className="text-sm font-medium text-foreground">Paste a conversation</p>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Paste a chat exchange and get a suggested Gulf Arabic reply.
+                  Paste a chat exchange and get a suggested {activeDialect === 'Egyptian' ? 'Egyptian' : 'Gulf'} Arabic reply.
                 </p>
                 <p className="text-xs text-muted-foreground/60 italic mt-0.5">
                   e.g. Paste a WhatsApp chat or text messages — the AI will read the conversation and suggest what to say back.
@@ -333,7 +333,7 @@ const HowDoISay = () => {
                 ? "What to say in this situation"
                 : result.inputMode === "conversation"
                 ? "How to respond"
-                : "Ways to say it in Gulf Arabic"}
+                : `Ways to say it in ${activeDialect === 'Egyptian' ? 'Egyptian' : 'Gulf'} Arabic`}
             </h2>
             <div className="space-y-3">
               {result.translations.map((t, idx) => (

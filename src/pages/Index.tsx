@@ -790,7 +790,7 @@ const Index = () => {
           <div className="text-left">
             <p className="font-semibold text-foreground">How do I say…?</p>
             <p className="text-xs text-muted-foreground">
-              Translate phrases into Gulf Arabic
+              Translate phrases into {activeDialect === 'Egyptian' ? 'Egyptian Arabic' : 'Gulf Arabic'}
             </p>
           </div>
         </button>
@@ -812,7 +812,7 @@ const Index = () => {
           <div className="text-left">
             <p className="font-semibold text-foreground">What should I do?</p>
             <p className="text-xs text-muted-foreground">
-              Get culturally appropriate Gulf advice
+              Get culturally appropriate {activeDialect === 'Egyptian' ? 'Egyptian' : 'Gulf'} advice
             </p>
           </div>
         </button>

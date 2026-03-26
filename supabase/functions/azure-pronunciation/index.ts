@@ -183,7 +183,9 @@ Deno.serve(async (req: Request) => {
       Granularity: 'Phoneme',
       EnableMiscue: true,
     };
-    const pronunciationHeader = btoa(JSON.stringify(pronunciationConfig));
+    // btoa() only handles Latin1 — encode the JSON as UTF-8 bytes first
+    const configBytes = new TextEncoder().encode(JSON.stringify(pronunciationConfig));
+    const pronunciationHeader = btoa(String.fromCharCode(...configBytes));
 
     // Decode audio from base64 — return 400 for invalid base64
     let audioBytes: Uint8Array;

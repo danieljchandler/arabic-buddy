@@ -23,6 +23,7 @@
 
 import { useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { blobToWav } from '@/lib/audioToWav';
 
 export interface PhonemeResult {
   /** IPA-like phoneme symbol returned by Azure */
@@ -121,11 +122,14 @@ export function useAzurePronunciation() {
       setResult(null);
 
       try {
-        const audioBase64 = await blobToBase64(audioBlob);
+        // Convert to WAV (PCM 16-bit 16kHz) — Azure pronunciation assessment
+        // returns 0 scores with WebM/Opus input
+        const wavBlob = await blobToWav(audioBlob);
+        const audioBase64 = await blobToBase64(wavBlob);
 
         if (reqId !== requestIdRef.current) return null;
 
-        const audioMimeType = audioBlob.type.split(';')[0] || 'audio/webm';
+        const audioMimeType = 'audio/wav';
 
         const { data, error: fnError } = await supabase.functions.invoke(
           'azure-pronunciation',

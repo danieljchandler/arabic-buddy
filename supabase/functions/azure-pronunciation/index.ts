@@ -253,8 +253,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const data = await azureRes.json();
-
-    // RecognitionStatus check
+    console.log('Azure raw response:', JSON.stringify(data).slice(0, 2000));
     if (data.RecognitionStatus === 'NoMatch' || data.RecognitionStatus === 'InitialSilenceTimeout') {
       return new Response(
         JSON.stringify({

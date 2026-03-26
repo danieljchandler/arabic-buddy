@@ -50,7 +50,7 @@
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
 const AZURE_SPEECH_KEY = Deno.env.get('AZURE_SPEECH_KEY') ?? '';
@@ -183,7 +183,13 @@ Deno.serve(async (req: Request) => {
       Granularity: 'Phoneme',
       EnableMiscue: true,
     };
-    const pronunciationHeader = btoa(JSON.stringify(pronunciationConfig));
+    // btoa() only handles Latin1 — encode the JSON as UTF-8 bytes, then base64
+    const configUtf8 = new TextEncoder().encode(JSON.stringify(pronunciationConfig));
+    let binaryStr = '';
+    for (let i = 0; i < configUtf8.length; i++) {
+      binaryStr += String.fromCharCode(configUtf8[i]);
+    }
+    const pronunciationHeader = btoa(binaryStr);
 
     // Decode audio from base64 — return 400 for invalid base64
     let audioBytes: Uint8Array;

@@ -6,11 +6,12 @@ import {
   scoreBand,
   type WordResult,
 } from "@/hooks/useAzurePronunciation";
+import { useDialect } from "@/contexts/DialectContext";
 
 interface PronunciationButtonProps {
   /** Arabic word/phrase the learner should say */
   word: string;
-  /** BCP-47 locale, default ar-SA */
+  /** BCP-47 locale, default derived from dialect context */
   locale?: string;
 }
 
@@ -18,8 +19,10 @@ const MAX_DURATION_MS = 5000;
 
 export const PronunciationButton = ({
   word,
-  locale = "ar-SA",
+  locale: localeProp,
 }: PronunciationButtonProps) => {
+  const { activeDialect } = useDialect();
+  const locale = localeProp ?? (activeDialect === 'Egyptian' ? 'ar-EG' : 'ar-SA');
   const { assess, result, isLoading, error, reset } = useAzurePronunciation();
   const [isRecording, setIsRecording] = useState(false);
   const recorderRef = useRef<MediaRecorder | null>(null);

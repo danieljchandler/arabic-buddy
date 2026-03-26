@@ -5,8 +5,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useReviewStats } from "@/hooks/useReview";
 import { useUserVocabularyDueCount } from "@/hooks/useUserVocabulary";
 import { useDiscoverVideos } from "@/hooks/useDiscoverVideos";
-import { useStages } from "@/hooks/useStages";
-import { useAllLessons } from "@/hooks/useLessons";
 import { Button } from "@/components/design-system";
 import { Settings, Brain, LogIn, LogOut, Mic, BookOpen, Sparkles, GraduationCap, Laugh, Play, ChevronRight, Twitter, MessageCircleQuestion, Compass, MessageSquare, Globe2, Headphones, Trophy, FileText, Flame, BarChart3, PenTool, Gamepad2, Users, Swords } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -111,8 +109,6 @@ const Index = () => {
   const { data: myWordsStats } = useUserVocabularyDueCount();
   const { data: stats } = useReviewStats();
   const { data: discoverVideos } = useDiscoverVideos({ dialect: activeDialect });
-  const { data: stages } = useStages();
-  const { data: allLessons } = useAllLessons();
 
   const [previewIndex, setPreviewIndex] = useState(0);
   const previewVideos = discoverVideos?.slice(0, 5) ?? [];
@@ -367,7 +363,6 @@ const Index = () => {
             </p>
           </div>
         </button>
-        )}
 
         {/* Review */}
         {isAuthenticated && stats && stats.dueCount > 0 && (

@@ -23,6 +23,7 @@
 
 import { useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { blobToWav } from '@/lib/audioToWav';
 
 export interface PhonemeResult {
   /** IPA-like phoneme symbol returned by Azure */

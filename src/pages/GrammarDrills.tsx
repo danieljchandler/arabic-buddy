@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useDialect } from "@/contexts/DialectContext";
 import { useNavigate } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
@@ -52,14 +52,40 @@ const GrammarDrills = () => {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
   const { activeDialect } = useDialect();
-  const [category, setCategory] = useState<string | null>(null);
-  const [difficulty, setDifficulty] = useState("beginner");
-  const [questions, setQuestions] = useState<DrillQuestion[]>([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
+  // Restore persisted session
+  const [savedSession] = useState<any>(() => {
+    try {
+      const raw = localStorage.getItem('session_grammar_drills');
+      if (!raw) return null;
+      const entry = JSON.parse(raw);
+      if (Date.now() - entry.savedAt > 4 * 60 * 60 * 1000) {
+        localStorage.removeItem('session_grammar_drills');
+        return null;
+      }
+      return entry.data;
+    } catch { return null; }
+  });
+
+  const [category, setCategory] = useState<string | null>(savedSession?.category ?? null);
+  const [difficulty, setDifficulty] = useState(savedSession?.difficulty ?? "beginner");
+  const [questions, setQuestions] = useState<DrillQuestion[]>(savedSession?.questions ?? []);
+  const [currentIndex, setCurrentIndex] = useState(savedSession?.currentIndex ?? 0);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
-  const [score, setScore] = useState(0);
+  const [score, setScore] = useState(savedSession?.score ?? 0);
   const [isLoading, setIsLoading] = useState(false);
   const [showResult, setShowResult] = useState(false);
+
+  // Persist session state
+  useEffect(() => {
+    if (questions.length === 0) return;
+    try {
+      const entry = {
+        data: { category, difficulty, questions, currentIndex, score },
+        savedAt: Date.now(),
+      };
+      localStorage.setItem('session_grammar_drills', JSON.stringify(entry));
+    } catch {}
+  }, [category, difficulty, questions, currentIndex, score]);
 
   const fetchDrill = async (cat: string) => {
     setIsLoading(true);

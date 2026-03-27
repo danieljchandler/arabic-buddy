@@ -214,14 +214,42 @@ const ConversationSimulator = () => {
   const { user, loading: authLoading } = useAuth();
   const { activeDialect } = useDialect();
 
-  const [selectedScenario, setSelectedScenario] = useState<Scenario | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
+  // Restore persisted conversation session
+  const [savedConvo] = useState<any>(() => {
+    try {
+      const raw = localStorage.getItem('session_conversation');
+      if (!raw) return null;
+      const entry = JSON.parse(raw);
+      if (Date.now() - entry.savedAt > 4 * 60 * 60 * 1000) {
+        localStorage.removeItem('session_conversation');
+        return null;
+      }
+      return entry.data;
+    } catch { return null; }
+  });
+
+  const [selectedScenario, setSelectedScenario] = useState<Scenario | null>(savedConvo?.selectedScenario ?? null);
+  const [messages, setMessages] = useState<Message[]>(savedConvo?.messages ?? []);
   const [input, setInput] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState<number | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [autoPlay, setAutoPlay] = useState(true);
   const [showTranslation, setShowTranslation] = useState(false);
+
+  // Persist conversation state
+  useEffect(() => {
+    if (!selectedScenario) return;
+    try {
+      // Strip icon (non-serializable JSX) from scenario before saving
+      const { icon, ...scenarioData } = selectedScenario;
+      const entry = {
+        data: { selectedScenario: scenarioData, messages },
+        savedAt: Date.now(),
+      };
+      localStorage.setItem('session_conversation', JSON.stringify(entry));
+    } catch {}
+  }, [selectedScenario, messages]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const pendingAutoPlayRef = useRef<string | null>(null);

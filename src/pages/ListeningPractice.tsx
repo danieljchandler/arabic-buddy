@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useDialect } from "@/contexts/DialectContext";
 import { useNavigate } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
@@ -52,17 +52,43 @@ const ListeningPractice = () => {
   const { data: allWords } = useAllWords();
   const addXP = useAddXP();
 
-  const [mode, setMode] = useState<Mode | null>(null);
-  const [questions, setQuestions] = useState<Question[]>([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
+  // Restore persisted session
+  const [savedSession] = useState<any>(() => {
+    try {
+      const raw = localStorage.getItem('session_listening_practice');
+      if (!raw) return null;
+      const entry = JSON.parse(raw);
+      if (Date.now() - entry.savedAt > 4 * 60 * 60 * 1000) {
+        localStorage.removeItem('session_listening_practice');
+        return null;
+      }
+      return entry.data;
+    } catch { return null; }
+  });
+
+  const [mode, setMode] = useState<Mode | null>(savedSession?.mode ?? null);
+  const [questions, setQuestions] = useState<Question[]>(savedSession?.questions ?? []);
+  const [currentIndex, setCurrentIndex] = useState(savedSession?.currentIndex ?? 0);
   const [loading, setLoading] = useState(false);
   const [answer, setAnswer] = useState("");
   const [showResult, setShowResult] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
-  const [speedRate, setSpeedRate] = useState(1.0);
-  const [score, setScore] = useState(0);
-  const [totalAnswered, setTotalAnswered] = useState(0);
+  const [speedRate, setSpeedRate] = useState(savedSession?.speedRate ?? 1.0);
+  const [score, setScore] = useState(savedSession?.score ?? 0);
+  const [totalAnswered, setTotalAnswered] = useState(savedSession?.totalAnswered ?? 0);
   const [audioPlaying, setAudioPlaying] = useState(false);
+
+  // Persist session state
+  useEffect(() => {
+    if (questions.length === 0) return;
+    try {
+      const entry = {
+        data: { mode, questions, currentIndex, speedRate, score, totalAnswered },
+        savedAt: Date.now(),
+      };
+      localStorage.setItem('session_listening_practice', JSON.stringify(entry));
+    } catch {}
+  }, [mode, questions, currentIndex, speedRate, score, totalAnswered]);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
 

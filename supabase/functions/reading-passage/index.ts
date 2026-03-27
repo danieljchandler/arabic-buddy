@@ -55,13 +55,15 @@ Return JSON in this exact format:
 {
   "title": "${dialectLabel} title",
   "titleEnglish": "English title",
-  "passage": "Full ${dialectLabel} passage text",
-  "passageEnglish": "Full English translation",
+  "lines": [
+    {"arabic": "One sentence in ${dialectLabel}", "english": "English translation of that sentence"}
+  ],
   "difficulty": "${difficulty}",
   "vocabulary": [{"arabic": "كلمة", "english": "word", "inContext": "how it's used"}],
   "questions": [{"question": "${dialectLabel} question", "questionEnglish": "English translation", "options": [{"text": "option", "textEnglish": "English", "correct": true}, {"text": "option", "textEnglish": "English", "correct": false}]}]
 }
 
+IMPORTANT: Split the passage into individual sentences in the "lines" array. Each line should be one sentence with its Arabic text and English translation.
 Generate 3-4 vocabulary items and 2-3 comprehension questions.`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {

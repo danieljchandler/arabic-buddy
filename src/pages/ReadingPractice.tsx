@@ -14,6 +14,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { useAllWords } from "@/hooks/useAllWords";
 import { useAddXP } from "@/hooks/useGamification";
+import { useAddUserVocabulary } from "@/hooks/useUserVocabulary";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -24,8 +25,10 @@ import {
   RotateCcw,
   Loader2,
   ChevronRight,
-  Volume2,
   Sparkles,
+  BookmarkPlus,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 
 type Difficulty = "beginner" | "intermediate" | "advanced";
@@ -34,6 +37,11 @@ interface VocabItem {
   arabic: string;
   english: string;
   inContext: string;
+}
+
+interface PassageLine {
+  arabic: string;
+  english: string;
 }
 
 interface Question {
@@ -45,8 +53,9 @@ interface Question {
 interface Passage {
   title: string;
   titleEnglish: string;
-  passage: string;
-  passageEnglish: string;
+  lines: PassageLine[];
+  passage?: string;
+  passageEnglish?: string;
   difficulty: Difficulty;
   vocabulary: VocabItem[];
   questions: Question[];
@@ -58,21 +67,63 @@ const DIFFICULTY_CONFIG = {
   advanced: { label: "Advanced", color: "bg-red-500/20 text-red-700 dark:text-red-400", xp: 20 },
 };
 
+/** Translate a single word via AI */
+const translateWord = async (word: string, dialect: string): Promise<string> => {
+  try {
+    const { data, error } = await supabase.functions.invoke("how-do-i-say", {
+      body: { phrase: word, direction: "ar-to-en", dialect },
+    });
+    if (error) throw error;
+    return data?.translation || data?.result || "Translation unavailable";
+  } catch {
+    return "Translation unavailable";
+  }
+};
+
 const ReadingPractice = () => {
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const { activeDialect } = useDialect();
   const { data: allWords } = useAllWords();
   const addXP = useAddXP();
+  const addVocab = useAddUserVocabulary();
 
   const [difficulty, setDifficulty] = useState<Difficulty | null>(null);
   const [passage, setPassage] = useState<Passage | null>(null);
   const [loading, setLoading] = useState(false);
-  const [showTranslation, setShowTranslation] = useState(false);
+  const [revealedLines, setRevealedLines] = useState<Set<number>>(new Set());
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState<(number | null)[]>([]);
   const [showResults, setShowResults] = useState(false);
   const [quizStarted, setQuizStarted] = useState(false);
+
+  // Word-level translation state
+  const [wordTranslations, setWordTranslations] = useState<Record<string, string>>({});
+  const [translatingWord, setTranslatingWord] = useState<string | null>(null);
+
+  /** Normalize passage data — handle both old (passage/passageEnglish) and new (lines) format */
+  const normalizePassage = (raw: any): Passage => {
+    let lines: PassageLine[] = raw.lines || [];
+
+    // Fallback: split paragraph into sentences if lines not provided
+    if (lines.length === 0 && raw.passage) {
+      const arabicSentences = raw.passage.split(/(?<=[.!؟،])\s+/).filter(Boolean);
+      const englishSentences = (raw.passageEnglish || "").split(/(?<=[.!?])\s+/).filter(Boolean);
+      lines = arabicSentences.map((s: string, i: number) => ({
+        arabic: s.trim(),
+        english: (englishSentences[i] || "").trim(),
+      }));
+    }
+
+    return {
+      title: raw.title,
+      titleEnglish: raw.titleEnglish || raw.title_english || "",
+      lines,
+      difficulty: raw.difficulty,
+      vocabulary: raw.vocabulary || [],
+      questions: raw.questions || [],
+    };
+  };
 
   const loadPassage = async (selectedDifficulty: Difficulty) => {
     setDifficulty(selectedDifficulty);
@@ -82,10 +133,10 @@ const ReadingPractice = () => {
     setCurrentQuestion(0);
     setAnswers([]);
     setShowResults(false);
-    setShowTranslation(false);
+    setRevealedLines(new Set());
+    setWordTranslations({});
 
     try {
-      // Try pre-approved content first
       const { data: approved } = await supabase
         .from("reading_passages" as any)
         .select("*")
@@ -95,23 +146,22 @@ const ReadingPractice = () => {
 
       if (approved && approved.length > 0) {
         const picked = (approved as any[])[Math.floor(Math.random() * approved.length)];
-        const p: Passage = {
+        const p = normalizePassage({
           title: picked.title,
           titleEnglish: picked.title_english,
           passage: picked.passage,
           passageEnglish: picked.passage_english,
+          lines: picked.lines,
           difficulty: selectedDifficulty,
-          vocabulary: picked.vocabulary as VocabItem[],
-          questions: picked.questions as Question[],
-        };
+          vocabulary: picked.vocabulary,
+          questions: picked.questions,
+        });
         setPassage(p);
         setAnswers(new Array(p.questions.length).fill(null));
         return;
       }
 
-      // Fallback to live AI generation
       const wordsToUse = allWords?.slice(0, 20) || [];
-
       const { data, error } = await supabase.functions.invoke("reading-passage", {
         body: {
           difficulty: selectedDifficulty,
@@ -126,8 +176,9 @@ const ReadingPractice = () => {
       if (error) throw error;
 
       if (data.passage) {
-        setPassage(data.passage);
-        setAnswers(new Array(data.passage.questions.length).fill(null));
+        const p = normalizePassage(data.passage);
+        setPassage(p);
+        setAnswers(new Array(p.questions.length).fill(null));
       } else {
         throw new Error("No passage generated");
       }
@@ -140,14 +191,57 @@ const ReadingPractice = () => {
     }
   };
 
+  const toggleLineTranslation = (index: number) => {
+    setRevealedLines((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
+      return next;
+    });
+  };
+
+  const handleWordTap = async (word: string) => {
+    const cleanWord = word.replace(/[،.؟!,]/g, "").trim();
+    if (!cleanWord) return;
+
+    // Check known vocab first
+    const vocabMatch = passage?.vocabulary.find(
+      (v) => cleanWord.includes(v.arabic) || v.arabic.includes(cleanWord)
+    );
+    if (vocabMatch) {
+      setWordTranslations((prev) => ({ ...prev, [cleanWord]: vocabMatch.english }));
+      return;
+    }
+
+    // Already translated
+    if (wordTranslations[cleanWord]) return;
+
+    setTranslatingWord(cleanWord);
+    const translation = await translateWord(cleanWord, activeDialect);
+    setWordTranslations((prev) => ({ ...prev, [cleanWord]: translation }));
+    setTranslatingWord(null);
+  };
+
+  const saveAsFlashcard = (arabic: string, english: string) => {
+    if (!isAuthenticated) {
+      toast.error("Sign in to save flashcards");
+      return;
+    }
+    addVocab.mutate(
+      { word_arabic: arabic, word_english: english, source: "reading-practice" },
+      {
+        onSuccess: () => toast.success("Saved to My Words!"),
+        onError: () => toast.error("Failed to save"),
+      }
+    );
+  };
+
   const handleAnswer = (optionIndex: number) => {
     if (answers[currentQuestion] !== null) return;
-
     const newAnswers = [...answers];
     newAnswers[currentQuestion] = optionIndex;
     setAnswers(newAnswers);
 
-    // Check if correct and award XP
     const question = passage?.questions[currentQuestion];
     if (question?.options[optionIndex]?.correct && isAuthenticated) {
       const xpAmount = DIFFICULTY_CONFIG[difficulty!].xp;
@@ -170,17 +264,16 @@ const ReadingPractice = () => {
     setCurrentQuestion(0);
     setAnswers([]);
     setShowResults(false);
-    setShowTranslation(false);
+    setRevealedLines(new Set());
+    setWordTranslations({});
   };
 
   const score = answers.reduce((acc, ans, idx) => {
-    if (ans !== null && passage?.questions[idx]?.options[ans]?.correct) {
-      return acc + 1;
-    }
+    if (ans !== null && passage?.questions[idx]?.options[ans]?.correct) return acc + 1;
     return acc;
   }, 0);
 
-  // Difficulty selection screen
+  // ── Difficulty selection ──
   if (!difficulty) {
     return (
       <AppShell>
@@ -193,37 +286,27 @@ const ReadingPractice = () => {
             <h1 className="text-2xl font-bold text-foreground">Reading Practice</h1>
             <p className="text-muted-foreground">Read Arabic passages and test your comprehension</p>
           </div>
-
           <div className="space-y-3">
             <p className="text-sm font-medium text-muted-foreground text-center">Select difficulty</p>
-
             {(["beginner", "intermediate", "advanced"] as Difficulty[]).map((level) => (
               <button
                 key={level}
                 onClick={() => loadPassage(level)}
                 disabled={loading}
                 className={cn(
-                  "w-full p-4 rounded-xl text-left",
-                  "bg-card border border-border",
-                  "flex items-center justify-between",
-                  "transition-all duration-200",
-                  "hover:border-primary/40 active:scale-[0.99]",
-                  "disabled:opacity-50"
+                  "w-full p-4 rounded-xl text-left bg-card border border-border",
+                  "flex items-center justify-between transition-all duration-200",
+                  "hover:border-primary/40 active:scale-[0.99] disabled:opacity-50"
                 )}
               >
                 <div className="flex items-center gap-3">
-                  <Badge className={DIFFICULTY_CONFIG[level].color}>
-                    {DIFFICULTY_CONFIG[level].label}
-                  </Badge>
-                  <span className="text-sm text-muted-foreground">
-                    +{DIFFICULTY_CONFIG[level].xp} XP per question
-                  </span>
+                  <Badge className={DIFFICULTY_CONFIG[level].color}>{DIFFICULTY_CONFIG[level].label}</Badge>
+                  <span className="text-sm text-muted-foreground">+{DIFFICULTY_CONFIG[level].xp} XP per question</span>
                 </div>
                 <ChevronRight className="h-5 w-5 text-muted-foreground" />
               </button>
             ))}
           </div>
-
           {loading && (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -234,7 +317,7 @@ const ReadingPractice = () => {
     );
   }
 
-  // Loading state
+  // ── Loading ──
   if (loading || !passage) {
     return (
       <AppShell>
@@ -246,7 +329,7 @@ const ReadingPractice = () => {
     );
   }
 
-  // Results screen
+  // ── Results ──
   if (showResults) {
     return (
       <AppShell>
@@ -255,9 +338,7 @@ const ReadingPractice = () => {
             <Check className="h-10 w-10 text-primary" />
           </div>
           <h1 className="text-2xl font-bold text-foreground">Reading Complete!</h1>
-          <div className="text-4xl font-bold text-primary">
-            {score}/{passage.questions.length}
-          </div>
+          <div className="text-4xl font-bold text-primary">{score}/{passage.questions.length}</div>
           <p className="text-muted-foreground">
             {score === passage.questions.length
               ? "Perfect comprehension! 🎉"
@@ -277,7 +358,7 @@ const ReadingPractice = () => {
     );
   }
 
-  // Reading + Quiz view
+  // ── Reading + Quiz ──
   return (
     <AppShell>
       {/* Header */}
@@ -286,9 +367,7 @@ const ReadingPractice = () => {
           <X className="h-4 w-4 mr-1" />
           Exit
         </Button>
-        <Badge className={DIFFICULTY_CONFIG[difficulty].color}>
-          {DIFFICULTY_CONFIG[difficulty].label}
-        </Badge>
+        <Badge className={DIFFICULTY_CONFIG[difficulty].color}>{DIFFICULTY_CONFIG[difficulty].label}</Badge>
       </div>
 
       {/* Passage Section */}
@@ -296,61 +375,92 @@ const ReadingPractice = () => {
         <div className="space-y-4">
           {/* Title */}
           <div className="text-center">
-            <h2 className="text-xl font-bold text-foreground font-arabic" dir="rtl">
-              {passage.title}
-            </h2>
+            <h2 className="text-xl font-bold text-foreground font-arabic" dir="rtl">{passage.title}</h2>
             <p className="text-sm text-muted-foreground">{passage.titleEnglish}</p>
           </div>
 
-          {/* Passage Card */}
-          <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
-            <p
-              className="text-xl leading-relaxed font-arabic text-foreground"
-              dir="rtl"
-            >
-              {passage.passage.split(" ").map((word, i) => {
-                const vocabMatch = passage.vocabulary.find(
-                  (v) => word.includes(v.arabic) || v.arabic.includes(word.replace(/[،.؟!]/g, ""))
-                );
-
-                if (vocabMatch) {
-                  return (
-                    <Popover key={i}>
-                      <PopoverTrigger asChild>
-                        <span className="text-primary underline underline-offset-4 decoration-primary/30 cursor-pointer hover:decoration-primary">
-                          {word}{" "}
-                        </span>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-64 p-3">
-                        <div className="space-y-1">
-                          <p className="font-bold text-foreground">{vocabMatch.arabic}</p>
-                          <p className="text-sm text-muted-foreground">{vocabMatch.english}</p>
-                          <p className="text-xs text-muted-foreground/70 italic">
-                            {vocabMatch.inContext}
-                          </p>
-                        </div>
-                      </PopoverContent>
-                    </Popover>
-                  );
-                }
-                return <span key={i}>{word} </span>;
-              })}
+          {/* Line-by-line passage */}
+          <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
+            <p className="text-xs text-muted-foreground text-center mb-2">
+              Tap any word for translation • Tap the eye icon for sentence meaning
             </p>
 
-            {showTranslation && (
-              <div className="pt-3 border-t border-border">
-                <p className="text-sm text-muted-foreground">{passage.passageEnglish}</p>
-              </div>
-            )}
+            {passage.lines.map((line, lineIdx) => (
+              <div key={lineIdx} className="space-y-1">
+                {/* Arabic line — every word is tappable */}
+                <p className="text-lg leading-relaxed font-arabic text-foreground flex flex-wrap justify-end gap-1" dir="rtl">
+                  {line.arabic.split(/\s+/).map((word, wIdx) => {
+                    const cleanWord = word.replace(/[،.؟!,]/g, "").trim();
+                    const translation = wordTranslations[cleanWord];
+                    const isLoading = translatingWord === cleanWord;
 
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowTranslation(!showTranslation)}
-              className="w-full"
-            >
-              {showTranslation ? "Hide" : "Show"} Translation
-            </Button>
+                    return (
+                      <Popover key={wIdx}>
+                        <PopoverTrigger asChild>
+                          <span
+                            onClick={() => handleWordTap(word)}
+                            className={cn(
+                              "cursor-pointer rounded px-0.5 transition-colors",
+                              translation
+                                ? "text-primary underline underline-offset-4 decoration-primary/30"
+                                : "hover:bg-primary/10"
+                            )}
+                          >
+                            {word}
+                          </span>
+                        </PopoverTrigger>
+                        {(translation || isLoading) && (
+                          <PopoverContent className="w-56 p-3" side="top">
+                            {isLoading ? (
+                              <div className="flex items-center gap-2">
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                                <span className="text-sm text-muted-foreground">Translating...</span>
+                              </div>
+                            ) : (
+                              <div className="space-y-2">
+                                <p className="font-bold text-foreground font-arabic" dir="rtl">{cleanWord}</p>
+                                <p className="text-sm text-muted-foreground">{translation}</p>
+                                {isAuthenticated && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="w-full text-xs"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      saveAsFlashcard(cleanWord, translation!);
+                                    }}
+                                  >
+                                    <BookmarkPlus className="h-3 w-3 mr-1" />
+                                    Save to My Words
+                                  </Button>
+                                )}
+                              </div>
+                            )}
+                          </PopoverContent>
+                        )}
+                      </Popover>
+                    );
+                  })}
+                </p>
+
+                {/* Toggle line translation */}
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => toggleLineTranslation(lineIdx)}
+                    className="text-muted-foreground hover:text-foreground transition-colors p-1"
+                  >
+                    {revealedLines.has(lineIdx) ? (
+                      <EyeOff className="h-3.5 w-3.5" />
+                    ) : (
+                      <Eye className="h-3.5 w-3.5" />
+                    )}
+                  </button>
+                  {revealedLines.has(lineIdx) && (
+                    <p className="text-sm text-muted-foreground">{line.english}</p>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
 
           {/* Vocabulary Preview */}
@@ -361,14 +471,20 @@ const ReadingPractice = () => {
             </p>
             <div className="flex flex-wrap gap-2">
               {passage.vocabulary.map((v, i) => (
-                <Badge key={i} variant="secondary" className="text-sm">
+                <Badge
+                  key={i}
+                  variant="secondary"
+                  className="text-sm cursor-pointer hover:bg-secondary/80"
+                  onClick={() => saveAsFlashcard(v.arabic, v.english)}
+                >
                   {v.arabic} — {v.english}
+                  {isAuthenticated && <BookmarkPlus className="h-3 w-3 ml-1.5 inline" />}
                 </Badge>
               ))}
             </div>
           </div>
 
-          {/* Start Quiz Button */}
+          {/* Start Quiz */}
           <Button onClick={() => setQuizStarted(true)} className="w-full" size="lg">
             Start Comprehension Quiz
             <ChevronRight className="h-4 w-4 ml-1" />
@@ -379,46 +495,31 @@ const ReadingPractice = () => {
       {/* Quiz Section */}
       {quizStarted && (
         <div className="space-y-6">
-          {/* Progress */}
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">
-                Question {currentQuestion + 1} of {passage.questions.length}
-              </span>
+              <span className="text-muted-foreground">Question {currentQuestion + 1} of {passage.questions.length}</span>
               <span className="font-medium text-primary">Score: {score}</span>
             </div>
-            <Progress
-              value={((currentQuestion + 1) / passage.questions.length) * 100}
-              className="h-2"
-            />
+            <Progress value={((currentQuestion + 1) / passage.questions.length) * 100} className="h-2" />
           </div>
 
-          {/* Question */}
           <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
             <div className="text-center">
-              <p className="text-lg font-arabic text-foreground" dir="rtl">
-                {passage.questions[currentQuestion].question}
-              </p>
-              <p className="text-sm text-muted-foreground mt-1">
-                {passage.questions[currentQuestion].questionEnglish}
-              </p>
+              <p className="text-lg font-arabic text-foreground" dir="rtl">{passage.questions[currentQuestion].question}</p>
+              <p className="text-sm text-muted-foreground mt-1">{passage.questions[currentQuestion].questionEnglish}</p>
             </div>
-
-            {/* Options */}
             <div className="space-y-2">
               {passage.questions[currentQuestion].options.map((option, i) => {
                 const isSelected = answers[currentQuestion] === i;
                 const isAnswered = answers[currentQuestion] !== null;
                 const isCorrect = option.correct;
-
                 return (
                   <button
                     key={i}
                     onClick={() => handleAnswer(i)}
                     disabled={isAnswered}
                     className={cn(
-                      "w-full p-4 rounded-xl text-right transition-all",
-                      "border-2",
+                      "w-full p-4 rounded-xl text-right transition-all border-2",
                       isAnswered
                         ? isCorrect
                           ? "border-green-500 bg-green-500/10"
@@ -428,16 +529,12 @@ const ReadingPractice = () => {
                         : "border-border hover:border-primary/50 bg-card"
                     )}
                   >
-                    <p className="font-arabic text-foreground" dir="rtl">
-                      {option.text}
-                    </p>
+                    <p className="font-arabic text-foreground" dir="rtl">{option.text}</p>
                     <p className="text-xs text-muted-foreground mt-1">{option.textEnglish}</p>
                   </button>
                 );
               })}
             </div>
-
-            {/* Next Button */}
             {answers[currentQuestion] !== null && (
               <Button onClick={nextQuestion} className="w-full">
                 {currentQuestion < passage.questions.length - 1 ? "Next Question" : "See Results"}

@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useDialect } from "@/contexts/DialectContext";
 import { useNavigate } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
@@ -88,19 +88,52 @@ const ReadingPractice = () => {
   const addXP = useAddXP();
   const addVocab = useAddUserVocabulary();
 
-  const [difficulty, setDifficulty] = useState<Difficulty | null>(null);
-  const [passage, setPassage] = useState<Passage | null>(null);
+  // Session-persisted state
+  const [savedSession, setSavedSession] = useState<{
+    difficulty: Difficulty | null;
+    passage: Passage | null;
+    currentQuestion: number;
+    answers: (number | null)[];
+    showResults: boolean;
+    quizStarted: boolean;
+  } | null>(() => {
+    try {
+      const raw = localStorage.getItem('session_reading_practice');
+      if (!raw) return null;
+      const entry = JSON.parse(raw);
+      if (Date.now() - entry.savedAt > 4 * 60 * 60 * 1000) {
+        localStorage.removeItem('session_reading_practice');
+        return null;
+      }
+      return entry.data;
+    } catch { return null; }
+  });
+
+  const [difficulty, setDifficulty] = useState<Difficulty | null>(savedSession?.difficulty ?? null);
+  const [passage, setPassage] = useState<Passage | null>(savedSession?.passage ?? null);
   const [loading, setLoading] = useState(false);
   const [customTopic, setCustomTopic] = useState("");
   const [revealedLines, setRevealedLines] = useState<Set<number>>(new Set());
-  const [currentQuestion, setCurrentQuestion] = useState(0);
-  const [answers, setAnswers] = useState<(number | null)[]>([]);
-  const [showResults, setShowResults] = useState(false);
-  const [quizStarted, setQuizStarted] = useState(false);
+  const [currentQuestion, setCurrentQuestion] = useState(savedSession?.currentQuestion ?? 0);
+  const [answers, setAnswers] = useState<(number | null)[]>(savedSession?.answers ?? []);
+  const [showResults, setShowResults] = useState(savedSession?.showResults ?? false);
+  const [quizStarted, setQuizStarted] = useState(savedSession?.quizStarted ?? false);
 
   // Word-level translation state
   const [wordTranslations, setWordTranslations] = useState<Record<string, string>>({});
   const [translatingWord, setTranslatingWord] = useState<string | null>(null);
+
+  // Persist important state to localStorage
+  useEffect(() => {
+    if (!passage) return; // don't persist empty state
+    try {
+      const entry = {
+        data: { difficulty, passage, currentQuestion, answers, showResults, quizStarted },
+        savedAt: Date.now(),
+      };
+      localStorage.setItem('session_reading_practice', JSON.stringify(entry));
+    } catch {}
+  }, [difficulty, passage, currentQuestion, answers, showResults, quizStarted]);
 
   /** Normalize passage data — handle both old (passage/passageEnglish) and new (lines) format */
   const normalizePassage = (raw: any): Passage => {

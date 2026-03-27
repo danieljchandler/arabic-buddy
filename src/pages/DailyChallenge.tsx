@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useDialect } from "@/contexts/DialectContext";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -51,16 +51,42 @@ const DailyChallenge = () => {
   const { data: allWords } = useAllWords();
   const addXP = useAddXP();
 
-  const [challenge, setChallenge] = useState<Challenge | null>(null);
-  const [streakMultiplier, setStreakMultiplier] = useState(1.0);
-  const [baseXP, setBaseXP] = useState(15);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [score, setScore] = useState(0);
+  // Restore persisted session
+  const [savedSession] = useState<any>(() => {
+    try {
+      const raw = localStorage.getItem('session_daily_challenge');
+      if (!raw) return null;
+      const entry = JSON.parse(raw);
+      if (Date.now() - entry.savedAt > 4 * 60 * 60 * 1000) {
+        localStorage.removeItem('session_daily_challenge');
+        return null;
+      }
+      return entry.data;
+    } catch { return null; }
+  });
+
+  const [challenge, setChallenge] = useState<Challenge | null>(savedSession?.challenge ?? null);
+  const [streakMultiplier, setStreakMultiplier] = useState(savedSession?.streakMultiplier ?? 1.0);
+  const [baseXP, setBaseXP] = useState(savedSession?.baseXP ?? 15);
+  const [currentIndex, setCurrentIndex] = useState(savedSession?.currentIndex ?? 0);
+  const [score, setScore] = useState(savedSession?.score ?? 0);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [showResult, setShowResult] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [sessionComplete, setSessionComplete] = useState(false);
+  const [sessionComplete, setSessionComplete] = useState(savedSession?.sessionComplete ?? false);
+
+  // Persist session state
+  useEffect(() => {
+    if (!challenge) return;
+    try {
+      const entry = {
+        data: { challenge, streakMultiplier, baseXP, currentIndex, score, sessionComplete },
+        savedAt: Date.now(),
+      };
+      localStorage.setItem('session_daily_challenge', JSON.stringify(entry));
+    } catch {}
+  }, [challenge, streakMultiplier, baseXP, currentIndex, score, sessionComplete]);
 
   // Check if already completed today
   const { data: todayCompletion } = useQuery({

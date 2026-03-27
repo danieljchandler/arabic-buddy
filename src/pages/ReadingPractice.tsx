@@ -91,6 +91,7 @@ const ReadingPractice = () => {
   const [difficulty, setDifficulty] = useState<Difficulty | null>(null);
   const [passage, setPassage] = useState<Passage | null>(null);
   const [loading, setLoading] = useState(false);
+  const [customTopic, setCustomTopic] = useState("");
   const [revealedLines, setRevealedLines] = useState<Set<number>>(new Set());
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState<(number | null)[]>([]);
@@ -165,6 +166,7 @@ const ReadingPractice = () => {
       const { data, error } = await supabase.functions.invoke("reading-passage", {
         body: {
           difficulty: selectedDifficulty,
+          topic: customTopic.trim() || undefined,
           userVocab: wordsToUse.map((w) => ({
             word_arabic: w.word_arabic,
             word_english: w.word_english,
@@ -285,6 +287,22 @@ const ReadingPractice = () => {
             </div>
             <h1 className="text-2xl font-bold text-foreground">Reading Practice</h1>
             <p className="text-muted-foreground">Read Arabic passages and test your comprehension</p>
+          </div>
+          <div className="space-y-2">
+            <label htmlFor="custom-topic" className="text-sm font-medium text-muted-foreground">
+              Describe a scenario (optional)
+            </label>
+            <textarea
+              id="custom-topic"
+              value={customTopic}
+              onChange={(e) => setCustomTopic(e.target.value)}
+              placeholder="e.g. ordering coffee at a café, visiting the doctor, shopping at the gold souk..."
+              className="flex w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none min-h-[72px]"
+              maxLength={200}
+            />
+            {customTopic.length > 0 && (
+              <p className="text-xs text-muted-foreground text-right">{customTopic.length}/200</p>
+            )}
           </div>
           <div className="space-y-3">
             <p className="text-sm font-medium text-muted-foreground text-center">Select difficulty</p>

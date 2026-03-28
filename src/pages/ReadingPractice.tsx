@@ -259,35 +259,44 @@ const ReadingPractice = () => {
     });
   };
 
-  const handleWordTap = async (word: string) => {
+  const handleWordTap = async (word: string, lineIdx: number) => {
     const cleanWord = word.replace(/[،.؟!,]/g, "").trim();
     if (!cleanWord) return;
 
-    // Check known vocab first
+    // Already have data for this word
+    if (wordTranslations[cleanWord]) return;
+
+    // Build local translation from passage context
+    const line = passage?.lines[lineIdx];
+    const lineEnglish = line?.english || "";
+
+    // Check vocabulary list for exact match
     const vocabMatch = passage?.vocabulary.find(
       (v) => cleanWord.includes(v.arabic) || v.arabic.includes(cleanWord)
     );
-    if (vocabMatch) {
-      setWordTranslations((prev) => ({ ...prev, [cleanWord]: vocabMatch.english }));
-      return;
-    }
+    const translation = vocabMatch?.english || `In context: "${lineEnglish}"`;
 
-    // Already translated
-    if (wordTranslations[cleanWord]) return;
+    // Set initial translation immediately (no network call)
+    setWordTranslations((prev) => ({
+      ...prev,
+      [cleanWord]: { translation, lineEnglish, enriching: true },
+    }));
 
-    setTranslatingWord(cleanWord);
-    const translation = await translateWord(cleanWord, activeDialect);
-    setWordTranslations((prev) => ({ ...prev, [cleanWord]: translation }));
-    setTranslatingWord(null);
+    // Async enrichment for root + other uses
+    const enrichment = await enrichWord(cleanWord, activeDialect);
+    setWordTranslations((prev) => ({
+      ...prev,
+      [cleanWord]: { ...prev[cleanWord], enrichment, enriching: false },
+    }));
   };
 
-  const saveAsFlashcard = (arabic: string, english: string) => {
+  const saveAsFlashcard = (arabic: string, english: string, root?: string) => {
     if (!isAuthenticated) {
       toast.error("Sign in to save flashcards");
       return;
     }
     addVocab.mutate(
-      { word_arabic: arabic, word_english: english, source: "reading-practice" },
+      { word_arabic: arabic, word_english: english, root: root || undefined, source: "reading-practice" },
       {
         onSuccess: () => toast.success("Saved to My Words!"),
         onError: () => toast.error("Failed to save"),

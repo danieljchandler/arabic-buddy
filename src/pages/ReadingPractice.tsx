@@ -67,16 +67,40 @@ const DIFFICULTY_CONFIG = {
   advanced: { label: "Advanced", color: "bg-red-500/20 text-red-700 dark:text-red-400", xp: 20 },
 };
 
-/** Translate a single word via AI */
-const translateWord = async (word: string, dialect: string): Promise<string> => {
+interface WordEnrichment {
+  root?: string;
+  otherUses?: { arabic: string; english: string }[];
+}
+
+/** Fetch root + other uses for a word via AI */
+const enrichWord = async (word: string, dialect: string): Promise<WordEnrichment> => {
   try {
     const { data, error } = await supabase.functions.invoke("how-do-i-say", {
-      body: { phrase: word, direction: "ar-to-en", dialect },
+      body: {
+        phrase: `For the Arabic word "${word}", provide:
+1. The Arabic root (3 or 4 letter root separated by dashes, e.g. ك-ت-ب)
+2. Three other common words/forms from the same root with English translations
+
+Reply ONLY in this JSON format:
+{"root":"X-X-X","uses":[{"arabic":"...","english":"..."},{"arabic":"...","english":"..."},{"arabic":"...","english":"..."}]}`,
+        direction: "ar-to-en",
+        dialect,
+      },
     });
     if (error) throw error;
-    return data?.translation || data?.result || "Translation unavailable";
+    const text = data?.translation || data?.result || "";
+    // Try to parse JSON from the response
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      return {
+        root: parsed.root || undefined,
+        otherUses: parsed.uses || [],
+      };
+    }
+    return {};
   } catch {
-    return "Translation unavailable";
+    return {};
   }
 };
 

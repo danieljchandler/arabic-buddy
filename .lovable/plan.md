@@ -1,41 +1,28 @@
 
 
-# Add Image Generation to Curriculum Flashcards (with Consistent Style)
+## Problem
 
-## Overview
-Add "Generate Image" and "Generate All Images" buttons to the LessonWords admin page. The image generation prompt will enforce a consistent visual style across all flashcard images.
+Clicking a word in reading practice calls the `how-do-i-say` edge function for translation, which can error out. The passage already has line-by-line English translations available — we should use those instead.
 
-## Changes
+## Plan
 
-### 1. `src/pages/admin/LessonWords.tsx` — Add image generation UI
-- Add "Generate All Images" button in the header (processes words missing images sequentially with 2s delay)
-- Add per-card "Generate Image" button where `image_url` is null, and "Regenerate" on cards with images
-- Loading spinner per card during generation
-- Progress toast for bulk generation ("Generating 3/8...")
-- On success, update `vocabulary_words.image_url` and invalidate query
+### 1. Replace API-based word translation with local context extraction
 
-### 2. `supabase/functions/generate-flashcard-image/index.ts` — Add style consistency prompt
-Update the base prompt to enforce a unified visual template:
+In `handleWordTap`, instead of calling the `how-do-i-say` edge function:
+- Find which line the word belongs to
+- Use that line's `english` translation as the contextual meaning
+- Also check the passage's `vocabulary` array for a match (already partially done)
+- This eliminates the network call and the error
 
-```
-A single realistic, professional photograph of: {word_english}.
-STYLE GUIDE — follow exactly for every image:
-- Photo-realistic stock photo style, centered subject
-- Warm neutral background: soft beige, cream, or light wood surface
-- Soft diffused lighting, slightly warm color temperature
-- Clean minimal composition with no clutter or secondary objects
-- Subject fills roughly 60-70% of the frame
-- Shallow depth of field with gentle bokeh on background
-- No text, labels, watermarks, or overlays
-- Consistent color grading: warm highlights, soft shadows
-```
+### 2. Enhance the word popover with root and usage info
 
-This replaces the current shorter prompt so every generated image matches the same aesthetic regardless of subject matter.
+After the initial local translation is shown, make a single AI call (via `how-do-i-say` or a lightweight prompt) to enrich with:
+- **Root** of the word (e.g. ك-ت-ب)
+- **Other common uses/forms** of the word (2-3 examples)
 
-### 3. No other changes needed
-The edge function already handles auth, storage upload, retries, and public URL generation. LessonWords just needs the trigger UI.
+This enrichment loads asynchronously *after* the popover opens with the instant local translation, so the user sees something immediately and gets more detail a moment later.
 
-## Files to edit
-- `src/pages/admin/LessonWords.tsx`
-- `supabase/functions/generate-flashcard-image/index.ts`
+### 3. Update the popover UI
 
+The popover will show:
+- **

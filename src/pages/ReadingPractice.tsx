@@ -144,7 +144,7 @@ const ReadingPractice = () => {
   const [quizStarted, setQuizStarted] = useState(savedSession?.quizStarted ?? false);
 
   // Word-level translation state
-  const [wordTranslations, setWordTranslations] = useState<Record<string, string>>({});
+  const [wordTranslations, setWordTranslations] = useState<Record<string, { translation: string; lineEnglish: string; enrichment?: WordEnrichment; enriching?: boolean }>>({});
   const [translatingWord, setTranslatingWord] = useState<string | null>(null);
 
   // Persist important state to localStorage

@@ -475,17 +475,16 @@ const ReadingPractice = () => {
                 <p className="text-lg leading-relaxed font-arabic text-foreground flex flex-wrap justify-end gap-1" dir="rtl">
                   {line.arabic.split(/\s+/).map((word, wIdx) => {
                     const cleanWord = word.replace(/[،.؟!,]/g, "").trim();
-                    const translation = wordTranslations[cleanWord];
-                    const isLoading = translatingWord === cleanWord;
+                    const wordData = wordTranslations[cleanWord];
 
                     return (
                       <Popover key={wIdx}>
                         <PopoverTrigger asChild>
                           <span
-                            onClick={() => handleWordTap(word)}
+                            onClick={() => handleWordTap(word, lineIdx)}
                             className={cn(
                               "cursor-pointer rounded px-0.5 transition-colors",
-                              translation
+                              wordData
                                 ? "text-primary underline underline-offset-4 decoration-primary/30"
                                 : "hover:bg-primary/10"
                             )}
@@ -493,33 +492,55 @@ const ReadingPractice = () => {
                             {word}
                           </span>
                         </PopoverTrigger>
-                        {(translation || isLoading) && (
-                          <PopoverContent className="w-56 p-3" side="top">
-                            {isLoading ? (
-                              <div className="flex items-center gap-2">
-                                <Loader2 className="h-3 w-3 animate-spin" />
-                                <span className="text-sm text-muted-foreground">Translating...</span>
-                              </div>
-                            ) : (
-                              <div className="space-y-2">
-                                <p className="font-bold text-foreground font-arabic" dir="rtl">{cleanWord}</p>
-                                <p className="text-sm text-muted-foreground">{translation}</p>
-                                {isAuthenticated && (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="w-full text-xs"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      saveAsFlashcard(cleanWord, translation!);
-                                    }}
-                                  >
-                                    <BookmarkPlus className="h-3 w-3 mr-1" />
-                                    Save to My Words
-                                  </Button>
-                                )}
-                              </div>
-                            )}
+                        {wordData && (
+                          <PopoverContent className="w-64 p-3" side="top">
+                            <div className="space-y-2">
+                              <p className="font-bold text-foreground font-arabic text-lg" dir="rtl">{cleanWord}</p>
+                              <p className="text-sm text-muted-foreground">{wordData.translation}</p>
+
+                              {/* Root */}
+                              {wordData.enriching ? (
+                                <div className="flex items-center gap-2 pt-1">
+                                  <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                                  <span className="text-xs text-muted-foreground">Loading root & uses…</span>
+                                </div>
+                              ) : wordData.enrichment?.root ? (
+                                <div className="pt-1 border-t border-border">
+                                  <p className="text-xs font-medium text-muted-foreground">Root</p>
+                                  <p className="font-arabic text-sm text-foreground" dir="rtl">{wordData.enrichment.root}</p>
+                                </div>
+                              ) : null}
+
+                              {/* Other uses */}
+                              {wordData.enrichment?.otherUses && wordData.enrichment.otherUses.length > 0 && (
+                                <div className="pt-1 border-t border-border">
+                                  <p className="text-xs font-medium text-muted-foreground mb-1">Other forms</p>
+                                  <div className="space-y-0.5">
+                                    {wordData.enrichment.otherUses.map((u, i) => (
+                                      <p key={i} className="text-xs">
+                                        <span className="font-arabic" dir="rtl">{u.arabic}</span>
+                                        <span className="text-muted-foreground"> — {u.english}</span>
+                                      </p>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {isAuthenticated && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="w-full text-xs mt-1"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    saveAsFlashcard(cleanWord, wordData.translation, wordData.enrichment?.root);
+                                  }}
+                                >
+                                  <BookmarkPlus className="h-3 w-3 mr-1" />
+                                  Save to My Words
+                                </Button>
+                              )}
+                            </div>
                           </PopoverContent>
                         )}
                       </Popover>

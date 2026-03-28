@@ -67,16 +67,40 @@ const DIFFICULTY_CONFIG = {
   advanced: { label: "Advanced", color: "bg-red-500/20 text-red-700 dark:text-red-400", xp: 20 },
 };
 
-/** Translate a single word via AI */
-const translateWord = async (word: string, dialect: string): Promise<string> => {
+interface WordEnrichment {
+  root?: string;
+  otherUses?: { arabic: string; english: string }[];
+}
+
+/** Fetch root + other uses for a word via AI */
+const enrichWord = async (word: string, dialect: string): Promise<WordEnrichment> => {
   try {
     const { data, error } = await supabase.functions.invoke("how-do-i-say", {
-      body: { phrase: word, direction: "ar-to-en", dialect },
+      body: {
+        phrase: `For the Arabic word "${word}", provide:
+1. The Arabic root (3 or 4 letter root separated by dashes, e.g. ك-ت-ب)
+2. Three other common words/forms from the same root with English translations
+
+Reply ONLY in this JSON format:
+{"root":"X-X-X","uses":[{"arabic":"...","english":"..."},{"arabic":"...","english":"..."},{"arabic":"...","english":"..."}]}`,
+        direction: "ar-to-en",
+        dialect,
+      },
     });
     if (error) throw error;
-    return data?.translation || data?.result || "Translation unavailable";
+    const text = data?.translation || data?.result || "";
+    // Try to parse JSON from the response
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      return {
+        root: parsed.root || undefined,
+        otherUses: parsed.uses || [],
+      };
+    }
+    return {};
   } catch {
-    return "Translation unavailable";
+    return {};
   }
 };
 
@@ -120,8 +144,7 @@ const ReadingPractice = () => {
   const [quizStarted, setQuizStarted] = useState(savedSession?.quizStarted ?? false);
 
   // Word-level translation state
-  const [wordTranslations, setWordTranslations] = useState<Record<string, string>>({});
-  const [translatingWord, setTranslatingWord] = useState<string | null>(null);
+  const [wordTranslations, setWordTranslations] = useState<Record<string, { translation: string; lineEnglish: string; enrichment?: WordEnrichment; enriching?: boolean }>>({});
 
   // Persist important state to localStorage
   useEffect(() => {
@@ -235,35 +258,44 @@ const ReadingPractice = () => {
     });
   };
 
-  const handleWordTap = async (word: string) => {
+  const handleWordTap = async (word: string, lineIdx: number) => {
     const cleanWord = word.replace(/[،.؟!,]/g, "").trim();
     if (!cleanWord) return;
 
-    // Check known vocab first
+    // Already have data for this word
+    if (wordTranslations[cleanWord]) return;
+
+    // Build local translation from passage context
+    const line = passage?.lines[lineIdx];
+    const lineEnglish = line?.english || "";
+
+    // Check vocabulary list for exact match
     const vocabMatch = passage?.vocabulary.find(
       (v) => cleanWord.includes(v.arabic) || v.arabic.includes(cleanWord)
     );
-    if (vocabMatch) {
-      setWordTranslations((prev) => ({ ...prev, [cleanWord]: vocabMatch.english }));
-      return;
-    }
+    const translation = vocabMatch?.english || `In context: "${lineEnglish}"`;
 
-    // Already translated
-    if (wordTranslations[cleanWord]) return;
+    // Set initial translation immediately (no network call)
+    setWordTranslations((prev) => ({
+      ...prev,
+      [cleanWord]: { translation, lineEnglish, enriching: true },
+    }));
 
-    setTranslatingWord(cleanWord);
-    const translation = await translateWord(cleanWord, activeDialect);
-    setWordTranslations((prev) => ({ ...prev, [cleanWord]: translation }));
-    setTranslatingWord(null);
+    // Async enrichment for root + other uses
+    const enrichment = await enrichWord(cleanWord, activeDialect);
+    setWordTranslations((prev) => ({
+      ...prev,
+      [cleanWord]: { ...prev[cleanWord], enrichment, enriching: false },
+    }));
   };
 
-  const saveAsFlashcard = (arabic: string, english: string) => {
+  const saveAsFlashcard = (arabic: string, english: string, root?: string) => {
     if (!isAuthenticated) {
       toast.error("Sign in to save flashcards");
       return;
     }
     addVocab.mutate(
-      { word_arabic: arabic, word_english: english, source: "reading-practice" },
+      { word_arabic: arabic, word_english: english, root: root || undefined, source: "reading-practice" },
       {
         onSuccess: () => toast.success("Saved to My Words!"),
         onError: () => toast.error("Failed to save"),
@@ -442,17 +474,16 @@ const ReadingPractice = () => {
                 <p className="text-lg leading-relaxed font-arabic text-foreground flex flex-wrap justify-end gap-1" dir="rtl">
                   {line.arabic.split(/\s+/).map((word, wIdx) => {
                     const cleanWord = word.replace(/[،.؟!,]/g, "").trim();
-                    const translation = wordTranslations[cleanWord];
-                    const isLoading = translatingWord === cleanWord;
+                    const wordData = wordTranslations[cleanWord];
 
                     return (
                       <Popover key={wIdx}>
                         <PopoverTrigger asChild>
                           <span
-                            onClick={() => handleWordTap(word)}
+                            onClick={() => handleWordTap(word, lineIdx)}
                             className={cn(
                               "cursor-pointer rounded px-0.5 transition-colors",
-                              translation
+                              wordData
                                 ? "text-primary underline underline-offset-4 decoration-primary/30"
                                 : "hover:bg-primary/10"
                             )}
@@ -460,33 +491,55 @@ const ReadingPractice = () => {
                             {word}
                           </span>
                         </PopoverTrigger>
-                        {(translation || isLoading) && (
-                          <PopoverContent className="w-56 p-3" side="top">
-                            {isLoading ? (
-                              <div className="flex items-center gap-2">
-                                <Loader2 className="h-3 w-3 animate-spin" />
-                                <span className="text-sm text-muted-foreground">Translating...</span>
-                              </div>
-                            ) : (
-                              <div className="space-y-2">
-                                <p className="font-bold text-foreground font-arabic" dir="rtl">{cleanWord}</p>
-                                <p className="text-sm text-muted-foreground">{translation}</p>
-                                {isAuthenticated && (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="w-full text-xs"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      saveAsFlashcard(cleanWord, translation!);
-                                    }}
-                                  >
-                                    <BookmarkPlus className="h-3 w-3 mr-1" />
-                                    Save to My Words
-                                  </Button>
-                                )}
-                              </div>
-                            )}
+                        {wordData && (
+                          <PopoverContent className="w-64 p-3" side="top">
+                            <div className="space-y-2">
+                              <p className="font-bold text-foreground font-arabic text-lg" dir="rtl">{cleanWord}</p>
+                              <p className="text-sm text-muted-foreground">{wordData.translation}</p>
+
+                              {/* Root */}
+                              {wordData.enriching ? (
+                                <div className="flex items-center gap-2 pt-1">
+                                  <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                                  <span className="text-xs text-muted-foreground">Loading root & uses…</span>
+                                </div>
+                              ) : wordData.enrichment?.root ? (
+                                <div className="pt-1 border-t border-border">
+                                  <p className="text-xs font-medium text-muted-foreground">Root</p>
+                                  <p className="font-arabic text-sm text-foreground" dir="rtl">{wordData.enrichment.root}</p>
+                                </div>
+                              ) : null}
+
+                              {/* Other uses */}
+                              {wordData.enrichment?.otherUses && wordData.enrichment.otherUses.length > 0 && (
+                                <div className="pt-1 border-t border-border">
+                                  <p className="text-xs font-medium text-muted-foreground mb-1">Other forms</p>
+                                  <div className="space-y-0.5">
+                                    {wordData.enrichment.otherUses.map((u, i) => (
+                                      <p key={i} className="text-xs">
+                                        <span className="font-arabic" dir="rtl">{u.arabic}</span>
+                                        <span className="text-muted-foreground"> — {u.english}</span>
+                                      </p>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {isAuthenticated && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="w-full text-xs mt-1"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    saveAsFlashcard(cleanWord, wordData.translation, wordData.enrichment?.root);
+                                  }}
+                                >
+                                  <BookmarkPlus className="h-3 w-3 mr-1" />
+                                  Save to My Words
+                                </Button>
+                              )}
+                            </div>
                           </PopoverContent>
                         )}
                       </Popover>

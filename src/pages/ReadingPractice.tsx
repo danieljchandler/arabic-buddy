@@ -145,7 +145,6 @@ const ReadingPractice = () => {
 
   // Word-level translation state
   const [wordTranslations, setWordTranslations] = useState<Record<string, { translation: string; lineEnglish: string; enrichment?: WordEnrichment; enriching?: boolean }>>({});
-  const [translatingWord, setTranslatingWord] = useState<string | null>(null);
 
   // Persist important state to localStorage
   useEffect(() => {

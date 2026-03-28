@@ -68,11 +68,12 @@ const DIFFICULTY_CONFIG = {
 };
 
 interface WordEnrichment {
+  definition?: string;
   root?: string;
   otherUses?: { arabic: string; english: string }[];
 }
 
-/** Fetch root + other uses for a word via AI */
+/** Fetch definition + root + other uses for a word via AI */
 const enrichWord = async (word: string, dialect: string): Promise<WordEnrichment> => {
   try {
     const { data, error } = await supabase.functions.invoke("word-enrichment", {
@@ -80,6 +81,7 @@ const enrichWord = async (word: string, dialect: string): Promise<WordEnrichment
     });
     if (error) throw error;
     return {
+      definition: data?.definition || undefined,
       root: data?.root || undefined,
       otherUses: Array.isArray(data?.uses) ? data.uses : [],
     };

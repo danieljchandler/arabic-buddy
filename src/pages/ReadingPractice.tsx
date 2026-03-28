@@ -257,7 +257,7 @@ const ReadingPractice = () => {
     const vocabMatch = passage?.vocabulary.find(
       (v) => cleanWord.includes(v.arabic) || v.arabic.includes(cleanWord)
     );
-    const translation = vocabMatch?.english || `In context: "${lineEnglish}"`;
+    const translation = vocabMatch?.english || "";
 
     // Set initial translation immediately (no network call)
     setWordTranslations((prev) => ({
@@ -265,11 +265,12 @@ const ReadingPractice = () => {
       [cleanWord]: { translation, lineEnglish, enriching: true },
     }));
 
-    // Async enrichment for root + other uses
+    // Async enrichment for definition + root + other uses
     const enrichment = await enrichWord(cleanWord, activeDialect);
+    const definition = enrichment?.definition || translation || `In context: "${lineEnglish}"`;
     setWordTranslations((prev) => ({
       ...prev,
-      [cleanWord]: { ...prev[cleanWord], enrichment, enriching: false },
+      [cleanWord]: { ...prev[cleanWord], translation: definition, enrichment, enriching: false },
     }));
   };
 

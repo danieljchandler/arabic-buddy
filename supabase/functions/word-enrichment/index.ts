@@ -38,13 +38,13 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: `You are an Arabic linguistics expert specialising in ${dialectLabel}. Given an Arabic word, return its root and 3 related words. Reply ONLY with valid JSON, no other text.`,
+            content: `You are an Arabic linguistics expert specialising in ${dialectLabel}. Given an Arabic word, return its English definition, its root, and 3 related words. Reply ONLY with valid JSON, no other text.`,
           },
           {
             role: 'user',
             content: `Word: ${word.trim().slice(0, 100)}
 
-Return JSON: {"root":"ك-ت-ب","uses":[{"arabic":"...","english":"..."},{"arabic":"...","english":"..."},{"arabic":"...","english":"..."}]}`,
+Return JSON: {"definition":"the English meaning of the word","root":"ك-ت-ب","uses":[{"arabic":"...","english":"..."},{"arabic":"...","english":"..."},{"arabic":"...","english":"..."}]}`,
           },
         ],
         max_tokens: 512,
@@ -73,6 +73,7 @@ Return JSON: {"root":"ك-ت-ب","uses":[{"arabic":"...","english":"..."},{"arabi
       try {
         const parsed = JSON.parse(jsonMatch[0]);
         return new Response(JSON.stringify({
+          definition: parsed.definition || null,
           root: parsed.root || null,
           uses: Array.isArray(parsed.uses) ? parsed.uses.slice(0, 5) : [],
         }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });

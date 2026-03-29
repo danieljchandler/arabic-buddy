@@ -1,17 +1,21 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useUserVocabulary, useUserVocabularyDueCount, useDeleteUserVocabulary } from "@/hooks/useUserVocabulary";
 import { useAuth } from "@/hooks/useAuth";
+import { useDialect } from "@/contexts/DialectContext";
 import { Button } from "@/components/ui/button";
-import { BookOpen, Trash2, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { BookOpen, Trash2, ChevronLeft, ChevronRight, Loader2, Shuffle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
 
 const MyWords = () => {
   const navigate = useNavigate();
+  const [mixAll, setMixAll] = useState(false);
+  const { activeDialect } = useDialect();
   const { isAuthenticated, loading: authLoading } = useAuth();
-  const { data: words, isLoading } = useUserVocabulary();
-  const { data: stats } = useUserVocabularyDueCount();
+  const { data: words, isLoading } = useUserVocabulary(mixAll);
+  const { data: stats } = useUserVocabularyDueCount(mixAll);
   const deleteWord = useDeleteUserVocabulary();
 
   const handleDelete = async (wordId: string, e: React.MouseEvent) => {
@@ -68,6 +72,15 @@ const MyWords = () => {
         <span className="text-sm text-muted-foreground">
           ({words?.length || 0})
         </span>
+        <Button
+          variant={mixAll ? "default" : "outline"}
+          size="sm"
+          className="ml-auto gap-1.5"
+          onClick={() => setMixAll(!mixAll)}
+        >
+          <Shuffle className="h-4 w-4" />
+          {mixAll ? "All Dialects" : activeDialect}
+        </Button>
       </div>
 
       {/* Review button */}

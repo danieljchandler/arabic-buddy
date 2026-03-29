@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
+import { useDialect } from "@/contexts/DialectContext";
 import { toast } from "sonner";
 
 export interface UserVocabularyWord {
@@ -19,20 +20,26 @@ export interface UserVocabularyWord {
   updated_at: string;
 }
 
-export const useUserVocabulary = () => {
+export const useUserVocabulary = (mixAll = false) => {
   const { user } = useAuth();
+  const { activeDialect } = useDialect();
 
   return useQuery({
-    queryKey: ["user-vocabulary", user?.id],
+    queryKey: ["user-vocabulary", user?.id, mixAll ? "all" : activeDialect],
     queryFn: async () => {
       if (!user) return [];
       
-      const { data, error } = await supabase
+      let query = supabase
         .from("user_vocabulary")
         .select("*")
         .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false }) as any;
 
+      if (!mixAll) {
+        query = query.eq("dialect", activeDialect);
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
       return data as UserVocabularyWord[];
     },
@@ -40,29 +47,34 @@ export const useUserVocabulary = () => {
   });
 };
 
-export const useUserVocabularyDueCount = () => {
+export const useUserVocabularyDueCount = (mixAll = false) => {
   const { user } = useAuth();
+  const { activeDialect } = useDialect();
 
   return useQuery({
-    queryKey: ["user-vocabulary-due", user?.id],
+    queryKey: ["user-vocabulary-due", user?.id, mixAll ? "all" : activeDialect],
     queryFn: async () => {
       if (!user) return { dueCount: 0, totalCount: 0 };
       
       const now = new Date().toISOString();
       
-      const { count: dueCount, error: dueError } = await supabase
+      let dueQuery = supabase
         .from("user_vocabulary")
         .select("*", { count: "exact", head: true })
         .eq("user_id", user.id)
-        .lte("next_review_at", now);
+        .lte("next_review_at", now) as any;
+      if (!mixAll) dueQuery = dueQuery.eq("dialect", activeDialect);
 
+      const { count: dueCount, error: dueError } = await dueQuery;
       if (dueError) throw dueError;
 
-      const { count: totalCount, error: totalError } = await supabase
+      let totalQuery = supabase
         .from("user_vocabulary")
         .select("*", { count: "exact", head: true })
-        .eq("user_id", user.id);
+        .eq("user_id", user.id) as any;
+      if (!mixAll) totalQuery = totalQuery.eq("dialect", activeDialect);
 
+      const { count: totalCount, error: totalError } = await totalQuery;
       if (totalError) throw totalError;
 
       return { 
@@ -77,6 +89,7 @@ export const useUserVocabularyDueCount = () => {
 export const useAddUserVocabulary = () => {
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const { activeDialect } = useDialect();
 
   return useMutation({
     mutationFn: async (word: { 
@@ -87,6 +100,7 @@ export const useAddUserVocabulary = () => {
       sentence_text?: string;
       sentence_english?: string;
       sentence_audio_url?: string;
+      dialect?: string;
     }) => {
       if (!user) throw new Error("Must be logged in");
 
@@ -101,7 +115,8 @@ export const useAddUserVocabulary = () => {
           sentence_text: word.sentence_text || null,
           sentence_english: word.sentence_english || null,
           sentence_audio_url: word.sentence_audio_url || null,
-        })
+          dialect: word.dialect || activeDialect,
+        } as any)
         .select()
         .single();
 

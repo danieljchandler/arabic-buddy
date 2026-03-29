@@ -1574,6 +1574,7 @@ export type Database = {
         Row: {
           correct_count: number
           created_at: string
+          dialect: string
           ease_factor: number
           id: string
           image_url: string | null
@@ -1599,6 +1600,7 @@ export type Database = {
         Insert: {
           correct_count?: number
           created_at?: string
+          dialect?: string
           ease_factor?: number
           id?: string
           image_url?: string | null
@@ -1624,6 +1626,7 @@ export type Database = {
         Update: {
           correct_count?: number
           created_at?: string
+          dialect?: string
           ease_factor?: number
           id?: string
           image_url?: string | null

@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useUpdateUserVocabularyReview } from "@/hooks/useUserVocabulary";
+import { useDialect } from "@/contexts/DialectContext";
 import { HomeButton } from "@/components/HomeButton";
 import { RatingButtons } from "@/components/review/RatingButtons";
 import { AppShell } from "@/components/layout/AppShell";
@@ -29,6 +30,7 @@ interface DueUserWord {
 const MyWordsReview = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated, loading: authLoading } = useAuth();
+  const { activeDialect } = useDialect();
   const updateReview = useUpdateUserVocabularyReview();
   const queryClient = useQueryClient();
 
@@ -47,16 +49,17 @@ const MyWordsReview = () => {
   };
 
   const { data: dueWords, isLoading, refetch } = useQuery({
-    queryKey: ["user-vocabulary-due-words", user?.id],
+    queryKey: ["user-vocabulary-due-words", user?.id, activeDialect],
     queryFn: async (): Promise<DueUserWord[]> => {
       if (!user) return [];
       const now = new Date().toISOString();
-      const { data, error } = await supabase
+      const { data, error } = await (supabase
         .from("user_vocabulary")
         .select("id, word_arabic, word_english, ease_factor, interval_days, repetitions, next_review_at, last_reviewed_at, word_audio_url, sentence_audio_url, image_url")
         .eq("user_id", user.id)
         .lte("next_review_at", now)
-        .order("next_review_at", { ascending: true });
+        .order("next_review_at", { ascending: true }) as any)
+        .eq("dialect", activeDialect);
       if (error) throw error;
       return data || [];
     },

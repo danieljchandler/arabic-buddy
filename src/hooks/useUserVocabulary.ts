@@ -33,10 +33,10 @@ export const useUserVocabulary = (mixAll = false) => {
         .from("user_vocabulary")
         .select("*")
         .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false }) as any;
 
       if (!mixAll) {
-        query = query.eq("dialect" as any, activeDialect);
+        query = query.eq("dialect", activeDialect);
       }
 
       const { data, error } = await query;
@@ -100,6 +100,7 @@ export const useAddUserVocabulary = () => {
       sentence_text?: string;
       sentence_english?: string;
       sentence_audio_url?: string;
+      dialect?: string;
     }) => {
       if (!user) throw new Error("Must be logged in");
 

@@ -62,8 +62,8 @@ export const useUserVocabularyDueCount = (mixAll = false) => {
         .from("user_vocabulary")
         .select("*", { count: "exact", head: true })
         .eq("user_id", user.id)
-        .lte("next_review_at", now);
-      if (!mixAll) dueQuery = dueQuery.eq("dialect" as any, activeDialect);
+        .lte("next_review_at", now) as any;
+      if (!mixAll) dueQuery = dueQuery.eq("dialect", activeDialect);
 
       const { count: dueCount, error: dueError } = await dueQuery;
       if (dueError) throw dueError;
@@ -71,8 +71,8 @@ export const useUserVocabularyDueCount = (mixAll = false) => {
       let totalQuery = supabase
         .from("user_vocabulary")
         .select("*", { count: "exact", head: true })
-        .eq("user_id", user.id);
-      if (!mixAll) totalQuery = totalQuery.eq("dialect" as any, activeDialect);
+        .eq("user_id", user.id) as any;
+      if (!mixAll) totalQuery = totalQuery.eq("dialect", activeDialect);
 
       const { count: totalCount, error: totalError } = await totalQuery;
       if (totalError) throw totalError;

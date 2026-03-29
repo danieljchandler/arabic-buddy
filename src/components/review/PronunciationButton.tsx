@@ -78,7 +78,12 @@ export const PronunciationButton = ({
     reset();
   };
 
-  const band = result ? scoreBand(result.overall) : null;
+  // For single words, just use accuracy; for phrases use overall
+  const isSingleWord = word.trim().split(/\s+/).length === 1;
+  const displayScore = result
+    ? Math.round(isSingleWord ? result.accuracy : result.overall)
+    : 0;
+  const band = result ? scoreBand(displayScore) : null;
 
   return (
     <div className="flex flex-col items-center gap-3 w-full">
@@ -126,33 +131,34 @@ export const PronunciationButton = ({
       {/* Results */}
       {result && band && (
         <div className="w-full max-w-xs rounded-xl bg-card border border-border p-4 text-center animate-in fade-in duration-300">
-          {/* Overall score */}
-          <div className="mb-3">
+          <div className="mb-2">
             <span className={`text-3xl font-bold ${band.color}`}>
-              {Math.round(result.overall)}
+              {displayScore}
             </span>
             <span className="text-sm text-muted-foreground ml-1">/ 100</span>
           </div>
           <p className={`text-sm font-medium mb-3 ${band.color}`}>{band.label}</p>
 
-          {/* Sub-scores */}
-          <div className="grid grid-cols-3 gap-2 text-xs text-muted-foreground mb-4">
-            <div>
-              <p className="font-medium text-foreground">{Math.round(result.accuracy)}</p>
-              <p>Accuracy</p>
+          {/* Only show sub-scores for phrases (multi-word) */}
+          {!isSingleWord && (
+            <div className="grid grid-cols-3 gap-2 text-xs text-muted-foreground mb-4">
+              <div>
+                <p className="font-medium text-foreground">{Math.round(result.accuracy)}</p>
+                <p>Accuracy</p>
+              </div>
+              <div>
+                <p className="font-medium text-foreground">{Math.round(result.fluency)}</p>
+                <p>Fluency</p>
+              </div>
+              <div>
+                <p className="font-medium text-foreground">{Math.round(result.completeness)}</p>
+                <p>Complete</p>
+              </div>
             </div>
-            <div>
-              <p className="font-medium text-foreground">{Math.round(result.fluency)}</p>
-              <p>Fluency</p>
-            </div>
-            <div>
-              <p className="font-medium text-foreground">{Math.round(result.completeness)}</p>
-              <p>Complete</p>
-            </div>
-          </div>
+          )}
 
-          {/* Per-word breakdown */}
-          {result.words.length > 0 && (
+          {/* Per-word breakdown only for phrases */}
+          {!isSingleWord && result.words.length > 1 && (
             <div className="flex flex-wrap justify-center gap-2 mb-4" dir="rtl">
               {result.words.map((w: WordResult, i: number) => {
                 const wb = scoreBand(w.accuracy);

@@ -1,14 +1,18 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useUserVocabulary, useUserVocabularyDueCount, useDeleteUserVocabulary } from "@/hooks/useUserVocabulary";
 import { Button } from "@/components/ui/button";
-import { BookOpen, Trash2, ChevronRight, Loader2 } from "lucide-react";
+import { BookOpen, Trash2, ChevronRight, Loader2, Shuffle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useDialect } from "@/contexts/DialectContext";
 
 export const MyWordsSection = () => {
   const navigate = useNavigate();
-  const { data: words, isLoading } = useUserVocabulary();
-  const { data: stats } = useUserVocabularyDueCount();
+  const [mixAll, setMixAll] = useState(false);
+  const { activeDialect } = useDialect();
+  const { data: words, isLoading } = useUserVocabulary(mixAll);
+  const { data: stats } = useUserVocabularyDueCount(mixAll);
   const deleteWord = useDeleteUserVocabulary();
 
   const handleDelete = async (wordId: string, e: React.MouseEvent) => {
@@ -47,6 +51,15 @@ export const MyWordsSection = () => {
           <span className="text-sm text-muted-foreground">
             ({words.length})
           </span>
+          <Button
+            variant={mixAll ? "default" : "outline"}
+            size="sm"
+            className="h-7 px-2 text-xs gap-1"
+            onClick={() => setMixAll(!mixAll)}
+          >
+            <Shuffle className="h-3 w-3" />
+            {mixAll ? "Mixed" : activeDialect}
+          </Button>
         </div>
         {stats && stats.dueCount > 0 && (
           <Button

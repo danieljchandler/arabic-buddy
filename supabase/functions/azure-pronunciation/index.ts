@@ -99,34 +99,45 @@ interface PronunciationResult {
   locale: string;
 }
 
-/** Parse Azure NBest[0] into a clean PronunciationResult */
+/** Parse Azure NBest[0] into a clean PronunciationResult.
+ *  Azure sometimes nests scores under PronunciationAssessment, other times
+ *  puts them directly on the object — handle both. */
 // deno-lint-ignore no-explicit-any
 function parseAzureResponse(nbest: any, locale: string): PronunciationResult {
   const pa = nbest.PronunciationAssessment ?? {};
 
   const words: WordResult[] = (nbest.Words ?? []).map(
     // deno-lint-ignore no-explicit-any
-    (w: any): WordResult => ({
-      word: w.Word ?? '',
-      accuracy: w.PronunciationAssessment?.AccuracyScore ?? 0,
-      errorType: w.PronunciationAssessment?.ErrorType ?? 'None',
-      phonemes: (w.Phonemes ?? []).map(
-        // deno-lint-ignore no-explicit-any
-        (p: any): PhonemeResult => ({
-          phoneme: p.Phoneme ?? '',
-          accuracy: p.PronunciationAssessment?.AccuracyScore ?? 0,
-        })
-      ),
-    })
+    (w: any): WordResult => {
+      const wpa = w.PronunciationAssessment ?? {};
+      return {
+        word: w.Word ?? '',
+        accuracy: wpa.AccuracyScore ?? w.AccuracyScore ?? 0,
+        errorType: wpa.ErrorType ?? w.ErrorType ?? 'None',
+        phonemes: (w.Phonemes ?? w.Syllables ?? []).map(
+          // deno-lint-ignore no-explicit-any
+          (p: any): PhonemeResult => ({
+            phoneme: p.Phoneme ?? p.Syllable ?? '',
+            accuracy: p.PronunciationAssessment?.AccuracyScore ?? p.AccuracyScore ?? 0,
+          })
+        ),
+      };
+    }
   );
 
+  // Scores can live under PronunciationAssessment or directly on nbest
+  const overall = pa.PronScore ?? nbest.PronScore ?? pa.AccuracyScore ?? nbest.AccuracyScore ?? 0;
+  const accuracy = pa.AccuracyScore ?? nbest.AccuracyScore ?? 0;
+  const fluency = pa.FluencyScore ?? nbest.FluencyScore ?? 0;
+  const completeness = pa.CompletenessScore ?? nbest.CompletenessScore ?? 0;
+
   return {
-    overall: pa.PronScore ?? 0,
-    accuracy: pa.AccuracyScore ?? 0,
-    fluency: pa.FluencyScore ?? 0,
-    completeness: pa.CompletenessScore ?? 0,
+    overall: overall,
+    accuracy,
+    fluency,
+    completeness,
     words,
-    recognizedText: nbest.Lexical ?? '',
+    recognizedText: nbest.Lexical ?? nbest.Display ?? '',
     locale,
   };
 }

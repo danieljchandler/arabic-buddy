@@ -6,18 +6,19 @@ import { useDialect } from "@/contexts/DialectContext";
 import { HomeButton } from "@/components/HomeButton";
 import { RatingButtons } from "@/components/review/RatingButtons";
 import { AppShell } from "@/components/layout/AppShell";
-import { Loader2, Trophy, LogIn, Eye, Volume2 } from "lucide-react";
+import { Loader2, Trophy, LogIn, Eye, Volume2, Music, RefreshCw } from "lucide-react";
 import { PronunciationButton } from "@/components/review/PronunciationButton";
 import { Button } from "@/components/ui/button";
 import { Rating, calculateNextReview } from "@/lib/spacedRepetition";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface DueUserWord {
   id: string;
   word_arabic: string;
   word_english: string;
-  ease_factor: number;  // FSRS stability
+  ease_factor: number;
   interval_days: number;
   repetitions: number;
   next_review_at: string;
@@ -25,6 +26,7 @@ interface DueUserWord {
   word_audio_url: string | null;
   sentence_audio_url: string | null;
   image_url: string | null;
+  jingle_audio_url: string | null;
 }
 
 const MyWordsReview = () => {
@@ -37,6 +39,7 @@ const MyWordsReview = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showAnswer, setShowAnswer] = useState(false);
   const [sessionCount, setSessionCount] = useState(0);
+  const [jingleLoading, setJingleLoading] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const playAudio = (url: string) => {
@@ -55,7 +58,7 @@ const MyWordsReview = () => {
       const now = new Date().toISOString();
       const { data, error } = await (supabase
         .from("user_vocabulary")
-        .select("id, word_arabic, word_english, ease_factor, interval_days, repetitions, next_review_at, last_reviewed_at, word_audio_url, sentence_audio_url, image_url")
+        .select("id, word_arabic, word_english, ease_factor, interval_days, repetitions, next_review_at, last_reviewed_at, word_audio_url, sentence_audio_url, image_url, jingle_audio_url")
         .eq("user_id", user.id)
         .lte("next_review_at", now)
         .order("next_review_at", { ascending: true }) as any)
@@ -65,6 +68,77 @@ const MyWordsReview = () => {
     },
     enabled: !!user,
   });
+
+  const generateJingle = async (word: DueUserWord, regenerate = false) => {
+    if (!user) return;
+    
+    // If jingle exists and not regenerating, just play it
+    if (word.jingle_audio_url && !regenerate) {
+      playAudio(word.jingle_audio_url);
+      return;
+    }
+
+    setJingleLoading(true);
+    try {
+      const response = await supabase.functions.invoke("generate-word-jingle", {
+        body: {
+          word_arabic: word.word_arabic,
+          word_english: word.word_english,
+          dialect: activeDialect,
+        },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message || "Failed to generate jingle");
+      }
+
+      // The response data is the audio blob
+      const audioBlob = response.data instanceof Blob
+        ? response.data
+        : new Blob([response.data], { type: "audio/mpeg" });
+
+      // Upload to flashcard-audio bucket
+      const fileName = `jingles/${user.id}/${word.id}-${Date.now()}.mp3`;
+      const { error: uploadError } = await supabase.storage
+        .from("flashcard-audio")
+        .upload(fileName, audioBlob, {
+          contentType: "audio/mpeg",
+          upsert: true,
+        });
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage
+        .from("flashcard-audio")
+        .getPublicUrl(fileName);
+
+      const jingleUrl = urlData.publicUrl;
+
+      // Save URL to the vocabulary record
+      await supabase
+        .from("user_vocabulary")
+        .update({ jingle_audio_url: jingleUrl } as any)
+        .eq("id", word.id);
+
+      // Invalidate queries so the UI updates
+      queryClient.invalidateQueries({ queryKey: ["user-vocabulary-due-words"] });
+
+      // Play the jingle
+      playAudio(jingleUrl);
+      toast.success("🎵 Jingle created!");
+    } catch (err: any) {
+      console.error("Jingle generation error:", err);
+      if (err?.message?.includes("Rate limit") || err?.message?.includes("429")) {
+        toast.error("Rate limited — try again in a moment");
+      } else if (err?.message?.includes("402") || err?.message?.includes("Credits")) {
+        toast.error("AI credits exhausted — please add funds");
+      } else {
+        toast.error("Failed to generate jingle");
+      }
+    } finally {
+      setJingleLoading(false);
+    }
+  };
 
   const handleRate = async (rating: Rating) => {
     if (!dueWords || !dueWords[currentIndex]) return;
@@ -203,7 +277,7 @@ const MyWordsReview = () => {
             </p>
 
             {/* Audio buttons */}
-            <div className="flex items-center justify-center gap-3 mb-8">
+            <div className="flex items-center justify-center gap-2 flex-wrap mb-8">
               {currentWord.word_audio_url && (
                 <Button
                   variant="outline"
@@ -224,6 +298,35 @@ const MyWordsReview = () => {
                 >
                   <Volume2 className="h-4 w-4" />
                   Sentence
+                </Button>
+              )}
+
+              {/* Jingle button */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => generateJingle(currentWord)}
+                disabled={jingleLoading}
+                className="gap-1.5"
+              >
+                {jingleLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Music className="h-4 w-4" />
+                )}
+                {jingleLoading ? "Creating..." : currentWord.jingle_audio_url ? "🎵 Jingle" : "🎵 Generate"}
+              </Button>
+
+              {/* Regenerate jingle */}
+              {currentWord.jingle_audio_url && !jingleLoading && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => generateJingle(currentWord, true)}
+                  title="Regenerate jingle"
+                >
+                  <RefreshCw className="h-3.5 w-3.5 text-muted-foreground" />
                 </Button>
               )}
             </div>

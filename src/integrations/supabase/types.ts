@@ -1579,6 +1579,7 @@ export type Database = {
           id: string
           image_url: string | null
           interval_days: number
+          jingle_audio_url: string | null
           last_result: string | null
           last_reviewed_at: string | null
           next_review_at: string
@@ -1605,6 +1606,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           interval_days?: number
+          jingle_audio_url?: string | null
           last_result?: string | null
           last_reviewed_at?: string | null
           next_review_at?: string
@@ -1631,6 +1633,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           interval_days?: number
+          jingle_audio_url?: string | null
           last_result?: string | null
           last_reviewed_at?: string | null
           next_review_at?: string

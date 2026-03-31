@@ -1,16 +1,21 @@
-import { useState, useRef, useCallback } from "react";
-import { Mic, MicOff, RotateCcw, Loader2 } from "lucide-react";
+import { useState, useRef, useCallback, useEffect } from "react";
+import { Mic, MicOff, RotateCcw, Loader2, Lightbulb } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   useAzurePronunciation,
   scoreBand,
+  type PronunciationResult,
   type WordResult,
 } from "@/hooks/useAzurePronunciation";
 import { useDialect } from "@/contexts/DialectContext";
+import { supabase } from "@/integrations/supabase/client";
 
 interface PronunciationButtonProps {
   /** Arabic word/phrase the learner should say */
   word: string;
+  /** English translation (used for AI coaching context) */
+  wordEnglish?: string;
   /** BCP-47 locale, default derived from dialect context */
   locale?: string;
 }
@@ -19,6 +24,7 @@ const MAX_DURATION_MS = 5000;
 
 export const PronunciationButton = ({
   word,
+  wordEnglish,
   locale: localeProp,
 }: PronunciationButtonProps) => {
   const { activeDialect } = useDialect();
@@ -29,6 +35,45 @@ export const PronunciationButton = ({
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<ReturnType<typeof setTimeout>>();
 
+  // AI coaching tips state
+  const [tips, setTips] = useState<string[]>([]);
+  const [tipsLoading, setTipsLoading] = useState(false);
+
+  // Fetch coaching tips when result arrives
+  useEffect(() => {
+    if (!result) {
+      setTips([]);
+      return;
+    }
+
+    let cancelled = false;
+    const fetchTips = async () => {
+      setTipsLoading(true);
+      try {
+        const { data, error: fnError } = await supabase.functions.invoke(
+          "pronunciation-feedback",
+          {
+            body: {
+              word_arabic: word,
+              word_english: wordEnglish || "",
+              scores: result,
+              dialect: locale,
+            },
+          }
+        );
+        if (!cancelled && !fnError && data?.tips) {
+          setTips(data.tips);
+        }
+      } catch {
+        // Silently fail — tips are optional
+      } finally {
+        if (!cancelled) setTipsLoading(false);
+      }
+    };
+    fetchTips();
+    return () => { cancelled = true; };
+  }, [result, word, wordEnglish, locale]);
+
   const stopRecording = useCallback(() => {
     recorderRef.current?.stop();
     clearTimeout(timerRef.current);
@@ -37,6 +82,7 @@ export const PronunciationButton = ({
 
   const startRecording = useCallback(async () => {
     reset();
+    setTips([]);
     chunksRef.current = [];
 
     try {
@@ -62,7 +108,6 @@ export const PronunciationButton = ({
       recorder.start();
       setIsRecording(true);
 
-      // Auto-stop after MAX_DURATION_MS
       timerRef.current = setTimeout(() => {
         if (recorder.state === "recording") {
           recorder.stop();
@@ -76,9 +121,9 @@ export const PronunciationButton = ({
 
   const handleTryAgain = () => {
     reset();
+    setTips([]);
   };
 
-  // For single words, just use accuracy; for phrases use overall
   const isSingleWord = word.trim().split(/\s+/).length === 1;
   const displayScore = result
     ? Math.round(isSingleWord ? result.accuracy : result.overall)
@@ -139,7 +184,7 @@ export const PronunciationButton = ({
           </div>
           <p className={`text-sm font-medium mb-3 ${band.color}`}>{band.label}</p>
 
-          {/* Only show sub-scores for phrases (multi-word) */}
+          {/* Sub-scores for phrases */}
           {!isSingleWord && (
             <div className="grid grid-cols-3 gap-2 text-xs text-muted-foreground mb-4">
               <div>
@@ -157,7 +202,7 @@ export const PronunciationButton = ({
             </div>
           )}
 
-          {/* Per-word breakdown only for phrases */}
+          {/* Per-word breakdown for phrases */}
           {!isSingleWord && result.words.length > 1 && (
             <div className="flex flex-wrap justify-center gap-2 mb-4" dir="rtl">
               {result.words.map((w: WordResult, i: number) => {
@@ -174,7 +219,31 @@ export const PronunciationButton = ({
             </div>
           )}
 
-          <Button variant="ghost" size="sm" onClick={handleTryAgain} className="gap-1.5">
+          {/* AI Coaching Tips */}
+          {tipsLoading && (
+            <div className="mt-3 space-y-2">
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-3/4" />
+            </div>
+          )}
+
+          {tips.length > 0 && (
+            <div className="mt-3 text-left bg-muted/50 rounded-lg p-3 animate-in fade-in slide-in-from-bottom-2 duration-500">
+              <div className="flex items-center gap-1.5 mb-2">
+                <Lightbulb className="h-3.5 w-3.5 text-yellow-500" />
+                <span className="text-xs font-medium text-muted-foreground">Tips</span>
+              </div>
+              <ul className="space-y-1.5">
+                {tips.map((tip, i) => (
+                  <li key={i} className="text-xs text-foreground leading-relaxed">
+                    {tip}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <Button variant="ghost" size="sm" onClick={handleTryAgain} className="gap-1.5 mt-3">
             <RotateCcw className="h-3.5 w-3.5" />
             Try again
           </Button>

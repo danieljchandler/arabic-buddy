@@ -1,21 +1,19 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import {
   useDueWords,
   useReviewStats,
   useSubmitReview,
-  useAllVocabularyWords,
 } from "@/hooks/useReview";
-import { ReviewCard } from "@/components/review/ReviewCard";
-import { ReviewQuizCard } from "@/components/review/ReviewQuizCard";
-import { ReviewImageQuizCard } from "@/components/review/ReviewImageQuizCard";
 import { PronunciationButton } from "@/components/review/PronunciationButton";
+import { RatingButtons } from "@/components/review/RatingButtons";
 import { HomeButton } from "@/components/HomeButton";
-import { Button } from "@/components/design-system";
+import { Button } from "@/components/ui/button";
 import { AppShell } from "@/components/layout/AppShell";
 import { useDialect } from "@/contexts/DialectContext";
-import { Loader2, Trophy, Brain, Sparkles, LogIn, Shuffle } from "lucide-react";
+import { Rating, calculateNextReview } from "@/lib/spacedRepetition";
+import { Loader2, Trophy, Brain, Sparkles, LogIn, Shuffle, Eye, Volume2 } from "lucide-react";
 
 const DIALECT_FLAGS: Record<string, string> = {
   Gulf: "🇦🇪",
@@ -29,16 +27,26 @@ const Review = () => {
   const [mixAll, setMixAll] = useState(false);
 
   const { data: dueWords, isLoading: wordsLoading, refetch } = useDueWords(mixAll);
-  const { data: allWords } = useAllVocabularyWords(mixAll);
   const { data: stats } = useReviewStats(mixAll);
   const submitReview = useSubmitReview();
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [sessionCount, setSessionCount] = useState(0);
-  const [answerPending, setAnswerPending] = useState(false);
+  const [showAnswer, setShowAnswer] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const playAudio = (url: string) => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+    }
+    const audio = new Audio(url);
+    audioRef.current = audio;
+    audio.play().catch(console.error);
+  };
 
   const goToNext = async () => {
     if (!dueWords) return;
+    setShowAnswer(false);
     if (currentIndex < dueWords.length - 1) {
       setCurrentIndex((prev) => prev + 1);
     } else {
@@ -47,38 +55,25 @@ const Review = () => {
     }
   };
 
-  const handleLearnContinue = async () => {
+  const handleRate = async (rating: Rating) => {
     if (!dueWords || !dueWords[currentIndex]) return;
     const word = dueWords[currentIndex];
+
     await submitReview.mutateAsync({
       wordId: word.id,
-      rating: "good",
+      rating,
       currentReview: word.review,
     });
+
     setSessionCount((prev) => prev + 1);
     goToNext();
-  };
-
-  const handleQuizAnswer = (correct: boolean) => {
-    if (!dueWords || !dueWords[currentIndex] || answerPending) return;
-    setAnswerPending(true);
-    const word = dueWords[currentIndex];
-    setTimeout(async () => {
-      await submitReview.mutateAsync({
-        wordId: word.id,
-        rating: correct ? "good" : "again",
-        currentReview: word.review,
-      });
-      if (correct) setSessionCount((prev) => prev + 1);
-      setAnswerPending(false);
-      goToNext();
-    }, 1500);
   };
 
   const handleToggleMix = () => {
     setMixAll((prev) => !prev);
     setCurrentIndex(0);
     setSessionCount(0);
+    setShowAnswer(false);
   };
 
   if (authLoading || wordsLoading) {
@@ -171,13 +166,13 @@ const Review = () => {
 
   const currentWord = dueWords[currentIndex];
   const progress = ((currentIndex + 1) / dueWords.length) * 100;
-  const isNewWord = !currentWord.review || currentWord.review.repetitions === 0;
-  const isFirstQuiz = currentWord.review?.repetitions === 1;
-  const topicWords = allWords?.filter((w) => w.topic_id === currentWord.topic_id) ?? [];
-  const fallbackWords = allWords?.filter((w) => w.topic_id !== currentWord.topic_id) ?? [];
 
   const dialectFlag = DIALECT_FLAGS[currentWord.dialect_module || "Gulf"] || "";
   const dialectLabel = currentWord.dialect_module || "Gulf";
+
+  const stability = currentWord.review?.ease_factor ?? 0;
+  const intervalDays = currentWord.review?.interval_days ?? 0;
+  const repetitions = currentWord.review?.repetitions ?? 0;
 
   return (
     <AppShell compact>
@@ -230,59 +225,83 @@ const Review = () => {
         </p>
       </div>
 
-      {/* Main Content */}
+      {/* Card */}
       <div className="py-4">
-        {isNewWord ? (
-          <div className="max-w-sm mx-auto">
-            <div className="mb-3 text-center flex items-center justify-center gap-2">
-              <span className="inline-block px-3 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary">
-                New word
-              </span>
-              {mixAll && (
-                <span className="inline-block px-2 py-1 rounded-full text-xs font-medium bg-muted text-muted-foreground">
-                  {dialectFlag} {dialectLabel}
-                </span>
+        <div className="max-w-sm mx-auto">
+          <div className="rounded-2xl bg-card border border-border p-8 text-center">
+            {/* Image if available */}
+            {currentWord.image_url && (
+              <div className="mb-6 rounded-lg overflow-hidden bg-muted aspect-[4/3] flex items-center justify-center">
+                <img
+                  src={currentWord.image_url}
+                  alt=""
+                  className="w-full h-full object-contain"
+                  style={currentWord.image_position ? {
+                    objectPosition: currentWord.image_position.replace(' ', '% ') + '%',
+                  } : undefined}
+                />
+              </div>
+            )}
+
+            <p
+              className="text-4xl font-bold text-foreground mb-6"
+              style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
+              dir="rtl"
+            >
+              {currentWord.word_arabic}
+            </p>
+
+            {/* Audio button */}
+            <div className="flex items-center justify-center gap-2 flex-wrap mb-8">
+              {currentWord.audio_url && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => playAudio(currentWord.audio_url!)}
+                  className="gap-1.5"
+                >
+                  <Volume2 className="h-4 w-4" />
+                  Word
+                </Button>
               )}
             </div>
-            <ReviewCard
-              word={currentWord}
-              gradient={currentWord.topic.gradient}
-              showAnswer={true}
-              onReveal={() => {}}
-            />
-            <div className="mt-6 mb-4">
+
+            {/* Pronunciation practice */}
+            <div className="mb-6">
               <PronunciationButton word={currentWord.word_arabic} />
             </div>
-            <div className="mt-4 text-center">
-              <p className="text-sm text-muted-foreground mb-4">
-                Take a moment to learn this word, then continue.
-              </p>
+
+            {/* Reveal English */}
+            {showAnswer && (
+              <div className="animate-in fade-in duration-200 mb-4">
+                <p className="text-xl text-muted-foreground">{currentWord.word_english}</p>
+              </div>
+            )}
+            {!showAnswer && (
               <Button
-                onClick={handleLearnContinue}
-                disabled={submitReview.isPending}
-                className="w-full max-w-xs"
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowAnswer(true)}
+                className="gap-1.5 text-muted-foreground"
               >
-                Got it — continue →
+                <Eye className="h-4 w-4" />
+                Reveal English
               </Button>
-            </div>
+            )}
           </div>
-        ) : isFirstQuiz ? (
-          <ReviewImageQuizCard
-            word={currentWord}
-            topicWords={topicWords}
-            fallbackWords={fallbackWords}
-            onAnswer={handleQuizAnswer}
-            disabled={submitReview.isPending || answerPending}
+        </div>
+
+        {/* Self-rating always visible */}
+        <div className="mt-10">
+          <RatingButtons
+            onRate={handleRate}
+            stability={stability}
+            difficulty={5.0}
+            intervalDays={intervalDays}
+            repetitions={repetitions}
+            disabled={submitReview.isPending}
           />
-        ) : (
-          <ReviewQuizCard
-            word={currentWord}
-            topicWords={topicWords}
-            fallbackWords={fallbackWords}
-            onAnswer={handleQuizAnswer}
-            disabled={submitReview.isPending || answerPending}
-          />
-        )}
+        </div>
       </div>
     </AppShell>
   );

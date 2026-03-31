@@ -1,39 +1,39 @@
 
 
-# Arabic Word Jingle — Google Lyria 3 (10s, Dialect-Aware)
+# AI Pronunciation Coaching Feedback
 
 ## Overview
-A "🎵 Jingle" button on flashcard review that generates a **10-second catchy Arabic song** about the word using the correct dialect (Gulf or Egyptian). The song is saved permanently to the flashcard.
+After the Azure pronunciation score is returned, send the detailed results (per-word accuracy, error types, phoneme breakdowns) to Lovable AI to generate **natural language coaching tips** in English — e.g. "Focus on softening the 'ك' sound" or "You skipped the word 'في' — try speaking slower."
+
+## How it works
+
+Azure already returns rich data we're not fully surfacing:
+- Per-word `errorType`: `Mispronunciation`, `Omission`, `Insertion`
+- Per-phoneme accuracy scores
+- Overall fluency/completeness scores
+
+We'll pass this structured data to an AI model that generates 2-3 short, actionable tips.
 
 ## Implementation
 
-### 1. Database Migration
-Add `jingle_audio_url` column to `user_vocabulary`.
+### 1. New Edge Function: `pronunciation-feedback`
+- **Input**: `{ word_arabic, word_english, scores (the full PronunciationResult), dialect }`
+- Uses `LOVABLE_API_KEY` + Gemini Flash to generate 2-3 short coaching tips based on the scores
+- Prompt instructs the AI to focus on: mispronounced words, omitted words, low-accuracy phonemes, fluency issues
+- Returns `{ tips: string[] }` — e.g. `["Try elongating the vowel in كتاب", "You missed the word في — slow down"]`
 
-### 2. New Edge Function: `generate-word-jingle`
-- **Input**: `{ word_arabic, word_english, dialect }`
-- **Step 1**: Use Lovable AI (Gemini Flash) + shared `dialectHelpers.ts` to generate a dialect-specific music prompt. Example for Gulf: *"A catchy 10-second Arabic pop jingle teaching the Gulf Arabic word كتاب (book). Use Khaliji dialect vocals. Short, fun, memorable chorus repeating the word."*
-- **Step 2**: Call Google Lyria 3 Clip API directly:
-  ```
-  POST https://generativelanguage.googleapis.com/v1beta/models/lyria-3-clip-preview:generateContent
-  x-goog-api-key: $GEMINI_API_KEY
-  Body: { contents: [{ parts: [{ text: musicPrompt }] }], generationConfig: { responseModalities: ["AUDIO"] } }
-  ```
-- **Step 3**: Extract base64 audio from response, return it
-- Uses `LOVABLE_API_KEY` for prompt generation, `GEMINI_API_KEY` for Lyria 3
+### 2. UI: Update `PronunciationButton.tsx`
+- After receiving Azure results, automatically call `pronunciation-feedback` in the background
+- Show a small "💡 Tips" section below the score card with the AI-generated tips
+- Show a loading skeleton while tips are being generated
+- Tips appear with a fade-in animation
 
-### 3. Secret Required
-- `GEMINI_API_KEY` — needed for Lyria 3 (not available through Lovable AI gateway). User gets it from Google AI Studio.
-
-### 4. UI Changes: `MyWordsReview.tsx`
-- Add a **🎵 Jingle** button on each flashcard
-- First tap: show "Creating song..." → call edge function → upload MP3 to `flashcard-audio` bucket → save URL to `jingle_audio_url` → play
-- Subsequent taps: play saved URL
-- Small 🔄 regenerate option if jingle already exists
-- Pass `activeDialect` to the edge function so prompts use the correct dialect
+### 3. No database changes needed
+Tips are generated on-the-fly per attempt — no persistence required.
 
 ### Key Details
-- Music prompt explicitly requests **10-second** clip and specifies Gulf Arabic or Egyptian Arabic vocals/style based on the dialect parameter
-- Uses `getDialectLabel()` and `getDialectVocabRules()` from shared helpers to ensure dialect accuracy in the prompt
-- Lyria 3 generates real music with vocals — not TTS
+- Uses dialect context to tailor feedback (e.g. Gulf vs Egyptian phoneme expectations)
+- Tips are concise (1 sentence each), practical, and encouraging
+- Falls back gracefully — if AI call fails, the score card still shows normally without tips
+- For single words: focuses on phoneme-level feedback; for phrases: includes word-level and fluency feedback
 

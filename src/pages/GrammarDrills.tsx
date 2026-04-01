@@ -288,7 +288,7 @@ const GrammarDrills = () => {
                   </div>
                   <div className="flex-1 text-right" dir="rtl">
                     <p className="font-semibold text-foreground">{choice.text_arabic}</p>
-                    <p className="text-xs text-muted-foreground">{choice.text_english}</p>
+                    {showEnglish && <p className="text-xs text-muted-foreground">{choice.text_english}</p>}
                   </div>
                 </button>
               );

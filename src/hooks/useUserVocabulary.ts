@@ -179,7 +179,6 @@ export const useUpdateUserVocabularyReview = () => {
         .from("user_vocabulary")
         .update({
           ease_factor: stability,
-          difficulty,
           interval_days: Math.max(0, Math.round(intervalDays)),
           repetitions,
           next_review_at: nextReviewAt.toISOString(),

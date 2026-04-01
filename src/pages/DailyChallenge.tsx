@@ -378,8 +378,8 @@ const DailyChallenge = () => {
           {currentQuestion.sentence && (
             <div>
               <p className="text-xl font-arabic text-foreground" dir="rtl">{currentQuestion.sentence}</p>
-              {currentQuestion.sentenceEnglish && (
-                <p className="text-sm text-muted-foreground mt-1">{currentQuestion.sentenceEnglish}</p>
+              {showEnglish && currentQuestion.sentenceEnglish && (
+                <p className="text-sm text-muted-foreground mt-1 animate-in fade-in duration-200">{currentQuestion.sentenceEnglish}</p>
               )}
             </div>
           )}

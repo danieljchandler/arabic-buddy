@@ -79,6 +79,7 @@ const ListeningPractice = () => {
   const [score, setScore] = useState(savedSession?.score ?? 0);
   const [totalAnswered, setTotalAnswered] = useState(savedSession?.totalAnswered ?? 0);
   const [audioPlaying, setAudioPlaying] = useState(false);
+  const [showEnglish, setShowEnglish] = useState(false);
 
   // Persist session state
   useEffect(() => {

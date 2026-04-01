@@ -232,11 +232,23 @@ const GrammarDrills = () => {
             />
           </div>
 
-          {/* Grammar point badge */}
-          <div className="flex items-center gap-2">
+          {/* Grammar point badge + EN toggle */}
+          <div className="flex items-center justify-between">
             <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
               {q.grammar_point}
             </span>
+            <button
+              onClick={() => setShowEnglish((v) => !v)}
+              className={cn(
+                "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all",
+                showEnglish
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+              )}
+            >
+              <Languages className="h-3.5 w-3.5" />
+              EN
+            </button>
           </div>
 
           {/* Question */}

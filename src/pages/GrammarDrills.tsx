@@ -8,10 +8,12 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { Switch } from "@/components/ui/switch";
 import {
   BookOpen,
   Check,
   ChevronRight,
+  Languages,
   Loader2,
   RotateCcw,
   Sparkles,
@@ -74,6 +76,7 @@ const GrammarDrills = () => {
   const [score, setScore] = useState(savedSession?.score ?? 0);
   const [isLoading, setIsLoading] = useState(false);
   const [showResult, setShowResult] = useState(false);
+  const [showEnglish, setShowEnglish] = useState(false);
 
   // Persist session state
   useEffect(() => {
@@ -229,11 +232,23 @@ const GrammarDrills = () => {
             />
           </div>
 
-          {/* Grammar point badge */}
-          <div className="flex items-center gap-2">
+          {/* Grammar point badge + EN toggle */}
+          <div className="flex items-center justify-between">
             <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
               {q.grammar_point}
             </span>
+            <button
+              onClick={() => setShowEnglish((v) => !v)}
+              className={cn(
+                "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all",
+                showEnglish
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+              )}
+            >
+              <Languages className="h-3.5 w-3.5" />
+              EN
+            </button>
           </div>
 
           {/* Question */}
@@ -241,7 +256,7 @@ const GrammarDrills = () => {
             <p className="text-xl font-bold text-foreground text-right leading-relaxed" dir="rtl">
               {q.question_arabic}
             </p>
-            <p className="text-sm text-muted-foreground">{q.question_english}</p>
+            {showEnglish && <p className="text-sm text-muted-foreground">{q.question_english}</p>}
           </div>
 
           {/* Choices */}
@@ -273,7 +288,7 @@ const GrammarDrills = () => {
                   </div>
                   <div className="flex-1 text-right" dir="rtl">
                     <p className="font-semibold text-foreground">{choice.text_arabic}</p>
-                    <p className="text-xs text-muted-foreground">{choice.text_english}</p>
+                    {showEnglish && <p className="text-xs text-muted-foreground">{choice.text_english}</p>}
                   </div>
                 </button>
               );

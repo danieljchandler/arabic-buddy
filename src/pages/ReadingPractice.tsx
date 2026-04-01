@@ -980,7 +980,7 @@ const ReadingPractice = () => {
                     )}
                   >
                     <p className="font-arabic text-foreground" dir="rtl">{option.text}</p>
-                    <p className="text-xs text-muted-foreground mt-1">{option.textEnglish}</p>
+                    {showEnglish && <p className="text-xs text-muted-foreground mt-1 animate-in fade-in duration-200">{option.textEnglish}</p>}
                   </button>
                 );
               })}

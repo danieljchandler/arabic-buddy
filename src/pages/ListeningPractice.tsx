@@ -572,9 +572,11 @@ const ListeningPractice = () => {
 
             {showResult && (
               <div className="pt-4">
-                <p className="text-center text-sm text-muted-foreground mb-2">
-                  "{currentQuestion.audioTextEnglish}"
-                </p>
+                {showEnglish && (
+                  <p className="text-center text-sm text-muted-foreground mb-2 animate-in fade-in duration-200">
+                    "{currentQuestion.audioTextEnglish}"
+                  </p>
+                )}
                 <Button onClick={nextQuestion} className="w-full">
                   {currentIndex < questions.length - 1 ? "Next" : "Finish"}
                   <ChevronRight className="h-4 w-4 ml-1" />

@@ -892,7 +892,7 @@ const ReadingPractice = () => {
         <div className="space-y-4">
           <div className="text-center">
             <h2 className="text-xl font-bold text-foreground font-arabic" dir="rtl">{passage.title}</h2>
-            <p className="text-sm text-muted-foreground">{passage.titleEnglish}</p>
+            {showEnglish && <p className="text-sm text-muted-foreground animate-in fade-in duration-200">{passage.titleEnglish}</p>}
           </div>
 
           <div className="bg-card border border-border rounded-2xl p-4 space-y-3">

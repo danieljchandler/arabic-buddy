@@ -24,6 +24,7 @@ import {
   Zap,
   Star,
   Calendar,
+  Languages,
 } from "lucide-react";
 
 interface ChallengeQuestion {

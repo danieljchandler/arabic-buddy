@@ -211,7 +211,15 @@ const PronunciationPractice = () => {
       <div className="max-w-md mx-auto">
         {/* Header */}
         <div className="text-center mb-6">
-          <h1 className="text-2xl font-bold font-heading mb-1">Pronunciation Practice</h1>
+          <div className="flex items-center justify-between mb-1">
+            <div />
+            <h1 className="text-2xl font-bold font-heading">Pronunciation Practice</h1>
+            <div className="flex items-center gap-1.5">
+              <Languages className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="text-xs text-muted-foreground">EN</span>
+              <Switch checked={showEnglish} onCheckedChange={setShowEnglish} className="h-5 w-9 data-[state=checked]:bg-primary data-[state=unchecked]:bg-input [&>span]:h-4 [&>span]:w-4 [&>span]:data-[state=checked]:translate-x-4" />
+            </div>
+          </div>
           <p className="text-sm text-muted-foreground">
             Word {currentIndex + 1} of {words.length}
           </p>

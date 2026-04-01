@@ -956,7 +956,7 @@ const ReadingPractice = () => {
           <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
             <div className="text-center">
               <p className="text-lg font-arabic text-foreground" dir="rtl">{passage.questions[currentQuestion].question}</p>
-              <p className="text-sm text-muted-foreground mt-1">{passage.questions[currentQuestion].questionEnglish}</p>
+              {showEnglish && <p className="text-sm text-muted-foreground mt-1 animate-in fade-in duration-200">{passage.questions[currentQuestion].questionEnglish}</p>}
             </div>
             <div className="space-y-2">
               {passage.questions[currentQuestion].options.map((option, i) => {

@@ -8,7 +8,8 @@ import { HomeButton } from "@/components/HomeButton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Mic, MicOff, RotateCcw, Loader2, ChevronRight, ChevronLeft, Volume2, Trophy, Target, ArrowRight } from "lucide-react";
+import { Mic, MicOff, RotateCcw, Loader2, ChevronRight, ChevronLeft, Volume2, Trophy, Target, ArrowRight, Languages } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useRef } from "react";
@@ -48,6 +49,7 @@ const PronunciationPractice = () => {
   const [mode, setMode] = useState<"word" | "sentence">("word");
   const [sessionScores, setSessionScores] = useState<number[]>([]);
   const [wordsLoading, setWordsLoading] = useState(true);
+  const [showEnglish, setShowEnglish] = useState(false);
 
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -209,7 +211,15 @@ const PronunciationPractice = () => {
       <div className="max-w-md mx-auto">
         {/* Header */}
         <div className="text-center mb-6">
-          <h1 className="text-2xl font-bold font-heading mb-1">Pronunciation Practice</h1>
+          <div className="flex items-center justify-between mb-1">
+            <div />
+            <h1 className="text-2xl font-bold font-heading">Pronunciation Practice</h1>
+            <div className="flex items-center gap-1.5">
+              <Languages className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="text-xs text-muted-foreground">EN</span>
+              <Switch checked={showEnglish} onCheckedChange={setShowEnglish} className="h-5 w-9 data-[state=checked]:bg-primary data-[state=unchecked]:bg-input [&>span]:h-4 [&>span]:w-4 [&>span]:data-[state=checked]:translate-x-4" />
+            </div>
+          </div>
           <p className="text-sm text-muted-foreground">
             Word {currentIndex + 1} of {words.length}
           </p>
@@ -264,11 +274,13 @@ const PronunciationPractice = () => {
           </p>
 
           {/* English translation */}
-          <p className="text-muted-foreground text-lg mb-4">
-            {mode === "sentence" && currentWord?.sentence_english
-              ? currentWord.sentence_english
-              : currentWord?.word_english}
-          </p>
+          {showEnglish && (
+            <p className="text-muted-foreground text-lg mb-4 animate-in fade-in duration-200">
+              {mode === "sentence" && currentWord?.sentence_english
+                ? currentWord.sentence_english
+                : currentWord?.word_english}
+            </p>
+          )}
 
           {/* Listen button */}
           {currentWord?.word_audio_url && mode === "word" && (

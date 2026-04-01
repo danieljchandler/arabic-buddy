@@ -14,6 +14,7 @@ import { useAddXP } from "@/hooks/useGamification";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { Switch } from "@/components/ui/switch";
 import {
   Headphones,
   Play,
@@ -26,6 +27,7 @@ import {
   PenLine,
   Loader2,
   ChevronRight,
+  Languages,
 } from "lucide-react";
 
 type Mode = "dictation" | "comprehension" | "speed";
@@ -77,6 +79,7 @@ const ListeningPractice = () => {
   const [score, setScore] = useState(savedSession?.score ?? 0);
   const [totalAnswered, setTotalAnswered] = useState(savedSession?.totalAnswered ?? 0);
   const [audioPlaying, setAudioPlaying] = useState(false);
+  const [showEnglish, setShowEnglish] = useState(false);
 
   // Persist session state
   useEffect(() => {
@@ -416,8 +419,10 @@ const ListeningPractice = () => {
         <Badge variant="secondary">
           {currentIndex + 1}/{questions.length}
         </Badge>
-        <div className="text-sm font-medium text-primary">
-          Score: {score}
+        <div className="flex items-center gap-1.5">
+          <Languages className="h-3.5 w-3.5 text-muted-foreground" />
+          <span className="text-xs text-muted-foreground">EN</span>
+          <Switch checked={showEnglish} onCheckedChange={setShowEnglish} className="h-5 w-9 data-[state=checked]:bg-primary data-[state=unchecked]:bg-input [&>span]:h-4 [&>span]:w-4 [&>span]:data-[state=checked]:translate-x-4" />
         </div>
       </div>
 
@@ -527,9 +532,11 @@ const ListeningPractice = () => {
                   <p className="text-2xl font-arabic mb-1" dir="rtl">
                     {currentQuestion.audioText}
                   </p>
-                  <p className="text-sm text-muted-foreground">
-                    {currentQuestion.audioTextEnglish}
-                  </p>
+                  {showEnglish && (
+                    <p className="text-sm text-muted-foreground animate-in fade-in duration-200">
+                      {currentQuestion.audioTextEnglish}
+                    </p>
+                  )}
                 </div>
 
                 <Button onClick={nextQuestion} className="w-full">
@@ -565,9 +572,11 @@ const ListeningPractice = () => {
 
             {showResult && (
               <div className="pt-4">
-                <p className="text-center text-sm text-muted-foreground mb-2">
-                  "{currentQuestion.audioTextEnglish}"
-                </p>
+                {showEnglish && (
+                  <p className="text-center text-sm text-muted-foreground mb-2 animate-in fade-in duration-200">
+                    "{currentQuestion.audioTextEnglish}"
+                  </p>
+                )}
                 <Button onClick={nextQuestion} className="w-full">
                   {currentIndex < questions.length - 1 ? "Next" : "Finish"}
                   <ChevronRight className="h-4 w-4 ml-1" />

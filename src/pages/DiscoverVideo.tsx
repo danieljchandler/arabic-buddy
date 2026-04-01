@@ -279,7 +279,7 @@ const DiscoverVideo = () => {
 
   const [currentTimeMs, setCurrentTimeMs] = useState(0);
   const [savedWords, setSavedWords] = useState<Set<string>>(new Set());
-  const [showTranslations, setShowTranslations] = useState(true);
+  const [showTranslations, setShowTranslations] = useState(false);
   const [playbackMode, setPlaybackMode] = useState<"continuous" | "line">("continuous");
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const playbackSpeedRef = useRef(playbackSpeed);

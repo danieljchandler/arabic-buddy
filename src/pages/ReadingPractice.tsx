@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from "react";
+import { Switch } from "@/components/ui/switch";
 import { useDialect } from "@/contexts/DialectContext";
 import { useNavigate } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
@@ -32,6 +33,7 @@ import {
   MessageCircle,
   Send,
   ArrowLeft,
+  Languages,
 } from "lucide-react";
 
 type Difficulty = "beginner" | "intermediate" | "advanced";
@@ -254,6 +256,7 @@ const ReadingPractice = () => {
   const [answers, setAnswers] = useState<(number | null)[]>(savedSession?.answers ?? []);
   const [showResults, setShowResults] = useState(savedSession?.showResults ?? false);
   const [quizStarted, setQuizStarted] = useState(savedSession?.quizStarted ?? false);
+  const [showEnglish, setShowEnglish] = useState(false);
 
   // Word-level translation state
   const [wordTranslations, setWordTranslations] = useState<Record<string, { translation: string; lineEnglish: string; enrichment?: WordEnrichment; enriching?: boolean }>>({});
@@ -704,7 +707,7 @@ const ReadingPractice = () => {
                             className="text-xs cursor-pointer hover:bg-secondary/80"
                             onClick={() => saveAsFlashcard(v.arabic, v.english)}
                           >
-                            {v.arabic} — {v.english}
+                            {v.arabic}{showEnglish ? ` — ${v.english}` : ""}
                             {isAuthenticated && <BookmarkPlus className="h-2.5 w-2.5 ml-1 inline" />}
                           </Badge>
                         ))}
@@ -877,6 +880,11 @@ const ReadingPractice = () => {
           Exit
         </Button>
         <Badge className={DIFFICULTY_CONFIG[difficulty].color}>{DIFFICULTY_CONFIG[difficulty].label}</Badge>
+        <div className="flex items-center gap-1.5">
+          <Languages className="h-3.5 w-3.5 text-muted-foreground" />
+          <span className="text-xs text-muted-foreground">EN</span>
+          <Switch checked={showEnglish} onCheckedChange={setShowEnglish} className="h-5 w-9 data-[state=checked]:bg-primary data-[state=unchecked]:bg-input [&>span]:h-4 [&>span]:w-4 [&>span]:data-[state=checked]:translate-x-4" />
+        </div>
       </div>
 
       {/* Passage Section */}
@@ -884,7 +892,7 @@ const ReadingPractice = () => {
         <div className="space-y-4">
           <div className="text-center">
             <h2 className="text-xl font-bold text-foreground font-arabic" dir="rtl">{passage.title}</h2>
-            <p className="text-sm text-muted-foreground">{passage.titleEnglish}</p>
+            {showEnglish && <p className="text-sm text-muted-foreground animate-in fade-in duration-200">{passage.titleEnglish}</p>}
           </div>
 
           <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
@@ -920,7 +928,7 @@ const ReadingPractice = () => {
                   className="text-sm cursor-pointer hover:bg-secondary/80"
                   onClick={() => saveAsFlashcard(v.arabic, v.english)}
                 >
-                  {v.arabic} — {v.english}
+                  {v.arabic}{showEnglish ? ` — ${v.english}` : ""}
                   {isAuthenticated && <BookmarkPlus className="h-3 w-3 ml-1.5 inline" />}
                 </Badge>
               ))}
@@ -948,7 +956,7 @@ const ReadingPractice = () => {
           <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
             <div className="text-center">
               <p className="text-lg font-arabic text-foreground" dir="rtl">{passage.questions[currentQuestion].question}</p>
-              <p className="text-sm text-muted-foreground mt-1">{passage.questions[currentQuestion].questionEnglish}</p>
+              {showEnglish && <p className="text-sm text-muted-foreground mt-1 animate-in fade-in duration-200">{passage.questions[currentQuestion].questionEnglish}</p>}
             </div>
             <div className="space-y-2">
               {passage.questions[currentQuestion].options.map((option, i) => {
@@ -972,7 +980,7 @@ const ReadingPractice = () => {
                     )}
                   >
                     <p className="font-arabic text-foreground" dir="rtl">{option.text}</p>
-                    <p className="text-xs text-muted-foreground mt-1">{option.textEnglish}</p>
+                    {showEnglish && <p className="text-xs text-muted-foreground mt-1 animate-in fade-in duration-200">{option.textEnglish}</p>}
                   </button>
                 );
               })}

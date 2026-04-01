@@ -13,6 +13,7 @@ import { useAddXP } from "@/hooks/useGamification";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { Switch } from "@/components/ui/switch";
 import {
   Flame,
   Check,
@@ -23,6 +24,7 @@ import {
   Zap,
   Star,
   Calendar,
+  Languages,
 } from "lucide-react";
 
 interface ChallengeQuestion {
@@ -75,6 +77,7 @@ const DailyChallenge = () => {
   const [isCorrect, setIsCorrect] = useState(false);
   const [loading, setLoading] = useState(false);
   const [sessionComplete, setSessionComplete] = useState(savedSession?.sessionComplete ?? false);
+  const [showEnglish, setShowEnglish] = useState(false);
 
   // Persist session state
   useEffect(() => {
@@ -357,7 +360,11 @@ const DailyChallenge = () => {
           <p className="text-xs text-muted-foreground">{challenge.title}</p>
           <p className="text-xs font-arabic text-muted-foreground">{challenge.titleArabic}</p>
         </div>
-        <Badge variant="secondary">{currentIndex + 1}/{challenge.questions.length}</Badge>
+        <div className="flex items-center gap-1.5">
+          <Languages className="h-3.5 w-3.5 text-muted-foreground" />
+          <span className="text-xs text-muted-foreground">EN</span>
+          <Switch checked={showEnglish} onCheckedChange={setShowEnglish} className="h-5 w-9 data-[state=checked]:bg-primary data-[state=unchecked]:bg-input [&>span]:h-4 [&>span]:w-4 [&>span]:data-[state=checked]:translate-x-4" />
+        </div>
       </div>
 
       <Progress value={progress} className="h-2 mb-6" />
@@ -371,8 +378,8 @@ const DailyChallenge = () => {
           {currentQuestion.sentence && (
             <div>
               <p className="text-xl font-arabic text-foreground" dir="rtl">{currentQuestion.sentence}</p>
-              {currentQuestion.sentenceEnglish && (
-                <p className="text-sm text-muted-foreground mt-1">{currentQuestion.sentenceEnglish}</p>
+              {showEnglish && currentQuestion.sentenceEnglish && (
+                <p className="text-sm text-muted-foreground mt-1 animate-in fade-in duration-200">{currentQuestion.sentenceEnglish}</p>
               )}
             </div>
           )}

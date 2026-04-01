@@ -173,7 +173,7 @@ const StoryPlayer = () => {
                         className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-sm"
                       >
                         <span className="font-medium">{v.word_arabic}</span>
-                        <span className="text-muted-foreground text-xs">({v.word_english})</span>
+                        {showTranslation && <span className="text-muted-foreground text-xs">({v.word_english})</span>}
                       </span>
                     ))}
                   </div>

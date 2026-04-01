@@ -256,6 +256,7 @@ const ReadingPractice = () => {
   const [answers, setAnswers] = useState<(number | null)[]>(savedSession?.answers ?? []);
   const [showResults, setShowResults] = useState(savedSession?.showResults ?? false);
   const [quizStarted, setQuizStarted] = useState(savedSession?.quizStarted ?? false);
+  const [showEnglish, setShowEnglish] = useState(false);
 
   // Word-level translation state
   const [wordTranslations, setWordTranslations] = useState<Record<string, { translation: string; lineEnglish: string; enrichment?: WordEnrichment; enriching?: boolean }>>({});

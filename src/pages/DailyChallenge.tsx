@@ -77,6 +77,7 @@ const DailyChallenge = () => {
   const [isCorrect, setIsCorrect] = useState(false);
   const [loading, setLoading] = useState(false);
   const [sessionComplete, setSessionComplete] = useState(savedSession?.sessionComplete ?? false);
+  const [showEnglish, setShowEnglish] = useState(false);
 
   // Persist session state
   useEffect(() => {

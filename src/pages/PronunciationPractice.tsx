@@ -266,11 +266,13 @@ const PronunciationPractice = () => {
           </p>
 
           {/* English translation */}
-          <p className="text-muted-foreground text-lg mb-4">
-            {mode === "sentence" && currentWord?.sentence_english
-              ? currentWord.sentence_english
-              : currentWord?.word_english}
-          </p>
+          {showEnglish && (
+            <p className="text-muted-foreground text-lg mb-4 animate-in fade-in duration-200">
+              {mode === "sentence" && currentWord?.sentence_english
+                ? currentWord.sentence_english
+                : currentWord?.word_english}
+            </p>
+          )}
 
           {/* Listen button */}
           {currentWord?.word_audio_url && mode === "word" && (

@@ -8,10 +8,12 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { Switch } from "@/components/ui/switch";
 import {
   BookOpen,
   Check,
   ChevronRight,
+  Languages,
   Loader2,
   RotateCcw,
   Sparkles,

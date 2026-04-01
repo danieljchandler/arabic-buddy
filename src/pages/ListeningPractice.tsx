@@ -27,6 +27,7 @@ import {
   PenLine,
   Loader2,
   ChevronRight,
+  Languages,
 } from "lucide-react";
 
 type Mode = "dictation" | "comprehension" | "speed";

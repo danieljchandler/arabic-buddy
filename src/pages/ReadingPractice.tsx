@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from "react";
+import { Switch } from "@/components/ui/switch";
 import { useDialect } from "@/contexts/DialectContext";
 import { useNavigate } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";

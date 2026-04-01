@@ -707,7 +707,7 @@ const ReadingPractice = () => {
                             className="text-xs cursor-pointer hover:bg-secondary/80"
                             onClick={() => saveAsFlashcard(v.arabic, v.english)}
                           >
-                            {v.arabic} — {v.english}
+                            {v.arabic}{showEnglish ? ` — ${v.english}` : ""}
                             {isAuthenticated && <BookmarkPlus className="h-2.5 w-2.5 ml-1 inline" />}
                           </Badge>
                         ))}

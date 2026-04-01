@@ -256,7 +256,7 @@ const GrammarDrills = () => {
             <p className="text-xl font-bold text-foreground text-right leading-relaxed" dir="rtl">
               {q.question_arabic}
             </p>
-            <p className="text-sm text-muted-foreground">{q.question_english}</p>
+            {showEnglish && <p className="text-sm text-muted-foreground">{q.question_english}</p>}
           </div>
 
           {/* Choices */}

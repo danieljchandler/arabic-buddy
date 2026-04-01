@@ -76,6 +76,7 @@ const GrammarDrills = () => {
   const [score, setScore] = useState(savedSession?.score ?? 0);
   const [isLoading, setIsLoading] = useState(false);
   const [showResult, setShowResult] = useState(false);
+  const [showEnglish, setShowEnglish] = useState(false);
 
   // Persist session state
   useEffect(() => {

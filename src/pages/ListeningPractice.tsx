@@ -532,9 +532,11 @@ const ListeningPractice = () => {
                   <p className="text-2xl font-arabic mb-1" dir="rtl">
                     {currentQuestion.audioText}
                   </p>
-                  <p className="text-sm text-muted-foreground">
-                    {currentQuestion.audioTextEnglish}
-                  </p>
+                  {showEnglish && (
+                    <p className="text-sm text-muted-foreground animate-in fade-in duration-200">
+                      {currentQuestion.audioTextEnglish}
+                    </p>
+                  )}
                 </div>
 
                 <Button onClick={nextQuestion} className="w-full">

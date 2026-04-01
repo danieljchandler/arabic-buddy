@@ -13,6 +13,7 @@ import { useAddXP } from "@/hooks/useGamification";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { Switch } from "@/components/ui/switch";
 import {
   Flame,
   Check,

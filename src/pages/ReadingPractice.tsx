@@ -33,6 +33,7 @@ import {
   MessageCircle,
   Send,
   ArrowLeft,
+  Languages,
 } from "lucide-react";
 
 type Difficulty = "beginner" | "intermediate" | "advanced";

@@ -49,6 +49,7 @@ const PronunciationPractice = () => {
   const [mode, setMode] = useState<"word" | "sentence">("word");
   const [sessionScores, setSessionScores] = useState<number[]>([]);
   const [wordsLoading, setWordsLoading] = useState(true);
+  const [showEnglish, setShowEnglish] = useState(false);
 
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);

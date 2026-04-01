@@ -419,8 +419,10 @@ const ListeningPractice = () => {
         <Badge variant="secondary">
           {currentIndex + 1}/{questions.length}
         </Badge>
-        <div className="text-sm font-medium text-primary">
-          Score: {score}
+        <div className="flex items-center gap-1.5">
+          <Languages className="h-3.5 w-3.5 text-muted-foreground" />
+          <span className="text-xs text-muted-foreground">EN</span>
+          <Switch checked={showEnglish} onCheckedChange={setShowEnglish} className="h-5 w-9 data-[state=checked]:bg-primary data-[state=unchecked]:bg-input [&>span]:h-4 [&>span]:w-4 [&>span]:data-[state=checked]:translate-x-4" />
         </div>
       </div>
 

@@ -245,6 +245,19 @@ const Onboarding = () => {
               </p>
             </div>
 
+            {/* Placement Quiz CTA */}
+            <button
+              onClick={() => navigate('/placement')}
+              className="w-full flex items-center gap-3 p-3.5 rounded-xl border-2 border-primary/30 bg-primary/5 hover:bg-primary/10 transition-all duration-200 text-left"
+            >
+              <span className="text-2xl">🧠</span>
+              <div className="flex-1">
+                <span className="font-semibold text-foreground">Not sure? Take the Placement Quiz</span>
+                <p className="text-xs text-muted-foreground">20 adaptive questions to find your CEFR level</p>
+              </div>
+              <ChevronRight className="h-5 w-5 text-primary shrink-0" />
+            </button>
+
             <div className="space-y-2">
               {LEVELS.map((l) => (
                 <button

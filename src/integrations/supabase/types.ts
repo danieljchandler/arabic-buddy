@@ -953,6 +953,8 @@ export type Database = {
           institution_id: string | null
           learning_reason: string | null
           onboarding_completed: boolean
+          placement_level: string | null
+          placement_taken_at: string | null
           preferred_dialect: string | null
           proficiency_level: string | null
           show_institution: boolean
@@ -970,6 +972,8 @@ export type Database = {
           institution_id?: string | null
           learning_reason?: string | null
           onboarding_completed?: boolean
+          placement_level?: string | null
+          placement_taken_at?: string | null
           preferred_dialect?: string | null
           proficiency_level?: string | null
           show_institution?: boolean
@@ -987,6 +991,8 @@ export type Database = {
           institution_id?: string | null
           learning_reason?: string | null
           onboarding_completed?: boolean
+          placement_level?: string | null
+          placement_taken_at?: string | null
           preferred_dialect?: string | null
           proficiency_level?: string | null
           show_institution?: boolean

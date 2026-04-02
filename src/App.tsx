@@ -271,6 +271,9 @@ const App = () => {
             <Route path="/my-path/setup" element={
               <ErrorBoundary name="LearningPathSetupRoute"><LearningPathSetup /></ErrorBoundary>
             } />
+            <Route path="/placement" element={
+              <ErrorBoundary name="PlacementQuizRoute"><PlacementQuiz /></ErrorBoundary>
+            } />
 
             <Route path="/admin" element={<ErrorBoundary name="AdminRoute"><AdminLayout /></ErrorBoundary>}>
               <Route index element={<Dashboard />} />

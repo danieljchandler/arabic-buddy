@@ -1,39 +1,62 @@
 
 
-# AI Pronunciation Coaching Feedback
+# Adaptive Placement Quiz (20 Questions)
 
 ## Overview
-After the Azure pronunciation score is returned, send the detailed results (per-word accuracy, error types, phoneme breakdowns) to Lovable AI to generate **natural language coaching tips** in English — e.g. "Focus on softening the 'ك' sound" or "You skipped the word 'في' — try speaking slower."
+A new `/placement` page with an AI-generated adaptive quiz that tests mixed skills (vocab, grammar, listening comprehension, reading) across difficulty tiers. The quiz starts at mid-level, gets harder on correct answers and easier on wrong ones, then outputs a CEFR level (A1–C2).
 
-## How it works
+## Architecture
 
-Azure already returns rich data we're not fully surfacing:
-- Per-word `errorType`: `Mispronunciation`, `Omission`, `Insertion`
-- Per-phoneme accuracy scores
-- Overall fluency/completeness scores
-
-We'll pass this structured data to an AI model that generates 2-3 short, actionable tips.
+```text
+User starts quiz
+  → Edge function generates first question batch (mid-level)
+  → User answers → score tracked client-side
+  → After every ~5 questions, request next batch with updated difficulty
+  → After 20 questions → calculate CEFR level
+  → Save result to profile, update onboarding level
+```
 
 ## Implementation
 
-### 1. New Edge Function: `pronunciation-feedback`
-- **Input**: `{ word_arabic, word_english, scores (the full PronunciationResult), dialect }`
-- Uses `LOVABLE_API_KEY` + Gemini Flash to generate 2-3 short coaching tips based on the scores
-- Prompt instructs the AI to focus on: mispronounced words, omitted words, low-accuracy phonemes, fluency issues
-- Returns `{ tips: string[] }` — e.g. `["Try elongating the vowel in كتاب", "You missed the word في — slow down"]`
+### 1. New Edge Function: `placement-quiz`
+- **Input**: `{ action: "generate", current_difficulty: "B1", question_number: number, history: [{correct, difficulty}], dialect: string }`
+- Uses `LOVABLE_API_KEY` + Gemini Flash
+- Generates 5 questions per call (4 calls total for 20 questions)
+- Question types: vocab matching, grammar fill-in-blank, reading comprehension snippet, sentence translation
+- Each question includes: `question_arabic`, `question_english` (hidden by default per toggle pattern), `choices[]`, `correct_index`, `skill_type`, `difficulty` (A1–C2)
+- Adaptive logic in the prompt: "Given the user got X/Y correct at difficulty D, generate 5 questions at difficulty [higher/lower/same]"
+- Returns `{ questions: [...], suggested_difficulty: string }`
+- On final call (`action: "score"`): takes full 20-answer history, returns `{ cefr_level: string, confidence: number, strengths: string[], weaknesses: string[] }`
 
-### 2. UI: Update `PronunciationButton.tsx`
-- After receiving Azure results, automatically call `pronunciation-feedback` in the background
-- Show a small "💡 Tips" section below the score card with the AI-generated tips
-- Show a loading skeleton while tips are being generated
-- Tips appear with a fade-in animation
+### 2. New Page: `src/pages/PlacementQuiz.tsx`
+- Clean, focused UI — one question at a time
+- Progress bar (1/20 → 20/20)
+- Question card shows Arabic prompt, 4 multiple-choice options
+- English toggle (matches existing pattern with `showEnglish` state + Switch)
+- After each answer: brief correct/incorrect feedback (1.5s), then auto-advance
+- Client-side state tracks: `answers[]`, `currentDifficulty`, `questionIndex`
+- Fetches questions in batches of 5 (questions 1-5, 6-10, 11-15, 16-20)
+- Adaptive: after each batch, sends score summary to get next batch at adjusted difficulty
 
-### 3. No database changes needed
-Tips are generated on-the-fly per attempt — no persistence required.
+### 3. Results Screen
+- Shows determined CEFR level with description
+- Strengths and weaknesses breakdown (e.g., "Strong vocab, grammar needs work")
+- "Start Learning" button → saves CEFR level to profile and navigates to home/learning path
+- Option to retake
+
+### 4. Database Changes
+- Add `placement_level` (text, nullable) and `placement_taken_at` (timestamptz, nullable) columns to `profiles` table
+- No new tables needed
+
+### 5. Integration Points
+- Link from onboarding "level" step: add a "Take Placement Quiz" option alongside the manual level selection
+- Link from Settings page for retaking
+- Route: `/placement` in App.tsx
 
 ### Key Details
-- Uses dialect context to tailor feedback (e.g. Gulf vs Egyptian phoneme expectations)
-- Tips are concise (1 sentence each), practical, and encouraging
-- Falls back gracefully — if AI call fails, the score card still shows normally without tips
-- For single words: focuses on phoneme-level feedback; for phrases: includes word-level and fluency feedback
+- Questions are generated on-the-fly by AI, not stored — keeps it fresh per attempt
+- The adaptive algorithm: correct → bump difficulty one CEFR level up; wrong → drop one level down; mixed → stay
+- Batch approach (5 at a time) balances responsiveness with API efficiency
+- Falls back gracefully if AI call fails mid-quiz (show error, let user retry from current position)
+- Respects the global "English hidden by default" toggle pattern
 

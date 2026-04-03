@@ -111,23 +111,27 @@ const Index = () => {
   const { data: discoverVideos } = useDiscoverVideos({ dialect: activeDialect });
 
   const [previewIndex, setPreviewIndex] = useState(0);
+  const [placementLevel, setPlacementLevel] = useState<string | null>(null);
   const previewVideos = discoverVideos?.slice(0, 5) ?? [];
   const previewVideo = previewVideos[previewIndex];
 
-  // Check onboarding status for authenticated users
+  // Check onboarding + placement status for authenticated users
   useEffect(() => {
     if (!isAuthenticated || authLoading || !user) return;
-    const checkOnboarding = async () => {
+    const checkProfile = async () => {
       const { data } = await supabase
         .from('profiles' as any)
-        .select('onboarding_completed')
+        .select('onboarding_completed, placement_level')
         .eq('user_id', user.id)
         .maybeSingle();
       if (data && !(data as any).onboarding_completed) {
         navigate('/onboarding');
       }
+      if (data) {
+        setPlacementLevel((data as any).placement_level || null);
+      }
     };
-    checkOnboarding();
+    checkProfile();
   }, [isAuthenticated, authLoading, user, navigate]);
   const handleSignOut = async () => {
     await signOut();

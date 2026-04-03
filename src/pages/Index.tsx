@@ -111,23 +111,27 @@ const Index = () => {
   const { data: discoverVideos } = useDiscoverVideos({ dialect: activeDialect });
 
   const [previewIndex, setPreviewIndex] = useState(0);
+  const [placementLevel, setPlacementLevel] = useState<string | null>(null);
   const previewVideos = discoverVideos?.slice(0, 5) ?? [];
   const previewVideo = previewVideos[previewIndex];
 
-  // Check onboarding status for authenticated users
+  // Check onboarding + placement status for authenticated users
   useEffect(() => {
     if (!isAuthenticated || authLoading || !user) return;
-    const checkOnboarding = async () => {
+    const checkProfile = async () => {
       const { data } = await supabase
         .from('profiles' as any)
-        .select('onboarding_completed')
+        .select('onboarding_completed, placement_level')
         .eq('user_id', user.id)
         .maybeSingle();
       if (data && !(data as any).onboarding_completed) {
         navigate('/onboarding');
       }
+      if (data) {
+        setPlacementLevel((data as any).placement_level || null);
+      }
     };
-    checkOnboarding();
+    checkProfile();
   }, [isAuthenticated, authLoading, user, navigate]);
   const handleSignOut = async () => {
     await signOut();
@@ -188,6 +192,42 @@ const Index = () => {
           </Button>
         </div>
       </div>
+
+      {/* ===== PLACEMENT QUIZ BANNER ===== */}
+      {isAuthenticated && !placementLevel && (
+        <button
+          onClick={() => navigate("/placement")}
+          className={cn(
+            "w-full mb-6 p-5 rounded-2xl",
+            "bg-gradient-to-br from-primary/15 via-accent/10 to-primary/5",
+            "border-2 border-primary/30",
+            "flex items-start gap-4 text-left",
+            "transition-all duration-200",
+            "hover:border-primary/50 hover:shadow-lg active:scale-[0.99]",
+            "relative overflow-hidden"
+          )}
+        >
+          <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -translate-y-1/2 translate-x-1/2" />
+          <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center shrink-0">
+            <GraduationCap className="h-6 w-6 text-primary" />
+          </div>
+          <div className="flex-1 min-w-0 relative z-10">
+            <p className="font-bold text-foreground text-base mb-1">Take the Placement Quiz</p>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Answer 20 adaptive questions so we can tailor lessons, vocabulary, and exercises to your exact level.
+            </p>
+            <div className="flex items-center gap-2 mt-2.5">
+              <Badge className="bg-primary/10 text-primary border-primary/20 text-xs">
+                ~5 minutes
+              </Badge>
+              <Badge className="bg-primary/10 text-primary border-primary/20 text-xs">
+                CEFR A1–C2
+              </Badge>
+            </div>
+          </div>
+          <ChevronRight className="h-5 w-5 text-primary shrink-0 mt-1" />
+        </button>
+      )}
 
       {/* ===== GAMIFICATION STATS (for logged in users) ===== */}
       {isAuthenticated && (

@@ -222,6 +222,7 @@ const ReadingPractice = () => {
   const navigate = useNavigate();
   const { isAuthenticated, user } = useAuth();
   const { activeDialect } = useDialect();
+  const { difficulty: userDifficulty } = useUserLevel();
   const { data: allWords } = useAllWords();
   const addXP = useAddXP();
   const addVocab = useAddUserVocabulary();

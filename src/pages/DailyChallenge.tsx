@@ -51,6 +51,7 @@ const DailyChallenge = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
   const { activeDialect } = useDialect();
+  const { difficulty: userDifficulty } = useUserLevel();
   const { data: allWords } = useAllWords();
   const addXP = useAddXP();
 

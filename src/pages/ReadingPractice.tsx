@@ -13,6 +13,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { useAuth } from "@/hooks/useAuth";
+import { useUserLevel } from "@/hooks/useUserLevel";
 import { useAllWords } from "@/hooks/useAllWords";
 import { useAddXP } from "@/hooks/useGamification";
 import { useAddUserVocabulary } from "@/hooks/useUserVocabulary";

@@ -20,7 +20,7 @@ serve(async (req) => {
   }
 
   try {
-    const { mode, words, count = 5, dialect = "Gulf" } = await req.json();
+    const { mode, words, count = 5, dialect = "Gulf", difficulty = "beginner" } = await req.json();
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");

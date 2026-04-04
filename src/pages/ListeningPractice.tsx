@@ -142,6 +142,7 @@ const ListeningPractice = () => {
           })),
           count: 5,
           dialect: activeDialect,
+          difficulty: userDifficulty,
         },
       });
 

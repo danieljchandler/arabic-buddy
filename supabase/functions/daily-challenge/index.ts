@@ -31,9 +31,17 @@ serve(async (req) => {
 
     const streakMultiplier = streakDays >= 7 ? 2.0 : streakDays >= 3 ? 1.5 : 1.0;
 
+    const levelGuidance = difficulty === "advanced"
+      ? "Use complex sentences, idioms, and nuanced vocabulary appropriate for advanced learners."
+      : difficulty === "intermediate"
+      ? "Use moderately complex sentences and vocabulary. Include some challenging words but keep it accessible."
+      : "Use simple, common vocabulary and short sentences suitable for beginners.";
+
     const systemPrompt = `You are a ${dialectLabel} language challenge generator for a daily challenge feature.
 
 ${dialectRules}
+
+Student level: ${difficulty}. ${levelGuidance}
 
 IMPORTANT: Return valid JSON only, no markdown.`;
 

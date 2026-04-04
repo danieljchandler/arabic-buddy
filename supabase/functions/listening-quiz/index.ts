@@ -33,10 +33,17 @@ serve(async (req) => {
       .map((w: any) => `${w.word_arabic} (${w.word_english})`)
       .join(", ");
 
+    const levelGuidance = difficulty === "advanced"
+      ? "Use complex, natural-speed sentences with advanced vocabulary and idioms."
+      : difficulty === "intermediate"
+      ? "Use moderately complex sentences with a mix of common and less common vocabulary."
+      : "Use simple, slow, clearly pronounced sentences with basic vocabulary.";
+
     const systemPrompt = `You are a ${dialectLabel} language tutor creating listening comprehension exercises.
 
 ${dialectRules}
 - Generate exercises using these vocabulary words the student knows: ${vocabContext}
+- Student level: ${difficulty}. ${levelGuidance}
 
 IMPORTANT: Return valid JSON only, no markdown.`;
 

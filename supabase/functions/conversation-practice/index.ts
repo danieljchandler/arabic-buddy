@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { messages, dialect = "Gulf" } = await req.json();
+    const { messages, dialect = "Gulf", difficulty = "beginner" } = await req.json();
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return new Response(

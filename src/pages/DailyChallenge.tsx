@@ -186,6 +186,7 @@ const DailyChallenge = () => {
           })),
           streakDays: streakData || 0,
           dialect: activeDialect,
+          difficulty: userDifficulty,
         },
       });
 

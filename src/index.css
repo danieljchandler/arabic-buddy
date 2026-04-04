@@ -152,7 +152,7 @@
   }
 
   .text-english-secondary {
-    font-family: 'Open Sans', 'Cairo', sans-serif;
+    font-family: 'Open Sans', 'Noto Sans Arabic', sans-serif;
     font-weight: 500;
     color: hsl(var(--muted-foreground));
   }

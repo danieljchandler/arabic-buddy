@@ -403,7 +403,7 @@ const ConversationSimulator = () => {
       ];
 
       const { data, error } = await supabase.functions.invoke("conversation-practice", {
-        body: { messages: apiMessages, dialect: activeDialect },
+        body: { messages: apiMessages, dialect: activeDialect, difficulty: userDifficulty },
       });
 
       if (error) throw error;

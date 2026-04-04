@@ -361,6 +361,7 @@ const ConversationSimulator = () => {
             { role: "user", content: "Start the conversation." },
           ],
           dialect: activeDialect,
+          difficulty: userDifficulty,
         },
       });
 

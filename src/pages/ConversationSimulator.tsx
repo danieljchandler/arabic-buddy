@@ -214,6 +214,7 @@ const ConversationSimulator = () => {
   const { toast } = useToast();
   const { user, loading: authLoading } = useAuth();
   const { activeDialect } = useDialect();
+  const { difficulty: userDifficulty } = useUserLevel();
 
   // Restore persisted conversation session
   const [savedConvo] = useState<any>(() => {

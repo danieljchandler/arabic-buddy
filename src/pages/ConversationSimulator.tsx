@@ -12,6 +12,7 @@ import { Loader2, Send, RotateCcw, MessageCircle, Coffee, MapPin, ShoppingBag, U
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import { useUserLevel } from "@/hooks/useUserLevel";
 import { useToast } from "@/hooks/use-toast";
 
 interface Message {

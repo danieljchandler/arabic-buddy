@@ -5,6 +5,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { HomeButton } from "@/components/HomeButton";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
+import { useUserLevel } from "@/hooks/useUserLevel";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";

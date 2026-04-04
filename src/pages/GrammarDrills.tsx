@@ -71,7 +71,7 @@ const GrammarDrills = () => {
   });
 
   const [category, setCategory] = useState<string | null>(savedSession?.category ?? null);
-  const [difficulty, setDifficulty] = useState(savedSession?.difficulty ?? null);
+  const [difficulty, setDifficulty] = useState(savedSession?.difficulty ?? userDifficulty);
   const [questions, setQuestions] = useState<DrillQuestion[]>(savedSession?.questions ?? []);
   const [currentIndex, setCurrentIndex] = useState(savedSession?.currentIndex ?? 0);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);

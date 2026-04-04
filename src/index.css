@@ -122,7 +122,7 @@
 
   body {
     @apply bg-background text-foreground;
-    font-family: 'Open Sans', 'Cairo', sans-serif;
+    font-family: 'Open Sans', 'Noto Sans Arabic', sans-serif;
   }
 
   html {

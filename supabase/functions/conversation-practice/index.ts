@@ -32,16 +32,24 @@ serve(async (req) => {
 
     const DIALECT_IDENTITY = getDialectIdentity(dialect);
 
+    const levelInstruction = difficulty === "advanced"
+      ? "Speak naturally at full speed. Use complex grammar, idioms, and cultural expressions. Challenge the student."
+      : difficulty === "intermediate"
+      ? "Use moderately complex sentences. Mix common and less common vocabulary. Correct mistakes gently."
+      : "Use very simple, short sentences. Speak slowly. Use only basic vocabulary. Be encouraging and patient.";
+
+    const levelContext = `\n\nStudent Arabic level: ${difficulty}. ${levelInstruction}`;
+
     // Prepend server-side dialect identity to ensure consistent dialect output
     const enrichedMessages = [...messages];
     const hasSystemMsg = enrichedMessages[0]?.role === "system";
     if (hasSystemMsg) {
       enrichedMessages[0] = {
         ...enrichedMessages[0],
-        content: `${DIALECT_IDENTITY}\n\nAdditional context:\n${enrichedMessages[0].content}`,
+        content: `${DIALECT_IDENTITY}${levelContext}\n\nAdditional context:\n${enrichedMessages[0].content}`,
       };
     } else {
-      enrichedMessages.unshift({ role: "system", content: DIALECT_IDENTITY });
+      enrichedMessages.unshift({ role: "system", content: `${DIALECT_IDENTITY}${levelContext}` });
     }
 
     const controller = new AbortController();

@@ -12,6 +12,7 @@ import { Loader2, Send, RotateCcw, MessageCircle, Coffee, MapPin, ShoppingBag, U
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import { useUserLevel } from "@/hooks/useUserLevel";
 import { useToast } from "@/hooks/use-toast";
 
 interface Message {
@@ -213,6 +214,7 @@ const ConversationSimulator = () => {
   const { toast } = useToast();
   const { user, loading: authLoading } = useAuth();
   const { activeDialect } = useDialect();
+  const { difficulty: userDifficulty } = useUserLevel();
 
   // Restore persisted conversation session
   const [savedConvo] = useState<any>(() => {
@@ -359,6 +361,7 @@ const ConversationSimulator = () => {
             { role: "user", content: "Start the conversation." },
           ],
           dialect: activeDialect,
+          difficulty: userDifficulty,
         },
       });
 
@@ -400,7 +403,7 @@ const ConversationSimulator = () => {
       ];
 
       const { data, error } = await supabase.functions.invoke("conversation-practice", {
-        body: { messages: apiMessages, dialect: activeDialect },
+        body: { messages: apiMessages, dialect: activeDialect, difficulty: userDifficulty },
       });
 
       if (error) throw error;

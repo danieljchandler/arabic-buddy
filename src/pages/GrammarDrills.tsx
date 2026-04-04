@@ -5,6 +5,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { HomeButton } from "@/components/HomeButton";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
+import { useUserLevel } from "@/hooks/useUserLevel";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -53,6 +54,7 @@ const DIFFICULTIES = [
 const GrammarDrills = () => {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
+  const { difficulty: userDifficulty } = useUserLevel();
   const { activeDialect } = useDialect();
   // Restore persisted session
   const [savedSession] = useState<any>(() => {
@@ -69,7 +71,7 @@ const GrammarDrills = () => {
   });
 
   const [category, setCategory] = useState<string | null>(savedSession?.category ?? null);
-  const [difficulty, setDifficulty] = useState(savedSession?.difficulty ?? "beginner");
+  const [difficulty, setDifficulty] = useState(savedSession?.difficulty ?? userDifficulty);
   const [questions, setQuestions] = useState<DrillQuestion[]>(savedSession?.questions ?? []);
   const [currentIndex, setCurrentIndex] = useState(savedSession?.currentIndex ?? 0);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);

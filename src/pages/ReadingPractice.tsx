@@ -13,6 +13,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { useAuth } from "@/hooks/useAuth";
+import { useUserLevel } from "@/hooks/useUserLevel";
 import { useAllWords } from "@/hooks/useAllWords";
 import { useAddXP } from "@/hooks/useGamification";
 import { useAddUserVocabulary } from "@/hooks/useUserVocabulary";
@@ -221,6 +222,7 @@ const ReadingPractice = () => {
   const navigate = useNavigate();
   const { isAuthenticated, user } = useAuth();
   const { activeDialect } = useDialect();
+  const { difficulty: userDifficulty } = useUserLevel();
   const { data: allWords } = useAllWords();
   const addXP = useAddXP();
   const addVocab = useAddUserVocabulary();
@@ -247,7 +249,7 @@ const ReadingPractice = () => {
   });
 
   const [mode, setMode] = useState<Mode>("select");
-  const [difficulty, setDifficulty] = useState<Difficulty | null>(savedSession?.difficulty ?? null);
+  const [difficulty, setDifficulty] = useState<Difficulty | null>(savedSession?.difficulty ?? (userDifficulty as Difficulty));
   const [passage, setPassage] = useState<Passage | null>(savedSession?.passage ?? null);
   const [loading, setLoading] = useState(false);
   const [customTopic, setCustomTopic] = useState("");

@@ -11,6 +11,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useAllWords } from "@/hooks/useAllWords";
 import { useAddXP } from "@/hooks/useGamification";
 import { supabase } from "@/integrations/supabase/client";
+import { useUserLevel } from "@/hooks/useUserLevel";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Switch } from "@/components/ui/switch";
@@ -50,6 +51,7 @@ const DailyChallenge = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
   const { activeDialect } = useDialect();
+  const { difficulty: userDifficulty } = useUserLevel();
   const { data: allWords } = useAllWords();
   const addXP = useAddXP();
 
@@ -184,6 +186,7 @@ const DailyChallenge = () => {
           })),
           streakDays: streakData || 0,
           dialect: activeDialect,
+          difficulty: userDifficulty,
         },
       });
 

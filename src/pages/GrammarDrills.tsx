@@ -54,6 +54,7 @@ const DIFFICULTIES = [
 const GrammarDrills = () => {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
+  const { difficulty: userDifficulty } = useUserLevel();
   const { activeDialect } = useDialect();
   // Restore persisted session
   const [savedSession] = useState<any>(() => {

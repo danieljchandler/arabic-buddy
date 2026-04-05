@@ -295,7 +295,7 @@ ${Object.entries(MODE_INSTRUCTIONS).map(([k, v]) => `### When asked to ${k.repla
 
 REMEMBER: Always include the \`\`\`json code block when generating content. The "type" field inside the JSON determines which preview card appears. Without this JSON block, the admin cannot approve and save the content.`;
   
-  return `You are an expert ${isEgyptian ? "Egyptian" : "Gulf"} Arabic curriculum designer and language teacher. You are helping an admin build lessons and vocabulary for "Lahja" (لهجة), ${appDesc}.
+  return `You are an expert ${isEgyptian ? "Egyptian" : isYemeni ? "Yemeni" : "Gulf"} Arabic curriculum designer and language teacher. You are helping an admin build lessons and vocabulary for "Lahja" (لهجة), ${appDesc}.
 
 Target dialect: ${dialectDesc}
 ${stageInfo}

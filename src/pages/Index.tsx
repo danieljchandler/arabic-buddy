@@ -95,6 +95,7 @@ const DiscoverPreviewCard = ({ video, onClick }: { video: any; onClick: () => vo
 const DIALECT_MODULES: { id: DialectModule; label: string; flag: string }[] = [
   { id: 'Gulf', label: 'Gulf Arabic', flag: '🌊' },
   { id: 'Egyptian', label: 'Egyptian Arabic', flag: '🇪🇬' },
+  { id: 'Yemeni', label: 'Yemeni Arabic', flag: '🇾🇪' },
 ];
 
 const Index = () => {
@@ -374,7 +375,7 @@ const Index = () => {
             <Play className="h-10 w-10 text-muted-foreground/40" />
             <p className="text-lg font-bold text-foreground">Coming Soon</p>
             <p className="text-sm text-muted-foreground">
-              {activeDialect === 'Egyptian' ? 'Egyptian Arabic' : activeDialect} videos are on the way!
+              {activeDialect === 'Egyptian' ? 'Egyptian Arabic' : activeDialect === 'Yemeni' ? 'Yemeni Arabic' : activeDialect} videos are on the way!
             </p>
           </div>
         )}
@@ -774,7 +775,7 @@ const Index = () => {
           <div className="text-left">
             <p className="font-semibold text-foreground">How do I say…?</p>
             <p className="text-xs text-muted-foreground">
-              Translate phrases into {activeDialect === 'Egyptian' ? 'Egyptian Arabic' : 'Gulf Arabic'}
+              Translate phrases into {activeDialect === 'Egyptian' ? 'Egyptian Arabic' : activeDialect === 'Yemeni' ? 'Yemeni Arabic' : 'Gulf Arabic'}
             </p>
           </div>
         </button>

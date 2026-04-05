@@ -14,12 +14,14 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
-    const dialect = target_dialect === 'Egyptian' ? 'Egyptian' : 'Gulf';
+    const dialect = target_dialect === 'Egyptian' ? 'Egyptian' : target_dialect === 'Yemeni' ? 'Yemeni' : 'Gulf';
     const dialectLabel = getDialectLabel(dialect);
     const dialectRules = getDialectVocabRules(dialect);
 
     const dialectFocus = dialect === 'Egyptian'
       ? 'Focus on Egyptian Arabic dialect (Cairo, Alexandria, Upper Egypt)'
+      : dialect === 'Yemeni'
+      ? 'Focus on Yemeni Arabic dialect (Sana\'a, Aden, Hadramaut, Ta\'izz)'
       : 'Focus on Gulf Arabic dialect (Emirati/Saudi/Kuwaiti)';
 
     const systemPrompt = `You are an expert ${dialectLabel} curriculum designer. Generate a personalized week-by-week learning path.

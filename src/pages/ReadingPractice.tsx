@@ -596,7 +596,7 @@ const ReadingPractice = () => {
                 <div className="flex-1 min-w-0">
                   <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors">Ask Anything</h3>
                   <p className="text-sm text-muted-foreground mt-0.5">
-                    Ask questions on any topic and get answers in {activeDialect === "Egyptian" ? "Egyptian" : "Gulf"} Arabic
+                    Ask questions on any topic and get answers in {activeDialect === "Egyptian" ? "Egyptian" : activeDialect === "Yemeni" ? "Yemeni" : "Gulf"} Arabic
                   </p>
                 </div>
                 <ChevronRight className="h-5 w-5 text-muted-foreground mt-1 shrink-0" />
@@ -647,7 +647,7 @@ const ReadingPractice = () => {
                 <div>
                   <h2 className="text-lg font-semibold text-foreground mb-1">Ask Anything</h2>
                   <p className="text-sm text-muted-foreground">
-                    Ask about any topic and get a response in {activeDialect === "Egyptian" ? "Egyptian" : "Gulf"} Arabic. Tap words for translations!
+                    Ask about any topic and get a response in {activeDialect === "Egyptian" ? "Egyptian" : activeDialect === "Yemeni" ? "Yemeni" : "Gulf"} Arabic. Tap words for translations!
                   </p>
                 </div>
                 {/* Suggestion chips */}

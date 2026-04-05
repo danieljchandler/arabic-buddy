@@ -61,6 +61,7 @@ const DIALECT_CONTEXT: Record<string, string> = {
   Qatari: "Qatari Arabic — using Qatari-specific vocabulary and expressions",
   Omani: "Omani Arabic — using Omani-specific vocabulary and expressions, noting regional variations within Oman",
   Egyptian: "Egyptian Arabic (مصري) — Cairo dialect as the standard, using Egyptian-specific vocabulary (e.g., إزيك for 'how are you', فين for 'where', دلوقتي for 'now', عايز for 'want', كويس for 'good', ماشي for 'okay', يلا for 'let's go', حاضر for 'ready/sure', بتاع for 'belonging to'). Do NOT use Gulf Arabic vocabulary.",
+  Yemeni: "Yemeni Arabic (يمني) — Sana'ani dialect as the standard, using Yemeni-specific vocabulary (e.g., كيفك for 'how are you', وين for 'where', ذحين for 'now', بغيت for 'want', زين for 'good', قات for 'qat', مفرج for 'sitting room', جنبية for 'dagger'). Do NOT use Gulf or Egyptian Arabic vocabulary.",
 };
 
 // ─── MODE-SPECIFIC JSON SCHEMAS ─────────────────────────
@@ -282,7 +283,8 @@ function buildSystemPrompt(
   const modeInstructions = mode && MODE_INSTRUCTIONS[mode] ? MODE_INSTRUCTIONS[mode] : "";
 
   const isEgyptian = dialect === "Egyptian";
-  const appDesc = isEgyptian ? "an Egyptian Arabic learning module" : "a Gulf Arabic learning app";
+  const isYemeni = dialect === "Yemeni";
+  const appDesc = isEgyptian ? "an Egyptian Arabic learning module" : isYemeni ? "a Yemeni Arabic learning module" : "a Gulf Arabic learning app";
 
   // Always include all available JSON schemas so the AI knows the formats
   const allFormats = `
@@ -293,7 +295,7 @@ ${Object.entries(MODE_INSTRUCTIONS).map(([k, v]) => `### When asked to ${k.repla
 
 REMEMBER: Always include the \`\`\`json code block when generating content. The "type" field inside the JSON determines which preview card appears. Without this JSON block, the admin cannot approve and save the content.`;
   
-  return `You are an expert ${isEgyptian ? "Egyptian" : "Gulf"} Arabic curriculum designer and language teacher. You are helping an admin build lessons and vocabulary for "Lahja" (لهجة), ${appDesc}.
+  return `You are an expert ${isEgyptian ? "Egyptian" : isYemeni ? "Yemeni" : "Gulf"} Arabic curriculum designer and language teacher. You are helping an admin build lessons and vocabulary for "Lahja" (لهجة), ${appDesc}.
 
 Target dialect: ${dialectDesc}
 ${stageInfo}
@@ -307,11 +309,11 @@ The Lahja curriculum has 6 stages:
 6. Mastery (C1 → C2): Near-native comprehension, cultural fluency, register shifting. Ongoing.
 
 Guidelines:
-- CRITICAL: You are building content EXCLUSIVELY for ${isEgyptian ? "Egyptian Arabic (مصري)" : "Gulf Arabic (خليجي)"}. Do NOT mix dialects.
-${isEgyptian ? "- Use ONLY Egyptian Arabic vocabulary and grammar (إزيك، فين، دلوقتي، عايز، كويس، ماشي، بتاع، مش). Do NOT use Gulf Arabic terms like شلونك، وين، هالحين." : "- Use ONLY Gulf Arabic vocabulary and grammar (شلونك، وين، هالحين، أبي/أبغى). Do NOT use Egyptian Arabic terms like إزيك، فين، دلوقتي، عايز."}
+- CRITICAL: You are building content EXCLUSIVELY for ${isEgyptian ? "Egyptian Arabic (مصري)" : isYemeni ? "Yemeni Arabic (يمني)" : "Gulf Arabic (خليجي)"}. Do NOT mix dialects.
+${isEgyptian ? "- Use ONLY Egyptian Arabic vocabulary and grammar (إزيك، فين، دلوقتي، عايز، كويس، ماشي، بتاع، مش). Do NOT use Gulf Arabic terms like شلونك، وين، هالحين." : isYemeni ? "- Use ONLY Yemeni Arabic vocabulary and grammar (كيفك، وين، ذحين، بغيت، زين، مبسوط). Do NOT use Gulf Arabic terms like شلونك، هالحين or Egyptian terms like إزيك، دلوقتي." : "- Use ONLY Gulf Arabic vocabulary and grammar (شلونك، وين، هالحين، أبي/أبغى). Do NOT use Egyptian Arabic terms like إزيك، فين، دلوقتي، عايز."}
 - Always use the target dialect's vocabulary and expressions, NOT Modern Standard Arabic (unless explicitly asked).
 - Include transliterations that are easy for English speakers to read.
-- ${isEgyptian ? "Note when a word/phrase differs between Upper and Lower Egypt." : "Note when a word/phrase differs significantly between Gulf countries."}
+- ${isEgyptian ? "Note when a word/phrase differs between Upper and Lower Egypt." : isYemeni ? "Note when a word/phrase differs between Sana'a, Aden, Hadramaut, and Ta'izz regions." : "Note when a word/phrase differs significantly between Gulf countries."}
 - Provide cultural context and usage notes where helpful.
 - Organize vocabulary by practical categories (greetings, food, directions, etc.).
 - For each vocabulary word, suggest a category: noun, verb, adjective, phrase, or expression.

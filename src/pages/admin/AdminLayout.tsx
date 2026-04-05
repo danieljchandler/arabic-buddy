@@ -9,6 +9,7 @@ import { useDialect } from '@/contexts/DialectContext';
 const DIALECT_META: Record<string, { flag: string; label: string; color: string }> = {
   Gulf: { flag: '🌊', label: 'Gulf Arabic Module', color: 'bg-sky-600' },
   Egyptian: { flag: '🇪🇬', label: 'Egyptian Arabic Module', color: 'bg-amber-600' },
+  Yemeni: { flag: '🇾🇪', label: 'Yemeni Arabic Module', color: 'bg-red-700' },
 };
 
 const AdminLayout = () => {
@@ -55,8 +56,8 @@ const AdminLayout = () => {
   }
 
   const meta = DIALECT_META[activeDialect] || DIALECT_META.Gulf;
-  const otherDialect = activeDialect === 'Gulf' ? 'Egyptian' : 'Gulf';
-  const otherMeta = DIALECT_META[otherDialect];
+  const allDialects = Object.keys(DIALECT_META);
+  const otherDialects = allDialects.filter(d => d !== activeDialect);
 
   return (
     <>
@@ -66,13 +67,21 @@ const AdminLayout = () => {
           <span className="text-lg">{meta.flag}</span>
           <span>{meta.label}</span>
         </div>
-        <button
-          onClick={() => setDialect(otherDialect as 'Gulf' | 'Egyptian')}
-          className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 transition-colors rounded-full px-3 py-1 text-xs font-medium"
-        >
-          <span>{otherMeta.flag}</span>
-          Switch to {otherMeta.label}
-        </button>
+        <div className="flex gap-1.5">
+          {otherDialects.map(d => {
+            const m = DIALECT_META[d];
+            return (
+              <button
+                key={d}
+                onClick={() => setDialect(d as 'Gulf' | 'Egyptian' | 'Yemeni')}
+                className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 transition-colors rounded-full px-3 py-1 text-xs font-medium"
+              >
+                <span>{m.flag}</span>
+                {m.label.replace(' Module', '')}
+              </button>
+            );
+          })}
+        </div>
       </div>
       <Outlet />
       <TranscriptionStatusBanner />

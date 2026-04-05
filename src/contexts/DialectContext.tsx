@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect, ReactNode } from 'react
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 
-export type DialectModule = 'Gulf' | 'Egyptian';
+export type DialectModule = 'Gulf' | 'Egyptian' | 'Yemeni';
 
 interface DialectContextType {
   activeDialect: DialectModule;
@@ -20,7 +20,7 @@ export const DialectProvider = ({ children }: { children: ReactNode }) => {
   const queryClient = useQueryClient();
   const [activeDialect, setActiveDialect] = useState<DialectModule>(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
-    return (stored === 'Gulf' || stored === 'Egyptian') ? stored : 'Gulf';
+    return (stored === 'Gulf' || stored === 'Egyptian' || stored === 'Yemeni') ? stored : 'Gulf';
   });
 
   // On mount, sync from profile if authenticated
@@ -37,7 +37,7 @@ export const DialectProvider = ({ children }: { children: ReactNode }) => {
 
       if (data) {
         const dialect = (data as any).preferred_dialect;
-        if (dialect === 'Gulf' || dialect === 'Egyptian') {
+        if (dialect === 'Gulf' || dialect === 'Egyptian' || dialect === 'Yemeni') {
           setActiveDialect(dialect);
           localStorage.setItem(STORAGE_KEY, dialect);
         }

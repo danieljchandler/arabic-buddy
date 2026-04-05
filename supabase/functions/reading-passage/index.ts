@@ -26,6 +26,8 @@ serve(async (req) => {
 
     const culturalContext = dialect === "Egyptian"
       ? "daily life, culture, or social situations in Egypt (Cairo, Alexandria, etc.)"
+      : dialect === "Yemeni"
+      ? "daily life, culture, or social situations in Yemen (Sana'a, Aden, Hadramaut, qat sessions, traditional architecture)"
       : "daily life, culture, or social situations in the Gulf";
 
     const topicContext = topic ? `Topic: ${topic}` : `Topic: ${culturalContext}`;

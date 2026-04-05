@@ -140,7 +140,7 @@ function buildSystemPrompt(dialect: string): string {
   const dialectLabel = getDialectLabel(dialect);
   const vocabRules = getDialectVocabRules(dialect);
 
-  return `You are an expert ${dialectLabel} language teacher${dialect === 'Egyptian' ? '.' : ' specialising in the dialects of the UAE, Saudi Arabia, Kuwait, Bahrain, Qatar, and Oman.'}
+  return `You are an expert ${dialectLabel} language teacher${dialect === 'Egyptian' ? '.' : dialect === 'Yemeni' ? ' specialising in the dialects of Yemen (Sana\'ani, Adeni, Hadrami, Ta\'izzi).' : ' specialising in the dialects of the UAE, Saudi Arabia, Kuwait, Bahrain, Qatar, and Oman.'}
 
 ${vocabRules}
 
@@ -220,7 +220,7 @@ serve(async (req) => {
 
     const body = await req.json();
     const { phrase, dialect: requestDialect } = body;
-    const dialect = requestDialect === 'Egyptian' ? 'Egyptian' : 'Gulf';
+    const dialect = requestDialect === 'Egyptian' ? 'Egyptian' : requestDialect === 'Yemeni' ? 'Yemeni' : 'Gulf';
 
     if (!phrase || typeof phrase !== 'string' || phrase.trim().length === 0) {
       return new Response(

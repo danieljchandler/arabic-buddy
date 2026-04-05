@@ -38,6 +38,14 @@ const EGYPTIAN_SUGGESTIONS = [
   "إزاي أتصرف في عزومة عند ناس أول مرة؟",
 ];
 
+const YEMENI_SUGGESTIONS = [
+  "My colleague invited me for qat in Sana'a. What should I know?",
+  "زميلي عزمني على قات، كيف أتصرف؟",
+  "How do I politely greet elders in Yemen?",
+  "What's the etiquette for visiting someone's مفرج for the first time?",
+  "كيف أتصرف في جلسة قات أول مرة؟",
+];
+
 const MAX_HUMAN_REVIEWS_PER_MONTH = 5;
 
 const CultureGuide = () => {
@@ -220,7 +228,7 @@ const CultureGuide = () => {
           <LogIn className="h-7 w-7 text-muted-foreground mx-auto mb-6" />
           <h1 className="text-xl font-bold text-foreground mb-3">Login Required</h1>
           <p className="text-muted-foreground mb-8">
-            Sign in to get culturally-aware advice for {activeDialect === 'Egyptian' ? 'Egyptian' : 'Gulf'} situations.
+            Sign in to get culturally-aware advice for {activeDialect === 'Egyptian' ? 'Egyptian' : activeDialect === 'Yemeni' ? 'Yemeni' : 'Gulf'} situations.
           </p>
           <Button onClick={() => navigate("/auth")}>
             <LogIn className="h-4 w-4 mr-2" />
@@ -256,7 +264,7 @@ const CultureGuide = () => {
           What should I do?
         </h1>
         <p className="text-sm text-muted-foreground">
-          Describe a situation — get culturally appropriate {activeDialect === 'Egyptian' ? 'Egyptian' : 'Gulf'} Arabic advice
+          Describe a situation — get culturally appropriate {activeDialect === 'Egyptian' ? 'Egyptian' : activeDialect === 'Yemeni' ? 'Yemeni' : 'Gulf'} Arabic advice
         </p>
       </div>
 
@@ -267,7 +275,7 @@ const CultureGuide = () => {
             <p className="text-xs text-muted-foreground font-medium mb-3">
               Try asking about…
             </p>
-            {(activeDialect === 'Egyptian' ? EGYPTIAN_SUGGESTIONS : GULF_SUGGESTIONS).map((s, i) => (
+            {(activeDialect === 'Egyptian' ? EGYPTIAN_SUGGESTIONS : activeDialect === 'Yemeni' ? YEMENI_SUGGESTIONS : GULF_SUGGESTIONS).map((s, i) => (
               <button
                 key={i}
                 onClick={() => handleSend(s)}

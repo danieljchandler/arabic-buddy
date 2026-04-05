@@ -34,7 +34,7 @@ serve(async (req) => {
       })
       .join("\n");
 
-    const dialectLabel = dialect === "ar-EG" ? "Egyptian Arabic" : "Gulf Arabic (Saudi/Khaliji)";
+    const dialectLabel = dialect === "ar-EG" ? "Egyptian Arabic" : dialect === "ar-YE" ? "Yemeni Arabic" : "Gulf Arabic (Saudi/Khaliji)";
 
     const prompt = `You are a friendly Arabic pronunciation coach specializing in ${dialectLabel}.
 

@@ -47,6 +47,8 @@ IMPORTANT: Return valid JSON only, no markdown.`;
 
     const cultureContext = dialect === "Egyptian"
       ? "Egyptian culture questions about traditions, food, customs from Egypt (Cairo, Alexandria, Upper Egypt)."
+      : dialect === "Yemeni"
+      ? "Yemeni culture questions about traditions, food, customs from Yemen (Sana'a, Aden, Hadramaut, Ta'izz). Include قات culture, جنبية, سلتة, بنت الصحن, مفرج traditions."
       : "Gulf Arabic culture questions about traditions, food, customs from the UAE, Saudi, Kuwait, Qatar, Bahrain, and Oman.";
 
     const prompts: Record<string, string> = {
@@ -120,8 +122,8 @@ Return JSON: { "type": "translate", "title": "Speed Round", "titleArabic": "جو
       }
     } catch (e) {
       console.error("Failed to parse challenge:", e, content);
-      const fallbackGreeting = dialect === "Egyptian" ? "أهلاً" : "هلا";
-      const fallbackThanks = dialect === "Egyptian" ? "شكراً" : "مشكور";
+      const fallbackGreeting = dialect === "Egyptian" ? "أهلاً" : dialect === "Yemeni" ? "مرحبا" : "هلا";
+      const fallbackThanks = dialect === "Egyptian" ? "شكراً" : dialect === "Yemeni" ? "مشكور" : "مشكور";
       challenge = {
         type: "translate",
         title: "Daily Challenge",

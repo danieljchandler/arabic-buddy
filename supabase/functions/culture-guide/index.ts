@@ -14,6 +14,8 @@ function buildSystemPrompt(dialect: string): string {
 
   const regionDesc = dialect === 'Egyptian'
     ? 'Egyptian Arabic (مصري) — an Arabic language learning platform focused on Egyptian culture (Cairo, Alexandria, Upper Egypt, Delta region).'
+    : dialect === 'Yemeni'
+    ? 'Yemeni Arabic (يمني) — an Arabic language learning platform focused on Yemeni culture (Sana\'a, Aden, Hadramaut, Ta\'izz, Marib).'
     : 'Gulf Arabic (Saudi, Emirati, Kuwaiti, Qatari, Bahraini, Omani culture).';
 
   const regionGuidelines = dialect === 'Egyptian'
@@ -22,6 +24,12 @@ function buildSystemPrompt(dialect: string): string {
 - Mention if customs vary between regions of Egypt (Cairo vs Upper Egypt vs Alexandria etc.)
 - Cover greetings, hospitality, business etiquette, religious customs, family dynamics, social norms
 - When giving Arabic phrases, prefer Egyptian dialect over MSA unless the context calls for formal Arabic`
+    : dialect === 'Yemeni'
+    ? `- Always provide the Yemeni Arabic phrase/response in Arabic script, transliteration, and English translation
+- Explain the cultural reasoning behind your advice
+- Mention if customs vary between regions of Yemen (Sana'a vs Aden vs Hadramaut vs Ta'izz)
+- Cover greetings, hospitality, qat sessions, مفرج etiquette, جنبية traditions, business etiquette, religious customs, family dynamics, social norms
+- When giving Arabic phrases, prefer Yemeni dialect over MSA unless the context calls for formal Arabic`
     : `- Always provide the Gulf Arabic phrase/response in Arabic script, transliteration, and English translation
 - Explain the cultural reasoning behind your advice
 - Mention if customs vary between Gulf countries (Saudi vs UAE vs Kuwait etc.)

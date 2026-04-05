@@ -39,7 +39,7 @@ serve(async (req) => {
     // Try Lovable AI gateway first (no API key needed)
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     
-    const dialectLabel = dialect === 'Egyptian' ? 'Egyptian Arabic (مصري)' : 'Gulf Arabic (Khaliji)';
+    const dialectLabel = dialect === 'Egyptian' ? 'Egyptian Arabic (مصري)' : dialect === 'Yemeni' ? 'Yemeni Arabic (يمني)' : 'Gulf Arabic (Khaliji)';
     
     const isWord = mode === 'word' || (mode === 'auto' && !phrase.includes(' '));
     

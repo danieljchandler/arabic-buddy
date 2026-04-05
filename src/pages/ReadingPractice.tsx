@@ -596,7 +596,7 @@ const ReadingPractice = () => {
                 <div className="flex-1 min-w-0">
                   <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors">Ask Anything</h3>
                   <p className="text-sm text-muted-foreground mt-0.5">
-                    Ask questions on any topic and get answers in {activeDialect === "Egyptian" ? "Egyptian" : "Gulf"} Arabic
+                    Ask questions on any topic and get answers in {activeDialect === "Egyptian" ? "Egyptian" : activeDialect === "Yemeni" ? "Yemeni" : "Gulf"} Arabic
                   </p>
                 </div>
                 <ChevronRight className="h-5 w-5 text-muted-foreground mt-1 shrink-0" />

@@ -56,8 +56,8 @@ const AdminLayout = () => {
   }
 
   const meta = DIALECT_META[activeDialect] || DIALECT_META.Gulf;
-  const otherDialect = activeDialect === 'Gulf' ? 'Egyptian' : 'Gulf';
-  const otherMeta = DIALECT_META[otherDialect];
+  const allDialects = Object.keys(DIALECT_META);
+  const otherDialects = allDialects.filter(d => d !== activeDialect);
 
   return (
     <>

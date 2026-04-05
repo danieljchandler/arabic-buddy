@@ -47,6 +47,8 @@ IMPORTANT: Return valid JSON only, no markdown.`;
 
     const cultureContext = dialect === "Egyptian"
       ? "Egyptian culture questions about traditions, food, customs from Egypt (Cairo, Alexandria, Upper Egypt)."
+      : dialect === "Yemeni"
+      ? "Yemeni culture questions about traditions, food, customs from Yemen (Sana'a, Aden, Hadramaut, Ta'izz). Include قات culture, جنبية, سلتة, بنت الصحن, مفرج traditions."
       : "Gulf Arabic culture questions about traditions, food, customs from the UAE, Saudi, Kuwait, Qatar, Bahrain, and Oman.";
 
     const prompts: Record<string, string> = {

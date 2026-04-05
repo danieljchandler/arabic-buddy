@@ -9,6 +9,7 @@ import { useDialect } from '@/contexts/DialectContext';
 const DIALECT_META: Record<string, { flag: string; label: string; color: string }> = {
   Gulf: { flag: '🌊', label: 'Gulf Arabic Module', color: 'bg-sky-600' },
   Egyptian: { flag: '🇪🇬', label: 'Egyptian Arabic Module', color: 'bg-amber-600' },
+  Yemeni: { flag: '🇾🇪', label: 'Yemeni Arabic Module', color: 'bg-red-700' },
 };
 
 const AdminLayout = () => {

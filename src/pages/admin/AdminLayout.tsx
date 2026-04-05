@@ -67,13 +67,21 @@ const AdminLayout = () => {
           <span className="text-lg">{meta.flag}</span>
           <span>{meta.label}</span>
         </div>
-        <button
-          onClick={() => setDialect(otherDialect as 'Gulf' | 'Egyptian')}
-          className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 transition-colors rounded-full px-3 py-1 text-xs font-medium"
-        >
-          <span>{otherMeta.flag}</span>
-          Switch to {otherMeta.label}
-        </button>
+        <div className="flex gap-1.5">
+          {otherDialects.map(d => {
+            const m = DIALECT_META[d];
+            return (
+              <button
+                key={d}
+                onClick={() => setDialect(d as 'Gulf' | 'Egyptian' | 'Yemeni')}
+                className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 transition-colors rounded-full px-3 py-1 text-xs font-medium"
+              >
+                <span>{m.flag}</span>
+                {m.label.replace(' Module', '')}
+              </button>
+            );
+          })}
+        </div>
       </div>
       <Outlet />
       <TranscriptionStatusBanner />

@@ -275,7 +275,7 @@ const CultureGuide = () => {
             <p className="text-xs text-muted-foreground font-medium mb-3">
               Try asking about…
             </p>
-            {(activeDialect === 'Egyptian' ? EGYPTIAN_SUGGESTIONS : GULF_SUGGESTIONS).map((s, i) => (
+            {(activeDialect === 'Egyptian' ? EGYPTIAN_SUGGESTIONS : activeDialect === 'Yemeni' ? YEMENI_SUGGESTIONS : GULF_SUGGESTIONS).map((s, i) => (
               <button
                 key={i}
                 onClick={() => handleSend(s)}

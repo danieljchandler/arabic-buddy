@@ -228,7 +228,7 @@ const CultureGuide = () => {
           <LogIn className="h-7 w-7 text-muted-foreground mx-auto mb-6" />
           <h1 className="text-xl font-bold text-foreground mb-3">Login Required</h1>
           <p className="text-muted-foreground mb-8">
-            Sign in to get culturally-aware advice for {activeDialect === 'Egyptian' ? 'Egyptian' : 'Gulf'} situations.
+            Sign in to get culturally-aware advice for {activeDialect === 'Egyptian' ? 'Egyptian' : activeDialect === 'Yemeni' ? 'Yemeni' : 'Gulf'} situations.
           </p>
           <Button onClick={() => navigate("/auth")}>
             <LogIn className="h-4 w-4 mr-2" />

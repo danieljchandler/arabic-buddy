@@ -61,6 +61,7 @@ const DIALECT_CONTEXT: Record<string, string> = {
   Qatari: "Qatari Arabic — using Qatari-specific vocabulary and expressions",
   Omani: "Omani Arabic — using Omani-specific vocabulary and expressions, noting regional variations within Oman",
   Egyptian: "Egyptian Arabic (مصري) — Cairo dialect as the standard, using Egyptian-specific vocabulary (e.g., إزيك for 'how are you', فين for 'where', دلوقتي for 'now', عايز for 'want', كويس for 'good', ماشي for 'okay', يلا for 'let's go', حاضر for 'ready/sure', بتاع for 'belonging to'). Do NOT use Gulf Arabic vocabulary.",
+  Yemeni: "Yemeni Arabic (يمني) — Sana'ani dialect as the standard, using Yemeni-specific vocabulary (e.g., كيفك for 'how are you', وين for 'where', ذحين for 'now', بغيت for 'want', زين for 'good', قات for 'qat', مفرج for 'sitting room', جنبية for 'dagger'). Do NOT use Gulf or Egyptian Arabic vocabulary.",
 };
 
 // ─── MODE-SPECIFIC JSON SCHEMAS ─────────────────────────

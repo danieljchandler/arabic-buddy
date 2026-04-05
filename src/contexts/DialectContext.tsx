@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect, ReactNode } from 'react
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 
-export type DialectModule = 'Gulf' | 'Egyptian';
+export type DialectModule = 'Gulf' | 'Egyptian' | 'Yemeni';
 
 interface DialectContextType {
   activeDialect: DialectModule;

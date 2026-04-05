@@ -139,24 +139,6 @@ const Index = () => {
 
   return (
     <AppShell>
-      {/* Dialect Module Switcher */}
-      <div className="flex gap-2 mb-4">
-        {DIALECT_MODULES.map((mod) => (
-          <button
-            key={mod.id}
-            onClick={() => setDialect(mod.id)}
-            className={cn(
-              "flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl border-2 transition-all duration-200 font-medium text-sm",
-              activeDialect === mod.id
-                ? "border-primary bg-primary/10 text-primary"
-                : "border-border bg-card text-muted-foreground hover:border-primary/30"
-            )}
-          >
-            <span className="text-lg">{mod.flag}</span>
-            <span>{mod.label}</span>
-          </button>
-        ))}
-      </div>
 
       {/* Top bar with logo and auth */}
       <div className="flex items-center justify-between mb-4">
@@ -191,6 +173,25 @@ const Index = () => {
             <GraduationCap className="h-4 w-4" />
           </Button>
         </div>
+      </div>
+
+      {/* Dialect Module Switcher */}
+      <div className="flex gap-2 mb-4">
+        {DIALECT_MODULES.map((mod) => (
+          <button
+            key={mod.id}
+            onClick={() => setDialect(mod.id)}
+            className={cn(
+              "flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl border-2 transition-all duration-200 font-medium text-sm",
+              activeDialect === mod.id
+                ? "border-primary bg-primary/10 text-primary"
+                : "border-border bg-card text-muted-foreground hover:border-primary/30"
+            )}
+          >
+            <span className="text-lg">{mod.flag}</span>
+            <span>{mod.label}</span>
+          </button>
+        ))}
       </div>
 
       {/* ===== PLACEMENT QUIZ BANNER ===== */}

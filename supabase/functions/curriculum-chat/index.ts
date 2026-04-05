@@ -283,7 +283,8 @@ function buildSystemPrompt(
   const modeInstructions = mode && MODE_INSTRUCTIONS[mode] ? MODE_INSTRUCTIONS[mode] : "";
 
   const isEgyptian = dialect === "Egyptian";
-  const appDesc = isEgyptian ? "an Egyptian Arabic learning module" : "a Gulf Arabic learning app";
+  const isYemeni = dialect === "Yemeni";
+  const appDesc = isEgyptian ? "an Egyptian Arabic learning module" : isYemeni ? "a Yemeni Arabic learning module" : "a Gulf Arabic learning app";
 
   // Always include all available JSON schemas so the AI knows the formats
   const allFormats = `

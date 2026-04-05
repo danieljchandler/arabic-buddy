@@ -309,8 +309,8 @@ The Lahja curriculum has 6 stages:
 6. Mastery (C1 → C2): Near-native comprehension, cultural fluency, register shifting. Ongoing.
 
 Guidelines:
-- CRITICAL: You are building content EXCLUSIVELY for ${isEgyptian ? "Egyptian Arabic (مصري)" : "Gulf Arabic (خليجي)"}. Do NOT mix dialects.
-${isEgyptian ? "- Use ONLY Egyptian Arabic vocabulary and grammar (إزيك، فين، دلوقتي، عايز، كويس، ماشي، بتاع، مش). Do NOT use Gulf Arabic terms like شلونك، وين، هالحين." : "- Use ONLY Gulf Arabic vocabulary and grammar (شلونك، وين، هالحين، أبي/أبغى). Do NOT use Egyptian Arabic terms like إزيك، فين، دلوقتي، عايز."}
+- CRITICAL: You are building content EXCLUSIVELY for ${isEgyptian ? "Egyptian Arabic (مصري)" : isYemeni ? "Yemeni Arabic (يمني)" : "Gulf Arabic (خليجي)"}. Do NOT mix dialects.
+${isEgyptian ? "- Use ONLY Egyptian Arabic vocabulary and grammar (إزيك، فين، دلوقتي، عايز، كويس، ماشي، بتاع، مش). Do NOT use Gulf Arabic terms like شلونك، وين، هالحين." : isYemeni ? "- Use ONLY Yemeni Arabic vocabulary and grammar (كيفك، وين، ذحين، بغيت، زين، مبسوط). Do NOT use Gulf Arabic terms like شلونك، هالحين or Egyptian terms like إزيك، دلوقتي." : "- Use ONLY Gulf Arabic vocabulary and grammar (شلونك، وين، هالحين، أبي/أبغى). Do NOT use Egyptian Arabic terms like إزيك، فين، دلوقتي، عايز."}
 - Always use the target dialect's vocabulary and expressions, NOT Modern Standard Arabic (unless explicitly asked).
 - Include transliterations that are easy for English speakers to read.
 - ${isEgyptian ? "Note when a word/phrase differs between Upper and Lower Egypt." : "Note when a word/phrase differs significantly between Gulf countries."}

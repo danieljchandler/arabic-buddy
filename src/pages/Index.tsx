@@ -375,7 +375,7 @@ const Index = () => {
             <Play className="h-10 w-10 text-muted-foreground/40" />
             <p className="text-lg font-bold text-foreground">Coming Soon</p>
             <p className="text-sm text-muted-foreground">
-              {activeDialect === 'Egyptian' ? 'Egyptian Arabic' : activeDialect} videos are on the way!
+              {activeDialect === 'Egyptian' ? 'Egyptian Arabic' : activeDialect === 'Yemeni' ? 'Yemeni Arabic' : activeDialect} videos are on the way!
             </p>
           </div>
         )}

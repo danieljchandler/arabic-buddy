@@ -20,7 +20,7 @@ export const DialectProvider = ({ children }: { children: ReactNode }) => {
   const queryClient = useQueryClient();
   const [activeDialect, setActiveDialect] = useState<DialectModule>(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
-    return (stored === 'Gulf' || stored === 'Egyptian') ? stored : 'Gulf';
+    return (stored === 'Gulf' || stored === 'Egyptian' || stored === 'Yemeni') ? stored : 'Gulf';
   });
 
   // On mount, sync from profile if authenticated

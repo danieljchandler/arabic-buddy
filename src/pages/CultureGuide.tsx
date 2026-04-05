@@ -38,6 +38,14 @@ const EGYPTIAN_SUGGESTIONS = [
   "إزاي أتصرف في عزومة عند ناس أول مرة؟",
 ];
 
+const YEMENI_SUGGESTIONS = [
+  "My colleague invited me for qat in Sana'a. What should I know?",
+  "زميلي عزمني على قات، كيف أتصرف؟",
+  "How do I politely greet elders in Yemen?",
+  "What's the etiquette for visiting someone's مفرج for the first time?",
+  "كيف أتصرف في جلسة قات أول مرة؟",
+];
+
 const MAX_HUMAN_REVIEWS_PER_MONTH = 5;
 
 const CultureGuide = () => {

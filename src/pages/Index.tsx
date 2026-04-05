@@ -95,6 +95,7 @@ const DiscoverPreviewCard = ({ video, onClick }: { video: any; onClick: () => vo
 const DIALECT_MODULES: { id: DialectModule; label: string; flag: string }[] = [
   { id: 'Gulf', label: 'Gulf Arabic', flag: '🌊' },
   { id: 'Egyptian', label: 'Egyptian Arabic', flag: '🇪🇬' },
+  { id: 'Yemeni', label: 'Yemeni Arabic', flag: '🇾🇪' },
 ];
 
 const Index = () => {

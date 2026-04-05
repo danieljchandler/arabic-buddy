@@ -264,7 +264,7 @@ const CultureGuide = () => {
           What should I do?
         </h1>
         <p className="text-sm text-muted-foreground">
-          Describe a situation — get culturally appropriate {activeDialect === 'Egyptian' ? 'Egyptian' : 'Gulf'} Arabic advice
+          Describe a situation — get culturally appropriate {activeDialect === 'Egyptian' ? 'Egyptian' : activeDialect === 'Yemeni' ? 'Yemeni' : 'Gulf'} Arabic advice
         </p>
       </div>
 

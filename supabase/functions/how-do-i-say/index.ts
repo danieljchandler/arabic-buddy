@@ -140,7 +140,7 @@ function buildSystemPrompt(dialect: string): string {
   const dialectLabel = getDialectLabel(dialect);
   const vocabRules = getDialectVocabRules(dialect);
 
-  return `You are an expert ${dialectLabel} language teacher${dialect === 'Egyptian' ? '.' : ' specialising in the dialects of the UAE, Saudi Arabia, Kuwait, Bahrain, Qatar, and Oman.'}
+  return `You are an expert ${dialectLabel} language teacher${dialect === 'Egyptian' ? '.' : dialect === 'Yemeni' ? ' specialising in the dialects of Yemen (Sana\'ani, Adeni, Hadrami, Ta\'izzi).' : ' specialising in the dialects of the UAE, Saudi Arabia, Kuwait, Bahrain, Qatar, and Oman.'}
 
 ${vocabRules}
 

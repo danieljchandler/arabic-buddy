@@ -334,6 +334,7 @@ const ReadingPractice = () => {
         .select("*")
         .eq("status", "published")
         .eq("difficulty", selectedDifficulty)
+        .eq("dialect", activeDialect)
         .limit(10);
 
       if (approved && approved.length > 0) {

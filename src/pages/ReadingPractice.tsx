@@ -249,7 +249,7 @@ const ReadingPractice = () => {
   });
 
   const [mode, setMode] = useState<Mode>("select");
-  const [difficulty, setDifficulty] = useState<Difficulty | null>(savedSession?.difficulty ?? (userDifficulty as Difficulty));
+  const [difficulty, setDifficulty] = useState<Difficulty | null>(savedSession?.difficulty ?? null);
   const [passage, setPassage] = useState<Passage | null>(savedSession?.passage ?? null);
   const [loading, setLoading] = useState(false);
   const [customTopic, setCustomTopic] = useState("");

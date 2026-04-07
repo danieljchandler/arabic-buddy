@@ -18,6 +18,12 @@ export interface UserVocabularyWord {
   last_reviewed_at: string | null;
   created_at: string;
   updated_at: string;
+  image_url: string | null;
+  dialect: string;
+  sentence_text: string | null;
+  sentence_english: string | null;
+  sentence_audio_url: string | null;
+  word_audio_url: string | null;
 }
 
 export const useUserVocabulary = (mixAll = false) => {

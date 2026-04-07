@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useUserVocabulary, useUserVocabularyDueCount, useDeleteUserVocabulary } from "@/hooks/useUserVocabulary";
+import { useUserVocabulary, useUserVocabularyDueCount, useDeleteUserVocabulary, type UserVocabularyWord } from "@/hooks/useUserVocabulary";
 import { useAuth } from "@/hooks/useAuth";
 import { useDialect } from "@/contexts/DialectContext";
 import { Button } from "@/components/ui/button";
-import { BookOpen, Trash2, ChevronLeft, ChevronRight, Loader2, Shuffle } from "lucide-react";
+import { BookOpen, Trash2, ChevronLeft, ChevronRight, Loader2, Shuffle, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
+import { GenerateImageDialog } from "@/components/mywords/GenerateImageDialog";
 
 const MyWords = () => {
   const navigate = useNavigate();
@@ -17,6 +18,7 @@ const MyWords = () => {
   const { data: words, isLoading } = useUserVocabulary(mixAll);
   const { data: stats } = useUserVocabularyDueCount(mixAll);
   const deleteWord = useDeleteUserVocabulary();
+  const [imageDialogWord, setImageDialogWord] = useState<UserVocabularyWord | null>(null);
 
   const handleDelete = async (wordId: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -121,24 +123,47 @@ const MyWords = () => {
                 index < words.length - 1 && "border-b border-border"
               )}
             >
-              <div className="flex items-center gap-4">
-                <span
-                  className="text-xl font-bold text-foreground"
-                  style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
-                  dir="rtl"
-                >
-                  {word.word_arabic}
-                </span>
-                {word.root && (
-                  <span className="text-xs font-mono text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
-                    {word.root}
-                  </span>
-                )}
-              </div>
               <div className="flex items-center gap-3">
-                <span className="text-sm text-muted-foreground">
+                {/* Thumbnail */}
+                {word.image_url ? (
+                  <img
+                    src={word.image_url}
+                    alt={word.word_english}
+                    className="w-10 h-10 rounded-lg object-cover border border-border flex-shrink-0"
+                  />
+                ) : (
+                  <div className="w-10 h-10 rounded-lg bg-muted/50 border border-dashed border-border flex items-center justify-center flex-shrink-0">
+                    <Sparkles className="h-4 w-4 text-muted-foreground/50" />
+                  </div>
+                )}
+                <div>
+                  <span
+                    className="text-lg font-bold text-foreground block"
+                    style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
+                    dir="rtl"
+                  >
+                    {word.word_arabic}
+                  </span>
+                  {word.root && (
+                    <span className="text-xs font-mono text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                      {word.root}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground hidden sm:inline">
                   {word.word_english}
                 </span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-muted-foreground hover:text-primary"
+                  onClick={(e) => { e.stopPropagation(); setImageDialogWord(word); }}
+                  title="Generate image"
+                >
+                  <Sparkles className="h-4 w-4" />
+                </Button>
                 <Button
                   variant="ghost"
                   size="icon"
@@ -153,6 +178,13 @@ const MyWords = () => {
           ))}
         </div>
       )}
+
+      {/* Image generation dialog */}
+      <GenerateImageDialog
+        word={imageDialogWord}
+        open={!!imageDialogWord}
+        onOpenChange={(open) => { if (!open) setImageDialogWord(null); }}
+      />
     </AppShell>
   );
 };

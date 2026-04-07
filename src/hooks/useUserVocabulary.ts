@@ -200,3 +200,21 @@ export const useUpdateUserVocabularyReview = () => {
     },
   });
 };
+
+export const useUpdateUserVocabularyImage = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ wordId, imageUrl }: { wordId: string; imageUrl: string }) => {
+      const { error } = await supabase
+        .from("user_vocabulary")
+        .update({ image_url: imageUrl } as any)
+        .eq("id", wordId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["user-vocabulary"] });
+    },
+  });
+};

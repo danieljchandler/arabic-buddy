@@ -18,6 +18,12 @@ export interface UserVocabularyWord {
   last_reviewed_at: string | null;
   created_at: string;
   updated_at: string;
+  image_url: string | null;
+  dialect: string;
+  sentence_text: string | null;
+  sentence_english: string | null;
+  sentence_audio_url: string | null;
+  word_audio_url: string | null;
 }
 
 export const useUserVocabulary = (mixAll = false) => {
@@ -191,6 +197,24 @@ export const useUpdateUserVocabularyReview = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["user-vocabulary"] });
       queryClient.invalidateQueries({ queryKey: ["user-vocabulary-due"] });
+    },
+  });
+};
+
+export const useUpdateUserVocabularyImage = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ wordId, imageUrl }: { wordId: string; imageUrl: string }) => {
+      const { error } = await supabase
+        .from("user_vocabulary")
+        .update({ image_url: imageUrl } as any)
+        .eq("id", wordId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["user-vocabulary"] });
     },
   });
 };

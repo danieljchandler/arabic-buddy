@@ -7,13 +7,15 @@ import {
   useUpsertStoryProgress,
   type StoryScene,
 } from '@/hooks/useInteractiveStories';
+import { useAddUserVocabulary } from '@/hooks/useUserVocabulary';
 import { supabase } from '@/integrations/supabase/client';
 import { AppShell } from '@/components/layout/AppShell';
 import { HomeButton } from '@/components/HomeButton';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, RotateCcw, BookOpen, Trophy, ArrowLeft, Sparkles } from 'lucide-react';
+import { Loader2, RotateCcw, BookOpen, Trophy, ArrowLeft, Sparkles, Plus, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 const StoryPlayer = () => {
   const { storyId } = useParams<{ storyId: string }>();
@@ -22,11 +24,13 @@ const StoryPlayer = () => {
   const { data: scenes, isLoading: scenesLoading } = useStoryScenes(storyId);
   const { data: progress } = useStoryProgress(storyId);
   const upsertProgress = useUpsertStoryProgress();
+  const addVocab = useAddUserVocabulary();
 
   const [currentSceneOrder, setCurrentSceneOrder] = useState(0);
   const [pathTaken, setPathTaken] = useState<number[]>([0]);
   const [showTranslation, setShowTranslation] = useState(false);
   const [storyTitle, setStoryTitle] = useState('');
+  const [savedWords, setSavedWords] = useState<Set<string>>(new Set());
 
   // Load story title
   useEffect(() => {
@@ -164,18 +168,56 @@ const StoryPlayer = () => {
               {currentScene.vocabulary.length > 0 && (
                 <div className="mt-4 pt-4 border-t border-border">
                   <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wider flex items-center gap-1">
-                    <Sparkles className="h-3 w-3" /> Key Words
+                    <Sparkles className="h-3 w-3" /> Key Words · tap to save
                   </p>
                   <div className="flex flex-wrap gap-2" dir="rtl">
-                    {currentScene.vocabulary.map((v, i) => (
-                      <span
-                        key={i}
-                        className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-sm"
-                      >
-                        <span className="font-medium">{v.word_arabic}</span>
-                        {showTranslation && <span className="text-muted-foreground text-xs">({v.word_english})</span>}
-                      </span>
-                    ))}
+                    {currentScene.vocabulary.map((v, i) => {
+                      const key = `${v.word_arabic}::${v.word_english}`;
+                      const isSaved = savedWords.has(key);
+                      return (
+                        <button
+                          key={i}
+                          disabled={isSaved || !user}
+                          onClick={() => {
+                            if (!user) {
+                              toast.error('Sign in to save words');
+                              return;
+                            }
+                            addVocab.mutate(
+                              { word_arabic: v.word_arabic, word_english: v.word_english, source: 'story' },
+                              {
+                                onSuccess: () => {
+                                  setSavedWords(prev => new Set(prev).add(key));
+                                  toast.success('Saved to My Words');
+                                },
+                                onError: (err: any) => {
+                                  if (err.message?.includes('موجودة')) {
+                                    setSavedWords(prev => new Set(prev).add(key));
+                                    toast.info('Already in My Words');
+                                  } else {
+                                    toast.error('Failed to save');
+                                  }
+                                },
+                              }
+                            );
+                          }}
+                          className={cn(
+                            'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm transition-all',
+                            isSaved
+                              ? 'bg-primary/20 text-primary'
+                              : 'bg-primary/10 hover:bg-primary/20 active:scale-95'
+                          )}
+                        >
+                          <span className="font-medium">{v.word_arabic}</span>
+                          {showTranslation && <span className="text-muted-foreground text-xs">({v.word_english})</span>}
+                          {isSaved ? (
+                            <Check className="h-3 w-3 text-primary" />
+                          ) : (
+                            <Plus className="h-3 w-3 text-muted-foreground" />
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               )}

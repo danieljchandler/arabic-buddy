@@ -1,6 +1,6 @@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
-export type GulfDialect = 'Gulf' | 'Saudi' | 'Kuwaiti' | 'Emirati' | 'Bahraini' | 'Qatari' | 'Omani' | 'Egyptian';
+export type GulfDialect = 'Gulf' | 'Saudi' | 'Kuwaiti' | 'Emirati' | 'Bahraini' | 'Qatari' | 'Omani' | 'Egyptian' | 'Yemeni';
 
 const DIALECT_OPTIONS: { value: GulfDialect; label: string; flag: string }[] = [
   { value: 'Gulf', label: 'Gulf Arabic (General)', flag: '🌊' },
@@ -11,6 +11,7 @@ const DIALECT_OPTIONS: { value: GulfDialect; label: string; flag: string }[] = [
   { value: 'Qatari', label: 'Qatar', flag: '🇶🇦' },
   { value: 'Omani', label: 'Oman', flag: '🇴🇲' },
   { value: 'Egyptian', label: 'Egyptian Arabic', flag: '🇪🇬' },
+  { value: 'Yemeni', label: 'Yemeni Arabic', flag: '🇾🇪' },
 ];
 
 interface DialectSelectorProps {

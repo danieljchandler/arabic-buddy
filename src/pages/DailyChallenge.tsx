@@ -80,6 +80,9 @@ const DailyChallenge = () => {
   const [loading, setLoading] = useState(false);
   const [sessionComplete, setSessionComplete] = useState(savedSession?.sessionComplete ?? false);
   const [showEnglish, setShowEnglish] = useState(false);
+  const [matchedPairs, setMatchedPairs] = useState<Set<number>>(new Set());
+  const [matchSelected, setMatchSelected] = useState<{ side: 'arabic' | 'english'; index: number } | null>(null);
+  const [shuffledEnglish, setShuffledEnglish] = useState<{ text: string; origIndex: number }[]>([]);
 
   // Persist session state
   useEffect(() => {

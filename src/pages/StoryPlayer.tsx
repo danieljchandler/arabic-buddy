@@ -7,13 +7,15 @@ import {
   useUpsertStoryProgress,
   type StoryScene,
 } from '@/hooks/useInteractiveStories';
+import { useAddUserVocabulary } from '@/hooks/useUserVocabulary';
 import { supabase } from '@/integrations/supabase/client';
 import { AppShell } from '@/components/layout/AppShell';
 import { HomeButton } from '@/components/HomeButton';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, RotateCcw, BookOpen, Trophy, ArrowLeft, Sparkles } from 'lucide-react';
+import { Loader2, RotateCcw, BookOpen, Trophy, ArrowLeft, Sparkles, Plus, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 const StoryPlayer = () => {
   const { storyId } = useParams<{ storyId: string }>();

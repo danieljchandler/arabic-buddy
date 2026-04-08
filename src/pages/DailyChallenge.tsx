@@ -96,6 +96,18 @@ const DailyChallenge = () => {
     } catch {}
   }, [challenge, streakMultiplier, baseXP, currentIndex, score, sessionComplete]);
 
+  // Initialize shuffled english for match type
+  useEffect(() => {
+    if (challenge?.type === 'match' && challenge.questions.length > 0 && shuffledEnglish.length === 0) {
+      const items = challenge.questions.map((q, i) => ({ text: q.english || '', origIndex: i }));
+      for (let i = items.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [items[i], items[j]] = [items[j], items[i]];
+      }
+      setShuffledEnglish(items);
+    }
+  }, [challenge, shuffledEnglish.length]);
+
   // Check if already completed today
   const { data: todayCompletion } = useQuery({
     queryKey: ["daily-challenge-completion", user?.id],

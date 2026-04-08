@@ -24,11 +24,13 @@ const StoryPlayer = () => {
   const { data: scenes, isLoading: scenesLoading } = useStoryScenes(storyId);
   const { data: progress } = useStoryProgress(storyId);
   const upsertProgress = useUpsertStoryProgress();
+  const addVocab = useAddUserVocabulary();
 
   const [currentSceneOrder, setCurrentSceneOrder] = useState(0);
   const [pathTaken, setPathTaken] = useState<number[]>([0]);
   const [showTranslation, setShowTranslation] = useState(false);
   const [storyTitle, setStoryTitle] = useState('');
+  const [savedWords, setSavedWords] = useState<Set<string>>(new Set());
 
   // Load story title
   useEffect(() => {

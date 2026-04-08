@@ -80,6 +80,9 @@ const DailyChallenge = () => {
   const [loading, setLoading] = useState(false);
   const [sessionComplete, setSessionComplete] = useState(savedSession?.sessionComplete ?? false);
   const [showEnglish, setShowEnglish] = useState(false);
+  const [matchedPairs, setMatchedPairs] = useState<Set<number>>(new Set());
+  const [matchSelected, setMatchSelected] = useState<{ side: 'arabic' | 'english'; index: number } | null>(null);
+  const [shuffledEnglish, setShuffledEnglish] = useState<{ text: string; origIndex: number }[]>([]);
 
   // Persist session state
   useEffect(() => {
@@ -92,6 +95,18 @@ const DailyChallenge = () => {
       localStorage.setItem('session_daily_challenge', JSON.stringify(entry));
     } catch {}
   }, [challenge, streakMultiplier, baseXP, currentIndex, score, sessionComplete]);
+
+  // Initialize shuffled english for match type
+  useEffect(() => {
+    if (challenge?.type === 'match' && challenge.questions.length > 0 && shuffledEnglish.length === 0) {
+      const items = challenge.questions.map((q, i) => ({ text: q.english || '', origIndex: i }));
+      for (let i = items.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [items[i], items[j]] = [items[j], items[i]];
+      }
+      setShuffledEnglish(items);
+    }
+  }, [challenge, shuffledEnglish.length]);
 
   // Check if already completed today
   const { data: todayCompletion } = useQuery({
@@ -311,7 +326,7 @@ const DailyChallenge = () => {
   }
 
   // Loading
-  if (loading || !challenge || !currentQuestion) {
+  if (loading || !challenge || (challenge.type !== 'match' && !currentQuestion)) {
     return (
       <AppShell>
         <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
@@ -373,7 +388,8 @@ const DailyChallenge = () => {
       <Progress value={progress} className="h-2 mb-6" />
 
       <div className="bg-card border border-border rounded-2xl p-6 space-y-6">
-        {/* Question prompt */}
+        {/* Question prompt (non-match types) */}
+        {challenge.type !== 'match' && currentQuestion && (
         <div className="text-center">
           {currentQuestion.prompt && (
             <p className="text-xl font-semibold text-foreground">{currentQuestion.prompt}</p>
@@ -397,9 +413,116 @@ const DailyChallenge = () => {
             </div>
           )}
         </div>
+        )}
 
-        {/* Options */}
-        {currentQuestion.options && (
+        {/* Match type */}
+        {challenge.type === 'match' && (
+          <div className="space-y-3">
+            <p className="text-center text-sm text-muted-foreground mb-2">Tap an Arabic word, then tap its English match</p>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-2">
+                {challenge.questions.map((q, i) => {
+                  const isMatched = matchedPairs.has(i);
+                  const isSelected = matchSelected?.side === 'arabic' && matchSelected.index === i;
+                  return (
+                    <button
+                      key={`ar-${i}`}
+                      disabled={isMatched}
+                      onClick={() => {
+                        if (isMatched) return;
+                        if (matchSelected?.side === 'english') {
+                          const engItem = shuffledEnglish[matchSelected.index];
+                          if (engItem.origIndex === i) {
+                            const newMatched = new Set(matchedPairs);
+                            newMatched.add(i);
+                            setMatchedPairs(newMatched);
+                            setScore(prev => prev + 1);
+                            setMatchSelected(null);
+                            if (newMatched.size === challenge.questions.length) {
+                              setSessionComplete(true);
+                              const totalXP = Math.round(newMatched.size * baseXP * streakMultiplier);
+                              if (isAuthenticated && user) {
+                                addXP.mutate({ amount: totalXP, reason: "daily_challenge" });
+                                const today = new Date().toISOString().split("T")[0];
+                                supabase.from("daily_challenge_completions" as any).insert({
+                                  user_id: user.id, challenge_date: today, challenge_type: "match",
+                                  xp_earned: totalXP, score: newMatched.size, max_score: challenge.questions.length,
+                                });
+                              }
+                            }
+                          } else {
+                            setMatchSelected(null);
+                            toast.error("Not a match, try again");
+                          }
+                        } else {
+                          setMatchSelected({ side: 'arabic', index: i });
+                        }
+                      }}
+                      className={cn(
+                        "w-full p-3 rounded-xl border-2 text-center font-arabic text-lg transition-all",
+                        isMatched ? "border-green-500 bg-green-500/10 opacity-60" :
+                        isSelected ? "border-primary bg-primary/10" : "border-border hover:border-primary/50"
+                      )}
+                    >
+                      {q.arabic}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="space-y-2">
+                {shuffledEnglish.map((item, i) => {
+                  const isMatched = matchedPairs.has(item.origIndex);
+                  const isSelected = matchSelected?.side === 'english' && matchSelected.index === i;
+                  return (
+                    <button
+                      key={`en-${i}`}
+                      disabled={isMatched}
+                      onClick={() => {
+                        if (isMatched) return;
+                        if (matchSelected?.side === 'arabic') {
+                          if (item.origIndex === matchSelected.index) {
+                            const newMatched = new Set(matchedPairs);
+                            newMatched.add(item.origIndex);
+                            setMatchedPairs(newMatched);
+                            setScore(prev => prev + 1);
+                            setMatchSelected(null);
+                            if (newMatched.size === challenge.questions.length) {
+                              setSessionComplete(true);
+                              const totalXP = Math.round(newMatched.size * baseXP * streakMultiplier);
+                              if (isAuthenticated && user) {
+                                addXP.mutate({ amount: totalXP, reason: "daily_challenge" });
+                                const today = new Date().toISOString().split("T")[0];
+                                supabase.from("daily_challenge_completions" as any).insert({
+                                  user_id: user.id, challenge_date: today, challenge_type: "match",
+                                  xp_earned: totalXP, score: newMatched.size, max_score: challenge.questions.length,
+                                });
+                              }
+                            }
+                          } else {
+                            setMatchSelected(null);
+                            toast.error("Not a match, try again");
+                          }
+                        } else {
+                          setMatchSelected({ side: 'english', index: i });
+                        }
+                      }}
+                      className={cn(
+                        "w-full p-3 rounded-xl border-2 text-center text-sm transition-all",
+                        isMatched ? "border-green-500 bg-green-500/10 opacity-60" :
+                        isSelected ? "border-primary bg-primary/10" : "border-border hover:border-primary/50"
+                      )}
+                    >
+                      {item.text}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Options (non-match types) */}
+        {challenge.type !== 'match' && currentQuestion.options && (
           <div className="space-y-2">
             {currentQuestion.options.map((option, i) => {
               const isSelected = selectedAnswer === option;
@@ -428,8 +551,8 @@ const DailyChallenge = () => {
           </div>
         )}
 
-        {/* Result + Next */}
-        {showResult && (
+        {/* Result + Next (non-match types) */}
+        {challenge.type !== 'match' && showResult && (
           <div className="space-y-3">
             <div className={cn(
               "p-3 rounded-xl text-center",

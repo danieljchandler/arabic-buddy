@@ -388,7 +388,8 @@ const DailyChallenge = () => {
       <Progress value={progress} className="h-2 mb-6" />
 
       <div className="bg-card border border-border rounded-2xl p-6 space-y-6">
-        {/* Question prompt */}
+        {/* Question prompt (non-match types) */}
+        {challenge.type !== 'match' && currentQuestion && (
         <div className="text-center">
           {currentQuestion.prompt && (
             <p className="text-xl font-semibold text-foreground">{currentQuestion.prompt}</p>
@@ -412,6 +413,7 @@ const DailyChallenge = () => {
             </div>
           )}
         </div>
+        )}
 
         {/* Match type */}
         {challenge.type === 'match' && (

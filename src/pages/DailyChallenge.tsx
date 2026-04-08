@@ -326,7 +326,7 @@ const DailyChallenge = () => {
   }
 
   // Loading
-  if (loading || !challenge || !currentQuestion) {
+  if (loading || !challenge || (challenge.type !== 'match' && !currentQuestion)) {
     return (
       <AppShell>
         <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">

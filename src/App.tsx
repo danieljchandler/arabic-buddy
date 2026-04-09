@@ -46,6 +46,7 @@ import BattlePlay from "./pages/BattlePlay";
 import LearningPathSetup from "./pages/LearningPathSetup";
 import LearningPathDashboard from "./pages/LearningPathDashboard";
 import PlacementQuiz from "./pages/PlacementQuiz";
+import SouqNews from "./pages/SouqNews";
 import AdminLogin from "./pages/admin/AdminLogin";
 import AdminLayout from "./pages/admin/AdminLayout";
 import Dashboard from "./pages/admin/Dashboard";
@@ -270,6 +271,9 @@ const App = () => {
             } />
             <Route path="/my-path/setup" element={
               <ErrorBoundary name="LearningPathSetupRoute"><LearningPathSetup /></ErrorBoundary>
+            } />
+            <Route path="/souq-news" element={
+              <ErrorBoundary name="SouqNewsRoute"><SouqNews /></ErrorBoundary>
             } />
             <Route path="/placement" element={
               <ErrorBoundary name="PlacementQuizRoute"><PlacementQuiz /></ErrorBoundary>

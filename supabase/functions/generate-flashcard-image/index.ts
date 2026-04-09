@@ -51,7 +51,9 @@ STYLE GUIDE — follow exactly for every image:
 - Subject fills roughly 60-70% of the frame
 - Shallow depth of field with gentle bokeh on background
 - No text, labels, watermarks, or overlays
-- Consistent color grading: warm highlights, soft shadows`;
+- No lens flare, no light shimmer, no sparkles, no glowing dots, no bokeh circles in the foreground
+- Consistent color grading: warm highlights, soft shadows
+- Matte finish, no glossy or specular highlights on the image surface`;
     
     if (custom_instructions) {
       prompt += `\nAdditional instructions: ${custom_instructions}`;

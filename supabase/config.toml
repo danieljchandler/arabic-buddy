@@ -129,3 +129,6 @@ verify_jwt = false
 
 [functions.soniox-transcribe]
 verify_jwt = false
+
+[functions.souq-news]
+verify_jwt = false

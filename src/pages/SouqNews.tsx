@@ -66,7 +66,7 @@ const SouqNews = () => {
       }
       return (data?.articles || []) as SouqArticle[];
     },
-    staleTime: 1000 * 60 * 15, // 15 min cache
+    staleTime: 1000 * 60 * 15,
     retry: 1,
   });
 
@@ -76,32 +76,6 @@ const SouqNews = () => {
       next.has(i) ? next.delete(i) : next.add(i);
       return next;
     });
-  };
-
-  const saveWord = (word: { word_arabic: string; word_english: string }) => {
-    if (!user) {
-      toast.error("Please sign in to save words");
-      return;
-    }
-    const key = `${word.word_arabic}-${word.word_english}`;
-    if (savedWords.has(key)) return;
-    addVocab.mutate(
-      { word_arabic: word.word_arabic, word_english: word.word_english, source: "souq-news" },
-      {
-        onSuccess: () => {
-          setSavedWords((prev) => new Set(prev).add(key));
-          toast.success(`Saved "${word.word_english}"`);
-        },
-        onError: (err: any) => {
-          if (err?.message?.includes("duplicate")) {
-            setSavedWords((prev) => new Set(prev).add(key));
-            toast.info("Already in your words");
-          } else {
-            toast.error("Failed to save word");
-          }
-        },
-      }
-    );
   };
 
   const colorClass = DIALECT_COLORS[activeDialect] || DIALECT_COLORS.Gulf;
@@ -173,46 +147,15 @@ const SouqNews = () => {
                   {article.title_dialect}
                 </h2>
 
-                {/* Arabic body */}
-                <p
-                  className="text-base text-foreground/90 leading-loose mb-4"
-                  dir="rtl"
-                  style={{ fontFamily: "'Cairo', sans-serif" }}
-                >
-                  {article.body_dialect}
-                </p>
-
-                {/* Vocabulary pills */}
-                {article.vocabulary && article.vocabulary.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    {article.vocabulary.map((v, vi) => {
-                      const key = `${v.word_arabic}-${v.word_english}`;
-                      const isSaved = savedWords.has(key);
-                      return (
-                        <button
-                          key={vi}
-                          onClick={() => saveWord(v)}
-                          disabled={isSaved || !user}
-                          className={cn(
-                            "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all",
-                            isSaved
-                              ? "bg-primary/20 text-primary"
-                              : "bg-card border border-border hover:border-primary/40 text-foreground"
-                          )}
-                        >
-                          <span dir="rtl">{v.word_arabic}</span>
-                          <span className="text-muted-foreground">·</span>
-                          <span className="text-muted-foreground text-xs">{v.word_english}</span>
-                          {isSaved ? (
-                            <Check className="h-3 w-3" />
-                          ) : (
-                            <Plus className="h-3 w-3 text-muted-foreground" />
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
+                {/* Arabic body — tappable words */}
+                <div className="mb-4">
+                  <p className="text-xs text-muted-foreground mb-2">Tap any word for translation</p>
+                  <TappableArabicText
+                    text={article.body_dialect}
+                    vocabulary={article.vocabulary || []}
+                    source="souq-news"
+                  />
+                </div>
 
                 {/* English toggle */}
                 <button

@@ -14,8 +14,6 @@ import {
   ExternalLink,
   ChevronDown,
   ChevronUp,
-  Plus,
-  Check,
   Newspaper,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";

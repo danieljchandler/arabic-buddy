@@ -1,14 +1,12 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useDialect } from "@/contexts/DialectContext";
 import { useAuth } from "@/hooks/useAuth";
-import { useAddUserVocabulary } from "@/hooks/useUserVocabulary";
 import { AppShell } from "@/components/layout/AppShell";
 import { HomeButton } from "@/components/HomeButton";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
+import { TappableArabicText } from "@/components/shared/TappableArabicText";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {

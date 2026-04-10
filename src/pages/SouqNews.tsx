@@ -43,8 +43,6 @@ const DIALECT_ACCENT: Record<string, string> = {
 const SouqNews = () => {
   const { activeDialect } = useDialect();
   const { user } = useAuth();
-  const addVocab = useAddUserVocabulary();
-  const [savedWords, setSavedWords] = useState<Set<string>>(new Set());
   const [expandedCards, setExpandedCards] = useState<Set<number>>(new Set());
 
   const {

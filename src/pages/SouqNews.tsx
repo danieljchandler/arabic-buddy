@@ -186,6 +186,11 @@ const SouqNews = () => {
                     Source
                   </a>
                 )}
+
+                {/* Comprehension quiz */}
+                <div className="mt-3 pt-3 border-t border-border/30">
+                  <ArticleQuiz article={article} />
+                </div>
               </div>
             );
           })}

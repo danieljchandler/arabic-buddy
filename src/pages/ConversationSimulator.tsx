@@ -626,7 +626,7 @@ const ConversationSimulator = () => {
     MessageCircle: <MessageCircle className="h-5 w-5" />,
   };
 
-  const SCENARIOS = activeDialect === 'Egyptian' ? EGYPTIAN_SCENARIOS : GULF_SCENARIOS;
+  const SCENARIOS = activeDialect === 'Egyptian' ? EGYPTIAN_SCENARIOS : activeDialect === 'Yemeni' ? YEMENI_SCENARIOS : GULF_SCENARIOS;
 
   const allScenarios: Scenario[] = [
     ...(dbScenarios || []).map((s: any) => ({

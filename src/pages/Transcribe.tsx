@@ -1262,7 +1262,7 @@ const Transcribe = () => {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2"><Languages className="h-5 w-5 text-primary" />Grammar Points</CardTitle>
-              <CardDescription>Gulf Arabic grammar patterns found in the text</CardDescription>
+              <CardDescription>Arabic grammar patterns found in the text</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">

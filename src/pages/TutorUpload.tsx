@@ -81,7 +81,7 @@ const TutorUpload = () => {
       {step === "upload" && (
         <div className="space-y-6">
           <p className="text-muted-foreground">
-            Upload a recording of your tutor speaking Gulf Arabic. The system will extract vocabulary candidates for you to review.
+            Upload a recording of your tutor speaking Arabic. The system will extract vocabulary candidates for you to review.
           </p>
 
           <div

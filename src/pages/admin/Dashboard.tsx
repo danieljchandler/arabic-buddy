@@ -208,7 +208,7 @@ const Dashboard = () => {
                     </div>
                     <div>
                       <h3 className="font-semibold text-lg">Trending Videos</h3>
-                      <p className="text-muted-foreground">Discover & curate trending Gulf Arabic YouTube videos</p>
+                      <p className="text-muted-foreground">Discover & curate trending Arabic YouTube videos</p>
                     </div>
                   </div>
                 </CardContent>

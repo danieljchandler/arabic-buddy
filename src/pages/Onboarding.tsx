@@ -159,14 +159,14 @@ const Onboarding = () => {
                 Welcome to Lahja
               </h2>
               <p className="text-muted-foreground leading-relaxed">
-                Learn Gulf Arabic through real conversations, videos, and interactive lessons.
+                Learn Arabic dialects through real conversations, videos, and interactive lessons.
                 Let's personalize your learning experience.
               </p>
             </div>
             <div className="grid grid-cols-3 gap-3 pt-4">
               <div className="bg-card border border-border rounded-xl p-3 text-center">
                 <Globe2 className="h-6 w-6 text-primary mx-auto mb-1" />
-                <p className="text-xs text-muted-foreground">7 Gulf dialects</p>
+                <p className="text-xs text-muted-foreground">Multiple dialects</p>
               </div>
               <div className="bg-card border border-border rounded-xl p-3 text-center">
                 <GraduationCap className="h-6 w-6 text-primary mx-auto mb-1" />

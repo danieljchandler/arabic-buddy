@@ -88,6 +88,7 @@ export function useCreateLearningPath() {
       target_dialect: string;
       target_level: string;
       timeline_weeks: number;
+      placement_level?: string;
     }) => {
       if (!user) throw new Error("Not authenticated");
 

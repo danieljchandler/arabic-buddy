@@ -43,7 +43,7 @@ export default function LearningPathDashboard() {
           </div>
           <h1 className="text-2xl font-bold text-foreground">No Learning Path Yet</h1>
           <p className="text-muted-foreground max-w-sm mx-auto">
-            Let AI create a personalized Gulf Arabic curriculum tailored to your goals.
+            Let AI create a personalized Arabic curriculum tailored to your goals.
           </p>
           <Button onClick={() => navigate("/my-path/setup")} size="lg">
             <Sparkles className="h-4 w-4 mr-2" /> Create My Path

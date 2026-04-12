@@ -211,7 +211,6 @@ export const useSubmitReview = () => {
       return { result, rating };
     },
     onSuccess: ({ rating }) => {
-      queryClient.invalidateQueries({ queryKey: ['due-words'] });
       queryClient.invalidateQueries({ queryKey: ['review-stats'] });
       
       // Award XP based on rating

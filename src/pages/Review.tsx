@@ -58,6 +58,7 @@ const Review = () => {
   const handleRate = async (rating: Rating) => {
     if (!dueWords || !dueWords[currentIndex]) return;
     const word = dueWords[currentIndex];
+    const wordCount = dueWords.length;
 
     await submitReview.mutateAsync({
       wordId: word.id,
@@ -66,7 +67,15 @@ const Review = () => {
     });
 
     setSessionCount((prev) => prev + 1);
-    goToNext();
+    setShowAnswer(false);
+
+    // Advance without relying on goToNext (which may read stale dueWords)
+    if (currentIndex < wordCount - 1) {
+      setCurrentIndex((prev) => prev + 1);
+    } else {
+      await refetch();
+      setCurrentIndex(0);
+    }
   };
 
   const handleToggleMix = () => {
@@ -164,8 +173,16 @@ const Review = () => {
     );
   }
 
-  const currentWord = dueWords[currentIndex];
-  const progress = ((currentIndex + 1) / dueWords.length) * 100;
+  // Safety: clamp index if list shrank after refetch
+  const safeIndex = Math.min(currentIndex, dueWords.length - 1);
+  if (safeIndex !== currentIndex) {
+    setCurrentIndex(safeIndex);
+  }
+
+  const currentWord = dueWords[safeIndex];
+  if (!currentWord) return null;
+
+  const progress = ((safeIndex + 1) / dueWords.length) * 100;
 
   const dialectFlag = DIALECT_FLAGS[currentWord.dialect_module || "Gulf"] || "";
   const dialectLabel = currentWord.dialect_module || "Gulf";

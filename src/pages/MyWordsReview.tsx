@@ -143,6 +143,7 @@ const MyWordsReview = () => {
   const handleRate = async (rating: Rating) => {
     if (!dueWords || !dueWords[currentIndex]) return;
     const word = dueWords[currentIndex];
+    const wordCount = dueWords.length;
 
     const result = calculateNextReview(
       rating,
@@ -164,7 +165,7 @@ const MyWordsReview = () => {
     setSessionCount((prev) => prev + 1);
     setShowAnswer(false);
 
-    if (currentIndex < dueWords.length - 1) {
+    if (currentIndex < wordCount - 1) {
       setCurrentIndex((prev) => prev + 1);
     } else {
       await refetch();
@@ -225,8 +226,16 @@ const MyWordsReview = () => {
     );
   }
 
-  const currentWord = dueWords[currentIndex];
-  const progress = ((currentIndex + 1) / dueWords.length) * 100;
+  // Safety: clamp index if list shrank after refetch
+  const safeIndex = Math.min(currentIndex, dueWords.length - 1);
+  if (safeIndex !== currentIndex) {
+    setCurrentIndex(safeIndex);
+  }
+
+  const currentWord = dueWords[safeIndex];
+  if (!currentWord) return null;
+
+  const progress = ((safeIndex + 1) / dueWords.length) * 100;
 
   return (
     <AppShell compact>

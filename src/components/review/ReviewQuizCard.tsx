@@ -1,7 +1,8 @@
-import { useState, useMemo, useCallback, useRef } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { VocabularyWord } from "@/hooks/useReview";
 import { cn } from "@/lib/utils";
 import { CheckCircle2, XCircle, Volume2 } from "lucide-react";
+import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 
 interface ReviewQuizCardProps {
   word: VocabularyWord;
@@ -38,7 +39,7 @@ export const ReviewQuizCard = ({
 }: ReviewQuizCardProps) => {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showResult, setShowResult] = useState(false);
-  const playingAudioRef = useRef<HTMLAudioElement | null>(null);
+  const { play: playAudioUrl } = useAudioPlayer();
 
   // Build up to 4 options: correct word + up to 3 distractors (full word objects
   // so we have access to word_arabic and audio_url for each option).
@@ -62,15 +63,8 @@ export const ReviewQuizCard = ({
   const playOptionAudio = useCallback((option: VocabularyWord, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!option.audio_url) return;
-    // Stop any currently playing option audio
-    if (playingAudioRef.current) {
-      playingAudioRef.current.pause();
-    }
-    const audio = new Audio(option.audio_url);
-    playingAudioRef.current = audio;
-    audio.onended = () => { playingAudioRef.current = null; };
-    audio.play().catch(() => { playingAudioRef.current = null; });
-  }, []);
+    playAudioUrl(option.audio_url);
+  }, [playAudioUrl]);
 
   return (
     <div className="w-full max-w-sm mx-auto">

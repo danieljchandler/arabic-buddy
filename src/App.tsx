@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -8,63 +8,67 @@ import { toast } from "sonner";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { TranscriptionJobProvider } from "@/contexts/TranscriptionJobContext";
 import { DialectProvider } from "@/contexts/DialectContext";
-import Index from "./pages/Index";
-import Learn from "./pages/Learn";
-import NotFound from "./pages/NotFound";
-import Quiz from "./pages/Quiz";
-import Auth from "./pages/Auth";
-import Review from "./pages/Review";
-import Transcribe from "./pages/Transcribe";
-import MyWords from "./pages/MyWords";
-import TutorUpload from "./pages/TutorUpload";
-import MyWordsReview from "./pages/MyWordsReview";
-import MemeAnalyzer from "./pages/MemeAnalyzer";
-import Discover from "./pages/Discover";
-import DiscoverVideo from "./pages/DiscoverVideo";
-import LearnFromX from "./pages/LearnFromX";
-import HowDoISay from "./pages/HowDoISay";
-import CultureGuide from "./pages/CultureGuide";
-import Pricing from "./pages/Pricing";
-import PronunciationPractice from "./pages/PronunciationPractice";
-import ConversationSimulator from "./pages/ConversationSimulator";
-import DialectCompare from "./pages/DialectCompare";
-import ListeningPractice from "./pages/ListeningPractice";
-import Leaderboard from "./pages/Leaderboard";
-import ReadingPractice from "./pages/ReadingPractice";
-import DailyChallenge from "./pages/DailyChallenge";
-import LearningAnalytics from "./pages/LearningAnalytics";
-import GrammarDrills from "./pages/GrammarDrills";
-import VocabGames from "./pages/VocabGames";
-import Onboarding from "./pages/Onboarding";
-import Settings from "./pages/Settings";
-import Friends from "./pages/Friends";
-import LikedVideos from "./pages/LikedVideos";
-import Stories from "./pages/Stories";
-import StoryPlayer from "./pages/StoryPlayer";
-import VocabBattles from "./pages/VocabBattles";
-import BattlePlay from "./pages/BattlePlay";
-import LearningPathSetup from "./pages/LearningPathSetup";
-import LearningPathDashboard from "./pages/LearningPathDashboard";
-import PlacementQuiz from "./pages/PlacementQuiz";
-import SouqNews from "./pages/SouqNews";
-import AdminLogin from "./pages/admin/AdminLogin";
-import AdminLayout from "./pages/admin/AdminLayout";
-import Dashboard from "./pages/admin/Dashboard";
-import Topics from "./pages/admin/Topics";
-import TopicForm from "./pages/admin/TopicForm";
-import Words from "./pages/admin/Words";
-import WordForm from "./pages/admin/WordForm";
-import BulkWordImport from "./pages/admin/BulkWordImport";
-import AdminVideos from "./pages/admin/AdminVideos";
-import AdminVideoForm from "./pages/admin/AdminVideoForm";
-import Stages from "./pages/admin/Stages";
-import LessonWords from "./pages/admin/LessonWords";
-import LessonImport from "./pages/admin/LessonImport";
-import LlmLogs from "./pages/admin/LlmLogs";
-import CurriculumBuilder from "./pages/admin/CurriculumBuilder";
-import AdminStories from "./pages/admin/AdminStories";
-import AdminStoryForm from "./pages/admin/AdminStoryForm";
-import TrendingVideos from "./pages/admin/TrendingVideos";
+
+// ─── Lazy-loaded page components ─────────────────────────────────────────────
+// Each page is loaded on-demand so the initial bundle stays small.
+const Index = lazy(() => import("./pages/Index"));
+const Learn = lazy(() => import("./pages/Learn"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+const Quiz = lazy(() => import("./pages/Quiz"));
+const Auth = lazy(() => import("./pages/Auth"));
+const Review = lazy(() => import("./pages/Review"));
+const Transcribe = lazy(() => import("./pages/Transcribe"));
+const MyWords = lazy(() => import("./pages/MyWords"));
+const TutorUpload = lazy(() => import("./pages/TutorUpload"));
+const MyWordsReview = lazy(() => import("./pages/MyWordsReview"));
+const MemeAnalyzer = lazy(() => import("./pages/MemeAnalyzer"));
+const Discover = lazy(() => import("./pages/Discover"));
+const DiscoverVideo = lazy(() => import("./pages/DiscoverVideo"));
+const LearnFromX = lazy(() => import("./pages/LearnFromX"));
+const HowDoISay = lazy(() => import("./pages/HowDoISay"));
+const CultureGuide = lazy(() => import("./pages/CultureGuide"));
+const Pricing = lazy(() => import("./pages/Pricing"));
+const PronunciationPractice = lazy(() => import("./pages/PronunciationPractice"));
+const ConversationSimulator = lazy(() => import("./pages/ConversationSimulator"));
+const DialectCompare = lazy(() => import("./pages/DialectCompare"));
+const ListeningPractice = lazy(() => import("./pages/ListeningPractice"));
+const Leaderboard = lazy(() => import("./pages/Leaderboard"));
+const ReadingPractice = lazy(() => import("./pages/ReadingPractice"));
+const DailyChallenge = lazy(() => import("./pages/DailyChallenge"));
+const LearningAnalytics = lazy(() => import("./pages/LearningAnalytics"));
+const GrammarDrills = lazy(() => import("./pages/GrammarDrills"));
+const VocabGames = lazy(() => import("./pages/VocabGames"));
+const Onboarding = lazy(() => import("./pages/Onboarding"));
+const Settings = lazy(() => import("./pages/Settings"));
+const Friends = lazy(() => import("./pages/Friends"));
+const LikedVideos = lazy(() => import("./pages/LikedVideos"));
+const Stories = lazy(() => import("./pages/Stories"));
+const StoryPlayer = lazy(() => import("./pages/StoryPlayer"));
+const VocabBattles = lazy(() => import("./pages/VocabBattles"));
+const BattlePlay = lazy(() => import("./pages/BattlePlay"));
+const LearningPathSetup = lazy(() => import("./pages/LearningPathSetup"));
+const LearningPathDashboard = lazy(() => import("./pages/LearningPathDashboard"));
+const PlacementQuiz = lazy(() => import("./pages/PlacementQuiz"));
+const SouqNews = lazy(() => import("./pages/SouqNews"));
+
+// Admin pages
+const AdminLayout = lazy(() => import("./pages/admin/AdminLayout"));
+const Dashboard = lazy(() => import("./pages/admin/Dashboard"));
+const Topics = lazy(() => import("./pages/admin/Topics"));
+const TopicForm = lazy(() => import("./pages/admin/TopicForm"));
+const Words = lazy(() => import("./pages/admin/Words"));
+const WordForm = lazy(() => import("./pages/admin/WordForm"));
+const BulkWordImport = lazy(() => import("./pages/admin/BulkWordImport"));
+const AdminVideos = lazy(() => import("./pages/admin/AdminVideos"));
+const AdminVideoForm = lazy(() => import("./pages/admin/AdminVideoForm"));
+const Stages = lazy(() => import("./pages/admin/Stages"));
+const LessonWords = lazy(() => import("./pages/admin/LessonWords"));
+const LessonImport = lazy(() => import("./pages/admin/LessonImport"));
+const LlmLogs = lazy(() => import("./pages/admin/LlmLogs"));
+const CurriculumBuilder = lazy(() => import("./pages/admin/CurriculumBuilder"));
+const AdminStories = lazy(() => import("./pages/admin/AdminStories"));
+const AdminStoryForm = lazy(() => import("./pages/admin/AdminStoryForm"));
+const TrendingVideos = lazy(() => import("./pages/admin/TrendingVideos"));
 
 const queryClient = new QueryClient();
 
@@ -142,6 +146,7 @@ const App = () => {
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>}>
           <Routes>
             {/* Public learning app */}
             <Route path="/" element={<ErrorBoundary name="HomeRoute"><Index /></ErrorBoundary>} />
@@ -310,6 +315,7 @@ const App = () => {
 
             <Route path="*" element={<NotFound />} />
           </Routes>
+          </Suspense>
         </BrowserRouter>
       </TooltipProvider>
       </TranscriptionJobProvider>

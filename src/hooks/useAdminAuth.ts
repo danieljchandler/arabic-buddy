@@ -16,38 +16,13 @@ export const useAdminAuth = () => {
   const currentUserIdRef = useRef<string | null>(null);
 
   useEffect(() => {
-    // Set up auth state listener FIRST
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
+    // Check for existing session FIRST, then subscribe to changes.
+    // This avoids a race condition where a token refresh could fire
+    // between subscribing and checking the initial session.
+    let subscription: { unsubscribe: () => void } | null = null;
 
-        if (session?.user) {
-          const isNewUser = session.user.id !== currentUserIdRef.current;
-          currentUserIdRef.current = session.user.id;
-
-          if (isNewUser) {
-            // A genuinely different user signed in — show the spinner while
-            // we verify their roles.
-            setLoading(true);
-          }
-          // Token refreshes for the same user (TOKEN_REFRESHED) skip setLoading
-          // so the page stays visible without a white flash.
-          setTimeout(() => {
-            checkRoles(session.user.id);
-          }, 0);
-        } else {
-          currentUserIdRef.current = null;
-          setIsAdmin(false);
-          setIsRecorder(false);
-          setRole(null);
-          setLoading(false);
-        }
-      }
-    );
-
-    // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const init = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
       setSession(session);
       setUser(session?.user ?? null);
 
@@ -57,9 +32,40 @@ export const useAdminAuth = () => {
       } else {
         setLoading(false);
       }
-    });
 
-    return () => subscription.unsubscribe();
+      // Now subscribe to future auth state changes
+      const { data } = supabase.auth.onAuthStateChange(
+        (_event, newSession) => {
+          setSession(newSession);
+          setUser(newSession?.user ?? null);
+
+          if (newSession?.user) {
+            const isNewUser = newSession.user.id !== currentUserIdRef.current;
+            currentUserIdRef.current = newSession.user.id;
+
+            if (isNewUser) {
+              setLoading(true);
+            }
+            setTimeout(() => {
+              checkRoles(newSession.user.id);
+            }, 0);
+          } else {
+            currentUserIdRef.current = null;
+            setIsAdmin(false);
+            setIsRecorder(false);
+            setRole(null);
+            setLoading(false);
+          }
+        }
+      );
+      subscription = data.subscription;
+    };
+
+    init();
+
+    return () => {
+      subscription?.unsubscribe();
+    };
   }, []);
 
   const checkRoles = async (userId: string) => {

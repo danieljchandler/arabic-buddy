@@ -1,6 +1,8 @@
 import { useState, useRef, useCallback } from "react";
 import { Volume2, RotateCcw, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAzureTTS } from "@/hooks/useAzureTTS";
+import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 
 export interface VocabularyWord {
   id: string;
@@ -45,78 +47,27 @@ export const VocabularyCard = ({
   onCardClick,
   className,
 }: VocabularyCardProps) => {
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  // Audio: use shared hooks for TTS generation and playback
+  const { ttsUrl, isLoading } = useAzureTTS({
+    text: word.word_arabic,
+    skip: Boolean(word.audio_url),
+  });
+  const { isPlaying, play: playUrl } = useAudioPlayer();
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const ttsAudioRef = useRef<HTMLAudioElement | null>(null);
-
-  const playTTS = useCallback(async () => {
-    if (isLoading || isPlaying) return;
-    
-    setIsLoading(true);
-    try {
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/azure-tts`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-          },
-          body: JSON.stringify({ text: word.word_arabic }),
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error(`TTS request failed: ${response.status}`);
-      }
-
-      const audioBlob = await response.blob();
-      const audioUrl = URL.createObjectURL(audioBlob);
-      
-      // Clean up previous TTS audio
-      if (ttsAudioRef.current) {
-        URL.revokeObjectURL(ttsAudioRef.current.src);
-      }
-      
-      const audio = new Audio(audioUrl);
-      ttsAudioRef.current = audio;
-      
-      audio.onplay = () => setIsPlaying(true);
-      audio.onended = () => {
-        setIsPlaying(false);
-        URL.revokeObjectURL(audioUrl);
-      };
-      audio.onerror = () => {
-        setIsPlaying(false);
-        URL.revokeObjectURL(audioUrl);
-      };
-      
-      await audio.play();
-    } catch (error) {
-      console.error("TTS playback error:", error);
-      // Visual feedback on error
-      setIsPlaying(true);
-      setTimeout(() => setIsPlaying(false), 500);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [word.word_arabic, isLoading, isPlaying]);
 
   const playAudio = useCallback(() => {
     if (word.audio_url && audioRef.current) {
       // Use stored audio if available
       audioRef.current.currentTime = 0;
       audioRef.current.play().catch(() => {});
-    } else {
-      // Fall back to Azure TTS
-      playTTS();
+    } else if (ttsUrl) {
+      // Fall back to generated TTS
+      playUrl(ttsUrl);
     }
-  }, [word.audio_url, playTTS]);
+  }, [word.audio_url, ttsUrl, playUrl]);
 
-  const handleAudioPlay = () => setIsPlaying(true);
-  const handleAudioEnded = () => setIsPlaying(false);
+  const handleAudioPlay = () => {};
+  const handleAudioEnded = () => {};
 
   const handleClick = () => {
     playAudio();

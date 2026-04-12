@@ -25,6 +25,14 @@ export function useTranscriptEditor(
     setSegments(initialSegments);
   }, [initialSegments]);
 
+  // Clean up the debounced save timer on unmount to prevent firing after
+  // the component has been destroyed.
+  useEffect(() => {
+    return () => {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+    };
+  }, []);
+
   const debounceSave = useCallback(
     (segs: Segment[]) => {
       if (saveTimer.current) clearTimeout(saveTimer.current);

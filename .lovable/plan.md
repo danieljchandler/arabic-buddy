@@ -1,52 +1,31 @@
 
 
-# Souq News — Dialect News Feed
+# Fix: Review Flashcard Double-Skip Bug
 
-## What We're Building
-A new "Souq News" feature where users get current news articles (last 24 hours) rewritten in their active dialect, as if a friend at the souq is telling them about what's happening. The content is accurate but written in authentic colloquial Arabic.
+## Problem
+When you rate a word, it skips forward by two instead of one. This happens because:
+1. Rating a word increments the card index by 1 (moving to the next card)
+2. The mutation's success handler immediately invalidates and refetches the word list
+3. The refetched list no longer contains the just-reviewed word (it's no longer "due")
+4. The index now points one position too far in the shorter list — skipping a card
 
-## Architecture
+This also causes the `Cannot read properties of undefined (reading 'dialect_module')` crash when the index overshoots the array.
 
-```text
-┌─────────────┐      ┌──────────────────────┐      ┌──────────────┐
-│  SouqNews   │─────▶│  souq-news (Edge Fn) │─────▶│  Firecrawl   │
-│  Page (React)│      │                      │      │  Search API  │
-│             │◀─────│  1. Search news       │      └──────────────┘
-│  Shows 5    │      │  2. Rewrite in        │      ┌──────────────┐
-│  dialect    │      │     dialect via        │─────▶│  Lovable AI  │
-│  articles   │      │     Lovable AI         │      │  Gateway     │
-└─────────────┘      └──────────────────────┘      └──────────────┘
-```
+## Fix (2 files)
 
-## Plan
+### 1. `src/hooks/useReview.ts` — Stop auto-invalidating during review
+Remove the `queryClient.invalidateQueries({ queryKey: ['due-words'] })` from `useSubmitReview`'s `onSuccess`. The Review page already manages its own index and calls `refetch()` when it reaches the end of the list. Invalidating mid-session is what causes the list to shrink under the component.
 
-### 1. Create `souq-news` Edge Function
-- Accepts `{ dialect, region }` from the client
-- Uses **Firecrawl Search** (already connected) to find 5 recent news articles about the relevant region (Gulf/Egypt/Yemen) from the last 24 hours
-- For each article, calls **Lovable AI** (Gemini 3 Flash) with a system prompt that instructs it to rewrite the headline and summary as souq gossip in the target dialect
-- Returns an array of `{ title_dialect, body_dialect, title_english, summary_english, source_url, published_at }`
+Keep the `review-stats` invalidation (harmless — it doesn't affect the card list).
 
-### 2. Create `src/pages/SouqNews.tsx`
-- Pulls news on mount via `supabase.functions.invoke('souq-news')`
-- Shows a list of cards with:
-  - Arabic dialect headline and body (RTL)
-  - English summary toggle
-  - Source link
-  - "Save words" tap interaction (reuse existing vocab save)
-- Loading skeleton while fetching
-- Refresh button to pull fresh articles
-- Dialect-aware theming (teal/amber/red)
+### 2. `src/pages/Review.tsx` — Add safety guards
+- Add a guard so that if `currentIndex` is out of bounds after a refetch, it resets to 0
+- Add null-check on `currentWord` before rendering to prevent the `dialect_module` crash
+- Capture the current word reference before awaiting the mutation in `handleRate` to avoid stale reads
 
-### 3. Add route and homepage entry
-- Add `/souq-news` route in `App.tsx`
-- Add a feature card on the Index page (e.g., newspaper icon, "أخبار السوق / Souq News")
+### 3. `src/pages/MyWordsReview.tsx` — Same pattern fix
+- The `useUpdateUserVocabularyReview` hook invalidates `["user-vocabulary"]` on success, which could cause the same issue if query keys aligned. Add the same index-bounds guard after refetch.
+- Add null-safety on `currentWord` access.
 
-### 4. Config
-- Add `[functions.souq-news]` with `verify_jwt = false` to `supabase/config.toml`
-
-## Technical Details
-- **Firecrawl search** with `tbs: 'qdr:d'` for last-24-hour filtering, region-specific queries (e.g., "Saudi Arabia news today", "Egypt news today", "Yemen news today")
-- **Lovable AI prompt** enforces dialect identity via shared `dialectHelpers.ts`, instructs the model to write as if gossiping at the souq — casual, animated, authentic dialect with no MSA
-- No database tables needed — content is generated on-the-fly
-- Handles 429/402 rate limit errors gracefully with user-facing toasts
+## No database or edge function changes needed.
 

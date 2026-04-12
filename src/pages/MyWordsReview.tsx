@@ -42,7 +42,9 @@ const MyWordsReview = () => {
   const [showAnswer, setShowAnswer] = useState(false);
   const [sessionCount, setSessionCount] = useState(0);
   const [jingleLoading, setJingleLoading] = useState(false);
+  const [imageDialogOpen, setImageDialogOpen] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const updateImage = useUpdateUserVocabularyImage();
 
   const playAudio = (url: string) => {
     if (audioRef.current) {

@@ -403,6 +403,7 @@ const MyWordsReview = () => {
         }}
       />
     </AppShell>
+  );
 };
 
 export default MyWordsReview;

@@ -393,8 +393,16 @@ const MyWordsReview = () => {
           />
         </div>
       </div>
+
+      <GenerateImageDialog
+        word={currentWord}
+        open={imageDialogOpen}
+        onOpenChange={setImageDialogOpen}
+        onImageSaved={async (wordId, imageUrl) => {
+          await updateImage.mutateAsync({ wordId, imageUrl });
+        }}
+      />
     </AppShell>
-  );
 };
 
 export default MyWordsReview;

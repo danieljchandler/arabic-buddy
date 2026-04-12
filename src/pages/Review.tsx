@@ -34,6 +34,7 @@ const Review = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [sessionCount, setSessionCount] = useState(0);
   const [showAnswer, setShowAnswer] = useState(false);
+  const [imageDialogOpen, setImageDialogOpen] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const playAudio = (url: string) => {

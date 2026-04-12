@@ -250,7 +250,7 @@ const Review = () => {
           <div className="rounded-2xl bg-card border border-border p-8 text-center">
             {/* Image if available */}
             {currentWord.image_url && (
-              <div className="mb-6 rounded-lg overflow-hidden bg-muted aspect-[4/3] flex items-center justify-center">
+              <div className="mb-4 rounded-lg overflow-hidden bg-muted aspect-[4/3] flex items-center justify-center">
                 <img
                   src={currentWord.image_url}
                   alt=""
@@ -261,6 +261,18 @@ const Review = () => {
                 />
               </div>
             )}
+            {/* Generate image button */}
+            <div className="mb-6 flex justify-center">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setImageDialogOpen(true)}
+                className="gap-1.5 text-muted-foreground"
+              >
+                <ImagePlus className="h-4 w-4" />
+                {currentWord.image_url ? "Regenerate Image" : "Generate Image"}
+              </Button>
+            </div>
 
             <p
               className="text-4xl font-bold text-foreground mb-6"

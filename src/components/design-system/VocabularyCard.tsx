@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useCallback } from "react";
 import { Volume2, RotateCcw, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAzureTTS } from "@/hooks/useAzureTTS";
@@ -53,21 +53,14 @@ export const VocabularyCard = ({
     skip: Boolean(word.audio_url),
   });
   const { isPlaying, play: playUrl } = useAudioPlayer();
-  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const playAudio = useCallback(() => {
-    if (word.audio_url && audioRef.current) {
-      // Use stored audio if available
-      audioRef.current.currentTime = 0;
-      audioRef.current.play().catch(() => {});
+    if (word.audio_url) {
+      playUrl(word.audio_url);
     } else if (ttsUrl) {
-      // Fall back to generated TTS
       playUrl(ttsUrl);
     }
   }, [word.audio_url, ttsUrl, playUrl]);
-
-  const handleAudioPlay = () => {};
-  const handleAudioEnded = () => {};
 
   const handleClick = () => {
     playAudio();
@@ -177,16 +170,6 @@ export const VocabularyCard = ({
         </button>
       )}
 
-      {/* Hidden Audio Element */}
-      {word.audio_url && (
-        <audio
-          ref={audioRef}
-          src={word.audio_url}
-          onPlay={handleAudioPlay}
-          onEnded={handleAudioEnded}
-          preload="auto"
-        />
-      )}
     </div>
   );
 };

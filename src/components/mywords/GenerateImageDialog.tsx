@@ -4,20 +4,26 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Loader2, Sparkles, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { useUpdateUserVocabularyImage, type UserVocabularyWord } from "@/hooks/useUserVocabulary";
 import { toast } from "sonner";
 
-interface GenerateImageDialogProps {
-  word: UserVocabularyWord | null;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+export interface GenerateImageWord {
+  id: string;
+  word_arabic: string;
+  word_english: string;
+  image_url?: string | null;
 }
 
-export const GenerateImageDialog = ({ word, open, onOpenChange }: GenerateImageDialogProps) => {
+interface GenerateImageDialogProps {
+  word: GenerateImageWord | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onImageSaved?: (wordId: string, imageUrl: string) => void;
+}
+
+export const GenerateImageDialog = ({ word, open, onOpenChange, onImageSaved }: GenerateImageDialogProps) => {
   const [customInstructions, setCustomInstructions] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const updateImage = useUpdateUserVocabularyImage();
 
   const handleGenerate = async () => {
     if (!word) return;
@@ -38,10 +44,12 @@ export const GenerateImageDialog = ({ word, open, onOpenChange }: GenerateImageD
       if (error) throw error;
       if (!data?.imageUrl) throw new Error("No image returned");
 
-      // Append cache-buster
       const urlWithCacheBust = `${data.imageUrl}?t=${Date.now()}`;
 
-      await updateImage.mutateAsync({ wordId: word.id, imageUrl: urlWithCacheBust });
+      if (onImageSaved) {
+        onImageSaved(word.id, urlWithCacheBust);
+      }
+
       setPreviewUrl(urlWithCacheBust);
       toast.success("Image generated!");
     } catch (err: any) {
@@ -65,7 +73,6 @@ export const GenerateImageDialog = ({ word, open, onOpenChange }: GenerateImageD
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* Word info */}
           <div className="text-center p-3 rounded-lg bg-muted/50">
             <p className="text-lg font-bold" dir="rtl" style={{ fontFamily: "'Amiri', serif" }}>
               {word?.word_arabic}
@@ -73,7 +80,6 @@ export const GenerateImageDialog = ({ word, open, onOpenChange }: GenerateImageD
             <p className="text-sm text-muted-foreground">{word?.word_english}</p>
           </div>
 
-          {/* Current/preview image */}
           {currentImage && (
             <div className="flex justify-center">
               <img
@@ -84,7 +90,6 @@ export const GenerateImageDialog = ({ word, open, onOpenChange }: GenerateImageD
             </div>
           )}
 
-          {/* Custom instructions */}
           <div>
             <label className="text-sm font-medium text-foreground mb-1.5 block">
               Describe the picture you want (optional)
@@ -98,7 +103,6 @@ export const GenerateImageDialog = ({ word, open, onOpenChange }: GenerateImageD
             />
           </div>
 
-          {/* Generate button */}
           <Button
             onClick={handleGenerate}
             disabled={isGenerating}

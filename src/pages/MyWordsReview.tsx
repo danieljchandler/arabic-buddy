@@ -6,7 +6,9 @@ import { useDialect } from "@/contexts/DialectContext";
 import { HomeButton } from "@/components/HomeButton";
 import { RatingButtons } from "@/components/review/RatingButtons";
 import { AppShell } from "@/components/layout/AppShell";
-import { Loader2, Trophy, LogIn, Eye, Volume2, Music, RefreshCw } from "lucide-react";
+import { Loader2, Trophy, LogIn, Eye, Volume2, Music, RefreshCw, Sparkles } from "lucide-react";
+import { GenerateImageDialog } from "@/components/mywords/GenerateImageDialog";
+import { useUpdateUserVocabularyImage } from "@/hooks/useUserVocabulary";
 import { PronunciationButton } from "@/components/review/PronunciationButton";
 import { Button } from "@/components/ui/button";
 import { Rating, calculateNextReview } from "@/lib/spacedRepetition";
@@ -40,7 +42,9 @@ const MyWordsReview = () => {
   const [showAnswer, setShowAnswer] = useState(false);
   const [sessionCount, setSessionCount] = useState(0);
   const [jingleLoading, setJingleLoading] = useState(false);
+  const [imageDialogOpen, setImageDialogOpen] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const updateImage = useUpdateUserVocabularyImage();
 
   const playAudio = (url: string) => {
     if (audioRef.current) {
@@ -269,7 +273,7 @@ const MyWordsReview = () => {
           <div className="rounded-2xl bg-card border border-border p-8 text-center">
             {/* Image if available */}
             {currentWord.image_url && (
-              <div className="mb-6 rounded-lg overflow-hidden bg-muted aspect-[4/3] flex items-center justify-center">
+              <div className="mb-4 rounded-lg overflow-hidden bg-muted aspect-[4/3] flex items-center justify-center">
                 <img
                   src={currentWord.image_url}
                   alt=""
@@ -277,6 +281,18 @@ const MyWordsReview = () => {
                 />
               </div>
             )}
+            {/* Generate image button */}
+            <div className="mb-6 flex justify-center">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setImageDialogOpen(true)}
+                className="gap-1.5 text-muted-foreground"
+              >
+                <Sparkles className="h-4 w-4" />
+                {currentWord.image_url ? "Regenerate Image" : "Generate Image"}
+              </Button>
+            </div>
             <p
               className="text-4xl font-bold text-foreground mb-6"
               style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
@@ -377,6 +393,15 @@ const MyWordsReview = () => {
           />
         </div>
       </div>
+
+      <GenerateImageDialog
+        word={currentWord}
+        open={imageDialogOpen}
+        onOpenChange={setImageDialogOpen}
+        onImageSaved={async (wordId, imageUrl) => {
+          await updateImage.mutateAsync({ wordId, imageUrl });
+        }}
+      />
     </AppShell>
   );
 };

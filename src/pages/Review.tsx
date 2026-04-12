@@ -13,7 +13,8 @@ import { Button } from "@/components/ui/button";
 import { AppShell } from "@/components/layout/AppShell";
 import { useDialect } from "@/contexts/DialectContext";
 import { Rating, calculateNextReview } from "@/lib/spacedRepetition";
-import { Loader2, Trophy, Brain, Sparkles, LogIn, Shuffle, Eye, Volume2 } from "lucide-react";
+import { Loader2, Trophy, Brain, Sparkles, LogIn, Shuffle, Eye, Volume2, ImagePlus } from "lucide-react";
+import { GenerateImageDialog } from "@/components/mywords/GenerateImageDialog";
 
 const DIALECT_FLAGS: Record<string, string> = {
   Gulf: "🇦🇪",

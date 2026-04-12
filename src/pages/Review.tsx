@@ -334,6 +334,19 @@ const Review = () => {
           />
         </div>
       </div>
+
+      <GenerateImageDialog
+        word={currentWord}
+        open={imageDialogOpen}
+        onOpenChange={setImageDialogOpen}
+        onImageSaved={async (wordId, imageUrl) => {
+          await supabase
+            .from("vocabulary_words")
+            .update({ image_url: imageUrl })
+            .eq("id", wordId);
+          refetch();
+        }}
+      />
     </AppShell>
   );
 };

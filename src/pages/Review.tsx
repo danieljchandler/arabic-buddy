@@ -193,7 +193,7 @@ const Review = () => {
           </button>
           <div className="px-3 py-1.5 rounded-lg bg-card border border-border">
             <span className="text-sm font-medium text-foreground">
-              {currentWord.topic.name}
+              {currentWord.topic?.name || 'Review'}
             </span>
           </div>
           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-card border border-border">

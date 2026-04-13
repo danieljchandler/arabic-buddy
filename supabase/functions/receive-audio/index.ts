@@ -34,9 +34,24 @@ Deno.serve(async (req) => {
   const authBytes = encoder.encode(auth);
   const expectedBytes = encoder.encode(expectedAuth);
 
-  const isAuthorized =
-    authBytes.byteLength === expectedBytes.byteLength &&
-    crypto.subtle.timingSafeEqual(authBytes, expectedBytes);
+  let isAuthorized = false;
+  if (authBytes.byteLength === expectedBytes.byteLength) {
+    // Use constant-time comparison via HMAC to avoid timing attacks
+    const key = await crypto.subtle.importKey(
+      "raw",
+      new Uint8Array(32),
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["sign"],
+    );
+    const [sigA, sigB] = await Promise.all([
+      crypto.subtle.sign("HMAC", key, authBytes),
+      crypto.subtle.sign("HMAC", key, expectedBytes),
+    ]);
+    const a = new Uint8Array(sigA);
+    const b = new Uint8Array(sigB);
+    isAuthorized = a.every((v, i) => v === b[i]);
+  }
 
   if (!isAuthorized) {
     console.warn("receive-audio: unauthorized callback");

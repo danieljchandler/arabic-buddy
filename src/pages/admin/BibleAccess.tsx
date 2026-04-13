@@ -63,41 +63,37 @@ const BibleAccess = () => {
     setAdding(true);
 
     try {
-      // Look up user by email using the service role via an edge function
-      // isn't available from the client.  Instead, we'll use a workaround:
-      // try to find the user in the profiles table (which mirrors auth.users).
-      // If profiles doesn't have an email column, we'll ask the admin
-      // for the user ID directly.
-
-      // First try to find by email in auth metadata via a direct query
-      // on profiles.  Many Supabase setups don't expose auth.users to the
-      // client, so we'll handle both cases.
-
-      // Attempt: check if the profiles table has the email field
-      const { data: profileData, error: profileError } = await supabase
-        .from("profiles")
-        .select("user_id")
-        .eq("email", email.trim())
-        .maybeSingle();
-
       let userId: string | null = null;
 
-      if (profileData?.user_id) {
-        userId = profileData.user_id;
+      // Check if input is a UUID (admin may paste user ID directly)
+      const uuidRegex =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+      if (uuidRegex.test(email.trim())) {
+        userId = email.trim();
       } else {
-        // If profiles doesn't have email, try a UUID check – admin may
-        // have pasted a user ID directly.
-        const uuidRegex =
-          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-        if (uuidRegex.test(email.trim())) {
-          userId = email.trim();
+        // Try to find user by email in the profiles table.
+        // This will silently fail if the profiles table doesn't have
+        // an email column – that's fine, we'll show a helpful message.
+        try {
+          const { data: profileData } = await supabase
+            .from("profiles")
+            .select("user_id")
+            .eq("email", email.trim())
+            .maybeSingle();
+
+          if (profileData?.user_id) {
+            userId = profileData.user_id;
+          }
+        } catch {
+          // profiles table may not have an email column – ignore
         }
       }
 
       if (!userId) {
         toast.error("User not found", {
           description:
-            "Enter a valid user email (must have a profile) or user UUID.",
+            "Enter a valid user UUID. If your profiles table has an email column you can also enter the user's email.",
         });
         setAdding(false);
         return;

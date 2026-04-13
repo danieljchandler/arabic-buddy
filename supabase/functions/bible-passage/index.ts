@@ -9,32 +9,53 @@ const corsHeaders = {
 };
 
 /**
- * Fetch a single chapter from the YouVersion API.
+ * Strip HTML tags from a string (bolls.life returns HTML-formatted text).
+ */
+function stripHtml(html: string): string {
+  return html
+    .replace(/<br\s*\/?>/gi, " ")
+    .replace(/<[^>]*>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * Fetch a single chapter from the Bolls.life Bible API (free, no key required).
  *
- * Returns an array of verse strings: ["1 In the beginning…", "2 The earth…", …]
+ * @param translationCode - e.g. "SVD", "NAV", "ESV"
+ * @param bookNumber - canonical book number 1-66
+ * @param chapter - chapter number
+ * @returns Array of verse strings: ["1 In the beginning…", "2 The earth…", …]
  */
 async function fetchChapter(
-  versionId: number,
-  bookUsfm: string,
+  translationCode: string,
+  bookNumber: number,
   chapter: number,
-  yvpKey: string,
 ): Promise<string[]> {
-  const url = `https://api.youversion.com/v1/bibles/${versionId}/books/${bookUsfm}/chapters/${chapter}/verses`;
-  const res = await fetch(url, {
-    headers: { "X-YVP-App-Key": yvpKey },
-  });
+  const url = `https://bolls.life/get-text/${translationCode}/${bookNumber}/${chapter}/`;
+  const res = await fetch(url);
 
   if (!res.ok) {
     const text = await res.text();
-    console.error("YouVersion API error:", res.status, text);
-    throw new Error(`YouVersion API returned ${res.status}`);
+    console.error("Bolls.life API error:", res.status, text);
+    throw new Error(`Bible API returned ${res.status}`);
   }
 
   const data = await res.json();
 
-  // The response shape is { verses: [{ number, text }, …] }
-  const verses: string[] = (data.verses ?? []).map(
-    (v: { number: number; text: string }) => `${v.number} ${v.text.trim()}`,
+  // Response: [{ pk, verse, text (HTML) }, …]
+  if (!Array.isArray(data)) {
+    throw new Error("Unexpected response format from Bible API");
+  }
+
+  const verses: string[] = data.map(
+    (v: { verse: number; text: string }) =>
+      `${v.verse} ${stripHtml(v.text)}`,
   );
   return verses;
 }
@@ -163,25 +184,18 @@ serve(async (req) => {
 
     // ── Parse body ───────────────────────────────────────────────────
     const {
-      arabicVersionId,
-      englishVersionId = 59, // ESV default
+      arabicVersion,
+      englishVersion = "ESV",
+      bookNumber,
       bookUsfm,
       chapter,
       dialect = "Gulf",
     } = await req.json();
 
-    if (!arabicVersionId || !bookUsfm || !chapter) {
+    if (!arabicVersion || !bookNumber || !chapter) {
       return new Response(
-        JSON.stringify({ error: "arabicVersionId, bookUsfm, and chapter are required." }),
+        JSON.stringify({ error: "arabicVersion, bookNumber, and chapter are required." }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
-
-    const YVP_APP_KEY = Deno.env.get("YVP_APP_KEY");
-    if (!YVP_APP_KEY) {
-      return new Response(
-        JSON.stringify({ error: "Bible API key (YVP_APP_KEY) is not configured." }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
@@ -193,10 +207,10 @@ serve(async (req) => {
       );
     }
 
-    // ── Fetch Arabic + English in parallel ───────────────────────────
+    // ── Fetch Arabic + English in parallel (Bolls.life — free, no key) ──
     const [arabicVerses, englishVerses] = await Promise.all([
-      fetchChapter(arabicVersionId, bookUsfm, chapter, YVP_APP_KEY),
-      fetchChapter(englishVersionId, bookUsfm, chapter, YVP_APP_KEY),
+      fetchChapter(arabicVersion, bookNumber, chapter),
+      fetchChapter(englishVersion, bookNumber, chapter),
     ]);
 
     // ── Convert Arabic to dialect via AI ─────────────────────────────
@@ -211,7 +225,7 @@ serve(async (req) => {
         arabicVerses,
         englishVerses,
         dialectVerses,
-        bookUsfm,
+        bookUsfm: bookUsfm || "",
         chapter,
         dialect,
       }),
@@ -219,7 +233,7 @@ serve(async (req) => {
     );
   } catch (error) {
     console.error("bible-passage error:", error);
-    const status = (error as any).status || 500;
+    const status = (error as Record<string, unknown>).status as number || 500;
     return new Response(
       JSON.stringify({
         error: error instanceof Error ? error.message : "Unknown error",

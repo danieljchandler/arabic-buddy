@@ -59,8 +59,8 @@ const BibleReading = () => {
   // Selection state
   const [selectedBook, setSelectedBook] = useState<BibleBook | null>(null);
   const [selectedChapter, setSelectedChapter] = useState<number>(1);
-  const [arabicVersionId, setArabicVersionId] = useState<number>(
-    ARABIC_VERSIONS[0].id,
+  const [arabicVersion, setArabicVersion] = useState<string>(
+    ARABIC_VERSIONS[0].code,
   );
 
   // View state
@@ -83,8 +83,9 @@ const BibleReading = () => {
         "bible-passage",
         {
           body: {
-            arabicVersionId,
-            englishVersionId: ENGLISH_VERSION.id,
+            arabicVersion,
+            englishVersion: ENGLISH_VERSION.code,
+            bookNumber: selectedBook.bookNumber,
             bookUsfm: selectedBook.usfm,
             chapter: selectedChapter,
             dialect: activeDialect,
@@ -111,7 +112,7 @@ const BibleReading = () => {
     } finally {
       setLoading(false);
     }
-  }, [selectedBook, selectedChapter, arabicVersionId, activeDialect]);
+  }, [selectedBook, selectedChapter, arabicVersion, activeDialect]);
 
   // ── Access gate ──────────────────────────────────────────────────────────
   if (accessLoading) {
@@ -147,7 +148,7 @@ const BibleReading = () => {
   if (mode === "reading" && passage) {
     const bookMeta = ALL_BOOKS.find((b) => b.usfm === passage.bookUsfm);
     const versionMeta = ARABIC_VERSIONS.find(
-      (v) => v.id === arabicVersionId,
+      (v) => v.code === arabicVersion,
     );
 
     return (
@@ -281,15 +282,15 @@ const BibleReading = () => {
           <div className="space-y-2">
             <label className="text-sm font-medium">Arabic Translation</label>
             <Select
-              value={String(arabicVersionId)}
-              onValueChange={(v) => setArabicVersionId(Number(v))}
+              value={arabicVersion}
+              onValueChange={(v) => setArabicVersion(v)}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select Arabic version" />
               </SelectTrigger>
               <SelectContent>
                 {ARABIC_VERSIONS.map((v) => (
-                  <SelectItem key={v.id} value={String(v.id)}>
+                  <SelectItem key={v.code} value={v.code}>
                     {v.abbreviation} — {v.name}
                   </SelectItem>
                 ))}

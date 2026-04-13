@@ -1,7 +1,9 @@
-import { useState, useMemo, useEffect, useCallback, useRef } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { VocabularyWord } from "@/hooks/useReview";
 import { cn } from "@/lib/utils";
 import { CheckCircle2, XCircle, Volume2 } from "lucide-react";
+import { useAzureTTS } from "@/hooks/useAzureTTS";
+import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 
 interface ReviewImageQuizCardProps {
   word: VocabularyWord;
@@ -37,10 +39,15 @@ export const ReviewImageQuizCard = ({
 }: ReviewImageQuizCardProps) => {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showResult, setShowResult] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [ttsUrl, setTtsUrl] = useState<string | null>(null);
-  const [ttsLoading, setTtsLoading] = useState(false);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Audio: use shared hooks for TTS generation and playback
+  const { ttsUrl, isLoading: ttsLoading } = useAzureTTS({
+    text: word.word_arabic,
+    skip: Boolean(word.audio_url),
+  });
+  const { isPlaying, play: playAudioUrl } = useAudioPlayer();
+
+  const effectiveAudioUrl = word.audio_url || ttsUrl;
 
   // Build 4 image options: correct word + up to 3 distractors.
   // Memoised on word id so options don't reshuffle on re-renders.
@@ -52,57 +59,12 @@ export const ReviewImageQuizCard = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [word.id]);
 
-  // Generate TTS when no stored audio_url exists
-  useEffect(() => {
-    if (word.audio_url) return;
-    let cancelled = false;
-    setTtsLoading(true);
-    const generate = async () => {
-      try {
-        const response = await fetch(
-          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/azure-tts`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-              Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-            },
-            body: JSON.stringify({ text: word.word_arabic }),
-          }
-        );
-        if (!cancelled && response.ok) {
-          const blob = await response.blob();
-          setTtsUrl(URL.createObjectURL(blob));
-        }
-      } catch {
-        // TTS fallback failed silently
-      } finally {
-        if (!cancelled) setTtsLoading(false);
-      }
-    };
-    generate();
-    return () => { cancelled = true; };
-  }, [word.id, word.audio_url, word.word_arabic]);
-
-  const effectiveAudioUrl = word.audio_url || ttsUrl;
-
-  const playAudio = useCallback(() => {
+  const playAudio = () => {
     if (isPlaying || !effectiveAudioUrl) return;
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.onended = null;
-      audioRef.current.onerror = null;
-    }
-    setIsPlaying(true);
-    const audio = new Audio(effectiveAudioUrl);
-    audioRef.current = audio;
-    audio.onended = () => setIsPlaying(false);
-    audio.onerror = () => setIsPlaying(false);
-    audio.play().catch(() => setIsPlaying(false));
-  }, [effectiveAudioUrl, isPlaying]);
+    playAudioUrl(effectiveAudioUrl);
+  };
 
-  // Auto-play audio when the word changes or TTS becomes available; stop on unmount.
+  // Auto-play audio when the word changes or TTS becomes available
   const hasAutoPlayed = useRef(false);
   useEffect(() => {
     hasAutoPlayed.current = false;
@@ -111,16 +73,8 @@ export const ReviewImageQuizCard = ({
   useEffect(() => {
     if (effectiveAudioUrl && !hasAutoPlayed.current) {
       hasAutoPlayed.current = true;
-      playAudio();
+      playAudioUrl(effectiveAudioUrl);
     }
-    return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.onended = null;
-        audioRef.current.onerror = null;
-        audioRef.current = null;
-      }
-    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [effectiveAudioUrl]);
 

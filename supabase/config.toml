@@ -1,5 +1,49 @@
 project_id = "ovscskaijvclaxelkdyf"
 
+# ─── Functions that require JWT authentication ────────────────────────────────
+# Payment / subscription functions — MUST verify JWT
+[functions.check-subscription]
+verify_jwt = true
+
+[functions.create-checkout]
+verify_jwt = true
+
+[functions.customer-portal]
+verify_jwt = true
+
+# Admin / pipeline functions — MUST verify JWT
+[functions.process-approved-video]
+verify_jwt = true
+
+[functions.curriculum-chat]
+verify_jwt = true
+
+# User-data functions — require authentication
+[functions.generate-flashcard-image]
+verify_jwt = true
+
+[functions.generate-learning-path]
+verify_jwt = true
+
+[functions.weekly-coach]
+verify_jwt = true
+
+[functions.generate-story]
+verify_jwt = true
+
+# ─── Functions that use callback-secret auth (not JWT) ────────────────────────
+# receive-audio uses RunPod callback secret in the Authorization header,
+# so JWT verification is disabled — the function validates the secret itself.
+[functions.receive-audio]
+verify_jwt = false
+
+# trigger-download is called server-to-server
+[functions.trigger-download]
+verify_jwt = false
+
+# ─── Public learning content functions ────────────────────────────────────────
+# These serve public learning content or lightweight AI helpers.
+# They rely on the Supabase anon key (apikey header) rather than user JWTs.
 [functions.elevenlabs-transcribe]
 verify_jwt = false
 
@@ -27,9 +71,6 @@ verify_jwt = false
 [functions.analyze-meme]
 verify_jwt = false
 
-[functions.generate-flashcard-image]
-verify_jwt = false
-
 [functions.scrape-x-post]
 verify_jwt = false
 
@@ -48,7 +89,6 @@ verify_jwt = false
 [functions.hf-chat]
 verify_jwt = false
 
-
 [functions.farasa]
 verify_jwt = false
 
@@ -62,15 +102,6 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.discover-trending-videos]
-verify_jwt = false
-
-[functions.check-subscription]
-verify_jwt = false
-
-[functions.create-checkout]
-verify_jwt = false
-
-[functions.customer-portal]
 verify_jwt = false
 
 [functions.conversation-practice]
@@ -97,34 +128,13 @@ verify_jwt = false
 [functions.grammar-drill]
 verify_jwt = false
 
-[functions.generate-learning-path]
-verify_jwt = false
-
-[functions.weekly-coach]
-verify_jwt = false
-
-[functions.receive-audio]
-verify_jwt = false
-
-[functions.trigger-download]
-verify_jwt = false
-
-[functions.process-approved-video]
-verify_jwt = false
-
 [functions.azure-tts]
 verify_jwt = false
 
 [functions.camel-analyze]
 verify_jwt = false
 
-[functions.curriculum-chat]
-verify_jwt = false
-
 [functions.extract-visual-context]
-verify_jwt = false
-
-[functions.generate-story]
 verify_jwt = false
 
 [functions.soniox-transcribe]

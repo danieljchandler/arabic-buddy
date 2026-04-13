@@ -1,7 +1,8 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import { CheckCircle2, XCircle, Volume2, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { supabase } from "@/integrations/supabase/client";
+import { useAzureTTS } from "@/hooks/useAzureTTS";
+import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 
 interface QuizCardWord {
   id: string;
@@ -39,16 +40,18 @@ export const QuizCard = ({ word, otherWords, onAnswer, topicLabel }: QuizCardPro
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [showResult, setShowResult] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [generatedAudioUrl, setGeneratedAudioUrl] = useState<string | null>(null);
-  const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
 
   // Prevent double-click / race-condition from advancing the quiz twice
   const answeredRef = useRef(false);
-  // Reuse the same Audio instance so we can pause/clean up properly
-  const audioInstanceRef = useRef<HTMLAudioElement | null>(null);
-  // Track blob URLs we created so we can revoke them on unmount
-  const blobUrlRef = useRef<string | null>(null);
+
+  // Audio: use shared hooks for TTS generation and playback
+  const { ttsUrl, isLoading: isGeneratingAudio } = useAzureTTS({
+    text: word.word_arabic,
+    skip: Boolean(word.audio_url),
+  });
+  const { isPlaying, play: playAudio } = useAudioPlayer();
+
+  const effectiveAudioUrl = word.audio_url ?? ttsUrl;
 
   // Generate options only once per word (word.id and word.word_english always
   // change together so listing word.id alone is intentional)
@@ -64,86 +67,6 @@ export const QuizCard = ({ word, otherWords, onAnswer, topicLabel }: QuizCardPro
     [word.id],
   );
 
-  const effectiveAudioUrl = word.audio_url ?? generatedAudioUrl;
-
-  // Generate audio via Azure TTS when no stored audio_url is available
-  useEffect(() => {
-    if (word.audio_url) return; // already have stored audio
-
-    let cancelled = false;
-    setIsGeneratingAudio(true);
-
-    const generate = async () => {
-      try {
-        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
-        const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
-
-        const { data: sessionData } = await supabase.auth.getSession();
-        const token = sessionData?.session?.access_token ?? anonKey;
-
-        const response = await fetch(`${supabaseUrl}/functions/v1/azure-tts`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-            apikey: anonKey,
-          },
-          body: JSON.stringify({ text: word.word_arabic }),
-        });
-
-        if (!cancelled && response.ok) {
-          const blob = await response.blob();
-          const url = URL.createObjectURL(blob);
-          blobUrlRef.current = url;
-          setGeneratedAudioUrl(url);
-        }
-      } catch (err) {
-        // Audio generation failed – word is still readable without audio
-        console.error("Azure TTS generation failed:", err);
-      } finally {
-        if (!cancelled) setIsGeneratingAudio(false);
-      }
-    };
-
-    generate();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [word.id, word.audio_url, word.word_arabic]);
-
-  // Cleanup audio instance and blob URL on unmount
-  useEffect(() => {
-    return () => {
-      if (audioInstanceRef.current) {
-        audioInstanceRef.current.pause();
-        audioInstanceRef.current.onended = null;
-        audioInstanceRef.current.onerror = null;
-        audioInstanceRef.current = null;
-      }
-      if (blobUrlRef.current) {
-        URL.revokeObjectURL(blobUrlRef.current);
-        blobUrlRef.current = null;
-      }
-    };
-  }, []);
-
-  const playAudio = (url: string) => {
-    if (isPlaying) return;
-    // Stop any currently playing instance
-    if (audioInstanceRef.current) {
-      audioInstanceRef.current.pause();
-      audioInstanceRef.current.onended = null;
-      audioInstanceRef.current.onerror = null;
-    }
-    setIsPlaying(true);
-    const audio = new Audio(url);
-    audioInstanceRef.current = audio;
-    audio.onended = () => setIsPlaying(false);
-    audio.onerror = () => setIsPlaying(false);
-    audio.play().catch(() => setIsPlaying(false));
-  };
-
   // Auto-play when the card first appears (after a short delay)
   useEffect(() => {
     answeredRef.current = false;
@@ -155,10 +78,10 @@ export const QuizCard = ({ word, otherWords, onAnswer, topicLabel }: QuizCardPro
 
   // Also auto-play once on-demand generation finishes
   useEffect(() => {
-    if (generatedAudioUrl && !answeredRef.current) {
-      playAudio(generatedAudioUrl);
+    if (ttsUrl && !answeredRef.current) {
+      playAudio(ttsUrl);
     }
-  }, [generatedAudioUrl]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [ttsUrl]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSelect = (answer: string) => {
     if (showResult || answeredRef.current) return;

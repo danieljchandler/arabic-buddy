@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 
 export type DialectModule = 'Gulf' | 'Egyptian' | 'Yemeni';
 
@@ -16,6 +17,18 @@ const DialectContext = createContext<DialectContextType>({
 
 const STORAGE_KEY = 'lahja_dialect_module';
 
+/** Query-key prefixes that depend on the active dialect and should be
+ *  invalidated when the user switches dialect. */
+const DIALECT_DEPENDENT_KEYS = [
+  'due-words',
+  'review-stats',
+  'all-vocabulary-words',
+  'user-vocabulary',
+  'topics',
+  'lessons',
+  'smart-notifications',
+];
+
 export const DialectProvider = ({ children }: { children: ReactNode }) => {
   const queryClient = useQueryClient();
   const [activeDialect, setActiveDialect] = useState<DialectModule>(() => {
@@ -30,13 +43,13 @@ export const DialectProvider = ({ children }: { children: ReactNode }) => {
       if (!user) return;
 
       const { data } = await supabase
-        .from('profiles' as any)
+        .from('profiles' as never)
         .select('preferred_dialect')
         .eq('user_id', user.id)
         .maybeSingle();
 
       if (data) {
-        const dialect = (data as any).preferred_dialect;
+        const dialect = (data as Record<string, unknown>).preferred_dialect;
         if (dialect === 'Gulf' || dialect === 'Egyptian' || dialect === 'Yemeni') {
           setActiveDialect(dialect);
           localStorage.setItem(STORAGE_KEY, dialect);
@@ -50,17 +63,27 @@ export const DialectProvider = ({ children }: { children: ReactNode }) => {
     setActiveDialect(dialect);
     localStorage.setItem(STORAGE_KEY, dialect);
 
-    // Invalidate all queries so they refetch with new dialect
-    queryClient.invalidateQueries();
+    // Invalidate only dialect-dependent queries instead of the entire cache
+    queryClient.invalidateQueries({
+      predicate: (query) => {
+        const key = query.queryKey[0];
+        return typeof key === 'string' && DIALECT_DEPENDENT_KEYS.includes(key);
+      },
+    });
 
-    // Persist to profile if authenticated
+    // Persist to profile if authenticated — with error handling
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (user) {
         supabase
-          .from('profiles' as any)
-          .update({ preferred_dialect: dialect } as any)
+          .from('profiles' as never)
+          .update({ preferred_dialect: dialect } as never)
           .eq('user_id', user.id)
-          .then(() => {});
+          .then(({ error }) => {
+            if (error) {
+              console.error('Failed to persist dialect preference:', error);
+              toast.error('Could not save dialect preference');
+            }
+          });
       }
     });
   };

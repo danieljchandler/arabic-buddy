@@ -29,11 +29,17 @@ Deno.serve(async (req) => {
   const auth = req.headers.get("Authorization")?.trim() ?? "";
   const expectedAuth = `Bearer ${callbackSecret}`.trim();
 
-  if (auth !== expectedAuth) {
-    console.warn("receive-audio: unauthorized callback", {
-      authPrefix: auth.slice(0, 20),
-      hasAuthHeader: Boolean(auth),
-    });
+  // Timing-safe comparison to prevent timing attacks on the callback secret
+  const encoder = new TextEncoder();
+  const authBytes = encoder.encode(auth);
+  const expectedBytes = encoder.encode(expectedAuth);
+
+  const isAuthorized =
+    authBytes.byteLength === expectedBytes.byteLength &&
+    crypto.subtle.timingSafeEqual(authBytes, expectedBytes);
+
+  if (!isAuthorized) {
+    console.warn("receive-audio: unauthorized callback");
     return new Response("Unauthorized", { status: 401 });
   }
 

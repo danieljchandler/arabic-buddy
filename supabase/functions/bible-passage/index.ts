@@ -9,19 +9,33 @@ const corsHeaders = {
 };
 
 /**
- * Strip HTML tags from a string (bolls.life returns HTML-formatted text).
+ * Strip HTML tags and decode common entities from a string.
+ * Bolls.life returns HTML-formatted text that needs to be converted to plain text.
  */
 function stripHtml(html: string): string {
-  return html
-    .replace(/<br\s*\/?>/gi, " ")
-    .replace(/<[^>]*>/g, "")
-    .replace(/&nbsp;/g, " ")
+  // Repeatedly strip HTML tags to handle nested/malformed tags
+  let text = html;
+  let previous = "";
+  while (text !== previous) {
+    previous = text;
+    text = text.replace(/<[^>]*>/g, "");
+  }
+
+  // Replace line-break tags that may not be caught above
+  text = text.replace(/<br\s*\/?>/gi, " ");
+
+  // Decode common HTML entities
+  text = text
     .replace(/&amp;/g, "&")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
+    .replace(/&nbsp;/g, " ")
+    .replace(/&#(\d+);/g, (_match, dec) => String.fromCharCode(Number(dec)))
     .replace(/\s+/g, " ")
     .trim();
+
+  return text;
 }
 
 /**

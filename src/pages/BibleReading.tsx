@@ -56,6 +56,9 @@ const BibleReading = () => {
   const { hasAccess, loading: accessLoading } = useBibleAccess();
   const { activeDialect } = useDialect();
 
+  const dialectLabel = DIALECT_LABELS[activeDialect as keyof typeof DIALECT_LABELS] ?? activeDialect;
+  const dialectFlag = DIALECT_FLAGS[activeDialect as keyof typeof DIALECT_FLAGS];
+
   // Selection state
   const [selectedBook, setSelectedBook] = useState<BibleBook | null>(null);
   const [selectedChapter, setSelectedChapter] = useState<number>(1);
@@ -173,7 +176,7 @@ const BibleReading = () => {
                 </p>
               </div>
               <Badge variant="outline" className="shrink-0">
-                {DIALECT_FLAGS[activeDialect as keyof typeof DIALECT_FLAGS]}{" "}
+                {dialectFlag}{" "}
                 {activeDialect}
               </Badge>
             </div>
@@ -209,7 +212,7 @@ const BibleReading = () => {
             <Languages className="h-3.5 w-3.5" />
             <span>
               Arabic: {versionMeta?.abbreviation ?? "?"} | English: ESV |
-              Dialect: {DIALECT_LABELS[activeDialect as keyof typeof DIALECT_LABELS] ?? activeDialect}
+              Dialect: {dialectLabel}
             </span>
           </div>
 
@@ -273,7 +276,7 @@ const BibleReading = () => {
               </h1>
               <p className="text-sm text-muted-foreground">
                 Read the Bible in{" "}
-                {DIALECT_LABELS[activeDialect as keyof typeof DIALECT_LABELS] ?? activeDialect}
+                {dialectLabel}
               </p>
             </div>
           </div>
@@ -310,9 +313,9 @@ const BibleReading = () => {
           <div className="space-y-2">
             <label className="text-sm font-medium">Dialect</label>
             <div className="border rounded-md px-3 py-2 text-sm bg-muted/50 flex items-center gap-2">
-              <span>{DIALECT_FLAGS[activeDialect as keyof typeof DIALECT_FLAGS]}</span>
+              <span>{dialectFlag}</span>
               <span>
-                {DIALECT_LABELS[activeDialect as keyof typeof DIALECT_LABELS] ?? activeDialect}
+                {dialectLabel}
               </span>
               <span className="text-xs text-muted-foreground ml-auto">
                 Change dialect in app settings

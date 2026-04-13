@@ -73,20 +73,22 @@ const BibleAccess = () => {
         userId = email.trim();
       } else {
         // Try to find user by email in the profiles table.
-        // This will silently fail if the profiles table doesn't have
-        // an email column – that's fine, we'll show a helpful message.
+        // If the table doesn't have an email column, the query will fail
+        // gracefully and we'll prompt the admin to use a UUID instead.
         try {
-          const { data: profileData } = await supabase
+          const { data: profileData, error: profileError } = await supabase
             .from("profiles")
             .select("user_id")
             .eq("email", email.trim())
             .maybeSingle();
 
-          if (profileData?.user_id) {
+          if (profileError) {
+            console.warn("Profile email lookup failed:", profileError.message);
+          } else if (profileData?.user_id) {
             userId = profileData.user_id;
           }
-        } catch {
-          // profiles table may not have an email column – ignore
+        } catch (e) {
+          console.warn("Profile lookup error:", e);
         }
       }
 

@@ -83,7 +83,7 @@ const BibleAccess = () => {
             .maybeSingle();
 
           if (profileError) {
-            console.warn("Profile email lookup failed:", profileError.message);
+            console.warn("Profile email lookup failed for", email.trim(), ":", profileError.message);
           } else if (profileData?.user_id) {
             userId = profileData.user_id;
           }

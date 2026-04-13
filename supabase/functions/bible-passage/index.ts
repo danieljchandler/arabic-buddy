@@ -24,14 +24,14 @@ function stripHtml(html: string): string {
   // Replace line-break tags that may not be caught above
   text = text.replace(/<br\s*\/?>/gi, " ");
 
-  // Decode common HTML entities
+  // Decode common HTML entities (decode &amp; last to avoid double-unescaping)
   text = text
-    .replace(/&amp;/g, "&")
+    .replace(/&nbsp;/g, " ")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
-    .replace(/&nbsp;/g, " ")
     .replace(/&#(\d+);/g, (_match, dec) => String.fromCharCode(Number(dec)))
+    .replace(/&amp;/g, "&")
     .replace(/\s+/g, " ")
     .trim();
 
@@ -247,7 +247,9 @@ serve(async (req) => {
     );
   } catch (error) {
     console.error("bible-passage error:", error);
-    const status = (error as Record<string, unknown>).status as number || 500;
+    const status = typeof (error as Record<string, unknown>)?.status === "number"
+      ? (error as Record<string, unknown>).status as number
+      : 500;
     return new Response(
       JSON.stringify({
         error: error instanceof Error ? error.message : "Unknown error",

@@ -111,6 +111,7 @@ const Index = () => {
   const { data: myWordsStats } = useUserVocabularyDueCount();
   const { data: stats } = useReviewStats();
   const { data: discoverVideos } = useDiscoverVideos({ dialect: activeDialect });
+  const { hasAccess: hasBibleAccess } = useBibleAccess();
 
   const [previewIndex, setPreviewIndex] = useState(0);
   const [placementLevel, setPlacementLevel] = useState<string | null>(null);

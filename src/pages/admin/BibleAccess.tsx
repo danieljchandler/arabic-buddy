@@ -76,10 +76,10 @@ const BibleAccess = () => {
         // If the table doesn't have an email column, the query will fail
         // gracefully and we'll prompt the admin to use a UUID instead.
         try {
-          const { data: profileData, error: profileError } = await supabase
+          const { data: profileData, error: profileError } = await (supabase
             .from("profiles")
             .select("user_id")
-            .eq("email", email.trim())
+            .eq("display_name", email.trim()) as any)
             .maybeSingle();
 
           if (profileError) {

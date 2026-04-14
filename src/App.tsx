@@ -73,6 +73,7 @@ const TrendingVideos = lazy(() => import("./pages/admin/TrendingVideos"));
 const queryClient = new QueryClient();
 
 const App = () => {
+  console.log("[boot] App component rendering");
   useEffect(() => {
     const CRASH_KEY = "__app_last_crash";
 

@@ -1,12 +1,13 @@
 import { useNavigate } from "react-router-dom";
 import { useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { useBibleAccess } from "@/hooks/useBibleAccess";
 import { supabase } from "@/integrations/supabase/client";
 import { useReviewStats } from "@/hooks/useReview";
 import { useUserVocabularyDueCount } from "@/hooks/useUserVocabulary";
 import { useDiscoverVideos } from "@/hooks/useDiscoverVideos";
 import { Button } from "@/components/design-system";
-import { Settings, Brain, LogIn, LogOut, Mic, BookOpen, Sparkles, GraduationCap, Laugh, Play, ChevronRight, Twitter, MessageCircleQuestion, Compass, MessageSquare, Globe2, Headphones, Trophy, FileText, Flame, BarChart3, PenTool, Gamepad2, Users, Swords, Newspaper } from "lucide-react";
+import { Settings, Brain, LogIn, LogOut, Mic, BookOpen, Sparkles, GraduationCap, Laugh, Play, ChevronRight, Twitter, MessageCircleQuestion, Compass, MessageSquare, Globe2, Headphones, Trophy, FileText, Flame, BarChart3, PenTool, Gamepad2, Users, Swords, Newspaper, BookMarked } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AppShell } from "@/components/layout/AppShell";
 import { Badge } from "@/components/ui/badge";
@@ -110,6 +111,7 @@ const Index = () => {
   const { data: myWordsStats } = useUserVocabularyDueCount();
   const { data: stats } = useReviewStats();
   const { data: discoverVideos } = useDiscoverVideos({ dialect: activeDialect });
+  const { hasAccess: hasBibleAccess } = useBibleAccess();
 
   const [previewIndex, setPreviewIndex] = useState(0);
   const [placementLevel, setPlacementLevel] = useState<string | null>(null);
@@ -692,7 +694,35 @@ const Index = () => {
           </button>
         </div>
 
-        {/* Souq News */}
+        {/* Bible Reading - only for users with access */}
+        {hasBibleAccess && (
+          <div className="pt-4">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1 mb-2">
+              Scripture
+            </p>
+            <button
+              onClick={() => navigate("/bible")}
+              className={cn(
+                "w-full p-4 rounded-xl",
+                "bg-gradient-to-r from-amber-500/10 to-yellow-500/10 border border-amber-500/20",
+                "flex items-center gap-3",
+                "transition-all duration-200",
+                "hover:border-amber-500/40 active:scale-[0.98]"
+              )}
+            >
+              <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center shrink-0">
+                <BookMarked className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              </div>
+              <div className="text-left">
+                <p className="font-semibold text-foreground">Bible Reading</p>
+                <p className="text-xs text-muted-foreground">
+                  Read Scripture in Arabic with vocabulary tools
+                </p>
+              </div>
+            </button>
+          </div>
+        )}
+
         <div className="pt-4">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1 mb-2">
             Current Events

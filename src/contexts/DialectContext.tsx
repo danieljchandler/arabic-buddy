@@ -32,8 +32,12 @@ const DIALECT_DEPENDENT_KEYS = [
 export const DialectProvider = ({ children }: { children: ReactNode }) => {
   const queryClient = useQueryClient();
   const [activeDialect, setActiveDialect] = useState<DialectModule>(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    return (stored === 'Gulf' || stored === 'Egyptian' || stored === 'Yemeni') ? stored : 'Gulf';
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      return (stored === 'Gulf' || stored === 'Egyptian' || stored === 'Yemeni') ? stored : 'Gulf';
+    } catch {
+      return 'Gulf';
+    }
   });
 
   // On mount, sync from profile if authenticated

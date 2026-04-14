@@ -5,6 +5,10 @@ import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/ — cache bust v4
 export default defineConfig(({ mode }) => ({
+  // Lovable Cloud can rewrite the root .env after backend changes, which makes
+  // Vite restart the preview server. Keep Vite env discovery on an isolated
+  // directory and inject the required client vars from process.env instead.
+  envDir: ".vite-env",
   server: {
     host: "::",
     port: 8080,

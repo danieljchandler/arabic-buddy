@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Navigate, Routes, Route } from "react-router-dom";
 import { toast } from "sonner";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { TranscriptionJobProvider } from "@/contexts/TranscriptionJobContext";
@@ -151,6 +151,7 @@ const App = () => {
           <Routes>
             {/* Public learning app */}
             <Route path="/" element={<ErrorBoundary name="HomeRoute"><Index /></ErrorBoundary>} />
+            <Route path="/index" element={<Navigate to="/" replace />} />
             <Route path="/auth" element={<ErrorBoundary name="AuthRoute"><Auth /></ErrorBoundary>} />
             <Route path="/review" element={<ErrorBoundary name="ReviewRoute"><Review /></ErrorBoundary>} />
             <Route

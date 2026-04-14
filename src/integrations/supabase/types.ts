@@ -2086,7 +2086,7 @@ export type Database = {
       is_recorder: { Args: never; Returns: boolean }
     }
     Enums: {
-      app_role: "admin" | "user" | "recorder"
+      app_role: "admin" | "user" | "recorder" | "bible_reader"
     }
     CompositeTypes: {
       [_ in never]: never

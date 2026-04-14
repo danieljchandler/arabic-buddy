@@ -50,6 +50,7 @@ const LearningPathSetup = lazy(() => import("./pages/LearningPathSetup"));
 const LearningPathDashboard = lazy(() => import("./pages/LearningPathDashboard"));
 const PlacementQuiz = lazy(() => import("./pages/PlacementQuiz"));
 const SouqNews = lazy(() => import("./pages/SouqNews"));
+const BibleReading = lazy(() => import("./pages/BibleReading"));
 
 // Admin pages
 const AdminLayout = lazy(() => import("./pages/admin/AdminLayout"));
@@ -69,6 +70,7 @@ const CurriculumBuilder = lazy(() => import("./pages/admin/CurriculumBuilder"));
 const AdminStories = lazy(() => import("./pages/admin/AdminStories"));
 const AdminStoryForm = lazy(() => import("./pages/admin/AdminStoryForm"));
 const TrendingVideos = lazy(() => import("./pages/admin/TrendingVideos"));
+const BibleAccess = lazy(() => import("./pages/admin/BibleAccess"));
 
 const queryClient = new QueryClient();
 
@@ -285,6 +287,9 @@ const App = () => {
             <Route path="/placement" element={
               <ErrorBoundary name="PlacementQuizRoute"><PlacementQuiz /></ErrorBoundary>
             } />
+            <Route path="/bible" element={
+              <ErrorBoundary name="BibleReadingRoute"><BibleReading /></ErrorBoundary>
+            } />
 
             <Route path="/admin" element={<ErrorBoundary name="AdminRoute"><AdminLayout /></ErrorBoundary>}>
               <Route index element={<Dashboard />} />
@@ -313,6 +318,7 @@ const App = () => {
               <Route path="stories/new" element={<AdminStoryForm />} />
               <Route path="stories/:storyId/edit" element={<AdminStoryForm />} />
               <Route path="trending" element={<TrendingVideos />} />
+              <Route path="bible-access" element={<BibleAccess />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />

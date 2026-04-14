@@ -56,7 +56,7 @@ export const DialectProvider = ({ children }: { children: ReactNode }) => {
         const dialect = (data as Record<string, unknown>).preferred_dialect;
         if (dialect === 'Gulf' || dialect === 'Egyptian' || dialect === 'Yemeni') {
           setActiveDialect(dialect);
-          localStorage.setItem(STORAGE_KEY, dialect);
+          try { localStorage.setItem(STORAGE_KEY, dialect); } catch {}
         }
       }
     };
@@ -65,7 +65,7 @@ export const DialectProvider = ({ children }: { children: ReactNode }) => {
 
   const setDialect = (dialect: DialectModule) => {
     setActiveDialect(dialect);
-    localStorage.setItem(STORAGE_KEY, dialect);
+    try { localStorage.setItem(STORAGE_KEY, dialect); } catch {}
 
     // Invalidate only dialect-dependent queries instead of the entire cache
     queryClient.invalidateQueries({

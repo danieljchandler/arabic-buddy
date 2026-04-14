@@ -32,8 +32,12 @@ const DIALECT_DEPENDENT_KEYS = [
 export const DialectProvider = ({ children }: { children: ReactNode }) => {
   const queryClient = useQueryClient();
   const [activeDialect, setActiveDialect] = useState<DialectModule>(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    return (stored === 'Gulf' || stored === 'Egyptian' || stored === 'Yemeni') ? stored : 'Gulf';
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      return (stored === 'Gulf' || stored === 'Egyptian' || stored === 'Yemeni') ? stored : 'Gulf';
+    } catch {
+      return 'Gulf';
+    }
   });
 
   // On mount, sync from profile if authenticated
@@ -52,7 +56,7 @@ export const DialectProvider = ({ children }: { children: ReactNode }) => {
         const dialect = (data as Record<string, unknown>).preferred_dialect;
         if (dialect === 'Gulf' || dialect === 'Egyptian' || dialect === 'Yemeni') {
           setActiveDialect(dialect);
-          localStorage.setItem(STORAGE_KEY, dialect);
+          try { localStorage.setItem(STORAGE_KEY, dialect); } catch {}
         }
       }
     };
@@ -61,7 +65,7 @@ export const DialectProvider = ({ children }: { children: ReactNode }) => {
 
   const setDialect = (dialect: DialectModule) => {
     setActiveDialect(dialect);
-    localStorage.setItem(STORAGE_KEY, dialect);
+    try { localStorage.setItem(STORAGE_KEY, dialect); } catch {}
 
     // Invalidate only dialect-dependent queries instead of the entire cache
     queryClient.invalidateQueries({

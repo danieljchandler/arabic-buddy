@@ -8,23 +8,28 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-/**
- * Strip HTML tags and decode common entities from a string.
- * Bolls.life returns HTML-formatted text that needs to be converted to plain text.
- */
+function ok(body: unknown) {
+  return new Response(JSON.stringify(body), {
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+function err(status: number, message: string) {
+  return new Response(JSON.stringify({ error: message }), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+/** Strip HTML tags and decode common entities. */
 function stripHtml(html: string): string {
-  // Repeatedly strip HTML tags to handle nested/malformed tags
   let text = html;
   let previous = "";
   while (text !== previous) {
     previous = text;
     text = text.replace(/<[^>]*>/g, "");
   }
-
-  // Replace line-break tags that may not be caught above
   text = text.replace(/<br\s*\/?>/gi, " ");
-
-  // Decode common HTML entities (decode &amp; last to avoid double-unescaping)
   text = text
     .replace(/&nbsp;/g, " ")
     .replace(/&lt;/g, "<")
@@ -34,54 +39,40 @@ function stripHtml(html: string): string {
     .replace(/&amp;/g, "&")
     .replace(/\s+/g, " ")
     .trim();
-
   return text;
 }
 
-/**
- * Fetch a single chapter from the Bolls.life Bible API (free, no key required).
- *
- * @param translationCode - e.g. "SVD", "NAV", "ESV"
- * @param bookNumber - canonical book number 1-66
- * @param chapter - chapter number
- * @returns Array of verse strings: ["1 In the beginning…", "2 The earth…", …]
- */
+/** Fetch a single chapter from Bolls.life (free, no key). */
 async function fetchChapter(
   translationCode: string,
   bookNumber: number,
   chapter: number,
 ): Promise<string[]> {
   const url = `https://bolls.life/get-text/${translationCode}/${bookNumber}/${chapter}/`;
-  const res = await fetch(url);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15_000);
 
-  if (!res.ok) {
-    const text = await res.text();
-    console.error("Bolls.life API error:", res.status, text);
-    throw new Error(`Bible API returned ${res.status}`);
+  try {
+    const res = await fetch(url, { signal: controller.signal });
+    if (!res.ok) {
+      const text = await res.text();
+      console.error("Bolls.life API error:", res.status, text);
+      throw new Error(`Bible API returned ${res.status}`);
+    }
+    const data = await res.json();
+    if (!Array.isArray(data)) throw new Error("Unexpected response format from Bible API");
+    return data.map((v: { verse: number; text: string }) => `${v.verse} ${stripHtml(v.text)}`);
+  } finally {
+    clearTimeout(timeout);
   }
-
-  const data = await res.json();
-
-  // Response: [{ pk, verse, text (HTML) }, …]
-  if (!Array.isArray(data)) {
-    throw new Error("Unexpected response format from Bible API");
-  }
-
-  const verses: string[] = data.map(
-    (v: { verse: number; text: string }) =>
-      `${v.verse} ${stripHtml(v.text)}`,
-  );
-  return verses;
 }
 
-/**
- * Use the Lovable AI gateway to convert formal Arabic into the selected dialect.
- */
+/** Use Lovable AI to convert formal Arabic into dialect. */
 async function convertToDialect(
   formalVerses: string[],
   dialect: string,
   lovableKey: string,
-): Promise<string[]> {
+): Promise<{ verses: string[]; fallback: boolean }> {
   const dialectLabel = getDialectLabel(dialect);
   const dialectIdentity = getDialectIdentity(dialect);
 
@@ -96,54 +87,69 @@ Return ONLY a JSON array of strings – one per verse – with no markdown forma
 
 ${JSON.stringify(formalVerses)}`;
 
-  const response = await fetch(
-    "https://ai.gateway.lovable.dev/v1/chat/completions",
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${lovableKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        temperature: 0.6,
-      }),
-    },
-  );
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error("AI gateway error:", response.status, errorText);
-    if (response.status === 402) {
-      throw Object.assign(new Error("Not enough AI credits."), {
-        status: 402,
-      });
-    }
-    if (response.status === 429) {
-      throw Object.assign(new Error("Rate limit exceeded. Try again later."), {
-        status: 429,
-      });
-    }
-    throw new Error(`AI gateway error: ${response.status}`);
-  }
-
-  const data = await response.json();
-  const content: string = data.choices?.[0]?.message?.content || "[]";
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 55_000); // generous timeout
 
   try {
-    const jsonMatch = content.match(/\[[\s\S]*\]/);
-    if (jsonMatch) {
-      return JSON.parse(jsonMatch[0]) as string[];
+    const response = await fetch(
+      "https://ai.gateway.lovable.dev/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${lovableKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-3-flash-preview",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+          ],
+          temperature: 0.6,
+        }),
+        signal: controller.signal,
+      },
+    );
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("AI gateway error:", response.status, errorText);
+      if (response.status === 402) {
+        throw Object.assign(new Error("Not enough AI credits."), { status: 402 });
+      }
+      if (response.status === 429) {
+        throw Object.assign(new Error("Rate limit exceeded. Try again later."), { status: 429 });
+      }
+      // For 5xx or unknown errors, fall back gracefully
+      console.warn("AI unavailable, returning formal Arabic as dialect fallback");
+      return { verses: formalVerses, fallback: true };
     }
-    throw new Error("No JSON array found");
+
+    const data = await response.json();
+    const content: string = data.choices?.[0]?.message?.content || "[]";
+
+    try {
+      const jsonMatch = content.match(/\[[\s\S]*\]/);
+      if (jsonMatch) {
+        return { verses: JSON.parse(jsonMatch[0]) as string[], fallback: false };
+      }
+      throw new Error("No JSON array found");
+    } catch (e) {
+      console.error("Failed to parse dialect conversion:", e, content);
+      return { verses: formalVerses, fallback: true };
+    }
   } catch (e) {
-    console.error("Failed to parse dialect conversion:", e, content);
-    // Return the original verses as a fallback
-    return formalVerses;
+    // AbortError = timeout, network errors
+    if ((e as Error).name === "AbortError") {
+      console.error("AI conversion timed out");
+      return { verses: formalVerses, fallback: true };
+    }
+    // Re-throw credit/rate-limit errors
+    if (typeof (e as Record<string, unknown>)?.status === "number") throw e;
+    console.error("AI conversion failed:", e);
+    return { verses: formalVerses, fallback: true };
+  } finally {
+    clearTimeout(timeout);
   }
 }
 
@@ -153,50 +159,25 @@ serve(async (req) => {
   }
 
   try {
-    // ── Auth: ensure caller has bible_reader (or admin) role ──────────
+    // ── Auth ──────────────────────────────────────────────────────────────
     const authHeader = req.headers.get("authorization");
-    if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: "Authentication required" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
+    if (!authHeader) return err(401, "Authentication required");
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Decode the user from the JWT
     const token = authHeader.replace("Bearer ", "");
-    const {
-      data: { user },
-      error: userError,
-    } = await supabase.auth.getUser(token);
-    if (userError || !user) {
-      return new Response(
-        JSON.stringify({ error: "Invalid or expired token" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
+    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+    if (userError || !user) return err(401, "Invalid or expired token");
 
-    // Check role
-    const { data: hasBibleRole } = await supabase.rpc("has_role", {
-      _user_id: user.id,
-      _role: "bible_reader",
-    });
-    const { data: hasAdminRole } = await supabase.rpc("has_role", {
-      _user_id: user.id,
-      _role: "admin",
-    });
-
+    const { data: hasBibleRole } = await supabase.rpc("has_role", { _user_id: user.id, _role: "bible_reader" });
+    const { data: hasAdminRole } = await supabase.rpc("has_role", { _user_id: user.id, _role: "admin" });
     if (!hasBibleRole && !hasAdminRole) {
-      return new Response(
-        JSON.stringify({ error: "You do not have access to the Bible reading feature." }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+      return err(403, "You do not have access to the Bible reading feature.");
     }
 
-    // ── Parse body ───────────────────────────────────────────────────
+    // ── Parse body ───────────────────────────────────────────────────────
     const {
       arabicVersion,
       englishVersion = "ESV",
@@ -207,49 +188,40 @@ serve(async (req) => {
     } = await req.json();
 
     if (!arabicVersion || !bookNumber || !chapter) {
-      return new Response(
-        JSON.stringify({ error: "arabicVersion, bookNumber, and chapter are required." }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+      return err(400, "arabicVersion, bookNumber, and chapter are required.");
     }
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      return new Response(
-        JSON.stringify({ error: "LOVABLE_API_KEY not configured." }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
+    if (!LOVABLE_API_KEY) return err(500, "LOVABLE_API_KEY not configured.");
 
-    // ── Fetch Arabic + English in parallel (Bolls.life — free, no key) ──
+    // ── Fetch Arabic + English in parallel ───────────────────────────────
     const [arabicVerses, englishVerses] = await Promise.all([
       fetchChapter(arabicVersion, bookNumber, chapter),
       fetchChapter(englishVersion, bookNumber, chapter),
     ]);
 
-    // ── Convert Arabic to dialect via AI ─────────────────────────────
-    const dialectVerses = await convertToDialect(
+    // ── Convert to dialect (graceful fallback) ───────────────────────────
+    const { verses: dialectVerses, fallback } = await convertToDialect(
       arabicVerses,
       dialect,
       LOVABLE_API_KEY,
     );
 
-    return new Response(
-      JSON.stringify({
-        arabicVerses,
-        englishVerses,
-        dialectVerses,
-        bookUsfm: bookUsfm || "",
-        chapter,
-        dialect,
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
+    return ok({
+      arabicVerses,
+      englishVerses,
+      dialectVerses,
+      bookUsfm: bookUsfm || "",
+      chapter,
+      dialect,
+      fallback,
+    });
   } catch (error) {
     console.error("bible-passage error:", error);
-    const status = typeof (error as Record<string, unknown>)?.status === "number"
-      ? (error as Record<string, unknown>).status as number
-      : 500;
+    const status =
+      typeof (error as Record<string, unknown>)?.status === "number"
+        ? ((error as Record<string, unknown>).status as number)
+        : 500;
     return new Response(
       JSON.stringify({
         error: error instanceof Error ? error.message : "Unknown error",

@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { HomeButton } from "@/components/HomeButton";
 import { Button } from "@/components/ui/button";
@@ -30,13 +30,13 @@ import {
   BookOpen,
   Loader2,
   Lock,
-  Eye,
-  EyeOff,
   ChevronRight,
   Languages,
   ArrowLeft,
+  RefreshCw,
 } from "lucide-react";
 import { DIALECT_FLAGS, DIALECT_LABELS } from "@/config";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 type ViewMode = "select" | "reading";
@@ -50,67 +50,177 @@ interface PassageData {
   dialect: string;
 }
 
+// ─── Session persistence helpers ─────────────────────────────────────────────
+const STORAGE_KEY = "lahja_bible_session";
+const SESSION_TTL_MS = 4 * 60 * 60 * 1000; // 4 hours
+
+interface BibleSession {
+  passage: PassageData | null;
+  selectedBookUsfm: string | null;
+  selectedChapter: number;
+  arabicVersion: string;
+  showEnglish: boolean;
+  showFormal: boolean;
+  showDialect: boolean;
+  mode: ViewMode;
+  savedAt: number;
+}
+
+function loadSession(): BibleSession | null {
+  try {
+    const raw = sessionStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const session = JSON.parse(raw) as BibleSession;
+    if (Date.now() - session.savedAt > SESSION_TTL_MS) {
+      sessionStorage.removeItem(STORAGE_KEY);
+      return null;
+    }
+    return session;
+  } catch {
+    return null;
+  }
+}
+
+function saveSession(session: Omit<BibleSession, "savedAt">) {
+  try {
+    sessionStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ ...session, savedAt: Date.now() })
+    );
+  } catch {
+    // Storage full or blocked — ignore
+  }
+}
+
+// ─── Retry helper ────────────────────────────────────────────────────────────
+async function fetchWithRetry<T>(
+  fn: () => Promise<T>,
+  retries = 2,
+  delayMs = 1500
+): Promise<T> {
+  let lastErr: unknown;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastErr = err;
+      if (attempt < retries) {
+        await new Promise((r) => setTimeout(r, delayMs * (attempt + 1)));
+      }
+    }
+  }
+  throw lastErr;
+}
+
 // ─── Component ───────────────────────────────────────────────────────────────
-const BibleReading = () => {
+const BibleReadingInner = () => {
   const { isAuthenticated } = useAuth();
   const { hasAccess, loading: accessLoading } = useBibleAccess();
   const { activeDialect } = useDialect();
 
-  const dialectLabel = DIALECT_LABELS[activeDialect as keyof typeof DIALECT_LABELS] ?? activeDialect;
-  const dialectFlag = DIALECT_FLAGS[activeDialect as keyof typeof DIALECT_FLAGS];
+  const dialectLabel =
+    DIALECT_LABELS[activeDialect as keyof typeof DIALECT_LABELS] ??
+    activeDialect;
+  const dialectFlag =
+    DIALECT_FLAGS[activeDialect as keyof typeof DIALECT_FLAGS];
+
+  // Restore session
+  const cached = useRef(loadSession()).current;
 
   // Selection state
-  const [selectedBook, setSelectedBook] = useState<BibleBook | null>(null);
-  const [selectedChapter, setSelectedChapter] = useState<number>(1);
+  const [selectedBook, setSelectedBook] = useState<BibleBook | null>(() => {
+    if (cached?.selectedBookUsfm) {
+      return ALL_BOOKS.find((b) => b.usfm === cached.selectedBookUsfm) ?? null;
+    }
+    return null;
+  });
+  const [selectedChapter, setSelectedChapter] = useState<number>(
+    cached?.selectedChapter ?? 1
+  );
   const [arabicVersion, setArabicVersion] = useState<string>(
-    ARABIC_VERSIONS[0].code,
+    cached?.arabicVersion ?? ARABIC_VERSIONS[0].code
   );
 
   // View state
-  const [mode, setMode] = useState<ViewMode>("select");
-  const [passage, setPassage] = useState<PassageData | null>(null);
+  const [mode, setMode] = useState<ViewMode>(cached?.mode ?? "select");
+  const [passage, setPassage] = useState<PassageData | null>(
+    cached?.passage ?? null
+  );
   const [loading, setLoading] = useState(false);
 
   // Toggle states
-  const [showEnglish, setShowEnglish] = useState(false);
-  const [showFormal, setShowFormal] = useState(true);
-  const [showDialect, setShowDialect] = useState(true);
+  const [showEnglish, setShowEnglish] = useState(cached?.showEnglish ?? false);
+  const [showFormal, setShowFormal] = useState(cached?.showFormal ?? true);
+  const [showDialect, setShowDialect] = useState(cached?.showDialect ?? true);
 
-  // ── Fetch passage ────────────────────────────────────────────────────────
+  // ── Persist on every state change ────────────────────────────────────────
+  useEffect(() => {
+    saveSession({
+      passage,
+      selectedBookUsfm: selectedBook?.usfm ?? null,
+      selectedChapter,
+      arabicVersion,
+      showEnglish,
+      showFormal,
+      showDialect,
+      mode,
+    });
+  }, [
+    passage,
+    selectedBook,
+    selectedChapter,
+    arabicVersion,
+    showEnglish,
+    showFormal,
+    showDialect,
+    mode,
+  ]);
+
+  // ── Fetch passage with retry ─────────────────────────────────────────────
   const fetchPassage = useCallback(async () => {
     if (!selectedBook) return;
 
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke(
-        "bible-passage",
-        {
-          body: {
-            arabicVersion,
-            englishVersion: ENGLISH_VERSION.code,
-            bookNumber: selectedBook.bookNumber,
-            bookUsfm: selectedBook.usfm,
-            chapter: selectedChapter,
-            dialect: activeDialect,
-          },
-        },
-      );
+      const data = await fetchWithRetry(async () => {
+        const { data, error } = await supabase.functions.invoke(
+          "bible-passage",
+          {
+            body: {
+              arabicVersion,
+              englishVersion: ENGLISH_VERSION.code,
+              bookNumber: selectedBook.bookNumber,
+              bookUsfm: selectedBook.usfm,
+              chapter: selectedChapter,
+              dialect: activeDialect,
+            },
+          }
+        );
 
-      if (error) {
-        // The edge function returns structured errors
-        const message =
-          typeof error === "object" && error !== null && "message" in error
-            ? (error as { message: string }).message
-            : String(error);
-        throw new Error(message);
-      }
+        if (error) {
+          const message =
+            typeof error === "object" && error !== null && "message" in error
+              ? (error as { message: string }).message
+              : String(error);
+          throw new Error(message);
+        }
 
-      setPassage(data as PassageData);
+        // Handle fallback signal from edge function
+        if (data?.fallback) {
+          console.warn("Bible API returned fallback signal");
+          // Still usable — the edge function returns formal Arabic as dialect fallback
+        }
+
+        return data as PassageData;
+      });
+
+      setPassage(data);
       setMode("reading");
     } catch (err: unknown) {
       console.error("Failed to fetch Bible passage:", err);
       toast.error("Failed to load passage", {
-        description: err instanceof Error ? err.message : "Please try again later.",
+        description:
+          err instanceof Error ? err.message : "Please try again later.",
       });
     } finally {
       setLoading(false);
@@ -150,9 +260,7 @@ const BibleReading = () => {
   // ── Reading mode ─────────────────────────────────────────────────────────
   if (mode === "reading" && passage) {
     const bookMeta = ALL_BOOKS.find((b) => b.usfm === passage.bookUsfm);
-    const versionMeta = ARABIC_VERSIONS.find(
-      (v) => v.code === arabicVersion,
-    );
+    const versionMeta = ARABIC_VERSIONS.find((v) => v.code === arabicVersion);
 
     return (
       <AppShell>
@@ -171,18 +279,31 @@ const BibleReading = () => {
                 <h1 className="font-bold truncate">
                   {bookMeta?.name ?? passage.bookUsfm} {passage.chapter}
                 </h1>
-                <p className="text-xs text-muted-foreground truncate font-arabic" dir="rtl">
+                <p
+                  className="text-xs text-muted-foreground truncate font-arabic"
+                  dir="rtl"
+                >
                   {bookMeta?.nameArabic ?? ""} {passage.chapter}
                 </p>
               </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={fetchPassage}
+                disabled={loading}
+                title="Reload passage"
+              >
+                <RefreshCw
+                  className={cn("h-4 w-4", loading && "animate-spin")}
+                />
+              </Button>
               <Badge variant="outline" className="shrink-0">
-                {dialectFlag}{" "}
-                {activeDialect}
+                {dialectFlag} {activeDialect}
               </Badge>
             </div>
 
             {/* Toggle row */}
-            <div className="flex items-center gap-4 mt-3 text-sm">
+            <div className="flex items-center gap-4 mt-3 text-sm flex-wrap">
               <label className="flex items-center gap-2 cursor-pointer">
                 <Switch
                   checked={showFormal}
@@ -275,8 +396,7 @@ const BibleReading = () => {
                 Bible Reading
               </h1>
               <p className="text-sm text-muted-foreground">
-                Read the Bible in{" "}
-                {dialectLabel}
+                Read the Bible in {dialectLabel}
               </p>
             </div>
           </div>
@@ -314,9 +434,7 @@ const BibleReading = () => {
             <label className="text-sm font-medium">Dialect</label>
             <div className="border rounded-md px-3 py-2 text-sm bg-muted/50 flex items-center gap-2">
               <span>{dialectFlag}</span>
-              <span>
-                {dialectLabel}
-              </span>
+              <span>{dialectLabel}</span>
               <span className="text-xs text-muted-foreground ml-auto">
                 Change dialect in app settings
               </span>
@@ -376,19 +494,20 @@ const BibleReading = () => {
                 </span>
               </label>
               <div className="grid grid-cols-8 sm:grid-cols-10 gap-1.5 max-h-48 overflow-y-auto">
-                {Array.from({ length: selectedBook.chapters }, (_, i) => i + 1).map(
-                  (ch) => (
-                    <Button
-                      key={ch}
-                      variant={selectedChapter === ch ? "default" : "outline"}
-                      size="sm"
-                      className="h-9 w-full text-xs"
-                      onClick={() => setSelectedChapter(ch)}
-                    >
-                      {ch}
-                    </Button>
-                  ),
-                )}
+                {Array.from(
+                  { length: selectedBook.chapters },
+                  (_, i) => i + 1
+                ).map((ch) => (
+                  <Button
+                    key={ch}
+                    variant={selectedChapter === ch ? "default" : "outline"}
+                    size="sm"
+                    className="h-9 w-full text-xs"
+                    onClick={() => setSelectedChapter(ch)}
+                  >
+                    {ch}
+                  </Button>
+                ))}
               </div>
             </div>
           )}
@@ -421,5 +540,12 @@ const BibleReading = () => {
     </AppShell>
   );
 };
+
+// Wrap in ErrorBoundary so a crash doesn't lose everything
+const BibleReading = () => (
+  <ErrorBoundary name="BibleReading">
+    <BibleReadingInner />
+  </ErrorBoundary>
+);
 
 export default BibleReading;

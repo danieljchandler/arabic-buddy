@@ -14,6 +14,10 @@ function ok(body: unknown) {
   });
 }
 
+function fallback(body: Record<string, unknown>) {
+  return ok({ fallback: true, ...body });
+}
+
 function err(status: number, message: string) {
   return new Response(JSON.stringify({ error: message }), {
     status,
@@ -65,6 +69,10 @@ async function fetchChapter(
   } finally {
     clearTimeout(timeout);
   }
+}
+
+function blankVerses(length: number): string[] {
+  return Array.from({ length }, () => "");
 }
 
 /** Use Lovable AI to convert formal Arabic into dialect. */
@@ -191,21 +199,50 @@ serve(async (req) => {
       return err(400, "arabicVersion, bookNumber, and chapter are required.");
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) return err(500, "LOVABLE_API_KEY not configured.");
+    let arabicVerses: string[];
+    try {
+      arabicVerses = await fetchChapter(arabicVersion, bookNumber, chapter);
+    } catch (chapterError) {
+      console.error("Arabic Bible fetch failed:", chapterError);
+      return fallback({
+        error: "Bible text is temporarily unavailable. Please try again.",
+      });
+    }
 
-    // ── Fetch Arabic + English in parallel ───────────────────────────────
-    const [arabicVerses, englishVerses] = await Promise.all([
-      fetchChapter(arabicVersion, bookNumber, chapter),
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+
+    const [englishResult, dialectResult] = await Promise.allSettled([
       fetchChapter(englishVersion, bookNumber, chapter),
+      LOVABLE_API_KEY
+        ? convertToDialect(arabicVerses, dialect, LOVABLE_API_KEY)
+        : Promise.resolve({ verses: arabicVerses, fallback: true }),
     ]);
 
-    // ── Convert to dialect (graceful fallback) ───────────────────────────
-    const { verses: dialectVerses, fallback } = await convertToDialect(
-      arabicVerses,
-      dialect,
-      LOVABLE_API_KEY,
-    );
+    if (englishResult.status === "rejected") {
+      console.error("English Bible fetch failed:", englishResult.reason);
+    }
+
+    if (dialectResult.status === "rejected") {
+      console.error("Dialect conversion failed:", dialectResult.reason);
+    }
+
+    const englishVerses =
+      englishResult.status === "fulfilled"
+        ? englishResult.value
+        : blankVerses(arabicVerses.length);
+
+    const dialectPayload =
+      dialectResult.status === "fulfilled"
+        ? dialectResult.value
+        : { verses: arabicVerses, fallback: true };
+
+    const dialectVerses = Array.from({ length: arabicVerses.length }, (_, index) => {
+      const verse = dialectPayload.verses[index];
+      return typeof verse === "string" ? verse : arabicVerses[index] ?? "";
+    });
+
+    const fallbackUsed =
+      englishResult.status === "rejected" || dialectPayload.fallback === true;
 
     return ok({
       arabicVerses,
@@ -214,7 +251,7 @@ serve(async (req) => {
       bookUsfm: bookUsfm || "",
       chapter,
       dialect,
-      fallback,
+      fallback: fallbackUsed,
     });
   } catch (error) {
     console.error("bible-passage error:", error);
@@ -222,6 +259,13 @@ serve(async (req) => {
       typeof (error as Record<string, unknown>)?.status === "number"
         ? ((error as Record<string, unknown>).status as number)
         : 500;
+
+    if (status >= 500) {
+      return fallback({
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+
     return new Response(
       JSON.stringify({
         error: error instanceof Error ? error.message : "Unknown error",

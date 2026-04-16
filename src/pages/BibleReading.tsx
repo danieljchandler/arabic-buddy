@@ -66,17 +66,91 @@ interface BibleSession {
   savedAt: number;
 }
 
+type BibleFunctionResponse = Partial<PassageData> & {
+  error?: string;
+  fallback?: boolean;
+};
+
+function clearSession() {
+  try {
+    sessionStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // ignore
+  }
+}
+
+function makeVerseArray(length: number, source: unknown, fallbackValue = "") {
+  return Array.from({ length }, (_, index) => {
+    if (!Array.isArray(source)) return fallbackValue;
+    return typeof source[index] === "string" ? source[index] : fallbackValue;
+  });
+}
+
+function normalizePassageData(value: unknown): PassageData | null {
+  if (!value || typeof value !== "object") return null;
+
+  const candidate = value as Record<string, unknown>;
+  const rawArabicVerses = candidate.arabicVerses;
+
+  if (!Array.isArray(rawArabicVerses)) return null;
+
+  const arabicVerses = rawArabicVerses.filter(
+    (verse): verse is string => typeof verse === "string" && verse.trim().length > 0,
+  );
+
+  if (arabicVerses.length === 0) return null;
+
+  return {
+    arabicVerses,
+    englishVerses: makeVerseArray(arabicVerses.length, candidate.englishVerses),
+    dialectVerses: makeVerseArray(arabicVerses.length, candidate.dialectVerses),
+    bookUsfm: typeof candidate.bookUsfm === "string" ? candidate.bookUsfm : "",
+    chapter:
+      typeof candidate.chapter === "number" && Number.isFinite(candidate.chapter)
+        ? candidate.chapter
+        : 1,
+    dialect: typeof candidate.dialect === "string" ? candidate.dialect : "",
+  };
+}
+
 function loadSession(): BibleSession | null {
   try {
     const raw = sessionStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     const session = JSON.parse(raw) as BibleSession;
     if (Date.now() - session.savedAt > SESSION_TTL_MS) {
-      sessionStorage.removeItem(STORAGE_KEY);
+      clearSession();
       return null;
     }
-    return session;
+
+    const fallbackArabicVersion = ARABIC_VERSIONS[0]?.code ?? "SVD";
+    const normalizedPassage = normalizePassageData(session.passage);
+
+    return {
+      passage: normalizedPassage,
+      selectedBookUsfm:
+        typeof session.selectedBookUsfm === "string" ? session.selectedBookUsfm : null,
+      selectedChapter:
+        typeof session.selectedChapter === "number" && session.selectedChapter > 0
+          ? Math.floor(session.selectedChapter)
+          : 1,
+      arabicVersion:
+        typeof session.arabicVersion === "string" &&
+        ARABIC_VERSIONS.some((version) => version.code === session.arabicVersion)
+          ? session.arabicVersion
+          : fallbackArabicVersion,
+      showEnglish: typeof session.showEnglish === "boolean" ? session.showEnglish : false,
+      showFormal: typeof session.showFormal === "boolean" ? session.showFormal : true,
+      showDialect: typeof session.showDialect === "boolean" ? session.showDialect : true,
+      mode:
+        session.mode === "reading" && normalizedPassage ? "reading" : "select",
+      savedAt:
+        typeof session.savedAt === "number" && Number.isFinite(session.savedAt)
+          ? session.savedAt
+          : Date.now(),
+    };
   } catch {
+    clearSession();
     return null;
   }
 }
@@ -205,17 +279,38 @@ const BibleReadingInner = () => {
           throw new Error(message);
         }
 
-        // Handle fallback signal from edge function
-        if (data?.fallback) {
-          console.warn("Bible API returned fallback signal");
-          // Still usable — the edge function returns formal Arabic as dialect fallback
+        const response = data as BibleFunctionResponse | null;
+
+        if (response?.error) {
+          throw new Error(response.error);
         }
 
-        return data as PassageData;
+        const normalizedPassage = normalizePassageData(response);
+
+        if (!normalizedPassage) {
+          throw new Error("The passage response was incomplete. Please try again.");
+        }
+
+        // Handle fallback signal from edge function
+        if (response?.fallback) {
+          console.warn("Bible API returned fallback signal");
+        }
+
+        return {
+          fallback: response?.fallback === true,
+          passage: normalizedPassage,
+        };
       });
 
-      setPassage(data);
+      setPassage(data.passage);
       setMode("reading");
+
+      if (data.fallback) {
+        toast.info("Loaded with fallback text", {
+          description:
+            "Some live translation helpers were unavailable, so the reader kept the passage stable.",
+        });
+      }
     } catch (err: unknown) {
       console.error("Failed to fetch Bible passage:", err);
       toast.error("Failed to load passage", {
@@ -261,6 +356,9 @@ const BibleReadingInner = () => {
   if (mode === "reading" && passage) {
     const bookMeta = ALL_BOOKS.find((b) => b.usfm === passage.bookUsfm);
     const versionMeta = ARABIC_VERSIONS.find((v) => v.code === arabicVersion);
+    const arabicVerses = passage.arabicVerses;
+    const englishVerses = makeVerseArray(arabicVerses.length, passage.englishVerses);
+    const dialectVerses = makeVerseArray(arabicVerses.length, passage.dialectVerses);
 
     return (
       <AppShell>
@@ -340,7 +438,7 @@ const BibleReadingInner = () => {
           {/* Verses */}
           <ScrollArea className="h-[calc(100vh-180px)]">
             <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
-              {passage.arabicVerses.map((verse, idx) => (
+              {arabicVerses.map((verse, idx) => (
                 <div key={idx} className="space-y-2">
                   {/* Formal Arabic */}
                   {showFormal && (
@@ -353,24 +451,24 @@ const BibleReadingInner = () => {
                   )}
 
                   {/* Dialect */}
-                  {showDialect && passage.dialectVerses[idx] && (
+                  {showDialect && dialectVerses[idx] && (
                     <p
                       className="text-lg leading-relaxed font-arabic text-primary"
                       dir="rtl"
                     >
-                      {passage.dialectVerses[idx]}
+                      {dialectVerses[idx]}
                     </p>
                   )}
 
                   {/* English */}
-                  {showEnglish && passage.englishVerses[idx] && (
+                  {showEnglish && englishVerses[idx] && (
                     <p className="text-sm text-muted-foreground leading-relaxed">
-                      {passage.englishVerses[idx]}
+                      {englishVerses[idx]}
                     </p>
                   )}
 
                   {/* Divider */}
-                  {idx < passage.arabicVerses.length - 1 && (
+                  {idx < arabicVerses.length - 1 && (
                     <div className="border-b border-border/50 pt-2" />
                   )}
                 </div>

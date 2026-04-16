@@ -1488,87 +1488,84 @@ serve(async (req) => {
      }
 
 
-      // ── Step 5: Claude Sonnet vocabulary enrichment ──────────────────────────
-      // Runs after full vocab assembly (Qwen + Fanar union). Sequential.
-     // Non-blocking: any failure leaves vocab unchanged.
-     if (vocab.length > 0) {
-       try {
-         const vocabPayload = JSON.stringify(vocab.map(v => ({ arabic: v.arabic, english: v.english, root: v.root })));
-         const claudeEnrichResp = await callAI({
-           model: 'anthropic/claude-sonnet-4-5',
-           systemPrompt: getVocabEnrichmentSystemPrompt(),
-           userContent: `Vocabulary list to enrich:\n${vocabPayload}`,
-           apiKey: OPENROUTER_API_KEY,
-           maxTokens: 4096,
-         });
-         if (claudeEnrichResp.content) {
-           const claudeEnrichAi = safeJsonParse<ClaudeEnrichmentAI>(claudeEnrichResp.content);
-           if (claudeEnrichAi?.enrichments?.length) {
-             const enrichmentMap = new Map(claudeEnrichAi.enrichments.map(e => [e.arabic, e]));
-             vocab = vocab.map(item => {
-               const enrichment = enrichmentMap.get(item.arabic);
-               if (!enrichment) return item;
-               const { arabic: _arabic, ...fields } = enrichment;
-               return { ...item, ...fields };
-             });
-             console.log(`Claude enriched ${enrichmentMap.size} vocab items.`);
-           }
-         }
-       } catch (e) {
-         console.warn('Claude vocab enrichment failed (non-blocking):', e);
-       }
-      }
-
-      // ── Step 6: Per-word gloss enrichment ────────────────────────────────────
-      // Generate English translations for ALL unique tokens, not just vocab items.
-      // This is what makes every word clickable with a translation.
+      // ── Steps 5 & 6: Run Claude vocab enrichment and per-word gloss enrichment IN PARALLEL ──
+      // Previously sequential — combined cost was pushing the function past the 150s
+      // edge runtime idle limit. They are independent so we await them together.
       let allWordGlosses: Record<string, string> = {};
-      try {
-        // Collect all unique words from all lines (stripped of punctuation)
-        const allWordsSet = new Set<string>();
-        for (const l of finalLines) {
-          const words = String(l.arabic ?? '').trim().split(/\s+/).filter(Boolean);
-          for (const w of words) {
-            const cleaned = w.replace(/^[،؟.!:؛…\-—–"'()[\]{}«»]+|[،؟.!:؛…\-—–"'()[\]{}«»]+$/g, '');
-            if (cleaned && !/^[،؟.!:؛…\-—–"'()[\]{}«»]+$/.test(cleaned)) {
-              allWordsSet.add(cleaned);
-            }
+
+      // Prepare gloss inputs
+      const allWordsSet = new Set<string>();
+      for (const l of finalLines) {
+        const words = String(l.arabic ?? '').trim().split(/\s+/).filter(Boolean);
+        for (const w of words) {
+          const cleaned = w.replace(/^[،؟.!:؛…\-—–"'()[\]{}«»]+|[،؟.!:؛…\-—–"'()[\]{}«»]+$/g, '');
+          if (cleaned && !/^[،؟.!:؛…\-—–"'()[\]{}«»]+$/.test(cleaned)) {
+            allWordsSet.add(cleaned);
           }
         }
+      }
+      const vocabArabicSet = new Set(vocab.map(v => v.arabic));
+      const unknownWords = [...allWordsSet].filter(w => {
+        const stripped = w.replace(/[\u064B-\u065F\u0670]/g, '');
+        return !vocabArabicSet.has(w) && !vocabArabicSet.has(stripped) &&
+               !COMMON_GLOSSES[w] && !COMMON_GLOSSES[stripped];
+      });
 
-        // Remove words we already have glosses for (from vocab + COMMON_GLOSSES)
-        const vocabArabicSet = new Set(vocab.map(v => v.arabic));
-        const unknownWords = [...allWordsSet].filter(w => {
-          const stripped = w.replace(/[\u064B-\u065F\u0670]/g, '');
-          return !vocabArabicSet.has(w) && !vocabArabicSet.has(stripped) &&
-                 !COMMON_GLOSSES[w] && !COMMON_GLOSSES[stripped];
-        });
+      const claudeEnrichPromise = (vocab.length > 0)
+        ? callAI({
+            model: 'anthropic/claude-sonnet-4-5',
+            systemPrompt: getVocabEnrichmentSystemPrompt(),
+            userContent: `Vocabulary list to enrich:\n${JSON.stringify(vocab.map(v => ({ arabic: v.arabic, english: v.english, root: v.root })))}`,
+            apiKey: OPENROUTER_API_KEY,
+            maxTokens: 4096,
+          }).catch((e) => { console.warn('Claude vocab enrichment failed (non-blocking):', e); return { content: null }; })
+        : Promise.resolve({ content: null } as { content: string | null });
 
-        if (unknownWords.length > 0) {
-          console.log(`Gloss enrichment: ${unknownWords.length} words need translation (${allWordsSet.size} total unique)`);
-          
-          const wordList = unknownWords.join('\n');
-          const glossResp = await callAI({
+      const glossPromise = (unknownWords.length > 0)
+        ? callAI({
             model: 'google/gemini-2.5-flash',
             systemPrompt: getGlossEnrichmentPrompt(detectedDialect),
-            userContent: `Translate each of these Arabic words to English:\n\n${wordList}`,
+            userContent: `Translate each of these Arabic words to English:\n\n${unknownWords.join('\n')}`,
             apiKey: '',
             gateway: 'lovable',
             maxTokens: 4096,
-          });
+          }).catch((e) => { console.warn('Gloss enrichment failed (non-blocking):', e); return { content: null }; })
+        : Promise.resolve({ content: null } as { content: string | null });
 
-          if (glossResp.content) {
-            const glossResult = safeJsonParse<{ glosses: Record<string, string> }>(glossResp.content);
-            if (glossResult?.glosses) {
-              allWordGlosses = glossResult.glosses;
-              console.log(`Gloss enrichment: received ${Object.keys(allWordGlosses).length} word translations`);
-            }
+      const [claudeEnrichResp, glossResp] = await Promise.all([claudeEnrichPromise, glossPromise]);
+
+      // Apply Claude vocab enrichment
+      if (claudeEnrichResp?.content) {
+        try {
+          const claudeEnrichAi = safeJsonParse<ClaudeEnrichmentAI>(claudeEnrichResp.content);
+          if (claudeEnrichAi?.enrichments?.length) {
+            const enrichmentMap = new Map(claudeEnrichAi.enrichments.map(e => [e.arabic, e]));
+            vocab = vocab.map(item => {
+              const enrichment = enrichmentMap.get(item.arabic);
+              if (!enrichment) return item;
+              const { arabic: _arabic, ...fields } = enrichment;
+              return { ...item, ...fields };
+            });
+            console.log(`Claude enriched ${enrichmentMap.size} vocab items.`);
           }
-        } else {
-          console.log('Gloss enrichment: all words already covered by vocab + dictionary');
+        } catch (e) {
+          console.warn('Claude vocab parse failed (non-blocking):', e);
         }
-      } catch (e) {
-        console.warn('Gloss enrichment failed (non-blocking):', e);
+      }
+
+      // Apply gloss enrichment
+      if (glossResp?.content) {
+        try {
+          const glossResult = safeJsonParse<{ glosses: Record<string, string> }>(glossResp.content);
+          if (glossResult?.glosses) {
+            allWordGlosses = glossResult.glosses;
+            console.log(`Gloss enrichment: received ${Object.keys(allWordGlosses).length} word translations`);
+          }
+        } catch (e) {
+          console.warn('Gloss parse failed (non-blocking):', e);
+        }
+      } else if (unknownWords.length === 0) {
+        console.log('Gloss enrichment: all words already covered by vocab + dictionary');
       }
 
       // Build the final TranscriptResult

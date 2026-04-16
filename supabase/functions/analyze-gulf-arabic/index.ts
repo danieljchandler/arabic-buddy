@@ -349,8 +349,10 @@ async function callAI({
     const gatewayKey = isLovable ? (Deno.env.get('LOVABLE_API_KEY') ?? '') : apiKey;
 
     const controller = new AbortController();
-    // Allow longer timeout for complex transcripts - edge functions can run up to 60s
-    const timeoutMs = 55_000;
+    // Tightened from 55s → 40s so the full multi-stage pipeline (Call 1 + parallel
+    // Call 2 stage + possible retries) fits within the edge runtime's 150s idle
+    // timeout. Slow models will be aborted and fall back to alternates.
+    const timeoutMs = 40_000;
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
     const startedAt = Date.now();
@@ -440,7 +442,9 @@ async function callFanar({
   temperature = 0.2,
 }: CallFanarArgs): Promise<{ content: string | null; error?: string; status?: number }> {
   const controller = new AbortController();
-  const timeoutMs = 55_000;
+  // Fanar is known to be intermittently slow/unstable — keep its timeout short so
+  // it can't single-handedly stall the parallel stage past the 150s edge budget.
+  const timeoutMs = 30_000;
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   const startedAt = Date.now();

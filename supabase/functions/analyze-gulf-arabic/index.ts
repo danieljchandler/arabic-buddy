@@ -442,7 +442,9 @@ async function callFanar({
   temperature = 0.2,
 }: CallFanarArgs): Promise<{ content: string | null; error?: string; status?: number }> {
   const controller = new AbortController();
-  const timeoutMs = 55_000;
+  // Fanar is known to be intermittently slow/unstable — keep its timeout short so
+  // it can't single-handedly stall the parallel stage past the 150s edge budget.
+  const timeoutMs = 30_000;
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   const startedAt = Date.now();

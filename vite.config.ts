@@ -3,6 +3,20 @@ import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
 
+const supabaseProjectId =
+  process.env.VITE_SUPABASE_PROJECT_ID ?? process.env.SUPABASE_PROJECT_ID;
+
+const supabaseUrl =
+  process.env.VITE_SUPABASE_URL ??
+  process.env.SUPABASE_URL ??
+  (supabaseProjectId ? `https://${supabaseProjectId}.supabase.co` : undefined);
+
+const supabasePublishableKey =
+  process.env.VITE_SUPABASE_PUBLISHABLE_KEY ??
+  process.env.SUPABASE_PUBLISHABLE_KEY ??
+  process.env.VITE_SUPABASE_ANON_KEY ??
+  process.env.SUPABASE_ANON_KEY;
+
 // https://vitejs.dev/config/ — cache bust v4
 export default defineConfig(({ mode }) => ({
   // Lovable Cloud can rewrite the root .env after backend changes, which makes
@@ -22,14 +36,16 @@ export default defineConfig(({ mode }) => ({
     },
   },
   define: {
-    // Supabase env vars MUST be set at build time via environment variables.
-    // Do NOT add hardcoded fallback values here — they would be committed to
-    // source control and embedded in the production bundle.
-    ...(process.env.VITE_SUPABASE_URL
-      ? { 'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(process.env.VITE_SUPABASE_URL) }
+    // Backend env vars MUST be available at build time. Accept both the
+    // Vite-prefixed names and Lovable Cloud's standard secret names.
+    ...(supabaseProjectId
+      ? { 'import.meta.env.VITE_SUPABASE_PROJECT_ID': JSON.stringify(supabaseProjectId) }
       : {}),
-    ...(process.env.VITE_SUPABASE_PUBLISHABLE_KEY
-      ? { 'import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY': JSON.stringify(process.env.VITE_SUPABASE_PUBLISHABLE_KEY) }
+    ...(supabaseUrl
+      ? { 'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(supabaseUrl) }
+      : {}),
+    ...(supabasePublishableKey
+      ? { 'import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY': JSON.stringify(supabasePublishableKey) }
       : {}),
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),

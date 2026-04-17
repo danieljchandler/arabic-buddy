@@ -491,6 +491,9 @@ const Transcribe = () => {
       const currentUrlParam = new URLSearchParams(window.location.search).get('url');
       if (currentUrlParam) body.originalUrl = currentUrlParam;
 
+      // Pass active dialect module so the analyzer uses Egyptian/Yemeni/Gulf prompts
+      body.dialectModule = activeDialect;
+
       const { data, error } = await supabase.functions.invoke<{
         success: boolean;
         result?: TranscriptResult;

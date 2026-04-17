@@ -158,7 +158,7 @@ export function useTutorUpload() {
 
       const { data: classifyData, error: classifyError } = await supabase.functions.invoke(
         "classify-tutor-segments",
-        { body: { segments, words: indexedWords } }
+        { body: { segments, words: indexedWords, dialectModule: activeDialect } }
       );
 
       if (classifyError || !classifyData?.success) {

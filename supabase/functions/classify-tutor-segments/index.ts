@@ -55,9 +55,10 @@ serve(async (req) => {
         status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
-    const { segments, words: rawWords } = await req.json() as { 
+    const { segments, words: rawWords, dialectModule } = await req.json() as { 
       segments: TimestampedSegment[];
       words?: TranscriptWord[];
+      dialectModule?: 'Gulf' | 'Egyptian' | 'Yemeni';
     };
     
     if (!segments || !Array.isArray(segments) || segments.length === 0) {
@@ -66,6 +67,10 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    const dialect = (dialectModule === 'Egyptian' || dialectModule === 'Yemeni') ? dialectModule : 'Gulf';
+    const dialectLabel = dialect === 'Egyptian' ? 'Egyptian Arabic (مصري)' : dialect === 'Yemeni' ? 'Yemeni Arabic (يمني)' : 'Gulf Arabic (Khaliji)';
+    console.log('classify-tutor-segments dialect module:', dialect);
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
@@ -82,7 +87,7 @@ serve(async (req) => {
         ).join("\n")
       : "";
 
-    const systemPrompt = `You are a Gulf Arabic language teaching assistant. You are given timestamped transcript segments (and optionally word-level timestamps) from a tutor-student session where a tutor teaches Gulf Arabic vocabulary.
+    const systemPrompt = `You are an Arabic language teaching assistant for ${dialectLabel}. You are given timestamped transcript segments (and optionally word-level timestamps) from a tutor-student session where a tutor teaches ${dialectLabel} vocabulary.
 
 IMPORTANT CONTEXT: In these recordings, the tutor typically says a word, then the student(s) repeat it. You must identify ONLY the tutor's first utterance of each vocabulary word, NOT the student's repetition.
 
@@ -95,6 +100,7 @@ Your task:
    - A confidence score (0.0-1.0)
    - Classification as CONCRETE (object, animal, food, place), ACTION (verb, activity), or ABSTRACT (function word, greeting, abstract concept)
 4. CRITICAL: When word-level timestamps are available, specify the exact word indices (word_start_index and word_end_index) for the tutor's utterance of each vocabulary word. Use ONLY the tutor's first utterance, skip any student repetitions that follow.
+5. Treat all Arabic transcription as ${dialectLabel}. Translations and any standard-spelling suggestions must reflect ${dialectLabel} usage — do NOT default to Gulf or another dialect.
 
 Return the results using the extract_candidates tool.`;
 

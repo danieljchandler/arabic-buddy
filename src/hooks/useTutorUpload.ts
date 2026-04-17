@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
+import { useDialect } from "@/contexts/DialectContext";
 import { toast } from "sonner";
 import { decodeAudioFile, clipToWav } from "@/lib/audioClipper";
 import type { CandidateData } from "@/components/tutor/CandidateCard";
@@ -15,6 +16,7 @@ interface DeepgramWord {
 
 export function useTutorUpload() {
   const { user } = useAuth();
+  const { activeDialect } = useDialect();
   const [step, setStep] = useState<Step>("upload");
   const [file, setFile] = useState<File | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);

@@ -210,10 +210,13 @@ No additional text outside JSON.`;
 // Produces per-line translations, vocabulary, and grammar points.
 const getAnalysisSystemPrompt = (isRetry: boolean = false, dialect?: string) => {
   const strictPrefix = strictJsonPrefix(isRetry);
-  const dialectNote = dialect && dialect !== 'Gulf'
-    ? `\nThe audio is ${dialect} Gulf Arabic dialect. Prioritise ${dialect}-specific vocabulary, grammar patterns, and cultural notes in your output.`
-    : '\nThe audio is Gulf Arabic (Khaliji) dialect.';
-  return `${strictPrefix}You are analyzing a Gulf Arabic transcript for language learners. You are given a clean pre-merged transcript split into numbered Arabic lines.${dialectNote}
+  const label = dialectShortLabel();
+  const dialectNote = DIALECT_MODULE !== 'Gulf'
+    ? `\nThe audio is ${dialectFamilyLabel()}. Prioritise ${label}-specific vocabulary, grammar patterns, and cultural notes. NEVER use Gulf, Levantine, or other dialects.`
+    : (dialect && dialect !== 'Gulf'
+        ? `\nThe audio is ${dialect} Gulf Arabic dialect. Prioritise ${dialect}-specific vocabulary, grammar patterns, and cultural notes in your output.`
+        : '\nThe audio is Gulf Arabic (Khaliji) dialect.');
+  return `${strictPrefix}You are analyzing a ${label} transcript for language learners. You are given a clean pre-merged transcript split into numbered Arabic lines.${dialectNote}
 
 Output ONLY valid JSON matching this schema:
 {
@@ -224,8 +227,8 @@ Output ONLY valid JSON matching this schema:
 }
 
 Rules:
-- lines: IMPORTANT — the output "lines" array MUST include ALL numbered lines from the input. Every single line, no exceptions. Do not omit, skip, or stop early. Keep the Arabic text EXACTLY as given. Provide a natural English translation for each line.
-- vocabulary: 5–8 useful Gulf Arabic words or phrases with English meaning and root when applicable.
+- lines: IMPORTANT — the output "lines" array MUST include ALL numbered lines from the input. Every single line, no exceptions. Keep the Arabic text EXACTLY as given. Provide a natural English translation for each line.
+- vocabulary: 5–8 useful ${label} words or phrases with English meaning and root when applicable.
 - grammarPoints: 2–4 dialect-specific grammar points with brief examples from the transcript.
 - culturalContext: Optional brief cultural note about the content.
 - Keep translations and explanations concise.
@@ -276,10 +279,13 @@ const getFanarValidationSystemPrompt = () =>
 // This is the critical step that was missing — previously only 5-8 vocab items
 // and a small dictionary provided glosses, leaving 60-75% of tokens unglossed.
 const getGlossEnrichmentPrompt = (dialect?: string) => {
-  const dialectNote = dialect && dialect !== 'Gulf'
-    ? `The text is ${dialect} Gulf Arabic dialect.`
-    : 'The text is Gulf Arabic (Khaliji) dialect.';
-  return `You are a Gulf Arabic lexicographer. ${dialectNote}
+  const label = dialectShortLabel();
+  const dialectNote = DIALECT_MODULE !== 'Gulf'
+    ? `The text is ${dialectFamilyLabel()}.`
+    : (dialect && dialect !== 'Gulf'
+        ? `The text is ${dialect} Gulf Arabic dialect.`
+        : 'The text is Gulf Arabic (Khaliji) dialect.');
+  return `You are a ${label} lexicographer. ${dialectNote}
 
 Given a list of unique Arabic words from a transcript, provide the English meaning of EACH word.
 
@@ -297,8 +303,7 @@ Rules:
 - For dialect-specific words, give the dialectal meaning, not the MSA meaning.
 - Keep meanings concise: 1-4 English words maximum.
 - If a word is a proper noun or untranslatable, write "proper noun" or "filler word".
-- Common compounds: if two adjacent words form a fixed phrase (e.g. "عشان كذا" = "that's why"), 
-  include the compound as a separate key AND still gloss each word individually.
+- Common compounds: if two adjacent words form a fixed phrase, include the compound as a separate key AND still gloss each word individually.
 
 No additional text outside JSON.`;
 };
@@ -308,16 +313,19 @@ No additional text outside JSON.`;
 // Receives the numbered merged transcript produced by Call 1.
 // Produces ONLY per-line translations — no vocabulary, no grammar.
 const getTranslationSystemPrompt = (dialect?: string, visualContext?: string, sonioxTranslation?: string) => {
-  const dialectNote = dialect && dialect !== 'Gulf'
-    ? `${getDialectNote(dialect)} Reflect regional vocabulary and expressions in your translations where appropriate.`
-    : getDialectNote(undefined);
+  const label = dialectShortLabel();
+  const dialectNote = DIALECT_MODULE !== 'Gulf'
+    ? `${getDialectNote(dialect)} Reflect ${label}-specific vocabulary and expressions in your translations.`
+    : (dialect && dialect !== 'Gulf'
+        ? `${getDialectNote(dialect)} Reflect regional vocabulary and expressions in your translations where appropriate.`
+        : getDialectNote(undefined));
   const visualNote = visualContext
     ? `\n\nVideo context: ${visualContext}\nUse this context to improve translation accuracy and naturalness where relevant.`
     : '';
   const sonioxNote = sonioxTranslation
     ? `\n\nReference translation (Soniox ASR+Translation engine):\n${sonioxTranslation}\nThis machine translation is provided as a reference only. Use it to inform your translations but prioritize accuracy and natural English phrasing.`
     : '';
-  return `You are a Gulf Arabic translator specializing in the Gulf/Khaliji dialect.${dialectNote}${visualNote}${sonioxNote}
+  return `You are a ${label} translator specializing in the ${label} dialect.${dialectNote}${visualNote}${sonioxNote}
 You will be given numbered Arabic lines. Translate each line to natural English.
 
 Output ONLY valid JSON matching this schema:

@@ -14,6 +14,7 @@ import { decodeAudioFile, clipToWav } from "@/lib/audioClipper";
 import { LineByLineTranscript } from "@/components/transcript/LineByLineTranscript";
 import { TimeRangeSelector } from "@/components/transcript/TimeRangeSelector";
 import { useAuth } from "@/hooks/useAuth";
+import { useDialect } from "@/contexts/DialectContext";
 import { useAddUserVocabulary } from "@/hooks/useUserVocabulary";
 import { Input } from "@/components/ui/input";
 import {
@@ -167,6 +168,7 @@ const MAX_DURATION = 180; // 3 minutes
 
 const Transcribe = () => {
   const { user, isAuthenticated } = useAuth();
+  const { activeDialect } = useDialect();
 
   const addUserVocabulary = useAddUserVocabulary();
   const [savedWords, setSavedWords] = useState<Set<string>>(new Set());
@@ -490,6 +492,9 @@ const Transcribe = () => {
       // Add original URL if this analysis came from a URL import (for caching)
       const currentUrlParam = new URLSearchParams(window.location.search).get('url');
       if (currentUrlParam) body.originalUrl = currentUrlParam;
+
+      // Pass active dialect module so the analyzer uses Egyptian/Yemeni/Gulf prompts
+      body.dialectModule = activeDialect;
 
       const { data, error } = await supabase.functions.invoke<{
         success: boolean;

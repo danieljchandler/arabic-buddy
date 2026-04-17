@@ -3,25 +3,34 @@ import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { componentTagger } from "lovable-tagger";
 
+const FALLBACK_SUPABASE_PROJECT_ID = "ovscskaijvclaxelkdyf";
+const FALLBACK_SUPABASE_URL = `https://${FALLBACK_SUPABASE_PROJECT_ID}.supabase.co`;
+const FALLBACK_SUPABASE_PUBLISHABLE_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im92c2Nza2FpanZjbGF4ZWxrZHlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkxMjM5NzAsImV4cCI6MjA4NDY5OTk3MH0.8fH3gVx8ft5KvHbeD0ngNs1-ZClg2R7a_juQ0_dwMW0";
+
 const supabaseProjectId =
-  process.env.VITE_SUPABASE_PROJECT_ID ?? process.env.SUPABASE_PROJECT_ID;
+  process.env.VITE_SUPABASE_PROJECT_ID ??
+  process.env.SUPABASE_PROJECT_ID ??
+  FALLBACK_SUPABASE_PROJECT_ID;
 
 const supabaseUrl =
   process.env.VITE_SUPABASE_URL ??
   process.env.SUPABASE_URL ??
-  (supabaseProjectId ? `https://${supabaseProjectId}.supabase.co` : undefined);
+  (supabaseProjectId ? `https://${supabaseProjectId}.supabase.co` : FALLBACK_SUPABASE_URL);
 
 const supabasePublishableKey =
   process.env.VITE_SUPABASE_PUBLISHABLE_KEY ??
   process.env.SUPABASE_PUBLISHABLE_KEY ??
   process.env.VITE_SUPABASE_ANON_KEY ??
-  process.env.SUPABASE_ANON_KEY;
+  process.env.SUPABASE_ANON_KEY ??
+  FALLBACK_SUPABASE_PUBLISHABLE_KEY;
 
-// https://vitejs.dev/config/ — cache bust v4
+// https://vitejs.dev/config/ — cache bust v5
 export default defineConfig(({ mode }) => ({
   // Lovable Cloud can rewrite the root .env after backend changes, which makes
   // Vite restart the preview server. Keep Vite env discovery on an isolated
   // directory and inject the required client vars from process.env instead.
+  // Use public fallbacks so preview/build never crash if env injection is late.
   envDir: ".vite-env",
   server: {
     host: "::",
@@ -46,6 +55,9 @@ export default defineConfig(({ mode }) => ({
       : {}),
     ...(supabasePublishableKey
       ? { 'import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY': JSON.stringify(supabasePublishableKey) }
+      : {}),
+    ...(supabasePublishableKey
+      ? { 'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(supabasePublishableKey) }
       : {}),
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),

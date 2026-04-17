@@ -168,6 +168,7 @@ const MAX_DURATION = 180; // 3 minutes
 
 const Transcribe = () => {
   const { user, isAuthenticated } = useAuth();
+  const { activeDialect } = useDialect();
 
   const addUserVocabulary = useAddUserVocabulary();
   const [savedWords, setSavedWords] = useState<Set<string>>(new Set());

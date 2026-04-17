@@ -63,10 +63,29 @@ const strictJsonPrefix = (isRetry: boolean) =>
     ? "CRITICAL: Return ONLY valid JSON. No commentary, no markdown, no explanation. Just the JSON object.\n\n"
     : "";
 
-const getDialectNote = (dialect?: string, prefix = '\n') =>
-  dialect && dialect !== 'Gulf'
+// Module-level dialect override (Gulf | Egyptian | Yemeni). Set per-request.
+let DIALECT_MODULE: 'Gulf' | 'Egyptian' | 'Yemeni' = 'Gulf';
+
+const dialectFamilyLabel = () => {
+  if (DIALECT_MODULE === 'Egyptian') return 'Egyptian Arabic (مصري)';
+  if (DIALECT_MODULE === 'Yemeni') return 'Yemeni Arabic (يمني)';
+  return 'Gulf Arabic (Khaliji)';
+};
+
+const dialectShortLabel = () => {
+  if (DIALECT_MODULE === 'Egyptian') return 'Egyptian Arabic';
+  if (DIALECT_MODULE === 'Yemeni') return 'Yemeni Arabic';
+  return 'Gulf Arabic';
+};
+
+const getDialectNote = (dialect?: string, prefix = '\n') => {
+  if (DIALECT_MODULE !== 'Gulf') {
+    return `${prefix}The speaker is using ${dialectFamilyLabel()}. NEVER use Gulf, Levantine, or other Arabic dialects.`;
+  }
+  return dialect && dialect !== 'Gulf'
     ? `${prefix}The speaker is using ${dialect} Gulf Arabic dialect.`
     : `${prefix}The speaker is using Gulf Arabic (Khaliji) dialect.`;
+};
 
 /**
  * IMPORTANT: We intentionally do NOT ask the model to output per-word tokens.

@@ -1288,7 +1288,9 @@ serve(async (req) => {
 
      // Store the merged transcript from Call 1
      const mergedLines = mergeOnlyAi.lines;
-     const detectedDialect = mergeOnlyAi.dialect ?? 'Gulf';
+     const detectedDialect = DIALECT_MODULE !== 'Gulf'
+       ? (DIALECT_MODULE as any)
+       : (mergeOnlyAi.dialect ?? 'Gulf');
      const detectedDifficulty = mergeOnlyAi.difficulty ?? 'Intermediate';
      console.log('Call 1 complete:', mergedLines.length, 'merged Arabic lines. Detected dialect:', detectedDialect, '| Difficulty:', detectedDifficulty);
 

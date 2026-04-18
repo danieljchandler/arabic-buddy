@@ -118,24 +118,27 @@ const Index = () => {
   const previewVideos = discoverVideos?.slice(0, 5) ?? [];
   const previewVideo = previewVideos[previewIndex];
 
-  // Check onboarding + placement status for authenticated users
+  // Check onboarding + placement status for authenticated users (per active dialect)
   useEffect(() => {
     if (!isAuthenticated || authLoading || !user) return;
     const checkProfile = async () => {
       const { data } = await supabase
         .from('profiles' as any)
-        .select('onboarding_completed, placement_level')
+        .select('onboarding_completed, placement_level, placement_level_gulf, placement_level_egyptian, placement_level_yemeni')
         .eq('user_id', user.id)
         .maybeSingle();
       if (data && !(data as any).onboarding_completed) {
         navigate('/onboarding');
       }
       if (data) {
-        setPlacementLevel((data as any).placement_level || null);
+        const d = activeDialect.toLowerCase();
+        const perDialect = (data as any)[`placement_level_${d}`];
+        const fallback = activeDialect === 'Gulf' ? (data as any).placement_level : null;
+        setPlacementLevel(perDialect || fallback || null);
       }
     };
     checkProfile();
-  }, [isAuthenticated, authLoading, user, navigate]);
+  }, [isAuthenticated, authLoading, user, navigate, activeDialect]);
   const handleSignOut = async () => {
     await signOut();
   };

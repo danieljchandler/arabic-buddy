@@ -2,6 +2,8 @@ import { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useDialect } from "@/contexts/DialectContext";
+import { DIALECT_LABELS } from "@/config";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -54,6 +56,7 @@ const BATCH_SIZE = 5;
 export default function PlacementQuiz() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { activeDialect } = useDialect();
 
   const [phase, setPhase] = useState<"intro" | "quiz" | "results">("intro");
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -81,7 +84,7 @@ export default function PlacementQuiz() {
             current_difficulty: history.length > 0 ? undefined : "B1",
             question_number: questionNumber,
             history,
-            dialect: "Gulf",
+            dialect: activeDialect,
           },
         });
         if (error) throw error;
@@ -96,7 +99,7 @@ export default function PlacementQuiz() {
         setLoading(false);
       }
     },
-    []
+    [activeDialect]
   );
 
   const startQuiz = async () => {
@@ -176,19 +179,26 @@ export default function PlacementQuiz() {
     }
     setSaving(true);
     try {
+      const dialectKey = activeDialect.toLowerCase(); // gulf | egyptian | yemeni
+      const nowIso = new Date().toISOString();
+      const updates: Record<string, unknown> = {
+        // Per-dialect placement
+        [`placement_level_${dialectKey}`]: results.cefr_level,
+        [`placement_taken_at_${dialectKey}`]: nowIso,
+        // Keep legacy fields in sync for backwards-compat with older code paths
+        placement_level: results.cefr_level,
+        placement_taken_at: nowIso,
+        proficiency_level: results.cefr_level === "A1" ? "beginner"
+          : results.cefr_level === "A2" ? "elementary"
+          : results.cefr_level === "B1" ? "intermediate"
+          : "advanced",
+      };
       const { error } = await supabase
         .from("profiles")
-        .update({
-          placement_level: results.cefr_level,
-          placement_taken_at: new Date().toISOString(),
-          proficiency_level: results.cefr_level === "A1" ? "beginner"
-            : results.cefr_level === "A2" ? "elementary"
-            : results.cefr_level === "B1" ? "intermediate"
-            : "advanced",
-        } as any)
+        .update(updates as any)
         .eq("user_id", user.id);
       if (error) throw error;
-      toast.success(`Level set to ${results.cefr_level}!`);
+      toast.success(`${DIALECT_LABELS[activeDialect]} level set to ${results.cefr_level}!`);
       navigate("/");
     } catch (e) {
       console.error(e);
@@ -213,11 +223,10 @@ export default function PlacementQuiz() {
             </div>
             <div>
               <h1 className="text-3xl font-bold font-heading text-foreground mb-3">
-                Placement Quiz
+                {DIALECT_LABELS[activeDialect]} Placement
               </h1>
               <p className="text-muted-foreground leading-relaxed max-w-sm">
-                Answer 20 adaptive questions to find your CEFR level. The quiz
-                adjusts difficulty based on your answers — no preparation needed!
+                Answer 20 adaptive questions in <span className="font-semibold">{DIALECT_LABELS[activeDialect]}</span> to find your CEFR level for this dialect. Your placement is tracked separately for each dialect.
               </p>
             </div>
             <div className="grid grid-cols-2 gap-3 w-full max-w-xs">

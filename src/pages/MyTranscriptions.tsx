@@ -48,11 +48,14 @@ export default function MyTranscriptions() {
   }, [user, authLoading]);
 
   async function load() {
+    if (!user) return;
     setLoading(true);
     const { data, error } = await supabase
       .from("saved_transcriptions")
       .select("id,title,created_at,raw_transcript_arabic,vocabulary,grammar_points,lines")
+      .eq("user_id", user.id)
       .order("created_at", { ascending: false });
+    console.log("[MyTranscriptions] loaded for user", user.id, { count: data?.length, error });
     if (error) {
       toast.error("Couldn't load transcriptions", { description: error.message });
       setRows([]);

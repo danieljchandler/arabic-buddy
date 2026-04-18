@@ -56,6 +56,7 @@ const BATCH_SIZE = 5;
 export default function PlacementQuiz() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { activeDialect } = useDialect();
 
   const [phase, setPhase] = useState<"intro" | "quiz" | "results">("intro");
   const [questions, setQuestions] = useState<Question[]>([]);

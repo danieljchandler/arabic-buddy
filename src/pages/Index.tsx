@@ -881,6 +881,30 @@ const Index = () => {
             </p>
           </div>
         </button>
+
+        {/* My Transcriptions */}
+        {isAuthenticated && (
+          <button
+            onClick={() => navigate("/my-transcriptions")}
+            className={cn(
+              "w-full p-4 rounded-xl",
+              "bg-card border border-border",
+              "flex items-center gap-3",
+              "transition-all duration-200",
+              "hover:border-primary/20"
+            )}
+          >
+            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+              <FileText className="h-5 w-5 text-primary" />
+            </div>
+            <div className="text-left">
+              <p className="font-semibold text-foreground">My Transcriptions</p>
+              <p className="text-xs text-muted-foreground">
+                View transcripts you've saved
+              </p>
+            </div>
+          </button>
+        )}
       </div>
     </AppShell>
   );

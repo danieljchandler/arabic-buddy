@@ -55,6 +55,7 @@ const LearningPathDashboard = lazyPage(() => import("./pages/LearningPathDashboa
 const PlacementQuiz = lazyPage(() => import("./pages/PlacementQuiz"));
 const SouqNews = lazyPage(() => import("./pages/SouqNews"));
 const BibleReading = lazyPage(() => import("./pages/BibleReading"));
+const MyTranscriptions = lazyPage(() => import("./pages/MyTranscriptions"));
 
 // Admin pages
 const AdminLayout = lazyPage(() => import("./pages/admin/AdminLayout"));
@@ -293,6 +294,9 @@ const App = () => {
             } />
             <Route path="/bible" element={
               <ErrorBoundary name="BibleReadingRoute"><BibleReading /></ErrorBoundary>
+            } />
+            <Route path="/my-transcriptions" element={
+              <ErrorBoundary name="MyTranscriptionsRoute"><MyTranscriptions /></ErrorBoundary>
             } />
 
             <Route path="/admin" element={<ErrorBoundary name="AdminRoute"><AdminLayout /></ErrorBoundary>}>

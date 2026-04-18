@@ -1,0 +1,166 @@
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { AppShell } from "@/components/layout/AppShell";
+import { HomeButton } from "@/components/HomeButton";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { FileAudio, Trash2, Loader2, Eye } from "lucide-react";
+import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+
+type SavedRow = {
+  id: string;
+  title: string;
+  created_at: string;
+  raw_transcript_arabic: string;
+  vocabulary: any;
+  grammar_points: any;
+  lines: any;
+};
+
+export default function MyTranscriptions() {
+  const navigate = useNavigate();
+  const { user, loading: authLoading } = useAuth();
+  const [rows, setRows] = useState<SavedRow[] | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user) {
+      navigate("/auth?redirect=/my-transcriptions");
+      return;
+    }
+    void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, authLoading]);
+
+  async function load() {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("saved_transcriptions")
+      .select("id,title,created_at,raw_transcript_arabic,vocabulary,grammar_points,lines")
+      .order("created_at", { ascending: false });
+    if (error) {
+      toast.error("Couldn't load transcriptions", { description: error.message });
+      setRows([]);
+    } else {
+      setRows((data ?? []) as SavedRow[]);
+    }
+    setLoading(false);
+  }
+
+  async function handleDelete(id: string) {
+    const { error } = await supabase.from("saved_transcriptions").delete().eq("id", id);
+    if (error) {
+      toast.error("Failed to delete", { description: error.message });
+      return;
+    }
+    setRows((prev) => prev?.filter((r) => r.id !== id) ?? null);
+    toast.success("Transcription deleted");
+  }
+
+  return (
+    <AppShell>
+      <div className="max-w-3xl mx-auto p-4 space-y-4">
+        <HomeButton />
+        <div>
+          <h1 className="text-2xl font-bold">My Transcriptions</h1>
+          <p className="text-sm text-muted-foreground">
+            Everything you've saved from the Transcribe tool.
+          </p>
+        </div>
+
+        {loading ? (
+          <div className="flex items-center justify-center py-16">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : rows && rows.length === 0 ? (
+          <Card>
+            <CardContent className="py-12 text-center space-y-3">
+              <FileAudio className="h-10 w-10 mx-auto text-muted-foreground" />
+              <p className="text-muted-foreground">No saved transcriptions yet.</p>
+              <Button onClick={() => navigate("/transcribe")}>Go to Transcribe</Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-3">
+            {rows?.map((r) => {
+              const vocabCount = Array.isArray(r.vocabulary) ? r.vocabulary.length : 0;
+              const grammarCount = Array.isArray(r.grammar_points) ? r.grammar_points.length : 0;
+              const lineCount = Array.isArray(r.lines) ? r.lines.length : 0;
+              return (
+                <Card key={r.id}>
+                  <CardHeader className="pb-2">
+                    <div className="flex items-start justify-between gap-3">
+                      <CardTitle className="text-base">{r.title}</CardTitle>
+                      <span className="text-xs text-muted-foreground shrink-0">
+                        {new Date(r.created_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <p
+                      className="text-sm text-muted-foreground line-clamp-2"
+                      dir="rtl"
+                      lang="ar"
+                    >
+                      {r.raw_transcript_arabic || "—"}
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      <Badge variant="secondary">{lineCount} lines</Badge>
+                      <Badge variant="secondary">{vocabCount} vocab</Badge>
+                      <Badge variant="secondary">{grammarCount} grammar</Badge>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="default"
+                        onClick={() => navigate(`/transcribe?saved=${r.id}`)}
+                      >
+                        <Eye className="h-4 w-4 mr-1" /> Open
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button size="sm" variant="ghost">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete this transcription?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This permanently removes "{r.title}". This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => handleDelete(r.id)}>
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </AppShell>
+  );
+}

@@ -954,7 +954,13 @@ export type Database = {
           learning_reason: string | null
           onboarding_completed: boolean
           placement_level: string | null
+          placement_level_egyptian: string | null
+          placement_level_gulf: string | null
+          placement_level_yemeni: string | null
           placement_taken_at: string | null
+          placement_taken_at_egyptian: string | null
+          placement_taken_at_gulf: string | null
+          placement_taken_at_yemeni: string | null
           preferred_dialect: string | null
           proficiency_level: string | null
           show_institution: boolean
@@ -973,7 +979,13 @@ export type Database = {
           learning_reason?: string | null
           onboarding_completed?: boolean
           placement_level?: string | null
+          placement_level_egyptian?: string | null
+          placement_level_gulf?: string | null
+          placement_level_yemeni?: string | null
           placement_taken_at?: string | null
+          placement_taken_at_egyptian?: string | null
+          placement_taken_at_gulf?: string | null
+          placement_taken_at_yemeni?: string | null
           preferred_dialect?: string | null
           proficiency_level?: string | null
           show_institution?: boolean
@@ -992,7 +1004,13 @@ export type Database = {
           learning_reason?: string | null
           onboarding_completed?: boolean
           placement_level?: string | null
+          placement_level_egyptian?: string | null
+          placement_level_gulf?: string | null
+          placement_level_yemeni?: string | null
           placement_taken_at?: string | null
+          placement_taken_at_egyptian?: string | null
+          placement_taken_at_gulf?: string | null
+          placement_taken_at_yemeni?: string | null
           preferred_dialect?: string | null
           proficiency_level?: string | null
           show_institution?: boolean

@@ -223,11 +223,10 @@ export default function PlacementQuiz() {
             </div>
             <div>
               <h1 className="text-3xl font-bold font-heading text-foreground mb-3">
-                Placement Quiz
+                {DIALECT_LABELS[activeDialect]} Placement
               </h1>
               <p className="text-muted-foreground leading-relaxed max-w-sm">
-                Answer 20 adaptive questions to find your CEFR level. The quiz
-                adjusts difficulty based on your answers — no preparation needed!
+                Answer 20 adaptive questions in <span className="font-semibold">{DIALECT_LABELS[activeDialect]}</span> to find your CEFR level for this dialect. Your placement is tracked separately for each dialect.
               </p>
             </div>
             <div className="grid grid-cols-2 gap-3 w-full max-w-xs">

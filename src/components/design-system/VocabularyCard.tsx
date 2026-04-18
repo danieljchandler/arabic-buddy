@@ -166,3 +166,51 @@ export const VocabularyCard = ({
     </div>
   );
 };
+
+/**
+ * AnswerReveal — shows the English word and lets the learner produce the Arabic
+ * themselves before optionally revealing the script. Arabic is hidden by default.
+ */
+const AnswerReveal = ({ arabic, english }: { arabic: string; english: string }) => {
+  const [showArabic, setShowArabic] = useState(false);
+  // Reset to hidden whenever a new word is shown
+  useEffect(() => {
+    setShowArabic(false);
+  }, [arabic]);
+
+  return (
+    <div className="mt-5 text-center animate-in fade-in slide-in-from-bottom-4 duration-300">
+      <p className="text-base text-muted-foreground font-sans mb-3">{english}</p>
+      {showArabic ? (
+        <p
+          className="text-4xl font-bold text-foreground mb-2 font-arabic leading-relaxed animate-in fade-in duration-200"
+          dir="rtl"
+        >
+          {arabic}
+        </p>
+      ) : (
+        <p className="text-sm text-muted-foreground/70 italic mb-2">
+          Try saying it in Arabic, then reveal
+        </p>
+      )}
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          setShowArabic((v) => !v);
+        }}
+        className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline focus:outline-none"
+      >
+        {showArabic ? (
+          <>
+            <EyeOff className="w-4 h-4" /> Hide Arabic
+          </>
+        ) : (
+          <>
+            <Eye className="w-4 h-4" /> Show Arabic
+          </>
+        )}
+      </button>
+    </div>
+  );
+};

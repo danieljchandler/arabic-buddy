@@ -1,5 +1,5 @@
-import { useCallback } from "react";
-import { Volume2, RotateCcw, Loader2 } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Volume2, RotateCcw, Loader2, Eye, EyeOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAzureTTS } from "@/hooks/useAzureTTS";
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";

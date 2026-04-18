@@ -206,6 +206,41 @@ const Transcribe = () => {
   const culturalContext = transcriptResult?.culturalContext;
   const lines = transcriptResult?.lines ?? [];
 
+  // Load a previously saved transcription when ?saved=<id> is present
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const savedId = params.get("saved");
+    if (!savedId || !user) return;
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from("saved_transcriptions")
+        .select("title,raw_transcript_arabic,vocabulary,grammar_points,lines,cultural_context,audio_url")
+        .eq("id", savedId)
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (cancelled) return;
+      if (error || !data) {
+        toast.error("Couldn't load saved transcription", { description: error?.message });
+        return;
+      }
+      setTranscriptResult({
+        rawTranscriptArabic: data.raw_transcript_arabic ?? "",
+        vocabulary: (Array.isArray(data.vocabulary) ? data.vocabulary : []) as any,
+        grammarPoints: (Array.isArray(data.grammar_points) ? data.grammar_points : []) as any,
+        culturalContext: (data.cultural_context ?? undefined) as any,
+        lines: (Array.isArray(data.lines) ? data.lines : []) as any,
+      } as TranscriptResult);
+      if (data.audio_url) setAudioUrl(data.audio_url);
+      setIsSaved(true);
+      setSaveTitle(data.title ?? "");
+      toast.success(`Opened "${data.title}"`);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
   // Check if current URL is in URL params (indicates this was loaded from cache)
   const currentUrlFromParams = useMemo(() => {
     try {

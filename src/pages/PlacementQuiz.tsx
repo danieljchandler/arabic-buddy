@@ -84,7 +84,7 @@ export default function PlacementQuiz() {
             current_difficulty: history.length > 0 ? undefined : "B1",
             question_number: questionNumber,
             history,
-            dialect: "Gulf",
+            dialect: activeDialect,
           },
         });
         if (error) throw error;
@@ -99,7 +99,7 @@ export default function PlacementQuiz() {
         setLoading(false);
       }
     },
-    []
+    [activeDialect]
   );
 
   const startQuiz = async () => {
@@ -179,19 +179,26 @@ export default function PlacementQuiz() {
     }
     setSaving(true);
     try {
+      const dialectKey = activeDialect.toLowerCase(); // gulf | egyptian | yemeni
+      const nowIso = new Date().toISOString();
+      const updates: Record<string, unknown> = {
+        // Per-dialect placement
+        [`placement_level_${dialectKey}`]: results.cefr_level,
+        [`placement_taken_at_${dialectKey}`]: nowIso,
+        // Keep legacy fields in sync for backwards-compat with older code paths
+        placement_level: results.cefr_level,
+        placement_taken_at: nowIso,
+        proficiency_level: results.cefr_level === "A1" ? "beginner"
+          : results.cefr_level === "A2" ? "elementary"
+          : results.cefr_level === "B1" ? "intermediate"
+          : "advanced",
+      };
       const { error } = await supabase
         .from("profiles")
-        .update({
-          placement_level: results.cefr_level,
-          placement_taken_at: new Date().toISOString(),
-          proficiency_level: results.cefr_level === "A1" ? "beginner"
-            : results.cefr_level === "A2" ? "elementary"
-            : results.cefr_level === "B1" ? "intermediate"
-            : "advanced",
-        } as any)
+        .update(updates as any)
         .eq("user_id", user.id);
       if (error) throw error;
-      toast.success(`Level set to ${results.cefr_level}!`);
+      toast.success(`${DIALECT_LABELS[activeDialect]} level set to ${results.cefr_level}!`);
       navigate("/");
     } catch (e) {
       console.error(e);

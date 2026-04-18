@@ -139,14 +139,7 @@ export const VocabularyCard = ({
 
       {/* Answer Display */}
       {showAnswer && (
-        <div className="mt-5 text-center animate-in fade-in slide-in-from-bottom-4 duration-300">
-          <p className="text-4xl font-bold text-foreground mb-2 font-arabic leading-relaxed" dir="rtl">
-            {word.word_arabic}
-          </p>
-          <p className="text-base text-muted-foreground font-sans">
-            {word.word_english}
-          </p>
-        </div>
+        <AnswerReveal arabic={word.word_arabic} english={word.word_english} />
       )}
 
       {/* Repeat Button */}

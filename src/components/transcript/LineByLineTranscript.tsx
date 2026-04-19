@@ -375,8 +375,9 @@ interface TranscriptLineCardProps {
    onSaveToMyWords,
    savedWords,
    vocabSectionWords,
- }: TranscriptLineCardProps) => {
-   const [selectedIndices, setSelectedIndices] = useState<number[]>([]);
+  }: TranscriptLineCardProps) => {
+    const { activeDialect } = useDialect();
+    const [selectedIndices, setSelectedIndices] = useState<number[]>([]);
    const [compoundPopoverIdx, setCompoundPopoverIdx] = useState<number | null>(null);
    const [singlePopoverIdx, setSinglePopoverIdx] = useState<number | null>(null);
     const [liveCompound, setLiveCompound] = useState<{
@@ -486,7 +487,14 @@ interface TranscriptLineCardProps {
          .join(' ');
         setLiveCompound({ firstIdx: newMin, surface: combinedSurface, wordCount: newSpan + 1, translation: null, msa: null, loading: true });
          supabase.functions
-           .invoke('translate-phrase', { body: { phrase: combinedSurface } })
+           .invoke('translate-phrase', {
+             body: {
+               phrase: combinedSurface,
+               dialect: activeDialect,
+               sentenceArabic: line.arabic,
+               sentenceEnglish: line.translation,
+             },
+           })
           .then(({ data, error }) => {
             if (!error && data?.translation) {
               setLiveCompound({ firstIdx: newMin, surface: combinedSurface, wordCount: newSpan + 1, translation: data.translation, msa: data.msa || null, loading: false });

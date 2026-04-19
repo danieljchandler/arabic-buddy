@@ -69,7 +69,13 @@ const ClickableWord = ({
     if (open && !hasGloss && !liveTranslation && !isTranslating) {
       setIsTranslating(true);
       supabase.functions
-        .invoke("translate-phrase", { body: { phrase: token.surface } })
+        .invoke("translate-phrase", {
+          body: {
+            phrase: token.surface,
+            sentenceArabic: parentLine.arabic,
+            sentenceEnglish: parentLine.translation,
+          },
+        })
         .then(({ data, error }) => {
           if (!error && data?.translation) {
             setLiveTranslation(data.translation);

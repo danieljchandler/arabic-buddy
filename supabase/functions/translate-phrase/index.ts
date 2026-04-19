@@ -22,6 +22,8 @@ serve(async (req) => {
     const rawPhrase = body.phrase;
     const dialect = body.dialect || 'Gulf';
     const mode = body.mode || 'auto'; // 'word' | 'phrase' | 'auto'
+    const sentenceArabic: string | undefined = typeof body.sentenceArabic === 'string' ? body.sentenceArabic.trim() : undefined;
+    const sentenceEnglish: string | undefined = typeof body.sentenceEnglish === 'string' ? body.sentenceEnglish.trim() : undefined;
     
     if (!rawPhrase || typeof rawPhrase !== 'string') {
       return new Response(JSON.stringify({ error: 'Missing phrase' }), {
@@ -42,12 +44,16 @@ serve(async (req) => {
     const dialectLabel = dialect === 'Egyptian' ? 'Egyptian Arabic (مصري)' : dialect === 'Yemeni' ? 'Yemeni Arabic (يمني)' : 'Gulf Arabic (Khaliji)';
     
     const isWord = mode === 'word' || (mode === 'auto' && !phrase.includes(' '));
-    
-    const translationPrompt = isWord
-      ? `You are a ${dialectLabel} translator. Translate the given Arabic word to English. Return ONLY the English translation — no explanation, no punctuation around it, just 1-4 words.`
-      : `You are a ${dialectLabel} translator. Translate the given Arabic phrase to natural English. Return ONLY the English translation — no explanation, no punctuation around it, just a brief translation.`;
 
-    const msaPrompt = `Convert this ${dialectLabel} word/phrase to Modern Standard Arabic (فصحى). Return ONLY the MSA Arabic script, no explanation.`;
+    const contextBlock = sentenceArabic
+      ? `\n\nCONTEXT — the word/phrase appears inside this sentence:\nArabic sentence: "${sentenceArabic}"${sentenceEnglish ? `\nAccepted English translation: "${sentenceEnglish}"` : ''}\n\nIMPORTANT: Choose the meaning that fits THIS sentence's context. Many Arabic words have multiple senses — pick the one consistent with the accepted translation above, not the most common dictionary meaning.`
+      : '';
+
+    const translationPrompt = isWord
+      ? `You are a ${dialectLabel} translator. Translate the given Arabic word to English. Return ONLY the English translation — no explanation, no punctuation around it, just 1-4 words.${contextBlock}`
+      : `You are a ${dialectLabel} translator. Translate the given Arabic phrase to natural English. Return ONLY the English translation — no explanation, no punctuation around it, just a brief translation.${contextBlock}`;
+
+    const msaPrompt = `Convert this ${dialectLabel} word/phrase to Modern Standard Arabic (فصحى). Return ONLY the MSA Arabic script, no explanation.${contextBlock}`;
 
     async function callLovable(systemPrompt: string, userContent: string, maxTokens: number): Promise<string | null> {
       if (!LOVABLE_API_KEY) return null;

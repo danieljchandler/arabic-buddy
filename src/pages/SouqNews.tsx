@@ -155,6 +155,10 @@ const SouqNews = () => {
                     text={article.body_dialect}
                     vocabulary={article.vocabulary || []}
                     source="souq-news"
+                    sentenceContext={{
+                      arabic: article.body_dialect,
+                      english: article.summary_english,
+                    }}
                   />
                 </div>
 

@@ -25,10 +25,19 @@ interface WordData {
   enriching?: boolean;
 }
 
-const enrichWord = async (word: string, dialect: string): Promise<WordEnrichment> => {
+const enrichWord = async (
+  word: string,
+  dialect: string,
+  sentenceContext?: { arabic?: string; english?: string }
+): Promise<WordEnrichment> => {
   try {
     const { data, error } = await supabase.functions.invoke("word-enrichment", {
-      body: { word, dialect },
+      body: {
+        word,
+        dialect,
+        sentenceArabic: sentenceContext?.arabic,
+        sentenceEnglish: sentenceContext?.english,
+      },
     });
     if (error) throw error;
     return {
@@ -50,6 +59,8 @@ interface TappableArabicTextProps {
   source?: string;
   /** Additional className for the container */
   className?: string;
+  /** Optional surrounding sentence (Arabic + accepted English) so word translations match context */
+  sentenceContext?: { arabic?: string; english?: string };
 }
 
 /**
@@ -62,6 +73,7 @@ export const TappableArabicText = ({
   vocabulary = [],
   source = "tappable-text",
   className,
+  sentenceContext,
 }: TappableArabicTextProps) => {
   const { user } = useAuth();
   const { activeDialect } = useDialect();
@@ -84,7 +96,7 @@ export const TappableArabicText = ({
       [cleanWord]: { translation, enriching: true },
     }));
 
-    const enrichment = await enrichWord(cleanWord, activeDialect);
+    const enrichment = await enrichWord(cleanWord, activeDialect, sentenceContext ?? { arabic: text });
     const definition = enrichment?.definition || translation || "";
 
     setWordTranslations((prev) => ({

@@ -11,7 +11,7 @@ serve(async (req) => {
   }
 
   try {
-    const { word, dialect } = await req.json();
+    const { word, dialect, sentenceArabic, sentenceEnglish } = await req.json();
     if (!word || typeof word !== 'string') {
       return new Response(JSON.stringify({ error: 'word is required' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -26,6 +26,11 @@ serve(async (req) => {
     }
 
     const dialectLabel = dialect === 'Egyptian' ? 'Egyptian Arabic' : 'Gulf Arabic';
+
+    const hasContext = typeof sentenceArabic === 'string' && sentenceArabic.trim().length > 0;
+    const contextLine = hasContext
+      ? `\n\nCONTEXT — the word appears in this sentence:\nArabic: "${String(sentenceArabic).trim()}"${typeof sentenceEnglish === 'string' && sentenceEnglish.trim() ? `\nEnglish: "${String(sentenceEnglish).trim()}"` : ''}\n\nFor "definition": choose the sense that fits THIS sentence — the meaning consistent with the English translation above, not the most common dictionary meaning. Root and uses can stay generic.`
+      : '';
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -42,7 +47,7 @@ serve(async (req) => {
           },
           {
             role: 'user',
-            content: `Word: ${word.trim().slice(0, 100)}
+            content: `Word: ${word.trim().slice(0, 100)}${contextLine}
 
 Return JSON: {"definition":"the English meaning of the word","root":"ك-ت-ب","uses":[{"arabic":"...","english":"..."},{"arabic":"...","english":"..."},{"arabic":"...","english":"..."}]}`,
           },

@@ -123,6 +123,55 @@ export async function extractAndUploadAudioClip(
 }
 
 /**
+ * Resolve a fetchable audio URL for a Discover video.
+ * Tries the private `video-audio` bucket first (signed URL), then falls
+ * back to the public `audio` bucket via the `audio_files` lookup table.
+ * Returns null if no audio is available yet (e.g. transcription still pending).
+ */
+export async function resolveDiscoverVideoAudioUrl(video: {
+  id?: string;
+  source_url?: string;
+  embed_url?: string;
+}): Promise<string | null> {
+  try {
+    // Extract a candidate video id from the source/embed URL
+    const url = video.source_url || video.embed_url || "";
+    const ytMatch = url.match(
+      /(?:youtube\.com\/(?:shorts\/|watch\?v=|embed\/)|youtu\.be\/)([A-Za-z0-9_-]{6,})/
+    );
+    const videoId = ytMatch?.[1];
+
+    // Strategy 1: private `video-audio` bucket — signed URL
+    if (videoId) {
+      const extensions = [".mp4", ".opus", ".m4a", ".webm", ".mp3"];
+      for (const ext of extensions) {
+        const { data } = await supabase.storage
+          .from("video-audio")
+          .createSignedUrl(`${videoId}${ext}`, 3600);
+        if (data?.signedUrl) return data.signedUrl;
+      }
+
+      // Strategy 2: public `audio` bucket via `audio_files` lookup
+      const { data: audioRecord } = await supabase
+        .from("audio_files")
+        .select("storage_path")
+        .eq("video_id", videoId)
+        .limit(1)
+        .maybeSingle();
+      if (audioRecord?.storage_path) {
+        const { data: urlData } = supabase.storage
+          .from("audio")
+          .getPublicUrl(audioRecord.storage_path);
+        if (urlData?.publicUrl) return urlData.publicUrl;
+      }
+    }
+  } catch (err) {
+    console.warn("resolveDiscoverVideoAudioUrl failed:", err);
+  }
+  return null;
+}
+
+/**
  * Find the first transcript line containing a given word
  */
 export function findLineContainingWord(

@@ -22,6 +22,10 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { extractTikTokVideoId, getTikTokEmbedUrl } from "@/lib/videoEmbed";
+import {
+  resolveDiscoverVideoAudioUrl,
+  extractAndUploadAudioClip,
+} from "@/lib/vocabularyAudioContext";
 import type { TranscriptLine, WordToken, VocabItem } from "@/types/transcript";
 import { VideoRating } from "@/components/discover/VideoRating";
 import { supabase } from "@/integrations/supabase/client";
@@ -402,16 +406,44 @@ const DiscoverVideo = () => {
 
   const handleSaveToMyWords = useCallback(
     async (word: VocabItem) => {
-      if (!isAuthenticated) {
+      if (!isAuthenticated || !user) {
         toast.error("Please log in to save words");
         return;
       }
       try {
+        // Best-effort: clip the sentence audio from the source video so the
+        // flashcard plays with native audio. Falls back gracefully if any
+        // step fails (no audio yet, CORS issue, etc.).
+        let sentenceAudioUrl: string | undefined;
+        if (
+          video &&
+          typeof word.startMs === "number" &&
+          typeof word.endMs === "number" &&
+          word.endMs > word.startMs
+        ) {
+          try {
+            const audioSrc = await resolveDiscoverVideoAudioUrl(video);
+            if (audioSrc) {
+              const uploaded = await extractAndUploadAudioClip(
+                audioSrc,
+                word.startMs,
+                word.endMs,
+                user.id,
+                "sentence",
+              );
+              if (uploaded) sentenceAudioUrl = uploaded;
+            }
+          } catch (clipErr) {
+            console.warn("Discover sentence audio clip failed:", clipErr);
+          }
+        }
+
         await addUserVocabulary.mutateAsync({
           word_arabic: word.arabic,
           word_english: word.english,
           sentence_text: word.sentenceText,
           sentence_english: word.sentenceEnglish,
+          sentence_audio_url: sentenceAudioUrl,
           source: "discover",
         });
         setSavedWords((prev) => new Set(prev).add(word.arabic));
@@ -425,7 +457,7 @@ const DiscoverVideo = () => {
         }
       }
     },
-    [isAuthenticated, addUserVocabulary],
+    [isAuthenticated, user, video, addUserVocabulary],
   );
 
   const lines = useMemo(

@@ -106,6 +106,7 @@ export const useAddUserVocabulary = () => {
       sentence_text?: string;
       sentence_english?: string;
       sentence_audio_url?: string;
+      word_audio_url?: string;
       dialect?: string;
     }) => {
       if (!user) throw new Error("Must be logged in");
@@ -121,6 +122,7 @@ export const useAddUserVocabulary = () => {
           sentence_text: word.sentence_text || null,
           sentence_english: word.sentence_english || null,
           sentence_audio_url: word.sentence_audio_url || null,
+          word_audio_url: word.word_audio_url || null,
           dialect: word.dialect || activeDialect,
         } as any)
         .select()

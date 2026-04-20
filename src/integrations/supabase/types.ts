@@ -1118,6 +1118,7 @@ export type Database = {
           audio_url: string | null
           created_at: string
           cultural_context: string | null
+          dialect: string | null
           grammar_points: Json
           id: string
           lines: Json
@@ -1131,6 +1132,7 @@ export type Database = {
           audio_url?: string | null
           created_at?: string
           cultural_context?: string | null
+          dialect?: string | null
           grammar_points?: Json
           id?: string
           lines?: Json
@@ -1144,6 +1146,7 @@ export type Database = {
           audio_url?: string | null
           created_at?: string
           cultural_context?: string | null
+          dialect?: string | null
           grammar_points?: Json
           id?: string
           lines?: Json

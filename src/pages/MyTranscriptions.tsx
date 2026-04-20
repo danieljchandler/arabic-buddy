@@ -1,13 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useDialect } from "@/contexts/DialectContext";
 import { AppShell } from "@/components/layout/AppShell";
 import { HomeButton } from "@/components/HomeButton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { FileAudio, Trash2, Loader2, Eye } from "lucide-react";
+import { FileAudio, Trash2, Loader2, Eye, Shuffle } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -29,13 +30,16 @@ type SavedRow = {
   vocabulary: any;
   grammar_points: any;
   lines: any;
+  dialect: string | null;
 };
 
 export default function MyTranscriptions() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
+  const { activeDialect } = useDialect();
   const [rows, setRows] = useState<SavedRow[] | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showAll, setShowAll] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -52,7 +56,7 @@ export default function MyTranscriptions() {
     setLoading(true);
     const { data, error } = await supabase
       .from("saved_transcriptions")
-      .select("id,title,created_at,raw_transcript_arabic,vocabulary,grammar_points,lines")
+      .select("id,title,created_at,raw_transcript_arabic,vocabulary,grammar_points,lines,dialect")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false });
     console.log("[MyTranscriptions] loaded for user", user.id, { count: data?.length, error });
@@ -64,6 +68,12 @@ export default function MyTranscriptions() {
     }
     setLoading(false);
   }
+
+  const visibleRows = useMemo(() => {
+    if (!rows) return rows;
+    if (showAll) return rows;
+    return rows.filter((r) => (r.dialect ?? null) === activeDialect || r.dialect == null);
+  }, [rows, showAll, activeDialect]);
 
   async function handleDelete(id: string) {
     const { error } = await supabase.from("saved_transcriptions").delete().eq("id", id);
@@ -79,28 +89,45 @@ export default function MyTranscriptions() {
     <AppShell>
       <div className="max-w-3xl mx-auto p-4 space-y-4">
         <HomeButton />
-        <div>
-          <h1 className="text-2xl font-bold">My Transcriptions</h1>
-          <p className="text-sm text-muted-foreground">
-            Everything you've saved from the Transcribe tool.
-          </p>
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div>
+            <h1 className="text-2xl font-bold">My Transcriptions</h1>
+            <p className="text-sm text-muted-foreground">
+              Everything you've saved from the Transcribe tool.
+            </p>
+          </div>
+          <Button
+            variant={showAll ? "default" : "outline"}
+            size="sm"
+            className="gap-1.5"
+            onClick={() => setShowAll((v) => !v)}
+          >
+            <Shuffle className="h-3.5 w-3.5" />
+            {showAll ? "All dialects" : activeDialect}
+          </Button>
         </div>
 
         {loading ? (
           <div className="flex items-center justify-center py-16">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
-        ) : rows && rows.length === 0 ? (
+        ) : visibleRows && visibleRows.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center space-y-3">
               <FileAudio className="h-10 w-10 mx-auto text-muted-foreground" />
-              <p className="text-muted-foreground">No saved transcriptions yet.</p>
-              <Button onClick={() => navigate("/transcribe")}>Go to Transcribe</Button>
+              <p className="text-muted-foreground">
+                {rows && rows.length > 0
+                  ? `No saved transcriptions for ${activeDialect}. Toggle to see all.`
+                  : "No saved transcriptions yet."}
+              </p>
+              {(!rows || rows.length === 0) && (
+                <Button onClick={() => navigate("/transcribe")}>Go to Transcribe</Button>
+              )}
             </CardContent>
           </Card>
         ) : (
           <div className="space-y-3">
-            {rows?.map((r) => {
+            {visibleRows?.map((r) => {
               const vocabCount = Array.isArray(r.vocabulary) ? r.vocabulary.length : 0;
               const grammarCount = Array.isArray(r.grammar_points) ? r.grammar_points.length : 0;
               const lineCount = Array.isArray(r.lines) ? r.lines.length : 0;
@@ -123,6 +150,7 @@ export default function MyTranscriptions() {
                       {r.raw_transcript_arabic || "—"}
                     </p>
                     <div className="flex flex-wrap gap-2">
+                      {r.dialect && <Badge>{r.dialect}</Badge>}
                       <Badge variant="secondary">{lineCount} lines</Badge>
                       <Badge variant="secondary">{vocabCount} vocab</Badge>
                       <Badge variant="secondary">{grammarCount} grammar</Badge>

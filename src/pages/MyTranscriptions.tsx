@@ -36,8 +36,10 @@ type SavedRow = {
 export default function MyTranscriptions() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
+  const { activeDialect } = useDialect();
   const [rows, setRows] = useState<SavedRow[] | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showAll, setShowAll] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -54,7 +56,7 @@ export default function MyTranscriptions() {
     setLoading(true);
     const { data, error } = await supabase
       .from("saved_transcriptions")
-      .select("id,title,created_at,raw_transcript_arabic,vocabulary,grammar_points,lines")
+      .select("id,title,created_at,raw_transcript_arabic,vocabulary,grammar_points,lines,dialect")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false });
     console.log("[MyTranscriptions] loaded for user", user.id, { count: data?.length, error });
@@ -66,6 +68,12 @@ export default function MyTranscriptions() {
     }
     setLoading(false);
   }
+
+  const visibleRows = useMemo(() => {
+    if (!rows) return rows;
+    if (showAll) return rows;
+    return rows.filter((r) => (r.dialect ?? null) === activeDialect || r.dialect == null);
+  }, [rows, showAll, activeDialect]);
 
   async function handleDelete(id: string) {
     const { error } = await supabase.from("saved_transcriptions").delete().eq("id", id);

@@ -18,6 +18,8 @@ import { NotificationBell } from "@/components/NotificationBell";
 import { formatDuration } from "@/lib/videoEmbed";
 import { useDialect, DialectModule } from "@/contexts/DialectContext";
 import { PhraseOfTheDay } from "@/components/PhraseOfTheDay";
+import { useHomeLayout } from "@/hooks/useHomeLayout";
+import { HomeSectionId, isSectionVisible } from "@/lib/homeLayout";
 
 const DiscoverPreviewCard = ({ video, onClick }: { video: any; onClick: () => void }) => {
   const [showOverlay, setShowOverlay] = useState(true);

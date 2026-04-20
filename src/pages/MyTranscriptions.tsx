@@ -89,28 +89,45 @@ export default function MyTranscriptions() {
     <AppShell>
       <div className="max-w-3xl mx-auto p-4 space-y-4">
         <HomeButton />
-        <div>
-          <h1 className="text-2xl font-bold">My Transcriptions</h1>
-          <p className="text-sm text-muted-foreground">
-            Everything you've saved from the Transcribe tool.
-          </p>
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div>
+            <h1 className="text-2xl font-bold">My Transcriptions</h1>
+            <p className="text-sm text-muted-foreground">
+              Everything you've saved from the Transcribe tool.
+            </p>
+          </div>
+          <Button
+            variant={showAll ? "default" : "outline"}
+            size="sm"
+            className="gap-1.5"
+            onClick={() => setShowAll((v) => !v)}
+          >
+            <Shuffle className="h-3.5 w-3.5" />
+            {showAll ? "All dialects" : activeDialect}
+          </Button>
         </div>
 
         {loading ? (
           <div className="flex items-center justify-center py-16">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
-        ) : rows && rows.length === 0 ? (
+        ) : visibleRows && visibleRows.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center space-y-3">
               <FileAudio className="h-10 w-10 mx-auto text-muted-foreground" />
-              <p className="text-muted-foreground">No saved transcriptions yet.</p>
-              <Button onClick={() => navigate("/transcribe")}>Go to Transcribe</Button>
+              <p className="text-muted-foreground">
+                {rows && rows.length > 0
+                  ? `No saved transcriptions for ${activeDialect}. Toggle to see all.`
+                  : "No saved transcriptions yet."}
+              </p>
+              {(!rows || rows.length === 0) && (
+                <Button onClick={() => navigate("/transcribe")}>Go to Transcribe</Button>
+              )}
             </CardContent>
           </Card>
         ) : (
           <div className="space-y-3">
-            {rows?.map((r) => {
+            {visibleRows?.map((r) => {
               const vocabCount = Array.isArray(r.vocabulary) ? r.vocabulary.length : 0;
               const grammarCount = Array.isArray(r.grammar_points) ? r.grammar_points.length : 0;
               const lineCount = Array.isArray(r.lines) ? r.lines.length : 0;

@@ -859,7 +859,8 @@ const Transcribe = () => {
         grammar_points: JSON.parse(JSON.stringify(transcriptResult.grammarPoints)),
         cultural_context: transcriptResult.culturalContext || null,
         audio_url: audioUrl || null,
-      });
+        dialect: activeDialect,
+      } as never);
       if (error) throw error;
       setIsSaved(true);
       setShowSaveDialog(false);

@@ -150,17 +150,13 @@ const SouqNews = () => {
                   {article.title_dialect}
                 </h2>
 
-                {/* Arabic body — tappable words */}
+                {/* Arabic body — line by line with reveal */}
                 <div className="mb-4">
-                  <p className="text-xs text-muted-foreground mb-2">Tap any word for translation</p>
-                  <TappableArabicText
-                    text={article.body_dialect}
-                    vocabulary={article.vocabulary || []}
-                    source="souq-news"
-                    sentenceContext={{
-                      arabic: article.body_dialect,
-                      english: article.summary_english,
-                    }}
+                  <ArticleSentences
+                    bodyDialect={article.body_dialect}
+                    summaryEnglish={article.summary_english}
+                    sentences={article.sentences}
+                    vocabulary={article.vocabulary}
                   />
                 </div>
 

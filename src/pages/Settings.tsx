@@ -10,6 +10,7 @@ import { Switch } from '@/components/ui/switch';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { Loader2, Check, ArrowLeft, User, Globe2, Target, Eye, Heart, ChevronRight } from 'lucide-react';
+import { HomeLayoutEditor } from '@/components/settings/HomeLayoutEditor';
 
 const DIALECTS = [
   { id: 'Gulf', label: 'Gulf Arabic', labelAr: 'خليجي', flag: '🌊' },

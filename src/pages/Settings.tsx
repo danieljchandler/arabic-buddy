@@ -269,6 +269,9 @@ const Settings = () => {
             </button>
           </section>
 
+          {/* Home Layout */}
+          <HomeLayoutEditor />
+
           {/* Privacy Section */}
           <section className="space-y-3">
             <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wider">

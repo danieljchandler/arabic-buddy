@@ -17,6 +17,7 @@ import { useState } from "react";
 import { NotificationBell } from "@/components/NotificationBell";
 import { formatDuration } from "@/lib/videoEmbed";
 import { useDialect, DialectModule } from "@/contexts/DialectContext";
+import { PhraseOfTheDay } from "@/components/PhraseOfTheDay";
 
 const DiscoverPreviewCard = ({ video, onClick }: { video: any; onClick: () => void }) => {
   const [showOverlay, setShowOverlay] = useState(true);
@@ -199,6 +200,9 @@ const Index = () => {
           </button>
         ))}
       </div>
+
+      {/* ===== PHRASE OF THE DAY ===== */}
+      <PhraseOfTheDay />
 
       {/* ===== PLACEMENT QUIZ BANNER ===== */}
       {isAuthenticated && !placementLevel && (

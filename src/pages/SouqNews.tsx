@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TappableArabicText } from "@/components/shared/TappableArabicText";
 import { ArticleQuiz } from "@/components/souq-news/ArticleQuiz";
+import { ArticleSentences } from "@/components/souq-news/ArticleSentences";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {

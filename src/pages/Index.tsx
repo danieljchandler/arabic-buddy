@@ -116,6 +116,7 @@ const Index = () => {
   const { data: discoverVideos } = useDiscoverVideos({ dialect: activeDialect });
   const { hasAccess: hasBibleAccess } = useBibleAccess();
 
+  const { state: homeLayout } = useHomeLayout();
   const [previewIndex, setPreviewIndex] = useState(0);
   const [placementLevel, setPlacementLevel] = useState<string | null>(null);
   const previewVideos = discoverVideos?.slice(0, 5) ?? [];

@@ -150,6 +150,7 @@ export default function MyTranscriptions() {
                       {r.raw_transcript_arabic || "—"}
                     </p>
                     <div className="flex flex-wrap gap-2">
+                      {r.dialect && <Badge>{r.dialect}</Badge>}
                       <Badge variant="secondary">{lineCount} lines</Badge>
                       <Badge variant="secondary">{vocabCount} vocab</Badge>
                       <Badge variant="secondary">{grammarCount} grammar</Badge>

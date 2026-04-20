@@ -1,13 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useDialect } from "@/contexts/DialectContext";
 import { AppShell } from "@/components/layout/AppShell";
 import { HomeButton } from "@/components/HomeButton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { FileAudio, Trash2, Loader2, Eye } from "lucide-react";
+import { FileAudio, Trash2, Loader2, Eye, Shuffle } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -29,6 +30,7 @@ type SavedRow = {
   vocabulary: any;
   grammar_points: any;
   lines: any;
+  dialect: string | null;
 };
 
 export default function MyTranscriptions() {

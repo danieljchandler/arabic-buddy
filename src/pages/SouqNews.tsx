@@ -26,6 +26,7 @@ interface SouqArticle {
   summary_english: string;
   source_url: string | null;
   published_at: string;
+  sentences?: { arabic: string; english: string }[];
   vocabulary?: { word_arabic: string; word_english: string }[];
 }
 

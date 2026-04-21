@@ -961,10 +961,7 @@ const Transcribe = () => {
   const hasInput = Boolean(file);
   const showTimeRange = mediaDuration !== null && mediaDuration > MAX_DURATION;
 
-  // Admin-only feature: redirect non-admins (after all hooks have run)
-  if (!adminLoading && !isAdmin) {
-    return <Navigate to="/" replace />;
-  }
+  // Video uploads & URL imports are admin-only. Audio uploads remain available to everyone.
 
   return (
     <ErrorBoundary name="Transcribe">

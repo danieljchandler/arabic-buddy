@@ -118,6 +118,7 @@ const Index = () => {
   const { hasAccess: hasBibleAccess } = useBibleAccess();
 
   const { state: homeLayout } = useHomeLayout();
+  const { isAdmin } = useAdminAuth();
   const [previewIndex, setPreviewIndex] = useState(0);
   const [placementLevel, setPlacementLevel] = useState<string | null>(null);
   const previewVideos = discoverVideos?.slice(0, 5) ?? [];

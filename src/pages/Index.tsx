@@ -563,19 +563,19 @@ const Index = () => {
             </button>
           ),
 
-          "transcribe": (
+          "transcribe": isAdmin ? (
             <button key="transcribe" onClick={() => navigate("/transcribe")} className={cn("w-full p-4 rounded-xl bg-card border border-border flex items-center gap-3 transition-all duration-200 hover:border-primary/20")}>
               <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                 <Mic className="h-5 w-5 text-primary" />
               </div>
               <div className="text-left">
                 <p className="font-semibold text-foreground">Transcribe Audio</p>
-                <p className="text-xs text-muted-foreground">Convert Arabic audio to text</p>
+                <p className="text-xs text-muted-foreground">Convert Arabic audio to text (admin)</p>
               </div>
             </button>
-          ),
+          ) : null,
 
-          "my-transcriptions": isAuthenticated ? (
+          "my-transcriptions": isAuthenticated && isAdmin ? (
             <button key="my-transcriptions" onClick={() => navigate("/my-transcriptions")} className={cn("w-full p-4 rounded-xl bg-card border border-border flex items-center gap-3 transition-all duration-200 hover:border-primary/20")}>
               <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                 <FileText className="h-5 w-5 text-primary" />

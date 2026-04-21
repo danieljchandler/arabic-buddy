@@ -14,7 +14,9 @@ import { decodeAudioFile, clipToWav } from "@/lib/audioClipper";
 import { LineByLineTranscript } from "@/components/transcript/LineByLineTranscript";
 import { TimeRangeSelector } from "@/components/transcript/TimeRangeSelector";
 import { useAuth } from "@/hooks/useAuth";
+import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { useDialect } from "@/contexts/DialectContext";
+import { Navigate } from "react-router-dom";
 import { useAddUserVocabulary } from "@/hooks/useUserVocabulary";
 import { Input } from "@/components/ui/input";
 import {
@@ -168,6 +170,7 @@ const MAX_DURATION = 180; // 3 minutes
 
 const Transcribe = () => {
   const { user, isAuthenticated } = useAuth();
+  const { isAdmin, loading: adminLoading } = useAdminAuth();
   const { activeDialect } = useDialect();
 
   const addUserVocabulary = useAddUserVocabulary();
@@ -957,6 +960,11 @@ const Transcribe = () => {
 
   const hasInput = Boolean(file);
   const showTimeRange = mediaDuration !== null && mediaDuration > MAX_DURATION;
+
+  // Admin-only feature: redirect non-admins (after all hooks have run)
+  if (!adminLoading && !isAdmin) {
+    return <Navigate to="/" replace />;
+  }
 
   return (
     <ErrorBoundary name="Transcribe">

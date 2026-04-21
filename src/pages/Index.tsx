@@ -20,6 +20,7 @@ import { useDialect, DialectModule } from "@/contexts/DialectContext";
 import { PhraseOfTheDay } from "@/components/PhraseOfTheDay";
 import { useHomeLayout } from "@/hooks/useHomeLayout";
 import { HomeSectionId, isSectionVisible } from "@/lib/homeLayout";
+import { useAdminAuth } from "@/hooks/useAdminAuth";
 
 const DiscoverPreviewCard = ({ video, onClick }: { video: any; onClick: () => void }) => {
   const [showOverlay, setShowOverlay] = useState(true);

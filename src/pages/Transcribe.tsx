@@ -16,7 +16,6 @@ import { TimeRangeSelector } from "@/components/transcript/TimeRangeSelector";
 import { useAuth } from "@/hooks/useAuth";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { useDialect } from "@/contexts/DialectContext";
-import { Navigate } from "react-router-dom";
 import { useAddUserVocabulary } from "@/hooks/useUserVocabulary";
 import { Input } from "@/components/ui/input";
 import {

@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { HomeButton } from "@/components/HomeButton";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { supabase } from "@/integrations/supabase/client";
+import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { TranscriptResult, VocabItem, GrammarPoint } from "@/types/transcript";

@@ -973,7 +973,9 @@ const Transcribe = () => {
               Transcribe Audio
             </h1>
             <p className="text-muted-foreground">
-              Upload an audio/video file or paste a link from YouTube or social media
+              {isAdmin
+                ? "Upload an audio/video file or paste a link from YouTube or social media"
+                : "Upload an audio file to transcribe"}
             </p>
           </div>
         </div>

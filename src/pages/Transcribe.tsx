@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { HomeButton } from "@/components/HomeButton";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { supabase } from "@/integrations/supabase/client";
+import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { TranscriptResult, VocabItem, GrammarPoint } from "@/types/transcript";
@@ -16,7 +17,6 @@ import { TimeRangeSelector } from "@/components/transcript/TimeRangeSelector";
 import { useAuth } from "@/hooks/useAuth";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { useDialect } from "@/contexts/DialectContext";
-import { Navigate } from "react-router-dom";
 import { useAddUserVocabulary } from "@/hooks/useUserVocabulary";
 import { Input } from "@/components/ui/input";
 import {
@@ -336,6 +336,9 @@ const Transcribe = () => {
     };
   }, []);
 
+  const isVideoFile = (f: File) =>
+    f.type.startsWith("video/") || /\.(mp4|webm|mov|mkv|avi)$/i.test(f.name);
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     try {
       const selectedFile = e.target.files?.[0];
@@ -350,6 +353,12 @@ const Transcribe = () => {
           !selectedFile.name.match(/\.(mp3|wav|m4a|ogg|mp4|webm|mov)$/i)
         ) {
           toast.error("Unsupported file type", { description: "Please upload an audio or video file" });
+          return;
+        }
+
+        if (!isAdmin && isVideoFile(selectedFile)) {
+          toast.error("Video uploads are admin-only", { description: "Please upload an audio file (MP3, WAV, M4A, OGG)" });
+          if (fileInputRef.current) fileInputRef.current.value = "";
           return;
         }
 
@@ -372,6 +381,10 @@ const Transcribe = () => {
       e.preventDefault();
       const droppedFile = e.dataTransfer.files?.[0];
       if (droppedFile) {
+        if (!isAdmin && isVideoFile(droppedFile)) {
+          toast.error("Video uploads are admin-only", { description: "Please upload an audio file (MP3, WAV, M4A, OGG)" });
+          return;
+        }
         setFile(droppedFile);
         setTranscriptResult(null);
         
@@ -961,10 +974,7 @@ const Transcribe = () => {
   const hasInput = Boolean(file);
   const showTimeRange = mediaDuration !== null && mediaDuration > MAX_DURATION;
 
-  // Admin-only feature: redirect non-admins (after all hooks have run)
-  if (!adminLoading && !isAdmin) {
-    return <Navigate to="/" replace />;
-  }
+  // Video uploads & URL imports are admin-only. Audio uploads remain available to everyone.
 
   return (
     <ErrorBoundary name="Transcribe">
@@ -977,7 +987,9 @@ const Transcribe = () => {
               Transcribe Audio
             </h1>
             <p className="text-muted-foreground">
-              Upload an audio/video file or paste a link from YouTube or social media
+              {isAdmin
+                ? "Upload an audio/video file or paste a link from YouTube or social media"
+                : "Upload an audio file to transcribe"}
             </p>
           </div>
         </div>
@@ -989,15 +1001,17 @@ const Transcribe = () => {
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="upload">
-              <TabsList className="grid w-full grid-cols-2">
+              <TabsList className={cn("grid w-full", isAdmin ? "grid-cols-2" : "grid-cols-1")}>
                 <TabsTrigger value="upload" className="gap-2">
                   <Upload className="h-4 w-4" />
                   Upload File
                 </TabsTrigger>
-                <TabsTrigger value="url" className="gap-2">
-                  <Link2 className="h-4 w-4" />
-                  URL
-                </TabsTrigger>
+                {isAdmin && (
+                  <TabsTrigger value="url" className="gap-2">
+                    <Link2 className="h-4 w-4" />
+                    URL
+                  </TabsTrigger>
+                )}
               </TabsList>
 
               {/* Upload Tab */}
@@ -1013,7 +1027,9 @@ const Transcribe = () => {
                   <input
                     ref={fileInputRef}
                     type="file"
-                    accept="audio/*,video/*,.mp3,.wav,.m4a,.ogg,.mp4,.webm,.mov"
+                    accept={isAdmin
+                      ? "audio/*,video/*,.mp3,.wav,.m4a,.ogg,.mp4,.webm,.mov"
+                      : "audio/*,.mp3,.wav,.m4a,.ogg"}
                     onChange={handleFileSelect}
                     className="hidden"
                     id="file-upload"
@@ -1036,40 +1052,42 @@ const Transcribe = () => {
                     <label htmlFor="file-upload" className="cursor-pointer">
                       <Upload className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                       <p className="text-foreground font-medium">Click or drag a file here</p>
-                      <p className="text-sm text-muted-foreground mt-1">MP3, WAV, M4A, OGG, MP4, WebM, MOV</p>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {isAdmin ? "MP3, WAV, M4A, OGG, MP4, WebM, MOV" : "MP3, WAV, M4A, OGG"}
+                      </p>
                     </label>
                   )}
                 </div>
               </TabsContent>
 
-              {/* URL Tab */}
-              <TabsContent value="url">
-                <div className="space-y-4">
-                  <div className="flex gap-2">
-                    <Input
-                      value={urlInput}
-                      onChange={(e) => setUrlInput(e.target.value)}
-                      placeholder="Paste a YouTube, TikTok, Instagram, or any video URL..."
-                      dir="ltr"
-                      className="font-mono text-sm"
-                      disabled={isLoadingUrl || isProcessing}
-                    />
-                    <Button
-                      onClick={processUrl}
-                      disabled={!urlInput.trim() || isLoadingUrl || isProcessing}
-                      variant="secondary"
-                    >
-                      {isLoadingUrl ? <Loader2 className="h-4 w-4 animate-spin" /> : "Extract"}
-                    </Button>
+              {/* URL Tab — admin only */}
+              {isAdmin && (
+                <TabsContent value="url">
+                  <div className="space-y-4">
+                    <div className="flex gap-2">
+                      <Input
+                        value={urlInput}
+                        onChange={(e) => setUrlInput(e.target.value)}
+                        placeholder="Paste a YouTube, TikTok, Instagram, or any video URL..."
+                        dir="ltr"
+                        className="font-mono text-sm"
+                        disabled={isLoadingUrl || isProcessing}
+                      />
+                      <Button
+                        onClick={processUrl}
+                        disabled={!urlInput.trim() || isLoadingUrl || isProcessing}
+                        variant="secondary"
+                      >
+                        {isLoadingUrl ? <Loader2 className="h-4 w-4 animate-spin" /> : "Extract"}
+                      </Button>
+                    </div>
+                    
+                    <p className="text-xs text-muted-foreground">
+                      Supports direct links and pages with embedded video/audio
+                    </p>
                   </div>
-                  
-                  <p className="text-xs text-muted-foreground">
-                    Supports direct links and pages with embedded video/audio
-                  </p>
-
-                  
-                </div>
-              </TabsContent>
+                </TabsContent>
+              )}
             </Tabs>
 
             {/* Time Range Selector */}

@@ -987,15 +987,17 @@ const Transcribe = () => {
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="upload">
-              <TabsList className="grid w-full grid-cols-2">
+              <TabsList className={cn("grid w-full", isAdmin ? "grid-cols-2" : "grid-cols-1")}>
                 <TabsTrigger value="upload" className="gap-2">
                   <Upload className="h-4 w-4" />
                   Upload File
                 </TabsTrigger>
-                <TabsTrigger value="url" className="gap-2">
-                  <Link2 className="h-4 w-4" />
-                  URL
-                </TabsTrigger>
+                {isAdmin && (
+                  <TabsTrigger value="url" className="gap-2">
+                    <Link2 className="h-4 w-4" />
+                    URL
+                  </TabsTrigger>
+                )}
               </TabsList>
 
               {/* Upload Tab */}
@@ -1011,7 +1013,9 @@ const Transcribe = () => {
                   <input
                     ref={fileInputRef}
                     type="file"
-                    accept="audio/*,video/*,.mp3,.wav,.m4a,.ogg,.mp4,.webm,.mov"
+                    accept={isAdmin
+                      ? "audio/*,video/*,.mp3,.wav,.m4a,.ogg,.mp4,.webm,.mov"
+                      : "audio/*,.mp3,.wav,.m4a,.ogg"}
                     onChange={handleFileSelect}
                     className="hidden"
                     id="file-upload"
@@ -1034,40 +1038,42 @@ const Transcribe = () => {
                     <label htmlFor="file-upload" className="cursor-pointer">
                       <Upload className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                       <p className="text-foreground font-medium">Click or drag a file here</p>
-                      <p className="text-sm text-muted-foreground mt-1">MP3, WAV, M4A, OGG, MP4, WebM, MOV</p>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {isAdmin ? "MP3, WAV, M4A, OGG, MP4, WebM, MOV" : "MP3, WAV, M4A, OGG"}
+                      </p>
                     </label>
                   )}
                 </div>
               </TabsContent>
 
-              {/* URL Tab */}
-              <TabsContent value="url">
-                <div className="space-y-4">
-                  <div className="flex gap-2">
-                    <Input
-                      value={urlInput}
-                      onChange={(e) => setUrlInput(e.target.value)}
-                      placeholder="Paste a YouTube, TikTok, Instagram, or any video URL..."
-                      dir="ltr"
-                      className="font-mono text-sm"
-                      disabled={isLoadingUrl || isProcessing}
-                    />
-                    <Button
-                      onClick={processUrl}
-                      disabled={!urlInput.trim() || isLoadingUrl || isProcessing}
-                      variant="secondary"
-                    >
-                      {isLoadingUrl ? <Loader2 className="h-4 w-4 animate-spin" /> : "Extract"}
-                    </Button>
+              {/* URL Tab — admin only */}
+              {isAdmin && (
+                <TabsContent value="url">
+                  <div className="space-y-4">
+                    <div className="flex gap-2">
+                      <Input
+                        value={urlInput}
+                        onChange={(e) => setUrlInput(e.target.value)}
+                        placeholder="Paste a YouTube, TikTok, Instagram, or any video URL..."
+                        dir="ltr"
+                        className="font-mono text-sm"
+                        disabled={isLoadingUrl || isProcessing}
+                      />
+                      <Button
+                        onClick={processUrl}
+                        disabled={!urlInput.trim() || isLoadingUrl || isProcessing}
+                        variant="secondary"
+                      >
+                        {isLoadingUrl ? <Loader2 className="h-4 w-4 animate-spin" /> : "Extract"}
+                      </Button>
+                    </div>
+                    
+                    <p className="text-xs text-muted-foreground">
+                      Supports direct links and pages with embedded video/audio
+                    </p>
                   </div>
-                  
-                  <p className="text-xs text-muted-foreground">
-                    Supports direct links and pages with embedded video/audio
-                  </p>
-
-                  
-                </div>
-              </TabsContent>
+                </TabsContent>
+              )}
             </Tabs>
 
             {/* Time Range Selector */}

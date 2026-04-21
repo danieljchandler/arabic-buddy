@@ -37,6 +37,7 @@ import {
 } from "lucide-react";
 import { DIALECT_FLAGS, DIALECT_LABELS } from "@/config";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { TappableArabicText } from "@/components/shared/TappableArabicText";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 type ViewMode = "select" | "reading";
@@ -438,41 +439,47 @@ const BibleReadingInner = () => {
           {/* Verses */}
           <ScrollArea className="h-[calc(100vh-180px)]">
             <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
-              {arabicVerses.map((verse, idx) => (
-                <div key={idx} className="space-y-2">
-                  {/* Formal Arabic */}
-                  {showFormal && (
-                    <p
-                      className="text-lg leading-relaxed font-arabic text-foreground"
-                      dir="rtl"
-                    >
-                      {verse}
-                    </p>
-                  )}
+              {arabicVerses.map((verse, idx) => {
+                const englishLine = englishVerses[idx] || "";
+                const dialectLine = dialectVerses[idx] || "";
+                return (
+                  <div key={idx} className="space-y-2">
+                    {/* Formal Arabic */}
+                    {showFormal && (
+                      <div dir="rtl" className="text-lg leading-relaxed font-arabic text-foreground">
+                        <TappableArabicText
+                          text={verse}
+                          source="bible"
+                          sentenceContext={{ arabic: verse, english: englishLine }}
+                        />
+                      </div>
+                    )}
 
-                  {/* Dialect */}
-                  {showDialect && dialectVerses[idx] && (
-                    <p
-                      className="text-lg leading-relaxed font-arabic text-primary"
-                      dir="rtl"
-                    >
-                      {dialectVerses[idx]}
-                    </p>
-                  )}
+                    {/* Dialect */}
+                    {showDialect && dialectLine && (
+                      <div dir="rtl" className="text-lg leading-relaxed font-arabic text-primary">
+                        <TappableArabicText
+                          text={dialectLine}
+                          source="bible"
+                          sentenceContext={{ arabic: dialectLine, english: englishLine }}
+                        />
+                      </div>
+                    )}
 
-                  {/* English */}
-                  {showEnglish && englishVerses[idx] && (
-                    <p className="text-sm text-muted-foreground leading-relaxed">
-                      {englishVerses[idx]}
-                    </p>
-                  )}
+                    {/* English */}
+                    {showEnglish && englishLine && (
+                      <p className="text-sm text-muted-foreground leading-relaxed">
+                        {englishLine}
+                      </p>
+                    )}
 
-                  {/* Divider */}
-                  {idx < arabicVerses.length - 1 && (
-                    <div className="border-b border-border/50 pt-2" />
-                  )}
-                </div>
-              ))}
+                    {/* Divider */}
+                    {idx < arabicVerses.length - 1 && (
+                      <div className="border-b border-border/50 pt-2" />
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </ScrollArea>
         </div>

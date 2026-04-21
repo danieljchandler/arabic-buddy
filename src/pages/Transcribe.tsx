@@ -961,6 +961,11 @@ const Transcribe = () => {
   const hasInput = Boolean(file);
   const showTimeRange = mediaDuration !== null && mediaDuration > MAX_DURATION;
 
+  // Admin-only feature: redirect non-admins (after all hooks have run)
+  if (!adminLoading && !isAdmin) {
+    return <Navigate to="/" replace />;
+  }
+
   return (
     <ErrorBoundary name="Transcribe">
     <div className="min-h-screen bg-background p-4 md:p-8">

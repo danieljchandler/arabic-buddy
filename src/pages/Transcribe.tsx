@@ -170,6 +170,7 @@ const MAX_DURATION = 180; // 3 minutes
 
 const Transcribe = () => {
   const { user, isAuthenticated } = useAuth();
+  const { isAdmin, loading: adminLoading } = useAdminAuth();
   const { activeDialect } = useDialect();
 
   const addUserVocabulary = useAddUserVocabulary();

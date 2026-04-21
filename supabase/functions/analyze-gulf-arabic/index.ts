@@ -175,6 +175,35 @@ CRITICAL RULES FOR SPLITTING:
    - Keep contractions, slang, filler words (يعني، هيه، آه) exactly as spoken.
    - Do NOT correct grammar or normalize spelling to MSA/formal Arabic.
 
+7. TASHKEEL / HARAKAT — REQUIRED (dialect-accurate, not MSA):
+   Every Arabic word in lines[].arabic MUST be FULLY voweled with tashkeel that matches HOW THE SPEAKER ACTUALLY PRONOUNCES IT in ${dialectFamilyLabel()}, NOT the MSA standard.
+   - Mark all of: fatha (◌َ), damma (◌ُ), kasra (◌ِ), sukun (◌ْ), shadda (◌ّ), tanwin (◌ً ◌ٌ ◌ٍ), and dagger alif (◌ٰ) where relevant.
+   - Use the DIALECTAL vowel actually heard, never the MSA equivalent.
+   - Drop case endings (إعراب) the speaker doesn't pronounce. Colloquial Arabic almost never voices final فتحة/ضمة/كسرة — leave them as sukun or omit if the speaker pauses.
+   - Keep shadda on every geminated consonant the speaker actually doubles.
+   - Do NOT overlay MSA vowels on a dialectal pronunciation (e.g. never write «قَالَ» over a spoken «گَال» / «چَال»).
+   ${DIALECT_MODULE === 'Egyptian'
+     ? `Egyptian examples:
+     - Write «إِزَّايْ» (NOT «كَيْفَ»)
+     - Write «عَايِز» (NOT «أُرِيدُ»)
+     - Write «دِلْوَقْتِي» with the actual short vowels heard
+     - Write «بِتْعَمِل» (NOT «تَفْعَلُ»)
+     - Write «النَّهَارْدَه» exactly as pronounced
+     - Preserve the Egyptian ج as ج (pronounced /g/) without re-voweling toward MSA.`
+     : DIALECT_MODULE === 'Yemeni'
+       ? `Yemeni examples:
+     - Write «بَيْش» / «كَيْفَش» with the actual short vowel heard
+     - Write «شِي» / «شَيّ» as pronounced (keep shadda when geminated)
+     - Preserve characteristic Yemeni vowel qualities (e.g. final imala) rather than normalizing to MSA
+     - Write «ذِي» / «ذَا» with the actual vowel heard, not MSA «هَذَا».`
+       : `Gulf examples (Kuwaiti / Saudi / Emirati / Qatari / Bahraini / Omani):
+     - Write «شِنُو» (NOT «شَنُو») — Kuwaiti
+     - Write «وِشْ» (NOT «وَشْ») — Saudi
+     - Write «چِذِي» (NOT «كَذَا») — Kuwaiti
+     - Write «يَبْغَى» (NOT «يُرِيدُ») — Saudi/Najdi
+     - Write «شْلُونَك» as actually pronounced
+     - Preserve چ and گ with their dialectal vowels, never re-vowel toward MSA «كَ» / «قَ».`}
+
 IMPORTANT: Output Arabic text ONLY — no "translation" field in this step.
 
 EXAMPLE of good splitting:
@@ -227,7 +256,7 @@ Output ONLY valid JSON matching this schema:
 }
 
 Rules:
-- lines: IMPORTANT — the output "lines" array MUST include ALL numbered lines from the input. Every single line, no exceptions. Keep the Arabic text EXACTLY as given. Provide a natural English translation for each line.
+- lines: IMPORTANT — the output "lines" array MUST include ALL numbered lines from the input. Every single line, no exceptions. Keep the Arabic text EXACTLY as given, INCLUDING every tashkeel/harakat mark (fatha, damma, kasra, sukun, shadda, tanwin, dagger alif). The input lines arrive already voweled with dialect-accurate tashkeel — preserve every diacritic exactly. Do NOT strip, normalize, add, or re-vowel toward MSA. Provide a natural English translation for each line.
 - vocabulary: 5–8 useful ${label} words or phrases with English meaning and root when applicable.
 - grammarPoints: 2–4 dialect-specific grammar points with brief examples from the transcript.
 - culturalContext: Optional brief cultural note about the content.

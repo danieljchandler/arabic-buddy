@@ -37,6 +37,7 @@ import {
 } from "lucide-react";
 import { DIALECT_FLAGS, DIALECT_LABELS } from "@/config";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { TappableArabicText } from "@/components/shared/TappableArabicText";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 type ViewMode = "select" | "reading";

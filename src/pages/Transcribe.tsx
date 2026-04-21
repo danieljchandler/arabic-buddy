@@ -336,6 +336,9 @@ const Transcribe = () => {
     };
   }, []);
 
+  const isVideoFile = (f: File) =>
+    f.type.startsWith("video/") || /\.(mp4|webm|mov|mkv|avi)$/i.test(f.name);
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     try {
       const selectedFile = e.target.files?.[0];
@@ -350,6 +353,12 @@ const Transcribe = () => {
           !selectedFile.name.match(/\.(mp3|wav|m4a|ogg|mp4|webm|mov)$/i)
         ) {
           toast.error("Unsupported file type", { description: "Please upload an audio or video file" });
+          return;
+        }
+
+        if (!isAdmin && isVideoFile(selectedFile)) {
+          toast.error("Video uploads are admin-only", { description: "Please upload an audio file (MP3, WAV, M4A, OGG)" });
+          if (fileInputRef.current) fileInputRef.current.value = "";
           return;
         }
 
@@ -372,6 +381,10 @@ const Transcribe = () => {
       e.preventDefault();
       const droppedFile = e.dataTransfer.files?.[0];
       if (droppedFile) {
+        if (!isAdmin && isVideoFile(droppedFile)) {
+          toast.error("Video uploads are admin-only", { description: "Please upload an audio file (MP3, WAV, M4A, OGG)" });
+          return;
+        }
         setFile(droppedFile);
         setTranscriptResult(null);
         

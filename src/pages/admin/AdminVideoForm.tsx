@@ -321,6 +321,25 @@ const AdminVideoForm = () => {
       }
     }
 
+    // TikTok requires both URL (for embed) and uploaded video file
+    if (savePlatform === "tiktok") {
+      if (!sourceUrl || !saveEmbedUrl || !saveEmbedUrl.includes("tiktok.com")) {
+        toast.error("TikTok URL required", {
+          description: "Paste the public TikTok link before uploading the file.",
+        });
+        return;
+      }
+    }
+
+    // Capture thumbnail from uploaded video file when we don't already have one
+    if (!saveThumbnail && file.type.startsWith("video/")) {
+      const captured = await captureAndUploadThumbnail(file);
+      if (captured) {
+        saveThumbnail = captured;
+        setThumbnailUrl(captured);
+      }
+    }
+
     let targetVideoId = videoId;
 
     try {
@@ -350,11 +369,49 @@ const AdminVideoForm = () => {
         if (insertErr) throw insertErr;
         targetVideoId = inserted.id;
       } else {
-        // Mark existing row as pending
+        // Mark existing row as pending (and update thumbnail if we just captured one)
+        const updates: Record<string, unknown> = { transcription_status: "pending" };
+        if (saveThumbnail && saveThumbnail !== thumbnailUrl) updates.thumbnail_url = saveThumbnail;
         await (supabase.from("discover_videos" as any) as any)
-          .update({ transcription_status: "pending" })
+          .update(updates)
           .eq("id", targetVideoId);
       }
+
+      // Upload audio to storage
+      const ext = file.name.split(".").pop() || "mp4";
+      const storagePath = `${targetVideoId}.${ext}`;
+      const { error: uploadErr } = await supabase.storage
+        .from("video-audio")
+        .upload(storagePath, file, { upsert: true });
+      if (uploadErr) {
+        console.error("Storage upload error:", uploadErr);
+        // Non-fatal — edge function will try download-media as fallback
+      }
+
+      // Fire-and-forget: call process-approved-video
+      supabase.functions.invoke("process-approved-video", {
+        body: { videoId: targetVideoId },
+      }).catch((err) => console.error("process-approved-video invoke error:", err));
+
+      toast.success("Processing started on server!", {
+        description: "You can safely leave this page. Results will appear automatically.",
+        duration: 6000,
+      });
+
+      // Navigate to edit page so polling picks up results
+      if (!videoId) {
+        navigate(`/admin/videos/${targetVideoId}/edit`);
+      }
+
+      queryClient.invalidateQueries({ queryKey: ["admin-discover-videos"] });
+    } catch (err) {
+      console.error("Pipeline kickoff error:", err);
+      setIsProcessing(false);
+      toast.error("Failed to start processing", {
+        description: err instanceof Error ? err.message : "Unknown error",
+      });
+    }
+  };
 
       // Upload audio to storage
       const ext = file.name.split(".").pop() || "mp4";

@@ -19,18 +19,21 @@ function buildSystemPrompt(dialect: string): string {
     : 'Gulf Arabic (Saudi, Emirati, Kuwaiti, Qatari, Bahraini, Omani culture).';
 
   const regionGuidelines = dialect === 'Egyptian'
-    ? `- Always provide the Egyptian Arabic phrase/response in Arabic script, transliteration, and English translation
+    ? `- Provide the Egyptian Arabic phrase/response in Arabic script and English translation only
+- NEVER include transliteration (no Latin-letter pronunciation guides like "izzayak" or "ezzay")
 - Explain the cultural reasoning behind your advice
 - Mention if customs vary between regions of Egypt (Cairo vs Upper Egypt vs Alexandria etc.)
 - Cover greetings, hospitality, business etiquette, religious customs, family dynamics, social norms
 - When giving Arabic phrases, prefer Egyptian dialect over MSA unless the context calls for formal Arabic`
     : dialect === 'Yemeni'
-    ? `- Always provide the Yemeni Arabic phrase/response in Arabic script, transliteration, and English translation
+    ? `- Provide the Yemeni Arabic phrase/response in Arabic script and English translation only
+- NEVER include transliteration (no Latin-letter pronunciation guides)
 - Explain the cultural reasoning behind your advice
 - Mention if customs vary between regions of Yemen (Sana'a vs Aden vs Hadramaut vs Ta'izz)
 - Cover greetings, hospitality, qat sessions, مفرج etiquette, جنبية traditions, business etiquette, religious customs, family dynamics, social norms
 - When giving Arabic phrases, prefer Yemeni dialect over MSA unless the context calls for formal Arabic`
-    : `- Always provide the Gulf Arabic phrase/response in Arabic script, transliteration, and English translation
+    : `- Provide the Gulf Arabic phrase/response in Arabic script and English translation only
+- NEVER include transliteration (no Latin-letter pronunciation guides like "shlonak" or "kayf halak")
 - Explain the cultural reasoning behind your advice
 - Mention if customs vary between Gulf countries (Saudi vs UAE vs Kuwait etc.)
 - Cover greetings, hospitality, business etiquette, religious customs, family dynamics, social norms

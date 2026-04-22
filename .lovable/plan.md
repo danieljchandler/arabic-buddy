@@ -1,51 +1,45 @@
 
 
 ## Goal
-Add dialect-accurate tashkeel (fatha, damma, kasra, sukun, shadda, tanwin, dagger alif) to every newly transcribed line, for **Gulf, Egyptian, and Yemeni** alike. Vowels must reflect what the speaker actually said in their dialect — never MSA "corrections."
+Admin adds a TikTok video to Discover by uploading the **downloaded MP4** (used **only** for transcription) **and** pasting the **TikTok URL** (used for the embedded player). No self-hosted playback. No new storage bucket.
 
-## Where the fix lands
-A single edge function — `supabase/functions/analyze-gulf-arabic/index.ts` — handles all three dialects (it branches on `DIALECT_MODULE`). Two prompts inside it need updating:
+## Flow
 
-### 1. `getMergeOnlySystemPrompt` (Call 1 — produces `lines[].arabic`)
-Add a mandatory **TASHKEEL / HARAKAT** rule block:
+```text
+Admin form (Discover → Add Video)
+├── TikTok URL          → drives embed (existing TikTok iframe path)
+└── Upload video file   → audio extracted → transcription pipeline
+                          (file is discarded after transcription)
+```
 
-- Every Arabic word in `lines[].arabic` MUST be fully voweled with tashkeel matching how the speaker actually pronounces it in the active dialect — NOT MSA.
-- Mark all of: fatha (◌َ), damma (◌ُ), kasra (◌ِ), sukun (◌ْ), shadda (◌ّ), tanwin (◌ً ◌ٌ ◌ٍ), dagger alif (◌ٰ).
-- Drop case endings (إعراب) the speaker doesn't pronounce.
-- Keep shadda on every geminated consonant actually doubled.
-- Never overlay MSA vowels on a dialectal pronunciation (no `قَالَ` over a spoken `گَال` / `چَال`).
+## Changes
 
-Dialect-specific examples (all three modules covered):
-- **Gulf** (Kuwaiti/Saudi/Emirati/Qatari): «شِنُو» not «شَنُو»; «وِشْ» not «وَشْ»; «چِذِي» not «كَذَا»; «يَبْغَى» not «يُرِيدُ».
-- **Egyptian**: «إِزَّايْ» not «كَيْفَ»; «عَايِز» not «أُرِيدُ»; «دِلْوَقْتِي» with the actual short vowels heard; «بِتْعَمِل» not «تَفْعَلُ».
-- **Yemeni**: «بَيْش» / «كَيْفَش» with the actual short vowel heard; «شِي» / «شَيّ» as pronounced; preserve the characteristic Yemeni vowel qualities (e.g. final imala) rather than normalizing to MSA.
+### 1. `src/pages/admin/AdminVideoForm.tsx`
+- When platform = TikTok, show **two required inputs together**:
+  - **TikTok URL** (existing field) — required, parsed via `getTikTokEmbedUrl` / `resolve-tiktok-url`. This populates `source_url`, `platform='tiktok'`, `embed_url`.
+  - **Upload TikTok file (.mp4)** — required for new TikTok entries that don't have YouTube-style auto-transcription. File is fed straight into the existing `kickOffServerPipeline(file)` path that uploads to the `video-audio` bucket and calls `process-approved-video`.
+- The uploaded file is **not stored** on `discover_videos` — no new column, no public URL. Once transcription completes, the file lives only in the existing private `video-audio` bucket as the pipeline's working copy (same as today's audio uploads).
+- Thumbnail: capture frame 0 from the uploaded file client-side → upload to existing `flashcard-images` bucket → save as `thumbnail_url` (so the Discover grid has a tile image even though we're not hosting the video).
+- Duration: read from the file's `loadedmetadata` → save to `duration_seconds`.
 
-The block is dialect-agnostic in structure; the examples are injected per `DIALECT_MODULE` so each dialect gets its own concrete guidance.
+### 2. `src/pages/DiscoverVideo.tsx`
+- No new branch needed. TikTok entries continue to render through the existing TikTok iframe embed using `embed_url` (built from the pasted URL). Transcript syncs via the current TikTok manual-timer strategy.
 
-### 2. `getAnalysisSystemPrompt` (Call 2 — re-emits lines for analysis)
-Add: "Input lines arrive already voweled with dialect-accurate tashkeel. Preserve every diacritic exactly. Do not strip, normalize, or re-vowel toward MSA."
+### 3. `src/hooks/useDiscoverVideos.ts`
+- No type changes — `platform` stays `'tiktok'`, `source_url` stays the TikTok link, no new columns.
 
-### 3. Farasa stays untouched
-- `callFarasaDiacritize` continues running on the merged blob → stored in `diacritizedTranscript` for the ElevenLabs TTS path (TTS expects MSA-shaped vowels — leave it).
-- Farasa output is **never** written into `lines[].arabic`. User-facing text stays LLM-voweled = dialect-true.
+### 4. Schema
+- **No migration.** Existing `discover_videos` columns are sufficient.
 
-### 4. No schema, tokenizer, or response-shape changes
-Tokens are derived from `lines[].arabic`; the existing tokenizer preserves tashkeel in `surface`. `stripDiacritics` is only used for fuzzy matching — leaves storage untouched.
-
-## Coverage
-- **Transcribe page** ✓ (calls analyze-gulf-arabic directly)
-- **MyTranscriptions** ✓ (reads stored lines)
-- **Discover videos** ✓ (`process-approved-video` → analyze-gulf-arabic)
-- **YouTube/RunPod path** ✓ (receive-audio → analyze-gulf-arabic)
-- All three dialect modules ✓ (single prompt, dialect-conditional examples)
-
-## Files to change
-- `supabase/functions/analyze-gulf-arabic/index.ts` — prompt edits only (merge + analysis), with Gulf, Egyptian, and Yemeni example sets.
+### 5. Validation
+- Block submit on TikTok platform unless **both** the URL parses to a valid TikTok embed **and** an MP4 has been uploaded for transcription.
+- Other platforms (YouTube, Instagram) keep their current single-URL flow.
 
 ## Out of scope
-- Re-voweling already-saved transcriptions (only new transcriptions get tashkeel).
-- Bible verses, Souq News, generated curriculum (separate prompts, follow-up if desired).
+- Self-hosted video playback.
+- New storage bucket.
+- Public end-user uploads.
 
 ## Result
-Newly transcribed Kuwaiti, Egyptian, and Yemeni audio all render with vowels that match what was actually heard — e.g. Kuwaiti «شِنُو رَايْچ؟», Egyptian «إِزَّايَك النَّهَارْدَه؟», Yemeni «كَيْفَشْ حَالَكْ؟» — not MSA approximations.
+Admins paste the TikTok link (for the embedded player viewers see) **and** drop in the downloaded MP4 (so the transcription pipeline has clean audio to work from). Discover continues to display the official TikTok embed — never a self-hosted file.
 

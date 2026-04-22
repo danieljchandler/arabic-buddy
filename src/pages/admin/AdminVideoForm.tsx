@@ -147,6 +147,78 @@ const AdminVideoForm = () => {
     el.onerror = () => URL.revokeObjectURL(url);
   }, []);
 
+  /**
+   * Capture frame 0 from a video file, upload to flashcard-images bucket,
+   * and return the public URL. Used for TikTok uploads where we can't fetch
+   * a thumbnail from the embed.
+   */
+  const captureAndUploadThumbnail = useCallback(async (file: File): Promise<string | null> => {
+    if (!file.type.startsWith("video/")) return null;
+    return new Promise((resolve) => {
+      const video = document.createElement("video");
+      video.preload = "metadata";
+      video.muted = true;
+      video.playsInline = true;
+      const url = URL.createObjectURL(file);
+      video.src = url;
+
+      const cleanup = () => URL.revokeObjectURL(url);
+
+      video.onloadeddata = async () => {
+        try {
+          // Seek to frame ~0.1s to ensure a real frame is rendered
+          video.currentTime = Math.min(0.1, (video.duration || 1) / 2);
+        } catch {
+          cleanup();
+          resolve(null);
+        }
+      };
+
+      video.onseeked = async () => {
+        try {
+          const canvas = document.createElement("canvas");
+          canvas.width = video.videoWidth || 720;
+          canvas.height = video.videoHeight || 1280;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) {
+            cleanup();
+            resolve(null);
+            return;
+          }
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          const blob: Blob | null = await new Promise((res) =>
+            canvas.toBlob((b) => res(b), "image/jpeg", 0.85)
+          );
+          cleanup();
+          if (!blob) {
+            resolve(null);
+            return;
+          }
+          const path = `tiktok-thumbs/${crypto.randomUUID()}.jpg`;
+          const { error: upErr } = await supabase.storage
+            .from("flashcard-images")
+            .upload(path, blob, { contentType: "image/jpeg", upsert: true });
+          if (upErr) {
+            console.error("Thumbnail upload error:", upErr);
+            resolve(null);
+            return;
+          }
+          const { data: pub } = supabase.storage.from("flashcard-images").getPublicUrl(path);
+          resolve(pub?.publicUrl ?? null);
+        } catch (err) {
+          console.error("Thumbnail capture error:", err);
+          cleanup();
+          resolve(null);
+        }
+      };
+
+      video.onerror = () => {
+        cleanup();
+        resolve(null);
+      };
+    });
+  }, []);
+
   // Populate form when editing (or when server-side processing completes)
   useEffect(() => {
     if (existingVideo) {

@@ -257,10 +257,7 @@ const CultureGuide = () => {
       </div>
 
       <div className="mb-4">
-        <h1
-          className="text-xl font-bold text-foreground"
-          style={{ fontFamily: "'Montserrat', sans-serif" }}
-        >
+        <h1 className="text-xl font-bold text-foreground">
           What should I do?
         </h1>
         <p className="text-sm text-muted-foreground">

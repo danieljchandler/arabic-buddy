@@ -388,8 +388,35 @@ const DiscoverVideo = () => {
     if (playerRef.current?.seekTo) {
       playerRef.current.seekTo(ms / 1000, true);
       playerRef.current.playVideo?.();
+      return;
     }
-  }, []);
+    const audio = tiktokAudioRef.current;
+    if (audio && tiktokAudioReady) {
+      audio.currentTime = Math.max(0, ms / 1000);
+      audio.play().catch(() => {});
+    }
+  }, [tiktokAudioReady]);
+
+  // Resolve hidden audio source for TikTok videos (from video-audio bucket)
+  useEffect(() => {
+    if (!video || video.platform !== "tiktok") {
+      setTiktokAudioUrl(null);
+      setTiktokAudioReady(false);
+      return;
+    }
+    let cancelled = false;
+    resolveDiscoverVideoAudioUrl(video).then((url) => {
+      if (!cancelled) setTiktokAudioUrl(url);
+    });
+    return () => { cancelled = true; };
+  }, [video]);
+
+  // Apply playback speed to hidden TikTok audio
+  useEffect(() => {
+    if (tiktokAudioRef.current) {
+      tiktokAudioRef.current.playbackRate = playbackSpeed;
+    }
+  }, [playbackSpeed, tiktokAudioReady]);
 
 
   // Timer-based playback for non-YouTube videos (respects playback speed)

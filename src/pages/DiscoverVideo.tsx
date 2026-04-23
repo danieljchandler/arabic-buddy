@@ -695,11 +695,28 @@ const DiscoverVideo = () => {
   // (which renders at a fixed huge height and clips inside the container).
   const tiktokIframeUrl = useMemo(() => {
     if (!video || video.platform !== "tiktok") return "";
-    // When we have our own audio source, mute the iframe and loop it as a visual companion.
-    const muteParams = tiktokAudioUrl ? "?autoplay=1&muted=1&loop=1&controls=0" : "";
+    // When we have our own audio source, mute the iframe and loop it as a silent visual
+    // companion. Do NOT autoplay — playback should only start when the user clicks Play.
+    const muteParams = tiktokAudioUrl ? "?autoplay=0&muted=1&loop=1&controls=0" : "";
     if (resolvedTikTokVideoId) return `https://www.tiktok.com/player/v1/${resolvedTikTokVideoId}${muteParams}`;
     return resolvedEmbedUrl;
   }, [video, resolvedEmbedUrl, resolvedTikTokVideoId, tiktokAudioUrl]);
+
+  // Send a play/pause command to the TikTok iframe so the visual companion
+  // stays in sync with our hidden audio element.
+  const tiktokIframeElRef = useRef<HTMLIFrameElement | null>(null);
+  const sendTikTokCommand = useCallback((type: "play" | "pause" | "seekTo", value?: number) => {
+    const iframe = tiktokIframeElRef.current;
+    if (!iframe?.contentWindow) return;
+    try {
+      iframe.contentWindow.postMessage(
+        { type, "x-tiktok-player": true, value },
+        "*",
+      );
+    } catch {
+      // best-effort
+    }
+  }, []);
 
   // Blockquote embed disabled — kept as empty fallback so older code paths
   // that check for it short-circuit to the iframe.

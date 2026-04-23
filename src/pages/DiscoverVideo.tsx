@@ -600,33 +600,31 @@ const DiscoverVideo = () => {
     }
   }, [activeLine, lines, playbackMode]);
 
-  // When switching to phrase mode, pause the video and lock to current phrase
+  // When switching to phrase mode, pause the video/audio and lock to current phrase
   useEffect(() => {
     if (playbackMode !== "line") return;
-    if (!isYouTube) return;
-    // Pause the video so the user is in control
-    if (playerRef.current?.pauseVideo) {
-      playerRef.current.pauseVideo();
+    if (isYouTube) {
+      playerRef.current?.pauseVideo?.();
+    } else if (isTikTok) {
+      tiktokAudioRef.current?.pause();
     }
-    // Set phrase boundaries from the current lineControlIndex so phrase-end detection works
     const currentLine = lines[lineControlIndex];
     if (currentLine) {
       phraseStartMsRef.current = currentLine.startMs ?? null;
       phraseEndMsRef.current = currentLine.endMs ?? null;
     }
-  }, [playbackMode, isYouTube]); // intentionally exclude lines/lineControlIndex — only fire on mode switch
+  }, [playbackMode, isYouTube, isTikTok]); // intentionally exclude lines/lineControlIndex — only fire on mode switch
 
+  // Phrase-end auto-pause for both YouTube and TikTok (hidden audio)
   useEffect(() => {
-    if (!isYouTube || playbackMode !== "line" || !isYouTubePlaying) return;
+    if (playbackMode !== "line") return;
+    const isPlaying = isYouTube ? isYouTubePlaying : (isTikTok && isTiktokAudioPlaying);
+    if (!isPlaying) return;
 
     const startMs = phraseStartMsRef.current;
     const endMs = phraseEndMsRef.current;
     if (endMs == null) return;
 
-    // While a seek is in progress, currentTimeMs is stale and may still reflect the
-    // previous phrase position. Only clear the seeking flag once the time actually
-    // lands inside the target phrase window; until then skip end-of-phrase evaluation
-    // so we don't falsely pause (e.g. when navigating backwards).
     if (isSeekingRef.current) {
       if (startMs != null && currentTimeMs >= startMs && currentTimeMs < endMs) {
         isSeekingRef.current = false;
@@ -635,10 +633,14 @@ const DiscoverVideo = () => {
     }
 
     if (currentTimeMs >= endMs) {
-      playerRef.current?.pauseVideo?.();
-      setIsYouTubePlaying(false);
+      if (isYouTube) {
+        playerRef.current?.pauseVideo?.();
+        setIsYouTubePlaying(false);
+      } else if (isTikTok) {
+        tiktokAudioRef.current?.pause();
+      }
     }
-  }, [currentTimeMs, isYouTube, isYouTubePlaying, playbackMode]);
+  }, [currentTimeMs, isYouTube, isTikTok, isYouTubePlaying, isTiktokAudioPlaying, playbackMode]);
 
   // Auto-scroll to active line
   useEffect(() => {

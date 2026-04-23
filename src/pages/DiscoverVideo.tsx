@@ -827,6 +827,7 @@ const DiscoverVideo = () => {
                     />
                   ) : tiktokIframeUrl ? (
                     <iframe
+                      ref={tiktokIframeElRef}
                       src={tiktokIframeUrl}
                       className="absolute inset-0 h-full w-full border-0"
                       title={video.title}

@@ -1,45 +1,66 @@
 
 
 ## Goal
-Admin adds a TikTok video to Discover by uploading the **downloaded MP4** (used **only** for transcription) **and** pasting the **TikTok URL** (used for the embedded player). No self-hosted playback. No new storage bucket.
+Make TikTok videos sync subtitles automatically — like YouTube — without manual "Start sync" buttons. Audio plays/pauses with the transcript, and seeking a phrase actually jumps the playback.
 
-## Flow
+## The trick
+The admin already uploaded the source MP4 to our private `video-audio` bucket for transcription. **That file is the perfect sync source** — we have full JS control over it (HTML5 `<audio>` API), and its timeline is exactly what the transcript timestamps were generated from.
+
+We keep the TikTok iframe visible (so viewers see the official TikTok player as required), **mute it**, and play our own hidden `<audio>` element underneath as the source of truth for time. The user hears our audio; the iframe is purely a visual.
 
 ```text
-Admin form (Discover → Add Video)
-├── TikTok URL          → drives embed (existing TikTok iframe path)
-└── Upload video file   → audio extracted → transcription pipeline
-                          (file is discarded after transcription)
+┌─────────────────────────────┐
+│   TikTok iframe (muted)     │ ← visible, autoplay muted loop
+│      visual only            │
+└─────────────────────────────┘
+        ▲
+        │ user taps overlay play button
+        ▼
+┌─────────────────────────────┐
+│ Hidden <audio> from         │ ← drives currentTimeMs
+│ video-audio bucket (signed) │ ← seekable, pausable, speedable
+└─────────────────────────────┘
+        │
+        ▼
+   Transcript highlight + phrase-mode pause
+   (same logic as YouTube path)
 ```
 
 ## Changes
 
-### 1. `src/pages/admin/AdminVideoForm.tsx`
-- When platform = TikTok, show **two required inputs together**:
-  - **TikTok URL** (existing field) — required, parsed via `getTikTokEmbedUrl` / `resolve-tiktok-url`. This populates `source_url`, `platform='tiktok'`, `embed_url`.
-  - **Upload TikTok file (.mp4)** — required for new TikTok entries that don't have YouTube-style auto-transcription. File is fed straight into the existing `kickOffServerPipeline(file)` path that uploads to the `video-audio` bucket and calls `process-approved-video`.
-- The uploaded file is **not stored** on `discover_videos` — no new column, no public URL. Once transcription completes, the file lives only in the existing private `video-audio` bucket as the pipeline's working copy (same as today's audio uploads).
-- Thumbnail: capture frame 0 from the uploaded file client-side → upload to existing `flashcard-images` bucket → save as `thumbnail_url` (so the Discover grid has a tile image even though we're not hosting the video).
-- Duration: read from the file's `loadedmetadata` → save to `duration_seconds`.
+### 1. `src/lib/vocabularyAudioContext.ts` — `resolveDiscoverVideoAudioUrl`
+Already resolves the source MP4 from the `video-audio` bucket via signed URL. Reuse it.
 
 ### 2. `src/pages/DiscoverVideo.tsx`
-- No new branch needed. TikTok entries continue to render through the existing TikTok iframe embed using `embed_url` (built from the pasted URL). Transcript syncs via the current TikTok manual-timer strategy.
 
-### 3. `src/hooks/useDiscoverVideos.ts`
-- No type changes — `platform` stays `'tiktok'`, `source_url` stays the TikTok link, no new columns.
+**a. Add a hidden `<audio ref={tiktokAudioRef}>` for TikTok videos**
+- `src` = signed URL from `resolveDiscoverVideoAudioUrl(video)` (resolved on mount).
+- Listeners: `timeupdate` → `setCurrentTimeMs(audio.currentTime * 1000)`, `play`/`pause` → set a `tiktokPlaying` state.
 
-### 4. Schema
-- **No migration.** Existing `discover_videos` columns are sufficient.
+**b. Treat TikTok like YouTube in the `activeLineId` calculation**
+- Drive the highlight from `currentTimeMs` (from our hidden audio), not the manual `timerMs`.
+- Delete the manual "Start subtitle sync" / "Reset" / timer button row entirely.
 
-### 5. Validation
-- Block submit on TikTok platform unless **both** the URL parses to a valid TikTok embed **and** an MP4 has been uploaded for transcription.
-- Other platforms (YouTube, Instagram) keep their current single-URL flow.
+**c. Wire `handleSeek` for TikTok**
+- `tiktokAudioRef.current.currentTime = ms / 1000; .play()`. Now clicking a transcript line or phrase arrow actually jumps audio + subtitle in lock-step (same as YouTube).
+
+**d. Phrase-mode auto-pause**
+- The existing YouTube `useEffect` that watches `currentTimeMs >= phraseEndMs` and pauses can be generalized to also call `tiktokAudioRef.current?.pause()` when `isTikTok`.
+
+**e. Speed control**
+- `tiktokAudioRef.current.playbackRate = playbackSpeed` in the existing speed-change effect.
+
+**f. Visible play/pause button**
+- Add a single big play/pause overlay (or a toolbar button) that toggles the hidden audio. The TikTok iframe stays muted underneath as decoration.
+- iframe `src` gets `&muted=1&autoplay=1&loop=1` appended so it plays silently as a moving visual; audio comes only from our element.
+
+### 3. Fallback
+If `resolveDiscoverVideoAudioUrl` returns null (rare — e.g. legacy TikTok entries imported before the upload requirement), fall back to the current manual timer button so nothing breaks.
 
 ## Out of scope
-- Self-hosted video playback.
-- New storage bucket.
-- Public end-user uploads.
+- Frame-perfect lip sync between the muted TikTok visual and our audio. The audio is authoritative; the iframe is a looping visual companion. Most users won't notice given short clips, and it's vastly better than no sync at all.
+- Hiding the TikTok branding/UI.
 
 ## Result
-Admins paste the TikTok link (for the embedded player viewers see) **and** drop in the downloaded MP4 (so the transcription pipeline has clean audio to work from). Discover continues to display the official TikTok embed — never a self-hosted file.
+TikTok videos behave like YouTube: tap play, audio + transcript advance together, click any line to seek, phrase mode auto-pauses at end of line, speed control works. No manual sync button.
 

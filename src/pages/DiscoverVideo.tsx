@@ -308,6 +308,11 @@ const DiscoverVideo = () => {
   const [resolvedTikTokAuthorUrl, setResolvedTikTokAuthorUrl] = useState<string | null>(null);
   const [isYouTubePlaying, setIsYouTubePlaying] = useState(false);
   const [lineControlIndex, setLineControlIndex] = useState(0);
+  // Hidden audio sync for TikTok (drives subtitle highlight + seeking)
+  const tiktokAudioRef = useRef<HTMLAudioElement | null>(null);
+  const [tiktokAudioUrl, setTiktokAudioUrl] = useState<string | null>(null);
+  const [tiktokAudioReady, setTiktokAudioReady] = useState(false);
+  const [isTiktokAudioPlaying, setIsTiktokAudioPlaying] = useState(false);
   const phraseEndMsRef = useRef<number | null>(null);
   const phraseStartMsRef = useRef<number | null>(null);
   const isSeekingRef = useRef(false);

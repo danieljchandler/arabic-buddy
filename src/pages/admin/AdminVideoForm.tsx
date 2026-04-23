@@ -388,10 +388,38 @@ const AdminVideoForm = () => {
         // Non-fatal — edge function will try download-media as fallback
       }
 
-      // Fire-and-forget: call process-approved-video
-      supabase.functions.invoke("process-approved-video", {
-        body: { videoId: targetVideoId },
-      }).catch((err) => console.error("process-approved-video invoke error:", err));
+      // Fire-and-forget: call process-approved-video via direct fetch.
+      // We bypass supabase.functions.invoke() because the user JWT may use the
+      // ES256 algorithm which the gateway rejects. The function has
+      // verify_jwt=false, so the anon apikey header is sufficient.
+      const fnUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/process-approved-video`;
+      const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      fetch(fnUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: anonKey,
+          Authorization: `Bearer ${anonKey}`,
+        },
+        body: JSON.stringify({ videoId: targetVideoId }),
+      })
+        .then(async (res) => {
+          if (!res.ok) {
+            const text = await res.text().catch(() => "");
+            console.error("process-approved-video failed:", res.status, text);
+            toast.error("Failed to start transcription", {
+              description: `Server returned ${res.status}. Check logs.`,
+            });
+          } else {
+            console.log("process-approved-video kicked off successfully");
+          }
+        })
+        .catch((err) => {
+          console.error("process-approved-video invoke error:", err);
+          toast.error("Failed to reach transcription server", {
+            description: err instanceof Error ? err.message : String(err),
+          });
+        });
 
       toast.success("Processing started on server!", {
         description: "You can safely leave this page. Results will appear automatically.",

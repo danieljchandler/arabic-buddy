@@ -695,17 +695,18 @@ const DiscoverVideo = () => {
   // (which renders at a fixed huge height and clips inside the container).
   const tiktokIframeUrl = useMemo(() => {
     if (!video || video.platform !== "tiktok") return "";
-    // When we have our own audio source, mute the iframe and loop it as a silent visual
-    // companion. Do NOT autoplay — playback should only start when the user clicks Play.
-    const muteParams = tiktokAudioUrl ? "?autoplay=0&muted=1&loop=1&controls=0" : "";
-    if (resolvedTikTokVideoId) return `https://www.tiktok.com/player/v1/${resolvedTikTokVideoId}${muteParams}`;
+    // Always mute the TikTok iframe — our hidden <audio> element is the
+    // authoritative audio source. Without this, the iframe and the audio
+    // element both play simultaneously, causing an echo.
+    const params = "?autoplay=0&mute=1&muted=1&loop=1&controls=0&music_info=0&description=0";
+    if (resolvedTikTokVideoId) return `https://www.tiktok.com/player/v1/${resolvedTikTokVideoId}${params}`;
     return resolvedEmbedUrl;
-  }, [video, resolvedEmbedUrl, resolvedTikTokVideoId, tiktokAudioUrl]);
+  }, [video, resolvedEmbedUrl, resolvedTikTokVideoId]);
 
   // Send a play/pause command to the TikTok iframe so the visual companion
   // stays in sync with our hidden audio element.
   const tiktokIframeElRef = useRef<HTMLIFrameElement | null>(null);
-  const sendTikTokCommand = useCallback((type: "play" | "pause" | "seekTo", value?: number) => {
+  const sendTikTokCommand = useCallback((type: string, value?: number) => {
     const iframe = tiktokIframeElRef.current;
     if (!iframe?.contentWindow) return;
     try {
@@ -835,6 +836,12 @@ const DiscoverVideo = () => {
                       scrolling="no"
                       allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
                       referrerPolicy="strict-origin-when-cross-origin"
+                      onLoad={() => {
+                        // Force-mute regardless of URL params — our hidden <audio>
+                        // drives sound, the iframe is a silent visual companion.
+                        sendTikTokCommand("mute");
+                        sendTikTokCommand("setVolume", 0);
+                      }}
                     />
                   ) : (
                     <a

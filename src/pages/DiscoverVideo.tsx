@@ -695,9 +695,11 @@ const DiscoverVideo = () => {
   // (which renders at a fixed huge height and clips inside the container).
   const tiktokIframeUrl = useMemo(() => {
     if (!video || video.platform !== "tiktok") return "";
-    if (resolvedTikTokVideoId) return `https://www.tiktok.com/player/v1/${resolvedTikTokVideoId}`;
+    // When we have our own audio source, mute the iframe and loop it as a visual companion.
+    const muteParams = tiktokAudioUrl ? "?autoplay=1&muted=1&loop=1&controls=0" : "";
+    if (resolvedTikTokVideoId) return `https://www.tiktok.com/player/v1/${resolvedTikTokVideoId}${muteParams}`;
     return resolvedEmbedUrl;
-  }, [video, resolvedEmbedUrl, resolvedTikTokVideoId]);
+  }, [video, resolvedEmbedUrl, resolvedTikTokVideoId, tiktokAudioUrl]);
 
   // Blockquote embed disabled — kept as empty fallback so older code paths
   // that check for it short-circuit to the iframe.

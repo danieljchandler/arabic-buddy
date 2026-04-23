@@ -941,16 +941,17 @@ const DiscoverVideo = () => {
               {timerPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
               {timerPlaying ? "Pause sync" : "Start subtitle sync"}
             </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => { setTimerPlaying(false); setTimerMs(0); setManualLineIndex(0); setLineControlIndex(0); }}
-          >
-            Reset
-          </Button>
-          <span className="text-xs text-muted-foreground tabular-nums">
-            {Math.floor(timerMs / 1000)}s
-          </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => { setTimerPlaying(false); setTimerMs(0); setManualLineIndex(0); setLineControlIndex(0); }}
+            >
+              Reset
+            </Button>
+            <span className="text-xs text-muted-foreground tabular-nums">
+              {Math.floor(timerMs / 1000)}s
+            </span>
+          </div>
         </div>
       )}
 

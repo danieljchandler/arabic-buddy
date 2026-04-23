@@ -487,12 +487,15 @@ const DiscoverVideo = () => {
 
       if (isYouTube && targetLine.startMs !== undefined) {
         isSeekingRef.current = true;
-        // Safety: clear the flag after 2 s max in case the seek never lands
         setTimeout(() => { isSeekingRef.current = false; }, 2000);
         handleSeek(targetLine.startMs);
+      } else if (isTikTok && targetLine.startMs !== undefined) {
+        // TikTok iframe can't be seeked from JS — move the sync timer so the
+        // active-line highlight jumps to the chosen phrase.
+        setTimerMs(targetLine.startMs);
       }
     },
-    [handleSeek, isYouTube, lines],
+    [handleSeek, isYouTube, isTikTok, lines],
   );
 
   const activeLineId = useMemo(() => {

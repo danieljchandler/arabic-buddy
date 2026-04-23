@@ -836,6 +836,12 @@ const DiscoverVideo = () => {
                       scrolling="no"
                       allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
                       referrerPolicy="strict-origin-when-cross-origin"
+                      onLoad={() => {
+                        // Force-mute regardless of URL params — our hidden <audio>
+                        // drives sound, the iframe is a silent visual companion.
+                        sendTikTokCommand("mute" as never);
+                        sendTikTokCommand("setVolume" as never, 0);
+                      }}
                     />
                   ) : (
                     <a

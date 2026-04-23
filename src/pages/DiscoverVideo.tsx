@@ -522,12 +522,18 @@ const DiscoverVideo = () => {
         setTimeout(() => { isSeekingRef.current = false; }, 2000);
         handleSeek(targetLine.startMs);
       } else if (isTikTok && targetLine.startMs !== undefined) {
-        // TikTok iframe can't be seeked from JS — move the sync timer so the
-        // active-line highlight jumps to the chosen phrase.
-        setTimerMs(targetLine.startMs);
+        if (tiktokAudioReady && tiktokAudioRef.current) {
+          isSeekingRef.current = true;
+          setTimeout(() => { isSeekingRef.current = false; }, 1500);
+          tiktokAudioRef.current.currentTime = targetLine.startMs / 1000;
+          tiktokAudioRef.current.play().catch(() => {});
+        } else {
+          // Fallback: legacy TikTok without uploaded source audio
+          setTimerMs(targetLine.startMs);
+        }
       }
     },
-    [handleSeek, isYouTube, isTikTok, lines],
+    [handleSeek, isYouTube, isTikTok, lines, tiktokAudioReady],
   );
 
   const activeLineId = useMemo(() => {

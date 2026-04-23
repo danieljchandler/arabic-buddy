@@ -13,7 +13,7 @@ verify_jwt = true
 
 # Admin / pipeline functions — MUST verify JWT
 [functions.process-approved-video]
-verify_jwt = true
+verify_jwt = false
 
 [functions.curriculum-chat]
 verify_jwt = true

@@ -870,9 +870,54 @@ const DiscoverVideo = () => {
         </div>
       </div>
 
-      {/* TikTok-only: sync controls (TikTok iframe doesn't expose a JS API, so we drive
-          the active-line highlight via a manual timer the user starts when they tap play in the embed). */}
-      {isTikTok && lines.length > 0 && (
+      {/* TikTok-only: hidden audio sync. When source MP4 is available we drive
+          the highlight from a real <audio> element. Otherwise fall back to a manual timer. */}
+      {isTikTok && tiktokAudioUrl && (
+        <>
+          <audio
+            ref={tiktokAudioRef}
+            src={tiktokAudioUrl}
+            preload="auto"
+            crossOrigin="anonymous"
+            className="hidden"
+            onLoadedMetadata={() => {
+              setTiktokAudioReady(true);
+              if (tiktokAudioRef.current) {
+                tiktokAudioRef.current.playbackRate = playbackSpeed;
+              }
+            }}
+            onTimeUpdate={(e) => setCurrentTimeMs((e.currentTarget.currentTime || 0) * 1000)}
+            onPlay={() => setIsTiktokAudioPlaying(true)}
+            onPause={() => setIsTiktokAudioPlaying(false)}
+            onEnded={() => setIsTiktokAudioPlaying(false)}
+          />
+          {lines.length > 0 && (
+            <div className="px-4 py-2 border-b border-border/50 bg-card/50 flex items-center justify-center gap-2">
+              <Button
+                variant={isTiktokAudioPlaying ? "secondary" : "default"}
+                size="sm"
+                className="gap-2"
+                onClick={() => {
+                  const audio = tiktokAudioRef.current;
+                  if (!audio) return;
+                  if (isTiktokAudioPlaying) audio.pause();
+                  else audio.play().catch(() => toast.error("Audio playback failed"));
+                }}
+                disabled={!tiktokAudioReady}
+              >
+                {isTiktokAudioPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                {isTiktokAudioPlaying ? "Pause" : "Play"}
+              </Button>
+              <span className="text-xs text-muted-foreground tabular-nums">
+                {Math.floor(currentTimeMs / 1000)}s
+              </span>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Legacy TikTok fallback (no uploaded source audio) */}
+      {isTikTok && !tiktokAudioUrl && lines.length > 0 && (
         <div className="px-4 py-2 border-b border-border/50 bg-card/50 flex items-center justify-center gap-2">
           <Button
             variant={timerPlaying ? "secondary" : "default"}

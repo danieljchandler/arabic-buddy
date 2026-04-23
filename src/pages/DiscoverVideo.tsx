@@ -813,8 +813,34 @@ const DiscoverVideo = () => {
         </div>
       </div>
 
+      {/* TikTok-only: sync controls (TikTok iframe doesn't expose a JS API, so we drive
+          the active-line highlight via a manual timer the user starts when they tap play in the embed). */}
+      {isTikTok && lines.length > 0 && (
+        <div className="px-4 py-2 border-b border-border/50 bg-card/50 flex items-center justify-center gap-2">
+          <Button
+            variant={timerPlaying ? "secondary" : "default"}
+            size="sm"
+            className="gap-2"
+            onClick={() => setTimerPlaying((p) => !p)}
+          >
+            {timerPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+            {timerPlaying ? "Pause sync" : "Start subtitle sync"}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => { setTimerPlaying(false); setTimerMs(0); setManualLineIndex(0); setLineControlIndex(0); }}
+          >
+            Reset
+          </Button>
+          <span className="text-xs text-muted-foreground tabular-nums">
+            {Math.floor(timerMs / 1000)}s
+          </span>
+        </div>
+      )}
+
       {/* Active subtitle display with navigation arrows */}
-      {!isTikTok && (
+      {(
         <div className="px-4 py-4 border-b border-border bg-card/50 min-h-[80px]">
           <div className="flex items-center gap-2">
             {/* Previous line arrow */}

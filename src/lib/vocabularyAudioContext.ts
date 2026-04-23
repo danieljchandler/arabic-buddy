@@ -134,16 +134,27 @@ export async function resolveDiscoverVideoAudioUrl(video: {
   embed_url?: string;
 }): Promise<string | null> {
   try {
-    // Extract a candidate video id from the source/embed URL
+    const extensions = [".mp4", ".opus", ".m4a", ".webm", ".mp3"];
+
+    // Strategy 1: private `video-audio` bucket keyed by discover_videos.id
+    // (this is the path used by `receive-audio` and the admin uploader)
+    if (video.id) {
+      for (const ext of extensions) {
+        const { data } = await supabase.storage
+          .from("video-audio")
+          .createSignedUrl(`${video.id}${ext}`, 3600);
+        if (data?.signedUrl) return data.signedUrl;
+      }
+    }
+
+    // Strategy 2: legacy YouTube id-based files in `video-audio`
     const url = video.source_url || video.embed_url || "";
     const ytMatch = url.match(
       /(?:youtube\.com\/(?:shorts\/|watch\?v=|embed\/)|youtu\.be\/)([A-Za-z0-9_-]{6,})/
     );
     const videoId = ytMatch?.[1];
 
-    // Strategy 1: private `video-audio` bucket — signed URL
     if (videoId) {
-      const extensions = [".mp4", ".opus", ".m4a", ".webm", ".mp3"];
       for (const ext of extensions) {
         const { data } = await supabase.storage
           .from("video-audio")
@@ -151,7 +162,7 @@ export async function resolveDiscoverVideoAudioUrl(video: {
         if (data?.signedUrl) return data.signedUrl;
       }
 
-      // Strategy 2: public `audio` bucket via `audio_files` lookup
+      // Strategy 3: public `audio` bucket via `audio_files` lookup
       const { data: audioRecord } = await supabase
         .from("audio_files")
         .select("storage_path")

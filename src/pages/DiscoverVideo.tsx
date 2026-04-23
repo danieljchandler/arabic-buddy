@@ -918,16 +918,29 @@ const DiscoverVideo = () => {
 
       {/* Legacy TikTok fallback (no uploaded source audio) */}
       {isTikTok && !tiktokAudioUrl && lines.length > 0 && (
-        <div className="px-4 py-2 border-b border-border/50 bg-card/50 flex items-center justify-center gap-2">
-          <Button
-            variant={timerPlaying ? "secondary" : "default"}
-            size="sm"
-            className="gap-2"
-            onClick={() => setTimerPlaying((p) => !p)}
-          >
-            {timerPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-            {timerPlaying ? "Pause sync" : "Start subtitle sync"}
-          </Button>
+        <div className="px-4 py-2 border-b border-border/50 bg-card/50 flex flex-col items-center gap-1">
+          {isAuthenticated && (
+            <p className="text-[11px] text-muted-foreground/80 text-center px-2">
+              Source audio missing — auto-sync unavailable. Re-upload the audio in Admin → Edit Video to enable it.
+            </p>
+          )}
+          <div className="flex items-center justify-center gap-2">
+            <Button
+              variant={timerPlaying ? "secondary" : "default"}
+              size="sm"
+              className="gap-2"
+              onClick={() => {
+                setTimerPlaying((p) => !p);
+                // Start timer from the current manual line position so the user
+                // can press play without first scrubbing to a line.
+                if (!timerPlaying && timerMs === 0 && lines[manualLineIndex]?.startMs !== undefined) {
+                  setTimerMs(lines[manualLineIndex].startMs!);
+                }
+              }}
+            >
+              {timerPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+              {timerPlaying ? "Pause sync" : "Start subtitle sync"}
+            </Button>
           <Button
             variant="ghost"
             size="sm"

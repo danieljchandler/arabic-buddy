@@ -482,9 +482,10 @@ async function runPipeline(
       }
     }
 
-    for (const path of storagePaths) {
-      await supabase.storage.from("video-audio").remove([path]).catch(() => {});
-    }
+    // NOTE: Intentionally keep staged audio in `video-audio/` so the Discover
+    // player can stream it for subtitle sync (TikTok hidden-audio playback).
+    // Previously we removed `storagePaths` here to save storage, but that
+    // broke automatic sync for completed videos.
 
     console.log(`[pipeline] Completed for video ${videoId}`);
   } catch (err) {

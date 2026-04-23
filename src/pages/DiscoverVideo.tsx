@@ -544,7 +544,19 @@ const DiscoverVideo = () => {
       }
       return null;
     }
-    // Timer-based sync for non-YouTube: use timerMs if playing/started, else manual index
+    if (isTikTok && tiktokAudioReady) {
+      if (currentTimeMs <= 0) return null;
+      for (let i = lines.length - 1; i >= 0; i--) {
+        const line = lines[i];
+        if (line.startMs !== undefined && currentTimeMs >= line.startMs) {
+          if (line.endMs === undefined || currentTimeMs <= line.endMs + 500) {
+            return line.id;
+          }
+        }
+      }
+      return null;
+    }
+    // Timer-based sync fallback (legacy TikTok without uploaded audio)
     if (timerMs > 0 || timerPlaying) {
       for (let i = lines.length - 1; i >= 0; i--) {
         const line = lines[i];

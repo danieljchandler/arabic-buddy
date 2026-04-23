@@ -487,12 +487,15 @@ const DiscoverVideo = () => {
 
       if (isYouTube && targetLine.startMs !== undefined) {
         isSeekingRef.current = true;
-        // Safety: clear the flag after 2 s max in case the seek never lands
         setTimeout(() => { isSeekingRef.current = false; }, 2000);
         handleSeek(targetLine.startMs);
+      } else if (isTikTok && targetLine.startMs !== undefined) {
+        // TikTok iframe can't be seeked from JS — move the sync timer so the
+        // active-line highlight jumps to the chosen phrase.
+        setTimerMs(targetLine.startMs);
       }
     },
-    [handleSeek, isYouTube, lines],
+    [handleSeek, isYouTube, isTikTok, lines],
   );
 
   const activeLineId = useMemo(() => {
@@ -635,16 +638,18 @@ const DiscoverVideo = () => {
     return video.source_url || resolvedEmbedUrl || video.embed_url;
   }, [video, resolvedEmbedUrl, resolvedTikTokAuthorUrl, resolvedTikTokVideoId]);
 
+  // Use TikTok's official player iframe — fits our 9:16 container, supports
+  // autoplay and is far more reliable than the blockquote embed.js path
+  // (which renders at a fixed huge height and clips inside the container).
   const tiktokIframeUrl = useMemo(() => {
     if (!video || video.platform !== "tiktok") return "";
-    if (resolvedTikTokVideoId) return `https://www.tiktok.com/embed/v2/${resolvedTikTokVideoId}`;
+    if (resolvedTikTokVideoId) return `https://www.tiktok.com/player/v1/${resolvedTikTokVideoId}`;
     return resolvedEmbedUrl;
   }, [video, resolvedEmbedUrl, resolvedTikTokVideoId]);
 
-  const tiktokBlockquoteHtml = useMemo(() => {
-    if (!video || video.platform !== "tiktok" || !resolvedTikTokVideoId) return "";
-    return `<blockquote class="tiktok-embed" cite="${resolvedTikTokCiteUrl}" data-video-id="${resolvedTikTokVideoId}" style="max-width: 100%; min-width: 100%; margin: 0 auto;"><section><a target="_blank" rel="noreferrer" href="${resolvedTikTokCiteUrl}">View on TikTok</a></section></blockquote>`;
-  }, [video, resolvedTikTokCiteUrl, resolvedTikTokVideoId]);
+  // Blockquote embed disabled — kept as empty fallback so older code paths
+  // that check for it short-circuit to the iframe.
+  const tiktokBlockquoteHtml = "";
 
   useEffect(() => {
     if (!video || video.platform !== "tiktok" || !tiktokBlockquoteHtml) return;
@@ -811,8 +816,34 @@ const DiscoverVideo = () => {
         </div>
       </div>
 
+      {/* TikTok-only: sync controls (TikTok iframe doesn't expose a JS API, so we drive
+          the active-line highlight via a manual timer the user starts when they tap play in the embed). */}
+      {isTikTok && lines.length > 0 && (
+        <div className="px-4 py-2 border-b border-border/50 bg-card/50 flex items-center justify-center gap-2">
+          <Button
+            variant={timerPlaying ? "secondary" : "default"}
+            size="sm"
+            className="gap-2"
+            onClick={() => setTimerPlaying((p) => !p)}
+          >
+            {timerPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+            {timerPlaying ? "Pause sync" : "Start subtitle sync"}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => { setTimerPlaying(false); setTimerMs(0); setManualLineIndex(0); setLineControlIndex(0); }}
+          >
+            Reset
+          </Button>
+          <span className="text-xs text-muted-foreground tabular-nums">
+            {Math.floor(timerMs / 1000)}s
+          </span>
+        </div>
+      )}
+
       {/* Active subtitle display with navigation arrows */}
-      {!isTikTok && (
+      {(
         <div className="px-4 py-4 border-b border-border bg-card/50 min-h-[80px]">
           <div className="flex items-center gap-2">
             {/* Previous line arrow */}

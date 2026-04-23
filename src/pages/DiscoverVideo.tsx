@@ -577,7 +577,7 @@ const DiscoverVideo = () => {
     // Fallback: manual navigation
     const idx = Math.max(0, Math.min(manualLineIndex, lines.length - 1));
     return lines[idx]?.id ?? null;
-  }, [lines, currentTimeMs, isYouTube, manualLineIndex, timerMs, timerPlaying]);
+  }, [lines, currentTimeMs, isYouTube, isTikTok, tiktokAudioReady, manualLineIndex, timerMs, timerPlaying]);
 
   const activeLine = useMemo(
     () => lines.find((l) => l.id === activeLineId) ?? null,

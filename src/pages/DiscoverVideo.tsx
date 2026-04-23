@@ -706,7 +706,7 @@ const DiscoverVideo = () => {
   // Send a play/pause command to the TikTok iframe so the visual companion
   // stays in sync with our hidden audio element.
   const tiktokIframeElRef = useRef<HTMLIFrameElement | null>(null);
-  const sendTikTokCommand = useCallback((type: "play" | "pause" | "seekTo", value?: number) => {
+  const sendTikTokCommand = useCallback((type: string, value?: number) => {
     const iframe = tiktokIframeElRef.current;
     if (!iframe?.contentWindow) return;
     try {

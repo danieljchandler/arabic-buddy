@@ -520,15 +520,19 @@ serve(async (req) => {
 
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
   const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+  const publishableKey = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? "";
   const token = authHeader.slice("Bearer ".length).trim();
   const isInternalServiceCall = token === serviceRoleKey;
-  // The admin form sends the publishable/anon key directly (because user JWTs
-  // can be ES256 which the gateway rejects). Treat the anon key as a valid
-  // public bearer too — `verify_jwt = false` already means anyone can hit this.
+  // The admin form sends the publishable/anon key directly. Accept both the
+  // legacy anon JWT and the new sb_publishable_... key as valid public bearers
+  // — `verify_jwt = false` already means anyone can hit this endpoint.
   const isAnonKey = token === anonKey;
-  console.log(`[handler] isInternalServiceCall=${isInternalServiceCall} isAnonKey=${isAnonKey}`);
+  const isPublishableKey = publishableKey.length > 0 && token === publishableKey;
+  const looksLikePublishable = token.startsWith("sb_publishable_");
+  const isPublicKey = isAnonKey || isPublishableKey || looksLikePublishable;
+  console.log(`[handler] isInternalServiceCall=${isInternalServiceCall} isAnonKey=${isAnonKey} isPublishableKey=${isPublishableKey} looksLikePublishable=${looksLikePublishable}`);
 
-  if (!isInternalServiceCall && !isAnonKey) {
+  if (!isInternalServiceCall && !isPublicKey) {
     const supabaseAuth = createClient(
       Deno.env.get("SUPABASE_URL")!,
       anonKey,

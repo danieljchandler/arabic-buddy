@@ -635,16 +635,18 @@ const DiscoverVideo = () => {
     return video.source_url || resolvedEmbedUrl || video.embed_url;
   }, [video, resolvedEmbedUrl, resolvedTikTokAuthorUrl, resolvedTikTokVideoId]);
 
+  // Use TikTok's official player iframe — fits our 9:16 container, supports
+  // autoplay and is far more reliable than the blockquote embed.js path
+  // (which renders at a fixed huge height and clips inside the container).
   const tiktokIframeUrl = useMemo(() => {
     if (!video || video.platform !== "tiktok") return "";
-    if (resolvedTikTokVideoId) return `https://www.tiktok.com/embed/v2/${resolvedTikTokVideoId}`;
+    if (resolvedTikTokVideoId) return `https://www.tiktok.com/player/v1/${resolvedTikTokVideoId}`;
     return resolvedEmbedUrl;
   }, [video, resolvedEmbedUrl, resolvedTikTokVideoId]);
 
-  const tiktokBlockquoteHtml = useMemo(() => {
-    if (!video || video.platform !== "tiktok" || !resolvedTikTokVideoId) return "";
-    return `<blockquote class="tiktok-embed" cite="${resolvedTikTokCiteUrl}" data-video-id="${resolvedTikTokVideoId}" style="max-width: 100%; min-width: 100%; margin: 0 auto;"><section><a target="_blank" rel="noreferrer" href="${resolvedTikTokCiteUrl}">View on TikTok</a></section></blockquote>`;
-  }, [video, resolvedTikTokCiteUrl, resolvedTikTokVideoId]);
+  // Blockquote embed disabled — kept as empty fallback so older code paths
+  // that check for it short-circuit to the iframe.
+  const tiktokBlockquoteHtml = "";
 
   useEffect(() => {
     if (!video || video.platform !== "tiktok" || !tiktokBlockquoteHtml) return;

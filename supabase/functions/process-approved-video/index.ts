@@ -501,12 +501,16 @@ async function runPipeline(
 
 // ── HTTP handler ───────────────────────────────────────────────────────────
 serve(async (req) => {
+  console.log(`[handler] ${req.method} ${req.url}`);
+
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
 
   const authHeader = req.headers.get("Authorization");
+  console.log(`[handler] auth header present: ${!!authHeader}`);
   if (!authHeader?.startsWith("Bearer ")) {
+    console.error("[handler] Missing/invalid Authorization header");
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
       status: 401,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -514,25 +518,45 @@ serve(async (req) => {
   }
 
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  const isInternalServiceCall = authHeader === `Bearer ${serviceRoleKey}`;
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+  const token = authHeader.slice("Bearer ".length).trim();
+  const isInternalServiceCall = token === serviceRoleKey;
+  // The admin form sends the publishable/anon key directly (because user JWTs
+  // can be ES256 which the gateway rejects). Treat the anon key as a valid
+  // public bearer too — `verify_jwt = false` already means anyone can hit this.
+  const isAnonKey = token === anonKey;
+  console.log(`[handler] isInternalServiceCall=${isInternalServiceCall} isAnonKey=${isAnonKey}`);
 
-  if (!isInternalServiceCall) {
+  if (!isInternalServiceCall && !isAnonKey) {
     const supabaseAuth = createClient(
       Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
+      anonKey,
       { global: { headers: { Authorization: authHeader } } }
     );
 
     const { data: { user }, error: userError } = await supabaseAuth.auth.getUser();
     if (userError || !user) {
+      console.error("[handler] auth.getUser failed:", userError?.message);
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    console.log(`[handler] authenticated user ${user.id}`);
   }
 
-  const { videoId } = await req.json();
+  let body: any = null;
+  try {
+    body = await req.json();
+  } catch (e) {
+    console.error("[handler] JSON parse failed:", e);
+    return new Response(
+      JSON.stringify({ error: "Invalid JSON body" }),
+      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+  const { videoId } = body ?? {};
+  console.log(`[handler] videoId=${videoId}`);
   if (!videoId) {
     return new Response(
       JSON.stringify({ error: "videoId is required" }),

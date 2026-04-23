@@ -308,6 +308,11 @@ const DiscoverVideo = () => {
   const [resolvedTikTokAuthorUrl, setResolvedTikTokAuthorUrl] = useState<string | null>(null);
   const [isYouTubePlaying, setIsYouTubePlaying] = useState(false);
   const [lineControlIndex, setLineControlIndex] = useState(0);
+  // Hidden audio sync for TikTok (drives subtitle highlight + seeking)
+  const tiktokAudioRef = useRef<HTMLAudioElement | null>(null);
+  const [tiktokAudioUrl, setTiktokAudioUrl] = useState<string | null>(null);
+  const [tiktokAudioReady, setTiktokAudioReady] = useState(false);
+  const [isTiktokAudioPlaying, setIsTiktokAudioPlaying] = useState(false);
   const phraseEndMsRef = useRef<number | null>(null);
   const phraseStartMsRef = useRef<number | null>(null);
   const isSeekingRef = useRef(false);
@@ -383,8 +388,35 @@ const DiscoverVideo = () => {
     if (playerRef.current?.seekTo) {
       playerRef.current.seekTo(ms / 1000, true);
       playerRef.current.playVideo?.();
+      return;
     }
-  }, []);
+    const audio = tiktokAudioRef.current;
+    if (audio && tiktokAudioReady) {
+      audio.currentTime = Math.max(0, ms / 1000);
+      audio.play().catch(() => {});
+    }
+  }, [tiktokAudioReady]);
+
+  // Resolve hidden audio source for TikTok videos (from video-audio bucket)
+  useEffect(() => {
+    if (!video || video.platform !== "tiktok") {
+      setTiktokAudioUrl(null);
+      setTiktokAudioReady(false);
+      return;
+    }
+    let cancelled = false;
+    resolveDiscoverVideoAudioUrl(video).then((url) => {
+      if (!cancelled) setTiktokAudioUrl(url);
+    });
+    return () => { cancelled = true; };
+  }, [video]);
+
+  // Apply playback speed to hidden TikTok audio
+  useEffect(() => {
+    if (tiktokAudioRef.current) {
+      tiktokAudioRef.current.playbackRate = playbackSpeed;
+    }
+  }, [playbackSpeed, tiktokAudioReady]);
 
 
   // Timer-based playback for non-YouTube videos (respects playback speed)
@@ -490,12 +522,18 @@ const DiscoverVideo = () => {
         setTimeout(() => { isSeekingRef.current = false; }, 2000);
         handleSeek(targetLine.startMs);
       } else if (isTikTok && targetLine.startMs !== undefined) {
-        // TikTok iframe can't be seeked from JS — move the sync timer so the
-        // active-line highlight jumps to the chosen phrase.
-        setTimerMs(targetLine.startMs);
+        if (tiktokAudioReady && tiktokAudioRef.current) {
+          isSeekingRef.current = true;
+          setTimeout(() => { isSeekingRef.current = false; }, 1500);
+          tiktokAudioRef.current.currentTime = targetLine.startMs / 1000;
+          tiktokAudioRef.current.play().catch(() => {});
+        } else {
+          // Fallback: legacy TikTok without uploaded source audio
+          setTimerMs(targetLine.startMs);
+        }
       }
     },
-    [handleSeek, isYouTube, isTikTok, lines],
+    [handleSeek, isYouTube, isTikTok, lines, tiktokAudioReady],
   );
 
   const activeLineId = useMemo(() => {
@@ -512,7 +550,19 @@ const DiscoverVideo = () => {
       }
       return null;
     }
-    // Timer-based sync for non-YouTube: use timerMs if playing/started, else manual index
+    if (isTikTok && tiktokAudioReady) {
+      if (currentTimeMs <= 0) return null;
+      for (let i = lines.length - 1; i >= 0; i--) {
+        const line = lines[i];
+        if (line.startMs !== undefined && currentTimeMs >= line.startMs) {
+          if (line.endMs === undefined || currentTimeMs <= line.endMs + 500) {
+            return line.id;
+          }
+        }
+      }
+      return null;
+    }
+    // Timer-based sync fallback (legacy TikTok without uploaded audio)
     if (timerMs > 0 || timerPlaying) {
       for (let i = lines.length - 1; i >= 0; i--) {
         const line = lines[i];
@@ -527,7 +577,7 @@ const DiscoverVideo = () => {
     // Fallback: manual navigation
     const idx = Math.max(0, Math.min(manualLineIndex, lines.length - 1));
     return lines[idx]?.id ?? null;
-  }, [lines, currentTimeMs, isYouTube, manualLineIndex, timerMs, timerPlaying]);
+  }, [lines, currentTimeMs, isYouTube, isTikTok, tiktokAudioReady, manualLineIndex, timerMs, timerPlaying]);
 
   const activeLine = useMemo(
     () => lines.find((l) => l.id === activeLineId) ?? null,
@@ -550,33 +600,31 @@ const DiscoverVideo = () => {
     }
   }, [activeLine, lines, playbackMode]);
 
-  // When switching to phrase mode, pause the video and lock to current phrase
+  // When switching to phrase mode, pause the video/audio and lock to current phrase
   useEffect(() => {
     if (playbackMode !== "line") return;
-    if (!isYouTube) return;
-    // Pause the video so the user is in control
-    if (playerRef.current?.pauseVideo) {
-      playerRef.current.pauseVideo();
+    if (isYouTube) {
+      playerRef.current?.pauseVideo?.();
+    } else if (isTikTok) {
+      tiktokAudioRef.current?.pause();
     }
-    // Set phrase boundaries from the current lineControlIndex so phrase-end detection works
     const currentLine = lines[lineControlIndex];
     if (currentLine) {
       phraseStartMsRef.current = currentLine.startMs ?? null;
       phraseEndMsRef.current = currentLine.endMs ?? null;
     }
-  }, [playbackMode, isYouTube]); // intentionally exclude lines/lineControlIndex — only fire on mode switch
+  }, [playbackMode, isYouTube, isTikTok]); // intentionally exclude lines/lineControlIndex — only fire on mode switch
 
+  // Phrase-end auto-pause for both YouTube and TikTok (hidden audio)
   useEffect(() => {
-    if (!isYouTube || playbackMode !== "line" || !isYouTubePlaying) return;
+    if (playbackMode !== "line") return;
+    const isPlaying = isYouTube ? isYouTubePlaying : (isTikTok && isTiktokAudioPlaying);
+    if (!isPlaying) return;
 
     const startMs = phraseStartMsRef.current;
     const endMs = phraseEndMsRef.current;
     if (endMs == null) return;
 
-    // While a seek is in progress, currentTimeMs is stale and may still reflect the
-    // previous phrase position. Only clear the seeking flag once the time actually
-    // lands inside the target phrase window; until then skip end-of-phrase evaluation
-    // so we don't falsely pause (e.g. when navigating backwards).
     if (isSeekingRef.current) {
       if (startMs != null && currentTimeMs >= startMs && currentTimeMs < endMs) {
         isSeekingRef.current = false;
@@ -585,10 +633,14 @@ const DiscoverVideo = () => {
     }
 
     if (currentTimeMs >= endMs) {
-      playerRef.current?.pauseVideo?.();
-      setIsYouTubePlaying(false);
+      if (isYouTube) {
+        playerRef.current?.pauseVideo?.();
+        setIsYouTubePlaying(false);
+      } else if (isTikTok) {
+        tiktokAudioRef.current?.pause();
+      }
     }
-  }, [currentTimeMs, isYouTube, isYouTubePlaying, playbackMode]);
+  }, [currentTimeMs, isYouTube, isTikTok, isYouTubePlaying, isTiktokAudioPlaying, playbackMode]);
 
   // Auto-scroll to active line
   useEffect(() => {
@@ -643,9 +695,11 @@ const DiscoverVideo = () => {
   // (which renders at a fixed huge height and clips inside the container).
   const tiktokIframeUrl = useMemo(() => {
     if (!video || video.platform !== "tiktok") return "";
-    if (resolvedTikTokVideoId) return `https://www.tiktok.com/player/v1/${resolvedTikTokVideoId}`;
+    // When we have our own audio source, mute the iframe and loop it as a visual companion.
+    const muteParams = tiktokAudioUrl ? "?autoplay=1&muted=1&loop=1&controls=0" : "";
+    if (resolvedTikTokVideoId) return `https://www.tiktok.com/player/v1/${resolvedTikTokVideoId}${muteParams}`;
     return resolvedEmbedUrl;
-  }, [video, resolvedEmbedUrl, resolvedTikTokVideoId]);
+  }, [video, resolvedEmbedUrl, resolvedTikTokVideoId, tiktokAudioUrl]);
 
   // Blockquote embed disabled — kept as empty fallback so older code paths
   // that check for it short-circuit to the iframe.
@@ -816,9 +870,54 @@ const DiscoverVideo = () => {
         </div>
       </div>
 
-      {/* TikTok-only: sync controls (TikTok iframe doesn't expose a JS API, so we drive
-          the active-line highlight via a manual timer the user starts when they tap play in the embed). */}
-      {isTikTok && lines.length > 0 && (
+      {/* TikTok-only: hidden audio sync. When source MP4 is available we drive
+          the highlight from a real <audio> element. Otherwise fall back to a manual timer. */}
+      {isTikTok && tiktokAudioUrl && (
+        <>
+          <audio
+            ref={tiktokAudioRef}
+            src={tiktokAudioUrl}
+            preload="auto"
+            crossOrigin="anonymous"
+            className="hidden"
+            onLoadedMetadata={() => {
+              setTiktokAudioReady(true);
+              if (tiktokAudioRef.current) {
+                tiktokAudioRef.current.playbackRate = playbackSpeed;
+              }
+            }}
+            onTimeUpdate={(e) => setCurrentTimeMs((e.currentTarget.currentTime || 0) * 1000)}
+            onPlay={() => setIsTiktokAudioPlaying(true)}
+            onPause={() => setIsTiktokAudioPlaying(false)}
+            onEnded={() => setIsTiktokAudioPlaying(false)}
+          />
+          {lines.length > 0 && (
+            <div className="px-4 py-2 border-b border-border/50 bg-card/50 flex items-center justify-center gap-2">
+              <Button
+                variant={isTiktokAudioPlaying ? "secondary" : "default"}
+                size="sm"
+                className="gap-2"
+                onClick={() => {
+                  const audio = tiktokAudioRef.current;
+                  if (!audio) return;
+                  if (isTiktokAudioPlaying) audio.pause();
+                  else audio.play().catch(() => toast.error("Audio playback failed"));
+                }}
+                disabled={!tiktokAudioReady}
+              >
+                {isTiktokAudioPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                {isTiktokAudioPlaying ? "Pause" : "Play"}
+              </Button>
+              <span className="text-xs text-muted-foreground tabular-nums">
+                {Math.floor(currentTimeMs / 1000)}s
+              </span>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Legacy TikTok fallback (no uploaded source audio) */}
+      {isTikTok && !tiktokAudioUrl && lines.length > 0 && (
         <div className="px-4 py-2 border-b border-border/50 bg-card/50 flex items-center justify-center gap-2">
           <Button
             variant={timerPlaying ? "secondary" : "default"}

@@ -917,9 +917,9 @@ const DiscoverVideo = () => {
               }
             }}
             onTimeUpdate={(e) => setCurrentTimeMs((e.currentTarget.currentTime || 0) * 1000)}
-            onPlay={() => { setIsTiktokAudioPlaying(true); sendTikTokCommand("mute"); sendTikTokCommand("setVolume", 0); sendTikTokCommand("play"); }}
+            onPlay={() => { setIsTiktokAudioPlaying(true); sendTikTokCommand("play"); }}
             onPause={() => { setIsTiktokAudioPlaying(false); sendTikTokCommand("pause"); }}
-            onSeeked={(e) => { sendTikTokCommand("mute"); sendTikTokCommand("seekTo", e.currentTarget.currentTime); }}
+            onSeeked={(e) => { sendTikTokCommand("seekTo", e.currentTarget.currentTime); }}
             onEnded={() => { setIsTiktokAudioPlaying(false); sendTikTokCommand("pause"); }}
           />
           {lines.length > 0 && (

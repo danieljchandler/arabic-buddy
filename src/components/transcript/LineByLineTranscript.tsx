@@ -728,6 +728,9 @@ export const LineByLineTranscript = ({
            lineEndListenerRef.current = null;
          }
          audioRef.current.pause();
+         // Detach source so the orphaned element stops decoding/playing
+         audioRef.current.src = '';
+         audioRef.current.load();
          audioRef.current = null;
        }
      };

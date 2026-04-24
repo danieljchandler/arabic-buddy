@@ -703,8 +703,10 @@ const DiscoverVideo = () => {
     return resolvedEmbedUrl;
   }, [video, resolvedEmbedUrl, resolvedTikTokVideoId]);
 
-  // Send a play/pause command to the TikTok iframe so the visual companion
+  // Send playback commands to the TikTok iframe so the visual companion
   // stays in sync with our hidden audio element.
+  // Important: do not send mute/volume commands here — they are unreliable
+  // across player init/resume boundaries and can actually reintroduce audio.
   const tiktokIframeElRef = useRef<HTMLIFrameElement | null>(null);
   const sendTikTokCommand = useCallback((type: string, value?: number) => {
     const iframe = tiktokIframeElRef.current;
@@ -719,10 +721,8 @@ const DiscoverVideo = () => {
     }
   }, []);
 
-  // Mute the TikTok iframe once it loads. We rely on URL params (mute=1) and a
-  // single post-load mute command — repeatedly spamming mute interferes with
-  // the player's playback state and prevents the video from playing.
-  // Sound is driven by our hidden <audio> element.
+  // Keep the TikTok iframe visual-only. Sound is driven exclusively by our
+  // hidden <audio> element via the extracted source track.
 
   // Blockquote embed disabled — kept as empty fallback so older code paths
   // that check for it short-circuit to the iframe.
@@ -839,14 +839,8 @@ const DiscoverVideo = () => {
                       title={video.title}
                       allowFullScreen
                       scrolling="no"
-                      allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
+                      allow="fullscreen; picture-in-picture"
                       referrerPolicy="strict-origin-when-cross-origin"
-                      onLoad={() => {
-                        // Force-mute regardless of URL params — our hidden <audio>
-                        // drives sound, the iframe is a silent visual companion.
-                        sendTikTokCommand("mute");
-                        sendTikTokCommand("setVolume", 0);
-                      }}
                     />
                   ) : (
                     <a

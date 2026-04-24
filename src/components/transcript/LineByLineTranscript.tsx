@@ -747,6 +747,9 @@ export const LineByLineTranscript = ({
       lineEndListenerRef.current = null;
     }
     if (activeLineId === line.id && isPlaying) { audioRef.current.pause(); return; }
+    // Always pause and reset before starting a new line to prevent overlapping playback
+    audioRef.current.pause();
+    audioRef.current.currentTime = 0;
     setActiveLineId(line.id);
     if (line.startMs !== undefined && line.endMs !== undefined) {
       const endSec = line.endMs / 1000;

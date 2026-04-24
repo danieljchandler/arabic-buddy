@@ -389,7 +389,6 @@ const DiscoverVideo = () => {
     const audio = tiktokAudioRef.current;
     if (!audio) return;
     audio.pause();
-    audio.currentTime = Math.max(0, audio.currentTime || 0);
     setIsTiktokAudioPlaying(false);
   }, []);
 
@@ -408,10 +407,10 @@ const DiscoverVideo = () => {
       playerRef.current.playVideo?.();
       return;
     }
-    if (isTikTok) {
+    if (tiktokAudioRef.current && tiktokAudioReady) {
       playTikTokAudio(ms);
     }
-  }, [isTikTok, playTikTokAudio]);
+  }, [playTikTokAudio, tiktokAudioReady]);
 
   // Resolve hidden audio source for TikTok videos (from video-audio bucket)
   useEffect(() => {

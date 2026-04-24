@@ -839,7 +839,10 @@ const DiscoverVideo = () => {
                       title={video.title}
                       allowFullScreen
                       scrolling="no"
-                      allow="fullscreen; picture-in-picture"
+                      // autoplay permission is REQUIRED for postMessage("play") to work.
+                      // Silence is enforced via the mute=1 URL param (respected on init)
+                      // and we never send unmute commands.
+                      allow="autoplay; fullscreen; picture-in-picture"
                       referrerPolicy="strict-origin-when-cross-origin"
                     />
                   ) : (

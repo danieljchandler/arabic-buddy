@@ -308,11 +308,10 @@ const DiscoverVideo = () => {
   const [resolvedTikTokAuthorUrl, setResolvedTikTokAuthorUrl] = useState<string | null>(null);
   const [isYouTubePlaying, setIsYouTubePlaying] = useState(false);
   const [lineControlIndex, setLineControlIndex] = useState(0);
-  // Hidden audio sync for TikTok (drives subtitle highlight + seeking)
-  const tiktokAudioRef = useRef<HTMLAudioElement | null>(null);
   const [tiktokAudioUrl, setTiktokAudioUrl] = useState<string | null>(null);
   const [tiktokAudioReady, setTiktokAudioReady] = useState(false);
   const [isTiktokAudioPlaying, setIsTiktokAudioPlaying] = useState(false);
+  const tiktokAudioRef = useRef<HTMLAudioElement | null>(null);
   const phraseEndMsRef = useRef<number | null>(null);
   const phraseStartMsRef = useRef<number | null>(null);
   const isSeekingRef = useRef(false);
@@ -384,18 +383,32 @@ const DiscoverVideo = () => {
     }
   }, [playbackSpeed]);
 
+  const stopTikTokAudio = useCallback(() => {
+    const audio = tiktokAudioRef.current;
+    if (!audio) return;
+    audio.pause();
+    setIsTiktokAudioPlaying(false);
+  }, []);
+
+  const playTikTokAudio = useCallback((startMs?: number) => {
+    const audio = tiktokAudioRef.current;
+    if (!audio || !tiktokAudioReady) return;
+    if (typeof startMs === "number") {
+      audio.currentTime = Math.max(0, startMs / 1000);
+    }
+    audio.play().catch(() => toast.error("Audio playback failed"));
+  }, [tiktokAudioReady]);
+
   const handleSeek = useCallback((ms: number) => {
     if (playerRef.current?.seekTo) {
       playerRef.current.seekTo(ms / 1000, true);
       playerRef.current.playVideo?.();
       return;
     }
-    const audio = tiktokAudioRef.current;
-    if (audio && tiktokAudioReady) {
-      audio.currentTime = Math.max(0, ms / 1000);
-      audio.play().catch(() => {});
+    if (tiktokAudioRef.current && tiktokAudioReady) {
+      playTikTokAudio(ms);
     }
-  }, [tiktokAudioReady]);
+  }, [playTikTokAudio, tiktokAudioReady]);
 
   // Resolve hidden audio source for TikTok videos (from video-audio bucket)
   useEffect(() => {
@@ -690,23 +703,15 @@ const DiscoverVideo = () => {
     return video.source_url || resolvedEmbedUrl || video.embed_url;
   }, [video, resolvedEmbedUrl, resolvedTikTokAuthorUrl, resolvedTikTokVideoId]);
 
-  // Use TikTok's official player iframe — fits our 9:16 container, supports
-  // autoplay and is far more reliable than the blockquote embed.js path
-  // (which renders at a fixed huge height and clips inside the container).
+  // Use TikTok's official player iframe as a muted visual companion only.
+  // Audio comes exclusively from the extracted source track below.
   const tiktokIframeUrl = useMemo(() => {
     if (!video || video.platform !== "tiktok") return "";
-    // Always mute the TikTok iframe — our hidden <audio> element is the
-    // authoritative audio source. Without this, the iframe and the audio
-    // element both play simultaneously, causing an echo.
-    const params = "?autoplay=0&mute=1&muted=1&loop=1&controls=0&music_info=0&description=0";
+    const params = "?autoplay=0&mute=1&muted=1&volume_control=1&controls=0&music_info=0&description=0";
     if (resolvedTikTokVideoId) return `https://www.tiktok.com/player/v1/${resolvedTikTokVideoId}${params}`;
     return resolvedEmbedUrl;
   }, [video, resolvedEmbedUrl, resolvedTikTokVideoId]);
 
-  // Send playback commands to the TikTok iframe so the visual companion
-  // stays in sync with our hidden audio element.
-  // Important: do not send mute/volume commands here — they are unreliable
-  // across player init/resume boundaries and can actually reintroduce audio.
   const tiktokIframeElRef = useRef<HTMLIFrameElement | null>(null);
   const sendTikTokCommand = useCallback((type: string, value?: number) => {
     const iframe = tiktokIframeElRef.current;
@@ -717,7 +722,7 @@ const DiscoverVideo = () => {
         "*",
       );
     } catch {
-      // best-effort
+      // best-effort visual sync only
     }
   }, []);
 
@@ -912,11 +917,12 @@ const DiscoverVideo = () => {
               if (tiktokAudioRef.current) {
                 tiktokAudioRef.current.playbackRate = playbackSpeed;
               }
+              sendTikTokCommand("mute");
             }}
             onTimeUpdate={(e) => setCurrentTimeMs((e.currentTarget.currentTime || 0) * 1000)}
-            onPlay={() => { setIsTiktokAudioPlaying(true); sendTikTokCommand("play"); }}
+            onPlay={() => { setIsTiktokAudioPlaying(true); sendTikTokCommand("mute"); sendTikTokCommand("play"); }}
             onPause={() => { setIsTiktokAudioPlaying(false); sendTikTokCommand("pause"); }}
-            onSeeked={(e) => { sendTikTokCommand("seekTo", e.currentTarget.currentTime); }}
+            onSeeked={(e) => { sendTikTokCommand("mute"); sendTikTokCommand("seekTo", e.currentTarget.currentTime); }}
             onEnded={() => { setIsTiktokAudioPlaying(false); sendTikTokCommand("pause"); }}
           />
           {lines.length > 0 && (

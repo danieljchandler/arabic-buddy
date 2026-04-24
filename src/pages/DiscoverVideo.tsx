@@ -719,40 +719,10 @@ const DiscoverVideo = () => {
     }
   }, []);
 
-  // Aggressively keep the TikTok iframe muted. The player v1 API often ignores
-  // the very first mute messages because it isn't fully initialized when the
-  // iframe `onLoad` fires, so we re-send for several seconds and also listen
-  // for the `onPlayerReady` event broadcast by the player.
-  useEffect(() => {
-    if (!tiktokIframeUrl) return;
-    let cancelled = false;
-    const forceMute = () => {
-      sendTikTokCommand("mute");
-      sendTikTokCommand("unMute"); // some builds need this toggle first
-      sendTikTokCommand("mute");
-      sendTikTokCommand("setVolume", 0);
-    };
-    // Spam mute for the first 5s after mount to defeat init race
-    const interval = window.setInterval(() => {
-      if (cancelled) return;
-      forceMute();
-    }, 250);
-    const stop = window.setTimeout(() => window.clearInterval(interval), 5000);
-
-    const onMessage = (e: MessageEvent) => {
-      const data = e?.data as { type?: string; "x-tiktok-player"?: boolean } | undefined;
-      if (!data || data["x-tiktok-player"] !== true) return;
-      // Any message from the player → re-assert mute
-      forceMute();
-    };
-    window.addEventListener("message", onMessage);
-    return () => {
-      cancelled = true;
-      window.clearInterval(interval);
-      window.clearTimeout(stop);
-      window.removeEventListener("message", onMessage);
-    };
-  }, [tiktokIframeUrl, sendTikTokCommand]);
+  // Mute the TikTok iframe once it loads. We rely on URL params (mute=1) and a
+  // single post-load mute command — repeatedly spamming mute interferes with
+  // the player's playback state and prevents the video from playing.
+  // Sound is driven by our hidden <audio> element.
 
   // Blockquote embed disabled — kept as empty fallback so older code paths
   // that check for it short-circuit to the iframe.
@@ -947,9 +917,9 @@ const DiscoverVideo = () => {
               }
             }}
             onTimeUpdate={(e) => setCurrentTimeMs((e.currentTarget.currentTime || 0) * 1000)}
-            onPlay={() => { setIsTiktokAudioPlaying(true); sendTikTokCommand("mute"); sendTikTokCommand("setVolume", 0); sendTikTokCommand("play"); }}
+            onPlay={() => { setIsTiktokAudioPlaying(true); sendTikTokCommand("play"); }}
             onPause={() => { setIsTiktokAudioPlaying(false); sendTikTokCommand("pause"); }}
-            onSeeked={(e) => { sendTikTokCommand("mute"); sendTikTokCommand("seekTo", e.currentTarget.currentTime); }}
+            onSeeked={(e) => { sendTikTokCommand("seekTo", e.currentTarget.currentTime); }}
             onEnded={() => { setIsTiktokAudioPlaying(false); sendTikTokCommand("pause"); }}
           />
           {lines.length > 0 && (

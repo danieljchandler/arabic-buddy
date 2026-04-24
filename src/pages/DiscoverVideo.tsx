@@ -703,26 +703,16 @@ const DiscoverVideo = () => {
     return video.source_url || resolvedEmbedUrl || video.embed_url;
   }, [video, resolvedEmbedUrl, resolvedTikTokAuthorUrl, resolvedTikTokVideoId]);
 
-  // Use TikTok's official player iframe — fits our 9:16 container, supports
-  // autoplay and is far more reliable than the blockquote embed.js path
-  // (which renders at a fixed huge height and clips inside the container).
+  // Use TikTok's official player iframe as a muted visual companion only.
+  // Audio comes exclusively from the extracted source track below.
   const tiktokIframeUrl = useMemo(() => {
     if (!video || video.platform !== "tiktok") return "";
-    // Always mute the TikTok iframe — our hidden <audio> element is the
-    // authoritative audio source. Without this, the iframe and the audio
-    // element both play simultaneously, causing an echo.
-    const params = "?autoplay=0&mute=1&muted=1&loop=1&controls=0&music_info=0&description=0";
+    const params = "?autoplay=0&mute=1&muted=1&volume_control=1&controls=0&music_info=0&description=0";
     if (resolvedTikTokVideoId) return `https://www.tiktok.com/player/v1/${resolvedTikTokVideoId}${params}`;
     return resolvedEmbedUrl;
   }, [video, resolvedEmbedUrl, resolvedTikTokVideoId]);
 
-  // Send playback commands to the TikTok iframe so the visual companion
-  // stays in sync with our hidden audio element.
-  // Important: do not send mute/volume commands here — they are unreliable
-  // across player init/resume boundaries and can actually reintroduce audio.
   const tiktokIframeElRef = useRef<HTMLIFrameElement | null>(null);
-  const sendTikTokCommand = useCallback((type: string, value?: number) => {
-    const iframe = tiktokIframeElRef.current;
     if (!iframe?.contentWindow) return;
     try {
       iframe.contentWindow.postMessage(

@@ -713,16 +713,6 @@ const DiscoverVideo = () => {
   }, [video, resolvedEmbedUrl, resolvedTikTokVideoId]);
 
   const tiktokIframeElRef = useRef<HTMLIFrameElement | null>(null);
-    if (!iframe?.contentWindow) return;
-    try {
-      iframe.contentWindow.postMessage(
-        { type, "x-tiktok-player": true, value },
-        "*",
-      );
-    } catch {
-      // best-effort
-    }
-  }, []);
 
   // Keep the TikTok iframe visual-only. Sound is driven exclusively by our
   // hidden <audio> element via the extracted source track.

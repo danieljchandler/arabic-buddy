@@ -385,18 +385,33 @@ const DiscoverVideo = () => {
     }
   }, [playbackSpeed]);
 
+  const stopTikTokAudio = useCallback(() => {
+    const audio = tiktokAudioRef.current;
+    if (!audio) return;
+    audio.pause();
+    audio.currentTime = Math.max(0, audio.currentTime || 0);
+    setIsTiktokAudioPlaying(false);
+  }, []);
+
+  const playTikTokAudio = useCallback((startMs?: number) => {
+    const audio = tiktokAudioRef.current;
+    if (!audio || !tiktokAudioReady) return;
+    if (typeof startMs === "number") {
+      audio.currentTime = Math.max(0, startMs / 1000);
+    }
+    audio.play().catch(() => toast.error("Audio playback failed"));
+  }, [tiktokAudioReady]);
+
   const handleSeek = useCallback((ms: number) => {
     if (playerRef.current?.seekTo) {
       playerRef.current.seekTo(ms / 1000, true);
       playerRef.current.playVideo?.();
       return;
     }
-    const audio = tiktokAudioRef.current;
-    if (audio && tiktokAudioReady) {
-      audio.currentTime = Math.max(0, ms / 1000);
-      audio.play().catch(() => {});
+    if (isTikTok) {
+      playTikTokAudio(ms);
     }
-  }, [tiktokAudioReady]);
+  }, [isTikTok, playTikTokAudio]);
 
   // Resolve hidden audio source for TikTok videos (from video-audio bucket)
   useEffect(() => {

@@ -312,8 +312,6 @@ const DiscoverVideo = () => {
   const [tiktokAudioReady, setTiktokAudioReady] = useState(false);
   const [isTiktokAudioPlaying, setIsTiktokAudioPlaying] = useState(false);
   const tiktokAudioRef = useRef<HTMLAudioElement | null>(null);
-  const tiktokVisualIframeRef = useRef<HTMLIFrameElement | null>(null);
-  const tiktokVisualAudioBlockedRef = useRef(false);
   const phraseEndMsRef = useRef<number | null>(null);
   const phraseStartMsRef = useRef<number | null>(null);
   const isSeekingRef = useRef(false);

@@ -917,11 +917,12 @@ const DiscoverVideo = () => {
               if (tiktokAudioRef.current) {
                 tiktokAudioRef.current.playbackRate = playbackSpeed;
               }
+              sendTikTokCommand("mute");
             }}
             onTimeUpdate={(e) => setCurrentTimeMs((e.currentTarget.currentTime || 0) * 1000)}
-            onPlay={() => { setIsTiktokAudioPlaying(true); sendTikTokCommand("play"); }}
+            onPlay={() => { setIsTiktokAudioPlaying(true); sendTikTokCommand("mute"); sendTikTokCommand("play"); }}
             onPause={() => { setIsTiktokAudioPlaying(false); sendTikTokCommand("pause"); }}
-            onSeeked={(e) => { sendTikTokCommand("seekTo", e.currentTarget.currentTime); }}
+            onSeeked={(e) => { sendTikTokCommand("mute"); sendTikTokCommand("seekTo", e.currentTarget.currentTime); }}
             onEnded={() => { setIsTiktokAudioPlaying(false); sendTikTokCommand("pause"); }}
           />
           {lines.length > 0 && (

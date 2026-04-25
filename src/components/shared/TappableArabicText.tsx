@@ -109,6 +109,35 @@ export const TappableArabicText = ({
     }));
   };
 
+  const generateSamples = async (cleanWord: string) => {
+    setWordTranslations((prev) => ({
+      ...prev,
+      [cleanWord]: { ...(prev[cleanWord] ?? { translation: "" }), generatingSamples: true },
+    }));
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-sample-sentences", {
+        body: {
+          word: cleanWord,
+          dialect: activeDialect,
+          definition: wordTranslations[cleanWord]?.translation,
+        },
+      });
+      if (error) throw error;
+      const sentences: SampleSentence[] = Array.isArray(data?.sentences) ? data.sentences : [];
+      setWordTranslations((prev) => ({
+        ...prev,
+        [cleanWord]: { ...(prev[cleanWord] ?? { translation: "" }), samples: sentences, generatingSamples: false },
+      }));
+      if (sentences.length === 0) toast.error("Couldn't generate sentences");
+    } catch {
+      setWordTranslations((prev) => ({
+        ...prev,
+        [cleanWord]: { ...(prev[cleanWord] ?? { translation: "" }), generatingSamples: false },
+      }));
+      toast.error("Couldn't generate sentences");
+    }
+  };
+
   const saveAsFlashcard = (arabic: string, english: string, root?: string) => {
     if (!user) {
       toast.error("Sign in to save flashcards");

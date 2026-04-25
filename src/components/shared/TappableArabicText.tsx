@@ -19,10 +19,14 @@ interface WordEnrichment {
   otherUses?: { arabic: string; english: string }[];
 }
 
+interface SampleSentence { arabic: string; english: string }
+
 interface WordData {
   translation: string;
   enrichment?: WordEnrichment;
   enriching?: boolean;
+  samples?: SampleSentence[];
+  generatingSamples?: boolean;
 }
 
 const enrichWord = async (

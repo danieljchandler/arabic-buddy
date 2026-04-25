@@ -707,7 +707,10 @@ const DiscoverVideo = () => {
   // Audio comes exclusively from the extracted source track below.
   const tiktokIframeUrl = useMemo(() => {
     if (!video || video.platform !== "tiktok") return "";
-    const params = "?autoplay=0&mute=1&muted=1&volume_control=1&controls=0&music_info=0&description=0";
+    // Only documented TikTok player params — invalid keys (e.g. mute, muted, controls=0)
+    // cause TikTok to refuse playback and show "Video is not available".
+    // Muting is handled via postMessage("mute") after the iframe loads.
+    const params = "?autoplay=0&music_info=0&description=0";
     if (resolvedTikTokVideoId) return `https://www.tiktok.com/player/v1/${resolvedTikTokVideoId}${params}`;
     return resolvedEmbedUrl;
   }, [video, resolvedEmbedUrl, resolvedTikTokVideoId]);

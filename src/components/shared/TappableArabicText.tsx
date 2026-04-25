@@ -10,7 +10,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { BookmarkPlus, Loader2 } from "lucide-react";
+import { BookmarkPlus, Loader2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 interface WordEnrichment {

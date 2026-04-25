@@ -189,7 +189,7 @@ export const TappableArabicText = ({
               </span>
             </PopoverTrigger>
             {wordData && (
-              <PopoverContent className="w-64 p-3" side="top">
+              <PopoverContent className="w-72 p-3 max-h-[70vh] overflow-y-auto" side="top">
                 <div className="space-y-2">
                   <p className="font-bold text-foreground font-arabic text-lg" dir="rtl">
                     {cleanWord}

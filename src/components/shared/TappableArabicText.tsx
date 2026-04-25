@@ -226,6 +226,42 @@ export const TappableArabicText = ({
                     </div>
                   )}
 
+                  <div className="pt-1 border-t border-border space-y-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full text-xs"
+                      disabled={wordData.generatingSamples || wordData.enriching}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        generateSamples(cleanWord);
+                      }}
+                    >
+                      {wordData.generatingSamples ? (
+                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                      ) : (
+                        <Sparkles className="h-3 w-3 mr-1" />
+                      )}
+                      {wordData.samples && wordData.samples.length > 0
+                        ? "Regenerate sentences"
+                        : "Generate sample sentences"}
+                    </Button>
+                  </div>
+
+                  {wordData.samples && wordData.samples.length > 0 && (
+                    <div className="pt-1 border-t border-border">
+                      <p className="text-xs font-medium text-muted-foreground mb-1">Examples</p>
+                      <div className="space-y-1.5">
+                        {wordData.samples.map((s, i) => (
+                          <div key={i} className="text-xs">
+                            <p className="font-arabic text-foreground" dir="rtl">{s.arabic}</p>
+                            <p className="text-muted-foreground">{s.english}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {user && (
                     <Button
                       variant="ghost"

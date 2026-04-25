@@ -10,7 +10,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { BookmarkPlus, Loader2 } from "lucide-react";
+import { BookmarkPlus, Loader2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 interface WordEnrichment {
@@ -19,10 +19,14 @@ interface WordEnrichment {
   otherUses?: { arabic: string; english: string }[];
 }
 
+interface SampleSentence { arabic: string; english: string }
+
 interface WordData {
   translation: string;
   enrichment?: WordEnrichment;
   enriching?: boolean;
+  samples?: SampleSentence[];
+  generatingSamples?: boolean;
 }
 
 const enrichWord = async (
@@ -105,6 +109,35 @@ export const TappableArabicText = ({
     }));
   };
 
+  const generateSamples = async (cleanWord: string) => {
+    setWordTranslations((prev) => ({
+      ...prev,
+      [cleanWord]: { ...(prev[cleanWord] ?? { translation: "" }), generatingSamples: true },
+    }));
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-sample-sentences", {
+        body: {
+          word: cleanWord,
+          dialect: activeDialect,
+          definition: wordTranslations[cleanWord]?.translation,
+        },
+      });
+      if (error) throw error;
+      const sentences: SampleSentence[] = Array.isArray(data?.sentences) ? data.sentences : [];
+      setWordTranslations((prev) => ({
+        ...prev,
+        [cleanWord]: { ...(prev[cleanWord] ?? { translation: "" }), samples: sentences, generatingSamples: false },
+      }));
+      if (sentences.length === 0) toast.error("Couldn't generate sentences");
+    } catch {
+      setWordTranslations((prev) => ({
+        ...prev,
+        [cleanWord]: { ...(prev[cleanWord] ?? { translation: "" }), generatingSamples: false },
+      }));
+      toast.error("Couldn't generate sentences");
+    }
+  };
+
   const saveAsFlashcard = (arabic: string, english: string, root?: string) => {
     if (!user) {
       toast.error("Sign in to save flashcards");
@@ -156,7 +189,7 @@ export const TappableArabicText = ({
               </span>
             </PopoverTrigger>
             {wordData && (
-              <PopoverContent className="w-64 p-3" side="top">
+              <PopoverContent className="w-72 p-3 max-h-[70vh] overflow-y-auto" side="top">
                 <div className="space-y-2">
                   <p className="font-bold text-foreground font-arabic text-lg" dir="rtl">
                     {cleanWord}
@@ -188,6 +221,42 @@ export const TappableArabicText = ({
                             <span className="font-arabic" dir="rtl">{u.arabic}</span>
                             <span className="text-muted-foreground"> — {u.english}</span>
                           </p>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="pt-1 border-t border-border space-y-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full text-xs"
+                      disabled={wordData.generatingSamples || wordData.enriching}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        generateSamples(cleanWord);
+                      }}
+                    >
+                      {wordData.generatingSamples ? (
+                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                      ) : (
+                        <Sparkles className="h-3 w-3 mr-1" />
+                      )}
+                      {wordData.samples && wordData.samples.length > 0
+                        ? "Regenerate sentences"
+                        : "Generate sample sentences"}
+                    </Button>
+                  </div>
+
+                  {wordData.samples && wordData.samples.length > 0 && (
+                    <div className="pt-1 border-t border-border">
+                      <p className="text-xs font-medium text-muted-foreground mb-1">Examples</p>
+                      <div className="space-y-1.5">
+                        {wordData.samples.map((s, i) => (
+                          <div key={i} className="text-xs">
+                            <p className="font-arabic text-foreground" dir="rtl">{s.arabic}</p>
+                            <p className="text-muted-foreground">{s.english}</p>
+                          </div>
                         ))}
                       </div>
                     </div>

@@ -416,21 +416,6 @@ const AdminVideoForm = () => {
 
       console.log("process-approved-video kicked off successfully", invokeData);
 
-      if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        console.error("process-approved-video failed:", res.status, text);
-
-        await (supabase.from("discover_videos" as any) as any)
-          .update({
-            transcription_status: "failed",
-            transcription_error: `Failed to start processing (${res.status})`,
-          })
-          .eq("id", targetVideoId);
-
-        throw new Error(text || `Server returned ${res.status}`);
-      }
-
-      console.log("process-approved-video kicked off successfully");
 
       toast.success("Processing started on server!", {
         description: "You can safely leave this page. Results will appear automatically.",

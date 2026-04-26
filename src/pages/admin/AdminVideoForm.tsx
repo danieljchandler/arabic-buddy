@@ -391,23 +391,30 @@ const AdminVideoForm = () => {
       // Start the backend pipeline and wait for the acknowledgement before
       // navigating away, otherwise mobile browsers can leave the video stuck in
       // "pending" if the request is interrupted.
-      const fnUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/process-approved-video`;
-      const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-      const { data: sessionData } = await supabase.auth.getSession();
-      const accessToken = sessionData?.session?.access_token;
-      if (!accessToken) {
-        throw new Error("Your session has expired. Please sign in again.");
+      // Use supabase.functions.invoke so the SDK attaches the correct
+      // apikey + (when available) session bearer. The function accepts the
+      // publishable key as a fallback bearer when the user JWT is rejected
+      // (e.g. asymmetric signing-key transition). This avoids the
+      // "Failed to start processing (401)" stuck-in-pending bug.
+      const { data: invokeData, error: invokeErr } = await supabase.functions.invoke(
+        "process-approved-video",
+        { body: { videoId: targetVideoId } }
+      );
+
+      if (invokeErr) {
+        console.error("process-approved-video failed:", invokeErr);
+
+        await (supabase.from("discover_videos" as any) as any)
+          .update({
+            transcription_status: "failed",
+            transcription_error: `Failed to start processing: ${invokeErr.message ?? "unknown"}`,
+          })
+          .eq("id", targetVideoId);
+
+        throw new Error(invokeErr.message || "Failed to start processing");
       }
-      const res = await fetch(fnUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          apikey: anonKey,
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({ videoId: targetVideoId }),
-        keepalive: true,
-      });
+
+      console.log("process-approved-video kicked off successfully", invokeData);
 
       if (!res.ok) {
         const text = await res.text().catch(() => "");

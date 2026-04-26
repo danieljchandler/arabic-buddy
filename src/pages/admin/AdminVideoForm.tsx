@@ -393,12 +393,17 @@ const AdminVideoForm = () => {
       // "pending" if the request is interrupted.
       const fnUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/process-approved-video`;
       const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData?.session?.access_token;
+      if (!accessToken) {
+        throw new Error("Your session has expired. Please sign in again.");
+      }
       const res = await fetch(fnUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           apikey: anonKey,
-          Authorization: `Bearer ${anonKey}`,
+          Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({ videoId: targetVideoId }),
         keepalive: true,

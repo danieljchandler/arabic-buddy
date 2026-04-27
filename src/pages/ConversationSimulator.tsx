@@ -382,14 +382,14 @@ const ConversationSimulator = () => {
 
     recognition.onstart = () => setIsRecording(true);
 
-    recognition.onresult = (event: SpeechRecognitionEvent) => {
-      const transcript = Array.from(event.results)
-        .map((r) => r[0].transcript)
+    recognition.onresult = (event: any) => {
+      const transcript = Array.from(event.results as ArrayLike<any>)
+        .map((r: any) => r[0].transcript)
         .join("");
       setInput(transcript);
     };
 
-    recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+    recognition.onerror = (event: any) => {
       console.error("Speech recognition error:", event.error);
       setIsRecording(false);
       if (event.error === "not-allowed" || event.error === "service-not-allowed") {

@@ -38,6 +38,7 @@ export default function TranscriptEditor({
     split,
     merge,
     editText,
+    editTranslation,
     shiftTimestamp,
     shiftTimestampRipple,
     splitAtCursor,

@@ -44,8 +44,11 @@ const Settings = () => {
   const { user, isAuthenticated, loading: authLoading, signOut } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [displayName, setDisplayName] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [dialect, setDialect] = useState('Gulf');
   const [level, setLevel] = useState('beginner');
   const [goal, setGoal] = useState('regular');
@@ -61,13 +64,14 @@ const Settings = () => {
     const load = async () => {
       const { data } = await supabase
         .from('profiles' as any)
-        .select('display_name, preferred_dialect, proficiency_level, weekly_goal, show_on_leaderboard')
+        .select('display_name, avatar_url, preferred_dialect, proficiency_level, weekly_goal, show_on_leaderboard')
         .eq('user_id', user.id)
         .maybeSingle();
 
       if (data) {
         const p = data as any;
         setDisplayName(p.display_name || '');
+        setAvatarUrl(p.avatar_url || null);
         setDialect(p.preferred_dialect || 'Gulf');
         setLevel(p.proficiency_level || 'beginner');
         setGoal(p.weekly_goal || 'regular');
@@ -77,6 +81,49 @@ const Settings = () => {
     };
     load();
   }, [user, authLoading, isAuthenticated, navigate]);
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image must be smaller than 5MB');
+      return;
+    }
+
+    setUploadingAvatar(true);
+    try {
+      const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+      const path = `${user.id}/avatar-${Date.now()}.${ext}`;
+
+      const { error: upErr } = await supabase.storage
+        .from('avatars')
+        .upload(path, file, { upsert: true, contentType: file.type });
+      if (upErr) throw upErr;
+
+      const { data: pub } = supabase.storage.from('avatars').getPublicUrl(path);
+      const newUrl = `${pub.publicUrl}?t=${Date.now()}`;
+
+      const { error: updErr } = await supabase
+        .from('profiles' as any)
+        .update({ avatar_url: newUrl } as any)
+        .eq('user_id', user.id);
+      if (updErr) throw updErr;
+
+      setAvatarUrl(newUrl);
+      toast.success('Profile picture updated!');
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || 'Failed to upload picture');
+    } finally {
+      setUploadingAvatar(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
 
   const save = async () => {
     if (!user) return;

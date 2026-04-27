@@ -15,6 +15,7 @@ interface SegmentCardProps {
   onSplit: (segmentId: string, splitAfterWordIndex: number) => void;
   onSplitAtCursor: (segmentId: string, cursorPos: number, currentText: string) => void;
   onEditText: (segmentId: string, newText: string) => void;
+  onEditTranslation: (segmentId: string, newTranslation: string) => void;
   onStartChange: (segmentId: string, value: number) => void;
   onEndChange: (segmentId: string, value: number) => void;
   onFixArabic?: (segmentId: string) => void;

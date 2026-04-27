@@ -12,6 +12,7 @@ interface SegmentListProps {
   onSplitAtCursor: (segmentId: string, cursorPos: number, currentText: string) => void;
   onMerge: (index: number) => void;
   onEditText: (segmentId: string, newText: string) => void;
+  onEditTranslation: (segmentId: string, newTranslation: string) => void;
   onStartChange: (segmentId: string, value: number) => void;
   onEndChange: (segmentId: string, value: number) => void;
   onFixArabic?: (segmentId: string) => void;
@@ -32,6 +33,7 @@ export default function SegmentList({
   onSplitAtCursor,
   onMerge,
   onEditText,
+  onEditTranslation,
   onStartChange,
   onEndChange,
   onFixArabic,
@@ -62,6 +64,7 @@ export default function SegmentList({
             onSplit={onSplit}
             onSplitAtCursor={onSplitAtCursor}
             onEditText={onEditText}
+            onEditTranslation={onEditTranslation}
             onStartChange={onStartChange}
             onEndChange={onEndChange}
             onFixArabic={onFixArabic}

@@ -102,6 +102,29 @@ export function useTranscriptEditor(
     [push, debounceSave],
   );
 
+  /** Update the English translation of a segment. */
+  const editTranslation = useCallback(
+    (segmentId: string, newTranslation: string) => {
+      setSegments(prev => {
+        const idx = prev.findIndex(s => s.id === segmentId);
+        if (idx === -1) return prev;
+        const old = prev[idx];
+        if (old.translation === newTranslation) return prev;
+        const updated = { ...old, translation: newTranslation };
+        const next = [...prev.slice(0, idx), updated, ...prev.slice(idx + 1)];
+        // Manual edit means translation is no longer "stale" relative to Arabic
+        setStaleTranslations(s => {
+          const n = new Set(s);
+          n.delete(segmentId);
+          return n;
+        });
+        debounceSave(next);
+        return next;
+      });
+    },
+    [debounceSave],
+  );
+
   /** Shift a timestamp (start or end) on a segment. */
   const shiftTimestamp = useCallback(
     (segmentId: string, field: 'start' | 'end', newValue: number) => {
@@ -322,6 +345,7 @@ export function useTranscriptEditor(
     split,
     merge,
     editText,
+    editTranslation,
     shiftTimestamp,
     shiftTimestampRipple,
     splitAtCursor,

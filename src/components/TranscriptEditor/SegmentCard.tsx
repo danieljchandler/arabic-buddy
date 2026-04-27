@@ -15,6 +15,7 @@ interface SegmentCardProps {
   onSplit: (segmentId: string, splitAfterWordIndex: number) => void;
   onSplitAtCursor: (segmentId: string, cursorPos: number, currentText: string) => void;
   onEditText: (segmentId: string, newText: string) => void;
+  onEditTranslation: (segmentId: string, newTranslation: string) => void;
   onStartChange: (segmentId: string, value: number) => void;
   onEndChange: (segmentId: string, value: number) => void;
   onFixArabic?: (segmentId: string) => void;
@@ -49,6 +50,7 @@ export default function SegmentCard({
   onSplit,
   onSplitAtCursor,
   onEditText,
+  onEditTranslation,
   onStartChange,
   onEndChange,
   onFixArabic,
@@ -57,6 +59,8 @@ export default function SegmentCard({
 }: SegmentCardProps) {
   const [editing, setEditing] = useState(false);
   const [editValue, setEditValue] = useState(segment.text);
+  const [editingTranslation, setEditingTranslation] = useState(false);
+  const [translationValue, setTranslationValue] = useState(segment.translation);
   const [hoveredBoundary, setHoveredBoundary] = useState<number | null>(null);
 
   const handleWordClick = useCallback(
@@ -190,12 +194,51 @@ export default function SegmentCard({
         </div>
       )}
 
-      {/* Translation */}
-      <div className="mt-1 text-sm text-muted-foreground flex items-center gap-1">
+      {/* Translation (click to edit) */}
+      <div className="mt-1 text-sm text-muted-foreground flex items-start gap-1">
         {isStaleTranslation && (
-          <span className="inline-block w-2 h-2 rounded-full bg-amber-500 flex-shrink-0" title="Translation may be stale" />
+          <span className="inline-block w-2 h-2 mt-1.5 rounded-full bg-amber-500 flex-shrink-0" title="Translation may be stale" />
         )}
-        <span>{segment.translation || <em aria-label="Missing translation">(no translation)</em>}</span>
+        {editingTranslation ? (
+          <textarea
+            dir="ltr"
+            className="flex-1 text-left text-sm rounded border border-blue-400 p-1.5 bg-white dark:bg-gray-900 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 text-foreground"
+            value={translationValue}
+            onChange={e => setTranslationValue(e.target.value)}
+            onBlur={() => {
+              setEditingTranslation(false);
+              const next = translationValue.trim();
+              if (next !== (segment.translation ?? '')) {
+                onEditTranslation(segment.id, next);
+              }
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') {
+                e.preventDefault();
+                setTranslationValue(segment.translation);
+                setEditingTranslation(false);
+              }
+              if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                e.preventDefault();
+                (e.currentTarget as HTMLTextAreaElement).blur();
+              }
+            }}
+            rows={2}
+            autoFocus
+          />
+        ) : (
+          <button
+            type="button"
+            className="flex-1 text-left cursor-text hover:bg-muted/40 rounded px-1 py-0.5 -mx-1 transition-colors"
+            onClick={() => {
+              setTranslationValue(segment.translation ?? '');
+              setEditingTranslation(true);
+            }}
+            title="Click to edit translation"
+          >
+            {segment.translation || <em aria-label="Missing translation">(no translation — click to add)</em>}
+          </button>
+        )}
       </div>
 
       {/* Timestamp scrubber with ripple enabled */}

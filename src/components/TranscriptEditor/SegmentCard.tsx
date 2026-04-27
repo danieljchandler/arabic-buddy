@@ -59,6 +59,8 @@ export default function SegmentCard({
 }: SegmentCardProps) {
   const [editing, setEditing] = useState(false);
   const [editValue, setEditValue] = useState(segment.text);
+  const [editingTranslation, setEditingTranslation] = useState(false);
+  const [translationValue, setTranslationValue] = useState(segment.translation);
   const [hoveredBoundary, setHoveredBoundary] = useState<number | null>(null);
 
   const handleWordClick = useCallback(

@@ -50,6 +50,7 @@ export default function SegmentCard({
   onSplit,
   onSplitAtCursor,
   onEditText,
+  onEditTranslation,
   onStartChange,
   onEndChange,
   onFixArabic,

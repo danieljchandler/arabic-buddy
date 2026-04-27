@@ -64,6 +64,7 @@ export default function SegmentList({
             onSplit={onSplit}
             onSplitAtCursor={onSplitAtCursor}
             onEditText={onEditText}
+            onEditTranslation={onEditTranslation}
             onStartChange={onStartChange}
             onEndChange={onEndChange}
             onFixArabic={onFixArabic}

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -7,9 +7,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { Loader2, Check, ArrowLeft, User, Globe2, Target, Eye, Heart, ChevronRight } from 'lucide-react';
+import { Loader2, Check, ArrowLeft, User, Globe2, Target, Eye, Heart, ChevronRight, Camera } from 'lucide-react';
 import { HomeLayoutEditor } from '@/components/settings/HomeLayoutEditor';
 
 const DIALECTS = [

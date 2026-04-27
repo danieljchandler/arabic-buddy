@@ -1562,12 +1562,25 @@ serve(async (req) => {
      let grammarPoints = Array.isArray(analysisAi?.grammarPoints) ? analysisAi!.grammarPoints : [];
      let culturalContext = analysisAi?.culturalContext;
 
-     // Build finalLines from mergedLines — always has the correct count.
-     // Translation priority: dedicated Gemini/Qwen > Call 2 embedded > empty string.
-     let finalLines = mergedLines.map((mergedLine, i) => ({
-       arabic: mergedLine.arabic,
-       translation: dedicatedTranslations[i] || call2Lines[i]?.translation || '',
-     }));
+      // Build finalLines from mergedLines — always has the correct count.
+      // Translation priority: dedicated Gemini/Qwen > Call 2 embedded > empty string.
+      // Overlay Farasa diacritization onto each line so per-line `arabic`
+      // includes tashkeel (pronunciation markings) — not just the top-level
+      // `diacritizedTranscript` field.
+      const diacritizedPerLine = overlayDiacritizedLines(
+        mergedLines.map(l => l.arabic),
+        diacritizedTranscript,
+      );
+      const diacritizedLineCount = diacritizedPerLine.filter(
+        (l, i) => l !== mergedLines[i].arabic,
+      ).length;
+      console.log(
+        `Diacritization overlay: ${diacritizedLineCount}/${mergedLines.length} lines updated with tashkeel`,
+      );
+      let finalLines = mergedLines.map((mergedLine, i) => ({
+        arabic: diacritizedPerLine[i] || mergedLine.arabic,
+        translation: dedicatedTranslations[i] || call2Lines[i]?.translation || '',
+      }));
 
      if (dedicatedTranslations.length > 0) {
        console.log(

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -7,9 +7,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { Loader2, Check, ArrowLeft, User, Globe2, Target, Eye, Heart, ChevronRight } from 'lucide-react';
+import { Loader2, Check, ArrowLeft, User, Globe2, Target, Eye, Heart, ChevronRight, Camera } from 'lucide-react';
 import { HomeLayoutEditor } from '@/components/settings/HomeLayoutEditor';
 
 const DIALECTS = [
@@ -43,8 +44,11 @@ const Settings = () => {
   const { user, isAuthenticated, loading: authLoading, signOut } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [displayName, setDisplayName] = useState('');
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [dialect, setDialect] = useState('Gulf');
   const [level, setLevel] = useState('beginner');
   const [goal, setGoal] = useState('regular');
@@ -60,13 +64,14 @@ const Settings = () => {
     const load = async () => {
       const { data } = await supabase
         .from('profiles' as any)
-        .select('display_name, preferred_dialect, proficiency_level, weekly_goal, show_on_leaderboard')
+        .select('display_name, avatar_url, preferred_dialect, proficiency_level, weekly_goal, show_on_leaderboard')
         .eq('user_id', user.id)
         .maybeSingle();
 
       if (data) {
         const p = data as any;
         setDisplayName(p.display_name || '');
+        setAvatarUrl(p.avatar_url || null);
         setDialect(p.preferred_dialect || 'Gulf');
         setLevel(p.proficiency_level || 'beginner');
         setGoal(p.weekly_goal || 'regular');
@@ -76,6 +81,49 @@ const Settings = () => {
     };
     load();
   }, [user, authLoading, isAuthenticated, navigate]);
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image must be smaller than 5MB');
+      return;
+    }
+
+    setUploadingAvatar(true);
+    try {
+      const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+      const path = `${user.id}/avatar-${Date.now()}.${ext}`;
+
+      const { error: upErr } = await supabase.storage
+        .from('avatars')
+        .upload(path, file, { upsert: true, contentType: file.type });
+      if (upErr) throw upErr;
+
+      const { data: pub } = supabase.storage.from('avatars').getPublicUrl(path);
+      const newUrl = `${pub.publicUrl}?t=${Date.now()}`;
+
+      const { error: updErr } = await supabase
+        .from('profiles' as any)
+        .update({ avatar_url: newUrl } as any)
+        .eq('user_id', user.id);
+      if (updErr) throw updErr;
+
+      setAvatarUrl(newUrl);
+      toast.success('Profile picture updated!');
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || 'Failed to upload picture');
+    } finally {
+      setUploadingAvatar(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
 
   const save = async () => {
     if (!user) return;
@@ -151,6 +199,43 @@ const Settings = () => {
               <User className="h-4 w-4" />
               Profile
             </div>
+
+            <div className="flex items-center gap-4">
+              <div className="relative">
+                <Avatar className="h-20 w-20 border-2 border-border">
+                  <AvatarImage src={avatarUrl || undefined} alt="Profile picture" />
+                  <AvatarFallback className="text-lg font-semibold">
+                    {(displayName || user?.email || '?').charAt(0).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                {uploadingAvatar && (
+                  <div className="absolute inset-0 flex items-center justify-center rounded-full bg-background/70">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                  </div>
+                )}
+              </div>
+              <div className="flex-1 space-y-2">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleAvatarUpload}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingAvatar}
+                >
+                  <Camera className="h-4 w-4 mr-2" />
+                  {avatarUrl ? 'Change picture' : 'Upload picture'}
+                </Button>
+                <p className="text-xs text-muted-foreground">JPG or PNG, up to 5MB</p>
+              </div>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="displayName" className="text-foreground">Display Name</Label>
               <Input

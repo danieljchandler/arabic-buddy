@@ -183,6 +183,7 @@ export default function TranscriptEditor({
             onSplitAtCursor={splitAtCursor}
             onMerge={merge}
             onEditText={editText}
+            onEditTranslation={editTranslation}
             onStartChange={(id, v) => shiftTimestampRipple(id, 'start', v)}
             onEndChange={(id, v) => shiftTimestampRipple(id, 'end', v)}
             onFixArabic={handleFixArabic}

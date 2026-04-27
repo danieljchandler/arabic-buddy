@@ -345,6 +345,7 @@ export function useTranscriptEditor(
     split,
     merge,
     editText,
+    editTranslation,
     shiftTimestamp,
     shiftTimestampRipple,
     splitAtCursor,

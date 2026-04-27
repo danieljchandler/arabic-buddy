@@ -199,6 +199,43 @@ const Settings = () => {
               <User className="h-4 w-4" />
               Profile
             </div>
+
+            <div className="flex items-center gap-4">
+              <div className="relative">
+                <Avatar className="h-20 w-20 border-2 border-border">
+                  <AvatarImage src={avatarUrl || undefined} alt="Profile picture" />
+                  <AvatarFallback className="text-lg font-semibold">
+                    {(displayName || user?.email || '?').charAt(0).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                {uploadingAvatar && (
+                  <div className="absolute inset-0 flex items-center justify-center rounded-full bg-background/70">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                  </div>
+                )}
+              </div>
+              <div className="flex-1 space-y-2">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleAvatarUpload}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingAvatar}
+                >
+                  <Camera className="h-4 w-4 mr-2" />
+                  {avatarUrl ? 'Change picture' : 'Upload picture'}
+                </Button>
+                <p className="text-xs text-muted-foreground">JPG or PNG, up to 5MB</p>
+              </div>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="displayName" className="text-foreground">Display Name</Label>
               <Input

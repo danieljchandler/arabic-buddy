@@ -748,6 +748,68 @@ function stripDiacritics(text: string): string {
   return text.replace(/[\u064B-\u065F\u0670]/g, '');
 }
 
+/**
+ * Overlay Farasa-diacritized text onto the original lines, line-by-line.
+ * Farasa receives lines joined by '\n' in the same order, so the output
+ * should split into the same number of lines. We match by splitting on
+ * newlines; if the line counts mismatch we fall back to per-line word
+ * matching by stripped form.
+ */
+function overlayDiacritizedLines(
+  originalLines: string[],
+  diacritizedTranscript: string | null | undefined,
+): string[] {
+  if (!diacritizedTranscript) return originalLines;
+  const diacLines = diacritizedTranscript.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+  // Happy path: counts match
+  if (diacLines.length === originalLines.length) {
+    return originalLines.map((orig, i) => {
+      const diac = diacLines[i];
+      // Sanity check: stripped versions should roughly equal
+      if (stripDiacritics(diac).replace(/\s+/g, '') === stripDiacritics(orig).replace(/\s+/g, '')) {
+        return diac;
+      }
+      // Word-level overlay fallback
+      return overlayLineByWord(orig, diac);
+    });
+  }
+  // Counts mismatch: fall back to a single concatenated word stream
+  const allDiacWords = diacLines.join(' ').split(/\s+/).filter(Boolean);
+  let cursor = 0;
+  return originalLines.map((orig) => {
+    const origWords = orig.split(/\s+/).filter(Boolean);
+    const out: string[] = [];
+    for (const ow of origWords) {
+      const stripped = stripDiacritics(ow);
+      // Look ahead up to 3 words for a match
+      let matched: string | null = null;
+      for (let k = 0; k < 3 && cursor + k < allDiacWords.length; k++) {
+        if (stripDiacritics(allDiacWords[cursor + k]) === stripped) {
+          matched = allDiacWords[cursor + k];
+          cursor = cursor + k + 1;
+          break;
+        }
+      }
+      out.push(matched ?? ow);
+    }
+    return out.join(' ');
+  });
+}
+
+function overlayLineByWord(orig: string, diac: string): string {
+  const origWords = orig.split(/\s+/).filter(Boolean);
+  const diacWords = diac.split(/\s+/).filter(Boolean);
+  if (origWords.length !== diacWords.length) {
+    // best-effort: zip while we have pairs, keep original for the rest
+    return origWords
+      .map((ow, i) => (diacWords[i] && stripDiacritics(diacWords[i]) === stripDiacritics(ow) ? diacWords[i] : ow))
+      .join(' ');
+  }
+  return origWords
+    .map((ow, i) => (stripDiacritics(diacWords[i]) === stripDiacritics(ow) ? diacWords[i] : ow))
+    .join(' ');
+}
+
 // Strip punctuation from edges of a word for lookup
 function stripPunctuation(word: string): string {
   return word.replace(/^[،؟.!:؛…\-—–"'()[\]{}«»]+|[،؟.!:؛…\-—–"'()[\]{}«»]+$/g, '');
@@ -1500,12 +1562,25 @@ serve(async (req) => {
      let grammarPoints = Array.isArray(analysisAi?.grammarPoints) ? analysisAi!.grammarPoints : [];
      let culturalContext = analysisAi?.culturalContext;
 
-     // Build finalLines from mergedLines — always has the correct count.
-     // Translation priority: dedicated Gemini/Qwen > Call 2 embedded > empty string.
-     let finalLines = mergedLines.map((mergedLine, i) => ({
-       arabic: mergedLine.arabic,
-       translation: dedicatedTranslations[i] || call2Lines[i]?.translation || '',
-     }));
+      // Build finalLines from mergedLines — always has the correct count.
+      // Translation priority: dedicated Gemini/Qwen > Call 2 embedded > empty string.
+      // Overlay Farasa diacritization onto each line so per-line `arabic`
+      // includes tashkeel (pronunciation markings) — not just the top-level
+      // `diacritizedTranscript` field.
+      const diacritizedPerLine = overlayDiacritizedLines(
+        mergedLines.map(l => l.arabic),
+        diacritizedTranscript,
+      );
+      const diacritizedLineCount = diacritizedPerLine.filter(
+        (l, i) => l !== mergedLines[i].arabic,
+      ).length;
+      console.log(
+        `Diacritization overlay: ${diacritizedLineCount}/${mergedLines.length} lines updated with tashkeel`,
+      );
+      let finalLines = mergedLines.map((mergedLine, i) => ({
+        arabic: diacritizedPerLine[i] || mergedLine.arabic,
+        translation: dedicatedTranslations[i] || call2Lines[i]?.translation || '',
+      }));
 
      if (dedicatedTranslations.length > 0) {
        console.log(

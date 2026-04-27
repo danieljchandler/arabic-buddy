@@ -33,6 +33,7 @@ export default function SegmentList({
   onSplitAtCursor,
   onMerge,
   onEditText,
+  onEditTranslation,
   onStartChange,
   onEndChange,
   onFixArabic,

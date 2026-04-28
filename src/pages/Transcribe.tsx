@@ -1292,6 +1292,46 @@ const Transcribe = () => {
           </Card>
         ) : null}
 
+        {/* On-screen text overlays (POV captions, title cards, memes, etc.) */}
+        {transcriptResult?.onScreenText && transcriptResult.onScreenText.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Type className="h-5 w-5 text-primary" />On-Screen Text
+              </CardTitle>
+              <CardDescription>
+                Text overlays detected in the video — captions, title cards, or contextual graphics that aren't part of the spoken transcript.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {transcriptResult.onScreenText.map((seg, i) => (
+                  <div key={i} className="p-3 rounded-lg bg-muted/50 border space-y-1">
+                    <div className="flex items-start justify-between gap-3">
+                      <p
+                        className="text-lg font-semibold text-foreground text-right flex-1"
+                        dir="rtl"
+                        style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
+                      >
+                        {seg.text}
+                      </p>
+                      <Badge variant="outline" className="text-xs shrink-0">
+                        {seg.startSeconds.toFixed(1)}–{seg.endSeconds.toFixed(1)}s
+                      </Badge>
+                    </div>
+                    {seg.translation && (
+                      <p className="text-sm text-muted-foreground">{seg.translation}</p>
+                    )}
+                    {seg.transliteration && (
+                      <p className="text-xs text-muted-foreground italic">{seg.transliteration}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Analysis Loading */}
         {isAnalyzing && (
           <Card>

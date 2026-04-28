@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Upload, FileAudio, Download, Loader2, X, BookOpen, Languages, Sparkles, Save, Check, Plus, Link2 } from "lucide-react";
+import { Upload, FileAudio, Download, Loader2, X, BookOpen, Languages, Sparkles, Save, Check, Plus, Link2, Type } from "lucide-react";
 import { toast } from "sonner";
 import { HomeButton } from "@/components/HomeButton";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -10,8 +10,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { TranscriptResult, VocabItem, GrammarPoint } from "@/types/transcript";
+import type { TranscriptResult, VocabItem, GrammarPoint, OnScreenTextSegment } from "@/types/transcript";
 import { decodeAudioFile, clipToWav } from "@/lib/audioClipper";
+import { extractFramesWithTimestamps } from "@/lib/videoFrameExtractor";
 import { LineByLineTranscript } from "@/components/transcript/LineByLineTranscript";
 import { TimeRangeSelector } from "@/components/transcript/TimeRangeSelector";
 import { useAuth } from "@/hooks/useAuth";
@@ -523,6 +524,7 @@ const Transcribe = () => {
     munsitText?: string,
     fanarText?: string,
     sonioxText?: string,
+    visualContext?: string,
   ): Promise<{
     vocabulary: VocabItem[];
     grammarPoints: GrammarPoint[];
@@ -539,6 +541,7 @@ const Transcribe = () => {
       if (munsitText) body.munsitTranscript = munsitText;
       if (fanarText) body.fanarTranscript = fanarText;
       if (sonioxText) body.sonioxTranscript = sonioxText;
+      if (visualContext) body.visualContext = visualContext;
       
       // Add original URL if this analysis came from a URL import (for caching)
       const currentUrlParam = new URLSearchParams(window.location.search).get('url');
@@ -726,7 +729,43 @@ const Transcribe = () => {
         }
       })();
 
-      const [deepgramResult, munsitResult, fanarResult, sonioxResult] = await Promise.allSettled([deepgramPromise, munsitPromise, fanarPromise, sonioxPromise]);
+      // For video files, extract frames and detect on-screen text in parallel.
+      // Often videos have POV captions, title cards, or contextual text overlays.
+      // We capture them as a separate section so they aren't mistaken for spoken transcription.
+      const visualContextPromise = (async (): Promise<{
+        onScreenText: OnScreenTextSegment[];
+        sceneContext: string;
+      } | null> => {
+        if (!isVideoFile(file)) return null;
+        try {
+          const frames = await extractFramesWithTimestamps(file, 3, 12, 768);
+          if (frames.length === 0) return null;
+          const { data, error: vcError } = await supabase.functions.invoke<{
+            success: boolean;
+            result?: {
+              onScreenTextSegments: OnScreenTextSegment[];
+              sceneContext: string;
+              culturalContext: string;
+            };
+            error?: string;
+          }>("extract-visual-context", {
+            body: { frames, audioDuration: mediaDuration ?? undefined, videoTitle: file.name },
+          });
+          if (vcError || !data?.success || !data.result) {
+            console.warn("Visual context extraction failed:", vcError?.message || data?.error);
+            return null;
+          }
+          return {
+            onScreenText: data.result.onScreenTextSegments || [],
+            sceneContext: [data.result.sceneContext, data.result.culturalContext].filter(Boolean).join(" "),
+          };
+        } catch (e) {
+          console.warn("Visual context extraction skipped:", e);
+          return null;
+        }
+      })();
+
+      const [deepgramResult, munsitResult, fanarResult, sonioxResult, visualResult] = await Promise.allSettled([deepgramPromise, munsitPromise, fanarPromise, sonioxPromise, visualContextPromise]);
 
       if (progressInterval) clearInterval(progressInterval);
 
@@ -799,19 +838,25 @@ const Transcribe = () => {
 
       setProgress(100);
 
+      const visualData = visualResult.status === "fulfilled" ? visualResult.value : null;
+      const onScreenText = visualData?.onScreenText ?? [];
+      const sceneContext = visualData?.sceneContext || undefined;
+
       const initialResult: TranscriptResult = {
         rawTranscriptArabic: filteredText,
         lines: [],
         vocabulary: [],
         grammarPoints: [],
+        onScreenText: onScreenText.length > 0 ? onScreenText : undefined,
       };
       setTranscriptResult(initialResult);
 
       const engineCount = enginesUsed.length;
       const engineMsg = engineCount >= 4 ? "Quad transcription complete!" : engineCount >= 3 ? "Triple transcription complete!" : engineCount === 2 ? "Dual transcription complete!" : "Transcription complete!";
-      toast.success(engineMsg, { description: "Analyzing with multi-LLM ensemble..." });
+      const onScreenMsg = onScreenText.length > 0 ? ` Detected ${onScreenText.length} on-screen text overlay${onScreenText.length === 1 ? '' : 's'}.` : '';
+      toast.success(engineMsg, { description: `Analyzing with multi-LLM ensemble...${onScreenMsg}` });
 
-      const analysisData = await analyzeTranscript(filteredText, filteredMunsitText, filteredFanarText, filteredSonioxText);
+      const analysisData = await analyzeTranscript(filteredText, filteredMunsitText, filteredFanarText, filteredSonioxText, sceneContext);
       if (analysisData) {
         const linesWithTimestamps = mapTimestampsToLines(analysisData.lines || [], filteredWords);
         console.log('Mapped timestamps:', linesWithTimestamps.filter(l => l.startMs !== undefined).length, '/', linesWithTimestamps.length);
@@ -1246,6 +1291,46 @@ const Transcribe = () => {
             </CardContent>
           </Card>
         ) : null}
+
+        {/* On-screen text overlays (POV captions, title cards, memes, etc.) */}
+        {transcriptResult?.onScreenText && transcriptResult.onScreenText.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Type className="h-5 w-5 text-primary" />On-Screen Text
+              </CardTitle>
+              <CardDescription>
+                Text overlays detected in the video — captions, title cards, or contextual graphics that aren't part of the spoken transcript.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {transcriptResult.onScreenText.map((seg, i) => (
+                  <div key={i} className="p-3 rounded-lg bg-muted/50 border space-y-1">
+                    <div className="flex items-start justify-between gap-3">
+                      <p
+                        className="text-lg font-semibold text-foreground text-right flex-1"
+                        dir="rtl"
+                        style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
+                      >
+                        {seg.text}
+                      </p>
+                      <Badge variant="outline" className="text-xs shrink-0">
+                        {seg.startSeconds.toFixed(1)}–{seg.endSeconds.toFixed(1)}s
+                      </Badge>
+                    </div>
+                    {seg.translation && (
+                      <p className="text-sm text-muted-foreground">{seg.translation}</p>
+                    )}
+                    {seg.transliteration && (
+                      <p className="text-xs text-muted-foreground italic">{seg.transliteration}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Analysis Loading */}
         {isAnalyzing && (

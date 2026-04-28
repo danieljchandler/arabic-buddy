@@ -32,12 +32,23 @@ export type VocabItem = {
    examples?: string[];
  };
  
+export type OnScreenTextSegment = {
+  text: string;
+  translation: string;
+  transliteration?: string;
+  startSeconds: number;
+  endSeconds: number;
+  confidence: 'high' | 'medium' | 'low';
+};
+
 export type TranscriptResult = {
   rawTranscriptArabic: string;     // original blob
   lines: TranscriptLine[];
   vocabulary: VocabItem[];
   grammarPoints: GrammarPoint[];
   culturalContext?: string;
+  /** Text overlays detected in the video (POV captions, subtitles, title cards, etc.). */
+  onScreenText?: OnScreenTextSegment[];
   dialectValidation?: { content: string; timestamp: string } | null;
   dialect?: 'Saudi' | 'Kuwaiti' | 'UAE' | 'Bahraini' | 'Qatari' | 'Omani' | 'Gulf';
   difficulty?: 'Beginner' | 'Intermediate' | 'Advanced' | 'Expert';

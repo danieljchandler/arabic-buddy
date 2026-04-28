@@ -729,7 +729,43 @@ const Transcribe = () => {
         }
       })();
 
-      const [deepgramResult, munsitResult, fanarResult, sonioxResult] = await Promise.allSettled([deepgramPromise, munsitPromise, fanarPromise, sonioxPromise]);
+      // For video files, extract frames and detect on-screen text in parallel.
+      // Often videos have POV captions, title cards, or contextual text overlays.
+      // We capture them as a separate section so they aren't mistaken for spoken transcription.
+      const visualContextPromise = (async (): Promise<{
+        onScreenText: OnScreenTextSegment[];
+        sceneContext: string;
+      } | null> => {
+        if (!isVideoFile(file)) return null;
+        try {
+          const frames = await extractFramesWithTimestamps(file, 3, 12, 768);
+          if (frames.length === 0) return null;
+          const { data, error: vcError } = await supabase.functions.invoke<{
+            success: boolean;
+            result?: {
+              onScreenTextSegments: OnScreenTextSegment[];
+              sceneContext: string;
+              culturalContext: string;
+            };
+            error?: string;
+          }>("extract-visual-context", {
+            body: { frames, audioDuration: mediaDuration ?? undefined, videoTitle: file.name },
+          });
+          if (vcError || !data?.success || !data.result) {
+            console.warn("Visual context extraction failed:", vcError?.message || data?.error);
+            return null;
+          }
+          return {
+            onScreenText: data.result.onScreenTextSegments || [],
+            sceneContext: [data.result.sceneContext, data.result.culturalContext].filter(Boolean).join(" "),
+          };
+        } catch (e) {
+          console.warn("Visual context extraction skipped:", e);
+          return null;
+        }
+      })();
+
+      const [deepgramResult, munsitResult, fanarResult, sonioxResult, visualResult] = await Promise.allSettled([deepgramPromise, munsitPromise, fanarPromise, sonioxPromise, visualContextPromise]);
 
       if (progressInterval) clearInterval(progressInterval);
 

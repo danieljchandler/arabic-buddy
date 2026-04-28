@@ -9,6 +9,8 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
 import { GenerateImageDialog } from "@/components/mywords/GenerateImageDialog";
+import { SuggestFlashcardsDialog } from "@/components/mywords/SuggestFlashcardsDialog";
+import { Wand2 } from "lucide-react";
 
 const MyWords = () => {
   const navigate = useNavigate();
@@ -19,6 +21,7 @@ const MyWords = () => {
   const { data: stats } = useUserVocabularyDueCount(mixAll);
   const deleteWord = useDeleteUserVocabulary();
   const [imageDialogWord, setImageDialogWord] = useState<UserVocabularyWord | null>(null);
+  const [suggestOpen, setSuggestOpen] = useState(false);
 
   const handleDelete = async (wordId: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -84,6 +87,16 @@ const MyWords = () => {
           {mixAll ? "All Dialects" : activeDialect}
         </Button>
       </div>
+
+      {/* AI suggest button */}
+      <Button
+        onClick={() => setSuggestOpen(true)}
+        variant="outline"
+        className="w-full mb-3 gap-2"
+      >
+        <Wand2 className="h-4 w-4" />
+        Get AI flashcard suggestions
+      </Button>
 
       {/* Review button */}
       {stats && stats.dueCount > 0 && (
@@ -185,6 +198,8 @@ const MyWords = () => {
         open={!!imageDialogWord}
         onOpenChange={(open) => { if (!open) setImageDialogWord(null); }}
       />
+
+      <SuggestFlashcardsDialog open={suggestOpen} onOpenChange={setSuggestOpen} />
     </AppShell>
   );
 };

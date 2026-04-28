@@ -238,6 +238,24 @@ IMPORTANT: Generate a conversation scenario for practice. Include a JSON code bl
 }
 \`\`\``,
 
+  suggest_lessons: `
+IMPORTANT: The admin is brainstorming. Do NOT generate full lesson content and do NOT include any \`\`\`json code blocks.
+Instead, propose 6-10 distinct LESSON IDEAS appropriate for the target dialect and stage/CEFR.
+Format the response as a markdown numbered list. For each idea include:
+- **Title** (English) — *Arabic title*
+- One short sentence describing the focus and what learners will be able to do
+- A "Why" note (1 line) explaining why it fits the stage / learner needs
+End with a short prompt telling the admin they can reply with the number (e.g. "Build #3") to generate the full lesson.`,
+
+  suggest_vocab: `
+IMPORTANT: The admin is brainstorming vocabulary themes. Do NOT generate full vocab lists and do NOT include any \`\`\`json code blocks.
+Instead, propose 6-10 distinct VOCAB SET IDEAS (themes/categories) appropriate for the target dialect and stage/CEFR.
+Format as a markdown numbered list. For each idea include:
+- **Theme** (English) — *Arabic label*
+- A short sentence describing the use case (where/when learners need these words)
+- 3-5 example words in the target dialect (Arabic + transliteration + English) as a sub-list
+End with a short prompt telling the admin they can reply with the number (e.g. "Generate #2") to produce the full vocab set.`,
+
   generate_game_set: `
 IMPORTANT: Generate a vocabulary game set with word pairs. Include a JSON code block:
 
@@ -286,12 +304,15 @@ function buildSystemPrompt(
   const isYemeni = dialect === "Yemeni";
   const appDesc = isEgyptian ? "an Egyptian Arabic learning module" : isYemeni ? "a Yemeni Arabic learning module" : "a Gulf Arabic learning app";
 
+  const isSuggestMode = mode === "suggest_lessons" || mode === "suggest_vocab";
+
   // Always include all available JSON schemas so the AI knows the formats
-  const allFormats = `
+  const allFormats = isSuggestMode ? `
+CRITICAL: This is a BRAINSTORM/SUGGESTION request. Do NOT include any \`\`\`json code blocks. Respond with a clean markdown list of ideas only.` : `
 CRITICAL INSTRUCTION: When the admin asks you to CREATE, GENERATE, or BUILD any content, you MUST include a properly formatted JSON code block in your response. Without it, the content cannot be saved to the platform.
 
 Available output formats (use the one matching the request):
-${Object.entries(MODE_INSTRUCTIONS).map(([k, v]) => `### When asked to ${k.replace('generate_', '')}:\n${v}`).join('\n\n')}
+${Object.entries(MODE_INSTRUCTIONS).filter(([k]) => !k.startsWith('suggest_')).map(([k, v]) => `### When asked to ${k.replace('generate_', '')}:\n${v}`).join('\n\n')}
 
 REMEMBER: Always include the \`\`\`json code block when generating content. The "type" field inside the JSON determines which preview card appears. Without this JSON block, the admin cannot approve and save the content.`;
   

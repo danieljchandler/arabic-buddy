@@ -24,6 +24,18 @@ interface ChatInputProps {
 
 const QUICK_ACTIONS = [
   {
+    label: 'Suggest Lessons',
+    icon: Lightbulb,
+    mode: 'suggest_lessons' as const,
+    prompt: 'Suggest lesson ideas for: ',
+  },
+  {
+    label: 'Suggest Vocab',
+    icon: Sparkles,
+    mode: 'suggest_vocab' as const,
+    prompt: 'Suggest vocabulary themes for: ',
+  },
+  {
     label: 'Lesson',
     icon: GraduationCap,
     mode: 'generate_lesson' as const,

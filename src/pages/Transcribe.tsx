@@ -838,19 +838,25 @@ const Transcribe = () => {
 
       setProgress(100);
 
+      const visualData = visualResult.status === "fulfilled" ? visualResult.value : null;
+      const onScreenText = visualData?.onScreenText ?? [];
+      const sceneContext = visualData?.sceneContext || undefined;
+
       const initialResult: TranscriptResult = {
         rawTranscriptArabic: filteredText,
         lines: [],
         vocabulary: [],
         grammarPoints: [],
+        onScreenText: onScreenText.length > 0 ? onScreenText : undefined,
       };
       setTranscriptResult(initialResult);
 
       const engineCount = enginesUsed.length;
       const engineMsg = engineCount >= 4 ? "Quad transcription complete!" : engineCount >= 3 ? "Triple transcription complete!" : engineCount === 2 ? "Dual transcription complete!" : "Transcription complete!";
-      toast.success(engineMsg, { description: "Analyzing with multi-LLM ensemble..." });
+      const onScreenMsg = onScreenText.length > 0 ? ` Detected ${onScreenText.length} on-screen text overlay${onScreenText.length === 1 ? '' : 's'}.` : '';
+      toast.success(engineMsg, { description: `Analyzing with multi-LLM ensemble...${onScreenMsg}` });
 
-      const analysisData = await analyzeTranscript(filteredText, filteredMunsitText, filteredFanarText, filteredSonioxText);
+      const analysisData = await analyzeTranscript(filteredText, filteredMunsitText, filteredFanarText, filteredSonioxText, sceneContext);
       if (analysisData) {
         const linesWithTimestamps = mapTimestampsToLines(analysisData.lines || [], filteredWords);
         console.log('Mapped timestamps:', linesWithTimestamps.filter(l => l.startMs !== undefined).length, '/', linesWithTimestamps.length);

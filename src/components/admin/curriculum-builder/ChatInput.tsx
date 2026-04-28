@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Send, BookOpen, Languages, GraduationCap, GitCompare, PenLine, Headphones, BookOpenCheck, Flame, MessageCircle, Gamepad2 } from 'lucide-react';
+import { Send, BookOpen, Languages, GraduationCap, GitCompare, PenLine, Headphones, BookOpenCheck, Flame, MessageCircle, Gamepad2, Lightbulb, Sparkles } from 'lucide-react';
 
 export type ChatMode =
   | 'chat'
@@ -12,7 +12,9 @@ export type ChatMode =
   | 'generate_reading'
   | 'generate_daily_challenge'
   | 'generate_conversation'
-  | 'generate_game_set';
+  | 'generate_game_set'
+  | 'suggest_lessons'
+  | 'suggest_vocab';
 
 interface ChatInputProps {
   onSend: (message: string, mode?: ChatMode) => void;

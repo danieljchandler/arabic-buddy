@@ -524,6 +524,7 @@ const Transcribe = () => {
     munsitText?: string,
     fanarText?: string,
     sonioxText?: string,
+    visualContext?: string,
   ): Promise<{
     vocabulary: VocabItem[];
     grammarPoints: GrammarPoint[];
@@ -540,6 +541,7 @@ const Transcribe = () => {
       if (munsitText) body.munsitTranscript = munsitText;
       if (fanarText) body.fanarTranscript = fanarText;
       if (sonioxText) body.sonioxTranscript = sonioxText;
+      if (visualContext) body.visualContext = visualContext;
       
       // Add original URL if this analysis came from a URL import (for caching)
       const currentUrlParam = new URLSearchParams(window.location.search).get('url');

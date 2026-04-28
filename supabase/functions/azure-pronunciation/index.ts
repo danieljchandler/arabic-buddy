@@ -225,9 +225,10 @@ Deno.serve(async (req: Request) => {
     const endpoint = getSttEndpoint();
     const params = new URLSearchParams({ language: locale, format: 'detailed' });
 
-    // Bound the Azure call with a 10s timeout to prevent edge worker stalling
+    // Bound the Azure call with a 30s timeout — pronunciation assessment with
+    // Phoneme granularity can take 15–25s for longer phrases on cold endpoints.
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10_000);
+    const timeoutId = setTimeout(() => controller.abort(), 30_000);
 
     let azureRes: Response;
     try {

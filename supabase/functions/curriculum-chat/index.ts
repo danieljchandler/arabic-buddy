@@ -238,6 +238,24 @@ IMPORTANT: Generate a conversation scenario for practice. Include a JSON code bl
 }
 \`\`\``,
 
+  suggest_lessons: `
+IMPORTANT: The admin is brainstorming. Do NOT generate full lesson content and do NOT include any \`\`\`json code blocks.
+Instead, propose 6-10 distinct LESSON IDEAS appropriate for the target dialect and stage/CEFR.
+Format the response as a markdown numbered list. For each idea include:
+- **Title** (English) — *Arabic title*
+- One short sentence describing the focus and what learners will be able to do
+- A "Why" note (1 line) explaining why it fits the stage / learner needs
+End with a short prompt telling the admin they can reply with the number (e.g. "Build #3") to generate the full lesson.`,
+
+  suggest_vocab: `
+IMPORTANT: The admin is brainstorming vocabulary themes. Do NOT generate full vocab lists and do NOT include any \`\`\`json code blocks.
+Instead, propose 6-10 distinct VOCAB SET IDEAS (themes/categories) appropriate for the target dialect and stage/CEFR.
+Format as a markdown numbered list. For each idea include:
+- **Theme** (English) — *Arabic label*
+- A short sentence describing the use case (where/when learners need these words)
+- 3-5 example words in the target dialect (Arabic + transliteration + English) as a sub-list
+End with a short prompt telling the admin they can reply with the number (e.g. "Generate #2") to produce the full vocab set.`,
+
   generate_game_set: `
 IMPORTANT: Generate a vocabulary game set with word pairs. Include a JSON code block:
 

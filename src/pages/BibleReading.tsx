@@ -508,6 +508,27 @@ const BibleReadingInner = () => {
             </div>
           </div>
 
+          {/* Curated lessons entry point */}
+          <button
+            onClick={() => navigate("/bible/lessons")}
+            className="w-full p-4 rounded-xl bg-gradient-to-r from-amber-500/10 to-yellow-500/10 border border-amber-500/30 flex items-center gap-3 transition-all hover:border-amber-500/60 active:scale-[0.99] text-left"
+          >
+            <div className="w-10 h-10 rounded-lg bg-amber-500/20 flex items-center justify-center shrink-0">
+              <BookOpen className="h-5 w-5 text-amber-700 dark:text-amber-400" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-foreground">Curated Lessons</p>
+              <p className="text-xs text-muted-foreground">
+                Hand-picked passages in {dialectLabel} — different from the AI reader below
+              </p>
+            </div>
+            <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
+          </button>
+
+          <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold pt-2">
+            Or browse the full Bible
+          </div>
+
           {/* Arabic Version */}
           <div className="space-y-2">
             <label className="text-sm font-medium">Arabic Translation</label>

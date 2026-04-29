@@ -55,6 +55,7 @@ const LearningPathDashboard = lazyPage(() => import("./pages/LearningPathDashboa
 const PlacementQuiz = lazyPage(() => import("./pages/PlacementQuiz"));
 const SouqNews = lazyPage(() => import("./pages/SouqNews"));
 const BibleReading = lazyPage(() => import("./pages/BibleReading"));
+const BibleLessons = lazyPage(() => import("./pages/BibleLessons"));
 const MyTranscriptions = lazyPage(() => import("./pages/MyTranscriptions"));
 
 // Admin pages
@@ -76,6 +77,7 @@ const AdminStories = lazyPage(() => import("./pages/admin/AdminStories"));
 const AdminStoryForm = lazyPage(() => import("./pages/admin/AdminStoryForm"));
 const TrendingVideos = lazyPage(() => import("./pages/admin/TrendingVideos"));
 const BibleAccess = lazyPage(() => import("./pages/admin/BibleAccess"));
+const AdminBibleLessons = lazyPage(() => import("./pages/admin/AdminBibleLessons"));
 
 const queryClient = new QueryClient();
 
@@ -295,6 +297,12 @@ const App = () => {
             <Route path="/bible" element={
               <ErrorBoundary name="BibleReadingRoute"><BibleReading /></ErrorBoundary>
             } />
+            <Route path="/bible/lessons" element={
+              <ErrorBoundary name="BibleLessonsRoute"><BibleLessons /></ErrorBoundary>
+            } />
+            <Route path="/bible/lessons/:lessonId" element={
+              <ErrorBoundary name="BibleLessonRoute"><BibleLessons /></ErrorBoundary>
+            } />
             <Route path="/my-transcriptions" element={
               <ErrorBoundary name="MyTranscriptionsRoute"><MyTranscriptions /></ErrorBoundary>
             } />
@@ -327,6 +335,7 @@ const App = () => {
               <Route path="stories/:storyId/edit" element={<AdminStoryForm />} />
               <Route path="trending" element={<TrendingVideos />} />
               <Route path="bible-access" element={<BibleAccess />} />
+              <Route path="bible-lessons" element={<AdminBibleLessons />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />

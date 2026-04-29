@@ -95,6 +95,69 @@ export type Database = {
         }
         Relationships: []
       }
+      bible_lessons: {
+        Row: {
+          book_name: string
+          book_usfm: string
+          chapter: number
+          created_at: string
+          created_by: string
+          cultural_note: string | null
+          description: string | null
+          dialect: string
+          dialect_verses: Json
+          display_order: number
+          english_verses: Json
+          formal_verses: Json
+          id: string
+          published: boolean
+          title: string
+          updated_at: string
+          verse_end: number
+          verse_start: number
+        }
+        Insert: {
+          book_name: string
+          book_usfm: string
+          chapter: number
+          created_at?: string
+          created_by: string
+          cultural_note?: string | null
+          description?: string | null
+          dialect?: string
+          dialect_verses?: Json
+          display_order?: number
+          english_verses?: Json
+          formal_verses?: Json
+          id?: string
+          published?: boolean
+          title: string
+          updated_at?: string
+          verse_end?: number
+          verse_start?: number
+        }
+        Update: {
+          book_name?: string
+          book_usfm?: string
+          chapter?: number
+          created_at?: string
+          created_by?: string
+          cultural_note?: string | null
+          description?: string | null
+          dialect?: string
+          dialect_verses?: Json
+          display_order?: number
+          english_verses?: Json
+          formal_verses?: Json
+          id?: string
+          published?: boolean
+          title?: string
+          updated_at?: string
+          verse_end?: number
+          verse_start?: number
+        }
+        Relationships: []
+      }
       challenges: {
         Row: {
           challenge_type: string

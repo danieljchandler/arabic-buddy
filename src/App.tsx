@@ -335,6 +335,7 @@ const App = () => {
               <Route path="stories/:storyId/edit" element={<AdminStoryForm />} />
               <Route path="trending" element={<TrendingVideos />} />
               <Route path="bible-access" element={<BibleAccess />} />
+              <Route path="bible-lessons" element={<AdminBibleLessons />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />

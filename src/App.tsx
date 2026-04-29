@@ -55,6 +55,7 @@ const LearningPathDashboard = lazyPage(() => import("./pages/LearningPathDashboa
 const PlacementQuiz = lazyPage(() => import("./pages/PlacementQuiz"));
 const SouqNews = lazyPage(() => import("./pages/SouqNews"));
 const BibleReading = lazyPage(() => import("./pages/BibleReading"));
+const BibleLessons = lazyPage(() => import("./pages/BibleLessons"));
 const MyTranscriptions = lazyPage(() => import("./pages/MyTranscriptions"));
 
 // Admin pages

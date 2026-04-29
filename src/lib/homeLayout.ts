@@ -46,7 +46,7 @@ export const HOME_SECTIONS: HomeSectionMeta[] = [
   { id: "grammar", label: "Grammar Drills", description: "AI-powered grammar exercises" },
   { id: "games", label: "Vocabulary Games", description: "Match, memory, fill-in-the-blank" },
   { id: "comprehension", label: "Comprehension", description: "Listening & reading practice" },
-  { id: "bible", label: "Bible Reading", description: "Scripture (only if access granted)" },
+  { id: "bible", label: "Bible Reading", description: "Scripture (only if access granted)", alwaysOn: true },
   { id: "souq-news", label: "Souq News", description: "Daily dialect news" },
   { id: "dialect-compare", label: "Dialect Compare", description: "Compare words across dialects" },
   { id: "meme", label: "Meme Analyzer", description: "Break down Arabic memes" },

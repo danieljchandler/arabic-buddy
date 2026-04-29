@@ -37,11 +37,15 @@ export const useBibleAccess = () => {
     if (!user) {
       setHasAccess(false);
       setLoading(false);
+      checkedUserRef.current = null;
       return;
     }
 
     // Avoid re-checking for the same user on token refresh
-    if (checkedUserRef.current === user.id) return;
+    if (checkedUserRef.current === user.id) {
+      setLoading(false);
+      return;
+    }
     checkedUserRef.current = user.id;
 
     setLoading(true);

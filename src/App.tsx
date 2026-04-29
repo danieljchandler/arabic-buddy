@@ -77,6 +77,7 @@ const AdminStories = lazyPage(() => import("./pages/admin/AdminStories"));
 const AdminStoryForm = lazyPage(() => import("./pages/admin/AdminStoryForm"));
 const TrendingVideos = lazyPage(() => import("./pages/admin/TrendingVideos"));
 const BibleAccess = lazyPage(() => import("./pages/admin/BibleAccess"));
+const AdminBibleLessons = lazyPage(() => import("./pages/admin/AdminBibleLessons"));
 
 const queryClient = new QueryClient();
 

@@ -297,6 +297,12 @@ const App = () => {
             <Route path="/bible" element={
               <ErrorBoundary name="BibleReadingRoute"><BibleReading /></ErrorBoundary>
             } />
+            <Route path="/bible/lessons" element={
+              <ErrorBoundary name="BibleLessonsRoute"><BibleLessons /></ErrorBoundary>
+            } />
+            <Route path="/bible/lessons/:lessonId" element={
+              <ErrorBoundary name="BibleLessonRoute"><BibleLessons /></ErrorBoundary>
+            } />
             <Route path="/my-transcriptions" element={
               <ErrorBoundary name="MyTranscriptionsRoute"><MyTranscriptions /></ErrorBoundary>
             } />

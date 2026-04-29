@@ -190,6 +190,7 @@ async function fetchWithRetry<T>(
 
 // ─── Component ───────────────────────────────────────────────────────────────
 const BibleReadingInner = () => {
+  const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
   const { hasAccess, loading: accessLoading } = useBibleAccess();
   const { activeDialect } = useDialect();

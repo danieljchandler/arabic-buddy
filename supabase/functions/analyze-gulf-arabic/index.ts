@@ -1284,12 +1284,12 @@ serve(async (req) => {
      let partial = false;
 
      // Build user content for the merge prompt (all available ASR transcripts).
-     // Order matches the engine-priority ranking in the merge prompt: Soniox > Fanar > Azure > Deepgram.
+     // Order matches the engine-priority ranking: Munsit > Soniox > Fanar > Azure > Deepgram.
      const transcriptParts: string[] = [];
-     if (hasSoniox) transcriptParts.push(`Transcription (Soniox — lowest-WER engine, prefer wording when in doubt):\n${sonioxTranscript}`);
-     if (hasFanar) transcriptParts.push(`Transcription (Fanar — Arabic-native dialect specialist):\n${fanarTranscript}`);
+     if (hasDual) transcriptParts.push(`Transcription (Munsit — Arabic-native dialect specialist, PREFER wording for dialectal phrases):\n${munsitTranscript}`);
+     if (hasSoniox) transcriptParts.push(`Transcription (Soniox — lowest-WER engine, use when Munsit is missing):\n${sonioxTranscript}`);
+     if (hasFanar) transcriptParts.push(`Transcription (Fanar — Arabic-native, tie-breaker):\n${fanarTranscript}`);
      if (hasAzure) transcriptParts.push(`Transcription (Azure — locale-tuned for this dialect):\n${azureTranscript}`);
-     if (hasDual) transcriptParts.push(`Transcription (Munsit — Arabic specialist):\n${munsitTranscript}`);
      transcriptParts.push(`Transcription (Deepgram — best for word boundaries; do NOT prefer its wording):\n${transcript}`);
      const linesUserContent = transcriptParts.length > 1 ? transcriptParts.join('\n\n') : transcript;
 

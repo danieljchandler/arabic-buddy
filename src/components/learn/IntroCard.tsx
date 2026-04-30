@@ -21,8 +21,9 @@ export const IntroCard = ({ word, onContinue, topicLabel }: IntroCardProps) => {
   const [showArabic, setShowArabic] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Auto-play audio when card appears
+  // Auto-play audio when card appears + reset reveal
   useEffect(() => {
+    setShowArabic(false);
     const timer = setTimeout(() => {
       if (word.audio_url && audioRef.current) {
         audioRef.current.currentTime = 0;

@@ -531,21 +531,35 @@ const ConversationSimulator = () => {
     setIsSpeaking(messageIndex);
 
     try {
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/azure-tts`,
-        {
+      const isGulf = activeDialect === 'Gulf';
+      const headers = {
+        "Content-Type": "application/json",
+        apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+      };
+
+      const callTts = (fn: string, body: Record<string, unknown>) =>
+        fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${fn}`, {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-          },
-          body: JSON.stringify({
+          headers,
+          body: JSON.stringify(body),
+        });
+
+      // Gulf → Munsit (Arabic-native voice). Fallback to Azure on failure.
+      let response = isGulf
+        ? await callTts("munsit-tts", { text: arabicText })
+        : await callTts("azure-tts", {
             text: arabicText,
             voice: activeDialect === 'Egyptian' ? "ar-EG-ShakirNeural" : "ar-AE-HamdanNeural",
-          }),
-        }
-      );
+          });
+
+      if (!response.ok && isGulf) {
+        console.warn(`munsit-tts failed (${response.status}); falling back to azure-tts`);
+        response = await callTts("azure-tts", {
+          text: arabicText,
+          voice: "ar-AE-HamdanNeural",
+        });
+      }
 
       if (!response.ok) {
         throw new Error(`TTS request failed: ${response.status}`);

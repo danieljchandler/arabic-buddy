@@ -476,6 +476,17 @@ const BibleReadingInner = () => {
                       </p>
                     )}
 
+                    {/* Ask AI */}
+                    {(showFormal || showDialect) && (
+                      <div className="flex justify-end">
+                        <AskAISentence
+                          arabic={dialectLine || verse}
+                          english={englishLine}
+                          variant="chip"
+                        />
+                      </div>
+                    )}
+
                     {/* Divider */}
                     {idx < arabicVerses.length - 1 && (
                       <div className="border-b border-border/50 pt-2" />

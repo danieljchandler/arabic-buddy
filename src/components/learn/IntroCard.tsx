@@ -52,11 +52,31 @@ export const IntroCard = ({ word, onContinue, topicLabel }: IntroCardProps) => {
         />
       </div>
 
-      {/* Arabic Word Display */}
+      {/* Arabic Word Display - hidden until revealed */}
       <div className="mb-3 py-4 px-5 rounded-xl bg-card border border-border">
-        <p className="text-2xl font-bold text-foreground font-arabic leading-relaxed" dir="rtl">
-          {word.word_arabic}
-        </p>
+        {showArabic ? (
+          <p
+            className="text-2xl font-bold text-foreground font-arabic leading-relaxed animate-in fade-in duration-200"
+            dir="rtl"
+          >
+            {word.word_arabic}
+          </p>
+        ) : (
+          <p className="text-sm text-muted-foreground/70 italic">
+            Try saying it in Arabic, then reveal
+          </p>
+        )}
+        <button
+          type="button"
+          onClick={() => setShowArabic((v) => !v)}
+          className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline focus:outline-none"
+        >
+          {showArabic ? (
+            <><EyeOff className="w-4 h-4" /> Hide Arabic</>
+          ) : (
+            <><Eye className="w-4 h-4" /> Show Arabic</>
+          )}
+        </button>
       </div>
 
       {/* English Translation */}

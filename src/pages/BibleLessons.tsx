@@ -14,6 +14,8 @@ import { useBibleAccess } from "@/hooks/useBibleAccess";
 import { useDialect } from "@/contexts/DialectContext";
 import { TappableArabicText } from "@/components/shared/TappableArabicText";
 import { DIALECT_FLAGS } from "@/config";
+import { useBibleDisplayPrefs } from "@/hooks/useBibleDisplayPrefs";
+import { stripTashkil } from "@/lib/bibleDisplayPrefs";
 import { toast } from "sonner";
 
 type BibleLesson = {
@@ -43,9 +45,8 @@ const BibleLessons = () => {
   const [active, setActive] = useState<BibleLesson | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Toggles
-  const [showFormal, setShowFormal] = useState(false);
-  const [showEnglish, setShowEnglish] = useState(false);
+  // Display preferences (from Settings)
+  const { prefs, update: updatePrefs } = useBibleDisplayPrefs();
 
   // ── Fetch list ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -166,17 +167,38 @@ const BibleLessons = () => {
               </Badge>
             </div>
 
-            {/* Toggles */}
+            {/* Quick toggles (synced with Settings) */}
             <div className="flex items-center gap-4 mt-3 text-sm flex-wrap">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <Switch
+                  checked={prefs.showArabic}
+                  onCheckedChange={(v) => updatePrefs({ showArabic: v })}
+                />
+                <span>Arabic</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <Switch
+                  checked={prefs.showTashkil}
+                  onCheckedChange={(v) => updatePrefs({ showTashkil: v })}
+                  disabled={!prefs.showArabic}
+                />
+                <span>Tashkil</span>
+              </label>
               {formalVerses.length > 0 && (
                 <label className="flex items-center gap-2 cursor-pointer">
-                  <Switch checked={showFormal} onCheckedChange={setShowFormal} />
+                  <Switch
+                    checked={prefs.showFormal}
+                    onCheckedChange={(v) => updatePrefs({ showFormal: v })}
+                  />
                   <span>Formal Arabic</span>
                 </label>
               )}
               {englishVerses.length > 0 && (
                 <label className="flex items-center gap-2 cursor-pointer">
-                  <Switch checked={showEnglish} onCheckedChange={setShowEnglish} />
+                  <Switch
+                    checked={prefs.showEnglish}
+                    onCheckedChange={(v) => updatePrefs({ showEnglish: v })}
+                  />
                   <span>English</span>
                 </label>
               )}

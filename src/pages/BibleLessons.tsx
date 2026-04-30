@@ -14,6 +14,8 @@ import { useBibleAccess } from "@/hooks/useBibleAccess";
 import { useDialect } from "@/contexts/DialectContext";
 import { TappableArabicText } from "@/components/shared/TappableArabicText";
 import { DIALECT_FLAGS } from "@/config";
+import { useBibleDisplayPrefs } from "@/hooks/useBibleDisplayPrefs";
+import { stripTashkil } from "@/lib/bibleDisplayPrefs";
 import { toast } from "sonner";
 
 type BibleLesson = {
@@ -43,9 +45,8 @@ const BibleLessons = () => {
   const [active, setActive] = useState<BibleLesson | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Toggles
-  const [showFormal, setShowFormal] = useState(false);
-  const [showEnglish, setShowEnglish] = useState(false);
+  // Display preferences (from Settings)
+  const { prefs, update: updatePrefs } = useBibleDisplayPrefs();
 
   // ── Fetch list ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -166,17 +167,38 @@ const BibleLessons = () => {
               </Badge>
             </div>
 
-            {/* Toggles */}
+            {/* Quick toggles (synced with Settings) */}
             <div className="flex items-center gap-4 mt-3 text-sm flex-wrap">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <Switch
+                  checked={prefs.showArabic}
+                  onCheckedChange={(v) => updatePrefs({ showArabic: v })}
+                />
+                <span>Arabic</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <Switch
+                  checked={prefs.showTashkil}
+                  onCheckedChange={(v) => updatePrefs({ showTashkil: v })}
+                  disabled={!prefs.showArabic}
+                />
+                <span>Tashkil</span>
+              </label>
               {formalVerses.length > 0 && (
                 <label className="flex items-center gap-2 cursor-pointer">
-                  <Switch checked={showFormal} onCheckedChange={setShowFormal} />
+                  <Switch
+                    checked={prefs.showFormal}
+                    onCheckedChange={(v) => updatePrefs({ showFormal: v })}
+                  />
                   <span>Formal Arabic</span>
                 </label>
               )}
               {englishVerses.length > 0 && (
                 <label className="flex items-center gap-2 cursor-pointer">
-                  <Switch checked={showEnglish} onCheckedChange={setShowEnglish} />
+                  <Switch
+                    checked={prefs.showEnglish}
+                    onCheckedChange={(v) => updatePrefs({ showEnglish: v })}
+                  />
                   <span>English</span>
                 </label>
               )}
@@ -204,6 +226,12 @@ const BibleLessons = () => {
                 const verseNumber = active.verse_start + idx;
                 const formal = formalVerses[idx] ?? "";
                 const english = englishVerses[idx] ?? "";
+                const dialectText = prefs.showTashkil ? verse : stripTashkil(verse);
+                const formalText = prefs.showTashkil ? formal : stripTashkil(formal);
+                const nothingShown =
+                  !prefs.showArabic &&
+                  !(prefs.showFormal && formal) &&
+                  !(prefs.showEnglish && english);
                 return (
                   <div key={idx} className="space-y-2">
                     <div className="text-xs font-semibold text-muted-foreground">
@@ -211,25 +239,27 @@ const BibleLessons = () => {
                     </div>
 
                     {/* Dialect (primary) */}
-                    <div
-                      dir="rtl"
-                      className="text-lg leading-relaxed font-arabic text-primary"
-                    >
-                      <TappableArabicText
-                        text={verse}
-                        source="bible"
-                        sentenceContext={{ arabic: verse, english }}
-                      />
-                    </div>
+                    {prefs.showArabic && (
+                      <div
+                        dir="rtl"
+                        className="text-lg leading-relaxed font-arabic text-primary"
+                      >
+                        <TappableArabicText
+                          text={dialectText}
+                          source="bible"
+                          sentenceContext={{ arabic: verse, english }}
+                        />
+                      </div>
+                    )}
 
                     {/* Formal Arabic */}
-                    {showFormal && formal && (
+                    {prefs.showFormal && formal && (
                       <div
                         dir="rtl"
                         className="text-base leading-relaxed font-arabic text-foreground"
                       >
                         <TappableArabicText
-                          text={formal}
+                          text={formalText}
                           source="bible"
                           sentenceContext={{ arabic: formal, english }}
                         />
@@ -237,9 +267,15 @@ const BibleLessons = () => {
                     )}
 
                     {/* English */}
-                    {showEnglish && english && (
+                    {prefs.showEnglish && english && (
                       <p className="text-sm text-muted-foreground leading-relaxed">
                         {english}
+                      </p>
+                    )}
+
+                    {nothingShown && (
+                      <p className="text-xs italic text-muted-foreground">
+                        All display options hidden — enable one above or in Settings.
                       </p>
                     )}
 

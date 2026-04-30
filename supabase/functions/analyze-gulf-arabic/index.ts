@@ -102,16 +102,16 @@ const getMergeOnlySystemPrompt = (isRetry: boolean = false, hasDualTranscripts: 
 Compare them carefully and produce the BEST merged transcript using this priority order:
 
 ENGINE QUALITY RANKING (2026 Arabic production benchmarks):
-1. **Soniox (stt-async-v4)** — LOWEST WER on Arabic dialect. When transcripts disagree on wording, **prefer Soniox's wording** by default. It is the most accurate engine for actual word choice on dialectal speech.
-2. **Fanar-Aura-STT-1** — Arabic-native model, especially strong on Gulf vocabulary and dialect-specific phrases. Use as the tie-breaker when Soniox is missing a word or producing MSA-leaning forms.
-3. **Azure Speech (ar-EG / ar-YE / ar-SA)** — Locale-tuned: trust it heavily for Egyptian and Yemeni audio in particular.
-4. **Deepgram Nova-3** — Best for word boundaries, punctuation, and overall structure. Use Deepgram for sentence segmentation cues, but DO NOT prefer its wording over Soniox or Fanar when they disagree.
-5. **Munsit** — Strong Arabic specialist; treat similar to Fanar when present.
+1. **Munsit** — TRUE Arabic-native dialect specialist (Khaleeji, Hijazi, Najdi, Emirati, Egyptian, Yemeni, Maghrebi). When present, **prefer Munsit's wording** for any dialectal phrase, idiom, or pronunciation-as-spelled choice. It is the most accurate engine for Arabic dialect speech.
+2. **Soniox (stt-async-v4)** — Lowest WER on Arabic generally. Use Soniox when Munsit is missing or when Soniox + Fanar agree against Munsit on a clearly non-dialectal word.
+3. **Fanar-Aura-STT-1** — Arabic-native model, especially strong on Gulf vocabulary. Use as a tie-breaker.
+4. **Azure Speech (ar-EG / ar-YE / ar-SA)** — Locale-tuned: trust it heavily for Egyptian and Yemeni audio in particular.
+5. **Deepgram Nova-3** — Best for word boundaries, punctuation, and overall structure. Use Deepgram for sentence segmentation cues, but DO NOT prefer its wording over the Arabic-native engines.
 
 Merging rules:
 - Where engines agree, use the shared text.
-- Where Soniox + at least one other engine agree, use that wording.
-- Where only Deepgram disagrees with Soniox/Fanar/Azure, prefer the Soniox/Fanar/Azure wording.
+- Where Munsit disagrees with the others on a dialectal word/phrase, prefer Munsit.
+- Where Munsit is absent, prefer Soniox/Fanar over Deepgram.
 - Use Deepgram's text only as a last resort or for word boundaries / spacing.
 - Do NOT simply concatenate. Merge intelligently at the sentence/clause level.
 - ALWAYS prefer the spoken/dialectal form over formal/MSA spelling. Write words as they are pronounced.
@@ -1284,12 +1284,12 @@ serve(async (req) => {
      let partial = false;
 
      // Build user content for the merge prompt (all available ASR transcripts).
-     // Order matches the engine-priority ranking in the merge prompt: Soniox > Fanar > Azure > Deepgram.
+     // Order matches the engine-priority ranking: Munsit > Soniox > Fanar > Azure > Deepgram.
      const transcriptParts: string[] = [];
-     if (hasSoniox) transcriptParts.push(`Transcription (Soniox — lowest-WER engine, prefer wording when in doubt):\n${sonioxTranscript}`);
-     if (hasFanar) transcriptParts.push(`Transcription (Fanar — Arabic-native dialect specialist):\n${fanarTranscript}`);
+     if (hasDual) transcriptParts.push(`Transcription (Munsit — Arabic-native dialect specialist, PREFER wording for dialectal phrases):\n${munsitTranscript}`);
+     if (hasSoniox) transcriptParts.push(`Transcription (Soniox — lowest-WER engine, use when Munsit is missing):\n${sonioxTranscript}`);
+     if (hasFanar) transcriptParts.push(`Transcription (Fanar — Arabic-native, tie-breaker):\n${fanarTranscript}`);
      if (hasAzure) transcriptParts.push(`Transcription (Azure — locale-tuned for this dialect):\n${azureTranscript}`);
-     if (hasDual) transcriptParts.push(`Transcription (Munsit — Arabic specialist):\n${munsitTranscript}`);
      transcriptParts.push(`Transcription (Deepgram — best for word boundaries; do NOT prefer its wording):\n${transcript}`);
      const linesUserContent = transcriptParts.length > 1 ? transcriptParts.join('\n\n') : transcript;
 

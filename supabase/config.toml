@@ -143,5 +143,8 @@ verify_jwt = false
 [functions.azure-stt]
 verify_jwt = false
 
+[functions.munsit-tts]
+verify_jwt = false
+
 [functions.souq-news]
 verify_jwt = false

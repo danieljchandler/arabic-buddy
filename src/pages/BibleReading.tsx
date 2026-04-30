@@ -39,6 +39,7 @@ import {
 import { DIALECT_FLAGS, DIALECT_LABELS } from "@/config";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { TappableArabicText } from "@/components/shared/TappableArabicText";
+import { AskAISentence } from "@/components/shared/AskAISentence";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 type ViewMode = "select" | "reading";
@@ -473,6 +474,17 @@ const BibleReadingInner = () => {
                       <p className="text-sm text-muted-foreground leading-relaxed">
                         {englishLine}
                       </p>
+                    )}
+
+                    {/* Ask AI */}
+                    {(showFormal || showDialect) && (
+                      <div className="flex justify-end">
+                        <AskAISentence
+                          arabic={dialectLine || verse}
+                          english={englishLine}
+                          variant="chip"
+                        />
+                      </div>
                     )}
 
                     {/* Divider */}

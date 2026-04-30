@@ -13,6 +13,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useBibleAccess } from "@/hooks/useBibleAccess";
 import { useDialect } from "@/contexts/DialectContext";
 import { TappableArabicText } from "@/components/shared/TappableArabicText";
+import { AskAISentence } from "@/components/shared/AskAISentence";
 import { DIALECT_FLAGS } from "@/config";
 import { useBibleDisplayPrefs } from "@/hooks/useBibleDisplayPrefs";
 import { stripTashkil } from "@/lib/bibleDisplayPrefs";
@@ -272,6 +273,15 @@ const BibleLessons = () => {
                         {english}
                       </p>
                     )}
+
+                    {/* Ask AI */}
+                    <div className="flex justify-end">
+                      <AskAISentence
+                        arabic={dialectText || formalText || verse}
+                        english={english}
+                        variant="chip"
+                      />
+                    </div>
 
                     {nothingShown && (
                       <p className="text-xs italic text-muted-foreground">

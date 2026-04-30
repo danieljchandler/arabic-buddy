@@ -337,6 +337,28 @@ async function runPipeline(
       } catch (e) { console.warn("[pipeline] Soniox failed:", e); return { text: null, sonioxUsed: false }; }
     })();
 
+    // --- Munsit (Arabic-native dialect specialist; #1 priority for text) ---
+    const munsitPromise = (async () => {
+      const MUNSIT_API_KEY = Deno.env.get("MUNSIT_API_KEY")?.trim();
+      if (!MUNSIT_API_KEY) { console.warn("[pipeline] Munsit: no API key"); return { text: null }; }
+      try {
+        const fd = new FormData();
+        fd.append("file", new File([audioBytes!], "audio.mp3", { type: audioContentType }));
+        fd.append("model", "munsit");
+        const resp = await fetch("https://api.munsit.com/api/v1/audio/transcribe", {
+          method: "POST",
+          headers: { "x-api-key": MUNSIT_API_KEY },
+          body: fd,
+          signal: AbortSignal.timeout(ASR_TIMEOUT_MS),
+        });
+        if (!resp.ok) { const t = await resp.text(); throw new Error(`HTTP ${resp.status}: ${t.slice(0, 200)}`); }
+        const data = await resp.json();
+        const text = (data.transcription as string | undefined) || "";
+        console.log(`[pipeline] Munsit: ${text.length} chars`);
+        return { text: text || null };
+      } catch (e) { console.warn("[pipeline] Munsit failed:", e); return { text: null }; }
+    })();
+
     // --- Azure Speech (locale-routed by dialect module) ---
     const azurePromise = (async () => {
       const AZURE_SPEECH_KEY = Deno.env.get("AZURE_SPEECH_KEY");

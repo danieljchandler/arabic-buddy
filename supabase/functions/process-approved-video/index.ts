@@ -214,6 +214,15 @@ async function runPipeline(
     // ── Step 2: Call ASR APIs directly (no sub-edge-functions) ────
     console.log("[pipeline] Step 2: Transcribing with all engines directly...");
 
+    // Resolve dialect module for routing prompts + Azure locale.
+    // discover_videos.dialect can be a country (Saudi/Kuwaiti/UAE/...) or a module name.
+    const rawDialect = (video.dialect ?? "Gulf") as string;
+    const dialectModule: "Gulf" | "Egyptian" | "Yemeni" =
+      rawDialect === "Egyptian" ? "Egyptian" :
+      rawDialect === "Yemeni" ? "Yemeni" :
+      "Gulf";
+    console.log(`[pipeline] dialectModule=${dialectModule} (from video.dialect=${rawDialect})`);
+
     // --- Deepgram ---
     const deepgramPromise = (async () => {
       const DEEPGRAM_API_KEY = Deno.env.get("DEEPGRAM_API_KEY");
@@ -328,25 +337,69 @@ async function runPipeline(
       } catch (e) { console.warn("[pipeline] Soniox failed:", e); return { text: null, sonioxUsed: false }; }
     })();
 
-    const [deepgramResult, fanarResult, sonioxResult] = await Promise.all([
-      deepgramPromise, fanarPromise, sonioxPromise,
+    // --- Azure Speech (locale-routed by dialect module) ---
+    const azurePromise = (async () => {
+      const AZURE_SPEECH_KEY = Deno.env.get("AZURE_SPEECH_KEY");
+      const AZURE_SPEECH_REGION = Deno.env.get("AZURE_SPEECH_REGION");
+      if (!AZURE_SPEECH_KEY || !AZURE_SPEECH_REGION) {
+        console.warn("[pipeline] Azure: not configured");
+        return { text: null };
+      }
+      const locale =
+        dialectModule === "Egyptian" ? "ar-EG" :
+        dialectModule === "Yemeni" ? "ar-YE" :
+        "ar-SA";
+      try {
+        const definition = { locales: [locale], profanityFilterMode: "None" };
+        const fd = new FormData();
+        fd.append("audio", new Blob([audioBytes!], { type: audioContentType }), "audio");
+        fd.append("definition", JSON.stringify(definition));
+        const url = `https://${AZURE_SPEECH_REGION}.api.cognitive.microsoft.com/speechtotext/transcriptions:transcribe?api-version=2024-11-15`;
+        const resp = await fetch(url, {
+          method: "POST",
+          headers: { "Ocp-Apim-Subscription-Key": AZURE_SPEECH_KEY },
+          body: fd,
+          signal: AbortSignal.timeout(ASR_TIMEOUT_MS),
+        });
+        if (!resp.ok) { const t = await resp.text(); throw new Error(`HTTP ${resp.status}: ${t.slice(0, 200)}`); }
+        const data = await resp.json();
+        const text =
+          (data.combinedPhrases?.[0]?.text as string | undefined) ??
+          ((data.phrases ?? []).map((p: any) => p.text).filter(Boolean).join(" ") as string) ??
+          "";
+        console.log(`[pipeline] Azure (${locale}): ${text.length} chars`);
+        return { text: text || null, locale };
+      } catch (e) {
+        console.warn("[pipeline] Azure failed:", e);
+        return { text: null };
+      }
+    })();
+
+    const [deepgramResult, fanarResult, sonioxResult, azureResult] = await Promise.all([
+      deepgramPromise, fanarPromise, sonioxPromise, azurePromise,
     ]);
 
     const deepgramText = deepgramResult?.text || "";
     const fanarText = fanarResult?.text || "";
     const sonioxText = sonioxResult?.sonioxUsed ? (sonioxResult.text || "") : "";
+    const azureText = azureResult?.text || "";
 
     const engines: string[] = [];
     if (deepgramText) engines.push("Deepgram");
     if (fanarText) engines.push("Fanar");
     if (sonioxText) engines.push("Soniox");
+    if (azureText) engines.push("Azure");
 
     if (engines.length === 0) throw new Error("All transcription engines failed");
 
     console.log(`[pipeline] Got transcriptions from: ${engines.join(", ")}`);
 
-    const primaryText = deepgramText || fanarText || sonioxText;
+    // Use Soniox text as primary when available (lowest WER on Arabic in 2026 benchmarks).
+    // Fall back to Fanar (Arabic-native), then Azure (locale-tuned), then Deepgram.
+    // Deepgram words are still used for timestamp alignment regardless of which text wins.
+    const primaryText = sonioxText || fanarText || azureText || deepgramText;
     const relativeWords = deepgramResult?.words || [];
+
 
     // ── Step 3: Analyze via analyze-gulf-arabic ──────────────────
     // Pass videoId so analyze-gulf-arabic persists results directly to DB,

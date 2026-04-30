@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useDialect } from "@/contexts/DialectContext";
 
 type DialectHint = "Gulf" | "Egyptian" | "Yemeni" | string | null | undefined;
 
@@ -45,12 +46,16 @@ function isGulf(dialect: DialectHint): boolean {
  * the text/dialect changes.  Skips the request when `skip` is true.
  */
 export function useAzureTTS({ text, skip = false, dialect }: UseAzureTTSOptions): UseAzureTTSResult {
+  const { activeDialect } = useDialect();
   const [ttsUrl, setTtsUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const blobUrlRef = useRef<string | null>(null);
   const requestIdRef = useRef(0);
 
-  const useMunsit = isGulf(dialect);
+  // Explicit `dialect` prop wins; otherwise fall back to the global active dialect
+  // so all Gulf playback automatically routes through Munsit.
+  const effectiveDialect = dialect ?? activeDialect;
+  const useMunsit = isGulf(effectiveDialect);
 
   const revokePreviousUrl = useCallback(() => {
     if (blobUrlRef.current) {

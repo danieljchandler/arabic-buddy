@@ -397,29 +397,32 @@ async function runPipeline(
       }
     })();
 
-    const [deepgramResult, fanarResult, sonioxResult, azureResult] = await Promise.all([
-      deepgramPromise, fanarPromise, sonioxPromise, azurePromise,
+    const [deepgramResult, fanarResult, sonioxResult, munsitResult, azureResult] = await Promise.all([
+      deepgramPromise, fanarPromise, sonioxPromise, munsitPromise, azurePromise,
     ]);
 
     const deepgramText = deepgramResult?.text || "";
     const fanarText = fanarResult?.text || "";
     const sonioxText = sonioxResult?.sonioxUsed ? (sonioxResult.text || "") : "";
+    const munsitText = munsitResult?.text || "";
     const azureText = azureResult?.text || "";
 
     const engines: string[] = [];
     if (deepgramText) engines.push("Deepgram");
     if (fanarText) engines.push("Fanar");
     if (sonioxText) engines.push("Soniox");
+    if (munsitText) engines.push("Munsit");
     if (azureText) engines.push("Azure");
 
     if (engines.length === 0) throw new Error("All transcription engines failed");
 
     console.log(`[pipeline] Got transcriptions from: ${engines.join(", ")}`);
 
-    // Use Soniox text as primary when available (lowest WER on Arabic in 2026 benchmarks).
-    // Fall back to Fanar (Arabic-native), then Azure (locale-tuned), then Deepgram.
+    // Munsit is the highest-priority Arabic-native engine for dialect text when present.
+    // Soniox is the strongest general engine (lowest WER on Arabic in 2026 benchmarks).
+    // Fall back to Fanar (Arabic-native), Azure (locale-tuned), then Deepgram.
     // Deepgram words are still used for timestamp alignment regardless of which text wins.
-    const primaryText = sonioxText || fanarText || azureText || deepgramText;
+    const primaryText = munsitText || sonioxText || fanarText || azureText || deepgramText;
     const relativeWords = deepgramResult?.words || [];
 
 
@@ -437,6 +440,7 @@ async function runPipeline(
     };
     if (fanarText) analyzeBody.fanarTranscript = fanarText;
     if (sonioxText) analyzeBody.sonioxTranscript = sonioxText;
+    if (munsitText) analyzeBody.munsitTranscript = munsitText;
     if (azureText) analyzeBody.azureTranscript = azureText;
     const sonioxTranslation = sonioxResult?.translationText;
     if (sonioxTranslation) analyzeBody.sonioxTranslation = sonioxTranslation;

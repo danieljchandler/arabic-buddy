@@ -1765,12 +1765,15 @@ serve(async (req) => {
           }
           
           if (videoId) {
-            const contentHash = `${platform}:${videoId}`;
+            // Include dialect module in the cache key so processing the same video
+            // under a different module (Gulf vs Egyptian vs Yemeni) does not collide.
+            const contentHash = `${platform}:${videoId}:${DIALECT_MODULE}`;
             const engines: string[] = [];
             if (transcript) engines.push('deepgram');
             if (hasDual) engines.push('munsit');
             if (hasFanar) engines.push('fanar');
             if (hasSoniox) engines.push('soniox');
+            if (hasAzure) engines.push('azure');
             
             // Use service role client to cache
             const cacheUrl = Deno.env.get('SUPABASE_URL')!;

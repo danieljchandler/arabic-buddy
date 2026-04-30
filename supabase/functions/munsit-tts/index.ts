@@ -145,9 +145,14 @@ serve(async (req) => {
     );
   }
 
-  const resolved = body.voice
-    ? { voiceId: body.voice, modelId: Deno.env.get("MUNSIT_TTS_MODEL_ID")?.trim() || "munsit-tts-v1" }
-    : await getVoice(apiKey);
+  let resolved: { voiceId: string; modelId: string } | null;
+  if (body.voice) {
+    const modelId = Deno.env.get("MUNSIT_TTS_MODEL_ID")?.trim()
+      || (await pickModelId(apiKey));
+    resolved = modelId ? { voiceId: body.voice, modelId } : null;
+  } else {
+    resolved = await getVoice(apiKey);
+  }
 
   if (!resolved) {
     return new Response(

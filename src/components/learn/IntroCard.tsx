@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Volume2 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/design-system";
 import { VocabularyCard, type VocabularyWord } from "@/components/design-system";
 

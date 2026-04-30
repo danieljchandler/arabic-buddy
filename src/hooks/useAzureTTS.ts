@@ -1,11 +1,20 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
+type DialectHint = "Gulf" | "Egyptian" | "Yemeni" | string | null | undefined;
+
 interface UseAzureTTSOptions {
   /** The Arabic text to synthesise. */
   text: string;
   /** Whether to skip generation (e.g. when a stored audio_url exists). */
   skip?: boolean;
+  /**
+   * Optional dialect hint. When set to "Gulf" (or any Gulf country —
+   * Saudi/Kuwaiti/UAE/Bahraini/Qatari/Omani), playback is routed through
+   * Munsit's Arabic-native voice instead of Azure for higher fidelity on
+   * Khaleeji pronunciation. All other dialects continue to use Azure.
+   */
+  dialect?: DialectHint;
 }
 
 interface UseAzureTTSResult {
@@ -17,26 +26,31 @@ interface UseAzureTTSResult {
   regenerate: () => void;
 }
 
+const GULF_DIALECT_LABELS = new Set([
+  "gulf", "khaleeji",
+  "saudi", "kuwaiti", "uae", "emirati", "bahraini", "qatari", "omani",
+]);
+
+function isGulf(dialect: DialectHint): boolean {
+  if (!dialect) return false;
+  return GULF_DIALECT_LABELS.has(String(dialect).toLowerCase());
+}
+
 /**
- * Hook that generates speech from Arabic text via the azure-tts edge function.
+ * Hook that generates speech from Arabic text via the appropriate TTS edge
+ * function: `munsit-tts` for Gulf words (Arabic-native voice), `azure-tts`
+ * for everything else.
  *
  * Returns a stable blob URL that is automatically revoked on unmount or when
- * the text changes.  Skips the request when `skip` is true (e.g. when the
- * word already has a stored audio_url).
- *
- * Usage:
- *   const { ttsUrl, isLoading } = useAzureTTS({
- *     text: word.word_arabic,
- *     skip: Boolean(word.audio_url),
- *   });
- *   const effectiveUrl = word.audio_url ?? ttsUrl;
+ * the text/dialect changes.  Skips the request when `skip` is true.
  */
-export function useAzureTTS({ text, skip = false }: UseAzureTTSOptions): UseAzureTTSResult {
+export function useAzureTTS({ text, skip = false, dialect }: UseAzureTTSOptions): UseAzureTTSResult {
   const [ttsUrl, setTtsUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const blobUrlRef = useRef<string | null>(null);
-  // Monotonically increasing request id to guard against stale responses
   const requestIdRef = useRef(0);
+
+  const useMunsit = isGulf(dialect);
 
   const revokePreviousUrl = useCallback(() => {
     if (blobUrlRef.current) {
@@ -54,7 +68,9 @@ export function useAzureTTS({ text, skip = false }: UseAzureTTSOptions): UseAzur
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData?.session?.access_token ?? anonKey;
 
-      const response = await fetch(`${supabaseUrl}/functions/v1/azure-tts`, {
+      const endpoint = useMunsit ? "munsit-tts" : "azure-tts";
+
+      const tryFetch = (fnName: string) => fetch(`${supabaseUrl}/functions/v1/${fnName}`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -64,7 +80,14 @@ export function useAzureTTS({ text, skip = false }: UseAzureTTSOptions): UseAzur
         body: JSON.stringify({ text }),
       });
 
-      // Guard against stale responses when text changed while in flight
+      let response = await tryFetch(endpoint);
+
+      // If Munsit fails (e.g. quota / cold-start), fall back to Azure transparently.
+      if (!response.ok && useMunsit) {
+        console.warn(`munsit-tts failed (${response.status}); falling back to azure-tts`);
+        response = await tryFetch("azure-tts");
+      }
+
       if (reqId !== requestIdRef.current) return;
 
       if (response.ok) {
@@ -75,13 +98,13 @@ export function useAzureTTS({ text, skip = false }: UseAzureTTSOptions): UseAzur
         setTtsUrl(url);
       }
     } catch (err) {
-      console.error("Azure TTS generation failed:", err);
+      console.error("TTS generation failed:", err);
     } finally {
       if (reqId === requestIdRef.current) {
         setIsLoading(false);
       }
     }
-  }, [text, revokePreviousUrl]);
+  }, [text, useMunsit, revokePreviousUrl]);
 
   useEffect(() => {
     if (skip || !text) {
@@ -94,13 +117,11 @@ export function useAzureTTS({ text, skip = false }: UseAzureTTSOptions): UseAzur
     generate(reqId);
 
     return () => {
-      // Bump the id so any in-flight request becomes stale
       requestIdRef.current++;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [text, skip]);
+  }, [text, skip, useMunsit]);
 
-  // Revoke blob URL on unmount
   useEffect(() => {
     return () => {
       revokePreviousUrl();
@@ -114,3 +135,4 @@ export function useAzureTTS({ text, skip = false }: UseAzureTTSOptions): UseAzur
 
   return { ttsUrl, isLoading, regenerate };
 }
+

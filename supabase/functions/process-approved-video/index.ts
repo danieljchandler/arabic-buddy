@@ -404,10 +404,18 @@ async function runPipeline(
     // ── Step 3: Analyze via analyze-gulf-arabic ──────────────────
     // Pass videoId so analyze-gulf-arabic persists results directly to DB,
     // making the pipeline resilient to Supabase gateway ~150s timeouts.
+    // Send Deepgram as `transcript` (it has the best word boundaries for downstream
+    // sentence segmentation); send the others as alternates so the LLM merge can
+    // pick the best wording per the engine-priority rules in the merge prompt.
     console.log("[pipeline] Step 3: Analyzing transcript...");
-    const analyzeBody: Record<string, string> = { transcript: primaryText, videoId };
-    if (fanarText && fanarText !== primaryText) analyzeBody.fanarTranscript = fanarText;
+    const analyzeBody: Record<string, string> = {
+      transcript: deepgramText || primaryText,
+      videoId,
+      dialectModule,
+    };
+    if (fanarText) analyzeBody.fanarTranscript = fanarText;
     if (sonioxText) analyzeBody.sonioxTranscript = sonioxText;
+    if (azureText) analyzeBody.azureTranscript = azureText;
     const sonioxTranslation = sonioxResult?.translationText;
     if (sonioxTranslation) analyzeBody.sonioxTranslation = sonioxTranslation;
 

@@ -68,19 +68,26 @@ export const ArticleSentences = ({
                 english: line.english || summaryEnglish,
               }}
             />
-            {line.english && (
-              <button
-                onClick={() => toggle(i)}
-                className="mt-2 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-              >
-                {isOpen ? (
-                  <ChevronUp className="h-3 w-3" />
-                ) : (
-                  <ChevronDown className="h-3 w-3" />
-                )}
-                {isOpen ? "Hide translation" : "Reveal translation"}
-              </button>
-            )}
+            <div className="mt-2 flex items-center justify-between gap-2">
+              {line.english ? (
+                <button
+                  onClick={() => toggle(i)}
+                  className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {isOpen ? (
+                    <ChevronUp className="h-3 w-3" />
+                  ) : (
+                    <ChevronDown className="h-3 w-3" />
+                  )}
+                  {isOpen ? "Hide translation" : "Reveal translation"}
+                </button>
+              ) : <span />}
+              <AskAISentence
+                arabic={line.arabic}
+                english={line.english || summaryEnglish}
+                variant="chip"
+              />
+            </div>
             <div
               className={cn(
                 "grid transition-all duration-200",

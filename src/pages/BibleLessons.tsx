@@ -274,6 +274,15 @@ const BibleLessons = () => {
                       </p>
                     )}
 
+                    {/* Ask AI */}
+                    <div className="flex justify-end">
+                      <AskAISentence
+                        arabic={dialectText || formalText || verse}
+                        english={english}
+                        variant="chip"
+                      />
+                    </div>
+
                     {nothingShown && (
                       <p className="text-xs italic text-muted-foreground">
                         All display options hidden — enable one above or in Settings.

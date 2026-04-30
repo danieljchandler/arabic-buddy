@@ -28,47 +28,73 @@ let cachedVoiceId: string | null = null;
 let cachedModelId: string | null = null;
 let voicePickPromise: Promise<{ voiceId: string; modelId: string } | null> | null = null;
 
-async function pickGulfVoice(apiKey: string): Promise<{ voiceId: string; modelId: string } | null> {
-  // Allow secret overrides first
-  const overrideVoice = Deno.env.get("MUNSIT_GULF_VOICE_ID")?.trim();
-  const overrideModel = Deno.env.get("MUNSIT_TTS_MODEL_ID")?.trim() || "munsit-tts-v1";
-  if (overrideVoice) {
-    return { voiceId: overrideVoice, modelId: overrideModel };
-  }
-
+async function pickModelId(apiKey: string): Promise<string | null> {
+  // Override wins
+  const override = Deno.env.get("MUNSIT_TTS_MODEL_ID")?.trim();
+  if (override) return override;
   try {
-    const resp = await fetch(`${MUNSIT_BASE}/voices`, {
+    const resp = await fetch(`${MUNSIT_BASE}/models`, {
       method: "GET",
       headers: { "x-api-key": apiKey },
       signal: AbortSignal.timeout(15_000),
     });
-    if (!resp.ok) {
-      console.warn(`Munsit /voices ${resp.status}`);
-      return null;
-    }
-    const voices = await resp.json() as Array<{
-      voice_id: string;
-      name?: string;
-      dialect?: string[];
-      languages?: string[];
-      type?: string | null;
-    }>;
-    if (!Array.isArray(voices) || voices.length === 0) return null;
-
-    // Prefer a Gulf-dialect voice
-    const gulfVoice = voices.find((v) =>
-      Array.isArray(v.dialect) &&
-      v.dialect.some((d) => GULF_DIALECTS.has(d.toLowerCase()))
-    );
-    const picked = gulfVoice ?? voices.find((v) => v.type === "neural") ?? voices[0];
-    if (!picked?.voice_id) return null;
-
-    console.log(`munsit-tts: selected voice "${picked.name ?? picked.voice_id}" (${picked.dialect?.join(",") ?? "?"})`);
-    return { voiceId: picked.voice_id, modelId: overrideModel };
+    if (!resp.ok) return null;
+    const models = await resp.json() as Array<{ model_id: string; model_name?: string }>;
+    if (!Array.isArray(models) || models.length === 0) return null;
+    // Prefer the "mini" / fast model for short-word playback latency,
+    // then fall back to any preview model, then anything.
+    const mini = models.find((m) => /mini/i.test(m.model_id));
+    const v1 = models.find((m) => /v1/i.test(m.model_id));
+    const picked = mini ?? v1 ?? models[0];
+    console.log(`munsit-tts: selected model "${picked.model_name ?? picked.model_id}"`);
+    return picked.model_id;
   } catch (err) {
-    console.warn("munsit-tts: failed to fetch /voices:", err);
+    console.warn("munsit-tts: failed to fetch /models:", err);
     return null;
   }
+}
+
+async function pickGulfVoice(apiKey: string): Promise<{ voiceId: string; modelId: string } | null> {
+  const overrideVoice = Deno.env.get("MUNSIT_GULF_VOICE_ID")?.trim();
+
+  const [voicesResp, modelId] = await Promise.all([
+    fetch(`${MUNSIT_BASE}/voices`, {
+      method: "GET",
+      headers: { "x-api-key": apiKey },
+      signal: AbortSignal.timeout(15_000),
+    }).catch((e) => { console.warn("munsit-tts /voices fetch:", e); return null; }),
+    pickModelId(apiKey),
+  ]);
+
+  if (!modelId) {
+    console.warn("munsit-tts: no model_id resolvable");
+    return null;
+  }
+
+  if (overrideVoice) return { voiceId: overrideVoice, modelId };
+
+  if (!voicesResp || !voicesResp.ok) {
+    console.warn(`munsit-tts /voices ${voicesResp?.status ?? "no-response"}`);
+    return null;
+  }
+  const voices = await voicesResp.json() as Array<{
+    voice_id: string;
+    name?: string;
+    dialect?: string[];
+    languages?: string[];
+    type?: string | null;
+  }>;
+  if (!Array.isArray(voices) || voices.length === 0) return null;
+
+  const gulfVoice = voices.find((v) =>
+    Array.isArray(v.dialect) &&
+    v.dialect.some((d) => GULF_DIALECTS.has(d.toLowerCase()))
+  );
+  const picked = gulfVoice ?? voices.find((v) => v.type === "neural") ?? voices[0];
+  if (!picked?.voice_id) return null;
+
+  console.log(`munsit-tts: selected voice "${picked.name ?? picked.voice_id}" (${picked.dialect?.join(",") ?? "?"})`);
+  return { voiceId: picked.voice_id, modelId };
 }
 
 async function getVoice(apiKey: string): Promise<{ voiceId: string; modelId: string } | null> {

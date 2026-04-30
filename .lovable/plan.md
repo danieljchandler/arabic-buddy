@@ -1,66 +1,38 @@
 
+# Transcription & Translation Pipeline — Improvement Plan (approved, no self-hosting)
 
-## Goal
-Make TikTok videos sync subtitles automatically — like YouTube — without manual "Start sync" buttons. Audio plays/pauses with the transcript, and seeking a phrase actually jumps the playback.
+## What I'll do
 
-## The trick
-The admin already uploaded the source MP4 to our private `video-audio` bucket for transcription. **That file is the perfect sync source** — we have full JS control over it (HTML5 `<audio>` API), and its timeline is exactly what the transcript timestamps were generated from.
+Drop everything that requires self-hosting (Audar-ASR on RunPod). Keep all hosted-API improvements. I'll roll out in the order below — you can stop me after any tier.
 
-We keep the TikTok iframe visible (so viewers see the official TikTok player as required), **mute it**, and play our own hidden `<audio>` element underneath as the source of truth for time. The user hears our audio; the iframe is purely a visual.
+### Tier 1 — quick wins (one PR)
+1. **Re-prioritize Soniox in the merge prompt.** Tell the LLM Soniox has the lowest WER on Arabic in 2026 production benchmarks; prefer Soniox wording when ASRs disagree, use Deepgram only for word boundaries / timestamps.
+2. **Upgrade dedicated translation: Gemini 2.5 Flash → Gemini 2.5 Pro** (existing Qwen + Cerebras llama-3.3-70b stay as fallbacks).
+3. **Per-line ASR provenance + agreement score.** Persist `asrProvenance: string[]` and `engineAgreement: number (0–1)` on each line; surface in admin transcript editor as a colored band so QA focuses on disagreement lines.
+4. **Dialect-aware Deepgram keyterms + ElevenLabs keyterms.** Pull from `_shared/dialectHelpers.ts` based on `dialectModule` instead of the hard-coded Gulf list.
+5. **Dialect-aware cache key.** Add `dialect_module` to `processed_videos.content_hash` so cross-dialect cache collisions stop.
 
-```text
-┌─────────────────────────────┐
-│   TikTok iframe (muted)     │ ← visible, autoplay muted loop
-│      visual only            │
-└─────────────────────────────┘
-        ▲
-        │ user taps overlay play button
-        ▼
-┌─────────────────────────────┐
-│ Hidden <audio> from         │ ← drives currentTimeMs
-│ video-audio bucket (signed) │ ← seekable, pausable, speedable
-└─────────────────────────────┘
-        │
-        ▼
-   Transcript highlight + phrase-mode pause
-   (same logic as YouTube path)
-```
+### Tier 2 — dialect-specific accuracy
+6. **Add Azure Speech STT as a 4th ASR engine, dialect-routed** (uses existing `AZURE_SPEECH_KEY/REGION/ENDPOINT`):
+   - Egyptian → `ar-EG`
+   - Yemeni → `ar-YE`
+   - Gulf → `ar-SA` as alternate (Deepgram stays primary)
+7. **Extend CAMeL city map** to include CAI/ALX (Egyptian) and SAN (Yemeni) so dialect validation works for all three modules.
+8. **Branch Claude vocab enrichment + Fanar validation prompts on `DIALECT_MODULE`** (currently Gulf-only text is sent for Egyptian/Yemeni runs).
+9. **Munsit health-check cron** in `discover-trending-videos` so it auto-re-enables when the DNS comes back.
 
-## Changes
+### Tier 3 — structural
+10. **Weighted round-robin Fanar usage** instead of hard 18/day cutoff (rotate which engines run per video so we never lose Fanar entirely on busy days).
+11. **Low-confidence re-ask loop**: if engine agreement < 0.6 on > 20% of lines, re-run only those lines through Soniox + Gemini 2.5 Pro translation.
+12. **Replace QCRI Farasa with CAMeL-Tools `disambig` (hosted via HF Inference)** for dialect-aware tashkeel; keep Farasa as fallback.
+13. **Switch user-upload `elevenlabs-transcribe` to the same Deepgram + Soniox + Fanar ensemble** (no RunPod needed for non-YouTube uploads). User uploads then get the same quality bar as Discover videos.
 
-### 1. `src/lib/vocabularyAudioContext.ts` — `resolveDiscoverVideoAudioUrl`
-Already resolves the source MP4 from the `video-audio` bucket via signed URL. Reuse it.
+## Explicitly dropped
+- Self-hosting Audar-ASR-V1 on RunPod — out per your call.
 
-### 2. `src/pages/DiscoverVideo.tsx`
-
-**a. Add a hidden `<audio ref={tiktokAudioRef}>` for TikTok videos**
-- `src` = signed URL from `resolveDiscoverVideoAudioUrl(video)` (resolved on mount).
-- Listeners: `timeupdate` → `setCurrentTimeMs(audio.currentTime * 1000)`, `play`/`pause` → set a `tiktokPlaying` state.
-
-**b. Treat TikTok like YouTube in the `activeLineId` calculation**
-- Drive the highlight from `currentTimeMs` (from our hidden audio), not the manual `timerMs`.
-- Delete the manual "Start subtitle sync" / "Reset" / timer button row entirely.
-
-**c. Wire `handleSeek` for TikTok**
-- `tiktokAudioRef.current.currentTime = ms / 1000; .play()`. Now clicking a transcript line or phrase arrow actually jumps audio + subtitle in lock-step (same as YouTube).
-
-**d. Phrase-mode auto-pause**
-- The existing YouTube `useEffect` that watches `currentTimeMs >= phraseEndMs` and pauses can be generalized to also call `tiktokAudioRef.current?.pause()` when `isTikTok`.
-
-**e. Speed control**
-- `tiktokAudioRef.current.playbackRate = playbackSpeed` in the existing speed-change effect.
-
-**f. Visible play/pause button**
-- Add a single big play/pause overlay (or a toolbar button) that toggles the hidden audio. The TikTok iframe stays muted underneath as decoration.
-- iframe `src` gets `&muted=1&autoplay=1&loop=1` appended so it plays silently as a moving visual; audio comes only from our element.
-
-### 3. Fallback
-If `resolveDiscoverVideoAudioUrl` returns null (rare — e.g. legacy TikTok entries imported before the upload requirement), fall back to the current manual timer button so nothing breaks.
-
-## Out of scope
-- Frame-perfect lip sync between the muted TikTok visual and our audio. The audio is authoritative; the iframe is a looping visual companion. Most users won't notice given short clips, and it's vastly better than no sync at all.
-- Hiding the TikTok branding/UI.
-
-## Result
-TikTok videos behave like YouTube: tap play, audio + transcript advance together, click any line to seek, phrase mode auto-pauses at end of line, speed control works. No manual sync button.
-
+## Decisions still needed
+I'll ask these as a single multi-question prompt right after you approve:
+- OK to add **Azure Speech STT** as ASR engine #4? (Same Azure key you already pay for — no new secret.)
+- OK to **drop ElevenLabs from user uploads** entirely, or keep it as an opt-in fallback?
+- Translation upgrade target — **Gemini 2.5 Pro** (cheaper, same family as current) or **GPT-5** (best quality, ~3× cost)?
+- Implement all three tiers, or stop after Tier 1 / Tier 2?

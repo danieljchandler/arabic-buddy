@@ -98,15 +98,22 @@ const getDialectNote = (dialect?: string, prefix = '\n') => {
 const getMergeOnlySystemPrompt = (isRetry: boolean = false, hasDualTranscripts: boolean = false, hasTripleTranscripts: boolean = false) => {
   const strictPrefix = strictJsonPrefix(isRetry);
   const multiInstructions = hasTripleTranscripts
-    ? `You are given MULTIPLE transcriptions of the same Gulf Arabic audio from different speech-to-text engines.
-Compare them carefully and produce the BEST merged transcript:
+    ? `You are given MULTIPLE transcriptions of the same Arabic audio from different speech-to-text engines.
+Compare them carefully and produce the BEST merged transcript using this priority order:
+
+ENGINE QUALITY RANKING (2026 Arabic production benchmarks):
+1. **Soniox (stt-async-v4)** — LOWEST WER on Arabic dialect. When transcripts disagree on wording, **prefer Soniox's wording** by default. It is the most accurate engine for actual word choice on dialectal speech.
+2. **Fanar-Aura-STT-1** — Arabic-native model, especially strong on Gulf vocabulary and dialect-specific phrases. Use as the tie-breaker when Soniox is missing a word or producing MSA-leaning forms.
+3. **Azure Speech (ar-EG / ar-YE / ar-SA)** — Locale-tuned: trust it heavily for Egyptian and Yemeni audio in particular.
+4. **Deepgram Nova-3** — Best for word boundaries, punctuation, and overall structure. Use Deepgram for sentence segmentation cues, but DO NOT prefer its wording over Soniox or Fanar when they disagree.
+5. **Munsit** — Strong Arabic specialist; treat similar to Fanar when present.
+
+Merging rules:
 - Where engines agree, use the shared text.
-- Where they differ, choose whichever version sounds most natural and accurate for Gulf Arabic dialect.
-- Fanar is an Arabic-native model and may be more accurate for dialect-specific words and phrases.
-- Soniox provides high-accuracy multilingual transcription and may capture words other engines miss.
-- Deepgram provides the most reliable word boundaries.
-- Munsit specialises in Arabic and may better capture dialectal vocabulary.
-- Do NOT simply concatenate them. Merge intelligently at the sentence/clause level.
+- Where Soniox + at least one other engine agree, use that wording.
+- Where only Deepgram disagrees with Soniox/Fanar/Azure, prefer the Soniox/Fanar/Azure wording.
+- Use Deepgram's text only as a last resort or for word boundaries / spacing.
+- Do NOT simply concatenate. Merge intelligently at the sentence/clause level.
 - ALWAYS prefer the spoken/dialectal form over formal/MSA spelling. Write words as they are pronounced.
 - Use ALL transcripts to ensure NO spoken content is missed — include every word that was said.
 
@@ -1209,7 +1216,7 @@ serve(async (req) => {
       }
     }
     const body = await req.json();
-    const { transcript, munsitTranscript, fanarTranscript, sonioxTranscript, sonioxTranslation, visualContext, originalUrl, videoId: pipelineVideoId, dialectModule } = body;
+    const { transcript, munsitTranscript, fanarTranscript, sonioxTranscript, azureTranscript, sonioxTranslation, visualContext, originalUrl, videoId: pipelineVideoId, dialectModule } = body;
     DIALECT_MODULE = (dialectModule === 'Egyptian' || dialectModule === 'Yemeni') ? dialectModule : 'Gulf';
     console.log('Dialect module for this request:', DIALECT_MODULE);
 
@@ -1257,19 +1264,15 @@ serve(async (req) => {
     const hasDual = Boolean(munsitTranscript && typeof munsitTranscript === 'string' && munsitTranscript.trim().length > 0);
     const hasFanar = Boolean(fanarTranscript && typeof fanarTranscript === 'string' && fanarTranscript.trim().length > 0);
     const hasSoniox = Boolean(sonioxTranscript && typeof sonioxTranscript === 'string' && sonioxTranscript.trim().length > 0);
+    const hasAzure = Boolean(azureTranscript && typeof azureTranscript === 'string' && azureTranscript.trim().length > 0);
     const hasTriple = hasDual && hasFanar;
-    const asrCount = 1 + (hasDual ? 1 : 0) + (hasFanar ? 1 : 0) + (hasSoniox ? 1 : 0);
+    const asrCount = 1 + (hasDual ? 1 : 0) + (hasFanar ? 1 : 0) + (hasSoniox ? 1 : 0) + (hasAzure ? 1 : 0);
     console.log('Analyzing transcript (lines + meta)...');
     console.log('Deepgram transcript length:', transcript.length);
-    if (hasDual) {
-      console.log('Munsit transcript length:', munsitTranscript.length);
-    }
-    if (hasFanar) {
-      console.log('Fanar transcript length:', fanarTranscript.length);
-    }
-    if (hasSoniox) {
-      console.log('Soniox transcript length:', sonioxTranscript.length);
-    }
+    if (hasDual) console.log('Munsit transcript length:', munsitTranscript.length);
+    if (hasFanar) console.log('Fanar transcript length:', fanarTranscript.length);
+    if (hasSoniox) console.log('Soniox transcript length:', sonioxTranscript.length);
+    if (hasAzure) console.log('Azure transcript length:', azureTranscript.length);
 
     const FANAR_API_KEY = Deno.env.get('FANAR_API_KEY')?.trim();
     const fanarLlmAvailable = Boolean(FANAR_API_KEY);
@@ -1280,14 +1283,14 @@ serve(async (req) => {
 
      let partial = false;
 
-     // Build user content for the merge prompt (all available ASR transcripts)
-     const transcriptParts: string[] = [`Transcription A (Deepgram):\n${transcript}`];
-     if (hasDual) transcriptParts.push(`Transcription B (Munsit):\n${munsitTranscript}`);
-     if (hasFanar) transcriptParts.push(`Transcription ${hasDual ? 'C' : 'B'} (Fanar):\n${fanarTranscript}`);
-     if (hasSoniox) {
-       const label = String.fromCharCode(65 + transcriptParts.length); // D or C or B
-       transcriptParts.push(`Transcription ${label} (Soniox):\n${sonioxTranscript}`);
-     }
+     // Build user content for the merge prompt (all available ASR transcripts).
+     // Order matches the engine-priority ranking in the merge prompt: Soniox > Fanar > Azure > Deepgram.
+     const transcriptParts: string[] = [];
+     if (hasSoniox) transcriptParts.push(`Transcription (Soniox — lowest-WER engine, prefer wording when in doubt):\n${sonioxTranscript}`);
+     if (hasFanar) transcriptParts.push(`Transcription (Fanar — Arabic-native dialect specialist):\n${fanarTranscript}`);
+     if (hasAzure) transcriptParts.push(`Transcription (Azure — locale-tuned for this dialect):\n${azureTranscript}`);
+     if (hasDual) transcriptParts.push(`Transcription (Munsit — Arabic specialist):\n${munsitTranscript}`);
+     transcriptParts.push(`Transcription (Deepgram — best for word boundaries; do NOT prefer its wording):\n${transcript}`);
      const linesUserContent = transcriptParts.length > 1 ? transcriptParts.join('\n\n') : transcript;
 
      const hasDualOrTriple = asrCount >= 2;
@@ -1391,7 +1394,7 @@ serve(async (req) => {
        .join('\n');
 
      // =====================================================================
-     // TRANSLATION — Gemini 2.5 Flash (primary) / Qwen (fallback)
+     // TRANSLATION — Gemini 2.5 Pro (primary) / Qwen (fallback)
      // Receives the merged transcript from Call 1.
      // Produces per-line English translations only — separate from analysis.
      //
@@ -1762,12 +1765,15 @@ serve(async (req) => {
           }
           
           if (videoId) {
-            const contentHash = `${platform}:${videoId}`;
+            // Include dialect module in the cache key so processing the same video
+            // under a different module (Gulf vs Egyptian vs Yemeni) does not collide.
+            const contentHash = `${platform}:${videoId}:${DIALECT_MODULE}`;
             const engines: string[] = [];
             if (transcript) engines.push('deepgram');
             if (hasDual) engines.push('munsit');
             if (hasFanar) engines.push('fanar');
             if (hasSoniox) engines.push('soniox');
+            if (hasAzure) engines.push('azure');
             
             // Use service role client to cache
             const cacheUrl = Deno.env.get('SUPABASE_URL')!;

@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { Loader2, Check, ArrowLeft, User, Globe2, Target, Eye, Heart, ChevronRight, Camera } from 'lucide-react';
 import { HomeLayoutEditor } from '@/components/settings/HomeLayoutEditor';
-import { BibleDisplayPrefsEditor } from '@/components/settings/BibleDisplayPrefsEditor';
+import { DisplayPrefsEditor } from '@/components/settings/DisplayPrefsEditor';
 
 const DIALECTS = [
   { id: 'Gulf', label: 'Gulf Arabic', labelAr: 'خليجي', flag: '🌊' },
@@ -358,8 +358,8 @@ const Settings = () => {
           {/* Home Layout */}
           <HomeLayoutEditor />
 
-          {/* Bible Display Prefs */}
-          <BibleDisplayPrefsEditor />
+          {/* Global Display Preferences */}
+          <DisplayPrefsEditor />
 
           {/* Privacy Section */}
           <section className="space-y-3">

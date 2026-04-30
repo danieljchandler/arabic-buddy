@@ -1,0 +1,176 @@
+/**
+ * munsit-tts — Munsit Arabic Text-to-Speech (https://api.munsit.com/api/v1).
+ *
+ * Used as the Gulf-dialect voice for vocabulary playback. Mirrors the
+ * azure-tts contract: POST { text, voice? } → audio/wav bytes.
+ *
+ * Voice & model resolution:
+ *   - On cold start, fetches GET /voices once and caches the first voice
+ *     whose `dialect` array contains "najdi" / "emirati" / "khaleeji" / "gulf".
+ *   - Falls back to the first available neural voice if no Gulf match found.
+ *   - Optional secret overrides:
+ *       MUNSIT_GULF_VOICE_ID   — explicit voice_id (skips auto-pick)
+ *       MUNSIT_TTS_MODEL_ID    — explicit model_id (default: "munsit-tts-v1")
+ */
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
+};
+
+const MUNSIT_BASE = "https://api.munsit.com/api/v1";
+
+const GULF_DIALECTS = new Set(["najdi", "emirati", "khaleeji", "gulf", "saudi", "kuwaiti", "qatari", "bahraini"]);
+
+let cachedVoiceId: string | null = null;
+let cachedModelId: string | null = null;
+let voicePickPromise: Promise<{ voiceId: string; modelId: string } | null> | null = null;
+
+async function pickGulfVoice(apiKey: string): Promise<{ voiceId: string; modelId: string } | null> {
+  // Allow secret overrides first
+  const overrideVoice = Deno.env.get("MUNSIT_GULF_VOICE_ID")?.trim();
+  const overrideModel = Deno.env.get("MUNSIT_TTS_MODEL_ID")?.trim() || "munsit-tts-v1";
+  if (overrideVoice) {
+    return { voiceId: overrideVoice, modelId: overrideModel };
+  }
+
+  try {
+    const resp = await fetch(`${MUNSIT_BASE}/voices`, {
+      method: "GET",
+      headers: { "x-api-key": apiKey },
+      signal: AbortSignal.timeout(15_000),
+    });
+    if (!resp.ok) {
+      console.warn(`Munsit /voices ${resp.status}`);
+      return null;
+    }
+    const voices = await resp.json() as Array<{
+      voice_id: string;
+      name?: string;
+      dialect?: string[];
+      languages?: string[];
+      type?: string | null;
+    }>;
+    if (!Array.isArray(voices) || voices.length === 0) return null;
+
+    // Prefer a Gulf-dialect voice
+    const gulfVoice = voices.find((v) =>
+      Array.isArray(v.dialect) &&
+      v.dialect.some((d) => GULF_DIALECTS.has(d.toLowerCase()))
+    );
+    const picked = gulfVoice ?? voices.find((v) => v.type === "neural") ?? voices[0];
+    if (!picked?.voice_id) return null;
+
+    console.log(`munsit-tts: selected voice "${picked.name ?? picked.voice_id}" (${picked.dialect?.join(",") ?? "?"})`);
+    return { voiceId: picked.voice_id, modelId: overrideModel };
+  } catch (err) {
+    console.warn("munsit-tts: failed to fetch /voices:", err);
+    return null;
+  }
+}
+
+async function getVoice(apiKey: string): Promise<{ voiceId: string; modelId: string } | null> {
+  if (cachedVoiceId && cachedModelId) {
+    return { voiceId: cachedVoiceId, modelId: cachedModelId };
+  }
+  if (!voicePickPromise) {
+    voicePickPromise = pickGulfVoice(apiKey).then((res) => {
+      if (res) {
+        cachedVoiceId = res.voiceId;
+        cachedModelId = res.modelId;
+      }
+      return res;
+    }).finally(() => {
+      // Allow re-pick after a transient failure
+      if (!cachedVoiceId) voicePickPromise = null;
+    });
+  }
+  return voicePickPromise;
+}
+
+serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
+  const apiKey = Deno.env.get("MUNSIT_API_KEY");
+  if (!apiKey) {
+    return new Response(
+      JSON.stringify({ error: "MUNSIT_API_KEY not configured" }),
+      { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+
+  let body: { text?: string; voice?: string; stability?: number; speed?: number };
+  try {
+    body = await req.json();
+  } catch {
+    return new Response(
+      JSON.stringify({ error: "Invalid JSON in request body" }),
+      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+
+  const text = (body.text ?? "").trim();
+  if (!text) {
+    return new Response(
+      JSON.stringify({ error: "text is required" }),
+      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+
+  const resolved = body.voice
+    ? { voiceId: body.voice, modelId: Deno.env.get("MUNSIT_TTS_MODEL_ID")?.trim() || "munsit-tts-v1" }
+    : await getVoice(apiKey);
+
+  if (!resolved) {
+    return new Response(
+      JSON.stringify({ error: "Could not resolve a Munsit voice" }),
+      { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+
+  const { voiceId, modelId } = resolved;
+
+  try {
+    const resp = await fetch(`${MUNSIT_BASE}/text-to-speech/${encodeURIComponent(modelId)}`, {
+      method: "POST",
+      headers: {
+        "x-api-key": apiKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        voice_id: voiceId,
+        text,
+        stability: typeof body.stability === "number" ? body.stability : 0.6,
+        speed: typeof body.speed === "number" ? body.speed : 1.0,
+        streaming: false,
+      }),
+      signal: AbortSignal.timeout(20_000),
+    });
+
+    if (!resp.ok) {
+      const t = await resp.text();
+      console.error(`Munsit TTS ${resp.status}:`, t.slice(0, 300));
+      return new Response(
+        JSON.stringify({ error: `Munsit TTS ${resp.status}`, detail: t.slice(0, 500) }),
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    const audio = await resp.arrayBuffer();
+    return new Response(audio, {
+      headers: {
+        ...corsHeaders,
+        "Content-Type": "audio/wav",
+      },
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("munsit-tts error:", msg);
+    return new Response(
+      JSON.stringify({ error: msg }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+});

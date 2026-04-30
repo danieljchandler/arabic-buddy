@@ -98,15 +98,22 @@ const getDialectNote = (dialect?: string, prefix = '\n') => {
 const getMergeOnlySystemPrompt = (isRetry: boolean = false, hasDualTranscripts: boolean = false, hasTripleTranscripts: boolean = false) => {
   const strictPrefix = strictJsonPrefix(isRetry);
   const multiInstructions = hasTripleTranscripts
-    ? `You are given MULTIPLE transcriptions of the same Gulf Arabic audio from different speech-to-text engines.
-Compare them carefully and produce the BEST merged transcript:
+    ? `You are given MULTIPLE transcriptions of the same Arabic audio from different speech-to-text engines.
+Compare them carefully and produce the BEST merged transcript using this priority order:
+
+ENGINE QUALITY RANKING (2026 Arabic production benchmarks):
+1. **Soniox (stt-async-v4)** — LOWEST WER on Arabic dialect. When transcripts disagree on wording, **prefer Soniox's wording** by default. It is the most accurate engine for actual word choice on dialectal speech.
+2. **Fanar-Aura-STT-1** — Arabic-native model, especially strong on Gulf vocabulary and dialect-specific phrases. Use as the tie-breaker when Soniox is missing a word or producing MSA-leaning forms.
+3. **Azure Speech (ar-EG / ar-YE / ar-SA)** — Locale-tuned: trust it heavily for Egyptian and Yemeni audio in particular.
+4. **Deepgram Nova-3** — Best for word boundaries, punctuation, and overall structure. Use Deepgram for sentence segmentation cues, but DO NOT prefer its wording over Soniox or Fanar when they disagree.
+5. **Munsit** — Strong Arabic specialist; treat similar to Fanar when present.
+
+Merging rules:
 - Where engines agree, use the shared text.
-- Where they differ, choose whichever version sounds most natural and accurate for Gulf Arabic dialect.
-- Fanar is an Arabic-native model and may be more accurate for dialect-specific words and phrases.
-- Soniox provides high-accuracy multilingual transcription and may capture words other engines miss.
-- Deepgram provides the most reliable word boundaries.
-- Munsit specialises in Arabic and may better capture dialectal vocabulary.
-- Do NOT simply concatenate them. Merge intelligently at the sentence/clause level.
+- Where Soniox + at least one other engine agree, use that wording.
+- Where only Deepgram disagrees with Soniox/Fanar/Azure, prefer the Soniox/Fanar/Azure wording.
+- Use Deepgram's text only as a last resort or for word boundaries / spacing.
+- Do NOT simply concatenate. Merge intelligently at the sentence/clause level.
 - ALWAYS prefer the spoken/dialectal form over formal/MSA spelling. Write words as they are pronounced.
 - Use ALL transcripts to ensure NO spoken content is missed — include every word that was said.
 
@@ -1391,7 +1398,7 @@ serve(async (req) => {
        .join('\n');
 
      // =====================================================================
-     // TRANSLATION — Gemini 2.5 Flash (primary) / Qwen (fallback)
+     // TRANSLATION — Gemini 2.5 Pro (primary) / Qwen (fallback)
      // Receives the merged transcript from Call 1.
      // Produces per-line English translations only — separate from analysis.
      //

@@ -18,6 +18,7 @@ interface IntroCardProps {
  */
 export const IntroCard = ({ word, onContinue, topicLabel }: IntroCardProps) => {
   const [hasPlayed, setHasPlayed] = useState(false);
+  const [showArabic, setShowArabic] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Auto-play audio when card appears

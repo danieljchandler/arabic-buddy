@@ -39,6 +39,7 @@ import {
 import { DIALECT_FLAGS, DIALECT_LABELS } from "@/config";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { TappableArabicText } from "@/components/shared/TappableArabicText";
+import { AskAISentence } from "@/components/shared/AskAISentence";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 type ViewMode = "select" | "reading";

@@ -12,6 +12,8 @@ import {
 import { cn } from "@/lib/utils";
 import { BookmarkPlus, Loader2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
+import { useDisplayPrefs } from "@/hooks/useDisplayPrefs";
+import { stripTashkil } from "@/lib/displayPrefs";
 
 interface WordEnrichment {
   definition?: string;
@@ -81,6 +83,7 @@ export const TappableArabicText = ({
 }: TappableArabicTextProps) => {
   const { user } = useAuth();
   const { activeDialect } = useDialect();
+  const { prefs } = useDisplayPrefs();
   const addVocab = useAddUserVocabulary();
   const [wordTranslations, setWordTranslations] = useState<Record<string, WordData>>({});
 
@@ -158,7 +161,8 @@ export const TappableArabicText = ({
     );
   };
 
-  const words = text.split(/\s+/);
+  const displayText = prefs.showTashkil ? text : stripTashkil(text);
+  const words = displayText.split(/\s+/);
 
   return (
     <p

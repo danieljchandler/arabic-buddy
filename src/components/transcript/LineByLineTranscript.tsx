@@ -662,15 +662,20 @@ interface TranscriptLineCardProps {
            showTranslation ? "max-h-40 opacity-100 mt-3" : "max-h-0 opacity-0"
          )}
        >
-         <div className="pt-3 border-t border-border/50">
-           <p
-             className="text-sm text-muted-foreground leading-relaxed"
-             dir="ltr"
-             style={{ fontFamily: "'Open Sans', sans-serif" }}
-           >
-             {line.translation}
-           </p>
-         </div>
+          <div className="pt-3 border-t border-border/50 space-y-2">
+            <p
+              className="text-sm text-muted-foreground leading-relaxed"
+              dir="ltr"
+              style={{ fontFamily: "'Open Sans', sans-serif" }}
+            >
+              {line.translation}
+            </p>
+            <AskAISentence
+              arabic={line.arabic}
+              english={line.translation}
+              variant="chip"
+            />
+          </div>
        </div>
  
        {/* Expand indicator */}

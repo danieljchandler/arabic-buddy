@@ -222,8 +222,9 @@ const TranscriptRow = ({
       <div
         className={cn(
           "overflow-hidden transition-all duration-200",
-          showTranslation ? "max-h-20 opacity-100 mt-1" : "max-h-0 opacity-0",
+          showTranslation ? "max-h-40 opacity-100 mt-1" : "max-h-0 opacity-0",
         )}
+        onClick={(e) => e.stopPropagation()}
       >
         <p
           className="text-sm text-muted-foreground leading-relaxed"
@@ -231,6 +232,16 @@ const TranscriptRow = ({
         >
           {line.translation}
         </p>
+        {line.translation && (
+          <div className="mt-2">
+            <AskAISentence
+              arabic={line.arabic}
+              english={line.translation}
+              dialect={activeDialect}
+              variant="chip"
+            />
+          </div>
+        )}
       </div>
     </div>
   );

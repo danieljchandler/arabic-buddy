@@ -11,6 +11,7 @@
  import type { TranscriptLine, WordToken, VocabItem } from "@/types/transcript";
 import { supabase } from "@/integrations/supabase/client";
 import { useDialect } from "@/contexts/DialectContext";
+import { AskAISentence } from "@/components/shared/AskAISentence";
  
  interface LineByLineTranscriptProps {
    lines: TranscriptLine[];

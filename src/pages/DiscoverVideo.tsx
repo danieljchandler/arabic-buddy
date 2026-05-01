@@ -29,7 +29,6 @@ import {
 import type { TranscriptLine, WordToken, VocabItem } from "@/types/transcript";
 import { VideoRating } from "@/components/discover/VideoRating";
 import { AskAISentence } from "@/components/shared/AskAISentence";
-import { useDialect } from "@/contexts/DialectContext";
 import { supabase } from "@/integrations/supabase/client";
 
 declare global {

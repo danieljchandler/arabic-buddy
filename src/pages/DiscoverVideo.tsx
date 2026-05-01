@@ -155,6 +155,14 @@ const ClickableWord = ({
               )}
             </Button>
           )}
+          <div className="pt-1 border-t border-border">
+            <AskAISentence
+              arabic={parentLine.arabic}
+              english={parentLine.translation}
+              variant="chip"
+              className="w-full justify-center"
+            />
+          </div>
         </div>
       </PopoverContent>
     </Popover>

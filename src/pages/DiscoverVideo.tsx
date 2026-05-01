@@ -1048,12 +1048,21 @@ const DiscoverVideo = () => {
                       : displayLine.arabic}
                   </p>
                   {showTranslations && displayLine.translation && (
-                    <p
-                      className="text-sm text-muted-foreground leading-relaxed"
-                      style={{ fontFamily: "'Open Sans', sans-serif" }}
-                    >
-                      {displayLine.translation}
-                    </p>
+                    <>
+                      <p
+                        className="text-sm text-muted-foreground leading-relaxed"
+                        style={{ fontFamily: "'Open Sans', sans-serif" }}
+                      >
+                        {displayLine.translation}
+                      </p>
+                      <div className="flex justify-center mt-1">
+                        <AskAISentence
+                          arabic={displayLine.arabic}
+                          english={displayLine.translation}
+                          variant="chip"
+                        />
+                      </div>
+                    </>
                   )}
                   <p className="text-xs text-muted-foreground/60">{lineControlIndex + 1} / {lines.length}</p>
                 </div>

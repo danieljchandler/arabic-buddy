@@ -28,6 +28,7 @@ import {
 } from "@/lib/vocabularyAudioContext";
 import type { TranscriptLine, WordToken, VocabItem } from "@/types/transcript";
 import { VideoRating } from "@/components/discover/VideoRating";
+import { AskAISentence } from "@/components/shared/AskAISentence";
 import { supabase } from "@/integrations/supabase/client";
 
 declare global {
@@ -219,8 +220,9 @@ const TranscriptRow = ({
       <div
         className={cn(
           "overflow-hidden transition-all duration-200",
-          showTranslation ? "max-h-20 opacity-100 mt-1" : "max-h-0 opacity-0",
+          showTranslation ? "max-h-40 opacity-100 mt-1" : "max-h-0 opacity-0",
         )}
+        onClick={(e) => e.stopPropagation()}
       >
         <p
           className="text-sm text-muted-foreground leading-relaxed"
@@ -228,6 +230,15 @@ const TranscriptRow = ({
         >
           {line.translation}
         </p>
+        {line.translation && (
+          <div className="mt-2">
+            <AskAISentence
+              arabic={line.arabic}
+              english={line.translation}
+              variant="chip"
+            />
+          </div>
+        )}
       </div>
     </div>
   );
@@ -1035,12 +1046,21 @@ const DiscoverVideo = () => {
                       : displayLine.arabic}
                   </p>
                   {showTranslations && displayLine.translation && (
-                    <p
-                      className="text-sm text-muted-foreground leading-relaxed"
-                      style={{ fontFamily: "'Open Sans', sans-serif" }}
-                    >
-                      {displayLine.translation}
-                    </p>
+                    <>
+                      <p
+                        className="text-sm text-muted-foreground leading-relaxed"
+                        style={{ fontFamily: "'Open Sans', sans-serif" }}
+                      >
+                        {displayLine.translation}
+                      </p>
+                      <div className="flex justify-center mt-1">
+                        <AskAISentence
+                          arabic={displayLine.arabic}
+                          english={displayLine.translation}
+                          variant="chip"
+                        />
+                      </div>
+                    </>
                   )}
                   <p className="text-xs text-muted-foreground/60">{lineControlIndex + 1} / {lines.length}</p>
                 </div>

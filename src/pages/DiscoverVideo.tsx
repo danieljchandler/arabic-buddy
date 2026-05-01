@@ -180,6 +180,7 @@ const TranscriptRow = ({
   lineRef?: React.Ref<HTMLDivElement>;
   onSeek?: (ms: number) => void;
 }) => {
+  const { activeDialect } = useDialect();
   return (
     <div
       ref={lineRef}

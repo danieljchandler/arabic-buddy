@@ -237,7 +237,6 @@ const TranscriptRow = ({
             <AskAISentence
               arabic={line.arabic}
               english={line.translation}
-              dialect={activeDialect}
               variant="chip"
             />
           </div>

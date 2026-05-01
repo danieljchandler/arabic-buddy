@@ -3,6 +3,7 @@ import type { Segment } from '@/types/transcript';
 import { cn } from '@/lib/utils';
 import WordConfidence from './WordConfidence';
 import TimestampScrubber from './TimestampScrubber';
+import { AskAISentence } from '@/components/shared/AskAISentence';
 
 interface SegmentCardProps {
   segment: Segment;
@@ -137,6 +138,14 @@ export default function SegmentCard({
           )}
         </div>
         <div className="flex items-center gap-1">
+          {segment.text && (
+            <AskAISentence
+              arabic={segment.text}
+              english={segment.translation}
+              variant="chip"
+              className="h-6 px-2 text-[10px]"
+            />
+          )}
           {onFixArabic && segment.confidence < 0.85 && (
             <button
               className="text-[10px] px-2 py-0.5 rounded bg-amber-100 hover:bg-amber-200 text-amber-800 transition-colors"

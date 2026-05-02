@@ -16,6 +16,13 @@ interface TranscriptEditorProps {
   onSave?: (segments: Segment[]) => void;
   /** External API call adapter for AI features. */
   aiApiCall?: (prompt: string, signal: AbortSignal) => Promise<string>;
+  /**
+   * Optional handler that asks an LLM to re-segment the entire transcript
+   * into thought-by-thought lines (with speaker change detection). Returns
+   * the proposed Segment[] (shown in the diff preview for admin approval)
+   * or null if cancelled / failed.
+   */
+  onAIResegment?: (segments: Segment[]) => Promise<Segment[] | null>;
 }
 
 /**
@@ -29,6 +36,7 @@ export default function TranscriptEditor({
   videoUrl,
   onSave,
   aiApiCall,
+  onAIResegment,
 }: TranscriptEditorProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
@@ -52,6 +60,8 @@ export default function TranscriptEditor({
 
   const { activeSegmentId, activeWordIndex, seekToSegment } = useVideoSync(segments, videoRef);
   const { status: aiStatus, suggestedSegments, suggestBreaks, fixArabic, cancel: cancelAI } = useAIAssist();
+  const [resegmentLoading, setResegmentLoading] = useState(false);
+  const [resegmentSuggestion, setResegmentSuggestion] = useState<Segment[] | null>(null);
 
   const [showDiff, setShowDiff] = useState(false);
 

@@ -7,7 +7,7 @@ import { useReviewStats } from "@/hooks/useReview";
 import { useUserVocabularyDueCount } from "@/hooks/useUserVocabulary";
 import { useDiscoverVideos } from "@/hooks/useDiscoverVideos";
 import { Button } from "@/components/design-system";
-import { Settings, Brain, LogIn, LogOut, Mic, BookOpen, Sparkles, GraduationCap, Laugh, Play, ChevronRight, Twitter, MessageCircleQuestion, Compass, MessageSquare, Globe2, Headphones, Trophy, FileText, Flame, BarChart3, PenTool, Gamepad2, Users, Swords, Newspaper, BookMarked } from "lucide-react";
+import { Settings, Brain, LogIn, LogOut, Mic, BookOpen, Sparkles, GraduationCap, Laugh, Play, ChevronRight, Twitter, MessageCircleQuestion, Compass, MessageSquare, Globe2, Headphones, Trophy, FileText, Flame, BarChart3, PenTool, Gamepad2, Users, Swords, Newspaper, BookMarked, Image as ImageIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AppShell } from "@/components/layout/AppShell";
 import { Badge } from "@/components/ui/badge";
@@ -457,13 +457,22 @@ const Index = () => {
                   <p className="text-xs text-muted-foreground">Dictation, comprehension & speed drills</p>
                 </div>
               </button>
-              <button onClick={() => navigate("/reading")} className={cn("w-full p-4 rounded-xl bg-gradient-to-r from-indigo-500/10 to-violet-500/10 border border-indigo-500/20 flex items-center gap-3 transition-all duration-200 hover:border-indigo-500/40 active:scale-[0.98]")}>
+              <button onClick={() => navigate("/reading")} className={cn("w-full p-4 rounded-xl mb-2 bg-gradient-to-r from-indigo-500/10 to-violet-500/10 border border-indigo-500/20 flex items-center gap-3 transition-all duration-200 hover:border-indigo-500/40 active:scale-[0.98]")}>
                 <div className="w-10 h-10 rounded-lg bg-indigo-500/10 flex items-center justify-center shrink-0">
                   <FileText className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
                 </div>
                 <div className="text-left">
                   <p className="font-semibold text-foreground">Reading Practice</p>
                   <p className="text-xs text-muted-foreground">Passages with tap-to-translate & comprehension quiz</p>
+                </div>
+              </button>
+              <button onClick={() => navigate("/picture-scenes")} className={cn("w-full p-4 rounded-xl bg-gradient-to-r from-rose-500/10 to-pink-500/10 border border-rose-500/20 flex items-center gap-3 transition-all duration-200 hover:border-rose-500/40 active:scale-[0.98]")}>
+                <div className="w-10 h-10 rounded-lg bg-rose-500/10 flex items-center justify-center shrink-0">
+                  <ImageIcon className="h-5 w-5 text-rose-600 dark:text-rose-400" />
+                </div>
+                <div className="text-left">
+                  <p className="font-semibold text-foreground">Picture Scenes</p>
+                  <p className="text-xs text-muted-foreground">Tap objects in a scene to learn new words</p>
                 </div>
               </button>
             </div>

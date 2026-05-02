@@ -1,6 +1,8 @@
 import { useMemo, useCallback, useRef } from "react";
 import type { TranscriptLine, WordToken, Segment, Word } from "@/types/transcript";
 import TranscriptEditor from "@/components/TranscriptEditor";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
 
 interface AdminTranscriptEditorProps {
   lines: TranscriptLine[];
@@ -74,11 +76,46 @@ export function AdminTranscriptEditor({ lines, onChange, audioUrl }: AdminTransc
     [onChange],
   );
 
+  const handleAIResegment = useCallback(
+    async (segments: Segment[]): Promise<Segment[] | null> => {
+      try {
+        const { data, error } = await supabase.functions.invoke("ai-resegment-transcript", {
+          body: { segments },
+        });
+        if (error) throw error;
+        const proposed = (data as { segments?: Segment[] } | null)?.segments;
+        if (!proposed || proposed.length === 0) {
+          toast({
+            title: "AI re-segmentation returned no lines",
+            description: "Try again or adjust the transcript first.",
+            variant: "destructive",
+          });
+          return null;
+        }
+        toast({
+          title: "AI proposed a new segmentation",
+          description: `Review the ${proposed.length} suggested lines and accept or reject.`,
+        });
+        return proposed;
+      } catch (e: any) {
+        const msg = e?.message ?? "Unknown error";
+        toast({
+          title: "AI re-segmentation failed",
+          description: msg,
+          variant: "destructive",
+        });
+        return null;
+      }
+    },
+    [],
+  );
+
   return (
     <TranscriptEditor
       initialSegments={initialSegments}
       videoUrl={audioUrl}
       onSave={handleSave}
+      onAIResegment={handleAIResegment}
     />
   );
 }

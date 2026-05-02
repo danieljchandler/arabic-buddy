@@ -311,6 +311,7 @@ function detectMode(mode: string | undefined, lastUserMessage?: string): string 
   if (/\b(daily.*challenge|challenge set)\b/.test(msg)) return "generate_daily_challenge";
   if (/\b(conversation|scenario|role.?play|simulator)\b/.test(msg)) return "generate_conversation";
   if (/\b(game|matching|memory game)\b/.test(msg)) return "generate_game_set";
+  if (/\b(picture\s*scene|scene picture|themed image|interactive picture)\b/.test(msg)) return "generate_picture_scene";
   return mode;
 }
 

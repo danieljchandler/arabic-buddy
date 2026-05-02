@@ -1,38 +1,91 @@
+## Goal
 
-# Transcription & Translation Pipeline — Improvement Plan (approved, no self-hosting)
+Add an admin-only "AI Re-segment" action in the transcript editor that asks an LLM to restructure the existing word-level transcript into clean, thought-by-thought lines, starting a new line whenever the speaker changes. Admin still reviews the proposed result in the existing diff preview before accepting.
 
-## What I'll do
+## What exists today
 
-Drop everything that requires self-hosting (Audar-ASR on RunPod). Keep all hosted-API improvements. I'll roll out in the order below — you can stop me after any tier.
+- `TranscriptEditor` already has a "🤖 Suggest Breaks" button calling `useAIAssist.suggestBreaks` and a `DiffPreview` accept/reject UI.
+- That feature was never wired to a real backend — `AdminTranscriptEditor` does not pass an `aiApiCall` prop, so the button silently no-ops.
+- Each `Segment` carries `words[]` with per-word `start`/`end` and an optional `speaker` field, but ASR pipelines currently don't populate `speaker` for most videos.
 
-### Tier 1 — quick wins (one PR)
-1. **Re-prioritize Soniox in the merge prompt.** Tell the LLM Soniox has the lowest WER on Arabic in 2026 production benchmarks; prefer Soniox wording when ASRs disagree, use Deepgram only for word boundaries / timestamps.
-2. **Upgrade dedicated translation: Gemini 2.5 Flash → Gemini 2.5 Pro** (existing Qwen + Cerebras llama-3.3-70b stay as fallbacks).
-3. **Per-line ASR provenance + agreement score.** Persist `asrProvenance: string[]` and `engineAgreement: number (0–1)` on each line; surface in admin transcript editor as a colored band so QA focuses on disagreement lines.
-4. **Dialect-aware Deepgram keyterms + ElevenLabs keyterms.** Pull from `_shared/dialectHelpers.ts` based on `dialectModule` instead of the hard-coded Gulf list.
-5. **Dialect-aware cache key.** Add `dialect_module` to `processed_videos.content_hash` so cross-dialect cache collisions stop.
+We will (a) add a real backend for the AI call, (b) make the prompt thought-and-speaker aware, and (c) wire it through the admin editor — keeping the existing manual editing + diff approval flow as the source of truth.
 
-### Tier 2 — dialect-specific accuracy
-6. **Add Azure Speech STT as a 4th ASR engine, dialect-routed** (uses existing `AZURE_SPEECH_KEY/REGION/ENDPOINT`):
-   - Egyptian → `ar-EG`
-   - Yemeni → `ar-YE`
-   - Gulf → `ar-SA` as alternate (Deepgram stays primary)
-7. **Extend CAMeL city map** to include CAI/ALX (Egyptian) and SAN (Yemeni) so dialect validation works for all three modules.
-8. **Branch Claude vocab enrichment + Fanar validation prompts on `DIALECT_MODULE`** (currently Gulf-only text is sent for Egyptian/Yemeni runs).
-9. **Munsit health-check cron** in `discover-trending-videos` so it auto-re-enables when the DNS comes back.
+## Plan
 
-### Tier 3 — structural
-10. **Weighted round-robin Fanar usage** instead of hard 18/day cutoff (rotate which engines run per video so we never lose Fanar entirely on busy days).
-11. **Low-confidence re-ask loop**: if engine agreement < 0.6 on > 20% of lines, re-run only those lines through Soniox + Gemini 2.5 Pro translation.
-12. **Replace QCRI Farasa with CAMeL-Tools `disambig` (hosted via HF Inference)** for dialect-aware tashkeel; keep Farasa as fallback.
-13. **Switch user-upload `elevenlabs-transcribe` to the same Deepgram + Soniox + Fanar ensemble** (no RunPod needed for non-YouTube uploads). User uploads then get the same quality bar as Discover videos.
+### 1. New edge function `ai-resegment-transcript`
 
-## Explicitly dropped
-- Self-hosting Audar-ASR-V1 on RunPod — out per your call.
+`supabase/functions/ai-resegment-transcript/index.ts`
 
-## Decisions still needed
-I'll ask these as a single multi-question prompt right after you approve:
-- OK to add **Azure Speech STT** as ASR engine #4? (Same Azure key you already pay for — no new secret.)
-- OK to **drop ElevenLabs from user uploads** entirely, or keep it as an opt-in fallback?
-- Translation upgrade target — **Gemini 2.5 Pro** (cheaper, same family as current) or **GPT-5** (best quality, ~3× cost)?
-- Implement all three tiers, or stop after Tier 1 / Tier 2?
+- POST body: `{ segments: Segment[], dialect?: string }`.
+- Calls Lovable AI Gateway (`google/gemini-2.5-pro` for quality on long context; falls back to `google/gemini-3-flash-preview` for short transcripts).
+- Uses **tool-calling** (structured output) to return:
+  ```ts
+  { lines: Array<{
+      start: number; end: number;
+      text: string; translation: string;
+      speaker?: string; // "A", "B"… when distinguishable
+      wordIndices: number[]; // indices into the FLATTENED original words[] across all input segments
+  }> }
+  ```
+- System prompt rules:
+  - Preserve every original word and its timing — do **not** invent or drop words.
+  - Each line should be one complete thought / clause; aim for ~2.5–7 seconds and ~4–14 Arabic words.
+  - Start a new line whenever the speaker changes, on long pauses (>0.6s gap between adjacent words), or at clear sentence/clause boundaries.
+  - Avoid lines shorter than ~1.2s unless they are a true short utterance from a different speaker.
+  - Detect speaker changes from existing `speaker` tags when present; otherwise infer from pause length, vocative cues ("يا", "والله"), question/answer alternation, and discourse markers.
+  - Forbid MSA rewriting and cross-dialect leakage (per project dialect rules).
+  - Translation must be a faithful, casual English rendering of the line.
+- CORS + 429/402 handling per Lovable AI guidelines. `verify_jwt = true` (admin-only feature, must be authenticated).
+- Returns `{ segments: Segment[] }` already mapped back into the editor's `Segment` shape, with `words[]` reconstructed from the original word objects via `wordIndices` so timestamps stay anchored to ASR ground truth.
+
+Because reasoning over a long transcript can exceed 60s, the function streams progress isn't required — we just set a generous timeout and surface errors. For very long transcripts (>~250 segments) the function chunks the input into overlapping windows of ~80 segments, processes them sequentially, and stitches results.
+
+### 2. `useAIAssist` — new `resegment` action
+
+`src/hooks/useAIAssist.ts`
+
+- Add `resegment(segments, apiCall)` that mirrors `suggestBreaks` but expects already-mapped `Segment[]` back from the API instead of building a prompt locally (the prompt now lives server-side).
+- Keep abort/cancel + status semantics.
+- Keep existing `suggestBreaks` for backward compatibility but route the toolbar button to the new flow.
+
+### 3. Toolbar button + diff flow
+
+`src/components/TranscriptEditor/Toolbar.tsx` and `index.tsx`
+
+- Replace the existing "🤖 Suggest Breaks" button label with **"✨ AI Re-segment (thought-by-thought)"**.
+- On click, call the new edge function via `supabase.functions.invoke('ai-resegment-transcript', …)`.
+- Show a loading state ("AI rethinking timing…") with the existing Cancel button.
+- On success, populate `suggestedSegments` and reuse the existing `DiffPreview` accept-all / reject-all / accept-one UI — admin still has final approval.
+- Show speaker badges (A, B, …) in the diff preview rows when the AI assigned them.
+
+### 4. Wire `aiApiCall` through `AdminTranscriptEditor`
+
+`src/components/admin/AdminTranscriptEditor.tsx`
+
+- Pass an `aiApiCall` adapter (or, simpler, just have `TranscriptEditor` accept an `onAIResegment?: (segs) => Promise<Segment[] | null>` prop and call the edge function directly). The edge function path is cleaner — implement option B.
+- Confirm only admins (already gated by `AdminLayout` + `is_admin` RLS) can reach this UI; the edge function additionally checks `is_admin()` server-side using the caller's JWT.
+
+### 5. Preserve manual workflow
+
+- No changes to split/merge/edit/timestamp ripple/undo. The AI output is always proposed via `DiffPreview`; admin can accept the whole thing, accept individual lines, reject everything, or keep editing manually after accepting.
+- Undo stack treats "Accept all" as a single `replaceAll` (already supported) so admins can roll back the entire AI re-segmentation with one Cmd+Z.
+
+### 6. Config
+
+- `supabase/config.toml`: add `[functions.ai-resegment-transcript]` with `verify_jwt = true`.
+
+## Out of scope
+
+- Changing the published-side viewer (Discover, Bible, etc.) — they already render whatever segments the admin saves.
+- Improving ASR speaker diarization itself; we only use whatever `speaker` data is already on the segments and let the LLM infer the rest from text + timing.
+- Auto-running re-segmentation on import — kept as an explicit admin action so nothing changes without approval.
+
+## Files
+
+- **new** `supabase/functions/ai-resegment-transcript/index.ts`
+- edit `supabase/config.toml` (add function block)
+- edit `src/hooks/useAIAssist.ts` (add `resegment`)
+- edit `src/components/TranscriptEditor/index.tsx` (new handler + prop)
+- edit `src/components/TranscriptEditor/Toolbar.tsx` (rename/restyle button)
+- edit `src/components/TranscriptEditor/DiffPreview.tsx` (show speaker badges)
+- edit `src/components/admin/AdminTranscriptEditor.tsx` (pass AI handler)

@@ -109,6 +109,21 @@ export default function TranscriptEditor({
     if (result) setShowDiff(true);
   }, [aiApiCall, segments, suggestBreaks]);
 
+  const handleAIResegment = useCallback(async () => {
+    if (!onAIResegment || resegmentLoading) return;
+    setResegmentLoading(true);
+    setResegmentSuggestion(null);
+    try {
+      const result = await onAIResegment(segments);
+      if (result && result.length > 0) {
+        setResegmentSuggestion(result);
+        setShowDiff(true);
+      }
+    } finally {
+      setResegmentLoading(false);
+    }
+  }, [onAIResegment, resegmentLoading, segments]);
+
   const handleFixArabic = useCallback(
     async (segmentId: string) => {
       if (!aiApiCall) return;

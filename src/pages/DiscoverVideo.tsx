@@ -224,6 +224,17 @@ const TranscriptRow = ({
           : line.arabic}
       </p>
 
+      {line.arabic && (
+        <div className="mt-2" onClick={(e) => e.stopPropagation()}>
+          <AskAISentence
+            arabic={line.arabic}
+            english={line.translation}
+            variant="chip"
+            className="h-8 px-3 bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary"
+          />
+        </div>
+      )}
+
       {/* English translation */}
       <div
         className={cn(
@@ -238,15 +249,6 @@ const TranscriptRow = ({
         >
           {line.translation}
         </p>
-        {line.translation && (
-          <div className="mt-2">
-            <AskAISentence
-              arabic={line.arabic}
-              english={line.translation}
-              variant="chip"
-            />
-          </div>
-        )}
       </div>
     </div>
   );
@@ -1061,14 +1063,17 @@ const DiscoverVideo = () => {
                       >
                         {displayLine.translation}
                       </p>
-                      <div className="flex justify-center mt-1">
-                        <AskAISentence
-                          arabic={displayLine.arabic}
-                          english={displayLine.translation}
-                          variant="chip"
-                        />
-                      </div>
                     </>
+                  )}
+                  {displayLine.arabic && (
+                    <div className="flex justify-center mt-2">
+                      <AskAISentence
+                        arabic={displayLine.arabic}
+                        english={displayLine.translation}
+                        variant="chip"
+                        className="h-8 px-3 bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary"
+                      />
+                    </div>
                   )}
                   <p className="text-xs text-muted-foreground/60">{lineControlIndex + 1} / {lines.length}</p>
                 </div>

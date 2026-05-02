@@ -147,28 +147,32 @@ export default function TranscriptEditor({
         segments={segments}
         canUndo={canUndo}
         canRedo={canRedo}
-        aiStatus={aiStatus}
+        aiStatus={resegmentLoading ? 'loading' : aiStatus}
         staleCount={staleTranslations.size}
         onUndo={handleUndo}
         onRedo={handleRedo}
         onSuggestBreaks={handleSuggestBreaks}
+        onAIResegment={onAIResegment ? handleAIResegment : undefined}
         onCancelAI={cancelAI}
       />
 
-      {/* AI Diff Preview */}
-      {showDiff && suggestedSegments && (
+      {/* AI Diff Preview — prefer the resegment suggestion when present */}
+      {showDiff && (resegmentSuggestion ?? suggestedSegments) && (
         <DiffPreview
           original={segments}
-          suggested={suggestedSegments}
+          suggested={(resegmentSuggestion ?? suggestedSegments)!}
           onAcceptAll={() => {
-            replaceAll(suggestedSegments);
+            replaceAll((resegmentSuggestion ?? suggestedSegments)!);
             setShowDiff(false);
+            setResegmentSuggestion(null);
           }}
-          onRejectAll={() => setShowDiff(false)}
+          onRejectAll={() => {
+            setShowDiff(false);
+            setResegmentSuggestion(null);
+          }}
           onAcceptOne={(index) => {
-            // Individual accept: replace only one suggested boundary
-            const updated = [...segments];
-            const suggested = suggestedSegments[index];
+            const list = (resegmentSuggestion ?? suggestedSegments)!;
+            const suggested = list[index];
             if (suggested) {
               replaceAll([
                 ...segments.filter(s => s.start < suggested.start),
@@ -177,7 +181,7 @@ export default function TranscriptEditor({
               ]);
             }
           }}
-          onRejectOne={(index) => {
+          onRejectOne={() => {
             // Individual reject is a no-op — suggestion stays in diff but isn't applied
           }}
         />

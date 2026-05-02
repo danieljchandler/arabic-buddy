@@ -47,6 +47,7 @@ const CurriculumBuilder = () => {
     approveDailyChallenge,
     approveConversationScenario,
     approveGameSet,
+    approvePictureScene,
   } = useCurriculumApproval();
   const { data: stages } = useStages();
 
@@ -173,9 +174,15 @@ const CurriculumBuilder = () => {
         case 'game_set_preview':
           approveGameSet.mutate(params);
           break;
+        case 'picture_scene_preview':
+          approvePictureScene.mutate({
+            ...params,
+            dialect: activeSession?.target_dialect || activeDialect,
+          });
+          break;
       }
     },
-    [activeSessionId, approveGrammarExercises, approveListeningExercises, approveReadingPassage, approveDailyChallenge, approveConversationScenario, approveGameSet],
+    [activeSessionId, approveGrammarExercises, approveListeningExercises, approveReadingPassage, approveDailyChallenge, approveConversationScenario, approveGameSet, approvePictureScene, activeSession, activeDialect],
   );
 
   return (

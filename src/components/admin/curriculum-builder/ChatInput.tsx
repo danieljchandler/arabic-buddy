@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Send, BookOpen, Languages, GraduationCap, GitCompare, PenLine, Headphones, BookOpenCheck, Flame, MessageCircle, Gamepad2, Lightbulb, Sparkles } from 'lucide-react';
+import { Send, BookOpen, Languages, GraduationCap, GitCompare, PenLine, Headphones, BookOpenCheck, Flame, MessageCircle, Gamepad2, Lightbulb, Sparkles, Image as ImageIcon } from 'lucide-react';
 
 export type ChatMode =
   | 'chat'
@@ -13,6 +13,7 @@ export type ChatMode =
   | 'generate_daily_challenge'
   | 'generate_conversation'
   | 'generate_game_set'
+  | 'generate_picture_scene'
   | 'suggest_lessons'
   | 'suggest_vocab';
 
@@ -82,6 +83,12 @@ const QUICK_ACTIONS = [
     icon: Gamepad2,
     mode: 'generate_game_set' as const,
     prompt: 'Create a vocabulary game set for: ',
+  },
+  {
+    label: 'Picture Scene',
+    icon: ImageIcon,
+    mode: 'generate_picture_scene' as const,
+    prompt: 'Create a picture scene for the theme: ',
   },
   {
     label: 'Compare Dialects',

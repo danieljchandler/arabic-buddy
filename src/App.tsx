@@ -57,6 +57,8 @@ const SouqNews = lazyPage(() => import("./pages/SouqNews"));
 const BibleReading = lazyPage(() => import("./pages/BibleReading"));
 const BibleLessons = lazyPage(() => import("./pages/BibleLessons"));
 const MyTranscriptions = lazyPage(() => import("./pages/MyTranscriptions"));
+const PictureScenes = lazyPage(() => import("./pages/PictureScenes"));
+const PictureScenePlayer = lazyPage(() => import("./pages/PictureScenePlayer"));
 
 // Admin pages
 const AdminLayout = lazyPage(() => import("./pages/admin/AdminLayout"));
@@ -78,6 +80,8 @@ const AdminStoryForm = lazyPage(() => import("./pages/admin/AdminStoryForm"));
 const TrendingVideos = lazyPage(() => import("./pages/admin/TrendingVideos"));
 const BibleAccess = lazyPage(() => import("./pages/admin/BibleAccess"));
 const AdminBibleLessons = lazyPage(() => import("./pages/admin/AdminBibleLessons"));
+const AdminPictureScenes = lazyPage(() => import("./pages/admin/AdminPictureScenes"));
+const AdminPictureSceneEdit = lazyPage(() => import("./pages/admin/AdminPictureSceneEdit"));
 
 const queryClient = new QueryClient();
 
@@ -306,6 +310,12 @@ const App = () => {
             <Route path="/my-transcriptions" element={
               <ErrorBoundary name="MyTranscriptionsRoute"><MyTranscriptions /></ErrorBoundary>
             } />
+            <Route path="/picture-scenes" element={
+              <ErrorBoundary name="PictureScenesRoute"><PictureScenes /></ErrorBoundary>
+            } />
+            <Route path="/picture-scenes/:sceneId" element={
+              <ErrorBoundary name="PictureScenePlayerRoute"><PictureScenePlayer /></ErrorBoundary>
+            } />
 
             <Route path="/admin" element={<ErrorBoundary name="AdminRoute"><AdminLayout /></ErrorBoundary>}>
               <Route index element={<Dashboard />} />
@@ -336,6 +346,8 @@ const App = () => {
               <Route path="trending" element={<TrendingVideos />} />
               <Route path="bible-access" element={<BibleAccess />} />
               <Route path="bible-lessons" element={<AdminBibleLessons />} />
+              <Route path="picture-scenes" element={<AdminPictureScenes />} />
+              <Route path="picture-scenes/:sceneId" element={<AdminPictureSceneEdit />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />

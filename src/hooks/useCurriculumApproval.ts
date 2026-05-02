@@ -433,6 +433,101 @@ export function useCurriculumApproval() {
     },
   });
 
+  const approvePictureScene = useMutation({
+    mutationFn: async ({
+      messageId,
+      sessionId,
+      data,
+      dialect,
+    }: {
+      messageId: string;
+      sessionId: string;
+      data: Record<string, unknown>;
+      dialect: string;
+    }) => {
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user) throw new Error('Not authenticated');
+
+      const words = (data.words as Array<Record<string, unknown>>) || [];
+      if (words.length === 0) throw new Error('No words in scene');
+
+      // 1. Insert draft scene
+      const { data: scene, error: sceneErr } = await supabase
+        .from('picture_scenes')
+        .insert({
+          dialect,
+          theme: (data.theme as string) || '',
+          title: (data.title as string) || '',
+          title_arabic: (data.title_arabic as string) || '',
+          description: (data.scene_description as string) || null,
+          cefr_level: (data.cefr_level as string) || null,
+          status: 'draft',
+          created_by: userData.user.id,
+          session_id: sessionId,
+        })
+        .select()
+        .single();
+      if (sceneErr) throw sceneErr;
+      const sceneRecord = scene as { id: string; title: string };
+
+      // 2. Insert hotspots (without coordinates - vision model assigns them later)
+      const hsInserts = words.map((w, i) => ({
+        scene_id: sceneRecord.id,
+        word_arabic: w.word_arabic as string,
+        word_english: (w.word_english as string) || '',
+        root: (w.root as string) || null,
+        display_order: i,
+        radius_pct: 8,
+      }));
+      const { error: hsErr } = await supabase
+        .from('picture_scene_hotspots')
+        .insert(hsInserts);
+      if (hsErr) throw hsErr;
+
+      // 3. Track approval
+      await supabase
+        .from('curriculum_chat_approvals')
+        .insert({
+          message_id: messageId,
+          session_id: sessionId,
+          approval_type: 'picture_scene',
+          approved_by: userData.user.id,
+        });
+
+      // 4. Kick off image + audio generation in background (best-effort)
+      try {
+        await supabase.functions.invoke('regenerate-scene-image', {
+          body: {
+            sceneId: sceneRecord.id,
+            customInstructions: data.scene_description as string,
+            regenerateHotspots: true,
+          },
+        });
+      } catch (e) {
+        console.warn('Image generation kickoff failed:', e);
+      }
+      try {
+        await supabase.functions.invoke('generate-scene-audio', {
+          body: { sceneId: sceneRecord.id },
+        });
+      } catch (e) {
+        console.warn('Audio generation kickoff failed:', e);
+      }
+
+      return sceneRecord;
+    },
+    onSuccess: (scene) => {
+      const s = scene as { id: string; title: string };
+      toast.success('Picture scene draft created!', {
+        description: `"${s.title}" — image and audio generating, review in Admin → Picture Scenes`,
+      });
+      queryClient.invalidateQueries({ queryKey: ['picture-scenes'] });
+    },
+    onError: (err) => {
+      toast.error('Failed to create picture scene', { description: (err as Error).message });
+    },
+  });
+
   return {
     approveLesson,
     approveVocabulary,
@@ -442,5 +537,6 @@ export function useCurriculumApproval() {
     approveDailyChallenge,
     approveConversationScenario,
     approveGameSet,
+    approvePictureScene,
   };
 }

@@ -958,6 +958,110 @@ export type Database = {
         }
         Relationships: []
       }
+      picture_scene_hotspots: {
+        Row: {
+          created_at: string
+          display_order: number
+          id: string
+          radius_pct: number
+          root: string | null
+          scene_id: string
+          updated_at: string
+          word_arabic: string
+          word_audio_url: string | null
+          word_english: string
+          x_pct: number | null
+          y_pct: number | null
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          radius_pct?: number
+          root?: string | null
+          scene_id: string
+          updated_at?: string
+          word_arabic: string
+          word_audio_url?: string | null
+          word_english?: string
+          x_pct?: number | null
+          y_pct?: number | null
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          radius_pct?: number
+          root?: string | null
+          scene_id?: string
+          updated_at?: string
+          word_arabic?: string
+          word_audio_url?: string | null
+          word_english?: string
+          x_pct?: number | null
+          y_pct?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "picture_scene_hotspots_scene_id_fkey"
+            columns: ["scene_id"]
+            isOneToOne: false
+            referencedRelation: "picture_scenes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      picture_scenes: {
+        Row: {
+          cefr_level: string | null
+          created_at: string
+          created_by: string
+          description: string | null
+          dialect: string
+          display_order: number
+          id: string
+          image_url: string | null
+          session_id: string | null
+          status: string
+          theme: string
+          title: string
+          title_arabic: string
+          updated_at: string
+        }
+        Insert: {
+          cefr_level?: string | null
+          created_at?: string
+          created_by: string
+          description?: string | null
+          dialect?: string
+          display_order?: number
+          id?: string
+          image_url?: string | null
+          session_id?: string | null
+          status?: string
+          theme?: string
+          title?: string
+          title_arabic?: string
+          updated_at?: string
+        }
+        Update: {
+          cefr_level?: string | null
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          dialect?: string
+          display_order?: number
+          id?: string
+          image_url?: string | null
+          session_id?: string | null
+          status?: string
+          theme?: string
+          title?: string
+          title_arabic?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       processed_videos: {
         Row: {
           content_hash: string
@@ -1638,6 +1742,50 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      user_picture_scene_progress: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          id: string
+          last_played_at: string
+          last_score: number
+          last_total: number
+          scene_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          last_played_at?: string
+          last_score?: number
+          last_total?: number
+          scene_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          last_played_at?: string
+          last_score?: number
+          last_total?: number
+          scene_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_picture_scene_progress_scene_id_fkey"
+            columns: ["scene_id"]
+            isOneToOne: false
+            referencedRelation: "picture_scenes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {

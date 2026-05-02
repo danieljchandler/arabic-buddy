@@ -1,91 +1,113 @@
 ## Goal
 
-Add an admin-only "AI Re-segment" action in the transcript editor that asks an LLM to restructure the existing word-level transcript into clean, thought-by-thought lines, starting a new line whenever the speaker changes. Admin still reviews the proposed result in the existing diff preview before accepting.
+Add a new vocabulary mode called **Picture Scenes**. AI picks a theme, AI picks the vocabulary words, and AI generates a single themed image showing all those objects. Admin reviews & publishes from the existing **Curriculum Builder** chat. Learners then explore the scene (tap object → hear word) and get quizzed (tap the named object). Words auto-add to their flashcards for the active dialect, with per-dialect deduplication.
 
-## What exists today
+## Flow
 
-- `TranscriptEditor` already has a "🤖 Suggest Breaks" button calling `useAIAssist.suggestBreaks` and a `DiffPreview` accept/reject UI.
-- That feature was never wired to a real backend — `AdminTranscriptEditor` does not pass an `aiApiCall` prop, so the button silently no-ops.
-- Each `Segment` carries `words[]` with per-word `start`/`end` and an optional `speaker` field, but ASR pipelines currently don't populate `speaker` for most videos.
+```text
+Admin → Curriculum Builder chat → "Generate picture scene: Kitchen, A1"
+    ↓
+curriculum-chat edge function (existing)
+    ↓ tool-call returns { theme, words[8-12] }
+    ↓ then calls google/gemini-3-pro-image-preview to render the scene
+    ↓ then calls a vision pass (gemini-2.5-pro) to detect each word's bounding box on the image
+    ↓ persists everything as a draft picture_scene + hotspots
+ChatWindow renders a new PictureScenePreviewCard
+    ↓ admin can regenerate image, edit words, nudge hotspots, then "Approve & Publish"
+        ↓ inserts into curriculum_chat_approvals (approval_type = 'picture_scene')
 
-We will (a) add a real backend for the AI call, (b) make the prompt thought-and-speaker aware, and (c) wire it through the admin editor — keeping the existing manual editing + diff approval flow as the source of truth.
+Learner → /picture-scenes → tap a published scene
+    ↓ Explore: tap any hotspot → plays Arabic TTS, shows word
+    ↓ Quiz: prompt "اضغط على X" → user taps; correct = within radius
+    ↓ Result: bulk-upsert all words into user_vocabulary for active dialect
+              (skip duplicates via UNIQUE (user_id, word_arabic, dialect))
+```
 
-## Plan
+## Database
 
-### 1. New edge function `ai-resegment-transcript`
+**Migration:**
 
-`supabase/functions/ai-resegment-transcript/index.ts`
+1. **`user_vocabulary`** — drop `UNIQUE (user_id, word_arabic)`, add `UNIQUE (user_id, word_arabic, dialect)`. Required so the same Arabic word can exist once per dialect (matches the project's per-dialect rule) and so bulk-upsert can safely skip duplicates.
 
-- POST body: `{ segments: Segment[], dialect?: string }`.
-- Calls Lovable AI Gateway (`google/gemini-2.5-pro` for quality on long context; falls back to `google/gemini-3-flash-preview` for short transcripts).
-- Uses **tool-calling** (structured output) to return:
-  ```ts
-  { lines: Array<{
-      start: number; end: number;
-      text: string; translation: string;
-      speaker?: string; // "A", "B"… when distinguishable
-      wordIndices: number[]; // indices into the FLATTENED original words[] across all input segments
-  }> }
-  ```
-- System prompt rules:
-  - Preserve every original word and its timing — do **not** invent or drop words.
-  - Each line should be one complete thought / clause; aim for ~2.5–7 seconds and ~4–14 Arabic words.
-  - Start a new line whenever the speaker changes, on long pauses (>0.6s gap between adjacent words), or at clear sentence/clause boundaries.
-  - Avoid lines shorter than ~1.2s unless they are a true short utterance from a different speaker.
-  - Detect speaker changes from existing `speaker` tags when present; otherwise infer from pause length, vocative cues ("يا", "والله"), question/answer alternation, and discourse markers.
-  - Forbid MSA rewriting and cross-dialect leakage (per project dialect rules).
-  - Translation must be a faithful, casual English rendering of the line.
-- CORS + 429/402 handling per Lovable AI guidelines. `verify_jwt = true` (admin-only feature, must be authenticated).
-- Returns `{ segments: Segment[] }` already mapped back into the editor's `Segment` shape, with `words[]` reconstructed from the original word objects via `wordIndices` so timestamps stay anchored to ASR ground truth.
+2. **`picture_scenes`** (admin-managed, public read when published)
+   - `id`, `dialect`, `theme`, `title`, `title_arabic`, `description`, `image_url`, `cefr_level`, `display_order`, `status` ('draft'|'published'), `session_id` (FK curriculum chat session, nullable), `created_by`, `created_at`, `updated_at`
 
-Because reasoning over a long transcript can exceed 60s, the function streams progress isn't required — we just set a generous timeout and surface errors. For very long transcripts (>~250 segments) the function chunks the input into overlapping windows of ~80 segments, processes them sequentially, and stitches results.
+3. **`picture_scene_hotspots`**
+   - `id`, `scene_id` FK (cascade), `word_arabic`, `word_english`, `root` (nullable), `word_audio_url` (nullable), `x_pct`, `y_pct`, `radius_pct` (default 8), `display_order`
 
-### 2. `useAIAssist` — new `resegment` action
+4. **`user_picture_scene_progress`**
+   - `id`, `user_id`, `scene_id`, `last_score`, `last_total`, `completed_at`, `last_played_at`; `UNIQUE (user_id, scene_id)`
 
-`src/hooks/useAIAssist.ts`
+RLS mirrors existing tables: `interactive_stories` for scenes, `story_progress` for user progress.
 
-- Add `resegment(segments, apiCall)` that mirrors `suggestBreaks` but expects already-mapped `Segment[]` back from the API instead of building a prompt locally (the prompt now lives server-side).
-- Keep abort/cancel + status semantics.
-- Keep existing `suggestBreaks` for backward compatibility but route the toolbar button to the new flow.
+## Edge functions
 
-### 3. Toolbar button + diff flow
+### Modified: `supabase/functions/curriculum-chat/index.ts`
+- Add a new tool `generate_picture_scene` to the tool registry. When the LLM calls it (or admin asks for "picture scene"), the function:
+  1. Calls Lovable AI with a structured-output tool-call to pick `{ theme, title, title_arabic, words: [{word_arabic, word_english, root}] }` (8–12 concrete, image-able nouns appropriate to the requested CEFR + dialect).
+  2. Calls `google/gemini-3-pro-image-preview` via the Lovable gateway with a prompt enforcing the existing flashcard image style (warm sand background, photo-realistic, no text overlays) and an explicit list "show: bread, tea cup, kettle, …". Uploads PNG to `flashcard-images/picture-scenes/{sceneId}.png`.
+  3. Calls `google/gemini-2.5-pro` (multimodal) with the rendered image + word list, returning structured `[{ word_arabic, x_pct, y_pct, radius_pct }]` bounding-box centers for each word it can locate. Words it cannot find are kept with `x_pct=null` so the admin can place them.
+  4. Inserts a draft `picture_scenes` row + hotspots, returns the scene id in `structured_output` so `ChatWindow` can render the preview card.
+- Output type: `picture_scene` saved on the assistant message.
 
-`src/components/TranscriptEditor/Toolbar.tsx` and `index.tsx`
+### New: `supabase/functions/regenerate-scene-image/index.ts` (admin only, JWT verified)
+- Input `{ sceneId, customInstructions? }`. Re-renders the image keeping the same word list, updates `image_url`, optionally re-runs the vision pass to refresh hotspot coords.
 
-- Replace the existing "🤖 Suggest Breaks" button label with **"✨ AI Re-segment (thought-by-thought)"**.
-- On click, call the new edge function via `supabase.functions.invoke('ai-resegment-transcript', …)`.
-- Show a loading state ("AI rethinking timing…") with the existing Cancel button.
-- On success, populate `suggestedSegments` and reuse the existing `DiffPreview` accept-all / reject-all / accept-one UI — admin still has final approval.
-- Show speaker badges (A, B, …) in the diff preview rows when the AI assigned them.
+### New: `supabase/functions/generate-scene-audio/index.ts` (admin only, JWT verified)
+- Input `{ sceneId }`. For every hotspot missing `word_audio_url`, calls existing `munsit-tts` (Gulf) or `azure-tts` (Egyptian/Yemeni) per the project's dialect→TTS routing, uploads to `flashcard-audio` bucket, saves URL.
 
-### 4. Wire `aiApiCall` through `AdminTranscriptEditor`
+All three deploy with `verify_jwt = true`; only admins can invoke.
 
-`src/components/admin/AdminTranscriptEditor.tsx`
+## Curriculum Builder integration
 
-- Pass an `aiApiCall` adapter (or, simpler, just have `TranscriptEditor` accept an `onAIResegment?: (segs) => Promise<Segment[] | null>` prop and call the edge function directly). The edge function path is cleaner — implement option B.
-- Confirm only admins (already gated by `AdminLayout` + `is_admin` RLS) can reach this UI; the edge function additionally checks `is_admin()` server-side using the caller's JWT.
+- **`ChatInput`**: add a quick-action chip "🖼️ New Picture Scene" alongside existing chips. It sends a structured prompt like *"Generate a picture scene for theme: Kitchen, level A1"*.
+- **New component `src/components/admin/curriculum-builder/PictureScenePreviewCard.tsx`** (mirrors `VocabPreviewCard`):
+  - Renders the generated image with circle overlays for each hotspot.
+  - Word list with inline edits (Arabic, English) and a "+" to add a missing word, "🗑️" to remove.
+  - Drag handles to nudge hotspot positions; click on image to drop a new hotspot for the selected word.
+  - Buttons: "🔁 Regenerate image", "🔊 Generate audio", "✅ Approve & Publish".
+  - Approve calls `useCurriculumApproval.approvePictureScene(sceneId)` → flips `status` to `published` and writes a `curriculum_chat_approvals` row with `approval_type = 'picture_scene'`.
 
-### 5. Preserve manual workflow
+## Learner UI (new pages)
 
-- No changes to split/merge/edit/timestamp ripple/undo. The AI output is always proposed via `DiffPreview`; admin can accept the whole thing, accept individual lines, reject everything, or keep editing manually after accepting.
-- Undo stack treats "Accept all" as a single `replaceAll` (already supported) so admins can roll back the entire AI re-segmentation with one Cmd+Z.
+- **`/picture-scenes`** (`src/pages/PictureScenes.tsx`) — grid of published scenes for the active dialect, digital-majlis card style, completion checkmark from `user_picture_scene_progress`.
+- **`/picture-scenes/:id`** (`src/pages/PictureScenePlayer.tsx`)
+  - **Explore phase**: image with subtle dot markers; tap a hotspot → plays `word_audio_url` (falls back to `useAzureTTS`), shows Arabic word; English hidden behind the global immersion toggle.
+  - **Quiz phase**: hotspots invisible; top prompt "اضغط على {word}" with replay-audio button; user taps → point-in-circle test against `(x_pct, y_pct, radius_pct)`. Wrong tap = shake + reveal correct after 2 misses. All hotspots in shuffled order.
+  - **Result phase**: score + "Add words to my flashcards" runs automatically and shows a toast like "Added 7 new words, 3 already in your list." Then writes `user_picture_scene_progress`.
+- Add a "Picture Scenes" tile on Home / Learn for the active dialect's next unplayed scene.
 
-### 6. Config
+## Hooks
 
-- `supabase/config.toml`: add `[functions.ai-resegment-transcript]` with `verify_jwt = true`.
+- **New** `src/hooks/usePictureScenes.ts`: `usePublishedScenes(dialect)`, `useScene(id)`, `useCompleteScene()`, admin: `useDraftScenes`, `useUpdateScene`, `useUpdateHotspot`, `useApproveScene`.
+- **Edit** `src/hooks/useUserVocabulary.ts`: add `useBulkAddUserVocabulary()` that calls `.upsert(rows, { onConflict: 'user_id,word_arabic,dialect', ignoreDuplicates: true }).select()` and returns `{ added, skipped }`.
+- **Edit** `src/hooks/useCurriculumApproval.ts`: add `approvePictureScene` mutation.
 
-## Out of scope
+## Files to create / change
 
-- Changing the published-side viewer (Discover, Bible, etc.) — they already render whatever segments the admin saves.
-- Improving ASR speaker diarization itself; we only use whatever `speaker` data is already on the segments and let the LLM infer the rest from text + timing.
-- Auto-running re-segmentation on import — kept as an explicit admin action so nothing changes without approval.
+**Create**
+- `supabase/functions/regenerate-scene-image/index.ts`
+- `supabase/functions/generate-scene-audio/index.ts`
+- `supabase/migrations/<ts>_picture_scenes.sql`
+- `src/components/admin/curriculum-builder/PictureScenePreviewCard.tsx`
+- `src/components/picture-scenes/SceneCanvas.tsx` (shared explore/quiz renderer)
+- `src/hooks/usePictureScenes.ts`
+- `src/pages/PictureScenes.tsx`
+- `src/pages/PictureScenePlayer.tsx`
 
-## Files
+**Edit**
+- `supabase/functions/curriculum-chat/index.ts` — add `generate_picture_scene` tool, image render + vision-locate steps, persist draft scene
+- `supabase/config.toml` — `verify_jwt = true` for the two new admin functions
+- `src/hooks/useCurriculumApproval.ts` — add `approvePictureScene`
+- `src/hooks/useUserVocabulary.ts` — add `useBulkAddUserVocabulary`
+- `src/components/admin/curriculum-builder/ChatInput.tsx` — add quick chip
+- `src/components/admin/curriculum-builder/ChatWindow.tsx` — render `PictureScenePreviewCard` when `output_type === 'picture_scene'`
+- `src/App.tsx` — register `/picture-scenes` and `/picture-scenes/:id` routes
+- `src/pages/Learn.tsx` (or Home tile location) — surface entry point
 
-- **new** `supabase/functions/ai-resegment-transcript/index.ts`
-- edit `supabase/config.toml` (add function block)
-- edit `src/hooks/useAIAssist.ts` (add `resegment`)
-- edit `src/components/TranscriptEditor/index.tsx` (new handler + prop)
-- edit `src/components/TranscriptEditor/Toolbar.tsx` (rename/restyle button)
-- edit `src/components/TranscriptEditor/DiffPreview.tsx` (show speaker badges)
-- edit `src/components/admin/AdminTranscriptEditor.tsx` (pass AI handler)
+## Out of scope (v1)
+
+- Multi-image scenes / pan-and-zoom.
+- Per-user image personalization (everyone sees the same admin-approved image).
+- Speech-to-image quizzes (tap-only for now).
+- Auto-translation between dialects of the same scene — each scene belongs to exactly one dialect.

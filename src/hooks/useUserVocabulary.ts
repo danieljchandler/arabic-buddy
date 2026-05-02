@@ -220,3 +220,61 @@ export const useUpdateUserVocabularyImage = () => {
     },
   });
 };
+
+export interface BulkVocabInput {
+  word_arabic: string;
+  word_english: string;
+  root?: string | null;
+  source?: string;
+  word_audio_url?: string | null;
+  image_url?: string | null;
+  dialect?: string;
+}
+
+/**
+ * Bulk-add words to the user's vocabulary, skipping duplicates per
+ * (user_id, word_arabic, dialect). Returns counts so callers can show a toast.
+ */
+export const useBulkAddUserVocabulary = () => {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const { activeDialect } = useDialect();
+
+  return useMutation({
+    mutationFn: async (
+      args: { words: BulkVocabInput[]; source?: string; dialect?: string },
+    ): Promise<{ added: number; skipped: number; total: number }> => {
+      if (!user) throw new Error("Must be logged in");
+      const dialect = args.dialect || activeDialect;
+      const source = args.source || "picture_scene";
+      const total = args.words.length;
+      if (total === 0) return { added: 0, skipped: 0, total: 0 };
+
+      const rows = args.words.map((w) => ({
+        user_id: user.id,
+        word_arabic: w.word_arabic,
+        word_english: w.word_english,
+        root: w.root ?? null,
+        source: w.source ?? source,
+        word_audio_url: w.word_audio_url ?? null,
+        image_url: w.image_url ?? null,
+        dialect: w.dialect || dialect,
+      }));
+
+      const { data, error } = await supabase
+        .from("user_vocabulary")
+        .upsert(rows as any, {
+          onConflict: "user_id,word_arabic,dialect",
+          ignoreDuplicates: true,
+        })
+        .select("id");
+      if (error) throw error;
+      const added = data?.length ?? 0;
+      return { added, skipped: total - added, total };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["user-vocabulary"] });
+      queryClient.invalidateQueries({ queryKey: ["user-vocabulary-due"] });
+    },
+  });
+};

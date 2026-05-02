@@ -14,6 +14,7 @@ import {
   ConversationPreviewCard,
   GameSetPreviewCard,
 } from './ContentPreviewCard';
+import { PictureScenePreviewCard } from './PictureScenePreviewCard';
 
 interface ChatWindowProps {
   messages: ChatMessage[];
@@ -157,6 +158,12 @@ export const ChatWindow = ({
                   <GameSetPreviewCard
                     data={msg.structured_output}
                     onApprove={() => onApproveContent(msg.id, 'game_set_preview', msg.structured_output!)}
+                  />
+                )}
+                {msg.output_type === 'picture_scene_preview' && (
+                  <PictureScenePreviewCard
+                    data={msg.structured_output}
+                    onApprove={() => onApproveContent(msg.id, 'picture_scene_preview', msg.structured_output!)}
                   />
                 )}
               </div>

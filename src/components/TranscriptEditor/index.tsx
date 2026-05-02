@@ -16,6 +16,13 @@ interface TranscriptEditorProps {
   onSave?: (segments: Segment[]) => void;
   /** External API call adapter for AI features. */
   aiApiCall?: (prompt: string, signal: AbortSignal) => Promise<string>;
+  /**
+   * Optional handler that asks an LLM to re-segment the entire transcript
+   * into thought-by-thought lines (with speaker change detection). Returns
+   * the proposed Segment[] (shown in the diff preview for admin approval)
+   * or null if cancelled / failed.
+   */
+  onAIResegment?: (segments: Segment[]) => Promise<Segment[] | null>;
 }
 
 /**
@@ -29,6 +36,7 @@ export default function TranscriptEditor({
   videoUrl,
   onSave,
   aiApiCall,
+  onAIResegment,
 }: TranscriptEditorProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
@@ -52,6 +60,8 @@ export default function TranscriptEditor({
 
   const { activeSegmentId, activeWordIndex, seekToSegment } = useVideoSync(segments, videoRef);
   const { status: aiStatus, suggestedSegments, suggestBreaks, fixArabic, cancel: cancelAI } = useAIAssist();
+  const [resegmentLoading, setResegmentLoading] = useState(false);
+  const [resegmentSuggestion, setResegmentSuggestion] = useState<Segment[] | null>(null);
 
   const [showDiff, setShowDiff] = useState(false);
 
@@ -99,6 +109,21 @@ export default function TranscriptEditor({
     if (result) setShowDiff(true);
   }, [aiApiCall, segments, suggestBreaks]);
 
+  const handleAIResegment = useCallback(async () => {
+    if (!onAIResegment || resegmentLoading) return;
+    setResegmentLoading(true);
+    setResegmentSuggestion(null);
+    try {
+      const result = await onAIResegment(segments);
+      if (result && result.length > 0) {
+        setResegmentSuggestion(result);
+        setShowDiff(true);
+      }
+    } finally {
+      setResegmentLoading(false);
+    }
+  }, [onAIResegment, resegmentLoading, segments]);
+
   const handleFixArabic = useCallback(
     async (segmentId: string) => {
       if (!aiApiCall) return;
@@ -122,28 +147,32 @@ export default function TranscriptEditor({
         segments={segments}
         canUndo={canUndo}
         canRedo={canRedo}
-        aiStatus={aiStatus}
+        aiStatus={resegmentLoading ? 'loading' : aiStatus}
         staleCount={staleTranslations.size}
         onUndo={handleUndo}
         onRedo={handleRedo}
         onSuggestBreaks={handleSuggestBreaks}
+        onAIResegment={onAIResegment ? handleAIResegment : undefined}
         onCancelAI={cancelAI}
       />
 
-      {/* AI Diff Preview */}
-      {showDiff && suggestedSegments && (
+      {/* AI Diff Preview — prefer the resegment suggestion when present */}
+      {showDiff && (resegmentSuggestion ?? suggestedSegments) && (
         <DiffPreview
           original={segments}
-          suggested={suggestedSegments}
+          suggested={(resegmentSuggestion ?? suggestedSegments)!}
           onAcceptAll={() => {
-            replaceAll(suggestedSegments);
+            replaceAll((resegmentSuggestion ?? suggestedSegments)!);
             setShowDiff(false);
+            setResegmentSuggestion(null);
           }}
-          onRejectAll={() => setShowDiff(false)}
+          onRejectAll={() => {
+            setShowDiff(false);
+            setResegmentSuggestion(null);
+          }}
           onAcceptOne={(index) => {
-            // Individual accept: replace only one suggested boundary
-            const updated = [...segments];
-            const suggested = suggestedSegments[index];
+            const list = (resegmentSuggestion ?? suggestedSegments)!;
+            const suggested = list[index];
             if (suggested) {
               replaceAll([
                 ...segments.filter(s => s.start < suggested.start),
@@ -152,7 +181,7 @@ export default function TranscriptEditor({
               ]);
             }
           }}
-          onRejectOne={(index) => {
+          onRejectOne={() => {
             // Individual reject is a no-op — suggestion stays in diff but isn't applied
           }}
         />

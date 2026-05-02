@@ -12,6 +12,7 @@ interface ToolbarProps {
   onUndo: () => void;
   onRedo: () => void;
   onSuggestBreaks?: () => void;
+  onAIResegment?: () => void;
   onRetranslateAllStale?: () => void;
   onCancelAI?: () => void;
 }
@@ -29,6 +30,7 @@ export default function Toolbar({
   onUndo,
   onRedo,
   onSuggestBreaks,
+  onAIResegment,
   onRetranslateAllStale,
   onCancelAI,
 }: ToolbarProps) {
@@ -76,7 +78,7 @@ export default function Toolbar({
       {/* AI actions */}
       {aiStatus === 'loading' ? (
         <div className="flex items-center gap-1">
-          <span className="text-xs text-blue-600 animate-pulse">AI working…</span>
+          <span className="text-xs text-blue-600 animate-pulse">AI rethinking timing…</span>
           <button
             className="px-2 py-1 text-xs rounded bg-red-100 hover:bg-red-200 text-red-700 transition-colors"
             onClick={onCancelAI}
@@ -86,13 +88,24 @@ export default function Toolbar({
         </div>
       ) : (
         <>
-          <button
-            className="px-2 py-1 text-xs rounded bg-blue-100 hover:bg-blue-200 text-blue-800 transition-colors"
-            onClick={onSuggestBreaks}
-            title="AI: Suggest natural sentence breaks"
-          >
-            🤖 Suggest Breaks
-          </button>
+          {onAIResegment && (
+            <button
+              className="px-2 py-1 text-xs rounded bg-gradient-to-r from-indigo-500 to-purple-500 text-white hover:from-indigo-600 hover:to-purple-600 transition-colors font-medium"
+              onClick={onAIResegment}
+              title="AI: Re-segment transcript into thought-by-thought lines, splitting on speaker changes"
+            >
+              ✨ AI Re-segment
+            </button>
+          )}
+          {onSuggestBreaks && (
+            <button
+              className="px-2 py-1 text-xs rounded bg-blue-100 hover:bg-blue-200 text-blue-800 transition-colors"
+              onClick={onSuggestBreaks}
+              title="AI: Suggest natural sentence breaks"
+            >
+              🤖 Suggest Breaks
+            </button>
+          )}
           {staleCount > 0 && (
             <button
               className="px-2 py-1 text-xs rounded bg-purple-100 hover:bg-purple-200 text-purple-800 transition-colors"

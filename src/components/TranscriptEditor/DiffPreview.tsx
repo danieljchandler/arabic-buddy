@@ -61,10 +61,20 @@ export default function DiffPreview({
               }`}
             >
               <div className="flex-1 text-right font-cairo">
-                <span className="text-muted-foreground text-xs font-mono ltr:inline-block" dir="ltr">
-                  {seg.start.toFixed(1)}s – {seg.end.toFixed(1)}s
-                </span>
+                <div className="flex items-center justify-end gap-2" dir="ltr">
+                  {seg.speaker && (
+                    <span className="px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-800 text-[10px] font-semibold uppercase tracking-wide">
+                      Speaker {seg.speaker}
+                    </span>
+                  )}
+                  <span className="text-muted-foreground text-xs font-mono">
+                    {seg.start.toFixed(1)}s – {seg.end.toFixed(1)}s
+                  </span>
+                </div>
                 <p className="mt-0.5">{seg.text}</p>
+                {seg.translation && (
+                  <p className="mt-0.5 text-xs text-muted-foreground" dir="ltr">{seg.translation}</p>
+                )}
               </div>
               {isNew && (
                 <div className="flex flex-col gap-1" dir="ltr">

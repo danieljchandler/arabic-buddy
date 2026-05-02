@@ -3,7 +3,7 @@ import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { useTopics } from '@/hooks/useTopics';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, LogOut, BookOpen, Plus, Settings, Mic, PlayCircle, Upload, GraduationCap, Sparkles, BookMarked, TrendingUp } from 'lucide-react';
+import { Loader2, LogOut, BookOpen, Plus, Settings, Mic, PlayCircle, Upload, GraduationCap, Sparkles, BookMarked, TrendingUp, Image as ImageIcon } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 import lahjaIcon from '@/assets/lahja-icon.png';
@@ -237,6 +237,20 @@ const Dashboard = () => {
                     <div>
                       <h3 className="font-semibold text-lg">Bible Lessons</h3>
                       <p className="text-muted-foreground">Curate hand-picked Bible passages by dialect</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="cursor-pointer hover:shadow-lg transition-shadow border-rose-500/30" onClick={() => navigate('/admin/picture-scenes')}>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-4">
+                    <div className="bg-rose-500/10 rounded-full p-4">
+                      <ImageIcon className="h-8 w-8 text-rose-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-lg">Picture Scenes</h3>
+                      <p className="text-muted-foreground">Review AI-generated themed scenes & hotspots</p>
                     </div>
                   </div>
                 </CardContent>

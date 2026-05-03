@@ -1,7 +1,8 @@
 import { useState, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Send, BookOpen, Languages, GraduationCap, GitCompare, PenLine, Headphones, BookOpenCheck, Flame, MessageCircle, Gamepad2, Lightbulb, Sparkles, Image as ImageIcon } from 'lucide-react';
+import { Send, X } from 'lucide-react';
+import { QuickActionsMenu } from './QuickActionsMenu';
 
 export type ChatMode =
   | 'chat'
@@ -128,33 +129,36 @@ export const ChatInput = ({ onSend, disabled, isGenerating }: ChatInputProps) =>
     }
   };
 
-  const handleQuickAction = (action: (typeof QUICK_ACTIONS)[number]) => {
+  const handleQuickAction = (action: { prompt: string; mode: ChatMode }) => {
     setValue(action.prompt);
     setCurrentMode(action.mode);
     textareaRef.current?.focus();
   };
 
-  return (
-    <div className="border-t bg-card p-4">
-      {/* Quick action buttons */}
-      <div className="flex flex-wrap gap-1.5 mb-3">
-        {QUICK_ACTIONS.map((action) => (
-          <Button
-            key={action.label}
-            variant={currentMode === action.mode && action.mode !== 'chat' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => handleQuickAction(action)}
-            disabled={disabled || isGenerating}
-            className="text-[11px] h-7 px-2"
-          >
-            <action.icon className="h-3 w-3 mr-1" />
-            {action.label}
-          </Button>
-        ))}
-      </div>
+  const clearMode = () => setCurrentMode('chat');
 
-      {/* Input area */}
+  return (
+    <div className="border-t bg-card p-3 sm:p-4">
       <div className="flex items-end gap-2">
+        <div className="flex flex-col gap-2 shrink-0">
+          <QuickActionsMenu
+            currentMode={currentMode}
+            onSelect={handleQuickAction}
+            disabled={disabled || isGenerating}
+          />
+          {currentMode !== 'chat' && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={clearMode}
+              className="h-6 px-1.5 text-[10px] text-muted-foreground"
+            >
+              <X className="h-3 w-3 mr-1" />
+              clear
+            </Button>
+          )}
+        </div>
         <Textarea
           ref={textareaRef}
           value={value}
@@ -163,7 +167,9 @@ export const ChatInput = ({ onSend, disabled, isGenerating }: ChatInputProps) =>
           placeholder={
             isGenerating
               ? 'Waiting for AI response...'
-              : 'Describe what you want to build... (Enter to send, Shift+Enter for newline)'
+              : currentMode !== 'chat'
+                ? 'Describe what to generate…'
+                : 'Message the curriculum AI…  (Enter to send)'
           }
           disabled={disabled || isGenerating}
           className="min-h-[44px] max-h-[200px] resize-none"
@@ -173,7 +179,7 @@ export const ChatInput = ({ onSend, disabled, isGenerating }: ChatInputProps) =>
           onClick={handleSend}
           disabled={!value.trim() || disabled || isGenerating}
           size="icon"
-          className="shrink-0"
+          className="shrink-0 h-9 w-9"
         >
           <Send className="h-4 w-4" />
         </Button>

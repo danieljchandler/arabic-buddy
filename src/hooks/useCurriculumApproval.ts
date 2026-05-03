@@ -2,6 +2,21 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
+// Fire-and-forget: extract concepts from approved content into the coverage ledger.
+async function extractConcepts(args: {
+  content_type: string;
+  content_id: string;
+  dialect?: string;
+  cefr_level?: string | null;
+  stage_id?: string | null;
+}) {
+  try {
+    await supabase.functions.invoke('extract-concepts', { body: args });
+  } catch (e) {
+    console.warn('extract-concepts failed:', e);
+  }
+}
+
 interface VocabWord {
   word_arabic: string;
   word_english: string;

@@ -311,7 +311,7 @@ export function useCurriculumApproval() {
 
       const passage = data.passage as Record<string, unknown>;
 
-      const { error } = await supabase
+      const { data: inserted, error } = await supabase
         .from('reading_passages' as never)
         .insert({
           title: passage.title as string,
@@ -325,8 +325,17 @@ export function useCurriculumApproval() {
           status: 'published',
           created_by: userData.user.id,
           session_id: sessionId,
-        } as never);
+        } as never)
+        .select()
+        .single();
       if (error) throw error;
+
+      const insertedRow = inserted as { id: string };
+      void extractConcepts({
+        content_type: 'reading',
+        content_id: insertedRow.id,
+        dialect: (data.dialect as string) || 'Gulf',
+      });
 
       return passage.title_english as string;
     },

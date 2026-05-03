@@ -240,6 +240,16 @@ const CurriculumBuilder = () => {
         <Button variant="ghost" size="icon" onClick={() => navigate('/admin')} className="h-9 w-9">
           <ArrowLeft className="h-5 w-5" />
         </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => navigate('/admin/coverage')}
+          className="h-9 gap-1 hidden sm:inline-flex"
+          title="View Curriculum Coverage ledger"
+        >
+          <LayoutGrid className="h-4 w-4" />
+          <span className="text-xs">Coverage</span>
+        </Button>
 
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <Sparkles className="h-4 w-4 text-primary shrink-0" />
@@ -298,7 +308,7 @@ const CurriculumBuilder = () => {
         </div>
 
         {!isMobile && selectedMessage && (
-          <div className="w-[420px] border-l shrink-0 overflow-hidden">
+          <div className="w-[360px] xl:w-[420px] border-l shrink-0 overflow-hidden">
             {previewPanel}
           </div>
         )}

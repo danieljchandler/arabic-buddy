@@ -248,6 +248,26 @@ export function useCurriculumChat() {
     [activeSessionId, queryClient],
   );
 
+  // Update structured_output for a message (admin edits before approval)
+  const updateMessageStructured = useCallback(
+    async (messageId: string, structured: Record<string, unknown>) => {
+      const { error } = await supabase
+        .from('curriculum_chat_messages' as never)
+        .update({ structured_output: structured } as never)
+        .eq('id', messageId);
+      if (error) {
+        toast.error('Failed to save edits', { description: error.message });
+        return;
+      }
+      if (activeSessionId) {
+        queryClient.invalidateQueries({
+          queryKey: ['curriculum-chat-messages', activeSessionId],
+        });
+      }
+    },
+    [activeSessionId, queryClient],
+  );
+
   return {
     sessions: sessionsQuery.data ?? [],
     sessionsLoading: sessionsQuery.isLoading,
@@ -260,5 +280,6 @@ export function useCurriculumChat() {
     sendMessage,
     archiveSession,
     updateModel,
+    updateMessageStructured,
   };
 }

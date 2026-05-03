@@ -1,4 +1,7 @@
-import { corsHeaders } from "@supabase/supabase-js/cors";
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
 
 const DIALECT_GUIDE: Record<string, string> = {
   Gulf: "Gulf Arabic (Khaleeji) — as spoken in UAE, Saudi, Kuwait, Qatar, Bahrain, Oman. Use Khaleeji vocabulary and forms (e.g. شلونك, وايد, زين). Do NOT use MSA or Egyptian.",

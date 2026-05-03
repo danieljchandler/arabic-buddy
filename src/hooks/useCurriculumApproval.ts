@@ -537,6 +537,13 @@ export function useCurriculumApproval() {
         console.warn('Audio generation kickoff failed:', e);
       }
 
+      void extractConcepts({
+        content_type: 'picture_scene',
+        content_id: sceneRecord.id,
+        dialect,
+        cefr_level: (data.cefr_level as string) ?? null,
+      });
+
       return sceneRecord;
     },
     onSuccess: (scene) => {

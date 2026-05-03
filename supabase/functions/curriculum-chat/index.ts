@@ -539,17 +539,55 @@ serve(async (req) => {
     const lastUserMsg = [...cappedMessages].reverse().find(m => m.role === 'user')?.content;
     const resolvedMode = detectMode(mode, lastUserMsg);
     const systemPrompt = buildSystemPrompt(dialect, stageContext, resolvedMode);
+
+    // Coverage plan — what's already taught, what's due, what's next
+    let coveragePlan: CoveragePlan | null = null;
+    if (resolvedMode && resolvedMode.startsWith("generate_")) {
+      try {
+        coveragePlan = await planCoverage({
+          dialect,
+          cefr: stageContext?.cefr ?? null,
+          contentType: resolvedMode.replace("generate_", ""),
+        });
+      } catch (e) {
+        console.warn("coverage plan failed:", e);
+      }
+    }
+
     const fullMessages = [
       { role: "system", content: systemPrompt },
+      ...(coveragePlan ? [{ role: "system", content: coveragePlan.promptBlock }] : []),
       ...cappedMessages.map((m) => ({ role: m.role, content: m.content })),
     ];
 
     console.log(
-      `curriculum-chat: model=${modelId} dialect=${dialect} mode=${mode} msgs=${messages.length}`,
+      `curriculum-chat: model=${modelId} dialect=${dialect} mode=${mode} msgs=${messages.length} coverage=${coveragePlan ? `${coveragePlan.avoid.length}a/${coveragePlan.reinforce.length}r/${coveragePlan.next_up.length}n` : 'none'}`,
     );
 
     const responseContent = await callLLM(config, fullMessages, 4096);
     const structured = extractStructuredOutput(responseContent);
+
+    // Log the generation request for auditing
+    if (coveragePlan) {
+      try {
+        const svc = createClient(
+          Deno.env.get("SUPABASE_URL")!,
+          Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+        );
+        await svc.from("curriculum_generation_log").insert({
+          dialect,
+          cefr: stageContext?.cefr ?? null,
+          content_type: resolvedMode?.replace("generate_", "") ?? null,
+          prompt_summary: lastUserMsg?.slice(0, 500) ?? null,
+          excluded_concepts: coveragePlan.avoid.map(c => c.id),
+          reinforced_concepts: coveragePlan.reinforce.map(c => c.id),
+          model: modelId,
+          created_by: user.id,
+        });
+      } catch (e) {
+        console.warn("gen log insert failed:", e);
+      }
+    }
 
     try {
       const supabaseService = createClient(

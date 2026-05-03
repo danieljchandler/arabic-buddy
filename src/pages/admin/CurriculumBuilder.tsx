@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useDialect } from '@/contexts/DialectContext';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Sparkles, Menu, FileText } from 'lucide-react';
+import { ArrowLeft, Sparkles, Menu, FileText, LayoutGrid } from 'lucide-react';
 import { useCurriculumChat } from '@/hooks/useCurriculumChat';
 import { useCurriculumApproval } from '@/hooks/useCurriculumApproval';
 import { ChatSidebar } from '@/components/admin/curriculum-builder/ChatSidebar';

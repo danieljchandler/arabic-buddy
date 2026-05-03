@@ -273,6 +273,18 @@ const CurriculumBuilder = () => {
           </div>
         )}
 
+        {isMobile && (
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => navigate('/admin/coverage')}
+            className="h-9 w-9"
+            title="Coverage"
+          >
+            <LayoutGrid className="h-4 w-4" />
+          </Button>
+        )}
+
         {isMobile && selectedMessage && (
           <Sheet open={previewOpenMobile} onOpenChange={setPreviewOpenMobile}>
             <SheetTrigger asChild>

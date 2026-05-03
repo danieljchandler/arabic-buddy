@@ -82,6 +82,7 @@ const BibleAccess = lazyPage(() => import("./pages/admin/BibleAccess"));
 const AdminBibleLessons = lazyPage(() => import("./pages/admin/AdminBibleLessons"));
 const AdminPictureScenes = lazyPage(() => import("./pages/admin/AdminPictureScenes"));
 const AdminPictureSceneEdit = lazyPage(() => import("./pages/admin/AdminPictureSceneEdit"));
+const AdminCoverage = lazyPage(() => import("./pages/admin/AdminCoverage"));
 
 const queryClient = new QueryClient();
 
@@ -348,6 +349,7 @@ const App = () => {
               <Route path="bible-lessons" element={<AdminBibleLessons />} />
               <Route path="picture-scenes" element={<AdminPictureScenes />} />
               <Route path="picture-scenes/:sceneId" element={<AdminPictureSceneEdit />} />
+              <Route path="coverage" element={<AdminCoverage />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />

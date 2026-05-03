@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Send, X } from 'lucide-react';
+import { Send, X, MessageSquare, GraduationCap, BookOpen, Image as ImageIcon, PenLine, Headphones, BookOpenCheck, Flame, MessageCircle, Gamepad2 } from 'lucide-react';
 import { QuickActionsMenu } from './QuickActionsMenu';
 
 export type ChatMode =

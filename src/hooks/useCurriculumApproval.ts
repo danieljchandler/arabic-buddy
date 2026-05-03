@@ -118,6 +118,14 @@ export function useCurriculumApproval() {
         console.warn('Approval tracking error (non-fatal):', approvalErr.message);
       }
 
+      void extractConcepts({
+        content_type: 'lesson',
+        content_id: lessonRecord.id,
+        dialect: dialectModule || 'Gulf',
+        cefr_level: lessonData.cefr_target ?? null,
+        stage_id: stageId,
+      });
+
       return lessonRecord;
     },
     onSuccess: (lesson: unknown) => {

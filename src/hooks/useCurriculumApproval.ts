@@ -2,6 +2,21 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
+// Fire-and-forget: extract concepts from approved content into the coverage ledger.
+async function extractConcepts(args: {
+  content_type: string;
+  content_id: string;
+  dialect?: string;
+  cefr_level?: string | null;
+  stage_id?: string | null;
+}) {
+  try {
+    await supabase.functions.invoke('extract-concepts', { body: args });
+  } catch (e) {
+    console.warn('extract-concepts failed:', e);
+  }
+}
+
 interface VocabWord {
   word_arabic: string;
   word_english: string;
@@ -102,6 +117,14 @@ export function useCurriculumApproval() {
       if (approvalErr) {
         console.warn('Approval tracking error (non-fatal):', approvalErr.message);
       }
+
+      void extractConcepts({
+        content_type: 'lesson',
+        content_id: lessonRecord.id,
+        dialect: dialectModule || 'Gulf',
+        cefr_level: lessonData.cefr_target ?? null,
+        stage_id: stageId,
+      });
 
       return lessonRecord;
     },
@@ -288,7 +311,7 @@ export function useCurriculumApproval() {
 
       const passage = data.passage as Record<string, unknown>;
 
-      const { error } = await supabase
+      const { data: inserted, error } = await supabase
         .from('reading_passages' as never)
         .insert({
           title: passage.title as string,
@@ -302,8 +325,17 @@ export function useCurriculumApproval() {
           status: 'published',
           created_by: userData.user.id,
           session_id: sessionId,
-        } as never);
+        } as never)
+        .select()
+        .single();
       if (error) throw error;
+
+      const insertedRow = inserted as { id: string };
+      void extractConcepts({
+        content_type: 'reading',
+        content_id: insertedRow.id,
+        dialect: (data.dialect as string) || 'Gulf',
+      });
 
       return passage.title_english as string;
     },
@@ -369,7 +401,7 @@ export function useCurriculumApproval() {
 
       const scenario = data.scenario as Record<string, unknown>;
 
-      const { error } = await supabase
+      const { data: inserted, error } = await supabase
         .from('conversation_scenarios' as never)
         .insert({
           title: scenario.title as string,
@@ -382,8 +414,17 @@ export function useCurriculumApproval() {
           status: 'published',
           created_by: userData.user.id,
           session_id: sessionId,
-        } as never);
+        } as never)
+        .select()
+        .single();
       if (error) throw error;
+
+      const insertedRow = inserted as { id: string };
+      void extractConcepts({
+        content_type: 'conversation',
+        content_id: insertedRow.id,
+        dialect: (data.dialect as string) || 'Gulf',
+      });
 
       return scenario.title as string;
     },
@@ -513,6 +554,13 @@ export function useCurriculumApproval() {
       } catch (e) {
         console.warn('Audio generation kickoff failed:', e);
       }
+
+      void extractConcepts({
+        content_type: 'picture_scene',
+        content_id: sceneRecord.id,
+        dialect,
+        cefr_level: (data.cefr_level as string) ?? null,
+      });
 
       return sceneRecord;
     },

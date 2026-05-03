@@ -161,3 +161,12 @@ verify_jwt = true
 
 [functions.generate-scene-audio]
 verify_jwt = true
+
+[functions.coverage-planner]
+verify_jwt = true
+
+[functions.extract-concepts]
+verify_jwt = true
+
+[functions.update-mastery]
+verify_jwt = true

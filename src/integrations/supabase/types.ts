@@ -206,6 +206,41 @@ export type Database = {
         }
         Relationships: []
       }
+      content_concept_links: {
+        Row: {
+          concept_id: string
+          content_id: string
+          content_type: string
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["concept_role"]
+        }
+        Insert: {
+          concept_id: string
+          content_id: string
+          content_type: string
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["concept_role"]
+        }
+        Update: {
+          concept_id?: string
+          content_id?: string
+          content_type?: string
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["concept_role"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_concept_links_concept_id_fkey"
+            columns: ["concept_id"]
+            isOneToOne: false
+            referencedRelation: "curriculum_concepts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       content_import_logs: {
         Row: {
           created_at: string
@@ -420,6 +455,105 @@ export type Database = {
           target_stage_id?: string | null
           title?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      curriculum_concepts: {
+        Row: {
+          cefr_level: string | null
+          created_at: string
+          dialect: string
+          display_arabic: string | null
+          display_english: string | null
+          first_introduced_at: string
+          id: string
+          key: string
+          kind: Database["public"]["Enums"]["concept_kind"]
+          metadata: Json
+          source_id: string | null
+          source_type: string | null
+          stage_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          cefr_level?: string | null
+          created_at?: string
+          dialect?: string
+          display_arabic?: string | null
+          display_english?: string | null
+          first_introduced_at?: string
+          id?: string
+          key: string
+          kind: Database["public"]["Enums"]["concept_kind"]
+          metadata?: Json
+          source_id?: string | null
+          source_type?: string | null
+          stage_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          cefr_level?: string | null
+          created_at?: string
+          dialect?: string
+          display_arabic?: string | null
+          display_english?: string | null
+          first_introduced_at?: string
+          id?: string
+          key?: string
+          kind?: Database["public"]["Enums"]["concept_kind"]
+          metadata?: Json
+          source_id?: string | null
+          source_type?: string | null
+          stage_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      curriculum_generation_log: {
+        Row: {
+          cefr: string | null
+          content_type: string | null
+          created_at: string
+          created_by: string | null
+          dialect: string
+          excluded_concepts: string[]
+          id: string
+          included_concepts: string[]
+          model: string | null
+          prompt_summary: string | null
+          reinforced_concepts: string[]
+          request_id: string | null
+          stage_id: string | null
+        }
+        Insert: {
+          cefr?: string | null
+          content_type?: string | null
+          created_at?: string
+          created_by?: string | null
+          dialect?: string
+          excluded_concepts?: string[]
+          id?: string
+          included_concepts?: string[]
+          model?: string | null
+          prompt_summary?: string | null
+          reinforced_concepts?: string[]
+          request_id?: string | null
+          stage_id?: string | null
+        }
+        Update: {
+          cefr?: string | null
+          content_type?: string | null
+          created_at?: string
+          created_by?: string | null
+          dialect?: string
+          excluded_concepts?: string[]
+          id?: string
+          included_concepts?: string[]
+          model?: string | null
+          prompt_summary?: string | null
+          reinforced_concepts?: string[]
+          request_id?: string | null
+          stage_id?: string | null
         }
         Relationships: []
       }
@@ -1629,6 +1763,56 @@ export type Database = {
           },
         ]
       }
+      user_concept_mastery: {
+        Row: {
+          concept_id: string
+          correct: number
+          created_at: string
+          ease: number
+          exposures: number
+          incorrect: number
+          last_seen_at: string | null
+          next_due_at: string | null
+          strength: Database["public"]["Enums"]["mastery_strength"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          concept_id: string
+          correct?: number
+          created_at?: string
+          ease?: number
+          exposures?: number
+          incorrect?: number
+          last_seen_at?: string | null
+          next_due_at?: string | null
+          strength?: Database["public"]["Enums"]["mastery_strength"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          concept_id?: string
+          correct?: number
+          created_at?: string
+          ease?: number
+          exposures?: number
+          incorrect?: number
+          last_seen_at?: string | null
+          next_due_at?: string | null
+          strength?: Database["public"]["Enums"]["mastery_strength"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_concept_mastery_concept_id_fkey"
+            columns: ["concept_id"]
+            isOneToOne: false
+            referencedRelation: "curriculum_concepts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_difficulty: {
         Row: {
           id: string
@@ -2319,6 +2503,9 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "user" | "recorder" | "bible_reader"
+      concept_kind: "vocab" | "grammar" | "theme" | "scenario" | "phrase"
+      concept_role: "introduce" | "reinforce" | "assess"
+      mastery_strength: "new" | "learning" | "familiar" | "strong" | "mastered"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2447,6 +2634,9 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "user", "recorder", "bible_reader"],
+      concept_kind: ["vocab", "grammar", "theme", "scenario", "phrase"],
+      concept_role: ["introduce", "reinforce", "assess"],
+      mastery_strength: ["new", "learning", "familiar", "strong", "mastered"],
     },
   },
 } as const

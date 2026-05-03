@@ -36,7 +36,7 @@ export const ChatSidebar = ({
   };
 
   return (
-    <div className="w-72 border-r bg-muted/30 flex flex-col h-full">
+    <div className="w-60 border-r bg-muted/30 flex flex-col h-full">
       <div className="p-3 border-b">
         <Button onClick={onNewSession} className="w-full" size="sm">
           <Plus className="h-4 w-4 mr-2" />

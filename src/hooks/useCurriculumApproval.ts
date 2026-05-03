@@ -401,7 +401,7 @@ export function useCurriculumApproval() {
 
       const scenario = data.scenario as Record<string, unknown>;
 
-      const { error } = await supabase
+      const { data: inserted, error } = await supabase
         .from('conversation_scenarios' as never)
         .insert({
           title: scenario.title as string,
@@ -414,8 +414,17 @@ export function useCurriculumApproval() {
           status: 'published',
           created_by: userData.user.id,
           session_id: sessionId,
-        } as never);
+        } as never)
+        .select()
+        .single();
       if (error) throw error;
+
+      const insertedRow = inserted as { id: string };
+      void extractConcepts({
+        content_type: 'conversation',
+        content_id: insertedRow.id,
+        dialect: (data.dialect as string) || 'Gulf',
+      });
 
       return scenario.title as string;
     },

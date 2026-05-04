@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import type { PictureSceneHotspot } from "@/hooks/usePictureScenes";
 
@@ -46,13 +46,45 @@ export const SceneCanvas = ({
   className,
 }: SceneCanvasProps) => {
   const wrapRef = useRef<HTMLDivElement>(null);
+  const [imageAspect, setImageAspect] = useState<number | null>(null);
+  const [imageBox, setImageBox] = useState({ left: 0, top: 0, width: 100, height: 100 });
   const [draggingId, setDraggingId] = useState<string | null>(null);
+
+  const updateImageBox = useCallback(() => {
+    const rect = wrapRef.current?.getBoundingClientRect();
+    if (!rect || !imageAspect) {
+      setImageBox({ left: 0, top: 0, width: 100, height: 100 });
+      return;
+    }
+
+    const containerAspect = rect.width / rect.height;
+    if (containerAspect > imageAspect) {
+      const widthPct = (imageAspect / containerAspect) * 100;
+      setImageBox({ left: (100 - widthPct) / 2, top: 0, width: widthPct, height: 100 });
+    } else {
+      const heightPct = (containerAspect / imageAspect) * 100;
+      setImageBox({ left: 0, top: (100 - heightPct) / 2, width: 100, height: heightPct });
+    }
+  }, [imageAspect]);
+
+  useEffect(() => {
+    updateImageBox();
+    const wrap = wrapRef.current;
+    if (!wrap) return;
+    const observer = new ResizeObserver(updateImageBox);
+    observer.observe(wrap);
+    return () => observer.disconnect();
+  }, [updateImageBox]);
 
   const getPct = (e: { clientX: number; clientY: number }) => {
     const rect = wrapRef.current?.getBoundingClientRect();
     if (!rect) return null;
-    const x = ((e.clientX - rect.left) / rect.width) * 100;
-    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    const imgLeft = rect.left + (imageBox.left / 100) * rect.width;
+    const imgTop = rect.top + (imageBox.top / 100) * rect.height;
+    const imgWidth = (imageBox.width / 100) * rect.width;
+    const imgHeight = (imageBox.height / 100) * rect.height;
+    const x = ((e.clientX - imgLeft) / imgWidth) * 100;
+    const y = ((e.clientY - imgTop) / imgHeight) * 100;
     return { x: Math.max(0, Math.min(100, x)), y: Math.max(0, Math.min(100, y)) };
   };
 
@@ -92,6 +124,12 @@ export const SceneCanvas = ({
           src={imageUrl}
           alt="Scene"
           className="absolute inset-0 w-full h-full object-contain pointer-events-none"
+          onLoad={(e) => {
+            const img = e.currentTarget;
+            if (img.naturalWidth && img.naturalHeight) {
+              setImageAspect(img.naturalWidth / img.naturalHeight);
+            }
+          }}
           draggable={false}
         />
       ) : (
@@ -126,10 +164,10 @@ export const SceneCanvas = ({
                 }
               }}
               style={{
-                left: `${hs.x_pct}%`,
-                top: `${hs.y_pct}%`,
-                width: `${radius * 2}%`,
-                paddingTop: `${radius * 2}%`,
+                left: `${imageBox.left + (hs.x_pct / 100) * imageBox.width}%`,
+                top: `${imageBox.top + (hs.y_pct / 100) * imageBox.height}%`,
+                width: `${(radius * 2 * imageBox.width) / 100}%`,
+                paddingTop: `${(radius * 2 * imageBox.width) / 100}%`,
               }}
               className={cn(
                 "absolute -translate-x-1/2 -translate-y-1/2 rounded-full transition-all",

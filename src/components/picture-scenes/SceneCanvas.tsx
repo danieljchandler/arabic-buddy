@@ -91,7 +91,7 @@ export const SceneCanvas = ({
         <img
           src={imageUrl}
           alt="Scene"
-          className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+          className="absolute inset-0 w-full h-full object-contain pointer-events-none"
           draggable={false}
         />
       ) : (
@@ -100,12 +100,12 @@ export const SceneCanvas = ({
         </div>
       )}
 
-      {showHotspots &&
-        hotspots.map((hs) => {
+      {hotspots.map((hs) => {
           if (hs.x_pct == null || hs.y_pct == null) return null;
           const isTarget = targetId === hs.id;
           const isSelected = selectedId === hs.id;
-          const visibleInQuiz = mode !== "quiz"; // hide all dots in quiz mode
+          // In quiz mode keep the buttons clickable but visually hidden.
+          const visibleInQuiz = mode !== "quiz" && showHotspots;
           const radius = hs.radius_pct ?? 8;
           return (
             <button

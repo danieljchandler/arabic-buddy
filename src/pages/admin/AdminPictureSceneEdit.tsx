@@ -7,6 +7,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   ArrowLeft,
+  ArrowDown,
+  ArrowRight,
+  ArrowUp,
   Loader2,
   Wand2,
   Volume2,
@@ -37,6 +40,7 @@ const AdminPictureSceneEdit = () => {
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [imgInstr, setImgInstr] = useState("");
   const [regenHotspots, setRegenHotspots] = useState(true);
+  const [shiftStep, setShiftStep] = useState(3);
 
   if (isLoading) {
     return (
@@ -65,6 +69,32 @@ const AdminPictureSceneEdit = () => {
       patch: { x_pct: Number(x.toFixed(2)), y_pct: Number(y.toFixed(2)) },
     });
     setPendingId(null);
+  };
+
+  const handleShiftAll = async (dx: number, dy: number) => {
+    const placedHotspots = scene.hotspots.filter((h) => h.x_pct != null && h.y_pct != null);
+    if (placedHotspots.length === 0) {
+      toast.error("No hotspots to shift");
+      return;
+    }
+
+    try {
+      await Promise.all(
+        placedHotspots.map((h) => {
+          const nextX = Math.max(0, Math.min(100, Number(h.x_pct) + dx));
+          const nextY = Math.max(0, Math.min(100, Number(h.y_pct) + dy));
+          return updateHotspot.mutateAsync({
+            id: h.id,
+            sceneId,
+            patch: { x_pct: Number(nextX.toFixed(2)), y_pct: Number(nextY.toFixed(2)) },
+          });
+        }),
+      );
+      toast.success("Hotspots shifted");
+      refetch();
+    } catch (err) {
+      toast.error("Could not shift hotspots", { description: err instanceof Error ? err.message : undefined });
+    }
   };
 
   const handlePublish = () => {
@@ -135,6 +165,51 @@ const AdminPictureSceneEdit = () => {
               ? "Click on the image to place this word."
               : "Drag a circle to reposition it. Use the list on the right to place words missing coordinates."}
           </p>
+
+          <Card className="mt-4">
+            <CardContent className="pt-4 space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <Label className="text-sm font-medium">Shift all hotspots</Label>
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="shift-step" className="text-xs text-muted-foreground">Step</Label>
+                  <Input
+                    id="shift-step"
+                    type="number"
+                    min={0.25}
+                    max={20}
+                    step={0.25}
+                    value={shiftStep}
+                    onChange={(e) => setShiftStep(Math.max(0.25, Math.min(20, Number(e.target.value) || 0.25)))}
+                    className="h-8 w-20 text-sm"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-2 max-w-44 mx-auto">
+                <span />
+                <Button size="icon" variant="outline" onClick={() => handleShiftAll(0, -shiftStep)} disabled={updateHotspot.isPending} aria-label="Shift hotspots up">
+                  <ArrowUp className="h-4 w-4" />
+                </Button>
+                <span />
+                <Button size="icon" variant="outline" onClick={() => handleShiftAll(-shiftStep, 0)} disabled={updateHotspot.isPending} aria-label="Shift hotspots left">
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+                <Button size="icon" variant="secondary" onClick={() => refetch()} disabled={updateHotspot.isPending} aria-label="Refresh hotspot positions">
+                  <RefreshCw className="h-4 w-4" />
+                </Button>
+                <Button size="icon" variant="outline" onClick={() => handleShiftAll(shiftStep, 0)} disabled={updateHotspot.isPending} aria-label="Shift hotspots right">
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+                <span />
+                <Button size="icon" variant="outline" onClick={() => handleShiftAll(0, shiftStep)} disabled={updateHotspot.isPending} aria-label="Shift hotspots down">
+                  <ArrowDown className="h-4 w-4" />
+                </Button>
+                <span />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Use this when every clickable target is offset in the same direction.
+              </p>
+            </CardContent>
+          </Card>
 
           <Card className="mt-4">
             <CardContent className="pt-4 space-y-3">

@@ -391,20 +391,28 @@ const AdminPictureSceneEdit = () => {
 
         <div className="space-y-2">
           <Label className="text-sm font-medium">Words ({scene.hotspots.length})</Label>
-          {scene.hotspots.map((hs) => {
+          {scene.hotspots.map((hs, idx) => {
             const placed = hs.x_pct != null && hs.y_pct != null;
             const isPending = pendingId === hs.id;
+            const isSelected = selectedId === hs.id;
             return (
               <div
                 key={hs.id}
                 className={`p-3 rounded-lg border transition-colors ${
-                  isPending ? "border-primary bg-primary/5" : "border-border bg-card"
+                  isPending
+                    ? "border-primary bg-primary/5"
+                    : isSelected
+                      ? "border-primary/60 bg-primary/5"
+                      : "border-border bg-card"
                 }`}
               >
                 <div className="flex items-center justify-between gap-2">
-                  <div className="min-w-0 flex-1">
-                    <p className="font-semibold truncate" dir="rtl">{hs.word_arabic}</p>
-                    <p className="text-xs text-muted-foreground truncate">{hs.word_english}</p>
+                  <div className="min-w-0 flex-1 flex items-center gap-2">
+                    <Badge variant="secondary" className="shrink-0">{idx + 1}</Badge>
+                    <div className="min-w-0">
+                      <p className="font-semibold truncate" dir="rtl">{hs.word_arabic}</p>
+                      <p className="text-xs text-muted-foreground truncate">{hs.word_english}</p>
+                    </div>
                   </div>
                   <div className="flex items-center gap-1">
                     {hs.word_audio_url ? (
@@ -419,13 +427,23 @@ const AdminPictureSceneEdit = () => {
                     ) : (
                       <Badge variant="outline" className="text-[9px]">No audio</Badge>
                     )}
+                    {placed && (
+                      <Button
+                        size="sm"
+                        variant={isSelected ? "default" : "ghost"}
+                        className="h-7 text-xs"
+                        onClick={() => setSelectedId(isSelected ? null : hs.id)}
+                      >
+                        {isSelected ? "Selected" : "Select"}
+                      </Button>
+                    )}
                     <Button
                       size="sm"
                       variant={isPending ? "default" : placed ? "ghost" : "outline"}
                       className="h-7 text-xs"
                       onClick={() => setPendingId(isPending ? null : hs.id)}
                     >
-                      {isPending ? "Click image…" : placed ? "Move" : "Place"}
+                      {isPending ? "Click image…" : placed ? "Replace" : "Place"}
                     </Button>
                   </div>
                 </div>

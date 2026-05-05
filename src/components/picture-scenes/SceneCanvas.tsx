@@ -138,39 +138,30 @@ export const SceneCanvas = ({
         </div>
       )}
 
-      {hotspots.map((hs) => {
+      {hotspots.map((hs, idx) => {
           if (hs.x_pct == null || hs.y_pct == null) return null;
           const isTarget = targetId === hs.id;
           const isSelected = selectedId === hs.id;
           // In quiz mode keep the buttons clickable but visually hidden.
           const visibleInQuiz = mode !== "quiz" && showHotspots;
           const radius = hs.radius_pct ?? 8;
+          const label = idx + 1;
           return (
             <button
               key={hs.id}
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                if (mode === "edit") {
-                  setDraggingId(hs.id);
-                  return;
-                }
                 onHotspotTap?.(hs);
-              }}
-              onMouseDown={(e) => {
-                if (mode === "edit") {
-                  e.stopPropagation();
-                  setDraggingId(hs.id);
-                }
               }}
               style={{
                 left: `${imageBox.left + (hs.x_pct / 100) * imageBox.width}%`,
                 top: `${imageBox.top + (hs.y_pct / 100) * imageBox.height}%`,
                 width: `${(radius * 2 * imageBox.width) / 100}%`,
-                paddingTop: `${(radius * 2 * imageBox.width) / 100}%`,
+                height: `${(radius * 2 * imageBox.height) / 100}%`,
               }}
               className={cn(
-                "absolute -translate-x-1/2 -translate-y-1/2 rounded-full transition-all",
+                "absolute -translate-x-1/2 -translate-y-1/2 rounded-full transition-all flex items-center justify-center",
                 visibleInQuiz
                   ? cn(
                       "border-2 border-white/80 bg-primary/30 hover:bg-primary/50 shadow-lg",
@@ -178,10 +169,16 @@ export const SceneCanvas = ({
                       isTarget && mode === "edit" && "ring-4 ring-amber-400",
                     )
                   : "bg-transparent border-0 hover:bg-primary/10",
-                mode === "edit" && "cursor-move",
+                mode === "edit" && "cursor-pointer",
               )}
               aria-label={hs.word_english || hs.word_arabic}
-            />
+            >
+              {mode === "edit" && visibleInQuiz && (
+                <span className="text-[11px] md:text-xs font-bold text-white drop-shadow pointer-events-none">
+                  {label}
+                </span>
+              )}
+            </button>
           );
         })}
     </div>

@@ -48,7 +48,6 @@ export const SceneCanvas = ({
   const wrapRef = useRef<HTMLDivElement>(null);
   const [imageAspect, setImageAspect] = useState<number | null>(null);
   const [imageBox, setImageBox] = useState({ left: 0, top: 0, width: 100, height: 100 });
-  const [draggingId, setDraggingId] = useState<string | null>(null);
 
   const updateImageBox = useCallback(() => {
     const rect = wrapRef.current?.getBoundingClientRect();

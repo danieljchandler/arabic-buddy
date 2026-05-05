@@ -204,13 +204,84 @@ const AdminPictureSceneEdit = () => {
             mode="edit"
             onMove={handleMove}
             onPlace={handlePlace}
+            onHotspotTap={handleHotspotTap}
+            selectedId={selectedId}
             pendingPlacementId={pendingId}
           />
           <p className="text-xs text-muted-foreground mt-2">
             {pendingId
               ? "Click on the image to place this word."
-              : "Drag a circle to reposition it. Use the list on the right to place words missing coordinates."}
+              : selectedId
+                ? "Use the arrows below to nudge the selected hotspot, or resize it."
+                : "Tap a numbered circle to select it, then use the arrows to nudge or resize."}
           </p>
+
+          {selectedId && (() => {
+            const hs = scene.hotspots.find((h) => h.id === selectedId);
+            if (!hs) return null;
+            const idx = scene.hotspots.findIndex((h) => h.id === selectedId);
+            return (
+              <Card className="mt-4 border-primary/40">
+                <CardContent className="pt-4 space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <Label className="text-sm font-medium">
+                        Hotspot #{idx + 1} —{" "}
+                        <span dir="rtl" className="font-semibold">{hs.word_arabic}</span>
+                        <span className="text-muted-foreground ml-1">({hs.word_english})</span>
+                      </Label>
+                    </div>
+                    <Button size="sm" variant="ghost" onClick={() => setSelectedId(null)}>Deselect</Button>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <Label className="text-xs text-muted-foreground">Nudge step (%)</Label>
+                    <Input
+                      type="number"
+                      min={0.1}
+                      max={20}
+                      step={0.25}
+                      value={nudgeStep}
+                      onChange={(e) => setNudgeStep(Math.max(0.1, Math.min(20, Number(e.target.value) || 0.1)))}
+                      className="h-8 w-20 text-sm"
+                    />
+                  </div>
+                  <div className="flex items-start gap-6 justify-center">
+                    <div className="grid grid-cols-3 gap-2 max-w-44">
+                      <span />
+                      <Button size="icon" variant="outline" onClick={() => handleNudge(0, -nudgeStep)} disabled={updateHotspot.isPending} aria-label="Nudge up">
+                        <ArrowUp className="h-4 w-4" />
+                      </Button>
+                      <span />
+                      <Button size="icon" variant="outline" onClick={() => handleNudge(-nudgeStep, 0)} disabled={updateHotspot.isPending} aria-label="Nudge left">
+                        <ArrowLeft className="h-4 w-4" />
+                      </Button>
+                      <div className="flex items-center justify-center text-[10px] text-muted-foreground">
+                        {hs.x_pct != null ? `${Number(hs.x_pct).toFixed(0)},${Number(hs.y_pct).toFixed(0)}` : "—"}
+                      </div>
+                      <Button size="icon" variant="outline" onClick={() => handleNudge(nudgeStep, 0)} disabled={updateHotspot.isPending} aria-label="Nudge right">
+                        <ArrowRight className="h-4 w-4" />
+                      </Button>
+                      <span />
+                      <Button size="icon" variant="outline" onClick={() => handleNudge(0, nudgeStep)} disabled={updateHotspot.isPending} aria-label="Nudge down">
+                        <ArrowDown className="h-4 w-4" />
+                      </Button>
+                      <span />
+                    </div>
+                    <div className="flex flex-col items-center gap-2">
+                      <Label className="text-xs text-muted-foreground">Size</Label>
+                      <Button size="icon" variant="outline" onClick={() => handleResize(1)} disabled={updateHotspot.isPending} aria-label="Grow hotspot">
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                      <div className="text-xs font-mono text-muted-foreground">{Number(hs.radius_pct ?? 8).toFixed(1)}</div>
+                      <Button size="icon" variant="outline" onClick={() => handleResize(-1)} disabled={updateHotspot.isPending} aria-label="Shrink hotspot">
+                        <Minus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })()}
 
           <Card className="mt-4">
             <CardContent className="pt-4 space-y-3">

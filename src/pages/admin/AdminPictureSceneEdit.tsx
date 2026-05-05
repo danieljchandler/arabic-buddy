@@ -73,6 +73,48 @@ const AdminPictureSceneEdit = () => {
       patch: { x_pct: Number(x.toFixed(2)), y_pct: Number(y.toFixed(2)) },
     });
     setPendingId(null);
+    setSelectedId(id);
+  };
+
+  const handleHotspotTap = (hs: { id: string }) => {
+    if (pendingId) return;
+    setSelectedId((prev) => (prev === hs.id ? null : hs.id));
+  };
+
+  const handleNudge = async (dx: number, dy: number) => {
+    if (!selectedId) {
+      toast.error("Select a hotspot first");
+      return;
+    }
+    const hs = scene.hotspots.find((h) => h.id === selectedId);
+    if (!hs || hs.x_pct == null || hs.y_pct == null) {
+      toast.error("This hotspot has no position yet");
+      return;
+    }
+    const nextX = Math.max(0, Math.min(100, Number(hs.x_pct) + dx));
+    const nextY = Math.max(0, Math.min(100, Number(hs.y_pct) + dy));
+    await updateHotspot.mutateAsync({
+      id: hs.id,
+      sceneId,
+      patch: { x_pct: Number(nextX.toFixed(2)), y_pct: Number(nextY.toFixed(2)) },
+    });
+    refetch();
+  };
+
+  const handleResize = async (delta: number) => {
+    if (!selectedId) {
+      toast.error("Select a hotspot first");
+      return;
+    }
+    const hs = scene.hotspots.find((h) => h.id === selectedId);
+    if (!hs) return;
+    const next = Math.max(2, Math.min(30, Number(hs.radius_pct ?? 8) + delta));
+    await updateHotspot.mutateAsync({
+      id: hs.id,
+      sceneId,
+      patch: { radius_pct: Number(next.toFixed(2)) },
+    });
+    refetch();
   };
 
   const handleShiftAll = async (dx: number, dy: number) => {

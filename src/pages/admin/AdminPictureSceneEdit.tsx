@@ -40,9 +40,11 @@ const AdminPictureSceneEdit = () => {
   const publish = usePublishScene();
 
   const [pendingId, setPendingId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [imgInstr, setImgInstr] = useState("");
   const [regenHotspots, setRegenHotspots] = useState(true);
   const [shiftStep, setShiftStep] = useState(3);
+  const [nudgeStep, setNudgeStep] = useState(1);
 
   if (isLoading) {
     return (

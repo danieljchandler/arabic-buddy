@@ -17,6 +17,8 @@ import {
   Save,
   Eye,
   RefreshCw,
+  Minus,
+  Plus,
 } from "lucide-react";
 import { toast } from "sonner";
 import { SceneCanvas } from "@/components/picture-scenes/SceneCanvas";

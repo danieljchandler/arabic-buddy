@@ -234,39 +234,47 @@ const AdminPictureSceneEdit = () => {
                     <Button size="sm" variant="ghost" onClick={() => setSelectedId(null)}>Deselect</Button>
                   </div>
                   <div className="flex items-center justify-between gap-3">
-                    <Label className="text-xs text-muted-foreground">Nudge step (%)</Label>
+                    <Label className="text-xs text-muted-foreground">Custom step (%)</Label>
                     <Input
                       type="number"
                       min={0.1}
-                      max={20}
+                      max={50}
                       step={0.25}
                       value={nudgeStep}
-                      onChange={(e) => setNudgeStep(Math.max(0.1, Math.min(20, Number(e.target.value) || 0.1)))}
+                      onChange={(e) => setNudgeStep(Math.max(0.1, Math.min(50, Number(e.target.value) || 0.1)))}
                       className="h-8 w-20 text-sm"
                     />
                   </div>
-                  <div className="flex items-start gap-6 justify-center">
-                    <div className="grid grid-cols-3 gap-2 max-w-44">
-                      <span />
-                      <Button size="icon" variant="outline" onClick={() => handleNudge(0, -nudgeStep)} disabled={updateHotspot.isPending} aria-label="Nudge up">
-                        <ArrowUp className="h-4 w-4" />
-                      </Button>
-                      <span />
-                      <Button size="icon" variant="outline" onClick={() => handleNudge(-nudgeStep, 0)} disabled={updateHotspot.isPending} aria-label="Nudge left">
-                        <ArrowLeft className="h-4 w-4" />
-                      </Button>
-                      <div className="flex items-center justify-center text-[10px] text-muted-foreground">
-                        {hs.x_pct != null ? `${Number(hs.x_pct).toFixed(0)},${Number(hs.y_pct).toFixed(0)}` : "—"}
+                  <div className="flex items-start gap-4 justify-center flex-wrap">
+                    {[
+                      { step: 0.5, label: "Fine", icon: "h-3 w-3", btn: "h-7 w-7" },
+                      { step: 2, label: "Med", icon: "h-4 w-4", btn: "h-9 w-9" },
+                      { step: 8, label: "Big", icon: "h-5 w-5", btn: "h-11 w-11" },
+                      { step: nudgeStep, label: `±${nudgeStep}`, icon: "h-4 w-4", btn: "h-9 w-9" },
+                    ].map(({ step, label, icon, btn }) => (
+                      <div key={label} className="flex flex-col items-center gap-1">
+                        <Label className="text-[10px] text-muted-foreground">{label}</Label>
+                        <div className="grid grid-cols-3 gap-1">
+                          <span />
+                          <Button size="icon" variant="outline" className={btn} onClick={() => handleNudge(0, -step)} disabled={updateHotspot.isPending} aria-label={`Nudge up ${step}`}>
+                            <ArrowUp className={icon} />
+                          </Button>
+                          <span />
+                          <Button size="icon" variant="outline" className={btn} onClick={() => handleNudge(-step, 0)} disabled={updateHotspot.isPending} aria-label={`Nudge left ${step}`}>
+                            <ArrowLeft className={icon} />
+                          </Button>
+                          <span />
+                          <Button size="icon" variant="outline" className={btn} onClick={() => handleNudge(step, 0)} disabled={updateHotspot.isPending} aria-label={`Nudge right ${step}`}>
+                            <ArrowRight className={icon} />
+                          </Button>
+                          <span />
+                          <Button size="icon" variant="outline" className={btn} onClick={() => handleNudge(0, step)} disabled={updateHotspot.isPending} aria-label={`Nudge down ${step}`}>
+                            <ArrowDown className={icon} />
+                          </Button>
+                          <span />
+                        </div>
                       </div>
-                      <Button size="icon" variant="outline" onClick={() => handleNudge(nudgeStep, 0)} disabled={updateHotspot.isPending} aria-label="Nudge right">
-                        <ArrowRight className="h-4 w-4" />
-                      </Button>
-                      <span />
-                      <Button size="icon" variant="outline" onClick={() => handleNudge(0, nudgeStep)} disabled={updateHotspot.isPending} aria-label="Nudge down">
-                        <ArrowDown className="h-4 w-4" />
-                      </Button>
-                      <span />
-                    </div>
+                    ))}
                     <div className="flex flex-col items-center gap-2">
                       <Label className="text-xs text-muted-foreground">Size</Label>
                       <Button size="icon" variant="outline" onClick={() => handleResize(1)} disabled={updateHotspot.isPending} aria-label="Grow hotspot">

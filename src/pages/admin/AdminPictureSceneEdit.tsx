@@ -51,6 +51,8 @@ const AdminPictureSceneEdit = () => {
   const genImage = useGenerateSceneImage();
   const genAudio = useGenerateSceneAudio();
   const updateHotspot = useUpdateHotspot();
+  const deleteHotspot = useDeleteHotspot();
+  const addHotspot = useAddHotspot();
   const publish = usePublishScene();
 
   const [pendingId, setPendingId] = useState<string | null>(null);

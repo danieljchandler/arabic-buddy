@@ -19,6 +19,7 @@ import {
   RefreshCw,
   Minus,
   Plus,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { SceneCanvas } from "@/components/picture-scenes/SceneCanvas";
@@ -27,8 +28,21 @@ import {
   useGenerateSceneImage,
   useGenerateSceneAudio,
   useUpdateHotspot,
+  useDeleteHotspot,
+  useAddHotspot,
   usePublishScene,
 } from "@/hooks/usePictureScenes";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const AdminPictureSceneEdit = () => {
   const { sceneId } = useParams<{ sceneId: string }>();
@@ -37,6 +51,8 @@ const AdminPictureSceneEdit = () => {
   const genImage = useGenerateSceneImage();
   const genAudio = useGenerateSceneAudio();
   const updateHotspot = useUpdateHotspot();
+  const deleteHotspot = useDeleteHotspot();
+  const addHotspot = useAddHotspot();
   const publish = usePublishScene();
 
   const [pendingId, setPendingId] = useState<string | null>(null);
@@ -45,6 +61,8 @@ const AdminPictureSceneEdit = () => {
   const [regenHotspots, setRegenHotspots] = useState(true);
   const [shiftStep, setShiftStep] = useState(3);
   const [nudgeStep, setNudgeStep] = useState(1);
+  const [newWordAr, setNewWordAr] = useState("");
+  const [newWordEn, setNewWordEn] = useState("");
 
   if (isLoading) {
     return (
@@ -453,11 +471,92 @@ const AdminPictureSceneEdit = () => {
                     >
                       {isPending ? "Click image…" : placed ? "Replace" : "Place"}
                     </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7 text-destructive hover:text-destructive"
+                          aria-label="Delete hotspot"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete this hotspot?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This will remove <span dir="rtl" className="font-semibold">{hs.word_arabic}</span> ({hs.word_english}) from the scene. This cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={async () => {
+                              if (selectedId === hs.id) setSelectedId(null);
+                              if (pendingId === hs.id) setPendingId(null);
+                              await deleteHotspot.mutateAsync({ id: hs.id, sceneId });
+                              refetch();
+                            }}
+                          >
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </div>
                 </div>
               </div>
             );
           })}
+
+          <Card className="mt-2">
+            <CardContent className="pt-4 space-y-2">
+              <Label className="text-sm font-medium flex items-center gap-2">
+                <Plus className="h-4 w-4" /> Add a new hotspot
+              </Label>
+              <Input
+                dir="rtl"
+                placeholder="Arabic word"
+                value={newWordAr}
+                onChange={(e) => setNewWordAr(e.target.value)}
+              />
+              <Input
+                placeholder="English translation"
+                value={newWordEn}
+                onChange={(e) => setNewWordEn(e.target.value)}
+              />
+              <Button
+                size="sm"
+                className="w-full"
+                disabled={addHotspot.isPending || !newWordAr.trim() || !newWordEn.trim()}
+                onClick={async () => {
+                  const nextOrder =
+                    (scene.hotspots.reduce((m, h) => Math.max(m, h.display_order), -1) ?? -1) + 1;
+                  const created = await addHotspot.mutateAsync({
+                    sceneId,
+                    word_arabic: newWordAr.trim(),
+                    word_english: newWordEn.trim(),
+                    display_order: nextOrder,
+                  });
+                  setNewWordAr("");
+                  setNewWordEn("");
+                  await refetch();
+                  setPendingId(created.id);
+                }}
+              >
+                {addHotspot.isPending ? (
+                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                ) : (
+                  <Plus className="h-4 w-4 mr-1" />
+                )}
+                Add hotspot
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                After adding, click on the image to place it. Generate audio afterward.
+              </p>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>

@@ -234,6 +234,57 @@ export const useUpdateHotspot = () => {
   });
 };
 
+export const useDeleteHotspot = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (args: { id: string; sceneId: string }) => {
+      const { error } = await supabase
+        .from("picture_scene_hotspots")
+        .delete()
+        .eq("id", args.id);
+      if (error) throw error;
+    },
+    onSuccess: (_d, args) => {
+      qc.invalidateQueries({ queryKey: ["picture-scene", args.sceneId] });
+      toast.success("Hotspot deleted");
+    },
+    onError: (err: Error) => toast.error("Delete failed", { description: err.message }),
+  });
+};
+
+export const useAddHotspot = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (args: {
+      sceneId: string;
+      word_arabic: string;
+      word_english: string;
+      root?: string;
+      display_order: number;
+    }) => {
+      const { data, error } = await supabase
+        .from("picture_scene_hotspots")
+        .insert({
+          scene_id: args.sceneId,
+          word_arabic: args.word_arabic,
+          word_english: args.word_english,
+          root: args.root ?? null,
+          display_order: args.display_order,
+          radius_pct: 8,
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      return data as PictureSceneHotspot;
+    },
+    onSuccess: (_d, args) => {
+      qc.invalidateQueries({ queryKey: ["picture-scene", args.sceneId] });
+      toast.success("Hotspot added — click image to place it");
+    },
+    onError: (err: Error) => toast.error("Add failed", { description: err.message }),
+  });
+};
+
 export const usePublishScene = () => {
   const qc = useQueryClient();
   return useMutation({

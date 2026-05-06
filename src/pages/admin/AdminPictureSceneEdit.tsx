@@ -19,6 +19,7 @@ import {
   RefreshCw,
   Minus,
   Plus,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { SceneCanvas } from "@/components/picture-scenes/SceneCanvas";
@@ -27,8 +28,21 @@ import {
   useGenerateSceneImage,
   useGenerateSceneAudio,
   useUpdateHotspot,
+  useDeleteHotspot,
+  useAddHotspot,
   usePublishScene,
 } from "@/hooks/usePictureScenes";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const AdminPictureSceneEdit = () => {
   const { sceneId } = useParams<{ sceneId: string }>();

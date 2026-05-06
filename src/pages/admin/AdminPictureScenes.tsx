@@ -27,6 +27,15 @@ const AdminPictureScenes = () => {
 
   return (
     <div className="container mx-auto p-6 max-w-5xl">
+      <div className="flex items-center gap-2 mb-4">
+        <Button variant="ghost" size="sm" onClick={() => navigate("/admin")}>
+          <ArrowLeft className="h-4 w-4 mr-1" />
+          Admin Dashboard
+        </Button>
+        <Button variant="ghost" size="sm" onClick={() => navigate("/")}>
+          Main Menu
+        </Button>
+      </div>
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold">Picture Scenes</h1>

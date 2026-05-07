@@ -1231,7 +1231,7 @@ serve(async (req) => {
       }
     }
     const body = await req.json();
-    const { transcript, munsitTranscript, fanarTranscript, sonioxTranscript, azureTranscript, sonioxTranslation, visualContext, originalUrl, videoId: pipelineVideoId, dialectModule } = body;
+    const { transcript, munsitTranscript, fanarTranscript, sonioxTranscript, azureTranscript, sonioxTranslation, visualContext, originalUrl, videoId: pipelineVideoId, dialectModule, isMeme, onScreenTextSegments } = body;
     DIALECT_MODULE = (dialectModule === 'Egyptian' || dialectModule === 'Yemeni') ? dialectModule : 'Gulf';
     console.log('Dialect module for this request:', DIALECT_MODULE);
 

@@ -1231,7 +1231,7 @@ serve(async (req) => {
       }
     }
     const body = await req.json();
-    const { transcript, munsitTranscript, fanarTranscript, sonioxTranscript, azureTranscript, sonioxTranslation, visualContext, originalUrl, videoId: pipelineVideoId, dialectModule } = body;
+    const { transcript, munsitTranscript, fanarTranscript, sonioxTranscript, azureTranscript, sonioxTranslation, visualContext, originalUrl, videoId: pipelineVideoId, dialectModule, isMeme, onScreenTextSegments } = body;
     DIALECT_MODULE = (dialectModule === 'Egyptian' || dialectModule === 'Yemeni') ? dialectModule : 'Gulf';
     console.log('Dialect module for this request:', DIALECT_MODULE);
 
@@ -1260,7 +1260,11 @@ serve(async (req) => {
     }
     // ──────────────────────────────────────────────────────────────────────
 
-    if (!transcript || typeof transcript !== 'string') {
+    const memeMode = !!isMeme;
+    const onScreenSegs = Array.isArray(onScreenTextSegments) ? onScreenTextSegments : [];
+    const transcriptIsEmpty = !transcript || typeof transcript !== 'string' || transcript.trim().length < 3;
+
+    if (transcriptIsEmpty && !(memeMode && onScreenSegs.length > 0)) {
       return new Response(
         JSON.stringify({ error: 'Missing or invalid transcript' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -1306,6 +1310,17 @@ serve(async (req) => {
      if (hasFanar) transcriptParts.push(`Transcription (Fanar — Arabic-native, tie-breaker):\n${fanarTranscript}`);
      if (hasAzure) transcriptParts.push(`Transcription (Azure — locale-tuned for this dialect):\n${azureTranscript}`);
      transcriptParts.push(`Transcription (Deepgram — best for word boundaries; do NOT prefer its wording):\n${transcript}`);
+
+     if (memeMode) {
+       const audioNote = transcriptIsEmpty
+         ? `THIS IS A MEME WITH NO SPOKEN AUDIO (or audio is silent / unintelligible). The transcripts above may be empty, garbled, or hallucinated by the speech-to-text engines. **DO NOT invent spoken Arabic.** If the audio engines produced text that doesn't correspond to clear speech, IGNORE it. Build the Arabic lines from the on-screen text below instead.`
+         : `THIS IS A MEME. The audio above is real speech, but on-screen text is equally important. **DO NOT invent any Arabic that is not actually present in either the audio transcripts above OR the on-screen text below.** If a transcript engine clearly hallucinated, drop those lines.`;
+       const onScreenBlock = onScreenSegs.length > 0
+         ? `\n\nOn-screen text segments (from video frames, in time order):\n${onScreenSegs.map((s: any) => `[${s.startSeconds}s-${s.endSeconds}s] ${s.text}${s.translation ? `  →  ${s.translation}` : ''}`).join('\n')}`
+         : '\n\n(No on-screen text detected.)';
+       transcriptParts.push(`MEME CONTEXT:\n${audioNote}${onScreenBlock}\n\nWhen building lines[], merge spoken audio (if any) with on-screen text segments in time order. Mark each line implicitly by source: spoken lines first, then any on-screen-only text. Do not duplicate text that appears in both audio and on-screen overlay.`);
+     }
+
      const linesUserContent = transcriptParts.length > 1 ? transcriptParts.join('\n\n') : transcript;
 
      const hasDualOrTriple = asrCount >= 2;

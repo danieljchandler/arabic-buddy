@@ -433,11 +433,40 @@ async function runPipeline(
     // sentence segmentation); send the others as alternates so the LLM merge can
     // pick the best wording per the engine-priority rules in the merge prompt.
     console.log("[pipeline] Step 3: Analyzing transcript...");
-    const analyzeBody: Record<string, string> = {
+
+    // Meme videos: load on-screen text analysis the admin form pre-extracted
+    // (frames -> extract-visual-context -> stored as <id>.visual.json).
+    let visualContextSummary: string | null = null;
+    let onScreenTextLines: any[] = [];
+    if (video.is_meme) {
+      try {
+        const { data: visualBlob } = await supabase.storage
+          .from("video-audio")
+          .download(`${videoId}.visual.json`);
+        if (visualBlob) {
+          const visualText = await visualBlob.text();
+          const visualResult = JSON.parse(visualText);
+          const segs = Array.isArray(visualResult?.onScreenTextSegments) ? visualResult.onScreenTextSegments : [];
+          onScreenTextLines = segs;
+          if (segs.length > 0) {
+            const onScreenSummary = segs.map((s: any) => `[${s.startSeconds}s-${s.endSeconds}s] ${s.text}${s.translation ? ` (${s.translation})` : ""}`).join("\n");
+            visualContextSummary = `MEME — on-screen text segments:\n${onScreenSummary}\n\nScene: ${visualResult?.sceneContext ?? ""}`.trim();
+            console.log(`[pipeline] Meme: ${segs.length} on-screen text segments loaded`);
+          }
+        }
+      } catch (e) {
+        console.warn("[pipeline] Meme visual context load failed (non-fatal):", e instanceof Error ? e.message : String(e));
+      }
+    }
+
+    const analyzeBody: Record<string, unknown> = {
       transcript: deepgramText || primaryText,
       videoId,
       dialectModule,
+      isMeme: !!video.is_meme,
     };
+    if (visualContextSummary) analyzeBody.visualContext = visualContextSummary;
+    if (onScreenTextLines.length > 0) analyzeBody.onScreenTextSegments = onScreenTextLines;
     if (fanarText) analyzeBody.fanarTranscript = fanarText;
     if (sonioxText) analyzeBody.sonioxTranscript = sonioxText;
     if (munsitText) analyzeBody.munsitTranscript = munsitText;

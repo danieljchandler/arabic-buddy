@@ -685,6 +685,7 @@ export type Database = {
           embed_url: string
           grammar_points: Json
           id: string
+          is_meme: boolean
           platform: string
           published: boolean
           source_url: string
@@ -708,6 +709,7 @@ export type Database = {
           embed_url: string
           grammar_points?: Json
           id?: string
+          is_meme?: boolean
           platform?: string
           published?: boolean
           source_url: string
@@ -731,6 +733,7 @@ export type Database = {
           embed_url?: string
           grammar_points?: Json
           id?: string
+          is_meme?: boolean
           platform?: string
           published?: boolean
           source_url?: string

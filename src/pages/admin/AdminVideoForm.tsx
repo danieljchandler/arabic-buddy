@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import type { TranscriptLine } from "@/types/transcript";
 import { TimeRangeSelector } from "@/components/transcript/TimeRangeSelector";
+import { extractFramesWithTimestamps } from "@/lib/videoFrameExtractor";
 
 const DIALECTS = ["Saudi", "Kuwaiti", "UAE", "Bahraini", "Qatari", "Omani", "Gulf", "MSA", "Egyptian", "Levantine", "Maghrebi"];
 const DIFFICULTIES = ["Beginner", "Intermediate", "Advanced", "Expert"];
@@ -41,6 +42,7 @@ const AdminVideoForm = () => {
   const [dialect, setDialect] = useState("Gulf");
   const [difficulty, setDifficulty] = useState("Beginner");
   const [published, setPublished] = useState(false);
+  const [isMeme, setIsMeme] = useState(false);
   const [culturalContext, setCulturalContext] = useState("");
   const [transcriptLines, setTranscriptLines] = useState<TranscriptLine[]>([]);
   const [vocabulary, setVocabulary] = useState<any[]>([]);
@@ -232,6 +234,7 @@ const AdminVideoForm = () => {
       setDialect(existingVideo.dialect);
       setDifficulty(existingVideo.difficulty);
       setPublished(existingVideo.published);
+      setIsMeme((existingVideo as any).is_meme ?? false);
       setCulturalContext(existingVideo.cultural_context || "");
       setTranscriptLines(((existingVideo.transcript_lines as any[]) ?? []) as TranscriptLine[]);
       setVocabulary(((existingVideo.vocabulary as any[]) ?? []) as any[]);
@@ -361,6 +364,7 @@ const AdminVideoForm = () => {
           published: false,
           created_by: user.id,
           transcription_status: "pending",
+          is_meme: isMeme,
         };
         const { data: inserted, error: insertErr } = await (supabase.from("discover_videos" as any) as any)
           .insert(record)
@@ -370,7 +374,7 @@ const AdminVideoForm = () => {
         targetVideoId = inserted.id;
       } else {
         // Mark existing row as pending (and update thumbnail if we just captured one)
-        const updates: Record<string, unknown> = { transcription_status: "pending" };
+        const updates: Record<string, unknown> = { transcription_status: "pending", is_meme: isMeme };
         if (saveThumbnail && saveThumbnail !== thumbnailUrl) updates.thumbnail_url = saveThumbnail;
         await (supabase.from("discover_videos" as any) as any)
           .update(updates)
@@ -388,14 +392,36 @@ const AdminVideoForm = () => {
         // Non-fatal — edge function will try download-media as fallback
       }
 
+      // For memes, extract video frames and run on-screen text analysis up front.
+      // The result is stashed on the row so the pipeline can feed it to the
+      // analyzer and skip inventing audio that isn't there.
+      if (isMeme && file.type.startsWith("video/")) {
+        try {
+          toast.info("Reading on-screen text from meme frames…");
+          const frames = await extractFramesWithTimestamps(file, 2, 12, 1024);
+          const { data: visualData, error: visualErr } = await supabase.functions.invoke(
+            "extract-visual-context",
+            { body: { frames, videoTitle: title || undefined } },
+          );
+          if (visualErr) {
+            console.warn("extract-visual-context failed (non-fatal):", visualErr);
+          } else if (visualData?.result) {
+            await (supabase.from("discover_videos" as any) as any)
+              .update({ cultural_context: visualData.result.culturalContext || null })
+              .eq("id", targetVideoId);
+            // Stash full visual result for the pipeline via storage (jsonb column not present).
+            await supabase.storage
+              .from("video-audio")
+              .upload(`${targetVideoId}.visual.json`, new Blob([JSON.stringify(visualData.result)], { type: "application/json" }), { upsert: true });
+          }
+        } catch (visualErr) {
+          console.warn("Meme visual extraction error (non-fatal):", visualErr);
+        }
+      }
+
       // Start the backend pipeline and wait for the acknowledgement before
       // navigating away, otherwise mobile browsers can leave the video stuck in
       // "pending" if the request is interrupted.
-      // Use supabase.functions.invoke so the SDK attaches the correct
-      // apikey + (when available) session bearer. The function accepts the
-      // publishable key as a fallback bearer when the user JWT is rejected
-      // (e.g. asymmetric signing-key transition). This avoids the
-      // "Failed to start processing (401)" stuck-in-pending bug.
       const { data: invokeData, error: invokeErr } = await supabase.functions.invoke(
         "process-approved-video",
         { body: { videoId: targetVideoId } }
@@ -509,6 +535,7 @@ const AdminVideoForm = () => {
         published: false,
         created_by: user.id,
         transcription_status: "pending",
+        is_meme: isMeme,
       };
 
       const { data: inserted, error: insertErr } = await (supabase.from("discover_videos" as any) as any)
@@ -833,6 +860,7 @@ const AdminVideoForm = () => {
         grammar_points: grammarPoints as any,
         cultural_context: culturalContext || null,
         published,
+        is_meme: isMeme,
         created_by: user!.id,
       };
 
@@ -1084,6 +1112,16 @@ const AdminVideoForm = () => {
             <div className="flex items-center gap-3">
               <Switch checked={published} onCheckedChange={setPublished} />
               <Label>Published (visible to all users)</Label>
+            </div>
+            <div className="flex items-start gap-3 rounded-lg border border-border bg-muted/30 p-3">
+              <Switch checked={isMeme} onCheckedChange={setIsMeme} className="mt-1" />
+              <div className="space-y-1">
+                <Label>This is a meme</Label>
+                <p className="text-xs text-muted-foreground">
+                  Tells the AI to read on-screen text from video frames and treat audio as optional —
+                  it will not invent spoken words if the meme has no speech.
+                </p>
+              </div>
             </div>
           </CardContent>
         </Card>

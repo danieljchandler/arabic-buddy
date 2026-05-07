@@ -512,6 +512,7 @@ const AdminVideoForm = () => {
         published: false,
         created_by: user.id,
         transcription_status: "pending",
+        is_meme: isMeme,
       };
 
       const { data: inserted, error: insertErr } = await (supabase.from("discover_videos" as any) as any)

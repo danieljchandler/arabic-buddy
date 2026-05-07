@@ -392,14 +392,36 @@ const AdminVideoForm = () => {
         // Non-fatal — edge function will try download-media as fallback
       }
 
+      // For memes, extract video frames and run on-screen text analysis up front.
+      // The result is stashed on the row so the pipeline can feed it to the
+      // analyzer and skip inventing audio that isn't there.
+      if (isMeme && file.type.startsWith("video/")) {
+        try {
+          toast.info("Reading on-screen text from meme frames…");
+          const frames = await extractFramesWithTimestamps(file, 2, 12, 1024);
+          const { data: visualData, error: visualErr } = await supabase.functions.invoke(
+            "extract-visual-context",
+            { body: { frames, videoTitle: title || undefined } },
+          );
+          if (visualErr) {
+            console.warn("extract-visual-context failed (non-fatal):", visualErr);
+          } else if (visualData?.result) {
+            await (supabase.from("discover_videos" as any) as any)
+              .update({ cultural_context: visualData.result.culturalContext || null })
+              .eq("id", targetVideoId);
+            // Stash full visual result for the pipeline via storage (jsonb column not present).
+            await supabase.storage
+              .from("video-audio")
+              .upload(`${targetVideoId}.visual.json`, new Blob([JSON.stringify(visualData.result)], { type: "application/json" }), { upsert: true });
+          }
+        } catch (visualErr) {
+          console.warn("Meme visual extraction error (non-fatal):", visualErr);
+        }
+      }
+
       // Start the backend pipeline and wait for the acknowledgement before
       // navigating away, otherwise mobile browsers can leave the video stuck in
       // "pending" if the request is interrupted.
-      // Use supabase.functions.invoke so the SDK attaches the correct
-      // apikey + (when available) session bearer. The function accepts the
-      // publishable key as a fallback bearer when the user JWT is rejected
-      // (e.g. asymmetric signing-key transition). This avoids the
-      // "Failed to start processing (401)" stuck-in-pending bug.
       const { data: invokeData, error: invokeErr } = await supabase.functions.invoke(
         "process-approved-video",
         { body: { videoId: targetVideoId } }

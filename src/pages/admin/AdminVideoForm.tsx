@@ -373,7 +373,7 @@ const AdminVideoForm = () => {
         targetVideoId = inserted.id;
       } else {
         // Mark existing row as pending (and update thumbnail if we just captured one)
-        const updates: Record<string, unknown> = { transcription_status: "pending" };
+        const updates: Record<string, unknown> = { transcription_status: "pending", is_meme: isMeme };
         if (saveThumbnail && saveThumbnail !== thumbnailUrl) updates.thumbnail_url = saveThumbnail;
         await (supabase.from("discover_videos" as any) as any)
           .update(updates)

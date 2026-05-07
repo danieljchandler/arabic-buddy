@@ -837,6 +837,7 @@ const AdminVideoForm = () => {
         grammar_points: grammarPoints as any,
         cultural_context: culturalContext || null,
         published,
+        is_meme: isMeme,
         created_by: user!.id,
       };
 

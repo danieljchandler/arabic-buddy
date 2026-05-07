@@ -1090,6 +1090,16 @@ const AdminVideoForm = () => {
               <Switch checked={published} onCheckedChange={setPublished} />
               <Label>Published (visible to all users)</Label>
             </div>
+            <div className="flex items-start gap-3 rounded-lg border border-border bg-muted/30 p-3">
+              <Switch checked={isMeme} onCheckedChange={setIsMeme} className="mt-1" />
+              <div className="space-y-1">
+                <Label>This is a meme</Label>
+                <p className="text-xs text-muted-foreground">
+                  Tells the AI to read on-screen text from video frames and treat audio as optional —
+                  it will not invent spoken words if the meme has no speech.
+                </p>
+              </div>
+            </div>
           </CardContent>
         </Card>
 

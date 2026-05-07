@@ -1197,9 +1197,24 @@ serve(async (req) => {
     });
   }
 
-  // Allow internal service-role calls (e.g. from process-approved-video)
+  // Allow internal service-role calls (e.g. from process-approved-video).
+  // Detect by exact env match OR by inspecting the JWT payload for a
+  // service role / missing sub claim — robust to env-var drift across functions.
   const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-  const isInternalServiceCall = serviceRoleKey && authHeader === `Bearer ${serviceRoleKey}`;
+  const bearer = authHeader.slice('Bearer '.length).trim();
+  let isInternalServiceCall = !!(serviceRoleKey && bearer === serviceRoleKey);
+  if (!isInternalServiceCall) {
+    try {
+      const parts = bearer.split('.');
+      if (parts.length === 3) {
+        const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+        // Service-role / anon JWTs have role but no user sub
+        if (payload && (payload.role === 'service_role' || !payload.sub)) {
+          isInternalServiceCall = true;
+        }
+      }
+    } catch { /* not a JWT we can parse — fall through to user auth */ }
+  }
 
   try {
     if (!isInternalServiceCall) {

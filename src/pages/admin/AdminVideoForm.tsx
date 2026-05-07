@@ -41,6 +41,7 @@ const AdminVideoForm = () => {
   const [dialect, setDialect] = useState("Gulf");
   const [difficulty, setDifficulty] = useState("Beginner");
   const [published, setPublished] = useState(false);
+  const [isMeme, setIsMeme] = useState(false);
   const [culturalContext, setCulturalContext] = useState("");
   const [transcriptLines, setTranscriptLines] = useState<TranscriptLine[]>([]);
   const [vocabulary, setVocabulary] = useState<any[]>([]);

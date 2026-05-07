@@ -1260,7 +1260,11 @@ serve(async (req) => {
     }
     // ──────────────────────────────────────────────────────────────────────
 
-    if (!transcript || typeof transcript !== 'string') {
+    const memeMode = !!isMeme;
+    const onScreenSegs = Array.isArray(onScreenTextSegments) ? onScreenTextSegments : [];
+    const transcriptIsEmpty = !transcript || typeof transcript !== 'string' || transcript.trim().length < 3;
+
+    if (transcriptIsEmpty && !(memeMode && onScreenSegs.length > 0)) {
       return new Response(
         JSON.stringify({ error: 'Missing or invalid transcript' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

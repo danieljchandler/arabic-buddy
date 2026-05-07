@@ -449,9 +449,11 @@ async function runPipeline(
     // We still try to read the response, but a 504 is non-fatal now.
     let analyzeData: any = null;
     try {
+      const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+      const internalAuth = serviceRoleKey ? `Bearer ${serviceRoleKey}` : authHeader;
       const analyzeResp = await fetch(`${projectUrl}/functions/v1/analyze-gulf-arabic`, {
         method: "POST",
-        headers: { Authorization: authHeader, "Content-Type": "application/json" },
+        headers: { Authorization: internalAuth, "Content-Type": "application/json" },
         body: JSON.stringify(analyzeBody),
         signal: AbortSignal.timeout(3 * 60 * 1000),
       });

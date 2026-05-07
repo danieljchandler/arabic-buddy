@@ -34,21 +34,32 @@ export function AdminTranscriptEditor({ lines, onChange, audioUrl }: AdminTransc
 
   const initialSegments: Segment[] = useMemo(
     () =>
-      lines.map((line) => ({
-        id: line.id,
-        video_id: "",
-        start: (line.startMs ?? 0) / 1000,
-        end: (line.endMs ?? 0) / 1000,
-        text: line.arabic,
-        translation: line.translation,
-        confidence: 1,
-        words: (line.tokens ?? []).map<Word>((t) => ({
-          word: t.surface,
-          start: 0,
-          end: 0,
+      lines.map((line) => {
+        const startSec = (line.startMs ?? 0) / 1000;
+        const endSec = (line.endMs ?? 0) / 1000;
+        const tokens = line.tokens ?? [];
+        const n = Math.max(tokens.length, 1);
+        const dur = Math.max(endSec - startSec, 0);
+        const step = dur / n;
+        return {
+          id: line.id,
+          video_id: "",
+          start: startSec,
+          end: endSec,
+          text: line.arabic,
+          translation: line.translation,
           confidence: 1,
-        })),
-      })),
+          // Distribute word timings evenly across the line so AI re-segmentation
+          // (which rebuilds segment.start/end from word timings) preserves real
+          // timestamps instead of collapsing to 0.
+          words: tokens.map<Word>((t, i) => ({
+            word: t.surface,
+            start: startSec + step * i,
+            end: startSec + step * (i + 1),
+            confidence: 1,
+          })),
+        };
+      }),
     [lines],
   );
 

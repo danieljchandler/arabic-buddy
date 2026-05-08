@@ -307,7 +307,7 @@ const AdminMemeForm = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      const payload = {
+      const payload: Record<string, unknown> = {
         created_by: user.id,
         dialect: activeDialect,
         media_url: finalMediaUrl!,

@@ -332,7 +332,7 @@ const AdminMemeForm = () => {
         const { error } = await supabase.from('meme_posts').update(payload).eq('id', memeId);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from('meme_posts').insert(payload);
+        const { error } = await supabase.from('meme_posts').insert(payload as never);
         if (error) throw error;
       }
       toast.success(publish ? 'Published!' : 'Saved as draft');

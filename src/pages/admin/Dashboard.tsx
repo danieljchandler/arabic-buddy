@@ -186,6 +186,20 @@ const Dashboard = () => {
                 </CardContent>
               </Card>
 
+              <Card className="cursor-pointer hover:shadow-lg transition-shadow border-pink-500/30" onClick={() => navigate('/admin/memes')}>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-4">
+                    <div className="bg-pink-500/10 rounded-full p-4">
+                      <Laugh className="h-8 w-8 text-pink-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-lg">Memes</h3>
+                      <p className="text-muted-foreground">Curate Arabic memes (OCR + smart audio)</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
               <Card className="cursor-pointer hover:shadow-lg transition-shadow border-accent/30" onClick={() => navigate('/admin/stories')}>
                 <CardContent className="pt-6">
                   <div className="flex items-center gap-4">

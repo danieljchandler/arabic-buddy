@@ -168,8 +168,11 @@ const AdminVideoForm = () => {
 
       video.onloadeddata = async () => {
         try {
-          // Seek to frame ~0.1s to ensure a real frame is rendered
-          video.currentTime = Math.min(0.1, (video.duration || 1) / 2);
+          // Seek to ~25% of duration for a more representative frame
+          // (avoids black/intro frame at the very start). Clamp to [0.1, 5s].
+          const dur = Number.isFinite(video.duration) && video.duration > 0 ? video.duration : 1;
+          const target = Math.min(Math.max(dur * 0.25, 0.1), 5);
+          video.currentTime = target;
         } catch {
           cleanup();
           resolve(null);

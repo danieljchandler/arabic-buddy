@@ -78,6 +78,8 @@ const CurriculumBuilder = lazyPage(() => import("./pages/admin/CurriculumBuilder
 const AdminStories = lazyPage(() => import("./pages/admin/AdminStories"));
 const AdminStoryForm = lazyPage(() => import("./pages/admin/AdminStoryForm"));
 const TrendingVideos = lazyPage(() => import("./pages/admin/TrendingVideos"));
+const AdminMemes = lazyPage(() => import("./pages/admin/AdminMemes"));
+const AdminMemeForm = lazyPage(() => import("./pages/admin/AdminMemeForm"));
 const BibleAccess = lazyPage(() => import("./pages/admin/BibleAccess"));
 const AdminBibleLessons = lazyPage(() => import("./pages/admin/AdminBibleLessons"));
 const AdminPictureScenes = lazyPage(() => import("./pages/admin/AdminPictureScenes"));
@@ -350,6 +352,9 @@ const App = () => {
               <Route path="picture-scenes" element={<AdminPictureScenes />} />
               <Route path="picture-scenes/:sceneId" element={<AdminPictureSceneEdit />} />
               <Route path="coverage" element={<AdminCoverage />} />
+              <Route path="memes" element={<AdminMemes />} />
+              <Route path="memes/new" element={<AdminMemeForm />} />
+              <Route path="memes/:memeId" element={<AdminMemeForm />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />

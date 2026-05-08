@@ -570,6 +570,45 @@ async function runPipeline(
       let titleArabic = video.title_arabic;
       if (!titleArabic && result.titleArabic) titleArabic = result.titleArabic;
 
+      // Auto-generate a concise title via Lovable AI if still missing/placeholder
+      if (!title || title === "Untitled Video" || !titleArabic) {
+        try {
+          const sampleLines = sanitizedLines.slice(0, 6).map((l: any) =>
+            `${l.arabic ?? ""}${l.translation ? " — " + l.translation : ""}`
+          ).join("\n");
+          const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+          if (lovableKey && sampleLines.trim()) {
+            const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${lovableKey}` },
+              body: JSON.stringify({
+                model: "google/gemini-2.5-flash-lite",
+                messages: [
+                  { role: "system", content: 'Return ONLY JSON: {"title": string (English, ≤8 words, no quotes), "titleArabic": string (Arabic, ≤8 words)}. Title should describe the video content based on the transcript snippet.' },
+                  { role: "user", content: sampleLines },
+                ],
+              }),
+            });
+            if (aiResp.ok) {
+              const j = await aiResp.json();
+              const raw = j?.choices?.[0]?.message?.content ?? "";
+              const m = raw.match(/\{[\s\S]*\}/);
+              if (m) {
+                const parsed = JSON.parse(m[0]);
+                if ((!title || title === "Untitled Video") && parsed.title) title = String(parsed.title).slice(0, 80);
+                if (!titleArabic && parsed.titleArabic) titleArabic = String(parsed.titleArabic).slice(0, 80);
+              }
+            }
+          }
+        } catch (e) {
+          console.warn("[pipeline] Auto title generation failed (non-fatal):", e);
+        }
+        // Deterministic fallback from first line
+        const first = sanitizedLines[0] as any;
+        if ((!title || title === "Untitled Video") && first?.translation) title = String(first.translation).slice(0, 80);
+        if (!titleArabic && first?.arabic) titleArabic = String(first.arabic).slice(0, 80);
+      }
+
       const { error: updateError } = await supabase.from("discover_videos").update({
         title, title_arabic: titleArabic,
         transcript_lines: sanitizedLines,

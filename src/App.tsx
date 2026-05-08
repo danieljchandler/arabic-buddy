@@ -352,6 +352,9 @@ const App = () => {
               <Route path="picture-scenes" element={<AdminPictureScenes />} />
               <Route path="picture-scenes/:sceneId" element={<AdminPictureSceneEdit />} />
               <Route path="coverage" element={<AdminCoverage />} />
+              <Route path="memes" element={<AdminMemes />} />
+              <Route path="memes/new" element={<AdminMemeForm />} />
+              <Route path="memes/:memeId" element={<AdminMemeForm />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />

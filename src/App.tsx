@@ -78,6 +78,8 @@ const CurriculumBuilder = lazyPage(() => import("./pages/admin/CurriculumBuilder
 const AdminStories = lazyPage(() => import("./pages/admin/AdminStories"));
 const AdminStoryForm = lazyPage(() => import("./pages/admin/AdminStoryForm"));
 const TrendingVideos = lazyPage(() => import("./pages/admin/TrendingVideos"));
+const AdminMemes = lazyPage(() => import("./pages/admin/AdminMemes"));
+const AdminMemeForm = lazyPage(() => import("./pages/admin/AdminMemeForm"));
 const BibleAccess = lazyPage(() => import("./pages/admin/BibleAccess"));
 const AdminBibleLessons = lazyPage(() => import("./pages/admin/AdminBibleLessons"));
 const AdminPictureScenes = lazyPage(() => import("./pages/admin/AdminPictureScenes"));

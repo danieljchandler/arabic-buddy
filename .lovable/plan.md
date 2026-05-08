@@ -1,121 +1,101 @@
-# Curriculum Coverage Ledger — stop repeating, reinforce on purpose
+# Admin Memes Section — Plan
 
-Add a backend "what's been taught" ledger so the Curriculum Brain stops generating duplicate content and instead either (a) advances the learner or (b) deliberately reinforces a known-but-weak item. This complements Option 4 (split-by-type workspace) — every generator reads from and writes to the same ledger.
+Memes don't fit the normal video pipeline (often no speech, heavy on-screen text, music tracks tricking ASR into hallucinating). Instead of bolting toggles onto the video flow, give memes their own first-class admin module that mirrors the user-facing Meme Analyzer but is tuned for curation, persistence, and learner publishing.
 
-## Concept
+## 1. New admin route: `/admin/memes`
 
-Three new ideas:
+- `AdminMemes` (list) — table of saved memes with thumbnail, dialect, status (draft/published), date, "Has speech" badge, vocab count.
+- `AdminMemeForm` (`/admin/memes/new` and `/admin/memes/:id`) — single-screen workflow: upload → analyze → review/edit → publish.
+- Add a tile on the Admin Dashboard ("Memes") and link from the existing Videos page ("Looking for memes? Use the Memes section →").
 
-1. **Coverage ledger** — a normalized record of every concept (vocab lemma, grammar point, theme, scenario) that has been published into the curriculum, scoped by dialect + CEFR.
-2. **Mastery signal** — per-user evidence of how well a concept is held (from existing SRS reviews, quiz scores, listening accuracy).
-3. **Generation policy** — when AI is asked to make new content, the brain is given:
-   - a **must-not-repeat** list (recently covered, not due for reinforcement),
-   - a **reinforce** list (items the user/cohort is weak on or due for spaced re-exposure),
-   - a **next-up** list (concepts the curriculum graph says should come next for this CEFR/stage).
+## 2. New table: `meme_posts`
 
-The brain composes new content using ~70% next-up + ~20% reinforce + ~10% novel surprise (tunable).
+Columns:
+- `id`, `created_by`, `created_at`, `updated_at`
+- `dialect` (Gulf/Egyptian/Yemeni)
+- `media_url`, `media_type` (image|video), `thumbnail_url`
+- `title`, `title_arabic` (auto-generated, editable)
+- `on_screen_text` jsonb — array of `{ arabic, translation, frameTimestamp, bbox? }`
+- `audio_lines` jsonb — array of `{ arabic, translation, startMs, endMs }` (empty when no speech)
+- `vocabulary` jsonb, `grammar_points` jsonb
+- `meme_explanation` jsonb `{ casual, cultural }`
+- `has_speech` boolean, `has_music` boolean, `audio_skipped_reason` text
+- `status` text (draft/published), `published_at`
+- `source_url` text (optional original link)
 
-## New tables
+RLS: admins manage; anyone can read where `status='published'`. Storage uses existing `meme-uploads` bucket.
 
-```text
-curriculum_concepts
-  id, kind ('vocab'|'grammar'|'theme'|'scenario'|'phrase'),
-  key (normalized lemma / grammar slug / theme slug),
-  display_arabic, display_english,
-  dialect, cefr_level, stage_id (nullable),
-  first_introduced_at, source_type, source_id,
-  metadata jsonb
+## 3. Meme-specialized pipeline (new edge function `analyze-meme-admin`)
 
-content_concept_links
-  id, concept_id,
-  content_type ('lesson'|'vocab'|'picture_scene'|'grammar'|'listening'|'reading'|'daily_challenge'|'conversation'|'game_set'),
-  content_id,
-  role ('introduce'|'reinforce'|'assess'),
-  created_at
+Built on top of existing `analyze-meme` and `extract-visual-context`, but with stricter, meme-aware rules:
 
-user_concept_mastery
-  user_id, concept_id,
-  exposures int, correct int, incorrect int,
-  ease numeric, last_seen_at, next_due_at,
-  strength enum ('new'|'learning'|'familiar'|'strong'|'mastered')
-  PRIMARY KEY (user_id, concept_id)
+### a. Visual harvest (always)
+- Image: single OCR + scene description pass.
+- Video: extract 6–10 frames using `extractFramesWithTimestamps`, deduplicate near-identical frames (perceptual hash on downsized canvas), then OCR each frame with timestamps.
+- Use Gemini 2.5 Flash for OCR + dialect-aware translation. Output is the canonical `on_screen_text` array — preserved verbatim, no AI rewriting.
 
-curriculum_generation_log
-  id, request_id, dialect, cefr, stage_id, content_type,
-  prompt_summary, included_concepts uuid[], excluded_concepts uuid[],
-  model, created_by, created_at
-```
+### b. Audio detection gate (new)
+Before transcribing, classify the audio track:
+1. Decode audio with Web Audio API client-side.
+2. Compute simple features: average RMS, voiced-frame ratio (silence detection), spectral flatness (music tends high, speech low).
+3. Send a 5-second representative clip + features to Gemini Flash with prompt: "Does this clip contain spoken Arabic? Reply JSON `{speech: bool, music: bool, confidence}`."
+4. If `speech=false` → skip ASR entirely, set `audio_skipped_reason = 'no_speech'` or `'music_only'`. **AI is forbidden from inventing audio lines.**
+5. If `speech=true` → run Munsit/Soniox transcription as today. If music is also detected, prepend a system instruction telling ASR + post-processor to ignore lyrics/instrumental.
 
-RLS: admins manage `curriculum_concepts`, `content_concept_links`, `curriculum_generation_log`. Users read/write only their own `user_concept_mastery`.
+### c. Anti-hallucination contract
+The analysis prompt is rewritten with hard rules:
+- "On-screen text MUST come only from the OCR frames I provide. Do not invent words."
+- "Audio lines MUST come only from the ASR transcript I provide. If absent, return `audio_lines: []`."
+- "Vocabulary entries must reference a word that appears in either OCR or ASR output."
+- Server-side validation: drop any `arabic` string that doesn't substring-match the union of OCR + ASR text. Log dropped items for debugging.
 
-## How it plugs into the existing flow
+### d. Title + thumbnail
+- Auto-title from first OCR line or meme explanation (existing helper).
+- Thumbnail: pick the frame with the highest OCR character count (memes' "money frame"), fallback to 25% timestamp.
 
-```text
-Admin clicks "Generate vocab set" in workspace
-        │
-        ▼
-useGenerateContent(type='vocab', dialect, cefr, stage)
-        │
-        ▼
-edge: curriculum-chat   ──►  coverage-planner (new edge fn)
-                              ├─ reads curriculum_concepts  (what exists)
-                              ├─ reads content_concept_links (recent usage, last N days)
-                              ├─ reads aggregated mastery   (cohort-wide weak concepts)
-                              └─ returns { avoid[], reinforce[], next_up[] }
-        │
-        ▼
-brain prompt now includes those three lists  →  AI returns content
-        │
-        ▼
-On admin Approve:
-  • existing approve* mutations run (unchanged)
-  • new "extract-concepts" edge fn parses the saved row, upserts into
-    curriculum_concepts, writes content_concept_links rows
-```
+## 4. Admin UI flow (`AdminMemeForm`)
 
-For per-learner experiences (Daily Challenge, Review session, Personalized Path), the same planner is called with `user_id` so it consults `user_concept_mastery.next_due_at` to pick reinforcement targets for that specific learner.
+1. **Upload** — drag/drop image or video into existing `meme-uploads` bucket.
+2. **Analyze** button → calls `analyze-meme-admin`. Live progress: Frames → OCR → Audio gate → Transcribe → Synthesize.
+3. **Review screen** (single page, collapsible cards):
+   - Frame strip with OCR overlay; click a frame to edit its extracted Arabic + translation.
+   - "Audio status" card: shows `has_speech`, `has_music`, skipped reason. Manual override: "Force transcribe anyway".
+   - Audio transcript editor (reuses `AdminTranscriptEditor`) — only shown when speech detected.
+   - Vocabulary chips (add/remove/edit).
+   - Meme explanation (casual + cultural) — editable textareas.
+   - Title / Arabic title / Dialect / Thumbnail picker.
+4. **Save Draft** / **Publish** buttons. Publishing exposes the meme to learners.
 
-## Reinforcement rules
+## 5. Learner-facing surface (small additions, optional but recommended)
 
-- A concept is **eligible for reinforcement** if `last_seen_at < now() - interval` based on strength bucket (e.g. learning = 2d, familiar = 7d, strong = 21d).
-- A concept is **blocked from reuse as new** if it appeared in any approved content in the last 14 days *and* is not yet due.
-- The brain is told the **role** (introduce vs reinforce) for every concept it must include, so reinforcement appears in fresh contexts (new sentence, new scene, new question type) instead of duplicate cards.
+- Add a "Memes" filter chip on `Discover` (or a new `/memes` page) that lists `meme_posts` where `status='published'`.
+- Reuse `LineByLineTranscript` to display OCR + audio lines, identical to the public Meme Analyzer.
+- Tapping a word → save to My Words (already wired through `useAddUserVocabulary`).
 
-## Cohesion across types
+## 6. Suggested extras worth adding
 
-Because the ledger is content-type-agnostic, a vocab lemma introduced in a Lesson can be reinforced by a Picture Scene hotspot, then assessed by a Daily Challenge MCQ. The workspace shows admins a small "Concept usage" panel per item: "تفاحة used in 3 lessons, 1 scene, 2 challenges — last seen 4 days ago".
+- **Bulk import**: paste a list of TikTok/X meme URLs; backend downloads + queues each. Reuses `download-media` function.
+- **"Why it's funny" multi-tier**: beginner / intermediate / native explanations toggleable in admin; learners pick based on level.
+- **Cultural tags**: free-text tags ("ramadan", "football", "khaleeji-tv") for filtering and recommendations.
+- **Difficulty auto-rating**: A1–C1 estimated from vocab CEFR distribution (Curriculum Brain already does this for lessons — reuse).
+- **Reaction set**: 4–5 emoji reactions stored on the meme so learners signal "got it / didn't get it" — useful curation signal.
+- **"Quote it"**: one-tap copy of the on-screen Arabic line for learners to paste in chats.
+- **Audit log**: record every regenerate/edit so we can compare AI output vs. admin-curated final.
 
-## Admin-facing additions
+## Technical summary (for engineers)
 
-- New left-rail entry in the Curriculum Workspace: **Coverage** — browse concepts, filter by dialect/CEFR/strength, see where each was used, manually mark "retire" or "boost".
-- On every generator form: a read-only chip strip showing what the planner suggested (avoid / reinforce / next-up) with a "regenerate plan" button.
-- Generation log viewer (admin) for auditing what the brain was told.
+| Area | Change |
+|---|---|
+| DB | New table `meme_posts` + RLS; migration only, no edits to `discover_videos`. |
+| Edge | New function `analyze-meme-admin` (orchestrator). Reuses `extract-visual-context`, `munsit-transcribe`/`soniox` for ASR, Gemini Flash for OCR + speech-vs-music gate. `verify_jwt = false` (admin auth enforced in code via service role check). |
+| Frontend | New pages: `src/pages/admin/AdminMemes.tsx`, `src/pages/admin/AdminMemeForm.tsx`. Routes added to `src/App.tsx`. Dashboard tile in `src/pages/admin/Dashboard.tsx`. |
+| Shared | Extract a small `src/lib/audioSpeechDetector.ts` (RMS + flatness) used by both the admin form and a future public version. |
+| Storage | Use existing public `meme-uploads` bucket. |
+| Decoupling | Memes are no longer routed through `process-approved-video` or `discover_videos`. The `is_meme` toggle on the video form can be removed in a follow-up cleanup. |
 
-## Edge functions
+## What this fixes vs. today
 
-- `coverage-planner` (new, `verify_jwt = true`) — pure read; returns the three lists.
-- `extract-concepts` (new, `verify_jwt = true`) — runs after approval; uses Lovable AI Gateway (Gemini Flash) to normalize Arabic to lemmas + tag grammar points, then upserts.
-- `curriculum-chat` (existing, edited) — calls `coverage-planner` first, injects results into the prompt, logs the request to `curriculum_generation_log`.
-- `update-mastery` (new, `verify_jwt = true`) — called from review/quiz completion handlers to bump `user_concept_mastery`.
-
-## Build steps
-
-1. **Migration**: create the 4 tables + RLS + indexes (concept_id, dialect+cefr, last_seen_at).
-2. **Backfill script** (one-time admin button): scan existing `lessons`, `picture_scenes`, `grammar_exercises`, `listening_exercises`, `reading_passages`, `daily_challenges`, `conversation_scenarios` and populate `curriculum_concepts` + `content_concept_links` via `extract-concepts`.
-3. **`coverage-planner` edge function** + shared TS helpers.
-4. **Wire `curriculum-chat`** to call planner and log requests; update prompt templates to honor avoid/reinforce/next-up roles.
-5. **Wire approval paths** in `useCurriculumApproval` to fire `extract-concepts` on success.
-6. **Mastery hooks**: update `useReview`, `useGamification`/quiz handlers, and Daily Challenge completion to call `update-mastery`.
-7. **Workspace UI**: Coverage list page, per-item Concept usage panel, planner chip strip on generator forms.
-8. **Personalized Path & Daily Challenge** generators switched to per-user planner calls.
-
-## Out of scope (flag now)
-
-- Cross-dialect concept sharing (lemma `بيت` in Gulf vs Egyptian) — for v1 we keep concepts dialect-scoped; merging is a later enhancement.
-- Auto-retirement of stale published content — admins decide.
-- Cohort analytics dashboards — only the basic Coverage browser ships now.
-
-## Open questions
-
-1. Should the reinforcement target be **per-user** everywhere, or **cohort-average** for shared content (lessons, scenes) and **per-user** only for adaptive flows (Daily Challenge, Review, Path)? Default: cohort for shared, per-user for adaptive.
-2. Default mix: 70% next-up / 20% reinforce / 10% novel — OK, or do you want to tune per content type?
+- No more silent memes producing fake transcripts (audio gate + validation).
+- OCR text is preserved verbatim, never paraphrased into the audio transcript.
+- Admins get a meme-shaped UI (frame strip, audio status, money-frame thumbnail) instead of a video editor that doesn't fit.
+- Music-only memes are explicitly handled and labeled.

@@ -1095,6 +1095,84 @@ export type Database = {
         }
         Relationships: []
       }
+      meme_posts: {
+        Row: {
+          audio_lines: Json
+          audio_skipped_reason: string | null
+          created_at: string
+          created_by: string
+          dialect: string
+          difficulty: string
+          grammar_points: Json
+          has_music: boolean
+          has_speech: boolean
+          id: string
+          media_type: string
+          media_url: string
+          meme_explanation: Json
+          on_screen_text: Json
+          published_at: string | null
+          source_url: string | null
+          status: string
+          tags: string[]
+          thumbnail_url: string | null
+          title: string
+          title_arabic: string
+          updated_at: string
+          vocabulary: Json
+        }
+        Insert: {
+          audio_lines?: Json
+          audio_skipped_reason?: string | null
+          created_at?: string
+          created_by: string
+          dialect?: string
+          difficulty?: string
+          grammar_points?: Json
+          has_music?: boolean
+          has_speech?: boolean
+          id?: string
+          media_type?: string
+          media_url: string
+          meme_explanation?: Json
+          on_screen_text?: Json
+          published_at?: string | null
+          source_url?: string | null
+          status?: string
+          tags?: string[]
+          thumbnail_url?: string | null
+          title?: string
+          title_arabic?: string
+          updated_at?: string
+          vocabulary?: Json
+        }
+        Update: {
+          audio_lines?: Json
+          audio_skipped_reason?: string | null
+          created_at?: string
+          created_by?: string
+          dialect?: string
+          difficulty?: string
+          grammar_points?: Json
+          has_music?: boolean
+          has_speech?: boolean
+          id?: string
+          media_type?: string
+          media_url?: string
+          meme_explanation?: Json
+          on_screen_text?: Json
+          published_at?: string | null
+          source_url?: string | null
+          status?: string
+          tags?: string[]
+          thumbnail_url?: string | null
+          title?: string
+          title_arabic?: string
+          updated_at?: string
+          vocabulary?: Json
+        }
+        Relationships: []
+      }
       picture_scene_hotspots: {
         Row: {
           created_at: string

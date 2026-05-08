@@ -1048,8 +1048,9 @@ const AdminVideoForm = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label>Title *</Label>
-              <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Video title" />
+              <Label>Title</Label>
+              <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Auto-generated from transcript if left blank" />
+              <p className="text-xs text-muted-foreground">Leave blank to auto-generate from the transcript after analysis.</p>
             </div>
             <div className="space-y-2">
               <Label>Arabic Title</Label>
@@ -1057,7 +1058,7 @@ const AdminVideoForm = () => {
                 value={titleArabic}
                 onChange={(e) => setTitleArabic(e.target.value)}
                 dir="rtl"
-                placeholder="عنوان الفيديو"
+                placeholder="يُولَّد تلقائياً من النص"
               />
             </div>
             <div className="grid grid-cols-2 gap-4">

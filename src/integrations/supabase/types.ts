@@ -1540,6 +1540,178 @@ export type Database = {
         }
         Relationships: []
       }
+      set_phrase_occasions: {
+        Row: {
+          created_at: string
+          description: string | null
+          dialect: string
+          difficulty_floor: string
+          display_order: number
+          icon_name: string
+          id: string
+          name: string
+          name_arabic: string | null
+          slug: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          dialect?: string
+          difficulty_floor?: string
+          display_order?: number
+          icon_name?: string
+          id?: string
+          name: string
+          name_arabic?: string | null
+          slug: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          dialect?: string
+          difficulty_floor?: string
+          display_order?: number
+          icon_name?: string
+          id?: string
+          name?: string
+          name_arabic?: string | null
+          slug?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      set_phrase_quiz_attempts: {
+        Row: {
+          answer_mode: string
+          asr_similarity: number | null
+          asr_transcript: string | null
+          correct: boolean
+          created_at: string
+          id: string
+          phrase_id: string
+          question_type: string
+          user_id: string
+        }
+        Insert: {
+          answer_mode: string
+          asr_similarity?: number | null
+          asr_transcript?: string | null
+          correct?: boolean
+          created_at?: string
+          id?: string
+          phrase_id: string
+          question_type: string
+          user_id: string
+        }
+        Update: {
+          answer_mode?: string
+          asr_similarity?: number | null
+          asr_transcript?: string | null
+          correct?: boolean
+          created_at?: string
+          id?: string
+          phrase_id?: string
+          question_type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "set_phrase_quiz_attempts_phrase_id_fkey"
+            columns: ["phrase_id"]
+            isOneToOne: false
+            referencedRelation: "set_phrases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      set_phrases: {
+        Row: {
+          accepted_variants: Json
+          cached_distractors: Json
+          created_at: string
+          created_by: string | null
+          cultural_note: string | null
+          dialect: string
+          difficulty: string
+          formality: string
+          id: string
+          occasion_id: string | null
+          phrase_arabic: string
+          phrase_audio_url: string | null
+          phrase_english: string | null
+          phrase_transliteration: string | null
+          reply_arabic: string | null
+          reply_audio_url: string | null
+          reply_english: string | null
+          reply_transliteration: string | null
+          scenario_english: string | null
+          status: string
+          tags: string[]
+          updated_at: string
+        }
+        Insert: {
+          accepted_variants?: Json
+          cached_distractors?: Json
+          created_at?: string
+          created_by?: string | null
+          cultural_note?: string | null
+          dialect?: string
+          difficulty?: string
+          formality?: string
+          id?: string
+          occasion_id?: string | null
+          phrase_arabic: string
+          phrase_audio_url?: string | null
+          phrase_english?: string | null
+          phrase_transliteration?: string | null
+          reply_arabic?: string | null
+          reply_audio_url?: string | null
+          reply_english?: string | null
+          reply_transliteration?: string | null
+          scenario_english?: string | null
+          status?: string
+          tags?: string[]
+          updated_at?: string
+        }
+        Update: {
+          accepted_variants?: Json
+          cached_distractors?: Json
+          created_at?: string
+          created_by?: string | null
+          cultural_note?: string | null
+          dialect?: string
+          difficulty?: string
+          formality?: string
+          id?: string
+          occasion_id?: string | null
+          phrase_arabic?: string
+          phrase_audio_url?: string | null
+          phrase_english?: string | null
+          phrase_transliteration?: string | null
+          reply_arabic?: string | null
+          reply_audio_url?: string | null
+          reply_english?: string | null
+          reply_transliteration?: string | null
+          scenario_english?: string | null
+          status?: string
+          tags?: string[]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "set_phrases_occasion_id_fkey"
+            columns: ["occasion_id"]
+            isOneToOne: false
+            referencedRelation: "set_phrase_occasions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       story_progress: {
         Row: {
           completed: boolean
@@ -2072,6 +2244,59 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      user_set_phrases: {
+        Row: {
+          created_at: string
+          ease_factor: number
+          id: string
+          interval_days: number
+          last_quality: number | null
+          last_reviewed_at: string | null
+          next_review_at: string
+          phrase_id: string
+          repetitions: number
+          source: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          ease_factor?: number
+          id?: string
+          interval_days?: number
+          last_quality?: number | null
+          last_reviewed_at?: string | null
+          next_review_at?: string
+          phrase_id: string
+          repetitions?: number
+          source?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          ease_factor?: number
+          id?: string
+          interval_days?: number
+          last_quality?: number | null
+          last_reviewed_at?: string | null
+          next_review_at?: string
+          phrase_id?: string
+          repetitions?: number
+          source?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_set_phrases_phrase_id_fkey"
+            columns: ["phrase_id"]
+            isOneToOne: false
+            referencedRelation: "set_phrases"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_vocabulary: {
         Row: {

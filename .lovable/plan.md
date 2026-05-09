@@ -1,101 +1,170 @@
-# Admin Memes Section — Plan
+# Set Phrases Practice Module
 
-Memes don't fit the normal video pipeline (often no speech, heavy on-screen text, music tracks tricking ASR into hallucinating). Instead of bolting toggles onto the video flow, give memes their own first-class admin module that mirrors the user-facing Meme Analyzer but is tuned for curation, persistence, and learner publishing.
+A new learning module for **situational/social Arabic phrases** — greetings, weddings, funerals, Eid, hospitality, condolences, congratulations, etc. — practiced through voice and choice quizzes with spaced repetition.
 
-## 1. New admin route: `/admin/memes`
+**ASR change:** Voice answers use **Munsit** (primary ASR per project memory), not Azure. Azure remains only as a last-resort fallback if Munsit fails.
 
-- `AdminMemes` (list) — table of saved memes with thumbnail, dialect, status (draft/published), date, "Has speech" badge, vocab count.
-- `AdminMemeForm` (`/admin/memes/new` and `/admin/memes/:id`) — single-screen workflow: upload → analyze → review/edit → publish.
-- Add a tile on the Admin Dashboard ("Memes") and link from the existing Videos page ("Looking for memes? Use the Memes section →").
+## What the user gets
 
-## 2. New table: `meme_posts`
+A new tile on the home screen → **Set Phrases**. Inside:
 
-Columns:
-- `id`, `created_by`, `created_at`, `updated_at`
-- `dialect` (Gulf/Egyptian/Yemeni)
-- `media_url`, `media_type` (image|video), `thumbnail_url`
-- `title`, `title_arabic` (auto-generated, editable)
-- `on_screen_text` jsonb — array of `{ arabic, translation, frameTimestamp, bbox? }`
-- `audio_lines` jsonb — array of `{ arabic, translation, startMs, endMs }` (empty when no speech)
-- `vocabulary` jsonb, `grammar_points` jsonb
-- `meme_explanation` jsonb `{ casual, cultural }`
-- `has_speech` boolean, `has_music` boolean, `audio_skipped_reason` text
-- `status` text (draft/published), `published_at`
-- `source_url` text (optional original link)
+1. **Browse by Occasion** — categories (Greetings, Eid, Wedding, Funeral / Condolences, New Baby, Travel, Food/Hospitality, Religious, Daily Courtesy, Apologies/Thanks, etc.) with a difficulty ladder (A1 → C1).
+2. **Practice Session** — mixed quiz of two question types:
+   - **Reply quiz**: AI plays/shows a phrase ("صباح الخير") → user must give the correct reply by voice or by tapping the right option.
+   - **Scenario quiz**: AI narrates a situation in English ("A friend's father just passed away — what do you say?") → user picks or speaks the appropriate Arabic phrase.
+3. **Voice answers via Munsit** — record short utterance, send to existing Munsit ASR pipeline, normalize/diacritic-strip both sides, then fuzzy-match to the canonical phrase.
+4. **Save phrases I don't know** — a "Save to my phrases" button on every card; saved phrases enter SRS review.
+5. **SRS Review** — separate review queue using SM-2 (same algorithm as `useUserVocabulary`), surfacing previously-studied phrases at increasing intervals (1d → 3d → 7d → 14d → 30d → 90d).
+6. **Progressive difficulty** — sessions start with A1 essentials and only unlock harder tiers once the easier ones are mostly retained (≥80% recall).
 
-RLS: admins manage; anyone can read where `status='published'`. Storage uses existing `meme-uploads` bucket.
+## Page structure
 
-## 3. Meme-specialized pipeline (new edge function `analyze-meme-admin`)
+```text
+/set-phrases                  → SetPhrases.tsx        (occasion grid + Continue Review CTA)
+/set-phrases/practice         → SetPhrasesPractice.tsx (mixed quiz session)
+/set-phrases/review           → SetPhrasesReview.tsx   (SRS queue)
+/set-phrases/:occasion        → OccasionDetail.tsx    (browse all phrases in category)
+/admin/set-phrases            → AdminSetPhrases.tsx
+/admin/set-phrases/:id        → AdminSetPhraseForm.tsx
+```
 
-Built on top of existing `analyze-meme` and `extract-visual-context`, but with stricter, meme-aware rules:
+## Data model (new tables)
 
-### a. Visual harvest (always)
-- Image: single OCR + scene description pass.
-- Video: extract 6–10 frames using `extractFramesWithTimestamps`, deduplicate near-identical frames (perceptual hash on downsized canvas), then OCR each frame with timestamps.
-- Use Gemini 2.5 Flash for OCR + dialect-aware translation. Output is the canonical `on_screen_text` array — preserved verbatim, no AI rewriting.
+```text
+set_phrase_occasions
+  id, slug, name, name_arabic, description, icon_name,
+  display_order, dialect, difficulty_floor (A1..C1)
 
-### b. Audio detection gate (new)
-Before transcribing, classify the audio track:
-1. Decode audio with Web Audio API client-side.
-2. Compute simple features: average RMS, voiced-frame ratio (silence detection), spectral flatness (music tends high, speech low).
-3. Send a 5-second representative clip + features to Gemini Flash with prompt: "Does this clip contain spoken Arabic? Reply JSON `{speech: bool, music: bool, confidence}`."
-4. If `speech=false` → skip ASR entirely, set `audio_skipped_reason = 'no_speech'` or `'music_only'`. **AI is forbidden from inventing audio lines.**
-5. If `speech=true` → run Munsit/Soniox transcription as today. If music is also detected, prepend a system instruction telling ASR + post-processor to ignore lyrics/instrumental.
+set_phrases
+  id, occasion_id, dialect,
+  phrase_arabic, phrase_transliteration, phrase_english,
+  phrase_audio_url,                 -- pre-generated TTS
+  reply_arabic, reply_transliteration, reply_english,
+  reply_audio_url,
+  scenario_english,                 -- "Someone just sneezed"
+  cultural_note,
+  formality (casual|neutral|formal|religious),
+  difficulty (A1..C1),
+  accepted_variants jsonb,          -- alt acceptable replies for ASR matching
+  cached_distractors jsonb,         -- AI-generated wrong-but-plausible options
+  tags[], status (draft|published)
 
-### c. Anti-hallucination contract
-The analysis prompt is rewritten with hard rules:
-- "On-screen text MUST come only from the OCR frames I provide. Do not invent words."
-- "Audio lines MUST come only from the ASR transcript I provide. If absent, return `audio_lines: []`."
-- "Vocabulary entries must reference a word that appears in either OCR or ASR output."
-- Server-side validation: drop any `arabic` string that doesn't substring-match the union of OCR + ASR text. Log dropped items for debugging.
+user_set_phrases    -- SRS state, mirrors user_vocabulary
+  user_id, phrase_id, source (quiz_miss|manual_save|reviewed),
+  ease_factor, interval_days, repetitions, next_review_at,
+  last_reviewed_at, last_quality (0..5)
 
-### d. Title + thumbnail
-- Auto-title from first OCR line or meme explanation (existing helper).
-- Thumbnail: pick the frame with the highest OCR character count (memes' "money frame"), fallback to 25% timestamp.
+set_phrase_quiz_attempts
+  user_id, phrase_id, question_type (reply|scenario),
+  answer_mode (voice|choice), correct boolean,
+  asr_transcript text null, asr_similarity numeric null,
+  created_at
+```
 
-## 4. Admin UI flow (`AdminMemeForm`)
+RLS: admins manage `set_phrase_occasions` / `set_phrases`; users CRUD only their own rows in `user_set_phrases` and `set_phrase_quiz_attempts`. Public reads `status='published'`. `interval_days` integer per existing SRS constraint.
 
-1. **Upload** — drag/drop image or video into existing `meme-uploads` bucket.
-2. **Analyze** button → calls `analyze-meme-admin`. Live progress: Frames → OCR → Audio gate → Transcribe → Synthesize.
-3. **Review screen** (single page, collapsible cards):
-   - Frame strip with OCR overlay; click a frame to edit its extracted Arabic + translation.
-   - "Audio status" card: shows `has_speech`, `has_music`, skipped reason. Manual override: "Force transcribe anyway".
-   - Audio transcript editor (reuses `AdminTranscriptEditor`) — only shown when speech detected.
-   - Vocabulary chips (add/remove/edit).
-   - Meme explanation (casual + cultural) — editable textareas.
-   - Title / Arabic title / Dialect / Thumbnail picker.
-4. **Save Draft** / **Publish** buttons. Publishing exposes the meme to learners.
+## AI setup (the part to get right)
 
-## 5. Learner-facing surface (small additions, optional but recommended)
+### Edge function `generate-set-phrase-quiz` (selection + scenario AI)
 
-- Add a "Memes" filter chip on `Discover` (or a new `/memes` page) that lists `meme_posts` where `status='published'`.
-- Reuse `LineByLineTranscript` to display OCR + audio lines, identical to the public Meme Analyzer.
-- Tapping a word → save to My Words (already wired through `useAddUserVocabulary`).
+**Inputs:** user id, dialect, occasion (optional), session length (default 8).
 
-## 6. Suggested extras worth adding
+**Selection logic (deterministic, not AI):**
+1. Pull due `user_set_phrases` for this user (up to 50% of session).
+2. Fill remaining with new published phrases at the user's CEFR tier, weighted toward the requested occasion. Skip already-mastered (`repetitions ≥ 4 AND interval_days ≥ 30`).
+3. Per phrase, randomly assign `reply` or `scenario` — `reply` only if `reply_arabic` exists; `scenario` only if `scenario_english` exists.
 
-- **Bulk import**: paste a list of TikTok/X meme URLs; backend downloads + queues each. Reuses `download-media` function.
-- **"Why it's funny" multi-tier**: beginner / intermediate / native explanations toggleable in admin; learners pick based on level.
-- **Cultural tags**: free-text tags ("ramadan", "football", "khaleeji-tv") for filtering and recommendations.
-- **Difficulty auto-rating**: A1–C1 estimated from vocab CEFR distribution (Curriculum Brain already does this for lessons — reuse).
-- **Reaction set**: 4–5 emoji reactions stored on the meme so learners signal "got it / didn't get it" — useful curation signal.
-- **"Quote it"**: one-tap copy of the on-screen Arabic line for learners to paste in chats.
-- **Audit log**: record every regenerate/edit so we can compare AI output vs. admin-curated final.
+**For `scenario` questions** missing curated text, call Lovable AI (`google/gemini-3-flash-preview`) with strict tool-calling schema:
 
-## Technical summary (for engineers)
+```text
+generate_scenario({
+  scenario_english: string,           // 1–2 sentences, vivid, culturally specific
+  distractor_phrases: [               // 3 wrong but plausible Arabic phrases
+    { arabic, english, why_wrong }
+  ]
+})
+```
 
-| Area | Change |
-|---|---|
-| DB | New table `meme_posts` + RLS; migration only, no edits to `discover_videos`. |
-| Edge | New function `analyze-meme-admin` (orchestrator). Reuses `extract-visual-context`, `munsit-transcribe`/`soniox` for ASR, Gemini Flash for OCR + speech-vs-music gate. `verify_jwt = false` (admin auth enforced in code via service role check). |
-| Frontend | New pages: `src/pages/admin/AdminMemes.tsx`, `src/pages/admin/AdminMemeForm.tsx`. Routes added to `src/App.tsx`. Dashboard tile in `src/pages/admin/Dashboard.tsx`. |
-| Shared | Extract a small `src/lib/audioSpeechDetector.ts` (RMS + flatness) used by both the admin form and a future public version. |
-| Storage | Use existing public `meme-uploads` bucket. |
-| Decoupling | Memes are no longer routed through `process-approved-video` or `discover_videos`. The `is_meme` toggle on the video form can be removed in a follow-up cleanup. |
+System prompt rules (locked server-side):
+- Dialect lock via existing `_shared/dialectHelpers.ts` — forbid MSA and cross-dialect leakage.
+- Distractors must be **real Arabic phrases used in other contexts** so the test rewards situational understanding.
+- Never invent the correct phrase — correct answer is always the curated `phrase_arabic`.
+- Cultural sensitivity gate (no flippant funeral/religious scenarios).
+- Cache the result back into `set_phrases.cached_distractors` so the next session is instant.
 
-## What this fixes vs. today
+### Edge function `score-set-phrase-voice` (Munsit ASR + similarity)
 
-- No more silent memes producing fake transcripts (audio gate + validation).
-- OCR text is preserved verbatim, never paraphrased into the audio transcript.
-- Admins get a meme-shaped UI (frame strip, audio status, money-frame thumbnail) instead of a video editor that doesn't fit.
-- Music-only memes are explicitly handled and labeled.
+**Inputs:** audio blob (webm/wav), expected `phrase_id`.
+
+Flow:
+1. Transcribe with **Munsit** (`api.munsit.com`, dialect-routed voice locale per existing `MUNSIT_API_KEY`).
+2. If Munsit returns 5xx/timeout → fallback to Soniox (per existing ASR priority memory). Azure last.
+3. Normalize both transcript and `phrase_arabic` + `accepted_variants`: strip tashkeel, normalize alef/yaa/taa marbuta, collapse whitespace.
+4. Score = max similarity (Levenshtein-based) across canonical + variants.
+5. Map to quality:
+   - ≥0.9 → quality 5 (perfect)
+   - 0.75–0.9 → quality 4 (good)
+   - 0.55–0.75 → quality 3 ("close, try again" → one retry allowed)
+   - <0.55 → quality 1–2 (wrong, reveal answer)
+6. Return `{ transcript, similarity, quality, accepted: bool }`.
+
+Choice answers map straight: correct first try = 5, after reveal = 2, wrong = 1.
+
+**Reliability:** 25s overall ASR timeout; 30s on AI scenario gen; on either failure surface a clean choice-only fallback so the session never blocks.
+
+## UI flow
+
+**Practice screen (mobile-first, max-w-sm, digital majlis style):**
+- Top: progress dots + occasion chip + difficulty badge.
+- Card body:
+  - **Reply mode:** big Arabic phrase + 🔊 play; "Your reply:" with mic button (hold-to-talk → Munsit) and a "Show choices" toggle revealing 4 options.
+  - **Scenario mode:** English scenario in muted text + mic + "Show choices" toggle.
+- After answer: reveal correct Arabic + transliteration (respect global English/transliteration toggles), play audio, expandable cultural note, ⭐ "Save to my phrases" button. Show ASR transcript + similarity score when voice was used so the user understands why.
+- Footer: Skip / Next.
+
+**Review screen:** identical card UI but pulls only due `user_set_phrases`; ends with summary (X reviewed, Y mastered, next due …).
+
+**My Phrases:** tab inside `/set-phrases` showing saved phrases, due count, search/filter by occasion.
+
+## Admin
+
+- `AdminSetPhrases` list filtered by current dialect (existing `DialectContext`), grouped by occasion, status pill.
+- `AdminSetPhraseForm`: all fields above + 🔊 Generate Audio (TTS — Munsit Aisha for Gulf, Azure voices for Egyptian/Yemeni per existing speech-synthesis memory) + ✨ AI Suggest button to fill `scenario_english` + `cached_distractors` + `accepted_variants`.
+- "Seed occasions" one-click action that asks AI to draft 10 phrases per occasion in the active dialect, written as `status='draft'` — no auto-publish (matches curated workflow rule).
+
+## Suggested extras (light cost, worth doing now)
+
+- **Streaks & XP** — wire into existing gamification. Voice-correct ≥0.9 = 10 XP, choice-correct = 5 XP.
+- **Daily 3-phrase warmup** card on home screen for one-tap practice.
+- **Formality filter** — let user toggle "show only formal/religious".
+- **Dialect comparison** — when a phrase exists in multiple dialects, link to existing `DialectCompare` page.
+
+## Out of scope
+
+- Free-form conversation (already covered by `ConversationSimulator`).
+- On-the-fly TTS for every phrase — pre-generate during admin curation for zero-latency practice.
+- Offline mode.
+
+## Files to create
+
+- Migration: `set_phrase_occasions`, `set_phrases`, `user_set_phrases`, `set_phrase_quiz_attempts` (+ RLS, integer `interval_days` constraint, `update_updated_at` triggers).
+- `supabase/functions/generate-set-phrase-quiz/index.ts` — selection + scenario/distractor AI.
+- `supabase/functions/score-set-phrase-voice/index.ts` — **Munsit-first** transcription + similarity scoring.
+- `supabase/functions/seed-set-phrases/index.ts` — admin bulk-draft seeder.
+- `src/hooks/useSetPhrases.ts`, `useUserSetPhrases.ts`, `useSetPhraseSession.ts`.
+- `src/lib/arabicNormalize.ts` (shared normalization for ASR matching, if not already present).
+- `src/pages/SetPhrases.tsx`, `SetPhrasesPractice.tsx`, `SetPhrasesReview.tsx`, `OccasionDetail.tsx`.
+- `src/pages/admin/AdminSetPhrases.tsx`, `AdminSetPhraseForm.tsx`.
+
+## Files to edit
+
+- `src/App.tsx` — register routes.
+- `src/pages/Index.tsx` — add Set Phrases tile.
+- `src/pages/admin/Dashboard.tsx` — add admin tile.
+- `mem://index.md` + new `mem://features/set-phrases/overview` after build.
+
+## Open questions (will assume defaults if unanswered)
+
+1. Keep SRS in a separate `user_set_phrases` table (vs reusing `user_vocabulary`)? Default: **separate**, so phrase-specific fields stay clean.
+2. Starter occasions: Greetings, Eid, Wedding, Funeral/Condolences, New Baby, Travel/Safe-trip, Hospitality/Food, Religious, Apologies, Thanks, Sneeze/Health, Compliments. Default: **all of these**.
+3. Voice required or optional per question? Default: **optional** (mic OR choice always available).

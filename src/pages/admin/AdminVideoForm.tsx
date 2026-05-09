@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useDiscoverVideo } from "@/hooks/useDiscoverVideos";
@@ -26,6 +26,8 @@ const DIFFICULTIES = ["Beginner", "Intermediate", "Advanced", "Expert"];
 const AdminVideoForm = () => {
   const navigate = useNavigate();
   const { videoId } = useParams<{ videoId: string }>();
+  const [searchParams] = useSearchParams();
+  const memeQueryFlag = searchParams.get("meme") === "1";
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
@@ -42,7 +44,12 @@ const AdminVideoForm = () => {
   const [dialect, setDialect] = useState("Gulf");
   const [difficulty, setDifficulty] = useState("Beginner");
   const [published, setPublished] = useState(false);
-  const [isMeme, setIsMeme] = useState(false);
+  const [isMeme, setIsMeme] = useState(memeQueryFlag);
+
+  // Apply ?meme=1 default for brand new videos.
+  useEffect(() => {
+    if (!videoId && memeQueryFlag) setIsMeme(true);
+  }, [videoId, memeQueryFlag]);
   const [culturalContext, setCulturalContext] = useState("");
   const [transcriptLines, setTranscriptLines] = useState<TranscriptLine[]>([]);
   const [vocabulary, setVocabulary] = useState<any[]>([]);

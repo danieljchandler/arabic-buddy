@@ -403,6 +403,15 @@ const Index = () => {
                   <p className="text-xs text-muted-foreground">Practice real-world Arabic scenarios</p>
                 </div>
               </button>
+              <button onClick={() => navigate("/set-phrases")} className={cn("w-full p-4 rounded-xl mb-2 bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border border-emerald-500/20 flex items-center gap-3 transition-all duration-200 hover:border-emerald-500/40 active:scale-[0.98]")}>
+                <div className="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0">
+                  <MessageCircle className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <div className="text-left">
+                  <p className="font-semibold text-foreground">Set Phrases</p>
+                  <p className="text-xs text-muted-foreground">Greetings, weddings, Eid & more — voice quiz</p>
+                </div>
+              </button>
               <button onClick={() => navigate("/stories")} className={cn("w-full p-4 rounded-xl bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20 flex items-center gap-3 transition-all duration-200 hover:border-amber-500/40 active:scale-[0.98]")}>
                 <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center shrink-0">
                   <BookOpen className="h-5 w-5 text-amber-600" />

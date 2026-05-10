@@ -129,21 +129,21 @@ const SetPhrasesPractice = ({ reviewMode = false }: Props) => {
 
   if (generate.isPending) {
     return (
-      <AppShell title={reviewMode ? "Review" : "Practice"} showBackButton onBack={() => navigate("/set-phrases")}>
+      <AppShell compact>
         <div className="flex justify-center p-12"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
       </AppShell>
     );
   }
   if (!current) {
     return (
-      <AppShell title="Practice" showBackButton onBack={() => navigate("/set-phrases")}>
+      <AppShell compact>
         <Card className="p-6 text-center text-sm text-muted-foreground">No phrases ready yet.</Card>
       </AppShell>
     );
   }
 
   return (
-    <AppShell title={reviewMode ? "Review" : "Practice"} showBackButton onBack={() => navigate("/set-phrases")}>
+    <AppShell compact>
       <div className="space-y-3">
         <div className="flex items-center justify-between text-xs">
           <span className="text-muted-foreground">{idx + 1} / {items.length}</span>

@@ -29,7 +29,8 @@ ${DIALECT_RULES[dialect] ?? DIALECT_RULES.Gulf}
 Rules:
 - Generate 10 distinct REAL phrases native speakers actually say for the occasion. NO invented phrases.
 - Mix difficulties A1-B2; mix formality (casual/neutral/formal/religious).
-- Where a typical reply exists, include reply_arabic + reply_english.
+- CRITICAL: Every phrase MUST include the most common native reply (reply_arabic, reply_english, reply_transliteration). Set phrases are conversational — there is ALWAYS an expected response (greeting → return greeting, condolence → standard reply, congratulations → standard reply, thanks → standard reply, etc.). Never omit the reply. If multiple replies are common, pick the single most frequent one.
+- The reply must be authentic to the same dialect as the phrase, NOT MSA.
 - Provide a 1-sentence English scenario where someone would say the phrase.
 - Cultural sensitivity: respectful tone for funerals/religious.`;
 

@@ -176,19 +176,77 @@ const AdminSetPhrases = () => {
         <h2 className="font-semibold mb-3">Phrases ({phrases?.length ?? 0})</h2>
         <div className="space-y-2">
           {phrases?.map((p: any) => (
-            <div key={p.id} className="flex items-center justify-between gap-2 p-3 border rounded-lg">
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold truncate" dir="rtl">{p.phrase_arabic}</p>
-                <p className="text-xs text-muted-foreground truncate">{p.phrase_english}</p>
-                <div className="flex gap-1 mt-1">
-                  {p.set_phrase_occasions?.name && <Badge variant="outline" className="text-xs">{p.set_phrase_occasions.name}</Badge>}
-                  <Badge variant="secondary" className="text-xs">{p.difficulty}</Badge>
-                  <Badge variant="secondary" className="text-xs">{p.formality}</Badge>
+            <div key={p.id} className="p-3 border rounded-lg space-y-2">
+              {editingId === p.id ? (
+                <div className="space-y-2">
+                  <div className="grid grid-cols-1 gap-2">
+                    <label className="text-xs font-semibold">Phrase (Arabic)</label>
+                    <Input dir="rtl" value={draft.phrase_arabic} onChange={(e) => setDraft({ ...draft, phrase_arabic: e.target.value })} />
+                    <label className="text-xs font-semibold">Phrase (Transliteration)</label>
+                    <Input value={draft.phrase_transliteration} onChange={(e) => setDraft({ ...draft, phrase_transliteration: e.target.value })} />
+                    <label className="text-xs font-semibold">Phrase (English)</label>
+                    <Input value={draft.phrase_english} onChange={(e) => setDraft({ ...draft, phrase_english: e.target.value })} />
+                    <label className="text-xs font-semibold">Reply (Arabic)</label>
+                    <Input dir="rtl" value={draft.reply_arabic} onChange={(e) => setDraft({ ...draft, reply_arabic: e.target.value })} />
+                    <label className="text-xs font-semibold">Reply (Transliteration)</label>
+                    <Input value={draft.reply_transliteration} onChange={(e) => setDraft({ ...draft, reply_transliteration: e.target.value })} />
+                    <label className="text-xs font-semibold">Reply (English)</label>
+                    <Input value={draft.reply_english} onChange={(e) => setDraft({ ...draft, reply_english: e.target.value })} />
+                    <label className="text-xs font-semibold">Scenario</label>
+                    <Textarea rows={2} value={draft.scenario_english} onChange={(e) => setDraft({ ...draft, scenario_english: e.target.value })} />
+                    <label className="text-xs font-semibold">Cultural Note</label>
+                    <Textarea rows={2} value={draft.cultural_note} onChange={(e) => setDraft({ ...draft, cultural_note: e.target.value })} />
+                  </div>
+                  <div className="flex gap-2 justify-end">
+                    <Button size="sm" variant="ghost" onClick={cancelEdit}><X className="h-4 w-4 mr-1" />Cancel</Button>
+                    <Button size="sm" onClick={() => saveEdit(p.id)}><Save className="h-4 w-4 mr-1" />Save</Button>
+                  </div>
                 </div>
-              </div>
-              <Button size="sm" variant={p.status === "published" ? "default" : "outline"} onClick={() => togglePublish(p.id, p.status)}>
-                {p.status}
-              </Button>
+              ) : (
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold truncate" dir="rtl">{p.phrase_arabic}</p>
+                    <p className="text-xs text-muted-foreground truncate">{p.phrase_english}</p>
+                    {p.reply_arabic && (
+                      <p className="text-xs text-muted-foreground truncate" dir="rtl">↳ {p.reply_arabic}</p>
+                    )}
+                    <div className="flex gap-1 mt-1 flex-wrap">
+                      {p.set_phrase_occasions?.name && <Badge variant="outline" className="text-xs">{p.set_phrase_occasions.name}</Badge>}
+                      <Badge variant="secondary" className="text-xs">{p.difficulty}</Badge>
+                      <Badge variant="secondary" className="text-xs">{p.formality}</Badge>
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-1 shrink-0">
+                    <Button size="sm" variant={p.status === "published" ? "default" : "outline"} onClick={() => togglePublish(p.id, p.status)}>
+                      {p.status}
+                    </Button>
+                    <div className="flex gap-1">
+                      <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => startEdit(p)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete this phrase?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This will permanently delete "{p.phrase_arabic}" and any user review history for it.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => deletePhrase(p.id)}>Delete</AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           ))}
           {!phrases?.length && <p className="text-sm text-muted-foreground text-center py-6">No phrases yet.</p>}

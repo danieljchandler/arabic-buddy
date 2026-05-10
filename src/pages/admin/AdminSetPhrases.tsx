@@ -6,8 +6,21 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Sparkles, ArrowLeft, Plus } from "lucide-react";
+import { Loader2, Sparkles, ArrowLeft, Plus, Pencil, Trash2, Save, X } from "lucide-react";
 import { toast } from "sonner";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const sb = supabase as any;
 
@@ -15,6 +28,8 @@ const AdminSetPhrases = () => {
   const navigate = useNavigate();
   const { activeDialect } = useDialect();
   const [seeding, setSeeding] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draft, setDraft] = useState<any>({});
 
   const { data: occasions } = useQuery({
     queryKey: ["admin-occasions", activeDialect],
@@ -53,6 +68,46 @@ const AdminSetPhrases = () => {
   const togglePublish = async (id: string, current: string) => {
     const next = current === "published" ? "draft" : "published";
     await sb.from("set_phrases").update({ status: next }).eq("id", id);
+    refetch();
+  };
+
+  const deletePhrase = async (id: string) => {
+    const { error } = await sb.from("set_phrases").delete().eq("id", id);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Phrase deleted");
+    refetch();
+  };
+
+  const startEdit = (p: any) => {
+    setEditingId(p.id);
+    setDraft({
+      phrase_arabic: p.phrase_arabic ?? "",
+      phrase_transliteration: p.phrase_transliteration ?? "",
+      phrase_english: p.phrase_english ?? "",
+      reply_arabic: p.reply_arabic ?? "",
+      reply_transliteration: p.reply_transliteration ?? "",
+      reply_english: p.reply_english ?? "",
+      scenario_english: p.scenario_english ?? "",
+      cultural_note: p.cultural_note ?? "",
+    });
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setDraft({});
+  };
+
+  const saveEdit = async (id: string) => {
+    const { error } = await sb.from("set_phrases").update(draft).eq("id", id);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Saved");
+    cancelEdit();
     refetch();
   };
 
@@ -121,19 +176,77 @@ const AdminSetPhrases = () => {
         <h2 className="font-semibold mb-3">Phrases ({phrases?.length ?? 0})</h2>
         <div className="space-y-2">
           {phrases?.map((p: any) => (
-            <div key={p.id} className="flex items-center justify-between gap-2 p-3 border rounded-lg">
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold truncate" dir="rtl">{p.phrase_arabic}</p>
-                <p className="text-xs text-muted-foreground truncate">{p.phrase_english}</p>
-                <div className="flex gap-1 mt-1">
-                  {p.set_phrase_occasions?.name && <Badge variant="outline" className="text-xs">{p.set_phrase_occasions.name}</Badge>}
-                  <Badge variant="secondary" className="text-xs">{p.difficulty}</Badge>
-                  <Badge variant="secondary" className="text-xs">{p.formality}</Badge>
+            <div key={p.id} className="p-3 border rounded-lg space-y-2">
+              {editingId === p.id ? (
+                <div className="space-y-2">
+                  <div className="grid grid-cols-1 gap-2">
+                    <label className="text-xs font-semibold">Phrase (Arabic)</label>
+                    <Input dir="rtl" value={draft.phrase_arabic} onChange={(e) => setDraft({ ...draft, phrase_arabic: e.target.value })} />
+                    <label className="text-xs font-semibold">Phrase (Transliteration)</label>
+                    <Input value={draft.phrase_transliteration} onChange={(e) => setDraft({ ...draft, phrase_transliteration: e.target.value })} />
+                    <label className="text-xs font-semibold">Phrase (English)</label>
+                    <Input value={draft.phrase_english} onChange={(e) => setDraft({ ...draft, phrase_english: e.target.value })} />
+                    <label className="text-xs font-semibold">Reply (Arabic)</label>
+                    <Input dir="rtl" value={draft.reply_arabic} onChange={(e) => setDraft({ ...draft, reply_arabic: e.target.value })} />
+                    <label className="text-xs font-semibold">Reply (Transliteration)</label>
+                    <Input value={draft.reply_transliteration} onChange={(e) => setDraft({ ...draft, reply_transliteration: e.target.value })} />
+                    <label className="text-xs font-semibold">Reply (English)</label>
+                    <Input value={draft.reply_english} onChange={(e) => setDraft({ ...draft, reply_english: e.target.value })} />
+                    <label className="text-xs font-semibold">Scenario</label>
+                    <Textarea rows={2} value={draft.scenario_english} onChange={(e) => setDraft({ ...draft, scenario_english: e.target.value })} />
+                    <label className="text-xs font-semibold">Cultural Note</label>
+                    <Textarea rows={2} value={draft.cultural_note} onChange={(e) => setDraft({ ...draft, cultural_note: e.target.value })} />
+                  </div>
+                  <div className="flex gap-2 justify-end">
+                    <Button size="sm" variant="ghost" onClick={cancelEdit}><X className="h-4 w-4 mr-1" />Cancel</Button>
+                    <Button size="sm" onClick={() => saveEdit(p.id)}><Save className="h-4 w-4 mr-1" />Save</Button>
+                  </div>
                 </div>
-              </div>
-              <Button size="sm" variant={p.status === "published" ? "default" : "outline"} onClick={() => togglePublish(p.id, p.status)}>
-                {p.status}
-              </Button>
+              ) : (
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold truncate" dir="rtl">{p.phrase_arabic}</p>
+                    <p className="text-xs text-muted-foreground truncate">{p.phrase_english}</p>
+                    {p.reply_arabic && (
+                      <p className="text-xs text-muted-foreground truncate" dir="rtl">↳ {p.reply_arabic}</p>
+                    )}
+                    <div className="flex gap-1 mt-1 flex-wrap">
+                      {p.set_phrase_occasions?.name && <Badge variant="outline" className="text-xs">{p.set_phrase_occasions.name}</Badge>}
+                      <Badge variant="secondary" className="text-xs">{p.difficulty}</Badge>
+                      <Badge variant="secondary" className="text-xs">{p.formality}</Badge>
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-1 shrink-0">
+                    <Button size="sm" variant={p.status === "published" ? "default" : "outline"} onClick={() => togglePublish(p.id, p.status)}>
+                      {p.status}
+                    </Button>
+                    <div className="flex gap-1">
+                      <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => startEdit(p)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete this phrase?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This will permanently delete "{p.phrase_arabic}" and any user review history for it.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => deletePhrase(p.id)}>Delete</AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           ))}
           {!phrases?.length && <p className="text-sm text-muted-foreground text-center py-6">No phrases yet.</p>}

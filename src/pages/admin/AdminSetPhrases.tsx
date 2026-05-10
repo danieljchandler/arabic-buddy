@@ -28,6 +28,8 @@ const AdminSetPhrases = () => {
   const navigate = useNavigate();
   const { activeDialect } = useDialect();
   const [seeding, setSeeding] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draft, setDraft] = useState<any>({});
 
   const { data: occasions } = useQuery({
     queryKey: ["admin-occasions", activeDialect],

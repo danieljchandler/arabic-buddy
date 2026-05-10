@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
+import { HomeButton } from "@/components/HomeButton";
 import { useSetPhraseOccasions, useUserSetPhrasesDueCount } from "@/hooks/useSetPhrases";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -13,7 +14,9 @@ const SetPhrases = () => {
   const { activeDialect } = useDialect();
 
   return (
-    <AppShell title="Set Phrases" showBackButton onBack={() => navigate("/")}>
+    <AppShell>
+      <HomeButton />
+      <h1 className="text-2xl font-bold mt-4 mb-4" style={{ fontFamily: "'Montserrat', sans-serif" }}>Set Phrases</h1>
       <div className="space-y-4">
         <Card className="p-4 bg-gradient-to-br from-emerald-500/10 to-teal-500/10 border-emerald-500/30">
           <div className="flex items-start gap-3">

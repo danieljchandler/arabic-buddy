@@ -359,7 +359,12 @@ const App = () => {
               <Route path="memes" element={<AdminMemes />} />
               <Route path="memes/new" element={<AdminMemeForm />} />
               <Route path="memes/:memeId" element={<AdminMemeForm />} />
+              <Route path="set-phrases" element={<AdminSetPhrases />} />
             </Route>
+
+            <Route path="/set-phrases" element={<ErrorBoundary name="SetPhrasesRoute"><SetPhrases /></ErrorBoundary>} />
+            <Route path="/set-phrases/practice" element={<ErrorBoundary name="SetPhrasesPracticeRoute"><SetPhrasesPractice /></ErrorBoundary>} />
+            <Route path="/set-phrases/review" element={<ErrorBoundary name="SetPhrasesReviewRoute"><SetPhrasesReview /></ErrorBoundary>} />
 
             <Route path="*" element={<NotFound />} />
           </Routes>

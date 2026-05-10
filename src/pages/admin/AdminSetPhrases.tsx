@@ -71,6 +71,46 @@ const AdminSetPhrases = () => {
     refetch();
   };
 
+  const deletePhrase = async (id: string) => {
+    const { error } = await sb.from("set_phrases").delete().eq("id", id);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Phrase deleted");
+    refetch();
+  };
+
+  const startEdit = (p: any) => {
+    setEditingId(p.id);
+    setDraft({
+      phrase_arabic: p.phrase_arabic ?? "",
+      phrase_transliteration: p.phrase_transliteration ?? "",
+      phrase_english: p.phrase_english ?? "",
+      reply_arabic: p.reply_arabic ?? "",
+      reply_transliteration: p.reply_transliteration ?? "",
+      reply_english: p.reply_english ?? "",
+      scenario_english: p.scenario_english ?? "",
+      cultural_note: p.cultural_note ?? "",
+    });
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setDraft({});
+  };
+
+  const saveEdit = async (id: string) => {
+    const { error } = await sb.from("set_phrases").update(draft).eq("id", id);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Saved");
+    cancelEdit();
+    refetch();
+  };
+
   const addOccasion = async (slug: string, name: string) => {
     await sb.from("set_phrase_occasions").insert({ slug, name, dialect: activeDialect, status: "published" });
     refetch();

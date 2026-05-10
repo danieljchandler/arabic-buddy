@@ -85,6 +85,10 @@ const AdminBibleLessons = lazyPage(() => import("./pages/admin/AdminBibleLessons
 const AdminPictureScenes = lazyPage(() => import("./pages/admin/AdminPictureScenes"));
 const AdminPictureSceneEdit = lazyPage(() => import("./pages/admin/AdminPictureSceneEdit"));
 const AdminCoverage = lazyPage(() => import("./pages/admin/AdminCoverage"));
+const AdminSetPhrases = lazyPage(() => import("./pages/admin/AdminSetPhrases"));
+const SetPhrases = lazyPage(() => import("./pages/SetPhrases"));
+const SetPhrasesPractice = lazyPage(() => import("./pages/SetPhrasesPractice"));
+const SetPhrasesReview = lazyPage(() => import("./pages/SetPhrasesReview"));
 
 const queryClient = new QueryClient();
 
@@ -355,7 +359,12 @@ const App = () => {
               <Route path="memes" element={<AdminMemes />} />
               <Route path="memes/new" element={<AdminMemeForm />} />
               <Route path="memes/:memeId" element={<AdminMemeForm />} />
+              <Route path="set-phrases" element={<AdminSetPhrases />} />
             </Route>
+
+            <Route path="/set-phrases" element={<ErrorBoundary name="SetPhrasesRoute"><SetPhrases /></ErrorBoundary>} />
+            <Route path="/set-phrases/practice" element={<ErrorBoundary name="SetPhrasesPracticeRoute"><SetPhrasesPractice /></ErrorBoundary>} />
+            <Route path="/set-phrases/review" element={<ErrorBoundary name="SetPhrasesReviewRoute"><SetPhrasesReview /></ErrorBoundary>} />
 
             <Route path="*" element={<NotFound />} />
           </Routes>

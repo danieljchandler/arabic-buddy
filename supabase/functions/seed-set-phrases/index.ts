@@ -67,7 +67,7 @@ Rules:
                     formality: { type: "string", enum: ["casual", "neutral", "formal", "religious"] },
                     difficulty: { type: "string", enum: ["A1", "A2", "B1", "B2", "C1"] },
                   },
-                  required: ["phrase_arabic", "phrase_english", "scenario_english", "formality", "difficulty"],
+                  required: ["phrase_arabic", "phrase_english", "reply_arabic", "reply_english", "reply_transliteration", "scenario_english", "formality", "difficulty"],
                 },
               },
             },

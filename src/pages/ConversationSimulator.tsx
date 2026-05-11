@@ -191,11 +191,8 @@ export default function ConversationSimulator() {
           return next;
         });
 
-        if (body.trim()) {
-          // Auto-play the reply
-          const finalIdx = history.length; // history = messages without the new assistant msg
-          void playMessage(body, finalIdx);
-        }
+        // Note: do NOT auto-play TTS here — browsers block audio without a
+        // user gesture. The user taps the 🔊 button on the bubble to hear it.
       } catch (err: any) {
         if (err?.name !== "AbortError") {
           console.error("free-chat stream error:", err);

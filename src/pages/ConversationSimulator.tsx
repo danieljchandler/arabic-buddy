@@ -191,11 +191,8 @@ export default function ConversationSimulator() {
           return next;
         });
 
-        if (body.trim()) {
-          // Auto-play the reply
-          const finalIdx = history.length; // history = messages without the new assistant msg
-          void playMessage(body, finalIdx);
-        }
+        // Note: do NOT auto-play TTS here — browsers block audio without a
+        // user gesture. The user taps the 🔊 button on the bubble to hear it.
       } catch (err: any) {
         if (err?.name !== "AbortError") {
           console.error("free-chat stream error:", err);
@@ -290,28 +287,39 @@ export default function ConversationSimulator() {
     async (text: string, idx: number) => {
       const trimmed = text.trim();
       if (!trimmed) return;
+
+      // Create the Audio element synchronously inside the gesture so the
+      // browser allows playback after the await.
       audioRef.current?.pause();
+      const audio = new Audio();
+      audioRef.current = audio;
+      audio.onended = () => setPlayingIdx(null);
+      audio.onerror = () => setPlayingIdx(null);
       setPlayingIdx(idx);
 
       try {
         let url = ttsCache.current.get(trimmed);
         if (!url) {
           const fnName = activeDialect === "Gulf" ? "munsit-tts" : "elevenlabs-tts";
-          const { data, error } = await supabase.functions.invoke(fnName, {
-            body: { text: trimmed },
+          const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
+          const ANON = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
+          const { data: { session } } = await supabase.auth.getSession();
+          const token = session?.access_token ?? ANON;
+          const res = await fetch(`${SUPABASE_URL}/functions/v1/${fnName}`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+              apikey: ANON,
+            },
+            body: JSON.stringify({ text: trimmed }),
           });
-          if (error) throw error;
-          // invoke returns Blob for binary content-types
-          const blob = data instanceof Blob
-            ? data
-            : new Blob([data as ArrayBuffer], { type: activeDialect === "Gulf" ? "audio/wav" : "audio/mpeg" });
+          if (!res.ok) throw new Error(`${fnName} ${res.status}`);
+          const blob = await res.blob();
           url = URL.createObjectURL(blob);
           ttsCache.current.set(trimmed, url);
         }
-        const audio = new Audio(url);
-        audioRef.current = audio;
-        audio.onended = () => setPlayingIdx(null);
-        audio.onerror = () => setPlayingIdx(null);
+        audio.src = url;
         await audio.play();
       } catch (err) {
         console.error("TTS error:", err);
@@ -320,6 +328,7 @@ export default function ConversationSimulator() {
     },
     [activeDialect],
   );
+
 
   // ── Save assistant reply as a Set Phrase ─────────────────────────────────
   const savePhrase = useCallback(

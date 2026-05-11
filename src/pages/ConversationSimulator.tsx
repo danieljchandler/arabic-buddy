@@ -1,880 +1,554 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useDialect } from "@/contexts/DialectContext";
-import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
+import { useUserLevel } from "@/hooks/useUserLevel";
+import { useAddUserPhrase } from "@/hooks/useUserPhrases";
+import { useDisplayPrefs } from "@/hooks/useDisplayPrefs";
 import { AppShell } from "@/components/layout/AppShell";
 import { HomeButton } from "@/components/HomeButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Loader2, Send, RotateCcw, MessageCircle, Coffee, MapPin, ShoppingBag, Users, Mic, MicOff, Volume2, UtensilsCrossed, Building2, Stethoscope, Phone, Plane } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
-import { cn } from "@/lib/utils";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { TappableArabicText } from "@/components/shared/TappableArabicText";
 import { supabase } from "@/integrations/supabase/client";
-import { useUserLevel } from "@/hooks/useUserLevel";
 import { useToast } from "@/hooks/use-toast";
+import {
+  Loader2,
+  Send,
+  Mic,
+  MicOff,
+  Volume2,
+  RotateCcw,
+  BookmarkPlus,
+  Sparkles,
+  AlertCircle,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 
-interface Message {
-  role: "user" | "assistant" | "system";
+interface ChatMsg {
+  role: "user" | "assistant";
+  /** Pure Arabic content (no correction line, no translation). */
   content: string;
-  translation?: string;
+  /** Optional inline correction the AI emitted ([[CORRECTION]] line). */
+  correction?: string;
+  /** Streaming flag for the trailing assistant bubble. */
+  streaming?: boolean;
 }
 
-interface Scenario {
-  id: string;
-  title: string;
-  titleArabic: string;
-  description: string;
-  icon: React.ReactNode;
-  systemPrompt: string;
-  difficulty: "Beginner" | "Intermediate" | "Advanced";
+const STORAGE_KEY = "lahja_freechat_v1";
+const STORAGE_TTL_MS = 4 * 60 * 60 * 1000;
+
+const TOPIC_SEEDS = [
+  { key: "free", label: "Free Talk", hint: undefined },
+  { key: "coffee", label: "Coffee ☕", hint: "ordering at a café" },
+  { key: "family", label: "Family 👨‍👩‍👧", hint: "talking about family" },
+  { key: "work", label: "Work 💼", hint: "talking about work and daily routine" },
+  { key: "travel", label: "Travel ✈️", hint: "planning a trip" },
+  { key: "food", label: "Food 🍽️", hint: "favourite foods and dishes" },
+] as const;
+
+/** Strip a leading [[CORRECTION]] line, returning {correction, body}. */
+function splitCorrection(text: string): { correction?: string; body: string } {
+  const match = text.match(/^\s*\[\[CORRECTION\]\]\s*(.+?)\s*\n+([\s\S]*)$/);
+  if (match) return { correction: match[1].trim(), body: match[2].trim() };
+  return { body: text };
 }
 
-const GULF_SCENARIOS: Scenario[] = [
-  {
-    id: "coffee-shop",
-    title: "Coffee Shop",
-    titleArabic: "المقهى",
-    description: "Order a drink at a Gulf-style café",
-    icon: <Coffee className="h-5 w-5" />,
-    difficulty: "Beginner",
-    systemPrompt: `You are a friendly barista at a popular café in Riyadh. Speak ONLY in Gulf Arabic (Saudi dialect). Keep your responses short (1-2 sentences). Start by greeting the customer and asking what they'd like to order. Use common café vocabulary. After each Arabic response, add a line break then provide the English translation in parentheses. Example format:
-أهلاً وسهلاً! وش تبي تشرب؟
-(Welcome! What would you like to drink?)`,
-  },
-  {
-    id: "taxi",
-    title: "Taxi Ride",
-    titleArabic: "التاكسي",
-    description: "Give directions to a taxi driver",
-    icon: <MapPin className="h-5 w-5" />,
-    difficulty: "Beginner",
-    systemPrompt: `You are a taxi driver in Dubai. Speak ONLY in Gulf Arabic (UAE dialect). Keep responses short (1-2 sentences). Start by greeting the passenger and asking where they want to go. Use common direction vocabulary. After each Arabic response, add a line break then provide the English translation in parentheses.`,
-  },
-  {
-    id: "souq",
-    title: "At the Souq",
-    titleArabic: "في السوق",
-    description: "Bargain and shop at a traditional market",
-    icon: <ShoppingBag className="h-5 w-5" />,
-    difficulty: "Intermediate",
-    systemPrompt: `You are a shopkeeper at a traditional souq in Kuwait. Speak ONLY in Gulf Arabic (Kuwaiti dialect). Keep responses short (1-2 sentences). Start by welcoming the customer and showing your goods. Be willing to negotiate prices. After each Arabic response, add a line break then provide the English translation in parentheses.`,
-  },
-  {
-    id: "meeting-friends",
-    title: "Meeting Friends",
-    titleArabic: "لقاء الأصدقاء",
-    description: "Casual conversation with new friends",
-    icon: <Users className="h-5 w-5" />,
-    difficulty: "Intermediate",
-    systemPrompt: `You are a friendly local person in Bahrain meeting someone new at a social gathering. Speak ONLY in Gulf Arabic (Bahraini dialect). Keep responses short (1-2 sentences). Start by introducing yourself and asking about the other person. Use common social phrases. After each Arabic response, add a line break then provide the English translation in parentheses.`,
-  },
-  {
-    id: "restaurant",
-    title: "Restaurant",
-    titleArabic: "المطعم",
-    description: "Order food at a Gulf restaurant",
-    icon: <UtensilsCrossed className="h-5 w-5" />,
-    difficulty: "Beginner",
-    systemPrompt: `You are a waiter at a popular restaurant in Jeddah serving traditional Gulf cuisine. Speak ONLY in Gulf Arabic (Saudi dialect). Keep responses short (1-2 sentences). Start by welcoming the guest and asking what they would like to eat. Suggest popular dishes like kabsa, mandi, or machboos. After each Arabic response, add a line break then provide the English translation in parentheses.`,
-  },
-  {
-    id: "hotel",
-    title: "Hotel Check-in",
-    titleArabic: "تسجيل الفندق",
-    description: "Check into a hotel and ask about amenities",
-    icon: <Building2 className="h-5 w-5" />,
-    difficulty: "Intermediate",
-    systemPrompt: `You are a hotel receptionist at a luxury hotel in Abu Dhabi. Speak ONLY in Gulf Arabic (UAE dialect). Keep responses short (1-2 sentences). Start by welcoming the guest and asking for their reservation details. Be helpful about room amenities, breakfast times, and hotel services. After each Arabic response, add a line break then provide the English translation in parentheses.`,
-  },
-  {
-    id: "doctor",
-    title: "Doctor's Visit",
-    titleArabic: "زيارة الطبيب",
-    description: "Describe symptoms to a doctor",
-    icon: <Stethoscope className="h-5 w-5" />,
-    difficulty: "Advanced",
-    systemPrompt: `You are a kind doctor at a clinic in Qatar. Speak ONLY in Gulf Arabic (Qatari dialect). Keep responses short (1-2 sentences). Start by asking the patient what brings them in today and how they're feeling. Use common medical vocabulary but keep it accessible. After each Arabic response, add a line break then provide the English translation in parentheses.`,
-  },
-  {
-    id: "phone-call",
-    title: "Phone Call",
-    titleArabic: "مكالمة هاتفية",
-    description: "Make a phone reservation or inquiry",
-    icon: <Phone className="h-5 w-5" />,
-    difficulty: "Advanced",
-    systemPrompt: `You are answering a phone call at a restaurant in Kuwait. Speak ONLY in Gulf Arabic (Kuwaiti dialect). Keep responses short (1-2 sentences). Start by greeting and asking how you can help. Handle reservation requests or answer questions about hours and menu. After each Arabic response, add a line break then provide the English translation in parentheses.`,
-  },
-  {
-    id: "airport",
-    title: "At the Airport",
-    titleArabic: "في المطار",
-    description: "Navigate check-in and boarding",
-    icon: <Plane className="h-5 w-5" />,
-    difficulty: "Intermediate",
-    systemPrompt: `You are an airline staff member at Kuwait International Airport. Speak ONLY in Gulf Arabic (Kuwaiti dialect). Keep responses short (1-2 sentences). Start by greeting the passenger and asking for their ticket and passport. Help with check-in, baggage, and boarding information. After each Arabic response, add a line break then provide the English translation in parentheses.`,
-  },
-];
-
-const EGYPTIAN_SCENARIOS: Scenario[] = [
-  {
-    id: "eg-coffee-shop",
-    title: "Coffee Shop",
-    titleArabic: "القهوة",
-    description: "Order a drink at a Cairo café",
-    icon: <Coffee className="h-5 w-5" />,
-    difficulty: "Beginner",
-    systemPrompt: `You are a friendly barista at a popular café in Cairo. Speak ONLY in Egyptian Arabic (مصري). Keep your responses short (1-2 sentences). Start by greeting the customer and asking what they'd like to order. Use common café vocabulary. After each Arabic response, add a line break then provide the English translation in parentheses. Example format:
-أهلاً! عايز تشرب إيه؟
-(Hello! What would you like to drink?)`,
-  },
-  {
-    id: "eg-taxi",
-    title: "Taxi Ride",
-    titleArabic: "التاكسي",
-    description: "Give directions to a Cairo taxi driver",
-    icon: <MapPin className="h-5 w-5" />,
-    difficulty: "Beginner",
-    systemPrompt: `You are a taxi driver in Cairo. Speak ONLY in Egyptian Arabic (مصري). Keep responses short (1-2 sentences). Start by greeting the passenger and asking where they want to go. Use common direction vocabulary. After each Arabic response, add a line break then provide the English translation in parentheses.`,
-  },
-  {
-    id: "eg-souq",
-    title: "At Khan el-Khalili",
-    titleArabic: "في خان الخليلي",
-    description: "Bargain at Cairo's famous bazaar",
-    icon: <ShoppingBag className="h-5 w-5" />,
-    difficulty: "Intermediate",
-    systemPrompt: `You are a shopkeeper at Khan el-Khalili bazaar in Cairo. Speak ONLY in Egyptian Arabic (مصري). Keep responses short (1-2 sentences). Start by welcoming the customer and showing your goods. Be willing to negotiate prices. After each Arabic response, add a line break then provide the English translation in parentheses.`,
-  },
-  {
-    id: "eg-meeting-friends",
-    title: "Meeting Friends",
-    titleArabic: "لقاء الأصحاب",
-    description: "Casual conversation with new friends",
-    icon: <Users className="h-5 w-5" />,
-    difficulty: "Intermediate",
-    systemPrompt: `You are a friendly Egyptian person meeting someone new at a social gathering in Cairo. Speak ONLY in Egyptian Arabic (مصري). Keep responses short (1-2 sentences). Start by introducing yourself and asking about the other person. Use common social phrases. After each Arabic response, add a line break then provide the English translation in parentheses.`,
-  },
-  {
-    id: "eg-restaurant",
-    title: "Restaurant",
-    titleArabic: "المطعم",
-    description: "Order food at an Egyptian restaurant",
-    icon: <UtensilsCrossed className="h-5 w-5" />,
-    difficulty: "Beginner",
-    systemPrompt: `You are a waiter at a popular restaurant in Cairo serving traditional Egyptian food. Speak ONLY in Egyptian Arabic (مصري). Keep responses short (1-2 sentences). Start by welcoming the guest and asking what they would like to eat. Suggest popular dishes like كشري، فول، طعمية، ملوخية. After each Arabic response, add a line break then provide the English translation in parentheses.`,
-  },
-  {
-    id: "eg-hotel",
-    title: "Hotel Check-in",
-    titleArabic: "تسجيل الفندق",
-    description: "Check into a hotel in Cairo",
-    icon: <Building2 className="h-5 w-5" />,
-    difficulty: "Intermediate",
-    systemPrompt: `You are a hotel receptionist at a hotel in Cairo. Speak ONLY in Egyptian Arabic (مصري). Keep responses short (1-2 sentences). Start by welcoming the guest and asking for their reservation details. Be helpful about room amenities, breakfast times, and hotel services. After each Arabic response, add a line break then provide the English translation in parentheses.`,
-  },
-  {
-    id: "eg-doctor",
-    title: "Doctor's Visit",
-    titleArabic: "زيارة الدكتور",
-    description: "Describe symptoms to a doctor",
-    icon: <Stethoscope className="h-5 w-5" />,
-    difficulty: "Advanced",
-    systemPrompt: `You are a kind doctor at a clinic in Cairo. Speak ONLY in Egyptian Arabic (مصري). Keep responses short (1-2 sentences). Start by asking the patient what brings them in today and how they're feeling. Use common medical vocabulary but keep it accessible. After each Arabic response, add a line break then provide the English translation in parentheses.`,
-  },
-  {
-    id: "eg-phone-call",
-    title: "Phone Call",
-    titleArabic: "مكالمة تليفون",
-    description: "Make a phone reservation or inquiry",
-    icon: <Phone className="h-5 w-5" />,
-    difficulty: "Advanced",
-    systemPrompt: `You are answering a phone call at a restaurant in Cairo. Speak ONLY in Egyptian Arabic (مصري). Keep responses short (1-2 sentences). Start by greeting and asking how you can help. Handle reservation requests or answer questions about hours and menu. After each Arabic response, add a line break then provide the English translation in parentheses.`,
-  },
-  {
-    id: "eg-airport",
-    title: "At the Airport",
-    titleArabic: "في المطار",
-    description: "Navigate check-in and boarding",
-    icon: <Plane className="h-5 w-5" />,
-    difficulty: "Intermediate",
-    systemPrompt: `You are an airline staff member at Cairo International Airport. Speak ONLY in Egyptian Arabic (مصري). Keep responses short (1-2 sentences). Start by greeting the passenger and asking for their ticket and passport. Help with check-in, baggage, and boarding information. After each Arabic response, add a line break then provide the English translation in parentheses.`,
-  },
-];
-
-const YEMENI_SCENARIOS: Scenario[] = [
-  {
-    id: "ye-coffee-shop",
-    title: "Tea House",
-    titleArabic: "المقهى",
-    description: "Order tea at a Yemeni café",
-    icon: <Coffee className="h-5 w-5" />,
-    difficulty: "Beginner",
-    systemPrompt: `You are a friendly server at a traditional tea house in Sana'a. Speak ONLY in Yemeni Arabic (يمني). Keep your responses short (1-2 sentences). Start by greeting the customer and asking what they'd like to drink — offer شاي عدني، قشر، قهوة. After each Arabic response, add a line break then provide the English translation in parentheses. Example format:
-أهلاً! شو تبغي تشرب؟ عندنا شاي عدني وقشر
-(Hello! What would you like to drink? We have Adeni tea and qishr)`,
-  },
-  {
-    id: "ye-taxi",
-    title: "Taxi Ride",
-    titleArabic: "التاكسي",
-    description: "Give directions to a taxi driver in Sana'a",
-    icon: <MapPin className="h-5 w-5" />,
-    difficulty: "Beginner",
-    systemPrompt: `You are a taxi driver in Sana'a Old City. Speak ONLY in Yemeni Arabic (يمني). Keep responses short (1-2 sentences). Start by greeting the passenger and asking where they want to go. Use common direction vocabulary. After each Arabic response, add a line break then provide the English translation in parentheses.`,
-  },
-  {
-    id: "ye-souq",
-    title: "At the Souq",
-    titleArabic: "في السوق",
-    description: "Bargain at a traditional Yemeni market",
-    icon: <ShoppingBag className="h-5 w-5" />,
-    difficulty: "Intermediate",
-    systemPrompt: `You are a shopkeeper at a traditional souq in Sana'a selling spices, honey, and janbiya daggers. Speak ONLY in Yemeni Arabic (يمني). Keep responses short (1-2 sentences). Start by welcoming the customer and showing your goods. Be willing to negotiate prices. After each Arabic response, add a line break then provide the English translation in parentheses.`,
-  },
-  {
-    id: "ye-meeting-friends",
-    title: "Meeting Friends",
-    titleArabic: "لقاء الأصدقاء",
-    description: "Casual conversation at a qat chew",
-    icon: <Users className="h-5 w-5" />,
-    difficulty: "Intermediate",
-    systemPrompt: `You are a friendly Yemeni person hosting a qat chew (تخزين قات) in your mafraj (مفرج). Speak ONLY in Yemeni Arabic (يمني). Keep responses short (1-2 sentences). Start by welcoming the guest and offering them qat and refreshments. Use common social phrases. After each Arabic response, add a line break then provide the English translation in parentheses.`,
-  },
-  {
-    id: "ye-restaurant",
-    title: "Restaurant",
-    titleArabic: "المطعم",
-    description: "Order food at a Yemeni restaurant",
-    icon: <UtensilsCrossed className="h-5 w-5" />,
-    difficulty: "Beginner",
-    systemPrompt: `You are a waiter at a popular restaurant in Sana'a serving traditional Yemeni food. Speak ONLY in Yemeni Arabic (يمني). Keep responses short (1-2 sentences). Start by welcoming the guest and asking what they would like to eat. Suggest popular dishes like سلتة، فحسة، بنت الصحن، مندي. After each Arabic response, add a line break then provide the English translation in parentheses.`,
-  },
-  {
-    id: "ye-hotel",
-    title: "Hotel Check-in",
-    titleArabic: "تسجيل الفندق",
-    description: "Check into a hotel in Aden",
-    icon: <Building2 className="h-5 w-5" />,
-    difficulty: "Intermediate",
-    systemPrompt: `You are a hotel receptionist at a hotel in Aden. Speak ONLY in Yemeni Arabic (يمني). Keep responses short (1-2 sentences). Start by welcoming the guest and asking for their reservation details. Be helpful about room amenities, breakfast times, and hotel services. After each Arabic response, add a line break then provide the English translation in parentheses.`,
-  },
-  {
-    id: "ye-doctor",
-    title: "Doctor's Visit",
-    titleArabic: "زيارة الطبيب",
-    description: "Describe symptoms to a doctor",
-    icon: <Stethoscope className="h-5 w-5" />,
-    difficulty: "Advanced",
-    systemPrompt: `You are a kind doctor at a clinic in Sana'a. Speak ONLY in Yemeni Arabic (يمني). Keep responses short (1-2 sentences). Start by asking the patient what brings them in today and how they're feeling. Use common medical vocabulary but keep it accessible. After each Arabic response, add a line break then provide the English translation in parentheses.`,
-  },
-  {
-    id: "ye-phone-call",
-    title: "Phone Call",
-    titleArabic: "مكالمة هاتفية",
-    description: "Make a phone reservation or inquiry",
-    icon: <Phone className="h-5 w-5" />,
-    difficulty: "Advanced",
-    systemPrompt: `You are answering a phone call at a restaurant in Aden. Speak ONLY in Yemeni Arabic (يمني). Keep responses short (1-2 sentences). Start by greeting and asking how you can help. Handle reservation requests or answer questions about hours and menu. After each Arabic response, add a line break then provide the English translation in parentheses.`,
-  },
-  {
-    id: "ye-airport",
-    title: "At the Airport",
-    titleArabic: "في المطار",
-    description: "Navigate check-in and boarding",
-    icon: <Plane className="h-5 w-5" />,
-    difficulty: "Intermediate",
-    systemPrompt: `You are an airline staff member at Aden International Airport. Speak ONLY in Yemeni Arabic (يمني). Keep responses short (1-2 sentences). Start by greeting the passenger and asking for their ticket and passport. Help with check-in, baggage, and boarding information. After each Arabic response, add a line break then provide the English translation in parentheses.`,
-  },
-];
-
-const DIFFICULTY_COLORS = {
-  Beginner: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
-  Intermediate: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
-  Advanced: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
-};
-
-const ConversationSimulator = () => {
-  const navigate = useNavigate();
-  const { toast } = useToast();
-  const { user, loading: authLoading } = useAuth();
+export default function ConversationSimulator() {
   const { activeDialect } = useDialect();
-  const { difficulty: userDifficulty } = useUserLevel();
+  const { user } = useAuth();
+  const { placementLevel } = useUserLevel();
+  const { prefs, update: updatePrefs } = useDisplayPrefs();
+  const addPhrase = useAddUserPhrase();
+  const { toast } = useToast();
 
-  // Restore persisted conversation session
-  const [savedConvo] = useState<any>(() => {
-    try {
-      const raw = localStorage.getItem('session_conversation');
-      if (!raw) return null;
-      const entry = JSON.parse(raw);
-      if (Date.now() - entry.savedAt > 4 * 60 * 60 * 1000) {
-        localStorage.removeItem('session_conversation');
-        return null;
-      }
-      return entry.data;
-    } catch { return null; }
-  });
-
-  const [selectedScenario, setSelectedScenario] = useState<Scenario | null>(savedConvo?.selectedScenario ?? null);
-  const [messages, setMessages] = useState<Message[]>(savedConvo?.messages ?? []);
+  const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [input, setInput] = useState("");
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [isSpeaking, setIsSpeaking] = useState<number | null>(null);
-  const [isRecording, setIsRecording] = useState(false);
-  const [autoPlay, setAutoPlay] = useState(true);
-  const [showTranslation, setShowTranslation] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [recording, setRecording] = useState(false);
+  const [transcribing, setTranscribing] = useState(false);
+  const [playingIdx, setPlayingIdx] = useState<number | null>(null);
 
-  // Persist conversation state
-  useEffect(() => {
-    if (!selectedScenario) return;
-    try {
-      // Strip icon (non-serializable JSX) from scenario before saving
-      const { icon, ...scenarioData } = selectedScenario;
-      const entry = {
-        data: { selectedScenario: scenarioData, messages },
-        savedAt: Date.now(),
-      };
-      localStorage.setItem('session_conversation', JSON.stringify(entry));
-    } catch {}
-  }, [selectedScenario, messages]);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const pendingAutoPlayRef = useRef<string | null>(null);
-  const recognitionRef = useRef<any>(null);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const ttsCache = useRef<Map<string, string>>(new Map());
 
-  // Fetch DB scenarios — must be declared here before any conditional returns (Rules of Hooks)
-  const { data: dbScenarios } = useQuery({
-    queryKey: ['conversation-scenarios'],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from('conversation_scenarios' as any)
-        .select('*')
-        .eq('status', 'published');
-      return (data || []) as any[];
-    },
-  });
+  const cefr = (placementLevel || "A2").toUpperCase();
 
-  // Voice recording toggle using browser Web Speech API
-  const toggleRecording = useCallback(() => {
-    if (isRecording) {
-      recognitionRef.current?.stop();
-      setIsRecording(false);
-      return;
-    }
-
-    const SpeechRecognition =
-      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-
-    if (!SpeechRecognition) {
-      toast({
-        title: "Voice input not supported",
-        description: "Your browser doesn't support voice input. Please use Chrome or Edge, or type instead.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const recognition = new SpeechRecognition();
-    recognition.lang = "ar";
-    recognition.interimResults = true;
-    recognition.continuous = false;
-
-    recognition.onstart = () => setIsRecording(true);
-
-    recognition.onresult = (event: any) => {
-      const transcript = Array.from(event.results as ArrayLike<any>)
-        .map((r: any) => r[0].transcript)
-        .join("");
-      setInput(transcript);
-    };
-
-    recognition.onerror = (event: any) => {
-      console.error("Speech recognition error:", event.error);
-      setIsRecording(false);
-      if (event.error === "not-allowed" || event.error === "service-not-allowed") {
-        toast({
-          title: "Microphone access blocked",
-          description: "Click the lock/info icon in your browser's address bar, set Microphone to 'Allow', then refresh the page.",
-          variant: "destructive",
-        });
-      } else if (event.error !== "aborted") {
-        toast({
-          title: "Voice input error",
-          description: "Could not capture audio. Please type instead.",
-          variant: "destructive",
-        });
-      }
-    };
-
-    recognition.onend = () => setIsRecording(false);
-
-    recognitionRef.current = recognition;
-    recognition.start();
-  }, [isRecording, toast]);
-
-  // Auto-scroll to bottom on new messages
+  // ── Persistence ──────────────────────────────────────────────────────────
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (parsed?.dialect !== activeDialect) return;
+      if (Date.now() - (parsed.savedAt ?? 0) > STORAGE_TTL_MS) return;
+      if (Array.isArray(parsed.messages)) setMessages(parsed.messages);
+    } catch {/* ignore */}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeDialect]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ dialect: activeDialect, savedAt: Date.now(), messages }),
+      );
+    } catch {/* ignore */}
+  }, [messages, activeDialect]);
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages]);
 
-  // Auto-play new assistant messages
-  useEffect(() => {
-    if (pendingAutoPlayRef.current && messages.length > 0) {
-      const lastMessage = messages[messages.length - 1];
-      if (lastMessage.role === "assistant" && lastMessage.content === pendingAutoPlayRef.current) {
-        pendingAutoPlayRef.current = null;
-        // Small delay to ensure UI is updated
-        setTimeout(() => {
-          speakText(lastMessage.content, messages.length - 1);
-        }, 300);
-      }
-    }
-  }, [messages]);
+  // ── Streaming chat ───────────────────────────────────────────────────────
+  const streamReply = useCallback(
+    async (history: ChatMsg[], topicHint?: string) => {
+      setSending(true);
+      abortRef.current?.abort();
+      const ctrl = new AbortController();
+      abortRef.current = ctrl;
 
-  const startScenario = useCallback(async (scenario: Scenario) => {
-    setSelectedScenario(scenario);
-    setMessages([]);
-    setIsGenerating(true);
-
-    try {
-      const { data, error } = await supabase.functions.invoke("conversation-practice", {
-        body: {
-          messages: [
-            { role: "system", content: scenario.systemPrompt },
-            { role: "user", content: "Start the conversation." },
-          ],
-          dialect: activeDialect,
-          difficulty: userDifficulty,
-        },
-      });
-
-      if (error) throw error;
-
-      const reply = data?.reply || data?.content || "";
-      setMessages([{ role: "assistant", content: reply }]);
-      // Queue auto-play for the first message
-      if (autoPlay) {
-        pendingAutoPlayRef.current = reply;
-      }
-    } catch (err) {
-      toast({
-        title: "Error",
-        description: "Failed to start conversation. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsGenerating(false);
-    }
-  }, [toast]);
-
-  const sendMessage = async () => {
-    if (!input.trim() || !selectedScenario || isGenerating) return;
-
-    const userMessage: Message = { role: "user", content: input.trim() };
-    const updatedMessages = [...messages, userMessage];
-    setMessages(updatedMessages);
-    setInput("");
-    setIsGenerating(true);
-
-    try {
-      const apiMessages = [
-        { role: "system", content: selectedScenario.systemPrompt },
-        ...updatedMessages.map((m) => ({
-          role: m.role,
-          content: m.content,
-        })),
-      ];
-
-      const { data, error } = await supabase.functions.invoke("conversation-practice", {
-        body: { messages: apiMessages, dialect: activeDialect, difficulty: userDifficulty },
-      });
-
-      if (error) throw error;
-
-      const reply = data?.reply || data?.content || "";
-      setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
-      // Queue auto-play
-      if (autoPlay) {
-        pendingAutoPlayRef.current = reply;
-      }
-    } catch (err) {
-      toast({
-        title: "Error",
-        description: "Failed to get response. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsGenerating(false);
-    }
-  };
-
-  const resetConversation = () => {
-    setSelectedScenario(null);
-    setMessages([]);
-    setInput("");
-  };
-
-  const speakText = async (text: string, messageIndex: number) => {
-    // Extract just the Arabic text (before parentheses/translation)
-    const arabicText = text.split("\n")[0].replace(/\(.*?\)/g, "").trim();
-    if (!arabicText) return;
-
-    // Stop any currently playing audio
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current = null;
-    }
-
-    setIsSpeaking(messageIndex);
-
-    try {
-      const isGulf = activeDialect === 'Gulf';
-      const headers = {
-        "Content-Type": "application/json",
-        apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-        Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-      };
-
-      const callTts = (fn: string, body: Record<string, unknown>) =>
-        fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${fn}`, {
-          method: "POST",
-          headers,
-          body: JSON.stringify(body),
-        });
-
-      // Gulf → Munsit (Arabic-native voice). Fallback to Azure on failure.
-      let response = isGulf
-        ? await callTts("munsit-tts", { text: arabicText })
-        : await callTts("azure-tts", {
-            text: arabicText,
-            voice: activeDialect === 'Egyptian' ? "ar-EG-ShakirNeural" : "ar-AE-HamdanNeural",
-          });
-
-      if (!response.ok && isGulf) {
-        console.warn(`munsit-tts failed (${response.status}); falling back to azure-tts`);
-        response = await callTts("azure-tts", {
-          text: arabicText,
-          voice: "ar-AE-HamdanNeural",
-        });
-      }
-
-      if (!response.ok) {
-        throw new Error(`TTS request failed: ${response.status}`);
-      }
-
-      const audioBlob = await response.blob();
-      const audioUrl = URL.createObjectURL(audioBlob);
-      const audio = new Audio(audioUrl);
-      audioRef.current = audio;
-
-      audio.onended = () => {
-        setIsSpeaking(null);
-        URL.revokeObjectURL(audioUrl);
-        audioRef.current = null;
-      };
-
-      audio.onerror = () => {
-        setIsSpeaking(null);
-        URL.revokeObjectURL(audioUrl);
-        audioRef.current = null;
-      };
+      // Insert empty assistant bubble we'll fill in
+      setMessages((prev) => [...prev, { role: "assistant", content: "", streaming: true }]);
 
       try {
-        await audio.play();
-      } catch (playErr) {
-        console.warn("Audio play failed:", playErr);
-        setIsSpeaking(null);
-        URL.revokeObjectURL(audioUrl);
-        audioRef.current = null;
+        const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/free-chat`;
+        const resp = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          signal: ctrl.signal,
+          body: JSON.stringify({
+            messages: history.map((m) => ({ role: m.role, content: m.content })),
+            dialect: activeDialect,
+            cefrLevel: cefr,
+            topicHint,
+          }),
+        });
+
+        if (!resp.ok || !resp.body) {
+          let errMsg = "Something went wrong.";
+          try {
+            const j = await resp.json();
+            if (j?.error) errMsg = j.error;
+          } catch {/* ignore */}
+          if (resp.status === 429) errMsg = "Slow down — too many requests. Try again in a moment.";
+          if (resp.status === 402) errMsg = "AI credits exhausted. Add funds in workspace settings.";
+          toast({ title: "Chat error", description: errMsg, variant: "destructive" });
+          setMessages((prev) => prev.slice(0, -1));
+          return;
+        }
+
+        const reader = resp.body.getReader();
+        const decoder = new TextDecoder();
+        let buf = "";
+        let acc = "";
+        let done = false;
+
+        while (!done) {
+          const { value, done: d } = await reader.read();
+          if (d) break;
+          buf += decoder.decode(value, { stream: true });
+          let nl: number;
+          while ((nl = buf.indexOf("\n")) !== -1) {
+            let line = buf.slice(0, nl);
+            buf = buf.slice(nl + 1);
+            if (line.endsWith("\r")) line = line.slice(0, -1);
+            if (!line.startsWith("data: ")) continue;
+            const data = line.slice(6).trim();
+            if (data === "[DONE]") { done = true; break; }
+            try {
+              const parsed = JSON.parse(data);
+              const delta = parsed.choices?.[0]?.delta?.content;
+              if (delta) {
+                acc += delta;
+                setMessages((prev) => {
+                  const next = [...prev];
+                  next[next.length - 1] = { role: "assistant", content: acc, streaming: true };
+                  return next;
+                });
+              }
+            } catch {
+              buf = line + "\n" + buf;
+              break;
+            }
+          }
+        }
+
+        // Finalize: split out correction and play TTS
+        const { correction, body } = splitCorrection(acc);
+        setMessages((prev) => {
+          const next = [...prev];
+          next[next.length - 1] = { role: "assistant", content: body, correction, streaming: false };
+          return next;
+        });
+
+        if (body.trim()) {
+          // Auto-play the reply
+          const finalIdx = history.length; // history = messages without the new assistant msg
+          void playMessage(body, finalIdx);
+        }
+      } catch (err: any) {
+        if (err?.name !== "AbortError") {
+          console.error("free-chat stream error:", err);
+          toast({ title: "Chat error", description: err?.message ?? "Failed to reach AI", variant: "destructive" });
+        }
+        setMessages((prev) => prev.filter((_, i) => !(i === prev.length - 1 && prev[i].streaming)));
+      } finally {
+        setSending(false);
       }
-    } catch (err) {
-      console.error("TTS error:", err);
-      setIsSpeaking(null);
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [activeDialect, cefr, toast],
+  );
 
-      // Fallback to browser speech synthesis
-      const utterance = new SpeechSynthesisUtterance(arabicText);
-      utterance.lang = "ar-SA";
-      utterance.rate = 0.8;
-      utterance.onend = () => setIsSpeaking(null);
-      speechSynthesis.speak(utterance);
+  // ── Send / start ─────────────────────────────────────────────────────────
+  const handleSend = useCallback(
+    (textOverride?: string) => {
+      const text = (textOverride ?? input).trim();
+      if (!text || sending) return;
+      setInput("");
+      const next: ChatMsg[] = [...messages, { role: "user", content: text }];
+      setMessages(next);
+      streamReply(next);
+    },
+    [input, sending, messages, streamReply],
+  );
+
+  const startConversation = useCallback(
+    (topicHint?: string) => {
+      audioRef.current?.pause();
+      ttsCache.current.clear();
+      setMessages([]);
+      // Send an empty history so the AI opens the conversation.
+      streamReply([], topicHint);
+    },
+    [streamReply],
+  );
+
+  // ── Mic (push-to-talk) ───────────────────────────────────────────────────
+  const startRecording = useCallback(async () => {
+    if (recording || sending || transcribing) return;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      audioChunksRef.current = [];
+      const mr = new MediaRecorder(stream, { mimeType: "audio/webm" });
+      mr.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
+      mr.onstop = async () => {
+        stream.getTracks().forEach((t) => t.stop());
+        const blob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+        if (blob.size === 0) return;
+        setTranscribing(true);
+        try {
+          const b64 = await blobToBase64(blob);
+          const { data, error } = await supabase.functions.invoke("munsit-transcribe", {
+            body: { audioBase64: b64, mimeType: "audio/webm" },
+          });
+          if (error) throw error;
+          const text = (data as any)?.text?.trim();
+          if (!text) {
+            toast({ title: "Couldn't hear that", description: "Try recording again.", variant: "destructive" });
+            return;
+          }
+          handleSend(text);
+        } catch (err: any) {
+          console.error("transcribe error:", err);
+          toast({ title: "Transcription failed", description: err?.message ?? "Try again", variant: "destructive" });
+        } finally {
+          setTranscribing(false);
+        }
+      };
+      mediaRecorderRef.current = mr;
+      mr.start();
+      setRecording(true);
+    } catch (err: any) {
+      toast({
+        title: "Microphone blocked",
+        description: "Allow mic access in your browser to use voice chat.",
+        variant: "destructive",
+      });
+      console.error(err);
     }
-  };
+  }, [recording, sending, transcribing, handleSend, toast]);
 
-  if (authLoading) {
-    return (
-      <AppShell>
-        <div className="flex items-center justify-center py-24">
-          <Loader2 className="h-10 w-10 animate-spin text-primary" />
-        </div>
-      </AppShell>
-    );
-  }
+  const stopRecording = useCallback(() => {
+    if (!recording) return;
+    try { mediaRecorderRef.current?.stop(); } catch {/* ignore */}
+    setRecording(false);
+  }, [recording]);
 
-  if (!user) {
-    return (
-      <AppShell>
-        <div className="mb-8"><HomeButton /></div>
-        <div className="text-center py-16">
-          <MessageCircle className="h-16 w-16 text-muted-foreground/30 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold mb-2 font-heading">Conversation Simulator</h1>
-          <p className="text-muted-foreground mb-6">Sign in to practice Arabic conversations</p>
-          <Button onClick={() => navigate("/auth")}>Sign In</Button>
-        </div>
-      </AppShell>
-    );
-  }
+  // ── TTS playback (dialect-routed) ────────────────────────────────────────
+  const playMessage = useCallback(
+    async (text: string, idx: number) => {
+      const trimmed = text.trim();
+      if (!trimmed) return;
+      audioRef.current?.pause();
+      setPlayingIdx(idx);
 
-  const ICON_MAP: Record<string, React.ReactNode> = {
-    Coffee: <Coffee className="h-5 w-5" />,
-    MapPin: <MapPin className="h-5 w-5" />,
-    ShoppingBag: <ShoppingBag className="h-5 w-5" />,
-    Users: <Users className="h-5 w-5" />,
-    UtensilsCrossed: <UtensilsCrossed className="h-5 w-5" />,
-    Building2: <Building2 className="h-5 w-5" />,
-    Stethoscope: <Stethoscope className="h-5 w-5" />,
-    Phone: <Phone className="h-5 w-5" />,
-    Plane: <Plane className="h-5 w-5" />,
-    MessageCircle: <MessageCircle className="h-5 w-5" />,
-  };
+      try {
+        let url = ttsCache.current.get(trimmed);
+        if (!url) {
+          const fnName = activeDialect === "Gulf" ? "munsit-tts" : "elevenlabs-tts";
+          const { data, error } = await supabase.functions.invoke(fnName, {
+            body: { text: trimmed },
+          });
+          if (error) throw error;
+          // invoke returns Blob for binary content-types
+          const blob = data instanceof Blob
+            ? data
+            : new Blob([data as ArrayBuffer], { type: activeDialect === "Gulf" ? "audio/wav" : "audio/mpeg" });
+          url = URL.createObjectURL(blob);
+          ttsCache.current.set(trimmed, url);
+        }
+        const audio = new Audio(url);
+        audioRef.current = audio;
+        audio.onended = () => setPlayingIdx(null);
+        audio.onerror = () => setPlayingIdx(null);
+        await audio.play();
+      } catch (err) {
+        console.error("TTS error:", err);
+        setPlayingIdx(null);
+      }
+    },
+    [activeDialect],
+  );
 
-  const SCENARIOS = activeDialect === 'Egyptian' ? EGYPTIAN_SCENARIOS : activeDialect === 'Yemeni' ? YEMENI_SCENARIOS : GULF_SCENARIOS;
+  // ── Save assistant reply as a Set Phrase ─────────────────────────────────
+  const savePhrase = useCallback(
+    (arabic: string) => {
+      if (!user) {
+        toast({ title: "Sign in to save phrases", variant: "destructive" });
+        return;
+      }
+      addPhrase.mutate(
+        {
+          phrase_arabic: arabic,
+          phrase_english: "", // optional — UI lets user edit later in My Phrases
+          source: "free-chat",
+        },
+        {
+          onSuccess: () => toast({ title: "Saved as phrase", description: "Find it under My Phrases." }),
+          onError: (err: any) => {
+            if (err?.message?.includes("موجودة")) {
+              toast({ title: "Already saved" });
+            } else {
+              toast({ title: "Couldn't save phrase", variant: "destructive" });
+            }
+          },
+        },
+      );
+    },
+    [user, addPhrase, toast],
+  );
 
-  const allScenarios: Scenario[] = [
-    ...(dbScenarios || []).map((s: any) => ({
-      id: s.id,
-      title: s.title,
-      titleArabic: s.title_arabic,
-      description: s.description,
-      icon: ICON_MAP[s.icon_name] || <MessageCircle className="h-5 w-5" />,
-      systemPrompt: s.system_prompt,
-      difficulty: s.difficulty as "Beginner" | "Intermediate" | "Advanced",
-    })),
-    ...SCENARIOS,
-  ];
+  const dialectAccent =
+    activeDialect === "Egyptian" ? "amber" : activeDialect === "Yemeni" ? "red" : "teal";
 
-  // Scenario selection screen
-  if (!selectedScenario) {
-    return (
-      <AppShell>
-        <div className="mb-6"><HomeButton /></div>
-
-        <div className="max-w-lg mx-auto">
-          <div className="text-center mb-8">
-            <h1 className="text-2xl font-bold font-heading mb-2">Conversation Simulator</h1>
-            <p className="text-muted-foreground">
-              Choose a scenario to practice real-world Arabic conversations
-            </p>
-          </div>
-
-          <div className="grid gap-3">
-            {allScenarios.map((scenario) => (
-              <button
-                key={scenario.id}
-                onClick={() => startScenario(scenario)}
-                className={cn(
-                  "w-full text-left bg-card border-2 border-border rounded-xl p-4",
-                  "hover:border-primary/40 hover:shadow-md transition-all duration-200",
-                  "active:scale-[0.99]"
-                )}
-              >
-                <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0">
-                    {scenario.icon}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h3 className="font-semibold text-foreground">{scenario.title}</h3>
-                      <span className="text-base" dir="rtl">{scenario.titleArabic}</span>
-                    </div>
-                    <p className="text-sm text-muted-foreground mb-2">{scenario.description}</p>
-                    <Badge className={cn("text-xs", DIFFICULTY_COLORS[scenario.difficulty])}>
-                      {scenario.difficulty}
-                    </Badge>
-                  </div>
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-      </AppShell>
-    );
-  }
-
-  // Active conversation
   return (
-    <AppShell>
-      <div className="mb-4 flex items-center justify-between">
+    <AppShell compact>
+      <div className="flex items-center justify-between mb-3">
         <HomeButton />
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5">
-            <span className="text-xs text-muted-foreground">EN</span>
-            <Switch
-              checked={showTranslation}
-              onCheckedChange={setShowTranslation}
-              className="h-5 w-9 data-[state=checked]:bg-primary data-[state=unchecked]:bg-input [&>span]:h-4 [&>span]:w-4 [&>span]:data-[state=checked]:translate-x-4"
-            />
-          </div>
-          <button
-            onClick={() => setAutoPlay(!autoPlay)}
-            className={cn(
-              "flex items-center gap-1 px-2 py-1 rounded-md text-xs transition-colors",
-              autoPlay 
-                ? "bg-primary/10 text-primary" 
-                : "bg-muted text-muted-foreground"
-            )}
-            title={autoPlay ? "Auto-play is on" : "Auto-play is off"}
-          >
-            <Volume2 className="h-3 w-3" />
-            {autoPlay ? "Auto" : "Manual"}
-          </button>
-          <Badge variant="outline">{selectedScenario.title}</Badge>
-          <Button variant="ghost" size="sm" onClick={resetConversation}>
-            <RotateCcw className="h-4 w-4" />
-          </Button>
+          <Badge variant="outline" className="text-xs">{activeDialect}</Badge>
+          <Badge variant="outline" className="text-xs">{cefr}</Badge>
         </div>
       </div>
 
-      <div className="max-w-lg mx-auto flex flex-col" style={{ height: "calc(100vh - 180px)" }}>
-        {/* Chat messages */}
-        <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-3 mb-4 pr-2">
-          {messages.map((msg, i) => (
-            <div
-              key={i}
-              className={cn(
-                "flex",
-                msg.role === "user" ? "justify-end" : "justify-start"
-              )}
-            >
-              <div
-                className={cn(
-                  "max-w-[85%] rounded-2xl px-4 py-3",
-                  msg.role === "user"
-                    ? "bg-primary text-primary-foreground rounded-br-sm"
-                    : "bg-card border border-border rounded-bl-sm"
-                )}
-              >
-                {(() => {
-                  if (msg.role === "assistant") {
-                    // Split Arabic from English translation
-                    const lines = msg.content.split("\n");
-                    const arabicLines: string[] = [];
-                    const translationLines: string[] = [];
-                    for (const line of lines) {
-                      const trimmed = line.trim();
-                      if (trimmed.startsWith("(") && trimmed.endsWith(")")) {
-                        translationLines.push(trimmed.slice(1, -1));
-                      } else if (trimmed) {
-                        arabicLines.push(trimmed);
-                      }
-                    }
-                    return (
-                      <>
-                        <p className="text-sm whitespace-pre-wrap leading-relaxed" dir="rtl">
-                          {arabicLines.join("\n")}
-                        </p>
-                        {showTranslation && translationLines.length > 0 && (
-                          <p className="text-xs text-muted-foreground mt-2 leading-relaxed border-t border-border/50 pt-2" dir="ltr">
-                            {translationLines.join("\n")}
-                          </p>
-                        )}
-                      </>
-                    );
-                  }
-                  return (
-                    <p className="text-sm whitespace-pre-wrap leading-relaxed" dir="ltr">
-                      {msg.content}
-                    </p>
-                  );
-                })()}
-                {msg.role === "assistant" && (
-                  <button
-                    onClick={() => speakText(msg.content, i)}
-                    disabled={isSpeaking !== null}
-                    className={cn(
-                      "mt-2 flex items-center gap-1 text-xs transition-colors",
-                      isSpeaking === i 
-                        ? "text-primary" 
-                        : "text-muted-foreground hover:text-foreground"
-                    )}
-                  >
-                    {isSpeaking === i ? (
-                      <>
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                        Speaking...
-                      </>
-                    ) : (
-                      <>
-                        <Volume2 className="h-3 w-3" />
-                        Listen
-                      </>
-                    )}
-                  </button>
-                )}
-              </div>
-            </div>
-          ))}
+      <div className="flex items-center justify-between mb-3">
+        <h1 className="text-lg font-semibold">Free Chat</h1>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => {
+            audioRef.current?.pause();
+            setMessages([]);
+            try { localStorage.removeItem(STORAGE_KEY); } catch {/* ignore */}
+          }}
+          disabled={messages.length === 0 || sending}
+        >
+          <RotateCcw className="h-4 w-4 mr-1" /> New
+        </Button>
+      </div>
 
-          {isGenerating && (
-            <div className="flex justify-start">
-              <div className="bg-card border border-border rounded-2xl rounded-bl-sm px-4 py-3">
-                <div className="flex gap-1">
-                  <div className="w-2 h-2 rounded-full bg-muted-foreground/40 animate-bounce" style={{ animationDelay: "0ms" }} />
-                  <div className="w-2 h-2 rounded-full bg-muted-foreground/40 animate-bounce" style={{ animationDelay: "150ms" }} />
-                  <div className="w-2 h-2 rounded-full bg-muted-foreground/40 animate-bounce" style={{ animationDelay: "300ms" }} />
+      <div className="flex items-center gap-4 mb-3 text-xs text-muted-foreground">
+        <div className="flex items-center gap-1.5">
+          <Switch
+            id="show-en"
+            checked={prefs.showEnglish}
+            onCheckedChange={(v) => updatePrefs({ showEnglish: v })}
+          />
+          <Label htmlFor="show-en" className="cursor-pointer">English</Label>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <Switch
+            id="show-tash"
+            checked={prefs.showTashkil}
+            onCheckedChange={(v) => updatePrefs({ showTashkil: v })}
+          />
+          <Label htmlFor="show-tash" className="cursor-pointer">Tashkil</Label>
+        </div>
+      </div>
+
+      {/* Topic seeds — only show when chat is empty */}
+      {messages.length === 0 && (
+        <div className="rounded-xl border border-border bg-card/50 p-4 mb-4">
+          <p className="text-sm font-medium mb-2 flex items-center gap-1.5">
+            <Sparkles className="h-4 w-4" /> Pick a topic to start
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {TOPIC_SEEDS.map((t) => (
+              <Button
+                key={t.key}
+                variant="outline"
+                size="sm"
+                onClick={() => startConversation(t.hint)}
+                disabled={sending}
+              >
+                {t.label}
+              </Button>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground mt-3">
+            The tutor will reply in {activeDialect} Arabic at your level ({cefr}). Tap any word to
+            save it, or save the whole reply as a phrase.
+          </p>
+        </div>
+      )}
+
+      {/* Messages */}
+      <div
+        ref={scrollRef}
+        className="space-y-3 mb-4 max-h-[55vh] overflow-y-auto pr-1"
+      >
+        {messages.map((m, i) => {
+          if (m.role === "user") {
+            return (
+              <div key={i} className="flex justify-end">
+                <div className="max-w-[85%] rounded-2xl rounded-tr-sm px-3 py-2 bg-primary text-primary-foreground">
+                  <p dir="rtl" className="font-arabic text-base leading-relaxed" style={{ fontFamily: "'Cairo', sans-serif" }}>
+                    {m.content}
+                  </p>
                 </div>
               </div>
+            );
+          }
+          // assistant
+          return (
+            <div key={i} className="flex flex-col items-start gap-1.5">
+              {m.correction && (
+                <div className={cn(
+                  "max-w-[90%] rounded-lg px-3 py-2 border border-amber-300 bg-amber-50 text-amber-900 text-xs flex items-start gap-1.5",
+                )}>
+                  <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                  <span>{m.correction}</span>
+                </div>
+              )}
+              <div className="max-w-[90%] rounded-2xl rounded-tl-sm px-3 py-2 bg-muted">
+                {m.content ? (
+                  <TappableArabicText
+                    text={m.content}
+                    source="free-chat"
+                    sentenceContext={{ arabic: m.content }}
+                  />
+                ) : (
+                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                )}
+                {!m.streaming && m.content && (
+                  <div className="flex items-center gap-1 mt-2 pt-2 border-t border-border">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2 text-xs"
+                      onClick={() => playMessage(m.content, i)}
+                      disabled={playingIdx === i}
+                    >
+                      {playingIdx === i ? (
+                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                      ) : (
+                        <Volume2 className="h-3 w-3 mr-1" />
+                      )}
+                      Play
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 px-2 text-xs"
+                      onClick={() => savePhrase(m.content)}
+                    >
+                      <BookmarkPlus className="h-3 w-3 mr-1" /> Save phrase
+                    </Button>
+                  </div>
+                )}
+              </div>
             </div>
-          )}
-        </div>
+          );
+        })}
+      </div>
 
-        {/* Input area */}
-        <div className="flex gap-2 pb-2">
-          <Button
-            onClick={toggleRecording}
-            variant={isRecording ? "destructive" : "outline"}
-            size="icon"
-            className={cn(
-              "h-11 w-11 rounded-xl shrink-0 transition-all",
-              isRecording && "animate-pulse"
-            )}
-            disabled={isGenerating}
-            title={isRecording ? "Stop recording" : "Start voice input"}
-          >
-            {isRecording ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-          </Button>
+      {/* Composer */}
+      {messages.length > 0 && (
+        <div className="flex items-end gap-2 sticky bottom-2">
           <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && sendMessage()}
-            placeholder={isRecording ? "Listening..." : "Type or tap mic to speak..."}
-            className={cn(
-              "flex-1 h-11 rounded-xl transition-all",
-              isRecording && "border-destructive/50 bg-destructive/5"
-            )}
-            disabled={isGenerating}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                handleSend();
+              }
+            }}
+            placeholder="Type in Arabic or English…"
             dir="auto"
+            disabled={sending || recording || transcribing}
+            className="font-arabic"
           />
           <Button
-            onClick={sendMessage}
-            disabled={!input.trim() || isGenerating}
+            type="button"
+            variant={recording ? "destructive" : "outline"}
             size="icon"
-            className="h-11 w-11 rounded-xl shrink-0"
+            onPointerDown={startRecording}
+            onPointerUp={stopRecording}
+            onPointerLeave={stopRecording}
+            disabled={sending || transcribing}
+            title="Hold to speak"
           >
-            <Send className="h-4 w-4" />
+            {transcribing ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : recording ? (
+              <MicOff className="h-4 w-4" />
+            ) : (
+              <Mic className="h-4 w-4" />
+            )}
+          </Button>
+          <Button
+            type="button"
+            size="icon"
+            onClick={() => handleSend()}
+            disabled={!input.trim() || sending}
+          >
+            {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
           </Button>
         </div>
-
-        <p className="text-xs text-muted-foreground text-center">
-          {isRecording 
-            ? "🎤 Speak now — your words will appear above" 
-            : "Type or use the mic to speak in Arabic or English"}
-        </p>
-      </div>
+      )}
     </AppShell>
   );
-};
+}
 
-export default ConversationSimulator;
+async function blobToBase64(blob: Blob): Promise<string> {
+  const buf = await blob.arrayBuffer();
+  const bytes = new Uint8Array(buf);
+  let binary = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + chunk)) as any);
+  }
+  return btoa(binary);
+}

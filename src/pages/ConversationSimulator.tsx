@@ -349,9 +349,6 @@ export default function ConversationSimulator() {
     [user, addPhrase, toast],
   );
 
-  const dialectAccent =
-    activeDialect === "Egyptian" ? "amber" : activeDialect === "Yemeni" ? "red" : "teal";
-
   return (
     <AppShell compact>
       <div className="flex items-center justify-between mb-3">

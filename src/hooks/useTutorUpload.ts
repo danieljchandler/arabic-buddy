@@ -363,6 +363,7 @@ export function useTutorUpload() {
           sentence_audio_url: sentenceAudioUrl,
           source_upload_id: uploadId,
           image_url: imageMap.get(candidate.id) || null,
+          dialect: activeDialect,
         };
       });
 

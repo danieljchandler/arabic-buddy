@@ -363,6 +363,7 @@ export function useTutorUpload() {
           sentence_audio_url: sentenceAudioUrl,
           source_upload_id: uploadId,
           image_url: imageMap.get(candidate.id) || null,
+          dialect: activeDialect,
         };
       });
 
@@ -393,7 +394,7 @@ export function useTutorUpload() {
       });
       setStep("review");
     }
-  }, [user, file, candidates, uploadId]);
+  }, [user, file, candidates, uploadId, activeDialect]);
 
   return {
     step,

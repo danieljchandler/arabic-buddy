@@ -394,7 +394,7 @@ export function useTutorUpload() {
       });
       setStep("review");
     }
-  }, [user, file, candidates, uploadId]);
+  }, [user, file, candidates, uploadId, activeDialect]);
 
   return {
     step,

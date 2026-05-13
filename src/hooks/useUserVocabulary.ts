@@ -241,7 +241,9 @@ export const useUpdateUserVocabularyReview = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["user-vocabulary"] });
       queryClient.invalidateQueries({ queryKey: ["user-vocabulary-due"] });
-      queryClient.invalidateQueries({ queryKey: ["user-vocabulary-due-words"] });
+      // Note: do NOT invalidate "user-vocabulary-due-words" here — the review
+      // page advances its own currentIndex; refetching mid-session would shift
+      // the array out from under us and skip cards.
     },
   });
 };

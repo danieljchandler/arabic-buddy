@@ -2311,6 +2311,11 @@ export type Database = {
           last_result: string | null
           last_reviewed_at: string | null
           next_review_at: string
+          production_ease_factor: number
+          production_interval_days: number
+          production_last_reviewed_at: string | null
+          production_next_review_at: string | null
+          production_repetitions: number
           repetitions: number
           review_count: number
           root: string | null
@@ -2338,6 +2343,11 @@ export type Database = {
           last_result?: string | null
           last_reviewed_at?: string | null
           next_review_at?: string
+          production_ease_factor?: number
+          production_interval_days?: number
+          production_last_reviewed_at?: string | null
+          production_next_review_at?: string | null
+          production_repetitions?: number
           repetitions?: number
           review_count?: number
           root?: string | null
@@ -2365,6 +2375,11 @@ export type Database = {
           last_result?: string | null
           last_reviewed_at?: string | null
           next_review_at?: string
+          production_ease_factor?: number
+          production_interval_days?: number
+          production_last_reviewed_at?: string | null
+          production_next_review_at?: string | null
+          production_repetitions?: number
           repetitions?: number
           review_count?: number
           root?: string | null

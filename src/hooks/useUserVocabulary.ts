@@ -222,12 +222,11 @@ export const useUpdateUserVocabularyReview = () => {
               last_reviewed_at: nowIso,
             };
 
-      // Unlock production card on first successful recognition rating (Good/Easy = >=2)
+      // Unlock production card on first successful recognition rating (Good/Easy)
       if (
         cardType === "recognition" &&
         productionLocked &&
-        typeof rating === "number" &&
-        rating >= 2
+        (rating === "good" || rating === "easy")
       ) {
         update.production_next_review_at = nowIso;
       }

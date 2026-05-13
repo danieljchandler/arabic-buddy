@@ -145,7 +145,28 @@ const MyWordsReview = () => {
     }
   };
 
-  const handleRate = async (rating: Rating) => {
+  // Current word (may be undefined when list empty/loading)
+  const currentWord = dueWords && dueWords.length > 0
+    ? dueWords[Math.min(currentIndex, dueWords.length - 1)]
+    : null;
+
+  // TTS fallback when no recorded word_audio_url is available
+  const { ttsUrl: wordTtsUrl, isLoading: wordTtsLoading } = useAzureTTS({
+    text: currentWord?.word_arabic ?? "",
+    skip: !currentWord || Boolean(currentWord.word_audio_url),
+    dialect: activeDialect,
+  });
+
+  const effectiveWordAudio = currentWord?.word_audio_url || wordTtsUrl;
+
+  // Auto-play the word audio when the card changes
+  useEffect(() => {
+    if (effectiveWordAudio) {
+      playAudio(effectiveWordAudio);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentWord?.id, effectiveWordAudio]);
+
     if (!dueWords || !dueWords[currentIndex]) return;
     const word = dueWords[currentIndex];
     const wordCount = dueWords.length;

@@ -164,6 +164,8 @@ export const useDeleteUserVocabulary = () => {
   });
 };
 
+export type ReviewCardType = "recognition" | "production";
+
 export const useUpdateUserVocabularyReview = () => {
   const queryClient = useQueryClient();
 
@@ -175,6 +177,9 @@ export const useUpdateUserVocabularyReview = () => {
       intervalDays,
       repetitions,
       nextReviewAt,
+      cardType = "recognition",
+      rating,
+      productionLocked,
     }: {
       wordId: string;
       stability: number;
@@ -182,16 +187,41 @@ export const useUpdateUserVocabularyReview = () => {
       intervalDays: number;
       repetitions: number;
       nextReviewAt: Date;
+      cardType?: ReviewCardType;
+      rating?: number;
+      productionLocked?: boolean;
     }) => {
+      const nowIso = new Date().toISOString();
+      const update: Record<string, unknown> =
+        cardType === "production"
+          ? {
+              production_ease_factor: stability,
+              production_interval_days: Math.max(0, Math.round(intervalDays)),
+              production_repetitions: repetitions,
+              production_next_review_at: nextReviewAt.toISOString(),
+              production_last_reviewed_at: nowIso,
+            }
+          : {
+              ease_factor: stability,
+              interval_days: Math.max(0, Math.round(intervalDays)),
+              repetitions,
+              next_review_at: nextReviewAt.toISOString(),
+              last_reviewed_at: nowIso,
+            };
+
+      // Unlock production card on first successful recognition rating (Good/Easy = >=2)
+      if (
+        cardType === "recognition" &&
+        productionLocked &&
+        typeof rating === "number" &&
+        rating >= 2
+      ) {
+        update.production_next_review_at = nowIso;
+      }
+
       const { error } = await supabase
         .from("user_vocabulary")
-        .update({
-          ease_factor: stability,
-          interval_days: Math.max(0, Math.round(intervalDays)),
-          repetitions,
-          next_review_at: nextReviewAt.toISOString(),
-          last_reviewed_at: new Date().toISOString(),
-        })
+        .update(update as any)
         .eq("id", wordId);
 
       if (error) throw error;
@@ -199,6 +229,7 @@ export const useUpdateUserVocabularyReview = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["user-vocabulary"] });
       queryClient.invalidateQueries({ queryKey: ["user-vocabulary-due"] });
+      queryClient.invalidateQueries({ queryKey: ["user-vocabulary-due-words"] });
     },
   });
 };

@@ -167,6 +167,7 @@ const MyWordsReview = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentWord?.id, effectiveWordAudio]);
 
+  const handleRate = async (rating: Rating) => {
     if (!dueWords || !dueWords[currentIndex]) return;
     const word = dueWords[currentIndex];
     const wordCount = dueWords.length;

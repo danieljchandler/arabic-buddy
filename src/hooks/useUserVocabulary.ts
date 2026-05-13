@@ -201,7 +201,7 @@ export const useUpdateUserVocabularyReview = () => {
       repetitions: number;
       nextReviewAt: Date;
       cardType?: ReviewCardType;
-      rating?: number;
+      rating?: string;
       productionLocked?: boolean;
     }) => {
       const nowIso = new Date().toISOString();

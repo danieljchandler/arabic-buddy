@@ -325,17 +325,20 @@ const MyWordsReview = () => {
 
             {/* Audio buttons */}
             <div className="flex items-center justify-center gap-2 flex-wrap mb-8">
-              {currentWord.word_audio_url && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => playAudio(currentWord.word_audio_url!)}
-                  className="gap-1.5"
-                >
-                  <Volume2 className="h-4 w-4" />
-                  Word
-                </Button>
-              )}
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => effectiveWordAudio && playAudio(effectiveWordAudio)}
+                disabled={!effectiveWordAudio || wordTtsLoading}
+                className="gap-1.5"
+              >
+                {wordTtsLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Play className="h-4 w-4" />
+                )}
+                Play
+              </Button>
               {currentWord.sentence_audio_url && (
                 <Button
                   variant="outline"

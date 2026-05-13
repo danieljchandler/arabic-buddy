@@ -71,8 +71,21 @@ export const useUserVocabularyDueCount = (mixAll = false) => {
         .lte("next_review_at", now) as any;
       if (!mixAll) dueQuery = dueQuery.eq("dialect", activeDialect);
 
-      const { count: dueCount, error: dueError } = await dueQuery;
+      const { count: recogDueCount, error: dueError } = await dueQuery;
       if (dueError) throw dueError;
+
+      let prodDueQuery = supabase
+        .from("user_vocabulary")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .not("production_next_review_at", "is", null)
+        .lte("production_next_review_at", now) as any;
+      if (!mixAll) prodDueQuery = prodDueQuery.eq("dialect", activeDialect);
+
+      const { count: prodDueCount, error: prodErr } = await prodDueQuery;
+      if (prodErr) throw prodErr;
+
+      const dueCount = (recogDueCount || 0) + (prodDueCount || 0);
 
       let totalQuery = supabase
         .from("user_vocabulary")

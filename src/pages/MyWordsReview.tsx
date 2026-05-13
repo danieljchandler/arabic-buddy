@@ -259,7 +259,6 @@ const MyWordsReview = () => {
     setCurrentIndex(safeIndex);
   }
 
-  const currentWord = dueWords[safeIndex];
   if (!currentWord) return null;
 
   const progress = ((safeIndex + 1) / dueWords.length) * 100;

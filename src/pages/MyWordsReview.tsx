@@ -172,14 +172,11 @@ const MyWordsReview = () => {
     setShowAnswer(false);
   }, [currentWord?.id, currentWord?.card_type]);
 
-  // Auto-play behaviour:
-  // - Recognition: always autoplay (audio reinforces what's shown).
-  // - Production: only autoplay when there's no image (audio IS the prompt).
+  // Auto-play: only on recognition cards (audio reinforces what's shown).
+  // Production cards never autoplay — hearing the word defeats the recall exercise.
   useEffect(() => {
     if (!effectiveWordAudio || !currentWord) return;
     if (currentWord.card_type === "recognition") {
-      playAudio(effectiveWordAudio);
-    } else if (!currentWord.image_url) {
       playAudio(effectiveWordAudio);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

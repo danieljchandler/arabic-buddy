@@ -6,7 +6,7 @@ import { useDialect } from "@/contexts/DialectContext";
 import { HomeButton } from "@/components/HomeButton";
 import { RatingButtons } from "@/components/review/RatingButtons";
 import { AppShell } from "@/components/layout/AppShell";
-import { Loader2, Trophy, LogIn, Eye, Volume2, Music, RefreshCw, Sparkles, Play } from "lucide-react";
+import { Loader2, Trophy, LogIn, Eye, Volume2, Music, RefreshCw, Sparkles, Play, Brain, Mic2 } from "lucide-react";
 import { GenerateImageDialog } from "@/components/mywords/GenerateImageDialog";
 import { useUpdateUserVocabularyImage } from "@/hooks/useUserVocabulary";
 import { PronunciationButton } from "@/components/review/PronunciationButton";
@@ -17,7 +17,27 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAzureTTS } from "@/hooks/useAzureTTS";
 
-interface DueUserWord {
+type CardType = "recognition" | "production";
+
+interface DueCard {
+  id: string;
+  word_arabic: string;
+  word_english: string;
+  // active SRS fields for the chosen direction
+  ease_factor: number;
+  interval_days: number;
+  repetitions: number;
+  due_at: string;
+  card_type: CardType;
+  // production lock state (used when rating recognition)
+  production_locked: boolean;
+  word_audio_url: string | null;
+  sentence_audio_url: string | null;
+  image_url: string | null;
+  jingle_audio_url: string | null;
+}
+
+interface RawRow {
   id: string;
   word_arabic: string;
   word_english: string;
@@ -26,6 +46,11 @@ interface DueUserWord {
   repetitions: number;
   next_review_at: string;
   last_reviewed_at: string | null;
+  production_ease_factor: number;
+  production_interval_days: number;
+  production_repetitions: number;
+  production_next_review_at: string | null;
+  production_last_reviewed_at: string | null;
   word_audio_url: string | null;
   sentence_audio_url: string | null;
   image_url: string | null;
@@ -58,31 +83,114 @@ const MyWordsReview = () => {
 
   const { data: dueWords, isLoading, refetch } = useQuery({
     queryKey: ["user-vocabulary-due-words", user?.id, activeDialect],
-    queryFn: async (): Promise<DueUserWord[]> => {
+    queryFn: async (): Promise<DueCard[]> => {
       if (!user) return [];
       const now = new Date().toISOString();
-      const { data, error } = await (supabase
+
+      // Fetch all rows that are due in either direction. We do two queries
+      // and merge so each direction can be tagged independently.
+      const baseSelect =
+        "id, word_arabic, word_english, ease_factor, interval_days, repetitions, next_review_at, last_reviewed_at, production_ease_factor, production_interval_days, production_repetitions, production_next_review_at, production_last_reviewed_at, word_audio_url, sentence_audio_url, image_url, jingle_audio_url";
+
+      const { data: recogRows, error: recogErr } = await (supabase
         .from("user_vocabulary")
-        .select("id, word_arabic, word_english, ease_factor, interval_days, repetitions, next_review_at, last_reviewed_at, word_audio_url, sentence_audio_url, image_url, jingle_audio_url")
+        .select(baseSelect)
         .eq("user_id", user.id)
         .lte("next_review_at", now)
         .order("next_review_at", { ascending: true }) as any)
         .eq("dialect", activeDialect);
-      if (error) throw error;
-      return data || [];
+      if (recogErr) throw recogErr;
+
+      const { data: prodRows, error: prodErr } = await (supabase
+        .from("user_vocabulary")
+        .select(baseSelect)
+        .eq("user_id", user.id)
+        .not("production_next_review_at", "is", null)
+        .lte("production_next_review_at", now)
+        .order("production_next_review_at", { ascending: true }) as any)
+        .eq("dialect", activeDialect);
+      if (prodErr) throw prodErr;
+
+      const cards: DueCard[] = [];
+      for (const r of (recogRows || []) as RawRow[]) {
+        cards.push({
+          id: r.id,
+          word_arabic: r.word_arabic,
+          word_english: r.word_english,
+          ease_factor: r.ease_factor,
+          interval_days: r.interval_days,
+          repetitions: r.repetitions,
+          due_at: r.next_review_at,
+          card_type: "recognition",
+          production_locked: r.production_next_review_at === null,
+          word_audio_url: r.word_audio_url,
+          sentence_audio_url: r.sentence_audio_url,
+          image_url: r.image_url,
+          jingle_audio_url: r.jingle_audio_url,
+        });
+      }
+      for (const r of (prodRows || []) as RawRow[]) {
+        cards.push({
+          id: r.id,
+          word_arabic: r.word_arabic,
+          word_english: r.word_english,
+          ease_factor: r.production_ease_factor,
+          interval_days: r.production_interval_days,
+          repetitions: r.production_repetitions,
+          due_at: r.production_next_review_at!,
+          card_type: "production",
+          production_locked: false,
+          word_audio_url: r.word_audio_url,
+          sentence_audio_url: r.sentence_audio_url,
+          image_url: r.image_url,
+          jingle_audio_url: r.jingle_audio_url,
+        });
+      }
+
+      cards.sort((a, b) => a.due_at.localeCompare(b.due_at));
+      return cards;
     },
     enabled: !!user,
   });
 
-  const generateJingle = async (word: DueUserWord, regenerate = false) => {
+  const currentWord = dueWords && dueWords.length > 0
+    ? dueWords[Math.min(currentIndex, dueWords.length - 1)]
+    : null;
+  const isProduction = currentWord?.card_type === "production";
+
+  // TTS fallback when no recorded word_audio_url is available
+  const { ttsUrl: wordTtsUrl, isLoading: wordTtsLoading } = useAzureTTS({
+    text: currentWord?.word_arabic ?? "",
+    skip: !currentWord || Boolean(currentWord.word_audio_url),
+    dialect: activeDialect,
+  });
+
+  const effectiveWordAudio = currentWord?.word_audio_url || wordTtsUrl;
+
+  // Reset reveal state on card change
+  useEffect(() => {
+    setShowAnswer(false);
+  }, [currentWord?.id, currentWord?.card_type]);
+
+  // Auto-play behaviour:
+  // - Recognition: always autoplay (audio reinforces what's shown).
+  // - Production: only autoplay when there's no image (audio IS the prompt).
+  useEffect(() => {
+    if (!effectiveWordAudio || !currentWord) return;
+    if (currentWord.card_type === "recognition") {
+      playAudio(effectiveWordAudio);
+    } else if (!currentWord.image_url) {
+      playAudio(effectiveWordAudio);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentWord?.id, currentWord?.card_type, effectiveWordAudio]);
+
+  const generateJingle = async (word: DueCard, regenerate = false) => {
     if (!user) return;
-    
-    // If jingle exists and not regenerating, just play it
     if (word.jingle_audio_url && !regenerate) {
       playAudio(word.jingle_audio_url);
       return;
     }
-
     setJingleLoading(true);
     try {
       const response = await supabase.functions.invoke("generate-word-jingle", {
@@ -92,43 +200,19 @@ const MyWordsReview = () => {
           dialect: activeDialect,
         },
       });
-
-      if (response.error) {
-        throw new Error(response.error.message || "Failed to generate jingle");
-      }
-
-      // The response data is the audio blob
+      if (response.error) throw new Error(response.error.message || "Failed to generate jingle");
       const audioBlob = response.data instanceof Blob
         ? response.data
         : new Blob([response.data], { type: "audio/mpeg" });
-
-      // Upload to flashcard-audio bucket
       const fileName = `jingles/${user.id}/${word.id}-${Date.now()}.mp3`;
       const { error: uploadError } = await supabase.storage
         .from("flashcard-audio")
-        .upload(fileName, audioBlob, {
-          contentType: "audio/mpeg",
-          upsert: true,
-        });
-
+        .upload(fileName, audioBlob, { contentType: "audio/mpeg", upsert: true });
       if (uploadError) throw uploadError;
-
-      const { data: urlData } = supabase.storage
-        .from("flashcard-audio")
-        .getPublicUrl(fileName);
-
+      const { data: urlData } = supabase.storage.from("flashcard-audio").getPublicUrl(fileName);
       const jingleUrl = urlData.publicUrl;
-
-      // Save URL to the vocabulary record
-      await supabase
-        .from("user_vocabulary")
-        .update({ jingle_audio_url: jingleUrl } as any)
-        .eq("id", word.id);
-
-      // Invalidate queries so the UI updates
+      await supabase.from("user_vocabulary").update({ jingle_audio_url: jingleUrl } as any).eq("id", word.id);
       queryClient.invalidateQueries({ queryKey: ["user-vocabulary-due-words"] });
-
-      // Play the jingle
       playAudio(jingleUrl);
       toast.success("🎵 Jingle created!");
     } catch (err: any) {
@@ -145,48 +229,29 @@ const MyWordsReview = () => {
     }
   };
 
-  // Current word (may be undefined when list empty/loading)
-  const currentWord = dueWords && dueWords.length > 0
-    ? dueWords[Math.min(currentIndex, dueWords.length - 1)]
-    : null;
-
-  // TTS fallback when no recorded word_audio_url is available
-  const { ttsUrl: wordTtsUrl, isLoading: wordTtsLoading } = useAzureTTS({
-    text: currentWord?.word_arabic ?? "",
-    skip: !currentWord || Boolean(currentWord.word_audio_url),
-    dialect: activeDialect,
-  });
-
-  const effectiveWordAudio = currentWord?.word_audio_url || wordTtsUrl;
-
-  // Auto-play the word audio when the card changes
-  useEffect(() => {
-    if (effectiveWordAudio) {
-      playAudio(effectiveWordAudio);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentWord?.id, effectiveWordAudio]);
-
   const handleRate = async (rating: Rating) => {
     if (!dueWords || !dueWords[currentIndex]) return;
-    const word = dueWords[currentIndex];
+    const card = dueWords[currentIndex];
     const wordCount = dueWords.length;
 
     const result = calculateNextReview(
       rating,
-      word.ease_factor,
+      card.ease_factor,
       5.0,
-      word.interval_days,
-      word.repetitions,
+      card.interval_days,
+      card.repetitions,
     );
 
     await updateReview.mutateAsync({
-      wordId: word.id,
+      wordId: card.id,
       stability: result.stability,
       difficulty: result.difficulty,
       intervalDays: result.intervalDays,
       repetitions: result.repetitions,
       nextReviewAt: result.nextReviewAt,
+      cardType: card.card_type,
+      rating,
+      productionLocked: card.production_locked,
     });
 
     setSessionCount((prev) => prev + 1);
@@ -245,7 +310,7 @@ const MyWordsReview = () => {
           <Trophy className="h-14 w-14 mx-auto mb-6 text-primary" />
           <h1 className="text-xl font-bold text-foreground mb-3">All Caught Up!</h1>
           <p className="text-muted-foreground mb-8">
-            No words due for review right now. Come back later!
+            No cards due for review right now. Come back later!
           </p>
           <Button onClick={() => navigate("/my-words")}>Back to My Words</Button>
         </div>
@@ -253,7 +318,6 @@ const MyWordsReview = () => {
     );
   }
 
-  // Safety: clamp index if list shrank after refetch
   const safeIndex = Math.min(currentIndex, dueWords.length - 1);
   if (safeIndex !== currentIndex) {
     setCurrentIndex(safeIndex);
@@ -269,8 +333,11 @@ const MyWordsReview = () => {
       <div className="flex items-center justify-between mb-6">
         <HomeButton />
         <div className="flex items-center gap-3">
-          <div className="px-3 py-1.5 rounded-lg bg-card border border-border">
-            <span className="text-sm font-medium text-foreground">My Words</span>
+          <div className="px-3 py-1.5 rounded-lg bg-card border border-border flex items-center gap-1.5">
+            {isProduction ? <Mic2 className="h-3.5 w-3.5 text-primary" /> : <Brain className="h-3.5 w-3.5 text-primary" />}
+            <span className="text-sm font-medium text-foreground">
+              {isProduction ? "Produce" : "Recognize"}
+            </span>
           </div>
           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-card border border-border">
             <Trophy className="h-4 w-4 text-primary" />
@@ -315,13 +382,38 @@ const MyWordsReview = () => {
                 {currentWord.image_url ? "Regenerate Image" : "Generate Image"}
               </Button>
             </div>
-            <p
-              className="text-4xl font-bold text-foreground mb-6"
-              style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
-              dir="rtl"
-            >
-              {currentWord.word_arabic}
-            </p>
+
+            {/* Prompt area */}
+            {isProduction ? (
+              <>
+                {!showAnswer ? (
+                  <>
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground mb-2">
+                      Say it in Arabic
+                    </p>
+                    <p className="text-2xl font-semibold text-foreground mb-6">
+                      {currentWord.word_english}
+                    </p>
+                  </>
+                ) : (
+                  <p
+                    className="text-4xl font-bold text-foreground mb-6 animate-in fade-in duration-200"
+                    style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
+                    dir="rtl"
+                  >
+                    {currentWord.word_arabic}
+                  </p>
+                )}
+              </>
+            ) : (
+              <p
+                className="text-4xl font-bold text-foreground mb-6"
+                style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
+                dir="rtl"
+              >
+                {currentWord.word_arabic}
+              </p>
+            )}
 
             {/* Audio buttons */}
             <div className="flex items-center justify-center gap-2 flex-wrap mb-8">
@@ -337,9 +429,9 @@ const MyWordsReview = () => {
                 ) : (
                   <Play className="h-4 w-4" />
                 )}
-                Play
+                {isProduction && !showAnswer ? "Hear it" : "Play"}
               </Button>
-              {currentWord.sentence_audio_url && (
+              {currentWord.sentence_audio_url && (showAnswer || !isProduction) && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -351,7 +443,6 @@ const MyWordsReview = () => {
                 </Button>
               )}
 
-              {/* Jingle button */}
               <Button
                 variant="outline"
                 size="sm"
@@ -359,15 +450,10 @@ const MyWordsReview = () => {
                 disabled={jingleLoading}
                 className="gap-1.5"
               >
-                {jingleLoading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Music className="h-4 w-4" />
-                )}
+                {jingleLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Music className="h-4 w-4" />}
                 {jingleLoading ? "Creating..." : currentWord.jingle_audio_url ? "🎵 Jingle" : "🎵 Generate"}
               </Button>
 
-              {/* Regenerate jingle */}
               {currentWord.jingle_audio_url && !jingleLoading && (
                 <Button
                   variant="ghost"
@@ -381,27 +467,48 @@ const MyWordsReview = () => {
               )}
             </div>
 
-            {/* Pronunciation practice */}
-            <div className="mb-6">
-              <PronunciationButton word={currentWord.word_arabic} />
-            </div>
-
-            {/* Optional reveal English */}
-            {showAnswer && (
-              <div className="animate-in fade-in duration-200 mb-4">
-                <p className="text-xl text-muted-foreground">{currentWord.word_english}</p>
+            {/* Pronunciation practice — only meaningful once Arabic is visible */}
+            {(showAnswer || !isProduction) && (
+              <div className="mb-6">
+                <PronunciationButton word={currentWord.word_arabic} />
               </div>
             )}
-            {!showAnswer && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowAnswer(true)}
-                className="gap-1.5 text-muted-foreground"
-              >
-                <Eye className="h-4 w-4" />
-                Reveal English
-              </Button>
+
+            {/* Reveal */}
+            {isProduction ? (
+              !showAnswer && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setShowAnswer(true);
+                    if (effectiveWordAudio) playAudio(effectiveWordAudio);
+                  }}
+                  className="gap-1.5 text-muted-foreground"
+                >
+                  <Eye className="h-4 w-4" />
+                  Reveal Arabic
+                </Button>
+              )
+            ) : (
+              <>
+                {showAnswer && (
+                  <div className="animate-in fade-in duration-200 mb-4">
+                    <p className="text-xl text-muted-foreground">{currentWord.word_english}</p>
+                  </div>
+                )}
+                {!showAnswer && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowAnswer(true)}
+                    className="gap-1.5 text-muted-foreground"
+                  >
+                    <Eye className="h-4 w-4" />
+                    Reveal English
+                  </Button>
+                )}
+              </>
             )}
           </div>
         </div>

@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useUpdateUserVocabularyReview } from "@/hooks/useUserVocabulary";
@@ -6,7 +6,7 @@ import { useDialect } from "@/contexts/DialectContext";
 import { HomeButton } from "@/components/HomeButton";
 import { RatingButtons } from "@/components/review/RatingButtons";
 import { AppShell } from "@/components/layout/AppShell";
-import { Loader2, Trophy, LogIn, Eye, Volume2, Music, RefreshCw, Sparkles } from "lucide-react";
+import { Loader2, Trophy, LogIn, Eye, Volume2, Music, RefreshCw, Sparkles, Play } from "lucide-react";
 import { GenerateImageDialog } from "@/components/mywords/GenerateImageDialog";
 import { useUpdateUserVocabularyImage } from "@/hooks/useUserVocabulary";
 import { PronunciationButton } from "@/components/review/PronunciationButton";
@@ -15,6 +15,7 @@ import { Rating, calculateNextReview } from "@/lib/spacedRepetition";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useAzureTTS } from "@/hooks/useAzureTTS";
 
 interface DueUserWord {
   id: string;
@@ -144,6 +145,28 @@ const MyWordsReview = () => {
     }
   };
 
+  // Current word (may be undefined when list empty/loading)
+  const currentWord = dueWords && dueWords.length > 0
+    ? dueWords[Math.min(currentIndex, dueWords.length - 1)]
+    : null;
+
+  // TTS fallback when no recorded word_audio_url is available
+  const { ttsUrl: wordTtsUrl, isLoading: wordTtsLoading } = useAzureTTS({
+    text: currentWord?.word_arabic ?? "",
+    skip: !currentWord || Boolean(currentWord.word_audio_url),
+    dialect: activeDialect,
+  });
+
+  const effectiveWordAudio = currentWord?.word_audio_url || wordTtsUrl;
+
+  // Auto-play the word audio when the card changes
+  useEffect(() => {
+    if (effectiveWordAudio) {
+      playAudio(effectiveWordAudio);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentWord?.id, effectiveWordAudio]);
+
   const handleRate = async (rating: Rating) => {
     if (!dueWords || !dueWords[currentIndex]) return;
     const word = dueWords[currentIndex];
@@ -236,7 +259,6 @@ const MyWordsReview = () => {
     setCurrentIndex(safeIndex);
   }
 
-  const currentWord = dueWords[safeIndex];
   if (!currentWord) return null;
 
   const progress = ((safeIndex + 1) / dueWords.length) * 100;
@@ -303,17 +325,20 @@ const MyWordsReview = () => {
 
             {/* Audio buttons */}
             <div className="flex items-center justify-center gap-2 flex-wrap mb-8">
-              {currentWord.word_audio_url && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => playAudio(currentWord.word_audio_url!)}
-                  className="gap-1.5"
-                >
-                  <Volume2 className="h-4 w-4" />
-                  Word
-                </Button>
-              )}
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => effectiveWordAudio && playAudio(effectiveWordAudio)}
+                disabled={!effectiveWordAudio || wordTtsLoading}
+                className="gap-1.5"
+              >
+                {wordTtsLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Play className="h-4 w-4" />
+                )}
+                Play
+              </Button>
               {currentWord.sentence_audio_url && (
                 <Button
                   variant="outline"

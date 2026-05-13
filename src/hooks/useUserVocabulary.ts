@@ -71,8 +71,21 @@ export const useUserVocabularyDueCount = (mixAll = false) => {
         .lte("next_review_at", now) as any;
       if (!mixAll) dueQuery = dueQuery.eq("dialect", activeDialect);
 
-      const { count: dueCount, error: dueError } = await dueQuery;
+      const { count: recogDueCount, error: dueError } = await dueQuery;
       if (dueError) throw dueError;
+
+      let prodDueQuery = supabase
+        .from("user_vocabulary")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .not("production_next_review_at", "is", null)
+        .lte("production_next_review_at", now) as any;
+      if (!mixAll) prodDueQuery = prodDueQuery.eq("dialect", activeDialect);
+
+      const { count: prodDueCount, error: prodErr } = await prodDueQuery;
+      if (prodErr) throw prodErr;
+
+      const dueCount = (recogDueCount || 0) + (prodDueCount || 0);
 
       let totalQuery = supabase
         .from("user_vocabulary")
@@ -164,6 +177,8 @@ export const useDeleteUserVocabulary = () => {
   });
 };
 
+export type ReviewCardType = "recognition" | "production";
+
 export const useUpdateUserVocabularyReview = () => {
   const queryClient = useQueryClient();
 
@@ -175,6 +190,9 @@ export const useUpdateUserVocabularyReview = () => {
       intervalDays,
       repetitions,
       nextReviewAt,
+      cardType = "recognition",
+      rating,
+      productionLocked,
     }: {
       wordId: string;
       stability: number;
@@ -182,16 +200,40 @@ export const useUpdateUserVocabularyReview = () => {
       intervalDays: number;
       repetitions: number;
       nextReviewAt: Date;
+      cardType?: ReviewCardType;
+      rating?: string;
+      productionLocked?: boolean;
     }) => {
+      const nowIso = new Date().toISOString();
+      const update: Record<string, unknown> =
+        cardType === "production"
+          ? {
+              production_ease_factor: stability,
+              production_interval_days: Math.max(0, Math.round(intervalDays)),
+              production_repetitions: repetitions,
+              production_next_review_at: nextReviewAt.toISOString(),
+              production_last_reviewed_at: nowIso,
+            }
+          : {
+              ease_factor: stability,
+              interval_days: Math.max(0, Math.round(intervalDays)),
+              repetitions,
+              next_review_at: nextReviewAt.toISOString(),
+              last_reviewed_at: nowIso,
+            };
+
+      // Unlock production card on first successful recognition rating (Good/Easy)
+      if (
+        cardType === "recognition" &&
+        productionLocked &&
+        (rating === "good" || rating === "easy")
+      ) {
+        update.production_next_review_at = nowIso;
+      }
+
       const { error } = await supabase
         .from("user_vocabulary")
-        .update({
-          ease_factor: stability,
-          interval_days: Math.max(0, Math.round(intervalDays)),
-          repetitions,
-          next_review_at: nextReviewAt.toISOString(),
-          last_reviewed_at: new Date().toISOString(),
-        })
+        .update(update as any)
         .eq("id", wordId);
 
       if (error) throw error;
@@ -199,6 +241,7 @@ export const useUpdateUserVocabularyReview = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["user-vocabulary"] });
       queryClient.invalidateQueries({ queryKey: ["user-vocabulary-due"] });
+      queryClient.invalidateQueries({ queryKey: ["user-vocabulary-due-words"] });
     },
   });
 };

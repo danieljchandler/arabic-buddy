@@ -1,71 +1,75 @@
-
 ## Goal
 
-Replace the current scenario-based Conversation Simulator with a free-flowing chat — like talking to ChatGPT, but in the user's chosen Arabic dialect, calibrated to their CEFR level, with a push-to-talk mic, natural-sounding TTS replies, and tappable Arabic words/phrases that save to **My Words** or **Set Phrases**.
+Add a second flashcard type to the My Words SRS: a **production** card (see image and/or hear audio → recall the Arabic word). It runs alongside the existing **recognition** card (see Arabic → recall meaning), and each word now contributes **two independently-scheduled cards** to the spaced repetition queue.
 
-## User Experience
+A word's production card unlocks only after its recognition card has been successfully reviewed at least once, so users aren't asked to produce a word they haven't seen yet.
 
-1. User opens the page (`/conversation` — same route, replaced).
-2. Optional one-tap topic chips at the top (Coffee, Family, Work, Travel, Free Talk) just to seed the first AI message — but conversation is otherwise unconstrained.
-3. AI opens with a short greeting + a question in dialect Arabic.
-4. User can either type or hold the mic button to speak (push-to-talk → Munsit STT).
-5. AI replies in Arabic only (English hidden by default per global immersion rule). Each reply auto-plays as audio.
-6. Tap any Arabic word → bottom sheet with meaning + "Save to My Words". Long-press (or select multiple words) → "Save as Set Phrase".
-7. Active-tutor behavior: if the user makes a mistake or struggles, the AI inserts a brief, friendly correction box above its next reply, then continues the conversation naturally. Periodically asks follow-up questions to keep things flowing.
-8. Toggles in header: Show English, Show Transliteration, Show Tashkil (use existing global display prefs).
-9. "New conversation" button resets the thread.
+## Schema change
 
-## Technical Design
+Add per-direction SRS state to `user_vocabulary` so each word tracks two schedules. Recognition keeps the existing columns; production gets a parallel set:
 
-### New edge function: `free-chat`
-- Streams from Lovable AI Gateway (`google/gemini-2.5-pro` for quality + dialect nuance; falls back to `gemini-3-flash-preview`).
-- Accepts: `messages[]`, `dialect`, `cefrLevel`, `topicHint?`.
-- System prompt built from `_shared/dialectHelpers.ts` (strict dialect rules, no MSA, no cross-dialect leakage) + CEFR-calibrated vocabulary/sentence-length rules + "active tutor" instructions:
-  - Stay in Arabic-only for the conversation line.
-  - If user message contains a clear mistake, prepend a `<<correction>>...<</correction>>` block with one-line gentle fix in English.
-  - Always end with a question to keep dialogue moving.
-  - Match user's level: A1/A2 short simple sentences, B1/B2 mid, C1/C2 idiomatic.
-- SSE streaming so words appear as typed.
+- `production_ease_factor numeric default 2.5`
+- `production_interval_days integer default 0`
+- `production_repetitions integer default 0`
+- `production_next_review_at timestamptz` (nullable — null = locked, not yet unlocked by recognition)
+- `production_last_reviewed_at timestamptz` (nullable)
 
-### Voice
-- **STT (push-to-talk)**: existing `munsit-transcribe` edge function (per ASR priority memory).
-- **TTS**: dialect-aware
-  - Gulf → `munsit-tts` (Aisha/emirati voice).
-  - Egyptian / Yemeni → ElevenLabs `eleven_multilingual_v2` (best free-flowing Arabic prosody) via a new `elevenlabs-arabic-tts` edge function (or extend existing `elevenlabs-tts`).
-- Auto-play each assistant message; replay button on every bubble.
+(Keeping a single table avoids duplicating word content, audio, image, jingle URLs.)
 
-### Tappable words & phrases
-- Reuse `TappableArabicText` for word taps → save to `user_vocabulary` via existing `useUserVocabulary` hook.
-- Add a "selection mode": user taps multiple adjacent words → floating "Save as Set Phrase" button → inserts into `user_phrases` (existing `useUserPhrases` hook) with the surrounding sentence as context.
+When a recognition review is rated ≥ "Good" for the first time and `production_next_review_at IS NULL`, set `production_next_review_at = now()` so the production card enters the queue immediately.
 
-### Page structure
-- **Replace** `src/pages/ConversationSimulator.tsx` content with the new free-chat UI (keep route `/conversation` so existing nav links don't break).
-- New components:
-  - `src/components/chat/ChatMessage.tsx` — bubble with TappableArabicText, audio button, optional correction banner.
-  - `src/components/chat/ChatComposer.tsx` — text input + push-to-talk mic.
-  - `src/components/chat/SaveSelectionBar.tsx` — multi-word selection → save phrase.
-- Persist conversation in `localStorage` (4h, per session-persistence memory) so refresh doesn't lose context. No DB persistence needed.
+## Review queue
 
-### Memory update
-- Update `mem://features/learning/conversation-simulator` to reflect the new free-chat behavior (replaces scenarios; push-to-talk + dialect TTS + tappable saves).
+`MyWordsReview` builds a unified due list from two queries against `user_vocabulary` for the active dialect:
 
-## Out of Scope
+1. Recognition due: `next_review_at <= now()` → tag each row as `card_type: 'recognition'`.
+2. Production due: `production_next_review_at IS NOT NULL AND production_next_review_at <= now()` → tag as `card_type: 'production'`.
 
-- No conversation history list / saved chats (can be added later).
-- No voice cloning or custom voices.
-- No grading/scoring screen at the end (corrections happen inline).
+Merge, sort by due timestamp, and iterate. The session counter and progress bar count cards (not words).
 
-## Files
+## Card UI
 
-**New**
-- `supabase/functions/free-chat/index.ts`
-- `src/components/chat/ChatMessage.tsx`
-- `src/components/chat/ChatComposer.tsx`
-- `src/components/chat/SaveSelectionBar.tsx`
+One component renders both card types based on `card_type`:
 
-**Edited**
-- `src/pages/ConversationSimulator.tsx` (full rewrite, route preserved)
-- `mem://features/learning/conversation-simulator`
+**Recognition (unchanged behaviour)**
+- Shows Arabic word large, image, audio buttons.
+- "Reveal English" button shows the meaning.
+- Self-rating buttons schedule the recognition columns.
 
-**Possibly extended**
-- `supabase/functions/elevenlabs-tts/index.ts` (add Arabic voice routing for Egyptian/Yemeni) — only if not already present.
+**Production (new)**
+- Hides the Arabic word.
+- Shows the image (if any) and a prominent ▶ Play button for `word_audio_url` / TTS fallback.
+- Shows the English meaning as the prompt.
+- Hint label: "Say the Arabic word."
+- "Reveal Arabic" button reveals the Arabic text + plays audio.
+- `PronunciationButton` available after reveal so the learner can check themselves.
+- Self-rating buttons schedule the `production_*` columns via the same SM-2 logic in `spacedRepetition.ts`.
+
+No autoplay of word audio on production cards before the user taps Play (revealing audio would defeat half the recall — though if the card has no image, autoplay is fine since audio *is* the prompt). Implementation: autoplay only when `image_url` is null.
+
+## SRS update logic
+
+Extend `useUpdateUserVocabularyReview` to accept `cardType: 'recognition' | 'production'` and write to the matching column set. Same `calculateNextReview` math for both.
+
+On a successful recognition rating (≥ Good) when `production_next_review_at IS NULL`, also set `production_next_review_at = now()` in the same update so the production card unlocks.
+
+## Due-count badge
+
+`useUserVocabularyDueCount` updates to count both:
+- recognition due (`next_review_at <= now()`)
+- production due (`production_next_review_at <= now()`)
+
+Sum for the "due" badge on the My Words tile.
+
+## Files touched
+
+- **Migration**: add 5 production_* columns to `user_vocabulary`.
+- `src/hooks/useUserVocabulary.ts` — extend types, due-count query, `useUpdateUserVocabularyReview` to accept `cardType` and unlock-on-first-success logic.
+- `src/pages/MyWordsReview.tsx` — dual query + merged queue, conditional production rendering, conditional autoplay.
+- (Optional refactor) extract a small `<ReviewCardBody />` so recognition vs production rendering stays readable.
+
+## Out of scope
+
+- No automatic speech grading — pronunciation check stays a manual button.
+- No changes to tutor-upload, lessons, or curriculum review flows.
+- No changes to vocabulary list / "My Words" landing page beyond the due badge.

@@ -179,6 +179,7 @@ const MyWordsReview = () => {
   // Reset reveal state on card change
   useEffect(() => {
     setShowAnswer(false);
+    setShowContext(false);
   }, [currentWord?.id, currentWord?.card_type]);
 
   // Auto-play: only on recognition cards (audio reinforces what's shown).

@@ -136,68 +136,104 @@ const MyWords = () => {
       {/* Word list */}
       {words && words.length > 0 && (
         <div className="rounded-xl bg-card border border-border overflow-hidden">
-          {words.map((word, index) => (
+          {words.map((word, index) => {
+            const hasContext = !!word.sentence_text;
+            const isExpanded = expandedContext.has(word.id);
+            return (
             <div
               key={word.id}
               className={cn(
-                "flex items-center justify-between p-4",
+                "p-4",
                 "hover:bg-muted/50 transition-colors",
                 index < words.length - 1 && "border-b border-border"
               )}
             >
-              <div className="flex items-center gap-3">
-                {/* Thumbnail */}
-                {word.image_url ? (
-                  <img
-                    src={word.image_url}
-                    alt={word.word_english}
-                    className="w-10 h-10 rounded-lg object-cover border border-border flex-shrink-0"
-                  />
-                ) : (
-                  <div className="w-10 h-10 rounded-lg bg-muted/50 border border-dashed border-border flex items-center justify-center flex-shrink-0">
-                    <Sparkles className="h-4 w-4 text-muted-foreground/50" />
-                  </div>
-                )}
-                <div>
-                  <span
-                    className="text-lg font-bold text-foreground block"
-                    style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
-                    dir="rtl"
-                  >
-                    {word.word_arabic}
-                  </span>
-                  {word.root && (
-                    <span className="text-xs font-mono text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
-                      {word.root}
-                    </span>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  {word.image_url ? (
+                    <img
+                      src={word.image_url}
+                      alt={word.word_english}
+                      className="w-10 h-10 rounded-lg object-cover border border-border flex-shrink-0"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-lg bg-muted/50 border border-dashed border-border flex items-center justify-center flex-shrink-0">
+                      <Sparkles className="h-4 w-4 text-muted-foreground/50" />
+                    </div>
                   )}
+                  <div>
+                    <span
+                      className="text-lg font-bold text-foreground block"
+                      style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
+                      dir="rtl"
+                    >
+                      {word.word_arabic}
+                    </span>
+                    {word.root && (
+                      <span className="text-xs font-mono text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                        {word.root}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground hidden sm:inline">
+                    {word.word_english}
+                  </span>
+                  {hasContext && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className={cn(
+                        "h-8 w-8 hover:text-primary",
+                        isExpanded ? "text-primary" : "text-muted-foreground"
+                      )}
+                      onClick={(e) => { e.stopPropagation(); toggleContext(word.id); }}
+                      title="Show original sentence"
+                    >
+                      <Quote className="h-4 w-4" />
+                    </Button>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground hover:text-primary"
+                    onClick={(e) => { e.stopPropagation(); setImageDialogWord(word); }}
+                    title="Generate image"
+                  >
+                    <Sparkles className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                    onClick={(e) => handleDelete(word.id, e)}
+                    disabled={deleteWord.isPending}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground hidden sm:inline">
-                  {word.word_english}
-                </span>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-muted-foreground hover:text-primary"
-                  onClick={(e) => { e.stopPropagation(); setImageDialogWord(word); }}
-                  title="Generate image"
-                >
-                  <Sparkles className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                  onClick={(e) => handleDelete(word.id, e)}
-                  disabled={deleteWord.isPending}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
+              {hasContext && isExpanded && (
+                <div className="mt-3 pl-13 border-l-2 border-primary/30 ml-1 pl-3 py-1 bg-muted/30 rounded-r">
+                  <p className="text-xs text-muted-foreground mb-1">Original context</p>
+                  <p
+                    className="text-sm text-foreground/90 font-arabic leading-relaxed"
+                    dir="rtl"
+                    style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
+                  >
+                    {word.sentence_text}
+                  </p>
+                  {word.sentence_english && (
+                    <p className="text-xs text-muted-foreground mt-1 italic">
+                      {word.sentence_english}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

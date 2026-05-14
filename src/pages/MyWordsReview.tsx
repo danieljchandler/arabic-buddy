@@ -517,6 +517,41 @@ const MyWordsReview = () => {
                 )}
               </>
             )}
+
+            {/* Original sentence context (where the word was first saved) */}
+            {currentWord.sentence_text && (showAnswer || !isProduction) && (
+              <div className="mt-6 max-w-md mx-auto">
+                {!showContext ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowContext(true)}
+                    className="gap-1.5 text-muted-foreground"
+                  >
+                    <Quote className="h-4 w-4" />
+                    Show original sentence
+                  </Button>
+                ) : (
+                  <div className="text-left bg-muted/40 border-l-2 border-primary/40 rounded-r p-3 animate-in fade-in duration-200">
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">
+                      Original context
+                    </p>
+                    <p
+                      className="text-base text-foreground/90 font-arabic leading-relaxed"
+                      dir="rtl"
+                      style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
+                    >
+                      {currentWord.sentence_text}
+                    </p>
+                    {currentWord.sentence_english && (
+                      <p className="text-xs text-muted-foreground mt-1.5 italic">
+                        {currentWord.sentence_english}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 

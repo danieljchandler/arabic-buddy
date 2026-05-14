@@ -215,7 +215,7 @@ const MyWords = () => {
                 </div>
               </div>
               {hasContext && isExpanded && (
-                <div className="mt-3 pl-13 border-l-2 border-primary/30 ml-1 pl-3 py-1 bg-muted/30 rounded-r">
+                <div className="mt-3 ml-1 border-l-2 border-primary/30 pl-3 py-1 bg-muted/30 rounded-r">
                   <p className="text-xs text-muted-foreground mb-1">Original context</p>
                   <p
                     className="text-sm text-foreground/90 font-arabic leading-relaxed"

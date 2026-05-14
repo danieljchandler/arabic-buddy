@@ -70,6 +70,7 @@ const MyWordsReview = () => {
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showAnswer, setShowAnswer] = useState(false);
+  const [showContext, setShowContext] = useState(false);
   const [sessionCount, setSessionCount] = useState(0);
   const [jingleLoading, setJingleLoading] = useState(false);
   const [imageDialogOpen, setImageDialogOpen] = useState(false);

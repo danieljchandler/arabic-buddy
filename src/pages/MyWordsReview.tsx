@@ -35,6 +35,8 @@ interface DueCard {
   sentence_audio_url: string | null;
   image_url: string | null;
   jingle_audio_url: string | null;
+  sentence_text: string | null;
+  sentence_english: string | null;
 }
 
 interface RawRow {
@@ -55,6 +57,8 @@ interface RawRow {
   sentence_audio_url: string | null;
   image_url: string | null;
   jingle_audio_url: string | null;
+  sentence_text: string | null;
+  sentence_english: string | null;
 }
 
 const MyWordsReview = () => {
@@ -90,7 +94,7 @@ const MyWordsReview = () => {
       // Fetch all rows that are due in either direction. We do two queries
       // and merge so each direction can be tagged independently.
       const baseSelect =
-        "id, word_arabic, word_english, ease_factor, interval_days, repetitions, next_review_at, last_reviewed_at, production_ease_factor, production_interval_days, production_repetitions, production_next_review_at, production_last_reviewed_at, word_audio_url, sentence_audio_url, image_url, jingle_audio_url";
+        "id, word_arabic, word_english, ease_factor, interval_days, repetitions, next_review_at, last_reviewed_at, production_ease_factor, production_interval_days, production_repetitions, production_next_review_at, production_last_reviewed_at, word_audio_url, sentence_audio_url, image_url, jingle_audio_url, sentence_text, sentence_english";
 
       const { data: recogRows, error: recogErr } = await (supabase
         .from("user_vocabulary")
@@ -127,6 +131,8 @@ const MyWordsReview = () => {
           sentence_audio_url: r.sentence_audio_url,
           image_url: r.image_url,
           jingle_audio_url: r.jingle_audio_url,
+          sentence_text: r.sentence_text,
+          sentence_english: r.sentence_english,
         });
       }
       for (const r of (prodRows || []) as RawRow[]) {
@@ -144,6 +150,8 @@ const MyWordsReview = () => {
           sentence_audio_url: r.sentence_audio_url,
           image_url: r.image_url,
           jingle_audio_url: r.jingle_audio_url,
+          sentence_text: r.sentence_text,
+          sentence_english: r.sentence_english,
         });
       }
 

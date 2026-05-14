@@ -4,7 +4,7 @@ import { useUserVocabulary, useUserVocabularyDueCount, useDeleteUserVocabulary, 
 import { useAuth } from "@/hooks/useAuth";
 import { useDialect } from "@/contexts/DialectContext";
 import { Button } from "@/components/ui/button";
-import { BookOpen, Trash2, ChevronLeft, ChevronRight, Loader2, Shuffle, Sparkles } from "lucide-react";
+import { BookOpen, Trash2, ChevronLeft, ChevronRight, Loader2, Shuffle, Sparkles, Quote } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
@@ -21,7 +21,16 @@ const MyWords = () => {
   const { data: stats } = useUserVocabularyDueCount(mixAll);
   const deleteWord = useDeleteUserVocabulary();
   const [imageDialogWord, setImageDialogWord] = useState<UserVocabularyWord | null>(null);
+  const [expandedContext, setExpandedContext] = useState<Set<string>>(new Set());
   const [suggestOpen, setSuggestOpen] = useState(false);
+
+  const toggleContext = (id: string) => {
+    setExpandedContext((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
 
   const handleDelete = async (wordId: string, e: React.MouseEvent) => {
     e.stopPropagation();

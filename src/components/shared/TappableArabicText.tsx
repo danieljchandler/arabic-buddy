@@ -147,7 +147,14 @@ export const TappableArabicText = ({
       return;
     }
     addVocab.mutate(
-      { word_arabic: arabic, word_english: english, root: root || undefined, source },
+      {
+        word_arabic: arabic,
+        word_english: english,
+        root: root || undefined,
+        source,
+        sentence_text: sentenceContext?.arabic || text || undefined,
+        sentence_english: sentenceContext?.english || undefined,
+      },
       {
         onSuccess: () => toast.success("Saved to My Words!"),
         onError: (err: any) => {

@@ -121,7 +121,7 @@ const TappableArabicLine = ({
   wordTranslations: Record<string, { translation: string; lineEnglish: string; enrichment?: WordEnrichment; enriching?: boolean }>;
   onWordTap: (word: string, lineIdx: number) => void;
   isAuthenticated: boolean;
-  onSaveFlashcard: (arabic: string, english: string, root?: string) => void;
+  onSaveFlashcard: (arabic: string, english: string, root?: string, sentence?: { arabic: string; english: string }) => void;
   revealedLines: Set<number>;
   onToggleLine: (idx: number) => void;
 }) => (
@@ -185,7 +185,7 @@ const TappableArabicLine = ({
                       className="w-full text-xs mt-1"
                       onClick={(e) => {
                         e.stopPropagation();
-                        onSaveFlashcard(cleanWord, wordData.translation, wordData.enrichment?.root);
+                        onSaveFlashcard(cleanWord, wordData.translation, wordData.enrichment?.root, { arabic: line.arabic, english: line.english });
                       }}
                     >
                       <BookmarkPlus className="h-3 w-3 mr-1" />
@@ -433,13 +433,25 @@ const ReadingPractice = () => {
     }));
   };
 
-  const saveAsFlashcard = (arabic: string, english: string, root?: string) => {
+  const saveAsFlashcard = (
+    arabic: string,
+    english: string,
+    root?: string,
+    sentence?: { arabic: string; english: string },
+  ) => {
     if (!isAuthenticated) {
       toast.error("Sign in to save flashcards");
       return;
     }
     addVocab.mutate(
-      { word_arabic: arabic, word_english: english, root: root || undefined, source: "reading-practice" },
+      {
+        word_arabic: arabic,
+        word_english: english,
+        root: root || undefined,
+        source: "reading-practice",
+        sentence_text: sentence?.arabic || undefined,
+        sentence_english: sentence?.english || undefined,
+      },
       {
         onSuccess: () => toast.success("Saved to My Words!"),
         onError: () => toast.error("Failed to save"),

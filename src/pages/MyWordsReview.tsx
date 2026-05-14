@@ -6,7 +6,7 @@ import { useDialect } from "@/contexts/DialectContext";
 import { HomeButton } from "@/components/HomeButton";
 import { RatingButtons } from "@/components/review/RatingButtons";
 import { AppShell } from "@/components/layout/AppShell";
-import { Loader2, Trophy, LogIn, Eye, Volume2, Music, RefreshCw, Sparkles, Play, Brain, Mic2 } from "lucide-react";
+import { Loader2, Trophy, LogIn, Eye, Volume2, Music, RefreshCw, Sparkles, Play, Brain, Mic2, Quote } from "lucide-react";
 import { GenerateImageDialog } from "@/components/mywords/GenerateImageDialog";
 import { useUpdateUserVocabularyImage } from "@/hooks/useUserVocabulary";
 import { PronunciationButton } from "@/components/review/PronunciationButton";
@@ -35,6 +35,8 @@ interface DueCard {
   sentence_audio_url: string | null;
   image_url: string | null;
   jingle_audio_url: string | null;
+  sentence_text: string | null;
+  sentence_english: string | null;
 }
 
 interface RawRow {
@@ -55,6 +57,8 @@ interface RawRow {
   sentence_audio_url: string | null;
   image_url: string | null;
   jingle_audio_url: string | null;
+  sentence_text: string | null;
+  sentence_english: string | null;
 }
 
 const MyWordsReview = () => {
@@ -66,6 +70,7 @@ const MyWordsReview = () => {
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showAnswer, setShowAnswer] = useState(false);
+  const [showContext, setShowContext] = useState(false);
   const [sessionCount, setSessionCount] = useState(0);
   const [jingleLoading, setJingleLoading] = useState(false);
   const [imageDialogOpen, setImageDialogOpen] = useState(false);
@@ -90,7 +95,7 @@ const MyWordsReview = () => {
       // Fetch all rows that are due in either direction. We do two queries
       // and merge so each direction can be tagged independently.
       const baseSelect =
-        "id, word_arabic, word_english, ease_factor, interval_days, repetitions, next_review_at, last_reviewed_at, production_ease_factor, production_interval_days, production_repetitions, production_next_review_at, production_last_reviewed_at, word_audio_url, sentence_audio_url, image_url, jingle_audio_url";
+        "id, word_arabic, word_english, ease_factor, interval_days, repetitions, next_review_at, last_reviewed_at, production_ease_factor, production_interval_days, production_repetitions, production_next_review_at, production_last_reviewed_at, word_audio_url, sentence_audio_url, image_url, jingle_audio_url, sentence_text, sentence_english";
 
       const { data: recogRows, error: recogErr } = await (supabase
         .from("user_vocabulary")
@@ -127,6 +132,8 @@ const MyWordsReview = () => {
           sentence_audio_url: r.sentence_audio_url,
           image_url: r.image_url,
           jingle_audio_url: r.jingle_audio_url,
+          sentence_text: r.sentence_text,
+          sentence_english: r.sentence_english,
         });
       }
       for (const r of (prodRows || []) as RawRow[]) {
@@ -144,6 +151,8 @@ const MyWordsReview = () => {
           sentence_audio_url: r.sentence_audio_url,
           image_url: r.image_url,
           jingle_audio_url: r.jingle_audio_url,
+          sentence_text: r.sentence_text,
+          sentence_english: r.sentence_english,
         });
       }
 
@@ -170,6 +179,7 @@ const MyWordsReview = () => {
   // Reset reveal state on card change
   useEffect(() => {
     setShowAnswer(false);
+    setShowContext(false);
   }, [currentWord?.id, currentWord?.card_type]);
 
   // Auto-play: only on recognition cards (audio reinforces what's shown).
@@ -506,6 +516,41 @@ const MyWordsReview = () => {
                   </Button>
                 )}
               </>
+            )}
+
+            {/* Original sentence context (where the word was first saved) */}
+            {currentWord.sentence_text && (showAnswer || !isProduction) && (
+              <div className="mt-6 max-w-md mx-auto">
+                {!showContext ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowContext(true)}
+                    className="gap-1.5 text-muted-foreground"
+                  >
+                    <Quote className="h-4 w-4" />
+                    Show original sentence
+                  </Button>
+                ) : (
+                  <div className="text-left bg-muted/40 border-l-2 border-primary/40 rounded-r p-3 animate-in fade-in duration-200">
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">
+                      Original context
+                    </p>
+                    <p
+                      className="text-base text-foreground/90 font-arabic leading-relaxed"
+                      dir="rtl"
+                      style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
+                    >
+                      {currentWord.sentence_text}
+                    </p>
+                    {currentWord.sentence_english && (
+                      <p className="text-xs text-muted-foreground mt-1.5 italic">
+                        {currentWord.sentence_english}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </div>

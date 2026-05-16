@@ -16,6 +16,7 @@ const lazyPage = <T extends ComponentType<any>>(loader: () => Promise<{ default:
   lazy(lazyRetry(loader));
 
 const Index = lazyPage(() => import("./pages/Index"));
+const Today = lazyPage(() => import("./pages/Today"));
 const Learn = lazyPage(() => import("./pages/Learn"));
 const NotFound = lazyPage(() => import("./pages/NotFound"));
 const Quiz = lazyPage(() => import("./pages/Quiz"));
@@ -172,6 +173,7 @@ const App = () => {
             {/* Public learning app */}
             <Route path="/" element={<ErrorBoundary name="HomeRoute"><Index /></ErrorBoundary>} />
             <Route path="/index" element={<Navigate to="/" replace />} />
+            <Route path="/today" element={<ErrorBoundary name="TodayRoute"><Today /></ErrorBoundary>} />
             <Route path="/auth" element={<ErrorBoundary name="AuthRoute"><Auth /></ErrorBoundary>} />
             <Route path="/review" element={<ErrorBoundary name="ReviewRoute"><Review /></ErrorBoundary>} />
             <Route

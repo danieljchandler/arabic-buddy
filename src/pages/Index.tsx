@@ -245,6 +245,19 @@ const Index = () => {
 
           "gamification": isAuthenticated ? (
             <div key="gamification" className="space-y-3">
+              <button
+                onClick={() => navigate("/today")}
+                className="w-full p-4 rounded-2xl bg-gradient-to-br from-primary/15 via-primary/10 to-transparent border-2 border-primary/30 flex items-center gap-3 transition-all hover:border-primary/50 hover:shadow-md active:scale-[0.99] text-left"
+              >
+                <div className="h-12 w-12 rounded-xl bg-primary/20 flex items-center justify-center shrink-0">
+                  <Sparkles className="h-6 w-6 text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-foreground" style={{ fontFamily: "'Montserrat', sans-serif" }}>Start today</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Your daily learning queue</p>
+                </div>
+                <ChevronRight className="h-5 w-5 text-primary shrink-0" />
+              </button>
               <div className="flex gap-3">
                 <XPDisplay compact className="flex-1" />
                 <StreakDisplay compact />

@@ -168,6 +168,22 @@ const MyWordsReview = () => {
     : null;
   const isProduction = currentWord?.card_type === "production";
 
+  // Cloze variant: enable for recognition cards that have sentence context
+  // containing the target word AND at least 3 distractor words available.
+  // Alternate by index so users get a mix of plain & cloze cards.
+  const distractorPool = (dueWords || [])
+    .map((d) => d.word_arabic)
+    .filter((w) => w && w !== currentWord?.word_arabic);
+  const sentenceHasWord =
+    !!currentWord?.sentence_text &&
+    !!currentWord?.word_arabic &&
+    currentWord.sentence_text.includes(currentWord.word_arabic);
+  const useCloze =
+    !isProduction &&
+    sentenceHasWord &&
+    distractorPool.length >= 3 &&
+    currentIndex % 2 === 0;
+
   // TTS fallback when no recorded word_audio_url is available
   const { ttsUrl: wordTtsUrl, isLoading: wordTtsLoading } = useAzureTTS({
     text: currentWord?.word_arabic ?? "",

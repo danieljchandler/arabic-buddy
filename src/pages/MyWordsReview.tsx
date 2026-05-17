@@ -383,6 +383,16 @@ const MyWordsReview = () => {
       {/* Card */}
       <div className="py-4">
         <div className="max-w-sm mx-auto">
+          {useCloze ? (
+            <ReviewClozeCard
+              wordArabic={currentWord.word_arabic}
+              wordEnglish={currentWord.word_english}
+              sentenceText={currentWord.sentence_text!}
+              sentenceEnglish={currentWord.sentence_english}
+              sentenceAudioUrl={currentWord.sentence_audio_url}
+              distractors={distractorPool}
+            />
+          ) : (
           <div className="rounded-2xl bg-card border border-border p-8 text-center">
             {/* Image if available */}
             {currentWord.image_url && (

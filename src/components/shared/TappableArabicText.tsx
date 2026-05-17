@@ -14,6 +14,7 @@ import { BookmarkPlus, Loader2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { useDisplayPrefs } from "@/hooks/useDisplayPrefs";
 import { stripTashkil } from "@/lib/displayPrefs";
+import { useMarkUnknowns } from "@/contexts/MarkUnknownsContext";
 
 interface WordEnrichment {
   definition?: string;
@@ -85,6 +86,7 @@ export const TappableArabicText = ({
   const { activeDialect } = useDialect();
   const { prefs } = useDisplayPrefs();
   const addVocab = useAddUserVocabulary();
+  const markUnknowns = useMarkUnknowns();
   const [wordTranslations, setWordTranslations] = useState<Record<string, WordData>>({});
 
   const handleWordTap = async (word: string) => {
@@ -183,6 +185,32 @@ export const TappableArabicText = ({
       {words.map((word, wIdx) => {
         const cleanWord = word.replace(/[،.؟!,؛:«»"]/g, "").trim();
         const wordData = wordTranslations[cleanWord];
+        const marking = markUnknowns.enabled;
+        const marked = marking && markUnknowns.isMarked(cleanWord);
+
+        if (marking) {
+          return (
+            <span
+              key={wIdx}
+              onClick={() =>
+                cleanWord &&
+                markUnknowns.toggle({
+                  arabic: cleanWord,
+                  sentence_text: sentenceContext?.arabic || text,
+                  sentence_english: sentenceContext?.english,
+                })
+              }
+              className={cn(
+                "cursor-pointer rounded px-0.5 transition-colors",
+                marked
+                  ? "bg-yellow-300/70 text-foreground dark:bg-yellow-500/40"
+                  : "hover:bg-yellow-200/40"
+              )}
+            >
+              {word}
+            </span>
+          );
+        }
 
         return (
           <Popover key={wIdx}>

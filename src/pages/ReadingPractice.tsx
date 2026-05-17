@@ -20,6 +20,9 @@ import { useAddUserVocabulary } from "@/hooks/useUserVocabulary";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { MarkUnknownsProvider, useMarkUnknowns } from "@/contexts/MarkUnknownsContext";
+import { MarkUnknownsToggle } from "@/components/shared/MarkUnknownsToggle";
+import { SaveUnknownsBar } from "@/components/shared/SaveUnknownsBar";
 import {
   BookOpen,
   Check,
@@ -124,12 +127,41 @@ const TappableArabicLine = ({
   onSaveFlashcard: (arabic: string, english: string, root?: string, sentence?: { arabic: string; english: string }) => void;
   revealedLines: Set<number>;
   onToggleLine: (idx: number) => void;
-}) => (
+}) => {
+  const markUnknowns = useMarkUnknowns();
+
+  return (
   <div className="space-y-1">
     <p className="text-lg leading-relaxed font-arabic text-foreground flex flex-wrap justify-end gap-1" dir="rtl">
       {line.arabic.split(/\s+/).map((word, wIdx) => {
         const cleanWord = word.replace(/[،.؟!,]/g, "").trim();
         const wordData = wordTranslations[cleanWord];
+        const marking = markUnknowns.enabled;
+        const marked = marking && markUnknowns.isMarked(cleanWord);
+
+        if (marking) {
+          return (
+            <span
+              key={wIdx}
+              onClick={() =>
+                cleanWord &&
+                markUnknowns.toggle({
+                  arabic: cleanWord,
+                  sentence_text: line.arabic,
+                  sentence_english: line.english,
+                })
+              }
+              className={cn(
+                "cursor-pointer rounded px-0.5 transition-colors",
+                marked
+                  ? "bg-yellow-300/70 text-foreground dark:bg-yellow-500/40"
+                  : "hover:bg-yellow-200/40"
+              )}
+            >
+              {word}
+            </span>
+          );
+        }
 
         return (
           <Popover key={wIdx}>
@@ -216,7 +248,8 @@ const TappableArabicLine = ({
       )}
     </div>
   </div>
-);
+  );
+};
 
 const ReadingPractice = () => {
   const navigate = useNavigate();
@@ -902,7 +935,11 @@ const ReadingPractice = () => {
         </div>
       </div>
 
-      {/* Passage Section */}
+      {!quizStarted && (
+        <div className="flex justify-end mb-3">
+          <MarkUnknownsToggle />
+        </div>
+      )}
       {!quizStarted && (
         <div className="space-y-4">
           <div className="text-center">
@@ -1009,8 +1046,15 @@ const ReadingPractice = () => {
           </div>
         </div>
       )}
+      <SaveUnknownsBar source="reading-practice" />
     </AppShell>
   );
 };
 
-export default ReadingPractice;
+const ReadingPracticePage = () => (
+  <MarkUnknownsProvider>
+    <ReadingPractice />
+  </MarkUnknownsProvider>
+);
+
+export default ReadingPracticePage;

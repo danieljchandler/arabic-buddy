@@ -1046,8 +1046,15 @@ const ReadingPractice = () => {
           </div>
         </div>
       )}
+      <SaveUnknownsBar source="reading-practice" />
     </AppShell>
   );
 };
 
-export default ReadingPractice;
+const ReadingPracticePage = () => (
+  <MarkUnknownsProvider>
+    <ReadingPractice />
+  </MarkUnknownsProvider>
+);
+
+export default ReadingPracticePage;

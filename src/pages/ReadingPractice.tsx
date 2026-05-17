@@ -20,6 +20,9 @@ import { useAddUserVocabulary } from "@/hooks/useUserVocabulary";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { MarkUnknownsProvider, useMarkUnknowns } from "@/contexts/MarkUnknownsContext";
+import { MarkUnknownsToggle } from "@/components/shared/MarkUnknownsToggle";
+import { SaveUnknownsBar } from "@/components/shared/SaveUnknownsBar";
 import {
   BookOpen,
   Check,

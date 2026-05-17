@@ -9,6 +9,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { TappableArabicText } from "@/components/shared/TappableArabicText";
 import { ArticleQuiz } from "@/components/souq-news/ArticleQuiz";
 import { ArticleSentences } from "@/components/souq-news/ArticleSentences";
+import { MarkUnknownsProvider } from "@/contexts/MarkUnknownsContext";
+import { MarkUnknownsToggle } from "@/components/shared/MarkUnknownsToggle";
+import { SaveUnknownsBar } from "@/components/shared/SaveUnknownsBar";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
@@ -98,15 +101,17 @@ const SouqNews = () => {
             Today's news, told like a friend at the souq
           </p>
         </div>
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={() => refetch()}
-          disabled={isFetching}
-          className="shrink-0"
-        >
-          <RefreshCw className={cn("h-4 w-4", isFetching && "animate-spin")} />
-        </Button>
+        <div className="flex items-center gap-2 shrink-0">
+          <MarkUnknownsToggle />
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => refetch()}
+            disabled={isFetching}
+          >
+            <RefreshCw className={cn("h-4 w-4", isFetching && "animate-spin")} />
+          </Button>
+        </div>
       </div>
 
       {isLoading ? (
@@ -198,8 +203,15 @@ const SouqNews = () => {
           })}
         </div>
       )}
+      <SaveUnknownsBar source="souq-news" />
     </AppShell>
   );
 };
 
-export default SouqNews;
+const SouqNewsPage = () => (
+  <MarkUnknownsProvider>
+    <SouqNews />
+  </MarkUnknownsProvider>
+);
+
+export default SouqNewsPage;

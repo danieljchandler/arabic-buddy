@@ -580,6 +580,7 @@ const MyWordsReview = () => {
               </div>
             )}
           </div>
+          )}
         </div>
 
         {/* Self-rating always visible */}

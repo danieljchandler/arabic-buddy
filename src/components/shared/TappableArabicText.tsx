@@ -14,6 +14,7 @@ import { BookmarkPlus, Loader2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { useDisplayPrefs } from "@/hooks/useDisplayPrefs";
 import { stripTashkil } from "@/lib/displayPrefs";
+import { useMarkUnknowns } from "@/contexts/MarkUnknownsContext";
 
 interface WordEnrichment {
   definition?: string;
@@ -85,6 +86,7 @@ export const TappableArabicText = ({
   const { activeDialect } = useDialect();
   const { prefs } = useDisplayPrefs();
   const addVocab = useAddUserVocabulary();
+  const markUnknowns = useMarkUnknowns();
   const [wordTranslations, setWordTranslations] = useState<Record<string, WordData>>({});
 
   const handleWordTap = async (word: string) => {

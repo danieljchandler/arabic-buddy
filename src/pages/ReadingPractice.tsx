@@ -935,7 +935,11 @@ const ReadingPractice = () => {
         </div>
       </div>
 
-      {/* Passage Section */}
+      {!quizStarted && (
+        <div className="flex justify-end mb-3">
+          <MarkUnknownsToggle />
+        </div>
+      )}
       {!quizStarted && (
         <div className="space-y-4">
           <div className="text-center">

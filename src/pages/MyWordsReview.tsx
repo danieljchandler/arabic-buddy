@@ -16,6 +16,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAzureTTS } from "@/hooks/useAzureTTS";
+import { ReviewClozeCard } from "@/components/review/ReviewClozeCard";
 
 type CardType = "recognition" | "production";
 

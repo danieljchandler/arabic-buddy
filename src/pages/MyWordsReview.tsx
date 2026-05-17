@@ -16,6 +16,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAzureTTS } from "@/hooks/useAzureTTS";
+import { ReviewClozeCard } from "@/components/review/ReviewClozeCard";
 
 type CardType = "recognition" | "production";
 
@@ -166,6 +167,22 @@ const MyWordsReview = () => {
     ? dueWords[Math.min(currentIndex, dueWords.length - 1)]
     : null;
   const isProduction = currentWord?.card_type === "production";
+
+  // Cloze variant: enable for recognition cards that have sentence context
+  // containing the target word AND at least 3 distractor words available.
+  // Alternate by index so users get a mix of plain & cloze cards.
+  const distractorPool = (dueWords || [])
+    .map((d) => d.word_arabic)
+    .filter((w) => w && w !== currentWord?.word_arabic);
+  const sentenceHasWord =
+    !!currentWord?.sentence_text &&
+    !!currentWord?.word_arabic &&
+    currentWord.sentence_text.includes(currentWord.word_arabic);
+  const useCloze =
+    !isProduction &&
+    sentenceHasWord &&
+    distractorPool.length >= 3 &&
+    currentIndex % 2 === 0;
 
   // TTS fallback when no recorded word_audio_url is available
   const { ttsUrl: wordTtsUrl, isLoading: wordTtsLoading } = useAzureTTS({
@@ -366,6 +383,16 @@ const MyWordsReview = () => {
       {/* Card */}
       <div className="py-4">
         <div className="max-w-sm mx-auto">
+          {useCloze ? (
+            <ReviewClozeCard
+              wordArabic={currentWord.word_arabic}
+              wordEnglish={currentWord.word_english}
+              sentenceText={currentWord.sentence_text!}
+              sentenceEnglish={currentWord.sentence_english}
+              sentenceAudioUrl={currentWord.sentence_audio_url}
+              distractors={distractorPool}
+            />
+          ) : (
           <div className="rounded-2xl bg-card border border-border p-8 text-center">
             {/* Image if available */}
             {currentWord.image_url && (
@@ -553,6 +580,7 @@ const MyWordsReview = () => {
               </div>
             )}
           </div>
+          )}
         </div>
 
         {/* Self-rating always visible */}

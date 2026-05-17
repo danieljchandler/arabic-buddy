@@ -248,7 +248,8 @@ const TappableArabicLine = ({
       )}
     </div>
   </div>
-);
+  );
+};
 
 const ReadingPractice = () => {
   const navigate = useNavigate();

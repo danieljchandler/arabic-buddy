@@ -185,6 +185,32 @@ export const TappableArabicText = ({
       {words.map((word, wIdx) => {
         const cleanWord = word.replace(/[،.؟!,؛:«»"]/g, "").trim();
         const wordData = wordTranslations[cleanWord];
+        const marking = markUnknowns.enabled;
+        const marked = marking && markUnknowns.isMarked(cleanWord);
+
+        if (marking) {
+          return (
+            <span
+              key={wIdx}
+              onClick={() =>
+                cleanWord &&
+                markUnknowns.toggle({
+                  arabic: cleanWord,
+                  sentence_text: sentenceContext?.arabic || text,
+                  sentence_english: sentenceContext?.english,
+                })
+              }
+              className={cn(
+                "cursor-pointer rounded px-0.5 transition-colors",
+                marked
+                  ? "bg-yellow-300/70 text-foreground dark:bg-yellow-500/40"
+                  : "hover:bg-yellow-200/40"
+              )}
+            >
+              {word}
+            </span>
+          );
+        }
 
         return (
           <Popover key={wIdx}>

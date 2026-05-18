@@ -17,6 +17,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAzureTTS } from "@/hooks/useAzureTTS";
 import { ReviewClozeCard } from "@/components/review/ReviewClozeCard";
+import { useNewCardCap, NEW_CAP_OPTIONS, formatCap } from "@/hooks/useNewCardCap";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 type CardType = "recognition" | "production";
 
@@ -67,6 +75,7 @@ const MyWordsReview = () => {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   const { activeDialect } = useDialect();
   const updateReview = useUpdateUserVocabularyReview();
+  const { cap: newCap, setCap: setNewCap } = useNewCardCap();
   const queryClient = useQueryClient();
 
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -88,7 +97,7 @@ const MyWordsReview = () => {
   };
 
   const { data: dueWords, isLoading, refetch } = useQuery({
-    queryKey: ["user-vocabulary-due-words", user?.id, activeDialect],
+    queryKey: ["user-vocabulary-due-words", user?.id, activeDialect, newCap],
     queryFn: async (): Promise<DueCard[]> => {
       if (!user) return [];
       const now = new Date().toISOString();
@@ -164,7 +173,7 @@ const MyWordsReview = () => {
       //    don't all clump at the end.
       // 3. Interleave recognition vs production within each bucket so the
       //    user keeps switching modes (Anki/Duolingo-style mixing).
-      const NEW_CAP = 10;
+      const NEW_CAP = newCap;
       const splitMix = (arr: DueCard[]) => {
         const recog = arr.filter((c) => c.card_type === "recognition");
         const prod = arr.filter((c) => c.card_type === "production");
@@ -392,7 +401,27 @@ const MyWordsReview = () => {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <HomeButton />
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          <Select
+            value={String(newCap)}
+            onValueChange={(v) => setNewCap(Number(v) as never)}
+          >
+            <SelectTrigger
+              className="h-8 w-auto gap-1 px-2.5 text-xs font-medium"
+              aria-label="New cards per session"
+              title="New cards per session"
+            >
+              <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+              <SelectValue>{formatCap(newCap)}/day</SelectValue>
+            </SelectTrigger>
+            <SelectContent align="end">
+              {NEW_CAP_OPTIONS.map((n) => (
+                <SelectItem key={n} value={String(n)} className="text-xs">
+                  {formatCap(n)} new / session
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <div className="px-3 py-1.5 rounded-lg bg-card border border-border flex items-center gap-1.5">
             {isProduction ? <Mic2 className="h-3.5 w-3.5 text-primary" /> : <Brain className="h-3.5 w-3.5 text-primary" />}
             <span className="text-sm font-medium text-foreground">

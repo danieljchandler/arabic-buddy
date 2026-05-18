@@ -411,9 +411,18 @@ const MyWordsReview = () => {
         <div className="h-1.5 bg-muted rounded-full overflow-hidden">
           <div className="h-full bg-primary transition-all duration-300" style={{ width: `${progress}%` }} />
         </div>
-        <p className="text-center text-xs text-muted-foreground mt-2">
-          {currentIndex + 1} / {dueWords.length} due
-        </p>
+        <div className="flex items-center justify-center gap-3 text-xs text-muted-foreground mt-2">
+          <span>{currentIndex + 1} / {dueWords.length}</span>
+          <span className="text-border">·</span>
+          <span className="inline-flex items-center gap-1">
+            <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+            {newRemaining} new
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+            {reviewRemaining} review
+          </span>
+        </div>
       </div>
 
       {/* Card */}

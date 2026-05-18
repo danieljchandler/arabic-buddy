@@ -32,7 +32,7 @@ function densityClass(words: number): string {
 
 export default function CoverageHeatmap() {
   const navigate = useNavigate();
-  const { setActiveDialect } = useDialect();
+  const { setDialect } = useDialect();
   const { data: stages = [], isLoading: stagesLoading } = useStages();
 
   const { data: counts, isLoading } = useQuery({
@@ -57,12 +57,11 @@ export default function CoverageHeatmap() {
         lesson_id: string | null;
         dialect_module: string | null;
       }>;
-      const concepts =
-        ((conceptsRes.data ?? []) as unknown as Array<{
-          dialect: string;
-          stage_id: string | null;
-          kind: string;
-        }>) ?? [];
+      const concepts = ((conceptsRes.data ?? []) as unknown) as Array<{
+        dialect: string;
+        stage_id: string | null;
+        kind: string;
+      }>;
 
       const lessonMap = new Map<string, { stage_id: string | null; dialect: string | null }>();
       lessons.forEach((l) =>
@@ -98,7 +97,7 @@ export default function CoverageHeatmap() {
   }, [counts, stages]);
 
   const handleDraft = (dialect: Dialect, stageName: string) => {
-    setActiveDialect(dialect);
+    setDialect(dialect as never);
     navigate("/admin/curriculum-builder", {
       state: {
         seedPrompt: `Draft a lesson for the ${stageName} stage in ${dialect} Arabic. Focus on coverage gaps — pick a fresh, high-value topic the curriculum doesn't yet have.`,

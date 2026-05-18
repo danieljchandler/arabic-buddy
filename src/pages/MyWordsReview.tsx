@@ -97,7 +97,7 @@ const MyWordsReview = () => {
   };
 
   const { data: dueWords, isLoading, refetch } = useQuery({
-    queryKey: ["user-vocabulary-due-words", user?.id, activeDialect],
+    queryKey: ["user-vocabulary-due-words", user?.id, activeDialect, newCap],
     queryFn: async (): Promise<DueCard[]> => {
       if (!user) return [];
       const now = new Date().toISOString();

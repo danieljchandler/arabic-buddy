@@ -157,8 +157,39 @@ const MyWordsReview = () => {
         });
       }
 
+      // Smart scheduler:
+      // 1. Cap NEW cards per session (repetitions === 0) so the user doesn't
+      //    drown in fresh material.
+      // 2. Interleave new vs review cards (alternate when possible) so reviews
+      //    don't all clump at the end.
+      // 3. Interleave recognition vs production within each bucket so the
+      //    user keeps switching modes (Anki/Duolingo-style mixing).
+      const NEW_CAP = 10;
+      const splitMix = (arr: DueCard[]) => {
+        const recog = arr.filter((c) => c.card_type === "recognition");
+        const prod = arr.filter((c) => c.card_type === "production");
+        const out: DueCard[] = [];
+        const max = Math.max(recog.length, prod.length);
+        for (let i = 0; i < max; i++) {
+          if (i < recog.length) out.push(recog[i]);
+          if (i < prod.length) out.push(prod[i]);
+        }
+        return out;
+      };
+
+      const isNew = (c: DueCard) => c.repetitions === 0;
       cards.sort((a, b) => a.due_at.localeCompare(b.due_at));
-      return cards;
+      const newCards = splitMix(cards.filter(isNew)).slice(0, NEW_CAP);
+      const reviewCards = splitMix(cards.filter((c) => !isNew(c)));
+
+      // Round-robin new + review for a varied session
+      const session: DueCard[] = [];
+      const len = Math.max(newCards.length, reviewCards.length);
+      for (let i = 0; i < len; i++) {
+        if (i < reviewCards.length) session.push(reviewCards[i]);
+        if (i < newCards.length) session.push(newCards[i]);
+      }
+      return session;
     },
     enabled: !!user,
   });

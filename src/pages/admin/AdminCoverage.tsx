@@ -88,6 +88,8 @@ export default function AdminCoverage() {
         </p>
       </div>
 
+      <CoverageHeatmap />
+
       <div className="flex flex-wrap gap-2">
         <Select value={dialect} onValueChange={setDialect}>
           <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>

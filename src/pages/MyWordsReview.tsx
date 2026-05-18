@@ -157,8 +157,39 @@ const MyWordsReview = () => {
         });
       }
 
+      // Smart scheduler:
+      // 1. Cap NEW cards per session (repetitions === 0) so the user doesn't
+      //    drown in fresh material.
+      // 2. Interleave new vs review cards (alternate when possible) so reviews
+      //    don't all clump at the end.
+      // 3. Interleave recognition vs production within each bucket so the
+      //    user keeps switching modes (Anki/Duolingo-style mixing).
+      const NEW_CAP = 10;
+      const splitMix = (arr: DueCard[]) => {
+        const recog = arr.filter((c) => c.card_type === "recognition");
+        const prod = arr.filter((c) => c.card_type === "production");
+        const out: DueCard[] = [];
+        const max = Math.max(recog.length, prod.length);
+        for (let i = 0; i < max; i++) {
+          if (i < recog.length) out.push(recog[i]);
+          if (i < prod.length) out.push(prod[i]);
+        }
+        return out;
+      };
+
+      const isNew = (c: DueCard) => c.repetitions === 0;
       cards.sort((a, b) => a.due_at.localeCompare(b.due_at));
-      return cards;
+      const newCards = splitMix(cards.filter(isNew)).slice(0, NEW_CAP);
+      const reviewCards = splitMix(cards.filter((c) => !isNew(c)));
+
+      // Round-robin new + review for a varied session
+      const session: DueCard[] = [];
+      const len = Math.max(newCards.length, reviewCards.length);
+      for (let i = 0; i < len; i++) {
+        if (i < reviewCards.length) session.push(reviewCards[i]);
+        if (i < newCards.length) session.push(newCards[i]);
+      }
+      return session;
     },
     enabled: !!user,
   });
@@ -167,6 +198,11 @@ const MyWordsReview = () => {
     ? dueWords[Math.min(currentIndex, dueWords.length - 1)]
     : null;
   const isProduction = currentWord?.card_type === "production";
+
+  // Session breakdown for the New / Review header chips
+  const remainingFromIndex = (dueWords || []).slice(currentIndex);
+  const newRemaining = remainingFromIndex.filter((c) => c.repetitions === 0).length;
+  const reviewRemaining = remainingFromIndex.length - newRemaining;
 
   // Cloze variant: enable for recognition cards that have sentence context
   // containing the target word AND at least 3 distractor words available.
@@ -375,9 +411,18 @@ const MyWordsReview = () => {
         <div className="h-1.5 bg-muted rounded-full overflow-hidden">
           <div className="h-full bg-primary transition-all duration-300" style={{ width: `${progress}%` }} />
         </div>
-        <p className="text-center text-xs text-muted-foreground mt-2">
-          {currentIndex + 1} / {dueWords.length} due
-        </p>
+        <div className="flex items-center justify-center gap-3 text-xs text-muted-foreground mt-2">
+          <span>{currentIndex + 1} / {dueWords.length}</span>
+          <span className="text-border">·</span>
+          <span className="inline-flex items-center gap-1">
+            <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+            {newRemaining} new
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+            {reviewRemaining} review
+          </span>
+        </div>
       </div>
 
       {/* Card */}

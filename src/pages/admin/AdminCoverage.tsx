@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import CoverageHeatmap from "@/components/admin/CoverageHeatmap";
 
 interface ConceptRow {
   id: string;
@@ -86,6 +87,8 @@ export default function AdminCoverage() {
           Every concept the AI has introduced into the curriculum, used to prevent duplicates and plan reinforcement.
         </p>
       </div>
+
+      <CoverageHeatmap />
 
       <div className="flex flex-wrap gap-2">
         <Select value={dialect} onValueChange={setDialect}>

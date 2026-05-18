@@ -401,7 +401,27 @@ const MyWordsReview = () => {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <HomeButton />
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          <Select
+            value={String(newCap)}
+            onValueChange={(v) => setNewCap(Number(v) as never)}
+          >
+            <SelectTrigger
+              className="h-8 w-auto gap-1 px-2.5 text-xs font-medium"
+              aria-label="New cards per session"
+              title="New cards per session"
+            >
+              <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+              <SelectValue>{formatCap(newCap)}/day</SelectValue>
+            </SelectTrigger>
+            <SelectContent align="end">
+              {NEW_CAP_OPTIONS.map((n) => (
+                <SelectItem key={n} value={String(n)} className="text-xs">
+                  {formatCap(n)} new / session
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <div className="px-3 py-1.5 rounded-lg bg-card border border-border flex items-center gap-1.5">
             {isProduction ? <Mic2 className="h-3.5 w-3.5 text-primary" /> : <Brain className="h-3.5 w-3.5 text-primary" />}
             <span className="text-sm font-medium text-foreground">

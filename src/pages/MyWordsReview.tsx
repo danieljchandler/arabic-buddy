@@ -199,6 +199,11 @@ const MyWordsReview = () => {
     : null;
   const isProduction = currentWord?.card_type === "production";
 
+  // Session breakdown for the New / Review header chips
+  const remainingFromIndex = (dueWords || []).slice(currentIndex);
+  const newRemaining = remainingFromIndex.filter((c) => c.repetitions === 0).length;
+  const reviewRemaining = remainingFromIndex.length - newRemaining;
+
   // Cloze variant: enable for recognition cards that have sentence context
   // containing the target word AND at least 3 distractor words available.
   // Alternate by index so users get a mix of plain & cloze cards.

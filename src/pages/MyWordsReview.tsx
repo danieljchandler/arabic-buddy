@@ -75,6 +75,7 @@ const MyWordsReview = () => {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   const { activeDialect } = useDialect();
   const updateReview = useUpdateUserVocabularyReview();
+  const { cap: newCap, setCap: setNewCap } = useNewCardCap();
   const queryClient = useQueryClient();
 
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -172,7 +173,7 @@ const MyWordsReview = () => {
       //    don't all clump at the end.
       // 3. Interleave recognition vs production within each bucket so the
       //    user keeps switching modes (Anki/Duolingo-style mixing).
-      const NEW_CAP = 10;
+      const NEW_CAP = newCap;
       const splitMix = (arr: DueCard[]) => {
         const recog = arr.filter((c) => c.card_type === "recognition");
         const prod = arr.filter((c) => c.card_type === "production");

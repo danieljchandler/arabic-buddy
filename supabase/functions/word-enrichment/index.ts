@@ -11,7 +11,7 @@ serve(async (req) => {
   }
 
   try {
-    const { word, dialect, sentenceArabic, sentenceEnglish } = await req.json();
+    const { word, dialect, sentenceArabic, sentenceEnglish, isPhrase: isPhraseFlag } = await req.json();
     if (!word || typeof word !== 'string') {
       return new Response(JSON.stringify({ error: 'word is required' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -27,10 +27,21 @@ serve(async (req) => {
 
     const dialectLabel = dialect === 'Egyptian' ? 'Egyptian Arabic' : 'Gulf Arabic';
 
+    const trimmed = word.trim().slice(0, 200);
+    const isPhrase = Boolean(isPhraseFlag) || /\s/.test(trimmed);
+
     const hasContext = typeof sentenceArabic === 'string' && sentenceArabic.trim().length > 0;
     const contextLine = hasContext
-      ? `\n\nCONTEXT — the word appears in this sentence:\nArabic: "${String(sentenceArabic).trim()}"${typeof sentenceEnglish === 'string' && sentenceEnglish.trim() ? `\nEnglish: "${String(sentenceEnglish).trim()}"` : ''}\n\nFor "definition": choose the sense that fits THIS sentence — the meaning consistent with the English translation above, not the most common dictionary meaning. Root and uses can stay generic.`
+      ? `\n\nCONTEXT — the ${isPhrase ? 'phrase' : 'word'} appears in this sentence:\nArabic: "${String(sentenceArabic).trim()}"${typeof sentenceEnglish === 'string' && sentenceEnglish.trim() ? `\nEnglish: "${String(sentenceEnglish).trim()}"` : ''}\n\nFor "definition": choose the sense that fits THIS sentence — the meaning consistent with the English translation above, not the most common dictionary meaning. Root and uses can stay generic.`
       : '';
+
+    const systemPrompt = isPhrase
+      ? `You are an Arabic linguistics expert specialising in ${dialectLabel}. Given a multi-word Arabic PHRASE or expression, return its IDIOMATIC English meaning as a whole — NOT word-by-word. If it's a common collocation or idiom, give the figurative meaning. Also return the root of the head/most lexically meaningful word, and up to 3 related expressions. Reply ONLY with valid JSON, no other text.`
+      : `You are an Arabic linguistics expert specialising in ${dialectLabel}. Given an Arabic word, return its English definition, its root, and 3 related words. Reply ONLY with valid JSON, no other text.`;
+
+    const userPrompt = isPhrase
+      ? `Phrase: ${trimmed}${contextLine}\n\nReturn JSON: {"definition":"the idiomatic English meaning of the WHOLE phrase","root":"ك-ت-ب","uses":[{"arabic":"related expression","english":"meaning"}]}`
+      : `Word: ${trimmed}${contextLine}\n\nReturn JSON: {"definition":"the English meaning of the word","root":"ك-ت-ب","uses":[{"arabic":"...","english":"..."},{"arabic":"...","english":"..."},{"arabic":"...","english":"..."}]}`;
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -41,16 +52,8 @@ serve(async (req) => {
       body: JSON.stringify({
         model: 'google/gemini-2.5-flash-lite',
         messages: [
-          {
-            role: 'system',
-            content: `You are an Arabic linguistics expert specialising in ${dialectLabel}. Given an Arabic word, return its English definition, its root, and 3 related words. Reply ONLY with valid JSON, no other text.`,
-          },
-          {
-            role: 'user',
-            content: `Word: ${word.trim().slice(0, 100)}${contextLine}
-
-Return JSON: {"definition":"the English meaning of the word","root":"ك-ت-ب","uses":[{"arabic":"...","english":"..."},{"arabic":"...","english":"..."},{"arabic":"...","english":"..."}]}`,
-          },
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
         ],
         max_tokens: 512,
         temperature: 0.2,

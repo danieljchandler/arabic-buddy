@@ -687,6 +687,21 @@ const DiscoverVideo = () => {
     }
   }, [activeLineId]);
 
+  // Track view progress for personalized feed (throttled every 10s, marks complete at >=85%)
+  const lastReportedRef = useRef<{ s: number; completed: boolean }>({ s: 0, completed: false });
+  useEffect(() => {
+    if (!videoId || !user) return;
+    const seconds = Math.floor((isYouTube || video?.platform === "html5" ? currentTimeMs : timerMs) / 1000);
+    if (seconds <= 0) return;
+    const duration = video?.duration_seconds ?? 0;
+    const completed = duration > 0 && seconds / duration >= 0.85;
+    const last = lastReportedRef.current;
+    if (seconds - last.s < 10 && completed === last.completed) return;
+    lastReportedRef.current = { s: seconds, completed };
+    recordView.mutate({ videoId, watchedSeconds: seconds, completed });
+  }, [currentTimeMs, timerMs, videoId, user, video?.duration_seconds, video?.platform, isYouTube, recordView]);
+
+
   const vocabulary = useMemo(
     () => ((video?.vocabulary as any[]) ?? []) as VocabItem[],
     [video],

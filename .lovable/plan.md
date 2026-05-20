@@ -1,78 +1,57 @@
-# Plan: Unified "Today" Hub
+## #10 Personalized Discover Feed
 
-A single screen at `/today` that tells the learner exactly what to do right now — combining due flashcards, reading, listening, and the daily challenge into one prioritized queue with a daily-goal ring.
+Today the Discover page shows newest-first videos filtered by dialect/difficulty. The goal is a per-user ranked feed that surfaces videos most likely to be useful **right now** — based on the learner's known vocabulary, active dialect, CEFR level, watch history, and engagement.
 
-## Goals
-- One question answered on open: "what should I do today?"
-- One daily target (XP-based) that all modules contribute to.
-- Zero new backend tables — read from existing due-count hooks and gamification.
+### What the user gets
 
-## UX
+- A new **"For You"** tab at the top of Discover (default), with existing filter view kept as **"Browse"**.
+- Each card shows a small **"why this"** chip: e.g. *"92% known words"*, *"Matches your B1 level"*, *"New in Gulf"*, *"Because you liked X"*.
+- A subtle **comprehension bar** on each card (green = mostly known, amber = stretch, red = too hard) so users can self-pace.
+- Pull-to-refresh / "Shuffle" button to reroll the feed.
+- Empty/cold-start state: falls back to curated trending + level-matched picks.
 
-```text
-┌──────────────────────────────┐
-│  Today          [streak 🔥5] │
-│  ╭───────────╮               │
-│  │   ◜◝      │  42 / 100 XP  │
-│  │  ring     │  3 of 6 tasks │
-│  ╰───────────╯               │
-├──────────────────────────────┤
-│ ▣ Review 12 words      →     │  (My Words SRS, recognition+production)
-│ ▣ Read 1 short passage →     │  (Reading Practice — next unread)
-│ ▣ 1 Souq article       →     │  (Souq News — today's pick)
-│ ▣ Listen: 1 clip       →     │  (Discover — short, dialect-matched)
-│ ▣ Daily challenge      →     │  (existing DailyChallenge route)
-│ ▣ 3 set phrases        →     │  (only if due > 0)
-├──────────────────────────────┤
-│  Completed today (collapsed) │
-└──────────────────────────────┘
-```
+### Ranking signal mix
 
-- Tasks with 0 due are hidden (not greyed out) to keep the list short.
-- Each task shows a count badge + estimated minutes.
-- Tapping a task deep-links into the existing module (no behavior change inside modules).
-- A task marks itself "complete for today" when its underlying signal flips (e.g., due-count hits 0, or `daily_xp >= goal_share`). Stored in localStorage keyed by date — no migration needed.
-- Goal ring uses the same XP source already powering `XPDisplay`.
+Each candidate video gets a score 0–1 from a weighted sum:
 
-## Tasks definition (data sources, all already exist)
-
-| Task | Source hook / table | "Done" condition |
+| Signal | Weight | Source |
 |---|---|---|
-| Flashcard review | `useUserVocabularyDueCount` | due === 0 |
-| Set phrases | `useSetPhrases` due count | due === 0 |
-| Reading passage | `useInteractiveStories` / Reading Practice last-completed in localStorage | 1 read today |
-| Souq article | `souq_news` table latest unread per dialect | 1 read today |
-| Listening clip | `useDiscoverVideos` top-1 short by dialect | 1 watched today |
-| Daily challenge | `useGamification` daily challenge status | already-tracked completion |
+| Known-vocab overlap (i+1 sweet spot: 80–95%) | 0.35 | `user_vocabulary` ∩ `discover_videos.vocabulary` |
+| CEFR-level match (±1 band ok, same band best) | 0.20 | `profiles.cefr_level` vs `difficulty` |
+| Active-dialect match | 0.15 | `DialectContext` vs `video.dialect` |
+| Freshness (decay over 30d) | 0.10 | `created_at` |
+| Engagement prior (likes/views ratio) | 0.10 | `video_likes`, view logs |
+| Novelty (penalise already-watched / similar to recent) | 0.10 | `video_views` history |
 
-Filter everything by `activeDialect` from `DialectContext`.
+Hard filters: exclude videos the user has fully watched in last 14d unless they liked it. Always include 1 "stretch" pick (difficulty +1) and 1 "comfort" pick (mostly known) in the top 10 for variety.
 
-## Files
+### Technical Section
 
-**New**
-- `src/pages/Today.tsx` — screen
-- `src/components/today/TaskRow.tsx` — single row (icon, title, count badge, est. minutes, chevron)
-- `src/components/today/DailyGoalRing.tsx` — SVG ring around XP progress
-- `src/hooks/useTodayQueue.ts` — composes all due-count hooks above into a single ordered task list
-- `src/lib/todayCompletion.ts` — localStorage helpers keyed by `YYYY-MM-DD`
+**Data**
+- New table `video_views (user_id, video_id, watched_seconds, completed bool, watched_at)` — RLS: user can read/write own rows.
+- Reuse existing: `user_vocabulary`, `video_likes`, `discover_videos.vocabulary` (jsonb array of lemmas), `profiles.cefr_level`.
+- Add `discover_videos.vocab_lemmas text[]` generated/maintained alongside `vocabulary` jsonb so we can do fast `&&` overlap in SQL. Backfill in migration.
 
-**Edited**
-- `src/App.tsx` — register `/today` route
-- `src/pages/Index.tsx` — add a prominent "Start today" card at the top linking to `/today`. Leave the rest of the home dashboard intact (don't remove anything yet — we can simplify later once Today proves itself).
+**Ranking**
+- New edge function `discover-feed` (`verify_jwt = false`, validates JWT in-code per project pattern). Input: `{ limit, exclude_ids?, seed? }`. Returns ranked `video_id`s plus per-video `reason` + `comprehension` (0–1).
+- Implementation:
+  1. Load user's lemma set (cap 5k most recent), CEFR, active dialect.
+  2. Pull candidate pool: published videos, last 180d, dialect in (active, MSA). Cap 300.
+  3. Score in JS using formula above. Inject 1 stretch + 1 comfort pick. Shuffle within score buckets using `seed` for stable pagination.
+  4. Cache result for 15 min keyed by `(user_id, active_dialect, seed)` in a lightweight `feed_cache` table to keep page loads fast.
 
-## Technical notes
-- Use existing `AppShell` (standard width).
-- Goal default: 100 XP/day, stored in localStorage (`today.goal`), editable from a small popover. No DB change.
-- Order tasks by: (1) overdue flashcards, (2) daily challenge, (3) reading, (4) listening, (5) souq, (6) phrases. Tweakable constant.
-- All counts come from React Query — no new edge functions, no new tables.
-- Respect immersion toggles & dialect context; no new prompts.
+**Frontend**
+- Extend `useDiscoverVideos` with `useDiscoverFeed()` hook that calls the edge function then hydrates from `discover_videos` by id (preserves existing video shape).
+- New `<DiscoverFeedTab />` component; existing filter UI becomes `<DiscoverBrowseTab />`. Tabs via shadcn `Tabs`.
+- Card additions: comprehension bar (computed client-side from returned `comprehension`), "why this" chip (from `reason`), Shuffle button regenerates `seed`.
+- Track views: on `DiscoverVideo` page, write to `video_views` on play, throttle updates every 10s, mark `completed` at ≥85% watched.
 
-## Out of scope (next iterations)
-- Drag-to-reorder tasks
-- Customizable goal per dialect
-- Notifications/reminders at goal-deadline
-- Replacing the Home dashboard entirely
+**Cold start**
+- If `user_vocabulary` < 20 rows or no `cefr_level`: fall back to trending (likes desc, freshness) filtered by active dialect. Show small banner: *"Take the placement quiz to personalize your feed."*
 
----
+### Out of scope (future)
+- Collaborative filtering ("users like you watched…"). Defer until we have ≥1k DAU.
+- ML embeddings on transcripts for topical similarity.
+- Push notifications for new matched videos.
 
-Approve to implement, or tell me which task to drop/add.
+Ready to build on approval.

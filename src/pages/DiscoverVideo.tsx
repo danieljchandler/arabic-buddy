@@ -308,6 +308,7 @@ const DiscoverVideo = () => {
   const { data: video, isLoading } = useDiscoverVideo(videoId);
   const { user, isAuthenticated } = useAuth();
   const addUserVocabulary = useAddUserVocabulary();
+  const recordView = useRecordVideoView();
 
   const [currentTimeMs, setCurrentTimeMs] = useState(0);
   const [savedWords, setSavedWords] = useState<Set<string>>(new Set());

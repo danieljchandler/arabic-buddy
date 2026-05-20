@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/popover";
 import { Loader2, ArrowLeft, BookOpen, Check, Eye, EyeOff, ChevronDown, ChevronLeft, ChevronRight, List, Pause, Play, SkipBack, SkipForward, Gauge, Heart } from "lucide-react";
 import { useVideoLikeCount, useIsVideoLiked, useLikeVideo, useUnlikeVideo } from "@/hooks/useVideoLikes";
+import { useRecordVideoView } from "@/hooks/useDiscoverFeed";
 import {
   DropdownMenu,
   DropdownMenuContent,

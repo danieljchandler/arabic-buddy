@@ -2494,6 +2494,36 @@ export type Database = {
           },
         ]
       }
+      video_views: {
+        Row: {
+          completed: boolean
+          id: string
+          updated_at: string
+          user_id: string
+          video_id: string
+          watched_at: string
+          watched_seconds: number
+        }
+        Insert: {
+          completed?: boolean
+          id?: string
+          updated_at?: string
+          user_id: string
+          video_id: string
+          watched_at?: string
+          watched_seconds?: number
+        }
+        Update: {
+          completed?: boolean
+          id?: string
+          updated_at?: string
+          user_id?: string
+          video_id?: string
+          watched_at?: string
+          watched_seconds?: number
+        }
+        Relationships: []
+      }
       vocab_battles: {
         Row: {
           challenger_id: string

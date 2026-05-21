@@ -26,6 +26,7 @@ const Transcribe = lazyPage(() => import("./pages/Transcribe"));
 const MyWords = lazyPage(() => import("./pages/MyWords"));
 const TutorUpload = lazyPage(() => import("./pages/TutorUpload"));
 const MyWordsReview = lazyPage(() => import("./pages/MyWordsReview"));
+const MyPhrasesReview = lazyPage(() => import("./pages/MyPhrasesReview"));
 const MemeAnalyzer = lazyPage(() => import("./pages/MemeAnalyzer"));
 const Discover = lazyPage(() => import("./pages/Discover"));
 const DiscoverVideo = lazyPage(() => import("./pages/DiscoverVideo"));
@@ -186,6 +187,7 @@ const App = () => {
             />
             <Route path="/my-words" element={<ErrorBoundary name="MyWordsRoute"><MyWords /></ErrorBoundary>} />
             <Route path="/review/my-words" element={<ErrorBoundary name="MyWordsReviewRoute"><MyWordsReview /></ErrorBoundary>} />
+            <Route path="/review/my-phrases" element={<ErrorBoundary name="MyPhrasesReviewRoute"><MyPhrasesReview /></ErrorBoundary>} />
             <Route path="/tutor-upload" element={<ErrorBoundary name="TutorUploadRoute"><TutorUpload /></ErrorBoundary>} />
             <Route path="/meme" element={
               <ErrorBoundary name="MemeAnalyzerRoute">

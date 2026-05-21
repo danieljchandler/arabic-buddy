@@ -11,6 +11,7 @@ export interface UserPhrase {
   notes: string | null;
   source: string;
   ease_factor: number;
+  difficulty: number;
   interval_days: number;
   repetitions: number;
   next_review_at: string;
@@ -37,6 +38,85 @@ export const useUserPhrases = () => {
       return (data ?? []) as UserPhrase[];
     },
     enabled: !!user,
+  });
+};
+
+export const useUserPhrasesDueCount = () => {
+  const { user } = useAuth();
+
+  return useQuery({
+    queryKey: ["user-phrases-due-count", user?.id],
+    queryFn: async () => {
+      if (!user) return { dueCount: 0, total: 0 };
+      const now = new Date().toISOString();
+      const [{ count: dueCount }, { count: total }] = await Promise.all([
+        (supabase as any)
+          .from("user_phrases")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", user.id)
+          .lte("next_review_at", now),
+        (supabase as any)
+          .from("user_phrases")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", user.id),
+      ]);
+      return { dueCount: dueCount ?? 0, total: total ?? 0 };
+    },
+    enabled: !!user,
+  });
+};
+
+export const useDueUserPhrases = () => {
+  const { user } = useAuth();
+
+  return useQuery({
+    queryKey: ["user-phrases-due", user?.id],
+    queryFn: async (): Promise<UserPhrase[]> => {
+      if (!user) return [];
+      const now = new Date().toISOString();
+      const { data, error } = await (supabase as any)
+        .from("user_phrases")
+        .select("*")
+        .eq("user_id", user.id)
+        .lte("next_review_at", now)
+        .order("next_review_at", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as UserPhrase[];
+    },
+    enabled: !!user,
+  });
+};
+
+export const useUpdateUserPhraseReview = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (args: {
+      phraseId: string;
+      stability: number;
+      difficulty: number;
+      intervalDays: number;
+      repetitions: number;
+      nextReviewAt: Date;
+    }) => {
+      const { error } = await (supabase as any)
+        .from("user_phrases")
+        .update({
+          ease_factor: args.stability,
+          difficulty: args.difficulty,
+          interval_days: Math.max(0, Math.round(args.intervalDays)),
+          repetitions: args.repetitions,
+          next_review_at: args.nextReviewAt.toISOString(),
+          last_reviewed_at: new Date().toISOString(),
+        })
+        .eq("id", args.phraseId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["user-phrases"] });
+      queryClient.invalidateQueries({ queryKey: ["user-phrases-due"] });
+      queryClient.invalidateQueries({ queryKey: ["user-phrases-due-count"] });
+    },
   });
 };
 
@@ -78,6 +158,7 @@ export const useAddUserPhrase = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["user-phrases"] });
+      queryClient.invalidateQueries({ queryKey: ["user-phrases-due-count"] });
     },
   });
 };
@@ -96,6 +177,7 @@ export const useDeleteUserPhrase = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["user-phrases"] });
+      queryClient.invalidateQueries({ queryKey: ["user-phrases-due-count"] });
     },
   });
 };

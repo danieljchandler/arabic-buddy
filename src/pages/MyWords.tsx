@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useUserVocabulary, useUserVocabularyDueCount, useDeleteUserVocabulary, type UserVocabularyWord } from "@/hooks/useUserVocabulary";
+import { useUserPhrases, useUserPhrasesDueCount, useDeleteUserPhrase } from "@/hooks/useUserPhrases";
 import { useAuth } from "@/hooks/useAuth";
 import { useDialect } from "@/contexts/DialectContext";
 import { Button } from "@/components/ui/button";
-import { BookOpen, Trash2, ChevronLeft, ChevronRight, Loader2, Shuffle, Sparkles, Quote } from "lucide-react";
+import { BookOpen, Trash2, ChevronLeft, ChevronRight, Loader2, Shuffle, Sparkles, Quote, MessageCircleQuestion } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
@@ -20,9 +21,13 @@ const MyWords = () => {
   const { data: words, isLoading } = useUserVocabulary(mixAll);
   const { data: stats } = useUserVocabularyDueCount(mixAll);
   const deleteWord = useDeleteUserVocabulary();
+  const { data: phrases } = useUserPhrases();
+  const { data: phraseStats } = useUserPhrasesDueCount();
+  const deletePhrase = useDeleteUserPhrase();
   const [imageDialogWord, setImageDialogWord] = useState<UserVocabularyWord | null>(null);
   const [expandedContext, setExpandedContext] = useState<Set<string>>(new Set());
   const [suggestOpen, setSuggestOpen] = useState(false);
+  const [showAllPhrases, setShowAllPhrases] = useState(false);
 
   const toggleContext = (id: string) => {
     setExpandedContext((prev) => {
@@ -119,7 +124,91 @@ const MyWords = () => {
         </Button>
       )}
 
-      {/* Empty state */}
+      {/* My Phrases section */}
+      <div className="mb-8 rounded-xl border border-border bg-card overflow-hidden">
+        <div className="flex items-center justify-between p-4 border-b border-border bg-muted/30">
+          <div className="flex items-center gap-2">
+            <MessageCircleQuestion className="h-5 w-5 text-primary" />
+            <h2 className="font-semibold text-foreground">My Phrases</h2>
+            <span className="text-xs text-muted-foreground">
+              ({phraseStats?.total ?? 0})
+            </span>
+          </div>
+          {phraseStats && phraseStats.dueCount > 0 && (
+            <Button
+              size="sm"
+              onClick={() => navigate("/review/my-phrases")}
+              className="gap-1.5"
+            >
+              Review {phraseStats.dueCount}
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+
+        {(!phrases || phrases.length === 0) ? (
+          <div className="p-6 text-center text-sm text-muted-foreground">
+            Save phrases from{" "}
+            <button
+              className="text-primary underline underline-offset-2"
+              onClick={() => navigate("/how-do-i-say")}
+            >
+              How do I say…?
+            </button>{" "}
+            to start practicing them here.
+          </div>
+        ) : (
+          <>
+            {(showAllPhrases ? phrases : phrases.slice(0, 4)).map((p, i, arr) => (
+              <div
+                key={p.id}
+                className={cn(
+                  "flex items-center justify-between gap-3 p-3",
+                  i < arr.length - 1 && "border-b border-border"
+                )}
+              >
+                <div className="min-w-0 flex-1">
+                  <p
+                    className="text-base font-semibold text-foreground truncate"
+                    dir="rtl"
+                    style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
+                  >
+                    {p.phrase_arabic}
+                  </p>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {p.phrase_english}
+                  </p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-muted-foreground hover:text-destructive shrink-0"
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    try {
+                      await deletePhrase.mutateAsync(p.id);
+                      toast.success("Phrase removed");
+                    } catch {
+                      toast.error("Failed to remove phrase");
+                    }
+                  }}
+                  disabled={deletePhrase.isPending}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
+            {phrases.length > 4 && (
+              <button
+                className="w-full p-3 text-xs text-muted-foreground hover:text-foreground border-t border-border bg-muted/20"
+                onClick={() => setShowAllPhrases((v) => !v)}
+              >
+                {showAllPhrases ? "Show less" : `Show all ${phrases.length}`}
+              </button>
+            )}
+          </>
+        )}
+      </div>
       {(!words || words.length === 0) && (
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <BookOpen className="h-12 w-12 text-muted-foreground mb-4" />

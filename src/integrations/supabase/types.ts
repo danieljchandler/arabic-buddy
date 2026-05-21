@@ -2132,6 +2132,7 @@ export type Database = {
       user_phrases: {
         Row: {
           created_at: string
+          difficulty: number
           ease_factor: number
           id: string
           interval_days: number
@@ -2148,6 +2149,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          difficulty?: number
           ease_factor?: number
           id?: string
           interval_days?: number
@@ -2164,6 +2166,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          difficulty?: number
           ease_factor?: number
           id?: string
           interval_days?: number

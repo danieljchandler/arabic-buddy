@@ -215,14 +215,30 @@ const CEFR_TO_DIFFICULTY: Record<string, string> = {
   C2: "Expert",
 };
 
+// Generic CEFR descriptors — applied identically across dialects.
 const CEFR_DESCRIPTORS = `
 A1 — Greetings, basic personal info, 1-clause sentences, very common words only, slow clear speech, no idioms.
 A2 — Routine topics (family, shopping, work), short connected clauses, mostly common vocabulary, occasional fixed expressions, clear speech.
-B1 — Familiar topics handled connectedly, multi-clause sentences, mix of common + less common vocab, some idiomatic dialect ("الحين"/"يعني"/"بس"), normal conversational pace.
+B1 — Familiar topics handled connectedly, multi-clause sentences, mix of common + less common vocab, some idiomatic dialect markers, normal conversational pace.
 B2 — Abstract topics, complex sentences with subordination, dense vocabulary, frequent idiomatic/colloquial compression, fast natural pace.
 C1 — Implicit meaning, cultural references, long flexible sentences, specialised vocabulary, heavy dialectal compression, rapid speech.
 C2 — Native-level nuance: literature/poetry/technical jargon, very fast informal speech, dense slang, full idiom saturation.
 `.trim();
+
+// Dialect-specific A1/A2 markers — used to remind the LLM what counts
+// as "everyday vocabulary" in each dialect so it doesn't penalise
+// normal Egyptian or Yemeni speech as harder than equivalent Gulf.
+function dialectHints(dialect: string): string {
+  const d = (dialect || "").toLowerCase();
+  if (d.includes("egypt"))
+    return `Egyptian A1/A2 markers (treat as everyday, not "advanced"): ازاي، عايز، دلوقتي، فين، ليه، كده، ده/دي، يعني، بقى، خالص، اوي، شويه، علشان، لسه، النهارده، امبارح، بكره، كويس، تمام، ايوه، معلش، بيشوف/بيقول/بيعمل، حنروح/هتروح.`;
+  if (d.includes("yemen"))
+    return `Yemeni A1/A2 markers (treat as everyday): كيف، حق (possessive)، ابغى/ابي، ودي، ايش، وين، ليش، ذا/ذي، بزر/بزور، عيال، شي، شويه، عاد، تعا، قوام، عقب، تو، يا غالي، يا حبيبي.`;
+  if (d.includes("gulf") || d.includes("saudi") || d.includes("kuwait") || d.includes("uae") || d.includes("qatar") || d.includes("bahrain") || d.includes("oman"))
+    return `Gulf A1/A2 markers (treat as everyday): وش/ايش/شنو، شلون، وين، ليش، الحين، يبي/يبغى/ودي، يسوي، شوي، كثير، زين، شين، عاد، عشان، الحريم، عيال.`;
+  return `Standard Arabic A1/A2 markers (treat as everyday): kinship terms, daily greetings, common verbs (راح، شاف، قال، اكل، شرب، نام)، basic adjectives.`;
+}
+
 
 async function llmRate(
   transcript: string,

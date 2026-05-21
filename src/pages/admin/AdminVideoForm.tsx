@@ -247,6 +247,9 @@ const AdminVideoForm = () => {
       setDurationSeconds(existingVideo.duration_seconds);
       setDialect(existingVideo.dialect);
       setDifficulty(existingVideo.difficulty);
+      setCefrLevel((existingVideo as any).cefr_level ?? null);
+      setDifficultyRationale((existingVideo as any).difficulty_rationale ?? null);
+
       setPublished(existingVideo.published);
       setIsMeme((existingVideo as any).is_meme ?? false);
       setCulturalContext(existingVideo.cultural_context || "");

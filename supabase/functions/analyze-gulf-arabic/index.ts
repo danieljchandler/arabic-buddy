@@ -148,11 +148,21 @@ Identify the Gulf Arabic dialect based on vocabulary, phonology, and speech patt
 - "Omani": "إيش"/"ايش" (what), "حق" (for/of), universal "j" for ج, "كيف" used as greeting response, Dhofari/Muscat variation.
 - "Gulf": ONLY if genuinely ambiguous — cannot be attributed to a single country with confidence.
 
-DIFFICULTY CLASSIFICATION RULES:
-- "Beginner": Very common daily vocabulary, short/simple sentences, concrete topics (greetings, food, family, routine).
-- "Intermediate": Mix of common + less common words, moderate sentence length, some idiomatic language.
-- "Advanced": Dense vocabulary, frequent idioms/cultural references, longer/complex clauses, faster conversational flow.
-- "Expert": Technical/professional jargon, heavy slang compression, very fast dialectal speech, high context dependence.
+DIFFICULTY CLASSIFICATION RULES (CEFR-anchored, evidence-based):
+Rate using THESE concrete signals from the FULL transcript, not vibes. Do NOT default to "Intermediate" when uncertain — pick the level whose signals best match.
+
+- "Beginner" (CEFR A1–A2): Greetings, family, food, daily routine. Sentences are typically ≤6 words. ≥70% of tokens are very common everyday words (pronouns, "في/من/على/يعني/بس", basic verbs like "راح/يبي/شاف/قال"). No idioms or cultural references. Slow clear speech.
+- "Intermediate" (CEFR B1–B2): Familiar but extended topics (work, travel, opinions, simple stories). Multi-clause sentences 7–12 words. Mix of common + less common vocabulary. Some idiomatic dialect markers ("الحين/يعني/بس/خلاص/زين/طيب"). Normal conversational pace. A FEW (1–3) idiomatic expressions or cultural references.
+- "Advanced" (CEFR C1): Abstract / specialised topics, implicit meaning, dense vocabulary. Long flexible sentences with subordination. Heavy dialectal compression and frequent idioms. Fast natural speech with reductions. Cultural references that require background knowledge.
+- "Expert" (CEFR C2): Native-level nuance — literature, poetry, technical jargon, very fast informal speech, dense slang, sarcasm, near-saturated idiom use.
+
+OBJECTIVE CHECKS to apply before picking a level:
+1. Count rough sentence length: average words per spoken line.
+2. Estimate rare-word ratio: how many tokens are NOT in the A1/A2 daily core.
+3. Count idiomatic / cultural expressions explicitly.
+4. Estimate speech density: are clauses chained or atomic?
+If signals conflict (e.g. short lines but very rare vocabulary, or long lines but mostly common words), pick the level the majority of signals support — never the middle "safe" choice.
+
 
 KEY SIGNALS:
 - What: شنو(KW/BH/QA) | وش/إيش(SA) | شو(UAE/BH) | إيش(OM)

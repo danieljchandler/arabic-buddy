@@ -676,11 +676,14 @@ export type Database = {
       }
       discover_videos: {
         Row: {
+          cefr_level: string | null
           created_at: string
           created_by: string
           cultural_context: string | null
           dialect: string
           difficulty: string
+          difficulty_metrics: Json | null
+          difficulty_rationale: string | null
           duration_seconds: number | null
           embed_url: string
           grammar_points: Json
@@ -700,11 +703,14 @@ export type Database = {
           vocabulary: Json
         }
         Insert: {
+          cefr_level?: string | null
           created_at?: string
           created_by: string
           cultural_context?: string | null
           dialect?: string
           difficulty?: string
+          difficulty_metrics?: Json | null
+          difficulty_rationale?: string | null
           duration_seconds?: number | null
           embed_url: string
           grammar_points?: Json
@@ -724,11 +730,14 @@ export type Database = {
           vocabulary?: Json
         }
         Update: {
+          cefr_level?: string | null
           created_at?: string
           created_by?: string
           cultural_context?: string | null
           dialect?: string
           difficulty?: string
+          difficulty_metrics?: Json | null
+          difficulty_rationale?: string | null
           duration_seconds?: number | null
           embed_url?: string
           grammar_points?: Json

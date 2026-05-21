@@ -43,8 +43,12 @@ const AdminVideoForm = () => {
   const [durationSeconds, setDurationSeconds] = useState<number | null>(null);
   const [dialect, setDialect] = useState("Gulf");
   const [difficulty, setDifficulty] = useState("Beginner");
+  const [cefrLevel, setCefrLevel] = useState<string | null>(null);
+  const [difficultyRationale, setDifficultyRationale] = useState<string | null>(null);
+  const [isRating, setIsRating] = useState(false);
   const [published, setPublished] = useState(false);
   const [isMeme, setIsMeme] = useState(memeQueryFlag);
+
 
   // Apply ?meme=1 default for brand new videos.
   useEffect(() => {
@@ -243,6 +247,9 @@ const AdminVideoForm = () => {
       setDurationSeconds(existingVideo.duration_seconds);
       setDialect(existingVideo.dialect);
       setDifficulty(existingVideo.difficulty);
+      setCefrLevel((existingVideo as any).cefr_level ?? null);
+      setDifficultyRationale((existingVideo as any).difficulty_rationale ?? null);
+
       setPublished(existingVideo.published);
       setIsMeme((existingVideo as any).is_meme ?? false);
       setCulturalContext(existingVideo.cultural_context || "");
@@ -865,6 +872,9 @@ const AdminVideoForm = () => {
         duration_seconds: durationSeconds,
         dialect,
         difficulty,
+        cefr_level: cefrLevel,
+        difficulty_rationale: difficultyRationale,
+
         transcript_lines: transcriptLines as any,
         vocabulary: vocabulary as any,
         grammar_points: grammarPoints as any,
@@ -1088,7 +1098,48 @@ const AdminVideoForm = () => {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Difficulty *</Label>
+                <div className="flex items-center justify-between gap-2">
+                  <Label>Difficulty *</Label>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={isRating || transcriptLines.length === 0}
+                    onClick={async () => {
+                      setIsRating(true);
+                      try {
+                        const { data, error } = await supabase.functions.invoke("rate-video-cefr", {
+                          body: {
+                            transcript_lines: transcriptLines,
+                            duration_seconds: durationSeconds,
+                            vocabulary,
+                            dialect,
+                          },
+                        });
+                        if (error) throw error;
+                        if (data?.cefr_level) {
+                          setCefrLevel(data.cefr_level);
+                          setDifficulty(data.difficulty ?? difficulty);
+                          setDifficultyRationale(data.rationale ?? null);
+                          toast.success(
+                            `Rated ${data.cefr_level} (${data.difficulty}) — floor ${data.metric_floor}`,
+                          );
+                        }
+                      } catch (e) {
+                        toast.error("Rating failed: " + (e as Error).message);
+                      } finally {
+                        setIsRating(false);
+                      }
+                    }}
+                  >
+                    {isRating ? (
+                      <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                    ) : (
+                      <Sparkles className="w-3 h-3 mr-1" />
+                    )}
+                    Auto-rate
+                  </Button>
+                </div>
                 <Select value={difficulty} onValueChange={setDifficulty}>
                   <SelectTrigger>
                     <SelectValue />
@@ -1101,7 +1152,16 @@ const AdminVideoForm = () => {
                     ))}
                   </SelectContent>
                 </Select>
+                {cefrLevel && (
+                  <div className="flex items-center gap-2 text-xs">
+                    <Badge variant="secondary">CEFR: {cefrLevel}</Badge>
+                    {difficultyRationale && (
+                      <span className="text-muted-foreground line-clamp-2">{difficultyRationale}</span>
+                    )}
+                  </div>
+                )}
               </div>
+
             </div>
             <div className="space-y-2">
               <Label>Duration (seconds)</Label>

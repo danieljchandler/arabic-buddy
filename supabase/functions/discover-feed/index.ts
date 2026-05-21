@@ -166,13 +166,14 @@ Deno.serve(async (req) => {
     const { data: candidates, error: candErr } = await supabase
       .from("discover_videos")
       .select(
-        "id, dialect, difficulty, created_at, vocabulary, title",
+        "id, dialect, difficulty, cefr_level, created_at, vocabulary, title",
       )
       .eq("published", true)
       .gte("created_at", sinceIso)
       .in("dialect", [activeDialect, "MSA"])
       .order("created_at", { ascending: false })
       .limit(300);
+
 
     if (candErr) throw candErr;
 
@@ -209,8 +210,13 @@ Deno.serve(async (req) => {
       }
       vocabScore = Math.max(0, Math.min(1, vocabScore));
 
-      // CEFR match
-      const vCefr = DIFF_TO_CEFR[(v as any).difficulty as string] ?? "B1";
+      // CEFR match — prefer the accurate cefr_level set by rate-video-cefr,
+      // fall back to the coarse difficulty bucket for legacy rows.
+      const vCefr =
+        ((v as any).cefr_level as string) ||
+        DIFF_TO_CEFR[(v as any).difficulty as string] ||
+        "B1";
+
       const vIdx = CEFR_ORDER.indexOf(vCefr);
       let cefrScore = 0.5;
       if (cefrIdx >= 0 && vIdx >= 0) {

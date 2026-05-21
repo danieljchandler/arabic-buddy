@@ -872,6 +872,9 @@ const AdminVideoForm = () => {
         duration_seconds: durationSeconds,
         dialect,
         difficulty,
+        cefr_level: cefrLevel,
+        difficulty_rationale: difficultyRationale,
+
         transcript_lines: transcriptLines as any,
         vocabulary: vocabulary as any,
         grammar_points: grammarPoints as any,

@@ -20,37 +20,46 @@ const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY")!;
 
 // ============================================================
-// 1. Top ~300 highest-frequency Arabic words (A1/A2 baseline).
+// 1. Pan-dialect A1/A2 baseline (Gulf + Egyptian + Yemeni + MSA).
 //    Words OUTSIDE this list count as "rare" lexical items.
-//    Diacritics, alef variants, and ya/ta-marbuta are normalised
-//    before comparison so written variants collapse to one form.
+//    Each dialect contributes its own everyday core so we don't
+//    over-penalise Egyptian/Yemeni transcripts.
 // ============================================================
-const COMMON_ARABIC = new Set<string>(
-  [
-    // pronouns
-    "انا","انت","انتي","هو","هي","نحن","احنا","انتم","هم","هما","هاي","هاد","هاذا","هذا","هذه","ذلك","تلك",
-    // particles / function words
-    "في","من","الى","على","عن","ب","ل","ك","مع","بين","تحت","فوق","قبل","بعد","عند","حتى","يعني","بس","لا","ما","مو","مش","لو","اذا","ان","انه","لكن","او","و","ف","ثم",
-    // common verbs (root forms)
-    "كان","صار","يصير","يكون","يجي","جا","راح","يروح","شاف","يشوف","قال","يقول","سمع","يسمع","عرف","يعرف","حب","يحب","بغى","يبغى","يبي","يريد","ودي","عطى","يعطي","اخذ","ياخذ","اكل","ياكل","شرب","يشرب","نام","ينام","قعد","يقعد","سوى","يسوي","عمل","يعمل","فهم","يفهم","قدر","يقدر","ابى","لقى","يلقى","طلع","يطلع","دخل","يدخل","خرج","يخرج","رد","يرد","بدا","يبدا","خلص","يخلص","حط","يحط","بقى","يبقى","فات","يفوت","رجع","يرجع",
-    // question / time / quantity
-    "وش","ايش","شنو","شو","شلون","كيف","وين","فين","متى","ليش","كم","شكثر","شكم","الحين","اليوم","امس","بكره","بكرا","الليله","الصبح","العصر","المغرب","العشا","دايما","ابدا","مره","مرتين","شوي","كثير","قليل","كل","بعض","نص","كله","كلهم",
-    // numbers 1-20
-    "واحد","اثنين","ثنين","تنين","ثلاث","ثلاثه","اربع","اربعه","خمس","خمسه","ست","سته","سبع","سبعه","ثمان","ثمانيه","تسع","تسعه","عشر","عشره",
-    // family / people
-    "ام","ابو","اب","اخ","اخت","ابن","بنت","ولد","عم","عمه","خال","خاله","جد","جده","صديق","صاحب","رجل","رجال","حريم","امراه","طفل","ناس",
-    // home / daily
-    "بيت","غرفه","مطبخ","حمام","صاله","باب","شباك","سياره","شارع","سوق","مدرسه","جامعه","شغل","عمل","مكتب","مستشفى","مطعم","فندق","مسجد","بحر","جبل","مدينه","قريه","بلد","دوله",
-    // food / drink
-    "اكل","طعام","ماء","ماي","شاي","قهوه","حليب","عصير","خبز","رز","لحم","دجاج","سمك","فاكهه","تفاح","موز","برتقال","تمر","سكر","ملح",
-    // adjectives
-    "كبير","صغير","طويل","قصير","حلو","زين","سيء","شين","جديد","قديم","حار","بارد","سهل","صعب","غالي","رخيص","قريب","بعيد","سريع","بطيء","مهم","واضح","صحيح","غلط","فاضي","مشغول","تعبان","سعيد","حزين","مرتاح","جوعان","عطشان",
-    // greetings / interjections
-    "سلام","السلام","عليكم","ورحمه","الله","وبركاته","مرحبا","اهلا","وسهلا","صباح","الخير","مساء","الفل","تسلم","مشكور","شكرا","عفوا","عذرا","يا","هلا","والله","انشاء","ماشاء","استغفر","الحمد","لله","سبحان","تبارك","عيد","مبارك","يلا","تعال","تعالى","روح","سويه","ساكن","معلوم","تمام","اوكي","اوك","اي","ايه","نعم","لازم","ممكن","يمكن",
-    // pronouns clitics frequently appear standalone
-    "هم","هن","نا","كم","كن","ني","ه","ها",
-  ].map(normLemma),
-);
+const COMMON_PAN_ARABIC = [
+  // ===== Shared / MSA core =====
+  // pronouns
+  "انا","انت","انتي","هو","هي","نحن","انتم","هم","هما","هذا","هذه","ذلك","تلك","هاد","هاذا","هاي",
+  // particles / function words
+  "في","من","الى","على","عن","ب","ل","ك","مع","بين","تحت","فوق","قبل","بعد","عند","حتى","يعني","بس","لا","ما","لو","اذا","ان","انه","لكن","او","و","ف","ثم","كمان","برضو","برضه","كده","كذا",
+  // shared common verbs
+  "كان","صار","يصير","يكون","يجي","جا","راح","يروح","شاف","يشوف","قال","يقول","سمع","يسمع","عرف","يعرف","حب","يحب","عطى","يعطي","اخذ","ياخذ","اكل","ياكل","شرب","يشرب","نام","ينام","قعد","يقعد","عمل","يعمل","فهم","يفهم","قدر","يقدر","لقى","يلقى","طلع","يطلع","دخل","يدخل","خرج","يخرج","رد","يرد","بدا","يبدا","خلص","يخلص","حط","يحط","بقى","يبقى","رجع","يرجع","جاب","يجيب",
+  // numbers 1-20
+  "واحد","اثنين","ثنين","تنين","اتنين","ثلاث","ثلاثه","تلاته","اربع","اربعه","خمس","خمسه","ست","سته","سبع","سبعه","ثمان","ثمانيه","تمانيه","تسع","تسعه","عشر","عشره",
+  // family / people
+  "ام","ابو","اب","اخ","اخت","ابن","بنت","ولد","عم","عمه","خال","خاله","جد","جده","صديق","صاحب","رجل","رجال","امراه","طفل","ناس","واحده",
+  // home / daily nouns
+  "بيت","غرفه","مطبخ","حمام","صاله","باب","شباك","سياره","شارع","سوق","مدرسه","جامعه","شغل","عمل","مكتب","مستشفى","مطعم","فندق","مسجد","بحر","جبل","مدينه","قريه","بلد","دوله","قهوه","عرب","عربي","عربيه",
+  // food / drink
+  "اكل","طعام","ماء","ماي","ميه","شاي","حليب","لبن","عصير","خبز","عيش","رز","لحم","دجاج","فراخ","سمك","فاكهه","تفاح","موز","برتقال","تمر","سكر","ملح","حلو","شويه",
+  // adjectives
+  "كبير","صغير","طويل","قصير","حلو","زين","جديد","قديم","حار","بارد","سهل","صعب","غالي","رخيص","قريب","بعيد","سريع","بطيء","مهم","واضح","صحيح","غلط","فاضي","مشغول","تعبان","سعيد","حزين","مرتاح","جوعان","عطشان","كويس","وحش","وحشه","تمام",
+  // greetings / interjections / discourse
+  "سلام","السلام","عليكم","ورحمه","الله","وبركاته","مرحبا","اهلا","وسهلا","صباح","الخير","مساء","الفل","تسلم","مشكور","شكرا","عفوا","عذرا","يا","هلا","والله","انشاء","ماشاء","استغفر","الحمد","لله","سبحان","تبارك","عيد","مبارك","يلا","تعال","روح","معلوم","اوكي","اوك","اي","ايه","ايوه","ايوا","نعم","لازم","ممكن","يمكن","طب","طيب","خلاص","يلا",
+  // pronoun clitics (often appear standalone)
+  "هم","هن","نا","كم","كن","ني","ه","ها",
+
+  // ===== Gulf-specific A1/A2 markers =====
+  "وش","ايش","شنو","شلون","وين","ليش","الحين","اللحين","شكثر","شكم","يبي","يبغى","بغى","ودي","يسوي","سوى","يبا","الحريم","عيال","شوي","كثير","زين","شين","تو","عشان","لانه","ها","ابا","ابي","اشوف","عاد","تراه","تره","تراني","ها","كل","شي","امس","بكره","بكرا","الليله","الصبح","العصر","المغرب","العشا",
+
+  // ===== Egyptian-specific A1/A2 markers =====
+  "ازاي","إزاي","عايز","عايزه","عاوز","عاوزه","عوز","دلوقتي","دلوقت","فين","ليه","كده","كدا","ده","دي","دول","دي","اهو","اهي","ماشي","يلا","بقى","بقا","خالص","قوي","اوي","شويه","حته","حاجه","حاجات","علشان","عشان","لسه","لسا","معلش","معلهش","يعني","بصراحه","صحيح","ابدا","تاني","تانيه","يبقى","عشان","ايوه","لأ","ها","حضرتك","صح","ده","يعني","ابن","بنوته","واحده","واحد","النهارده","امبارح","بكره","بدري","الصبح","بليل","بالليل","ساعه","ساعتين","عربيه","عربيات","حنروح","حنرجع","هانروح","هتروح","حاروح","بيشوف","بيقول","بيعمل","فاكر","فاكره","عارف","عارفه","لازم","ممكن","نفسي","نفسها","معلش","شكلك","ميه","حلاوه","تمام","كويس","كويسه","شوف","شوفي","ابقى","يلا","معايا","معاك","معاه","معاها","عندي","عندك","عنده","عندها","فوق","تحت","قدام","ورا","جنب","علطول",
+
+  // ===== Yemeni-specific A1/A2 markers =====
+  "كيف","كيفك","حقي","حقك","حقه","حقها","بزر","بزور","عيال","ولده","ايش","وش","ذي","ذا","تو","شي","شيء","شويه","عاد","معك","معي","معه","معها","بيتنا","ابوي","امي","يبا","ابى","لقاش","فيش","شفش","تعا","تعال","قوام","عقب","عاد","لا تشيل","لا تخاف","يا غالي","يا حبيبي","ذا","هيك","شلون","وين","ليش","حق","بلاش","يلا","معاد","عقبال","كذا","تمام","صح","ابغى","ابي","ودي",
+].map(normLemma);
+
+const COMMON_ARABIC = new Set<string>(COMMON_PAN_ARABIC);
+
 
 function normLemma(s: string): string {
   return (s || "")
@@ -206,14 +215,30 @@ const CEFR_TO_DIFFICULTY: Record<string, string> = {
   C2: "Expert",
 };
 
+// Generic CEFR descriptors — applied identically across dialects.
 const CEFR_DESCRIPTORS = `
 A1 — Greetings, basic personal info, 1-clause sentences, very common words only, slow clear speech, no idioms.
 A2 — Routine topics (family, shopping, work), short connected clauses, mostly common vocabulary, occasional fixed expressions, clear speech.
-B1 — Familiar topics handled connectedly, multi-clause sentences, mix of common + less common vocab, some idiomatic dialect ("الحين"/"يعني"/"بس"), normal conversational pace.
+B1 — Familiar topics handled connectedly, multi-clause sentences, mix of common + less common vocab, some idiomatic dialect markers, normal conversational pace.
 B2 — Abstract topics, complex sentences with subordination, dense vocabulary, frequent idiomatic/colloquial compression, fast natural pace.
 C1 — Implicit meaning, cultural references, long flexible sentences, specialised vocabulary, heavy dialectal compression, rapid speech.
 C2 — Native-level nuance: literature/poetry/technical jargon, very fast informal speech, dense slang, full idiom saturation.
 `.trim();
+
+// Dialect-specific A1/A2 markers — used to remind the LLM what counts
+// as "everyday vocabulary" in each dialect so it doesn't penalise
+// normal Egyptian or Yemeni speech as harder than equivalent Gulf.
+function dialectHints(dialect: string): string {
+  const d = (dialect || "").toLowerCase();
+  if (d.includes("egypt"))
+    return `Egyptian A1/A2 markers (treat as everyday, not "advanced"): ازاي، عايز، دلوقتي، فين، ليه، كده، ده/دي، يعني، بقى، خالص، اوي، شويه، علشان، لسه، النهارده، امبارح، بكره، كويس، تمام، ايوه، معلش، بيشوف/بيقول/بيعمل، حنروح/هتروح.`;
+  if (d.includes("yemen"))
+    return `Yemeni A1/A2 markers (treat as everyday): كيف، حق (possessive)، ابغى/ابي، ودي، ايش، وين، ليش، ذا/ذي، بزر/بزور، عيال، شي، شويه، عاد، تعا، قوام، عقب، تو، يا غالي، يا حبيبي.`;
+  if (d.includes("gulf") || d.includes("saudi") || d.includes("kuwait") || d.includes("uae") || d.includes("qatar") || d.includes("bahrain") || d.includes("oman"))
+    return `Gulf A1/A2 markers (treat as everyday): وش/ايش/شنو، شلون، وين، ليش، الحين، يبي/يبغى/ودي، يسوي، شوي، كثير، زين، شين، عاد، عشان، الحريم، عيال.`;
+  return `Standard Arabic A1/A2 markers (treat as everyday): kinship terms, daily greetings, common verbs (راح، شاف، قال، اكل، شرب، نام)، basic adjectives.`;
+}
+
 
 async function llmRate(
   transcript: string,
@@ -223,9 +248,12 @@ async function llmRate(
 ): Promise<{ cefr_level: string; rationale: string }> {
   const prompt = `You are rating the difficulty of a short ${dialect} Arabic video for language learners.
 
-Use the CEFR scale (A1-C2). The same scale the user took the placement quiz on:
+Use the CEFR scale (A1-C2) — the same scale the user took the placement quiz on:
 
 ${CEFR_DESCRIPTORS}
+
+DIALECT NOTE: ${dialectHints(dialect)}
+
 
 OBJECTIVE METRICS computed from the full transcript (these are facts, not opinions):
 - total tokens: ${metrics.total_tokens}

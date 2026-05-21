@@ -21,9 +21,13 @@ const MyWords = () => {
   const { data: words, isLoading } = useUserVocabulary(mixAll);
   const { data: stats } = useUserVocabularyDueCount(mixAll);
   const deleteWord = useDeleteUserVocabulary();
+  const { data: phrases } = useUserPhrases();
+  const { data: phraseStats } = useUserPhrasesDueCount();
+  const deletePhrase = useDeleteUserPhrase();
   const [imageDialogWord, setImageDialogWord] = useState<UserVocabularyWord | null>(null);
   const [expandedContext, setExpandedContext] = useState<Set<string>>(new Set());
   const [suggestOpen, setSuggestOpen] = useState(false);
+  const [showAllPhrases, setShowAllPhrases] = useState(false);
 
   const toggleContext = (id: string) => {
     setExpandedContext((prev) => {

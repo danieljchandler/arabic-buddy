@@ -43,8 +43,12 @@ const AdminVideoForm = () => {
   const [durationSeconds, setDurationSeconds] = useState<number | null>(null);
   const [dialect, setDialect] = useState("Gulf");
   const [difficulty, setDifficulty] = useState("Beginner");
+  const [cefrLevel, setCefrLevel] = useState<string | null>(null);
+  const [difficultyRationale, setDifficultyRationale] = useState<string | null>(null);
+  const [isRating, setIsRating] = useState(false);
   const [published, setPublished] = useState(false);
   const [isMeme, setIsMeme] = useState(memeQueryFlag);
+
 
   // Apply ?meme=1 default for brand new videos.
   useEffect(() => {

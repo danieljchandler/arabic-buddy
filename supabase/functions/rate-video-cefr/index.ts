@@ -248,9 +248,12 @@ async function llmRate(
 ): Promise<{ cefr_level: string; rationale: string }> {
   const prompt = `You are rating the difficulty of a short ${dialect} Arabic video for language learners.
 
-Use the CEFR scale (A1-C2). The same scale the user took the placement quiz on:
+Use the CEFR scale (A1-C2) — the same scale the user took the placement quiz on:
 
 ${CEFR_DESCRIPTORS}
+
+DIALECT NOTE: ${dialectHints(dialect)}
+
 
 OBJECTIVE METRICS computed from the full transcript (these are facts, not opinions):
 - total tokens: ${metrics.total_tokens}

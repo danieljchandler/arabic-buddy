@@ -1,20 +1,20 @@
 import { getDialectIdentity, getDialectLabel } from "../_shared/dialectHelpers.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
+import { getCorsHeaders } from "../_shared/cors.ts";
+import { createErrorResponse } from "../_shared/errorResponse.ts";
 
 Deno.serve(async (req) => {
+  const cors = getCorsHeaders(req);
+
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: cors });
   }
 
   try {
     const { dialect = "Gulf", seed } = await req.json().catch(() => ({}));
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
+    if (!LOVABLE_API_KEY) {
+      return createErrorResponse(500, "LOVABLE_API_KEY not configured", cors);
+    }
 
     const identity = getDialectIdentity(dialect);
     const label = getDialectLabel(dialect);
@@ -95,16 +95,10 @@ Return a fresh, interesting phrase that hasn't been overused. Include a brief cu
       const errText = await response.text();
       console.error("AI gateway error", response.status, errText);
       if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ error: "Rate limit exceeded, try again shortly." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-        );
+        return createErrorResponse(429, "Rate limit exceeded, try again shortly.", cors);
       }
       if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "AI credits exhausted." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-        );
+        return createErrorResponse(402, "AI credits exhausted.", cors);
       }
       throw new Error(`AI gateway error: ${response.status}`);
     }
@@ -119,13 +113,14 @@ Return a fresh, interesting phrase that hasn't been overused. Include a brief cu
 
     return new Response(
       JSON.stringify({ ...phrase, dialect, date: today }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      { headers: { ...cors, "Content-Type": "application/json" } },
     );
   } catch (err) {
     console.error("phrase-of-the-day error:", err);
-    return new Response(
-      JSON.stringify({ error: err instanceof Error ? err.message : "Unknown error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    return createErrorResponse(
+      500,
+      err instanceof Error ? err.message : "Unknown error",
+      cors,
     );
   }
 });

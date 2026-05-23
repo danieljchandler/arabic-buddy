@@ -95,7 +95,6 @@ const SetPhrasesReview = lazyPage(() => import("./pages/SetPhrasesReview"));
 const queryClient = new QueryClient();
 
 const App = () => {
-  console.log("[boot] App component rendering");
   useEffect(() => {
     const CRASH_KEY = "__app_last_crash";
 

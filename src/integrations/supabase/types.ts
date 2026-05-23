@@ -2141,6 +2141,7 @@ export type Database = {
       user_phrases: {
         Row: {
           created_at: string
+          dialect: string
           difficulty: number
           ease_factor: number
           id: string
@@ -2162,6 +2163,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          dialect?: string
           difficulty?: number
           ease_factor?: number
           id?: string
@@ -2183,6 +2185,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          dialect?: string
           difficulty?: number
           ease_factor?: number
           id?: string

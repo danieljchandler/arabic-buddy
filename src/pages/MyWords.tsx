@@ -21,8 +21,8 @@ const MyWords = () => {
   const { data: words, isLoading } = useUserVocabulary(mixAll);
   const { data: stats } = useUserVocabularyDueCount(mixAll);
   const deleteWord = useDeleteUserVocabulary();
-  const { data: phrases } = useUserPhrases();
-  const { data: phraseStats } = useUserPhrasesDueCount();
+  const { data: phrases } = useUserPhrases(mixAll);
+  const { data: phraseStats } = useUserPhrasesDueCount(mixAll);
   const deletePhrase = useDeleteUserPhrase();
   const [imageDialogWord, setImageDialogWord] = useState<UserVocabularyWord | null>(null);
   const [expandedContext, setExpandedContext] = useState<Set<string>>(new Set());

@@ -179,6 +179,8 @@ export const useDeleteUserVocabulary = () => {
 
 export type ReviewCardType = "recognition" | "production";
 
+export const LEECH_THRESHOLD = 6;
+
 export const useUpdateUserVocabularyReview = () => {
   const queryClient = useQueryClient();
 
@@ -193,6 +195,8 @@ export const useUpdateUserVocabularyReview = () => {
       cardType = "recognition",
       rating,
       productionLocked,
+      currentLapses = 0,
+      currentProductionLapses = 0,
     }: {
       wordId: string;
       stability: number;
@@ -203,8 +207,19 @@ export const useUpdateUserVocabularyReview = () => {
       cardType?: ReviewCardType;
       rating?: string;
       productionLocked?: boolean;
+      currentLapses?: number;
+      currentProductionLapses?: number;
     }) => {
       const nowIso = new Date().toISOString();
+      const failed = rating === "again";
+      const newLapses = failed && cardType === "recognition"
+        ? currentLapses + 1
+        : currentLapses;
+      const newProdLapses = failed && cardType === "production"
+        ? currentProductionLapses + 1
+        : currentProductionLapses;
+      const isLeech = Math.max(newLapses, newProdLapses) >= LEECH_THRESHOLD;
+
       const update: Record<string, unknown> =
         cardType === "production"
           ? {
@@ -213,6 +228,8 @@ export const useUpdateUserVocabularyReview = () => {
               production_repetitions: repetitions,
               production_next_review_at: nextReviewAt.toISOString(),
               production_last_reviewed_at: nowIso,
+              production_lapses: newProdLapses,
+              is_leech: isLeech,
             }
           : {
               ease_factor: stability,
@@ -220,6 +237,8 @@ export const useUpdateUserVocabularyReview = () => {
               repetitions,
               next_review_at: nextReviewAt.toISOString(),
               last_reviewed_at: nowIso,
+              lapses: newLapses,
+              is_leech: isLeech,
             };
 
       // Unlock production card on first successful recognition rating (Good/Easy)

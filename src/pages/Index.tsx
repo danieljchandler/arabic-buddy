@@ -190,7 +190,7 @@ const Index = () => {
                   <GraduationCap className="h-6 w-6 text-primary" />
                 </div>
                 <div className="flex-1 min-w-0 relative z-10">
-                  <p className="font-bold text-foreground text-base mb-1">Take the Placement Quiz</p>
+                  <p className="font-bold text-foreground text-base mb-1 flex items-center gap-1.5">Take the Placement Quiz<InfoHint title={TILE_HINTS.placement.title} body={TILE_HINTS.placement.body} /></p>
                   <p className="text-sm text-muted-foreground leading-relaxed">
                     Answer 20 adaptive questions so we can tailor lessons, vocabulary, and exercises to your exact level.
                   </p>
@@ -213,7 +213,7 @@ const Index = () => {
                   <Sparkles className="h-6 w-6 text-primary" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-bold text-foreground" style={{ fontFamily: "'Montserrat', sans-serif" }}>Start today</p>
+                  <p className="font-bold text-foreground flex items-center gap-1.5" style={{ fontFamily: "'Montserrat', sans-serif" }}>Start today<InfoHint title={TILE_HINTS.today.title} body={TILE_HINTS.today.body} /></p>
                   <p className="text-xs text-muted-foreground mt-0.5">Your daily learning queue</p>
                 </div>
                 <ChevronRight className="h-5 w-5 text-primary shrink-0" />
@@ -256,7 +256,7 @@ const Index = () => {
           "discover": (
             <div key="discover">
               <div className="flex items-center justify-between mb-3">
-                <h2 className="text-lg font-bold text-foreground" style={{ fontFamily: "'Montserrat', sans-serif" }}>Discover Videos</h2>
+                <h2 className="text-lg font-bold text-foreground flex items-center gap-1.5" style={{ fontFamily: "'Montserrat', sans-serif" }}>Discover Videos<InfoHint title={TILE_HINTS.discover.title} body={TILE_HINTS.discover.body} /></h2>
                 <button onClick={() => navigate("/discover")} className="text-sm font-medium text-primary hover:underline flex items-center gap-0.5">
                   See all <ChevronRight className="h-3.5 w-3.5" />
                 </button>
@@ -290,7 +290,7 @@ const Index = () => {
                 <Sparkles className="h-5 w-5" />
               </div>
               <div className="text-left">
-                <p className="font-bold">New Words</p>
+                <p className="font-bold flex items-center gap-1.5">New Words<InfoHint title={TILE_HINTS["new-words"].title} body={TILE_HINTS["new-words"].body} /></p>
                 <p className="text-xs opacity-80">{stats ? `${stats.newCount} words to discover` : "Start learning vocabulary"}</p>
               </div>
             </button>
@@ -304,7 +304,7 @@ const Index = () => {
                     <Brain className="h-5 w-5 text-primary" />
                   </div>
                   <div className="text-left">
-                    <p className="font-semibold text-foreground">Review</p>
+                    <p className="font-semibold text-foreground flex items-center gap-1.5">Review<InfoHint title={TILE_HINTS.review.title} body={TILE_HINTS.review.body} /></p>
                     <p className="text-xs text-muted-foreground">{stats.dueCount} {stats.dueCount === 1 ? "word" : "words"} due</p>
                   </div>
                 </div>
@@ -331,7 +331,7 @@ const Index = () => {
                   <BookOpen className="h-5 w-5 text-primary" />
                 </div>
                 <div className="text-left">
-                  <p className="font-semibold text-foreground">My Words</p>
+                  <p className="font-semibold text-foreground flex items-center gap-1.5">My Words<InfoHint title={TILE_HINTS["my-words"].title} body={TILE_HINTS["my-words"].body} /></p>
                   <p className="text-xs text-muted-foreground">{myWordsStats?.dueCount ? `${myWordsStats.dueCount} due for review` : "Saved vocabulary"}</p>
                 </div>
               </div>
@@ -349,7 +349,7 @@ const Index = () => {
                 <GraduationCap className="h-5 w-5 text-primary" />
               </div>
               <div className="text-left">
-                <p className="font-semibold text-foreground">Tutor Upload</p>
+                <p className="font-semibold text-foreground flex items-center gap-1.5">Tutor Upload<InfoHint title={TILE_HINTS["tutor-upload"].title} body={TILE_HINTS["tutor-upload"].body} /></p>
                 <p className="text-xs text-muted-foreground">Extract flashcards from tutor audio</p>
               </div>
             </button>
@@ -363,7 +363,7 @@ const Index = () => {
                   <Mic className="h-5 w-5" />
                 </div>
                 <div className="text-left">
-                  <p className="font-bold">Pronunciation Practice</p>
+                  <p className="font-bold flex items-center gap-1.5">Pronunciation Practice<InfoHint title={TILE_HINTS.pronunciation.title} body={TILE_HINTS.pronunciation.body} /></p>
                   <p className="text-xs opacity-80">Record yourself & get AI feedback</p>
                 </div>
               </button>
@@ -372,7 +372,7 @@ const Index = () => {
                   <MessageSquare className="h-5 w-5 text-primary" />
                 </div>
                 <div className="text-left">
-                  <p className="font-semibold text-foreground">Conversation Simulator</p>
+                  <p className="font-semibold text-foreground flex items-center gap-1.5">Conversation Simulator<InfoHint title={TILE_HINTS.conversation.title} body={TILE_HINTS.conversation.body} /></p>
                   <p className="text-xs text-muted-foreground">Practice real-world Arabic scenarios</p>
                 </div>
               </button>
@@ -381,7 +381,7 @@ const Index = () => {
                   <MessageCircle className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
                 </div>
                 <div className="text-left">
-                  <p className="font-semibold text-foreground">Set Phrases</p>
+                  <p className="font-semibold text-foreground flex items-center gap-1.5">Set Phrases<InfoHint title={TILE_HINTS["set-phrases"].title} body={TILE_HINTS["set-phrases"].body} /></p>
                   <p className="text-xs text-muted-foreground">Greetings, weddings, Eid & more — voice quiz</p>
                 </div>
               </button>
@@ -390,7 +390,7 @@ const Index = () => {
                   <BookOpen className="h-5 w-5 text-amber-600" />
                 </div>
                 <div className="text-left">
-                  <p className="font-semibold text-foreground">Interactive Stories</p>
+                  <p className="font-semibold text-foreground flex items-center gap-1.5">Interactive Stories<InfoHint title={TILE_HINTS.stories.title} body={TILE_HINTS.stories.body} /></p>
                   <p className="text-xs text-muted-foreground">Choose-your-adventure in Arabic</p>
                 </div>
               </button>
@@ -405,7 +405,7 @@ const Index = () => {
                   <PenTool className="h-5 w-5 text-violet-600 dark:text-violet-400" />
                 </div>
                 <div className="text-left">
-                  <p className="font-semibold text-foreground">Grammar Drills</p>
+                  <p className="font-semibold text-foreground flex items-center gap-1.5">Grammar Drills<InfoHint title={TILE_HINTS.grammar.title} body={TILE_HINTS.grammar.body} /></p>
                   <p className="text-xs text-muted-foreground">AI-powered conjugation, pronouns & more</p>
                 </div>
               </button>
@@ -420,7 +420,7 @@ const Index = () => {
                   <Gamepad2 className="h-5 w-5 text-primary" />
                 </div>
                 <div className="text-left">
-                  <p className="font-semibold text-foreground">Vocabulary Games</p>
+                  <p className="font-semibold text-foreground flex items-center gap-1.5">Vocabulary Games<InfoHint title={TILE_HINTS["vocab-games"].title} body={TILE_HINTS["vocab-games"].body} /></p>
                   <p className="text-xs text-muted-foreground">Word matching, memory cards & fill-in-the-blank</p>
                 </div>
               </button>
@@ -435,7 +435,7 @@ const Index = () => {
                   <Headphones className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
                 </div>
                 <div className="text-left">
-                  <p className="font-semibold text-foreground">Listening Practice</p>
+                  <p className="font-semibold text-foreground flex items-center gap-1.5">Listening Practice<InfoHint title={TILE_HINTS.listening.title} body={TILE_HINTS.listening.body} /></p>
                   <p className="text-xs text-muted-foreground">Dictation, comprehension & speed drills</p>
                 </div>
               </button>
@@ -444,7 +444,7 @@ const Index = () => {
                   <FileText className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
                 </div>
                 <div className="text-left">
-                  <p className="font-semibold text-foreground">Reading Practice</p>
+                  <p className="font-semibold text-foreground flex items-center gap-1.5">Reading Practice<InfoHint title={TILE_HINTS.reading.title} body={TILE_HINTS.reading.body} /></p>
                   <p className="text-xs text-muted-foreground">Passages with tap-to-translate & comprehension quiz</p>
                 </div>
               </button>
@@ -453,7 +453,7 @@ const Index = () => {
                   <ImageIcon className="h-5 w-5 text-rose-600 dark:text-rose-400" />
                 </div>
                 <div className="text-left">
-                  <p className="font-semibold text-foreground">Picture Scenes</p>
+                  <p className="font-semibold text-foreground flex items-center gap-1.5">Picture Scenes<InfoHint title={TILE_HINTS["picture-scenes"].title} body={TILE_HINTS["picture-scenes"].body} /></p>
                   <p className="text-xs text-muted-foreground">Tap objects in a scene to learn new words</p>
                 </div>
               </button>
@@ -468,7 +468,7 @@ const Index = () => {
                   <BookMarked className="h-5 w-5 text-amber-600 dark:text-amber-400" />
                 </div>
                 <div className="text-left">
-                  <p className="font-semibold text-foreground">Bible Reading</p>
+                  <p className="font-semibold text-foreground flex items-center gap-1.5">Bible Reading<InfoHint title={TILE_HINTS.bible.title} body={TILE_HINTS.bible.body} /></p>
                   <p className="text-xs text-muted-foreground">Read Scripture in Arabic with vocabulary tools</p>
                 </div>
               </button>
@@ -483,7 +483,7 @@ const Index = () => {
                   <Newspaper className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
                 </div>
                 <div className="text-left">
-                  <p className="font-semibold text-foreground">أخبار السوق · Souq News</p>
+                  <p className="font-semibold text-foreground flex items-center gap-1.5">أخبار السوق · Souq News<InfoHint title={TILE_HINTS["souq-news"].title} body={TILE_HINTS["souq-news"].body} /></p>
                   <p className="text-xs text-muted-foreground">
                     {activeDialect === 'Egyptian' ? "Egyptian gossip about today's headlines" : activeDialect === 'Yemeni' ? "Yemeni take on today's headlines" : "Gulf gossip about today's headlines"}
                   </p>
@@ -498,7 +498,7 @@ const Index = () => {
                 <Globe2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
               </div>
               <div className="text-left">
-                <p className="font-semibold text-foreground">Dialect Compare</p>
+                <p className="font-semibold text-foreground flex items-center gap-1.5">Dialect Compare<InfoHint title={TILE_HINTS["dialect-compare"].title} body={TILE_HINTS["dialect-compare"].body} /></p>
                 <p className="text-xs text-muted-foreground">See how words differ across Gulf, Egyptian & Levantine</p>
               </div>
             </button>
@@ -510,7 +510,7 @@ const Index = () => {
                 <Laugh className="h-5 w-5 text-primary" />
               </div>
               <div className="text-left">
-                <p className="font-semibold text-foreground">Meme Analyzer</p>
+                <p className="font-semibold text-foreground flex items-center gap-1.5">Meme Analyzer<InfoHint title={TILE_HINTS.meme.title} body={TILE_HINTS.meme.body} /></p>
                 <p className="text-xs text-muted-foreground">Break down Arabic memes</p>
               </div>
             </button>
@@ -522,7 +522,7 @@ const Index = () => {
                 <Twitter className="h-5 w-5 text-primary" />
               </div>
               <div className="text-left">
-                <p className="font-semibold text-foreground">Learn from X Post</p>
+                <p className="font-semibold text-foreground flex items-center gap-1.5">Learn from X Post<InfoHint title={TILE_HINTS["learn-from-x"].title} body={TILE_HINTS["learn-from-x"].body} /></p>
                 <p className="text-xs text-muted-foreground">Analyze Arabic posts from X</p>
               </div>
             </button>
@@ -534,7 +534,7 @@ const Index = () => {
                 <MessageCircleQuestion className="h-5 w-5 text-primary" />
               </div>
               <div className="text-left">
-                <p className="font-semibold text-foreground">How do I say…?</p>
+                <p className="font-semibold text-foreground flex items-center gap-1.5">How do I say…?<InfoHint title={TILE_HINTS["how-do-i-say"].title} body={TILE_HINTS["how-do-i-say"].body} /></p>
                 <p className="text-xs text-muted-foreground">
                   Translate phrases into {activeDialect === 'Egyptian' ? 'Egyptian Arabic' : activeDialect === 'Yemeni' ? 'Yemeni Arabic' : 'Gulf Arabic'}
                 </p>
@@ -548,7 +548,7 @@ const Index = () => {
                 <Compass className="h-5 w-5 text-primary" />
               </div>
               <div className="text-left">
-                <p className="font-semibold text-foreground">What should I do?</p>
+                <p className="font-semibold text-foreground flex items-center gap-1.5">What should I do?<InfoHint title={TILE_HINTS.culture.title} body={TILE_HINTS.culture.body} /></p>
                 <p className="text-xs text-muted-foreground">Get culturally appropriate {activeDialect === 'Egyptian' ? 'Egyptian' : 'Gulf'} advice</p>
               </div>
             </button>
@@ -560,7 +560,7 @@ const Index = () => {
                 <Mic className="h-5 w-5 text-primary" />
               </div>
               <div className="text-left">
-                <p className="font-semibold text-foreground">Transcribe Audio</p>
+                <p className="font-semibold text-foreground flex items-center gap-1.5">Transcribe Audio<InfoHint title={TILE_HINTS.transcribe.title} body={TILE_HINTS.transcribe.body} /></p>
                 <p className="text-xs text-muted-foreground">Convert Arabic audio to text</p>
               </div>
             </button>
@@ -572,7 +572,7 @@ const Index = () => {
                 <FileText className="h-5 w-5 text-primary" />
               </div>
               <div className="text-left">
-                <p className="font-semibold text-foreground">My Transcriptions</p>
+                <p className="font-semibold text-foreground flex items-center gap-1.5">My Transcriptions<InfoHint title={TILE_HINTS["my-transcriptions"].title} body={TILE_HINTS["my-transcriptions"].body} /></p>
                 <p className="text-xs text-muted-foreground">View transcripts you've saved</p>
               </div>
             </button>

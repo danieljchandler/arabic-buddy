@@ -45,6 +45,28 @@ const Settings = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated, loading: authLoading, signOut } = useAuth();
   const [loading, setLoading] = useState(true);
+  const { enabled: leechEnabled, setEnabled: setLeechEnabled } = useLeechPrefs();
+  const [clearingLeeches, setClearingLeeches] = useState(false);
+
+  const clearAllLeeches = async () => {
+    if (!user) return;
+    setClearingLeeches(true);
+    try {
+      await Promise.all([
+        (supabase.from('user_vocabulary') as any)
+          .update({ is_leech: false, lapses: 0, production_lapses: 0 })
+          .eq('user_id', user.id),
+        (supabase.from('user_phrases') as any)
+          .update({ is_leech: false, lapses: 0 })
+          .eq('user_id', user.id),
+      ]);
+      toast.success('Cleared all leech flags.');
+    } catch {
+      toast.error('Failed to clear leech flags');
+    } finally {
+      setClearingLeeches(false);
+    }
+  };
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);

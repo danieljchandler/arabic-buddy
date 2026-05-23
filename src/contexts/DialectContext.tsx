@@ -54,7 +54,7 @@ export const DialectProvider = ({ children }: { children: ReactNode }) => {
 
       if (data) {
         const dialect = (data as Record<string, unknown>).preferred_dialect;
-        if (dialect === 'Gulf' || dialect === 'Egyptian' || dialect === 'Yemeni' || dialect === 'Levantine' || dialect === 'Moroccan') {
+        if (dialect === 'Gulf' || dialect === 'Egyptian' || dialect === 'Yemeni') {
           setActiveDialect(dialect);
           try { localStorage.setItem(STORAGE_KEY, dialect); } catch {}
         }

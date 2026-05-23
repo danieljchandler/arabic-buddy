@@ -175,6 +175,7 @@ const TodayPage = () => {
               estMinutes={task.estMinutes}
               icon={task.icon}
               done={task.done}
+              hint={TASK_HINTS[task.id]}
               onClick={() => handleTaskClick(task.id, task.route)}
             />
           ))}

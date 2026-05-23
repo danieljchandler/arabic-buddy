@@ -111,14 +111,17 @@ export const useUserSetPhrases = () => {
 
 export const useUserSetPhrasesDueCount = () => {
   const { user } = useAuth();
+  const { activeDialect } = useDialect();
   return useQuery({
-    queryKey: ["user-set-phrases-due", user?.id],
+    queryKey: ["user-set-phrases-due", user?.id, activeDialect],
     queryFn: async () => {
       if (!user) return 0;
+      // Inner-join on set_phrases so we only count rows whose phrase matches the active dialect
       const { count, error } = await sb
         .from("user_set_phrases")
-        .select("*", { count: "exact", head: true })
+        .select("*, set_phrases!inner(dialect)", { count: "exact", head: true })
         .eq("user_id", user.id)
+        .eq("set_phrases.dialect", activeDialect)
         .lte("next_review_at", new Date().toISOString());
       if (error) throw error;
       return count ?? 0;

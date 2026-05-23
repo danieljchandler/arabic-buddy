@@ -21,6 +21,41 @@ import { useHomeLayout } from "@/hooks/useHomeLayout";
 import { HomeSectionId, isSectionVisible } from "@/lib/homeLayout";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { DiscoverPreviewCard } from "@/components/discover/DiscoverPreviewCard";
+import { InfoHint } from "@/components/InfoHint";
+
+const TILE_HINTS: Record<string, { title: string; body: string }> = {
+  "today": { title: "Start today", body: "Your daily learning queue — reviews, a challenge, listening and reading, all picked for today. The fastest way to grow your streak." },
+  "review": { title: "Smart review", body: "Spaced repetition surfaces only the words you're about to forget. Quick taps now mean rock-solid long-term memory." },
+  "my-words": { title: "My Words", body: "Every word you've saved — with native audio, images, and SRS scheduling. Your personal vocabulary deck, on autopilot." },
+  "new-words": { title: "Learn new words", body: "Pick up fresh vocabulary at your level with audio, images, and quick example sentences." },
+  "discover": { title: "Discover videos", body: "Real native videos with synced subtitles. Tap any word to learn it, then save it to review later." },
+  "tutor-upload": { title: "Tutor Upload", body: "Drop in audio from your tutor and we'll auto-extract the new words and turn them into flashcards." },
+  "pronunciation": { title: "Pronunciation Practice", body: "Record yourself and get instant AI scoring on each syllable — like a patient native speaker in your pocket." },
+  "conversation": { title: "Conversation Simulator", body: "Free-form chat with realistic native voices. Practice ordering coffee, small talk, anything — judgment-free." },
+  "set-phrases": { title: "Set Phrases", body: "Greetings, weddings, Eid wishes, condolences — the expressions natives use on autopilot. Voice-quiz yourself." },
+  "stories": { title: "Interactive Stories", body: "Choose-your-adventure tales in Arabic. Comprehension-building that actually feels like a game." },
+  "grammar": { title: "Grammar Drills", body: "AI-generated drills for conjugation, pronouns, and tricky structures — bite-sized and personalized." },
+  "vocab-games": { title: "Vocabulary Games", body: "Word matching, memory cards, fill-in-the-blanks — sneak in extra practice without it feeling like work." },
+  "listening": { title: "Listening Practice", body: "Dictation, comprehension drills, and speed-listening — train your ear on real dialect audio." },
+  "reading": { title: "Reading Practice", body: "Short passages with tap-to-translate. Build comprehension without ever reaching for a dictionary." },
+  "picture-scenes": { title: "Picture Scenes", body: "Themed images with tappable hotspots. Learn whole rooms-worth of vocabulary in a single scene." },
+  "bible": { title: "Bible Reading", body: "Read Scripture in Arabic with tap-to-translate, dialect audio, and built-in vocabulary tools." },
+  "souq-news": { title: "Souq News", body: "Today's headlines retold like a friend gossiping in dialect. Casual Arabic + current events." },
+  "dialect-compare": { title: "Dialect Compare", body: "See the same word across Gulf, Egyptian and more — perfect for travelers and curious linguists." },
+  "meme": { title: "Meme Analyzer", body: "Paste an Arabic meme and we'll break it down: the text, the joke, the slang, the cultural reference." },
+  "learn-from-x": { title: "Learn from X", body: "Drop an X (Twitter) post link and we'll turn it into a mini lesson — vocab, grammar, the works." },
+  "how-do-i-say": { title: "How do I say…?", body: "Type any phrase in English and get a natural, dialect-accurate translation with audio." },
+  "culture": { title: "Culture Guide", body: "Ask 'what do I do?' for any social situation and get culturally-appropriate Gulf or Egyptian advice." },
+  "transcribe": { title: "Transcribe Audio", body: "Upload Arabic audio or video and get an editable, word-accurate transcript with translations." },
+  "my-transcriptions": { title: "My Transcriptions", body: "Every transcript you've saved, ready to revisit and turn into flashcards." },
+  "daily-challenge": { title: "Daily Challenge", body: "A fresh bite-sized mission every day. Finish it for bonus XP and your streak multiplier." },
+  "leaderboard": { title: "Leaderboard", body: "See where you stack up against other learners this week. Friendly competition, real motivation." },
+  "battles": { title: "Vocab Battles", body: "Live head-to-head vocabulary duels. Fast, fun, and the best way to test if you actually know your words." },
+  "friends": { title: "Friends", body: "Add friends, share progress, and cheer each other's streaks." },
+  "analytics": { title: "Learning Analytics", body: "Beautiful charts of your progress: words learned, retention rate, time spent, dialect coverage." },
+  "my-path": { title: "My Path", body: "An adaptive curriculum built around your CEFR level and goals. Always knows what to teach you next." },
+  "placement": { title: "Placement Quiz", body: "20 adaptive questions to pin down your exact CEFR level so every lesson lands in your sweet spot." },
+};
 
 const DIALECT_MODULES: { id: DialectModule; label: string; flag: string }[] = [
   { id: 'Gulf', label: 'Gulf Arabic', flag: '🌊' },

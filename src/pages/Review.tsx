@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -16,6 +16,7 @@ import { useDialect } from "@/contexts/DialectContext";
 import { Rating, calculateNextReview } from "@/lib/spacedRepetition";
 import { Loader2, Trophy, Brain, Sparkles, LogIn, Shuffle, Eye, Volume2, ImagePlus } from "lucide-react";
 import { GenerateImageDialog } from "@/components/mywords/GenerateImageDialog";
+import { useReviewKeyboard } from "@/hooks/useKeyboardShortcuts";
 
 const DIALECT_FLAGS: Record<string, string> = {
   Gulf: "🇦🇪",
@@ -37,6 +38,18 @@ const Review = () => {
   const [showAnswer, setShowAnswer] = useState(false);
   const [imageDialogOpen, setImageDialogOpen] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const handleFlip = useCallback(() => setShowAnswer(true), []);
+  const handleRateKeyboard = useCallback((rating: Rating) => {
+    handleRate(rating);
+  }, [dueWords, currentIndex]);
+
+  useReviewKeyboard({
+    showAnswer,
+    onFlip: handleFlip,
+    onRate: handleRateKeyboard,
+    enabled: !!dueWords && dueWords.length > 0,
+  });
 
   const playAudio = (url: string) => {
     if (audioRef.current) {

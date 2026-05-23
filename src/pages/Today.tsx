@@ -13,6 +13,34 @@ import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover
 import { Input } from "@/components/ui/input";
 import { Settings2, Loader2, LogIn, Sparkles } from "lucide-react";
 import { getDailyGoal, setDailyGoal, markTaskCompletedToday } from "@/lib/todayCompletion";
+import { InfoHint } from "@/components/InfoHint";
+
+const TASK_HINTS: Record<string, { title: string; body: string }> = {
+  flashcards: {
+    title: "Flashcards review",
+    body: "We surface only the words your brain is about to forget — quick taps now mean long-term memory later.",
+  },
+  "daily-challenge": {
+    title: "Daily challenge",
+    body: "A fresh bite-sized mission every day. Finish it to fire up your streak multiplier and earn bonus XP.",
+  },
+  reading: {
+    title: "Reading practice",
+    body: "Short passages with tap-to-translate. Build comprehension without ever reaching for a dictionary.",
+  },
+  listening: {
+    title: "Listening clip",
+    body: "Real native videos with synced subtitles — train your ear on how Arabic actually sounds in the wild.",
+  },
+  souq: {
+    title: "Souq News",
+    body: "Today's headlines, retold like a friend gossiping in dialect. Casual Arabic + current events in one go.",
+  },
+  "set-phrases": {
+    title: "Set phrases",
+    body: "Greetings, weddings, Eid wishes — the go-to expressions natives use on autopilot. Voice-quiz yourself.",
+  },
+};
 
 const TodayPage = () => {
   const navigate = useNavigate();
@@ -88,9 +116,16 @@ const TodayPage = () => {
         <header className="flex items-center gap-5">
           <DailyGoalRing current={xpToday} goal={goal} />
           <div className="flex-1">
-            <h1 className="text-2xl font-bold text-foreground" style={{ fontFamily: "'Montserrat', sans-serif" }}>
-              Today
-            </h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-bold text-foreground" style={{ fontFamily: "'Montserrat', sans-serif" }}>
+                Today
+              </h1>
+              <InfoHint
+                size="md"
+                title="Your daily queue"
+                body="Everything Lahja recommends for you today — reviews, a challenge, listening, reading and more. Knock them out to hit your goal and grow your streak."
+              />
+            </div>
             <p className="text-sm text-muted-foreground mt-1">
               {completed} of {total} tasks done
             </p>
@@ -140,6 +175,7 @@ const TodayPage = () => {
               estMinutes={task.estMinutes}
               icon={task.icon}
               done={task.done}
+              hint={TASK_HINTS[task.id]}
               onClick={() => handleTaskClick(task.id, task.route)}
             />
           ))}

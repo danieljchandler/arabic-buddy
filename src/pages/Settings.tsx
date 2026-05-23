@@ -10,10 +10,11 @@ import { Switch } from '@/components/ui/switch';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { Loader2, Check, ArrowLeft, User, Globe2, Target, Eye, Heart, ChevronRight, Camera, AlertTriangle } from 'lucide-react';
+import { Loader2, Check, ArrowLeft, User, Globe2, Target, Eye, Heart, ChevronRight, Camera, AlertTriangle, Info } from 'lucide-react';
 import { HomeLayoutEditor } from '@/components/settings/HomeLayoutEditor';
 import { DisplayPrefsEditor } from '@/components/settings/DisplayPrefsEditor';
 import { useLeechPrefs } from '@/hooks/useLeechPrefs';
+import { useFeatureHints } from '@/hooks/useFeatureHints';
 
 const DIALECTS = [
   { id: 'Gulf', label: 'Gulf Arabic', labelAr: 'خليجي', flag: '🌊' },
@@ -46,6 +47,7 @@ const Settings = () => {
   const { user, isAuthenticated, loading: authLoading, signOut } = useAuth();
   const [loading, setLoading] = useState(true);
   const { enabled: leechEnabled, setEnabled: setLeechEnabled } = useLeechPrefs();
+  const { enabled: hintsEnabled, setEnabled: setHintsEnabled } = useFeatureHints();
   const [clearingLeeches, setClearingLeeches] = useState(false);
 
   const clearAllLeeches = async () => {
@@ -383,6 +385,23 @@ const Settings = () => {
 
           {/* Global Display Preferences */}
           <DisplayPrefsEditor />
+
+          {/* Feature Hints */}
+          <section className="space-y-3">
+            <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+              <Info className="h-4 w-4" />
+              Feature Hints
+            </div>
+            <div className="flex items-center justify-between p-3 rounded-xl bg-card border border-border">
+              <div className="min-w-0 pr-3">
+                <p className="font-medium text-foreground text-sm">Show feature hints</p>
+                <p className="text-xs text-muted-foreground">
+                  Small (i) icons across the app explain what each feature does. Turn off once you know your way around.
+                </p>
+              </div>
+              <Switch checked={hintsEnabled} onCheckedChange={setHintsEnabled} />
+            </div>
+          </section>
 
           {/* Review Preferences */}
           <section className="space-y-3">

@@ -1,5 +1,6 @@
 import { ChevronRight, Check, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { InfoHint } from "@/components/InfoHint";
 
 interface TaskRowProps {
   title: string;
@@ -9,9 +10,10 @@ interface TaskRowProps {
   icon: LucideIcon;
   done: boolean;
   onClick: () => void;
+  hint?: { title: string; body: string };
 }
 
-export const TaskRow = ({ title, subtitle, countBadge, estMinutes, icon: Icon, done, onClick }: TaskRowProps) => {
+export const TaskRow = ({ title, subtitle, countBadge, estMinutes, icon: Icon, done, onClick, hint }: TaskRowProps) => {
   return (
     <button
       onClick={onClick}
@@ -43,6 +45,7 @@ export const TaskRow = ({ title, subtitle, countBadge, estMinutes, icon: Icon, d
               {countBadge}
             </span>
           )}
+          {hint && <InfoHint title={hint.title} body={hint.body} />}
         </div>
         {subtitle && (
           <div className="text-xs text-muted-foreground mt-0.5">

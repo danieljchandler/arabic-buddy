@@ -34,10 +34,8 @@ export const InfoHint = ({ title, body, className, size = "sm", cta }: InfoHintP
           role="button"
           tabIndex={0}
           aria-label={`Learn about ${title}`}
-          onClick={(e) => {
-            e.stopPropagation();
-            e.preventDefault();
-          }}
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
           onKeyDown={(e) => {
             if (e.key === "Enter" || e.key === " ") {
               e.stopPropagation();

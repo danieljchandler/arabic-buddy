@@ -119,7 +119,7 @@ describe("QuizCard audio", () => {
     });
 
     expect(vi.mocked(fetch as typeof global.fetch)).toHaveBeenCalledWith(
-      expect.stringContaining("azure-tts"),
+      expect.stringMatching(/munsit-tts|azure-tts/),
       expect.objectContaining({ method: "POST" })
     );
     expect(vi.mocked(URL.createObjectURL)).toHaveBeenCalled();

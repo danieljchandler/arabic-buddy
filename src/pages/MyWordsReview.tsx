@@ -674,6 +674,20 @@ const MyWordsReview = () => {
             )}
           </div>
           )}
+
+          {currentWord.is_leech && (
+            <LeechHelperPanel
+              kind="word"
+              rowId={currentWord.id}
+              arabic={currentWord.word_arabic}
+              english={currentWord.word_english}
+              dialect={activeDialect}
+              mnemonic={currentWord.mnemonic}
+              jingleAudioUrl={currentWord.jingle_audio_url}
+              invalidateKeys={[["user-vocabulary-due-words"]]}
+              onPlayAudio={playAudio}
+            />
+          )}
         </div>
 
         {/* Self-rating always visible */}

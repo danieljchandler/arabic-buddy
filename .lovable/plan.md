@@ -1,63 +1,56 @@
-# Leech Detection + AI Memorization Helpers
+# Add Feature Info Buttons App-Wide
 
-When a flashcard gets failed repeatedly (Anki-style "leech"), surface an inline helper that can generate either an **AI mnemonic** or an **AI-generated song/jingle** to help the user remember it.
+Give users a clickable (i) icon next to features and buttons that opens a small popover with a friendly, engaging explanation of what it does.
 
-## 1. Track lapses (DB)
+## What you'll see
 
-Migration adds lapse tracking to both SRS tables:
+- A small circled **i** icon next to feature titles, buttons, and tiles throughout the app.
+- Tapping it opens a compact popover bubble with a short, plain-English description written to make users want to try the feature.
+- A new **Settings → "Show feature hints"** toggle to turn all (i) icons off once a user feels confident.
 
-- `user_vocabulary`: `lapses INT DEFAULT 0`, `production_lapses INT DEFAULT 0`, `is_leech BOOLEAN DEFAULT false`, `mnemonic TEXT NULL`
-- `user_phrases`: `lapses INT DEFAULT 0`, `is_leech BOOLEAN DEFAULT false`, `mnemonic TEXT NULL`
+## Where info buttons get added (priority order)
 
-(Phrases already have `jingle_audio_url` only on words; we'll reuse existing `jingle_audio_url` column on `user_vocabulary` and add one to `user_phrases`.)
+**Pass 1 — Home / Today (highest impact)**
+- Today page: Daily Goal Ring, each task row (Review, New Words, Daily Challenge, etc.), Streak display, XP display.
+- Home (Index): every dialect-module tile and every quick-action tile (My Words, Discover, Reading, Stories, Picture Scenes, Souq News, Conversation Simulator, Pronunciation, Meme Analyzer, Learn from X, Transcribe, How Do I Say, Vocab Battles, Culture Guide, Dialect Compare, Placement Quiz).
 
-## 2. Leech logic
+**Pass 2 — Learning surfaces**
+- Review / My Words Review / My Phrases Review: rating buttons (Again/Hard/Good/Easy), pronunciation button, leech helper panel, "mix all dialects" toggle, audio replay.
+- Quiz / Flashcard: tap-to-reveal, image hint, cloze cards.
+- Reading Practice: Ask AI sentence, Mark Unknowns, Save Unknowns bar, display-prefs toggles (Arabic / Tashkil / Formal / English).
 
-In `src/lib/spacedRepetition.ts` and the review save paths (`MyWordsReview.tsx`, `MyPhrasesReview.tsx`):
+**Pass 3 — Tools & specialty pages**
+- Transcribe, Meme Analyzer, Learn from X, Picture Scenes, Tutor Upload, Conversation Simulator, Discover, Souq News, Stories — one info button on the page header explaining the tool, plus icons on key sub-controls.
 
-- On rating = **Again**, increment `lapses` (and `production_lapses` for the production side).
-- When `lapses >= 8` (Anki default), mark `is_leech = true`.
-- Threshold is a const so we can tune (e.g. 6).
+**Pass 4 — Settings & profile**
+- Display prefs, leech prefs, dialect switcher, new-card cap, home layout editor.
 
-## 3. UI: "Stuck on this one?" panel
+## How it works
 
-In `ReviewCard` (and the phrase review card), when `is_leech === true` show a small Desert-Red accented panel under the answer reveal with two buttons:
+1. New reusable `<InfoHint>` component — a Lucide `Info` icon in a circle, sized to sit inline next to titles/buttons. Uses Shadcn `Popover` for the bubble.
+2. Component reads a global "show feature hints" preference from a new `useFeatureHints()` hook (localStorage-backed, same pattern as `useLeechPrefs`). When off, the icon renders nothing.
+3. Each `<InfoHint>` takes a `title` and `body` prop. Copy is written in a warm, encouraging voice ("Catch words before they slip away — review just the ones your brain is about to forget.").
+4. Settings page gets a new "Feature hints" section with a single toggle and a one-line description.
+5. Styling: muted foreground color by default, hover/tap → primary; small (14–16px) so it never crowds the UI.
 
-- **Generate mnemonic** — calls new edge function, displays returned text, saves to `mnemonic` column so it persists across reviews.
-- **Generate jingle** — for words, reuses existing `generate-word-jingle`; for phrases, a sibling function `generate-phrase-jingle`. Plays inline and saves `jingle_audio_url`.
+## Copy approach
 
-If a mnemonic / jingle already exists on the card, show them directly with a "Regenerate" affordance instead of the generate buttons.
+Each hint follows a 2-line pattern:
+- **Line 1 (what):** one sentence on what the feature does.
+- **Line 2 (why try it):** one sentence on the benefit, with a light verb ("Try it next time you…").
 
-A subtle "Leech" badge appears on the card header so the user knows why the helper is showing.
+Example — Daily Challenge tile:
+> **Daily Challenge** — A bite-sized mission that refreshes every day. Keep your streak alive and earn bonus XP just for showing up.
 
-## 4. New edge function: `generate-mnemonic`
+Example — Leech Helper:
+> **Stuck on a word?** When a card keeps tripping you up, we'll spin up a mnemonic or a catchy jingle to make it stick.
 
-- Input: `{ arabic, english, transliteration?, dialect, kind: "word"|"phrase" }`
-- Calls Lovable AI Gateway (`google/gemini-3-flash-preview`) with a tight system prompt:
-  - Produce **one** short English mnemonic (≤ 2 sentences).
-  - Use a sound-alike / image-link technique tying the Arabic pronunciation to the English meaning.
-  - No transliteration of the Arabic; no MSA substitutions; respect dialect.
-- Returns `{ mnemonic: string }`. Caller persists it.
+## Out of scope
 
-## 5. Optional: leech surfacing in review hub
+- No backend/database changes — pure frontend, preference stored locally.
+- No changes to feature behavior; only adds the (i) affordance.
+- Admin pages skipped (admins already know the tools).
 
-On `MyWords.tsx` review panel, add a small "Leeches: N" chip linking to a filtered review session (`?filter=leeches`) that only queues cards with `is_leech = true`. Out of scope if you want the smaller version first — flag this in the plan as **optional follow-up**.
+## Rollout
 
-## Technical notes
-
-- Migration is additive only; defaults keep existing rows safe.
-- Backfill is unnecessary — `lapses` starts at 0; cards naturally become leeches as users keep failing them.
-- Reuse existing Lovable AI gateway pattern (see `huggingface.ts` / other edge functions).
-- Jingle generation for phrases mirrors `generate-word-jingle` (Lyria via GEMINI_API_KEY per memory).
-- All new columns covered by existing per-user RLS policies on the two tables (they're owned-by-user_id).
-
-## Files touched
-
-- `supabase/migrations/<new>.sql` — add columns
-- `supabase/functions/generate-mnemonic/index.ts` — new
-- `supabase/functions/generate-phrase-jingle/index.ts` — new (mirrors word jingle)
-- `src/lib/spacedRepetition.ts` — return `lapses`, `isLeech`
-- `src/pages/MyWordsReview.tsx`, `src/pages/MyPhrasesReview.tsx` — persist lapses/leech, pass into card
-- `src/components/review/ReviewCard.tsx` (+ phrase equivalent) — leech helper panel
-- `src/components/review/LeechHelperPanel.tsx` — new shared component
-- `src/pages/MyWords.tsx` — (optional) leech count chip
+Pass 1 is the bulk of the perceived value and ships first. Passes 2–4 follow in the same PR if scope allows, otherwise sequentially.

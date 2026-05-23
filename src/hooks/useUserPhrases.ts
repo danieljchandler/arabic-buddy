@@ -18,6 +18,10 @@ export interface UserPhrase {
   last_reviewed_at: string | null;
   created_at: string;
   updated_at: string;
+  lapses?: number;
+  is_leech?: boolean;
+  mnemonic?: string | null;
+  jingle_audio_url?: string | null;
 }
 
 export const useUserPhrases = () => {

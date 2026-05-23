@@ -236,7 +236,7 @@ const MyPhrasesReview = () => {
             )}
           </div>
 
-          {current.is_leech && (
+          {leechTrackingEnabled && current.is_leech && (
             <LeechHelperPanel
               kind="phrase"
               rowId={current.id}

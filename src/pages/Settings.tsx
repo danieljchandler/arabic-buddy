@@ -47,6 +47,7 @@ const Settings = () => {
   const { user, isAuthenticated, loading: authLoading, signOut } = useAuth();
   const [loading, setLoading] = useState(true);
   const { enabled: leechEnabled, setEnabled: setLeechEnabled } = useLeechPrefs();
+  const { enabled: hintsEnabled, setEnabled: setHintsEnabled } = useFeatureHints();
   const [clearingLeeches, setClearingLeeches] = useState(false);
 
   const clearAllLeeches = async () => {

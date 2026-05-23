@@ -30,23 +30,29 @@ export const InfoHint = ({ title, body, className, size = "sm", cta }: InfoHintP
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <button
-          type="button"
+        <span
+          role="button"
+          tabIndex={0}
           aria-label={`Learn about ${title}`}
           onClick={(e) => {
             e.stopPropagation();
             e.preventDefault();
           }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.stopPropagation();
+            }
+          }}
           className={cn(
-            "inline-flex items-center justify-center rounded-full",
+            "inline-flex items-center justify-center rounded-full cursor-pointer",
             "text-muted-foreground/70 hover:text-primary hover:bg-primary/10",
-            "transition-colors shrink-0",
+            "transition-colors shrink-0 align-middle",
             wrapSize,
             className
           )}
         >
           <Info className={iconSize} />
-        </button>
+        </span>
       </PopoverTrigger>
       <PopoverContent
         align="start"

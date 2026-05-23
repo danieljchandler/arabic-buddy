@@ -234,6 +234,21 @@ const MyPhrasesReview = () => {
             )}
           </div>
 
+          {current.is_leech && (
+            <LeechHelperPanel
+              kind="phrase"
+              rowId={current.id}
+              arabic={current.phrase_arabic}
+              english={current.phrase_english}
+              transliteration={current.transliteration}
+              dialect={activeDialect}
+              mnemonic={current.mnemonic ?? null}
+              jingleAudioUrl={current.jingle_audio_url ?? null}
+              invalidateKeys={[["user-phrases-due"], ["user-phrases"]]}
+              onPlayAudio={playAudio}
+            />
+          )}
+
           <div className="flex justify-end mt-2">
             <Button
               variant="ghost"

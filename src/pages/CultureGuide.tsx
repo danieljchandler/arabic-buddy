@@ -19,6 +19,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { InfoHint } from "@/components/InfoHint";
+import { PAGE_HINTS } from "@/lib/pageHints";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
@@ -257,8 +259,8 @@ const CultureGuide = () => {
       </div>
 
       <div className="mb-4">
-        <h1 className="text-xl font-bold text-foreground">
-          What should I do?
+        <h1 className="text-xl font-bold text-foreground inline-flex items-center gap-2">
+          What should I do? <InfoHint {...PAGE_HINTS["culture-guide"]} />
         </h1>
         <p className="text-sm text-muted-foreground">
           Describe a situation — get culturally appropriate {activeDialect === 'Egyptian' ? 'Egyptian' : activeDialect === 'Yemeni' ? 'Yemeni' : 'Gulf'} Arabic advice

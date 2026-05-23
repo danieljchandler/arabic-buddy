@@ -8,6 +8,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from '@/components/ui/badge';
 import { Check, Loader2, Crown, Sparkles, Settings } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { InfoHint } from '@/components/InfoHint';
+import { PAGE_HINTS } from '@/lib/pageHints';
 
 const Pricing = () => {
   const navigate = useNavigate();
@@ -54,8 +56,8 @@ const Pricing = () => {
 
       <div className="max-w-4xl mx-auto">
         <div className="text-center mb-12">
-          <h1 className="text-3xl font-bold text-foreground mb-3 font-heading">
-            Choose Your Plan
+          <h1 className="text-3xl font-bold text-foreground mb-3 font-heading inline-flex items-center gap-2 justify-center">
+            Choose Your Plan <InfoHint {...PAGE_HINTS["pricing"]} size="md" />
           </h1>
           <p className="text-muted-foreground text-lg">
             Unlock the full power of Lahja to accelerate your Arabic learning

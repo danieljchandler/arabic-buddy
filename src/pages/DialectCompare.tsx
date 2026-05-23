@@ -9,6 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Search, Globe2, MapPin, Volume2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { InfoHint } from "@/components/InfoHint";
+import { PAGE_HINTS } from "@/lib/pageHints";
 
 interface DialectVariant {
   dialect: string;
@@ -93,7 +95,7 @@ export default function DialectCompare() {
       <div className="mt-6 mb-6">
         <div className="flex items-center gap-3 mb-2">
           <Globe2 className="h-8 w-8 text-primary" />
-          <h1 className="text-2xl font-bold text-foreground">Dialect Compare</h1>
+          <h1 className="text-2xl font-bold text-foreground inline-flex items-center gap-2">Dialect Compare <InfoHint {...PAGE_HINTS["dialect-compare"]} size="md" /></h1>
         </div>
         <p className="text-muted-foreground">
           See how words differ across Gulf, Egyptian, Levantine Arabic, and MSA

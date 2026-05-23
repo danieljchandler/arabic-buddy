@@ -9,6 +9,8 @@ import { cn } from "@/lib/utils";
 import { Heart, Play, Loader2 } from "lucide-react";
 import { formatDuration } from "@/lib/videoEmbed";
 import type { DiscoverVideo } from "@/hooks/useDiscoverVideos";
+import { InfoHint } from "@/components/InfoHint";
+import { PAGE_HINTS } from "@/lib/pageHints";
 
 const LikedVideoCard = ({
   video,
@@ -104,7 +106,7 @@ const LikedVideos = () => {
             <Heart className="h-6 w-6 text-primary fill-primary/30" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-foreground">Liked Videos</h1>
+            <h1 className="text-xl font-bold text-foreground inline-flex items-center gap-2">Liked Videos <InfoHint {...PAGE_HINTS["liked-videos"]} /></h1>
             <p className="text-sm text-muted-foreground">
               {videos?.length
                 ? `${videos.length} video${videos.length !== 1 ? "s" : ""} liked`

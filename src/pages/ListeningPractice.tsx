@@ -15,6 +15,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useUserLevel } from "@/hooks/useUserLevel";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { InfoHint } from "@/components/InfoHint";
+import { PAGE_HINTS } from "@/lib/pageHints";
 import { Switch } from "@/components/ui/switch";
 import {
   Headphones,
@@ -284,7 +286,7 @@ const ListeningPractice = () => {
             <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
               <Headphones className="h-8 w-8 text-primary" />
             </div>
-            <h1 className="text-2xl font-bold text-foreground">Listening Practice</h1>
+            <h1 className="text-2xl font-bold text-foreground inline-flex items-center gap-2 justify-center">Listening Practice <InfoHint {...PAGE_HINTS["listening-practice"]} size="md" /></h1>
             <p className="text-muted-foreground">Train your ear with Arabic audio exercises</p>
           </div>
 

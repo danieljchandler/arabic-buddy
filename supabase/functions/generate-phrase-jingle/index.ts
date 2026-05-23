@@ -1,0 +1,165 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { getDialectLabel, getDialectVocabRules } from "../_shared/dialectHelpers.ts";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+};
+
+serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const { phrase_arabic, phrase_english, dialect = "Gulf" } = await req.json();
+
+    if (!phrase_arabic || !phrase_english) {
+      return new Response(
+        JSON.stringify({ error: "phrase_arabic and phrase_english are required" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+
+    if (!LOVABLE_API_KEY || !GEMINI_API_KEY) {
+      return new Response(
+        JSON.stringify({ error: "AI keys not configured" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    const dialectLabel = getDialectLabel(dialect);
+    const dialectRules = getDialectVocabRules(dialect);
+    const dialectStyle = dialect === "Egyptian"
+      ? "Egyptian Arabic pop/shaabi style with Egyptian dialect vocals"
+      : dialect === "Yemeni"
+      ? "Yemeni folk-pop style with Yemeni dialect vocals"
+      : "Khaliji/Gulf Arabic pop style with Gulf dialect vocals";
+
+    const promptGen = await fetch(
+      "https://ai.gateway.lovable.dev/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-3-flash-preview",
+          messages: [
+            {
+              role: "system",
+              content: `You write short, catchy music prompts for AI music generation aimed at memorizing Arabic phrases.
+
+${dialectRules}
+
+Output a single English music prompt for a 12-second catchy hook that:
+- Repeats the full ${dialectLabel} phrase memorably (chant-like)
+- Uses ${dialectStyle}
+- Is fun and earwormy
+
+Output only the prompt.`,
+            },
+            {
+              role: "user",
+              content: `Create a music prompt for a 12-second jingle that drills the ${dialectLabel} phrase "${phrase_arabic}" (meaning "${phrase_english}"). Use ${dialectStyle}.`,
+            },
+          ],
+        }),
+      },
+    );
+
+    if (!promptGen.ok) {
+      const status = promptGen.status;
+      if (status === 429 || status === 402) {
+        return new Response(
+          JSON.stringify({
+            error: status === 429 ? "Rate limited, try again later" : "Credits exhausted",
+          }),
+          { status, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+      console.error("Prompt gen error:", status, await promptGen.text());
+      return new Response(
+        JSON.stringify({ error: "Failed to generate music prompt" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    const promptData = await promptGen.json();
+    const musicPrompt = promptData.choices?.[0]?.message?.content?.trim();
+
+    if (!musicPrompt) {
+      return new Response(
+        JSON.stringify({ error: "Empty music prompt" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    const lyriaResp = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/lyria-3-clip-preview:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: musicPrompt }] }],
+          generationConfig: { responseModalities: ["AUDIO"] },
+        }),
+      },
+    );
+
+    if (!lyriaResp.ok) {
+      const status = lyriaResp.status;
+      console.error("Lyria error:", status, await lyriaResp.text());
+      if (status === 429 || status === 402) {
+        return new Response(
+          JSON.stringify({
+            error: status === 429 ? "Music generation rate limited" : "Music credits exhausted",
+          }),
+          { status, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+      return new Response(
+        JSON.stringify({ error: "Failed to generate music" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    const lyriaData = await lyriaResp.json();
+    const audioPart = lyriaData.candidates?.[0]?.content?.parts?.find(
+      (p: any) => p.inlineData?.mimeType?.startsWith("audio/"),
+    );
+
+    if (!audioPart?.inlineData?.data) {
+      console.error("No audio in Lyria response");
+      return new Response(
+        JSON.stringify({ error: "No audio generated" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    const audioBytes = Uint8Array.from(
+      atob(audioPart.inlineData.data),
+      (c) => c.charCodeAt(0),
+    );
+    const mimeType = audioPart.inlineData.mimeType || "audio/mpeg";
+
+    return new Response(audioBytes, {
+      headers: {
+        ...corsHeaders,
+        "Content-Type": mimeType,
+        "Content-Disposition": `inline; filename="phrase-jingle.mp3"`,
+      },
+    });
+  } catch (e) {
+    console.error("generate-phrase-jingle error:", e);
+    return new Response(
+      JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+});

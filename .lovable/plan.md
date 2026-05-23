@@ -1,57 +1,63 @@
-## #10 Personalized Discover Feed
+# Leech Detection + AI Memorization Helpers
 
-Today the Discover page shows newest-first videos filtered by dialect/difficulty. The goal is a per-user ranked feed that surfaces videos most likely to be useful **right now** — based on the learner's known vocabulary, active dialect, CEFR level, watch history, and engagement.
+When a flashcard gets failed repeatedly (Anki-style "leech"), surface an inline helper that can generate either an **AI mnemonic** or an **AI-generated song/jingle** to help the user remember it.
 
-### What the user gets
+## 1. Track lapses (DB)
 
-- A new **"For You"** tab at the top of Discover (default), with existing filter view kept as **"Browse"**.
-- Each card shows a small **"why this"** chip: e.g. *"92% known words"*, *"Matches your B1 level"*, *"New in Gulf"*, *"Because you liked X"*.
-- A subtle **comprehension bar** on each card (green = mostly known, amber = stretch, red = too hard) so users can self-pace.
-- Pull-to-refresh / "Shuffle" button to reroll the feed.
-- Empty/cold-start state: falls back to curated trending + level-matched picks.
+Migration adds lapse tracking to both SRS tables:
 
-### Ranking signal mix
+- `user_vocabulary`: `lapses INT DEFAULT 0`, `production_lapses INT DEFAULT 0`, `is_leech BOOLEAN DEFAULT false`, `mnemonic TEXT NULL`
+- `user_phrases`: `lapses INT DEFAULT 0`, `is_leech BOOLEAN DEFAULT false`, `mnemonic TEXT NULL`
 
-Each candidate video gets a score 0–1 from a weighted sum:
+(Phrases already have `jingle_audio_url` only on words; we'll reuse existing `jingle_audio_url` column on `user_vocabulary` and add one to `user_phrases`.)
 
-| Signal | Weight | Source |
-|---|---|---|
-| Known-vocab overlap (i+1 sweet spot: 80–95%) | 0.35 | `user_vocabulary` ∩ `discover_videos.vocabulary` |
-| CEFR-level match (±1 band ok, same band best) | 0.20 | `profiles.cefr_level` vs `difficulty` |
-| Active-dialect match | 0.15 | `DialectContext` vs `video.dialect` |
-| Freshness (decay over 30d) | 0.10 | `created_at` |
-| Engagement prior (likes/views ratio) | 0.10 | `video_likes`, view logs |
-| Novelty (penalise already-watched / similar to recent) | 0.10 | `video_views` history |
+## 2. Leech logic
 
-Hard filters: exclude videos the user has fully watched in last 14d unless they liked it. Always include 1 "stretch" pick (difficulty +1) and 1 "comfort" pick (mostly known) in the top 10 for variety.
+In `src/lib/spacedRepetition.ts` and the review save paths (`MyWordsReview.tsx`, `MyPhrasesReview.tsx`):
 
-### Technical Section
+- On rating = **Again**, increment `lapses` (and `production_lapses` for the production side).
+- When `lapses >= 8` (Anki default), mark `is_leech = true`.
+- Threshold is a const so we can tune (e.g. 6).
 
-**Data**
-- New table `video_views (user_id, video_id, watched_seconds, completed bool, watched_at)` — RLS: user can read/write own rows.
-- Reuse existing: `user_vocabulary`, `video_likes`, `discover_videos.vocabulary` (jsonb array of lemmas), `profiles.cefr_level`.
-- Add `discover_videos.vocab_lemmas text[]` generated/maintained alongside `vocabulary` jsonb so we can do fast `&&` overlap in SQL. Backfill in migration.
+## 3. UI: "Stuck on this one?" panel
 
-**Ranking**
-- New edge function `discover-feed` (`verify_jwt = false`, validates JWT in-code per project pattern). Input: `{ limit, exclude_ids?, seed? }`. Returns ranked `video_id`s plus per-video `reason` + `comprehension` (0–1).
-- Implementation:
-  1. Load user's lemma set (cap 5k most recent), CEFR, active dialect.
-  2. Pull candidate pool: published videos, last 180d, dialect in (active, MSA). Cap 300.
-  3. Score in JS using formula above. Inject 1 stretch + 1 comfort pick. Shuffle within score buckets using `seed` for stable pagination.
-  4. Cache result for 15 min keyed by `(user_id, active_dialect, seed)` in a lightweight `feed_cache` table to keep page loads fast.
+In `ReviewCard` (and the phrase review card), when `is_leech === true` show a small Desert-Red accented panel under the answer reveal with two buttons:
 
-**Frontend**
-- Extend `useDiscoverVideos` with `useDiscoverFeed()` hook that calls the edge function then hydrates from `discover_videos` by id (preserves existing video shape).
-- New `<DiscoverFeedTab />` component; existing filter UI becomes `<DiscoverBrowseTab />`. Tabs via shadcn `Tabs`.
-- Card additions: comprehension bar (computed client-side from returned `comprehension`), "why this" chip (from `reason`), Shuffle button regenerates `seed`.
-- Track views: on `DiscoverVideo` page, write to `video_views` on play, throttle updates every 10s, mark `completed` at ≥85% watched.
+- **Generate mnemonic** — calls new edge function, displays returned text, saves to `mnemonic` column so it persists across reviews.
+- **Generate jingle** — for words, reuses existing `generate-word-jingle`; for phrases, a sibling function `generate-phrase-jingle`. Plays inline and saves `jingle_audio_url`.
 
-**Cold start**
-- If `user_vocabulary` < 20 rows or no `cefr_level`: fall back to trending (likes desc, freshness) filtered by active dialect. Show small banner: *"Take the placement quiz to personalize your feed."*
+If a mnemonic / jingle already exists on the card, show them directly with a "Regenerate" affordance instead of the generate buttons.
 
-### Out of scope (future)
-- Collaborative filtering ("users like you watched…"). Defer until we have ≥1k DAU.
-- ML embeddings on transcripts for topical similarity.
-- Push notifications for new matched videos.
+A subtle "Leech" badge appears on the card header so the user knows why the helper is showing.
 
-Ready to build on approval.
+## 4. New edge function: `generate-mnemonic`
+
+- Input: `{ arabic, english, transliteration?, dialect, kind: "word"|"phrase" }`
+- Calls Lovable AI Gateway (`google/gemini-3-flash-preview`) with a tight system prompt:
+  - Produce **one** short English mnemonic (≤ 2 sentences).
+  - Use a sound-alike / image-link technique tying the Arabic pronunciation to the English meaning.
+  - No transliteration of the Arabic; no MSA substitutions; respect dialect.
+- Returns `{ mnemonic: string }`. Caller persists it.
+
+## 5. Optional: leech surfacing in review hub
+
+On `MyWords.tsx` review panel, add a small "Leeches: N" chip linking to a filtered review session (`?filter=leeches`) that only queues cards with `is_leech = true`. Out of scope if you want the smaller version first — flag this in the plan as **optional follow-up**.
+
+## Technical notes
+
+- Migration is additive only; defaults keep existing rows safe.
+- Backfill is unnecessary — `lapses` starts at 0; cards naturally become leeches as users keep failing them.
+- Reuse existing Lovable AI gateway pattern (see `huggingface.ts` / other edge functions).
+- Jingle generation for phrases mirrors `generate-word-jingle` (Lyria via GEMINI_API_KEY per memory).
+- All new columns covered by existing per-user RLS policies on the two tables (they're owned-by-user_id).
+
+## Files touched
+
+- `supabase/migrations/<new>.sql` — add columns
+- `supabase/functions/generate-mnemonic/index.ts` — new
+- `supabase/functions/generate-phrase-jingle/index.ts` — new (mirrors word jingle)
+- `src/lib/spacedRepetition.ts` — return `lapses`, `isLeech`
+- `src/pages/MyWordsReview.tsx`, `src/pages/MyPhrasesReview.tsx` — persist lapses/leech, pass into card
+- `src/components/review/ReviewCard.tsx` (+ phrase equivalent) — leech helper panel
+- `src/components/review/LeechHelperPanel.tsx` — new shared component
+- `src/pages/MyWords.tsx` — (optional) leech count chip

@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Rating, calculateNextReview } from "@/lib/spacedRepetition";
 import { useAzureTTS } from "@/hooks/useAzureTTS";
 import { Loader2, Trophy, LogIn, Eye, Volume2, Trash2, MessageCircleQuestion } from "lucide-react";
+import { LeechHelperPanel } from "@/components/review/LeechHelperPanel";
 import { toast } from "sonner";
 
 const MyPhrasesReview = () => {
@@ -68,6 +69,8 @@ const MyPhrasesReview = () => {
       intervalDays: result.intervalDays,
       repetitions: result.repetitions,
       nextReviewAt: result.nextReviewAt,
+      rating,
+      currentLapses: current.lapses ?? 0,
     });
 
     setSessionCount((p) => p + 1);
@@ -230,6 +233,21 @@ const MyPhrasesReview = () => {
               </Button>
             )}
           </div>
+
+          {current.is_leech && (
+            <LeechHelperPanel
+              kind="phrase"
+              rowId={current.id}
+              arabic={current.phrase_arabic}
+              english={current.phrase_english}
+              transliteration={current.transliteration}
+              dialect={activeDialect}
+              mnemonic={current.mnemonic ?? null}
+              jingleAudioUrl={current.jingle_audio_url ?? null}
+              invalidateKeys={[["user-phrases-due"], ["user-phrases"]]}
+              onPlayAudio={playAudio}
+            />
+          )}
 
           <div className="flex justify-end mt-2">
             <Button

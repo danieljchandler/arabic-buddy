@@ -7,6 +7,7 @@ import { HomeButton } from "@/components/HomeButton";
 import { RatingButtons } from "@/components/review/RatingButtons";
 import { AppShell } from "@/components/layout/AppShell";
 import { Loader2, Trophy, LogIn, Eye, Volume2, Music, RefreshCw, Sparkles, Play, Brain, Mic2, Quote } from "lucide-react";
+import { LeechHelperPanel } from "@/components/review/LeechHelperPanel";
 import { GenerateImageDialog } from "@/components/mywords/GenerateImageDialog";
 import { useUpdateUserVocabularyImage } from "@/hooks/useUserVocabulary";
 import { PronunciationButton } from "@/components/review/PronunciationButton";
@@ -46,6 +47,10 @@ interface DueCard {
   jingle_audio_url: string | null;
   sentence_text: string | null;
   sentence_english: string | null;
+  lapses: number;
+  production_lapses: number;
+  is_leech: boolean;
+  mnemonic: string | null;
 }
 
 interface RawRow {
@@ -68,6 +73,10 @@ interface RawRow {
   jingle_audio_url: string | null;
   sentence_text: string | null;
   sentence_english: string | null;
+  lapses: number | null;
+  production_lapses: number | null;
+  is_leech: boolean | null;
+  mnemonic: string | null;
 }
 
 const MyWordsReview = () => {
@@ -105,7 +114,7 @@ const MyWordsReview = () => {
       // Fetch all rows that are due in either direction. We do two queries
       // and merge so each direction can be tagged independently.
       const baseSelect =
-        "id, word_arabic, word_english, ease_factor, interval_days, repetitions, next_review_at, last_reviewed_at, production_ease_factor, production_interval_days, production_repetitions, production_next_review_at, production_last_reviewed_at, word_audio_url, sentence_audio_url, image_url, jingle_audio_url, sentence_text, sentence_english";
+        "id, word_arabic, word_english, ease_factor, interval_days, repetitions, next_review_at, last_reviewed_at, production_ease_factor, production_interval_days, production_repetitions, production_next_review_at, production_last_reviewed_at, word_audio_url, sentence_audio_url, image_url, jingle_audio_url, sentence_text, sentence_english, lapses, production_lapses, is_leech, mnemonic";
 
       const { data: recogRows, error: recogErr } = await (supabase
         .from("user_vocabulary")
@@ -144,6 +153,10 @@ const MyWordsReview = () => {
           jingle_audio_url: r.jingle_audio_url,
           sentence_text: r.sentence_text,
           sentence_english: r.sentence_english,
+          lapses: r.lapses ?? 0,
+          production_lapses: r.production_lapses ?? 0,
+          is_leech: r.is_leech ?? false,
+          mnemonic: r.mnemonic,
         });
       }
       for (const r of (prodRows || []) as RawRow[]) {
@@ -163,6 +176,10 @@ const MyWordsReview = () => {
           jingle_audio_url: r.jingle_audio_url,
           sentence_text: r.sentence_text,
           sentence_english: r.sentence_english,
+          lapses: r.lapses ?? 0,
+          production_lapses: r.production_lapses ?? 0,
+          is_leech: r.is_leech ?? false,
+          mnemonic: r.mnemonic,
         });
       }
 
@@ -321,6 +338,8 @@ const MyWordsReview = () => {
       cardType: card.card_type,
       rating,
       productionLocked: card.production_locked,
+      currentLapses: card.lapses,
+      currentProductionLapses: card.production_lapses,
     });
 
     setSessionCount((prev) => prev + 1);
@@ -654,6 +673,20 @@ const MyWordsReview = () => {
               </div>
             )}
           </div>
+          )}
+
+          {currentWord.is_leech && (
+            <LeechHelperPanel
+              kind="word"
+              rowId={currentWord.id}
+              arabic={currentWord.word_arabic}
+              english={currentWord.word_english}
+              dialect={activeDialect}
+              mnemonic={currentWord.mnemonic}
+              jingleAudioUrl={currentWord.jingle_audio_url}
+              invalidateKeys={[["user-vocabulary-due-words"]]}
+              onPlayAudio={playAudio}
+            />
           )}
         </div>
 

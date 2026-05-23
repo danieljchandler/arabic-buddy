@@ -18,6 +18,7 @@ const MyPhrasesReview = () => {
   const navigate = useNavigate();
   const { isAuthenticated, loading: authLoading } = useAuth();
   const { activeDialect } = useDialect();
+  const { enabled: leechTrackingEnabled } = useLeechPrefs();
   const { data: duePhrases, isLoading, refetch } = useDueUserPhrases();
   const updateReview = useUpdateUserPhraseReview();
   const deletePhrase = useDeleteUserPhrase();

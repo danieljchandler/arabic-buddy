@@ -34,7 +34,7 @@ export const DialectProvider = ({ children }: { children: ReactNode }) => {
   const [activeDialect, setActiveDialect] = useState<DialectModule>(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
-      return (stored === 'Gulf' || stored === 'Egyptian' || stored === 'Yemeni' || stored === 'Levantine' || stored === 'Moroccan') ? stored : 'Gulf';
+      return (stored === 'Gulf' || stored === 'Egyptian' || stored === 'Yemeni') ? stored : 'Gulf';
     } catch {
       return 'Gulf';
     }

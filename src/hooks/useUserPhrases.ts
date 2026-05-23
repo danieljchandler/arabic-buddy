@@ -109,7 +109,15 @@ export const useUpdateUserPhraseReview = () => {
     }) => {
       const failed = args.rating === "again";
       const newLapses = failed ? (args.currentLapses ?? 0) + 1 : (args.currentLapses ?? 0);
-      const isLeech = newLapses >= PHRASE_LEECH_THRESHOLD;
+      const leechTrackingEnabled = (() => {
+        try {
+          const raw = localStorage.getItem("lahja:leech-tracking-enabled");
+          return raw === null ? true : raw === "true";
+        } catch {
+          return true;
+        }
+      })();
+      const isLeech = leechTrackingEnabled && newLapses >= PHRASE_LEECH_THRESHOLD;
       const { error } = await (supabase as any)
         .from("user_phrases")
         .update({

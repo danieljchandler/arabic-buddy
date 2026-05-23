@@ -677,7 +677,7 @@ const MyWordsReview = () => {
           </div>
           )}
 
-          {currentWord.is_leech && (
+          {leechTrackingEnabled && currentWord.is_leech && (
             <LeechHelperPanel
               kind="word"
               rowId={currentWord.id}

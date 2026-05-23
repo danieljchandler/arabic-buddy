@@ -116,9 +116,16 @@ const TodayPage = () => {
         <header className="flex items-center gap-5">
           <DailyGoalRing current={xpToday} goal={goal} />
           <div className="flex-1">
-            <h1 className="text-2xl font-bold text-foreground" style={{ fontFamily: "'Montserrat', sans-serif" }}>
-              Today
-            </h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-bold text-foreground" style={{ fontFamily: "'Montserrat', sans-serif" }}>
+                Today
+              </h1>
+              <InfoHint
+                size="md"
+                title="Your daily queue"
+                body="Everything Lahja recommends for you today — reviews, a challenge, listening, reading and more. Knock them out to hit your goal and grow your streak."
+              />
+            </div>
             <p className="text-sm text-muted-foreground mt-1">
               {completed} of {total} tasks done
             </p>

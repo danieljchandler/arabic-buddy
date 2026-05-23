@@ -46,6 +46,10 @@ interface DueCard {
   jingle_audio_url: string | null;
   sentence_text: string | null;
   sentence_english: string | null;
+  lapses: number;
+  production_lapses: number;
+  is_leech: boolean;
+  mnemonic: string | null;
 }
 
 interface RawRow {
@@ -68,6 +72,10 @@ interface RawRow {
   jingle_audio_url: string | null;
   sentence_text: string | null;
   sentence_english: string | null;
+  lapses: number | null;
+  production_lapses: number | null;
+  is_leech: boolean | null;
+  mnemonic: string | null;
 }
 
 const MyWordsReview = () => {

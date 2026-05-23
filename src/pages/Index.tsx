@@ -25,7 +25,9 @@ import { DiscoverPreviewCard } from "@/components/discover/DiscoverPreviewCard";
 const DIALECT_MODULES: { id: DialectModule; label: string; flag: string }[] = [
   { id: 'Gulf', label: 'Gulf Arabic', flag: '🌊' },
   { id: 'Egyptian', label: 'Egyptian Arabic', flag: '🇪🇬' },
+  { id: 'Levantine', label: 'Levantine Arabic', flag: '🇱🇧' },
   { id: 'Yemeni', label: 'Yemeni Arabic', flag: '🇾🇪' },
+  { id: 'Moroccan', label: 'Moroccan Arabic', flag: '🇲🇦' },
 ];
 
 const Index = () => {

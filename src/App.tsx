@@ -6,9 +6,11 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, Routes, Route } from "react-router-dom";
 import { toast } from "sonner";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { TranscriptionJobProvider } from "@/contexts/TranscriptionJobContext";
 import { DialectProvider } from "@/contexts/DialectContext";
 import { lazyRetry } from "@/lib/lazyRetry";
+import { PageSkeleton } from "@/components/ui/skeleton-page";
 
 // ─── Lazy-loaded page components ─────────────────────────────────────────────
 // Each page is loaded on-demand so the initial bundle stays small.
@@ -92,7 +94,16 @@ const SetPhrases = lazyPage(() => import("./pages/SetPhrases"));
 const SetPhrasesPractice = lazyPage(() => import("./pages/SetPhrasesPractice"));
 const SetPhrasesReview = lazyPage(() => import("./pages/SetPhrasesReview"));
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30_000, // 30s — avoid redundant refetches on navigation
+      gcTime: 5 * 60_000, // 5 min garbage collection
+      refetchOnWindowFocus: false,
+      retry: 1,
+    },
+  },
+});
 
 const App = () => {
   useEffect(() => {
@@ -168,26 +179,26 @@ const App = () => {
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>}>
+          <Suspense fallback={<PageSkeleton />}>
           <Routes>
             {/* Public learning app */}
             <Route path="/" element={<ErrorBoundary name="HomeRoute"><Index /></ErrorBoundary>} />
             <Route path="/index" element={<Navigate to="/" replace />} />
             <Route path="/today" element={<ErrorBoundary name="TodayRoute"><Today /></ErrorBoundary>} />
             <Route path="/auth" element={<ErrorBoundary name="AuthRoute"><Auth /></ErrorBoundary>} />
-            <Route path="/review" element={<ErrorBoundary name="ReviewRoute"><Review /></ErrorBoundary>} />
+            <Route path="/review" element={<ErrorBoundary name="ReviewRoute"><ProtectedRoute><Review /></ProtectedRoute></ErrorBoundary>} />
             <Route
               path="/transcribe"
               element={
                 <ErrorBoundary name="TranscribeRoute">
-                  <Transcribe />
+                  <ProtectedRoute><Transcribe /></ProtectedRoute>
                 </ErrorBoundary>
               }
             />
-            <Route path="/my-words" element={<ErrorBoundary name="MyWordsRoute"><MyWords /></ErrorBoundary>} />
-            <Route path="/review/my-words" element={<ErrorBoundary name="MyWordsReviewRoute"><MyWordsReview /></ErrorBoundary>} />
-            <Route path="/review/my-phrases" element={<ErrorBoundary name="MyPhrasesReviewRoute"><MyPhrasesReview /></ErrorBoundary>} />
-            <Route path="/tutor-upload" element={<ErrorBoundary name="TutorUploadRoute"><TutorUpload /></ErrorBoundary>} />
+            <Route path="/my-words" element={<ErrorBoundary name="MyWordsRoute"><ProtectedRoute><MyWords /></ProtectedRoute></ErrorBoundary>} />
+            <Route path="/review/my-words" element={<ErrorBoundary name="MyWordsReviewRoute"><ProtectedRoute><MyWordsReview /></ProtectedRoute></ErrorBoundary>} />
+            <Route path="/review/my-phrases" element={<ErrorBoundary name="MyPhrasesReviewRoute"><ProtectedRoute><MyPhrasesReview /></ProtectedRoute></ErrorBoundary>} />
+            <Route path="/tutor-upload" element={<ErrorBoundary name="TutorUploadRoute"><ProtectedRoute><TutorUpload /></ProtectedRoute></ErrorBoundary>} />
             <Route path="/meme" element={
               <ErrorBoundary name="MemeAnalyzerRoute">
                 <MemeAnalyzer />
@@ -255,7 +266,7 @@ const App = () => {
             } />
             <Route path="/analytics" element={
               <ErrorBoundary name="AnalyticsRoute">
-                <LearningAnalytics />
+                <ProtectedRoute><LearningAnalytics /></ProtectedRoute>
               </ErrorBoundary>
             } />
             <Route path="/grammar" element={
@@ -275,14 +286,14 @@ const App = () => {
             } />
             <Route path="/settings" element={
               <ErrorBoundary name="SettingsRoute">
-                <Settings />
+                <ProtectedRoute><Settings /></ProtectedRoute>
               </ErrorBoundary>
             } />
             <Route path="/friends" element={
-              <ErrorBoundary name="FriendsRoute"><Friends /></ErrorBoundary>
+              <ErrorBoundary name="FriendsRoute"><ProtectedRoute><Friends /></ProtectedRoute></ErrorBoundary>
             } />
             <Route path="/liked-videos" element={
-              <ErrorBoundary name="LikedVideosRoute"><LikedVideos /></ErrorBoundary>
+              <ErrorBoundary name="LikedVideosRoute"><ProtectedRoute><LikedVideos /></ProtectedRoute></ErrorBoundary>
             } />
             <Route path="/stories" element={
               <ErrorBoundary name="StoriesRoute"><Stories /></ErrorBoundary>
@@ -291,16 +302,16 @@ const App = () => {
               <ErrorBoundary name="StoryPlayerRoute"><StoryPlayer /></ErrorBoundary>
             } />
             <Route path="/battles" element={
-              <ErrorBoundary name="VocabBattlesRoute"><VocabBattles /></ErrorBoundary>
+              <ErrorBoundary name="VocabBattlesRoute"><ProtectedRoute><VocabBattles /></ProtectedRoute></ErrorBoundary>
             } />
             <Route path="/battles/:battleId" element={
-              <ErrorBoundary name="BattlePlayRoute"><BattlePlay /></ErrorBoundary>
+              <ErrorBoundary name="BattlePlayRoute"><ProtectedRoute><BattlePlay /></ProtectedRoute></ErrorBoundary>
             } />
             <Route path="/my-path" element={
-              <ErrorBoundary name="LearningPathRoute"><LearningPathDashboard /></ErrorBoundary>
+              <ErrorBoundary name="LearningPathRoute"><ProtectedRoute><LearningPathDashboard /></ProtectedRoute></ErrorBoundary>
             } />
             <Route path="/my-path/setup" element={
-              <ErrorBoundary name="LearningPathSetupRoute"><LearningPathSetup /></ErrorBoundary>
+              <ErrorBoundary name="LearningPathSetupRoute"><ProtectedRoute><LearningPathSetup /></ProtectedRoute></ErrorBoundary>
             } />
             <Route path="/souq-news" element={
               <ErrorBoundary name="SouqNewsRoute"><SouqNews /></ErrorBoundary>
@@ -318,7 +329,7 @@ const App = () => {
               <ErrorBoundary name="BibleLessonRoute"><BibleLessons /></ErrorBoundary>
             } />
             <Route path="/my-transcriptions" element={
-              <ErrorBoundary name="MyTranscriptionsRoute"><MyTranscriptions /></ErrorBoundary>
+              <ErrorBoundary name="MyTranscriptionsRoute"><ProtectedRoute><MyTranscriptions /></ProtectedRoute></ErrorBoundary>
             } />
             <Route path="/picture-scenes" element={
               <ErrorBoundary name="PictureScenesRoute"><PictureScenes /></ErrorBoundary>

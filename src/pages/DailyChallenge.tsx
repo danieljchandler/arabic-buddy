@@ -12,6 +12,8 @@ import { useAllWords } from "@/hooks/useAllWords";
 import { useAddXP } from "@/hooks/useGamification";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserLevel } from "@/hooks/useUserLevel";
+import { InfoHint } from "@/components/InfoHint";
+import { PAGE_HINTS } from "@/lib/pageHints";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Switch } from "@/components/ui/switch";
@@ -275,7 +277,7 @@ const DailyChallenge = () => {
             <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
               <Flame className="h-8 w-8 text-primary" />
             </div>
-            <h1 className="text-2xl font-bold text-foreground">Daily Challenge</h1>
+            <h1 className="text-2xl font-bold text-foreground inline-flex items-center gap-2 justify-center">Daily Challenge <InfoHint {...PAGE_HINTS["daily-challenge"]} size="md" /></h1>
             <p className="text-muted-foreground">Complete today's challenge to keep your streak!</p>
           </div>
 

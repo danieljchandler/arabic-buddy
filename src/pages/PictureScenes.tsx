@@ -5,6 +5,8 @@ import { usePublishedScenes, useSceneProgress } from "@/hooks/usePictureScenes";
 import { Loader2, ImageIcon, ChevronRight, Check } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { InfoHint } from "@/components/InfoHint";
+import { PAGE_HINTS } from "@/lib/pageHints";
 
 const PictureScenes = () => {
   const navigate = useNavigate();
@@ -22,7 +24,7 @@ const PictureScenes = () => {
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 mb-4">
             <ImageIcon className="h-8 w-8 text-primary" />
           </div>
-          <h1 className="text-2xl font-bold font-heading mb-1">Picture Scenes</h1>
+          <h1 className="text-2xl font-bold font-heading mb-1 inline-flex items-center gap-2 justify-center">Picture Scenes <InfoHint {...PAGE_HINTS["picture-scenes"]} size="md" /></h1>
           <p className="text-muted-foreground text-sm">
             Tap objects in a scene, hear them in Arabic, then quiz yourself.
           </p>

@@ -12,6 +12,8 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { TappableArabicText } from "@/components/shared/TappableArabicText";
+import { InfoHint } from "@/components/InfoHint";
+import { PAGE_HINTS } from "@/lib/pageHints";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -369,7 +371,7 @@ export default function ConversationSimulator() {
       </div>
 
       <div className="flex items-center justify-between mb-3">
-        <h1 className="text-lg font-semibold">Free Chat</h1>
+        <h1 className="text-lg font-semibold inline-flex items-center gap-2">Free Chat <InfoHint {...PAGE_HINTS["conversation"]} /></h1>
         <Button
           variant="ghost"
           size="sm"

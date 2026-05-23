@@ -18,6 +18,8 @@ import { DIALECT_FLAGS } from "@/config";
 import { useBibleDisplayPrefs } from "@/hooks/useBibleDisplayPrefs";
 import { stripTashkil } from "@/lib/bibleDisplayPrefs";
 import { toast } from "sonner";
+import { InfoHint } from "@/components/InfoHint";
+import { PAGE_HINTS } from "@/lib/pageHints";
 
 type BibleLesson = {
   id: string;
@@ -116,7 +118,7 @@ const BibleLessons = () => {
           <div className="rounded-full bg-muted p-4">
             <Lock className="h-8 w-8 text-muted-foreground" />
           </div>
-          <h1 className="text-2xl font-bold">Bible Lessons</h1>
+          <h1 className="text-2xl font-bold inline-flex items-center gap-2">Bible Lessons <InfoHint {...PAGE_HINTS["bible-lessons"]} size="md" /></h1>
           <p className="text-muted-foreground max-w-sm">
             {!isAuthenticated
               ? "Please sign in to access this feature."

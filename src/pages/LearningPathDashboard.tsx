@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { useLearningPath, useWeeklyRecommendation, useRequestCoaching, useAdvanceWeek } from "@/hooks/useLearningPath";
 import { Loader2, Sparkles, CheckCircle2, ChevronRight, Brain, BookOpen, Headphones, Mic, RotateCcw, Target, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { InfoHint } from "@/components/InfoHint";
+import { PAGE_HINTS } from "@/lib/pageHints";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 
@@ -66,7 +68,7 @@ export default function LearningPathDashboard() {
         {/* Header */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <h1 className="text-xl font-bold text-foreground">My Learning Path</h1>
+            <h1 className="text-xl font-bold text-foreground inline-flex items-center gap-2">My Learning Path <InfoHint {...PAGE_HINTS["learning-path"]} /></h1>
             <Badge variant="secondary">Week {path.current_week}/{path.timeline_weeks}</Badge>
           </div>
           <p className="text-sm text-muted-foreground">{path.goal_description}</p>

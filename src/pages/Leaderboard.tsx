@@ -22,6 +22,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useAuth } from "@/hooks/useAuth";
+import { InfoHint } from "@/components/InfoHint";
+import { PAGE_HINTS } from "@/lib/pageHints";
 import {
   useWeeklyLeaderboard,
   useAllTimeLeaderboard,
@@ -296,7 +298,7 @@ const Leaderboard = () => {
               <Trophy className="h-6 w-6 text-primary" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-foreground">Leaderboard</h1>
+              <h1 className="text-xl font-bold text-foreground inline-flex items-center gap-2">Leaderboard <InfoHint {...PAGE_HINTS["leaderboard"]} /></h1>
               <p className="text-sm text-muted-foreground">
                 Compete with other learners
               </p>

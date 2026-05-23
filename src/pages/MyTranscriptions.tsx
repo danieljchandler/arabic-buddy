@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { FileAudio, Trash2, Loader2, Eye, Shuffle } from "lucide-react";
 import { toast } from "sonner";
+import { InfoHint } from "@/components/InfoHint";
+import { PAGE_HINTS } from "@/lib/pageHints";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -91,7 +93,7 @@ export default function MyTranscriptions() {
         <HomeButton />
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div>
-            <h1 className="text-2xl font-bold">My Transcriptions</h1>
+            <h1 className="text-2xl font-bold inline-flex items-center gap-2">My Transcriptions <InfoHint {...PAGE_HINTS["my-transcriptions"]} size="md" /></h1>
             <p className="text-sm text-muted-foreground">
               Everything you've saved from the Transcribe tool.
             </p>

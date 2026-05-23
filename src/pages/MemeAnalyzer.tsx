@@ -17,6 +17,8 @@ import { AppShell } from "@/components/layout/AppShell";
 import { extractFramesWithTimestamps } from "@/lib/videoFrameExtractor";
 import { decodeAudioFile, clipToWav } from "@/lib/audioClipper";
 import { findLineContainingWord } from "@/lib/vocabularyAudioContext";
+import { InfoHint } from "@/components/InfoHint";
+import { PAGE_HINTS } from "@/lib/pageHints";
 
 /**
  * Convert an image file to base64 data URI
@@ -262,6 +264,7 @@ const MemeAnalyzer = () => {
         <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
           <Laugh className="h-7 w-7 text-primary" />
           Meme Analyzer
+          <InfoHint {...PAGE_HINTS["meme"]} size="md" />
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
           Upload an Arabic meme to get a full breakdown

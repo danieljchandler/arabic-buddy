@@ -7,6 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { InfoHint } from "@/components/InfoHint";
+import { PAGE_HINTS } from "@/lib/pageHints";
 import { toast } from "sonner";
 import {
   Gamepad2,
@@ -530,7 +532,7 @@ const VocabGames = () => {
                 <Gamepad2 className="h-6 w-6 text-primary" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-foreground">Vocabulary Games</h1>
+                <h1 className="text-xl font-bold text-foreground inline-flex items-center gap-2">Vocabulary Games <InfoHint {...PAGE_HINTS["vocab-games"]} /></h1>
                 <p className="text-sm text-muted-foreground">
                   Practice words through fun games
                 </p>

@@ -12,6 +12,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useAddUserVocabulary } from "@/hooks/useUserVocabulary";
 import { useAddUserPhrase } from "@/hooks/useUserPhrases";
 import type { VocabItem } from "@/types/transcript";
+import { InfoHint } from "@/components/InfoHint";
+import { PAGE_HINTS } from "@/lib/pageHints";
 import {
   MessageCircleQuestion,
   Loader2,
@@ -194,6 +196,7 @@ const HowDoISay = () => {
         >
           <MessageCircleQuestion className="h-7 w-7 text-primary" />
           How do I say…?
+          <InfoHint {...PAGE_HINTS["how-do-i-say"]} size="md" />
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
           Translate a phrase, ask what to say in a situation, or get a reply suggestion for a conversation.

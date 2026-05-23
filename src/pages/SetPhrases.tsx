@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Loader2, MessageCircle, Sparkles, ArrowRight } from "lucide-react";
 import { useDialect } from "@/contexts/DialectContext";
+import { InfoHint } from "@/components/InfoHint";
+import { PAGE_HINTS } from "@/lib/pageHints";
 
 const SetPhrases = () => {
   const navigate = useNavigate();
@@ -16,7 +18,7 @@ const SetPhrases = () => {
   return (
     <AppShell>
       <HomeButton />
-      <h1 className="text-2xl font-bold mt-4 mb-4" style={{ fontFamily: "'Montserrat', sans-serif" }}>Set Phrases</h1>
+      <h1 className="text-2xl font-bold mt-4 mb-4 inline-flex items-center gap-2" style={{ fontFamily: "'Montserrat', sans-serif" }}>Set Phrases <InfoHint {...PAGE_HINTS["set-phrases"]} size="md" /></h1>
       <div className="space-y-4">
         <Card className="p-4 bg-gradient-to-br from-emerald-500/10 to-teal-500/10 border-emerald-500/30">
           <div className="flex items-start gap-3">

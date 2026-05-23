@@ -13,6 +13,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useAddUserVocabulary } from "@/hooks/useUserVocabulary";
 import { Twitter, Loader2, Search, BookOpen, MessageSquare, Globe, Plus, Check } from "lucide-react";
 import type { TranscriptResult, VocabItem, GrammarPoint } from "@/types/transcript";
+import { InfoHint } from "@/components/InfoHint";
+import { PAGE_HINTS } from "@/lib/pageHints";
 
 function normalizeTranscriptResult(input: TranscriptResult): TranscriptResult {
   const safeLines = Array.isArray(input.lines) ? input.lines : [];
@@ -195,8 +197,9 @@ const LearnFromX = () => {
               <Twitter className="h-4 w-4 text-primary" />
             </div>
             <div>
-              <h1 className="text-lg font-bold text-foreground" style={{ fontFamily: "'Montserrat', sans-serif" }}>
+              <h1 className="text-lg font-bold text-foreground inline-flex items-center gap-2" style={{ fontFamily: "'Montserrat', sans-serif" }}>
                 Learn from X Post
+                <InfoHint {...PAGE_HINTS["learn-from-x"]} />
               </h1>
               <p className="text-xs text-muted-foreground">Paste an Arabic X post URL to analyze</p>
             </div>

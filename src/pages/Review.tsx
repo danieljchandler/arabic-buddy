@@ -17,6 +17,8 @@ import { Rating, calculateNextReview } from "@/lib/spacedRepetition";
 import { Loader2, Trophy, Brain, Sparkles, LogIn, Shuffle, Eye, Volume2, ImagePlus } from "lucide-react";
 import { GenerateImageDialog } from "@/components/mywords/GenerateImageDialog";
 import { useReviewKeyboard } from "@/hooks/useKeyboardShortcuts";
+import { InfoHint } from "@/components/InfoHint";
+import { PAGE_HINTS } from "@/lib/pageHints";
 
 const DIALECT_FLAGS: Record<string, string> = {
   Gulf: "🇦🇪",
@@ -163,7 +165,7 @@ const Review = () => {
 
         <div className="text-center max-w-sm mx-auto py-12">
           <Trophy className="h-14 w-14 mx-auto mb-6 text-primary" />
-          <h1 className="text-xl font-bold text-foreground mb-3">All Caught Up</h1>
+          <h1 className="text-xl font-bold text-foreground mb-3 inline-flex items-center gap-2 justify-center">All Caught Up <InfoHint {...PAGE_HINTS["review"]} /></h1>
           <p className="text-muted-foreground mb-8">
             You've reviewed all your due {mixAll ? "" : `${activeDialect} `}words. Come back later for more practice.
           </p>

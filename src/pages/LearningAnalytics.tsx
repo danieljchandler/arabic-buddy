@@ -6,6 +6,8 @@ import { Progress } from "@/components/ui/progress";
 import { useAuth } from "@/hooks/useAuth";
 import { useLearningAnalytics } from "@/hooks/useAnalytics";
 import { cn } from "@/lib/utils";
+import { InfoHint } from "@/components/InfoHint";
+import { PAGE_HINTS } from "@/lib/pageHints";
 import {
   BarChart3,
   BookOpen,
@@ -120,7 +122,7 @@ const LearningAnalytics = () => {
             <BarChart3 className="h-6 w-6 text-primary" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-foreground">Learning Analytics</h1>
+            <h1 className="text-xl font-bold text-foreground inline-flex items-center gap-2">Learning Analytics <InfoHint {...PAGE_HINTS["learning-analytics"]} /></h1>
             <p className="text-sm text-muted-foreground">Your complete progress overview</p>
           </div>
         </div>

@@ -337,6 +337,8 @@ const MyWordsReview = () => {
       cardType: card.card_type,
       rating,
       productionLocked: card.production_locked,
+      currentLapses: card.lapses,
+      currentProductionLapses: card.production_lapses,
     });
 
     setSessionCount((prev) => prev + 1);

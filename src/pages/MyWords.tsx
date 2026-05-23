@@ -12,6 +12,8 @@ import { AppShell } from "@/components/layout/AppShell";
 import { GenerateImageDialog } from "@/components/mywords/GenerateImageDialog";
 import { SuggestFlashcardsDialog } from "@/components/mywords/SuggestFlashcardsDialog";
 import { Wand2 } from "lucide-react";
+import { InfoHint } from "@/components/InfoHint";
+import { PAGE_HINTS } from "@/lib/pageHints";
 
 const MyWords = () => {
   const navigate = useNavigate();
@@ -87,6 +89,7 @@ const MyWords = () => {
         <div className="flex items-center gap-2">
           <BookOpen className="h-6 w-6 text-primary" />
           <h1 className="text-2xl font-bold text-foreground">My Words</h1>
+          <InfoHint {...PAGE_HINTS["my-words"]} />
         </div>
         <span className="text-sm text-muted-foreground">
           ({words?.length || 0})
@@ -100,6 +103,10 @@ const MyWords = () => {
           <Shuffle className="h-4 w-4" />
           {mixAll ? "All Dialects" : activeDialect}
         </Button>
+        <InfoHint
+          title="Mix all dialects"
+          body="Toggle this to review words from every dialect at once. Leave it off to stay focused on your current dialect only."
+        />
       </div>
 
       {/* AI suggest button */}
@@ -130,6 +137,7 @@ const MyWords = () => {
           <div className="flex items-center gap-2">
             <MessageCircleQuestion className="h-5 w-5 text-primary" />
             <h2 className="font-semibold text-foreground">My Phrases</h2>
+            <InfoHint {...PAGE_HINTS["my-phrases"]} />
             <span className="text-xs text-muted-foreground">
               ({phraseStats?.total ?? 0})
             </span>

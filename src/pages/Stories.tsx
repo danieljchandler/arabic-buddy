@@ -5,6 +5,8 @@ import { HomeButton } from '@/components/HomeButton';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, BookOpen, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { InfoHint } from '@/components/InfoHint';
+import { PAGE_HINTS } from '@/lib/pageHints';
 
 const DIFFICULTY_COLORS: Record<string, string> = {
   Beginner: 'bg-green-500/10 text-green-700 border-green-500/20',
@@ -25,7 +27,7 @@ const Stories = () => {
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 mb-4">
             <BookOpen className="h-8 w-8 text-primary" />
           </div>
-          <h1 className="text-2xl font-bold font-heading mb-1">Interactive Stories</h1>
+          <h1 className="text-2xl font-bold font-heading mb-1 inline-flex items-center gap-2 justify-center">Interactive Stories <InfoHint {...PAGE_HINTS["stories"]} size="md" /></h1>
           <p className="text-muted-foreground">Choose your adventure and learn Arabic through immersive scenarios</p>
         </div>
 

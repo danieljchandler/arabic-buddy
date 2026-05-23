@@ -11,6 +11,8 @@ import { toast } from "sonner";
 import { useTutorUpload } from "@/hooks/useTutorUpload";
 import { CandidateList } from "@/components/tutor/CandidateList";
 import { useAuth } from "@/hooks/useAuth";
+import { InfoHint } from "@/components/InfoHint";
+import { PAGE_HINTS } from "@/lib/pageHints";
 
 const TutorUpload = () => {
   const navigate = useNavigate();
@@ -75,7 +77,7 @@ const TutorUpload = () => {
   return (
     <AppShell>
       <HomeButton />
-      <h1 className="text-2xl font-heading font-bold text-foreground mb-6">Tutor Upload</h1>
+      <h1 className="text-2xl font-heading font-bold text-foreground mb-6 inline-flex items-center gap-2">Tutor Upload <InfoHint {...PAGE_HINTS["tutor-upload"]} size="md" /></h1>
 
       {/* Upload Step */}
       {step === "upload" && (

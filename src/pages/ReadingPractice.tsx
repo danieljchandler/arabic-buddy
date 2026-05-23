@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { HomeButton } from "@/components/HomeButton";
+import { InfoHint } from "@/components/InfoHint";
+import { PAGE_HINTS } from "@/lib/pageHints";
 import {
   Popover,
   PopoverContent,
@@ -605,7 +607,7 @@ const ReadingPractice = () => {
             <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
               <BookOpen className="h-8 w-8 text-primary" />
             </div>
-            <h1 className="text-2xl font-bold text-foreground">Reading Practice</h1>
+            <h1 className="text-2xl font-bold text-foreground inline-flex items-center gap-2 justify-center">Reading Practice <InfoHint {...PAGE_HINTS["reading-practice"]} size="md" /></h1>
             <p className="text-muted-foreground">Read and learn in Arabic</p>
           </div>
 

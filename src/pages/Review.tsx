@@ -17,6 +17,8 @@ import { Rating, calculateNextReview } from "@/lib/spacedRepetition";
 import { Loader2, Trophy, Brain, Sparkles, LogIn, Shuffle, Eye, Volume2, ImagePlus } from "lucide-react";
 import { GenerateImageDialog } from "@/components/mywords/GenerateImageDialog";
 import { useReviewKeyboard } from "@/hooks/useKeyboardShortcuts";
+import { InfoHint } from "@/components/InfoHint";
+import { PAGE_HINTS } from "@/lib/pageHints";
 
 const DIALECT_FLAGS: Record<string, string> = {
   Gulf: "🇦🇪",

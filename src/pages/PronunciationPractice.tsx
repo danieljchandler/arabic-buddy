@@ -12,6 +12,8 @@ import { Mic, MicOff, RotateCcw, Loader2, ChevronRight, ChevronLeft, Volume2, Tr
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import { InfoHint } from "@/components/InfoHint";
+import { PAGE_HINTS } from "@/lib/pageHints";
 import { useRef } from "react";
 
 const MAX_DURATION_MS = 5000;
@@ -213,7 +215,7 @@ const PronunciationPractice = () => {
         <div className="text-center mb-6">
           <div className="flex items-center justify-between mb-1">
             <div />
-            <h1 className="text-2xl font-bold font-heading">Pronunciation Practice</h1>
+            <h1 className="text-2xl font-bold font-heading inline-flex items-center gap-2">Pronunciation Practice <InfoHint {...PAGE_HINTS["pronunciation"]} size="md" /></h1>
             <div className="flex items-center gap-1.5">
               <Languages className="h-3.5 w-3.5 text-muted-foreground" />
               <span className="text-xs text-muted-foreground">EN</span>

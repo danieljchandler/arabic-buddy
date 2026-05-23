@@ -12,6 +12,8 @@ import { Loader2, Search, Play, Shuffle, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDuration } from "@/lib/videoEmbed";
 import { ContentRequestBar } from "@/components/discover/ContentRequestBar";
+import { InfoHint } from "@/components/InfoHint";
+import { PAGE_HINTS } from "@/lib/pageHints";
 import { useDialect } from "@/contexts/DialectContext";
 import { useAuth } from "@/hooks/useAuth";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -136,10 +138,11 @@ const Discover = () => {
       <HomeButton />
 
       <h1
-        className="text-2xl font-bold text-foreground mb-2"
+        className="text-2xl font-bold text-foreground mb-2 inline-flex items-center gap-2"
         style={{ fontFamily: "'Montserrat', sans-serif" }}
       >
         Discover
+        <InfoHint {...PAGE_HINTS["discover"]} size="md" />
       </h1>
       <p className="text-sm text-muted-foreground mb-6">
         Watch Arabic videos with synced subtitles and translations

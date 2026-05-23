@@ -20,6 +20,8 @@ import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { useDialect } from "@/contexts/DialectContext";
 import { useAddUserVocabulary } from "@/hooks/useUserVocabulary";
 import { Input } from "@/components/ui/input";
+import { InfoHint } from "@/components/InfoHint";
+import { PAGE_HINTS } from "@/lib/pageHints";
 import {
   Dialog,
   DialogContent,
@@ -1028,8 +1030,9 @@ const Transcribe = () => {
         <div className="flex items-center gap-4">
           <HomeButton />
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-foreground">
+            <h1 className="text-2xl md:text-3xl font-bold text-foreground inline-flex items-center gap-2">
               Transcribe Audio
+              <InfoHint {...PAGE_HINTS["transcribe"]} size="md" />
             </h1>
             <p className="text-muted-foreground">
               {isAdmin

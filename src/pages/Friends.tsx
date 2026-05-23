@@ -13,6 +13,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/useAuth";
+import { InfoHint } from "@/components/InfoHint";
+import { PAGE_HINTS } from "@/lib/pageHints";
 import {
   useFriendsActivity,
   useSearchUsers,
@@ -608,7 +610,7 @@ const Friends = () => {
             <Users className="h-6 w-6 text-primary" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-foreground">Friends</h1>
+            <h1 className="text-xl font-bold text-foreground inline-flex items-center gap-2">Friends <InfoHint {...PAGE_HINTS["friends"]} /></h1>
             <p className="text-sm text-muted-foreground">
               Follow & challenge other learners
             </p>

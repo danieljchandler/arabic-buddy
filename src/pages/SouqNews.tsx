@@ -22,6 +22,8 @@ import {
   Newspaper,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { InfoHint } from "@/components/InfoHint";
+import { PAGE_HINTS } from "@/lib/pageHints";
 
 interface SouqArticle {
   title_dialect: string;
@@ -96,6 +98,7 @@ const SouqNews = () => {
           <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
             <Newspaper className={cn("h-6 w-6", accentClass)} />
             أخبار السوق
+            <InfoHint {...PAGE_HINTS["souq-news"]} size="md" />
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
             Today's news, told like a friend at the souq

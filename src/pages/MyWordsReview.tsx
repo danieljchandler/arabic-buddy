@@ -152,6 +152,10 @@ const MyWordsReview = () => {
           jingle_audio_url: r.jingle_audio_url,
           sentence_text: r.sentence_text,
           sentence_english: r.sentence_english,
+          lapses: r.lapses ?? 0,
+          production_lapses: r.production_lapses ?? 0,
+          is_leech: r.is_leech ?? false,
+          mnemonic: r.mnemonic,
         });
       }
       for (const r of (prodRows || []) as RawRow[]) {
@@ -171,6 +175,10 @@ const MyWordsReview = () => {
           jingle_audio_url: r.jingle_audio_url,
           sentence_text: r.sentence_text,
           sentence_english: r.sentence_english,
+          lapses: r.lapses ?? 0,
+          production_lapses: r.production_lapses ?? 0,
+          is_leech: r.is_leech ?? false,
+          mnemonic: r.mnemonic,
         });
       }
 

@@ -2,19 +2,12 @@ import { createRoot } from "react-dom/client";
 import "./index.css";
 import "./lib/storageBootstrap";
 
-// Boot diagnostics
-console.log("[boot] main.tsx executing", Date.now());
-console.log("[boot] SUPABASE_URL:", !!import.meta.env.VITE_SUPABASE_URL);
-console.log("[boot] SUPABASE_KEY:", !!import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY);
-
 const root = document.getElementById("root");
-console.log("[boot] #root element:", !!root);
 
 const boot = async () => {
   try {
     const { default: App } = await import("./App.tsx");
     createRoot(root!).render(<App />);
-    console.log("[boot] render() called successfully");
   } catch (err) {
     console.error("[boot] FATAL render error:", err);
     if (root) {

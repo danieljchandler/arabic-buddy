@@ -1,10 +1,10 @@
 import { createContext, useContext, useState, useCallback, ReactNode } from "react";
-import type { TranscriptLine } from "@/types/transcript";
+import type { TranscriptLine, VocabItem, GrammarPoint } from "@/types/transcript";
 
 export type TranscriptionResult = {
   transcriptLines: TranscriptLine[];
-  vocabulary: any[];
-  grammarPoints: any[];
+  vocabulary: VocabItem[];
+  grammarPoints: GrammarPoint[];
   culturalContext: string;
   dialect?: string;
   difficulty?: string;

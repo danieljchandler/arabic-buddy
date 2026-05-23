@@ -15,87 +15,12 @@ import { XPDisplay, StreakDisplay, WeeklyGoalCard, AchievementsGrid } from "@/co
 import lahjaLogo from "@/assets/lahja-logo.png";
 import { useState } from "react";
 import { NotificationBell } from "@/components/NotificationBell";
-import { formatDuration } from "@/lib/videoEmbed";
 import { useDialect, DialectModule } from "@/contexts/DialectContext";
 import { PhraseOfTheDay } from "@/components/PhraseOfTheDay";
 import { useHomeLayout } from "@/hooks/useHomeLayout";
 import { HomeSectionId, isSectionVisible } from "@/lib/homeLayout";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
-
-const DiscoverPreviewCard = ({ video, onClick }: { video: any; onClick: () => void }) => {
-  const [showOverlay, setShowOverlay] = useState(true);
-
-  return (
-    <button
-      onClick={onClick}
-      className={cn(
-        "w-full rounded-2xl overflow-hidden border-2 border-primary/20 bg-card",
-        "text-left transition-all duration-200",
-        "hover:shadow-xl hover:border-primary/40 active:scale-[0.99]",
-        "shadow-lg"
-      )}
-    >
-      {/* Video thumbnail styled like a social feed post */}
-      <div className="relative aspect-[4/3] bg-foreground/5 overflow-hidden">
-        {video.thumbnail_url ? (
-          <img
-            src={video.thumbnail_url}
-            alt={video.title}
-            className="w-full h-full object-cover"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center bg-muted">
-            <Play className="h-16 w-16 text-muted-foreground/20" />
-          </div>
-        )}
-
-        {/* Gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-t from-foreground/80 via-foreground/10 to-transparent" />
-
-        {/* Play indicator */}
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="w-16 h-16 rounded-full bg-primary/90 flex items-center justify-center backdrop-blur-sm shadow-2xl">
-            <Play className="h-7 w-7 text-primary-foreground fill-primary-foreground ml-1" />
-          </div>
-        </div>
-
-        {/* Bottom info overlay */}
-        <div className="absolute bottom-0 left-0 right-0 p-4">
-          <h3 className="font-bold text-lg text-background leading-tight mb-2 line-clamp-2" style={{ fontFamily: "'Montserrat', sans-serif" }}>
-            {video.title}
-          </h3>
-          {video.title_arabic && (
-            <p className="text-background/80 text-base mb-3 line-clamp-1" dir="rtl" style={{ fontFamily: "'Cairo', sans-serif" }}>
-              {video.title_arabic}
-            </p>
-          )}
-          <div className="flex gap-1.5 flex-wrap">
-            <Badge className="bg-primary/80 text-primary-foreground border-none text-xs backdrop-blur-sm">
-              {video.dialect}
-            </Badge>
-            <Badge className="bg-background/20 text-background border-none text-xs backdrop-blur-sm">
-              {video.difficulty}
-            </Badge>
-            {video.duration_seconds && (
-              <Badge className="bg-background/20 text-background border-none text-xs backdrop-blur-sm">
-                {formatDuration(video.duration_seconds)}
-              </Badge>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* CTA bar */}
-      <div className="flex items-center justify-between px-4 py-3 bg-primary/5">
-        <div className="flex items-center gap-2">
-          <Play className="h-4 w-4 text-primary" />
-          <span className="text-sm font-semibold text-primary">Start Watching</span>
-        </div>
-        <ChevronRight className="h-4 w-4 text-primary" />
-      </div>
-    </button>
-  );
-};
+import { DiscoverPreviewCard } from "@/components/discover/DiscoverPreviewCard";
 
 const DIALECT_MODULES: { id: DialectModule; label: string; flag: string }[] = [
   { id: 'Gulf', label: 'Gulf Arabic', flag: '🌊' },

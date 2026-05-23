@@ -127,11 +127,23 @@ export function LeechHelperPanel({
     }
   };
 
+  const dismissLeech = async () => {
+    try {
+      await (supabase.from(TABLE_BY_KIND[kind]) as any)
+        .update({ is_leech: false, lapses: 0, ...(kind === "word" ? { production_lapses: 0 } : {}) })
+        .eq("id", rowId);
+      invalidate();
+      toast.success("Cleared — we'll stop flagging this card.");
+    } catch {
+      toast.error("Couldn't clear leech status");
+    }
+  };
+
   return (
     <div className="mt-6 rounded-xl border border-[hsl(var(--primary))]/40 bg-[hsl(var(--primary))]/5 p-4 text-left">
       <div className="flex items-start gap-2 mb-3">
         <AlertTriangle className="h-4 w-4 text-[hsl(var(--primary))] mt-0.5 shrink-0" />
-        <div>
+        <div className="flex-1">
           <p className="text-xs font-semibold uppercase tracking-wide text-[hsl(var(--primary))]">
             Stuck on this one?
           </p>
@@ -139,6 +151,15 @@ export function LeechHelperPanel({
             You've missed it a few times. Let AI help you lock it in.
           </p>
         </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6 shrink-0"
+          onClick={dismissLeech}
+          title="Not stuck — clear leech flag"
+        >
+          <X className="h-3.5 w-3.5" />
+        </Button>
       </div>
 
       {/* Mnemonic */}

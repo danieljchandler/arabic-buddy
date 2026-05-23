@@ -2145,7 +2145,11 @@ export type Database = {
           ease_factor: number
           id: string
           interval_days: number
+          is_leech: boolean
+          jingle_audio_url: string | null
+          lapses: number
           last_reviewed_at: string | null
+          mnemonic: string | null
           next_review_at: string
           notes: string | null
           phrase_arabic: string
@@ -2162,7 +2166,11 @@ export type Database = {
           ease_factor?: number
           id?: string
           interval_days?: number
+          is_leech?: boolean
+          jingle_audio_url?: string | null
+          lapses?: number
           last_reviewed_at?: string | null
+          mnemonic?: string | null
           next_review_at?: string
           notes?: string | null
           phrase_arabic: string
@@ -2179,7 +2187,11 @@ export type Database = {
           ease_factor?: number
           id?: string
           interval_days?: number
+          is_leech?: boolean
+          jingle_audio_url?: string | null
+          lapses?: number
           last_reviewed_at?: string | null
+          mnemonic?: string | null
           next_review_at?: string
           notes?: string | null
           phrase_arabic?: string
@@ -2319,12 +2331,16 @@ export type Database = {
           id: string
           image_url: string | null
           interval_days: number
+          is_leech: boolean
           jingle_audio_url: string | null
+          lapses: number
           last_result: string | null
           last_reviewed_at: string | null
+          mnemonic: string | null
           next_review_at: string
           production_ease_factor: number
           production_interval_days: number
+          production_lapses: number
           production_last_reviewed_at: string | null
           production_next_review_at: string | null
           production_repetitions: number
@@ -2351,12 +2367,16 @@ export type Database = {
           id?: string
           image_url?: string | null
           interval_days?: number
+          is_leech?: boolean
           jingle_audio_url?: string | null
+          lapses?: number
           last_result?: string | null
           last_reviewed_at?: string | null
+          mnemonic?: string | null
           next_review_at?: string
           production_ease_factor?: number
           production_interval_days?: number
+          production_lapses?: number
           production_last_reviewed_at?: string | null
           production_next_review_at?: string | null
           production_repetitions?: number
@@ -2383,12 +2403,16 @@ export type Database = {
           id?: string
           image_url?: string | null
           interval_days?: number
+          is_leech?: boolean
           jingle_audio_url?: string | null
+          lapses?: number
           last_result?: string | null
           last_reviewed_at?: string | null
+          mnemonic?: string | null
           next_review_at?: string
           production_ease_factor?: number
           production_interval_days?: number
+          production_lapses?: number
           production_last_reviewed_at?: string | null
           production_next_review_at?: string | null
           production_repetitions?: number

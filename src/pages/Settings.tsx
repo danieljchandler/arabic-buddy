@@ -384,6 +384,32 @@ const Settings = () => {
           {/* Global Display Preferences */}
           <DisplayPrefsEditor />
 
+          {/* Review Preferences */}
+          <section className="space-y-3">
+            <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+              <AlertTriangle className="h-4 w-4" />
+              Review Preferences
+            </div>
+            <div className="flex items-center justify-between p-3 rounded-xl bg-card border border-border">
+              <div className="min-w-0 pr-3">
+                <p className="font-medium text-foreground text-sm">Flag difficult cards as "leeches"</p>
+                <p className="text-xs text-muted-foreground">
+                  After several misses, show an AI mnemonic and memory jingle to help you remember.
+                </p>
+              </div>
+              <Switch checked={leechEnabled} onCheckedChange={setLeechEnabled} />
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full"
+              onClick={clearAllLeeches}
+              disabled={clearingLeeches}
+            >
+              {clearingLeeches ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Clear all leech flags'}
+            </Button>
+          </section>
+
           {/* Privacy Section */}
           <section className="space-y-3">
             <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wider">

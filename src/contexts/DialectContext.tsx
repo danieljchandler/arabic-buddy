@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
-export type DialectModule = 'Gulf' | 'Egyptian' | 'Yemeni' | 'Levantine' | 'Moroccan';
+export type DialectModule = 'Gulf' | 'Egyptian' | 'Yemeni';
 
 interface DialectContextType {
   activeDialect: DialectModule;

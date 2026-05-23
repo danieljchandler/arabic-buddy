@@ -84,6 +84,7 @@ const MyWordsReview = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   const { activeDialect } = useDialect();
+  const { enabled: leechTrackingEnabled } = useLeechPrefs();
   const updateReview = useUpdateUserVocabularyReview();
   const { cap: newCap, setCap: setNewCap } = useNewCardCap();
   const queryClient = useQueryClient();

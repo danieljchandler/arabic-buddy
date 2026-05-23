@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
-export type DialectModule = 'Gulf' | 'Egyptian' | 'Yemeni' | 'Levantine' | 'Moroccan';
+export type DialectModule = 'Gulf' | 'Egyptian' | 'Yemeni';
 
 interface DialectContextType {
   activeDialect: DialectModule;
@@ -34,7 +34,7 @@ export const DialectProvider = ({ children }: { children: ReactNode }) => {
   const [activeDialect, setActiveDialect] = useState<DialectModule>(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
-      return (stored === 'Gulf' || stored === 'Egyptian' || stored === 'Yemeni' || stored === 'Levantine' || stored === 'Moroccan') ? stored : 'Gulf';
+      return (stored === 'Gulf' || stored === 'Egyptian' || stored === 'Yemeni') ? stored : 'Gulf';
     } catch {
       return 'Gulf';
     }
@@ -54,7 +54,7 @@ export const DialectProvider = ({ children }: { children: ReactNode }) => {
 
       if (data) {
         const dialect = (data as Record<string, unknown>).preferred_dialect;
-        if (dialect === 'Gulf' || dialect === 'Egyptian' || dialect === 'Yemeni' || dialect === 'Levantine' || dialect === 'Moroccan') {
+        if (dialect === 'Gulf' || dialect === 'Egyptian' || dialect === 'Yemeni') {
           setActiveDialect(dialect);
           try { localStorage.setItem(STORAGE_KEY, dialect); } catch {}
         }

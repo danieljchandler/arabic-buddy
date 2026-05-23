@@ -7,23 +7,19 @@
 
 // ─── Dialects ────────────────────────────────────────────────────────────────
 
-export const DIALECTS = ['Gulf', 'Egyptian', 'Yemeni', 'Levantine', 'Moroccan'] as const;
+export const DIALECTS = ['Gulf', 'Egyptian', 'Yemeni'] as const;
 export type Dialect = (typeof DIALECTS)[number];
 
 export const DIALECT_FLAGS: Record<Dialect, string> = {
   Gulf: '🇸🇦',
   Egyptian: '🇪🇬',
   Yemeni: '🇾🇪',
-  Levantine: '🇱🇧',
-  Moroccan: '🇲🇦',
 };
 
 export const DIALECT_LABELS: Record<Dialect, string> = {
   Gulf: 'Gulf Arabic',
   Egyptian: 'Egyptian Arabic',
   Yemeni: 'Yemeni Arabic',
-  Levantine: 'Levantine Arabic',
-  Moroccan: 'Moroccan Arabic',
 };
 
 // ─── Difficulty levels ───────────────────────────────────────────────────────

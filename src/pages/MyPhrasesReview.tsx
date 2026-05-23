@@ -11,12 +11,14 @@ import { Rating, calculateNextReview } from "@/lib/spacedRepetition";
 import { useAzureTTS } from "@/hooks/useAzureTTS";
 import { Loader2, Trophy, LogIn, Eye, Volume2, Trash2, MessageCircleQuestion } from "lucide-react";
 import { LeechHelperPanel } from "@/components/review/LeechHelperPanel";
+import { useLeechPrefs } from "@/hooks/useLeechPrefs";
 import { toast } from "sonner";
 
 const MyPhrasesReview = () => {
   const navigate = useNavigate();
   const { isAuthenticated, loading: authLoading } = useAuth();
   const { activeDialect } = useDialect();
+  const { enabled: leechTrackingEnabled } = useLeechPrefs();
   const { data: duePhrases, isLoading, refetch } = useDueUserPhrases();
   const updateReview = useUpdateUserPhraseReview();
   const deletePhrase = useDeleteUserPhrase();
@@ -234,7 +236,7 @@ const MyPhrasesReview = () => {
             )}
           </div>
 
-          {current.is_leech && (
+          {leechTrackingEnabled && current.is_leech && (
             <LeechHelperPanel
               kind="phrase"
               rowId={current.id}

@@ -8,6 +8,7 @@ import { RatingButtons } from "@/components/review/RatingButtons";
 import { AppShell } from "@/components/layout/AppShell";
 import { Loader2, Trophy, LogIn, Eye, Volume2, Music, RefreshCw, Sparkles, Play, Brain, Mic2, Quote } from "lucide-react";
 import { LeechHelperPanel } from "@/components/review/LeechHelperPanel";
+import { useLeechPrefs } from "@/hooks/useLeechPrefs";
 import { GenerateImageDialog } from "@/components/mywords/GenerateImageDialog";
 import { useUpdateUserVocabularyImage } from "@/hooks/useUserVocabulary";
 import { PronunciationButton } from "@/components/review/PronunciationButton";
@@ -83,6 +84,7 @@ const MyWordsReview = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   const { activeDialect } = useDialect();
+  const { enabled: leechTrackingEnabled } = useLeechPrefs();
   const updateReview = useUpdateUserVocabularyReview();
   const { cap: newCap, setCap: setNewCap } = useNewCardCap();
   const queryClient = useQueryClient();
@@ -675,7 +677,7 @@ const MyWordsReview = () => {
           </div>
           )}
 
-          {currentWord.is_leech && (
+          {leechTrackingEnabled && currentWord.is_leech && (
             <LeechHelperPanel
               kind="word"
               rowId={currentWord.id}

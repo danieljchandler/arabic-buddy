@@ -218,7 +218,17 @@ export const useUpdateUserVocabularyReview = () => {
       const newProdLapses = failed && cardType === "production"
         ? currentProductionLapses + 1
         : currentProductionLapses;
-      const isLeech = Math.max(newLapses, newProdLapses) >= LEECH_THRESHOLD;
+      const leechTrackingEnabled = (() => {
+        try {
+          const raw = localStorage.getItem("lahja:leech-tracking-enabled");
+          return raw === null ? true : raw === "true";
+        } catch {
+          return true;
+        }
+      })();
+      const isLeech = leechTrackingEnabled
+        ? Math.max(newLapses, newProdLapses) >= LEECH_THRESHOLD
+        : false;
 
       const update: Record<string, unknown> =
         cardType === "production"

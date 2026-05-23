@@ -10,9 +10,10 @@ import { Switch } from '@/components/ui/switch';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { Loader2, Check, ArrowLeft, User, Globe2, Target, Eye, Heart, ChevronRight, Camera } from 'lucide-react';
+import { Loader2, Check, ArrowLeft, User, Globe2, Target, Eye, Heart, ChevronRight, Camera, AlertTriangle } from 'lucide-react';
 import { HomeLayoutEditor } from '@/components/settings/HomeLayoutEditor';
 import { DisplayPrefsEditor } from '@/components/settings/DisplayPrefsEditor';
+import { useLeechPrefs } from '@/hooks/useLeechPrefs';
 
 const DIALECTS = [
   { id: 'Gulf', label: 'Gulf Arabic', labelAr: 'خليجي', flag: '🌊' },
@@ -44,6 +45,28 @@ const Settings = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated, loading: authLoading, signOut } = useAuth();
   const [loading, setLoading] = useState(true);
+  const { enabled: leechEnabled, setEnabled: setLeechEnabled } = useLeechPrefs();
+  const [clearingLeeches, setClearingLeeches] = useState(false);
+
+  const clearAllLeeches = async () => {
+    if (!user) return;
+    setClearingLeeches(true);
+    try {
+      await Promise.all([
+        (supabase.from('user_vocabulary') as any)
+          .update({ is_leech: false, lapses: 0, production_lapses: 0 })
+          .eq('user_id', user.id),
+        (supabase.from('user_phrases') as any)
+          .update({ is_leech: false, lapses: 0 })
+          .eq('user_id', user.id),
+      ]);
+      toast.success('Cleared all leech flags.');
+    } catch {
+      toast.error('Failed to clear leech flags');
+    } finally {
+      setClearingLeeches(false);
+    }
+  };
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -360,6 +383,32 @@ const Settings = () => {
 
           {/* Global Display Preferences */}
           <DisplayPrefsEditor />
+
+          {/* Review Preferences */}
+          <section className="space-y-3">
+            <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+              <AlertTriangle className="h-4 w-4" />
+              Review Preferences
+            </div>
+            <div className="flex items-center justify-between p-3 rounded-xl bg-card border border-border">
+              <div className="min-w-0 pr-3">
+                <p className="font-medium text-foreground text-sm">Flag difficult cards as "leeches"</p>
+                <p className="text-xs text-muted-foreground">
+                  After several misses, show an AI mnemonic and memory jingle to help you remember.
+                </p>
+              </div>
+              <Switch checked={leechEnabled} onCheckedChange={setLeechEnabled} />
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full"
+              onClick={clearAllLeeches}
+              disabled={clearingLeeches}
+            >
+              {clearingLeeches ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Clear all leech flags'}
+            </Button>
+          </section>
 
           {/* Privacy Section */}
           <section className="space-y-3">

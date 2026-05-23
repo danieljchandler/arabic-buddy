@@ -69,6 +69,8 @@ const MyPhrasesReview = () => {
       intervalDays: result.intervalDays,
       repetitions: result.repetitions,
       nextReviewAt: result.nextReviewAt,
+      rating,
+      currentLapses: current.lapses ?? 0,
     });
 
     setSessionCount((p) => p + 1);

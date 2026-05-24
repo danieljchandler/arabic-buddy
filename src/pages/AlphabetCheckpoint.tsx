@@ -2,7 +2,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useMemo, useState, useEffect } from "react";
 import { ARABIC_LETTERS, CHECKPOINT_INDICES } from "@/data/arabicAlphabet";
 import { useAlphabetProgress, useCheckpointProgress } from "@/hooks/useAlphabetProgress";
-import { useGamification } from "@/hooks/useGamification";
+
 import { AppShell } from "@/components/layout/AppShell";
 import { HomeButton } from "@/components/HomeButton";
 import { LetterAudioButton } from "@/components/alphabet/LetterAudioButton";
@@ -18,7 +18,6 @@ const AlphabetCheckpoint = () => {
   const idx = Math.max(0, Math.min(CHECKPOINT_INDICES.length - 1, parseInt(index ?? "0", 10)));
   const { progress, isUnlocked } = useAlphabetProgress();
   const { recordCheckpoint, checkpoints } = useCheckpointProgress();
-  const { awardXp } = useGamification();
 
   // Pool: all letters covered by this checkpoint (and earlier ones).
   const pool = useMemo(() => {
@@ -60,7 +59,6 @@ const AlphabetCheckpoint = () => {
       setFinalScore(score);
       try {
         await recordCheckpoint({ index: idx, score });
-        awardXp(score >= 70 ? 100 : 50, "alphabet_checkpoint");
       } catch (e) {
         console.error(e);
       }

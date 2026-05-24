@@ -2,7 +2,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useState, useEffect, useMemo } from "react";
 import { ARABIC_LETTERS, LETTERS_BY_CODE, LETTER_STEPS, type LetterStepId } from "@/data/arabicAlphabet";
 import { useAlphabetProgress } from "@/hooks/useAlphabetProgress";
-import { useGamification } from "@/hooks/useGamification";
+
 import { AppShell } from "@/components/layout/AppShell";
 import { HomeButton } from "@/components/HomeButton";
 import { LetterAudioButton } from "@/components/alphabet/LetterAudioButton";
@@ -30,8 +30,7 @@ const AlphabetLetter = () => {
   const { letterCode } = useParams();
   const letter = letterCode ? LETTERS_BY_CODE[letterCode] : undefined;
   const { progress, completeStep } = useAlphabetProgress();
-  const { awardXp } = useGamification();
-  const prefs = useDisplayPrefs();
+  const { prefs } = useDisplayPrefs();
   const [stepIdx, setStepIdx] = useState(0);
   const [done, setDone] = useState<Record<LetterStepId, boolean>>({} as any);
 
@@ -53,7 +52,6 @@ const AlphabetLetter = () => {
     setDone((d) => ({ ...d, [step]: true }));
     try {
       await completeStep({ letterCode: letter.code, step, ...extra });
-      awardXp(5, "alphabet_step");
     } catch (e) {
       console.error(e);
     }
@@ -116,12 +114,12 @@ const AlphabetLetter = () => {
               {letter.isolated}
             </div>
             <div>
-              {prefs.showArabic !== false && (
+              {prefs.showArabic && (
                 <p className="text-3xl text-foreground" style={{ fontFamily: "'Noto Sans Arabic', serif" }}>
                   {letter.name_ar}
                 </p>
               )}
-              {prefs.showEnglish !== false && (
+              {prefs.showEnglish && (
                 <p className="text-sm text-muted-foreground mt-1">
                   "{letter.name_translit}" — {letter.sound_hint}
                 </p>
@@ -158,7 +156,7 @@ const AlphabetLetter = () => {
                   <p className="text-3xl text-foreground" style={{ fontFamily: "'Noto Sans Arabic', serif" }}>
                     {ex.ar}
                   </p>
-                  {prefs.showEnglish !== false && (
+                  {prefs.showEnglish && (
                     <p className="text-sm text-muted-foreground" dir="ltr">
                       {ex.translit} · {ex.en}
                     </p>

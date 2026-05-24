@@ -78,8 +78,8 @@ export const useSRSStats = () => {
       if (wordReviewsRes.error) throw wordReviewsRes.error;
       if (userVocabularyRes.error) throw userVocabularyRes.error;
 
-      const wordReviews = (wordReviewsRes.data ?? []) as WordReviewSRSRow[];
-      const userVocabulary = (userVocabularyRes.data ?? []) as UserVocabularySRSRow[];
+      const wordReviews = (wordReviewsRes.data ?? []) as unknown as WordReviewSRSRow[];
+      const userVocabulary = (userVocabularyRes.data ?? []) as unknown as UserVocabularySRSRow[];
 
       const stageBreakdown = createEmptyStageBreakdown();
       const forecastDates: string[] = [];

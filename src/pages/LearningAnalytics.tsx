@@ -5,9 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { useAuth } from "@/hooks/useAuth";
 import { useLearningAnalytics } from "@/hooks/useAnalytics";
+import { useSRSStats } from "@/hooks/useSRSStats";
 import { cn } from "@/lib/utils";
 import { InfoHint } from "@/components/InfoHint";
 import { PAGE_HINTS } from "@/lib/pageHints";
+import { SRSForecastChart } from "@/components/srs/SRSForecastChart";
+import { SRSStageBar } from "@/components/srs/SRSStageBar";
 import {
   BarChart3,
   BookOpen,
@@ -83,6 +86,7 @@ const LearningAnalytics = () => {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
   const { data: analytics, isLoading } = useLearningAnalytics();
+  const { data: srsStats } = useSRSStats();
 
   if (!isAuthenticated) {
     return (
@@ -212,6 +216,50 @@ const LearningAnalytics = () => {
                 <span className="text-xs font-medium text-foreground w-8 text-right">{stage.count}</span>
               </div>
             ))}
+          </div>
+        </div>
+
+        {/* SRS Review Forecast */}
+        <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
+          <h2 className="font-semibold text-foreground flex items-center gap-2">
+            📅 Review Forecast (7 days)
+          </h2>
+          <p className="text-xs text-muted-foreground">Combined across curriculum and your saved words</p>
+          <div className="rounded-xl bg-primary/5 border border-primary/20 p-3">
+            <p className="text-xs text-muted-foreground">Due today</p>
+            <p className="text-2xl font-bold text-primary">{srsStats?.forecast[0]?.count ?? 0}</p>
+          </div>
+          <SRSForecastChart forecast={srsStats?.forecast ?? []} />
+        </div>
+
+        {/* SRS Card Health */}
+        <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
+          <h2 className="font-semibold text-foreground flex items-center gap-2">
+            🧠 Card Health
+          </h2>
+          <SRSStageBar
+            stages={srsStats?.stageBreakdown ?? {
+              new: 0,
+              learning: 0,
+              familiar: 0,
+              practiced: 0,
+              strong: 0,
+              mastered: 0,
+            }}
+            total={srsStats?.totalCards ?? 0}
+          />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+            <div className="rounded-lg bg-muted/50 p-3">
+              <p className="text-xs text-muted-foreground">Retention rate</p>
+              <p className="text-lg font-bold text-foreground">{srsStats?.retentionRate ?? 0}%</p>
+            </div>
+            <div className="rounded-lg bg-muted/50 p-3">
+              <p className="text-xs text-muted-foreground">Total cards</p>
+              <p className="text-lg font-bold text-foreground">{srsStats?.totalCards ?? 0}</p>
+              <p className="text-xs text-muted-foreground">
+                curriculum: {srsStats?.curriculumCards ?? 0} · my words: {srsStats?.myWordsCards ?? 0}
+              </p>
+            </div>
           </div>
         </div>
 

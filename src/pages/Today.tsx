@@ -5,13 +5,14 @@ import { HomeButton } from "@/components/HomeButton";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserXP } from "@/hooks/useGamification";
 import { useTodayQueue } from "@/hooks/useTodayQueue";
+import { useSRSStats } from "@/hooks/useSRSStats";
 import { DailyGoalRing } from "@/components/today/DailyGoalRing";
 import { TaskRow } from "@/components/today/TaskRow";
 import { StreakDisplay } from "@/components/gamification";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
-import { Settings2, Loader2, LogIn, Sparkles } from "lucide-react";
+import { Settings2, Loader2, LogIn, Sparkles, Brain } from "lucide-react";
 import { getDailyGoal, setDailyGoal, markTaskCompletedToday } from "@/lib/todayCompletion";
 import { InfoHint } from "@/components/InfoHint";
 
@@ -46,6 +47,7 @@ const TodayPage = () => {
   const navigate = useNavigate();
   const { isAuthenticated, loading: authLoading } = useAuth();
   const { data: xp } = useUserXP();
+  const { data: srsStats } = useSRSStats();
   const tasks = useTodayQueue();
 
   const [goal, setGoalState] = useState<number>(() => getDailyGoal());
@@ -166,6 +168,13 @@ const TodayPage = () => {
         </header>
 
         <section className="space-y-3">
+          {srsStats && srsStats.totalDueNow > 0 && (
+            <div className="flex items-center gap-2 p-3 rounded-xl bg-primary/5 border border-primary/20 text-sm">
+              <Brain className="h-4 w-4 text-primary shrink-0" />
+              <span className="text-foreground font-medium">{srsStats.totalDueNow} SRS cards due</span>
+              <span className="text-muted-foreground ml-auto">{srsStats.curriculumDue} curriculum · {srsStats.myWordsDue} personal</span>
+            </div>
+          )}
           {visibleTasks.map((task) => (
             <TaskRow
               key={task.id}

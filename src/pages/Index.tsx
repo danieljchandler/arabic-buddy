@@ -446,6 +446,13 @@ const Index = () => {
           "comprehension": (
             <div key="comprehension">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1 mb-2">Comprehension</p>
+              <button onClick={() => navigate("/alphabet")} className={cn("w-full p-4 rounded-xl mb-2 bg-gradient-to-r from-amber-500/15 to-orange-500/10 border-2 border-amber-500/30 flex items-center gap-3 transition-all duration-200 hover:border-amber-500/50 active:scale-[0.98]")}>
+                <div className="w-10 h-10 rounded-lg bg-amber-500/15 flex items-center justify-center shrink-0 text-2xl">🐪</div>
+                <div className="text-left flex-1">
+                  <p className="font-semibold text-foreground flex items-center gap-1.5">Alphabet Journey<InfoHint title="Alphabet Journey" body="A 28-stop caravan through the Arabic alphabet. Each stop: meet the letter, hear it, trace it, see its 4 shapes, then 2 quick games." /></p>
+                  <p className="text-xs text-muted-foreground">Learn all 28 letters — trace, hear & play</p>
+                </div>
+              </button>
               <button onClick={() => navigate("/listening")} className={cn("w-full p-4 rounded-xl mb-2 bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border border-cyan-500/20 flex items-center gap-3 transition-all duration-200 hover:border-cyan-500/40 active:scale-[0.98]")}>
                 <div className="w-10 h-10 rounded-lg bg-cyan-500/10 flex items-center justify-center shrink-0">
                   <Headphones className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />

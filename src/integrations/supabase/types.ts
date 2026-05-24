@@ -2025,6 +2025,33 @@ export type Database = {
           },
         ]
       }
+      user_checkpoint_progress: {
+        Row: {
+          checkpoint_index: number
+          completed_at: string
+          created_at: string
+          id: string
+          score: number
+          user_id: string
+        }
+        Insert: {
+          checkpoint_index: number
+          completed_at?: string
+          created_at?: string
+          id?: string
+          score?: number
+          user_id: string
+        }
+        Update: {
+          checkpoint_index?: number
+          completed_at?: string
+          created_at?: string
+          id?: string
+          score?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_concept_mastery: {
         Row: {
           concept_id: string
@@ -2135,6 +2162,45 @@ export type Database = {
           follower_id?: string
           following_id?: string
           id?: string
+        }
+        Relationships: []
+      }
+      user_letter_progress: {
+        Row: {
+          best_sound_score: number
+          best_spot_score: number
+          created_at: string
+          id: string
+          last_practiced_at: string
+          letter_code: string
+          mastered_at: string | null
+          steps_completed: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          best_sound_score?: number
+          best_spot_score?: number
+          created_at?: string
+          id?: string
+          last_practiced_at?: string
+          letter_code: string
+          mastered_at?: string | null
+          steps_completed?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          best_sound_score?: number
+          best_spot_score?: number
+          created_at?: string
+          id?: string
+          last_practiced_at?: string
+          letter_code?: string
+          mastered_at?: string | null
+          steps_completed?: Json
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }

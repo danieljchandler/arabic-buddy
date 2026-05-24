@@ -63,6 +63,9 @@ const BibleLessons = lazyPage(() => import("./pages/BibleLessons"));
 const MyTranscriptions = lazyPage(() => import("./pages/MyTranscriptions"));
 const PictureScenes = lazyPage(() => import("./pages/PictureScenes"));
 const PictureScenePlayer = lazyPage(() => import("./pages/PictureScenePlayer"));
+const AlphabetJourney = lazyPage(() => import("./pages/AlphabetJourney"));
+const AlphabetLetter = lazyPage(() => import("./pages/AlphabetLetter"));
+const AlphabetCheckpoint = lazyPage(() => import("./pages/AlphabetCheckpoint"));
 
 // Admin pages
 const AdminLayout = lazyPage(() => import("./pages/admin/AdminLayout"));
@@ -336,6 +339,15 @@ const App = () => {
             } />
             <Route path="/picture-scenes/:sceneId" element={
               <ErrorBoundary name="PictureScenePlayerRoute"><PictureScenePlayer /></ErrorBoundary>
+            } />
+            <Route path="/alphabet" element={
+              <ErrorBoundary name="AlphabetJourneyRoute"><AlphabetJourney /></ErrorBoundary>
+            } />
+            <Route path="/alphabet/checkpoint/:index" element={
+              <ErrorBoundary name="AlphabetCheckpointRoute"><ProtectedRoute><AlphabetCheckpoint /></ProtectedRoute></ErrorBoundary>
+            } />
+            <Route path="/alphabet/:letterCode" element={
+              <ErrorBoundary name="AlphabetLetterRoute"><AlphabetLetter /></ErrorBoundary>
             } />
 
             <Route path="/admin" element={<ErrorBoundary name="AdminRoute"><AdminLayout /></ErrorBoundary>}>

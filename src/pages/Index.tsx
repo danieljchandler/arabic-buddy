@@ -5,6 +5,7 @@ import { useBibleAccess } from "@/hooks/useBibleAccess";
 import { supabase } from "@/integrations/supabase/client";
 import { useReviewStats } from "@/hooks/useReview";
 import { useUserVocabularyDueCount } from "@/hooks/useUserVocabulary";
+import { useSRSStats } from "@/hooks/useSRSStats";
 import { useDiscoverVideos } from "@/hooks/useDiscoverVideos";
 import { Button } from "@/components/design-system";
 import { Settings, Brain, LogIn, LogOut, Mic, BookOpen, Sparkles, GraduationCap, Laugh, Play, ChevronRight, Twitter, MessageCircleQuestion, Compass, MessageSquare, MessageCircle, Globe2, Headphones, Trophy, FileText, Flame, BarChart3, PenTool, Gamepad2, Users, Swords, Newspaper, BookMarked, Image as ImageIcon } from "lucide-react";
@@ -74,6 +75,7 @@ const Index = () => {
   } = useAuth();
   const { data: myWordsStats } = useUserVocabularyDueCount();
   const { data: stats } = useReviewStats();
+  const { data: srsStats } = useSRSStats();
   const { data: discoverVideos } = useDiscoverVideos({ dialect: activeDialect });
   const { hasAccess: hasBibleAccess } = useBibleAccess();
 
@@ -218,6 +220,20 @@ const Index = () => {
                 </div>
                 <ChevronRight className="h-5 w-5 text-primary shrink-0" />
               </button>
+              {srsStats && srsStats.totalDueNow > 0 && (
+                <button
+                  onClick={() => navigate(srsStats.myWordsDue >= srsStats.curriculumDue ? "/review/my-words" : "/review")}
+                  className="w-full p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-between"
+                >
+                  <div className="flex items-center gap-2">
+                    <Brain className="h-4 w-4 text-amber-600" />
+                    <span className="text-sm font-medium text-foreground">
+                      {srsStats.totalDueNow} {srsStats.totalDueNow === 1 ? "card" : "cards"} due for review
+                    </span>
+                  </div>
+                  <span className="text-xs text-amber-600 font-semibold">Review now →</span>
+                </button>
+              )}
               <div className="flex gap-3">
                 <XPDisplay compact className="flex-1" />
                 <StreakDisplay compact />

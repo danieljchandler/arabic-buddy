@@ -11,7 +11,8 @@ export interface WordWithTopic {
   audio_url: string | null;
   image_position: string | null;
   display_order: number;
-  topic_id: string;
+  topic_id: string | null;
+  lesson_id: string | null;
   topic_name: string;
   topic_name_arabic: string;
 }
@@ -43,6 +44,11 @@ export const useAllWords = (onlyNew = false) => {
           image_position,
           display_order,
           topic_id,
+          lesson_id,
+          lessons (
+            title,
+            title_arabic
+          ),
           topics (
             name,
             name_arabic
@@ -54,6 +60,7 @@ export const useAllWords = (onlyNew = false) => {
       if (error) throw error;
 
       let mapped = (words || []).map((w: any) => {
+        const lesson = w.lessons;
         const topic = w.topics;
         return {
           id: w.id,
@@ -64,8 +71,9 @@ export const useAllWords = (onlyNew = false) => {
           image_position: w.image_position,
           display_order: w.display_order,
           topic_id: w.topic_id,
-          topic_name: topic?.name || '',
-          topic_name_arabic: topic?.name_arabic || '',
+          lesson_id: w.lesson_id,
+          topic_name: lesson?.title || topic?.name || '',
+          topic_name_arabic: lesson?.title_arabic || topic?.name_arabic || '',
         };
       });
 

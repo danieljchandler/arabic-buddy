@@ -20,14 +20,14 @@ type Phase = "intro" | "quiz";
 const BATCH_SIZE = 5;
 
 const Learn = () => {
-  const { topicId } = useParams<{ topicId: string }>();
+  const { lessonId } = useParams<{ lessonId: string }>();
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
   const submitReview = useSubmitReview();
 
-  // Mixed mode: no topicId, fetch all words shuffled
-  const isMixedMode = !topicId;
-  const { data: topic, isLoading: topicLoading, error: topicError } = useTopic(topicId);
+  // Mixed mode: no lessonId, fetch all words shuffled
+  const isMixedMode = !lessonId;
+  const { data: topic, isLoading: topicLoading, error: topicError } = useTopic(lessonId);
   const { data: allWords, isLoading: allWordsLoading, error: allWordsError } = useAllWords(true);
 
   const isLoading = isMixedMode ? allWordsLoading : topicLoading;
@@ -92,7 +92,7 @@ const Learn = () => {
     setPhase("intro");
     setSessionResults({ correct: 0, total: 0 });
     setIsComplete(false);
-  }, [topicId]);
+  }, [lessonId]);
 
   const handleContinueToQuiz = () => {
     setPhase("quiz");

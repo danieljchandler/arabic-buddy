@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
-import { useTopics } from '@/hooks/useTopics';
+import { useLessons } from '@/hooks/useLessons';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, LogOut, BookOpen, Plus, Settings, Mic, PlayCircle, Upload, GraduationCap, Sparkles, BookMarked, TrendingUp, Image as ImageIcon, Laugh, MessageCircle } from 'lucide-react';
@@ -13,24 +13,19 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const { activeDialect } = useDialect();
   const { user, isAdmin, isRecorder, role, signOut, loading: authLoading } = useAdminAuth();
-  const { data: topics, isLoading: topicsLoading } = useTopics();
+  const { data: lessons, isLoading: lessonsLoading } = useLessons();
 
-  // Get word counts for each topic
-  const { data: wordCounts } = useQuery({
-    queryKey: ['word-counts', activeDialect],
+  // Get total word count for the active dialect
+  const { data: totalWords } = useQuery({
+    queryKey: ['word-count-total', activeDialect],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { count, error } = await supabase
         .from('vocabulary_words')
-        .select('topic_id')
+        .select('id', { count: 'exact', head: true })
         .eq('dialect_module', activeDialect);
 
       if (error) throw error;
-
-      const counts: Record<string, number> = {};
-      data?.forEach(word => {
-        counts[word.topic_id] = (counts[word.topic_id] || 0) + 1;
-      });
-      return counts;
+      return count || 0;
     },
   });
 
@@ -39,7 +34,7 @@ const Dashboard = () => {
     navigate('/admin/login');
   };
 
-  if (authLoading || topicsLoading) {
+  if (authLoading || lessonsLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -47,7 +42,8 @@ const Dashboard = () => {
     );
   }
 
-  const totalWords = wordCounts ? Object.values(wordCounts).reduce((a, b) => a + b, 0) : 0;
+  const wordCount = totalWords || 0;
+  const lessonCount = lessons?.length || 0;
   const roleLabel = isAdmin ? 'Admin' : isRecorder ? 'Recorder' : '';
 
   return (
@@ -86,20 +82,20 @@ const Dashboard = () => {
           <Card>
             <CardHeader className="pb-2">
               <CardDescription>Total Lessons</CardDescription>
-              <CardTitle className="text-4xl">{topics?.length || 0}</CardTitle>
+              <CardTitle className="text-4xl">{lessonCount}</CardTitle>
             </CardHeader>
           </Card>
           <Card>
             <CardHeader className="pb-2">
               <CardDescription>Total Words</CardDescription>
-              <CardTitle className="text-4xl">{totalWords}</CardTitle>
+              <CardTitle className="text-4xl">{wordCount}</CardTitle>
             </CardHeader>
           </Card>
           <Card>
             <CardHeader className="pb-2">
               <CardDescription>Average Words/Lesson</CardDescription>
               <CardTitle className="text-4xl">
-                {topics?.length ? Math.round(totalWords / topics.length) : 0}
+                {lessonCount ? Math.round(wordCount / lessonCount) : 0}
               </CardTitle>
             </CardHeader>
           </Card>
@@ -319,33 +315,33 @@ const Dashboard = () => {
           )}
         </div>
 
-        {/* Topics List */}
+        {/* Lessons List */}
         <Card>
           <CardHeader>
-            <CardTitle>Topics Overview</CardTitle>
+            <CardTitle>Lessons Overview</CardTitle>
             <CardDescription>
               {isAdmin 
-                ? 'Click a topic to manage its vocabulary words' 
-                : 'Click a topic to add words or record audio'}
+                ? 'Click a lesson to manage its vocabulary words' 
+                : 'Click a lesson to add words or record audio'}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {topics && topics.length > 0 ? (
+            {lessons && lessons.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {topics.map((topic) => (
+                {lessons.map((lesson) => (
                   <Card
-                    key={topic.id}
+                    key={lesson.id}
                     className="cursor-pointer hover:shadow-md transition-shadow"
-                    onClick={() => navigate(`/admin/topics/${topic.id}/words`)}
+                    onClick={() => navigate(`/admin/lessons/${lesson.id}/words`)}
                   >
                     <CardContent className="pt-4">
                       <div className="flex items-center gap-3">
-                        <span className="text-3xl">{topic.icon}</span>
+                        <span className="text-3xl">{lesson.icon}</span>
                         <div>
-                          <h4 className="font-semibold">{topic.name}</h4>
-                          <p className="text-sm text-muted-foreground font-arabic">{topic.name_arabic}</p>
+                          <h4 className="font-semibold">{lesson.name}</h4>
+                          <p className="text-sm text-muted-foreground font-arabic">{lesson.name_arabic}</p>
                           <p className="text-xs text-muted-foreground mt-1">
-                            {wordCounts?.[topic.id] || 0} words
+                            {lesson.word_count || 0} words
                           </p>
                         </div>
                       </div>
@@ -357,14 +353,14 @@ const Dashboard = () => {
               <div className="text-center py-8 text-muted-foreground">
                 {isAdmin ? (
                   <>
-                    <p>No topics yet. Create your first topic to get started.</p>
-                    <Button className="mt-4" onClick={() => navigate('/admin/topics/new')}>
+                    <p>No lessons yet. Use the Curriculum Builder or import a lesson plan to get started.</p>
+                    <Button className="mt-4" onClick={() => navigate('/admin/curriculum-builder')}>
                       <Plus className="h-4 w-4 mr-2" />
-                      Add Topic
+                      Create Lesson
                     </Button>
                   </>
                 ) : (
-                  <p>No topics available. Ask an admin to create topics first.</p>
+                  <p>No lessons available. Ask an admin to create lessons first.</p>
                 )}
               </div>
             )}

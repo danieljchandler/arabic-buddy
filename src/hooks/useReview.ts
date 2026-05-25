@@ -57,8 +57,15 @@ export const useDueWords = (mixAll = false) => {
           image_url,
           audio_url,
           topic_id,
+          lesson_id,
           image_position,
           dialect_module,
+          lessons (
+            title,
+            title_arabic,
+            gradient,
+            icon
+          ),
           topics (
             name,
             name_arabic,
@@ -86,11 +93,15 @@ export const useDueWords = (mixAll = false) => {
       const dueWords = words
         ?.map(word => {
           const review = reviewMap.get(word.id) || null;
+          const lessonData = (word as any).lessons;
           const topicData = (word as any).topics;
+          const resolvedTopic = lessonData
+            ? { name: lessonData.title, name_arabic: lessonData.title_arabic || '', gradient: lessonData.gradient, icon: lessonData.icon }
+            : topicData;
           return {
             ...word,
             review,
-            topic: topicData as WordWithReview['topic'],
+            topic: resolvedTopic as WordWithReview['topic'],
           };
         })
         .filter(word => {

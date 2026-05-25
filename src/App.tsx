@@ -208,8 +208,8 @@ const App = () => {
               </ErrorBoundary>
             } />
             <Route path="/learn" element={<ErrorBoundary name="LearnRoute"><Learn /></ErrorBoundary>} />
-            <Route path="/learn/:topicId" element={<ErrorBoundary name="LearnTopicRoute"><Learn /></ErrorBoundary>} />
-            <Route path="/quiz/:topicId" element={<ErrorBoundary name="QuizRoute"><Quiz /></ErrorBoundary>} />
+            <Route path="/learn/:lessonId" element={<ErrorBoundary name="LearnLessonRoute"><Learn /></ErrorBoundary>} />
+            <Route path="/quiz/:lessonId" element={<ErrorBoundary name="QuizRoute"><Quiz /></ErrorBoundary>} />
             <Route path="/discover" element={<ErrorBoundary name="DiscoverRoute"><Discover /></ErrorBoundary>} />
             <Route path="/discover/:videoId" element={<ErrorBoundary name="DiscoverVideoRoute"><DiscoverVideo /></ErrorBoundary>} />
             <Route path="/learn-from-x" element={

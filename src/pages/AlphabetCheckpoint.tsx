@@ -7,6 +7,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { HomeButton } from "@/components/HomeButton";
 import { LetterAudioButton } from "@/components/alphabet/LetterAudioButton";
 import { Button } from "@/components/ui/button";
+import { tapFeedback, playSuccessChime } from "@/lib/tapFeedback";
 import { Trophy, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 

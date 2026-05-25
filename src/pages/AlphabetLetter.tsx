@@ -139,7 +139,7 @@ const AlphabetLetter = () => {
                 <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Dialect</span>
               </div>
             </div>
-            <Button onClick={() => { handleStepDone("meet"); setStepIdx(1); }} size="lg" className="w-full">
+            <Button onClick={(e) => { tapFeedback(e.currentTarget); handleStepDone("meet"); setStepIdx(1); }} size="lg" className="w-full">
               I've heard it <ChevronRight className="h-4 w-4 ml-1" />
             </Button>
           </div>

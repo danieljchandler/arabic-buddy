@@ -124,6 +124,15 @@ const AlphabetJourney = () => {
                         style={{ borderColor: mastered ? "#CFA44E" : "#5C3A46", opacity: 0.35 }}
                       />
                     )}
+                    {/* Shine sweep for mastered stops */}
+                    {mastered && (
+                      <div className="absolute inset-1 rounded-full overflow-hidden pointer-events-none">
+                        <div
+                          className="animate-shine-sweep absolute -left-full w-[300%] h-full bg-gradient-to-r from-transparent via-white/30 to-transparent"
+                          style={{ transform: "skewX(-20deg)" }}
+                        />
+                      </div>
+                    )}
                     {!unlocked ? (
                       <Lock className="h-5 w-5 text-muted-foreground" />
                     ) : (

@@ -157,7 +157,12 @@ const AlphabetJourney = () => {
                 {/* Checkpoint marker - oasis card */}
                 {isCheckpointAfter && checkpointIdx >= 0 && (
                   <button
-                    onClick={() => navigate(`/alphabet/checkpoint/${checkpointIdx}`)}
+                    onClick={(e) => {
+                      if (mastered) {
+                        tapFeedback(e.currentTarget);
+                        navigate(`/alphabet/checkpoint/${checkpointIdx}`);
+                      }
+                    }}
                     disabled={!mastered}
                     className={cn(
                       "mt-3 w-full p-4 rounded-2xl border-2 flex items-center justify-center gap-3 transition-all relative overflow-hidden",

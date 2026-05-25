@@ -106,6 +106,7 @@ const AlphabetJourney = () => {
 
                   {/* Stop node */}
                   <div
+                    data-tap-node
                     className={cn(
                       "relative h-16 w-16 rounded-full border-2 flex items-center justify-center shrink-0 transition-all",
                       mastered &&

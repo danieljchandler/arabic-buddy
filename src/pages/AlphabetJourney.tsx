@@ -45,8 +45,15 @@ const AlphabetJourney = () => {
       </header>
 
       <div className="relative">
-        {/* Vertical trail line */}
-        <div className="absolute left-1/2 top-6 bottom-6 w-0.5 bg-gradient-to-b from-primary/40 via-primary/20 to-primary/10 -translate-x-1/2 rounded-full" />
+        {/* Vertical trail line - dashed caravan path */}
+        <div
+          className="absolute left-1/2 top-6 bottom-6 -translate-x-1/2 w-px"
+          style={{
+            backgroundImage:
+              "repeating-linear-gradient(to bottom, #5C3A46 0 6px, transparent 6px 12px)",
+            opacity: 0.35,
+          }}
+        />
 
         <div className="relative space-y-3">
           {ARABIC_LETTERS.map((letter) => {
@@ -64,13 +71,21 @@ const AlphabetJourney = () => {
                   onClick={() => unlocked && navigate(`/alphabet/${letter.code}`)}
                   disabled={!unlocked}
                   className={cn(
-                    "w-full flex items-center gap-3",
+                    "w-full flex items-center gap-2",
                     isLeft ? "flex-row" : "flex-row-reverse",
                   )}
                 >
-                  {/* Side label */}
-                  <div className={cn("flex-1 px-3", isLeft ? "text-right" : "text-left")}>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  {/* Side label card */}
+                  <div
+                    className={cn(
+                      "flex-1 px-3 py-2 rounded-xl border backdrop-blur-sm transition-colors",
+                      isLeft ? "text-right" : "text-left",
+                      unlocked
+                        ? "bg-[#F9F7F2]/75 border-[#5C3A46]/25"
+                        : "bg-muted/40 border-muted-foreground/15",
+                    )}
+                  >
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-[#5C3A46]/70">
                       Stop {letter.order_index + 1}
                     </p>
                     <p className="text-sm font-medium text-foreground">
@@ -87,18 +102,28 @@ const AlphabetJourney = () => {
                   <div
                     className={cn(
                       "relative h-16 w-16 rounded-full border-2 flex items-center justify-center shrink-0 transition-all",
-                      mastered && "bg-green-500/15 border-green-500 shadow-md",
-                      !mastered && unlocked && "bg-card border-primary hover:border-primary/80 hover:shadow-md active:scale-95",
-                      !unlocked && "bg-muted border-muted-foreground/20 opacity-60",
+                      mastered &&
+                        "bg-gradient-to-br from-[#F1E3C6] to-[#E2C892] border-[#CFA44E] shadow-[0_4px_14px_-4px_rgba(207,164,78,0.6)]",
+                      !mastered &&
+                        unlocked &&
+                        "bg-gradient-to-br from-[#FBF6EC] to-[#EFE2CC] border-[#5C3A46] shadow-[0_4px_12px_-4px_rgba(92,58,70,0.35)] hover:shadow-[0_6px_18px_-4px_rgba(92,58,70,0.5)] active:scale-95",
+                      !unlocked && "bg-muted border-muted-foreground/25 opacity-60",
                     )}
                   >
+                    {/* Decorative inner ring */}
+                    {unlocked && (
+                      <div
+                        className="absolute inset-1 rounded-full border border-dashed pointer-events-none"
+                        style={{ borderColor: mastered ? "#CFA44E" : "#5C3A46", opacity: 0.35 }}
+                      />
+                    )}
                     {!unlocked ? (
                       <Lock className="h-5 w-5 text-muted-foreground" />
                     ) : (
                       <span
                         className={cn(
-                          "text-3xl",
-                          mastered ? "text-green-700" : "text-primary",
+                          "text-3xl relative",
+                          mastered ? "text-[#7A5320]" : "text-[#5C3A46]",
                         )}
                         style={{ fontFamily: "'Noto Sans Arabic', serif", lineHeight: 1 }}
                       >
@@ -106,40 +131,67 @@ const AlphabetJourney = () => {
                       </span>
                     )}
                     {mastered && (
-                      <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-green-500 text-white flex items-center justify-center">
+                      <span className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-[#4A7A40] text-white flex items-center justify-center shadow">
                         <Check className="h-3 w-3" />
                       </span>
                     )}
                   </div>
 
-                  {/* Spacer */}
-                  <div className="flex-1" />
+                  {/* Ornament instead of empty spacer */}
+                  <div className="flex-1 flex justify-center">
+                    <StopOrnament
+                      index={letter.order_index}
+                      side={isLeft ? "right" : "left"}
+                      active={unlocked}
+                    />
+                  </div>
                 </button>
 
-                {/* Checkpoint marker */}
+                {/* Checkpoint marker - oasis card */}
                 {isCheckpointAfter && checkpointIdx >= 0 && (
                   <button
                     onClick={() => navigate(`/alphabet/checkpoint/${checkpointIdx}`)}
                     disabled={!mastered}
                     className={cn(
-                      "mt-3 w-full p-3 rounded-2xl border-2 flex items-center justify-center gap-2 transition-all",
+                      "mt-3 w-full p-4 rounded-2xl border-2 flex items-center justify-center gap-3 transition-all relative overflow-hidden",
                       mastered
                         ? checkpoints[checkpointIdx]
-                          ? "border-amber-500 bg-amber-500/10"
-                          : "border-amber-500 bg-amber-500/5 hover:bg-amber-500/10 animate-pulse"
+                          ? "border-[#CFA44E] bg-gradient-to-r from-[#F4E3B8]/80 via-[#F9F0D4]/80 to-[#F4E3B8]/80"
+                          : "border-[#CFA44E] bg-gradient-to-r from-[#F9F0D4]/70 to-[#F4E3B8]/70 hover:from-[#F4E3B8] hover:to-[#EED9A0] animate-pulse"
                         : "border-muted bg-muted/30 opacity-60",
                     )}
                   >
-                    {checkpoints[checkpointIdx] ? (
-                      <Trophy className="h-5 w-5 text-amber-600" />
-                    ) : (
-                      <Flag className="h-5 w-5 text-amber-600" />
+                    {/* Faint palm silhouettes left/right */}
+                    {mastered && (
+                      <>
+                        <svg className="absolute left-2 bottom-1 opacity-40" width="22" height="32" viewBox="0 0 40 64">
+                          <path d="M20,60 Q18,40 22,18" stroke="#5C3A1E" strokeWidth="2" fill="none" />
+                          <g transform="translate(22,18)">
+                            {[0, 60, 120, 180, 240, 300].map((a) => (
+                              <path key={a} d="M0,0 Q9,-3 16,2" stroke="#4A7A40" strokeWidth="1.8" fill="none" transform={`rotate(${a})`} />
+                            ))}
+                          </g>
+                        </svg>
+                        <svg className="absolute right-2 bottom-1 opacity-40 -scale-x-100" width="22" height="32" viewBox="0 0 40 64">
+                          <path d="M20,60 Q18,40 22,18" stroke="#5C3A1E" strokeWidth="2" fill="none" />
+                          <g transform="translate(22,18)">
+                            {[0, 60, 120, 180, 240, 300].map((a) => (
+                              <path key={a} d="M0,0 Q9,-3 16,2" stroke="#4A7A40" strokeWidth="1.8" fill="none" transform={`rotate(${a})`} />
+                            ))}
+                          </g>
+                        </svg>
+                      </>
                     )}
-                    <span className="font-bold text-foreground">
-                      Caravan Checkpoint {checkpointIdx + 1}
+                    {checkpoints[checkpointIdx] ? (
+                      <Trophy className="h-5 w-5 text-[#A57B1F] relative" />
+                    ) : (
+                      <Flag className="h-5 w-5 text-[#A57B1F] relative" />
+                    )}
+                    <span className="font-bold text-[#5C3A46] relative">
+                      Oasis Checkpoint {checkpointIdx + 1}
                     </span>
                     {checkpoints[checkpointIdx] && (
-                      <span className="text-xs text-amber-700 ml-2">
+                      <span className="text-xs font-semibold text-[#A57B1F] ml-1 relative">
                         {checkpoints[checkpointIdx].score}%
                       </span>
                     )}

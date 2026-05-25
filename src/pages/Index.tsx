@@ -23,6 +23,8 @@ import { HomeSectionId, isSectionVisible } from "@/lib/homeLayout";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { DiscoverPreviewCard } from "@/components/discover/DiscoverPreviewCard";
 import { InfoHint } from "@/components/InfoHint";
+import { useAlphabetProgress } from "@/hooks/useAlphabetProgress";
+import { ARABIC_LETTERS } from "@/data/arabicAlphabet";
 
 const TILE_HINTS: Record<string, { title: string; body: string }> = {
   "today": { title: "Start today", body: "Your daily learning queue — reviews, a challenge, listening and reading, all picked for today. The fastest way to grow your streak." },
@@ -80,6 +82,10 @@ const Index = () => {
   const { hasAccess: hasBibleAccess } = useBibleAccess();
 
   const { state: homeLayout } = useHomeLayout();
+  const { progress: alphabetProgress, masteredCount: alphabetMastered, isUnlocked: alphabetUnlocked } = useAlphabetProgress();
+  const currentLetter = isAuthenticated
+    ? ARABIC_LETTERS.find((l) => alphabetUnlocked(l.order_index) && !alphabetProgress[l.code]?.mastered_at) ?? ARABIC_LETTERS[0]
+    : null;
   const { isAdmin } = useAdminAuth();
   const [previewIndex, setPreviewIndex] = useState(0);
   const [placementLevel, setPlacementLevel] = useState<string | null>(null);
@@ -220,6 +226,32 @@ const Index = () => {
                 </div>
                 <ChevronRight className="h-5 w-5 text-primary shrink-0" />
               </button>
+              {currentLetter && (
+                <button
+                  onClick={() => navigate(alphabetMastered === 0 ? "/alphabet" : `/alphabet/${currentLetter.code}`)}
+                  className="w-full p-4 rounded-2xl bg-gradient-to-br from-[#F5E6CC] via-[#EFE0C2] to-[#E2C892]/60 border-2 border-[#CFA44E]/50 flex items-center gap-3 transition-all hover:border-[#CFA44E] hover:shadow-md active:scale-[0.99] text-left relative overflow-hidden"
+                >
+                  <div className="h-12 w-12 rounded-full bg-[#FBF6EC] border-2 border-[#5C3A46] flex items-center justify-center shrink-0 shadow-sm">
+                    <span
+                      className="text-2xl text-[#5C3A46]"
+                      style={{ fontFamily: "'Noto Sans Arabic', serif", lineHeight: 1 }}
+                    >
+                      {currentLetter.isolated}
+                    </span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-[#5C3A46]" style={{ fontFamily: "'Montserrat', sans-serif" }}>
+                      {alphabetMastered === 0 ? "Start the Alphabet Journey" : "Continue Alphabet Journey"}
+                    </p>
+                    <p className="text-xs text-[#5C3A46]/70 mt-0.5">
+                      {alphabetMastered === 0
+                        ? "Stop 1 of 28 — Alif"
+                        : `Stop ${currentLetter.order_index + 1} of 28 — ${currentLetter.name_translit} • ${alphabetMastered} mastered`}
+                    </p>
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-[#5C3A46] shrink-0" />
+                </button>
+              )}
               {srsStats && srsStats.totalDueNow > 0 && (
                 <button
                   onClick={() => navigate(srsStats.myWordsDue >= srsStats.curriculumDue ? "/review/my-words" : "/review")}

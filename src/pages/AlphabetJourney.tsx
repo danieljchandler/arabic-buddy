@@ -110,10 +110,10 @@ const AlphabetJourney = () => {
                     className={cn(
                       "relative h-16 w-16 rounded-full border-2 flex items-center justify-center shrink-0 transition-all",
                       mastered &&
-                        "bg-gradient-to-br from-[#F1E3C6] to-[#E2C892] border-[#CFA44E] shadow-[0_4px_14px_-4px_rgba(207,164,78,0.6)]",
+                        "bg-gradient-to-br from-[#F1E3C6] to-[#E2C892] border-[#CFA44E] shadow-[0_4px_14px_-4px_rgba(207,164,78,0.6)] animate-master-bounce",
                       !mastered &&
                         unlocked &&
-                        "bg-gradient-to-br from-[#FBF6EC] to-[#EFE2CC] border-[#5C3A46] shadow-[0_4px_12px_-4px_rgba(92,58,70,0.35)] hover:shadow-[0_6px_18px_-4px_rgba(92,58,70,0.5)] active:scale-95",
+                        "bg-gradient-to-br from-[#FBF6EC] to-[#EFE2CC] border-[#5C3A46] shadow-[0_4px_12px_-4px_rgba(92,58,70,0.35)] hover:shadow-[0_6px_18px_-4px_rgba(92,58,70,0.5)] active:scale-95 animate-unlock-bounce",
                       !unlocked && "bg-muted border-muted-foreground/25 opacity-60",
                     )}
                   >

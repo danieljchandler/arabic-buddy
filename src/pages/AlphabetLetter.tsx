@@ -238,7 +238,8 @@ const AlphabetLetter = () => {
                 )}
                 {next ? (
                   <Button
-                    onClick={() => {
+                    onClick={(e) => {
+                      tapFeedback(e.currentTarget);
                       if (allDone) {
                         toast.success(`${letter.name_translit} mastered! 🌟`);
                       }
@@ -250,7 +251,7 @@ const AlphabetLetter = () => {
                     Next letter: {next.name_translit} <ChevronRight className="h-4 w-4 ml-1" />
                   </Button>
                 ) : (
-                  <Button onClick={() => navigate("/alphabet")} size="lg" className="w-full">
+                  <Button onClick={(e) => { tapFeedback(e.currentTarget); navigate("/alphabet"); }} size="lg" className="w-full">
                     Back to map
                   </Button>
                 )}

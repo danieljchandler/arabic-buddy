@@ -69,7 +69,12 @@ const AlphabetJourney = () => {
             return (
               <div key={letter.code}>
                 <button
-                  onClick={() => unlocked && navigate(`/alphabet/${letter.code}`)}
+                  onClick={(e) => {
+                    if (unlocked) {
+                      tapFeedback(e.currentTarget.querySelector("[data-tap-node]") as HTMLElement);
+                      navigate(`/alphabet/${letter.code}`);
+                    }
+                  }}
                   disabled={!unlocked}
                   className={cn(
                     "w-full flex items-center gap-2",

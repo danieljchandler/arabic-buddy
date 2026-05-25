@@ -82,6 +82,10 @@ const Index = () => {
   const { hasAccess: hasBibleAccess } = useBibleAccess();
 
   const { state: homeLayout } = useHomeLayout();
+  const { progress: alphabetProgress, masteredCount: alphabetMastered, isUnlocked: alphabetUnlocked } = useAlphabetProgress();
+  const currentLetter = isAuthenticated
+    ? ARABIC_LETTERS.find((l) => alphabetUnlocked(l.order_index) && !alphabetProgress[l.code]?.mastered_at) ?? ARABIC_LETTERS[0]
+    : null;
   const { isAdmin } = useAdminAuth();
   const [previewIndex, setPreviewIndex] = useState(0);
   const [placementLevel, setPlacementLevel] = useState<string | null>(null);

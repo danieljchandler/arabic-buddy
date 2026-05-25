@@ -201,7 +201,7 @@ const AlphabetLetter = () => {
               Arabic letters change shape depending on where they appear in a word
             </p>
             <FourFacesPanel letter={letter} />
-            <Button onClick={() => { handleStepDone("faces"); setStepIdx(4); }} size="lg" className="w-full mt-4">
+            <Button onClick={(e) => { tapFeedback(e.currentTarget); handleStepDone("faces"); setStepIdx(4); }} size="lg" className="w-full mt-4">
               I see the difference <ChevronRight className="h-4 w-4 ml-1" />
             </Button>
           </div>

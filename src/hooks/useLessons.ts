@@ -14,32 +14,37 @@ export interface Lesson {
   word_count?: number;
 }
 
-/** Fetch all topics as lessons, filtered by active dialect module */
+/** Fetch lessons from the lessons table, filtered by active dialect module and optional stage */
 export const useLessons = (stageId?: string | undefined) => {
   const { activeDialect } = useDialect();
 
   return useQuery({
     queryKey: ['lessons', stageId, activeDialect],
     queryFn: async () => {
-      const query = supabase
-        .from('topics')
+      let query = supabase
+        .from('lessons')
         .select('*, vocabulary_words(id)')
+        .eq('dialect_module', activeDialect)
         .order('display_order', { ascending: true });
 
-      const { data, error } = await (query as any).eq('dialect_module', activeDialect);
+      if (stageId) {
+        query = query.eq('stage_id', stageId);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
 
-      return (data || []).map((topic: any) => ({
-        id: topic.id,
-        name: topic.name,
-        name_arabic: topic.name_arabic,
-        icon: topic.icon,
-        gradient: topic.gradient,
-        display_order: topic.display_order,
-        created_at: topic.created_at,
-        updated_at: topic.updated_at,
-        word_count: topic.vocabulary_words?.length || 0,
+      return (data || []).map((lesson: any) => ({
+        id: lesson.id,
+        name: lesson.title,
+        name_arabic: lesson.title_arabic || '',
+        icon: lesson.icon,
+        gradient: lesson.gradient,
+        display_order: lesson.display_order,
+        created_at: lesson.created_at,
+        updated_at: lesson.updated_at,
+        word_count: lesson.vocabulary_words?.length || 0,
       })) as Lesson[];
     },
   });

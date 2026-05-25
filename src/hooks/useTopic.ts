@@ -3,7 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 
 export interface VocabularyWord {
   id: string;
-  topic_id: string;
+  topic_id: string | null;
+  lesson_id?: string | null;
   word_arabic: string;
   word_english: string;
   image_url: string | null;
@@ -24,16 +25,48 @@ export interface TopicWithWords {
   words: VocabularyWord[];
 }
 
-export const useTopic = (topicId: string | undefined) => {
+/**
+ * Fetches a lesson or topic with its vocabulary words.
+ * Tries the lessons table first, then falls back to topics for legacy data.
+ */
+export const useTopic = (id: string | undefined) => {
   return useQuery({
-    queryKey: ['topic', topicId],
+    queryKey: ['topic', id],
     queryFn: async () => {
-      if (!topicId) throw new Error('Topic ID is required');
+      if (!id) throw new Error('ID is required');
 
+      // Try lessons table first
+      const { data: lesson } = await supabase
+        .from('lessons')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (lesson) {
+        const { data: words, error: wordsError } = await supabase
+          .from('vocabulary_words')
+          .select('*')
+          .eq('lesson_id', id)
+          .order('display_order', { ascending: true });
+
+        if (wordsError) throw wordsError;
+
+        return {
+          id: lesson.id,
+          name: lesson.title,
+          name_arabic: lesson.title_arabic || '',
+          icon: lesson.icon,
+          gradient: lesson.gradient,
+          display_order: lesson.display_order,
+          words: (words || []) as VocabularyWord[],
+        } as TopicWithWords;
+      }
+
+      // Fallback: topics table for legacy data
       const { data: topic, error: topicError } = await supabase
         .from('topics')
         .select('*')
-        .eq('id', topicId)
+        .eq('id', id)
         .single();
 
       if (topicError) throw topicError;
@@ -41,7 +74,7 @@ export const useTopic = (topicId: string | undefined) => {
       const { data: words, error: wordsError } = await supabase
         .from('vocabulary_words')
         .select('*')
-        .eq('topic_id', topicId)
+        .eq('topic_id', id)
         .order('display_order', { ascending: true });
 
       if (wordsError) throw wordsError;
@@ -51,6 +84,6 @@ export const useTopic = (topicId: string | undefined) => {
         words: (words || []) as VocabularyWord[],
       } as TopicWithWords;
     },
-    enabled: !!topicId,
+    enabled: !!id,
   });
 };

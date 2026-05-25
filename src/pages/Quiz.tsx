@@ -25,9 +25,9 @@ const shuffleArray = <T,>(array: T[]): T[] => {
 };
 
 const Quiz = () => {
-  const { topicId } = useParams<{ topicId: string }>();
+  const { lessonId } = useParams<{ lessonId: string }>();
   const navigate = useNavigate();
-  const { data: topic, isLoading, error } = useTopic(topicId);
+  const { data: topic, isLoading, error } = useTopic(lessonId);
   
   const [shuffledWords, setShuffledWords] = useState<VocabularyWord[]>([]);
   const [quizState, setQuizState] = useState<QuizState>({

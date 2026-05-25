@@ -63,47 +63,9 @@ export const useLessonImport = () => {
       if (lessonErr) throw lessonErr;
       const lessonRecord = lesson as unknown as { id: string; title: string };
 
-      // Insert vocabulary words linked to this lesson
+      // Insert vocabulary words linked directly to the lesson
       if (plan.vocabulary.length > 0) {
-        // We also need a topic_id for vocab — create or find one
-        const topicName = plan.title;
-        let topicId: string;
-
-        const { data: existingTopic } = await supabase
-          .from('topics')
-          .select('id')
-          .eq('name', topicName)
-          .maybeSingle();
-
-        if (existingTopic) {
-          topicId = existingTopic.id;
-        } else {
-          const { data: maxOrder } = await supabase
-            .from('topics')
-            .select('display_order')
-            .order('display_order', { ascending: false })
-            .limit(1)
-            .maybeSingle();
-
-          const nextOrder = (maxOrder?.display_order ?? -1) + 1;
-
-          const { data: newTopic, error: topicError } = await supabase
-            .from('topics')
-            .insert({
-              name: topicName,
-              name_arabic: plan.titleArabic || topicName,
-              display_order: nextOrder,
-              dialect_module: plan.dialectModule || 'Gulf',
-            })
-            .select()
-            .single();
-
-          if (topicError) throw topicError;
-          topicId = newTopic.id;
-        }
-
         const wordsToInsert = plan.vocabulary.map((v, idx) => ({
-          topic_id: topicId,
           lesson_id: lessonRecord.id,
           word_arabic: v.arabic,
           word_english: v.english,

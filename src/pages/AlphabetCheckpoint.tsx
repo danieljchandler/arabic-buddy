@@ -7,6 +7,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { HomeButton } from "@/components/HomeButton";
 import { LetterAudioButton } from "@/components/alphabet/LetterAudioButton";
 import { Button } from "@/components/ui/button";
+import { tapFeedback, playSuccessChime } from "@/lib/tapFeedback";
 import { Trophy, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -57,6 +58,7 @@ const AlphabetCheckpoint = () => {
       const correct = rounds.filter((r, i) => r.target.code === newPicks[i]).length;
       const score = Math.round((correct / rounds.length) * 100);
       setFinalScore(score);
+      if (score >= 70) playSuccessChime();
       try {
         await recordCheckpoint({ index: idx, score });
       } catch (e) {
@@ -97,10 +99,10 @@ const AlphabetCheckpoint = () => {
             <p className="text-sm text-green-600 font-semibold">New personal best!</p>
           )}
           <div className="flex gap-2 justify-center mt-4">
-            <Button variant="outline" onClick={() => { setRoundIdx(0); setPicks([]); setFinalScore(null); }}>
+            <Button variant="outline" onClick={(e) => { tapFeedback(e.currentTarget); setRoundIdx(0); setPicks([]); setFinalScore(null); }}>
               Retry
             </Button>
-            <Button onClick={() => navigate("/alphabet")}>Back to map</Button>
+            <Button onClick={(e) => { tapFeedback(e.currentTarget); navigate("/alphabet"); }}>Back to map</Button>
           </div>
         </div>
       </AppShell>
@@ -145,7 +147,10 @@ const AlphabetCheckpoint = () => {
           {round.options.map((l) => (
             <button
               key={l.code}
-              onClick={() => choose(l.code)}
+              onClick={(e) => {
+                tapFeedback(e.currentTarget);
+                choose(l.code);
+              }}
               className={cn(
                 "p-6 rounded-2xl border-2 border-border bg-card transition-all active:scale-95",
                 "hover:border-primary/40",

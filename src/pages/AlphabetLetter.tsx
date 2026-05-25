@@ -12,6 +12,7 @@ import { SpotTheLetterGame } from "@/components/alphabet/SpotTheLetterGame";
 import { SoundMatchGame } from "@/components/alphabet/SoundMatchGame";
 import { useDisplayPrefs } from "@/hooks/useDisplayPrefs";
 import { Button } from "@/components/ui/button";
+import { tapFeedback } from "@/lib/tapFeedback";
 import { ChevronLeft, ChevronRight, Check, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -84,7 +85,10 @@ const AlphabetLetter = () => {
         {LETTER_STEPS.map((s, i) => (
           <button
             key={s}
-            onClick={() => setStepIdx(i)}
+            onClick={(e) => {
+              tapFeedback(e.currentTarget);
+              setStepIdx(i);
+            }}
             className={cn(
               "h-2 rounded-full transition-all",
               i === stepIdx ? "w-8 bg-primary" : done[s] ? "w-2 bg-green-500" : "w-2 bg-muted-foreground/30",
@@ -135,7 +139,7 @@ const AlphabetLetter = () => {
                 <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Dialect</span>
               </div>
             </div>
-            <Button onClick={() => { handleStepDone("meet"); setStepIdx(1); }} size="lg" className="w-full">
+            <Button onClick={(e) => { tapFeedback(e.currentTarget); handleStepDone("meet"); setStepIdx(1); }} size="lg" className="w-full">
               I've heard it <ChevronRight className="h-4 w-4 ml-1" />
             </Button>
           </div>
@@ -164,7 +168,7 @@ const AlphabetLetter = () => {
                 </div>
               </div>
             ))}
-            <Button onClick={() => { handleStepDone("examples"); setStepIdx(2); }} size="lg" className="w-full mt-4">
+            <Button onClick={(e) => { tapFeedback(e.currentTarget); handleStepDone("examples"); setStepIdx(2); }} size="lg" className="w-full mt-4">
               Got it <ChevronRight className="h-4 w-4 ml-1" />
             </Button>
           </div>
@@ -180,7 +184,7 @@ const AlphabetLetter = () => {
               onComplete={() => handleStepDone("trace")}
             />
             <Button
-              onClick={() => setStepIdx(3)}
+              onClick={(e) => { tapFeedback(e.currentTarget); setStepIdx(3); }}
               size="lg"
               className="w-full"
               disabled={!done.trace}
@@ -197,7 +201,7 @@ const AlphabetLetter = () => {
               Arabic letters change shape depending on where they appear in a word
             </p>
             <FourFacesPanel letter={letter} />
-            <Button onClick={() => { handleStepDone("faces"); setStepIdx(4); }} size="lg" className="w-full mt-4">
+            <Button onClick={(e) => { tapFeedback(e.currentTarget); handleStepDone("faces"); setStepIdx(4); }} size="lg" className="w-full mt-4">
               I see the difference <ChevronRight className="h-4 w-4 ml-1" />
             </Button>
           </div>
@@ -210,7 +214,7 @@ const AlphabetLetter = () => {
               onComplete={(score) => handleStepDone("spot", { spotScore: score })}
             />
             {done.spot && (
-              <Button onClick={() => setStepIdx(5)} size="lg" className="w-full">
+              <Button onClick={(e) => { tapFeedback(e.currentTarget); setStepIdx(5); }} size="lg" className="w-full">
                 Next <ChevronRight className="h-4 w-4 ml-1" />
               </Button>
             )}
@@ -234,7 +238,8 @@ const AlphabetLetter = () => {
                 )}
                 {next ? (
                   <Button
-                    onClick={() => {
+                    onClick={(e) => {
+                      tapFeedback(e.currentTarget);
                       if (allDone) {
                         toast.success(`${letter.name_translit} mastered! 🌟`);
                       }
@@ -246,7 +251,7 @@ const AlphabetLetter = () => {
                     Next letter: {next.name_translit} <ChevronRight className="h-4 w-4 ml-1" />
                   </Button>
                 ) : (
-                  <Button onClick={() => navigate("/alphabet")} size="lg" className="w-full">
+                  <Button onClick={(e) => { tapFeedback(e.currentTarget); navigate("/alphabet"); }} size="lg" className="w-full">
                     Back to map
                   </Button>
                 )}
@@ -261,7 +266,10 @@ const AlphabetLetter = () => {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => setStepIdx(Math.max(0, stepIdx - 1))}
+          onClick={(e) => {
+            tapFeedback(e.currentTarget);
+            setStepIdx(Math.max(0, stepIdx - 1));
+          }}
           disabled={stepIdx === 0}
         >
           <ChevronLeft className="h-4 w-4 mr-1" /> Back
@@ -270,7 +278,10 @@ const AlphabetLetter = () => {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => setStepIdx(Math.min(LETTER_STEPS.length - 1, stepIdx + 1))}
+          onClick={(e) => {
+            tapFeedback(e.currentTarget);
+            setStepIdx(Math.min(LETTER_STEPS.length - 1, stepIdx + 1));
+          }}
           disabled={stepIdx === LETTER_STEPS.length - 1}
         >
           Skip <ChevronRight className="h-4 w-4 ml-1" />

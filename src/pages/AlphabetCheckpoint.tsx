@@ -99,10 +99,10 @@ const AlphabetCheckpoint = () => {
             <p className="text-sm text-green-600 font-semibold">New personal best!</p>
           )}
           <div className="flex gap-2 justify-center mt-4">
-            <Button variant="outline" onClick={() => { setRoundIdx(0); setPicks([]); setFinalScore(null); }}>
+            <Button variant="outline" onClick={(e) => { tapFeedback(e.currentTarget); setRoundIdx(0); setPicks([]); setFinalScore(null); }}>
               Retry
             </Button>
-            <Button onClick={() => navigate("/alphabet")}>Back to map</Button>
+            <Button onClick={(e) => { tapFeedback(e.currentTarget); navigate("/alphabet"); }}>Back to map</Button>
           </div>
         </div>
       </AppShell>

@@ -184,7 +184,7 @@ const AlphabetLetter = () => {
               onComplete={() => handleStepDone("trace")}
             />
             <Button
-              onClick={() => setStepIdx(3)}
+              onClick={(e) => { tapFeedback(e.currentTarget); setStepIdx(3); }}
               size="lg"
               className="w-full"
               disabled={!done.trace}

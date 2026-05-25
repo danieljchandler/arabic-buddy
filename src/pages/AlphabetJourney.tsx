@@ -6,24 +6,43 @@ import { HomeButton } from "@/components/HomeButton";
 import { InfoHint } from "@/components/InfoHint";
 import { DesertBackdrop } from "@/components/alphabet/DesertBackdrop";
 import { StopOrnament } from "@/components/alphabet/StopOrnament";
+import { CaravanMarker } from "@/components/alphabet/CaravanMarker";
 import { tapFeedback } from "@/lib/tapFeedback";
-import { Lock, Check, Flag, Trophy } from "lucide-react";
+import { useSoundPref } from "@/lib/uiPrefs";
+import { Lock, Check, Flag, Trophy, Volume2, VolumeX } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const AlphabetJourney = () => {
   const navigate = useNavigate();
   const { progress, isUnlocked, masteredCount } = useAlphabetProgress();
   const { checkpoints } = useCheckpointProgress();
+  const [soundOn, setSoundOn] = useSoundPref();
+
+  // Current stop = first non-mastered unlocked letter
+  const currentStopIndex = ARABIC_LETTERS.findIndex(
+    (l) => isUnlocked(l.order_index) && !progress[l.code]?.mastered_at,
+  );
 
   return (
     <AppShell>
       <DesertBackdrop />
       <div className="flex items-center justify-between mb-4">
         <HomeButton />
-        <p className="text-xs text-muted-foreground">
-          {masteredCount} / 28 mastered
-        </p>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setSoundOn(!soundOn)}
+            className="p-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+            title={soundOn ? "Mute chimes" : "Unmute chimes"}
+            aria-label={soundOn ? "Mute chimes" : "Unmute chimes"}
+          >
+            {soundOn ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+          </button>
+          <p className="text-xs text-muted-foreground">
+            {masteredCount} / 28 mastered
+          </p>
+        </div>
       </div>
+
 
       <header className="mb-6 text-center">
         <h1 className="text-2xl font-bold text-foreground flex items-center justify-center gap-2" style={{ fontFamily: "'Montserrat', sans-serif" }}>

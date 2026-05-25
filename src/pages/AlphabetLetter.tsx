@@ -266,7 +266,10 @@ const AlphabetLetter = () => {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => setStepIdx(Math.max(0, stepIdx - 1))}
+          onClick={(e) => {
+            tapFeedback(e.currentTarget);
+            setStepIdx(Math.max(0, stepIdx - 1));
+          }}
           disabled={stepIdx === 0}
         >
           <ChevronLeft className="h-4 w-4 mr-1" /> Back
@@ -275,7 +278,10 @@ const AlphabetLetter = () => {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => setStepIdx(Math.min(LETTER_STEPS.length - 1, stepIdx + 1))}
+          onClick={(e) => {
+            tapFeedback(e.currentTarget);
+            setStepIdx(Math.min(LETTER_STEPS.length - 1, stepIdx + 1));
+          }}
           disabled={stepIdx === LETTER_STEPS.length - 1}
         >
           Skip <ChevronRight className="h-4 w-4 ml-1" />

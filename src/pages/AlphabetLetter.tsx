@@ -168,7 +168,7 @@ const AlphabetLetter = () => {
                 </div>
               </div>
             ))}
-            <Button onClick={() => { handleStepDone("examples"); setStepIdx(2); }} size="lg" className="w-full mt-4">
+            <Button onClick={(e) => { tapFeedback(e.currentTarget); handleStepDone("examples"); setStepIdx(2); }} size="lg" className="w-full mt-4">
               Got it <ChevronRight className="h-4 w-4 ml-1" />
             </Button>
           </div>

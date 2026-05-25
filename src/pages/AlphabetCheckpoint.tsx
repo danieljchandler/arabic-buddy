@@ -58,6 +58,7 @@ const AlphabetCheckpoint = () => {
       const correct = rounds.filter((r, i) => r.target.code === newPicks[i]).length;
       const score = Math.round((correct / rounds.length) * 100);
       setFinalScore(score);
+      if (score >= 70) playSuccessChime();
       try {
         await recordCheckpoint({ index: idx, score });
       } catch (e) {

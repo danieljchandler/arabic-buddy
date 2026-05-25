@@ -273,4 +273,40 @@
   .bg-gradient-red {
     background: hsl(8 45% 38%);
   }
+
+  /* Slow drift for parallax backdrop layers */
+  .animate-drift-slow {
+    animation: drift-slow 28s ease-in-out infinite;
+  }
+  .animate-drift-slower {
+    animation: drift-slow 44s ease-in-out infinite reverse;
+  }
+  @keyframes drift-slow {
+    0%, 100% { transform: translateX(0); }
+    50% { transform: translateX(-18px); }
+  }
+
+  /* Camel caravan bob */
+  .animate-camel-bob {
+    animation: camel-bob 1.4s ease-in-out infinite;
+  }
+  @keyframes camel-bob {
+    0%, 100% { transform: translateY(0) rotate(-2deg); }
+    50% { transform: translateY(-3px) rotate(2deg); }
+  }
+}
+
+/* Honor user reduced-motion preference globally */
+@media (prefers-reduced-motion: reduce) {
+  .animate-pop,
+  .animate-pulse-glow,
+  .animate-float,
+  .animate-unlock-bounce,
+  .animate-master-bounce,
+  .animate-shine-sweep,
+  .animate-drift-slow,
+  .animate-drift-slower,
+  .animate-camel-bob {
+    animation: none !important;
+  }
 }

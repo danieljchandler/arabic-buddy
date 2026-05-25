@@ -23,7 +23,9 @@ export function getCorsHeaders(req?: Request): Record<string, string> {
 
   // During local development (localhost / 127.0.0.1) always allow
   const isLocal = origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1');
-  const matchedOrigin = allowed.includes(origin) || isLocal ? origin : '';
+  // Allow Lovable preview/sandbox subdomains (e.g. id-preview--*.lovable.app, *.lovable.dev)
+  const isLovablePreview = /^https:\/\/([a-z0-9-]+\.)*lovable\.(app|dev)$/i.test(origin);
+  const matchedOrigin = allowed.includes(origin) || isLocal || isLovablePreview ? origin : '';
 
   return {
     ...(matchedOrigin ? { 'Access-Control-Allow-Origin': matchedOrigin } : {}),

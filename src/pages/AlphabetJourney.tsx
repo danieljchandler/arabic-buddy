@@ -4,6 +4,8 @@ import { useAlphabetProgress, useCheckpointProgress } from "@/hooks/useAlphabetP
 import { AppShell } from "@/components/layout/AppShell";
 import { HomeButton } from "@/components/HomeButton";
 import { InfoHint } from "@/components/InfoHint";
+import { DesertBackdrop } from "@/components/alphabet/DesertBackdrop";
+import { StopOrnament } from "@/components/alphabet/StopOrnament";
 import { Lock, Check, Flag, Trophy } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -14,6 +16,7 @@ const AlphabetJourney = () => {
 
   return (
     <AppShell>
+      <DesertBackdrop />
       <div className="flex items-center justify-between mb-4">
         <HomeButton />
         <p className="text-xs text-muted-foreground">

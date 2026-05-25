@@ -53,7 +53,9 @@ export const PhraseOfTheDay = () => {
       setPhrase(data);
       localStorage.setItem(cacheKey(activeDialect, today), JSON.stringify(data));
     } catch (e: any) {
-      toast.error(e.message || "Couldn't fetch phrase");
+      // Silently swallow — the Lovable preview fetch proxy occasionally drops
+      // edge-function invocations on initial load. The user can hit refresh.
+      console.warn("[PhraseOfTheDay] fetch failed:", e?.message || e);
     } finally {
       setLoading(false);
     }

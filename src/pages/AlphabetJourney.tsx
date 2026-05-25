@@ -6,6 +6,7 @@ import { HomeButton } from "@/components/HomeButton";
 import { InfoHint } from "@/components/InfoHint";
 import { DesertBackdrop } from "@/components/alphabet/DesertBackdrop";
 import { StopOrnament } from "@/components/alphabet/StopOrnament";
+import { tapFeedback } from "@/lib/tapFeedback";
 import { Lock, Check, Flag, Trophy } from "lucide-react";
 import { cn } from "@/lib/utils";
 

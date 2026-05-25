@@ -214,7 +214,7 @@ const AlphabetLetter = () => {
               onComplete={(score) => handleStepDone("spot", { spotScore: score })}
             />
             {done.spot && (
-              <Button onClick={() => setStepIdx(5)} size="lg" className="w-full">
+              <Button onClick={(e) => { tapFeedback(e.currentTarget); setStepIdx(5); }} size="lg" className="w-full">
                 Next <ChevronRight className="h-4 w-4 ml-1" />
               </Button>
             )}

@@ -202,6 +202,44 @@
     }
   }
 
+  /* Unlock bounce - subtle spring when a stop becomes unlocked */
+  .animate-unlock-bounce {
+    animation: unlock-bounce 0.7s ease-out;
+  }
+
+  @keyframes unlock-bounce {
+    0% { transform: scale(1); }
+    25% { transform: scale(1.1); }
+    50% { transform: scale(1.02); }
+    75% { transform: scale(1.06); }
+    100% { transform: scale(1); }
+  }
+
+  /* Master bounce - slightly richer spring when a stop becomes mastered */
+  .animate-master-bounce {
+    animation: master-bounce 0.75s ease-out;
+  }
+
+  @keyframes master-bounce {
+    0% { transform: scale(1); }
+    20% { transform: scale(1.14); }
+    45% { transform: scale(0.96); }
+    70% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+  }
+
+  /* Shine sweep - light glare across a mastered stop */
+  .animate-shine-sweep {
+    animation: shine-sweep 0.9s ease-out forwards;
+  }
+
+  @keyframes shine-sweep {
+    0% { transform: translateX(-120%) skewX(-20deg); opacity: 0; }
+    12% { opacity: 0.45; }
+    88% { opacity: 0.45; }
+    100% { transform: translateX(120%) skewX(-20deg); opacity: 0; }
+  }
+
   /* Background gradients - for large areas only */
   .bg-gradient-warm {
     background: linear-gradient(180deg, hsl(38 45% 90%) 0%, hsl(38 40% 86%) 100%);

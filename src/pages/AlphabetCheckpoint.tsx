@@ -147,7 +147,10 @@ const AlphabetCheckpoint = () => {
           {round.options.map((l) => (
             <button
               key={l.code}
-              onClick={() => choose(l.code)}
+              onClick={(e) => {
+                tapFeedback(e.currentTarget);
+                choose(l.code);
+              }}
               className={cn(
                 "p-6 rounded-2xl border-2 border-border bg-card transition-all active:scale-95",
                 "hover:border-primary/40",

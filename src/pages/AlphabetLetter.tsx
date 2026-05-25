@@ -85,7 +85,10 @@ const AlphabetLetter = () => {
         {LETTER_STEPS.map((s, i) => (
           <button
             key={s}
-            onClick={() => setStepIdx(i)}
+            onClick={(e) => {
+              tapFeedback(e.currentTarget);
+              setStepIdx(i);
+            }}
             className={cn(
               "h-2 rounded-full transition-all",
               i === stepIdx ? "w-8 bg-primary" : done[s] ? "w-2 bg-green-500" : "w-2 bg-muted-foreground/30",

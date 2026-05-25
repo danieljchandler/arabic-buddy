@@ -23,6 +23,8 @@ import { HomeSectionId, isSectionVisible } from "@/lib/homeLayout";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { DiscoverPreviewCard } from "@/components/discover/DiscoverPreviewCard";
 import { InfoHint } from "@/components/InfoHint";
+import { useAlphabetProgress } from "@/hooks/useAlphabetProgress";
+import { ARABIC_LETTERS } from "@/data/arabicAlphabet";
 
 const TILE_HINTS: Record<string, { title: string; body: string }> = {
   "today": { title: "Start today", body: "Your daily learning queue — reviews, a challenge, listening and reading, all picked for today. The fastest way to grow your streak." },

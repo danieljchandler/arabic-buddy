@@ -12,6 +12,7 @@ import { SpotTheLetterGame } from "@/components/alphabet/SpotTheLetterGame";
 import { SoundMatchGame } from "@/components/alphabet/SoundMatchGame";
 import { useDisplayPrefs } from "@/hooks/useDisplayPrefs";
 import { Button } from "@/components/ui/button";
+import { tapFeedback } from "@/lib/tapFeedback";
 import { ChevronLeft, ChevronRight, Check, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";

@@ -170,6 +170,12 @@ const AlphabetJourney = () => {
                         <Check className="h-3 w-3" />
                       </span>
                     )}
+                    {/* Caravan: marks the learner's current spot */}
+                    {letter.order_index === currentStopIndex && (
+                      <div className="absolute -top-7 left-1/2 -translate-x-1/2 pointer-events-none drop-shadow">
+                        <CaravanMarker size={32} />
+                      </div>
+                    )}
                   </div>
 
                   {/* Ornament instead of empty spacer */}

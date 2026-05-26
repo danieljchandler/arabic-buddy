@@ -10,6 +10,7 @@ import { LetterTracer } from "@/components/alphabet/LetterTracer";
 import { FourFacesPanel } from "@/components/alphabet/FourFacesPanel";
 import { SpotTheLetterGame } from "@/components/alphabet/SpotTheLetterGame";
 import { SoundMatchGame } from "@/components/alphabet/SoundMatchGame";
+import { XPPopupHost, fireXPPopup } from "@/components/alphabet/XPPopup";
 import { useDisplayPrefs } from "@/hooks/useDisplayPrefs";
 import { Button } from "@/components/ui/button";
 import { tapFeedback } from "@/lib/tapFeedback";

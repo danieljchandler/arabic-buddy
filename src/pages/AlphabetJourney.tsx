@@ -7,6 +7,8 @@ import { InfoHint } from "@/components/InfoHint";
 import { DesertBackdrop } from "@/components/alphabet/DesertBackdrop";
 import { StopOrnament } from "@/components/alphabet/StopOrnament";
 import { CaravanMarker } from "@/components/alphabet/CaravanMarker";
+import { StopMasteryRing } from "@/components/alphabet/StopMasteryRing";
+import { MilestoneBanner } from "@/components/alphabet/MilestoneBanner";
 import { tapFeedback } from "@/lib/tapFeedback";
 import { useSoundPref } from "@/lib/uiPrefs";
 import { Lock, Check, Flag, Trophy, Volume2, VolumeX } from "lucide-react";

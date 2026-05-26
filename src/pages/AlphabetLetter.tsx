@@ -75,6 +75,7 @@ const AlphabetLetter = () => {
 
   return (
     <AppShell compact>
+      <XPPopupHost />
       <div className="flex items-center justify-between mb-4">
         <HomeButton />
         <Button variant="ghost" size="sm" onClick={() => navigate("/alphabet")}>

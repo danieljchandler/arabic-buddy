@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { useDisplayPrefs } from "@/hooks/useDisplayPrefs";
 import { stripTashkil } from "@/lib/displayPrefs";
 import { useMarkUnknowns } from "@/contexts/MarkUnknownsContext";
+import { vibrate } from "@/lib/tapFeedback";
 
 interface WordEnrichment {
   definition?: string;

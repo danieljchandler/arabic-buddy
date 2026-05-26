@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { useDisplayPrefs } from "@/hooks/useDisplayPrefs";
 import { stripTashkil } from "@/lib/displayPrefs";
 import { useMarkUnknowns } from "@/contexts/MarkUnknownsContext";
+import { vibrate } from "@/lib/tapFeedback";
 
 interface WordEnrichment {
   definition?: string;
@@ -244,7 +245,7 @@ export const TappableArabicText = ({
     if (longPressTimer.current) window.clearTimeout(longPressTimer.current);
     longPressTimer.current = window.setTimeout(() => {
       longPressFired.current = true;
-      if (navigator.vibrate) try { navigator.vibrate(15); } catch { /* ignore */ }
+      vibrate(15);
       startPhrase(idx);
     }, 450);
   };

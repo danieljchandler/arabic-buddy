@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { prefersReducedMotion } from "@/lib/uiPrefs";
+import { vibrate } from "@/lib/tapFeedback";
 
 interface PopItem {
   id: number;
@@ -25,6 +26,7 @@ export const XPPopupHost = () => {
   useEffect(() => {
     const handler = (p: PopItem) => {
       if (prefersReducedMotion()) return;
+      vibrate([8, 30, 8]);
       setItems((prev) => [...prev, p]);
       window.setTimeout(() => {
         setItems((prev) => prev.filter((i) => i.id !== p.id));

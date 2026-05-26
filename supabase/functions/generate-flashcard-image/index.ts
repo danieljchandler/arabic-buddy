@@ -61,59 +61,88 @@ STYLE GUIDE — follow exactly for every image:
 
     console.log(`Generating image for: ${word_english}`);
 
-    // Retry up to 2 times on transient failures
+    // Try Gemini first (chat-completions image shape), then fall back to gpt-image-2
     let imageBase64: string | null = null;
-    for (let attempt = 0; attempt < 3; attempt++) {
-      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "google/gemini-2.5-flash-image",
-          messages: [{ role: "user", content: prompt }],
-          modalities: ["image", "text"],
-        }),
-      });
 
-      if (!response.ok) {
-        const errText = await response.text();
-        console.error(`Attempt ${attempt + 1}: Image generation error:`, response.status, errText);
-        if (response.status === 429) {
-          return new Response(JSON.stringify({ error: "Rate limit exceeded" }), {
-            status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
+    async function tryGemini(): Promise<string | null> {
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: "google/gemini-2.5-flash-image",
+            messages: [{ role: "user", content: prompt }],
+            modalities: ["image", "text"],
+          }),
+        });
+        if (response.status === 429) throw new Error("RATE_LIMIT");
+        if (!response.ok) {
+          console.error(`Gemini attempt ${attempt + 1} HTTP ${response.status}`);
+          await new Promise(r => setTimeout(r, 1500));
+          continue;
         }
-        if (attempt < 2) continue;
-        throw new Error(`Image generation failed after 3 attempts: ${response.status}`);
+        const data = await response.json();
+        const url = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+        if (url) return url;
+        console.warn(`Gemini attempt ${attempt + 1}: no image (${data.choices?.[0]?.error?.message ?? "empty"})`);
+        await new Promise(r => setTimeout(r, 1500));
       }
+      return null;
+    }
 
-      const data = await response.json();
-      const message = data.choices?.[0]?.message;
-      const url = message?.images?.[0]?.image_url?.url;
-
-      if (url) {
-        imageBase64 = url;
-        break;
-      }
-
-      // Check for provider error in choices
-      const choiceError = data.choices?.[0]?.error;
-      if (choiceError) {
-        console.warn(`Attempt ${attempt + 1}: Provider error: ${choiceError.message}`);
-      } else {
-        console.warn(`Attempt ${attempt + 1}: No image in response`);
-      }
-      
-      if (attempt < 2) {
-        // Wait a bit before retry
-        await new Promise(r => setTimeout(r, 2000));
+    async function tryGptImage(): Promise<string | null> {
+      try {
+        const response = await fetch("https://ai.gateway.lovable.dev/v1/images/generations", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: "openai/gpt-image-2",
+            prompt,
+            size: "1024x1024",
+            quality: "low",
+            n: 1,
+          }),
+        });
+        if (!response.ok) {
+          console.error(`gpt-image-2 fallback HTTP ${response.status}: ${await response.text()}`);
+          return null;
+        }
+        const data = await response.json();
+        const b64 = data.data?.[0]?.b64_json;
+        return b64 ? `data:image/png;base64,${b64}` : null;
+      } catch (err) {
+        console.error("gpt-image-2 fallback error:", err);
+        return null;
       }
     }
 
+    try {
+      imageBase64 = await tryGemini();
+    } catch (e) {
+      if (e instanceof Error && e.message === "RATE_LIMIT") {
+        return new Response(JSON.stringify({ error: "Rate limit exceeded" }), {
+          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      throw e;
+    }
+
     if (!imageBase64) {
-      throw new Error("No image generated after 3 attempts");
+      console.log("Gemini failed, falling back to gpt-image-2");
+      imageBase64 = await tryGptImage();
+    }
+
+    if (!imageBase64) {
+      // Graceful failure so batch callers don't crash on a single word
+      return new Response(JSON.stringify({
+        success: false,
+        error: "IMAGE_GENERATION_FAILED",
+        fallback: true,
+        message: `Could not generate image for "${word_english}" — please try again or use a custom prompt.`,
+      }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     // Upload directly to storage from the edge function

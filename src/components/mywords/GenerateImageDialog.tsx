@@ -42,7 +42,9 @@ export const GenerateImageDialog = ({ word, open, onOpenChange, onImageSaved }: 
       });
 
       if (error) throw error;
-      if (!data?.imageUrl) throw new Error("No image returned");
+      if (data?.fallback || !data?.imageUrl) {
+        throw new Error(data?.message || "Image generation is temporarily unavailable. Please try again.");
+      }
 
       const urlWithCacheBust = `${data.imageUrl}?t=${Date.now()}`;
 

@@ -677,6 +677,15 @@ const MyWordsReview = () => {
           </div>
           )}
 
+          {showAnswer && (
+            <SiblingWordsPanel
+              root={currentWord.root}
+              currentWordId={currentWord.id}
+              dialect={activeDialect}
+              onPlayAudio={playAudio}
+            />
+          )}
+
           {leechTrackingEnabled && currentWord.is_leech && (
             <LeechHelperPanel
               kind="word"

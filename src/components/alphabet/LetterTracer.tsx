@@ -122,7 +122,26 @@ export const LetterTracer = ({ letter, onComplete }: LetterTracerProps) => {
     ctx.lineTo(pt.x, pt.y);
     ctx.stroke();
     lastPtRef.current = pt;
+
+    // Emit sparkles along the stroke (throttled), in canvas-space %
+    if (!reducedMotion) {
+      const now = performance.now();
+      if (now - lastSparkleAtRef.current > 55) {
+        lastSparkleAtRef.current = now;
+        const id = ++sparkleIdRef.current;
+        const sp: Sparkle = {
+          id,
+          x: (pt.x / SIZE) * 100,
+          y: (pt.y / SIZE) * 100,
+        };
+        setSparkles((prev) => [...prev.slice(-12), sp]);
+        window.setTimeout(() => {
+          setSparkles((prev) => prev.filter((s) => s.id !== id));
+        }, 750);
+      }
+    }
   };
+
 
   const onPointerUp = () => {
     drawingRef.current = false;

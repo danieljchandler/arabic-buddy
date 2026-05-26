@@ -25,6 +25,7 @@ import { DiscoverPreviewCard } from "@/components/discover/DiscoverPreviewCard";
 import { InfoHint } from "@/components/InfoHint";
 import { useAlphabetProgress } from "@/hooks/useAlphabetProgress";
 import { ARABIC_LETTERS } from "@/data/arabicAlphabet";
+import { DailyLetterGoalRing } from "@/components/alphabet/DailyLetterGoalRing";
 
 const TILE_HINTS: Record<string, { title: string; body: string }> = {
   "today": { title: "Start today", body: "Your daily learning queue — reviews, a challenge, listening and reading, all picked for today. The fastest way to grow your streak." },
@@ -222,7 +223,13 @@ const Index = () => {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-bold text-foreground flex items-center gap-1.5" style={{ fontFamily: "'Montserrat', sans-serif" }}>Start today<InfoHint title={TILE_HINTS.today.title} body={TILE_HINTS.today.body} /></p>
-                  <p className="text-xs text-muted-foreground mt-0.5">Your daily learning queue</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {srsStats && srsStats.totalDueNow >= 10
+                      ? `${srsStats.totalDueNow} cards due — clear them first`
+                      : currentLetter && alphabetMastered < 28
+                      ? `Next letter: ${currentLetter.name_translit}`
+                      : "Your daily learning queue"}
+                  </p>
                 </div>
                 <ChevronRight className="h-5 w-5 text-primary shrink-0" />
               </button>
@@ -270,6 +277,7 @@ const Index = () => {
                 <XPDisplay compact className="flex-1" />
                 <StreakDisplay compact />
               </div>
+              <DailyLetterGoalRing />
               <WeeklyGoalCard />
               <AchievementsGrid />
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">

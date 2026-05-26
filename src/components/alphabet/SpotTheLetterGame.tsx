@@ -92,8 +92,8 @@ export const SpotTheLetterGame = ({ letter, onComplete }: SpotTheLetterGameProps
                 "p-3 rounded-xl border-2 text-2xl text-center transition-all active:scale-95",
                 !showResult && isPicked && "border-primary bg-primary/10",
                 !showResult && !isPicked && "border-border bg-card",
-                correct && "border-green-500 bg-green-500/10",
-                wrong && "border-red-500 bg-red-500/10",
+                correct && "border-green-500 bg-green-500/10 animate-correct-pulse",
+                wrong && "border-red-500 bg-red-500/10 animate-shake",
               )}
               style={{ fontFamily: "'Noto Sans Arabic', serif" }}
             >

@@ -161,6 +161,7 @@ export const LetterTracer = ({ letter, onComplete }: LetterTracerProps) => {
     setCoverage(0);
     setDone(false);
     completedRef.current = false;
+    setSparkles([]);
   };
 
   return (

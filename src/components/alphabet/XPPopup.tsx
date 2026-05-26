@@ -26,6 +26,7 @@ export const XPPopupHost = () => {
   useEffect(() => {
     const handler = (p: PopItem) => {
       if (prefersReducedMotion()) return;
+      vibrate([8, 30, 8]);
       setItems((prev) => [...prev, p]);
       window.setTimeout(() => {
         setItems((prev) => prev.filter((i) => i.id !== p.id));

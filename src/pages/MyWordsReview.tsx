@@ -8,6 +8,7 @@ import { RatingButtons } from "@/components/review/RatingButtons";
 import { AppShell } from "@/components/layout/AppShell";
 import { Loader2, Trophy, LogIn, Eye, Volume2, Music, RefreshCw, Sparkles, Play, Brain, Mic2, Quote } from "lucide-react";
 import { LeechHelperPanel } from "@/components/review/LeechHelperPanel";
+import { SiblingWordsPanel } from "@/components/review/SiblingWordsPanel";
 import { useLeechPrefs } from "@/hooks/useLeechPrefs";
 import { GenerateImageDialog } from "@/components/mywords/GenerateImageDialog";
 import { useUpdateUserVocabularyImage } from "@/hooks/useUserVocabulary";
@@ -52,6 +53,7 @@ interface DueCard {
   production_lapses: number;
   is_leech: boolean;
   mnemonic: string | null;
+  root: string | null;
 }
 
 interface RawRow {
@@ -78,6 +80,7 @@ interface RawRow {
   production_lapses: number | null;
   is_leech: boolean | null;
   mnemonic: string | null;
+  root: string | null;
 }
 
 const MyWordsReview = () => {
@@ -116,7 +119,7 @@ const MyWordsReview = () => {
       // Fetch all rows that are due in either direction. We do two queries
       // and merge so each direction can be tagged independently.
       const baseSelect =
-        "id, word_arabic, word_english, ease_factor, interval_days, repetitions, next_review_at, last_reviewed_at, production_ease_factor, production_interval_days, production_repetitions, production_next_review_at, production_last_reviewed_at, word_audio_url, sentence_audio_url, image_url, jingle_audio_url, sentence_text, sentence_english, lapses, production_lapses, is_leech, mnemonic";
+        "id, word_arabic, word_english, ease_factor, interval_days, repetitions, next_review_at, last_reviewed_at, production_ease_factor, production_interval_days, production_repetitions, production_next_review_at, production_last_reviewed_at, word_audio_url, sentence_audio_url, image_url, jingle_audio_url, sentence_text, sentence_english, lapses, production_lapses, is_leech, mnemonic, root";
 
       const { data: recogRows, error: recogErr } = await (supabase
         .from("user_vocabulary")
@@ -159,6 +162,7 @@ const MyWordsReview = () => {
           production_lapses: r.production_lapses ?? 0,
           is_leech: r.is_leech ?? false,
           mnemonic: r.mnemonic,
+          root: (r as any).root ?? null,
         });
       }
       for (const r of (prodRows || []) as RawRow[]) {
@@ -182,6 +186,7 @@ const MyWordsReview = () => {
           production_lapses: r.production_lapses ?? 0,
           is_leech: r.is_leech ?? false,
           mnemonic: r.mnemonic,
+          root: (r as any).root ?? null,
         });
       }
 

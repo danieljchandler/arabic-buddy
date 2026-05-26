@@ -113,8 +113,9 @@ export const SoundMatchGame = ({ letter, pool, onComplete }: SoundMatchGameProps
               className={cn(
                 "p-6 rounded-2xl border-2 transition-all active:scale-95",
                 !picked && "border-border bg-card hover:border-primary/40",
-                showResult && correct && "border-green-500 bg-green-500/10",
+                showResult && correct && "border-green-500 bg-green-500/10 animate-correct-pulse",
                 showResult && !correct && "border-red-500 bg-red-500/10",
+                showResult && !correct && shakeWrong && "animate-shake",
                 done && !isPicked && l.code === round.target.code && "border-green-500/60 bg-green-500/5",
               )}
               style={{ fontFamily: "'Noto Sans Arabic', serif", fontSize: 56, lineHeight: 1 }}

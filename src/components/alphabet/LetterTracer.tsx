@@ -32,6 +32,11 @@ export const LetterTracer = ({ letter, onComplete }: LetterTracerProps) => {
   const completedRef = useRef(false);
   const [coverage, setCoverage] = useState(0);
   const [done, setDone] = useState(false);
+  const [sparkles, setSparkles] = useState<Sparkle[]>([]);
+  const sparkleIdRef = useRef(0);
+  const lastSparkleAtRef = useRef(0);
+  const reducedMotion = prefersReducedMotion();
+
 
   const SIZE = 320;
 

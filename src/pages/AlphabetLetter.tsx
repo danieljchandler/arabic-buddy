@@ -52,6 +52,7 @@ const AlphabetLetter = () => {
   const handleStepDone = async (step: LetterStepId, extra?: { spotScore?: number; soundScore?: number }) => {
     if (!letter || done[step]) return;
     setDone((d) => ({ ...d, [step]: true }));
+    fireXPPopup(5);
     try {
       await completeStep({ letterCode: letter.code, step, ...extra });
     } catch (e) {

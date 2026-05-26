@@ -165,6 +165,11 @@ export const LetterTracer = ({ letter, onComplete }: LetterTracerProps) => {
 
   return (
     <div className="flex flex-col items-center gap-4">
+      {/* Direction hint: Arabic is written right-to-left */}
+      <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+        <span>Trace right-to-left</span>
+        <ArrowLeft className="h-3.5 w-3.5 animate-pulse" />
+      </div>
       <div
         className="relative rounded-2xl border-2 border-dashed border-primary/30 bg-card overflow-hidden"
         style={{ width: SIZE, height: SIZE, maxWidth: "90vw", aspectRatio: "1" }}
@@ -180,12 +185,30 @@ export const LetterTracer = ({ letter, onComplete }: LetterTracerProps) => {
           ref={canvasRef}
           width={SIZE}
           height={SIZE}
-          className="absolute inset-0 w-full h-full touch-none cursor-crosshair"
+          className={cn(
+            "absolute inset-0 w-full h-full touch-none cursor-crosshair",
+            done && "animate-correct-pulse rounded-2xl",
+          )}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerUp}
         />
+        {/* Sparkle trail overlay */}
+        <div className="absolute inset-0 pointer-events-none">
+          {sparkles.map((s) => (
+            <span
+              key={s.id}
+              className="absolute h-2 w-2 rounded-full bg-yellow-300 animate-sparkle"
+              style={{
+                left: `${s.x}%`,
+                top: `${s.y}%`,
+                transform: "translate(-50%, -50%)",
+                boxShadow: "0 0 6px hsl(48 95% 60% / 0.9)",
+              }}
+            />
+          ))}
+        </div>
       </div>
 
       <div className="w-full max-w-[320px] space-y-2">
@@ -203,7 +226,7 @@ export const LetterTracer = ({ letter, onComplete }: LetterTracerProps) => {
             <RotateCcw className="h-4 w-4 mr-1.5" /> Reset
           </Button>
           {done && (
-            <span className="text-sm font-semibold text-green-600 flex items-center gap-1">
+            <span className="text-sm font-semibold text-green-600 flex items-center gap-1 animate-fade-in">
               <Check className="h-4 w-4" /> Nice tracing!
             </span>
           )}

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { prefersReducedMotion } from "@/lib/uiPrefs";
+import { vibrate } from "@/lib/tapFeedback";
 
 interface PopItem {
   id: number;

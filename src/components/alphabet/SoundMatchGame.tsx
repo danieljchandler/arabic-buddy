@@ -28,10 +28,18 @@ export const SoundMatchGame = ({ letter, pool, onComplete }: SoundMatchGameProps
 
   const [picked, setPicked] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  const [playing, setPlaying] = useState(true);
+  const [shakeWrong, setShakeWrong] = useState(false);
 
   useEffect(() => {
     setPicked(null);
     setDone(false);
+    setShakeWrong(false);
+    setPlaying(true);
+    // Waveform pulses for the autoplay window; LetterAudioButton fires-and-forgets,
+    // so we drive a visual estimate based on the typical letter-name length.
+    const t = window.setTimeout(() => setPlaying(false), 1500);
+    return () => window.clearTimeout(t);
   }, [letter.code]);
 
   const round = rounds[0];
@@ -41,17 +49,57 @@ export const SoundMatchGame = ({ letter, pool, onComplete }: SoundMatchGameProps
     if (picked) return;
     setPicked(code);
     setDone(true);
-    onComplete(code === round.target.code ? 100 : 0);
+    const isCorrect = code === round.target.code;
+    if (!isCorrect) {
+      setShakeWrong(true);
+      window.setTimeout(() => setShakeWrong(false), 500);
+    }
+    onComplete(isCorrect ? 100 : 0);
   };
 
   return (
     <div className="space-y-6">
       <div className="text-center space-y-3">
         <p className="text-sm text-muted-foreground">Tap the speaker, then pick the letter you heard</p>
-        <div className="flex justify-center">
+        <div className="flex justify-center items-end gap-2">
+          {/* Left waveform */}
+          <div className="flex items-end gap-0.5 h-7 pb-1" aria-hidden>
+            {[0, 1, 2].map((i) => (
+              <span
+                key={`l-${i}`}
+                className={cn(
+                  "w-1 rounded-full bg-primary/70",
+                  playing && "animate-wave-bar",
+                )}
+                style={{
+                  height: `${[60, 100, 70][i]}%`,
+                  animationDelay: `${i * 110}ms`,
+                  opacity: playing ? 1 : 0.25,
+                }}
+              />
+            ))}
+          </div>
           <LetterAudioButton text={round.target.name_ar} forceMsa size="lg" autoplay label="Play letter sound" />
+          {/* Right waveform (mirror) */}
+          <div className="flex items-end gap-0.5 h-7 pb-1" aria-hidden>
+            {[0, 1, 2].map((i) => (
+              <span
+                key={`r-${i}`}
+                className={cn(
+                  "w-1 rounded-full bg-primary/70",
+                  playing && "animate-wave-bar",
+                )}
+                style={{
+                  height: `${[70, 100, 60][i]}%`,
+                  animationDelay: `${i * 110 + 55}ms`,
+                  opacity: playing ? 1 : 0.25,
+                }}
+              />
+            ))}
+          </div>
         </div>
       </div>
+
 
       <div className="grid grid-cols-2 gap-3">
         {round.options.map((l) => {

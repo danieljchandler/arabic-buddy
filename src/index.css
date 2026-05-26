@@ -294,6 +294,25 @@
     0%, 100% { transform: translateY(0) rotate(-2deg); }
     50% { transform: translateY(-3px) rotate(2deg); }
   }
+
+  /* Floating "+N XP" pill */
+  .animate-xp-float {
+    animation: xp-float 900ms ease-out forwards;
+  }
+  @keyframes xp-float {
+    0% { opacity: 0; transform: translateY(8px) scale(0.9); }
+    20% { opacity: 1; transform: translateY(0) scale(1); }
+    100% { opacity: 0; transform: translateY(-40px) scale(1); }
+  }
+
+  /* Milestone banner shine sweep */
+  .animate-banner-shine {
+    animation: banner-shine 2.6s ease-in-out infinite;
+  }
+  @keyframes banner-shine {
+    0% { transform: translateX(0) skewX(-18deg); }
+    60%, 100% { transform: translateX(100%) skewX(-18deg); }
+  }
 }
 
 /* Honor user reduced-motion preference globally */
@@ -306,7 +325,9 @@
   .animate-shine-sweep,
   .animate-drift-slow,
   .animate-drift-slower,
-  .animate-camel-bob {
+  .animate-camel-bob,
+  .animate-xp-float,
+  .animate-banner-shine {
     animation: none !important;
   }
 }

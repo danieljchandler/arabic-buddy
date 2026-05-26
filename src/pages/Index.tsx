@@ -25,6 +25,7 @@ import { DiscoverPreviewCard } from "@/components/discover/DiscoverPreviewCard";
 import { InfoHint } from "@/components/InfoHint";
 import { useAlphabetProgress } from "@/hooks/useAlphabetProgress";
 import { ARABIC_LETTERS } from "@/data/arabicAlphabet";
+import { DailyLetterGoalRing } from "@/components/alphabet/DailyLetterGoalRing";
 
 const TILE_HINTS: Record<string, { title: string; body: string }> = {
   "today": { title: "Start today", body: "Your daily learning queue — reviews, a challenge, listening and reading, all picked for today. The fastest way to grow your streak." },

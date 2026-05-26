@@ -1,11 +1,18 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { RotateCcw, Check } from "lucide-react";
+import { RotateCcw, Check, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { prefersReducedMotion } from "@/lib/uiPrefs";
 
 interface LetterTracerProps {
   letter: string;
   onComplete?: () => void;
+}
+
+interface Sparkle {
+  id: number;
+  x: number;
+  y: number;
 }
 
 /**
@@ -25,6 +32,11 @@ export const LetterTracer = ({ letter, onComplete }: LetterTracerProps) => {
   const completedRef = useRef(false);
   const [coverage, setCoverage] = useState(0);
   const [done, setDone] = useState(false);
+  const [sparkles, setSparkles] = useState<Sparkle[]>([]);
+  const sparkleIdRef = useRef(0);
+  const lastSparkleAtRef = useRef(0);
+  const reducedMotion = prefersReducedMotion();
+
 
   const SIZE = 320;
 
@@ -110,7 +122,26 @@ export const LetterTracer = ({ letter, onComplete }: LetterTracerProps) => {
     ctx.lineTo(pt.x, pt.y);
     ctx.stroke();
     lastPtRef.current = pt;
+
+    // Emit sparkles along the stroke (throttled), in canvas-space %
+    if (!reducedMotion) {
+      const now = performance.now();
+      if (now - lastSparkleAtRef.current > 55) {
+        lastSparkleAtRef.current = now;
+        const id = ++sparkleIdRef.current;
+        const sp: Sparkle = {
+          id,
+          x: (pt.x / SIZE) * 100,
+          y: (pt.y / SIZE) * 100,
+        };
+        setSparkles((prev) => [...prev.slice(-12), sp]);
+        window.setTimeout(() => {
+          setSparkles((prev) => prev.filter((s) => s.id !== id));
+        }, 750);
+      }
+    }
   };
+
 
   const onPointerUp = () => {
     drawingRef.current = false;
@@ -130,10 +161,16 @@ export const LetterTracer = ({ letter, onComplete }: LetterTracerProps) => {
     setCoverage(0);
     setDone(false);
     completedRef.current = false;
+    setSparkles([]);
   };
 
   return (
     <div className="flex flex-col items-center gap-4">
+      {/* Direction hint: Arabic is written right-to-left */}
+      <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+        <span>Trace right-to-left</span>
+        <ArrowLeft className="h-3.5 w-3.5 animate-pulse" />
+      </div>
       <div
         className="relative rounded-2xl border-2 border-dashed border-primary/30 bg-card overflow-hidden"
         style={{ width: SIZE, height: SIZE, maxWidth: "90vw", aspectRatio: "1" }}
@@ -149,12 +186,30 @@ export const LetterTracer = ({ letter, onComplete }: LetterTracerProps) => {
           ref={canvasRef}
           width={SIZE}
           height={SIZE}
-          className="absolute inset-0 w-full h-full touch-none cursor-crosshair"
+          className={cn(
+            "absolute inset-0 w-full h-full touch-none cursor-crosshair",
+            done && "animate-correct-pulse rounded-2xl",
+          )}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerUp}
         />
+        {/* Sparkle trail overlay */}
+        <div className="absolute inset-0 pointer-events-none">
+          {sparkles.map((s) => (
+            <span
+              key={s.id}
+              className="absolute h-2 w-2 rounded-full bg-yellow-300 animate-sparkle"
+              style={{
+                left: `${s.x}%`,
+                top: `${s.y}%`,
+                transform: "translate(-50%, -50%)",
+                boxShadow: "0 0 6px hsl(48 95% 60% / 0.9)",
+              }}
+            />
+          ))}
+        </div>
       </div>
 
       <div className="w-full max-w-[320px] space-y-2">
@@ -172,7 +227,7 @@ export const LetterTracer = ({ letter, onComplete }: LetterTracerProps) => {
             <RotateCcw className="h-4 w-4 mr-1.5" /> Reset
           </Button>
           {done && (
-            <span className="text-sm font-semibold text-green-600 flex items-center gap-1">
+            <span className="text-sm font-semibold text-green-600 flex items-center gap-1 animate-fade-in">
               <Check className="h-4 w-4" /> Nice tracing!
             </span>
           )}

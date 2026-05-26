@@ -313,6 +313,55 @@
     0% { transform: translateX(0) skewX(-18deg); }
     60%, 100% { transform: translateX(100%) skewX(-18deg); }
   }
+
+  /* Gentle horizontal shake (wrong answer) */
+  .animate-shake {
+    animation: shake 0.45s cubic-bezier(.36,.07,.19,.97) both;
+  }
+  @keyframes shake {
+    10%, 90% { transform: translateX(-2px); }
+    20%, 80% { transform: translateX(3px); }
+    30%, 50%, 70% { transform: translateX(-6px); }
+    40%, 60% { transform: translateX(6px); }
+  }
+
+  /* Correct-answer pulse (green ring outward) */
+  .animate-correct-pulse {
+    animation: correct-pulse 0.7s ease-out;
+  }
+  @keyframes correct-pulse {
+    0% { box-shadow: 0 0 0 0 hsl(142 71% 45% / 0.55); }
+    100% { box-shadow: 0 0 0 14px hsl(142 71% 45% / 0); }
+  }
+
+  /* Single sparkle dot fade-out (tracer trail) */
+  .animate-sparkle {
+    animation: sparkle 700ms ease-out forwards;
+  }
+  @keyframes sparkle {
+    0% { opacity: 0.9; transform: scale(0.4); }
+    60% { opacity: 0.7; transform: scale(1); }
+    100% { opacity: 0; transform: scale(1.4); }
+  }
+
+  /* Audio waveform bar (looped) */
+  .animate-wave-bar {
+    animation: wave-bar 900ms ease-in-out infinite;
+    transform-origin: bottom;
+  }
+  @keyframes wave-bar {
+    0%, 100% { transform: scaleY(0.35); }
+    50% { transform: scaleY(1); }
+  }
+
+  /* Subtle drift between four positional forms */
+  .animate-face-morph {
+    animation: face-morph 0.5s ease-out;
+  }
+  @keyframes face-morph {
+    0% { opacity: 0.2; transform: scale(0.85) translateY(6px); }
+    100% { opacity: 1; transform: scale(1) translateY(0); }
+  }
 }
 
 /* Honor user reduced-motion preference globally */
@@ -327,7 +376,12 @@
   .animate-drift-slower,
   .animate-camel-bob,
   .animate-xp-float,
-  .animate-banner-shine {
+  .animate-banner-shine,
+  .animate-shake,
+  .animate-correct-pulse,
+  .animate-sparkle,
+  .animate-wave-bar,
+  .animate-face-morph {
     animation: none !important;
   }
 }

@@ -223,7 +223,13 @@ const Index = () => {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-bold text-foreground flex items-center gap-1.5" style={{ fontFamily: "'Montserrat', sans-serif" }}>Start today<InfoHint title={TILE_HINTS.today.title} body={TILE_HINTS.today.body} /></p>
-                  <p className="text-xs text-muted-foreground mt-0.5">Your daily learning queue</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {srsStats && srsStats.totalDueNow >= 10
+                      ? `${srsStats.totalDueNow} cards due — clear them first`
+                      : currentLetter && alphabetMastered < 28
+                      ? `Next letter: ${currentLetter.name_translit}`
+                      : "Your daily learning queue"}
+                  </p>
                 </div>
                 <ChevronRight className="h-5 w-5 text-primary shrink-0" />
               </button>

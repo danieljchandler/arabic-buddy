@@ -244,7 +244,7 @@ export const TappableArabicText = ({
     if (longPressTimer.current) window.clearTimeout(longPressTimer.current);
     longPressTimer.current = window.setTimeout(() => {
       longPressFired.current = true;
-      if (navigator.vibrate) try { navigator.vibrate(15); } catch { /* ignore */ }
+      vibrate(15);
       startPhrase(idx);
     }, 450);
   };

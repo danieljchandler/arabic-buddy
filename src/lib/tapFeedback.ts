@@ -91,6 +91,19 @@ export function playSuccessChime() {
   }
 }
 
+/**
+ * Trigger device vibration if supported. Respects reduced-motion preference
+ * so users who opt out of motion also don't get haptic buzzes.
+ */
+export function vibrate(pattern: number | number[] = 10) {
+  if (prefersReducedMotion()) return;
+  try {
+    (navigator as any).vibrate?.(pattern);
+  } catch {
+    /* ignore */
+  }
+}
+
 /** Trigger a brief haptic-style visual pop on an element. */
 export function hapticPop(el: HTMLElement) {
   if (prefersReducedMotion()) return;
@@ -100,11 +113,7 @@ export function hapticPop(el: HTMLElement) {
     () => el.classList.remove("animate-pop"),
     { once: true }
   );
-  try {
-    (navigator as any).vibrate?.(10);
-  } catch {
-    /* ignore */
-  }
+  vibrate(10);
 }
 
 /** Combined tap feedback: sound + visual pop. */

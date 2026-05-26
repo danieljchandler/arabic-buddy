@@ -140,6 +140,12 @@ const AlphabetJourney = () => {
                       !unlocked && "bg-muted border-muted-foreground/25 opacity-60",
                     )}
                   >
+                    {/* Mastery progress ring (sits just outside the stop) */}
+                    <StopMasteryRing
+                      progress={stepsCompleted / 6}
+                      state={mastered ? "mastered" : unlocked ? "active" : "locked"}
+                      size={76}
+                    />
                     {/* Decorative inner ring */}
                     {unlocked && (
                       <div

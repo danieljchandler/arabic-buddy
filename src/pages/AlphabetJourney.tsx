@@ -45,6 +45,8 @@ const AlphabetJourney = () => {
         </div>
       </div>
 
+      <MilestoneBanner masteredCount={masteredCount} />
+
 
       <header className="mb-6 text-center">
         <h1 className="text-2xl font-bold text-foreground flex items-center justify-center gap-2" style={{ fontFamily: "'Montserrat', sans-serif" }}>

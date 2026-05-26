@@ -277,9 +277,7 @@ const Index = () => {
                 <XPDisplay compact className="flex-1" />
                 <StreakDisplay compact />
               </div>
-              {alphabetUnlocked && (
-                <DailyLetterGoalRing />
-              )}
+              <DailyLetterGoalRing />
               <WeeklyGoalCard />
               <AchievementsGrid />
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">

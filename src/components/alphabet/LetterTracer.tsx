@@ -1,11 +1,18 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { RotateCcw, Check } from "lucide-react";
+import { RotateCcw, Check, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { prefersReducedMotion } from "@/lib/uiPrefs";
 
 interface LetterTracerProps {
   letter: string;
   onComplete?: () => void;
+}
+
+interface Sparkle {
+  id: number;
+  x: number;
+  y: number;
 }
 
 /**

@@ -20,6 +20,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAzureTTS } from "@/hooks/useAzureTTS";
 import { ReviewClozeCard } from "@/components/review/ReviewClozeCard";
+import { useTranscriptCloze } from "@/hooks/useTranscriptCloze";
 import { useNewCardCap, NEW_CAP_OPTIONS, formatCap } from "@/hooks/useNewCardCap";
 import {
   Select,
@@ -239,17 +240,33 @@ const MyWordsReview = () => {
 
   // Cloze variant: enable for recognition cards that have sentence context
   // containing the target word AND at least 3 distractor words available.
-  // Alternate by index so users get a mix of plain & cloze cards.
+  // Falls back to auto-mined sentences from the user's saved transcripts (#13).
   const distractorPool = (dueWords || [])
     .map((d) => d.word_arabic)
     .filter((w) => w && w !== currentWord?.word_arabic);
-  const sentenceHasWord =
+  const sentenceHasOwnWord =
     !!currentWord?.sentence_text &&
     !!currentWord?.word_arabic &&
     currentWord.sentence_text.includes(currentWord.word_arabic);
+  // Look up a transcript-sourced cloze sentence only when the card lacks one.
+  const { data: transcriptCloze } = useTranscriptCloze({
+    wordArabic: currentWord?.word_arabic,
+    dialect: activeDialect,
+    enabled: !!currentWord && !sentenceHasOwnWord && !isProduction,
+  });
+  const clozeSentenceText = sentenceHasOwnWord
+    ? currentWord!.sentence_text!
+    : transcriptCloze?.arabic ?? null;
+  const clozeSentenceEnglish = sentenceHasOwnWord
+    ? currentWord?.sentence_english ?? null
+    : transcriptCloze?.english ?? null;
+  const clozeSentenceAudio = sentenceHasOwnWord
+    ? currentWord?.sentence_audio_url ?? null
+    : null;
+  const clozeFromTranscript = !sentenceHasOwnWord && !!transcriptCloze;
   const useCloze =
     !isProduction &&
-    sentenceHasWord &&
+    !!clozeSentenceText &&
     distractorPool.length >= 3 &&
     currentIndex % 2 === 0;
 
@@ -484,14 +501,21 @@ const MyWordsReview = () => {
       <div className="py-4">
         <div className="max-w-sm mx-auto">
           {useCloze ? (
-            <ReviewClozeCard
-              wordArabic={currentWord.word_arabic}
-              wordEnglish={currentWord.word_english}
-              sentenceText={currentWord.sentence_text!}
-              sentenceEnglish={currentWord.sentence_english}
-              sentenceAudioUrl={currentWord.sentence_audio_url}
-              distractors={distractorPool}
-            />
+            <div>
+              <ReviewClozeCard
+                wordArabic={currentWord.word_arabic}
+                wordEnglish={currentWord.word_english}
+                sentenceText={clozeSentenceText!}
+                sentenceEnglish={clozeSentenceEnglish}
+                sentenceAudioUrl={clozeSentenceAudio}
+                distractors={distractorPool}
+              />
+              {clozeFromTranscript && transcriptCloze && (
+                <p className="mt-2 text-center text-[11px] uppercase tracking-wide text-muted-foreground">
+                  From your transcript · {transcriptCloze.transcriptionTitle}
+                </p>
+              )}
+            </div>
           ) : (
           <div className="rounded-2xl bg-card border border-border p-8 text-center">
             {/* Image if available */}

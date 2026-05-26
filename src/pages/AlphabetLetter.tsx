@@ -10,6 +10,7 @@ import { LetterTracer } from "@/components/alphabet/LetterTracer";
 import { FourFacesPanel } from "@/components/alphabet/FourFacesPanel";
 import { SpotTheLetterGame } from "@/components/alphabet/SpotTheLetterGame";
 import { SoundMatchGame } from "@/components/alphabet/SoundMatchGame";
+import { XPPopupHost, fireXPPopup } from "@/components/alphabet/XPPopup";
 import { useDisplayPrefs } from "@/hooks/useDisplayPrefs";
 import { Button } from "@/components/ui/button";
 import { tapFeedback } from "@/lib/tapFeedback";
@@ -51,6 +52,7 @@ const AlphabetLetter = () => {
   const handleStepDone = async (step: LetterStepId, extra?: { spotScore?: number; soundScore?: number }) => {
     if (!letter || done[step]) return;
     setDone((d) => ({ ...d, [step]: true }));
+    fireXPPopup(5);
     try {
       await completeStep({ letterCode: letter.code, step, ...extra });
     } catch (e) {
@@ -73,6 +75,7 @@ const AlphabetLetter = () => {
 
   return (
     <AppShell compact>
+      <XPPopupHost />
       <div className="flex items-center justify-between mb-4">
         <HomeButton />
         <Button variant="ghost" size="sm" onClick={() => navigate("/alphabet")}>

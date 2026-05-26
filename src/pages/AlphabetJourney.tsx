@@ -7,6 +7,8 @@ import { InfoHint } from "@/components/InfoHint";
 import { DesertBackdrop } from "@/components/alphabet/DesertBackdrop";
 import { StopOrnament } from "@/components/alphabet/StopOrnament";
 import { CaravanMarker } from "@/components/alphabet/CaravanMarker";
+import { StopMasteryRing } from "@/components/alphabet/StopMasteryRing";
+import { MilestoneBanner } from "@/components/alphabet/MilestoneBanner";
 import { tapFeedback } from "@/lib/tapFeedback";
 import { useSoundPref } from "@/lib/uiPrefs";
 import { Lock, Check, Flag, Trophy, Volume2, VolumeX } from "lucide-react";
@@ -42,6 +44,8 @@ const AlphabetJourney = () => {
           </p>
         </div>
       </div>
+
+      <MilestoneBanner masteredCount={masteredCount} />
 
 
       <header className="mb-6 text-center">
@@ -136,6 +140,12 @@ const AlphabetJourney = () => {
                       !unlocked && "bg-muted border-muted-foreground/25 opacity-60",
                     )}
                   >
+                    {/* Mastery progress ring (sits just outside the stop) */}
+                    <StopMasteryRing
+                      progress={stepsCompleted / 6}
+                      state={mastered ? "mastered" : unlocked ? "active" : "locked"}
+                      size={76}
+                    />
                     {/* Decorative inner ring */}
                     {unlocked && (
                       <div

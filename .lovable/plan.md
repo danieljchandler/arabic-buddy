@@ -1,28 +1,66 @@
-## Alphabet polish pass
 
-Three small visual upgrades on top of the existing Alphabet Journey map.
+# MSA → Dialect Bridge Track
 
-### 1. Mini mastery ring around each stop
-- Replace the binary locked/mastered styling on stop markers with a thin SVG ring that fills 0–100% based on the letter's mastery score from `useAlphabetProgress`.
-- Locked stops show a dim gray ring; in-progress stops show a partial primary-color arc; fully mastered stops show a complete ring plus the existing ornament/checkmark.
-- Ring is purely presentational — sits behind the existing stop button, no layout shift.
+## Goal
+Serve learners who already know (or are learning) MSA and want to "translate" their existing knowledge into Gulf / Egyptian / Yemeni. The track is **not** a full MSA course — it's a contrast layer that sits next to every dialect module.
 
-### 2. Milestone banners every 7 letters
-- After completing letter 7, 14, 21, 28, show a one-time celebratory banner on `AlphabetJourney` ("7 letters mastered — keep going!") with a soft confetti/shine animation.
-- Dismissed banners are remembered in `localStorage` so they don't reappear.
-- Respects the reduced-motion and sound preferences already in `uiPrefs.ts`.
+## Core idea
+For every word, phrase, grammar pattern, and sentence in the existing curriculum, we surface the MSA equivalent side-by-side and teach the **transformation rules** (sound shifts, pronoun changes, verb prefixes, vocabulary swaps). The learner's mental model stays anchored in MSA; the app builds bridges outward.
 
-### 3. Per-step XP popup
-- On every correct answer inside `AlphabetLetter` (tracer, sound match, spot-the-letter), float a small "+5 XP" pill upward from the answer area and fade out (~800ms).
-- Pure CSS keyframe, no new dependencies. Skipped when `prefersReducedMotion()` is true.
+## Scope of changes
 
-### Files
+### 1. New "Formal (MSA)" as a first-class display mode (not a 4th dialect)
+- Extend the existing global display-prefs toggle (Arabic / Tashkil / Formal / English) so **Formal** can be shown *alongside* dialect everywhere TappableArabicText renders.
+- Add a new home-screen mode pill: **"I'm coming from MSA"** that enables a "Bridge view" globally — every flashcard, transcript line, lesson sentence shows MSA ↔ Dialect with the diff highlighted.
 
-- `src/components/alphabet/StopMasteryRing.tsx` (new) — SVG ring component, takes `progress: 0..1` and `state: 'locked' | 'active' | 'mastered'`.
-- `src/components/alphabet/MilestoneBanner.tsx` (new) — banner with shine animation + dismiss.
-- `src/components/alphabet/XPPopup.tsx` (new) — floating "+N XP" element.
-- `src/pages/AlphabetJourney.tsx` — render mastery ring around each stop, mount milestone banner when threshold crossed.
-- `src/pages/AlphabetLetter.tsx` — trigger XP popup on correct answers in the three mini-games.
-- `src/index.css` — keyframes for `xp-float`, `banner-shine`.
+### 2. New module: Bridge Lessons
+A new lesson type under each dialect module (Gulf / Egyptian / Yemeni) called **"From MSA"**. Lesson formats:
+- **Sound-shift drills** — ث→ت/س, ق→g/ʔ, ج→y/g, ك→ch, etc. (per dialect). Audio minimal pairs.
+- **Pronoun & verb-prefix swaps** — أنتَ→إنت, نحن→إحنا, present tense ي→بِي (Egyptian) / ي (Gulf), future سـ→حـ/بـ/راح.
+- **Vocabulary swaps** — high-frequency MSA words and their dialect counterparts (ماذا→شو/إيه, الآن→دحين/دلوقتي, أريد→أبغى/عايز).
+- **Sentence rewrites** — show an MSA sentence, learner taps the dialect version; reverse drill also available.
+- **"False friends"** — words that exist in both but mean different things.
 
-No backend or schema changes. Uses existing `useAlphabetProgress` data only.
+Each bridge lesson is dialect-scoped and CEFR-tagged, generated via the existing Curriculum Brain with a new prompt template that *requires* an MSA pivot column.
+
+### 3. Bridge-aware flashcards
+- Add optional `msa_form` and `msa_transformation_note` fields surfaced in the flashcard back when Bridge view is on.
+- New SRS exercise variant: **"MSA → Dialect"** — show MSA word, learner types/picks the dialect form. Counts toward the same SM-2 stage as the dialect card.
+
+### 4. Bridge overlays on existing content
+- **Transcripts / Discover / Reading**: tapping a word in Bridge view shows a third row: MSA form + the transformation that produced the dialect form (e.g., "ق → g, dropped case ending").
+- **Conversation Simulator**: optional "show MSA echo" toggle that prints the MSA paraphrase under each AI turn.
+
+### 5. MSA-aware placement
+- Add a 5-question MSA-knowledge probe to the placement quiz. If the learner scores high, the app:
+  - Auto-enables Bridge view
+  - Skips dialect alphabet/intro lessons they already know from MSA
+  - Surfaces the "From MSA" lesson track on the home screen
+
+### 6. Profile / progress
+- Track "MSA-bridge XP" separately so the passport profile shows a small "MSA Bridge" badge with progress (% of high-freq MSA→dialect swaps mastered per dialect).
+
+## Data model (high level)
+- `profiles`: add `msa_background` (none / beginner / intermediate / advanced), `bridge_view_enabled` boolean.
+- `lessons`: reuse existing table, mark bridge lessons with `approach = 'msa_bridge'`.
+- `words` / vocabulary jsonb: add optional `msa_form`, `msa_note` fields (additive, nullable — no breaking change).
+- New small table `msa_transformation_rules` (per dialect): rule name, MSA pattern, dialect pattern, example, audio. Used by the sound-shift drill UI and to power the "why did this change?" tooltips.
+
+## Curriculum Brain prompts
+- New prompt module `bridgeHelpers.ts` in `_shared/`: forbids generating MSA content as "the lesson", instead requires every bridge artifact to carry both forms and explicitly call out the transformation. Reuses the existing strict-dialect rules so the dialect side stays clean.
+
+## Out of scope (intentionally)
+- No full MSA curriculum, no MSA-only review queue, no MSA TTS voices. MSA is always the *reference rail*, never the destination.
+- No changes to existing dialect-only learners — Bridge view is off by default unless placement or the user enables it.
+
+## Rollout phases
+1. **Phase 1** — Display layer: Formal toggle visible everywhere, `msa_form` field added to vocab, Bridge view flag in profile.
+2. **Phase 2** — Sound-shift + pronoun drills for Gulf (pilot), plus MSA placement probe.
+3. **Phase 3** — Full "From MSA" lesson track generated by Curriculum Brain for all three dialects, bridge-aware SRS variant, transcript overlays.
+4. **Phase 4** — MSA Bridge badge + progress in profile, conversation simulator MSA echo.
+
+## Open questions for you
+1. Should Bridge view be a **global toggle** (affects every screen) or **per-module** (only on lessons/flashcards, not Discover)?
+2. For the MSA reference text, do you want **fully vocalized MSA (with tashkil)** by default, or unvocalized to match how MSA learners typically read?
+3. Should the "From MSA" track count toward the same daily XP/streak as regular dialect study, or have its own streak so heavy MSA users don't game it?
+4. Priority dialect for the Phase 2 pilot — Gulf (current flagship), or the one with the biggest MSA-leaner audience in your head?

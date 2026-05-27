@@ -29,6 +29,33 @@ const DIALECT_DEPENDENT_KEYS = [
   'smart-notifications',
 ];
 
+/** Per-dialect accent palette (HSL triplets, matches index.css token format).
+ *  These override --primary / --accent / --ring at runtime so all primary-themed
+ *  UI (buttons, focus rings, badges, links) reflects the active dialect. */
+const DIALECT_THEMES: Record<DialectModule, { primary: string; ring: string; glow: string }> = {
+  // Gulf — teal
+  Gulf:     { primary: '180 65% 32%', ring: '180 65% 32%', glow: '180 70% 45%' },
+  // Egyptian — amber / gold
+  Egyptian: { primary: '38 85% 45%',  ring: '38 85% 45%',  glow: '42 95% 55%'  },
+  // Yemeni — deep red
+  Yemeni:   { primary: '0 70% 42%',   ring: '0 70% 42%',   glow: '0 75% 55%'   },
+};
+
+function applyDialectTheme(dialect: DialectModule) {
+  if (typeof document === 'undefined') return;
+  const theme = DIALECT_THEMES[dialect];
+  const root = document.documentElement;
+  try {
+    root.style.setProperty('--primary', theme.primary);
+    root.style.setProperty('--accent', theme.primary);
+    root.style.setProperty('--ring', theme.ring);
+    root.style.setProperty('--primary-glow', theme.glow);
+    root.dataset.dialect = dialect.toLowerCase();
+  } catch {
+    // ignore (SSR / restricted iframe)
+  }
+}
+
 export const DialectProvider = ({ children }: { children: ReactNode }) => {
   const queryClient = useQueryClient();
   const [activeDialect, setActiveDialect] = useState<DialectModule>(() => {
@@ -62,6 +89,11 @@ export const DialectProvider = ({ children }: { children: ReactNode }) => {
     };
     syncFromProfile();
   }, []);
+
+  // Apply theme tokens whenever the active dialect changes (and on mount).
+  useEffect(() => {
+    applyDialectTheme(activeDialect);
+  }, [activeDialect]);
 
   const setDialect = (dialect: DialectModule) => {
     setActiveDialect(dialect);

@@ -16,6 +16,7 @@ import { useDisplayPrefs } from "@/hooks/useDisplayPrefs";
 import { stripTashkil } from "@/lib/displayPrefs";
 import { useMarkUnknowns } from "@/contexts/MarkUnknownsContext";
 import { vibrate } from "@/lib/tapFeedback";
+import { useBridgeMode } from "@/hooks/useBridgeMode";
 
 interface WordEnrichment {
   definition?: string;
@@ -63,8 +64,10 @@ const enrichWord = async (
 interface TappableArabicTextProps {
   /** The Arabic text to render as tappable words */
   text: string;
-  /** Optional vocabulary context for instant translation before enrichment */
-  vocabulary?: { word_arabic: string; word_english: string }[];
+  /** Optional vocabulary context for instant translation before enrichment.
+   *  When `msa_form` is provided AND Bridge view is enabled, the MSA equivalent
+   *  is shown inside each word's popover. */
+  vocabulary?: { word_arabic: string; word_english: string; msa_form?: string | null; msa_note?: string | null }[];
   /** Source label for saved words (e.g. "souq-news", "reading-practice") */
   source?: string;
   /** Additional className for the container */
@@ -91,6 +94,7 @@ export const TappableArabicText = ({
   const { user } = useAuth();
   const { activeDialect } = useDialect();
   const { prefs } = useDisplayPrefs();
+  const { enabled: bridgeOn } = useBridgeMode();
   const addVocab = useAddUserVocabulary();
   const markUnknowns = useMarkUnknowns();
   const [wordTranslations, setWordTranslations] = useState<Record<string, WordData>>({});

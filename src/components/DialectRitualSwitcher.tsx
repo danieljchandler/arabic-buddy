@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { ChevronDown, X } from "lucide-react";
 import { useDialect, DialectModule } from "@/contexts/DialectContext";
 import { cn } from "@/lib/utils";
@@ -55,11 +56,16 @@ interface Props {
 export const DialectRitualSwitcher = ({ className }: Props) => {
   const { activeDialect, setDialect } = useDialect();
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const [flippingId, setFlippingId] = useState<DialectModule | null>(null);
   const [washHsl, setWashHsl] = useState<string | null>(null);
   const closeTimerRef = useRef<number | null>(null);
 
   const current = DIALECTS.find((d) => d.id === activeDialect) ?? DIALECTS[0];
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Lock body scroll while overlay open
   useEffect(() => {
@@ -109,57 +115,8 @@ export const DialectRitualSwitcher = ({ className }: Props) => {
     }, 260);
   };
 
-  return (
-    <>
-      {/* Chip */}
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        aria-label={`Active dialect: ${current.english}. Tap to change.`}
-        className={cn(
-          "group w-full flex items-center justify-between gap-3",
-          "px-4 py-3 rounded-2xl",
-          "bg-card border-2 border-border",
-          "shadow-sm hover:shadow-md hover:border-primary/40",
-          "transition-all duration-200 active:scale-[0.99]",
-          className
-        )}
-        style={{
-          // Tint the left edge with the active dialect color as a subtle stamp
-          backgroundImage: `linear-gradient(90deg, hsl(${current.hsl} / 0.10) 0%, transparent 35%)`,
-        }}
-      >
-        <span className="flex items-center gap-3 min-w-0">
-          <span
-            className="flex items-center justify-center w-9 h-9 rounded-xl text-lg shrink-0"
-            style={{ backgroundColor: `hsl(${current.hsl} / 0.15)` }}
-            aria-hidden
-          >
-            {current.flag}
-          </span>
-          <span className="flex flex-col items-start min-w-0">
-            <span className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">
-              Active dialect
-            </span>
-            <span className="flex items-baseline gap-2 min-w-0">
-              <span
-                className="font-arabic text-lg font-bold leading-none truncate"
-                dir="rtl"
-                style={{ color: `hsl(${current.hsl})` }}
-              >
-                {current.arabic}
-              </span>
-              <span className="text-sm font-medium text-foreground truncate">
-                {current.english}
-              </span>
-            </span>
-          </span>
-        </span>
-        <ChevronDown className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
-      </button>
-
-      {/* Ritual overlay */}
-      {open && (
+  const overlay = open && mounted
+    ? createPortal(
         <div
           className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6"
           role="dialog"
@@ -281,8 +238,62 @@ export const DialectRitualSwitcher = ({ className }: Props) => {
               Switching dialect re-tunes prompts, audio voices, and your review queue.
             </p>
           </div>
-        </div>
-      )}
+        </div>,
+        document.body
+      )
+    : null;
+
+  return (
+    <>
+      {/* Chip */}
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        aria-label={`Active dialect: ${current.english}. Tap to change.`}
+        className={cn(
+          "group w-full flex items-center justify-between gap-3",
+          "px-4 py-3 rounded-2xl",
+          "bg-card border-2 border-border",
+          "shadow-sm hover:shadow-md hover:border-primary/40",
+          "transition-all duration-200 active:scale-[0.99]",
+          className
+        )}
+        style={{
+          // Tint the left edge with the active dialect color as a subtle stamp
+          backgroundImage: `linear-gradient(90deg, hsl(${current.hsl} / 0.10) 0%, transparent 35%)`,
+        }}
+      >
+        <span className="flex items-center gap-3 min-w-0">
+          <span
+            className="flex items-center justify-center w-9 h-9 rounded-xl text-lg shrink-0"
+            style={{ backgroundColor: `hsl(${current.hsl} / 0.15)` }}
+            aria-hidden
+          >
+            {current.flag}
+          </span>
+          <span className="flex flex-col items-start min-w-0">
+            <span className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">
+              Active dialect
+            </span>
+            <span className="flex items-baseline gap-2 min-w-0">
+              <span
+                className="font-arabic text-lg font-bold leading-none truncate"
+                dir="rtl"
+                style={{ color: `hsl(${current.hsl})` }}
+              >
+                {current.arabic}
+              </span>
+              <span className="text-sm font-medium text-foreground truncate">
+                {current.english}
+              </span>
+            </span>
+          </span>
+        </span>
+        <ChevronDown className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
+      </button>
+
+      {/* Ritual overlay */}
+      {overlay}
     </>
   );
 };

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChevronDown, X } from "lucide-react";
 import { useDialect, DialectModule } from "@/contexts/DialectContext";
 import { cn } from "@/lib/utils";
@@ -57,6 +57,7 @@ export const DialectRitualSwitcher = ({ className }: Props) => {
   const [open, setOpen] = useState(false);
   const [flippingId, setFlippingId] = useState<DialectModule | null>(null);
   const [washHsl, setWashHsl] = useState<string | null>(null);
+  const closeTimerRef = useRef<number | null>(null);
 
   const current = DIALECTS.find((d) => d.id === activeDialect) ?? DIALECTS[0];
 
@@ -80,24 +81,32 @@ export const DialectRitualSwitcher = ({ className }: Props) => {
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
+  useEffect(() => {
+    return () => {
+      if (closeTimerRef.current !== null) {
+        window.clearTimeout(closeTimerRef.current);
+      }
+    };
+  }, []);
+
   const handlePick = (meta: Meta) => {
-    if (flippingId) return;
+    if (closeTimerRef.current !== null) {
+      window.clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
     if (meta.id === activeDialect) {
       setOpen(false);
       return;
     }
     setFlippingId(meta.id);
-    // Wash overlay fades in with the new dialect color
     setWashHsl(meta.hsl);
-    // After the flip + wash, apply the dialect and close
-    window.setTimeout(() => {
-      setDialect(meta.id);
-    }, 400);
-    window.setTimeout(() => {
+    setDialect(meta.id);
+    closeTimerRef.current = window.setTimeout(() => {
       setOpen(false);
       setFlippingId(null);
       setWashHsl(null);
-    }, 750);
+      closeTimerRef.current = null;
+    }, 260);
   };
 
   return (

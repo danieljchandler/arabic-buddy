@@ -22,7 +22,7 @@ const DailyStoryPage = () => {
   // Auto-trigger generation on first visit if none exists
   useEffect(() => {
     if (!authLoading && user && !isLoading && !story && !generate.isPending && !generate.isError) {
-      generate.mutate();
+      generate.mutate(undefined);
     }
   }, [authLoading, user, isLoading, story, generate]);
 
@@ -92,7 +92,7 @@ const DailyStoryPage = () => {
               {notEnough ? (
                 <Button onClick={() => navigate("/my-words")}>Go to My Words</Button>
               ) : (
-                <Button onClick={() => generate.mutate()} variant="outline" className="gap-2">
+                <Button onClick={() => generate.mutate(undefined)} variant="outline" className="gap-2">
                   <RefreshCw className="h-4 w-4" /> Try again
                 </Button>
               )}

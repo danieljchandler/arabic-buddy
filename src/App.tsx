@@ -68,6 +68,7 @@ const PictureScenePlayer = lazyPage(() => import("./pages/PictureScenePlayer"));
 const AlphabetJourney = lazyPage(() => import("./pages/AlphabetJourney"));
 const AlphabetLetter = lazyPage(() => import("./pages/AlphabetLetter"));
 const AlphabetCheckpoint = lazyPage(() => import("./pages/AlphabetCheckpoint"));
+const MsaBridge = lazyPage(() => import("./pages/MsaBridge"));
 
 // Admin pages
 const AdminLayout = lazyPage(() => import("./pages/admin/AdminLayout"));
@@ -352,6 +353,9 @@ const App = () => {
             } />
             <Route path="/alphabet" element={
               <ErrorBoundary name="AlphabetJourneyRoute"><AlphabetJourney /></ErrorBoundary>
+            } />
+            <Route path="/bridge" element={
+              <ErrorBoundary name="MsaBridgeRoute"><MsaBridge /></ErrorBoundary>
             } />
             <Route path="/alphabet/checkpoint/:index" element={
               <ErrorBoundary name="AlphabetCheckpointRoute"><ProtectedRoute><AlphabetCheckpoint /></ProtectedRoute></ErrorBoundary>

@@ -1227,6 +1227,60 @@ export type Database = {
         }
         Relationships: []
       }
+      msa_transformation_rules: {
+        Row: {
+          category: string
+          created_at: string
+          created_by: string | null
+          dialect: string
+          dialect_pattern: string
+          display_order: number
+          example_audio_url: string | null
+          example_dialect: string | null
+          example_msa: string | null
+          id: string
+          msa_pattern: string
+          notes: string | null
+          rule_name: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          dialect?: string
+          dialect_pattern: string
+          display_order?: number
+          example_audio_url?: string | null
+          example_dialect?: string | null
+          example_msa?: string | null
+          id?: string
+          msa_pattern: string
+          notes?: string | null
+          rule_name: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          dialect?: string
+          dialect_pattern?: string
+          display_order?: number
+          example_audio_url?: string | null
+          example_dialect?: string | null
+          example_msa?: string | null
+          id?: string
+          msa_pattern?: string
+          notes?: string | null
+          rule_name?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       picture_scene_hotspots: {
         Row: {
           created_at: string
@@ -1382,12 +1436,14 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          bridge_view_enabled: boolean
           created_at: string
           custom_institution: string | null
           display_name: string | null
           id: string
           institution_id: string | null
           learning_reason: string | null
+          msa_background: string | null
           onboarding_completed: boolean
           placement_level: string | null
           placement_level_egyptian: string | null
@@ -1407,12 +1463,14 @@ export type Database = {
         }
         Insert: {
           avatar_url?: string | null
+          bridge_view_enabled?: boolean
           created_at?: string
           custom_institution?: string | null
           display_name?: string | null
           id?: string
           institution_id?: string | null
           learning_reason?: string | null
+          msa_background?: string | null
           onboarding_completed?: boolean
           placement_level?: string | null
           placement_level_egyptian?: string | null
@@ -1432,12 +1490,14 @@ export type Database = {
         }
         Update: {
           avatar_url?: string | null
+          bridge_view_enabled?: boolean
           created_at?: string
           custom_institution?: string | null
           display_name?: string | null
           id?: string
           institution_id?: string | null
           learning_reason?: string | null
+          msa_background?: string | null
           onboarding_completed?: boolean
           placement_level?: string | null
           placement_level_egyptian?: string | null
@@ -2451,6 +2511,8 @@ export type Database = {
           last_result: string | null
           last_reviewed_at: string | null
           mnemonic: string | null
+          msa_form: string | null
+          msa_note: string | null
           next_review_at: string
           production_ease_factor: number
           production_interval_days: number
@@ -2487,6 +2549,8 @@ export type Database = {
           last_result?: string | null
           last_reviewed_at?: string | null
           mnemonic?: string | null
+          msa_form?: string | null
+          msa_note?: string | null
           next_review_at?: string
           production_ease_factor?: number
           production_interval_days?: number
@@ -2523,6 +2587,8 @@ export type Database = {
           last_result?: string | null
           last_reviewed_at?: string | null
           mnemonic?: string | null
+          msa_form?: string | null
+          msa_note?: string | null
           next_review_at?: string
           production_ease_factor?: number
           production_interval_days?: number
@@ -2786,6 +2852,8 @@ export type Database = {
           image_position: string | null
           image_url: string | null
           lesson_id: string | null
+          msa_form: string | null
+          msa_note: string | null
           topic_id: string | null
           updated_at: string
           word_arabic: string
@@ -2800,6 +2868,8 @@ export type Database = {
           image_position?: string | null
           image_url?: string | null
           lesson_id?: string | null
+          msa_form?: string | null
+          msa_note?: string | null
           topic_id?: string | null
           updated_at?: string
           word_arabic: string
@@ -2814,6 +2884,8 @@ export type Database = {
           image_position?: string | null
           image_url?: string | null
           lesson_id?: string | null
+          msa_form?: string | null
+          msa_note?: string | null
           topic_id?: string | null
           updated_at?: string
           word_arabic?: string

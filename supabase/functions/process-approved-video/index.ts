@@ -645,6 +645,31 @@ async function runPipeline(
     // Previously we removed `storagePaths` here to save storage, but that
     // broke automatic sync for completed videos.
 
+    // Auto-tag difficulty (CEFR + WPM + rare-word ratio) once transcript is ready.
+    // Fire-and-forget so a rating failure never breaks the main pipeline.
+    try {
+      const ratePromise = fetch(`${projectUrl}/functions/v1/rate-video-cefr`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: pipelineAuth,
+        },
+        body: JSON.stringify({ videoId }),
+      })
+        .then(async (r) => {
+          if (!r.ok) {
+            console.warn(`[pipeline] auto-rate failed: ${r.status} ${await r.text().catch(() => "")}`);
+          } else {
+            console.log(`[pipeline] auto-rate scheduled for ${videoId}`);
+          }
+        })
+        .catch((e) => console.warn("[pipeline] auto-rate fetch error:", e instanceof Error ? e.message : String(e)));
+      // deno-lint-ignore no-explicit-any
+      (globalThis as any).EdgeRuntime?.waitUntil?.(ratePromise);
+    } catch (e) {
+      console.warn("[pipeline] auto-rate dispatch error (non-fatal):", e);
+    }
+
     console.log(`[pipeline] Completed for video ${videoId}`);
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : "Unknown error";

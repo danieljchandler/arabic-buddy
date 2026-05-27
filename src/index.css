@@ -123,11 +123,29 @@
   body {
     @apply bg-background text-foreground;
     font-family: 'Open Sans', 'Noto Sans Arabic', sans-serif;
+    font-size: 1rem;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
   }
 
   html {
     touch-action: manipulation;
   }
+
+  /* Locked heading rhythm — Montserrat, tight tracking, no competing weights */
+  h1, h2, h3, h4 {
+    font-family: 'Montserrat', 'Noto Sans Arabic', sans-serif;
+    font-weight: 700;
+    color: hsl(var(--foreground));
+  }
+  h1 { @apply text-headline md:text-display; }
+  h2 { @apply text-title md:text-headline; }
+  h3 { @apply text-subtitle md:text-title; }
+  h4 { @apply text-body md:text-subtitle; font-weight: 600; }
+  p  { @apply text-body; }
+  small { @apply text-caption text-muted-foreground; }
 }
 
 @layer utilities {
@@ -141,16 +159,52 @@
 
   .font-arabic {
     font-family: 'Noto Sans Arabic', 'Open Sans', sans-serif;
-    line-height: 1.6;
+    line-height: 1.7;
   }
 
-  /* Typography hierarchy: Arabic primary, English secondary */
-  .text-arabic-primary {
+  /* ── Semantic typography tokens — single source of truth ── */
+  .text-t-display {
+    @apply font-heading text-display font-bold;
+  }
+  .text-t-headline {
+    @apply font-heading text-headline font-bold;
+  }
+  .text-t-title {
+    @apply font-heading text-title font-bold;
+  }
+  .text-t-subtitle {
+    @apply font-heading text-subtitle font-semibold;
+  }
+  .text-t-body {
+    @apply font-sans text-body font-normal;
+  }
+  .text-t-body-strong {
+    @apply font-sans text-body font-medium;
+  }
+  .text-t-caption {
+    @apply font-sans text-caption font-medium text-muted-foreground;
+  }
+  .text-t-overline {
+    @apply font-sans text-overline font-semibold uppercase text-muted-foreground;
+  }
+
+  /* Arabic-first display — used for vocabulary and titles in Arabic */
+  .text-arabic-display {
     font-family: 'Noto Sans Arabic', 'Open Sans', sans-serif;
-    line-height: 1.6;
     font-weight: 700;
+    line-height: 1.4;
+    letter-spacing: 0;
+  }
+  .text-arabic-body {
+    font-family: 'Noto Sans Arabic', 'Open Sans', sans-serif;
+    font-weight: 500;
+    line-height: 1.75;
   }
 
+  /* Legacy aliases — keep existing call sites working */
+  .text-arabic-primary {
+    @apply text-arabic-display;
+  }
   .text-english-secondary {
     font-family: 'Open Sans', 'Noto Sans Arabic', sans-serif;
     font-weight: 500;

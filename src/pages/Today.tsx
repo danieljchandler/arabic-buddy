@@ -29,6 +29,10 @@ const TASK_HINTS: Record<string, { title: string; body: string }> = {
     title: "Reading practice",
     body: "Short passages with tap-to-translate. Build comprehension without ever reaching for a dictionary.",
   },
+  "daily-story": {
+    title: "Today's story",
+    body: "A fresh ~200-word story written around words you already know, with a few new ones gently introduced. Tap any word for an instant gloss.",
+  },
   listening: {
     title: "Listening clip",
     body: "Real native videos with synced subtitles — train your ear on how Arabic actually sounds in the wild.",

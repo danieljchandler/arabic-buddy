@@ -51,6 +51,7 @@ const Settings = lazyPage(() => import("./pages/Settings"));
 const Friends = lazyPage(() => import("./pages/Friends"));
 const LikedVideos = lazyPage(() => import("./pages/LikedVideos"));
 const Stories = lazyPage(() => import("./pages/Stories"));
+const DailyStory = lazyPage(() => import("./pages/DailyStory"));
 const StoryPlayer = lazyPage(() => import("./pages/StoryPlayer"));
 const VocabBattles = lazyPage(() => import("./pages/VocabBattles"));
 const BattlePlay = lazyPage(() => import("./pages/BattlePlay"));
@@ -300,6 +301,9 @@ const App = () => {
             } />
             <Route path="/stories" element={
               <ErrorBoundary name="StoriesRoute"><Stories /></ErrorBoundary>
+            } />
+            <Route path="/today/story" element={
+              <ErrorBoundary name="DailyStoryRoute"><ProtectedRoute><DailyStory /></ProtectedRoute></ErrorBoundary>
             } />
             <Route path="/stories/:storyId" element={
               <ErrorBoundary name="StoryPlayerRoute"><StoryPlayer /></ErrorBoundary>

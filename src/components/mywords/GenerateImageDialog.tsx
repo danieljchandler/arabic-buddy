@@ -110,6 +110,49 @@ export const GenerateImageDialog = ({ word, open, onOpenChange, onImageSaved }: 
             />
           </div>
 
+          <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <label className="text-sm font-medium flex items-center gap-1.5">
+                <Lock className="h-3.5 w-3.5 text-primary" />
+                Lock my style
+              </label>
+              <Switch
+                checked={styleLock.enabled}
+                onCheckedChange={styleLock.setEnabled}
+                disabled={isGenerating}
+              />
+            </div>
+            {styleLock.enabled && (
+              <>
+                <Textarea
+                  value={styleLock.description}
+                  onChange={(e) => styleLock.setDescription(e.target.value)}
+                  rows={2}
+                  disabled={isGenerating}
+                  className="text-xs"
+                  placeholder="Your signature style (lighting, mood, background...)"
+                />
+                <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                  <span>Seed: <code className="font-mono">{styleLock.seed}</code></span>
+                  <button
+                    type="button"
+                    onClick={styleLock.regenerateSeed}
+                    disabled={isGenerating}
+                    className="inline-flex items-center gap-1 hover:text-foreground transition-colors"
+                  >
+                    <Dices className="h-3 w-3" />
+                    New seed
+                  </button>
+                </div>
+              </>
+            )}
+            {!styleLock.enabled && (
+              <p className="text-[11px] text-muted-foreground">
+                Keep a consistent look across all your flashcard images.
+              </p>
+            )}
+          </div>
+
           <Button
             onClick={handleGenerate}
             disabled={isGenerating}

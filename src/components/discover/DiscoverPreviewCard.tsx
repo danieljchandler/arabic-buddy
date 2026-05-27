@@ -12,6 +12,8 @@ export interface DiscoverVideo {
   dialect?: string | null;
   difficulty?: string | null;
   duration_seconds?: number | null;
+  cefr_level?: string | null;
+  difficulty_metrics?: { words_per_minute?: number | null; rare_word_ratio?: number | null } | null;
 }
 
 interface DiscoverPreviewCardProps {
@@ -71,9 +73,18 @@ export const DiscoverPreviewCard = memo(function DiscoverPreviewCard({ video, on
                 {video.dialect}
               </Badge>
             )}
-            {video.difficulty && (
+            {video.cefr_level ? (
+              <Badge className="bg-primary text-primary-foreground border-none text-xs backdrop-blur-sm font-bold">
+                {video.cefr_level}
+              </Badge>
+            ) : video.difficulty && (
               <Badge className="bg-background/20 text-background border-none text-xs backdrop-blur-sm">
                 {video.difficulty}
+              </Badge>
+            )}
+            {typeof video.difficulty_metrics?.words_per_minute === "number" && (
+              <Badge className="bg-background/20 text-background border-none text-xs backdrop-blur-sm">
+                {Math.round(video.difficulty_metrics.words_per_minute)} wpm
               </Badge>
             )}
             {video.duration_seconds && (

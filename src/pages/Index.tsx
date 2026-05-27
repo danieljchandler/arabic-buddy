@@ -17,6 +17,7 @@ import lahjaLogo from "@/assets/lahja-logo.png";
 import { useState } from "react";
 import { NotificationBell } from "@/components/NotificationBell";
 import { useDialect, DialectModule } from "@/contexts/DialectContext";
+import { DialectRitualSwitcher } from "@/components/DialectRitualSwitcher";
 import { PhraseOfTheDay } from "@/components/PhraseOfTheDay";
 import { useHomeLayout } from "@/hooks/useHomeLayout";
 import { HomeSectionId, isSectionVisible } from "@/lib/homeLayout";

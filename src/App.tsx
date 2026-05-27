@@ -294,6 +294,11 @@ const App = () => {
                 <ProtectedRoute><Settings /></ProtectedRoute>
               </ErrorBoundary>
             } />
+            <Route path="/profile" element={
+              <ErrorBoundary name="ProfileRoute">
+                <ProtectedRoute><Profile /></ProtectedRoute>
+              </ErrorBoundary>
+            } />
             <Route path="/friends" element={
               <ErrorBoundary name="FriendsRoute"><ProtectedRoute><Friends /></ProtectedRoute></ErrorBoundary>
             } />

@@ -162,13 +162,13 @@ export const DialectRitualSwitcher = ({ className }: Props) => {
             type="button"
             aria-label="Close dialect picker"
             onClick={() => !flippingId && setOpen(false)}
-            className="absolute inset-0 bg-background/80 backdrop-blur-md animate-fade-in"
+            className="absolute inset-0 z-0 bg-background/80 backdrop-blur-md animate-fade-up"
           />
 
           {/* Color wash for the transition moment */}
           <div
             className={cn(
-              "pointer-events-none absolute inset-0 transition-opacity duration-[400ms] ease-out",
+              "pointer-events-none absolute inset-0 z-0 transition-opacity duration-[400ms] ease-out",
               washHsl ? "opacity-60" : "opacity-0"
             )}
             style={{
@@ -179,7 +179,7 @@ export const DialectRitualSwitcher = ({ className }: Props) => {
           />
 
           {/* Card stack */}
-          <div className="relative w-full max-w-md animate-scale-in">
+          <div className="relative z-10 w-full max-w-md animate-scale-in">
             <div className="flex items-center justify-between mb-4">
               <div className="flex flex-col">
                 <span className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground font-semibold">

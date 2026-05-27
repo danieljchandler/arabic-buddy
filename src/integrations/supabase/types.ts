@@ -674,6 +674,51 @@ export type Database = {
         }
         Relationships: []
       }
+      daily_vocab_stories: {
+        Row: {
+          audio_url: string | null
+          body_arabic: string
+          body_english: string | null
+          created_at: string
+          dialect: string
+          id: string
+          new_words: Json
+          story_date: string
+          title: string
+          updated_at: string
+          user_id: string
+          vocab_used: Json
+        }
+        Insert: {
+          audio_url?: string | null
+          body_arabic: string
+          body_english?: string | null
+          created_at?: string
+          dialect?: string
+          id?: string
+          new_words?: Json
+          story_date?: string
+          title: string
+          updated_at?: string
+          user_id: string
+          vocab_used?: Json
+        }
+        Update: {
+          audio_url?: string | null
+          body_arabic?: string
+          body_english?: string | null
+          created_at?: string
+          dialect?: string
+          id?: string
+          new_words?: Json
+          story_date?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+          vocab_used?: Json
+        }
+        Relationships: []
+      }
       discover_videos: {
         Row: {
           cefr_level: string | null

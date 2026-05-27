@@ -378,6 +378,28 @@ export const TappableArabicText = ({
                       </div>
                     ) : null}
 
+                    {bridgeOn && (() => {
+                      const match = vocabulary.find(
+                        (v) => v.msa_form && (cleanWord.includes(v.word_arabic) || v.word_arabic.includes(cleanWord))
+                      );
+                      if (!match?.msa_form) return null;
+                      return (
+                        <div className="pt-1 border-t border-border bg-[#5C3A46]/5 -mx-3 px-3 py-2">
+                          <p className="text-[10px] font-medium uppercase tracking-wide text-[#5C3A46]">
+                            MSA · الفصحى
+                          </p>
+                          <p className="font-arabic text-sm text-foreground" dir="rtl">
+                            {match.msa_form}
+                          </p>
+                          {match.msa_note && (
+                            <p className="text-[11px] text-muted-foreground mt-1 leading-snug">
+                              {match.msa_note}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })()}
+
                     {wordData.enrichment?.otherUses && wordData.enrichment.otherUses.length > 0 && (
                       <div className="pt-1 border-t border-border">
                         <p className="text-xs font-medium text-muted-foreground mb-1">Other forms</p>

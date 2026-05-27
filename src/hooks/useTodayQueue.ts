@@ -4,11 +4,12 @@ import { useUserSetPhrasesDueCount } from "@/hooks/useSetPhrases";
 import { useDiscoverVideos } from "@/hooks/useDiscoverVideos";
 import { useDialect } from "@/contexts/DialectContext";
 import { isTaskCompletedToday } from "@/lib/todayCompletion";
-import { BookOpen, Headphones, Newspaper, MessageCircle, Flame, Brain, type LucideIcon } from "lucide-react";
+import { BookOpen, Headphones, Newspaper, MessageCircle, Flame, Brain, Sparkles, type LucideIcon } from "lucide-react";
 
 export type TodayTaskId =
   | "flashcards"
   | "daily-challenge"
+  | "daily-story"
   | "reading"
   | "listening"
   | "souq"
@@ -68,6 +69,16 @@ export const useTodayQueue = (): TodayTask[] => {
       route: "/daily-challenge",
       done: isTaskCompletedToday("daily-challenge"),
       xpEstimate: 20,
+    },
+    {
+      id: "daily-story",
+      title: "Today's story",
+      subtitle: "Built from your words",
+      estMinutes: 4,
+      icon: Sparkles,
+      route: "/today/story",
+      done: isTaskCompletedToday("daily-story"),
+      xpEstimate: 25,
     },
     {
       id: "reading",

@@ -19,9 +19,20 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ["Open Sans", "Cairo", "sans-serif"],
-        heading: ["Montserrat", "Cairo", "sans-serif"],
-        arabic: ["Cairo", "Open Sans", "sans-serif"],
+        sans: ["Open Sans", "Noto Sans Arabic", "sans-serif"],
+        heading: ["Montserrat", "Noto Sans Arabic", "sans-serif"],
+        arabic: ["Noto Sans Arabic", "Open Sans", "sans-serif"],
+      },
+      fontSize: {
+        // Locked typographic scale — 1.25 ratio, Lahja rhythm
+        "caption": ["0.75rem", { lineHeight: "1rem", letterSpacing: "0.02em" }],
+        "overline": ["0.6875rem", { lineHeight: "0.875rem", letterSpacing: "0.12em" }],
+        "body-sm": ["0.875rem", { lineHeight: "1.4rem" }],
+        "body": ["1rem", { lineHeight: "1.6rem" }],
+        "subtitle": ["1.125rem", { lineHeight: "1.65rem", letterSpacing: "-0.005em" }],
+        "title": ["1.5rem", { lineHeight: "1.9rem", letterSpacing: "-0.015em" }],
+        "headline": ["2rem", { lineHeight: "2.35rem", letterSpacing: "-0.02em" }],
+        "display": ["2.75rem", { lineHeight: "3rem", letterSpacing: "-0.025em" }],
       },
       colors: {
         border: "hsl(var(--border))",

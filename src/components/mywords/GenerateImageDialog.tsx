@@ -2,9 +2,11 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Sparkles, RefreshCw } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Loader2, Sparkles, RefreshCw, Lock, Dices } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useImageStyleLock, composeStyledInstructions } from "@/hooks/useImageStyleLock";
 
 export interface GenerateImageWord {
   id: string;
@@ -24,6 +26,7 @@ export const GenerateImageDialog = ({ word, open, onOpenChange, onImageSaved }: 
   const [customInstructions, setCustomInstructions] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const styleLock = useImageStyleLock();
 
   const handleGenerate = async () => {
     if (!word) return;
@@ -33,11 +36,13 @@ export const GenerateImageDialog = ({ word, open, onOpenChange, onImageSaved }: 
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Not authenticated");
 
+      const composed = composeStyledInstructions(customInstructions, styleLock);
+
       const { data, error } = await supabase.functions.invoke("generate-flashcard-image", {
         body: {
           word_arabic: word.word_arabic,
           word_english: word.word_english,
-          custom_instructions: customInstructions || undefined,
+          custom_instructions: composed,
         },
       });
 

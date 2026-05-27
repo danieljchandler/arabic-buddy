@@ -161,6 +161,9 @@ const Index = () => {
         </div>
       </div>
 
+      {/* A — Majlis welcome panel */}
+      <MajlisWelcome />
+
       {/* Dialect Module Switcher — ritual chip + flip-card overlay */}
       <div className="mb-3">
         <DialectRitualSwitcher />

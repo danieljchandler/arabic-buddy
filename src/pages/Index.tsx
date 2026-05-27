@@ -18,6 +18,7 @@ import { useState } from "react";
 import { NotificationBell } from "@/components/NotificationBell";
 import { useDialect, DialectModule } from "@/contexts/DialectContext";
 import { DialectRitualSwitcher } from "@/components/DialectRitualSwitcher";
+import { MajlisWelcome } from "@/components/MajlisWelcome";
 import { PhraseOfTheDay } from "@/components/PhraseOfTheDay";
 import { useHomeLayout } from "@/hooks/useHomeLayout";
 import { HomeSectionId, isSectionVisible } from "@/lib/homeLayout";

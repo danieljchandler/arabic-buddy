@@ -305,8 +305,6 @@ const App = () => {
             <Route path="/today/story" element={
               <ErrorBoundary name="DailyStoryRoute"><ProtectedRoute><DailyStory /></ProtectedRoute></ErrorBoundary>
             } />
-              <ErrorBoundary name="StoriesRoute"><Stories /></ErrorBoundary>
-            } />
             <Route path="/stories/:storyId" element={
               <ErrorBoundary name="StoryPlayerRoute"><StoryPlayer /></ErrorBoundary>
             } />

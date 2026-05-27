@@ -55,6 +55,7 @@ export function useGenerateDailyStory() {
   return useMutation({
     mutationFn: async (opts?: { force?: boolean }): Promise<DailyStory> => {
       const force = opts?.force ?? false;
+      const { data, error } = await supabase.functions.invoke("generate-daily-story", {
         body: { dialect: activeDialect, force },
       });
       if (error) throw error;

@@ -100,6 +100,10 @@ export default {
         topic: "var(--shadow-topic)",
         "topic-hover": "var(--shadow-topic-hover)",
       },
+      transitionTimingFunction: {
+        // Lahja Motion Language — single canonical easing
+        lahja: "cubic-bezier(0.16, 1, 0.3, 1)",
+      },
       keyframes: {
         "accordion-down": {
           from: { height: "0" },
@@ -109,10 +113,42 @@ export default {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: "0" },
         },
+        // ── Lahja Motion Language ──
+        // 1. fade-up — content arrival (text, lists, panels)
+        "fade-up": {
+          "0%": { opacity: "0", transform: "translateY(8px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+        // 2. scale-in — cards, tiles, badges
+        "scale-in": {
+          "0%": { opacity: "0", transform: "scale(0.96)" },
+          "100%": { opacity: "1", transform: "scale(1)" },
+        },
+        // 3. slide-in — sheets, drawers, overlays (from right)
+        "slide-in": {
+          "0%": { transform: "translateX(100%)" },
+          "100%": { transform: "translateX(0)" },
+        },
+        "slide-in-bottom": {
+          "0%": { transform: "translateY(100%)" },
+          "100%": { transform: "translateY(0)" },
+        },
+        // Legacy alias — keep existing call sites working, route to fade-up
+        "fade-in": {
+          "0%": { opacity: "0", transform: "translateY(8px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        // Lahja Motion Language — all use the lahja easing, tuned durations
+        "fade-up": "fade-up 360ms cubic-bezier(0.16, 1, 0.3, 1) both",
+        "scale-in": "scale-in 240ms cubic-bezier(0.16, 1, 0.3, 1) both",
+        "slide-in": "slide-in 320ms cubic-bezier(0.16, 1, 0.3, 1) both",
+        "slide-in-bottom": "slide-in-bottom 320ms cubic-bezier(0.16, 1, 0.3, 1) both",
+        // Alias
+        "fade-in": "fade-up 360ms cubic-bezier(0.16, 1, 0.3, 1) both",
       },
     },
   },

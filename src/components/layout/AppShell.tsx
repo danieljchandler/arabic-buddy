@@ -32,7 +32,7 @@ export function AppShell({ children, className, compact = false }: AppShellProps
         }}
       />
       <div className={cn(
-        "relative mx-auto w-full max-w-2xl animate-fade-in",
+        "relative mx-auto w-full max-w-2xl animate-fade-up",
         compact ? "px-5 py-6" : "px-6 pt-4 pb-8 md:pt-6 md:pb-12"
       )}>
         {children}

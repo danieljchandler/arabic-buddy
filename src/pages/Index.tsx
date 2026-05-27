@@ -17,6 +17,7 @@ import lahjaLogo from "@/assets/lahja-logo.png";
 import { useState } from "react";
 import { NotificationBell } from "@/components/NotificationBell";
 import { useDialect, DialectModule } from "@/contexts/DialectContext";
+import { DialectRitualSwitcher } from "@/components/DialectRitualSwitcher";
 import { PhraseOfTheDay } from "@/components/PhraseOfTheDay";
 import { useHomeLayout } from "@/hooks/useHomeLayout";
 import { HomeSectionId, isSectionVisible } from "@/lib/homeLayout";
@@ -159,23 +160,9 @@ const Index = () => {
         </div>
       </div>
 
-      {/* Dialect Module Switcher */}
-      <div className="flex gap-2 mb-4">
-        {DIALECT_MODULES.map((mod) => (
-          <button
-            key={mod.id}
-            onClick={() => setDialect(mod.id)}
-            className={cn(
-              "flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl border-2 transition-all duration-200 font-medium text-sm",
-              activeDialect === mod.id
-                ? "border-primary bg-primary/10 text-primary"
-                : "border-border bg-card text-muted-foreground hover:border-primary/30"
-            )}
-          >
-            <span className="text-lg">{mod.flag}</span>
-            <span>{mod.label}</span>
-          </button>
-        ))}
+      {/* Dialect Module Switcher — ritual chip + flip-card overlay */}
+      <div className="mb-4">
+        <DialectRitualSwitcher />
       </div>
 
       {(() => {

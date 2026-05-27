@@ -17,12 +17,12 @@ const DailyStoryPage = () => {
   const { data: story, isLoading } = useDailyStory();
   const generate = useGenerateDailyStory();
   const { prefs } = useDisplayPrefs();
-  const showEnglish = prefs?.show_english ?? false;
+  const showEnglish = prefs?.showEnglish ?? false;
 
   // Auto-trigger generation on first visit if none exists
   useEffect(() => {
     if (!authLoading && user && !isLoading && !story && !generate.isPending && !generate.isError) {
-      generate.mutate(false);
+      generate.mutate();
     }
   }, [authLoading, user, isLoading, story, generate]);
 
@@ -92,7 +92,7 @@ const DailyStoryPage = () => {
               {notEnough ? (
                 <Button onClick={() => navigate("/my-words")}>Go to My Words</Button>
               ) : (
-                <Button onClick={() => generate.mutate(false)} variant="outline" className="gap-2">
+                <Button onClick={() => generate.mutate()} variant="outline" className="gap-2">
                   <RefreshCw className="h-4 w-4" /> Try again
                 </Button>
               )}
@@ -152,7 +152,7 @@ const DailyStoryPage = () => {
                 size="sm"
                 className="gap-2"
                 onClick={() =>
-                  generate.mutate(true, {
+                  generate.mutate({ force: true }, {
                     onSuccess: () => toast.success("Fresh story generated"),
                     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
                   })

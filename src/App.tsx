@@ -48,6 +48,7 @@ const GrammarDrills = lazyPage(() => import("./pages/GrammarDrills"));
 const VocabGames = lazyPage(() => import("./pages/VocabGames"));
 const Onboarding = lazyPage(() => import("./pages/Onboarding"));
 const Settings = lazyPage(() => import("./pages/Settings"));
+const Profile = lazyPage(() => import("./pages/Profile"));
 const Friends = lazyPage(() => import("./pages/Friends"));
 const LikedVideos = lazyPage(() => import("./pages/LikedVideos"));
 const Stories = lazyPage(() => import("./pages/Stories"));
@@ -291,6 +292,11 @@ const App = () => {
             <Route path="/settings" element={
               <ErrorBoundary name="SettingsRoute">
                 <ProtectedRoute><Settings /></ProtectedRoute>
+              </ErrorBoundary>
+            } />
+            <Route path="/profile" element={
+              <ErrorBoundary name="ProfileRoute">
+                <ProtectedRoute><Profile /></ProtectedRoute>
               </ErrorBoundary>
             } />
             <Route path="/friends" element={

@@ -145,6 +145,9 @@ const Index = () => {
           {isAuthenticated && (
             <>
               <NotificationBell />
+              <Button variant="ghost" size="icon" onClick={() => navigate("/profile")} className="text-muted-foreground hover:text-foreground" title="Profile">
+                <Users className="h-4 w-4" />
+              </Button>
               <Button variant="ghost" size="icon" onClick={() => navigate("/settings")} className="text-muted-foreground hover:text-foreground" title="Settings">
                 <Settings className="h-4 w-4" />
               </Button>

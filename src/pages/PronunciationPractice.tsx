@@ -457,6 +457,8 @@ const PronunciationPractice = () => {
             </Button>
           </div>
         )}
+        </>
+        )}
       </div>
     </AppShell>
   );

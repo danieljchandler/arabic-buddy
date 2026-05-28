@@ -8,13 +8,15 @@ import { HomeButton } from "@/components/HomeButton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Mic, MicOff, RotateCcw, Loader2, ChevronRight, ChevronLeft, Volume2, Trophy, Target, ArrowRight, Languages } from "lucide-react";
+import { Mic, MicOff, RotateCcw, Loader2, ChevronRight, ChevronLeft, Volume2, Trophy, Target, ArrowRight, Languages, Headphones } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { InfoHint } from "@/components/InfoHint";
 import { PAGE_HINTS } from "@/lib/pageHints";
 import { useRef } from "react";
+import { ShadowPlayer } from "@/components/pronunciation/ShadowPlayer";
+import { useShadowQueue } from "@/hooks/useShadowQueue";
 
 const MAX_DURATION_MS = 5000;
 

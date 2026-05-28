@@ -183,8 +183,19 @@ const StoryPlayer = () => {
                               toast.error('Sign in to save words');
                               return;
                             }
+                            const { sentence_text, sentence_english } = extractSentenceForWord(
+                              currentScene.narrative_arabic,
+                              currentScene.narrative_english,
+                              v.word_arabic,
+                            );
                             addVocab.mutate(
-                              { word_arabic: v.word_arabic, word_english: v.word_english, source: 'story' },
+                              {
+                                word_arabic: v.word_arabic,
+                                word_english: v.word_english,
+                                source: 'story',
+                                sentence_text,
+                                sentence_english,
+                              },
                               {
                                 onSuccess: () => {
                                   setSavedWords(prev => new Set(prev).add(key));

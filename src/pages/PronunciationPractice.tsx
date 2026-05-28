@@ -8,13 +8,15 @@ import { HomeButton } from "@/components/HomeButton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Mic, MicOff, RotateCcw, Loader2, ChevronRight, ChevronLeft, Volume2, Trophy, Target, ArrowRight, Languages } from "lucide-react";
+import { Mic, MicOff, RotateCcw, Loader2, ChevronRight, ChevronLeft, Volume2, Trophy, Target, ArrowRight, Languages, Headphones } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { InfoHint } from "@/components/InfoHint";
 import { PAGE_HINTS } from "@/lib/pageHints";
 import { useRef } from "react";
+import { ShadowPlayer } from "@/components/pronunciation/ShadowPlayer";
+import { useShadowQueue } from "@/hooks/useShadowQueue";
 
 const MAX_DURATION_MS = 5000;
 
@@ -48,7 +50,7 @@ const PronunciationPractice = () => {
   const [words, setWords] = useState<VocabWord[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isRecording, setIsRecording] = useState(false);
-  const [mode, setMode] = useState<"word" | "sentence">("word");
+  const [mode, setMode] = useState<"word" | "sentence" | "shadow">("word");
   const [sessionScores, setSessionScores] = useState<number[]>([]);
   const [wordsLoading, setWordsLoading] = useState(true);
   const [showEnglish, setShowEnglish] = useState(false);
@@ -264,7 +266,23 @@ const PronunciationPractice = () => {
           >
             Sentence
           </Button>
+          <Button
+            variant={mode === "shadow" ? "default" : "outline"}
+            size="sm"
+            onClick={() => { setMode("shadow"); reset(); }}
+            className="gap-1.5"
+          >
+            <Headphones className="h-3.5 w-3.5" />
+            Shadow
+          </Button>
         </div>
+
+        {mode === "shadow" && (
+          <ShadowMode showEnglish={showEnglish} onScore={(s) => setSessionScores((prev) => [...prev, s])} />
+        )}
+        {mode !== "shadow" && (
+        <>
+
 
         {/* Word card */}
         <div className="bg-card border-2 border-border rounded-2xl p-8 text-center mb-6">
@@ -439,9 +457,96 @@ const PronunciationPractice = () => {
             </Button>
           </div>
         )}
+        </>
+        )}
       </div>
     </AppShell>
   );
 };
 
+interface ShadowModeProps {
+  showEnglish: boolean;
+  onScore: (overall: number) => void;
+}
+
+const ShadowMode = ({ showEnglish, onScore }: ShadowModeProps) => {
+  const navigate = useNavigate();
+  const { clips, loading, error, refresh } = useShadowQueue(20);
+  const [threshold, setThreshold] = useState(75);
+  const [autoAdvance, setAutoAdvance] = useState(true);
+  const [index, setIndex] = useState(0);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-8 text-destructive">
+        {error}
+        <Button variant="outline" size="sm" onClick={refresh} className="ml-2">Retry</Button>
+      </div>
+    );
+  }
+
+  if (clips.length === 0) {
+    return (
+      <div className="text-center py-12 bg-card border border-border rounded-2xl">
+        <Headphones className="h-12 w-12 text-muted-foreground/30 mx-auto mb-3" />
+        <h3 className="font-semibold mb-2">No native clips available yet</h3>
+        <p className="text-sm text-muted-foreground mb-4 px-6">
+          Shadow mode plays real native-speaker clips. Browse videos or upload audio to build a queue.
+        </p>
+        <div className="flex gap-2 justify-center">
+          <Button size="sm" onClick={() => navigate("/discover")}>Browse videos</Button>
+          <Button size="sm" variant="outline" onClick={() => navigate("/transcribe")}>Upload audio</Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (index >= clips.length) {
+    return (
+      <div className="text-center py-10 bg-card border-2 border-border rounded-2xl">
+        <Trophy className="h-12 w-12 text-primary mx-auto mb-3" />
+        <h3 className="font-semibold text-lg mb-1">Session complete</h3>
+        <p className="text-sm text-muted-foreground mb-4">{clips.length} clips shadowed</p>
+        <Button onClick={() => { setIndex(0); refresh(); }}>New session</Button>
+      </div>
+    );
+  }
+
+  const clip = clips[index];
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between text-xs">
+        <span className="text-muted-foreground">Clip {index + 1} / {clips.length}</span>
+        <label className="flex items-center gap-2">
+          <span className="text-muted-foreground">Auto-advance</span>
+          <Switch checked={autoAdvance} onCheckedChange={setAutoAdvance} className="h-5 w-9 data-[state=checked]:bg-primary data-[state=unchecked]:bg-input [&>span]:h-4 [&>span]:w-4 [&>span]:data-[state=checked]:translate-x-4" />
+        </label>
+      </div>
+      <Progress value={(index / clips.length) * 100} className="h-1.5" />
+      <ShadowPlayer
+        key={clip.id}
+        clip={clip}
+        threshold={threshold}
+        autoAdvance={autoAdvance}
+        showEnglish={showEnglish}
+        onResult={onScore}
+        onNext={() => setIndex((i) => i + 1)}
+      />
+      <p className="text-[10px] text-center text-muted-foreground/70">
+        Tip: headphones improve scoring by preventing the source audio from leaking into your mic.
+      </p>
+    </div>
+  );
+};
+
 export default PronunciationPractice;
+

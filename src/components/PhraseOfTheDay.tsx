@@ -45,13 +45,29 @@ export const PhraseOfTheDay = () => {
           return;
         }
       }
-      const { data, error } = await supabase.functions.invoke("phrase-of-the-day", {
-        body: { dialect: activeDialect, seed: force ? `${today}-${Date.now()}` : today },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      const body = { dialect: activeDialect, seed: force ? `${today}-${Date.now()}` : today };
+      // The Lovable preview fetch proxy occasionally drops the first
+      // edge-function invocation. Retry up to 2 times with backoff before
+      // surfacing a failure to the user.
+      let data: any = null;
+      let lastErr: any = null;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const res = await supabase.functions.invoke("phrase-of-the-day", { body });
+        if (!res.error && res.data && !res.data.error) {
+          data = res.data;
+          lastErr = null;
+          break;
+        }
+        lastErr = res.error || new Error(res.data?.error || "Unknown error");
+        // Only retry on network/transport failures, not real server errors.
+        const msg = String(lastErr?.message || lastErr);
+        if (!/Failed to send|fetch|network|load failed/i.test(msg)) break;
+        await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
+      }
+      if (!data) throw lastErr || new Error("No data");
       setPhrase(data);
       localStorage.setItem(cacheKey(activeDialect, today), JSON.stringify(data));
+
     } catch (e: any) {
       // Silently swallow — the Lovable preview fetch proxy occasionally drops
       // edge-function invocations on initial load. The user can hit refresh.

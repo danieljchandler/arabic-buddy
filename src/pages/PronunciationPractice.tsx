@@ -266,7 +266,23 @@ const PronunciationPractice = () => {
           >
             Sentence
           </Button>
+          <Button
+            variant={mode === "shadow" ? "default" : "outline"}
+            size="sm"
+            onClick={() => { setMode("shadow"); reset(); }}
+            className="gap-1.5"
+          >
+            <Headphones className="h-3.5 w-3.5" />
+            Shadow
+          </Button>
         </div>
+
+        {mode === "shadow" && (
+          <ShadowMode showEnglish={showEnglish} onScore={(s) => setSessionScores((prev) => [...prev, s])} />
+        )}
+        {mode !== "shadow" && (
+        <>
+
 
         {/* Word card */}
         <div className="bg-card border-2 border-border rounded-2xl p-8 text-center mb-6">

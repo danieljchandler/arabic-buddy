@@ -182,19 +182,45 @@ const StoryPlayer = () => {
               <div className="absolute top-0 right-0 w-16 h-16 bg-primary/5 rounded-bl-full" />
 
               {/* Arabic narrative */}
-              <p className="text-2xl leading-relaxed mb-4 font-medium" dir="rtl">
-                {currentScene.narrative_arabic}
-              </p>
+              {lineByLine ? (
+                <div className="mb-4 space-y-3" dir="rtl">
+                  {splitSentences(currentScene.narrative_arabic).map((ar, i) => {
+                    const en = splitSentences(currentScene.narrative_english)[i];
+                    return (
+                      <div key={i} className="pb-3 border-b border-border/40 last:border-0">
+                        <p className="text-2xl leading-relaxed font-medium">{ar}</p>
+                        {en && (
+                          <p className="text-sm text-muted-foreground mt-1.5" dir="ltr">{en}</p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-2xl leading-relaxed mb-4 font-medium" dir="rtl">
+                  {currentScene.narrative_arabic}
+                </p>
+              )}
 
-              {/* English toggle */}
-              <button
-                onClick={() => setShowTranslation(!showTranslation)}
-                className="text-xs text-primary hover:underline mb-3"
-              >
-                {showTranslation ? 'Hide translation' : 'Show translation'}
-              </button>
+              {/* View toggles */}
+              <div className="flex items-center gap-3 mb-3">
+                <button
+                  onClick={() => setLineByLine(v => !v)}
+                  className="text-xs text-primary hover:underline"
+                >
+                  {lineByLine ? 'Paragraph view' : 'Line-by-line'}
+                </button>
+                {!lineByLine && (
+                  <button
+                    onClick={() => setShowTranslation(!showTranslation)}
+                    className="text-xs text-primary hover:underline"
+                  >
+                    {showTranslation ? 'Hide translation' : 'Show translation'}
+                  </button>
+                )}
+              </div>
 
-              {showTranslation && (
+              {!lineByLine && showTranslation && (
                 <p className="text-base text-muted-foreground animate-in fade-in duration-200">
                   {currentScene.narrative_english}
                 </p>

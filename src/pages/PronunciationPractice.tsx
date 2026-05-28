@@ -50,7 +50,7 @@ const PronunciationPractice = () => {
   const [words, setWords] = useState<VocabWord[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isRecording, setIsRecording] = useState(false);
-  const [mode, setMode] = useState<"word" | "sentence">("word");
+  const [mode, setMode] = useState<"word" | "sentence" | "shadow">("word");
   const [sessionScores, setSessionScores] = useState<number[]>([]);
   const [wordsLoading, setWordsLoading] = useState(true);
   const [showEnglish, setShowEnglish] = useState(false);

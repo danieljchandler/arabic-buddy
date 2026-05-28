@@ -64,6 +64,7 @@ const StoryPlayer = () => {
   const [currentSceneOrder, setCurrentSceneOrder] = useState(0);
   const [pathTaken, setPathTaken] = useState<number[]>([0]);
   const [showTranslation, setShowTranslation] = useState(false);
+  const [lineByLine, setLineByLine] = useState(false);
   const [storyTitle, setStoryTitle] = useState('');
   const [savedWords, setSavedWords] = useState<Set<string>>(new Set());
 

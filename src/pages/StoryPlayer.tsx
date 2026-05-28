@@ -17,6 +17,41 @@ import { Loader2, RotateCcw, BookOpen, Trophy, ArrowLeft, Sparkles, Plus, Check 
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
+/**
+ * Split a paragraph into sentences by sentence terminators (. ! ? ؟ and newlines),
+ * keeping the terminator with its sentence. Commas are NOT treated as terminators.
+ */
+function splitSentences(text: string): string[] {
+  if (!text) return [];
+  const parts = text
+    .split(/(?<=[.!?؟])\s+|\n+/)
+    .map(s => s.trim())
+    .filter(Boolean);
+  return parts.length ? parts : [text.trim()];
+}
+
+/**
+ * Find the sentence in `arabic` containing `word`, and return the aligned
+ * English sentence by index. Falls back to the full text when not found.
+ */
+function extractSentenceForWord(
+  arabic: string,
+  english: string,
+  word: string,
+): { sentence_text: string; sentence_english: string } {
+  const arSentences = splitSentences(arabic);
+  const enSentences = splitSentences(english);
+  const idx = arSentences.findIndex(s => s.includes(word));
+  if (idx === -1) {
+    return { sentence_text: arabic, sentence_english: english };
+  }
+  return {
+    sentence_text: arSentences[idx],
+    sentence_english: enSentences[idx] ?? english,
+  };
+}
+
+
 const StoryPlayer = () => {
   const { storyId } = useParams<{ storyId: string }>();
   const navigate = useNavigate();
@@ -183,8 +218,19 @@ const StoryPlayer = () => {
                               toast.error('Sign in to save words');
                               return;
                             }
+                            const { sentence_text, sentence_english } = extractSentenceForWord(
+                              currentScene.narrative_arabic,
+                              currentScene.narrative_english,
+                              v.word_arabic,
+                            );
                             addVocab.mutate(
-                              { word_arabic: v.word_arabic, word_english: v.word_english, source: 'story' },
+                              {
+                                word_arabic: v.word_arabic,
+                                word_english: v.word_english,
+                                source: 'story',
+                                sentence_text,
+                                sentence_english,
+                              },
                               {
                                 onSuccess: () => {
                                   setSavedWords(prev => new Set(prev).add(key));

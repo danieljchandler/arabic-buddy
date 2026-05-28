@@ -28,7 +28,7 @@ import { InfoHint } from "@/components/InfoHint";
 import { useAlphabetProgress } from "@/hooks/useAlphabetProgress";
 import { ARABIC_LETTERS } from "@/data/arabicAlphabet";
 import { DailyLetterGoalRing } from "@/components/alphabet/DailyLetterGoalRing";
-import { DayArc } from "@/components/today/DayArc";
+
 
 const TILE_HINTS: Record<string, { title: string; body: string }> = {
   "today": { title: "Start today", body: "Your daily learning queue — reviews, a challenge, listening and reading, all picked for today. The fastest way to grow your streak." },
@@ -124,8 +124,6 @@ const Index = () => {
   return (
     <AppShell>
 
-      {/* C — Progress horizon: ambient day arc */}
-      {isAuthenticated && <DayArc />}
 
       {/* Top bar with logo and auth */}
       <div className="flex items-center justify-between mb-4">

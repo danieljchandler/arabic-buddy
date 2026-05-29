@@ -355,15 +355,26 @@ serve(async (req) => {
       }
     }
 
-    // If we have audio transcript but no image analysis, or need separate audio analysis
+    // If we have audio transcript but no image analysis, run audio-only via AI Brain ensemble
     if (audioTranscript && !imageBase64) {
-      console.log('Analyzing audio transcript with Qwen...');
-      const qwenRaw = await callQwen(AUDIO_ANALYSIS_PROMPT, audioTranscript, OPENROUTER_API_KEY, 4096).catch((e: unknown) => {
-        console.warn('Qwen audio analysis failed (non-fatal):', e instanceof Error ? e.message : String(e));
-        return null;
-      });
-
-      audioResult = qwenRaw ? safeJsonParse<any>(qwenRaw) : null;
+      console.log(`Analyzing audio transcript via AI Brain (${dialect})...`);
+      try {
+        const brain = await askBrain<any>({
+          purpose: 'meme_audio',
+          dialect,
+          userPrompt: audioTranscript,
+          systemPromptExtra: buildAudioPrompt(dialect),
+          strategy: 'ensemble',
+          maxTokens: 4096,
+          temperature: 0.3,
+          arabicTextPath: (p: any) => (p?.lines ?? []).map((l: any) => l?.arabic ?? '').join(' '),
+        });
+        console.log('meme audio brain', { models: brain.models, leaks: brain.msaLeaks.leaks.length, repairs: brain.msaRepairs });
+        audioResult = brain.output && typeof brain.output === 'object' ? brain.output : null;
+      } catch (e) {
+        console.warn('Audio brain analysis failed (non-fatal):', e instanceof BrainHttpError ? e.message : String(e));
+        audioResult = null;
+      }
     }
 
     // Build the final structured result

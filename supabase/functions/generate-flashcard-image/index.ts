@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { enforceDailyCap } from "../_shared/usageCap.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -9,7 +10,11 @@ const corsHeaders = {
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
-  // Authenticate user
+  // Free-tier daily cap: 20 image generations / user / day. Paid users bypass.
+  const cap = await enforceDailyCap(req, "generate-flashcard-image", 20, corsHeaders);
+  if (cap.limited) return cap.response;
+
+  // Authenticate user (auth header presence already verified by usageCap)
   const authHeader = req.headers.get('Authorization');
   if (!authHeader?.startsWith('Bearer ')) {
     return new Response(JSON.stringify({ error: 'Unauthorized' }), {

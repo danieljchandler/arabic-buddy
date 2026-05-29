@@ -2101,6 +2101,36 @@ export type Database = {
         }
         Relationships: []
       }
+      usage_counters: {
+        Row: {
+          count: number
+          created_at: string
+          day: string
+          id: string
+          key: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          count?: number
+          created_at?: string
+          day?: string
+          id?: string
+          key: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          count?: number
+          created_at?: string
+          day?: string
+          id?: string
+          key?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_achievements: {
         Row: {
           achievement_id: string
@@ -3070,6 +3100,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      increment_usage_counter: {
+        Args: { _amount?: number; _key: string; _user_id: string }
+        Returns: number
       }
       is_admin: { Args: never; Returns: boolean }
       is_recorder: { Args: never; Returns: boolean }

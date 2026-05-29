@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { planCoverage, type CoveragePlan } from "../_shared/coveragePlanner.ts";
+import { enforceDailyCap } from "../_shared/usageCap.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -465,6 +466,11 @@ serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
+
+  // Free-tier daily cap: 30 curriculum-chat calls / user / day. Paid users bypass.
+  const cap = await enforceDailyCap(req, "curriculum-chat", 30, corsHeaders);
+  if (cap.limited) return cap.response;
+
 
   try {
     const authHeader = req.headers.get("Authorization");

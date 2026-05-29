@@ -16,6 +16,7 @@
  * Response: { text, duration, timestamps }
  */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { enforceDailyCap } from "../_shared/usageCap.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -27,6 +28,10 @@ const MUNSIT_BASE = "https://api.munsit.com/api/v1";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
+  // Free-tier daily cap: 10 transcriptions / user / day. Paid users bypass.
+  const cap = await enforceDailyCap(req, "transcribe", 10, corsHeaders);
+  if (cap.limited) return cap.response;
 
   const apiKey = Deno.env.get("MUNSIT_API_KEY");
   if (!apiKey) {

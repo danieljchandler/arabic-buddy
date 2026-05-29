@@ -135,7 +135,7 @@ function buildSystem(task: BrainTask): string {
 interface CallOptions {
   model: string;
   system: string;
-  user: string;
+  user: MultimodalContent;
   tool?: BrainTask['tool'];
   maxTokens?: number;
   temperature?: number;

@@ -1,4 +1,5 @@
-import { getDialectIdentity, getDialectVocabRules, type Dialect } from "../_shared/dialectHelpers.ts";
+import type { Dialect } from "../_shared/dialectHelpers.ts";
+import { askBrain } from "../_shared/aiBrain.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -21,76 +22,75 @@ Deno.serve(async (req) => {
       );
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      return new Response(
-        JSON.stringify({ error: "AI gateway not configured" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const dialectIdentity = getDialectIdentity(dialect as Dialect);
-    const vocabRules = getDialectVocabRules(dialect as Dialect);
-
-    const systemPrompt = `${dialectIdentity}
-
-${vocabRules}
-
-You are creating a reading comprehension quiz based on a news article written in dialect.
+    const systemExtra = `You are creating a reading comprehension quiz based on a news article written in dialect.
 Generate exactly 3 multiple-choice questions that test the reader's understanding of the article content.
+- Questions and Arabic choices MUST be authentic dialect, never MSA.
+- Each question has exactly 4 choices; exactly one is correct.
+- Include a mix of: factual recall, vocabulary meaning, and inference.
+- Provide a brief explanation for the correct answer (in English).
+Return the questions via the provided tool only.`;
 
-Rules:
-- Questions should be in DIALECT Arabic (not MSA)
-- Each question has exactly 4 choices
-- Exactly one choice is correct
-- Include a mix of: factual recall, vocabulary meaning, and inference
-- Provide a brief explanation for the correct answer (in English)
+    const userPrompt = `Create a comprehension quiz for this dialect news article:\n\nHeadline (Arabic): ${title_dialect}\nStory (Arabic): ${body_dialect}\nHeadline (English): ${title_english}\nSummary (English): ${summary_english}`;
 
-Return a JSON array of 3 objects, each with:
-- "question_arabic": The question in dialect (Arabic)
-- "question_english": English translation of the question
-- "choices": Array of 4 objects, each {"arabic": "...", "english": "...", "correct": boolean}
-- "explanation": Brief English explanation of the correct answer
-
-Return ONLY the JSON array, no markdown fencing.`;
-
-    const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [
-          { role: "system", content: systemPrompt },
-          {
-            role: "user",
-            content: `Create a comprehension quiz for this dialect news article:\n\nHeadline (Arabic): ${title_dialect}\nStory (Arabic): ${body_dialect}\nHeadline (English): ${title_english}\nSummary (English): ${summary_english}`,
+    try {
+      const brain = await askBrain<{ questions: any[] }>({
+        purpose: "news_quiz",
+        dialect: dialect as Dialect,
+        strategy: "ensemble",
+        systemPromptExtra: systemExtra,
+        userPrompt,
+        maxTokens: 2048,
+        temperature: 0.5,
+        arabicTextPath: (p: any) => (Array.isArray(p?.questions) ? p.questions.map((q: any) => [q?.question_arabic, ...(Array.isArray(q?.choices) ? q.choices.map((c: any) => c?.arabic) : [])].filter(Boolean).join(" ")).join("\n") : ""),
+        tool: {
+          name: "emit_quiz",
+          description: "Return exactly 3 dialect comprehension questions.",
+          parameters: {
+            type: "object",
+            properties: {
+              questions: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    question_arabic: { type: "string" },
+                    question_english: { type: "string" },
+                    choices: {
+                      type: "array",
+                      items: {
+                        type: "object",
+                        properties: {
+                          arabic: { type: "string" },
+                          english: { type: "string" },
+                          correct: { type: "boolean" },
+                        },
+                        required: ["arabic", "english", "correct"],
+                      },
+                    },
+                    explanation: { type: "string" },
+                  },
+                  required: ["question_arabic", "question_english", "choices", "explanation"],
+                },
+              },
+            },
+            required: ["questions"],
           },
-        ],
-      }),
-    });
-
-    if (!aiRes.ok) {
-      const status = aiRes.status;
-      const errBody = await aiRes.text();
-      console.error("AI error:", status, errBody);
+        },
+      });
+      if (brain.msaLeaks.leaks.length > 0) {
+        console.warn("souq-news-quiz MSA leaks after repair:", brain.msaLeaks.leaks, "repairs:", brain.msaRepairs);
+      }
       return new Response(
-        JSON.stringify({ error: status === 429 ? "Rate limit exceeded" : "Quiz generation failed" }),
-        { status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ questions: brain.output?.questions ?? [] }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    } catch (e: any) {
+      console.error("souq-news-quiz brain error:", e?.status, e?.message);
+      return new Response(
+        JSON.stringify({ error: e?.status === 429 ? "Rate limit exceeded" : "Quiz generation failed" }),
+        { status: e?.status ?? 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-
-    const aiData = await aiRes.json();
-    const raw = aiData.choices?.[0]?.message?.content || "";
-    const cleaned = raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-    const questions = JSON.parse(cleaned);
-
-    return new Response(
-      JSON.stringify({ questions }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
   } catch (e) {
     console.error("souq-news-quiz error:", e);
     return new Response(

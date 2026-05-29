@@ -299,7 +299,7 @@ async function runDraftCritic<T>(task: BrainTask, apiKey: string): Promise<Brain
   });
 
   const criticSys = `${sys}\n\nYou are reviewing a draft. If anything drifts to MSA or another dialect, REWRITE it in authentic ${getDialectLabel(task.dialect)}. Return ONLY the corrected output in the same format as the draft (no commentary).`;
-  const criticUser = `Original request:\n${task.userPrompt}\n\nDraft to review:\n${draft.raw}`;
+  const criticUser = `Original request:\n${stringifyUserPrompt(task.userPrompt)}\n\nDraft to review:\n${draft.raw}`;
   const critiqued = await callModel({
     model: critic,
     system: criticSys,

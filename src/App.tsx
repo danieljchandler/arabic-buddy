@@ -98,6 +98,7 @@ const AdminPictureScenes = lazyPage(() => import("./pages/admin/AdminPictureScen
 const AdminPictureSceneEdit = lazyPage(() => import("./pages/admin/AdminPictureSceneEdit"));
 const AdminCoverage = lazyPage(() => import("./pages/admin/AdminCoverage"));
 const AdminSetPhrases = lazyPage(() => import("./pages/admin/AdminSetPhrases"));
+const AdminDialectRules = lazyPage(() => import("./pages/admin/AdminDialectRules"));
 const SetPhrases = lazyPage(() => import("./pages/SetPhrases"));
 const SetPhrasesPractice = lazyPage(() => import("./pages/SetPhrasesPractice"));
 const SetPhrasesReview = lazyPage(() => import("./pages/SetPhrasesReview"));

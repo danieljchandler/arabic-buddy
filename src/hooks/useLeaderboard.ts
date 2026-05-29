@@ -64,14 +64,14 @@ export function useWeeklyLeaderboard(limit = 20) {
   return useQuery({
     queryKey: ["leaderboard", "weekly", limit],
     queryFn: async () => {
+      // Public-safe view: only display_name + avatar_url for opted-in users.
       const { data: profiles, error: profilesError } = await supabase
-        .from("profiles")
-        .select("user_id, display_name, avatar_url, institution_id, custom_institution, show_institution" as any)
-        .eq("show_on_leaderboard", true);
+        .from("leaderboard_profiles" as any)
+        .select("user_id, display_name, avatar_url, institution_id, custom_institution, show_institution");
 
       if (profilesError) throw profilesError;
 
-      const userIds = profiles?.map((p: any) => p.user_id) || [];
+      const userIds = (profiles as any[] | null)?.map((p) => p.user_id) || [];
       if (userIds.length === 0) return [];
 
       const { data: xpData, error: xpError } = await supabase
@@ -83,12 +83,11 @@ export function useWeeklyLeaderboard(limit = 20) {
 
       if (xpError) throw xpError;
 
-      // Fetch institutions
       const { data: institutions } = await supabase
         .from("institutions" as any)
         .select("id, name, verified");
 
-      return buildEntries(xpData || [], profiles || [], institutions || []);
+      return buildEntries(xpData || [], (profiles as any[]) || [], institutions || []);
     },
     staleTime: 30 * 1000,
   });
@@ -99,13 +98,12 @@ export function useAllTimeLeaderboard(limit = 20) {
     queryKey: ["leaderboard", "all-time", limit],
     queryFn: async () => {
       const { data: profiles, error: profilesError } = await supabase
-        .from("profiles")
-        .select("user_id, display_name, avatar_url, institution_id, custom_institution, show_institution" as any)
-        .eq("show_on_leaderboard", true);
+        .from("leaderboard_profiles" as any)
+        .select("user_id, display_name, avatar_url, institution_id, custom_institution, show_institution");
 
       if (profilesError) throw profilesError;
 
-      const userIds = profiles?.map((p: any) => p.user_id) || [];
+      const userIds = (profiles as any[] | null)?.map((p) => p.user_id) || [];
       if (userIds.length === 0) return [];
 
       const { data: xpData, error: xpError } = await supabase
@@ -121,7 +119,7 @@ export function useAllTimeLeaderboard(limit = 20) {
         .from("institutions" as any)
         .select("id, name, verified");
 
-      return buildEntries(xpData || [], profiles || [], institutions || []);
+      return buildEntries(xpData || [], (profiles as any[]) || [], institutions || []);
     },
     staleTime: 30 * 1000,
   });

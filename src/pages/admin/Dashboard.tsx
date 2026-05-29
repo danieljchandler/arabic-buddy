@@ -210,6 +210,20 @@ const Dashboard = () => {
                 </CardContent>
               </Card>
 
+              <Card className="cursor-pointer hover:shadow-lg transition-shadow border-purple-500/30" onClick={() => navigate('/admin/dialect-rules')}>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-4">
+                    <div className="bg-purple-500/10 rounded-full p-4">
+                      <Languages className="h-8 w-8 text-purple-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-lg">Dialect Rulebook</h3>
+                      <p className="text-muted-foreground">Review AI-drafted dialect rules that steer every generation</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
               <Card className="cursor-pointer hover:shadow-lg transition-shadow border-accent/30" onClick={() => navigate('/admin/stories')}>
                 <CardContent className="pt-6">
                   <div className="flex items-center gap-4">

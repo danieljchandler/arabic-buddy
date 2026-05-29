@@ -237,6 +237,9 @@ const AdminDialectRules = () => {
               <TabsTrigger value="violations">
                 <AlertTriangle className="h-3.5 w-3.5 mr-1" /> Violations
               </TabsTrigger>
+              <TabsTrigger value="native_review">
+                <UserCheck className="h-3.5 w-3.5 mr-1" /> Native Review
+              </TabsTrigger>
             </TabsList>
 
             {(['draft', 'approved', 'retired'] as RuleStatus[]).map((s) => (
@@ -253,6 +256,10 @@ const AdminDialectRules = () => {
 
             <TabsContent value="violations" className="mt-4">
               <ViolationsPanel dialect={activeDialect} />
+            </TabsContent>
+
+            <TabsContent value="native_review" className="mt-4">
+              <NativeReviewPanel dialect={activeDialect} />
             </TabsContent>
           </Tabs>
         )}

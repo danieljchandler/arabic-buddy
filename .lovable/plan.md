@@ -1,57 +1,50 @@
-## Goal
+# Soft Launch — Chunk 1
 
-Make a review session resilient to network drops. Today, if `submitReview.mutateAsync` throws (proxy hiccup, offline, edge timeout), the user's rating is lost and the card stays "due". We'll persist every rating to a local queue immediately, advance the UI optimistically, and retry failed submissions in the background until they succeed.
+Goal: knock out the P0 items that make the very first external user's session safe, legal, and cost-controlled. Everything else (analytics, Stripe verification pass, SEO, mobile polish) comes in chunk 2.
 
-## Scope
+## What I'll build
 
-Single flow: `src/pages/Review.tsx` + `useSubmitReview` in `src/hooks/useReview.ts`. Other review surfaces (`MyWordsReview`, `SetPhrasesReview`) are untouched in this pass.
+### 1. Logged-out landing experience on `/`
+Today `Index.tsx` assumes you're already onboarded. Add a logged-out branch that shows:
+- Hero: "Learn real spoken Arabic — Gulf, Egyptian, Yemeni"
+- 3 value props (native audio, SRS, real media)
+- Primary CTA → `/auth`, secondary → `/placement` (try free)
+- Footer with links to `/terms`, `/privacy`, contact email
+Logged-in users see the existing Home unchanged.
 
-## Behavior
+### 2. Auth hardening
+- Call `configure_auth` to enable HIBP leaked-password check
+- Call `configure_social_auth` with `["google"]` so Google sign-in works on the live URL
+- Verify `Auth.tsx` redirects to `/onboarding` on first sign-in (new profile) and `/` otherwise
+- Add a visible "Sign out" entry in Settings (confirm it exists; add if not)
 
-1. User taps a rating button → UI advances to the next card immediately (no awaiting the network).
-2. The rating is appended to a localStorage-backed queue keyed by user id (`lahja:review-queue:<userId>`). Each entry stores `{ wordId, rating, currentReview snapshot, queuedAt, attempts }`.
-3. A background processor drains the queue:
-   - Sends entries one at a time via the existing Supabase update/insert logic.
-   - On success: remove from queue, fire the existing XP / streak / achievement side-effects, invalidate `review-stats`.
-   - On network-like failure: keep entry, exponential backoff (1s, 2s, 5s, 15s, 60s, then cap at 60s), bump `attempts`.
-   - On real server error (4xx other than 408/429): drop the entry, surface a toast so the user knows that one card didn't save.
-4. Processor also runs on:
-   - Mount of `Review.tsx`
-   - `window` `online` event
-   - Every successful submit (chain the next one)
-5. A small status pill appears in the header when the queue is non-empty: "Saving N…" with a spinner, switching to "Offline – will retry" when `!navigator.onLine`.
-6. On unmount / route change with pending items: queue stays in localStorage and resumes next visit.
+### 3. Security pass
+- Run `supabase--linter` and `security--run_security_scan`
+- Fix every red item (missing RLS, overly-permissive policy, missing GRANTs)
+- I will report findings before applying destructive migrations
 
-## Files
+### 4. AI cost guardrails
+Add per-user daily caps via a new `usage_counters` table + a small `checkUsage(userId, key, limit)` helper. Wire it into the 5 most expensive edge functions:
+- `fanar-transcribe` / `munsit-transcribe` / `soniox-transcribe` (transcription) — 10/day free
+- `generate-flashcard-image` — 20/day free
+- `conversation-practice` — 50 turns/day free
+- `curriculum-chat` — 30/day free
+- `generate-word-jingle` (Lyria, expensive) — 5/day free
 
-- **New** `src/lib/reviewQueue.ts` — typed queue helpers: `enqueue`, `peek`, `shift`, `update`, `all`, `clearForUser`. Pure localStorage, JSON, safe-guarded with try/catch (matches the iframe-storage pattern in memory).
-- **New** `src/hooks/useReviewQueue.ts` — singleton-ish hook that owns the drain loop. Exposes `{ enqueue, pendingCount, isOnline, isFlushing }`. Uses the same Supabase write logic currently inside `useSubmitReview.mutationFn`, plus the same XP / achievements side-effects on success.
-- **Edit** `src/hooks/useReview.ts` — extract the write logic into a small `submitRatingToServer(user, wordId, rating, currentReview)` helper exported for the queue hook. Keep `useSubmitReview` as a thin wrapper that calls the helper (kept for any future caller, but `Review.tsx` will stop using it).
-- **Edit** `src/pages/Review.tsx`:
-  - Replace `submitReview.mutateAsync(...)` in `handleRate` with `enqueue({ wordId, rating, currentReview })` and advance the index synchronously.
-  - Add the small "Saving N…/Offline" status pill in the header next to the trophy.
-  - Remove the `disabled={submitReview.isPending}` on `RatingButtons` (optimistic UX — buttons stay live).
+Caps are enforced server-side; returns `429` with a friendly message → client shows a "Daily free limit reached — upgrade" toast linking to `/pricing`. Beta/paid users bypass via `subscriptions` table check.
 
-## Technical notes
+### 5. Legal stubs + footer
+- `/terms` and `/privacy` pages with template content tailored to Lahja (data we store, AI processing, subprocessors: Supabase, OpenAI/Gemini via Lovable, ElevenLabs, Azure, Munsit, RunPod)
+- Footer component used on `/`, `/auth`, `/pricing` with: © Lahja, Terms, Privacy, Contact
 
-- Queue entry shape:
-  ```ts
-  type QueuedRating = {
-    id: string;            // uuid
-    userId: string;
-    wordId: string;
-    rating: Rating;
-    currentReview: WordReview | null;
-    queuedAt: number;
-    attempts: number;
-  };
-  ```
-- Network-like error detection reuses the regex already used in `PhraseOfTheDay.tsx`: `/Failed to send|fetch|network|load failed|timeout/i`, plus `!navigator.onLine`.
-- The drain loop is a single async function guarded by a `useRef` boolean so concurrent triggers (mount + online event + post-submit) don't double-send.
-- XP / `incrementReviews` / `checkAchievements` fire on actual server success, not on enqueue, so totals stay accurate.
-- `useDueWords` is refetched only after the queue fully drains (or when the user reaches end of list, as today) — this avoids a re-fetch yanking the card list mid-session.
+## Out of scope for this chunk
+- Analytics (PostHog) — chunk 2
+- Full Stripe end-to-end test pass — chunk 2
+- SEO scan + fixes — chunk 2
+- Mobile responsive audit — chunk 2
+- Error sink to a `client_errors` table — chunk 2
 
-## Out of scope
+## Deliverable
+After approval I'll make the edits, run the linter + security scan, and report back with: items fixed, any findings that need your call, and a checklist of what's left for chunk 2.
 
-- Conflict resolution if two devices review the same word offline simultaneously (last-write-wins, same as today).
-- Migrating `MyWordsReview` / `SetPhrasesReview` to the same queue — can follow once this pattern proves out.
+Approve and I'll start.

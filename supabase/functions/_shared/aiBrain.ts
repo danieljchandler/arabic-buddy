@@ -143,15 +143,19 @@ interface CallOptions {
 }
 
 async function callModel(opts: CallOptions): Promise<{ raw: string; parsed: unknown }> {
+  const isGpt5 = /^openai\/gpt-5/.test(opts.model);
   const body: Record<string, unknown> = {
     model: opts.model,
     messages: [
       { role: 'system', content: opts.system },
       { role: 'user', content: opts.user },
     ],
-    max_tokens: opts.maxTokens ?? 1024,
-    temperature: opts.temperature ?? 0.5,
   };
+  const tokens = opts.maxTokens ?? 1024;
+  if (isGpt5) body.max_completion_tokens = tokens;
+  else body.max_tokens = tokens;
+  // GPT-5 models only support default temperature; skip the field for them.
+  if (!isGpt5) body.temperature = opts.temperature ?? 0.5;
 
   if (opts.tool) {
     body.tools = [

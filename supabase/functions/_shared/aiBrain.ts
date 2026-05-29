@@ -7,6 +7,7 @@ import {
   getDialectIdentity,
   getDialectVocabRules,
   getDialectLabel,
+  primeDialectPrompt,
   type Dialect,
 } from './dialectHelpers.ts';
 import { detectMsaLeaks, type MsaLeakResult } from './msaLeakDetector.ts';
@@ -66,6 +67,8 @@ class BrainHttpError extends Error {
 export async function askBrain<T = unknown>(task: BrainTask): Promise<BrainResult<T>> {
   const apiKey = Deno.env.get('LOVABLE_API_KEY');
   if (!apiKey) throw new BrainHttpError(500, 'LOVABLE_API_KEY not configured');
+
+  await primeDialectPrompt(task.dialect);
 
   const strategy: Strategy = task.strategy ?? pickStrategy(task.purpose);
   const start = Date.now();
@@ -460,6 +463,8 @@ export interface StreamBrainTask {
 export async function streamBrain(task: StreamBrainTask): Promise<Response> {
   const apiKey = Deno.env.get('LOVABLE_API_KEY');
   if (!apiKey) throw new BrainHttpError(500, 'LOVABLE_API_KEY not configured');
+
+  await primeDialectPrompt(task.dialect);
 
   const model = task.model ?? 'google/gemini-2.5-pro';
   const isGpt5 = /^openai\/gpt-5/.test(model);

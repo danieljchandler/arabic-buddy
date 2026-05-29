@@ -35,20 +35,19 @@ export interface BrainTask {
   purpose: string;
   dialect: Dialect;
   userPrompt: MultimodalContent;
-  systemPromptExtra?: string; // appended after dialect identity block
+  systemPromptExtra?: string;
   strategy?: Strategy;
-  /** OpenAI-style function tool for structured output. */
   tool?: {
     name: string;
     description: string;
     parameters: Record<string, unknown>;
   };
-  models?: string[]; // override which models to use
+  models?: string[];
   maxTokens?: number;
   temperature?: number;
-  /** Where to extract the dialect-Arabic text from the parsed output for leak scanning.
-   *  If omitted, the brain scans the raw text response or JSON.stringify(output). */
   arabicTextPath?: (parsed: unknown) => string;
+  /** When true, run a strict native-speaker validator after the repair pass. */
+  validateDialect?: boolean;
 }
 
 export interface BrainResult<T = unknown> {
@@ -56,10 +55,12 @@ export interface BrainResult<T = unknown> {
   raw: string;
   strategy: Strategy;
   models: string[];
-  agreementScore: number; // 0-1, only meaningful for ensemble
+  agreementScore: number;
   msaLeaks: MsaLeakResult;
   msaRepairs: number;
   totalLatencyMs: number;
+  /** Set when validateDialect was requested and the validator returned a result. */
+  validator?: ValidatorResult;
 }
 
 const GATEWAY_URL = 'https://ai.gateway.lovable.dev/v1/chat/completions';

@@ -235,10 +235,28 @@ const Review = () => {
               {currentWord.topic?.name || 'Review'}
             </span>
           </div>
+          {pendingCount > 0 && (
+            <div
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-medium ${
+                isOnline
+                  ? "bg-card border-border text-muted-foreground"
+                  : "bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-400"
+              }`}
+              title={isOnline ? "Saving ratings…" : "Offline — will retry when reconnected"}
+            >
+              {isOnline ? (
+                <CloudUpload className={`h-3.5 w-3.5 ${isFlushing ? "animate-pulse" : ""}`} />
+              ) : (
+                <WifiOff className="h-3.5 w-3.5" />
+              )}
+              {isOnline ? `Saving ${pendingCount}` : `${pendingCount} pending`}
+            </div>
+          )}
           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-card border border-border">
             <Trophy className="h-4 w-4 text-primary" />
             <span className="text-sm font-medium text-foreground">{sessionCount}</span>
           </div>
+
         </div>
       </div>
 

@@ -127,6 +127,7 @@ The story should have ${numScenes} scenes. Make the narrative engaging and educa
         userPrompt,
         systemPromptExtra: systemExtra,
         strategy: "draft_critic",
+        models: ["google/gemini-3-flash-preview", "openai/gpt-5-mini"],
         tool: {
           name: "generate_story",
           description: "Generate a complete interactive Arabic story with scenes and choices",

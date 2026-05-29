@@ -1,10 +1,11 @@
 /**
  * Lightweight client-side error sink.
  *
- * Sends errors to the `client_errors` table (RLS allows INSERT for anon &
- * authenticated; only admins can SELECT). Rate-limited to 10 errors per
- * 60-second window per session to prevent runaway loops from flooding the
- * table. Fails silently — never throws from inside the logger.
+ * Sends errors to the `client_errors` table. After the security hardening
+ * migration, INSERT is restricted to authenticated users — anon errors are
+ * dropped silently. Rate-limited to 10 errors per 60-second window per session
+ * to prevent runaway loops from flooding the table. Fails silently — never
+ * throws from inside the logger.
  */
 import { supabase } from "@/integrations/supabase/client";
 
@@ -41,7 +42,7 @@ export async function logClientError(input: LogErrorInput): Promise<void> {
       (typeof window !== "undefined" ? window.location.pathname + window.location.search : null);
     const ua = typeof navigator !== "undefined" ? navigator.userAgent : null;
 
-    // Resolve user_id best-effort (do not block).
+    // Resolve user_id — drop the log if unauthenticated (RLS forbids it).
     let userId: string | null = null;
     try {
       const { data } = await supabase.auth.getUser();
@@ -49,6 +50,7 @@ export async function logClientError(input: LogErrorInput): Promise<void> {
     } catch {
       /* ignore */
     }
+    if (!userId) return;
 
     await supabase.from("client_errors").insert({
       user_id: userId,

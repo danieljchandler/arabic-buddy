@@ -1,78 +1,82 @@
-# Add streaming support to the AI Brain
+## Goal
 
-Bring the three streaming chat endpoints (`free-chat`, `conversation-practice`, `how-do-i-say`) under the AI Brain umbrella without losing token-by-token UX or current behavior.
+Make dialect output provably authentic and visibly trustworthy. Three workstreams, ordered by leverage.
 
-## What's wrong today
+---
 
-- `free-chat` streams from `google/gemini-2.5-pro` directly via raw `fetch` — no dialect identity injection from the Brain, no MSA leak guard.
-- `conversation-practice` is non-streaming and hits `gemini-3-flash-preview` directly; no Brain features.
-- `how-do-i-say` runs its own multi-model ensemble (Fanar + others) that predates the Brain and duplicates a lot of logic.
-- The Brain's `askBrain()` is response-complete only, so streaming flows can't use it.
+### 1. Rulebook-driven leak detection + few-shot prompting
 
-## Plan
+Today the MSA detector uses a small hardcoded word list and prompts only inject the *text* of approved rules. Approved `dialect_rules.examples.bad/good` are dormant data. Wire them in both directions:
 
-### 1. Extend `_shared/aiBrain.ts` with `streamBrain()`
+- **Leak detector (`_shared/aiBrain.ts` + `_shared/dialectHelpers.ts`)**
+  - Extend `primeDialectPrompt` cache to also expose a per-dialect `forbiddenTokens[]` array harvested from every approved rule's `examples.bad` (deduped, normalized).
+  - MSA leak detector now flags both the hardcoded list AND rulebook-forbidden tokens. Each violation row gets the matching `rule_id` populated so the admin digest groups by rule.
+- **Few-shot injection**
+  - `primeDialectPrompt` selects up to 6 high-priority approved rules per dialect and renders an "Examples of authentic dialect" block:
+    ```
+    ✅ <examples.good[0]>   (rule: <rule.rule>)
+    ❌ <examples.bad[0]>    → use ✅ <examples.good[0]>
+    ```
+  - Block is appended to the system prompt used by `askBrain`/`streamBrain` so every generation sees concrete authentic patterns, not just abstract rules.
+- **Cache invalidation**: bump cache TTL key when any approved rule changes (simple `updated_at` max watermark).
 
-Add a new exported function that mirrors `askBrain` but returns an SSE stream:
+Result: curating rules in the admin UI immediately tightens detection *and* improves generation, with no code changes.
 
-```ts
-export interface StreamBrainTask extends Omit<BrainTask, 'tool' | 'strategy'> {
-  // Streaming is single-model only; ensemble/council can't stream coherently.
-  model?: string;
-}
+---
 
-export async function streamBrain(task: StreamBrainTask): Promise<Response>
-```
+### 2. Native-validator critic pass
 
-Behavior:
-- Builds the same dialect identity + vocab rules system prompt as `askBrain` (reuses `buildSystem`).
-- Calls the Lovable gateway with `stream: true`.
-- Pipes the upstream SSE body straight through to the caller (preserves Vercel-AI-style chunk format).
-- Optional `onComplete(fullText)` callback so callers can fire-and-forget an MSA leak log after the stream ends (no repair pass — would defeat streaming UX).
-- Returns a `Response` with `text/event-stream` so callers can `return streamBrain(...)` directly.
+Add an authenticity scorer that runs after the repair pass for any dialect-sensitive generation.
 
-No changes to existing `askBrain` signatures.
+- New `_shared/dialectValidator.ts` exporting `validateDialect(text, dialect, opts)`:
+  - Calls a single strong model (Gemini 2.5 Pro or GPT-5-mini) with a "native speaker reviewer" persona, the approved rulebook context, and a structured tool `emit_authenticity_score` returning `{ score: 1-5, leaks: [{token, suggestion, rule_id}], verdict: 'pass'|'rewrite' }`.
+  - Score ≥ 4 → pass. Score ≤ 3 → trigger one rewrite pass with the leaks as targeted instructions; re-score once; log final result.
+- **Integration in `askBrain`**:
+  - Add `validateDialect: boolean` option; default `true` for council/draft_critic strategies that touch Arabic content.
+  - Final score + leaks are returned in the brain response metadata, and any unresolved leaks are written to `dialect_rule_violations` (with `detected_by='native_validator'`).
+- **Opt-in surface**: high-volume / low-stakes flows (transcription, asr post-edit) keep `validateDialect: false` for cost; lesson generators, story generators, conversation simulator, daily challenges turn it on.
 
-### 2. Migrate `free-chat`
+Result: every learner-facing AI text gets graded by a stricter persona against the same rulebook before publishing.
 
-- Replace the inline system-prompt builder with `streamBrain({ purpose: 'free_chat_turn', dialect, systemPromptExtra: <level + correction rules + topic hint> })`.
-- Drop the manual gateway `fetch` block; keep the 429/402 error mapping by letting `streamBrain` throw `BrainHttpError` and mapping in a `try/catch`.
-- Keep streaming response shape identical so the client doesn't need changes.
+---
 
-### 3. Migrate `conversation-practice`
+### 3. Native review queue (trusted natives)
 
-- Switch to `streamBrain` (this also upgrades it from non-streaming to streaming).
-- Use `systemPromptExtra` for the difficulty/level instructions.
-- Keep `enforceDailyCap` and 30s abort logic.
-- Client today expects JSON `{ reply }` — to avoid breaking it, keep a `?stream=0` fallback that buffers the stream server-side and returns JSON. Default new behavior is SSE.
+Let `recorder`-role users (and admins) triage flagged outputs and feed fixes back into the rulebook.
 
-### 4. Refactor `how-do-i-say`
+- **Schema (single migration)**
+  - New table `dialect_native_reviews`:
+    - `id`, `dialect`, `content_type` (e.g. `discover_video`, `story`, `daily_challenge`, `manual`), `content_id` (nullable), `original_text`, `corrected_text` (nullable), `reviewer_notes`, `status` (`pending` | `corrected` | `dismissed`), `reviewer_id`, `created_at`, `updated_at`, `source` (`user_report` | `native_validator` | `msa_leak_detector` | `manual`), `violation_id` (nullable FK-style ref to `dialect_rule_violations.id`).
+  - GRANTs + RLS: recorders and admins can SELECT/UPDATE; admins also INSERT/DELETE; learners can INSERT only via the report flow (restricted columns).
+- **Auto-population**:
+  - `native_validator` and `msa_leak_detector` insert into both `dialect_rule_violations` (existing) and `dialect_native_reviews` (new) when severity warrants review.
+- **Learner "doesn't sound native" report button** — out of scope for this plan (deferred), but the table is ready to accept user reports later.
+- **Admin / native UI** — extend `src/pages/admin/AdminDialectRules.tsx` with a fourth tab **"Native Review"**:
+  - Queue list (pending first) with original text, dialect, source, link back to source content if `content_id` present.
+  - Inline editor to write `corrected_text` + notes.
+  - On submit: row → `status='corrected'`, and a draft `dialect_rules` row is auto-proposed (category=`native_fix`, source=`native_review`, examples.bad=original snippet, examples.good=correction) for admin approval.
+  - Recorders see only the review queue; admins see the queue and the auto-drafted rule.
 
-- Replace its bespoke ensemble (Fanar + others + custom critic) with a single `askBrain({ purpose: 'how_do_i_say', strategy: 'council', tool: emit_translation })`.
-- Define an `emit_translation` tool schema that captures the existing output fields (dialect Arabic, transliteration, literal English, notes, alternatives).
-- Add an `arabicTextPath` so the MSA scanner sees only the Arabic field.
-- Keep the existing Supabase persistence and response shape unchanged.
-- This one stays non-streaming (it's a structured lookup, not a chat).
+Result: a clean human-in-the-loop: detection → review → correction → new rule → tighter prompts/detection (loop closes back into workstream 1).
 
-### 5. Verify
+---
 
-- `supabase--deploy_edge_functions` for the three functions plus _shared.
-- `supabase--curl_edge_functions` smoke tests:
-  - `free-chat`: one Gulf turn, confirm SSE chunks arrive and Arabic-only output.
-  - `conversation-practice`: one Egyptian turn, confirm streaming response.
-  - `how-do-i-say`: one Yemeni phrase, confirm tool output structure matches old shape.
-- Check `supabase--edge_function_logs` for `[aiBrain]` warnings.
+## Sequencing
+
+1. Workstream 1 (rulebook → detector + few-shot) — small, pure-edit, high leverage.
+2. Workstream 2 (native-validator critic) — additive edge logic; respect cost flag.
+3. Workstream 3 (review queue) — migration + admin tab; recorder role gains queue access.
+
+## Out of scope (next plans)
+- Learner-facing "doesn't sound native" button + trust badge.
+- Golden eval set / regression tests.
+- Sub-dialect tagging (deferred per your call).
 
 ## Files touched
-
-- `supabase/functions/_shared/aiBrain.ts` — add `streamBrain` + small internal refactor to share `buildSystem`.
-- `supabase/functions/free-chat/index.ts`
-- `supabase/functions/conversation-practice/index.ts`
-- `supabase/functions/how-do-i-say/index.ts`
-- Memory: update `mem://architecture/ai-integration/ai-brain` to document `streamBrain`.
-
-## Not in scope
-
-- Client-side AI SDK migration (chat client still consumes raw SSE).
-- Repair pass on streamed output (incompatible with streaming UX — leak logging only).
-- `bible-passage` migration (deferred earlier; keep as-is).
+- `supabase/functions/_shared/dialectHelpers.ts` — extend `primeDialectPrompt` (forbidden tokens, few-shot block).
+- `supabase/functions/_shared/aiBrain.ts` — rulebook-aware detector, optional validator hook.
+- `supabase/functions/_shared/dialectValidator.ts` — **new**.
+- `supabase/functions/_shared/msaViolationLogger.ts` — accept `rule_id`, dual-write to reviews when severe.
+- 1 migration — `dialect_native_reviews` table + GRANTs + RLS.
+- `src/pages/admin/AdminDialectRules.tsx` — add "Native Review" tab.
+- Memory: update `mem://architecture/ai-integration/dialect-rulebook`.

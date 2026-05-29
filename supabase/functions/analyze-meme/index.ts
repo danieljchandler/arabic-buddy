@@ -286,7 +286,8 @@ serve(async (req) => {
       });
     }
     const body = await req.json();
-    const { imageBase64, audioTranscript, isVideo } = body;
+    const { imageBase64, audioTranscript, isVideo, dialect: dialectRaw } = body;
+    const dialect: Dialect = (dialectRaw || 'Gulf') as Dialect;
 
     if (!imageBase64 && !audioTranscript) {
       return new Response(

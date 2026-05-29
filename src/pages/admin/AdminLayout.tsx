@@ -4,6 +4,7 @@ import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { TranscriptionStatusBanner } from '@/components/admin/TranscriptionStatusBanner';
+import { TranscriptionJobProvider } from '@/contexts/TranscriptionJobContext';
 import { useDialect } from '@/contexts/DialectContext';
 
 const DIALECT_META: Record<string, { flag: string; label: string; color: string }> = {
@@ -83,8 +84,10 @@ const AdminLayout = () => {
           })}
         </div>
       </div>
-      <Outlet />
-      <TranscriptionStatusBanner />
+      <TranscriptionJobProvider>
+        <Outlet />
+        <TranscriptionStatusBanner />
+      </TranscriptionJobProvider>
     </>
   );
 };

@@ -350,7 +350,7 @@ const Review = () => {
             difficulty={5.0}
             intervalDays={intervalDays}
             repetitions={repetitions}
-            disabled={submitReview.isPending}
+            disabled={false}
           />
         </div>
       </div>

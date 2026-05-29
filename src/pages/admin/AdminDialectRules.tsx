@@ -109,6 +109,33 @@ const AdminDialectRules = () => {
     }
   };
 
+  const mineCorpus = async () => {
+    setMining(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('mine-dialect-corpus', {
+        body: {
+          dialect: activeDialect,
+          category: category.trim() || undefined,
+          count,
+        },
+      });
+      if (error) throw error;
+      toast({
+        title: 'Corpus mined',
+        description: `${data?.inserted ?? 0} draft(s) from ${data?.corpus_size ?? 0} snippets.`,
+      });
+      qc.invalidateQueries({ queryKey: ['dialect_rules', activeDialect] });
+    } catch (err) {
+      toast({
+        variant: 'destructive',
+        title: 'Corpus mining failed',
+        description: (err as Error)?.message ?? 'Unknown error',
+      });
+    } finally {
+      setMining(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">

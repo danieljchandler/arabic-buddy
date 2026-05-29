@@ -4,6 +4,8 @@
 // `daily_vocab_stories`.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { askBrain } from "../_shared/aiBrain.ts";
+import type { Dialect } from "../_shared/dialectHelpers.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -13,7 +15,6 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY")!;
 
 interface VocabRow {
   word_arabic: string;
@@ -27,17 +28,6 @@ function todayUtc(): string {
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
 }
 
-function dialectLine(dialect: string): string {
-  switch (dialect) {
-    case "Egyptian":
-      return "Use authentic Egyptian (Cairene) Arabic ONLY. No MSA, no Gulf, no Levantine.";
-    case "Yemeni":
-      return "Use authentic Yemeni (Sanaani) Arabic ONLY. No MSA, no Gulf, no Egyptian.";
-    case "Gulf":
-    default:
-      return "Use authentic Gulf (Khaliji) Arabic ONLY. No MSA, no Egyptian, no Levantine.";
-  }
-}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });

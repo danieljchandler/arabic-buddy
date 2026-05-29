@@ -58,6 +58,7 @@ const AdminDialectRules = () => {
   const [count, setCount] = useState(6);
   const [guidance, setGuidance] = useState('');
   const [generating, setGenerating] = useState(false);
+  const [mining, setMining] = useState(false);
 
   const { data: rules, isLoading } = useQuery({
     queryKey: ['dialect_rules', activeDialect],

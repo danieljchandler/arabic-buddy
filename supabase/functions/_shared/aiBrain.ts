@@ -422,4 +422,11 @@ function extractScanText(task: BrainTask, parsed: unknown, raw: string): string 
   return raw;
 }
 
+function stringifyUserPrompt(p: MultimodalContent): string {
+  if (typeof p === 'string') return p;
+  return p
+    .map((part) => (part.type === 'text' ? part.text : '[image]'))
+    .join('\n');
+}
+
 export { BrainHttpError };

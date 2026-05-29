@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { Loader2, Trophy, RotateCcw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import lahjaLogo from "@/assets/lahja-logo.png";
+import { recordContinue, clearContinue } from "@/lib/continueProgress";
 
 type Phase = "intro" | "quiz";
 
@@ -93,6 +94,21 @@ const Learn = () => {
     setSessionResults({ correct: 0, total: 0 });
     setIsComplete(false);
   }, [lessonId]);
+
+  // Record "continue where you left off"
+  useEffect(() => {
+    if (isMixedMode || !lessonId || !topic || words.length === 0) return;
+    if (isComplete) {
+      clearContinue();
+      return;
+    }
+    recordContinue({
+      kind: "lesson",
+      route: `/learn/${lessonId}`,
+      title: topic.name || "Lesson",
+      subtitle: `Word ${Math.min(currentIndex + 1, words.length)} of ${words.length}`,
+    });
+  }, [isMixedMode, lessonId, topic, words.length, currentIndex, isComplete]);
 
   const handleContinueToQuiz = () => {
     setPhase("quiz");

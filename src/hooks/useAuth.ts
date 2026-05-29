@@ -15,6 +15,12 @@ export const useAuth = () => {
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
+        // Analytics: identify on sign-in, reset on sign-out. No-op if disabled.
+        if (event === 'SIGNED_OUT') {
+          resetAnalytics();
+        } else if (session?.user) {
+          void initAnalytics().then(() => identify(session.user.id));
+        }
       }
     );
 
@@ -23,6 +29,12 @@ export const useAuth = () => {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
+      if (session?.user) {
+        void initAnalytics().then(() => identify(session.user.id));
+      } else {
+        // Init anonymous analytics for landing-page conversion tracking.
+        void initAnalytics();
+      }
     });
 
     return () => subscription.unsubscribe();

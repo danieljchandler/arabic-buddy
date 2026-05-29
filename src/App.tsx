@@ -418,6 +418,7 @@ const App = () => {
               <Route path="memes/new" element={<AdminMemeForm />} />
               <Route path="memes/:memeId" element={<AdminMemeForm />} />
               <Route path="set-phrases" element={<AdminSetPhrases />} />
+              <Route path="dialect-rules" element={<AdminDialectRules />} />
               <Route path="errors" element={<AdminErrors />} />
             </Route>
 

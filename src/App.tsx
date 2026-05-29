@@ -1,5 +1,4 @@
 import { useEffect, lazy, Suspense, type ComponentType } from "react";
-import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -7,7 +6,6 @@ import { BrowserRouter, Navigate, Routes, Route } from "react-router-dom";
 import { toast } from "sonner";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
-import { TranscriptionJobProvider } from "@/contexts/TranscriptionJobContext";
 import { DialectProvider } from "@/contexts/DialectContext";
 import { lazyRetry } from "@/lib/lazyRetry";
 import { PageSkeleton } from "@/components/ui/skeleton-page";
@@ -180,9 +178,7 @@ const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <DialectProvider>
-      <TranscriptionJobProvider>
       <TooltipProvider>
-        <Toaster />
         <Sonner />
         <BrowserRouter>
           <Suspense fallback={<PageSkeleton />}>
@@ -411,7 +407,6 @@ const App = () => {
           </Suspense>
         </BrowserRouter>
       </TooltipProvider>
-      </TranscriptionJobProvider>
       </DialectProvider>
     </QueryClientProvider>
   );

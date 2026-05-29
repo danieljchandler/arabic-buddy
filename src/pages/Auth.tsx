@@ -10,13 +10,16 @@ import { HomeButton } from "@/components/HomeButton";
 import { AppShell } from "@/components/layout/AppShell";
 import { Loader2, Mail, Lock, UserPlus, LogIn } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { z } from "zod";
 import lahjaIcon from "@/assets/lahja-icon.png";
 
-const authSchema = z.object({
-  email: z.string().email("Please enter a valid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-});
+// Lightweight inline validators — dropping `zod` here saves ~12 kB gz on the Auth chunk.
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const validateAuthInput = (email: string, password: string) => {
+  const errors: { email?: string; password?: string } = {};
+  if (!EMAIL_RE.test(email.trim())) errors.email = "Please enter a valid email address";
+  if (password.length < 6) errors.password = "Password must be at least 6 characters";
+  return errors;
+};
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -48,21 +51,9 @@ const Auth = () => {
   }, [isAuthenticated, loading, navigate]);
 
   const validateForm = () => {
-    try {
-      authSchema.parse({ email, password });
-      setErrors({});
-      return true;
-    } catch (err) {
-      if (err instanceof z.ZodError) {
-        const newErrors: { email?: string; password?: string } = {};
-        err.errors.forEach((e) => {
-          if (e.path[0] === "email") newErrors.email = e.message;
-          if (e.path[0] === "password") newErrors.password = e.message;
-        });
-        setErrors(newErrors);
-      }
-      return false;
-    }
+    const newErrors = validateAuthInput(email, password);
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

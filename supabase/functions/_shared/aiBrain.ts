@@ -18,10 +18,14 @@ import {
 
 export type Strategy = 'solo' | 'ensemble' | 'draft_critic' | 'council';
 
+export type MultimodalContent =
+  | string
+  | Array<{ type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } }>;
+
 export interface BrainTask {
   purpose: string;
   dialect: Dialect;
-  userPrompt: string;
+  userPrompt: MultimodalContent;
   systemPromptExtra?: string; // appended after dialect identity block
   strategy?: Strategy;
   /** OpenAI-style function tool for structured output. */

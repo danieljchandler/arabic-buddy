@@ -347,7 +347,7 @@ serve(async (req) => {
         });
       }
 
-      const rawResponse = await callAI(MEME_ANALYSIS_PROMPT, userContent, LOVABLE_API_KEY, 6000);
+      const rawResponse = await callAI(buildMemePrompt(dialect), userContent, LOVABLE_API_KEY, 6000);
       onScreenResult = safeJsonParse<any>(rawResponse);
       
       if (!onScreenResult) {

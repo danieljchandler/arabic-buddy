@@ -28,6 +28,7 @@ import { InfoHint } from "@/components/InfoHint";
 import { useAlphabetProgress } from "@/hooks/useAlphabetProgress";
 import { ARABIC_LETTERS } from "@/data/arabicAlphabet";
 import { DailyLetterGoalRing } from "@/components/alphabet/DailyLetterGoalRing";
+import { ContinueCard } from "@/components/ContinueCard";
 
 
 const TILE_HINTS: Record<string, { title: string; body: string }> = {
@@ -170,6 +171,10 @@ const Index = () => {
       <div className="mb-3">
         <DialectRitualSwitcher />
       </div>
+
+      {/* Continue where you left off */}
+      {isAuthenticated && <ContinueCard />}
+
 
       {/* MSA → Dialect bridge entry */}
       <button

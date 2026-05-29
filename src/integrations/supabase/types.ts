@@ -3130,9 +3130,45 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      leaderboard_profiles: {
+        Row: {
+          avatar_url: string | null
+          custom_institution: string | null
+          display_name: string | null
+          institution_id: string | null
+          show_institution: boolean | null
+          user_id: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          custom_institution?: string | null
+          display_name?: string | null
+          institution_id?: string | null
+          show_institution?: boolean | null
+          user_id?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          custom_institution?: string | null
+          display_name?: string | null
+          institution_id?: string | null
+          show_institution?: boolean | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_institution_id_fkey"
+            columns: ["institution_id"]
+            isOneToOne: false
+            referencedRelation: "institutions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
+      award_xp: { Args: { _amount: number; _reason?: string }; Returns: Json }
+      grant_achievement: { Args: { _achievement_id: string }; Returns: Json }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -3140,12 +3176,17 @@ export type Database = {
         }
         Returns: boolean
       }
+      increment_review_count: { Args: never; Returns: undefined }
       increment_usage_counter: {
         Args: { _amount?: number; _key: string; _user_id: string }
         Returns: number
       }
       is_admin: { Args: never; Returns: boolean }
       is_recorder: { Args: never; Returns: boolean }
+      record_checkpoint: {
+        Args: { _index: number; _score: number }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "admin" | "user" | "recorder" | "bible_reader"

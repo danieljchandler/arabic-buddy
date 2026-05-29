@@ -205,6 +205,46 @@ const Pricing = () => {
             <p className="text-center text-sm text-muted-foreground mt-8">
               All plans include a 7-day money-back guarantee. Cancel anytime.
             </p>
+
+            {/* FAQ */}
+            <section className="mt-16 max-w-3xl mx-auto">
+              <h2 className="text-2xl font-bold text-center mb-8 font-heading">
+                Frequently asked questions
+              </h2>
+              <div className="space-y-6">
+                {[
+                  {
+                    q: 'Which dialects are included?',
+                    a: 'Every paid plan unlocks all active dialect modules — Gulf, Egyptian, and Yemeni — with native audio, immersion-first lessons, and the MSA bridge track. New dialects roll out to All-In subscribers first.',
+                  },
+                  {
+                    q: 'What counts toward the vocabulary limit?',
+                    a: 'Only words you actively save to "My Words" count. Browsing topics, transcripts, and Discover videos is unlimited. Free covers 10 saved words, Standard 100, and All-In is uncapped.',
+                  },
+                  {
+                    q: 'Can I switch plans or cancel later?',
+                    a: 'Yes. Upgrade, downgrade, or cancel anytime from the Manage Subscription button. Cancellations stay active until the end of the billing period — no surprise charges.',
+                  },
+                  {
+                    q: 'Do I keep my progress if I downgrade?',
+                    a: 'Always. Your streak, XP, saved words, and review history are tied to your account, not your plan. If you exceed a lower tier\'s limits, older items go read-only until you upgrade again.',
+                  },
+                  {
+                    q: 'Is there a free trial?',
+                    a: 'The Free plan is permanent — use it as long as you like. Paid plans come with a 7-day money-back guarantee instead of a time-boxed trial, so you can fully test every feature.',
+                  },
+                  {
+                    q: 'Do you offer student or annual pricing?',
+                    a: 'Annual plans (2 months free) and student discounts are coming shortly after launch. Email hello@lahja.app to be notified.',
+                  },
+                ].map(({ q, a }) => (
+                  <div key={q} className="border-b border-border pb-4">
+                    <h3 className="font-semibold text-foreground mb-2">{q}</h3>
+                    <p className="text-sm text-muted-foreground leading-relaxed">{a}</p>
+                  </div>
+                ))}
+              </div>
+            </section>
           </>
         )}
       </div>

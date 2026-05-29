@@ -75,16 +75,17 @@ export function useUserXP() {
 
       if (error) throw error;
 
-      // Create initial XP record if none exists
+      // Row is created server-side on first award_xp() call. Return a
+      // default-shaped object so the UI renders zero state until then.
       if (!data) {
-        const { data: newData, error: insertError } = await supabase
-          .from("user_xp")
-          .insert({ user_id: user.id })
-          .select()
-          .single();
-
-        if (insertError) throw insertError;
-        return newData as UserXP;
+        return {
+          id: "",
+          user_id: user.id,
+          total_xp: 0,
+          level: 1,
+          xp_this_week: 0,
+          week_start_date: new Date().toISOString().split("T")[0],
+        } as UserXP;
       }
 
       return data as UserXP;

@@ -1,10 +1,11 @@
 /**
  * Lightweight client-side error sink.
  *
- * Sends errors to the `client_errors` table (RLS allows INSERT for anon &
- * authenticated; only admins can SELECT). Rate-limited to 10 errors per
- * 60-second window per session to prevent runaway loops from flooding the
- * table. Fails silently — never throws from inside the logger.
+ * Sends errors to the `client_errors` table. After the security hardening
+ * migration, INSERT is restricted to authenticated users — anon errors are
+ * dropped silently. Rate-limited to 10 errors per 60-second window per session
+ * to prevent runaway loops from flooding the table. Fails silently — never
+ * throws from inside the logger.
  */
 import { supabase } from "@/integrations/supabase/client";
 

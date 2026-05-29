@@ -7,16 +7,23 @@ import {
   getDialectIdentity,
   getDialectVocabRules,
   getDialectLabel,
+  getDialectForbiddenTokens,
   primeDialectPrompt,
   type Dialect,
 } from './dialectHelpers.ts';
 import { detectMsaLeaks, type MsaLeakResult } from './msaLeakDetector.ts';
-import { logMsaViolations } from './msaViolationLogger.ts';
+import { logMsaViolations, logValidatorResult } from './msaViolationLogger.ts';
+import { validateDialect, type ValidatorResult } from './dialectValidator.ts';
 import {
   DEFAULT_FAST,
   DEFAULT_JUDGE,
   DEFAULT_DRAFTERS,
 } from './modelRegistry.ts';
+
+// Helper: scan with both hardcoded and rulebook-derived forbidden tokens.
+function scanLeaks(text: string, dialect: Dialect): MsaLeakResult {
+  return detectMsaLeaks(text, dialect, getDialectForbiddenTokens(dialect));
+}
 
 export type Strategy = 'solo' | 'ensemble' | 'draft_critic' | 'council';
 

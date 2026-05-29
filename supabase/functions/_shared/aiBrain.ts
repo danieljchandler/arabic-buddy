@@ -101,6 +101,23 @@ export async function askBrain<T = unknown>(task: BrainTask): Promise<BrainResul
   }
 
   result.totalLatencyMs = Date.now() - start;
+
+  // Log any remaining MSA leaks (post-repair) for admin review.
+  if (result.msaLeaks?.leaks?.length) {
+    logMsaViolations({
+      dialect: task.dialect,
+      leaks: result.msaLeaks,
+      offendingText: result.raw ?? '',
+      sourceFunction: task.purpose,
+      metadata: {
+        strategy: result.strategy,
+        models: result.models,
+        repairs: result.msaRepairs,
+        post_repair: true,
+      },
+    });
+  }
+
   return result;
 }
 

@@ -168,6 +168,45 @@ export const useReviewStats = (mixAll = false) => {
   });
 };
 
+export async function submitRatingToServer(
+  userId: string,
+  wordId: string,
+  rating: Rating,
+  currentReview: WordReview | null
+) {
+  const stability = currentReview?.ease_factor ?? 0;
+  const difficulty = 5.0;
+  const intervalDays = currentReview?.interval_days ?? 0;
+  const repetitions = currentReview?.repetitions ?? 0;
+
+  const result = calculateNextReview(rating, stability, difficulty, intervalDays, repetitions);
+
+  const reviewData = {
+    user_id: userId,
+    word_id: wordId,
+    ease_factor: result.stability,
+    interval_days: Math.max(0, Math.round(result.intervalDays)),
+    repetitions: result.repetitions,
+    next_review_at: result.nextReviewAt.toISOString(),
+    last_reviewed_at: new Date().toISOString(),
+  };
+
+  if (currentReview) {
+    const { error } = await supabase
+      .from('word_reviews')
+      .update(reviewData)
+      .eq('id', currentReview.id);
+    if (error) throw error;
+  } else {
+    const { error } = await supabase
+      .from('word_reviews')
+      .insert(reviewData);
+    if (error) throw error;
+  }
+
+  return { result, rating };
+}
+
 export const useSubmitReview = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -176,70 +215,35 @@ export const useSubmitReview = () => {
   const checkAchievements = useCheckAchievements();
 
   return useMutation({
-    mutationFn: async ({ 
-      wordId, 
+    mutationFn: async ({
+      wordId,
       rating,
-      currentReview 
-    }: { 
-      wordId: string; 
+      currentReview,
+    }: {
+      wordId: string;
       rating: Rating;
       currentReview: WordReview | null;
     }) => {
       if (!user) throw new Error('Must be logged in');
-
-      const stability    = currentReview?.ease_factor   ?? 0;
-      const difficulty   = 5.0;
-      const intervalDays = currentReview?.interval_days ?? 0;
-      const repetitions  = currentReview?.repetitions   ?? 0;
-
-      const result = calculateNextReview(rating, stability, difficulty, intervalDays, repetitions);
-
-      const reviewData = {
-        user_id: user.id,
-        word_id: wordId,
-        ease_factor: result.stability,
-        interval_days: Math.max(0, Math.round(result.intervalDays)),
-        repetitions: result.repetitions,
-        next_review_at: result.nextReviewAt.toISOString(),
-        last_reviewed_at: new Date().toISOString(),
-      };
-
-      if (currentReview) {
-        const { error } = await supabase
-          .from('word_reviews')
-          .update(reviewData)
-          .eq('id', currentReview.id);
-
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from('word_reviews')
-          .insert(reviewData);
-
-        if (error) throw error;
-      }
-
-      return { result, rating };
+      return submitRatingToServer(user.id, wordId, rating, currentReview);
     },
     onSuccess: ({ rating }) => {
       queryClient.invalidateQueries({ queryKey: ['review-stats'] });
-      
-      // Award XP based on rating
+
       const xpAmounts: Record<Rating, number> = {
         'again': 5,
         'hard': 10,
         'good': 15,
         'easy': 20,
       };
-      
+
       addXP.mutate({ amount: xpAmounts[rating], reason: 'review' });
       incrementReviews.mutate();
-      
-      // Check for newly earned achievements
       checkAchievements.mutate();
     },
   });
 };
+
 
 export const useAllVocabularyWords = (mixAll = false) => {
   const { activeDialect } = useDialect();

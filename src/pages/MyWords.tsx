@@ -218,15 +218,20 @@ const MyWords = () => {
         )}
       </div>
       {(!words || words.length === 0) && (
-        <div className="flex flex-col items-center justify-center py-16 text-center">
+        <div className="flex flex-col items-center justify-center py-16 text-center px-4">
           <BookOpen className="h-12 w-12 text-muted-foreground mb-4" />
           <h2 className="text-lg font-semibold mb-2">No words saved yet</h2>
           <p className="text-muted-foreground mb-6 max-w-sm">
-            Transcribe Arabic audio and tap the + button on vocabulary words to save them here.
+            Start a lesson or watch a clip in Discover — tap any Arabic word to save it here, then review it with flashcards.
           </p>
-          <Button variant="outline" onClick={() => navigate("/transcribe")}>
-            Go to Transcribe
-          </Button>
+          <div className="flex flex-col sm:flex-row gap-3 w-full max-w-sm">
+            <Button className="flex-1 h-11" onClick={() => navigate("/learn")}>
+              Start a lesson
+            </Button>
+            <Button variant="outline" className="flex-1 h-11" onClick={() => navigate("/discover")}>
+              Browse Discover
+            </Button>
+          </div>
         </div>
       )}
 

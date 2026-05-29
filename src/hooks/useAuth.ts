@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { initAnalytics, identify, resetAnalytics } from '@/lib/analytics';
 
 export const useAuth = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -14,6 +15,12 @@ export const useAuth = () => {
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
+        // Analytics: identify on sign-in, reset on sign-out. No-op if disabled.
+        if (event === 'SIGNED_OUT') {
+          resetAnalytics();
+        } else if (session?.user) {
+          void initAnalytics().then(() => identify(session.user.id));
+        }
       }
     );
 
@@ -22,6 +29,12 @@ export const useAuth = () => {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
+      if (session?.user) {
+        void initAnalytics().then(() => identify(session.user.id));
+      } else {
+        // Init anonymous analytics for landing-page conversion tracking.
+        void initAnalytics();
+      }
     });
 
     return () => subscription.unsubscribe();

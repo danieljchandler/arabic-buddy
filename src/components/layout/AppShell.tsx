@@ -17,7 +17,14 @@ interface AppShellProps {
  */
 export function AppShell({ children, className, compact = false }: AppShellProps) {
   return (
-    <div className={cn("min-h-screen relative", className)} style={{ backgroundColor: "#FFFFFF" }}>
+    <div
+      className={cn("min-h-[100dvh] relative", className)}
+      style={{
+        backgroundColor: "#FFFFFF",
+        paddingTop: "env(safe-area-inset-top)",
+        paddingBottom: "env(safe-area-inset-bottom)",
+      }}
+    >
       {/* Background image layer with reduced opacity */}
       <div
         style={{
@@ -33,7 +40,7 @@ export function AppShell({ children, className, compact = false }: AppShellProps
       />
       <div className={cn(
         "relative mx-auto w-full max-w-2xl animate-fade-up",
-        compact ? "px-5 py-6" : "px-6 pt-4 pb-8 md:pt-6 md:pb-12"
+        compact ? "px-4 py-5 sm:px-5 sm:py-6" : "px-4 pt-4 pb-8 sm:px-6 md:pt-6 md:pb-12"
       )}>
         {children}
       </div>

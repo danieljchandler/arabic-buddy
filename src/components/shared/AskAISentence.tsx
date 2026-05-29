@@ -1,5 +1,4 @@
-import { useState, useRef, useEffect } from "react";
-import ReactMarkdown from "react-markdown";
+import { useState, useRef, useEffect, type ReactNode } from "react";
 import { Sparkles, Send, Loader2, MessageCircleQuestion } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -35,6 +34,69 @@ const SUGGESTED = [
   "Tell me more",
   "Give me alternatives",
 ];
+
+/**
+ * Tiny markdown renderer for AI replies.
+ * Handles: paragraphs, line breaks, **bold**, *italic*, `code`, and simple - / * bullet lists.
+ * Skipping react-markdown saves ~35 kB gz on this chunk.
+ */
+function renderInline(text: string): ReactNode[] {
+  const nodes: ReactNode[] = [];
+  const regex = /(\*\*[^*]+\*\*|\*[^*\n]+\*|`[^`]+`)/g;
+  let last = 0;
+  let match: RegExpExecArray | null;
+  let key = 0;
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > last) nodes.push(text.slice(last, match.index));
+    const tok = match[0];
+    if (tok.startsWith("**")) nodes.push(<strong key={key++}>{tok.slice(2, -2)}</strong>);
+    else if (tok.startsWith("`")) nodes.push(<code key={key++} className="rounded bg-muted px-1 py-0.5 text-[0.85em]">{tok.slice(1, -1)}</code>);
+    else nodes.push(<em key={key++}>{tok.slice(1, -1)}</em>);
+    last = regex.lastIndex;
+  }
+  if (last < text.length) nodes.push(text.slice(last));
+  return nodes;
+}
+
+function TinyMarkdown({ source }: { source: string }) {
+  const blocks: ReactNode[] = [];
+  const lines = source.replace(/\r\n/g, "\n").split("\n");
+  let i = 0;
+  let key = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    if (/^\s*[-*]\s+/.test(line)) {
+      const items: string[] = [];
+      while (i < lines.length && /^\s*[-*]\s+/.test(lines[i])) {
+        items.push(lines[i].replace(/^\s*[-*]\s+/, ""));
+        i++;
+      }
+      blocks.push(
+        <ul key={key++} className="list-disc pl-5 my-1 space-y-0.5">
+          {items.map((it, idx) => <li key={idx}>{renderInline(it)}</li>)}
+        </ul>
+      );
+      continue;
+    }
+    if (line.trim() === "") { i++; continue; }
+    const para: string[] = [];
+    while (i < lines.length && lines[i].trim() !== "" && !/^\s*[-*]\s+/.test(lines[i])) {
+      para.push(lines[i]);
+      i++;
+    }
+    blocks.push(
+      <p key={key++} className="my-1">
+        {para.map((l, idx) => (
+          <span key={idx}>
+            {renderInline(l)}
+            {idx < para.length - 1 && <br />}
+          </span>
+        ))}
+      </p>
+    );
+  }
+  return <>{blocks}</>;
+}
 
 export const AskAISentence = ({
   arabic,
@@ -211,7 +273,7 @@ export const AskAISentence = ({
             >
               {m.role === "assistant" ? (
                 m.content ? (
-                  <ReactMarkdown>{m.content}</ReactMarkdown>
+                  <TinyMarkdown source={m.content} />
                 ) : (
                   <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
                 )

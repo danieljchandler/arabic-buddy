@@ -178,21 +178,27 @@ async function callAI(
   }
 }
 
-const MEME_ANALYSIS_PROMPT = `You are analyzing an Arabic meme (image or video frames) for Gulf Arabic language learners.
+function buildMemePrompt(dialect: Dialect): string {
+  const label = getDialectLabel(dialect);
+  return `${getDialectIdentity(dialect)}
+
+${getDialectVocabRules(dialect)}
+
+You are analyzing an Arabic meme (image or video frames) for ${label} Arabic learners.
 
 Look at ALL Arabic text visible in the image(s). Also consider any audio transcript text provided.
 
 Output ONLY valid JSON matching this schema:
 {
   "memeExplanation": {
-    "casual": "string - fun, casual explanation of what's funny about this meme (2-3 sentences)",
-    "cultural": "string - deeper cultural/linguistic breakdown explaining the humor, references, and dialect nuances (3-5 sentences)"
+    "casual": "string - fun, casual explanation of what's funny (2-3 sentences, in English)",
+    "cultural": "string - deeper cultural/linguistic breakdown explaining the humor, references, and dialect nuances (3-5 sentences, in English)"
   },
   "onScreenText": {
     "rawTranscriptArabic": "string - all Arabic text visible on screen, combined",
     "lines": [
       {
-        "arabic": "string - one line/segment of on-screen text",
+        "arabic": "string - one line/segment of on-screen text in authentic ${label} Arabic spelling",
         "translation": "string - English translation"
       }
     ],
@@ -209,24 +215,27 @@ Output ONLY valid JSON matching this schema:
 }
 
 Rules:
-- Read ALL Arabic text in the image carefully, including meme captions, overlaid text, watermarks with Arabic
-- Keep dialect spelling as spoken (Gulf Arabic)
-- Vocabulary: 3-8 useful words from the meme
-- Grammar points: 1-3 dialect-specific points
-- Glosses: provide English meaning for EVERY unique Arabic word found
-- If there's no Arabic text visible, set rawTranscriptArabic to empty string and lines to empty array
-- The casual explanation should be fun and relatable
-- The cultural explanation should teach about Gulf/Arab culture, humor patterns, or linguistic features
+- Read ALL Arabic text in the image carefully, including meme captions, overlaid text, watermarks with Arabic.
+- Keep dialect spelling as spoken (${label} Arabic). NEVER convert to Modern Standard Arabic (فصحى).
+- Vocabulary: 3-8 useful ${label} words from the meme.
+- Grammar points: 1-3 ${label}-dialect-specific points.
+- Glosses: provide English meaning for EVERY unique Arabic word found.
+- If there's no Arabic text visible, set rawTranscriptArabic to empty string and lines to empty array.
+- The casual explanation should be fun and relatable.
+- The cultural explanation should teach about ${label}-region culture, humor patterns, or linguistic features.
 
 No additional text outside JSON.`;
+}
 
-const AUDIO_ANALYSIS_PROMPT = `You are processing Gulf Arabic audio transcript from a meme video for language learners.
+function buildAudioPrompt(dialect: Dialect): string {
+  const label = getDialectLabel(dialect);
+  return `You are processing ${label} Arabic audio transcript from a meme video for language learners.
 
 Output ONLY valid JSON matching this schema:
 {
   "lines": [
     {
-      "arabic": "string - one segment of spoken text",
+      "arabic": "string - one segment of spoken text in authentic ${label} Arabic",
       "translation": "string - English translation"
     }
   ],
@@ -242,13 +251,15 @@ Output ONLY valid JSON matching this schema:
 }
 
 Rules:
-- Split into segments of 3-12 words each
-- Keep dialect spelling as spoken
-- Vocabulary: 3-6 useful words
-- Grammar points: 1-2 relevant points
-- Glosses: English meaning for EVERY unique Arabic word
+- Split into segments of 3-12 words each.
+- Keep dialect spelling as spoken (${label} Arabic). NEVER MSA.
+- Vocabulary: 3-6 useful words.
+- Grammar points: 1-2 relevant ${label}-dialect points.
+- Glosses: English meaning for EVERY unique Arabic word.
 
 No additional text outside JSON.`;
+}
+
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {

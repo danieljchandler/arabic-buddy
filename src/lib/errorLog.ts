@@ -42,7 +42,7 @@ export async function logClientError(input: LogErrorInput): Promise<void> {
       (typeof window !== "undefined" ? window.location.pathname + window.location.search : null);
     const ua = typeof navigator !== "undefined" ? navigator.userAgent : null;
 
-    // Resolve user_id best-effort (do not block).
+    // Resolve user_id — drop the log if unauthenticated (RLS forbids it).
     let userId: string | null = null;
     try {
       const { data } = await supabase.auth.getUser();
@@ -50,6 +50,7 @@ export async function logClientError(input: LogErrorInput): Promise<void> {
     } catch {
       /* ignore */
     }
+    if (!userId) return;
 
     await supabase.from("client_errors").insert({
       user_id: userId,

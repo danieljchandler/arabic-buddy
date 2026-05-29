@@ -11,6 +11,7 @@ import {
   type Dialect,
 } from './dialectHelpers.ts';
 import { detectMsaLeaks, type MsaLeakResult } from './msaLeakDetector.ts';
+import { logMsaViolations } from './msaViolationLogger.ts';
 import {
   DEFAULT_FAST,
   DEFAULT_JUDGE,

@@ -1,140 +1,78 @@
-# Lahja AI Brain — Multi-Model Collaboration Layer
+# Add streaming support to the AI Brain
 
-## The problem today
+Bring the three streaming chat endpoints (`free-chat`, `conversation-practice`, `how-do-i-say`) under the AI Brain umbrella without losing token-by-token UX or current behavior.
 
-Most AI calls pick **one model** and trust it:
-- `word-enrichment` → `gemini-2.5-flash-lite` (weakest, leaks MSA)
-- `generate-sample-sentences` → `gemini-2.5-flash` solo
-- `hf-chat` (used by `huggingface.ts`) → single `gemini-3-flash-preview` with a generic Gulf system prompt
-- `generate-story`, `phrase-of-the-day`, `curriculum-chat` → solo Gemini
-- `daily-story`, `analyze-meme` → solo, hardcoded
+## What's wrong today
 
-Only `how-do-i-say` and `analyze-meme` (visual) currently use an **ensemble** (multiple models in parallel, then merge). That's the pattern we want everywhere dialect authenticity matters.
+- `free-chat` streams from `google/gemini-2.5-pro` directly via raw `fetch` — no dialect identity injection from the Brain, no MSA leak guard.
+- `conversation-practice` is non-streaming and hits `gemini-3-flash-preview` directly; no Brain features.
+- `how-do-i-say` runs its own multi-model ensemble (Fanar + others) that predates the Brain and duplicates a lot of logic.
+- The Brain's `askBrain()` is response-complete only, so streaming flows can't use it.
 
-## The idea: a shared "AI Brain" orchestrator
+## Plan
 
-One reusable module — `_shared/aiBrain.ts` — that any edge function can call instead of `fetch('ai.gateway.lovable.dev/...')` directly. It runs models in **roles** (Drafter → Critic → Judge), or in **parallel ensembles** with consensus, depending on the task profile.
+### 1. Extend `_shared/aiBrain.ts` with `streamBrain()`
 
-Think of it as a small multi-agent pipeline that *every* dialect-sensitive generator inherits.
-
-## Architecture
-
-```text
-┌─────────────────────── AI Brain ────────────────────────┐
-│                                                          │
-│  Task profile  ──►  Strategy picker                      │
-│  (dialect,         ├─ "solo"        → 1 fast model       │
-│   category,        ├─ "ensemble"    → N models ∥, vote   │
-│   stakes)          ├─ "draft+critic"→ A drafts, B critiques│
-│                    └─ "council"     → A,B,C draft → D judges│
-│                                                          │
-│  Each strategy → models from Model Registry              │
-│  Each output → MSA leak detector + dialect rule guard    │
-│  Logged → llm_logs with strategy, models, agreement %    │
-└──────────────────────────────────────────────────────────┘
-```
-
-### Strategies (4 reusable patterns)
-
-| Strategy | When to use | Models (default) |
-|---|---|---|
-| **solo** | Low-stakes, high-volume, deterministic (titles, slugs, simple classifications) | `gemini-3-flash-preview` |
-| **ensemble** (parallel + consensus) | Short dialect outputs where authenticity matters: vocab definitions, example sentences, dialect translations | `gemini-2.5-pro` + `gpt-5-mini` + `gemini-3-flash-preview` |
-| **draft+critic** (sequential) | Longer outputs that need polish: stories, news summaries, meme explanations | Drafter: `gemini-2.5-pro` → Critic: `gpt-5` ("rewrite anything that drifts to MSA, return only the corrected version") |
-| **council** (drafts + judge) | Highest-stakes user-facing teaching content: lesson generation, Curriculum Brain output, "How do I say…" | Drafters: `gemini-2.5-pro`, `gpt-5`, `qwen-3-72b` → Judge: `gpt-5` ("pick the most authentic dialect response, merge best phrasing, no MSA") |
-
-All four strategies share the same input/output shape so any caller can swap strategies without rewriting.
-
-### Consensus + MSA guard
-
-After every strategy run:
-1. **MSA leak detector** scans output for forbidden MSA tokens (driven by the dialect rulebook from the previous plan).
-2. If a leak is found and strategy ≠ `solo`, the orchestrator triggers a **repair pass**: re-prompt the judge/critic with `"The following words are MSA and must be replaced with dialectal equivalents: [list]. Return the corrected text only."`
-3. Final output + agreement score + repair count logged to `llm_logs`.
-
-### Specs in code
+Add a new exported function that mirrors `askBrain` but returns an SSE stream:
 
 ```ts
-// _shared/aiBrain.ts
-type BrainTask = {
-  purpose: 'vocab_definition' | 'sample_sentences' | 'story' | 'translation' | 'chat' | …
-  dialect: Dialect
-  prompt: string
-  system?: string           // optional override; otherwise built from dialect rulebook
-  strategy?: Strategy       // optional override; otherwise picked from task profile
-  schema?: ZodSchema        // for structured output
-  maxTokens?: number
+export interface StreamBrainTask extends Omit<BrainTask, 'tool' | 'strategy'> {
+  // Streaming is single-model only; ensemble/council can't stream coherently.
+  model?: string;
 }
 
-type BrainResult<T> = {
-  output: T
-  strategy: Strategy
-  models: string[]
-  agreementScore: number   // 0–1, only set for ensemble/council
-  msaRepairs: number
-  totalLatencyMs: number
-  totalTokens: number
-}
-
-export async function askBrain<T>(task: BrainTask): Promise<BrainResult<T>>
+export async function streamBrain(task: StreamBrainTask): Promise<Response>
 ```
 
-Every dialect-sensitive function (~15 of them) becomes a 1-line call:
-```ts
-const { output } = await askBrain({
-  purpose: 'sample_sentences',
-  dialect,
-  prompt: `Generate 3 sentences using "${word}"`,
-  schema: SentencesSchema,
-})
-```
+Behavior:
+- Builds the same dialect identity + vocab rules system prompt as `askBrain` (reuses `buildSystem`).
+- Calls the Lovable gateway with `stream: true`.
+- Pipes the upstream SSE body straight through to the caller (preserves Vercel-AI-style chunk format).
+- Optional `onComplete(fullText)` callback so callers can fire-and-forget an MSA leak log after the stream ends (no repair pass — would defeat streaming UX).
+- Returns a `Response` with `text/event-stream` so callers can `return streamBrain(...)` directly.
 
-## What gets built
+No changes to existing `askBrain` signatures.
 
-1. **`_shared/aiBrain.ts`** — strategy registry, model dispatcher, consensus voter, repair loop, structured-output wrapper.
-2. **`_shared/modelRegistry.ts`** — central list of models with `tier`, `cost`, `latencyMs`, `strengths` so strategies can pick by tag, not hardcoded names. Survives provider swaps.
-3. **`_shared/consensus.ts`** — small helpers: token-overlap score for short outputs, semantic-similarity (cosine via Lovable embeddings) for longer ones, majority-vote for structured outputs.
-4. **`_shared/msaLeakDetector.ts`** — regex pass over forbidden tokens (from dialect rulebook). Returns `{ leaks: string[], severity }`. Reused by repair loop.
-5. **Migration of 7 hot-path functions** to `askBrain`:
-   - `word-enrichment` (vocab_definition, ensemble)
-   - `generate-sample-sentences` (sample_sentences, ensemble)
-   - `generate-story` (story, draft+critic)
-   - `phrase-of-the-day` (translation, ensemble)
-   - `hf-chat` → renamed `ai-brain-chat` (chat, council for "How do I say"-style asks)
-   - `curriculum-chat` (lesson_generation, council)
-   - `analyze-meme` (meme_explain, draft+critic; also fixes the hardcoded-Gulf bug)
-6. **Admin "AI Brain" page** (`/admin/ai-brain`):
-   - Shows per-purpose strategy in use, model list, average agreement, MSA-repair rate, cost/req, p50/p95 latency (last 7d from `llm_logs`).
-   - "Try it" panel: enter dialect + prompt + purpose → see all model drafts side-by-side, judge output, MSA leaks, final result. Great for tuning.
-   - Toggle strategy per purpose without code deploy (config row in `ai_brain_config` table).
-7. **`llm_logs` schema additions:** `purpose`, `strategy`, `models jsonb`, `agreement_score`, `msa_repairs`, `judge_choice`.
+### 2. Migrate `free-chat`
 
-## Why this is the right shape for Lahja
+- Replace the inline system-prompt builder with `streamBrain({ purpose: 'free_chat_turn', dialect, systemPromptExtra: <level + correction rules + topic hint> })`.
+- Drop the manual gateway `fetch` block; keep the 429/402 error mapping by letting `streamBrain` throw `BrainHttpError` and mapping in a `try/catch`.
+- Keep streaming response shape identical so the client doesn't need changes.
 
-- **Dialect authenticity is a 2nd-pass problem.** Single models drift; a judge or critic catches it. That's the entire moat.
-- **One module = consistency.** The same MSA guard + repair loop runs for every flow. No more drift between `curriculum-chat` and `word-enrichment`.
-- **Pluggable with the upcoming Dialect Rulebook.** The leak detector reads from the same approved rules table — the two systems compound.
-- **Cost-aware.** Solo strategy stays for cheap stuff; council only fires for the highest-stakes outputs. Visible in the admin dashboard so you can tune.
-- **Future-proof.** Adding GPT-5.5 or a new Gemini = one row in the model registry, no per-function edits.
+### 3. Migrate `conversation-practice`
 
-## What this does NOT change
+- Switch to `streamBrain` (this also upgrades it from non-streaming to streaming).
+- Use `systemPromptExtra` for the difficulty/level instructions.
+- Keep `enforceDailyCap` and 30s abort logic.
+- Client today expects JSON `{ reply }` — to avoid breaking it, keep a `?stream=0` fallback that buffers the stream server-side and returns JSON. Default new behavior is SSE.
 
-- The Curriculum Brain admin-approval pipeline (still required for published curriculum content).
-- The ASR stack (Munsit > Soniox > Fanar > Azure > Deepgram). Speech-to-text is a different problem; not in scope.
-- Image generation (visual ensemble already exists in `analyze-meme`; out of scope here).
-- Subscription gating / Stripe (still queued).
+### 4. Refactor `how-do-i-say`
 
-## Suggested build order
+- Replace its bespoke ensemble (Fanar + others + custom critic) with a single `askBrain({ purpose: 'how_do_i_say', strategy: 'council', tool: emit_translation })`.
+- Define an `emit_translation` tool schema that captures the existing output fields (dialect Arabic, transliteration, literal English, notes, alternatives).
+- Add an `arabicTextPath` so the MSA scanner sees only the Arabic field.
+- Keep the existing Supabase persistence and response shape unchanged.
+- This one stays non-streaming (it's a structured lookup, not a chat).
 
-1. `modelRegistry.ts` + `msaLeakDetector.ts` (foundations).
-2. `aiBrain.ts` with `solo` + `ensemble` strategies + structured-output support.
-3. Migrate `word-enrichment` and `generate-sample-sentences` first (silent leak bugs fixed in same edit).
-4. Add `draft+critic` and `council` strategies.
-5. Migrate `hf-chat`, `generate-story`, `phrase-of-the-day`, `curriculum-chat`, `analyze-meme`.
-6. `llm_logs` schema additions + admin `/admin/ai-brain` dashboard.
-7. Wire to upcoming Dialect Rulebook (next plan) so leak detector reads from DB.
-8. Save `mem://architecture/ai-integration/ai-brain` describing strategies + when each runs.
+### 5. Verify
 
-## Sequencing with the Dialect Rulebook plan
+- `supabase--deploy_edge_functions` for the three functions plus _shared.
+- `supabase--curl_edge_functions` smoke tests:
+  - `free-chat`: one Gulf turn, confirm SSE chunks arrive and Arabic-only output.
+  - `conversation-practice`: one Egyptian turn, confirm streaming response.
+  - `how-do-i-say`: one Yemeni phrase, confirm tool output structure matches old shape.
+- Check `supabase--edge_function_logs` for `[aiBrain]` warnings.
 
-These two plans are designed to compound. **Recommended order:** AI Brain first (this plan), then Dialect Rulebook — because the Brain's MSA guard can start with the hardcoded constants in `dialectHelpers.ts` on day 1, then swap to DB-driven rules on day 2 with zero code changes in the callers.
+## Files touched
+
+- `supabase/functions/_shared/aiBrain.ts` — add `streamBrain` + small internal refactor to share `buildSystem`.
+- `supabase/functions/free-chat/index.ts`
+- `supabase/functions/conversation-practice/index.ts`
+- `supabase/functions/how-do-i-say/index.ts`
+- Memory: update `mem://architecture/ai-integration/ai-brain` to document `streamBrain`.
+
+## Not in scope
+
+- Client-side AI SDK migration (chat client still consumes raw SSE).
+- Repair pass on streamed output (incompatible with streaming UX — leak logging only).
+- `bible-passage` migration (deferred earlier; keep as-is).

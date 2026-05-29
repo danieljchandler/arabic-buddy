@@ -1,18 +1,62 @@
+// conversation-practice — dialect-aware practice turn through the AI Brain.
+// The brain owns dialect identity + vocab rules; this file appends difficulty
+// guidance and buffers the stream server-side because the client expects { reply }.
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { getDialectIdentity } from "../_shared/dialectHelpers.ts";
+import { streamBrain, BrainHttpError } from "../_shared/aiBrain.ts";
+import { type Dialect } from "../_shared/dialectHelpers.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
+
+function difficultyExtras(difficulty: string): string {
+  if (difficulty === "advanced") {
+    return "Student Arabic level: advanced. Speak naturally at full speed. Use complex grammar, idioms, and cultural expressions. Challenge the student.";
+  }
+  if (difficulty === "intermediate") {
+    return "Student Arabic level: intermediate. Use moderately complex sentences. Mix common and less common vocabulary. Correct mistakes gently.";
+  }
+  return "Student Arabic level: beginner. Use very simple, short sentences. Speak slowly. Use only basic vocabulary. Be encouraging and patient.";
+}
+
+async function readSseToText(stream: ReadableStream<Uint8Array>): Promise<string> {
+  const reader = stream.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  const out: string[] = [];
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let nl: number;
+      while ((nl = buffer.indexOf("\n")) !== -1) {
+        const line = buffer.slice(0, nl).trim();
+        buffer = buffer.slice(nl + 1);
+        if (!line.startsWith("data:")) continue;
+        const payload = line.slice(5).trim();
+        if (!payload || payload === "[DONE]") continue;
+        try {
+          const json = JSON.parse(payload);
+          const delta = json.choices?.[0]?.delta?.content;
+          if (typeof delta === "string") out.push(delta);
+        } catch { /* skip partial chunk */ }
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  return out.join("");
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Free-tier daily cap: 50 conversation turns / user / day. Paid users bypass.
   const cap = await enforceDailyCap(req, "conversation-practice", 50, corsHeaders);
   if (cap.limited) return cap.response;
 
@@ -22,107 +66,74 @@ serve(async (req) => {
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return new Response(
         JSON.stringify({ error: "messages array is required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
-    }
-
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      console.error("conversation-practice: LOVABLE_API_KEY not configured");
-      return new Response(
-        JSON.stringify({ error: "AI service not configured" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const DIALECT_IDENTITY = getDialectIdentity(dialect);
-
-    const levelInstruction = difficulty === "advanced"
-      ? "Speak naturally at full speed. Use complex grammar, idioms, and cultural expressions. Challenge the student."
-      : difficulty === "intermediate"
-      ? "Use moderately complex sentences. Mix common and less common vocabulary. Correct mistakes gently."
-      : "Use very simple, short sentences. Speak slowly. Use only basic vocabulary. Be encouraging and patient.";
-
-    const levelContext = `\n\nStudent Arabic level: ${difficulty}. ${levelInstruction}`;
-
-    // Prepend server-side dialect identity to ensure consistent dialect output
-    const enrichedMessages = [...messages];
-    const hasSystemMsg = enrichedMessages[0]?.role === "system";
-    if (hasSystemMsg) {
-      enrichedMessages[0] = {
-        ...enrichedMessages[0],
-        content: `${DIALECT_IDENTITY}${levelContext}\n\nAdditional context:\n${enrichedMessages[0].content}`,
-      };
-    } else {
-      enrichedMessages.unshift({ role: "system", content: `${DIALECT_IDENTITY}${levelContext}` });
     }
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 30_000);
 
-    let reply = "";
-
     try {
-      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
+      const streamed = await streamBrain({
+        purpose: "conversation_practice_turn",
+        dialect: dialect as Dialect,
+        systemPromptExtra: difficultyExtras(difficulty),
+        messages,
+        model: "google/gemini-3-flash-preview",
+        temperature: 0.8,
+        maxTokens: 500,
         signal: controller.signal,
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        },
-        body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
-          messages: enrichedMessages,
-          max_tokens: 500,
-          temperature: 0.8,
-        }),
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        reply = data.choices?.[0]?.message?.content || "";
-      } else {
-        const errorText = await response.text();
-        console.warn("conversation-practice: AI error", response.status, errorText.slice(0, 200));
-        if (response.status === 402) {
-          return new Response(
-            JSON.stringify({ error: "Not enough AI credits. Please add credits to your workspace." }),
-            { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
-        }
-        if (response.status === 429) {
-          return new Response(
-            JSON.stringify({ error: "Rate limit exceeded. Please wait a moment and try again." }),
-            { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
-        }
+      if (!streamed.body) {
         return new Response(
-          JSON.stringify({ error: `AI service error (${response.status})` }),
-          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          JSON.stringify({ error: "AI service unavailable" }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
       }
+
+      const reply = await readSseToText(streamed.body);
+
+      if (!reply) {
+        return new Response(
+          JSON.stringify({ error: "AI service unavailable" }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+
+      return new Response(
+        JSON.stringify({ reply }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     } finally {
       clearTimeout(timeout);
     }
-
-    if (!reply) {
+  } catch (e) {
+    if (e instanceof BrainHttpError) {
+      if (e.status === 402) {
+        return new Response(
+          JSON.stringify({ error: "Not enough AI credits. Please add credits to your workspace." }),
+          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+      if (e.status === 429) {
+        return new Response(
+          JSON.stringify({ error: "Rate limit exceeded. Please wait a moment and try again." }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+      console.error("conversation-practice brain error:", e.status, e.message);
       return new Response(
-        JSON.stringify({ error: "AI service unavailable" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: `AI service error (${e.status})` }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
-
-    return new Response(
-      JSON.stringify({ reply }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  } catch (e) {
     const message = e instanceof Error ? e.message : "Unknown error";
     const isAbort = e instanceof DOMException && e.name === "AbortError";
     console.error("conversation-practice error:", message);
     return new Response(
       JSON.stringify({ error: isAbort ? "Request timed out. Please try again." : message }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
 });

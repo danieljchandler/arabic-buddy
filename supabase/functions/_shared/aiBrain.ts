@@ -353,7 +353,7 @@ async function runCouncil<T>(task: BrainTask, apiKey: string): Promise<BrainResu
   }
 
   const judgeSys = `${sys}\n\nYou are the judge. You are given ${ok.length} candidate responses. Choose the most authentic ${getDialectLabel(task.dialect)} answer, merging the best phrasing if helpful. Never use MSA. Return ONLY the final answer in the same format as the candidates (no commentary).`;
-  const judgeUser = `Original request:\n${task.userPrompt}\n\nCandidates:\n${ok
+  const judgeUser = `Original request:\n${stringifyUserPrompt(task.userPrompt)}\n\nCandidates:\n${ok
     .map((x, i) => `--- Candidate ${i + 1} (${x.model}) ---\n${x.d.value.raw}`)
     .join('\n\n')}`;
 

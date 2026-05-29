@@ -31,6 +31,7 @@ import type { TranscriptLine, WordToken, VocabItem } from "@/types/transcript";
 import { VideoRating } from "@/components/discover/VideoRating";
 import { AskAISentence } from "@/components/shared/AskAISentence";
 import { supabase } from "@/integrations/supabase/client";
+import { recordContinue } from "@/lib/continueProgress";
 
 declare global {
   interface Window {
@@ -340,6 +341,25 @@ const DiscoverVideo = () => {
   const isSeekingRef = useRef(false);
   const lineRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const transcriptContainerRef = useRef<HTMLDivElement>(null);
+
+  // Record "continue where you left off" entry, throttled internally to 5s
+  useEffect(() => {
+    if (!video?.id) return;
+    const title = (video as any).title || (video as any).title_arabic || "Video";
+    const totalSec = Math.floor(currentTimeMs / 1000);
+    if (totalSec <= 0) {
+      recordContinue({ kind: "video", route: `/discover/${video.id}`, title });
+      return;
+    }
+    const mm = Math.floor(totalSec / 60);
+    const ss = (totalSec % 60).toString().padStart(2, "0");
+    recordContinue({
+      kind: "video",
+      route: `/discover/${video.id}`,
+      title,
+      subtitle: `at ${mm}:${ss}`,
+    });
+  }, [video?.id, currentTimeMs]);
 
   // Load YouTube IFrame API
   useEffect(() => {

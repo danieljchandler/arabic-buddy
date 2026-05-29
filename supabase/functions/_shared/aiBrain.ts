@@ -569,9 +569,6 @@ export async function streamBrain(task: StreamBrainTask): Promise<Response> {
         try { Promise.resolve(task.onComplete(full)).catch(() => {}); } catch { /* ignore */ }
       }
     },
-        try { Promise.resolve(task.onComplete(full)).catch(() => {}); } catch { /* ignore */ }
-      }
-    },
   });
 
   const headers = new Headers(task.responseHeaders ?? {});

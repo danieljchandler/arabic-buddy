@@ -310,6 +310,10 @@ const MyWordsReview = () => {
           dialect: activeDialect,
         },
       });
+      if (showCapToastIfLimited(response.error, response.data)) {
+        setJingleLoading(false);
+        return;
+      }
       if (response.error) throw new Error(response.error.message || "Failed to generate jingle");
       const audioBlob = response.data instanceof Blob
         ? response.data

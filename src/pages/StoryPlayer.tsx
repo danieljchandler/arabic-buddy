@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { Loader2, RotateCcw, BookOpen, Trophy, ArrowLeft, Sparkles, Plus, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { recordContinue, clearContinue } from '@/lib/continueProgress';
 
 /**
  * Split a paragraph into sentences by sentence terminators (. ! ? ؟ and newlines),
@@ -96,6 +97,21 @@ const StoryPlayer = () => {
   }, [scenes]);
 
   const currentScene = sceneMap.get(currentSceneOrder);
+
+  // Record "continue where you left off" entry on every scene change
+  useEffect(() => {
+    if (!storyId || !storyTitle || !scenes || scenes.length === 0) return;
+    if (currentScene?.is_ending) {
+      clearContinue();
+      return;
+    }
+    recordContinue({
+      kind: 'story',
+      route: `/stories/${storyId}`,
+      title: storyTitle,
+      subtitle: `Scene ${pathTaken.length} of ${scenes.length}`,
+    });
+  }, [storyId, storyTitle, scenes, currentScene?.is_ending, pathTaken.length]);
 
   const handleChoice = (nextSceneOrder: number) => {
     setShowTranslation(false);

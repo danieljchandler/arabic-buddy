@@ -18,10 +18,14 @@ import {
 
 export type Strategy = 'solo' | 'ensemble' | 'draft_critic' | 'council';
 
+export type MultimodalContent =
+  | string
+  | Array<{ type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } }>;
+
 export interface BrainTask {
   purpose: string;
   dialect: Dialect;
-  userPrompt: string;
+  userPrompt: MultimodalContent;
   systemPromptExtra?: string; // appended after dialect identity block
   strategy?: Strategy;
   /** OpenAI-style function tool for structured output. */
@@ -131,7 +135,7 @@ function buildSystem(task: BrainTask): string {
 interface CallOptions {
   model: string;
   system: string;
-  user: string;
+  user: MultimodalContent;
   tool?: BrainTask['tool'];
   maxTokens?: number;
   temperature?: number;
@@ -139,15 +143,19 @@ interface CallOptions {
 }
 
 async function callModel(opts: CallOptions): Promise<{ raw: string; parsed: unknown }> {
+  const isGpt5 = /^openai\/gpt-5/.test(opts.model);
   const body: Record<string, unknown> = {
     model: opts.model,
     messages: [
       { role: 'system', content: opts.system },
       { role: 'user', content: opts.user },
     ],
-    max_tokens: opts.maxTokens ?? 1024,
-    temperature: opts.temperature ?? 0.5,
   };
+  const tokens = opts.maxTokens ?? 1024;
+  if (isGpt5) body.max_completion_tokens = tokens;
+  else body.max_tokens = tokens;
+  // GPT-5 models only support default temperature; skip the field for them.
+  if (!isGpt5) body.temperature = opts.temperature ?? 0.5;
 
   if (opts.tool) {
     body.tools = [
@@ -295,7 +303,7 @@ async function runDraftCritic<T>(task: BrainTask, apiKey: string): Promise<Brain
   });
 
   const criticSys = `${sys}\n\nYou are reviewing a draft. If anything drifts to MSA or another dialect, REWRITE it in authentic ${getDialectLabel(task.dialect)}. Return ONLY the corrected output in the same format as the draft (no commentary).`;
-  const criticUser = `Original request:\n${task.userPrompt}\n\nDraft to review:\n${draft.raw}`;
+  const criticUser = `Original request:\n${stringifyUserPrompt(task.userPrompt)}\n\nDraft to review:\n${draft.raw}`;
   const critiqued = await callModel({
     model: critic,
     system: criticSys,
@@ -349,7 +357,7 @@ async function runCouncil<T>(task: BrainTask, apiKey: string): Promise<BrainResu
   }
 
   const judgeSys = `${sys}\n\nYou are the judge. You are given ${ok.length} candidate responses. Choose the most authentic ${getDialectLabel(task.dialect)} answer, merging the best phrasing if helpful. Never use MSA. Return ONLY the final answer in the same format as the candidates (no commentary).`;
-  const judgeUser = `Original request:\n${task.userPrompt}\n\nCandidates:\n${ok
+  const judgeUser = `Original request:\n${stringifyUserPrompt(task.userPrompt)}\n\nCandidates:\n${ok
     .map((x, i) => `--- Candidate ${i + 1} (${x.model}) ---\n${x.d.value.raw}`)
     .join('\n\n')}`;
 
@@ -378,7 +386,7 @@ async function runCouncil<T>(task: BrainTask, apiKey: string): Promise<BrainResu
 
 async function runRepair<T>(task: BrainTask, prior: BrainResult<T>, apiKey: string): Promise<BrainResult<T>> {
   const sys = `${buildSystem(task)}\n\nThe previous output leaked MSA. Rewrite it in authentic ${getDialectLabel(task.dialect)} ONLY. The following MSA words MUST be replaced with dialectal equivalents: ${prior.msaLeaks.leaks.join(', ')}. Return ONLY the corrected output in the same format (no commentary).`;
-  const user = `Original request:\n${task.userPrompt}\n\nFlawed output to correct:\n${prior.raw}`;
+  const user = `Original request:\n${stringifyUserPrompt(task.userPrompt)}\n\nFlawed output to correct:\n${prior.raw}`;
   const { raw, parsed } = await callModel({
     model: DEFAULT_JUDGE,
     system: sys,
@@ -416,6 +424,13 @@ function extractScanText(task: BrainTask, parsed: unknown, raw: string): string 
     if (acc.length) return acc.join(' ');
   }
   return raw;
+}
+
+function stringifyUserPrompt(p: MultimodalContent): string {
+  if (typeof p === 'string') return p;
+  return p
+    .map((part) => (part.type === 'text' ? part.text : '[image]'))
+    .join('\n');
 }
 
 export { BrainHttpError };

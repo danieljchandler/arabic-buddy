@@ -172,7 +172,7 @@ Return ONLY the structured fields via the provided tool.`;
     const bodyEnglish = String(parsed.body_english ?? "").trim();
     if (!bodyArabic) {
       return new Response(
-        JSON.stringify({ error: "empty_story", raw: String(raw).slice(0, 400) }),
+        JSON.stringify({ error: "empty_story", raw: brain.raw.slice(0, 400) }),
         { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }

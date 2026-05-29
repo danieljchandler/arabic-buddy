@@ -184,63 +184,38 @@ export function useAddXP() {
     mutationFn: async ({ amount, reason }: { amount: number; reason: string }) => {
       if (!user) throw new Error("Not authenticated");
 
-      // Get current XP
+      // Determine previous level to detect level-up after server award.
       const { data: currentXP } = await supabase
         .from("user_xp")
-        .select("*")
+        .select("total_xp")
         .eq("user_id", user.id)
-        .single();
-
+        .maybeSingle();
       const oldLevel = currentXP ? calculateLevel(currentXP.total_xp) : 1;
-      const newTotalXP = (currentXP?.total_xp || 0) + amount;
-      const newLevel = calculateLevel(newTotalXP);
 
-      // Upsert XP
-      const { error } = await supabase
-        .from("user_xp")
-        .upsert({
-          user_id: user.id,
-          total_xp: newTotalXP,
-          level: newLevel,
-          xp_this_week: (currentXP?.xp_this_week || 0) + amount,
-        }, { onConflict: "user_id" });
-
+      // Server-side clamped award (max 500/call).
+      const { data, error } = await supabase.rpc("award_xp", {
+        _amount: amount,
+        _reason: reason,
+      });
       if (error) throw error;
 
-      // Update weekly goal
-      const today = new Date();
-      const dayOfWeek = today.getDay();
-      const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-      const monday = new Date(today);
-      monday.setDate(today.getDate() + mondayOffset);
-      const weekStart = monday.toISOString().split("T")[0];
-
-      const { data: weeklyGoal } = await supabase
-        .from("weekly_goals")
-        .select("*")
-        .eq("user_id", user.id)
-        .eq("week_start_date", weekStart)
-        .single();
-
-      if (weeklyGoal) {
-        await supabase
-          .from("weekly_goals")
-          .update({ earned_xp: weeklyGoal.earned_xp + amount })
-          .eq("id", weeklyGoal.id);
-      }
-
-      return { newTotalXP, levelUp: newLevel > oldLevel, newLevel };
+      const payload = (data ?? {}) as { total_xp?: number; level?: number; awarded?: number };
+      const newTotalXP = payload.total_xp ?? 0;
+      const newLevel = payload.level ?? calculateLevel(newTotalXP);
+      const awarded = payload.awarded ?? 0;
+      return { newTotalXP, levelUp: newLevel > oldLevel, newLevel, awarded };
     },
-    onSuccess: (result, { amount, reason }) => {
+    onSuccess: (result, { reason }) => {
       queryClient.invalidateQueries({ queryKey: ["user-xp"] });
       queryClient.invalidateQueries({ queryKey: ["weekly-goal"] });
 
-      // Show XP earned toast
-      toast({
-        title: `+${amount} XP`,
-        description: reason === "review" ? "Review completed!" : "Keep it up!",
-        duration: 2000,
-      });
+      if (result.awarded > 0) {
+        toast({
+          title: `+${result.awarded} XP`,
+          description: reason === "review" ? "Review completed!" : "Keep it up!",
+          duration: 2000,
+        });
+      }
 
       if (result.levelUp) {
         setTimeout(() => {
@@ -261,35 +236,8 @@ export function useIncrementReviews() {
   return useMutation({
     mutationFn: async () => {
       if (!user) throw new Error("Not authenticated");
-
-      const today = new Date();
-      const dayOfWeek = today.getDay();
-      const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-      const monday = new Date(today);
-      monday.setDate(today.getDate() + mondayOffset);
-      const weekStart = monday.toISOString().split("T")[0];
-
-      const { data: weeklyGoal } = await supabase
-        .from("weekly_goals")
-        .select("*")
-        .eq("user_id", user.id)
-        .eq("week_start_date", weekStart)
-        .maybeSingle();
-
-      if (weeklyGoal) {
-        await supabase
-          .from("weekly_goals")
-          .update({ completed_reviews: weeklyGoal.completed_reviews + 1 })
-          .eq("id", weeklyGoal.id);
-      } else {
-        await supabase
-          .from("weekly_goals")
-          .insert({ 
-            user_id: user.id, 
-            week_start_date: weekStart,
-            completed_reviews: 1
-          });
-      }
+      const { error } = await supabase.rpc("increment_review_count");
+      if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["weekly-goal"] });

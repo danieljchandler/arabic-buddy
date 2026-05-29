@@ -1,77 +1,70 @@
 // MSA (Modern Standard Arabic) leak detector.
-// V1: hardcoded forbidden tokens per dialect. V2 will read from the dialect_rules table.
+// Combines a hardcoded universal/cross-dialect list with rulebook-derived
+// forbidden tokens harvested from approved dialect_rules.examples.bad
+// (see primeDialectPrompt in dialectHelpers.ts).
 
 import type { Dialect } from './dialectHelpers.ts';
 
-// Words that strongly signal MSA in any spoken-dialect context.
 const UNIVERSAL_MSA_LEAKS = [
-  'الآن', // now -> dialect: هالحين / دلوقتي / ذحين
-  'لماذا', // why -> ليش / ليه
-  'كيف', // how -> شلون / إزاي (often acceptable in YEM/EGY too — soft)
-  'أين', // where -> وين / فين
-  'ماذا', // what -> شو / إيش / إيه
-  'هذا', // this -> ها / ده
-  'هذه', // this(f) -> هاي / دي
-  'هؤلاء',
-  'ذلك',
-  'سوف', // future -> ح / راح
-  'ليس', // -> مو / مش / ما
-  'لست',
-  'ليسوا',
-  'يريد', // -> يبي / عايز / بغى
-  'تريد',
-  'نريد',
-  'أريد',
-  'كثير', // -> واجد / كتير
-  'قليل',
-  'الذي',
-  'التي',
-  'الذين',
-  'عندما',
-  'حينما',
-  'بينما',
-  'أيضاً',
-  'أيضًا',
-  'كذلك',
+  'الآن', 'لماذا', 'كيف', 'أين', 'ماذا', 'هذا', 'هذه', 'هؤلاء', 'ذلك',
+  'سوف', 'ليس', 'لست', 'ليسوا', 'يريد', 'تريد', 'نريد', 'أريد',
+  'كثير', 'قليل', 'الذي', 'التي', 'الذين',
+  'عندما', 'حينما', 'بينما', 'أيضاً', 'أيضًا', 'كذلك',
 ];
 
-// Dialect-specific extra leaks (words that are fine in MSA but wrong cross-dialect).
 const DIALECT_EXTRA: Record<string, string[]> = {
-  Gulf: [
-    'إزيك', 'إزاي', 'دلوقتي', 'عايز', 'عاوز', 'كده', 'ده', 'دي', 'كويس', // Egyptian
-    'مفيش',
-  ],
-  Egyptian: [
-    'شلونك', 'هالحين', 'واجد', 'يبي', 'إمبي', 'زين', 'خوش', // Gulf
-    'بغيت', 'ذحين', 'قات', 'مفرج', // Yemeni
-  ],
-  Yemeni: [
-    'إزيك', 'دلوقتي', 'عايز', 'كده', // Egyptian
-    'هالحين', 'واجد', 'يبي', 'خوش', // Gulf
-  ],
+  Gulf: ['إزيك', 'إزاي', 'دلوقتي', 'عايز', 'عاوز', 'كده', 'ده', 'دي', 'كويس', 'مفيش'],
+  Egyptian: ['شلونك', 'هالحين', 'واجد', 'يبي', 'إمبي', 'زين', 'خوش', 'بغيت', 'ذحين', 'قات', 'مفرج'],
+  Yemeni: ['إزيك', 'دلوقتي', 'عايز', 'كده', 'هالحين', 'واجد', 'يبي', 'خوش'],
 };
 
 export interface MsaLeakResult {
-  leaks: string[]; // unique offending tokens
+  leaks: string[];
   severity: 'none' | 'low' | 'medium' | 'high';
+  /** token → rule_id (only present when leak matched a rulebook-derived token) */
+  ruleHits?: Record<string, string>;
 }
 
-export function detectMsaLeaks(text: string, dialect: Dialect): MsaLeakResult {
+export interface ExtraToken {
+  token: string;
+  rule_id?: string;
+}
+
+export function detectMsaLeaks(
+  text: string,
+  dialect: Dialect,
+  extraTokens: ExtraToken[] = [],
+): MsaLeakResult {
   if (!text) return { leaks: [], severity: 'none' };
   const extra = DIALECT_EXTRA[dialect] ?? [];
-  const wordlist = [...UNIVERSAL_MSA_LEAKS, ...extra];
+
+  // Build candidate set with optional rule_id mapping.
+  const candidates = new Map<string, string | undefined>();
+  for (const w of UNIVERSAL_MSA_LEAKS) candidates.set(w, undefined);
+  for (const w of extra) candidates.set(w, undefined);
+  for (const { token, rule_id } of extraTokens) {
+    if (!token) continue;
+    const t = String(token).trim();
+    if (!t) continue;
+    // Don't overwrite a rule_id that's already set
+    if (!candidates.has(t) || !candidates.get(t)) candidates.set(t, rule_id);
+  }
+
   const found = new Set<string>();
-  for (const w of wordlist) {
-    // word-boundary-ish match for Arabic (whitespace, punctuation, line edges)
+  const ruleHits: Record<string, string> = {};
+  for (const [w, ruleId] of candidates) {
     const re = new RegExp(`(^|[\\s\\p{P}])${escapeRe(w)}($|[\\s\\p{P}])`, 'u');
-    if (re.test(text)) found.add(w);
+    if (re.test(text)) {
+      found.add(w);
+      if (ruleId) ruleHits[w] = ruleId;
+    }
   }
   const leaks = [...found];
   let severity: MsaLeakResult['severity'] = 'none';
   if (leaks.length === 1) severity = 'low';
   else if (leaks.length === 2) severity = 'medium';
   else if (leaks.length >= 3) severity = 'high';
-  return { leaks, severity };
+  return { leaks, severity, ruleHits: Object.keys(ruleHits).length ? ruleHits : undefined };
 }
 
 function escapeRe(s: string): string {

@@ -3,7 +3,7 @@ import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { useLessons } from '@/hooks/useLessons';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, LogOut, BookOpen, Plus, Settings, Mic, PlayCircle, Upload, GraduationCap, Sparkles, BookMarked, TrendingUp, Image as ImageIcon, Laugh, MessageCircle } from 'lucide-react';
+import { Loader2, LogOut, BookOpen, Plus, Settings, Mic, PlayCircle, Upload, GraduationCap, Sparkles, BookMarked, TrendingUp, Image as ImageIcon, Laugh, MessageCircle, Languages } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 import lahjaIcon from '@/assets/lahja-icon.png';
@@ -205,6 +205,20 @@ const Dashboard = () => {
                     <div>
                       <h3 className="font-semibold text-lg">Set Phrases</h3>
                       <p className="text-muted-foreground">Curate situational phrases (greetings, eid, condolences)</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="cursor-pointer hover:shadow-lg transition-shadow border-purple-500/30" onClick={() => navigate('/admin/dialect-rules')}>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-4">
+                    <div className="bg-purple-500/10 rounded-full p-4">
+                      <Languages className="h-8 w-8 text-purple-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-lg">Dialect Rulebook</h3>
+                      <p className="text-muted-foreground">Review AI-drafted dialect rules that steer every generation</p>
                     </div>
                   </div>
                 </CardContent>

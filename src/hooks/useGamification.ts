@@ -245,7 +245,8 @@ export function useIncrementReviews() {
   });
 }
 
-// Check and award achievements based on user progress
+// Check and award achievements. Server re-validates eligibility inside
+// grant_achievement(); client filtering is best-effort.
 export function useCheckAchievements() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -255,20 +256,17 @@ export function useCheckAchievements() {
     mutationFn: async () => {
       if (!user) return [];
 
-      // Get all achievements and user's earned ones
-      const [{ data: achievements }, { data: userAchievements }, { data: streak }, { data: weeklyGoal }] = await Promise.all([
+      const [{ data: achievements }, { data: userAchievements }, { data: streak }] = await Promise.all([
         supabase.from("achievements").select("*"),
         supabase.from("user_achievements").select("achievement_id").eq("user_id", user.id),
         supabase.from("review_streaks").select("*").eq("user_id", user.id).maybeSingle(),
-        supabase.from("weekly_goals").select("*").eq("user_id", user.id).order("week_start_date", { ascending: false }).limit(1).maybeSingle(),
       ]);
 
       if (!achievements) return [];
 
-      const earnedIds = new Set(userAchievements?.map(ua => ua.achievement_id) || []);
+      const earnedIds = new Set(userAchievements?.map((ua) => ua.achievement_id) || []);
       const newlyEarned: Achievement[] = [];
 
-      // Get user stats
       const { count: totalReviews } = await supabase
         .from("word_reviews")
         .select("*", { count: "exact", head: true })
@@ -281,52 +279,34 @@ export function useCheckAchievements() {
         .gte("repetitions", 1);
 
       const currentStreak = streak?.current_streak || 0;
-      const completedReviews = weeklyGoal?.completed_reviews || 0;
 
-      // Check each achievement
       for (const achievement of achievements) {
         if (earnedIds.has(achievement.id)) continue;
 
-        let earned = false;
+        let likelyEligible = false;
         const value = achievement.requirement_value || 0;
 
         switch (achievement.requirement_type) {
           case "reviews_completed":
-            earned = (totalReviews || 0) >= value;
+            likelyEligible = (totalReviews || 0) >= value;
             break;
           case "words_learned":
-            earned = (wordsLearned || 0) >= value;
+            likelyEligible = (wordsLearned || 0) >= value;
             break;
           case "streak_days":
-            earned = currentStreak >= value;
-            break;
-          default:
+            likelyEligible = currentStreak >= value;
             break;
         }
 
-        if (earned) {
-          const { error } = await supabase
-            .from("user_achievements")
-            .insert({ user_id: user.id, achievement_id: achievement.id });
+        if (!likelyEligible) continue;
 
-          if (!error) {
-            newlyEarned.push(achievement as Achievement);
-            
-            // Award XP for achievement
-            const { data: currentXP } = await supabase
-              .from("user_xp")
-              .select("total_xp")
-              .eq("user_id", user.id)
-              .single();
-
-            await supabase
-              .from("user_xp")
-              .upsert({
-                user_id: user.id,
-                total_xp: (currentXP?.total_xp || 0) + achievement.xp_reward,
-                level: calculateLevel((currentXP?.total_xp || 0) + achievement.xp_reward),
-              }, { onConflict: "user_id" });
-          }
+        const { data, error } = await supabase.rpc("grant_achievement", {
+          _achievement_id: achievement.id,
+        });
+        if (error) continue;
+        const result = (data ?? {}) as { granted?: boolean; already_earned?: boolean };
+        if (result.granted) {
+          newlyEarned.push(achievement as Achievement);
         }
       }
 
@@ -337,7 +317,6 @@ export function useCheckAchievements() {
         queryClient.invalidateQueries({ queryKey: ["user-achievements"] });
         queryClient.invalidateQueries({ queryKey: ["user-xp"] });
 
-        // Show toast for each new achievement
         newlyEarned.forEach((achievement) => {
           toast({
             title: `${achievement.icon} Achievement Unlocked!`,

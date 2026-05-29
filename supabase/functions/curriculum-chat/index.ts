@@ -2,6 +2,8 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { planCoverage, type CoveragePlan } from "../_shared/coveragePlanner.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
+import { askBrain, BrainHttpError } from "../_shared/aiBrain.ts";
+import type { Dialect } from "../_shared/dialectHelpers.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -570,7 +572,60 @@ serve(async (req) => {
       `curriculum-chat: model=${modelId} dialect=${dialect} mode=${mode} msgs=${messages.length} coverage=${coveragePlan ? `${coveragePlan.avoid.length}a/${coveragePlan.reinforce.length}r/${coveragePlan.next_up.length}n` : 'none'}`,
     );
 
-    const responseContent = await callLLM(config, fullMessages, 4096);
+    // For content-generation modes, route through AI Brain (council strategy)
+    // so multiple models draft + a judge picks the most authentic dialect output.
+    // Chat and suggest_* modes keep the single-model path to preserve UX.
+    const useBrain =
+      resolvedMode?.startsWith("generate_") &&
+      // Brain only works for Lovable-gateway-compatible models. Skip native/Fanar/OpenRouter-only.
+      config.endpoint === LOVABLE_GATEWAY;
+
+    let responseContent: string;
+    if (useBrain) {
+      const conversationText = cappedMessages
+        .map((m) => `${m.role.toUpperCase()}: ${m.content}`)
+        .join("\n\n");
+      try {
+        const brain = await askBrain<string>({
+          purpose: "lesson_generation",
+          dialect: dialect as Dialect,
+          userPrompt: conversationText,
+          systemPromptExtra: [systemPrompt, coveragePlan?.promptBlock]
+            .filter(Boolean)
+            .join("\n\n"),
+          strategy: "council",
+          // Selected model + two complementary drafters; judge is added by the brain.
+          models: Array.from(
+            new Set([
+              modelId,
+              "google/gemini-3-flash-preview",
+              "google/gemini-2.5-pro",
+            ]),
+          ).slice(0, 3),
+          maxTokens: 4096,
+          temperature: 0.5,
+        });
+        responseContent = brain.raw;
+        console.log("curriculum-chat brain", {
+          models: brain.models,
+          leaks: brain.msaLeaks.leaks.length,
+          repairs: brain.msaRepairs,
+          latencyMs: brain.totalLatencyMs,
+        });
+      } catch (e) {
+        if (e instanceof BrainHttpError) {
+          if (e.status === 402)
+            throw new Error("Not enough AI credits. Please add credits to your workspace.");
+          if (e.status === 429)
+            throw new Error("Rate limit exceeded. Please wait a moment and try again.");
+        }
+        // Fallback to single-model path so the admin still gets a response.
+        console.warn("curriculum-chat brain failed, falling back to single model:", e);
+        responseContent = await callLLM(config, fullMessages, 4096);
+      }
+    } else {
+      responseContent = await callLLM(config, fullMessages, 4096);
+    }
     const structured = extractStructuredOutput(responseContent);
 
     // Log the generation request for auditing

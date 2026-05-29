@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { getDialectVocabRules, getDialectLabel } from "../_shared/dialectHelpers.ts";
+import { getDialectLabel, type Dialect } from "../_shared/dialectHelpers.ts";
+import { askBrain } from "../_shared/aiBrain.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',

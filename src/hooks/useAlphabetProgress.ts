@@ -139,16 +139,10 @@ export function useCheckpointProgress() {
   const recordCheckpoint = useMutation({
     mutationFn: async ({ index, score }: { index: number; score: number }) => {
       if (!user?.id) throw new Error("Not signed in");
-      const existing = query.data?.[index];
-      const row = {
-        user_id: user.id,
-        checkpoint_index: index,
-        score: Math.max(existing?.score ?? 0, score),
-        completed_at: new Date().toISOString(),
-      };
-      const { error } = await supabase
-        .from("user_checkpoint_progress" as any)
-        .upsert(row, { onConflict: "user_id,checkpoint_index" });
+      const { error } = await supabase.rpc("record_checkpoint", {
+        _index: index,
+        _score: score,
+      });
       if (error) throw error;
     },
     onSuccess: () => {

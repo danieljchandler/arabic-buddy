@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Loader2, Sparkles, Check, Archive, Trash2, ArrowLeft, Pencil, Save, X, AlertTriangle, RefreshCw } from 'lucide-react';
+import { Loader2, Sparkles, Check, Archive, Trash2, ArrowLeft, Pencil, Save, X, AlertTriangle, RefreshCw, UserCheck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 type RuleStatus = 'draft' | 'approved' | 'retired';

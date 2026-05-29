@@ -143,7 +143,7 @@ serve(async (req) => {
     const brain = await askBrain<BrainOutput>({
       purpose: "how_do_i_say",
       dialect,
-      strategy: "council",
+      strategy: "ensemble",
       userPrompt: trimmedPhrase,
       systemPromptExtra: buildExtras(dialect),
       maxTokens: 2048,

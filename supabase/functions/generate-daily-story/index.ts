@@ -110,56 +110,62 @@ Deno.serve(async (req) => {
     const matureList = mature.map((w) => `${w.word_arabic} (${w.word_english})`).join(", ");
     const newList = fresh.map((w) => `${w.word_arabic} (${w.word_english})`).join(", ");
 
-    // 3. Ask the model for a ~200-word story
-    const systemPrompt = `You are a creative Arabic short-story writer.
-${dialectLine(dialect)}
+    // 3. Ask the brain for a ~200-word story (draft_critic strategy, dialect-guarded)
+    const systemExtra = `You are a creative Arabic short-story writer.
 Write a vivid, self-contained micro-story of about 180-220 Arabic words.
-Weave in as many of the learner's MATURE words as feels natural, and gently introduce each of the 5 NEW words at least once (use them in context so meaning is inferable).
+Weave in as many of the learner's MATURE words as feels natural, and gently introduce each of the NEW words at least once (use them in context so meaning is inferable).
 Reading level: late beginner to intermediate. Short sentences, concrete imagery, one clear arc.
-Return ONLY valid JSON, no markdown, no code fences:
-{
-  "title": "<short evocative Arabic title>",
-  "body_arabic": "<the story in Arabic, ~200 words, no headings>",
-  "body_english": "<faithful English translation, same paragraph structure>",
-  "used_mature": ["<arabic word>", ...],
-  "used_new": ["<arabic word>", ...]
-}`;
+Return ONLY the structured fields via the provided tool.`;
 
     const userPrompt = `MATURE words (review-anchored): ${matureList || "(none yet)"}\nNEW words to gently introduce: ${newList || "(none yet)"}`;
 
-    const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        response_format: { type: "json_object" },
-      }),
-    });
-
-    if (!aiRes.ok) {
-      const txt = await aiRes.text().catch(() => "");
-      console.error("daily-story AI error", aiRes.status, txt);
+    let brain;
+    try {
+      brain = await askBrain<{
+        title: string;
+        body_arabic: string;
+        body_english: string;
+        used_mature: string[];
+        used_new: string[];
+      }>({
+        purpose: "story",
+        dialect: dialect as Dialect,
+        strategy: "draft_critic",
+        systemPromptExtra: systemExtra,
+        userPrompt,
+        maxTokens: 2048,
+        temperature: 0.7,
+        arabicTextPath: (p: any) => p?.body_arabic ?? "",
+        tool: {
+          name: "emit_story",
+          description: "Return the daily vocabulary story in the target dialect.",
+          parameters: {
+            type: "object",
+            properties: {
+              title: { type: "string", description: "Short evocative Arabic title" },
+              body_arabic: { type: "string", description: "Story in target dialect, ~200 Arabic words" },
+              body_english: { type: "string", description: "Faithful English translation" },
+              used_mature: { type: "array", items: { type: "string" } },
+              used_new: { type: "array", items: { type: "string" } },
+            },
+            required: ["title", "body_arabic", "body_english", "used_mature", "used_new"],
+          },
+        },
+      });
+    } catch (e: any) {
+      console.error("daily-story brain error", e?.status, e?.message);
       return new Response(
-        JSON.stringify({ error: "ai_failed", status: aiRes.status, detail: txt.slice(0, 400) }),
+        JSON.stringify({ error: "ai_failed", detail: String(e?.message ?? e).slice(0, 400) }),
         { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
-    const aiJson = await aiRes.json();
-    const raw = aiJson?.choices?.[0]?.message?.content ?? "{}";
-    let parsed: any;
-    try {
-      parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
-    } catch {
-      parsed = {};
+    if (brain.msaLeaks.leaks.length > 0) {
+      console.warn("daily-story MSA leaks after repair", brain.msaLeaks.leaks, "repairs:", brain.msaRepairs);
     }
+
+    const parsed = brain.output;
+
 
     const title = String(parsed.title ?? "").slice(0, 160) || "قصة اليوم";
     const bodyArabic = String(parsed.body_arabic ?? "").trim();

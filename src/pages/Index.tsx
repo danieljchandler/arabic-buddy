@@ -29,6 +29,8 @@ import { useAlphabetProgress } from "@/hooks/useAlphabetProgress";
 import { ARABIC_LETTERS } from "@/data/arabicAlphabet";
 import { DailyLetterGoalRing } from "@/components/alphabet/DailyLetterGoalRing";
 import { ContinueCard } from "@/components/ContinueCard";
+import { LandingHero } from "@/components/LandingHero";
+import { Footer } from "@/components/Footer";
 
 
 const TILE_HINTS: Record<string, { title: string; body: string }> = {
@@ -122,8 +124,19 @@ const Index = () => {
     await signOut();
   };
 
+  // Logged-out visitors get the landing hero instead of the authed home.
+  if (!authLoading && !isAuthenticated) {
+    return (
+      <AppShell>
+        <LandingHero />
+        <Footer />
+      </AppShell>
+    );
+  }
+
   return (
     <AppShell>
+
 
 
       {/* Top bar with logo and auth */}

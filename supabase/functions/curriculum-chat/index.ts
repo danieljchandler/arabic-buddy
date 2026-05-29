@@ -467,6 +467,11 @@ serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  // Free-tier daily cap: 30 curriculum-chat calls / user / day. Paid users bypass.
+  const cap = await enforceDailyCap(req, "curriculum-chat", 30, corsHeaders);
+  if (cap.limited) return cap.response;
+
+
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {

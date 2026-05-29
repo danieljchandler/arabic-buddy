@@ -177,3 +177,7 @@ verify_jwt = false
 [functions.draft-dialect-rules]
 verify_jwt = true
 
+[functions.mine-dialect-corpus]
+verify_jwt = true
+
+

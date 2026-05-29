@@ -201,6 +201,19 @@ const AdminDialectRules = () => {
               onChange={(e) => setGuidance(e.target.value)}
               rows={2}
             />
+            <div className="flex items-center justify-between pt-1">
+              <p className="text-xs text-muted-foreground">
+                Or mine real published content for this dialect and let the council generalize patterns:
+              </p>
+              <Button variant="outline" size="sm" onClick={mineCorpus} disabled={mining}>
+                {mining ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Sparkles className="h-4 w-4 mr-2" />
+                )}
+                Mine corpus
+              </Button>
+            </div>
           </CardContent>
         </Card>
 

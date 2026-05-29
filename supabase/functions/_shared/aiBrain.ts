@@ -68,6 +68,8 @@ export async function askBrain<T = unknown>(task: BrainTask): Promise<BrainResul
   const apiKey = Deno.env.get('LOVABLE_API_KEY');
   if (!apiKey) throw new BrainHttpError(500, 'LOVABLE_API_KEY not configured');
 
+  await primeDialectPrompt(task.dialect);
+
   const strategy: Strategy = task.strategy ?? pickStrategy(task.purpose);
   const start = Date.now();
 

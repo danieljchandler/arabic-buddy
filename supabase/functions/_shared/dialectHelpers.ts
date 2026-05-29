@@ -1,14 +1,15 @@
 // Shared dialect identity helpers for edge functions
 //
 // Rules now live in the `dialect_rules` Postgres table (the Dialect Rulebook).
-// At runtime we load approved rules into an in-memory cache (5 min TTL).
-// Public sync getters (getDialectIdentity / getDialectVocabRules / etc.) return
-// cached rendered prompt blocks when available, and fall back to the hard-coded
-// strings below if the cache is cold — so behavior is identical to the previous
-// version on day one and never blocks LLM calls.
+// At runtime we load approved rules into an in-memory cache (5 min TTL) and
+// expose:
+//   - identity prompt block (highest-priority "identity" rule)
+//   - vocab/rules prompt block (other rules rendered as bullet lines)
+//   - few-shot examples block (✅/❌ pairs from rule examples)
+//   - forbidden tokens list (every string in examples.bad) for the MSA detector
 //
-// Call `primeDialectPrompt(dialect)` at the top of an edge function entry point
-// (e.g. askBrain / streamBrain) to warm the cache for that dialect.
+// Call `primeDialectPrompt(dialect)` at the top of an edge function to warm
+// the cache. All sync getters fall back to the hard-coded strings on cache miss.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 
@@ -63,21 +64,41 @@ function fallbackVocab(d: Dialect): string {
 // =================== Rulebook cache ===================
 
 interface DialectRule {
+  id?: string;
   category: string;
   rule: string;
   examples: { good?: unknown[]; bad?: unknown[] };
   priority: number;
 }
 
+export interface ForbiddenToken {
+  token: string;
+  rule_id?: string;
+}
+
 interface RenderedPrompt {
   identity: string;
   vocabRules: string;
+  fewShot: string;
+  forbiddenTokens: ForbiddenToken[];
+  rulesCount: number;
   expiresAt: number;
 }
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const cache = new Map<string, RenderedPrompt>();
 const inflight = new Map<string, Promise<void>>();
+
+function asString(item: unknown): string | null {
+  if (typeof item === 'string') return item.trim() || null;
+  if (item && typeof item === 'object') {
+    const o = item as Record<string, unknown>;
+    if (typeof o.dialect === 'string') return o.dialect.trim() || null;
+    if (typeof o.ar === 'string') return o.ar.trim() || null;
+    if (typeof o.text === 'string') return o.text.trim() || null;
+  }
+  return null;
+}
 
 function renderExamples(examples: DialectRule['examples']): string {
   const good = Array.isArray(examples?.good) ? examples.good : [];
@@ -97,12 +118,61 @@ function renderExamples(examples: DialectRule['examples']): string {
   return parts.join(' | ');
 }
 
+function renderFewShot(rules: DialectRule[]): string {
+  // Pick up to 6 highest-priority rules that have at least one good or bad example.
+  const picks = rules
+    .filter((r) => {
+      const g = Array.isArray(r.examples?.good) && r.examples.good!.length > 0;
+      const b = Array.isArray(r.examples?.bad) && r.examples.bad!.length > 0;
+      return g || b;
+    })
+    .slice(0, 6);
+  if (!picks.length) return '';
+  const lines: string[] = ['AUTHENTIC PATTERNS (follow these):'];
+  for (const r of picks) {
+    const good = (Array.isArray(r.examples?.good) ? r.examples.good : [])
+      .map(asString).filter(Boolean) as string[];
+    const bad = (Array.isArray(r.examples?.bad) ? r.examples.bad : [])
+      .map(asString).filter(Boolean) as string[];
+    if (good[0] && bad[0]) {
+      lines.push(`  ❌ ${bad[0]}   →   ✅ ${good[0]}   (${r.category})`);
+    } else if (good[0]) {
+      lines.push(`  ✅ ${good[0]}   (${r.category})`);
+    } else if (bad[0]) {
+      lines.push(`  ❌ NEVER: ${bad[0]}   (${r.category})`);
+    }
+  }
+  return lines.join('\n');
+}
+
+function harvestForbiddenTokens(rules: DialectRule[]): ForbiddenToken[] {
+  const out = new Map<string, string | undefined>();
+  for (const r of rules) {
+    const bad = Array.isArray(r.examples?.bad) ? r.examples.bad : [];
+    for (const item of bad) {
+      const s = asString(item);
+      if (!s) continue;
+      // Split multi-word strings into individual tokens too, so a "bad" example
+      // like "كيف حالك" contributes both the phrase and its words for matching.
+      const tokens = new Set<string>([s]);
+      s.split(/\s+/).forEach((t) => {
+        const cleaned = t.replace(/^[\p{P}]+|[\p{P}]+$/gu, '');
+        if (cleaned && /[\u0600-\u06FF]/.test(cleaned) && cleaned.length >= 2) {
+          tokens.add(cleaned);
+        }
+      });
+      for (const t of tokens) {
+        if (!out.has(t)) out.set(t, r.id);
+      }
+    }
+  }
+  return [...out.entries()].map(([token, rule_id]) => ({ token, rule_id }));
+}
+
 function renderPrompt(dialect: Dialect, rules: DialectRule[]): RenderedPrompt {
-  // identity: highest-priority "identity" rule, fallback to first
   const identityRule = rules.find((r) => r.category === 'identity') ?? rules[0];
   const identity = identityRule?.rule ?? fallbackIdentity(dialect);
 
-  // vocab rules: render all other categories as bullet lines with examples
   const others = rules.filter((r) => r !== identityRule);
   const lines: string[] = ['CRITICAL DIALECT RULES:'];
   for (const r of others) {
@@ -110,8 +180,17 @@ function renderPrompt(dialect: Dialect, rules: DialectRule[]): RenderedPrompt {
     lines.push(`- [${r.category}] ${r.rule}${ex ? ` — ${ex}` : ''}`);
   }
   const vocabRules = others.length ? lines.join('\n') : fallbackVocab(dialect);
+  const fewShot = renderFewShot(rules);
+  const forbiddenTokens = harvestForbiddenTokens(rules);
 
-  return { identity, vocabRules, expiresAt: Date.now() + CACHE_TTL_MS };
+  return {
+    identity,
+    vocabRules,
+    fewShot,
+    forbiddenTokens,
+    rulesCount: rules.length,
+    expiresAt: Date.now() + CACHE_TTL_MS,
+  };
 }
 
 async function fetchRules(dialect: Dialect): Promise<DialectRule[]> {
@@ -121,7 +200,7 @@ async function fetchRules(dialect: Dialect): Promise<DialectRule[]> {
   const sb = createClient(url, key, { auth: { persistSession: false } });
   const { data, error } = await sb
     .from('dialect_rules')
-    .select('category, rule, examples, priority')
+    .select('id, category, rule, examples, priority')
     .eq('dialect', dialect)
     .eq('status', 'approved')
     .order('priority', { ascending: false })
@@ -130,11 +209,6 @@ async function fetchRules(dialect: Dialect): Promise<DialectRule[]> {
   return data as DialectRule[];
 }
 
-/**
- * Warm the in-memory cache for a dialect. Safe to call repeatedly; concurrent
- * calls for the same dialect share a single fetch. Never throws — on failure
- * the sync getters silently fall back to the hard-coded strings.
- */
 export async function primeDialectPrompt(dialect: Dialect): Promise<void> {
   const existing = cache.get(dialect);
   if (existing && existing.expiresAt > Date.now()) return;
@@ -154,7 +228,7 @@ export async function primeDialectPrompt(dialect: Dialect): Promise<void> {
   return p;
 }
 
-// =================== Public sync API (unchanged signatures) ===================
+// =================== Public sync API ===================
 
 export function getDialectIdentity(dialect: Dialect): string {
   const c = cache.get(dialect);
@@ -164,8 +238,25 @@ export function getDialectIdentity(dialect: Dialect): string {
 
 export function getDialectVocabRules(dialect: Dialect): string {
   const c = cache.get(dialect);
-  if (c && c.expiresAt > Date.now()) return c.vocabRules;
+  if (c && c.expiresAt > Date.now()) {
+    return c.fewShot ? `${c.vocabRules}\n\n${c.fewShot}` : c.vocabRules;
+  }
   return fallbackVocab(dialect);
+}
+
+export function getDialectFewShot(dialect: Dialect): string {
+  const c = cache.get(dialect);
+  return c && c.expiresAt > Date.now() ? c.fewShot : '';
+}
+
+export function getDialectForbiddenTokens(dialect: Dialect): ForbiddenToken[] {
+  const c = cache.get(dialect);
+  return c && c.expiresAt > Date.now() ? c.forbiddenTokens : [];
+}
+
+export function getDialectRulesCount(dialect: Dialect): number {
+  const c = cache.get(dialect);
+  return c && c.expiresAt > Date.now() ? c.rulesCount : 0;
 }
 
 export function getDialectLabel(dialect: Dialect): string {

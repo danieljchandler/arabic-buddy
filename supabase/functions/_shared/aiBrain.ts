@@ -7,16 +7,23 @@ import {
   getDialectIdentity,
   getDialectVocabRules,
   getDialectLabel,
+  getDialectForbiddenTokens,
   primeDialectPrompt,
   type Dialect,
 } from './dialectHelpers.ts';
 import { detectMsaLeaks, type MsaLeakResult } from './msaLeakDetector.ts';
-import { logMsaViolations } from './msaViolationLogger.ts';
+import { logMsaViolations, logValidatorResult } from './msaViolationLogger.ts';
+import { validateDialect, type ValidatorResult } from './dialectValidator.ts';
 import {
   DEFAULT_FAST,
   DEFAULT_JUDGE,
   DEFAULT_DRAFTERS,
 } from './modelRegistry.ts';
+
+// Helper: scan with both hardcoded and rulebook-derived forbidden tokens.
+function scanLeaks(text: string, dialect: Dialect): MsaLeakResult {
+  return detectMsaLeaks(text, dialect, getDialectForbiddenTokens(dialect));
+}
 
 export type Strategy = 'solo' | 'ensemble' | 'draft_critic' | 'council';
 
@@ -28,20 +35,19 @@ export interface BrainTask {
   purpose: string;
   dialect: Dialect;
   userPrompt: MultimodalContent;
-  systemPromptExtra?: string; // appended after dialect identity block
+  systemPromptExtra?: string;
   strategy?: Strategy;
-  /** OpenAI-style function tool for structured output. */
   tool?: {
     name: string;
     description: string;
     parameters: Record<string, unknown>;
   };
-  models?: string[]; // override which models to use
+  models?: string[];
   maxTokens?: number;
   temperature?: number;
-  /** Where to extract the dialect-Arabic text from the parsed output for leak scanning.
-   *  If omitted, the brain scans the raw text response or JSON.stringify(output). */
   arabicTextPath?: (parsed: unknown) => string;
+  /** When true, run a strict native-speaker validator after the repair pass. */
+  validateDialect?: boolean;
 }
 
 export interface BrainResult<T = unknown> {
@@ -49,10 +55,12 @@ export interface BrainResult<T = unknown> {
   raw: string;
   strategy: Strategy;
   models: string[];
-  agreementScore: number; // 0-1, only meaningful for ensemble
+  agreementScore: number;
   msaLeaks: MsaLeakResult;
   msaRepairs: number;
   totalLatencyMs: number;
+  /** Set when validateDialect was requested and the validator returned a result. */
+  validator?: ValidatorResult;
 }
 
 const GATEWAY_URL = 'https://ai.gateway.lovable.dev/v1/chat/completions';
@@ -100,9 +108,28 @@ export async function askBrain<T = unknown>(task: BrainTask): Promise<BrainResul
     }
   }
 
+  // Optional native-validator pass (strict native-speaker reviewer).
+  if (task.validateDialect) {
+    try {
+      const scanText = extractScanText(task, result.output, result.raw);
+      const v = await validateDialect(scanText, task.dialect, { apiKey });
+      result.validator = v;
+      if (v.ok && (v.verdict === 'rewrite' || v.leaks.length > 0)) {
+        logValidatorResult({
+          dialect: task.dialect,
+          result: v,
+          offendingText: scanText,
+          sourceFunction: task.purpose,
+          metadata: { strategy: result.strategy, models: result.models },
+        });
+      }
+    } catch (err) {
+      console.warn('[aiBrain] validator pass failed', err);
+    }
+  }
+
   result.totalLatencyMs = Date.now() - start;
 
-  // Log any remaining MSA leaks (post-repair) for admin review.
   if (result.msaLeaks?.leaks?.length) {
     logMsaViolations({
       dialect: task.dialect,
@@ -117,6 +144,7 @@ export async function askBrain<T = unknown>(task: BrainTask): Promise<BrainResul
       },
     });
   }
+
 
   return result;
 }
@@ -248,7 +276,7 @@ async function runSolo<T>(task: BrainTask, apiKey: string): Promise<BrainResult<
     strategy: 'solo',
     models: [model],
     agreementScore: 1,
-    msaLeaks: detectMsaLeaks(text, task.dialect),
+    msaLeaks: scanLeaks(text, task.dialect),
     msaRepairs: 0,
     totalLatencyMs: 0,
   };
@@ -286,7 +314,7 @@ async function runEnsemble<T>(task: BrainTask, apiKey: string): Promise<BrainRes
   const ranked = successes
     .map(({ s, model }) => {
       const text = extractScanText(task, s.value.parsed, s.value.raw);
-      const leaks = detectMsaLeaks(text, task.dialect);
+      const leaks = scanLeaks(text, task.dialect);
       return { model, parsed: s.value.parsed, raw: s.value.raw, leaks, text };
     })
     .sort((a, b) => a.leaks.leaks.length - b.leaks.leaks.length || a.raw.length - b.raw.length);
@@ -342,7 +370,7 @@ async function runDraftCritic<T>(task: BrainTask, apiKey: string): Promise<Brain
     strategy: 'draft_critic',
     models: [drafter, critic],
     agreementScore: 1,
-    msaLeaks: detectMsaLeaks(text, task.dialect),
+    msaLeaks: scanLeaks(text, task.dialect),
     msaRepairs: 0,
     totalLatencyMs: 0,
   };
@@ -399,7 +427,7 @@ async function runCouncil<T>(task: BrainTask, apiKey: string): Promise<BrainResu
     strategy: 'council',
     models: [...ok.map((x) => x.model), judge],
     agreementScore: ok.length / drafters.length,
-    msaLeaks: detectMsaLeaks(text, task.dialect),
+    msaLeaks: scanLeaks(text, task.dialect),
     msaRepairs: 0,
     totalLatencyMs: 0,
   };
@@ -423,7 +451,7 @@ async function runRepair<T>(task: BrainTask, prior: BrainResult<T>, apiKey: stri
     output: parsed as T,
     raw,
     models: [...prior.models, DEFAULT_JUDGE],
-    msaLeaks: detectMsaLeaks(text, task.dialect),
+    msaLeaks: scanLeaks(text, task.dialect),
   };
 }
 
@@ -552,7 +580,7 @@ export async function streamBrain(task: StreamBrainTask): Promise<Response> {
       const full = accumulator.join('');
       if (full && task.dialect) {
         try {
-          const leaks = detectMsaLeaks(full, task.dialect);
+          const leaks = scanLeaks(full, task.dialect);
           if (leaks.leaks.length > 0) {
             console.warn(`[aiBrain.stream] MSA leak in ${task.purpose} (${task.dialect}):`, leaks.leaks.join(', '));
             logMsaViolations({

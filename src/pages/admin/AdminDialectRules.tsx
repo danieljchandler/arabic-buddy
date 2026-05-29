@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Loader2, Sparkles, Check, Archive, Trash2, ArrowLeft, Pencil, Save, X, AlertTriangle, RefreshCw } from 'lucide-react';
+import { Loader2, Sparkles, Check, Archive, Trash2, ArrowLeft, Pencil, Save, X, AlertTriangle, RefreshCw, UserCheck } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 type RuleStatus = 'draft' | 'approved' | 'retired';
@@ -237,6 +237,9 @@ const AdminDialectRules = () => {
               <TabsTrigger value="violations">
                 <AlertTriangle className="h-3.5 w-3.5 mr-1" /> Violations
               </TabsTrigger>
+              <TabsTrigger value="native_review">
+                <UserCheck className="h-3.5 w-3.5 mr-1" /> Native Review
+              </TabsTrigger>
             </TabsList>
 
             {(['draft', 'approved', 'retired'] as RuleStatus[]).map((s) => (
@@ -253,6 +256,10 @@ const AdminDialectRules = () => {
 
             <TabsContent value="violations" className="mt-4">
               <ViolationsPanel dialect={activeDialect} />
+            </TabsContent>
+
+            <TabsContent value="native_review" className="mt-4">
+              <NativeReviewPanel dialect={activeDialect} />
             </TabsContent>
           </Tabs>
         )}
@@ -647,5 +654,176 @@ const ViolationsPanel = ({ dialect }: { dialect: string }) => {
   );
 };
 
+interface NativeReview {
+  id: string;
+  dialect: string;
+  content_type: string;
+  original_text: string;
+  corrected_text: string | null;
+  reviewer_notes: string | null;
+  status: 'pending' | 'corrected' | 'dismissed';
+  source: string;
+  source_function: string | null;
+  metadata: Record<string, unknown> | null;
+  created_at: string;
+}
+
+const NativeReviewPanel = ({ dialect }: { dialect: string }) => {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const [statusFilter, setStatusFilter] = useState<'pending' | 'all'>('pending');
+  const [drafts, setDrafts] = useState<Record<string, { corrected: string; notes: string }>>({});
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['dialect_native_reviews', dialect, statusFilter],
+    queryFn: async () => {
+      let q = supabase
+        .from('dialect_native_reviews' as any)
+        .select('*')
+        .eq('dialect', dialect)
+        .order('created_at', { ascending: false })
+        .limit(100);
+      if (statusFilter === 'pending') q = q.eq('status', 'pending');
+      const { data, error } = await q;
+      if (error) throw error;
+      return (data ?? []) as unknown as NativeReview[];
+    },
+  });
+
+  const submit = useMutation({
+    mutationFn: async ({ id, status, corrected, notes, original }: { id: string; status: 'corrected' | 'dismissed'; corrected?: string; notes?: string; original?: string }) => {
+      const { data: u } = await supabase.auth.getUser();
+      const patch: any = { status, reviewer_id: u.user?.id ?? null };
+      if (corrected != null) patch.corrected_text = corrected;
+      if (notes != null) patch.reviewer_notes = notes;
+      const { error } = await supabase.from('dialect_native_reviews' as any).update(patch).eq('id', id);
+      if (error) throw error;
+
+      // When a correction is provided, auto-draft a new dialect rule from the pair.
+      if (status === 'corrected' && corrected?.trim() && original?.trim()) {
+        await supabase.from('dialect_rules' as any).insert([{
+          dialect,
+          category: 'native_fix',
+          rule: `Use authentic ${dialect} phrasing as in the corrected example. ${notes?.trim() || ''}`.trim(),
+          examples: { good: [corrected.trim()], bad: [original.trim()] },
+          priority: 3,
+          status: 'draft',
+          source: 'manual',
+          notes: 'Auto-drafted from native review correction.',
+          created_by: u.user?.id ?? null,
+        }] as any);
+      }
+    },
+    onSuccess: (_d, vars) => {
+      toast({ title: vars.status === 'corrected' ? 'Correction saved' : 'Dismissed' });
+      qc.invalidateQueries({ queryKey: ['dialect_native_reviews', dialect] });
+      qc.invalidateQueries({ queryKey: ['dialect_rules', dialect] });
+    },
+    onError: (err: Error) => toast({ variant: 'destructive', title: 'Failed', description: err.message }),
+  });
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardContent className="pt-4 flex flex-wrap items-end gap-3">
+          <Button
+            variant={statusFilter === 'pending' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setStatusFilter('pending')}
+          >
+            Pending
+          </Button>
+          <Button
+            variant={statusFilter === 'all' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setStatusFilter('all')}
+          >
+            All
+          </Button>
+          <p className="text-xs text-muted-foreground ml-auto">
+            Approved corrections become draft rules for review.
+          </p>
+        </CardContent>
+      </Card>
+
+      {isLoading ? (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      ) : !data?.length ? (
+        <p className="text-sm text-muted-foreground py-8 text-center">No review items.</p>
+      ) : (
+        data.map((r) => {
+          const d = drafts[r.id] ?? { corrected: r.corrected_text ?? '', notes: r.reviewer_notes ?? '' };
+          const setD = (patch: Partial<typeof d>) => setDrafts((prev) => ({ ...prev, [r.id]: { ...d, ...patch } }));
+          return (
+            <Card key={r.id}>
+              <CardContent className="pt-4 space-y-3">
+                <div className="flex flex-wrap items-center gap-2 text-xs">
+                  <Badge variant="outline">{r.status}</Badge>
+                  <Badge variant="outline">{r.source}</Badge>
+                  {r.source_function && <Badge variant="outline">{r.source_function}</Badge>}
+                  <span className="text-muted-foreground">{new Date(r.created_at).toLocaleString()}</span>
+                </div>
+                <div>
+                  <div className="text-xs text-muted-foreground mb-1">Original</div>
+                  <p dir="rtl" className="text-sm font-arabic bg-red-500/5 border border-red-500/20 rounded p-2 whitespace-pre-wrap leading-relaxed">
+                    {r.original_text}
+                  </p>
+                </div>
+                {r.status === 'pending' ? (
+                  <>
+                    <div>
+                      <label className="text-xs text-muted-foreground">Correction (authentic dialect)</label>
+                      <Textarea
+                        dir="rtl"
+                        className="font-arabic"
+                        value={d.corrected}
+                        onChange={(e) => setD({ corrected: e.target.value })}
+                        rows={3}
+                      />
+                    </div>
+                    <Input
+                      placeholder="Reviewer notes (optional)"
+                      value={d.notes}
+                      onChange={(e) => setD({ notes: e.target.value })}
+                    />
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => submit.mutate({ id: r.id, status: 'dismissed', notes: d.notes })}
+                      >
+                        <X className="h-4 w-4 mr-1" /> Dismiss
+                      </Button>
+                      <Button
+                        size="sm"
+                        disabled={!d.corrected.trim() || submit.isPending}
+                        onClick={() => submit.mutate({ id: r.id, status: 'corrected', corrected: d.corrected, notes: d.notes, original: r.original_text })}
+                      >
+                        <Check className="h-4 w-4 mr-1" /> Save correction
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  r.corrected_text && (
+                    <div>
+                      <div className="text-xs text-muted-foreground mb-1">Correction</div>
+                      <p dir="rtl" className="text-sm font-arabic bg-emerald-500/5 border border-emerald-500/20 rounded p-2 whitespace-pre-wrap leading-relaxed">
+                        {r.corrected_text}
+                      </p>
+                    </div>
+                  )
+                )}
+              </CardContent>
+            </Card>
+          );
+        })
+      )}
+    </div>
+  );
+};
+
 export default AdminDialectRules;
+
 

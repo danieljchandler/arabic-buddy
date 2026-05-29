@@ -758,6 +758,60 @@ export type Database = {
         }
         Relationships: []
       }
+      dialect_native_reviews: {
+        Row: {
+          content_id: string | null
+          content_type: string
+          corrected_text: string | null
+          created_at: string
+          dialect: string
+          id: string
+          metadata: Json
+          original_text: string
+          reviewer_id: string | null
+          reviewer_notes: string | null
+          source: string
+          source_function: string | null
+          status: string
+          updated_at: string
+          violation_id: string | null
+        }
+        Insert: {
+          content_id?: string | null
+          content_type?: string
+          corrected_text?: string | null
+          created_at?: string
+          dialect: string
+          id?: string
+          metadata?: Json
+          original_text: string
+          reviewer_id?: string | null
+          reviewer_notes?: string | null
+          source?: string
+          source_function?: string | null
+          status?: string
+          updated_at?: string
+          violation_id?: string | null
+        }
+        Update: {
+          content_id?: string | null
+          content_type?: string
+          corrected_text?: string | null
+          created_at?: string
+          dialect?: string
+          id?: string
+          metadata?: Json
+          original_text?: string
+          reviewer_id?: string | null
+          reviewer_notes?: string | null
+          source?: string
+          source_function?: string | null
+          status?: string
+          updated_at?: string
+          violation_id?: string | null
+        }
+        Relationships: []
+      }
       dialect_rule_violations: {
         Row: {
           created_at: string

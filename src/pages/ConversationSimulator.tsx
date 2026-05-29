@@ -16,6 +16,7 @@ import { InfoHint } from "@/components/InfoHint";
 import { PAGE_HINTS } from "@/lib/pageHints";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { showCapToastIfLimited } from "@/lib/handleCapResponse";
 import {
   Loader2,
   Send,
@@ -251,6 +252,7 @@ export default function ConversationSimulator() {
           const { data, error } = await supabase.functions.invoke("munsit-transcribe", {
             body: { audioBase64: b64, mimeType: "audio/webm" },
           });
+          if (showCapToastIfLimited(error, data)) return;
           if (error) throw error;
           const text = (data as any)?.text?.trim();
           if (!text) {

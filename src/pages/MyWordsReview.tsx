@@ -18,6 +18,7 @@ import { Rating, calculateNextReview } from "@/lib/spacedRepetition";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { showCapToastIfLimited } from "@/lib/handleCapResponse";
 import { useAzureTTS } from "@/hooks/useAzureTTS";
 import { ReviewClozeCard } from "@/components/review/ReviewClozeCard";
 import { useTranscriptCloze } from "@/hooks/useTranscriptCloze";
@@ -310,6 +311,10 @@ const MyWordsReview = () => {
           dialect: activeDialect,
         },
       });
+      if (showCapToastIfLimited(response.error, response.data)) {
+        setJingleLoading(false);
+        return;
+      }
       if (response.error) throw new Error(response.error.message || "Failed to generate jingle");
       const audioBlob = response.data instanceof Blob
         ? response.data

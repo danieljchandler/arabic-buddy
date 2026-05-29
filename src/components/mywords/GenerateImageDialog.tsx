@@ -7,6 +7,7 @@ import { Loader2, Sparkles, RefreshCw, Lock, Dices } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useImageStyleLock, composeStyledInstructions } from "@/hooks/useImageStyleLock";
+import { showCapToastIfLimited } from "@/lib/handleCapResponse";
 
 export interface GenerateImageWord {
   id: string;
@@ -46,6 +47,7 @@ export const GenerateImageDialog = ({ word, open, onOpenChange, onImageSaved }: 
         },
       });
 
+      if (showCapToastIfLimited(error, data)) return;
       if (error) throw error;
       if (data?.fallback || !data?.imageUrl) {
         throw new Error(data?.message || "Image generation is temporarily unavailable. Please try again.");

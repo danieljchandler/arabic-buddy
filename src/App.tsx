@@ -9,6 +9,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { DialectProvider } from "@/contexts/DialectContext";
 import { lazyRetry } from "@/lib/lazyRetry";
 import { PageSkeleton } from "@/components/ui/skeleton-page";
+import { logClientError } from "@/lib/errorLog";
 
 // ─── Lazy-loaded page components ─────────────────────────────────────────────
 // Each page is loaded on-demand so the initial bundle stays small.
@@ -69,6 +70,7 @@ const AlphabetCheckpoint = lazyPage(() => import("./pages/AlphabetCheckpoint"));
 const MsaBridge = lazyPage(() => import("./pages/MsaBridge"));
 const Terms = lazyPage(() => import("./pages/Terms"));
 const Privacy = lazyPage(() => import("./pages/Privacy"));
+const AdminErrors = lazyPage(() => import("./pages/admin/AdminErrors"));
 
 // Admin pages
 const AdminLayout = lazyPage(() => import("./pages/admin/AdminLayout"));
@@ -151,6 +153,11 @@ const App = () => {
     const onUnhandledRejection = (event: PromiseRejectionEvent) => {
       console.error("Unhandled promise rejection:", event.reason);
       persistCrash(event.reason);
+      void logClientError({
+        message: event.reason instanceof Error ? event.reason.message : String(event.reason),
+        stack: event.reason instanceof Error ? event.reason.stack ?? null : null,
+        meta: { kind: "unhandledrejection" },
+      });
       toast.error("An unexpected error occurred", {
         description: "Please try again. If the problem persists, let me know what you did.",
       });
@@ -161,6 +168,11 @@ const App = () => {
     const onError = (event: ErrorEvent) => {
       console.error("Global error:", event.error ?? event.message);
       persistCrash(event.error ?? event.message);
+      void logClientError({
+        message: event.error?.message ?? event.message ?? "Unknown error",
+        stack: event.error?.stack ?? null,
+        meta: { kind: "window.error", filename: event.filename, lineno: event.lineno },
+      });
       // Don't spam toasts for every error; but make crashes visible.
       toast.error("A page error occurred", {
         description: "The error was logged to the console. Please try again.",
@@ -405,6 +417,7 @@ const App = () => {
               <Route path="memes/new" element={<AdminMemeForm />} />
               <Route path="memes/:memeId" element={<AdminMemeForm />} />
               <Route path="set-phrases" element={<AdminSetPhrases />} />
+              <Route path="errors" element={<AdminErrors />} />
             </Route>
 
             <Route path="/set-phrases" element={<ErrorBoundary name="SetPhrasesRoute"><SetPhrases /></ErrorBoundary>} />

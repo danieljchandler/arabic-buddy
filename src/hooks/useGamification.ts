@@ -158,16 +158,18 @@ export function useWeeklyGoal() {
 
       if (error) throw error;
 
-      // Create weekly goal if none exists
+      // Row is created server-side on first award_xp/increment_review_count
+      // call. Return a default-shaped object so the UI renders zero state.
       if (!data) {
-        const { data: newData, error: insertError } = await supabase
-          .from("weekly_goals")
-          .insert({ user_id: user.id, week_start_date: weekStart })
-          .select()
-          .single();
-
-        if (insertError) throw insertError;
-        return newData as WeeklyGoal;
+        return {
+          id: "",
+          user_id: user.id,
+          week_start_date: weekStart,
+          target_reviews: 0,
+          completed_reviews: 0,
+          target_xp: 0,
+          earned_xp: 0,
+        } as WeeklyGoal;
       }
 
       return data as WeeklyGoal;

@@ -7,6 +7,7 @@ import {
   getDialectIdentity,
   getDialectVocabRules,
   getDialectLabel,
+  primeDialectPrompt,
   type Dialect,
 } from './dialectHelpers.ts';
 import { detectMsaLeaks, type MsaLeakResult } from './msaLeakDetector.ts';

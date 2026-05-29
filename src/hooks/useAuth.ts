@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { initAnalytics, identify, resetAnalytics } from '@/lib/analytics';
 
 export const useAuth = () => {
   const [user, setUser] = useState<User | null>(null);

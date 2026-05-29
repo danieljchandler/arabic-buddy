@@ -63,68 +63,76 @@ serve(async (req) => {
     if (accuracy > 85 && totalThisWeek >= 20) difficultyAdjustment = "increase";
     else if (accuracy < 60 && totalThisWeek >= 10) difficultyAdjustment = "decrease";
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
-
     const dialect = path.target_dialect || 'Gulf';
     const dialectLabel = getDialectLabel(dialect);
-    const vocabRules = getDialectVocabRules(dialect);
 
-    const prompt = `You are an encouraging ${dialectLabel} learning coach.
-${vocabRules}
+    const systemExtra = `You are an encouraging ${dialectLabel} learning coach.
+All Arabic text MUST be authentic ${dialectLabel}, never MSA (فصحى).
+Return the recommendation via the provided tool only.`;
 
-Based on this student's weekly performance, provide personalized recommendations.
-Use ${dialectLabel} for all Arabic text in your response, NOT Modern Standard Arabic (فصحى).
+    const userPrompt = `Based on this student's weekly performance, provide personalized recommendations.
 
 Performance: ${JSON.stringify(performanceSummary)}
 Curriculum week ${path.current_week} of ${path.timeline_weeks}.
 Goal: ${path.goal_description}
+Suggested difficulty adjustment: ${difficultyAdjustment}`;
 
-Return JSON only:
-{
-  "motivation_message": "Short encouraging message in English",
-  "motivation_message_arabic": "Same in ${dialectLabel}",
-  "focus_areas": ["area1", "area2"],
-  "suggested_content": [
-    {"type": "vocab|listening|reading|speaking|review", "title": "Activity title", "reason": "Why this helps"}
-  ],
-  "vocab_to_review": ["word1", "word2"],
-  "difficulty_adjustment": "${difficultyAdjustment}"
-}`;
-
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [{ role: "user", content: prompt }],
-      }),
-    });
-
-    if (!aiResponse.ok) {
-      if (aiResponse.status === 429) {
+    let recommendations: any;
+    try {
+      const brain = await askBrain<any>({
+        purpose: "weekly_coach",
+        dialect: dialect as Dialect,
+        strategy: "solo",
+        systemPromptExtra: systemExtra,
+        userPrompt,
+        maxTokens: 1024,
+        temperature: 0.5,
+        arabicTextPath: (p: any) => String(p?.motivation_message_arabic ?? ""),
+        tool: {
+          name: "emit_coach_plan",
+          description: "Return weekly coach recommendation.",
+          parameters: {
+            type: "object",
+            properties: {
+              motivation_message: { type: "string" },
+              motivation_message_arabic: { type: "string" },
+              focus_areas: { type: "array", items: { type: "string" } },
+              suggested_content: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    type: { type: "string" },
+                    title: { type: "string" },
+                    reason: { type: "string" },
+                  },
+                  required: ["type", "title", "reason"],
+                },
+              },
+              vocab_to_review: { type: "array", items: { type: "string" } },
+              difficulty_adjustment: { type: "string" },
+            },
+            required: ["motivation_message", "motivation_message_arabic", "focus_areas", "suggested_content"],
+          },
+        },
+      });
+      recommendations = brain.output;
+      if (brain.msaLeaks.leaks.length > 0) {
+        console.warn("weekly-coach MSA leaks after repair:", brain.msaLeaks.leaks, "repairs:", brain.msaRepairs);
+      }
+    } catch (e: any) {
+      if (e?.status === 429) {
         return new Response(JSON.stringify({ error: "Rate limited" }), {
           status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      if (aiResponse.status === 402) {
+      if (e?.status === 402) {
         return new Response(JSON.stringify({ error: "AI credits depleted" }), {
           status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      throw new Error("AI gateway error");
+      throw e;
     }
-
-    const aiData = await aiResponse.json();
-    const raw = aiData.choices?.[0]?.message?.content || "";
-    let jsonStr = raw;
-    const jsonMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
-    if (jsonMatch) jsonStr = jsonMatch[1];
-
-    const recommendations = JSON.parse(jsonStr.trim());
 
     // Store recommendation
     const weekStart = new Date();

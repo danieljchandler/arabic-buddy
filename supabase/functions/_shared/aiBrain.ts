@@ -382,7 +382,7 @@ async function runCouncil<T>(task: BrainTask, apiKey: string): Promise<BrainResu
 
 async function runRepair<T>(task: BrainTask, prior: BrainResult<T>, apiKey: string): Promise<BrainResult<T>> {
   const sys = `${buildSystem(task)}\n\nThe previous output leaked MSA. Rewrite it in authentic ${getDialectLabel(task.dialect)} ONLY. The following MSA words MUST be replaced with dialectal equivalents: ${prior.msaLeaks.leaks.join(', ')}. Return ONLY the corrected output in the same format (no commentary).`;
-  const user = `Original request:\n${task.userPrompt}\n\nFlawed output to correct:\n${prior.raw}`;
+  const user = `Original request:\n${stringifyUserPrompt(task.userPrompt)}\n\nFlawed output to correct:\n${prior.raw}`;
   const { raw, parsed } = await callModel({
     model: DEFAULT_JUDGE,
     system: sys,

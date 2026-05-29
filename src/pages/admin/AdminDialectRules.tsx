@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Loader2, Sparkles, Check, Archive, Trash2, ArrowLeft, Pencil, Save, X } from 'lucide-react';
+import { Loader2, Sparkles, Check, Archive, Trash2, ArrowLeft, Pencil, Save, X, AlertTriangle, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 type RuleStatus = 'draft' | 'approved' | 'retired';
@@ -234,6 +234,9 @@ const AdminDialectRules = () => {
               <TabsTrigger value="retired">
                 Retired <Badge variant="outline" className="ml-2">{grouped.retired.length}</Badge>
               </TabsTrigger>
+              <TabsTrigger value="violations">
+                <AlertTriangle className="h-3.5 w-3.5 mr-1" /> Violations
+              </TabsTrigger>
             </TabsList>
 
             {(['draft', 'approved', 'retired'] as RuleStatus[]).map((s) => (
@@ -247,6 +250,10 @@ const AdminDialectRules = () => {
                 )}
               </TabsContent>
             ))}
+
+            <TabsContent value="violations" className="mt-4">
+              <ViolationsPanel dialect={activeDialect} />
+            </TabsContent>
           </Tabs>
         )}
       </div>
@@ -472,4 +479,173 @@ const RuleRow = ({ rule, dialect }: RuleRowProps) => {
   );
 };
 
+interface DigestResponse {
+  windowDays: number;
+  totals: { all: number; byDialect: Record<string, number> };
+  topTokens: { token: string; count: number }[];
+  topFunctions: { fn: string; count: number }[];
+  samples: {
+    id: string;
+    dialect: string;
+    token: string | null;
+    function: string | null;
+    created_at: string;
+    snippet: string;
+    resolved: boolean;
+  }[];
+}
+
+const ViolationsPanel = ({ dialect }: { dialect: string }) => {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+  const [days, setDays] = useState(7);
+  const [includeResolved, setIncludeResolved] = useState(false);
+
+  const { data, isLoading, refetch, isFetching } = useQuery({
+    queryKey: ['dialect_violations_digest', dialect, days, includeResolved],
+    queryFn: async () => {
+      const { data, error } = await supabase.functions.invoke<DigestResponse>(
+        'dialect-violations-digest',
+        { body: { dialect, days, includeResolved } },
+      );
+      if (error) throw error;
+      return data!;
+    },
+  });
+
+  const resolve = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('dialect_rule_violations' as any)
+        .update({ resolved: true })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({ title: 'Marked resolved' });
+      qc.invalidateQueries({ queryKey: ['dialect_violations_digest', dialect] });
+    },
+    onError: (err: Error) => toast({ variant: 'destructive', title: 'Failed', description: err.message }),
+  });
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardContent className="pt-4 flex flex-wrap items-end gap-3">
+          <div className="space-y-1.5">
+            <label className="text-xs text-muted-foreground">Window</label>
+            <Select value={String(days)} onValueChange={(v) => setDays(Number(v))}>
+              <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="1">Last 24h</SelectItem>
+                <SelectItem value="7">Last 7 days</SelectItem>
+                <SelectItem value="14">Last 14 days</SelectItem>
+                <SelectItem value="30">Last 30 days</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <Button
+            variant={includeResolved ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setIncludeResolved((v) => !v)}
+          >
+            {includeResolved ? 'Showing all' : 'Unresolved only'}
+          </Button>
+          <div className="flex-1" />
+          <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
+            {isFetching ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+            Refresh
+          </Button>
+        </CardContent>
+      </Card>
+
+      {isLoading ? (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        </div>
+      ) : !data ? (
+        <p className="text-sm text-muted-foreground py-8 text-center">No digest data.</p>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <Card>
+              <CardHeader className="pb-2"><CardTitle className="text-sm">Total leaks</CardTitle></CardHeader>
+              <CardContent>
+                <div className="text-3xl font-semibold">{data.totals.all}</div>
+                <p className="text-xs text-muted-foreground">in last {data.windowDays} day(s) for {dialect}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2"><CardTitle className="text-sm">Top MSA tokens</CardTitle></CardHeader>
+              <CardContent>
+                {data.topTokens.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">None 🎉</p>
+                ) : (
+                  <ul dir="rtl" className="space-y-1 font-arabic text-sm">
+                    {data.topTokens.slice(0, 8).map((t) => (
+                      <li key={t.token} className="flex justify-between">
+                        <span>{t.token}</span>
+                        <Badge variant="outline">{t.count}</Badge>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2"><CardTitle className="text-sm">Top source flows</CardTitle></CardHeader>
+              <CardContent>
+                {data.topFunctions.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">None</p>
+                ) : (
+                  <ul className="space-y-1 text-sm">
+                    {data.topFunctions.slice(0, 8).map((f) => (
+                      <li key={f.fn} className="flex justify-between">
+                        <span className="truncate mr-2">{f.fn}</span>
+                        <Badge variant="outline">{f.count}</Badge>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">Recent samples</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {data.samples.length === 0 ? (
+                <p className="text-xs text-muted-foreground py-4 text-center">No samples in this window.</p>
+              ) : (
+                data.samples.map((s) => (
+                  <div key={s.id} className="border border-border rounded p-3 space-y-1">
+                    <div className="flex flex-wrap items-center gap-2 text-xs">
+                      {s.token && <Badge variant="outline" className="font-arabic">{s.token}</Badge>}
+                      <Badge variant="outline">{s.function ?? 'unknown'}</Badge>
+                      <span className="text-muted-foreground">{new Date(s.created_at).toLocaleString()}</span>
+                      {s.resolved && <Badge variant="outline" className="text-emerald-700">resolved</Badge>}
+                      <div className="flex-1" />
+                      {!s.resolved && (
+                        <Button size="sm" variant="ghost" onClick={() => resolve.mutate(s.id)}>
+                          <Check className="h-3.5 w-3.5 mr-1" /> Resolve
+                        </Button>
+                      )}
+                    </div>
+                    <p dir="rtl" className="text-sm font-arabic whitespace-pre-wrap leading-relaxed">
+                      {s.snippet}
+                    </p>
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
+        </>
+      )}
+    </div>
+  );
+};
+
 export default AdminDialectRules;
+

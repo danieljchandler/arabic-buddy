@@ -11,6 +11,7 @@ import {
   type Dialect,
 } from './dialectHelpers.ts';
 import { detectMsaLeaks, type MsaLeakResult } from './msaLeakDetector.ts';
+import { logMsaViolations } from './msaViolationLogger.ts';
 import {
   DEFAULT_FAST,
   DEFAULT_JUDGE,
@@ -100,6 +101,23 @@ export async function askBrain<T = unknown>(task: BrainTask): Promise<BrainResul
   }
 
   result.totalLatencyMs = Date.now() - start;
+
+  // Log any remaining MSA leaks (post-repair) for admin review.
+  if (result.msaLeaks?.leaks?.length) {
+    logMsaViolations({
+      dialect: task.dialect,
+      leaks: result.msaLeaks,
+      offendingText: result.raw ?? '',
+      sourceFunction: task.purpose,
+      metadata: {
+        strategy: result.strategy,
+        models: result.models,
+        repairs: result.msaRepairs,
+        post_repair: true,
+      },
+    });
+  }
+
   return result;
 }
 
@@ -537,6 +555,13 @@ export async function streamBrain(task: StreamBrainTask): Promise<Response> {
           const leaks = detectMsaLeaks(full, task.dialect);
           if (leaks.leaks.length > 0) {
             console.warn(`[aiBrain.stream] MSA leak in ${task.purpose} (${task.dialect}):`, leaks.leaks.join(', '));
+            logMsaViolations({
+              dialect: task.dialect,
+              leaks,
+              offendingText: full,
+              sourceFunction: task.purpose,
+              metadata: { streaming: true, model: task.model ?? 'google/gemini-2.5-pro' },
+            });
           }
         } catch { /* ignore */ }
       }

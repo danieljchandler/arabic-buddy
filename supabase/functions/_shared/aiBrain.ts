@@ -434,3 +434,115 @@ function stringifyUserPrompt(p: MultimodalContent): string {
 }
 
 export { BrainHttpError };
+
+// ----------------- Streaming entry point -----------------
+
+export interface StreamBrainTask {
+  purpose: string;
+  dialect: Dialect;
+  /** Prior conversation messages (excluding the system prompt — that is built here). */
+  messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>;
+  systemPromptExtra?: string;
+  model?: string;
+  temperature?: number;
+  maxTokens?: number;
+  /** Called once after the upstream stream finishes, with the accumulated assistant text.
+   *  Use it to fire-and-forget MSA leak logging. Never throws to the caller. */
+  onComplete?: (fullText: string) => void | Promise<void>;
+  /** Optional CORS / extra headers to merge into the streamed Response. */
+  responseHeaders?: Record<string, string>;
+  /** Forward client abort signal so the upstream call cancels too. */
+  signal?: AbortSignal;
+}
+
+/** Stream a single-model dialect-aware chat response through the Lovable gateway.
+ *  Returns a Response with text/event-stream body, ready to return from a Deno handler. */
+export async function streamBrain(task: StreamBrainTask): Promise<Response> {
+  const apiKey = Deno.env.get('LOVABLE_API_KEY');
+  if (!apiKey) throw new BrainHttpError(500, 'LOVABLE_API_KEY not configured');
+
+  const model = task.model ?? 'google/gemini-2.5-pro';
+  const isGpt5 = /^openai\/gpt-5/.test(model);
+
+  const system = buildSystem({
+    purpose: task.purpose,
+    dialect: task.dialect,
+    userPrompt: '',
+    systemPromptExtra: task.systemPromptExtra,
+  } as BrainTask);
+
+  // Drop any client-supplied system messages — we own the system prompt here.
+  const userMessages = task.messages.filter((m) => m.role !== 'system');
+
+  const body: Record<string, unknown> = {
+    model,
+    stream: true,
+    messages: [{ role: 'system', content: system }, ...userMessages],
+  };
+  const tokens = task.maxTokens ?? 1024;
+  if (isGpt5) body.max_completion_tokens = tokens;
+  else body.max_tokens = tokens;
+  if (!isGpt5) body.temperature = task.temperature ?? 0.7;
+
+  const upstream = await fetch(GATEWAY_URL, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+    signal: task.signal,
+  });
+
+  if (!upstream.ok || !upstream.body) {
+    const text = await upstream.text().catch(() => '');
+    throw new BrainHttpError(upstream.status, `gateway stream ${model} ${upstream.status}: ${text.slice(0, 200)}`);
+  }
+
+  // Tap the stream so we can accumulate the assistant text for MSA leak logging,
+  // while passing every byte through to the client unchanged.
+  const accumulator: string[] = [];
+  const decoder = new TextDecoder();
+  let sseBuffer = '';
+
+  const tap = new TransformStream<Uint8Array, Uint8Array>({
+    transform(chunk, controller) {
+      controller.enqueue(chunk);
+      try {
+        sseBuffer += decoder.decode(chunk, { stream: true });
+        let nl: number;
+        while ((nl = sseBuffer.indexOf('\n')) !== -1) {
+          const line = sseBuffer.slice(0, nl).trim();
+          sseBuffer = sseBuffer.slice(nl + 1);
+          if (!line.startsWith('data:')) continue;
+          const payload = line.slice(5).trim();
+          if (!payload || payload === '[DONE]') continue;
+          try {
+            const json = JSON.parse(payload);
+            const delta = json.choices?.[0]?.delta?.content;
+            if (typeof delta === 'string') accumulator.push(delta);
+          } catch { /* ignore partial chunks */ }
+        }
+      } catch { /* never break the passthrough */ }
+    },
+    flush() {
+      const full = accumulator.join('');
+      if (full && task.dialect) {
+        try {
+          const leaks = detectMsaLeaks(full, task.dialect);
+          if (leaks.leaks.length > 0) {
+            console.warn(`[aiBrain.stream] MSA leak in ${task.purpose} (${task.dialect}):`, leaks.leaks.join(', '));
+          }
+        } catch { /* ignore */ }
+      }
+      if (task.onComplete) {
+        try { Promise.resolve(task.onComplete(full)).catch(() => {}); } catch { /* ignore */ }
+      }
+    },
+  });
+
+  const headers = new Headers(task.responseHeaders ?? {});
+  headers.set('Content-Type', 'text/event-stream');
+
+  return new Response(upstream.body.pipeThrough(tap), { headers });
+}

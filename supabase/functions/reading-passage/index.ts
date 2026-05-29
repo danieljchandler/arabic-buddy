@@ -15,11 +15,7 @@ serve(async (req) => {
   try {
     const { difficulty = "beginner", topic, userVocab = [], dialect = "Gulf" } = await req.json();
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
-
     const dialectLabel = getDialectLabel(dialect);
-    const dialectRules = getDialectVocabRules(dialect);
 
     const vocabContext = userVocab.length > 0
       ? `Include some of these words the student knows: ${userVocab.slice(0, 15).map((w: any) => w.word_arabic).join(", ")}`
@@ -33,20 +29,17 @@ serve(async (req) => {
 
     const topicContext = topic ? `Topic: ${topic}` : `Topic: ${culturalContext}`;
 
-    const systemPrompt = `You are a ${dialectLabel} language instructor creating reading comprehension exercises.
-
-${dialectRules}
-- For advanced levels, you may introduce MSA comparisons but the primary text MUST be in ${dialectLabel} dialect.
-- Set passages in culturally authentic contexts.
-- Generate engaging, culturally relevant passages appropriate for the difficulty level.
-
-IMPORTANT: Return valid JSON only, no markdown code blocks.`;
-
     const difficultyGuide: Record<string, string> = {
       beginner: `2-3 short sentences, simple ${dialectLabel} vocabulary, common everyday phrases`,
       intermediate: `4-5 sentences, varied ${dialectLabel} vocabulary, colloquial expressions and cultural references`,
       advanced: `6-8 sentences, complex structures, idiomatic ${dialectLabel} expressions`,
     };
+
+    const systemExtra = `You are a ${dialectLabel} language instructor creating reading comprehension exercises.
+- Set passages in culturally authentic contexts.
+- Generate engaging, culturally relevant passages appropriate for the difficulty level.
+- The primary passage text MUST be in ${dialectLabel} dialect, not MSA.
+- Return the structured fields via the provided tool only.`;
 
     const userPrompt = `Generate a reading comprehension exercise.
 
@@ -54,71 +47,95 @@ Difficulty: ${difficulty} (${difficultyGuide[difficulty] || difficultyGuide.begi
 ${topicContext}
 ${vocabContext}
 
-Return JSON in this exact format:
-{
-  "title": "${dialectLabel} title",
-  "titleEnglish": "English title",
-  "lines": [
-    {"arabic": "One sentence in ${dialectLabel}", "english": "English translation of that sentence"}
-  ],
-  "difficulty": "${difficulty}",
-  "vocabulary": [{"arabic": "كلمة", "english": "word", "inContext": "how it's used"}],
-  "questions": [{"question": "${dialectLabel} question", "questionEnglish": "English translation", "options": [{"text": "option", "textEnglish": "English", "correct": true}, {"text": "option", "textEnglish": "English", "correct": false}]}]
-}
+Split the passage into individual sentences in the "lines" array (each line = one sentence with its Arabic text and English translation). Generate 3-4 vocabulary items and 2-3 comprehension questions.`;
 
-IMPORTANT: Split the passage into individual sentences in the "lines" array. Each line should be one sentence with its Arabic text and English translation.
-Generate 3-4 vocabulary items and 2-3 comprehension questions.`;
-
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
+    let passage: any;
+    try {
+      const brain = await askBrain<any>({
+        purpose: "reading_passage",
+        dialect: dialect as Dialect,
+        strategy: "draft_critic",
+        systemPromptExtra: systemExtra,
+        userPrompt,
+        maxTokens: 2048,
         temperature: 0.8,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
-      if (response.status === 402) {
+        arabicTextPath: (p: any) => {
+          const parts: string[] = [];
+          if (typeof p?.title === "string") parts.push(p.title);
+          if (Array.isArray(p?.lines)) for (const l of p.lines) if (typeof l?.arabic === "string") parts.push(l.arabic);
+          if (Array.isArray(p?.questions)) for (const q of p.questions) if (typeof q?.question === "string") parts.push(q.question);
+          return parts.join("\n");
+        },
+        tool: {
+          name: "emit_reading_passage",
+          description: `Reading passage in ${dialectLabel}.`,
+          parameters: {
+            type: "object",
+            properties: {
+              title: { type: "string" },
+              titleEnglish: { type: "string" },
+              lines: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: { arabic: { type: "string" }, english: { type: "string" } },
+                  required: ["arabic", "english"],
+                },
+              },
+              difficulty: { type: "string" },
+              vocabulary: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: { arabic: { type: "string" }, english: { type: "string" }, inContext: { type: "string" } },
+                  required: ["arabic", "english"],
+                },
+              },
+              questions: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    question: { type: "string" },
+                    questionEnglish: { type: "string" },
+                    options: {
+                      type: "array",
+                      items: {
+                        type: "object",
+                        properties: { text: { type: "string" }, textEnglish: { type: "string" }, correct: { type: "boolean" } },
+                        required: ["text", "textEnglish", "correct"],
+                      },
+                    },
+                  },
+                  required: ["question", "options"],
+                },
+              },
+            },
+            required: ["title", "titleEnglish", "lines", "vocabulary", "questions"],
+          },
+        },
+      });
+      passage = brain.output;
+      if (brain.msaLeaks.leaks.length > 0) {
+        console.warn("reading-passage MSA leaks after repair:", brain.msaLeaks.leaks, "repairs:", brain.msaRepairs);
+      }
+    } catch (e: any) {
+      console.error("reading-passage brain error:", e?.status, e?.message);
+      if (e?.status === 402) {
         return new Response(JSON.stringify({ error: "Not enough AI credits." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
-      if (response.status === 429) {
+      if (e?.status === 429) {
         return new Response(JSON.stringify({ error: "Rate limit exceeded." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
-      throw new Error(`AI gateway error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content || "{}";
-
-    let passage;
-    try {
-      const jsonMatch = content.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        passage = JSON.parse(jsonMatch[0]);
-      } else {
-        throw new Error("No JSON found");
-      }
-    } catch (e) {
-      console.error("Failed to parse passage:", e, content);
       passage = {
         title: "في السوق",
         titleEnglish: "At the Market",
-        passage: "رحت السوق اليوم. شريت خضار وفواكه طازجة.",
-        passageEnglish: "I went to the market today. I bought fresh vegetables and fruits.",
-        difficulty: "beginner",
-        vocabulary: [
-          { arabic: "السوق", english: "the market", inContext: "place of shopping" },
+        lines: [
+          { arabic: "رحت السوق اليوم.", english: "I went to the market today." },
+          { arabic: "شريت خضار وفواكه طازجة.", english: "I bought fresh vegetables and fruits." },
         ],
+        difficulty,
+        vocabulary: [{ arabic: "السوق", english: "the market", inContext: "place of shopping" }],
         questions: [
           {
             question: "وين راح الكاتب؟",

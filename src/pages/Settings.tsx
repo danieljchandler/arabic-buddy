@@ -15,6 +15,7 @@ import { HomeLayoutEditor } from '@/components/settings/HomeLayoutEditor';
 import { DisplayPrefsEditor } from '@/components/settings/DisplayPrefsEditor';
 import { useLeechPrefs } from '@/hooks/useLeechPrefs';
 import { useFeatureHints } from '@/hooks/useFeatureHints';
+import { useSubscription } from '@/hooks/useSubscription';
 
 const DIALECTS = [
   { id: 'Gulf', label: 'Gulf Arabic', labelAr: 'خليجي', flag: '🌊' },
@@ -48,7 +49,22 @@ const Settings = () => {
   const [loading, setLoading] = useState(true);
   const { enabled: leechEnabled, setEnabled: setLeechEnabled } = useLeechPrefs();
   const { enabled: hintsEnabled, setEnabled: setHintsEnabled } = useFeatureHints();
+  const { subscribed, tier, openCustomerPortal } = useSubscription();
   const [clearingLeeches, setClearingLeeches] = useState(false);
+  const [openingPortal, setOpeningPortal] = useState(false);
+
+  const handleManageSubscription = async () => {
+    setOpeningPortal(true);
+    try {
+      await openCustomerPortal();
+    } catch (e) {
+      toast.error('Unable to open subscription portal', {
+        description: e instanceof Error ? e.message : 'Please try again.',
+      });
+    } finally {
+      setOpeningPortal(false);
+    }
+  };
 
   const clearAllLeeches = async () => {
     if (!user) return;
@@ -441,6 +457,39 @@ const Settings = () => {
                 <p className="text-xs text-muted-foreground">Others can see your name and XP</p>
               </div>
               <Switch checked={showOnLeaderboard} onCheckedChange={setShowOnLeaderboard} />
+            </div>
+          </section>
+
+          {/* Subscription */}
+          <section className="space-y-3">
+            <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+              <Heart className="h-4 w-4" />
+              Subscription
+            </div>
+            <div className="p-3 rounded-xl bg-card border border-border space-y-2">
+              <p className="text-sm font-medium text-foreground">
+                {subscribed ? `Active plan: ${tier === 'allin' ? 'All-In' : 'Standard'}` : 'Free plan'}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {subscribed
+                  ? 'Manage billing, update payment method, or cancel anytime.'
+                  : 'Upgrade to remove daily limits and unlock everything.'}
+              </p>
+              {subscribed ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                  onClick={handleManageSubscription}
+                  disabled={openingPortal}
+                >
+                  {openingPortal ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Manage subscription'}
+                </Button>
+              ) : (
+                <Button variant="outline" size="sm" className="w-full" onClick={() => navigate('/pricing')}>
+                  View plans
+                </Button>
+              )}
             </div>
           </section>
 

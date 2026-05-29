@@ -2,6 +2,7 @@ import * as React from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { logClientError } from "@/lib/errorLog";
 
 type Props = {
   children: React.ReactNode;
@@ -58,6 +59,11 @@ export class ErrorBoundary extends React.Component<Props, State> {
       name: this.props.name,
       error,
       errorInfo,
+    });
+    void logClientError({
+      message: error.message || String(error),
+      stack: error.stack ?? null,
+      meta: { boundary: this.props.name, componentStack: errorInfo.componentStack },
     });
   }
 

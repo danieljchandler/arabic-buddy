@@ -108,9 +108,28 @@ export async function askBrain<T = unknown>(task: BrainTask): Promise<BrainResul
     }
   }
 
+  // Optional native-validator pass (strict native-speaker reviewer).
+  if (task.validateDialect) {
+    try {
+      const scanText = extractScanText(task, result.output, result.raw);
+      const v = await validateDialect(scanText, task.dialect, { apiKey });
+      result.validator = v;
+      if (v.ok && (v.verdict === 'rewrite' || v.leaks.length > 0)) {
+        logValidatorResult({
+          dialect: task.dialect,
+          result: v,
+          offendingText: scanText,
+          sourceFunction: task.purpose,
+          metadata: { strategy: result.strategy, models: result.models },
+        });
+      }
+    } catch (err) {
+      console.warn('[aiBrain] validator pass failed', err);
+    }
+  }
+
   result.totalLatencyMs = Date.now() - start;
 
-  // Log any remaining MSA leaks (post-repair) for admin review.
   if (result.msaLeaks?.leaks?.length) {
     logMsaViolations({
       dialect: task.dialect,
@@ -125,6 +144,7 @@ export async function askBrain<T = unknown>(task: BrainTask): Promise<BrainResul
       },
     });
   }
+
 
   return result;
 }

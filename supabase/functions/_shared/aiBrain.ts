@@ -555,10 +555,20 @@ export async function streamBrain(task: StreamBrainTask): Promise<Response> {
           const leaks = detectMsaLeaks(full, task.dialect);
           if (leaks.leaks.length > 0) {
             console.warn(`[aiBrain.stream] MSA leak in ${task.purpose} (${task.dialect}):`, leaks.leaks.join(', '));
+            logMsaViolations({
+              dialect: task.dialect,
+              leaks,
+              offendingText: full,
+              sourceFunction: task.purpose,
+              metadata: { streaming: true, model: task.model ?? 'google/gemini-2.5-pro' },
+            });
           }
         } catch { /* ignore */ }
       }
       if (task.onComplete) {
+        try { Promise.resolve(task.onComplete(full)).catch(() => {}); } catch { /* ignore */ }
+      }
+    },
         try { Promise.resolve(task.onComplete(full)).catch(() => {}); } catch { /* ignore */ }
       }
     },

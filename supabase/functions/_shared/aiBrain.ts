@@ -255,7 +255,7 @@ async function runSolo<T>(task: BrainTask, apiKey: string): Promise<BrainResult<
     strategy: 'solo',
     models: [model],
     agreementScore: 1,
-    msaLeaks: detectMsaLeaks(text, task.dialect),
+    msaLeaks: scanLeaks(text, task.dialect),
     msaRepairs: 0,
     totalLatencyMs: 0,
   };
@@ -293,7 +293,7 @@ async function runEnsemble<T>(task: BrainTask, apiKey: string): Promise<BrainRes
   const ranked = successes
     .map(({ s, model }) => {
       const text = extractScanText(task, s.value.parsed, s.value.raw);
-      const leaks = detectMsaLeaks(text, task.dialect);
+      const leaks = scanLeaks(text, task.dialect);
       return { model, parsed: s.value.parsed, raw: s.value.raw, leaks, text };
     })
     .sort((a, b) => a.leaks.leaks.length - b.leaks.leaks.length || a.raw.length - b.raw.length);
@@ -349,7 +349,7 @@ async function runDraftCritic<T>(task: BrainTask, apiKey: string): Promise<Brain
     strategy: 'draft_critic',
     models: [drafter, critic],
     agreementScore: 1,
-    msaLeaks: detectMsaLeaks(text, task.dialect),
+    msaLeaks: scanLeaks(text, task.dialect),
     msaRepairs: 0,
     totalLatencyMs: 0,
   };
@@ -406,7 +406,7 @@ async function runCouncil<T>(task: BrainTask, apiKey: string): Promise<BrainResu
     strategy: 'council',
     models: [...ok.map((x) => x.model), judge],
     agreementScore: ok.length / drafters.length,
-    msaLeaks: detectMsaLeaks(text, task.dialect),
+    msaLeaks: scanLeaks(text, task.dialect),
     msaRepairs: 0,
     totalLatencyMs: 0,
   };
@@ -430,7 +430,7 @@ async function runRepair<T>(task: BrainTask, prior: BrainResult<T>, apiKey: stri
     output: parsed as T,
     raw,
     models: [...prior.models, DEFAULT_JUDGE],
-    msaLeaks: detectMsaLeaks(text, task.dialect),
+    msaLeaks: scanLeaks(text, task.dialect),
   };
 }
 
@@ -559,7 +559,7 @@ export async function streamBrain(task: StreamBrainTask): Promise<Response> {
       const full = accumulator.join('');
       if (full && task.dialect) {
         try {
-          const leaks = detectMsaLeaks(full, task.dialect);
+          const leaks = scanLeaks(full, task.dialect);
           if (leaks.leaks.length > 0) {
             console.warn(`[aiBrain.stream] MSA leak in ${task.purpose} (${task.dialect}):`, leaks.leaks.join(', '));
             logMsaViolations({

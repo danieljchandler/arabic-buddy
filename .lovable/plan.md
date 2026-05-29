@@ -1,48 +1,71 @@
-# Soft Launch — Chunk 3
+# Storage Bucket Lockdown — Finish the Job
 
-Final pre-launch pass: make the app feel right on a phone, fast on first load, measurable, and welcoming to a brand-new visitor. Picking up the deferred items from chunks 1–2 plus the polish work that decides whether a soft-launch user comes back.
+## Problem
 
-## A. Mobile responsive audit (P0)
-Most users will open the soft-launch link on a phone. I'll walk the core flows at 375px and fix what breaks:
-1. Landing (`/`), Auth, Pricing, Footer
-2. Onboarding / placement quiz
-3. Main learn surfaces: lesson player, `MyWordsReview`, `ConversationSimulator`, `Discover`, `Bridge`, `Reading`
-4. Settings (incl. new subscription block)
-5. App shell nav (bottom-tab vs hamburger on small screens)
+Chunk 2 added strict owner/admin policies (`lahja_*`) but the **old permissive policies were never removed**. Because RLS policies are OR'd, the loose ones still win:
 
-Fixes stay in presentation: `max-w-*`, stacking, sticky bars, tap target sizes (≥44px), safe-area insets, keyboard-avoidance on inputs, and the global immersion toggle reachability. No business logic.
+- `Authenticated users can upload memes` — any logged-in user can write anywhere in `meme-uploads`
+- `Authenticated users can upload tutor audio clips` — same for `tutor-audio-clips`
+- `Users can delete own meme uploads` — any logged-in user can delete any meme
+- `Users can delete their own tutor audio clips` — any logged-in user can delete any clip
+- Per-bucket admin policies duplicated by `lahja_admin_*` (harmless but noisy)
+- Per-bucket avatar policies duplicated by `lahja_owner_*` (harmless but noisy)
+- Per-bucket public read policies duplicated by `lahja_public_read` (harmless but noisy)
 
-## B. Performance & first paint (P1)
-- Route-level `React.lazy` + `Suspense` for admin pages, Discover, ConversationSimulator, Reading, Bridge, MemeAnalyzer (heavy + rarely first visit)
-- `loading="lazy"` + `decoding="async"` on all `<img>` in vocab/flashcard/discover lists
-- Preconnect to Supabase + audio CDN in `index.html`
-- Audit bundle: drop any leftover unused deps; verify framer-motion is tree-shaken
-- Defer PostHog + ElevenLabs SDK init until after first paint
+Until the loose ones are dropped, the lockdown is cosmetic.
 
-## C. PostHog analytics (carryover from chunk 2)
-Add `posthog-js` lazy-loaded, EU host, init after auth resolved, gated on `VITE_POSTHOG_KEY` (no-op when absent so I can ship without blocking on the key). Events: `signup`, `placement_completed`, `lesson_started`, `lesson_completed`, `review_session_completed`, `subscription_started`, `error_shown`, `cap_hit`. Respect DNT. I'll request the key with `add_secret` mid-chunk; if you don't have one yet, the code ships dormant.
+## Migration
 
-## D. New-user onboarding polish (P0 for retention)
-The landing → first "aha" moment is currently rough. I'll tighten:
-1. **Landing CTA** routes straight into a 60-second sample lesson (no signup wall) — gate signup at the *end* of the sample, not the start
-2. **Post-signup**: skip straight to dialect picker → placement quiz → first lesson; remove any intermediate dashboards
-3. **Empty states** on MyWords / Discover / Bridge that explain what to do next instead of showing blank lists
-4. **Daily streak nudge** visible on the home surface so day-2 retention has a hook
+Single migration that drops the redundant/loose policies. Keeps the `lahja_*` set and the `video-audio` (private bucket) admin policies untouched.
 
-## E. Launch hygiene
-- 404 page with link home
-- Consistent loading skeletons (replace any remaining spinners on key surfaces)
-- Confirm Footer + legal pages reachable from every authed route
-- `<title>` per route via a tiny `useDocumentTitle` hook
-- Verify Google sign-in works end-to-end on mobile Safari (popup vs redirect)
+```sql
+-- Drop loose write/delete policies that bypass owner check
+DROP POLICY IF EXISTS "Authenticated users can upload memes" ON storage.objects;
+DROP POLICY IF EXISTS "Authenticated users can upload tutor audio clips" ON storage.objects;
+DROP POLICY IF EXISTS "Users can delete own meme uploads" ON storage.objects;
+DROP POLICY IF EXISTS "Users can delete their own tutor audio clips" ON storage.objects;
 
-## Out of scope
-- Bucket lockdown + 429 UI follow-ups (you said leave for now)
-- Stripe live test (needs your card walkthrough — separate session)
-- Email digest, referral, in-app feedback widget (post-launch P2)
-- New features / new dialect modules
+-- Drop avatar policies superseded by lahja_owner_* (same auth.uid folder check)
+DROP POLICY IF EXISTS "Users can upload their own avatar" ON storage.objects;
+DROP POLICY IF EXISTS "Users can update their own avatar" ON storage.objects;
+DROP POLICY IF EXISTS "Users can delete their own avatar" ON storage.objects;
+DROP POLICY IF EXISTS "Avatar images are publicly accessible" ON storage.objects;
 
-## Deliverable
-After approval I'll implement A → E in order, ask for the PostHog key when I reach C, and finish with a short report: mobile issues fixed, bundle/route-split before-vs-after, onboarding flow changes, and any blockers left before you flip the switch.
+-- Drop per-bucket public read superseded by lahja_public_read
+DROP POLICY IF EXISTS "Anyone can read audio files" ON storage.objects;
+DROP POLICY IF EXISTS "Anyone can view flashcard audio" ON storage.objects;
+DROP POLICY IF EXISTS "Anyone can view flashcard images" ON storage.objects;
+DROP POLICY IF EXISTS "Anyone can view tutor audio clips" ON storage.objects;
+DROP POLICY IF EXISTS "Public read access to meme uploads" ON storage.objects;
 
-Approve and I'll start.
+-- Drop per-bucket admin write/delete superseded by lahja_admin_*
+DROP POLICY IF EXISTS "Admins can upload audio files" ON storage.objects;
+DROP POLICY IF EXISTS "Admins can update audio files" ON storage.objects;
+DROP POLICY IF EXISTS "Admins can delete audio files" ON storage.objects;
+DROP POLICY IF EXISTS "Admins can upload flashcard audio" ON storage.objects;
+DROP POLICY IF EXISTS "Admins can update flashcard audio" ON storage.objects;
+DROP POLICY IF EXISTS "Admins can delete flashcard audio" ON storage.objects;
+DROP POLICY IF EXISTS "Admins can upload flashcard images" ON storage.objects;
+DROP POLICY IF EXISTS "Admins can update flashcard images" ON storage.objects;
+DROP POLICY IF EXISTS "Admins can delete flashcard images" ON storage.objects;
+```
+
+`video-audio` policies (`Admins can read/upload/update/delete video-audio files`) stay — that bucket is private and not covered by `lahja_*`.
+
+## Post-migration end state
+
+- `avatars`, `meme-uploads`, `tutor-audio-clips`: writes/deletes only by owner (uid-prefixed folder), public read
+- `flashcard-images`, `flashcard-audio`, `audio`: writes/deletes only by admins, public read
+- `video-audio`: admin-only everything (private)
+
+## Verification after apply
+
+1. Re-run the `pg_policy` query — confirm the dropped names are gone and `lahja_*` remain.
+2. Quick app smoke: a non-admin user can still upload a meme/tutor clip to their own folder, can't write outside it.
+3. Avatar upload from Settings still works.
+
+## Risk
+
+Low. The `lahja_*` policies use the same `(storage.foldername(name))[1] = auth.uid()::text` pattern that existing client code already follows (avatar upload uses the uid prefix). The legacy meme/tutor policies were *looser* than the new ones, so any code that was working under them will continue to work under `lahja_owner_*` **only if** it uploads under `{uid}/...`. I'll verify the upload paths in `useTutorUpload.ts` and the meme uploader use that prefix before applying — if either uploads to a flat path, I'll add a small client fix in the same chunk.
+
+Approve and I'll switch to build, verify the upload paths, then run the migration.

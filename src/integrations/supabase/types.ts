@@ -758,6 +758,110 @@ export type Database = {
         }
         Relationships: []
       }
+      dialect_rule_violations: {
+        Row: {
+          created_at: string
+          detected_by: string
+          dialect: string
+          id: string
+          metadata: Json
+          msa_token: string | null
+          offending_text: string
+          resolved: boolean
+          rule_id: string | null
+          source_function: string | null
+          suggested_replacement: string | null
+        }
+        Insert: {
+          created_at?: string
+          detected_by?: string
+          dialect: string
+          id?: string
+          metadata?: Json
+          msa_token?: string | null
+          offending_text: string
+          resolved?: boolean
+          rule_id?: string | null
+          source_function?: string | null
+          suggested_replacement?: string | null
+        }
+        Update: {
+          created_at?: string
+          detected_by?: string
+          dialect?: string
+          id?: string
+          metadata?: Json
+          msa_token?: string | null
+          offending_text?: string
+          resolved?: boolean
+          rule_id?: string | null
+          source_function?: string | null
+          suggested_replacement?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dialect_rule_violations_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "dialect_rules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dialect_rules: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          category: string
+          created_at: string
+          created_by: string | null
+          dialect: string
+          examples: Json
+          id: string
+          notes: string | null
+          priority: number
+          rule: string
+          source: string
+          status: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          category: string
+          created_at?: string
+          created_by?: string | null
+          dialect: string
+          examples?: Json
+          id?: string
+          notes?: string | null
+          priority?: number
+          rule: string
+          source?: string
+          status?: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          dialect?: string
+          examples?: Json
+          id?: string
+          notes?: string | null
+          priority?: number
+          rule?: string
+          source?: string
+          status?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: []
+      }
       discover_videos: {
         Row: {
           cefr_level: string | null

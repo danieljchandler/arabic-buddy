@@ -5,8 +5,8 @@ import { useAuth } from "@/hooks/useAuth";
 import {
   useDueWords,
   useReviewStats,
-  useSubmitReview,
 } from "@/hooks/useReview";
+import { useReviewQueue } from "@/hooks/useReviewQueue";
 import { PronunciationButton } from "@/components/review/PronunciationButton";
 import { RatingButtons } from "@/components/review/RatingButtons";
 import { HomeButton } from "@/components/HomeButton";
@@ -14,11 +14,12 @@ import { Button } from "@/components/ui/button";
 import { AppShell } from "@/components/layout/AppShell";
 import { useDialect } from "@/contexts/DialectContext";
 import { Rating, calculateNextReview } from "@/lib/spacedRepetition";
-import { Loader2, Trophy, Brain, Sparkles, LogIn, Shuffle, Eye, Volume2, ImagePlus } from "lucide-react";
+import { Loader2, Trophy, Brain, Sparkles, LogIn, Shuffle, Eye, Volume2, ImagePlus, WifiOff, CloudUpload } from "lucide-react";
 import { GenerateImageDialog } from "@/components/mywords/GenerateImageDialog";
 import { useReviewKeyboard } from "@/hooks/useKeyboardShortcuts";
 import { InfoHint } from "@/components/InfoHint";
 import { PAGE_HINTS } from "@/lib/pageHints";
+
 
 const DIALECT_FLAGS: Record<string, string> = {
   Gulf: "🇦🇪",
@@ -33,7 +34,7 @@ const Review = () => {
 
   const { data: dueWords, isLoading: wordsLoading, refetch } = useDueWords(mixAll);
   const { data: stats } = useReviewStats(mixAll);
-  const submitReview = useSubmitReview();
+  const { enqueue, pendingCount, isFlushing, isOnline } = useReviewQueue();
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [sessionCount, setSessionCount] = useState(0);
@@ -73,12 +74,13 @@ const Review = () => {
     }
   };
 
-  const handleRate = async (rating: Rating) => {
+  const handleRate = (rating: Rating) => {
     if (!dueWords || !dueWords[currentIndex]) return;
     const word = dueWords[currentIndex];
     const wordCount = dueWords.length;
 
-    await submitReview.mutateAsync({
+    // Queue locally; background processor retries on network failures
+    enqueue({
       wordId: word.id,
       rating,
       currentReview: word.review,
@@ -87,14 +89,16 @@ const Review = () => {
     setSessionCount((prev) => prev + 1);
     setShowAnswer(false);
 
-    // Advance without relying on goToNext (which may read stale dueWords)
+    // Advance immediately — UI does not wait on the network
     if (currentIndex < wordCount - 1) {
       setCurrentIndex((prev) => prev + 1);
     } else {
-      await refetch();
+      // End of list: refetch (queue keeps flushing in background)
+      void refetch();
       setCurrentIndex(0);
     }
   };
+
 
   const handleToggleMix = () => {
     setMixAll((prev) => !prev);

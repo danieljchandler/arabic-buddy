@@ -234,6 +234,9 @@ const AdminDialectRules = () => {
               <TabsTrigger value="retired">
                 Retired <Badge variant="outline" className="ml-2">{grouped.retired.length}</Badge>
               </TabsTrigger>
+              <TabsTrigger value="violations">
+                <AlertTriangle className="h-3.5 w-3.5 mr-1" /> Violations
+              </TabsTrigger>
             </TabsList>
 
             {(['draft', 'approved', 'retired'] as RuleStatus[]).map((s) => (
@@ -247,6 +250,10 @@ const AdminDialectRules = () => {
                 )}
               </TabsContent>
             ))}
+
+            <TabsContent value="violations" className="mt-4">
+              <ViolationsPanel dialect={activeDialect} />
+            </TabsContent>
           </Tabs>
         )}
       </div>

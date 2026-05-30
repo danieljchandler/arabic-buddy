@@ -324,7 +324,7 @@ const MyWordsReview = () => {
       }
       if (response.error) throw new Error(response.error.message || "Failed to generate jingle");
       const audioFile = await createPlayableJingleAudio(response.data);
-      const fileName = `jingles/${user.id}/${word.id}-${Date.now()}.${ext}`;
+      const fileName = `jingles/${user.id}/${word.id}-${Date.now()}.${audioFile.extension}`;
       const { error: uploadError } = await supabase.storage
         .from("flashcard-audio")
         .upload(fileName, audioFile.blob, { contentType: audioFile.mimeType, upsert: true });

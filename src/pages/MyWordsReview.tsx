@@ -341,8 +341,7 @@ const MyWordsReview = () => {
           word_english: word.word_english,
           dialect: activeDialect,
         },
-        responseType: "blob",
-      } as any);
+      });
       if (showCapToastIfLimited(response.error, response.data)) {
         setJingleLoading(false);
         return;

@@ -162,9 +162,19 @@ Output only the prompt.`,
     };
     const hasMpegFrameSync = (bytes: Uint8Array, offset = 0) => {
       for (let i = offset; i < bytes.length - 1; i++) {
-        if (bytes[i] === 0xff && (bytes[i + 1] & 0xe0) === 0xe0) return true;
+        if (isValidMpegHeader(bytes, i)) return true;
       }
       return false;
+    };
+    const isValidMpegHeader = (bytes: Uint8Array, offset: number) => {
+      if (offset + 4 > bytes.length) return false;
+      if (bytes[offset] !== 0xff || (bytes[offset + 1] & 0xe0) !== 0xe0) return false;
+      const version = (bytes[offset + 1] >> 3) & 0x03;
+      const layer = (bytes[offset + 1] >> 1) & 0x03;
+      const bitrate = (bytes[offset + 2] >> 4) & 0x0f;
+      const sampleRate = (bytes[offset + 2] >> 2) & 0x03;
+      const emphasis = bytes[offset + 3] & 0x03;
+      return version !== 0x01 && layer !== 0x00 && bitrate !== 0x00 && bitrate !== 0x0f && sampleRate !== 0x03 && emphasis !== 0x02;
     };
 
     // Lyria returns raw PCM (audio/L16). Wrap as WAV so browsers can decode it.

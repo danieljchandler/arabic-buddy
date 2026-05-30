@@ -131,6 +131,12 @@ const MyWordsReview = () => {
           return;
         } catch (repairErr) {
           console.error("Jingle audio repair failed:", repairErr);
+          toast.error(
+            repairErr instanceof Error && repairErr.message.includes("regenerate")
+              ? "This jingle file is corrupted. Tap Regenerate jingle to replace it."
+              : "Couldn't play that audio. Try regenerating it.",
+          );
+          return;
         }
       }
       toast.error("Couldn't play that audio. Try regenerating it.");

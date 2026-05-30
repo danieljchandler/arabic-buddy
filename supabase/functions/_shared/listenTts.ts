@@ -1,14 +1,17 @@
 // Shared TTS helpers for the Listen feature.
-// - Gulf episodes use Munsit (api.munsit.com) → WAV output, multiple Gulf voices.
-// - Egyptian/Yemeni episodes fall back to Azure Neural TTS → MP3 output.
+// - Gulf episodes → Munsit (WAV, multiple Gulf voices).
+// - Yemeni episodes → Gemini 2.5 Flash TTS with neutral-Yemeni style prompt (WAV).
+// - Egyptian episodes → Azure Neural TTS (MP3).
 
 const MUNSIT_BASE = "https://api.munsit.com/api/v1";
+const GEMINI_TTS_MODEL = "gemini-2.5-flash-preview-tts";
+const GEMINI_TTS_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 const GULF_DIALECTS = new Set([
   "najdi", "emirati", "khaleeji", "gulf",
   "saudi", "kuwaiti", "qatari", "bahraini", "omani",
 ]);
 
-export type Provider = "munsit" | "azure";
+export type Provider = "munsit" | "azure" | "gemini";
 
 export interface ProviderPlan {
   provider: Provider;
@@ -19,6 +22,9 @@ export interface ProviderPlan {
   munsitModelId?: string;
   // For Azure: full neural voice list.
   azureVoices?: string[];
+  // For Gemini: prebuilt voice names + style prefix injected into each prompt.
+  geminiVoices?: string[];
+  geminiStylePrefix?: string;
 }
 
 const AZURE_VOICE_MAP: Record<string, string[]> = {

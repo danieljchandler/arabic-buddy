@@ -26,9 +26,20 @@ const id3TotalSize = (bytes: Uint8Array) => {
 
 const hasMpegFrameSync = (bytes: Uint8Array, offset = 0) => {
   for (let i = offset; i < bytes.length - 1; i++) {
-    if (bytes[i] === 0xff && (bytes[i + 1] & 0xe0) === 0xe0) return true;
+    if (isValidMpegHeader(bytes, i)) return true;
   }
   return false;
+};
+
+const isValidMpegHeader = (bytes: Uint8Array, offset: number) => {
+  if (offset + 4 > bytes.length) return false;
+  if (bytes[offset] !== 0xff || (bytes[offset + 1] & 0xe0) !== 0xe0) return false;
+  const version = (bytes[offset + 1] >> 3) & 0x03;
+  const layer = (bytes[offset + 1] >> 1) & 0x03;
+  const bitrate = (bytes[offset + 2] >> 4) & 0x0f;
+  const sampleRate = (bytes[offset + 2] >> 2) & 0x03;
+  const emphasis = bytes[offset + 3] & 0x03;
+  return version !== 0x01 && layer !== 0x00 && bitrate !== 0x00 && bitrate !== 0x0f && sampleRate !== 0x03 && emphasis !== 0x02;
 };
 
 const wrapPcmAsWav = (bytes: Uint8Array, sampleRate = DEFAULT_LYRIA_SAMPLE_RATE) => {
@@ -73,7 +84,7 @@ const detectAudioMime = (bytes: Uint8Array, declaredType = "") => {
     return "audio/wav";
   }
   if (bytes.length >= 3 && textAt(bytes, 0, 3) === "ID3" && hasMpegFrameSync(bytes, id3TotalSize(bytes))) return "audio/mpeg";
-  if (bytes.length >= 2 && bytes[0] === 0xff && (bytes[1] & 0xe0) === 0xe0) return "audio/mpeg";
+  if (isValidMpegHeader(bytes, 0)) return "audio/mpeg";
   if (bytes.length >= 4 && textAt(bytes, 0, 4) === "OggS") return "audio/ogg";
   if (bytes.length >= 4 && bytes[0] === 0x1a && bytes[1] === 0x45 && bytes[2] === 0xdf && bytes[3] === 0xa3) return "audio/webm";
   if (bytes.length >= 12 && textAt(bytes, 4, 4) === "ftyp") return "audio/mp4";

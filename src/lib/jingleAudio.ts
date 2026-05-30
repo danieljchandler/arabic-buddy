@@ -59,9 +59,25 @@ const base64ToBytes = (base64: string) => {
   return bytes;
 };
 
+const looksUtf8ReplacementCorrupted = (bytes: Uint8Array) => {
+  const limit = Math.min(bytes.length - 2, 65536);
+  let replacementCount = 0;
+  for (let i = 0; i < limit; i++) {
+    if (bytes[i] === 0xef && bytes[i + 1] === 0xbf && bytes[i + 2] === 0xbd) replacementCount++;
+  }
+  return replacementCount > 12;
+};
+
+const assertNotCorrupted = (bytes: Uint8Array) => {
+  if (looksUtf8ReplacementCorrupted(bytes)) {
+    throw new Error("Stored jingle audio was corrupted during an older generation. Please regenerate it.");
+  }
+};
+
 export async function createPlayableJingleAudio(data: unknown): Promise<JingleAudioFile> {
   if (isGeneratedJingleAudioResponse(data)) {
     const bytes = base64ToBytes(data.audioBase64);
+    assertNotCorrupted(bytes);
     const mimeType = detectAudioMime(bytes, data.mimeType || "audio/mpeg");
     return {
       blob: new Blob([bytes], { type: mimeType }),
@@ -87,6 +103,7 @@ export async function createPlayableJingleAudio(data: unknown): Promise<JingleAu
   }
 
   const bytes = new Uint8Array(buffer);
+  assertNotCorrupted(bytes);
   const mimeType = detectAudioMime(bytes, declaredType);
   return {
     blob: new Blob([bytes], { type: mimeType }),

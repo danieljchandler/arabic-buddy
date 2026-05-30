@@ -163,3 +163,9 @@ export async function createPlayableJingleAudio(data: unknown): Promise<JingleAu
     extension: extensionForMime(mimeType),
   };
 }
+
+export async function createPlayableJingleAudioFromUrl(url: string): Promise<JingleAudioFile> {
+  const response = await fetch(url, { cache: "no-store" });
+  if (!response.ok) throw new Error("Could not load generated jingle audio");
+  return createPlayableJingleAudio(await response.blob());
+}

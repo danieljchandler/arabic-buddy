@@ -327,7 +327,13 @@ const MyWordsReview = () => {
       const { data: urlData } = supabase.storage.from("flashcard-audio").getPublicUrl(fileName);
       const jingleUrl = urlData.publicUrl;
       await supabase.from("user_vocabulary").update({ jingle_audio_url: jingleUrl } as any).eq("id", word.id);
-      queryClient.invalidateQueries({ queryKey: ["user-vocabulary-due-words"] });
+      // Patch the cached list in place so we don't refetch + reorder the queue
+      // while the user is listening to the freshly generated jingle.
+      queryClient.setQueriesData<DueCard[] | undefined>(
+        { queryKey: ["user-vocabulary-due-words"] },
+        (prev) =>
+          prev?.map((c) => (c.id === word.id ? { ...c, jingle_audio_url: jingleUrl } : c)),
+      );
       playAudio(jingleUrl);
       toast.success("🎵 Jingle created!");
     } catch (err: any) {

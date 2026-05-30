@@ -1298,6 +1298,151 @@ export type Database = {
           },
         ]
       }
+      listen_episode_plays: {
+        Row: {
+          completed: boolean
+          created_at: string
+          episode_id: string
+          id: string
+          last_line_index: number
+          last_position_seconds: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed?: boolean
+          created_at?: string
+          episode_id: string
+          id?: string
+          last_line_index?: number
+          last_position_seconds?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed?: boolean
+          created_at?: string
+          episode_id?: string
+          id?: string
+          last_line_index?: number
+          last_position_seconds?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "listen_episode_plays_episode_id_fkey"
+            columns: ["episode_id"]
+            isOneToOne: false
+            referencedRelation: "listen_episodes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      listen_episodes: {
+        Row: {
+          audio_mode: string
+          audio_status: string
+          created_at: string
+          creator_id: string
+          dialect: string
+          duration_seconds: number | null
+          format: string
+          full_audio_url: string | null
+          id: string
+          key_vocabulary: Json
+          length_bucket: string
+          line_durations: Json | null
+          play_count: number
+          script: Json
+          summary: string | null
+          title: string
+          topic: string
+          topic_category: string | null
+          updated_at: string
+        }
+        Insert: {
+          audio_mode?: string
+          audio_status?: string
+          created_at?: string
+          creator_id: string
+          dialect: string
+          duration_seconds?: number | null
+          format: string
+          full_audio_url?: string | null
+          id?: string
+          key_vocabulary?: Json
+          length_bucket: string
+          line_durations?: Json | null
+          play_count?: number
+          script?: Json
+          summary?: string | null
+          title: string
+          topic: string
+          topic_category?: string | null
+          updated_at?: string
+        }
+        Update: {
+          audio_mode?: string
+          audio_status?: string
+          created_at?: string
+          creator_id?: string
+          dialect?: string
+          duration_seconds?: number | null
+          format?: string
+          full_audio_url?: string | null
+          id?: string
+          key_vocabulary?: Json
+          length_bucket?: string
+          line_durations?: Json | null
+          play_count?: number
+          script?: Json
+          summary?: string | null
+          title?: string
+          topic?: string
+          topic_category?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      listen_line_audio: {
+        Row: {
+          audio_url: string
+          created_at: string
+          duration_seconds: number | null
+          episode_id: string
+          id: string
+          line_index: number
+          speaker: string | null
+        }
+        Insert: {
+          audio_url: string
+          created_at?: string
+          duration_seconds?: number | null
+          episode_id: string
+          id?: string
+          line_index: number
+          speaker?: string | null
+        }
+        Update: {
+          audio_url?: string
+          created_at?: string
+          duration_seconds?: number | null
+          episode_id?: string
+          id?: string
+          line_index?: number
+          speaker?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "listen_line_audio_episode_id_fkey"
+            columns: ["episode_id"]
+            isOneToOne: false
+            referencedRelation: "listen_episodes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       listening_exercises: {
         Row: {
           audio_text: string
@@ -3333,6 +3478,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      increment_listen_play_count: {
+        Args: { _episode_id: string }
+        Returns: undefined
       }
       increment_review_count: { Args: never; Returns: undefined }
       increment_usage_counter: {

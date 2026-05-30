@@ -1,94 +1,77 @@
+## Listen — AI-generated dialect audio content
 
-# Plan: Live Voice Simulator + Search-Grounded Souq News & Culture Guide
+A new dedicated page (`/listen`) where users generate rich, varied audio-style content in their chosen dialect — podcasts, TED talks, interviews, narrative stories — on any topic. Episodes are saved to a shared library so everyone benefits, with full immersion learning tools wrapped around playback.
 
-Two independent additions, both powered by the existing `GEMINI_API_KEY`.
+### User flow
 
----
+1. User opens **Listen** from the home/Today screen.
+2. Tabs at top: **Library** (shared, growing list of saved episodes) and **Create**.
+3. In **Create**:
+   - Pick a **format**: Podcast (2 hosts) · TED talk (solo) · Interview · Story.
+   - Pick a **topic**: browse curated topic chips (Tech, Culture, History, Science, Sports, Food, Travel, Psychology, Business, Current Ideas, …) or type a custom topic.
+   - Pick a **length**: Short (1–2 min) · Medium (3–5 min) · Long (6–10 min).
+   - Pick an **audio mode**: Full TTS (auto-narrated end-to-end with distinct voices per speaker) · Tap-to-hear (no upfront audio; tap any line to play it on demand — cheaper, faster).
+   - Dialect inherits from global Dialect context (Gulf / Egyptian / Yemeni).
+4. Generate. A loading state shows ("Writing your episode…" → "Recording voices…" when TTS).
+5. Player screen:
+   - Header: title, format icon, dialect badge, length, host names.
+   - Synced transcript: every line is a `TappableArabicText` row with optional speaker label, audio button per line, and global play/pause for full TTS episodes.
+   - Display follows global prefs (hide English by default, Tashkil toggle, etc.).
+   - **Key vocabulary** panel below: 8–15 auto-extracted words/phrases at the user's CEFR level with one-tap "Add all to My Words".
+   - Save / share buttons; episode is automatically added to the public library on first generation.
 
-## 1. Gemini Live API → Conversation Simulator
+### Library
 
-Today the simulator is a typed/STT round-trip: record → Munsit/Soniox ASR → `conversation-practice` text reply → Azure TTS. Latency is ~3-6s per turn and there's no barge-in. Gemini Live gives us true real-time spoken dialogue (~500ms first audio, native interruption) with dialect-conditionable voices.
+- Newest first, filterable by dialect + format + topic.
+- Card shows title, one-line teaser, format, length, dialect, play count, who created it.
+- Tap → same player view. Anyone can replay; only the creator (or admin) can delete.
 
-### Architecture
+### Backend
 
-Live API requires a persistent WebSocket. Two valid shapes:
-- **(A) Browser ↔ Google directly**, using an **ephemeral token** minted by an edge function. Lowest latency, no audio relay through our infra.
-- **(B) Browser ↔ Edge Function ↔ Google.** Adds a hop and Deno WS plumbing, but keeps the API key fully server-side and lets us log/moderate every turn.
+New tables (in one migration, with grants + RLS):
 
-**Recommended: (A) ephemeral tokens.** Standard Google pattern, ~30s session-bound tokens, key never leaves the server. We already trust the client for ASR audio uploads.
+- `listen_episodes` — `id`, `creator_id`, `dialect`, `format` (podcast|ted|interview|story), `topic`, `topic_category`, `length_bucket`, `title`, `summary`, `script` (jsonb: array of `{speaker, speaker_role, arabic, english, transliteration}` lines), `key_vocabulary` (jsonb: array of `{arabic, english, root?}`), `audio_mode` (full|on_demand), `full_audio_url` (nullable), `duration_seconds` (nullable), `play_count`, `created_at`.
+- `listen_line_audio` — `id`, `episode_id`, `line_index`, `speaker`, `audio_url`. Cached per-line TTS for tap-to-hear; reused across users.
+- `listen_episode_plays` — lightweight per-user play log for "Continue listening" + play_count increment.
 
-### New edge function: `live-session-token`
-- `verify_jwt = false` in code, but validates Supabase JWT manually (same pattern as other functions).
-- Enforces `enforceDailyCap(req, "live-session", 30, corsHeaders)` — 30 sessions/user/day.
-- POSTs to `https://generativelanguage.googleapis.com/v1beta/auth_tokens:create` with `GEMINI_API_KEY`, requesting a token scoped to `models/gemini-2.5-flash-preview-native-audio-dialog` (the current Live-capable model), 60s validity, 10min session cap.
-- Returns `{ token, model, expiresAt }`.
+RLS: episodes readable by all authenticated users (shared library); insert by authenticated; delete by creator or admin. Line audio readable by all authenticated; writable by service role only.
 
-### New frontend: `LiveConversation` mode in `ConversationSimulator.tsx`
-- Add a "🎙️ Live voice" toggle next to the existing chat. When on, replaces the text composer with a single push-to-talk / hands-free mic button.
-- New hook `useGeminiLive(dialect, level, topic)`:
-  - Fetches ephemeral token from `live-session-token`.
-  - Opens WebSocket to `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent`.
-  - Sends `setup` message with:
-    - system instruction built from `buildDialectSystemPrompt(dialect, level, topic)` (reuses `_shared/dialectHelpers.ts` — same MSA/cross-dialect guardrails as text mode).
-    - `responseModalities: ["AUDIO"]`, `speechConfig.voiceConfig` picked per dialect (e.g. `Aoede` warm female for Egyptian, `Puck` for Gulf, `Charon` deeper for Yemeni — exact mapping confirmed at impl time).
-    - `outputAudioTranscription: {}` so we also get the model's text for the on-screen transcript.
-  - Streams 16kHz PCM mic audio via `AudioWorklet` → `realtimeInput.audio` frames.
-  - Plays back returned 24kHz PCM via `AudioContext` queue. Cancels playback the moment the user speaks (Live emits `interrupted` events).
-  - Surfaces user + assistant transcripts back into the existing `messages` state so the chat log, "save phrase," and corrections panel all keep working when the user ends a session.
-- Reuses existing dialect picker, level, topic seeds, immersion toggles.
+New storage bucket `listen-audio` (public read) for full-episode MP3s and per-line clips.
 
-### Out of scope (for now)
-- Pronunciation scoring on Live turns (Azure pipeline stays for the explicit Shadowing module).
-- Persisting raw audio.
-- Mobile Safari fallback beyond what `AudioWorklet` already gives us (will note "Chrome/Edge recommended" in UI).
+Edge functions:
 
----
+- `generate-listen-script` — Takes `{format, topic, length, dialect}`. Calls Curriculum Brain / aiBrain with a format-specific prompt that enforces dialect rules (no MSA leakage), produces a structured JSON script aligned to user CEFR, plus title/summary/key_vocabulary. Inserts the episode row and returns it. ~30–60s.
+- `generate-listen-audio` — Background function called immediately after script creation when `audio_mode = full`. For each line, picks a voice from the dialect→voice map (re-use Live Voice / Conversation Simulator mapping; distinct voices per speaker role), generates TTS via Munsit (Gulf) or Azure (Egyptian/Yemeni) following the existing ASR/TTS engine priority, stitches per-line clips, uploads full MP3 to storage, updates `full_audio_url` + `duration_seconds`. Per-line clips also saved to `listen_line_audio` so tap-to-hear stays cheap on replays.
+- `generate-listen-line-audio` — On-demand single-line TTS for tap-to-hear mode; cache-first via `listen_line_audio`.
 
-## 2. Google Search Grounding → Souq News + Culture Guide + Ask Anything
-
-Today these features answer from model memory or from Firecrawl-scraped pages we pass in. Adding the Gemini `googleSearch` tool gives live web results and inline citations with no extra API key.
-
-### Souq News (`souq-news/index.ts`)
-- When the request is `{ mode: "discover" }` (auto-find today's stories) rather than a user-supplied URL, add `tools: [{ googleSearch: {} }]` to the Gemini call.
-- Parse `groundingMetadata.groundingChunks[].web.{uri,title}` from the response and return them alongside the article as `sources: [{ title, url }]`.
-- Keep the existing Firecrawl path unchanged for user-pasted URLs.
-
-### Culture Guide (`culture-guide/index.ts`)
-- Add `tools: [{ googleSearch: {} }]` to every call. Culture questions ("what do Emiratis eat during Eid?") benefit most from live grounding.
-- Append a "Sources" section to the returned markdown using `groundingMetadata`.
-
-### Reading Practice "Ask Anything" (only if it currently has no grounding)
-- Same change: enable `googleSearch` tool, surface sources.
+All three follow existing patterns: `verify_jwt = false` where invoked by service flows, `SUPABASE_SERVICE_ROLE_KEY` for inserts, daily usage cap via `enforceDailyCap` on `generate-listen-script` (e.g. 3/day free).
 
 ### Frontend
-- `SouqNews.tsx` and `CultureGuide.tsx`: render the new `sources` array as small chips under each answer (`<a target="_blank" rel="noreferrer">`). No layout overhaul.
 
-### Constraint
-- `googleSearch` tool is only available on Gemini 2.5 / 2.0 models — fine, we're on `gemini-2.5-flash` / `pro` already.
-- Grounded calls cost slightly more, but well under the new credit.
+- `src/pages/Listen.tsx` — Library + Create tabs.
+- `src/pages/ListenEpisode.tsx` — Player view at `/listen/:id`.
+- `src/components/listen/CreateEpisodeForm.tsx` — Format/topic/length/audio-mode picker with curated topic chips.
+- `src/components/listen/EpisodeCard.tsx` — Library card.
+- `src/components/listen/ScriptLine.tsx` — Speaker label + `TappableArabicText` + line play button.
+- `src/components/listen/EpisodePlayer.tsx` — Sticky bottom player for full-TTS episodes with line-highlight sync (use a simple per-line duration map persisted in the episode row).
+- `src/components/listen/KeyVocabularyPanel.tsx` — Vocab list + bulk add to My Words (reuse existing user_vocabulary hook).
+- `src/hooks/useListenEpisodes.ts` and `useListenEpisode.ts`.
+- Route added in `App.tsx`. Card added to `Today.tsx` / home shortcuts.
 
----
+### Prompt approach (per format)
 
-## Files touched
+Shared rules: target user's CEFR, dialect-only (uses `_shared/dialectHelpers.ts` + dialect rulebook), output strict JSON schema. Format-specific framing:
 
-**New**
-- `supabase/functions/live-session-token/index.ts`
-- `src/hooks/useGeminiLive.ts`
-- `src/components/conversation/LiveVoicePanel.tsx`
+- Podcast: warm two-host banter, intro/segment/outro beats.
+- TED talk: single speaker, hook → personal story → core insight → call to action.
+- Interview: host asks 4–6 sharp questions; guest answers with concrete examples.
+- Story: third-person narrative with dialogue, vivid sensory detail, twist or moral.
 
-**Edited**
-- `src/pages/ConversationSimulator.tsx` — add Live toggle + panel mount
-- `supabase/functions/souq-news/index.ts` — add `googleSearch` tool, return sources
-- `supabase/functions/culture-guide/index.ts` — same
-- `src/pages/SouqNews.tsx`, `src/pages/CultureGuide.tsx` — render source chips
+Topic library is hard-coded in TS (categories with ~10 prompts each, e.g. "Why we procrastinate", "The dying art of pearl diving", "How TikTok changed Khaleeji music", …) but custom input is always allowed.
 
-**Memory**
-- Add `mem://features/conversation-simulator/live-voice` documenting the ephemeral-token flow, voice→dialect map, and 30/day cap.
-- Update `mem://architecture/ai-integration/gateway-strategy` to note that Live API + Search grounding bypass the Lovable gateway and call Google directly with `GEMINI_API_KEY`.
+### Out of scope (for now)
 
-## Risks / open questions
-1. **Voice → dialect fidelity.** Gemini Live voices are not dialect-trained the way Munsit Aisha is. The system prompt forces dialect lexicon/grammar, but accent will be a generic Arabic TTS. Acceptable for conversation practice; we keep Munsit/Azure for pronunciation-critical flows.
-2. **Mobile.** `AudioWorklet` + 16kHz capture works on modern iOS Safari but is fragile. We'll show a Chrome/Edge recommendation banner on first use.
-3. **Session limits.** Google currently caps Live sessions at ~15 min audio. The 10-min server cap keeps us inside that comfortably.
-
-Proceed?
+- Comments/likes on episodes.
+- Background music beds.
+- Multi-language transcripts beyond the existing English/transliteration toggles.
+- Admin pre-approval queue (anyone can publish; admins can delete).

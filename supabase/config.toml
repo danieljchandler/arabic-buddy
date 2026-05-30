@@ -186,3 +186,12 @@ verify_jwt = true
 
 
 
+
+[functions.generate-listen-script]
+verify_jwt = true
+
+[functions.generate-listen-line-audio]
+verify_jwt = true
+
+[functions.generate-listen-audio]
+verify_jwt = false

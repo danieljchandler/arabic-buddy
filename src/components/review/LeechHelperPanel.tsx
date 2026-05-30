@@ -104,8 +104,7 @@ export function LeechHelperPanel({
         : { phrase_arabic: arabic, phrase_english: english, dialect };
       const response = await supabase.functions.invoke(JINGLE_FN_BY_KIND[kind], {
         body,
-        responseType: "blob",
-      } as any);
+      });
       if (response.error) throw new Error(response.error.message || "Failed");
       const audioFile = await createPlayableJingleAudio(response.data);
       const fileName = `jingles/${user.id}/${kind}-${rowId}-${Date.now()}.${audioFile.extension}`;

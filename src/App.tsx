@@ -68,6 +68,8 @@ const AlphabetJourney = lazyPage(() => import("./pages/AlphabetJourney"));
 const AlphabetLetter = lazyPage(() => import("./pages/AlphabetLetter"));
 const AlphabetCheckpoint = lazyPage(() => import("./pages/AlphabetCheckpoint"));
 const MsaBridge = lazyPage(() => import("./pages/MsaBridge"));
+const Listen = lazyPage(() => import("./pages/Listen"));
+const ListenEpisode = lazyPage(() => import("./pages/ListenEpisode"));
 const Terms = lazyPage(() => import("./pages/Terms"));
 const Privacy = lazyPage(() => import("./pages/Privacy"));
 const AdminErrors = lazyPage(() => import("./pages/admin/AdminErrors"));
@@ -274,6 +276,16 @@ const App = () => {
             <Route path="/reading" element={
               <ErrorBoundary name="ReadingRoute">
                 <ReadingPractice />
+              </ErrorBoundary>
+            } />
+            <Route path="/listen" element={
+              <ErrorBoundary name="ListenRoute">
+                <ProtectedRoute><Listen /></ProtectedRoute>
+              </ErrorBoundary>
+            } />
+            <Route path="/listen/:id" element={
+              <ErrorBoundary name="ListenEpisodeRoute">
+                <ProtectedRoute><ListenEpisode /></ProtectedRoute>
               </ErrorBoundary>
             } />
             <Route path="/daily-challenge" element={

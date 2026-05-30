@@ -48,6 +48,7 @@ const TILE_HINTS: Record<string, { title: string; body: string }> = {
   "vocab-games": { title: "Vocabulary Games", body: "Word matching, memory cards, fill-in-the-blanks — sneak in extra practice without it feeling like work." },
   "listening": { title: "Listening Practice", body: "Dictation, comprehension drills, and speed-listening — train your ear on real dialect audio." },
   "reading": { title: "Reading Practice", body: "Short passages with tap-to-translate. Build comprehension without ever reaching for a dictionary." },
+  "listen": { title: "Listen", body: "AI-generated podcasts, TED-style talks, interviews and stories in your dialect. Tap any word to translate or save." },
   "picture-scenes": { title: "Picture Scenes", body: "Themed images with tappable hotspots. Learn whole rooms-worth of vocabulary in a single scene." },
   "bible": { title: "Bible Reading", body: "Read Scripture in Arabic with tap-to-translate, dialect audio, and built-in vocabulary tools." },
   "souq-news": { title: "Souq News", body: "Today's headlines retold like a friend gossiping in dialect. Casual Arabic + current events." },
@@ -545,6 +546,15 @@ const Index = () => {
                 <div className="text-left">
                   <p className="font-semibold text-foreground flex items-center gap-1.5">Reading Practice<InfoHint title={TILE_HINTS.reading.title} body={TILE_HINTS.reading.body} /></p>
                   <p className="text-xs text-muted-foreground">Passages with tap-to-translate & comprehension quiz</p>
+                </div>
+              </button>
+              <button onClick={() => navigate("/listen")} className={cn("w-full p-4 rounded-xl mb-2 bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20 flex items-center gap-3 transition-all duration-200 hover:border-amber-500/40 active:scale-[0.98]")}>
+                <div className="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center shrink-0">
+                  <Headphones className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                </div>
+                <div className="text-left">
+                  <p className="font-semibold text-foreground flex items-center gap-1.5">Listen<InfoHint title={TILE_HINTS.listen.title} body={TILE_HINTS.listen.body} /></p>
+                  <p className="text-xs text-muted-foreground">AI podcasts, TED talks, interviews & stories in dialect</p>
                 </div>
               </button>
               <button onClick={() => navigate("/picture-scenes")} className={cn("w-full p-4 rounded-xl bg-gradient-to-r from-rose-500/10 to-pink-500/10 border border-rose-500/20 flex items-center gap-3 transition-all duration-200 hover:border-rose-500/40 active:scale-[0.98]")}>

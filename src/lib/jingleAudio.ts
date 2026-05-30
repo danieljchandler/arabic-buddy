@@ -25,8 +25,12 @@ const id3TotalSize = (bytes: Uint8Array) => {
 };
 
 const hasMpegFrameSync = (bytes: Uint8Array, offset = 0) => {
-  for (let i = offset; i < bytes.length - 1; i++) {
-    if (isValidMpegHeader(bytes, i)) return true;
+  const limit = Math.min(bytes.length - 4, offset + 16384);
+  for (let i = offset; i < limit; i++) {
+    const frameLength = mpegFrameLength(bytes, i);
+    if (!frameLength) continue;
+    const next = i + frameLength;
+    if (next + 4 <= bytes.length && mpegFrameLength(bytes, next)) return true;
   }
   return false;
 };
@@ -40,6 +44,36 @@ const isValidMpegHeader = (bytes: Uint8Array, offset: number) => {
   const sampleRate = (bytes[offset + 2] >> 2) & 0x03;
   const emphasis = bytes[offset + 3] & 0x03;
   return version !== 0x01 && layer !== 0x00 && bitrate !== 0x00 && bitrate !== 0x0f && sampleRate !== 0x03 && emphasis !== 0x02;
+};
+
+const mpegFrameLength = (bytes: Uint8Array, offset: number) => {
+  if (!isValidMpegHeader(bytes, offset)) return 0;
+  const version = (bytes[offset + 1] >> 3) & 0x03;
+  const layer = (bytes[offset + 1] >> 1) & 0x03;
+  const bitrateIndex = (bytes[offset + 2] >> 4) & 0x0f;
+  const sampleRateIndex = (bytes[offset + 2] >> 2) & 0x03;
+  const padding = (bytes[offset + 2] >> 1) & 0x01;
+  const sampleRates: Record<number, number[]> = {
+    0: [11025, 12000, 8000],
+    2: [22050, 24000, 16000],
+    3: [44100, 48000, 32000],
+  };
+  const v1 = version === 3;
+  const bitrateTable = v1
+    ? layer === 3
+      ? [0, 32, 64, 96, 128, 160, 192, 224, 256, 288, 320, 352, 384, 416, 448]
+      : layer === 2
+      ? [0, 32, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 384]
+      : [0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320]
+    : layer === 3
+    ? [0, 32, 48, 56, 64, 80, 96, 112, 128, 144, 160, 176, 192, 224, 256]
+    : [0, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160];
+  const bitrate = bitrateTable[bitrateIndex] * 1000;
+  const sampleRate = sampleRates[version]?.[sampleRateIndex] ?? 0;
+  if (!bitrate || !sampleRate) return 0;
+  if (layer === 3) return Math.floor(((12 * bitrate) / sampleRate + padding) * 4);
+  const coefficient = layer === 1 && !v1 ? 72 : 144;
+  return Math.floor((coefficient * bitrate) / sampleRate + padding);
 };
 
 const wrapPcmAsWav = (bytes: Uint8Array, sampleRate = DEFAULT_LYRIA_SAMPLE_RATE) => {

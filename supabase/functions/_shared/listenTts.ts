@@ -206,6 +206,80 @@ export async function synthesizeMunsit(
   return new Uint8Array(await resp.arrayBuffer());
 }
 
+// Wrap raw PCM (signed 16-bit LE mono) in a minimal WAV container.
+function pcmToWav(pcm: Uint8Array, sampleRate: number): Uint8Array {
+  const numChannels = 1;
+  const bitsPerSample = 16;
+  const byteRate = sampleRate * numChannels * bitsPerSample / 8;
+  const blockAlign = numChannels * bitsPerSample / 8;
+  const dataSize = pcm.length;
+  const buffer = new Uint8Array(44 + dataSize);
+  const view = new DataView(buffer.buffer);
+  const writeStr = (off: number, s: string) => {
+    for (let i = 0; i < s.length; i++) buffer[off + i] = s.charCodeAt(i);
+  };
+  writeStr(0, "RIFF");
+  view.setUint32(4, 36 + dataSize, true);
+  writeStr(8, "WAVE");
+  writeStr(12, "fmt ");
+  view.setUint32(16, 16, true);            // PCM chunk size
+  view.setUint16(20, 1, true);             // format = PCM
+  view.setUint16(22, numChannels, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, byteRate, true);
+  view.setUint16(32, blockAlign, true);
+  view.setUint16(34, bitsPerSample, true);
+  writeStr(36, "data");
+  view.setUint32(40, dataSize, true);
+  buffer.set(pcm, 44);
+  return buffer;
+}
+
+function b64ToBytes(b64: string): Uint8Array {
+  const bin = atob(b64);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+export async function synthesizeGemini(
+  text: string,
+  voiceName: string,
+  stylePrefix: string,
+): Promise<Uint8Array> {
+  const key = Deno.env.get("GEMINI_API_KEY");
+  if (!key) throw new Error("GEMINI_API_KEY missing");
+  const prompt = `${stylePrefix}${text}`;
+  const url = `${GEMINI_TTS_BASE}/${GEMINI_TTS_MODEL}:generateContent?key=${encodeURIComponent(key)}`;
+  const resp = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: {
+        responseModalities: ["AUDIO"],
+        speechConfig: {
+          voiceConfig: { prebuiltVoiceConfig: { voiceName } },
+        },
+      },
+    }),
+    signal: AbortSignal.timeout(60_000),
+  });
+  if (!resp.ok) {
+    const err = await resp.text();
+    throw new Error(`Gemini TTS ${resp.status}: ${err.slice(0, 200)}`);
+  }
+  const json = await resp.json();
+  const part = json?.candidates?.[0]?.content?.parts?.[0]?.inlineData;
+  const data = part?.data;
+  if (!data) throw new Error("Gemini TTS: no inline audio data in response");
+  const mime: string = part.mimeType ?? "audio/L16;rate=24000";
+  const rateMatch = /rate=(\d+)/i.exec(mime);
+  const sampleRate = rateMatch ? parseInt(rateMatch[1], 10) : 24000;
+  const pcm = b64ToBytes(data);
+  return pcmToWav(pcm, sampleRate);
+}
+
 export async function synthesizeLine(
   text: string,
   role: string,
@@ -216,6 +290,11 @@ export async function synthesizeLine(
     const voices = plan.munsitVoices!;
     const slot = pickVoiceSlot(role, index) % voices.length;
     return synthesizeMunsit(text, voices[slot], plan.munsitModelId!);
+  }
+  if (plan.provider === "gemini") {
+    const voices = plan.geminiVoices!;
+    const slot = pickVoiceSlot(role, index) % voices.length;
+    return synthesizeGemini(text, voices[slot], plan.geminiStylePrefix ?? "");
   }
   const voices = plan.azureVoices!;
   const slot = pickVoiceSlot(role, index) % voices.length;

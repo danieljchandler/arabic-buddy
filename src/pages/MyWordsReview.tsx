@@ -109,7 +109,10 @@ const MyWordsReview = () => {
     }
     const audio = new Audio(url);
     audioRef.current = audio;
-    audio.play().catch(console.error);
+    audio.play().catch((err) => {
+      console.error("Audio playback error:", err);
+      toast.error("Couldn't play that audio. Try regenerating it.");
+    });
   };
 
   const { data: dueWords, isLoading, refetch } = useQuery({
@@ -310,6 +313,7 @@ const MyWordsReview = () => {
           word_english: word.word_english,
           dialect: activeDialect,
         },
+        responseType: "blob",
       });
       if (showCapToastIfLimited(response.error, response.data)) {
         setJingleLoading(false);
@@ -335,8 +339,7 @@ const MyWordsReview = () => {
         (prev) =>
           prev?.map((c) => (c.id === word.id ? { ...c, jingle_audio_url: jingleUrl } : c)),
       );
-      playAudio(jingleUrl);
-      toast.success("🎵 Jingle created!");
+      toast.success("🎵 Jingle created — tap Play jingle to listen.");
     } catch (err: any) {
       console.error("Jingle generation error:", err);
       if (err?.message?.includes("Rate limit") || err?.message?.includes("429")) {

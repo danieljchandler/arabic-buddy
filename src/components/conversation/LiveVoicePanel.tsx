@@ -100,7 +100,7 @@ export function LiveVoicePanel({
                 {t.role === "user" ? "You" : "Tutor"}
               </div>
               {t.role === "assistant" ? (
-                <TappableArabicText text={t.text} dialect={dialect as any} />
+                <TappableArabicText text={t.text} source="conversation-live" />
               ) : (
                 <div dir="auto" className="leading-snug">{t.text}</div>
               )}

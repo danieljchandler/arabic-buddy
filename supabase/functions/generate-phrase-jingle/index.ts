@@ -149,17 +149,38 @@ Output only the prompt.`,
     const mimeType: string = audioPart.inlineData.mimeType || "audio/L16;rate=48000";
     console.log("Lyria mime:", mimeType, "bytes:", audioBytes.length);
 
+    const textAt = (bytes: Uint8Array, offset: number, length: number) =>
+      String.fromCharCode(...bytes.slice(offset, offset + length));
+    const id3TotalSize = (bytes: Uint8Array) => {
+      if (bytes.length < 10 || textAt(bytes, 0, 3) !== "ID3") return 0;
+      const payloadSize =
+        ((bytes[6] & 0x7f) << 21) |
+        ((bytes[7] & 0x7f) << 14) |
+        ((bytes[8] & 0x7f) << 7) |
+        (bytes[9] & 0x7f);
+      return Math.min(bytes.length, 10 + payloadSize);
+    };
+    const hasMpegFrameSync = (bytes: Uint8Array, offset = 0) => {
+      for (let i = offset; i < bytes.length - 1; i++) {
+        if (bytes[i] === 0xff && (bytes[i + 1] & 0xe0) === 0xe0) return true;
+      }
+      return false;
+    };
+
     // Lyria returns raw PCM (audio/L16). Wrap as WAV so browsers can decode it.
     let outBytes = audioBytes;
     let outMime = mimeType;
-    if (/^audio\/(l16|pcm)/i.test(mimeType) || !/mpeg|mp3|wav|ogg|webm/i.test(mimeType)) {
+    const id3Size = id3TotalSize(audioBytes);
+    const looksLikeInvalidMp3 = /^audio\/mpeg/i.test(mimeType) && !hasMpegFrameSync(audioBytes, id3Size);
+    if (/^audio\/(l16|pcm)/i.test(mimeType) || looksLikeInvalidMp3 || !/mpeg|mp3|wav|ogg|webm/i.test(mimeType)) {
       const rateMatch = mimeType.match(/rate=(\d+)/i);
       const sampleRate = rateMatch ? parseInt(rateMatch[1], 10) : 48000;
+      const pcmBytes = looksLikeInvalidMp3 && id3Size > 0 ? audioBytes.slice(id3Size) : audioBytes;
       const channels = 1;
       const bitsPerSample = 16;
       const byteRate = sampleRate * channels * bitsPerSample / 8;
       const blockAlign = channels * bitsPerSample / 8;
-      const dataSize = audioBytes.length;
+      const dataSize = pcmBytes.length - (pcmBytes.length % 2);
       const buffer = new ArrayBuffer(44 + dataSize);
       const view = new DataView(buffer);
       const writeStr = (off: number, s: string) => {
@@ -178,7 +199,7 @@ Output only the prompt.`,
       view.setUint16(34, bitsPerSample, true);
       writeStr(36, "data");
       view.setUint32(40, dataSize, true);
-      new Uint8Array(buffer, 44).set(audioBytes);
+      new Uint8Array(buffer, 44).set(pcmBytes.slice(0, dataSize));
       outBytes = new Uint8Array(buffer);
       outMime = "audio/wav";
     }

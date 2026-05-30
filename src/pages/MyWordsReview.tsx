@@ -111,7 +111,9 @@ const MyWordsReview = () => {
     audioRef.current = audio;
     audio.play().catch((err) => {
       console.error("Audio playback error:", err);
-      toast.error("Couldn't play that audio. Try regenerating it.");
+      if (err?.name !== "NotAllowedError") {
+        toast.error("Couldn't play that audio. Try regenerating it.");
+      }
     });
   };
 
@@ -314,7 +316,7 @@ const MyWordsReview = () => {
           dialect: activeDialect,
         },
         responseType: "blob",
-      });
+      } as any);
       if (showCapToastIfLimited(response.error, response.data)) {
         setJingleLoading(false);
         return;

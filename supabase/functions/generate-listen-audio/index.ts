@@ -1,8 +1,14 @@
-// generate-listen-audio — Generates full-episode audio by synthesizing every
-// line via Azure TTS, caching per-line clips, and concatenating into one MP3
-// (simple sequential MP3 byte stitch — works because Azure returns CBR MP3).
+// generate-listen-audio — Full-episode audio synthesis.
+// Munsit (WAV) for Gulf, Azure (MP3) for others. Concatenates clips into
+// one playable file and caches per-line URLs for tap-to-hear.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import {
+  planProvider,
+  synthesizeLine,
+  concatForPlan,
+  estimateSeconds,
+} from "../_shared/listenTts.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -13,75 +19,6 @@ const corsHeaders = {
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-const VOICE_MAP: Record<string, string[]> = {
-  Gulf: ["ar-AE-HamdanNeural", "ar-AE-FatimaNeural", "ar-SA-HamedNeural", "ar-SA-ZariyahNeural"],
-  Egyptian: ["ar-EG-ShakirNeural", "ar-EG-SalmaNeural", "ar-EG-ShakirNeural", "ar-EG-SalmaNeural"],
-  Yemeni: ["ar-YE-MaryamNeural", "ar-YE-SalehNeural", "ar-YE-MaryamNeural", "ar-YE-SalehNeural"],
-};
-
-function pickVoice(dialect: string, role: string, index: number): string {
-  const voices = VOICE_MAP[dialect] ?? VOICE_MAP.Gulf;
-  const r = (role || "").toLowerCase();
-  let slot = 0;
-  if (r.includes("host_b") || r === "guest" || r === "character") slot = 1;
-  else if (r === "narrator") slot = 2;
-  else if (r === "speaker") slot = 0;
-  else slot = index % 2;
-  return voices[slot % voices.length];
-}
-
-function escapeXml(s: string) {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&apos;");
-}
-
-async function synthesize(text: string, voice: string): Promise<Uint8Array> {
-  const key = Deno.env.get("AZURE_SPEECH_KEY");
-  const endpoint = Deno.env.get("AZURE_SPEECH_ENDPOINT");
-  const region = Deno.env.get("AZURE_SPEECH_REGION") ?? "eastus";
-  if (!key) throw new Error("AZURE_SPEECH_KEY missing");
-  const ttsUrl = endpoint
-    ? `${endpoint.replace(/\/$/, "")}/tts/cognitiveservices/v1`
-    : `https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`;
-  const locale = voice.split("-").slice(0, 2).join("-");
-  const ssml = `<speak version='1.0' xml:lang='${locale}'><voice name='${voice}'>${escapeXml(text)}</voice></speak>`;
-  const resp = await fetch(ttsUrl, {
-    method: "POST",
-    headers: {
-      "Ocp-Apim-Subscription-Key": key,
-      "Content-Type": "application/ssml+xml",
-      "X-Microsoft-OutputFormat": "audio-24khz-48kbitrate-mono-mp3",
-      "User-Agent": "lahja-listen",
-    },
-    body: ssml,
-  });
-  if (!resp.ok) {
-    const err = await resp.text();
-    throw new Error(`Azure TTS ${resp.status}: ${err.slice(0, 200)}`);
-  }
-  return new Uint8Array(await resp.arrayBuffer());
-}
-
-function concatBytes(parts: Uint8Array[]): Uint8Array {
-  const total = parts.reduce((n, p) => n + p.length, 0);
-  const out = new Uint8Array(total);
-  let off = 0;
-  for (const p of parts) {
-    out.set(p, off);
-    off += p.length;
-  }
-  return out;
-}
-
-// Rough MP3 duration estimate from byte size at 48 kbps CBR.
-function estimateSeconds(bytes: number): number {
-  return Math.round((bytes * 8) / 48000);
-}
-
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -89,8 +26,7 @@ Deno.serve(async (req) => {
     const { episodeId } = await req.json();
     if (!episodeId) {
       return new Response(JSON.stringify({ error: "episodeId_required" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -102,12 +38,14 @@ Deno.serve(async (req) => {
       .maybeSingle();
     if (epErr || !episode) {
       return new Response(JSON.stringify({ error: "episode_not_found" }), {
-        status: 404,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     await admin.from("listen_episodes").update({ audio_status: "pending" }).eq("id", episodeId);
+
+    const plan = await planProvider(episode.dialect);
+    console.log(`generate-listen-audio: episode=${episodeId} provider=${plan.provider}`);
 
     const script = (episode.script as any[]) ?? [];
     const parts: Uint8Array[] = [];
@@ -120,18 +58,15 @@ Deno.serve(async (req) => {
         lineDurations.push(0);
         continue;
       }
-      const voice = pickVoice(episode.dialect, line.speaker_role ?? "", i);
-      const bytes = await synthesize(line.arabic, voice);
+      const bytes = await synthesizeLine(line.arabic, line.speaker_role ?? "", i, plan);
       parts.push(bytes);
-      const seconds = estimateSeconds(bytes.length);
+      const seconds = estimateSeconds(bytes.length, plan);
       lineDurations.push(seconds);
       runningSeconds += seconds;
 
-      // Cache per-line clip too (so tap-to-hear is free after full generation)
-      const linePath = `episodes/${episodeId}/line-${i}.mp3`;
+      const linePath = `episodes/${episodeId}/line-${i}.${plan.ext}`;
       await admin.storage.from("listen-audio").upload(linePath, bytes, {
-        contentType: "audio/mpeg",
-        upsert: true,
+        contentType: plan.contentType, upsert: true,
       });
       const { data: pub } = admin.storage.from("listen-audio").getPublicUrl(linePath);
       await admin.from("listen_line_audio").upsert(
@@ -146,11 +81,11 @@ Deno.serve(async (req) => {
       );
     }
 
-    const fullBytes = concatBytes(parts);
-    const fullPath = `episodes/${episodeId}/full.mp3`;
+    const fullBytes = concatForPlan(parts, plan);
+    const fullPath = `episodes/${episodeId}/full.${plan.ext}`;
     const { error: upErr } = await admin.storage
       .from("listen-audio")
-      .upload(fullPath, fullBytes, { contentType: "audio/mpeg", upsert: true });
+      .upload(fullPath, fullBytes, { contentType: plan.contentType, upsert: true });
     if (upErr) throw new Error(`full upload: ${upErr.message}`);
     const { data: fullPub } = admin.storage.from("listen-audio").getPublicUrl(fullPath);
 
@@ -165,7 +100,12 @@ Deno.serve(async (req) => {
       .eq("id", episodeId);
 
     return new Response(
-      JSON.stringify({ ok: true, audio_url: fullPub.publicUrl, duration_seconds: runningSeconds }),
+      JSON.stringify({
+        ok: true,
+        audio_url: fullPub.publicUrl,
+        duration_seconds: runningSeconds,
+        provider: plan.provider,
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (e: any) {
@@ -178,8 +118,7 @@ Deno.serve(async (req) => {
       }
     } catch {}
     return new Response(JSON.stringify({ error: "internal", detail: String(e?.message ?? e) }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });

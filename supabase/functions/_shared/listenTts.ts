@@ -389,15 +389,18 @@ export function concatBytes(parts: Uint8Array[]): Uint8Array {
 }
 
 export function concatForPlan(parts: Uint8Array[], plan: ProviderPlan): Uint8Array {
-  return plan.provider === "munsit" ? concatWav(parts) : concatBytes(parts);
+  return plan.ext === "wav" ? concatWav(parts) : concatBytes(parts);
 }
 
 // Rough duration estimates per provider.
 export function estimateSeconds(bytes: number, plan: ProviderPlan): number {
   if (plan.provider === "munsit") {
     // Munsit typically returns 22.05 kHz mono 16-bit PCM ≈ 44100 B/s.
-    // Subtract small header overhead.
     return Math.max(0, Math.round((bytes - 44) / 44100));
+  }
+  if (plan.provider === "gemini") {
+    // Gemini TTS returns 24 kHz mono 16-bit PCM = 48000 B/s.
+    return Math.max(0, Math.round((bytes - 44) / 48000));
   }
   // Azure 48 kbps CBR MP3
   return Math.round((bytes * 8) / 48000);

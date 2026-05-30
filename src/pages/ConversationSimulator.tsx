@@ -29,6 +29,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { LiveVoicePanel } from "@/components/conversation/LiveVoicePanel";
 
 interface ChatMsg {
   role: "user" | "assistant";

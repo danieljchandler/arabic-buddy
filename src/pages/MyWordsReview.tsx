@@ -137,6 +137,12 @@ const MyWordsReview = () => {
     }
   };
 
+  useEffect(() => {
+    return () => {
+      if (fallbackAudioUrlRef.current) URL.revokeObjectURL(fallbackAudioUrlRef.current);
+    };
+  }, []);
+
   const { data: dueWords, isLoading, refetch } = useQuery({
     queryKey: ["user-vocabulary-due-words", user?.id, activeDialect, newCap],
     queryFn: async (): Promise<DueCard[]> => {
@@ -324,7 +330,7 @@ const MyWordsReview = () => {
   const generateJingle = async (word: DueCard, regenerate = false) => {
     if (!user) return;
     if (word.jingle_audio_url && !regenerate) {
-      playAudio(word.jingle_audio_url);
+      playAudio(word.jingle_audio_url, { repairJingle: true });
       return;
     }
     setJingleLoading(true);

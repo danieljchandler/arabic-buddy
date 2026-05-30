@@ -122,60 +122,77 @@ Output ONLY the music prompt, nothing else.`,
     console.log("Generated music prompt:", musicPrompt);
 
     // Step 2: Call Google Lyria 3 Clip to generate the actual song
-    const lyriaResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/lyria-3-clip-preview:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [{ text: musicPrompt }],
-            },
-          ],
-          generationConfig: {
-            responseModalities: ["AUDIO"],
-          },
-        }),
-      }
-    );
-
-    if (!lyriaResponse.ok) {
-      const status = lyriaResponse.status;
-      const errText = await lyriaResponse.text();
-      console.error("Lyria 3 error:", status, errText);
-
-      if (status === 429) {
-        return new Response(
-          JSON.stringify({ error: "Music generation rate limited, try again later" }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      if (status === 402) {
-        return new Response(
-          JSON.stringify({ error: "Music generation credits exhausted" }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      return new Response(
-        JSON.stringify({ error: "Failed to generate music" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    const callLyria = async (text: string) =>
+      fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/lyria-3-clip-preview:generateContent?key=${GEMINI_API_KEY}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text }] }],
+            generationConfig: { responseModalities: ["AUDIO"] },
+          }),
+        },
       );
+
+    const safeFallbackPrompt = `A cheerful, family-friendly 10-second ${dialectLabel} children's jingle. ${dialectStyle}. A happy group of kids sings the Arabic word "${word_arabic}" three times in a playful, sing-song way over bright, bouncy percussion and a simple melodic hook. Sunny, wholesome, market-day vibe. No lyrics other than the repeated Arabic word and gentle "la la la" vocables.`;
+
+    let lyriaResponse = await callLyria(musicPrompt);
+    let lyriaData: any = null;
+    let audioPart: any = null;
+
+    const extractAudio = (data: any) =>
+      data?.candidates?.[0]?.content?.parts?.find(
+        (p: any) => p.inlineData?.mimeType?.startsWith("audio/"),
+      );
+
+    if (lyriaResponse.ok) {
+      lyriaData = await lyriaResponse.json();
+      audioPart = extractAudio(lyriaData);
     }
 
-    const lyriaData = await lyriaResponse.json();
+    // If blocked by safety filter (or any other "no audio") — retry once with safe prompt.
+    if (!audioPart?.inlineData?.data) {
+      const blockReason = lyriaData?.promptFeedback?.blockReason;
+      const statusText = lyriaResponse.ok ? `no-audio (${blockReason ?? "unknown"})` : `http ${lyriaResponse.status}`;
+      console.warn("Lyria first attempt failed:", statusText, "— retrying with safe fallback prompt.");
 
-    // Extract the audio from the response
-    const audioPart = lyriaData.candidates?.[0]?.content?.parts?.find(
-      (p: any) => p.inlineData?.mimeType?.startsWith("audio/")
-    );
+      if (!lyriaResponse.ok) {
+        const status = lyriaResponse.status;
+        const errText = await lyriaResponse.text().catch(() => "");
+        console.error("Lyria error body:", status, errText);
+        if (status === 429) {
+          return new Response(
+            JSON.stringify({ error: "Music generation rate limited, try again later" }),
+            { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+        if (status === 402) {
+          return new Response(
+            JSON.stringify({ error: "Music generation credits exhausted" }),
+            { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+      }
+
+      lyriaResponse = await callLyria(safeFallbackPrompt);
+      if (!lyriaResponse.ok) {
+        const errText = await lyriaResponse.text().catch(() => "");
+        console.error("Lyria fallback error:", lyriaResponse.status, errText);
+        return new Response(
+          JSON.stringify({ error: "Music generation was blocked by safety filter. Try a different word." }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+      lyriaData = await lyriaResponse.json();
+      audioPart = extractAudio(lyriaData);
+    }
 
     if (!audioPart?.inlineData?.data) {
-      console.error("No audio in Lyria response:", JSON.stringify(lyriaData).slice(0, 500));
+      console.error("No audio in Lyria response (after retry):", JSON.stringify(lyriaData).slice(0, 500));
       return new Response(
-        JSON.stringify({ error: "No audio generated" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: "Music generation was blocked by safety filter. Try a different word." }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 

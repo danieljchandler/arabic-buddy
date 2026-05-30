@@ -48,6 +48,8 @@ serve(async (req) => {
     const dialectRules = getDialectVocabRules(dialect);
     const dialectStyle = dialect === "Egyptian"
       ? "Egyptian Arabic pop/shaabi style with Egyptian dialect vocals"
+      : dialect === "Yemeni"
+      ? "Yemeni folk-pop style with Yemeni dialect vocals"
       : "Khaliji/Gulf Arabic pop style with Gulf dialect vocals";
 
     const promptGenResponse = await fetch(

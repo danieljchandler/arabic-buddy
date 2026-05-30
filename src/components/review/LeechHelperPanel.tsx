@@ -22,7 +22,7 @@ interface LeechHelperPanelProps {
   /** Invalidate which query keys after save. */
   invalidateKeys?: string[][];
   /** Callback so the parent can play audio through its own ref. */
-  onPlayAudio?: (url: string) => void;
+  onPlayAudio?: (url: string, options?: { repairJingle?: boolean }) => void;
 }
 
 const TABLE_BY_KIND: Record<"word" | "phrase", "user_vocabulary" | "user_phrases"> = {
@@ -66,7 +66,7 @@ export function LeechHelperPanel({
   };
 
   const playAudio = (url: string) => {
-    if (onPlayAudio) onPlayAudio(url);
+    if (onPlayAudio) onPlayAudio(url, { repairJingle: true });
     else new Audio(url).play().catch(() => {});
   };
 

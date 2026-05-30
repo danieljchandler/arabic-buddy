@@ -23,7 +23,7 @@ import { useAzureTTS } from "@/hooks/useAzureTTS";
 import { ReviewClozeCard } from "@/components/review/ReviewClozeCard";
 import { useTranscriptCloze } from "@/hooks/useTranscriptCloze";
 import { useNewCardCap, NEW_CAP_OPTIONS, formatCap } from "@/hooks/useNewCardCap";
-import { createPlayableJingleAudio } from "@/lib/jingleAudio";
+import { createPlayableJingleAudio, createPlayableJingleAudioFromUrl } from "@/lib/jingleAudio";
 import {
   Select,
   SelectContent,
@@ -102,21 +102,46 @@ const MyWordsReview = () => {
   const [jingleLoading, setJingleLoading] = useState(false);
   const [imageDialogOpen, setImageDialogOpen] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const fallbackAudioUrlRef = useRef<string | null>(null);
   const updateImage = useUpdateUserVocabularyImage();
 
-  const playAudio = (url: string) => {
+  const playAudio = async (url: string, options?: { repairJingle?: boolean }) => {
     if (audioRef.current) {
       audioRef.current.pause();
     }
+    if (fallbackAudioUrlRef.current) {
+      URL.revokeObjectURL(fallbackAudioUrlRef.current);
+      fallbackAudioUrlRef.current = null;
+    }
     const audio = new Audio(url);
     audioRef.current = audio;
-    audio.play().catch((err) => {
+    try {
+      await audio.play();
+    } catch (err: any) {
       console.error("Audio playback error:", err);
-      if (err?.name !== "NotAllowedError") {
-        toast.error("Couldn't play that audio. Try regenerating it.");
+      if (err?.name === "NotAllowedError") return;
+      if (options?.repairJingle) {
+        try {
+          const audioFile = await createPlayableJingleAudioFromUrl(url);
+          const repairedUrl = URL.createObjectURL(audioFile.blob);
+          fallbackAudioUrlRef.current = repairedUrl;
+          const repairedAudio = new Audio(repairedUrl);
+          audioRef.current = repairedAudio;
+          await repairedAudio.play();
+          return;
+        } catch (repairErr) {
+          console.error("Jingle audio repair failed:", repairErr);
+        }
       }
-    });
+      toast.error("Couldn't play that audio. Try regenerating it.");
+    }
   };
+
+  useEffect(() => {
+    return () => {
+      if (fallbackAudioUrlRef.current) URL.revokeObjectURL(fallbackAudioUrlRef.current);
+    };
+  }, []);
 
   const { data: dueWords, isLoading, refetch } = useQuery({
     queryKey: ["user-vocabulary-due-words", user?.id, activeDialect, newCap],
@@ -305,7 +330,7 @@ const MyWordsReview = () => {
   const generateJingle = async (word: DueCard, regenerate = false) => {
     if (!user) return;
     if (word.jingle_audio_url && !regenerate) {
-      playAudio(word.jingle_audio_url);
+      playAudio(word.jingle_audio_url, { repairJingle: true });
       return;
     }
     setJingleLoading(true);

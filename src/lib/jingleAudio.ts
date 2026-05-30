@@ -4,6 +4,12 @@ export type JingleAudioFile = {
   extension: "mp3" | "wav" | "ogg" | "webm" | "m4a";
 };
 
+type GeneratedJingleAudioResponse = {
+  audioBase64: string;
+  mimeType?: string;
+  extension?: JingleAudioFile["extension"];
+};
+
 const DEFAULT_LYRIA_SAMPLE_RATE = 48000;
 
 const textAt = (bytes: Uint8Array, offset: number, length: number) =>
@@ -117,7 +123,7 @@ const detectAudioMime = (bytes: Uint8Array, declaredType = "") => {
   if (bytes.length >= 12 && textAt(bytes, 0, 4) === "RIFF" && textAt(bytes, 8, 4) === "WAVE") {
     return "audio/wav";
   }
-  if (bytes.length >= 3 && textAt(bytes, 0, 3) === "ID3" && hasMpegFrameSync(bytes, id3TotalSize(bytes))) return "audio/mpeg";
+  if (bytes.length >= 3 && textAt(bytes, 0, 3) === "ID3") return "audio/mpeg";
   if (isValidMpegHeader(bytes, 0)) return "audio/mpeg";
   if (bytes.length >= 4 && textAt(bytes, 0, 4) === "OggS") return "audio/ogg";
   if (bytes.length >= 4 && bytes[0] === 0x1a && bytes[1] === 0x45 && bytes[2] === 0xdf && bytes[3] === 0xa3) return "audio/webm";
@@ -128,7 +134,29 @@ const detectAudioMime = (bytes: Uint8Array, declaredType = "") => {
   return "audio/wav";
 };
 
+const isGeneratedJingleAudioResponse = (data: unknown): data is GeneratedJingleAudioResponse =>
+  typeof data === "object" &&
+  data !== null &&
+  typeof (data as GeneratedJingleAudioResponse).audioBase64 === "string";
+
+const base64ToBytes = (base64: string) => {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+};
+
 export async function createPlayableJingleAudio(data: unknown): Promise<JingleAudioFile> {
+  if (isGeneratedJingleAudioResponse(data)) {
+    const bytes = base64ToBytes(data.audioBase64);
+    const mimeType = detectAudioMime(bytes, data.mimeType || "audio/mpeg");
+    return {
+      blob: new Blob([bytes], { type: mimeType }),
+      mimeType,
+      extension: data.extension || extensionForMime(mimeType),
+    };
+  }
+
   const declaredType = data instanceof Blob ? data.type : "";
   let buffer: ArrayBuffer;
 
@@ -146,16 +174,6 @@ export async function createPlayableJingleAudio(data: unknown): Promise<JingleAu
   }
 
   const bytes = new Uint8Array(buffer);
-  const id3Size = id3TotalSize(bytes);
-  if (id3Size > 0 && !hasMpegFrameSync(bytes, id3Size)) {
-    const wavBytes = wrapPcmAsWav(bytes.slice(id3Size));
-    return {
-      blob: new Blob([wavBytes], { type: "audio/wav" }),
-      mimeType: "audio/wav",
-      extension: "wav",
-    };
-  }
-
   const mimeType = detectAudioMime(bytes, declaredType);
   return {
     blob: new Blob([bytes], { type: mimeType }),

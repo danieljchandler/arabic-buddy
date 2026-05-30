@@ -73,14 +73,20 @@ Your output should be a single music generation prompt in English that describes
 - Be in ${dialectLabel} dialect specifically
 - Use ${dialectStyle}
 - Feature the target Arabic word prominently and repeatedly
-- Be fun, memorable, and educational
+- Be fun, upbeat, family-friendly, and educational
 - Be exactly 10 seconds long
+
+STRICT SAFETY RULES (the music model has a strict safety filter — violations cause generation to fail):
+- NEVER mention violence, war, weapons, captivity, prison, oppression, blood, death, hate, politics, religion, romance, alcohol, drugs, body parts, or anything explicit.
+- Even if the target word literally means something heavy (e.g. "captivity", "kill", "fight"), describe it in a soft, abstract, metaphorical, child-friendly way (e.g. "a playful game", "a gentle puzzle", "letting go", "freedom and sunshine").
+- Lyrics must be cheerful, wholesome, suitable for a children's TV show.
+- Use happy imagery: sunshine, friends, dancing, colors, markets, food, nature.
 
 Output ONLY the music prompt, nothing else.`,
             },
             {
               role: "user",
-              content: `Create a music prompt for a 10-second catchy jingle that teaches the ${dialectLabel} word "${word_arabic}" which means "${word_english}". The song should repeat the word in a memorable way using ${dialectStyle}.`,
+              content: `Create a wholesome, child-friendly 10-second jingle prompt that teaches the ${dialectLabel} word "${word_arabic}" (meaning "${word_english}"). Repeat the Arabic word catchily using ${dialectStyle}. Keep lyrics cheerful and abstract — no violence, politics, religion, or adult themes, even if the word's literal meaning is heavy.`,
             },
           ],
         }),

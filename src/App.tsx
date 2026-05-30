@@ -278,6 +278,16 @@ const App = () => {
                 <ReadingPractice />
               </ErrorBoundary>
             } />
+            <Route path="/listen" element={
+              <ErrorBoundary name="ListenRoute">
+                <ProtectedRoute><Listen /></ProtectedRoute>
+              </ErrorBoundary>
+            } />
+            <Route path="/listen/:id" element={
+              <ErrorBoundary name="ListenEpisodeRoute">
+                <ProtectedRoute><ListenEpisode /></ProtectedRoute>
+              </ErrorBoundary>
+            } />
             <Route path="/daily-challenge" element={
               <ErrorBoundary name="DailyChallengeRoute">
                 <DailyChallenge />

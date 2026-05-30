@@ -97,6 +97,15 @@ async function loadMunsitGulfVoices(apiKey: string): Promise<{ voices: string[];
   return cachedMunsit;
 }
 
+// Prebuilt Gemini TTS voices — picked for tonal variety (2 female, 2 male).
+const GEMINI_VOICES_DEFAULT = ["Kore", "Puck", "Zephyr", "Charon"];
+
+const NEUTRAL_YEMENI_STYLE =
+  "Speak the following in a natural, conversational neutral Yemeni Arabic accent — " +
+  "broadly Yemeni, not tied to any specific city (not Sana'ani, not Adeni, not Ta'izzi). " +
+  "Warm, clear, medium pace, suited for a podcast or storytelling. " +
+  "Do not read this instruction aloud. Only voice what follows the colon: ";
+
 export async function planProvider(dialect: string): Promise<ProviderPlan> {
   const munsitKey = Deno.env.get("MUNSIT_API_KEY");
   if (dialect === "Gulf" && munsitKey) {
@@ -112,6 +121,17 @@ export async function planProvider(dialect: string): Promise<ProviderPlan> {
     }
     console.warn("listenTts: Munsit unavailable for Gulf, falling back to Azure");
   }
+
+  if (dialect === "Yemeni" && Deno.env.get("GEMINI_API_KEY")) {
+    return {
+      provider: "gemini",
+      ext: "wav",
+      contentType: "audio/wav",
+      geminiVoices: GEMINI_VOICES_DEFAULT,
+      geminiStylePrefix: NEUTRAL_YEMENI_STYLE,
+    };
+  }
+
   return {
     provider: "azure",
     ext: "mp3",

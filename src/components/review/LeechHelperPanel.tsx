@@ -1,10 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Loader2, Brain, Music, RefreshCw, AlertTriangle, X } from "lucide-react";
+import { Loader2, Brain, Music, RefreshCw, AlertTriangle, X, Play } from "lucide-react";
 
 interface LeechHelperPanelProps {
   /** "word" or "phrase" — controls table + jingle function. */
@@ -53,6 +53,11 @@ export function LeechHelperPanel({
   const [mnLoading, setMnLoading] = useState(false);
   const [jgLoading, setJgLoading] = useState(false);
 
+  useEffect(() => {
+    setMnemonic(initialMnemonic);
+    setJingleUrl(initialJingleUrl);
+  }, [rowId, initialMnemonic, initialJingleUrl]);
+
   const invalidate = () => {
     invalidateKeys.forEach((key) =>
       queryClient.invalidateQueries({ queryKey: key }),
@@ -98,7 +103,8 @@ export function LeechHelperPanel({
         : { phrase_arabic: arabic, phrase_english: english, dialect };
       const response = await supabase.functions.invoke(JINGLE_FN_BY_KIND[kind], {
         body,
-      });
+        responseType: "blob",
+      } as any);
       if (response.error) throw new Error(response.error.message || "Failed");
       const audioBlob = response.data instanceof Blob
         ? response.data
@@ -116,8 +122,7 @@ export function LeechHelperPanel({
         .update({ jingle_audio_url: url })
         .eq("id", rowId);
       invalidate();
-      playAudio(url);
-      toast.success("🎵 Memory jingle ready!");
+      toast.success("🎵 Memory jingle ready — tap Play to listen.");
     } catch (err: any) {
       const msg = err?.message || "";
       if (msg.includes("429")) toast.error("Rate limited — try again shortly");
@@ -205,7 +210,7 @@ export function LeechHelperPanel({
             className="flex-1 gap-1.5"
             onClick={() => playAudio(jingleUrl)}
           >
-            <Music className="h-4 w-4" /> Play memory jingle
+            <Play className="h-4 w-4" /> Play memory jingle
           </Button>
           <Button
             variant="ghost"

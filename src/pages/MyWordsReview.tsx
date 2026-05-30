@@ -109,7 +109,12 @@ const MyWordsReview = () => {
     }
     const audio = new Audio(url);
     audioRef.current = audio;
-    audio.play().catch(console.error);
+    audio.play().catch((err) => {
+      console.error("Audio playback error:", err);
+      if (err?.name !== "NotAllowedError") {
+        toast.error("Couldn't play that audio. Try regenerating it.");
+      }
+    });
   };
 
   const { data: dueWords, isLoading, refetch } = useQuery({
@@ -310,7 +315,8 @@ const MyWordsReview = () => {
           word_english: word.word_english,
           dialect: activeDialect,
         },
-      });
+        responseType: "blob",
+      } as any);
       if (showCapToastIfLimited(response.error, response.data)) {
         setJingleLoading(false);
         return;
@@ -335,8 +341,7 @@ const MyWordsReview = () => {
         (prev) =>
           prev?.map((c) => (c.id === word.id ? { ...c, jingle_audio_url: jingleUrl } : c)),
       );
-      playAudio(jingleUrl);
-      toast.success("🎵 Jingle created!");
+      toast.success("🎵 Jingle created — tap Play jingle to listen.");
     } catch (err: any) {
       console.error("Jingle generation error:", err);
       if (err?.message?.includes("Rate limit") || err?.message?.includes("429")) {
@@ -620,8 +625,8 @@ const MyWordsReview = () => {
                 disabled={jingleLoading}
                 className="gap-1.5"
               >
-                {jingleLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Music className="h-4 w-4" />}
-                {jingleLoading ? "Creating..." : currentWord.jingle_audio_url ? "🎵 Jingle" : "🎵 Generate"}
+                {jingleLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : currentWord.jingle_audio_url ? <Play className="h-4 w-4" /> : <Music className="h-4 w-4" />}
+                {jingleLoading ? "Creating..." : currentWord.jingle_audio_url ? "Play jingle" : "Generate jingle"}
               </Button>
 
               {currentWord.jingle_audio_url && !jingleLoading && (

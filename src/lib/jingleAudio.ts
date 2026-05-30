@@ -39,7 +39,7 @@ export async function createPlayableJingleAudio(data: unknown): Promise<JingleAu
   } else if (data instanceof ArrayBuffer) {
     buffer = data;
   } else if (ArrayBuffer.isView(data)) {
-    buffer = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
+    buffer = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer;
   } else {
     throw new Error("Generated jingle returned an unreadable audio format");
   }

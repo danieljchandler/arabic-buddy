@@ -178,13 +178,49 @@ Output ONLY the music prompt, nothing else.`,
       atob(audioPart.inlineData.data),
       (c) => c.charCodeAt(0)
     );
-    const mimeType = audioPart.inlineData.mimeType || "audio/mpeg";
+    const mimeType: string = audioPart.inlineData.mimeType || "audio/L16;rate=48000";
+    console.log("Lyria mime:", mimeType, "bytes:", audioBytes.length);
 
-    return new Response(audioBytes, {
+    // Lyria returns raw PCM (audio/L16). Browsers can't play raw PCM via <audio>,
+    // so wrap it in a WAV container. Parse sample rate from mime, default 48000.
+    let outBytes = audioBytes;
+    let outMime = mimeType;
+    if (/^audio\/(l16|pcm)/i.test(mimeType) || !/mpeg|mp3|wav|ogg|webm/i.test(mimeType)) {
+      const rateMatch = mimeType.match(/rate=(\d+)/i);
+      const sampleRate = rateMatch ? parseInt(rateMatch[1], 10) : 48000;
+      const channels = 1;
+      const bitsPerSample = 16;
+      const byteRate = sampleRate * channels * bitsPerSample / 8;
+      const blockAlign = channels * bitsPerSample / 8;
+      const dataSize = audioBytes.length;
+      const buffer = new ArrayBuffer(44 + dataSize);
+      const view = new DataView(buffer);
+      const writeStr = (off: number, s: string) => {
+        for (let i = 0; i < s.length; i++) view.setUint8(off + i, s.charCodeAt(i));
+      };
+      writeStr(0, "RIFF");
+      view.setUint32(4, 36 + dataSize, true);
+      writeStr(8, "WAVE");
+      writeStr(12, "fmt ");
+      view.setUint32(16, 16, true);
+      view.setUint16(20, 1, true); // PCM
+      view.setUint16(22, channels, true);
+      view.setUint32(24, sampleRate, true);
+      view.setUint32(28, byteRate, true);
+      view.setUint16(32, blockAlign, true);
+      view.setUint16(34, bitsPerSample, true);
+      writeStr(36, "data");
+      view.setUint32(40, dataSize, true);
+      new Uint8Array(buffer, 44).set(audioBytes);
+      outBytes = new Uint8Array(buffer);
+      outMime = "audio/wav";
+    }
+
+    return new Response(outBytes, {
       headers: {
         ...corsHeaders,
-        "Content-Type": mimeType,
-        "Content-Disposition": `inline; filename="jingle.mp3"`,
+        "Content-Type": outMime,
+        "Content-Disposition": `inline; filename="jingle.wav"`,
       },
     });
   } catch (e) {

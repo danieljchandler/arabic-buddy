@@ -102,11 +102,12 @@ export function LeechHelperPanel({
       if (response.error) throw new Error(response.error.message || "Failed");
       const audioBlob = response.data instanceof Blob
         ? response.data
-        : new Blob([response.data as ArrayBuffer], { type: "audio/mpeg" });
-      const fileName = `jingles/${user.id}/${kind}-${rowId}-${Date.now()}.mp3`;
+        : new Blob([response.data as ArrayBuffer], { type: "audio/wav" });
+      const ext = audioBlob.type.includes("mpeg") || audioBlob.type.includes("mp3") ? "mp3" : "wav";
+      const fileName = `jingles/${user.id}/${kind}-${rowId}-${Date.now()}.${ext}`;
       const { error: uploadError } = await supabase.storage
         .from("flashcard-audio")
-        .upload(fileName, audioBlob, { contentType: "audio/mpeg", upsert: true });
+        .upload(fileName, audioBlob, { contentType: audioBlob.type || "audio/wav", upsert: true });
       if (uploadError) throw uploadError;
       const { data: urlData } = supabase.storage.from("flashcard-audio").getPublicUrl(fileName);
       const url = urlData.publicUrl;

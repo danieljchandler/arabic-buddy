@@ -23,6 +23,7 @@ import { useAzureTTS } from "@/hooks/useAzureTTS";
 import { ReviewClozeCard } from "@/components/review/ReviewClozeCard";
 import { useTranscriptCloze } from "@/hooks/useTranscriptCloze";
 import { useNewCardCap, NEW_CAP_OPTIONS, formatCap } from "@/hooks/useNewCardCap";
+import { createPlayableJingleAudio } from "@/lib/jingleAudio";
 import {
   Select,
   SelectContent,
@@ -322,14 +323,11 @@ const MyWordsReview = () => {
         return;
       }
       if (response.error) throw new Error(response.error.message || "Failed to generate jingle");
-      const audioBlob = response.data instanceof Blob
-        ? response.data
-        : new Blob([response.data], { type: "audio/wav" });
-      const ext = audioBlob.type.includes("mpeg") || audioBlob.type.includes("mp3") ? "mp3" : "wav";
-      const fileName = `jingles/${user.id}/${word.id}-${Date.now()}.${ext}`;
+      const audioFile = await createPlayableJingleAudio(response.data);
+      const fileName = `jingles/${user.id}/${word.id}-${Date.now()}.${audioFile.extension}`;
       const { error: uploadError } = await supabase.storage
         .from("flashcard-audio")
-        .upload(fileName, audioBlob, { contentType: audioBlob.type || "audio/wav", upsert: true });
+        .upload(fileName, audioFile.blob, { contentType: audioFile.mimeType, upsert: true });
       if (uploadError) throw uploadError;
       const { data: urlData } = supabase.storage.from("flashcard-audio").getPublicUrl(fileName);
       const jingleUrl = urlData.publicUrl;

@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Loader2, Brain, Music, RefreshCw, AlertTriangle, X, Play } from "lucide-react";
+import { createPlayableJingleAudio } from "@/lib/jingleAudio";
 
 interface LeechHelperPanelProps {
   /** "word" or "phrase" — controls table + jingle function. */
@@ -106,14 +107,11 @@ export function LeechHelperPanel({
         responseType: "blob",
       } as any);
       if (response.error) throw new Error(response.error.message || "Failed");
-      const audioBlob = response.data instanceof Blob
-        ? response.data
-        : new Blob([response.data as ArrayBuffer], { type: "audio/wav" });
-      const ext = audioBlob.type.includes("mpeg") || audioBlob.type.includes("mp3") ? "mp3" : "wav";
-      const fileName = `jingles/${user.id}/${kind}-${rowId}-${Date.now()}.${ext}`;
+      const audioFile = await createPlayableJingleAudio(response.data);
+      const fileName = `jingles/${user.id}/${kind}-${rowId}-${Date.now()}.${audioFile.extension}`;
       const { error: uploadError } = await supabase.storage
         .from("flashcard-audio")
-        .upload(fileName, audioBlob, { contentType: audioBlob.type || "audio/wav", upsert: true });
+        .upload(fileName, audioFile.blob, { contentType: audioFile.mimeType, upsert: true });
       if (uploadError) throw uploadError;
       const { data: urlData } = supabase.storage.from("flashcard-audio").getPublicUrl(fileName);
       const url = urlData.publicUrl;

@@ -113,6 +113,25 @@ const MyWordsReview = () => {
       URL.revokeObjectURL(fallbackAudioUrlRef.current);
       fallbackAudioUrlRef.current = null;
     }
+    if (options?.repairJingle) {
+      try {
+        const audioFile = await createPlayableJingleAudioFromUrl(url);
+        const repairedUrl = URL.createObjectURL(audioFile.blob);
+        fallbackAudioUrlRef.current = repairedUrl;
+        const repairedAudio = new Audio(repairedUrl);
+        audioRef.current = repairedAudio;
+        await repairedAudio.play();
+        return;
+      } catch (repairErr) {
+        console.error("Jingle audio repair failed:", repairErr);
+        toast.error(
+          repairErr instanceof Error && repairErr.message.includes("regenerate")
+            ? "This jingle file is corrupted. Tap Regenerate jingle to replace it."
+            : "Couldn't play that audio. Try regenerating it.",
+        );
+        return;
+      }
+    }
     const audio = new Audio(url);
     audioRef.current = audio;
     try {
@@ -120,25 +139,6 @@ const MyWordsReview = () => {
     } catch (err: any) {
       console.error("Audio playback error:", err);
       if (err?.name === "NotAllowedError") return;
-      if (options?.repairJingle) {
-        try {
-          const audioFile = await createPlayableJingleAudioFromUrl(url);
-          const repairedUrl = URL.createObjectURL(audioFile.blob);
-          fallbackAudioUrlRef.current = repairedUrl;
-          const repairedAudio = new Audio(repairedUrl);
-          audioRef.current = repairedAudio;
-          await repairedAudio.play();
-          return;
-        } catch (repairErr) {
-          console.error("Jingle audio repair failed:", repairErr);
-          toast.error(
-            repairErr instanceof Error && repairErr.message.includes("regenerate")
-              ? "This jingle file is corrupted. Tap Regenerate jingle to replace it."
-              : "Couldn't play that audio. Try regenerating it.",
-          );
-          return;
-        }
-      }
       toast.error("Couldn't play that audio. Try regenerating it.");
     }
   };

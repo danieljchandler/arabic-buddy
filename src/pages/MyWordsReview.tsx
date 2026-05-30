@@ -625,8 +625,8 @@ const MyWordsReview = () => {
                 disabled={jingleLoading}
                 className="gap-1.5"
               >
-                {jingleLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Music className="h-4 w-4" />}
-                {jingleLoading ? "Creating..." : currentWord.jingle_audio_url ? "🎵 Jingle" : "🎵 Generate"}
+                {jingleLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : currentWord.jingle_audio_url ? <Play className="h-4 w-4" /> : <Music className="h-4 w-4" />}
+                {jingleLoading ? "Creating..." : currentWord.jingle_audio_url ? "Play jingle" : "Generate jingle"}
               </Button>
 
               {currentWord.jingle_audio_url && !jingleLoading && (

@@ -377,19 +377,45 @@ export default function ConversationSimulator() {
 
       <div className="flex items-center justify-between mb-3">
         <h1 className="text-lg font-semibold inline-flex items-center gap-2">Free Chat <InfoHint {...PAGE_HINTS["conversation"]} /></h1>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => {
-            audioRef.current?.pause();
-            setMessages([]);
-            try { localStorage.removeItem(STORAGE_KEY); } catch {/* ignore */}
-          }}
-          disabled={messages.length === 0 || sending}
-        >
-          <RotateCcw className="h-4 w-4 mr-1" /> New
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant={liveMode ? "default" : "outline"}
+            size="sm"
+            onClick={() => setLiveMode((v) => !v)}
+            disabled={sending}
+            title="Real-time voice call with the tutor"
+          >
+            <Mic className="h-4 w-4 mr-1" />
+            {liveMode ? "Exit live" : "🎙️ Live voice"}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              audioRef.current?.pause();
+              setMessages([]);
+              try { localStorage.removeItem(STORAGE_KEY); } catch {/* ignore */}
+            }}
+            disabled={messages.length === 0 || sending}
+          >
+            <RotateCcw className="h-4 w-4 mr-1" /> New
+          </Button>
+        </div>
       </div>
+
+      {liveMode && (
+        <div className="mb-4">
+          <LiveVoicePanel
+            dialect={activeDialect}
+            difficulty={cefr === "A1" || cefr === "A2" ? "beginner" : cefr === "B1" || cefr === "B2" ? "intermediate" : "advanced"}
+            topicHint={liveTopic}
+            onTurnFinalized={(turn) => {
+              setMessages((prev) => [...prev, { role: turn.role, content: turn.text }]);
+            }}
+            onExitLive={() => setLiveMode(false)}
+          />
+        </div>
+      )}
 
       <div className="flex items-center gap-4 mb-3 text-xs text-muted-foreground">
         <div className="flex items-center gap-1.5">

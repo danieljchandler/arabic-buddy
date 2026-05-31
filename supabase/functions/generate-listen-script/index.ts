@@ -96,6 +96,20 @@ Deno.serve(async (req) => {
     const target = LENGTH_TARGETS[length];
     const framing = FORMAT_FRAMING[format];
 
+    const YEMENI_FLAVOR = `
+YEMENI AUTHENTICITY (CRITICAL — this script is YEMENI, not generic Arabic):
+- Use distinctively Yemeni vocabulary and grammar. Avoid Levantine/Gulf/Egyptian fillers.
+- Pronouns/forms: use Yemeni forms like "كَيْفْ" / "كِيفْ" (not "شلون"), "أَيْشْ" or "إِيشْ" for "what" (not "إيه" or "شو"), "ذَا/ذِي" for "this", second-person plural "أَنْتُمْ" pronounced colloquially, possessive "حَقّ/حَقَّة" (e.g., "الكِتَابْ حَقِّي").
+- Negation: use "مَا ... شْ" pattern is Egyptian — Yemenis usually just say "مَا" before the verb. Use "مُشْ/مَشْ" sparingly, prefer "مَا هُوْشْ" / "مَا هِيْشْ".
+- Common Yemeni discourse markers and interjections to sprinkle naturally: "بَسْ", "عَادْ", "خَلَاصْ", "وَاللهْ", "يَا حَيّ", "يَا سَلَامْ", "اللهْ يِسْتُرْ", "اللهْ يِعِينْ", "صَدِّقْ".
+- Verb morphology: prefer Yemeni present-tense prefix بِـ is NOT used (that's Levantine/Egyptian). Yemenis say "أَنَا أَرُوحْ" not "أَنَا بَرُوحْ". Future marker is "عَادْ" or just context.
+- Cultural texture (use naturally where the topic allows): qat sessions (مَقْيَلْ/تَخْزِينَة), Sana'a old city, Aden, Hadramawt, salta and bint al-sahn food, jambiya, futa, mafraj, Friday gatherings, mountain villages, coffee from Mocha, Yemeni proverbs.
+- Names should sound Yemeni: أَحْمَدْ، صَالِحْ، عَبْدُهْ، فَاطِمَةْ، أُمّ عَلِيْ، أَبُو شَوْقِيْ، نَجِيْبَة، حُسَيْنْ.
+- DO NOT make it sound like a Gulf khaleeji podcast with Yemeni words sprinkled in. The whole rhythm, references, and worldview should feel Yemeni.
+`;
+
+    const dialectFlavor = dialect === "Yemeni" ? YEMENI_FLAVOR : "";
+
     const systemExtra = `You are a creative writer producing engaging spoken-word content in dialect Arabic.
 
 ${framing}
@@ -104,9 +118,10 @@ LENGTH: Produce ${target.lines} lines, totaling ${target.words} Arabic words acr
 TOPIC: "${topic}"
 
 DIALECT RULES (CRITICAL):
-- Every Arabic line MUST be in the target dialect — never Modern Standard Arabic.
+- Every Arabic line MUST be in the target dialect (${dialect}) — never Modern Standard Arabic.
 - No cross-dialect leakage (e.g., do not use Egyptian forms in a Gulf script).
 - Speaker labels should be short and natural in the target culture.
+${dialectFlavor}
 
 TASHKEEL (CRITICAL FOR TTS PRONUNCIATION):
 - Every Arabic line MUST be FULLY VOCALIZED with tashkeel (fatha, kasra, damma, sukun, shadda, tanween) on every consonant where a vowel applies.

@@ -134,10 +134,11 @@ Return ONLY the structured fields via the provided tool.`;
       brain = await askBrain<BrainPayload>({
         purpose: "story",
         dialect,
-        strategy: "draft_critic",
+        strategy: "solo",
+        models: ["google/gemini-2.5-flash"],
         systemPromptExtra: systemExtra,
         userPrompt,
-        maxTokens: 8000,
+        maxTokens: 6000,
         temperature: 0.8,
         arabicTextPath: (p: any) =>
           Array.isArray(p?.script) ? p.script.map((l: any) => l?.arabic ?? "").join("\n") : "",

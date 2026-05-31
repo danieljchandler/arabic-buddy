@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Loader2, Sparkles, Mic, Headphones, Users, BookOpen, Play, Library, Plus } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
+import { HomeButton } from "@/components/HomeButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -72,7 +73,8 @@ const Listen = () => {
   return (
     <AppShell>
       <div className="space-y-6 pb-20">
-        <header className="space-y-1">
+        <header className="space-y-2">
+          <HomeButton />
           <h1 className="text-3xl font-bold tracking-tight text-foreground">Listen</h1>
           <p className="text-sm text-muted-foreground">
             AI-generated podcasts, talks, interviews & stories in {activeDialect} dialect.

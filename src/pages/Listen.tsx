@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Loader2, Sparkles, Mic, Headphones, Users, BookOpen, Play, Library, Plus } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
+import { HomeButton } from "@/components/HomeButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";

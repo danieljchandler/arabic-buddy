@@ -108,15 +108,22 @@ DIALECT RULES (CRITICAL):
 - No cross-dialect leakage (e.g., do not use Egyptian forms in a Gulf script).
 - Speaker labels should be short and natural in the target culture.
 
+TASHKEEL (CRITICAL FOR TTS PRONUNCIATION):
+- Every Arabic line MUST be FULLY VOCALIZED with tashkeel (fatha, kasra, damma, sukun, shadda, tanween) on every consonant where a vowel applies.
+- Example: write "مَرْحَبًا يَا جَمَاعَة، شُو أَخْبَارْكُمْ" — NOT "مرحبا يا جماعة، شو أخباركم".
+- This is mandatory so the TTS engine pronounces dialect words correctly. Missing tashkeel = wrong pronunciation.
+- Apply tashkeel to the dialect spellings (do NOT force MSA forms just to add diacritics).
+- key_vocabulary.arabic must also be fully vocalized.
+
 OUTPUT:
-- title: a short, catchy Arabic title (≤ 60 chars).
+- title: a short, catchy Arabic title (≤ 60 chars), fully vocalized.
 - summary: a one-sentence English teaser (≤ 140 chars).
 - script: array of lines, each { speaker, speaker_role, arabic, english, transliteration? }.
   - speaker_role: one of "host_a","host_b","speaker","host","guest","narrator","character".
-  - arabic: the line in target dialect.
+  - arabic: the line in target dialect, FULLY VOCALIZED with tashkeel.
   - english: faithful natural English translation.
   - transliteration: optional simple Latin transliteration.
-- key_vocabulary: 8-15 useful words or short phrases drawn from the script: { arabic, english, note? } — pick learner-valuable items, not function words.
+- key_vocabulary: 8-15 useful words or short phrases drawn from the script: { arabic, english, note? } — pick learner-valuable items, not function words. arabic must be fully vocalized.
 
 Return ONLY the structured fields via the provided tool.`;
 
@@ -127,10 +134,11 @@ Return ONLY the structured fields via the provided tool.`;
       brain = await askBrain<BrainPayload>({
         purpose: "story",
         dialect,
-        strategy: "draft_critic",
+        strategy: "solo",
+        models: ["google/gemini-2.5-flash"],
         systemPromptExtra: systemExtra,
         userPrompt,
-        maxTokens: 8000,
+        maxTokens: 6000,
         temperature: 0.8,
         arabicTextPath: (p: any) =>
           Array.isArray(p?.script) ? p.script.map((l: any) => l?.arabic ?? "").join("\n") : "",

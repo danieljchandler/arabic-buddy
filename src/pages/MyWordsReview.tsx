@@ -197,6 +197,7 @@ const MyWordsReview = () => {
           sentence_audio_url: r.sentence_audio_url,
           image_url: r.image_url,
           jingle_audio_url: r.jingle_audio_url,
+          jingle_lyrics: (r as any).jingle_lyrics ?? null,
           sentence_text: r.sentence_text,
           sentence_english: r.sentence_english,
           lapses: r.lapses ?? 0,

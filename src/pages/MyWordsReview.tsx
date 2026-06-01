@@ -683,6 +683,44 @@ const MyWordsReview = () => {
               )}
             </div>
 
+            {currentWord.jingle_audio_url && currentWord.jingle_lyrics && (
+              <div className="mb-4">
+                {showLyrics ? (
+                  <div className="rounded-lg bg-muted/40 border border-border p-3 text-left animate-in fade-in duration-200 max-w-md mx-auto">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        Jingle lyrics
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setShowLyrics(false)}
+                        className="text-[10px] uppercase tracking-wide text-muted-foreground hover:text-foreground"
+                      >
+                        Hide
+                      </button>
+                    </div>
+                    <p
+                      className="text-sm leading-relaxed whitespace-pre-line"
+                      dir="rtl"
+                      style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
+                    >
+                      {currentWord.jingle_lyrics}
+                    </p>
+                  </div>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowLyrics(true)}
+                    className="gap-1.5 text-muted-foreground text-xs"
+                  >
+                    Show lyrics
+                  </Button>
+                )}
+              </div>
+            )}
+
+
             {/* Pronunciation practice — only meaningful once Arabic is visible */}
             {(showAnswer || !isProduction) && (
               <div className="mb-6">

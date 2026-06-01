@@ -93,11 +93,21 @@ const AdminDialectRules = () => {
       });
       if (error) throw error;
       toast({
-        title: 'Drafts created',
-        description: `${data?.inserted ?? 0} new candidate rule(s) added for review.`,
+        title: 'Drafting in background',
+        description:
+          data?.message ??
+          'The council is working on it. You can navigate away — drafts will appear in the Draft tab in ~1–3 minutes.',
       });
       setGuidance('');
-      qc.invalidateQueries({ queryKey: ['dialect_rules', activeDialect] });
+      // Poll for new drafts for the next 4 minutes, then stop.
+      const dialectAtStart = activeDialect;
+      const start = Date.now();
+      const interval = window.setInterval(() => {
+        qc.invalidateQueries({ queryKey: ['dialect_rules', dialectAtStart] });
+        if (Date.now() - start > 4 * 60 * 1000) {
+          window.clearInterval(interval);
+        }
+      }, 15000);
     } catch (err) {
       toast({
         variant: 'destructive',

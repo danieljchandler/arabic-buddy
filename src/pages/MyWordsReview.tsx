@@ -78,6 +78,7 @@ interface RawRow {
   sentence_audio_url: string | null;
   image_url: string | null;
   jingle_audio_url: string | null;
+  jingle_lyrics: string | null;
   sentence_text: string | null;
   sentence_english: string | null;
   lapses: number | null;

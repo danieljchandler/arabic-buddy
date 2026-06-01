@@ -768,9 +768,7 @@ const MyWordsReview = () => {
               english={currentWord.word_english}
               dialect={activeDialect}
               mnemonic={currentWord.mnemonic}
-              jingleAudioUrl={currentWord.jingle_audio_url}
               invalidateKeys={[["user-vocabulary-due-words"]]}
-              onPlayAudio={playAudio}
             />
           )}
         </div>

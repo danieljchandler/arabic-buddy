@@ -50,6 +50,7 @@ interface DueCard {
   sentence_audio_url: string | null;
   image_url: string | null;
   jingle_audio_url: string | null;
+  jingle_lyrics: string | null;
   sentence_text: string | null;
   sentence_english: string | null;
   lapses: number;
@@ -77,6 +78,7 @@ interface RawRow {
   sentence_audio_url: string | null;
   image_url: string | null;
   jingle_audio_url: string | null;
+  jingle_lyrics: string | null;
   sentence_text: string | null;
   sentence_english: string | null;
   lapses: number | null;
@@ -100,6 +102,7 @@ const MyWordsReview = () => {
   const [showContext, setShowContext] = useState(false);
   const [sessionCount, setSessionCount] = useState(0);
   const [jingleLoading, setJingleLoading] = useState(false);
+  const [showLyrics, setShowLyrics] = useState(false);
   const [imageDialogOpen, setImageDialogOpen] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const fallbackAudioUrlRef = useRef<string | null>(null);
@@ -158,7 +161,7 @@ const MyWordsReview = () => {
       // Fetch all rows that are due in either direction. We do two queries
       // and merge so each direction can be tagged independently.
       const baseSelect =
-        "id, word_arabic, word_english, ease_factor, interval_days, repetitions, next_review_at, last_reviewed_at, production_ease_factor, production_interval_days, production_repetitions, production_next_review_at, production_last_reviewed_at, word_audio_url, sentence_audio_url, image_url, jingle_audio_url, sentence_text, sentence_english, lapses, production_lapses, is_leech, mnemonic, root";
+        "id, word_arabic, word_english, ease_factor, interval_days, repetitions, next_review_at, last_reviewed_at, production_ease_factor, production_interval_days, production_repetitions, production_next_review_at, production_last_reviewed_at, word_audio_url, sentence_audio_url, image_url, jingle_audio_url, jingle_lyrics, sentence_text, sentence_english, lapses, production_lapses, is_leech, mnemonic, root";
 
       const { data: recogRows, error: recogErr } = await (supabase
         .from("user_vocabulary")
@@ -195,6 +198,7 @@ const MyWordsReview = () => {
           sentence_audio_url: r.sentence_audio_url,
           image_url: r.image_url,
           jingle_audio_url: r.jingle_audio_url,
+          jingle_lyrics: (r as any).jingle_lyrics ?? null,
           sentence_text: r.sentence_text,
           sentence_english: r.sentence_english,
           lapses: r.lapses ?? 0,
@@ -219,6 +223,7 @@ const MyWordsReview = () => {
           sentence_audio_url: r.sentence_audio_url,
           image_url: r.image_url,
           jingle_audio_url: r.jingle_audio_url,
+          jingle_lyrics: (r as any).jingle_lyrics ?? null,
           sentence_text: r.sentence_text,
           sentence_english: r.sentence_english,
           lapses: r.lapses ?? 0,
@@ -321,6 +326,7 @@ const MyWordsReview = () => {
   useEffect(() => {
     setShowAnswer(false);
     setShowContext(false);
+    setShowLyrics(false);
   }, [currentWord?.id, currentWord?.card_type]);
 
   // Auto-play: only on recognition cards (audio reinforces what's shown).
@@ -361,14 +367,21 @@ const MyWordsReview = () => {
       if (uploadError) throw uploadError;
       const { data: urlData } = supabase.storage.from("flashcard-audio").getPublicUrl(fileName);
       const jingleUrl = urlData.publicUrl;
-      await supabase.from("user_vocabulary").update({ jingle_audio_url: jingleUrl } as any).eq("id", word.id);
+      const lyrics = (response.data as { lyrics?: string | null })?.lyrics ?? null;
+      await supabase
+        .from("user_vocabulary")
+        .update({ jingle_audio_url: jingleUrl, jingle_lyrics: lyrics } as any)
+        .eq("id", word.id);
       // Patch the cached list in place so we don't refetch + reorder the queue
       // while the user is listening to the freshly generated jingle.
       queryClient.setQueriesData<DueCard[] | undefined>(
         { queryKey: ["user-vocabulary-due-words"] },
         (prev) =>
-          prev?.map((c) => (c.id === word.id ? { ...c, jingle_audio_url: jingleUrl } : c)),
+          prev?.map((c) =>
+            c.id === word.id ? { ...c, jingle_audio_url: jingleUrl, jingle_lyrics: lyrics } : c,
+          ),
       );
+      setShowLyrics(true);
       toast.success("🎵 Jingle created — tap Play jingle to listen.");
     } catch (err: any) {
       console.error("Jingle generation error:", err);
@@ -670,6 +683,44 @@ const MyWordsReview = () => {
               )}
             </div>
 
+            {currentWord.jingle_audio_url && currentWord.jingle_lyrics && (
+              <div className="mb-4">
+                {showLyrics ? (
+                  <div className="rounded-lg bg-muted/40 border border-border p-3 text-left animate-in fade-in duration-200 max-w-md mx-auto">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        Jingle lyrics
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setShowLyrics(false)}
+                        className="text-[10px] uppercase tracking-wide text-muted-foreground hover:text-foreground"
+                      >
+                        Hide
+                      </button>
+                    </div>
+                    <p
+                      className="text-sm leading-relaxed whitespace-pre-line"
+                      dir="rtl"
+                      style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
+                    >
+                      {currentWord.jingle_lyrics}
+                    </p>
+                  </div>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowLyrics(true)}
+                    className="gap-1.5 text-muted-foreground text-xs"
+                  >
+                    Show lyrics
+                  </Button>
+                )}
+              </div>
+            )}
+
+
             {/* Pronunciation practice — only meaningful once Arabic is visible */}
             {(showAnswer || !isProduction) && (
               <div className="mb-6">
@@ -768,9 +819,7 @@ const MyWordsReview = () => {
               english={currentWord.word_english}
               dialect={activeDialect}
               mnemonic={currentWord.mnemonic}
-              jingleAudioUrl={currentWord.jingle_audio_url}
               invalidateKeys={[["user-vocabulary-due-words"]]}
-              onPlayAudio={playAudio}
             />
           )}
         </div>

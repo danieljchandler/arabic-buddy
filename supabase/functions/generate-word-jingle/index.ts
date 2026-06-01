@@ -65,30 +65,28 @@ serve(async (req) => {
           messages: [
             {
               role: "system",
-              content: `You are a creative music director specializing in Arabic educational songs. You write short, catchy music prompts for AI music generation.
+              content: `You are a creative music director for Arabic educational jingles.
 
 ${dialectRules}
 
-Your output should be a single music generation prompt in English that describes a 10-second catchy jingle/song. The song MUST:
-- Be in ${dialectLabel} dialect specifically
-- Use ${dialectStyle}
-- Feature the target Arabic word prominently and repeatedly
-- Be fun, upbeat, family-friendly, and educational
-- Be exactly 10 seconds long
+Return STRICT JSON only (no markdown fences, no commentary), shape:
+{
+  "lyrics": "<the actual sung lyrics in ${dialectLabel} Arabic with full tashkeel (harakat). 2-4 short lines. Repeat the target word at least 3 times. A tiny bit of simple English is OK if it helps the hook.>",
+  "prompt": "<English music-generation prompt: 10-second ${dialectStyle} jingle, describe mood, tempo, voices, instrumentation. Emphasize that the lyrics above must be sung clearly and prominently.>"
+}
 
 STRICT SAFETY RULES (the music model has a strict safety filter — violations cause generation to fail):
 - NEVER mention violence, war, weapons, captivity, prison, oppression, blood, death, hate, politics, religion, romance, alcohol, drugs, body parts, or anything explicit.
-- Even if the target word literally means something heavy (e.g. "captivity", "kill", "fight"), describe it in a soft, abstract, metaphorical, child-friendly way (e.g. "a playful game", "a gentle puzzle", "letting go", "freedom and sunshine").
+- Even if the target word literally means something heavy (e.g. "captivity", "kill", "fight"), express it in a soft, abstract, child-friendly way.
 - Lyrics must be cheerful, wholesome, suitable for a children's TV show.
-- Use happy imagery: sunshine, friends, dancing, colors, markets, food, nature.
-
-Output ONLY the music prompt, nothing else.`,
+- Use happy imagery: sunshine, friends, dancing, colors, markets, food, nature.`,
             },
             {
               role: "user",
-              content: `Create a wholesome, child-friendly 10-second jingle prompt that teaches the ${dialectLabel} word "${word_arabic}" (meaning "${word_english}"). Repeat the Arabic word catchily using ${dialectStyle}. Keep lyrics cheerful and abstract — no violence, politics, religion, or adult themes, even if the word's literal meaning is heavy.`,
+              content: `Create a wholesome 10-second jingle that teaches the ${dialectLabel} word "${word_arabic}" (meaning "${word_english}"). Arabic must include tashkeel. Return JSON only.`,
             },
           ],
+          response_format: { type: "json_object" },
         }),
       }
     );
@@ -110,7 +108,22 @@ Output ONLY the music prompt, nothing else.`,
     }
 
     const promptData = await promptGenResponse.json();
-    const musicPrompt = promptData.choices?.[0]?.message?.content?.trim();
+    const rawContent: string = promptData.choices?.[0]?.message?.content?.trim() ?? "";
+    let lyrics = "";
+    let stylePrompt = "";
+    try {
+      const cleaned = rawContent.replace(/^```json\s*/i, "").replace(/```\s*$/i, "").trim();
+      const parsed = JSON.parse(cleaned);
+      lyrics = String(parsed.lyrics || "").trim();
+      stylePrompt = String(parsed.prompt || "").trim();
+    } catch (err) {
+      console.warn("Failed to parse jingle JSON, using raw content as prompt:", err);
+      stylePrompt = rawContent;
+    }
+
+    const musicPrompt = lyrics
+      ? `${stylePrompt}\n\nLyrics to sing clearly (${dialectLabel} Arabic with tashkeel):\n${lyrics}`
+      : stylePrompt;
 
     if (!musicPrompt) {
       return new Response(
@@ -250,6 +263,7 @@ Output ONLY the music prompt, nothing else.`,
       audioBase64: btoa(audioBase64),
       mimeType: outMime,
       extension: outMime.includes("mpeg") || outMime.includes("mp3") ? "mp3" : "wav",
+      lyrics: lyrics || null,
     }), {
       headers: {
         ...corsHeaders,

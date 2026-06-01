@@ -9,14 +9,16 @@ import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Rating, calculateNextReview } from "@/lib/spacedRepetition";
 import { useAzureTTS } from "@/hooks/useAzureTTS";
-import { Loader2, Trophy, LogIn, Eye, Volume2, Trash2, MessageCircleQuestion } from "lucide-react";
+import { Loader2, Trophy, LogIn, Eye, Volume2, Trash2, MessageCircleQuestion, Music, Play, RefreshCw } from "lucide-react";
 import { LeechHelperPanel } from "@/components/review/LeechHelperPanel";
 import { useLeechPrefs } from "@/hooks/useLeechPrefs";
+import { createPlayableJingleAudio, createPlayableJingleAudioFromUrl } from "@/lib/jingleAudio";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 const MyPhrasesReview = () => {
   const navigate = useNavigate();
-  const { isAuthenticated, loading: authLoading } = useAuth();
+  const { isAuthenticated, loading: authLoading, user } = useAuth();
   const { activeDialect } = useDialect();
   const { enabled: leechTrackingEnabled } = useLeechPrefs();
   const { data: duePhrases, isLoading, refetch } = useDueUserPhrases();
@@ -26,6 +28,8 @@ const MyPhrasesReview = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showAnswer, setShowAnswer] = useState(false);
   const [sessionCount, setSessionCount] = useState(0);
+  const [jingleLoading, setJingleLoading] = useState(false);
+  const [showLyrics, setShowLyrics] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const safeIndex =
@@ -40,16 +44,75 @@ const MyPhrasesReview = () => {
     dialect: activeDialect,
   });
 
-  const playAudio = (url: string) => {
+  const playAudio = async (url: string, options?: { repairJingle?: boolean }) => {
     if (audioRef.current) audioRef.current.pause();
+    if (options?.repairJingle) {
+      try {
+        const audioFile = await createPlayableJingleAudioFromUrl(url);
+        const objectUrl = URL.createObjectURL(audioFile.blob);
+        const audio = new Audio(objectUrl);
+        audioRef.current = audio;
+        audio.onended = () => URL.revokeObjectURL(objectUrl);
+        audio.play().catch(() => {});
+        return;
+      } catch (err) {
+        console.error("Jingle repair failed:", err);
+        toast.error("This jingle is corrupted — tap Regenerate to replace it.");
+        return;
+      }
+    }
     const audio = new Audio(url);
     audioRef.current = audio;
     audio.play().catch(() => {});
   };
 
+  const generateJingle = async (regenerate = false) => {
+    if (!current || !user) return;
+    if (current.jingle_audio_url && !regenerate) {
+      playAudio(current.jingle_audio_url, { repairJingle: true });
+      return;
+    }
+    setJingleLoading(true);
+    try {
+      const response = await supabase.functions.invoke("generate-phrase-jingle", {
+        body: {
+          phrase_arabic: current.phrase_arabic,
+          phrase_english: current.phrase_english,
+          dialect: activeDialect,
+        },
+      });
+      if (response.error) throw new Error(response.error.message || "Failed to generate jingle");
+      const audioFile = await createPlayableJingleAudio(response.data);
+      const fileName = `jingles/${user.id}/phrase-${current.id}-${Date.now()}.${audioFile.extension}`;
+      const { error: uploadError } = await supabase.storage
+        .from("flashcard-audio")
+        .upload(fileName, audioFile.blob, { contentType: audioFile.mimeType, upsert: true });
+      if (uploadError) throw uploadError;
+      const { data: urlData } = supabase.storage.from("flashcard-audio").getPublicUrl(fileName);
+      const jingleUrl = urlData.publicUrl;
+      const lyrics = (response.data as { lyrics?: string | null })?.lyrics ?? null;
+      await (supabase.from("user_phrases") as any)
+        .update({ jingle_audio_url: jingleUrl, jingle_lyrics: lyrics })
+        .eq("id", current.id);
+      current.jingle_audio_url = jingleUrl;
+      current.jingle_lyrics = lyrics;
+      toast.success("🎵 Jingle created — tap Play to listen.");
+      setShowLyrics(true);
+    } catch (err: any) {
+      const msg = err?.message || "";
+      if (msg.includes("429")) toast.error("Rate limited — try again shortly");
+      else if (msg.includes("402")) toast.error("AI credits exhausted");
+      else toast.error("Failed to generate jingle");
+    } finally {
+      setJingleLoading(false);
+    }
+  };
+
+
   // Reset reveal between cards
   useEffect(() => {
     setShowAnswer(false);
+    setShowLyrics(false);
   }, [current?.id]);
 
   const handleRate = async (rating: Rating) => {
@@ -206,7 +269,7 @@ const MyPhrasesReview = () => {
                 {current.notes && (
                   <p className="text-xs text-muted-foreground italic">{current.notes}</p>
                 )}
-                <div className="flex justify-center pt-1">
+                <div className="flex justify-center flex-wrap gap-2 pt-1">
                   <Button
                     variant="outline"
                     size="sm"
@@ -221,7 +284,73 @@ const MyPhrasesReview = () => {
                     )}
                     Play audio
                   </Button>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => generateJingle()}
+                    disabled={jingleLoading}
+                    className="gap-1.5"
+                  >
+                    {jingleLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : current.jingle_audio_url ? (
+                      <Play className="h-4 w-4" />
+                    ) : (
+                      <Music className="h-4 w-4" />
+                    )}
+                    {jingleLoading ? "Creating..." : current.jingle_audio_url ? "Play jingle" : "Generate jingle"}
+                  </Button>
+
+                  {current.jingle_audio_url && !jingleLoading && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => generateJingle(true)}
+                      title="Regenerate jingle"
+                    >
+                      <RefreshCw className="h-3.5 w-3.5 text-muted-foreground" />
+                    </Button>
+                  )}
                 </div>
+
+                {current.jingle_audio_url && current.jingle_lyrics && (
+                  <div className="mt-2">
+                    {showLyrics ? (
+                      <div className="rounded-lg bg-muted/40 border border-border p-3 text-left animate-in fade-in duration-200">
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                            Lyrics
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setShowLyrics(false)}
+                            className="text-[10px] uppercase tracking-wide text-muted-foreground hover:text-foreground"
+                          >
+                            Hide
+                          </button>
+                        </div>
+                        <p
+                          className="text-sm leading-relaxed whitespace-pre-line font-arabic"
+                          dir="rtl"
+                          style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
+                        >
+                          {current.jingle_lyrics}
+                        </p>
+                      </div>
+                    ) : (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowLyrics(true)}
+                        className="gap-1.5 text-muted-foreground text-xs"
+                      >
+                        Show lyrics
+                      </Button>
+                    )}
+                  </div>
+                )}
               </div>
             ) : (
               <Button
@@ -245,9 +374,7 @@ const MyPhrasesReview = () => {
               transliteration={current.transliteration}
               dialect={activeDialect}
               mnemonic={current.mnemonic ?? null}
-              jingleAudioUrl={current.jingle_audio_url ?? null}
               invalidateKeys={[["user-phrases-due"], ["user-phrases"]]}
-              onPlayAudio={playAudio}
             />
           )}
 

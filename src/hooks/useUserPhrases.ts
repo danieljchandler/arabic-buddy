@@ -24,6 +24,7 @@ export interface UserPhrase {
   is_leech?: boolean;
   mnemonic?: string | null;
   jingle_audio_url?: string | null;
+  jingle_lyrics?: string | null;
 }
 
 export const useUserPhrases = (mixAll = false) => {

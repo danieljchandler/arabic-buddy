@@ -326,6 +326,7 @@ const MyWordsReview = () => {
   useEffect(() => {
     setShowAnswer(false);
     setShowContext(false);
+    setShowLyrics(false);
   }, [currentWord?.id, currentWord?.card_type]);
 
   // Auto-play: only on recognition cards (audio reinforces what's shown).

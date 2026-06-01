@@ -10,7 +10,8 @@ export function parseVideoUrl(url: string): { platform: string; videoId: string;
     return {
       platform: "youtube",
       videoId: ytMatch[1],
-      embedUrl: `https://www.youtube.com/embed/${ytMatch[1]}?enablejsapi=1&origin=${window.location.origin}`,
+      // Use youtube-nocookie.com to avoid sign-in / consent prompts in embeds
+      embedUrl: `https://www.youtube-nocookie.com/embed/${ytMatch[1]}?enablejsapi=1&rel=0&modestbranding=1&playsinline=1&origin=${window.location.origin}`,
     };
   }
 

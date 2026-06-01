@@ -147,40 +147,5 @@ export function LeechHelperPanel({
         </Button>
       )}
 
-      {/* Jingle */}
-      {jingleUrl ? (
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="flex-1 gap-1.5"
-            onClick={() => playAudio(jingleUrl)}
-          >
-            <Play className="h-4 w-4" /> Play memory jingle
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-9 w-9"
-            onClick={generateJingle}
-            disabled={jgLoading}
-            title="Regenerate jingle"
-          >
-            {jgLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-          </Button>
-        </div>
-      ) : (
-        <Button
-          variant="outline"
-          size="sm"
-          className="w-full gap-1.5"
-          onClick={generateJingle}
-          disabled={jgLoading}
-        >
-          {jgLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Music className="h-4 w-4" />}
-          {jgLoading ? "Composing jingle..." : "Generate memory jingle"}
-        </Button>
-      )}
-    </div>
   );
 }

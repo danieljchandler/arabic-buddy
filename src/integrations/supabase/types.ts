@@ -2691,6 +2691,7 @@ export type Database = {
           interval_days: number
           is_leech: boolean
           jingle_audio_url: string | null
+          jingle_lyrics: string | null
           lapses: number
           last_reviewed_at: string | null
           mnemonic: string | null
@@ -2713,6 +2714,7 @@ export type Database = {
           interval_days?: number
           is_leech?: boolean
           jingle_audio_url?: string | null
+          jingle_lyrics?: string | null
           lapses?: number
           last_reviewed_at?: string | null
           mnemonic?: string | null
@@ -2735,6 +2737,7 @@ export type Database = {
           interval_days?: number
           is_leech?: boolean
           jingle_audio_url?: string | null
+          jingle_lyrics?: string | null
           lapses?: number
           last_reviewed_at?: string | null
           mnemonic?: string | null
@@ -2879,6 +2882,7 @@ export type Database = {
           interval_days: number
           is_leech: boolean
           jingle_audio_url: string | null
+          jingle_lyrics: string | null
           lapses: number
           last_result: string | null
           last_reviewed_at: string | null
@@ -2917,6 +2921,7 @@ export type Database = {
           interval_days?: number
           is_leech?: boolean
           jingle_audio_url?: string | null
+          jingle_lyrics?: string | null
           lapses?: number
           last_result?: string | null
           last_reviewed_at?: string | null
@@ -2955,6 +2960,7 @@ export type Database = {
           interval_days?: number
           is_leech?: boolean
           jingle_audio_url?: string | null
+          jingle_lyrics?: string | null
           lapses?: number
           last_result?: string | null
           last_reviewed_at?: string | null

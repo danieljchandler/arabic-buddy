@@ -307,8 +307,8 @@ const RuleRow = ({ rule, dialect }: RuleRowProps) => {
     category: rule.category,
     priority: rule.priority,
     notes: rule.notes ?? '',
-    good: (rule.examples?.good ?? []).join('\n'),
-    bad: (rule.examples?.bad ?? []).join('\n'),
+    good: (rule.examples?.good ?? []).map(formatExample).join('\n'),
+    bad: (rule.examples?.bad ?? []).map(formatExample).join('\n'),
   });
 
   useEffect(() => {
@@ -317,8 +317,8 @@ const RuleRow = ({ rule, dialect }: RuleRowProps) => {
       category: rule.category,
       priority: rule.priority,
       notes: rule.notes ?? '',
-      good: (rule.examples?.good ?? []).join('\n'),
-      bad: (rule.examples?.bad ?? []).join('\n'),
+      good: (rule.examples?.good ?? []).map(formatExample).join('\n'),
+      bad: (rule.examples?.bad ?? []).map(formatExample).join('\n'),
     });
   }, [rule]);
 

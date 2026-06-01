@@ -112,6 +112,7 @@ const MyPhrasesReview = () => {
   // Reset reveal between cards
   useEffect(() => {
     setShowAnswer(false);
+    setShowLyrics(false);
   }, [current?.id]);
 
   const handleRate = async (rating: Rating) => {

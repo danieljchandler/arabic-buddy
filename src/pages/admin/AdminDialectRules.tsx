@@ -48,6 +48,21 @@ const SOURCE_BADGE: Record<RuleSource, string> = {
   corpus_mined: 'bg-teal-500/10 text-teal-700 border-teal-500/30',
 };
 
+function formatExample(v: unknown): string {
+  if (v == null) return '';
+  if (typeof v === 'string') return v;
+  if (typeof v === 'object') {
+    const o = v as Record<string, unknown>;
+    // Prefer dialect-language fields first
+    const primary = o.dialect ?? o.ar ?? o.arabic ?? o.text;
+    const secondary = o.msa ?? o.en ?? o.english ?? o.translation ?? o.gloss;
+    if (primary && secondary) return `${String(primary)} — ${String(secondary)}`;
+    if (primary) return String(primary);
+    try { return JSON.stringify(v); } catch { return String(v); }
+  }
+  return String(v);
+}
+
 const AdminDialectRules = () => {
   const navigate = useNavigate();
   const { activeDialect } = useDialect();

@@ -193,75 +193,86 @@ serve(async (req) => {
       existing: existingRules ?? [],
     });
 
-    // Ask the council to propose new rules. The Brain already injects dialect
-    // identity into the system prompt, so the proposals stay grounded in the
-    // dialect's voice.
-    const brainResult = await askBrain<{ rules: ProposedRule[] }>({
-      purpose: "dialect_rule_synthesis",
-      dialect,
-      strategy: "ensemble",
-      userPrompt,
-      systemPromptExtra:
-        "You are a native-speaker linguistic editor. Your job is to write PROMPT RULES that will be fed to other LLMs to keep their output authentically in this dialect. Be concrete and corpus-grounded, not abstract.",
-      tool: RULE_TOOL,
-      maxTokens: 2048,
-      temperature: 0.4,
-    });
+    // Long-running council strategy runs in background so the client can
+    // navigate away without losing the job. We respond 202 immediately;
+    // drafts land in `dialect_rules` (status='draft') when the council finishes.
+    const work = (async () => {
+      const startedAt = Date.now();
+      try {
+        const brainResult = await askBrain<{ rules: ProposedRule[] }>({
+          purpose: "dialect_rule_synthesis",
+          dialect,
+          strategy: "council",
+          userPrompt,
+          systemPromptExtra:
+            "You are a panel of native-speaker linguistic editors. Your job is to write PROMPT RULES that will be fed to other LLMs to keep their output authentically in this dialect. Be concrete and corpus-grounded, not abstract. Tolerate partial failures — produce what you can.",
+          tool: RULE_TOOL,
+          maxTokens: 4096,
+          temperature: 0.4,
+        });
 
-    const proposals = Array.isArray(brainResult.output?.rules)
-      ? brainResult.output.rules
-      : [];
+        const proposals = Array.isArray(brainResult.output?.rules)
+          ? brainResult.output.rules
+          : [];
 
-    if (proposals.length === 0) {
-      return createErrorResponse(502, "Council returned no proposals", corsHeaders, {
-        debug: { raw: brainResult.raw?.slice(0, 500) },
-      });
-    }
+        if (proposals.length === 0) {
+          console.error("[draft-dialect-rules] council returned no proposals", {
+            dialect,
+            raw: brainResult.raw?.slice(0, 500),
+          });
+          return;
+        }
 
-    // Normalize + clamp before insert.
-    const rows = proposals
-      .filter((p) => p && typeof p.rule === "string" && p.rule.trim().length > 0)
-      .map((p) => ({
-        dialect,
-        category: (p.category || category || "general").trim().slice(0, 64),
-        rule: p.rule.trim().slice(0, 2000),
-        examples: {
-          good: Array.isArray(p.examples?.good) ? p.examples.good.slice(0, 6) : [],
-          bad: Array.isArray(p.examples?.bad) ? p.examples.bad.slice(0, 6) : [],
-        },
-        priority: Math.max(1, Math.min(5, Math.round(Number(p.priority) || 3))),
-        status: autoApprove ? "approved" : "draft",
-        source: "ai_generated",
-        notes: p.notes?.toString().slice(0, 1000) ?? null,
-        created_by: userId,
-        ...(autoApprove
-          ? { approved_by: userId, approved_at: new Date().toISOString() }
-          : {}),
-      }));
+        const rows = proposals
+          .filter((p) => p && typeof p.rule === "string" && p.rule.trim().length > 0)
+          .map((p) => ({
+            dialect,
+            category: (p.category || category || "general").trim().slice(0, 64),
+            rule: p.rule.trim().slice(0, 2000),
+            examples: {
+              good: Array.isArray(p.examples?.good) ? p.examples.good.slice(0, 6) : [],
+              bad: Array.isArray(p.examples?.bad) ? p.examples.bad.slice(0, 6) : [],
+            },
+            priority: Math.max(1, Math.min(5, Math.round(Number(p.priority) || 3))),
+            status: autoApprove ? "approved" : "draft",
+            source: "ai_generated",
+            notes: p.notes?.toString().slice(0, 1000) ?? null,
+            created_by: userId,
+            ...(autoApprove
+              ? { approved_by: userId, approved_at: new Date().toISOString() }
+              : {}),
+          }));
 
-    const { data: inserted, error: insertErr } = await admin
-      .from("dialect_rules")
-      .insert(rows)
-      .select("id, dialect, category, rule, examples, priority, status, source");
+        const { error: insertErr } = await admin
+          .from("dialect_rules")
+          .insert(rows);
 
-    if (insertErr) {
-      return createErrorResponse(500, `Insert failed: ${insertErr.message}`, corsHeaders);
+        if (insertErr) {
+          console.error("[draft-dialect-rules] insert failed:", insertErr.message);
+          return;
+        }
+
+        console.log(
+          `[draft-dialect-rules] ${dialect}: inserted ${rows.length} drafts in ${Date.now() - startedAt}ms`,
+        );
+      } catch (err) {
+        console.error("[draft-dialect-rules] background job failed:", err);
+      }
+    })();
+
+    // @ts-ignore - EdgeRuntime is provided by the Supabase Edge runtime
+    if (typeof EdgeRuntime !== "undefined" && EdgeRuntime?.waitUntil) {
+      // @ts-ignore
+      EdgeRuntime.waitUntil(work);
     }
 
     return new Response(JSON.stringify({
+      queued: true,
       dialect,
       category: category ?? null,
-      proposed: proposals.length,
-      inserted: inserted?.length ?? 0,
-      drafts: inserted,
-      brain: {
-        models: brainResult.models,
-        agreementScore: brainResult.agreementScore,
-        msaLeaks: brainResult.msaLeaks?.leaks?.length ?? 0,
-        latencyMs: brainResult.totalLatencyMs,
-      },
+      message: "Council is drafting rules in the background. Drafts will appear in the Draft tab within ~1–3 minutes.",
     }), {
-      status: 200,
+      status: 202,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {

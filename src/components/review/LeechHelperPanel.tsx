@@ -78,40 +78,6 @@ export function LeechHelperPanel({
     }
   };
 
-  const generateJingle = async () => {
-    if (!user) return;
-    setJgLoading(true);
-    try {
-      const body = kind === "word"
-        ? { word_arabic: arabic, word_english: english, dialect }
-        : { phrase_arabic: arabic, phrase_english: english, dialect };
-      const response = await supabase.functions.invoke(JINGLE_FN_BY_KIND[kind], {
-        body,
-      });
-      if (response.error) throw new Error(response.error.message || "Failed");
-      const audioFile = await createPlayableJingleAudio(response.data);
-      const fileName = `jingles/${user.id}/${kind}-${rowId}-${Date.now()}.${audioFile.extension}`;
-      const { error: uploadError } = await supabase.storage
-        .from("flashcard-audio")
-        .upload(fileName, audioFile.blob, { contentType: audioFile.mimeType, upsert: true });
-      if (uploadError) throw uploadError;
-      const { data: urlData } = supabase.storage.from("flashcard-audio").getPublicUrl(fileName);
-      const url = urlData.publicUrl;
-      setJingleUrl(url);
-      await (supabase.from(TABLE_BY_KIND[kind]) as any)
-        .update({ jingle_audio_url: url })
-        .eq("id", rowId);
-      invalidate();
-      toast.success("🎵 Memory jingle ready — tap Play to listen.");
-    } catch (err: any) {
-      const msg = err?.message || "";
-      if (msg.includes("429")) toast.error("Rate limited — try again shortly");
-      else if (msg.includes("402")) toast.error("AI credits exhausted");
-      else toast.error("Failed to generate jingle");
-    } finally {
-      setJgLoading(false);
-    }
-  };
 
   const dismissLeech = async () => {
     try {

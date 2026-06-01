@@ -8,7 +8,7 @@ import { Loader2, Brain, RefreshCw, AlertTriangle, X } from "lucide-react";
 
 
 interface LeechHelperPanelProps {
-  /** "word" or "phrase" — controls table + jingle function. */
+  /** "word" or "phrase" — controls table. */
   kind: "word" | "phrase";
   rowId: string;
   /** Arabic text to memorize. */
@@ -18,21 +18,13 @@ interface LeechHelperPanelProps {
   transliteration?: string | null;
   dialect: string;
   mnemonic: string | null;
-  jingleAudioUrl: string | null;
   /** Invalidate which query keys after save. */
   invalidateKeys?: string[][];
-  /** Callback so the parent can play audio through its own ref. */
-  onPlayAudio?: (url: string, options?: { repairJingle?: boolean }) => void;
 }
 
 const TABLE_BY_KIND: Record<"word" | "phrase", "user_vocabulary" | "user_phrases"> = {
   word: "user_vocabulary",
   phrase: "user_phrases",
-};
-
-const JINGLE_FN_BY_KIND: Record<"word" | "phrase", string> = {
-  word: "generate-word-jingle",
-  phrase: "generate-phrase-jingle",
 };
 
 export function LeechHelperPanel({
@@ -43,21 +35,16 @@ export function LeechHelperPanel({
   transliteration,
   dialect,
   mnemonic: initialMnemonic,
-  jingleAudioUrl: initialJingleUrl,
   invalidateKeys = [],
-  onPlayAudio,
 }: LeechHelperPanelProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [mnemonic, setMnemonic] = useState<string | null>(initialMnemonic);
-  const [jingleUrl, setJingleUrl] = useState<string | null>(initialJingleUrl);
   const [mnLoading, setMnLoading] = useState(false);
-  const [jgLoading, setJgLoading] = useState(false);
 
   useEffect(() => {
     setMnemonic(initialMnemonic);
-    setJingleUrl(initialJingleUrl);
-  }, [rowId, initialMnemonic, initialJingleUrl]);
+  }, [rowId, initialMnemonic]);
 
   const invalidate = () => {
     invalidateKeys.forEach((key) =>
@@ -65,10 +52,6 @@ export function LeechHelperPanel({
     );
   };
 
-  const playAudio = (url: string) => {
-    if (onPlayAudio) onPlayAudio(url, { repairJingle: true });
-    else new Audio(url).play().catch(() => {});
-  };
 
   const generateMnemonic = async () => {
     setMnLoading(true);

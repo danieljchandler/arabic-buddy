@@ -9,9 +9,11 @@ import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Rating, calculateNextReview } from "@/lib/spacedRepetition";
 import { useAzureTTS } from "@/hooks/useAzureTTS";
-import { Loader2, Trophy, LogIn, Eye, Volume2, Trash2, MessageCircleQuestion } from "lucide-react";
+import { Loader2, Trophy, LogIn, Eye, Volume2, Trash2, MessageCircleQuestion, Music, Play, RefreshCw } from "lucide-react";
 import { LeechHelperPanel } from "@/components/review/LeechHelperPanel";
 import { useLeechPrefs } from "@/hooks/useLeechPrefs";
+import { createPlayableJingleAudio, createPlayableJingleAudioFromUrl } from "@/lib/jingleAudio";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 const MyPhrasesReview = () => {

@@ -102,6 +102,7 @@ const MyWordsReview = () => {
   const [showContext, setShowContext] = useState(false);
   const [sessionCount, setSessionCount] = useState(0);
   const [jingleLoading, setJingleLoading] = useState(false);
+  const [showLyrics, setShowLyrics] = useState(false);
   const [imageDialogOpen, setImageDialogOpen] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const fallbackAudioUrlRef = useRef<string | null>(null);

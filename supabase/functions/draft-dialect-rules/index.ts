@@ -199,12 +199,12 @@ serve(async (req) => {
     const brainResult = await askBrain<{ rules: ProposedRule[] }>({
       purpose: "dialect_rule_synthesis",
       dialect,
-      strategy: "council",
+      strategy: "ensemble",
       userPrompt,
       systemPromptExtra:
-        "You are a panel of native-speaker linguistic editors. Your job is to write PROMPT RULES that will be fed to other LLMs to keep their output authentically in this dialect. Be concrete and corpus-grounded, not abstract.",
+        "You are a native-speaker linguistic editor. Your job is to write PROMPT RULES that will be fed to other LLMs to keep their output authentically in this dialect. Be concrete and corpus-grounded, not abstract.",
       tool: RULE_TOOL,
-      maxTokens: 4096,
+      maxTokens: 2048,
       temperature: 0.4,
     });
 

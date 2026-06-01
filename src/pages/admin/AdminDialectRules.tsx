@@ -48,6 +48,21 @@ const SOURCE_BADGE: Record<RuleSource, string> = {
   corpus_mined: 'bg-teal-500/10 text-teal-700 border-teal-500/30',
 };
 
+function formatExample(v: unknown): string {
+  if (v == null) return '';
+  if (typeof v === 'string') return v;
+  if (typeof v === 'object') {
+    const o = v as Record<string, unknown>;
+    // Prefer dialect-language fields first
+    const primary = o.dialect ?? o.ar ?? o.arabic ?? o.text;
+    const secondary = o.msa ?? o.en ?? o.english ?? o.translation ?? o.gloss;
+    if (primary && secondary) return `${String(primary)} — ${String(secondary)}`;
+    if (primary) return String(primary);
+    try { return JSON.stringify(v); } catch { return String(v); }
+  }
+  return String(v);
+}
+
 const AdminDialectRules = () => {
   const navigate = useNavigate();
   const { activeDialect } = useDialect();
@@ -292,8 +307,8 @@ const RuleRow = ({ rule, dialect }: RuleRowProps) => {
     category: rule.category,
     priority: rule.priority,
     notes: rule.notes ?? '',
-    good: (rule.examples?.good ?? []).join('\n'),
-    bad: (rule.examples?.bad ?? []).join('\n'),
+    good: (rule.examples?.good ?? []).map(formatExample).join('\n'),
+    bad: (rule.examples?.bad ?? []).map(formatExample).join('\n'),
   });
 
   useEffect(() => {
@@ -302,8 +317,8 @@ const RuleRow = ({ rule, dialect }: RuleRowProps) => {
       category: rule.category,
       priority: rule.priority,
       notes: rule.notes ?? '',
-      good: (rule.examples?.good ?? []).join('\n'),
-      bad: (rule.examples?.bad ?? []).join('\n'),
+      good: (rule.examples?.good ?? []).map(formatExample).join('\n'),
+      bad: (rule.examples?.bad ?? []).map(formatExample).join('\n'),
     });
   }, [rule]);
 
@@ -472,7 +487,7 @@ const RuleRow = ({ rule, dialect }: RuleRowProps) => {
                   <div className="bg-emerald-500/5 border border-emerald-500/20 rounded p-2">
                     <div className="text-xs text-emerald-700 font-medium mb-1">Good</div>
                     <ul dir="rtl" className="space-y-0.5">
-                      {rule.examples.good.map((g, i) => <li key={i}>{g}</li>)}
+                      {rule.examples.good.map((g, i) => <li key={i}>{formatExample(g)}</li>)}
                     </ul>
                   </div>
                 ) : null}
@@ -480,7 +495,7 @@ const RuleRow = ({ rule, dialect }: RuleRowProps) => {
                   <div className="bg-red-500/5 border border-red-500/20 rounded p-2">
                     <div className="text-xs text-red-700 font-medium mb-1">Bad / MSA</div>
                     <ul dir="rtl" className="space-y-0.5">
-                      {rule.examples.bad.map((b, i) => <li key={i}>{b}</li>)}
+                      {rule.examples.bad.map((b, i) => <li key={i}>{formatExample(b)}</li>)}
                     </ul>
                   </div>
                 ) : null}

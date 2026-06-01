@@ -472,7 +472,7 @@ const RuleRow = ({ rule, dialect }: RuleRowProps) => {
                   <div className="bg-emerald-500/5 border border-emerald-500/20 rounded p-2">
                     <div className="text-xs text-emerald-700 font-medium mb-1">Good</div>
                     <ul dir="rtl" className="space-y-0.5">
-                      {rule.examples.good.map((g, i) => <li key={i}>{g}</li>)}
+                      {rule.examples.good.map((g, i) => <li key={i}>{formatExample(g)}</li>)}
                     </ul>
                   </div>
                 ) : null}
@@ -480,7 +480,7 @@ const RuleRow = ({ rule, dialect }: RuleRowProps) => {
                   <div className="bg-red-500/5 border border-red-500/20 rounded p-2">
                     <div className="text-xs text-red-700 font-medium mb-1">Bad / MSA</div>
                     <ul dir="rtl" className="space-y-0.5">
-                      {rule.examples.bad.map((b, i) => <li key={i}>{b}</li>)}
+                      {rule.examples.bad.map((b, i) => <li key={i}>{formatExample(b)}</li>)}
                     </ul>
                   </div>
                 ) : null}

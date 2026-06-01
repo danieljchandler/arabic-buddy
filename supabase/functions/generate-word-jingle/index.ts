@@ -263,6 +263,7 @@ STRICT SAFETY RULES (the music model has a strict safety filter — violations c
       audioBase64: btoa(audioBase64),
       mimeType: outMime,
       extension: outMime.includes("mpeg") || outMime.includes("mp3") ? "mp3" : "wav",
+      lyrics: lyrics || null,
     }), {
       headers: {
         ...corsHeaders,

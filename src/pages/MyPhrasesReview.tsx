@@ -28,6 +28,8 @@ const MyPhrasesReview = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showAnswer, setShowAnswer] = useState(false);
   const [sessionCount, setSessionCount] = useState(0);
+  const [jingleLoading, setJingleLoading] = useState(false);
+  const [showLyrics, setShowLyrics] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const safeIndex =
@@ -42,12 +44,70 @@ const MyPhrasesReview = () => {
     dialect: activeDialect,
   });
 
-  const playAudio = (url: string) => {
+  const playAudio = async (url: string, options?: { repairJingle?: boolean }) => {
     if (audioRef.current) audioRef.current.pause();
+    if (options?.repairJingle) {
+      try {
+        const audioFile = await createPlayableJingleAudioFromUrl(url);
+        const objectUrl = URL.createObjectURL(audioFile.blob);
+        const audio = new Audio(objectUrl);
+        audioRef.current = audio;
+        audio.onended = () => URL.revokeObjectURL(objectUrl);
+        audio.play().catch(() => {});
+        return;
+      } catch (err) {
+        console.error("Jingle repair failed:", err);
+        toast.error("This jingle is corrupted — tap Regenerate to replace it.");
+        return;
+      }
+    }
     const audio = new Audio(url);
     audioRef.current = audio;
     audio.play().catch(() => {});
   };
+
+  const generateJingle = async (regenerate = false) => {
+    if (!current || !user) return;
+    if (current.jingle_audio_url && !regenerate) {
+      playAudio(current.jingle_audio_url, { repairJingle: true });
+      return;
+    }
+    setJingleLoading(true);
+    try {
+      const response = await supabase.functions.invoke("generate-phrase-jingle", {
+        body: {
+          phrase_arabic: current.phrase_arabic,
+          phrase_english: current.phrase_english,
+          dialect: activeDialect,
+        },
+      });
+      if (response.error) throw new Error(response.error.message || "Failed to generate jingle");
+      const audioFile = await createPlayableJingleAudio(response.data);
+      const fileName = `jingles/${user.id}/phrase-${current.id}-${Date.now()}.${audioFile.extension}`;
+      const { error: uploadError } = await supabase.storage
+        .from("flashcard-audio")
+        .upload(fileName, audioFile.blob, { contentType: audioFile.mimeType, upsert: true });
+      if (uploadError) throw uploadError;
+      const { data: urlData } = supabase.storage.from("flashcard-audio").getPublicUrl(fileName);
+      const jingleUrl = urlData.publicUrl;
+      const lyrics = (response.data as { lyrics?: string | null })?.lyrics ?? null;
+      await (supabase.from("user_phrases") as any)
+        .update({ jingle_audio_url: jingleUrl, jingle_lyrics: lyrics })
+        .eq("id", current.id);
+      current.jingle_audio_url = jingleUrl;
+      current.jingle_lyrics = lyrics;
+      toast.success("🎵 Jingle created — tap Play to listen.");
+      setShowLyrics(true);
+    } catch (err: any) {
+      const msg = err?.message || "";
+      if (msg.includes("429")) toast.error("Rate limited — try again shortly");
+      else if (msg.includes("402")) toast.error("AI credits exhausted");
+      else toast.error("Failed to generate jingle");
+    } finally {
+      setJingleLoading(false);
+    }
+  };
+
 
   // Reset reveal between cards
   useEffect(() => {

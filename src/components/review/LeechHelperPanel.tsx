@@ -146,6 +146,7 @@ export function LeechHelperPanel({
           {mnLoading ? "Crafting mnemonic..." : "Generate AI mnemonic"}
         </Button>
       )}
-
+    </div>
   );
 }
+

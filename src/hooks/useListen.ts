@@ -79,11 +79,39 @@ export function useListenEpisode(id: string | undefined) {
         .eq("id", id!)
         .maybeSingle();
       if (error) throw error;
-      return (data as ListenEpisode | null) ?? null;
+      const ep = (data as ListenEpisode | null) ?? null;
+      // Stale-job watchdog: a pending episode whose heartbeat hasn't moved
+      // in >5 min means the previous worker died (edge timeout, etc.).
+      // Re-kick the synthesis job — it's resumable and will skip lines that
+      // were already uploaded.
+      if (ep && ep.audio_mode === "full" && ep.audio_status === "pending") {
+        const ageMs = Date.now() - new Date(ep.updated_at).getTime();
+        if (ageMs > 5 * 60 * 1000) {
+          supabase.functions.invoke("generate-listen-audio", { body: { episodeId: ep.id } })
+            .catch(() => {});
+        }
+      }
+      return ep;
     },
     refetchInterval: (q) => {
       const ep = q.state.data as ListenEpisode | null | undefined;
       return ep && ep.audio_mode === "full" && ep.audio_status === "pending" ? 4000 : false;
+    },
+  });
+}
+
+export function useRetryListenAudio() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (episodeId: string) => {
+      const { error } = await supabase.functions.invoke("generate-listen-audio", {
+        body: { episodeId },
+      });
+      if (error) throw error;
+    },
+    onSuccess: (_d, episodeId) => {
+      qc.invalidateQueries({ queryKey: ["listen-episode", episodeId] });
+      qc.invalidateQueries({ queryKey: ["listen-episodes"] });
     },
   });
 }

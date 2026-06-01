@@ -4,8 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Loader2, Brain, Music, RefreshCw, AlertTriangle, X, Play } from "lucide-react";
-import { createPlayableJingleAudio } from "@/lib/jingleAudio";
+import { Loader2, Brain, RefreshCw, AlertTriangle, X } from "lucide-react";
+
 
 interface LeechHelperPanelProps {
   /** "word" or "phrase" — controls table + jingle function. */

@@ -269,7 +269,7 @@ const MyPhrasesReview = () => {
                 {current.notes && (
                   <p className="text-xs text-muted-foreground italic">{current.notes}</p>
                 )}
-                <div className="flex justify-center pt-1">
+                <div className="flex justify-center flex-wrap gap-2 pt-1">
                   <Button
                     variant="outline"
                     size="sm"
@@ -284,7 +284,73 @@ const MyPhrasesReview = () => {
                     )}
                     Play audio
                   </Button>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => generateJingle()}
+                    disabled={jingleLoading}
+                    className="gap-1.5"
+                  >
+                    {jingleLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : current.jingle_audio_url ? (
+                      <Play className="h-4 w-4" />
+                    ) : (
+                      <Music className="h-4 w-4" />
+                    )}
+                    {jingleLoading ? "Creating..." : current.jingle_audio_url ? "Play jingle" : "Generate jingle"}
+                  </Button>
+
+                  {current.jingle_audio_url && !jingleLoading && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      onClick={() => generateJingle(true)}
+                      title="Regenerate jingle"
+                    >
+                      <RefreshCw className="h-3.5 w-3.5 text-muted-foreground" />
+                    </Button>
+                  )}
                 </div>
+
+                {current.jingle_audio_url && current.jingle_lyrics && (
+                  <div className="mt-2">
+                    {showLyrics ? (
+                      <div className="rounded-lg bg-muted/40 border border-border p-3 text-left animate-in fade-in duration-200">
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                            Lyrics
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setShowLyrics(false)}
+                            className="text-[10px] uppercase tracking-wide text-muted-foreground hover:text-foreground"
+                          >
+                            Hide
+                          </button>
+                        </div>
+                        <p
+                          className="text-sm leading-relaxed whitespace-pre-line font-arabic"
+                          dir="rtl"
+                          style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
+                        >
+                          {current.jingle_lyrics}
+                        </p>
+                      </div>
+                    ) : (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowLyrics(true)}
+                        className="gap-1.5 text-muted-foreground text-xs"
+                      >
+                        Show lyrics
+                      </Button>
+                    )}
+                  </div>
+                )}
               </div>
             ) : (
               <Button
@@ -308,9 +374,7 @@ const MyPhrasesReview = () => {
               transliteration={current.transliteration}
               dialect={activeDialect}
               mnemonic={current.mnemonic ?? null}
-              jingleAudioUrl={current.jingle_audio_url ?? null}
               invalidateKeys={[["user-phrases-due"], ["user-phrases"]]}
-              onPlayAudio={playAudio}
             />
           )}
 

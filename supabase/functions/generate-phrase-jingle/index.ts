@@ -212,6 +212,7 @@ SAFETY: no violence, weapons, politics, religion, romance, alcohol, drugs, body 
       audioBase64: btoa(audioBase64),
       mimeType: outMime,
       extension: outMime.includes("mpeg") || outMime.includes("mp3") ? "mp3" : "wav",
+      lyrics: lyrics || null,
     }), {
       headers: {
         ...corsHeaders,

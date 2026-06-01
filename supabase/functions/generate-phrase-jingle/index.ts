@@ -53,22 +53,24 @@ serve(async (req) => {
           messages: [
             {
               role: "system",
-              content: `You write short, catchy music prompts for AI music generation aimed at memorizing Arabic phrases.
+              content: `You write short, catchy jingles for memorizing Arabic phrases.
 
 ${dialectRules}
 
-Output a single English music prompt for a 12-second catchy hook that:
-- Repeats the full ${dialectLabel} phrase memorably (chant-like)
-- Uses ${dialectStyle}
-- Is fun and earwormy
+Return STRICT JSON only (no markdown, no commentary):
+{
+  "lyrics": "<sung lyrics in ${dialectLabel} Arabic with full tashkeel. 2-4 short lines. Repeat the target phrase at least 3 times. Tiny bit of simple English is OK if it helps the hook.>",
+  "prompt": "<English music-generation prompt: 12-second ${dialectStyle} jingle. Describe mood, tempo, voices, instrumentation. State that the lyrics above must be sung clearly.>"
+}
 
-Output only the prompt.`,
+SAFETY: no violence, weapons, politics, religion, romance, alcohol, drugs, body parts, or anything explicit. Keep it cheerful and family-friendly.`,
             },
             {
               role: "user",
-              content: `Create a music prompt for a 12-second jingle that drills the ${dialectLabel} phrase "${phrase_arabic}" (meaning "${phrase_english}"). Use ${dialectStyle}.`,
+              content: `Jingle for the ${dialectLabel} phrase "${phrase_arabic}" (meaning "${phrase_english}"). Arabic must include tashkeel. Return JSON only.`,
             },
           ],
+          response_format: { type: "json_object" },
         }),
       },
     );
@@ -91,7 +93,22 @@ Output only the prompt.`,
     }
 
     const promptData = await promptGen.json();
-    const musicPrompt = promptData.choices?.[0]?.message?.content?.trim();
+    const rawContent: string = promptData.choices?.[0]?.message?.content?.trim() ?? "";
+    let lyrics = "";
+    let stylePrompt = "";
+    try {
+      const cleaned = rawContent.replace(/^```json\s*/i, "").replace(/```\s*$/i, "").trim();
+      const parsed = JSON.parse(cleaned);
+      lyrics = String(parsed.lyrics || "").trim();
+      stylePrompt = String(parsed.prompt || "").trim();
+    } catch (err) {
+      console.warn("Failed to parse jingle JSON, using raw content as prompt:", err);
+      stylePrompt = rawContent;
+    }
+
+    const musicPrompt = lyrics
+      ? `${stylePrompt}\n\nLyrics to sing clearly (${dialectLabel} Arabic with tashkeel):\n${lyrics}`
+      : stylePrompt;
 
     if (!musicPrompt) {
       return new Response(

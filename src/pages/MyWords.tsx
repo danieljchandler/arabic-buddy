@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useUserVocabulary, useUserVocabularyDueCount, useDeleteUserVocabulary, type UserVocabularyWord } from "@/hooks/useUserVocabulary";
 import { useUserPhrases, useUserPhrasesDueCount, useDeleteUserPhrase } from "@/hooks/useUserPhrases";
@@ -32,6 +32,33 @@ const MyWords = () => {
   const [suggestOpen, setSuggestOpen] = useState(false);
   const [showAllPhrases, setShowAllPhrases] = useState(false);
   const [ankiOpen, setAnkiOpen] = useState(false);
+  const [deckFilter, setDeckFilter] = useState<string | null>(null);
+  const [tagFilter, setTagFilter] = useState<string | null>(null);
+
+  const deckOptions = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const w of words || []) {
+      if (w.deck_name) m.set(w.deck_name, (m.get(w.deck_name) || 0) + 1);
+    }
+    return Array.from(m.entries()).sort((a, b) => b[1] - a[1]);
+  }, [words]);
+
+  const tagOptions = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const w of words || []) {
+      for (const t of w.tags || []) m.set(t, (m.get(t) || 0) + 1);
+    }
+    return Array.from(m.entries()).sort((a, b) => b[1] - a[1]);
+  }, [words]);
+
+  const filteredWords = useMemo(() => {
+    if (!words) return words;
+    return words.filter((w) => {
+      if (deckFilter && w.deck_name !== deckFilter) return false;
+      if (tagFilter && !(w.tags || []).includes(tagFilter)) return false;
+      return true;
+    });
+  }, [words, deckFilter, tagFilter]);
 
   const toggleContext = (id: string) => {
     setExpandedContext((prev) => {
@@ -247,10 +274,80 @@ const MyWords = () => {
         </div>
       )}
 
+      {/* Deck + Tag filters */}
+      {words && words.length > 0 && (deckOptions.length > 0 || tagOptions.length > 0) && (
+        <div className="mb-3 space-y-2">
+          {deckOptions.length > 0 && (
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-1.5">Decks</p>
+              <div className="flex flex-wrap gap-1.5">
+                <button
+                  onClick={() => setDeckFilter(null)}
+                  className={cn(
+                    "px-2.5 py-1 rounded-full text-xs border transition-colors",
+                    !deckFilter
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-card border-border text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  All
+                </button>
+                {deckOptions.map(([name, n]) => (
+                  <button
+                    key={name}
+                    onClick={() => setDeckFilter(deckFilter === name ? null : name)}
+                    className={cn(
+                      "px-2.5 py-1 rounded-full text-xs border transition-colors",
+                      deckFilter === name
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-card border-border text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    📚 {name} <span className="opacity-70">· {n}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {tagOptions.length > 0 && (
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-1.5">Tags</p>
+              <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+                <button
+                  onClick={() => setTagFilter(null)}
+                  className={cn(
+                    "px-2.5 py-1 rounded-full text-xs border transition-colors",
+                    !tagFilter
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-card border-border text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  All
+                </button>
+                {tagOptions.slice(0, 40).map(([tag, n]) => (
+                  <button
+                    key={tag}
+                    onClick={() => setTagFilter(tagFilter === tag ? null : tag)}
+                    className={cn(
+                      "px-2.5 py-1 rounded-full text-xs border transition-colors",
+                      tagFilter === tag
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-card border-border text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    #{tag} <span className="opacity-70">· {n}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Word list */}
-      {words && words.length > 0 && (
+      {filteredWords && filteredWords.length > 0 && (
         <div className="rounded-xl bg-card border border-border overflow-hidden">
-          {words.map((word, index) => {
+          {filteredWords.map((word, index) => {
             const hasContext = !!word.sentence_text;
             const isExpanded = expandedContext.has(word.id);
             return (
@@ -259,7 +356,7 @@ const MyWords = () => {
               className={cn(
                 "p-4",
                 "hover:bg-muted/50 transition-colors",
-                index < words.length - 1 && "border-b border-border"
+                index < (filteredWords?.length ?? 0) - 1 && "border-b border-border"
               )}
             >
               <div className="flex items-center justify-between">

@@ -103,6 +103,23 @@ export function ImportFromAnkiDialog({ open, onOpenChange }: Props) {
     }
     return counts;
   }, [deck]);
+  const deckCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    if (!deck) return counts;
+    for (const c of deck.cards) {
+      const name = c.deckName || "Default";
+      counts[name] = (counts[name] || 0) + 1;
+    }
+    return counts;
+  }, [deck]);
+  const tagCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    if (!deck) return counts;
+    for (const c of deck.cards) {
+      for (const t of c.tags) counts[t] = (counts[t] || 0) + 1;
+    }
+    return counts;
+  }, [deck]);
 
   const handleImport = async () => {
     if (!user || !deck) return;
@@ -189,6 +206,7 @@ export function ImportFromAnkiDialog({ open, onOpenChange }: Props) {
           image_url: imageUrl,
           word_audio_url: audioUrl,
           tags: c.tags.length ? c.tags : null,
+          deck_name: c.deckName || null,
           source: "anki_import",
           anki_note_id: c.ankiNoteId ?? null,
           anki_card_id: c.ankiCardId ?? null,
@@ -321,6 +339,46 @@ export function ImportFromAnkiDialog({ open, onOpenChange }: Props) {
                     {stage.replace(/_/g, " ").toLowerCase()}: <span className="font-medium text-foreground">{n}</span>
                   </span>
                 ))}
+              </div>
+            )}
+
+            {Object.keys(deckCounts).length > 0 && (
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-1.5">
+                  Decks ({Object.keys(deckCounts).length})
+                </p>
+                <div className="flex flex-wrap gap-1.5 text-xs max-h-20 overflow-y-auto">
+                  {Object.entries(deckCounts)
+                    .sort((a, b) => b[1] - a[1])
+                    .map(([name, n]) => (
+                      <span key={name} className="px-2 py-1 rounded-full bg-primary/10 text-primary">
+                        📚 {name} <span className="text-muted-foreground">· {n}</span>
+                      </span>
+                    ))}
+                </div>
+              </div>
+            )}
+
+            {Object.keys(tagCounts).length > 0 && (
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-1.5">
+                  Tags ({Object.keys(tagCounts).length})
+                </p>
+                <div className="flex flex-wrap gap-1.5 text-xs max-h-20 overflow-y-auto">
+                  {Object.entries(tagCounts)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 30)
+                    .map(([tag, n]) => (
+                      <span key={tag} className="px-2 py-1 rounded-full bg-accent/40 text-foreground/80">
+                        #{tag} <span className="text-muted-foreground">· {n}</span>
+                      </span>
+                    ))}
+                  {Object.keys(tagCounts).length > 30 && (
+                    <span className="px-2 py-1 text-muted-foreground">
+                      +{Object.keys(tagCounts).length - 30} more
+                    </span>
+                  )}
+                </div>
               </div>
             )}
 

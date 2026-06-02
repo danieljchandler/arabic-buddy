@@ -291,7 +291,9 @@ export function ImportFromAnkiDialog({ open, onOpenChange }: Props) {
             <input
               ref={fileInputRef}
               type="file"
-              accept=".apkg,.colpkg,.txt,.csv,.tsv"
+              // No `accept` filter: mobile browsers grey out .apkg/.colpkg
+              // because their MIME types are unknown to the OS. We validate
+              // by extension inside handleFile instead.
               className="hidden"
               onChange={(e) => {
                 const f = e.target.files?.[0];

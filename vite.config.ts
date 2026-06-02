@@ -66,4 +66,16 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  build: {
+    // Strip console.log and debugger statements in production builds
+    minify: 'esbuild',
+    ...(mode === 'production' ? {
+      esbuild: {
+        drop: ['console', 'debugger'],
+      },
+    } : {}),
+  },
+  esbuild: mode === 'production' ? {
+    drop: ['console', 'debugger'],
+  } : undefined,
 }));

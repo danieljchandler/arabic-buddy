@@ -31,6 +31,7 @@ const MyWords = () => {
   const [expandedContext, setExpandedContext] = useState<Set<string>>(new Set());
   const [suggestOpen, setSuggestOpen] = useState(false);
   const [showAllPhrases, setShowAllPhrases] = useState(false);
+  const [ankiOpen, setAnkiOpen] = useState(false);
 
   const toggleContext = (id: string) => {
     setExpandedContext((prev) => {

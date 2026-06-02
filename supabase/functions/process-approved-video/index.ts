@@ -293,7 +293,7 @@ async function runPipeline(
         const { id: fileId } = await uploadResp.json();
 
         // Create transcription with translation
-        let createBody: Record<string, unknown> = {
+        const createBody: Record<string, unknown> = {
           model: "stt-async-v4", file_id: fileId, language_hints: ["ar"], language_hints_strict: true,
           translation: { type: "one_way", target_language: "en" },
         };
@@ -525,8 +525,8 @@ async function runPipeline(
         });
       }
 
-      let title = refreshed.title || video.title;
-      let titleArabic = refreshed.title_arabic || video.title_arabic;
+      const title = refreshed.title || video.title;
+      const titleArabic = refreshed.title_arabic || video.title_arabic;
 
       // Finalize: add timestamps and mark completed
       const { error: finalErr } = await supabase.from("discover_videos").update({

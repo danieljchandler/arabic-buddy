@@ -69,7 +69,7 @@ export async function planCoverage(opts: {
   const reinforceCutoff = Date.now() - REINFORCE_INTERVAL_DAYS * 86400_000;
 
   // 3. Per-user mastery (optional)
-  let dueConceptIds = new Set<string>();
+  const dueConceptIds = new Set<string>();
   if (opts.userId) {
     const { data: mastery } = await supabase
       .from("user_concept_mastery")

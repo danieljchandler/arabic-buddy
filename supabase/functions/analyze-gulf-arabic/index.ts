@@ -1620,7 +1620,7 @@ serve(async (req) => {
       console.log(
         `Diacritization overlay: ${diacritizedLineCount}/${mergedLines.length} lines updated with tashkeel`,
       );
-      let finalLines = mergedLines.map((mergedLine, i) => ({
+      const finalLines = mergedLines.map((mergedLine, i) => ({
         arabic: diacritizedPerLine[i] || mergedLine.arabic,
         translation: dedicatedTranslations[i] || call2Lines[i]?.translation || '',
       }));

@@ -78,7 +78,7 @@ export const ReviewClozeCard = ({
   // Auto-play sentence audio once available
   useEffect(() => {
     if (audioUrl) playAudio(audioUrl);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [audioUrl, sentenceText]);
 
   if (!cloze) {

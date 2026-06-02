@@ -409,7 +409,7 @@ serve(async (req) => {
       console.log(`gulf-translate: added ${mergedFromFanar.length} unique translation(s) from Fanar`);
     }
 
-    let translations: NormalisedTranslation[] = [...qwenTranslations, ...mergedFromGemini, ...mergedFromFanar];
+    const translations: NormalisedTranslation[] = [...qwenTranslations, ...mergedFromGemini, ...mergedFromFanar];
 
     if (translations.length === 0) {
       throw new Error('Could not produce translations. Please try rephrasing.');

@@ -96,7 +96,7 @@ export default function ConversationSimulator() {
       if (Date.now() - (parsed.savedAt ?? 0) > STORAGE_TTL_MS) return;
       if (Array.isArray(parsed.messages)) setMessages(parsed.messages);
     } catch {/* ignore */}
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [activeDialect]);
 
   useEffect(() => {
@@ -209,7 +209,7 @@ export default function ConversationSimulator() {
         setSending(false);
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
     [activeDialect, cefr, toast],
   );
 

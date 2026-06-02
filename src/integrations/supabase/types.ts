@@ -2916,6 +2916,7 @@ export type Database = {
           anki_note_id: number | null
           correct_count: number
           created_at: string
+          deck_name: string | null
           dialect: string
           ease_factor: number
           id: string
@@ -2960,6 +2961,7 @@ export type Database = {
           anki_note_id?: number | null
           correct_count?: number
           created_at?: string
+          deck_name?: string | null
           dialect?: string
           ease_factor?: number
           id?: string
@@ -3004,6 +3006,7 @@ export type Database = {
           anki_note_id?: number | null
           correct_count?: number
           created_at?: string
+          deck_name?: string | null
           dialect?: string
           ease_factor?: number
           id?: string

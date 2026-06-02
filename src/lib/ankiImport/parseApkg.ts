@@ -181,6 +181,7 @@ function readModels(db: Database): Map<number, ModelInfo> {
 
 interface CardSched {
   cardId: number;
+  did: number;
   type: number;
   queue: number;
   ivl: number;
@@ -194,11 +195,11 @@ function readCardsByNote(db: Database): Map<number, CardSched> {
   const out = new Map<number, CardSched>();
   try {
     const res = db.exec(
-      "SELECT id, nid, type, queue, ivl, reps, lapses, factor, due FROM cards",
+      "SELECT id, nid, did, type, queue, ivl, reps, lapses, factor, due FROM cards",
     );
     if (!res.length) return out;
-    for (const row of res[0].values as Array<[number, number, number, number, number, number, number, number, number]>) {
-      const [id, nid, type, queue, ivl, reps, lapses, factor, due] = row;
+    for (const row of res[0].values as Array<[number, number, number, number, number, number, number, number, number, number]>) {
+      const [id, nid, did, type, queue, ivl, reps, lapses, factor, due] = row;
       const existing = out.get(nid);
       // Prefer the most "mature" card per note: highest type then highest ivl.
       if (
@@ -206,7 +207,7 @@ function readCardsByNote(db: Database): Map<number, CardSched> {
         type > existing.type ||
         (type === existing.type && ivl > existing.ivl)
       ) {
-        out.set(nid, { cardId: id, type, queue, ivl, reps, lapses, factor, due });
+        out.set(nid, { cardId: id, did, type, queue, ivl, reps, lapses, factor, due });
       }
     }
   } catch {

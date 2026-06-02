@@ -32,6 +32,33 @@ const MyWords = () => {
   const [suggestOpen, setSuggestOpen] = useState(false);
   const [showAllPhrases, setShowAllPhrases] = useState(false);
   const [ankiOpen, setAnkiOpen] = useState(false);
+  const [deckFilter, setDeckFilter] = useState<string | null>(null);
+  const [tagFilter, setTagFilter] = useState<string | null>(null);
+
+  const deckOptions = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const w of words || []) {
+      if (w.deck_name) m.set(w.deck_name, (m.get(w.deck_name) || 0) + 1);
+    }
+    return Array.from(m.entries()).sort((a, b) => b[1] - a[1]);
+  }, [words]);
+
+  const tagOptions = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const w of words || []) {
+      for (const t of w.tags || []) m.set(t, (m.get(t) || 0) + 1);
+    }
+    return Array.from(m.entries()).sort((a, b) => b[1] - a[1]);
+  }, [words]);
+
+  const filteredWords = useMemo(() => {
+    if (!words) return words;
+    return words.filter((w) => {
+      if (deckFilter && w.deck_name !== deckFilter) return false;
+      if (tagFilter && !(w.tags || []).includes(tagFilter)) return false;
+      return true;
+    });
+  }, [words, deckFilter, tagFilter]);
 
   const toggleContext = (id: string) => {
     setExpandedContext((prev) => {

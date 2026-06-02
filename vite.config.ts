@@ -69,11 +69,6 @@ export default defineConfig(({ mode }) => ({
   build: {
     // Strip console.log and debugger statements in production builds
     minify: 'esbuild',
-    ...(mode === 'production' ? {
-      esbuild: {
-        drop: ['console', 'debugger'],
-      },
-    } : {}),
   },
   esbuild: mode === 'production' ? {
     drop: ['console', 'debugger'],

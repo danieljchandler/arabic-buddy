@@ -69,6 +69,10 @@ export function ImportFromAnkiDialog({ open, onOpenChange }: Props) {
   };
 
   const handleFile = async (file: File) => {
+    if (!/\.(apkg|colpkg|txt|csv|tsv)$/i.test(file.name)) {
+      toast.error("Unsupported file type. Please choose a .apkg, .colpkg, .txt, .csv or .tsv file.");
+      return;
+    }
     if (file.size > ANKI_FILE_SIZE_LIMIT) {
       toast.error(`File too large (max ${ANKI_FILE_SIZE_LIMIT / 1024 / 1024} MB)`);
       return;

@@ -112,14 +112,24 @@ const MyWords = () => {
       </div>
 
       {/* AI suggest button */}
-      <Button
-        onClick={() => setSuggestOpen(true)}
-        variant="outline"
-        className="w-full mb-3 gap-2"
-      >
-        <Wand2 className="h-4 w-4" />
-        Get AI flashcard suggestions
-      </Button>
+      <div className="grid grid-cols-2 gap-2 mb-3">
+        <Button
+          onClick={() => setSuggestOpen(true)}
+          variant="outline"
+          className="w-full gap-2"
+        >
+          <Wand2 className="h-4 w-4" />
+          AI suggestions
+        </Button>
+        <Button
+          onClick={() => setAnkiOpen(true)}
+          variant="outline"
+          className="w-full gap-2"
+        >
+          <Upload className="h-4 w-4" />
+          Import from Anki
+        </Button>
+      </div>
 
       {/* Review button */}
       {stats && stats.dueCount > 0 && (

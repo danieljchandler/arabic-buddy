@@ -168,13 +168,21 @@ export function ImportFromAnkiDialog({ open, onOpenChange }: Props) {
           setProgress({ phase: "uploading-media", current: done, total }),
       });
 
-      // 3. Dedupe vs existing user_vocabulary
-      const { data: existing } = await supabase
-        .from("user_vocabulary")
-        .select("word_arabic")
-        .eq("user_id", user.id)
-        .eq("dialect", activeDialect);
-      const seen = new Set((existing || []).map((r) => normalizeArabic(r.word_arabic)));
+      // 3. Dedupe vs existing user_vocabulary (paginated — Supabase caps at 1000/req)
+      const seen = new Set<string>();
+      const PAGE = 1000;
+      for (let from = 0; ; from += PAGE) {
+        const { data: existing, error: existErr } = await supabase
+          .from("user_vocabulary")
+          .select("word_arabic")
+          .eq("user_id", user.id)
+          .eq("dialect", activeDialect)
+          .range(from, from + PAGE - 1);
+        if (existErr) throw existErr;
+        if (!existing || existing.length === 0) break;
+        for (const r of existing) seen.add(normalizeArabic(r.word_arabic));
+        if (existing.length < PAGE) break;
+      }
 
       // 4. Build insert rows
       const rows: any[] = [];

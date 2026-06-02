@@ -67,10 +67,12 @@ export default defineConfig(({ mode }) => ({
     },
   },
   build: {
-    // Strip console.log and debugger statements in production builds
+    // Strip console.log/debug/info and debugger statements in production builds,
+    // but keep console.error and console.warn for ErrorBoundary / diagnostics.
     minify: 'esbuild',
   },
   esbuild: mode === 'production' ? {
-    drop: ['console', 'debugger'],
+    pure: ['console.log', 'console.debug', 'console.info'],
+    drop: ['debugger'],
   } : undefined,
 }));

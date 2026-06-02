@@ -27,8 +27,8 @@ export async function parseApkg(file: File): Promise<ParsedAnkiDeck> {
     );
   }
 
-  const buf = new Uint8Array(await file.arrayBuffer());
-  const entries = unzipSync(buf);
+  // Avoid an extra ~1 GB copy on huge decks — feed the ArrayBuffer view straight to fflate.
+  const entries = unzipSync(new Uint8Array(await file.arrayBuffer()));
 
   // Locate the collection sqlite db
   let dbBytes: Uint8Array | null = null;

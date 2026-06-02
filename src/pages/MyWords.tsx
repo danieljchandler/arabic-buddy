@@ -356,7 +356,7 @@ const MyWords = () => {
               className={cn(
                 "p-4",
                 "hover:bg-muted/50 transition-colors",
-                index < words.length - 1 && "border-b border-border"
+                index < (filteredWords?.length ?? 0) - 1 && "border-b border-border"
               )}
             >
               <div className="flex items-center justify-between">

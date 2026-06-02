@@ -69,6 +69,10 @@ export function ImportFromAnkiDialog({ open, onOpenChange }: Props) {
   };
 
   const handleFile = async (file: File) => {
+    if (!/\.(apkg|colpkg|txt|csv|tsv)$/i.test(file.name)) {
+      toast.error("Unsupported file type. Please choose a .apkg, .colpkg, .txt, .csv or .tsv file.");
+      return;
+    }
     if (file.size > ANKI_FILE_SIZE_LIMIT) {
       toast.error(`File too large (max ${ANKI_FILE_SIZE_LIMIT / 1024 / 1024} MB)`);
       return;
@@ -291,7 +295,9 @@ export function ImportFromAnkiDialog({ open, onOpenChange }: Props) {
             <input
               ref={fileInputRef}
               type="file"
-              accept=".apkg,.colpkg,.txt,.csv,.tsv"
+              // No `accept` filter: mobile browsers grey out .apkg/.colpkg
+              // because their MIME types are unknown to the OS. We validate
+              // by extension inside handleFile instead.
               className="hidden"
               onChange={(e) => {
                 const f = e.target.files?.[0];

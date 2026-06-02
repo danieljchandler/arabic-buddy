@@ -53,6 +53,45 @@ export type Database = {
         }
         Relationships: []
       }
+      anki_import_batches: {
+        Row: {
+          created_at: string
+          dialect: string
+          id: string
+          imported_cards: number
+          media_uploaded: number
+          notes: string | null
+          skipped_duplicates: number
+          source_filename: string | null
+          total_cards: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          dialect: string
+          id?: string
+          imported_cards?: number
+          media_uploaded?: number
+          notes?: string | null
+          skipped_duplicates?: number
+          source_filename?: string | null
+          total_cards?: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          dialect?: string
+          id?: string
+          imported_cards?: number
+          media_uploaded?: number
+          notes?: string | null
+          skipped_duplicates?: number
+          source_filename?: string | null
+          total_cards?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       audio_files: {
         Row: {
           channel: string | null
@@ -2873,12 +2912,15 @@ export type Database = {
       }
       user_vocabulary: {
         Row: {
+          anki_card_id: number | null
+          anki_note_id: number | null
           correct_count: number
           created_at: string
           dialect: string
           ease_factor: number
           id: string
           image_url: string | null
+          import_batch_id: string | null
           interval_days: number
           is_leech: boolean
           jingle_audio_url: string | null
@@ -2890,6 +2932,7 @@ export type Database = {
           msa_form: string | null
           msa_note: string | null
           next_review_at: string
+          phonetic: string | null
           production_ease_factor: number
           production_interval_days: number
           production_lapses: number
@@ -2905,6 +2948,7 @@ export type Database = {
           source: string | null
           source_upload_id: string | null
           stage: string
+          tags: string[] | null
           updated_at: string
           user_id: string
           word_arabic: string
@@ -2912,12 +2956,15 @@ export type Database = {
           word_english: string
         }
         Insert: {
+          anki_card_id?: number | null
+          anki_note_id?: number | null
           correct_count?: number
           created_at?: string
           dialect?: string
           ease_factor?: number
           id?: string
           image_url?: string | null
+          import_batch_id?: string | null
           interval_days?: number
           is_leech?: boolean
           jingle_audio_url?: string | null
@@ -2929,6 +2976,7 @@ export type Database = {
           msa_form?: string | null
           msa_note?: string | null
           next_review_at?: string
+          phonetic?: string | null
           production_ease_factor?: number
           production_interval_days?: number
           production_lapses?: number
@@ -2944,6 +2992,7 @@ export type Database = {
           source?: string | null
           source_upload_id?: string | null
           stage?: string
+          tags?: string[] | null
           updated_at?: string
           user_id: string
           word_arabic: string
@@ -2951,12 +3000,15 @@ export type Database = {
           word_english: string
         }
         Update: {
+          anki_card_id?: number | null
+          anki_note_id?: number | null
           correct_count?: number
           created_at?: string
           dialect?: string
           ease_factor?: number
           id?: string
           image_url?: string | null
+          import_batch_id?: string | null
           interval_days?: number
           is_leech?: boolean
           jingle_audio_url?: string | null
@@ -2968,6 +3020,7 @@ export type Database = {
           msa_form?: string | null
           msa_note?: string | null
           next_review_at?: string
+          phonetic?: string | null
           production_ease_factor?: number
           production_interval_days?: number
           production_lapses?: number
@@ -2983,6 +3036,7 @@ export type Database = {
           source?: string | null
           source_upload_id?: string | null
           stage?: string
+          tags?: string[] | null
           updated_at?: string
           user_id?: string
           word_arabic?: string

@@ -5,12 +5,13 @@ import { useUserPhrases, useUserPhrasesDueCount, useDeleteUserPhrase } from "@/h
 import { useAuth } from "@/hooks/useAuth";
 import { useDialect } from "@/contexts/DialectContext";
 import { Button } from "@/components/ui/button";
-import { BookOpen, Trash2, ChevronLeft, ChevronRight, Loader2, Shuffle, Sparkles, Quote, MessageCircleQuestion } from "lucide-react";
+import { BookOpen, Trash2, ChevronLeft, ChevronRight, Loader2, Shuffle, Sparkles, Quote, MessageCircleQuestion, Upload } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
 import { GenerateImageDialog } from "@/components/mywords/GenerateImageDialog";
 import { SuggestFlashcardsDialog } from "@/components/mywords/SuggestFlashcardsDialog";
+import { ImportFromAnkiDialog } from "@/components/mywords/ImportFromAnkiDialog";
 import { Wand2 } from "lucide-react";
 import { InfoHint } from "@/components/InfoHint";
 import { PAGE_HINTS } from "@/lib/pageHints";
@@ -30,6 +31,7 @@ const MyWords = () => {
   const [expandedContext, setExpandedContext] = useState<Set<string>>(new Set());
   const [suggestOpen, setSuggestOpen] = useState(false);
   const [showAllPhrases, setShowAllPhrases] = useState(false);
+  const [ankiOpen, setAnkiOpen] = useState(false);
 
   const toggleContext = (id: string) => {
     setExpandedContext((prev) => {
@@ -110,14 +112,24 @@ const MyWords = () => {
       </div>
 
       {/* AI suggest button */}
-      <Button
-        onClick={() => setSuggestOpen(true)}
-        variant="outline"
-        className="w-full mb-3 gap-2"
-      >
-        <Wand2 className="h-4 w-4" />
-        Get AI flashcard suggestions
-      </Button>
+      <div className="grid grid-cols-2 gap-2 mb-3">
+        <Button
+          onClick={() => setSuggestOpen(true)}
+          variant="outline"
+          className="w-full gap-2"
+        >
+          <Wand2 className="h-4 w-4" />
+          AI suggestions
+        </Button>
+        <Button
+          onClick={() => setAnkiOpen(true)}
+          variant="outline"
+          className="w-full gap-2"
+        >
+          <Upload className="h-4 w-4" />
+          Import from Anki
+        </Button>
+      </div>
 
       {/* Review button */}
       {stats && stats.dueCount > 0 && (
@@ -347,6 +359,7 @@ const MyWords = () => {
       />
 
       <SuggestFlashcardsDialog open={suggestOpen} onOpenChange={setSuggestOpen} />
+      <ImportFromAnkiDialog open={ankiOpen} onOpenChange={setAnkiOpen} />
     </AppShell>
   );
 };

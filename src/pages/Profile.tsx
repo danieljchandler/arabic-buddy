@@ -39,15 +39,17 @@ const Profile = () => {
   const [dialectStudy, setDialectStudy] = useState<DialectStudy[]>([]);
   const [streak, setStreak] = useState<{ current: number; longest: number } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) navigate("/auth");
   }, [authLoading, isAuthenticated, navigate]);
 
-  useEffect(() => {
+  const loadProfile = async () => {
     if (!user) return;
-    const load = async () => {
-      setLoading(true);
+    setLoading(true);
+    setError(null);
+    try {
       const [{ data: prof }, { data: vocab }, { data: streakRow }] = await Promise.all([
         (supabase.from("profiles" as never) as any)
           .select("display_name, avatar_url, created_at, preferred_dialect")
@@ -77,10 +79,16 @@ const Profile = () => {
         current: streakRow?.current_streak ?? 0,
         longest: streakRow?.longest_streak ?? 0,
       });
+    } catch (e) {
+      setError("Failed to load profile data. Please try again.");
+    } finally {
       setLoading(false);
-    };
-    load();
-  }, [user]);
+    }
+  };
+
+  useEffect(() => {
+    loadProfile();
+  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const totalXp = xpRow?.total_xp ?? 0;
   const level = calculateLevel(totalXp);
@@ -104,6 +112,15 @@ const Profile = () => {
             <SettingsIcon className="h-4 w-4" /> Settings
           </Button>
         </div>
+
+        {error && (
+          <div className="rounded-2xl border-2 border-destructive/40 bg-destructive/5 p-6 text-center mb-4">
+            <p className="text-sm text-destructive font-medium">{error}</p>
+            <Button variant="outline" size="sm" className="mt-3" onClick={loadProfile}>
+              Try again
+            </Button>
+          </div>
+        )}
 
         {/* ── Passport cover ── */}
         <div className="relative overflow-hidden rounded-2xl border-2 border-desert-red bg-card-cream shadow-card">
@@ -154,7 +171,7 @@ const Profile = () => {
         </div>
 
         {/* ── Headline stats ── */}
-        <div className="grid grid-cols-3 gap-2 mt-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-3">
           <StatCard icon={<Flame className="h-4 w-4" />} label="Streak" value={streak?.current ?? 0} sub={`best ${streak?.longest ?? 0}`} />
           <StatCard icon={<BookOpen className="h-4 w-4" />} label="Words" value={totalWords} sub={`${totalMature} mature`} />
           <StatCard icon={<Trophy className="h-4 w-4" />} label="Badges" value={achievements?.length ?? 0} sub="earned" />
@@ -178,7 +195,7 @@ const Profile = () => {
               <p className="text-caption mt-1">Save a word from any dialect to earn your first stamp.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {dialectStudy.map((d) => {
                 const meta = DIALECT_META[d.dialect] ?? { label: d.dialect, arabic: d.dialect, color: "8 45% 38%", emoji: "✦" };
                 return (
@@ -242,7 +259,7 @@ const Profile = () => {
               <p className="text-caption mt-2">Earn your first badge by completing a daily challenge.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {(achievements ?? []).slice(0, 6).map((ua) => (
                 <div
                   key={ua.id}

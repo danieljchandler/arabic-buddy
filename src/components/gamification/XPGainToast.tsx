@@ -14,7 +14,7 @@ export function XPGainToast({ amount, onComplete }: XPGainToastProps) {
     const timer = setTimeout(() => {
       setVisible(false);
       onComplete?.();
-    }, 2000);
+    }, 3500);
 
     return () => clearTimeout(timer);
   }, [onComplete]);

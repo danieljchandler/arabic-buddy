@@ -342,6 +342,46 @@ export function ImportFromAnkiDialog({ open, onOpenChange }: Props) {
               </div>
             )}
 
+            {Object.keys(deckCounts).length > 0 && (
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-1.5">
+                  Decks ({Object.keys(deckCounts).length})
+                </p>
+                <div className="flex flex-wrap gap-1.5 text-xs max-h-20 overflow-y-auto">
+                  {Object.entries(deckCounts)
+                    .sort((a, b) => b[1] - a[1])
+                    .map(([name, n]) => (
+                      <span key={name} className="px-2 py-1 rounded-full bg-primary/10 text-primary">
+                        📚 {name} <span className="text-muted-foreground">· {n}</span>
+                      </span>
+                    ))}
+                </div>
+              </div>
+            )}
+
+            {Object.keys(tagCounts).length > 0 && (
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-1.5">
+                  Tags ({Object.keys(tagCounts).length})
+                </p>
+                <div className="flex flex-wrap gap-1.5 text-xs max-h-20 overflow-y-auto">
+                  {Object.entries(tagCounts)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 30)
+                    .map(([tag, n]) => (
+                      <span key={tag} className="px-2 py-1 rounded-full bg-accent/40 text-foreground/80">
+                        #{tag} <span className="text-muted-foreground">· {n}</span>
+                      </span>
+                    ))}
+                  {Object.keys(tagCounts).length > 30 && (
+                    <span className="px-2 py-1 text-muted-foreground">
+                      +{Object.keys(tagCounts).length - 30} more
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+
             <div className="rounded-lg border border-border overflow-hidden">
               <table className="w-full text-sm">
                 <thead className="bg-muted/40 text-xs text-muted-foreground">

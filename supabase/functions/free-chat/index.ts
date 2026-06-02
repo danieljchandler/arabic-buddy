@@ -4,6 +4,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { streamBrain, BrainHttpError } from "../_shared/aiBrain.ts";
 import { getDialectLabel, type Dialect } from "../_shared/dialectHelpers.ts";
+import { enforceDailyCap } from "../_shared/usageCap.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -50,6 +51,10 @@ ${topicHint ? `OPENING TOPIC HINT: The learner picked the topic "${topicHint}" â
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  // Free-tier daily cap
+  const cap = await enforceDailyCap(req, "free-chat", 30, corsHeaders);
+  if (cap.limited) return cap.response;
 
   try {
     const { messages, dialect, cefrLevel, topicHint } = await req.json() as {

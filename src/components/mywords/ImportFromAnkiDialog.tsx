@@ -103,6 +103,23 @@ export function ImportFromAnkiDialog({ open, onOpenChange }: Props) {
     }
     return counts;
   }, [deck]);
+  const deckCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    if (!deck) return counts;
+    for (const c of deck.cards) {
+      const name = c.deckName || "Default";
+      counts[name] = (counts[name] || 0) + 1;
+    }
+    return counts;
+  }, [deck]);
+  const tagCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    if (!deck) return counts;
+    for (const c of deck.cards) {
+      for (const t of c.tags) counts[t] = (counts[t] || 0) + 1;
+    }
+    return counts;
+  }, [deck]);
 
   const handleImport = async () => {
     if (!user || !deck) return;

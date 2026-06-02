@@ -239,12 +239,27 @@ async function callModel(opts: CallOptions): Promise<{ raw: string; parsed: unkn
   if (opts.tool) {
     const tc = msg?.tool_calls?.[0];
     const args = tc?.function?.arguments;
-    if (!args) throw new BrainHttpError(500, `${opts.model} returned no tool call`);
-    try {
-      return { raw: args, parsed: JSON.parse(args) };
-    } catch {
-      throw new BrainHttpError(500, `${opts.model} returned invalid JSON`);
+    if (args) {
+      try {
+        return { raw: args, parsed: JSON.parse(args) };
+      } catch {
+        throw new BrainHttpError(500, `${opts.model} returned invalid JSON in tool call`);
+      }
     }
+    // Fallback: some models (notably gpt-5 on long judge prompts) skip the
+    // tool_call and return JSON in message.content instead. Salvage it.
+    const content = typeof msg?.content === 'string' ? msg.content : '';
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      try {
+        const parsed = JSON.parse(jsonMatch[0]);
+        console.warn(`[aiBrain] ${opts.model} skipped tool_call; parsed JSON from content fallback`);
+        return { raw: jsonMatch[0], parsed };
+      } catch {
+        /* fall through to error */
+      }
+    }
+    throw new BrainHttpError(500, `${opts.model} returned no tool call and no parsable JSON content`);
   }
   const raw = msg?.content ?? '';
   // Try to extract JSON if it looks like JSON.

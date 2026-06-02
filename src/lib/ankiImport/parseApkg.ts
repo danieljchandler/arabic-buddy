@@ -68,6 +68,7 @@ export async function parseApkg(file: File): Promise<ParsedAnkiDeck> {
   try {
     // Field names from models (col.models is a JSON blob)
     const modelInfo = readModels(db);
+    const deckNames = readDecks(db);
 
     const cards: ParsedAnkiCard[] = [];
     const noteRowsRes = db.exec(
@@ -80,7 +81,7 @@ export async function parseApkg(file: File): Promise<ParsedAnkiDeck> {
 
     const noteRows = noteRowsRes[0].values as Array<[number, number, string, string]>;
 
-    // Card scheduling: pick the *best* card per note (highest type/ivl).
+    // Card scheduling + deck id: pick the *best* card per note (highest type/ivl).
     const cardsByNote = readCardsByNote(db);
 
     const totalNotes = noteRows.length;
@@ -99,11 +100,15 @@ export async function parseApkg(file: File): Promise<ParsedAnkiDeck> {
         .filter(Boolean);
 
       const cardSched = cardsByNote.get(nid);
+      const rawDeck = cardSched?.did != null ? deckNames.get(cardSched.did) : undefined;
+      // Anki nests decks with "::" separators; keep the leaf for display.
+      const deckName = rawDeck ? rawDeck.split("::").pop() || rawDeck : undefined;
 
       cards.push({
         ankiNoteId: nid,
         ankiCardId: cardSched?.cardId,
         modelName: model?.name,
+        deckName,
         tags,
         wordArabic: mapped.wordArabic,
         wordEnglish: mapped.wordEnglish,
@@ -126,6 +131,24 @@ export async function parseApkg(file: File): Promise<ParsedAnkiDeck> {
   } finally {
     db.close();
   }
+}
+
+function readDecks(db: Database): Map<number, string> {
+  const out = new Map<number, string>();
+  try {
+    const res = db.exec("SELECT decks FROM col LIMIT 1");
+    if (!res.length) return out;
+    const blob = res[0].values[0]?.[0];
+    if (typeof blob !== "string") return out;
+    const json = JSON.parse(blob) as Record<string, any>;
+    for (const [, d] of Object.entries(json)) {
+      const id = Number(d.id);
+      if (Number.isFinite(id)) out.set(id, String(d.name || ""));
+    }
+  } catch {
+    // ignore
+  }
+  return out;
 }
 
 interface ModelInfo {

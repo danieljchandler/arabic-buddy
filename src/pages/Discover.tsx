@@ -54,6 +54,7 @@ function VideoCard({ video, onClick, feed }: CardProps) {
   return (
     <button
       onClick={onClick}
+      aria-label={`Video: ${video.title} — ${video.dialect}, ${video.difficulty}`}
       className={cn(
         "rounded-xl overflow-hidden border border-border bg-card",
         "text-left transition-all duration-200",
@@ -214,6 +215,7 @@ const Discover = () => {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-9"
+                aria-label="Search videos"
               />
             </div>
             <div className="flex gap-2">

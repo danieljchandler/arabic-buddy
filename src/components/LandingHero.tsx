@@ -20,12 +20,12 @@ export function LandingHero() {
       {/* Hero copy */}
       <div className="text-center max-w-xl mx-auto mb-8">
         <h1
-          className="text-3xl sm:text-4xl font-bold text-[#5C3A46] mb-3 leading-tight"
+          className="text-3xl sm:text-4xl font-bold text-desert-red mb-3 leading-tight"
           style={{ fontFamily: "'Montserrat', sans-serif" }}
         >
           Learn real spoken Arabic.
           <br />
-          <span className="text-[#5C3A46]/70">Gulf · Egyptian · Yemeni.</span>
+          <span className="text-desert-red/70">Gulf · Egyptian · Yemeni.</span>
         </h1>
         <p className="text-base text-muted-foreground leading-relaxed">
           Not the textbook stuff. Dialect-first lessons, native audio, and
@@ -91,8 +91,8 @@ function ValueCard({
   body: string;
 }) {
   return (
-    <div className="p-4 rounded-2xl bg-card border border-[#5C3A46]/15">
-      <div className="h-9 w-9 rounded-xl bg-[#5C3A46]/10 flex items-center justify-center text-[#5C3A46] mb-2.5">
+    <div className="p-4 rounded-2xl bg-card border border-desert-red/15">
+      <div className="h-9 w-9 rounded-xl bg-desert-red/10 flex items-center justify-center text-desert-red mb-2.5">
         {icon}
       </div>
       <h3 className="font-semibold text-foreground text-sm mb-1">{title}</h3>

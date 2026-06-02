@@ -163,7 +163,7 @@ const Onboarding = () => {
                 Let's personalize your learning experience.
               </p>
             </div>
-            <div className="grid grid-cols-3 gap-3 pt-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-4">
               <div className="bg-card border border-border rounded-xl p-3 text-center">
                 <Globe2 className="h-6 w-6 text-primary mx-auto mb-1" />
                 <p className="text-xs text-muted-foreground">Multiple dialects</p>

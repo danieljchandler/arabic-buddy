@@ -140,7 +140,7 @@ export const QuizCard = ({ word, otherWords, onAnswer, topicLabel }: QuizCardPro
       </div>
 
       {/* Multiple Choice Options */}
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Choose the correct English translation">
         {options.map((option, index) => {
           const isSelected = selectedAnswer === option;
           const isCorrectAnswer = option === word.word_english;
@@ -160,6 +160,9 @@ export const QuizCard = ({ word, otherWords, onAnswer, topicLabel }: QuizCardPro
               key={index}
               onClick={() => handleSelect(option)}
               disabled={showResult}
+              role="radio"
+              aria-checked={isSelected ?? false}
+              aria-label={option}
               className={cn(
                 "p-3 rounded-lg text-sm transition-all duration-200",
                 "flex items-center justify-center gap-2",

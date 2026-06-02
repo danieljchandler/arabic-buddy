@@ -10,15 +10,15 @@ export function Footer() {
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted-foreground">
         <p>© {new Date().getFullYear()} Lahja — Learn real spoken Arabic.</p>
         <nav className="flex items-center gap-4">
-          <Link to="/terms" className="hover:text-foreground transition-colors">
+          <Link to="/terms" className="hover:text-foreground hover:underline transition-colors">
             Terms
           </Link>
-          <Link to="/privacy" className="hover:text-foreground transition-colors">
+          <Link to="/privacy" className="hover:text-foreground hover:underline transition-colors">
             Privacy
           </Link>
           <a
             href="mailto:hello@lahja-arabic.com"
-            className="hover:text-foreground transition-colors"
+            className="hover:text-foreground hover:underline transition-colors"
           >
             Contact
           </a>

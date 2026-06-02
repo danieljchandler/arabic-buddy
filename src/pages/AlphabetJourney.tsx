@@ -99,6 +99,7 @@ const AlphabetJourney = () => {
                     }
                   }}
                   disabled={!unlocked}
+                  aria-label={`Letter ${letter.code}${unlocked ? "" : " (locked)"}`}
                   className={cn(
                     "w-full flex items-center gap-2",
                     isLeft ? "flex-row" : "flex-row-reverse",

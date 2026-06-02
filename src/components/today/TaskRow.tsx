@@ -44,14 +44,15 @@ export const TaskRow = ({
   return (
     <button
       onClick={onClick}
+      aria-label={`${done ? "Completed: " : ""}${title} — estimated ${estMinutes} minutes`}
       className={cn(
         "group relative w-full flex items-stretch gap-3 pr-4 pl-0 py-3.5 rounded-2xl text-left overflow-hidden",
-        "bg-[#F9F7F2] border-2 transition-all duration-300",
+        "bg-card-cream border-2 transition-all duration-300",
         "shadow-[0_1px_0_rgba(92,58,70,0.04),0_4px_12px_-6px_rgba(92,58,70,0.12)]",
         "hover:shadow-[0_2px_0_rgba(92,58,70,0.06),0_10px_20px_-8px_rgba(92,58,70,0.2)] hover:-translate-y-px active:translate-y-0",
         done
-          ? "border-[#5C3A46]/70 opacity-90"
-          : "border-[#5C3A46]/15 hover:border-[#5C3A46]/35"
+          ? "border-desert-red/70 opacity-90"
+          : "border-desert-red/15 hover:border-desert-red/35"
       )}
     >
       {/* Left dialect rail */}
@@ -69,12 +70,12 @@ export const TaskRow = ({
         <div
           className={cn(
             "h-11 w-11 rounded-xl flex items-center justify-center shrink-0 transition-colors",
-            done ? "bg-[#5C3A46]/10" : iconTint
+            done ? "bg-desert-red/10" : iconTint
           )}
         >
           {done ? (
             // Animated stroke checkmark in Desert Red on completion
-            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="#5C3A46" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <svg viewBox="0 0 24 24" className="h-5 w-5 stroke-desert-red" fill="none" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path
                 d="M5 12.5l4.5 4.5L19 7.5"
                 style={{
@@ -95,15 +96,14 @@ export const TaskRow = ({
         <div className="flex items-center gap-2 flex-wrap">
           <span
             className={cn(
-              "font-semibold text-[15px] text-[#2a1a20]",
-              done && "line-through decoration-[#5C3A46]/50"
+              "font-semibold text-[15px] text-foreground font-heading",
+              done && "line-through decoration-desert-red/50"
             )}
-            style={{ fontFamily: "'Montserrat', 'Open Sans', sans-serif" }}
           >
             {title}
           </span>
           {countBadge && !done && (
-            <span className="text-[10px] leading-none px-1.5 py-1 rounded-full bg-[#5C3A46] text-[#F9F7F2] font-bold tracking-wide">
+            <span className="text-[10px] leading-none px-1.5 py-1 rounded-full bg-desert-red text-card-cream font-bold tracking-wide">
               {countBadge}
             </span>
           )}
@@ -111,14 +111,14 @@ export const TaskRow = ({
         </div>
         <div className="mt-1.5 flex items-center gap-2">
           {subtitle && (
-            <span className="text-[11px] text-[#5C3A46]/70 truncate">{subtitle}</span>
+            <span className="text-[11px] text-desert-red/70 truncate">{subtitle}</span>
           )}
           <span
             className={cn(
               "text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full border",
               done
-                ? "border-[#5C3A46]/20 text-[#5C3A46]/50 bg-transparent"
-                : "border-[#5C3A46]/15 text-[#5C3A46]/80 bg-[#5C3A46]/[0.04]"
+                ? "border-desert-red/20 text-desert-red/50 bg-transparent"
+                : "border-desert-red/15 text-desert-red/80 bg-desert-red/[0.04]"
             )}
           >
             ~{estMinutes} min
@@ -129,7 +129,7 @@ export const TaskRow = ({
       <ChevronRight
         className={cn(
           "h-5 w-5 shrink-0 self-center transition-transform",
-          done ? "text-[#5C3A46]/30" : "text-[#5C3A46]/40 group-hover:translate-x-0.5 group-hover:text-[#5C3A46]/70"
+          done ? "text-desert-red/30" : "text-desert-red/40 group-hover:translate-x-0.5 group-hover:text-desert-red/70"
         )}
       />
 

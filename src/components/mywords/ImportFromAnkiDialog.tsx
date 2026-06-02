@@ -189,6 +189,7 @@ export function ImportFromAnkiDialog({ open, onOpenChange }: Props) {
           image_url: imageUrl,
           word_audio_url: audioUrl,
           tags: c.tags.length ? c.tags : null,
+          deck_name: c.deckName || null,
           source: "anki_import",
           anki_note_id: c.ankiNoteId ?? null,
           anki_card_id: c.ankiCardId ?? null,

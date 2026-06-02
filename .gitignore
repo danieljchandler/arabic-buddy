@@ -28,3 +28,10 @@ dist-ssr
 *.sln
 *.sw?
 supabase/.temp/
+
+# Prevent large image files from cluttering the repo root
+/*.png
+/*.jpg
+/*.jpeg
+/*.gif
+/*.webp

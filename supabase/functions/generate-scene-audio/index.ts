@@ -39,7 +39,7 @@ async function synthOne(
     signal: AbortSignal.timeout(30_000),
   });
   if (!res.ok) {
-    let fallback = "azure-tts";
+    const fallback = "azure-tts";
     if (fn === fallback) {
       throw new Error(`${fn} failed ${res.status}: ${(await res.text()).slice(0, 200)}`);
     }

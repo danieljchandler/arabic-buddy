@@ -827,9 +827,9 @@ const Transcribe = () => {
       // Apply time range filtering if duration is known and range is set
       let filteredText = primaryText;
       let filteredWords = deepgramWords;
-      let filteredMunsitText = munsitText;
-      let filteredFanarText = fanarText;
-      let filteredSonioxText = sonioxText;
+      const filteredMunsitText = munsitText;
+      const filteredFanarText = fanarText;
+      const filteredSonioxText = sonioxText;
 
       if (mediaDuration && mediaDuration > MAX_DURATION && deepgramWords.length > 0) {
         filteredText = filterTranscriptByTimeRange(primaryText, deepgramWords, timeRange[0], timeRange[1]);

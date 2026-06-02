@@ -6,6 +6,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { askBrain } from "../_shared/aiBrain.ts";
 import type { Dialect } from "../_shared/dialectHelpers.ts";
+import { enforceDailyCap } from "../_shared/usageCap.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -31,6 +32,10 @@ function todayUtc(): string {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
+  // Free-tier daily cap
+  const cap = await enforceDailyCap(req, "generate-daily-story", 5, corsHeaders);
+  if (cap.limited) return cap.response;
 
   try {
     const authHeader = req.headers.get("Authorization") ?? "";

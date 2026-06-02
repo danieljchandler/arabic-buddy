@@ -416,7 +416,7 @@ const DiscoverVideo = () => {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, [video]);
 
   // Apply speed changes to YouTube player

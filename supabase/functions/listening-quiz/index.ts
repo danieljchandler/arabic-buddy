@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getDialectLabel, type Dialect } from "../_shared/dialectHelpers.ts";
 import { askBrain } from "../_shared/aiBrain.ts";
+import { enforceDailyCap } from "../_shared/usageCap.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -19,6 +20,10 @@ serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+
+  // Free-tier daily cap
+  const cap = await enforceDailyCap(req, "listening-quiz", 15, corsHeaders);
+  if (cap.limited) return cap.response;
 
   try {
     const { mode, words, count = 5, dialect = "Gulf", difficulty = "beginner" } = await req.json();

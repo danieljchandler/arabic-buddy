@@ -6,6 +6,7 @@
 // append a "Sources" markdown block built from groundingMetadata.
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getDialectIdentity, getDialectVocabRules, getDialectLabel } from "../_shared/dialectHelpers.ts";
+import { enforceDailyCap } from "../_shared/usageCap.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -100,6 +101,10 @@ function formatSources(metadata: any): string {
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  // Free-tier daily cap
+  const cap = await enforceDailyCap(req, "culture-guide", 15, corsHeaders);
+  if (cap.limited) return cap.response;
 
   try {
     const { messages, dialect = "Gulf" } = await req.json();

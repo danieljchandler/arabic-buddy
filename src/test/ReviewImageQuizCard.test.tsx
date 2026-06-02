@@ -4,6 +4,32 @@ import React from "react";
 import { ReviewImageQuizCard } from "@/components/review/ReviewImageQuizCard";
 import { VocabularyWord } from "@/hooks/useReview";
 
+// Mock supabase client to avoid env var requirement
+vi.mock("@/integrations/supabase/client", () => ({
+  supabase: {
+    auth: {
+      onAuthStateChange: vi.fn(() => ({ data: { subscription: { unsubscribe: vi.fn() } } })),
+      getSession: vi.fn().mockResolvedValue({ data: { session: null } }),
+      getUser: vi.fn().mockResolvedValue({ data: { user: null } }),
+    },
+    functions: {
+      invoke: vi.fn().mockResolvedValue({ data: null, error: null }),
+    },
+    from: vi.fn(() => ({
+      select: vi.fn().mockReturnThis(),
+      insert: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      single: vi.fn().mockResolvedValue({ data: null, error: null }),
+    })),
+  },
+}));
+
+// Mock DialectContext used by useAzureTTS
+vi.mock("@/contexts/DialectContext", () => ({
+  useDialect: vi.fn(() => ({ dialect: "Gulf" })),
+  DialectProvider: ({ children }: { children: React.ReactNode }) => children,
+}));
+
 // Mock Audio so auto-play doesn't error in jsdom
 const mockPlay = vi.fn().mockResolvedValue(undefined);
 vi.stubGlobal(

@@ -24,6 +24,8 @@ export interface UserVocabularyWord {
   sentence_english: string | null;
   sentence_audio_url: string | null;
   word_audio_url: string | null;
+  tags: string[] | null;
+  deck_name: string | null;
 }
 
 export const useUserVocabulary = (mixAll = false) => {

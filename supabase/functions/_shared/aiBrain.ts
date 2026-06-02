@@ -410,22 +410,30 @@ async function runCouncil<T>(task: BrainTask, apiKey: string): Promise<BrainResu
     .map((x, i) => `--- Candidate ${i + 1} (${x.model}) ---\n${x.d.value.raw}`)
     .join('\n\n')}`;
 
-  const final = await callModel({
-    model: judge,
-    system: judgeSys,
-    user: judgeUser,
-    tool: task.tool,
-    maxTokens: task.maxTokens,
-    temperature: 0.3,
-    apiKey,
-  });
+  let final: { raw: string; parsed: unknown };
+  let judgeUsed = true;
+  try {
+    final = await callModel({
+      model: judge,
+      system: judgeSys,
+      user: judgeUser,
+      tool: task.tool,
+      maxTokens: task.maxTokens,
+      temperature: 0.3,
+      apiKey,
+    });
+  } catch (e) {
+    console.warn(`[council] judge ${judge} failed, falling back to first successful draft:`, (e as Error)?.message);
+    judgeUsed = false;
+    final = ok[0].d.value;
+  }
 
   const text = extractScanText(task, final.parsed, final.raw);
   return {
     output: final.parsed as T,
     raw: final.raw,
     strategy: 'council',
-    models: [...ok.map((x) => x.model), judge],
+    models: judgeUsed ? [...ok.map((x) => x.model), judge] : ok.map((x) => x.model),
     agreementScore: ok.length / drafters.length,
     msaLeaks: scanLeaks(text, task.dialect),
     msaRepairs: 0,

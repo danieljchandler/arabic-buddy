@@ -69,7 +69,7 @@ export const TopicCard = ({
     return brandGradientCycle[hash % brandGradientCycle.length];
   };
   const gradientClass = getBrandGradient();
-  return <button onClick={onClick} className={cn("relative w-full aspect-[4/3] rounded-xl p-5", "flex flex-col items-center justify-center gap-2", "transform transition-all duration-200", "hover:scale-[1.02] active:scale-[0.98]", "bg-card-cream border border-desert-red/20", "shadow-topic hover:shadow-topic-hover hover:border-desert-red/40", className)}>
+  return <button onClick={onClick} aria-label={`${topic.name} — ${topic.nameArabic}`} className={cn("relative w-full aspect-[4/3] rounded-xl p-5", "flex flex-col items-center justify-center gap-2", "transform transition-all duration-200", "hover:scale-[1.02] active:scale-[0.98]", "bg-card-cream border border-desert-red/20", "shadow-topic hover:shadow-topic-hover hover:border-desert-red/40", className)}>
       {/* Gradient accent stripe at top */}
       <div className={cn("absolute top-0 left-0 right-0 h-1 rounded-t-xl border-accent", gradientClass)} />
       

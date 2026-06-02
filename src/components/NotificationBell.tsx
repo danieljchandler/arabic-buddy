@@ -37,6 +37,7 @@ export function NotificationBell() {
           open && "bg-muted/50 text-foreground"
         )}
         title="Notifications"
+        aria-label="Notifications"
       >
         <Bell className="h-4 w-4" />
         {count > 0 && (
@@ -71,6 +72,7 @@ export function NotificationBell() {
                 <button
                   key={n.id}
                   onClick={() => handleAction(n)}
+                  aria-label={`Notification: ${n.title}`}
                   className={cn(
                     "w-full text-left p-3 transition-colors hover:bg-muted/50",
                     n.priority === "high" && "bg-destructive/5"

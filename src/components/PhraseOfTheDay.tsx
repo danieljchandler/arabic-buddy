@@ -129,6 +129,7 @@ export const PhraseOfTheDay = () => {
           onClick={() => fetchPhrase(true)}
           disabled={loading}
           title="New phrase"
+          aria-label="Refresh phrase"
           className="h-8 w-8"
         >
           <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
@@ -152,6 +153,7 @@ export const PhraseOfTheDay = () => {
           ) : (
             <button
               onClick={() => setShowArabic(true)}
+              aria-label="Reveal Arabic phrase"
               className="w-full py-3 rounded-lg border-2 border-dashed border-accent/40 bg-card/40 text-sm text-muted-foreground hover:bg-card/60 transition flex items-center justify-center gap-2"
             >
               <Eye className="h-4 w-4" />
@@ -200,6 +202,7 @@ export const PhraseOfTheDay = () => {
                 variant="outline"
                 onClick={() => setShowArabic(false)}
                 title="Hide Arabic"
+                aria-label="Hide Arabic"
               >
                 <EyeOff className="h-4 w-4" />
               </Button>

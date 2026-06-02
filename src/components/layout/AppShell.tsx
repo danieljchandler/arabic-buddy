@@ -18,9 +18,8 @@ interface AppShellProps {
 export function AppShell({ children, className, compact = false }: AppShellProps) {
   return (
     <div
-      className={cn("min-h-[100dvh] relative", className)}
+      className={cn("min-h-[100dvh] relative bg-white", className)}
       style={{
-        backgroundColor: "#FFFFFF",
         paddingTop: "env(safe-area-inset-top)",
         paddingBottom: "env(safe-area-inset-bottom)",
       }}

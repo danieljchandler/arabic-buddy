@@ -50,6 +50,7 @@ export const ContinueCard = () => {
     >
       <button
         onClick={() => navigate(entry.route)}
+        aria-label={`Continue ${label}: ${entry.title}`}
         className="flex-1 min-w-0 flex items-center gap-3 p-4 text-left active:scale-[0.99] transition-transform"
       >
         <div className="h-11 w-11 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">

@@ -289,7 +289,9 @@ export function ImportFromAnkiDialog({ open, onOpenChange }: Props) {
               <Upload className="h-8 w-8 text-muted-foreground" />
               <p className="font-medium">Drop your Anki file here or click to choose</p>
               <p className="text-xs text-muted-foreground">
-                .apkg, .colpkg, .txt, .csv · up to {ANKI_FILE_SIZE_LIMIT / 1024 / 1024} MB · {ANKI_IMPORT_LIMIT.toLocaleString()} cards max
+                .apkg, .colpkg, .txt, .csv · up to 2 GB · {ANKI_IMPORT_LIMIT.toLocaleString()} cards max
+                <br />
+                <span className="text-amber-700">Large files (&gt; 500 MB) may crash on mobile — use desktop Chrome.</span>
               </p>
             </button>
             <input

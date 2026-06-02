@@ -359,6 +359,7 @@ const MyWords = () => {
       />
 
       <SuggestFlashcardsDialog open={suggestOpen} onOpenChange={setSuggestOpen} />
+      <ImportFromAnkiDialog open={ankiOpen} onOpenChange={setAnkiOpen} />
     </AppShell>
   );
 };

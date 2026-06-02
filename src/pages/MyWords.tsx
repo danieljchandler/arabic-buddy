@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useUserVocabulary, useUserVocabularyDueCount, useDeleteUserVocabulary, type UserVocabularyWord } from "@/hooks/useUserVocabulary";
 import { useUserPhrases, useUserPhrasesDueCount, useDeleteUserPhrase } from "@/hooks/useUserPhrases";

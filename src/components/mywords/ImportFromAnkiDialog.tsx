@@ -299,7 +299,7 @@ export function ImportFromAnkiDialog({ open, onOpenChange }: Props) {
               <p className="text-xs text-muted-foreground">
                 .apkg, .colpkg, .txt, .csv · up to 2 GB · {ANKI_IMPORT_LIMIT.toLocaleString()} cards max
                 <br />
-                <span className="text-amber-700">Large files (&gt; 500 MB) may crash on mobile — use desktop Chrome.</span>
+                <span className="text-amber-700">Large files (&gt; 200 MB) may run out of memory — use desktop Chrome and close other tabs.</span>
               </p>
             </button>
             <input

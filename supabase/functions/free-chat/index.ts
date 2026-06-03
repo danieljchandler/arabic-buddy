@@ -4,6 +4,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { streamBrain, BrainHttpError } from "../_shared/aiBrain.ts";
 import { getDialectLabel, type Dialect } from "../_shared/dialectHelpers.ts";
+import { detectMsaLeaks } from "../_shared/msaLeakDetector.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
 
 const corsHeaders = {
@@ -73,10 +74,24 @@ serve(async (req) => {
 
     const effectiveDialect = (dialect ?? "Gulf") as Dialect;
 
+    // Multi-turn drift tracking: scan the last 3 assistant turns for MSA leaks.
+    // If found, append a self-correction nudge so the model stops repeating the pattern.
+    const recentAssistantTurns = messages
+      .filter((m) => m.role === "assistant")
+      .slice(-3)
+      .map((m) => m.content)
+      .join("\n");
+    const historyLeaks = recentAssistantTurns
+      ? detectMsaLeaks(recentAssistantTurns, effectiveDialect).leaks
+      : [];
+    const driftNudge = historyLeaks.length > 0
+      ? `\n\nSELF-CORRECTION (your earlier replies used MSA tokens: ${historyLeaks.slice(0, 8).join(", ")}). Do NOT repeat that pattern — use only ${getDialectLabel(effectiveDialect)} forms from here on.`
+      : "";
+
     return await streamBrain({
       purpose: "free_chat_turn",
       dialect: effectiveDialect,
-      systemPromptExtra: buildTutorExtras(effectiveDialect, cefrLevel ?? "A2", topicHint),
+      systemPromptExtra: buildTutorExtras(effectiveDialect, cefrLevel ?? "A2", topicHint) + driftNudge,
       messages,
       model: "google/gemini-2.5-pro",
       temperature: 0.7,

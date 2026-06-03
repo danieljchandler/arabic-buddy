@@ -3,6 +3,22 @@ import type { Segment } from '@/types/transcript';
 
 type AIStatus = 'idle' | 'loading' | 'error';
 
+/** Dialect-specific prompting context for transcript editing. */
+const DIALECT_PROMPT: Record<string, { label: string; errors: string }> = {
+  Gulf: {
+    label: 'Gulf Arabic (Khaleeji)',
+    errors: 'mishearing particles (لي، لك، عليه، ما), dropped final vowels, dialect words mistranscribed as MSA equivalents.',
+  },
+  Egyptian: {
+    label: 'Egyptian Arabic (مصري)',
+    errors: 'mishearing particles (ده، دي، بتاع), Egyptian ج→g sounds, dialect words mistranscribed as MSA equivalents.',
+  },
+  Yemeni: {
+    label: 'Yemeni Arabic (يمني)',
+    errors: 'mishearing particles (ما، حق), Yemeni ق→g sounds, dialect words mistranscribed as MSA or Gulf equivalents.',
+  },
+};
+
 /**
  * AI assistant hooks for transcript editing.
  * All features are user-triggered and cancellable.
@@ -23,13 +39,15 @@ export function useAIAssist() {
    * Sends current segments to Claude and returns restructured segments.
    */
   const suggestBreaks = useCallback(
-    async (segments: Segment[], apiCall: (prompt: string, signal: AbortSignal) => Promise<string>) => {
+    async (segments: Segment[], apiCall: (prompt: string, signal: AbortSignal) => Promise<string>, dialect: string = 'Gulf') => {
       const controller = new AbortController();
       setAbortController(controller);
       setStatus('loading');
       setSuggestedSegments(null);
 
-      const prompt = `You are editing Arabic subtitles for a Gulf Arabic (Khaleeji) video.
+      const dialectInfo = DIALECT_PROMPT[dialect] ?? DIALECT_PROMPT.Gulf;
+
+      const prompt = `You are editing Arabic subtitles for a ${dialectInfo.label} video.
 Below are the current transcript segments as JSON.
 
 Rules for good subtitle breaks:
@@ -69,19 +87,21 @@ Segments: ${JSON.stringify(segments)}`;
       prevSeg: Segment | null,
       nextSeg: Segment | null,
       apiCall: (prompt: string, signal: AbortSignal) => Promise<string>,
+      dialect: string = 'Gulf',
     ) => {
       const controller = new AbortController();
       setAbortController(controller);
       setStatus('loading');
 
-      const prompt = `The following is a Gulf Arabic (Khaleeji) subtitle segment transcribed by ASR.
+      const dialectInfo = DIALECT_PROMPT[dialect] ?? DIALECT_PROMPT.Gulf;
+
+      const prompt = `The following is a ${dialectInfo.label} subtitle segment transcribed by ASR.
 Confidence score: ${segment.confidence.toFixed(2)}
 
 Previous segment: "${prevSeg?.text ?? ''}"
 Next segment: "${nextSeg?.text ?? ''}"
 
-Common Gulf ASR errors to look for: mishearing particles (لي، لك، عليه، ما),
-dropped final vowels, dialect words mistranscribed as MSA equivalents.
+Common ${dialectInfo.label} ASR errors to look for: ${dialectInfo.errors}
 
 Current text: "${segment.text}"
 

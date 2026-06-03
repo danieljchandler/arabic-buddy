@@ -3,7 +3,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { askBrain } from "../_shared/aiBrain.ts";
-import { primeDialectPrompt, type Dialect } from "../_shared/dialectHelpers.ts";
+import { primeDialectPrompt, measureTashkeelCoverage, type Dialect } from "../_shared/dialectHelpers.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
 
 const corsHeaders = {
@@ -108,7 +108,20 @@ YEMENI AUTHENTICITY (CRITICAL — this script is YEMENI, not generic Arabic):
 - DO NOT make it sound like a Gulf khaleeji podcast with Yemeni words sprinkled in. The whole rhythm, references, and worldview should feel Yemeni.
 `;
 
-    const dialectFlavor = dialect === "Yemeni" ? YEMENI_FLAVOR : "";
+    const EGYPTIAN_FLAVOR = `
+EGYPTIAN AUTHENTICITY (CRITICAL — this script is EGYPTIAN, not generic Arabic):
+- Use distinctively Egyptian vocabulary and grammar. Avoid Gulf/Levantine/Yemeni patterns.
+- Pronouns/forms: use Egyptian forms like "إزَيَّكْ" / "إزَيِّكْ" (not "شلونك" or "كيفك"), "إِيهْ" for "what" (not "شو" or "أيش"), "دَهْ/دِي" for "this/that", "بْتَاعْ/بْتَاعِتْ" for possession.
+- Negation: use "مِشْ" or "مَـ...شْ" circumfix (e.g., "مَابِيْعْرَفْشْ", "مِشْ عَارِفْ").
+- Present tense: use the بِـ prefix (e.g., "بِيْرُوحْ", "بَتِتْكَلِّمْ") — this is distinctive of Egyptian.
+- Common Egyptian discourse markers and fillers: "يَعْنِي", "بَقَى", "أَصْلْ", "طَبْ", "خَلَاصْ", "بَصْ", "كِدَهْ", "مَاشِي", "أَهُوْ", "يَا سَلَامْ".
+- Future marker: "هَـ" prefix (e.g., "هَارُوحْ", "هَاتْعَلِّمْ").
+- Cultural texture (use naturally where the topic allows): Cairo life, ahwa (coffee shops), koshari, ful and ta3meya, Nile, Upper Egypt (الصَّعِيدْ), Ramadan fanous, Egyptian humor, sha3bi music, football, Alexandria, Egyptian cinema.
+- Names should sound Egyptian: مُحَمَّدْ، أَحْمَدْ، فَاطْمَة، نُورْهَانْ، عَمّ حَسَنْ، أُمّ كَرِيمْ، تَامِرْ، هَبَة.
+- DO NOT make it sound like a Gulf podcast with Egyptian words sprinkled in. The whole rhythm, humor, references, and worldview should feel genuinely Egyptian.
+`;
+
+    const dialectFlavor = dialect === "Yemeni" ? YEMENI_FLAVOR : dialect === "Egyptian" ? EGYPTIAN_FLAVOR : "";
 
     const systemExtra = `You are a creative writer producing engaging spoken-word content in dialect Arabic.
 
@@ -216,6 +229,49 @@ Return ONLY the structured fields via the provided tool.`;
     const title = String(parsed.title ?? "").slice(0, 200) || topic.slice(0, 200);
     const summary = String(parsed.summary ?? "").slice(0, 500);
     const keyVocab = Array.isArray(parsed.key_vocabulary) ? parsed.key_vocabulary.slice(0, 20) : [];
+
+    // --- Tashkeel Validation (#6) ---
+    // Check if Arabic text has sufficient tashkeel for TTS pronunciation.
+    const allArabicText = script.map((l: any) => l.arabic).join("\n");
+    const tashkeelCoverage = measureTashkeelCoverage(allArabicText);
+    const TASHKEEL_THRESHOLD = 0.7;
+
+    if (tashkeelCoverage < TASHKEEL_THRESHOLD) {
+      console.log(`Tashkeel coverage ${(tashkeelCoverage * 100).toFixed(1)}% below ${TASHKEEL_THRESHOLD * 100}% — running tashkeel pass`);
+      try {
+        const tashkeelResult = await askBrain<{ lines: { arabic: string }[] }>({
+          purpose: "utility",
+          dialect,
+          strategy: "solo",
+          skipRepair: true,
+          models: ["google/gemini-2.5-flash"],
+          systemPromptExtra: `You are a tashkeel specialist. Add full Arabic diacritics (fatha, kasra, damma, sukun, shadda, tanween) to every consonant in the provided dialect Arabic lines. Preserve the dialect forms exactly — do NOT convert to MSA. Return the vocalized lines in the same order via the tool.`,
+          userPrompt: `Add full tashkeel to these ${dialect} Arabic lines:\n${script.map((l: any, i: number) => `${i + 1}. ${l.arabic}`).join("\n")}`,
+          maxTokens: 4000,
+          temperature: 0.2,
+          tool: {
+            name: "emit_vocalized",
+            description: "Return vocalized Arabic lines.",
+            parameters: {
+              type: "object",
+              properties: {
+                lines: { type: "array", items: { type: "object", properties: { arabic: { type: "string" } }, required: ["arabic"] } },
+              },
+              required: ["lines"],
+            },
+          },
+        });
+        const vocalizedLines = tashkeelResult.output?.lines;
+        if (Array.isArray(vocalizedLines) && vocalizedLines.length === script.length) {
+          for (let i = 0; i < script.length; i++) {
+            if (vocalizedLines[i]?.arabic) script[i].arabic = vocalizedLines[i].arabic;
+          }
+          console.log("Tashkeel pass applied successfully");
+        }
+      } catch (e: any) {
+        console.warn("Tashkeel pass failed, proceeding with original:", e?.message);
+      }
+    }
 
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
     const { data: episode, error: saveErr } = await admin

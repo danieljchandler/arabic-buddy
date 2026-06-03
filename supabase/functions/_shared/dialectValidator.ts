@@ -23,7 +23,7 @@ export interface ValidatorLeak {
 
 export interface ValidatorResult {
   score: number;           // 1-5; 5 = fully authentic native, 1 = clearly MSA / wrong dialect
-  verdict: 'pass' | 'rewrite';
+  verdict: 'pass' | 'rewrite' | 'unknown';
   leaks: ValidatorLeak[];
   notes?: string;
   latencyMs: number;
@@ -45,7 +45,7 @@ export async function validateDialect(
   const start = Date.now();
   const apiKey = opts.apiKey ?? Deno.env.get('LOVABLE_API_KEY');
   if (!apiKey || !text || !text.trim()) {
-    return { score: 5, verdict: 'pass', leaks: [], latencyMs: 0, ok: false };
+    return { score: 0, verdict: 'unknown', leaks: [], latencyMs: 0, ok: false };
   }
 
   const passThreshold = opts.passThreshold ?? 4;
@@ -116,14 +116,14 @@ Be harsh. When in doubt between 4 and 3, choose 3.`;
     if (!res.ok) {
       const msg = await res.text().catch(() => '');
       console.warn('[dialectValidator] gateway error', res.status, msg.slice(0, 200));
-      return { score: 5, verdict: 'pass', leaks: [], latencyMs: Date.now() - start, ok: false };
+      return { score: 0, verdict: 'unknown', leaks: [], latencyMs: Date.now() - start, ok: false };
     }
     const data = await res.json();
     const args = data?.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
-    if (!args) return { score: 5, verdict: 'pass', leaks: [], latencyMs: Date.now() - start, ok: false };
+    if (!args) return { score: 0, verdict: 'unknown', leaks: [], latencyMs: Date.now() - start, ok: false };
     let parsed: { score?: number; verdict?: string; leaks?: ValidatorLeak[]; notes?: string };
     try { parsed = JSON.parse(args); } catch {
-      return { score: 5, verdict: 'pass', leaks: [], latencyMs: Date.now() - start, ok: false };
+      return { score: 0, verdict: 'unknown', leaks: [], latencyMs: Date.now() - start, ok: false };
     }
     const score = Math.max(1, Math.min(5, Math.round(Number(parsed.score) || 5)));
     const verdict: 'pass' | 'rewrite' =
@@ -139,6 +139,6 @@ Be harsh. When in doubt between 4 and 3, choose 3.`;
     };
   } catch (err) {
     console.warn('[dialectValidator] failed', err);
-    return { score: 5, verdict: 'pass', leaks: [], latencyMs: Date.now() - start, ok: false };
+    return { score: 0, verdict: 'unknown', leaks: [], latencyMs: Date.now() - start, ok: false };
   }
 }

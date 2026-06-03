@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { planCoverage, type CoveragePlan } from "../_shared/coveragePlanner.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
 import { askBrain, BrainHttpError } from "../_shared/aiBrain.ts";
+import { detectMsaLeaks } from "../_shared/msaLeakDetector.ts";
 import type { Dialect } from "../_shared/dialectHelpers.ts";
 
 const corsHeaders = {
@@ -626,6 +627,19 @@ serve(async (req) => {
     } else {
       responseContent = await callLLM(config, fullMessages, 4096);
     }
+
+    // --- MSA Leak Detection for non-brain paths (#8) ---
+    // When content didn't go through askBrain (which has built-in MSA detection/repair),
+    // run the leak detector and log results for monitoring.
+    if (!useBrain) {
+      const leakResult = detectMsaLeaks(responseContent, dialect as Dialect);
+      if (leakResult.leaks.length > 0) {
+        console.warn(
+          `curriculum-chat MSA leaks detected (non-brain path): dialect=${dialect} leaks=${leakResult.leaks.join(",")} score=${leakResult.score}`,
+        );
+      }
+    }
+
     const structured = extractStructuredOutput(responseContent);
 
     // Log the generation request for auditing

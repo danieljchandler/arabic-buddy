@@ -274,3 +274,66 @@ export function getDialectExamples(dialect: Dialect): string {
   }
   return 'مرحبا (hello), شكراً (thanks), شلونك (how are you), ماي (water), بيت (house)';
 }
+
+// =================== Tashkeel validation ===================
+
+// Arabic diacritics (tashkeel) Unicode range: U+064B – U+065F + U+0670
+const TASHKEEL_RE = /[\u064B-\u065F\u0670]/;
+// Arabic base consonant/letter range (excluding diacritics, tatweel, and digits)
+const ARABIC_LETTER_RE = /[\u0621-\u064A]/g;
+
+/**
+ * Measure what fraction of Arabic letters have an adjacent diacritic (tashkeel).
+ * Returns a ratio between 0.0 (no tashkeel) and 1.0 (fully vocalized).
+ */
+export function measureTashkeelCoverage(text: string): number {
+  if (!text) return 0;
+  const letters = text.match(ARABIC_LETTER_RE);
+  if (!letters || letters.length === 0) return 0;
+
+  let vocalized = 0;
+  for (let i = 0; i < text.length; i++) {
+    if (ARABIC_LETTER_RE.test(text[i])) {
+      // Check if the next character is a diacritic
+      if (i + 1 < text.length && TASHKEEL_RE.test(text[i + 1])) {
+        vocalized++;
+      }
+    }
+    // Reset lastIndex since we're using .test() in a loop with a global regex
+    ARABIC_LETTER_RE.lastIndex = 0;
+  }
+  return vocalized / letters.length;
+}
+
+// =================== Transliteration rules ===================
+
+const TRANSLITERATION_RULES: Record<string, string> = {
+  Gulf: `TRANSLITERATION RULES (Gulf Arabic):
+- ق → g (qaaf is pronounced as hard "g" in Gulf)
+- ج → y (jiim is pronounced as "y" in most Gulf dialects)
+- ك → ch (kaaf is pronounced "ch" before front vowels in Kuwait/parts of Gulf)
+- Use "kh" for خ, "gh" for غ, "sh" for ش, "th" for ث, "dh" for ذ
+- Emphatic consonants: ص→S, ض→D, ط→T, ظ→DH (or capitalize)
+- ع → 3 or ' (ayn), ء → 2 or ' (hamza)
+- Long vowels: aa, ee/ii, oo/uu`,
+  Egyptian: `TRANSLITERATION RULES (Egyptian Arabic):
+- ق → ' (glottal stop in Cairo) or q (in Upper Egypt/formal)
+- ج → g (jiim is always hard "g" in Egyptian)
+- ث → s (not "th"), ذ → z (not "dh") in colloquial Egyptian
+- Use "kh" for خ, "gh" for غ, "sh" for ش
+- Emphatic consonants: ص→S, ض→D, ط→T, ظ→Z (or capitalize)
+- ع → 3 or ' (ayn), ء → 2 or ' (hamza)
+- Long vowels: aa, ee/ii, oo/uu`,
+  Yemeni: `TRANSLITERATION RULES (Yemeni Arabic):
+- ق → g (qaaf is pronounced as hard "g" in many Yemeni regions)
+- ج → j (jiim is standard "j" in Yemeni)
+- ث → th, ذ → dh (Yemeni preserves classical interdentals)
+- Use "kh" for خ, "gh" for غ, "sh" for ش
+- Emphatic consonants: ص→S, ض→D, ط→T, ظ→DH (or capitalize)
+- ع → 3 or ' (ayn), ء → 2 or ' (hamza)
+- Long vowels: aa, ee/ii, oo/uu`,
+};
+
+export function getDialectTransliterationRules(dialect: Dialect): string {
+  return TRANSLITERATION_RULES[dialect] ?? TRANSLITERATION_RULES.Gulf;
+}

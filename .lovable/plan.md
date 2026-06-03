@@ -1,77 +1,53 @@
-## Listen — AI-generated dialect audio content
+# Finish the dialect-AI PR + wire transliteration rules
 
-A new dedicated page (`/listen`) where users generate rich, varied audio-style content in their chosen dialect — podcasts, TED talks, interviews, narrative stories — on any topic. Episodes are saved to a shared library so everyone benefits, with full immersion learning tools wrapped around playback.
+## Scope
+Complete the four items Copilot didn't get to (and tidy two small things) so the dialect AI work from PR #187 is fully landed.
 
-### User flow
+## Changes
 
-1. User opens **Listen** from the home/Today screen.
-2. Tabs at top: **Library** (shared, growing list of saved episodes) and **Create**.
-3. In **Create**:
-   - Pick a **format**: Podcast (2 hosts) · TED talk (solo) · Interview · Story.
-   - Pick a **topic**: browse curated topic chips (Tech, Culture, History, Science, Sports, Food, Travel, Psychology, Business, Current Ideas, …) or type a custom topic.
-   - Pick a **length**: Short (1–2 min) · Medium (3–5 min) · Long (6–10 min).
-   - Pick an **audio mode**: Full TTS (auto-narrated end-to-end with distinct voices per speaker) · Tap-to-hear (no upfront audio; tap any line to play it on demand — cheaper, faster).
-   - Dialect inherits from global Dialect context (Gulf / Egyptian / Yemeni).
-4. Generate. A loading state shows ("Writing your episode…" → "Recording voices…" when TTS).
-5. Player screen:
-   - Header: title, format icon, dialect badge, length, host names.
-   - Synced transcript: every line is a `TappableArabicText` row with optional speaker label, audio button per line, and global play/pause for full TTS episodes.
-   - Display follows global prefs (hide English by default, Tashkil toggle, etc.).
-   - **Key vocabulary** panel below: 8–15 auto-extracted words/phrases at the user's CEFR level with one-tap "Add all to My Words".
-   - Save / share buttons; episode is automatically added to the public library on first generation.
+### 1. Tashkeel regex tidy (`supabase/functions/_shared/dialectHelpers.ts`)
+Split the regex into a non-global `ARABIC_LETTER_RE` (for per-character `.test()`) and a separate global version used only with `.match()`. Removes the fragile `lastIndex = 0` reset.
 
-### Library
+### 2. Wire transliteration rules (item #9)
+Inject `getDialectTransliterationRules(dialect)` into the system prompt of:
+- `supabase/functions/how-do-i-say/index.ts` — append to `buildExtras`
+- `supabase/functions/phrase-of-the-day/index.ts` — add via `systemPromptExtra`
+- `supabase/functions/generate-listen-script/index.ts` — append to `systemExtra`
 
-- Newest first, filterable by dialect + format + topic.
-- Card shows title, one-line teaser, format, length, dialect, play count, who created it.
-- Tap → same player view. Anyone can replay; only the creator (or admin) can delete.
+So every Latin transliteration the model emits follows one consistent per-dialect convention.
 
-### Backend
+### 3. Multi-turn dialect drift tracking (item #10)
+In `supabase/functions/free-chat/index.ts` and `supabase/functions/conversation-practice/index.ts`:
+- Before sending history to the model, scan the last 2–3 assistant turns with `detectMsaLeaks`.
+- If leaks are found, append a self-correction nudge into the system prompt extras: "In your earlier reply you used MSA words [...] — do not repeat that pattern."
 
-New tables (in one migration, with grants + RLS):
+Lightweight, no extra model calls.
 
-- `listen_episodes` — `id`, `creator_id`, `dialect`, `format` (podcast|ted|interview|story), `topic`, `topic_category`, `length_bucket`, `title`, `summary`, `script` (jsonb: array of `{speaker, speaker_role, arabic, english, transliteration}` lines), `key_vocabulary` (jsonb: array of `{arabic, english, root?}`), `audio_mode` (full|on_demand), `full_audio_url` (nullable), `duration_seconds` (nullable), `play_count`, `created_at`.
-- `listen_line_audio` — `id`, `episode_id`, `line_index`, `speaker`, `audio_url`. Cached per-line TTS for tap-to-hear; reused across users.
-- `listen_episode_plays` — lightweight per-user play log for "Continue listening" + play_count increment.
+### 4. Dialect-aware re-segmentation (item #12)
+In `supabase/functions/ai-resegment-transcript/index.ts`:
+- Build `SYSTEM_PROMPT` per dialect with dialect-specific discourse markers (e.g. "أيوة" Egyptian, "إي" Gulf, "أيوه/إيوه" Yemeni) and acknowledgement particles.
+- Use `getDialectLabel` + a small `DIALECT_DISCOURSE_MARKERS` map.
 
-RLS: episodes readable by all authenticated users (shared library); insert by authenticated; delete by creator or admin. Line audio readable by all authenticated; writable by service role only.
+### 5. Finish live-voice drift surface (item #4)
+- `src/hooks/useGeminiLive.ts` already flags `hasDialectDrift` on each turn and fires `onDialectDrift`. **No further hook change needed.**
+- `src/components/conversation/LiveVoicePanel.tsx`: render a small "used MSA" badge under any assistant turn whose `hasDialectDrift` is true. Use existing `text-xs text-amber-600` styling (token-aligned). No mid-session system-prompt mutation — Gemini Live doesn't support that; this surfaces the issue to the learner instead.
 
-New storage bucket `listen-audio` (public read) for full-episode MP3s and per-line clips.
+### 6. Curriculum-chat: actually repair, not just log
+In `supabase/functions/curriculum-chat/index.ts`, when the non-brain path detects leaks, run a single repair call through the gateway (same pattern as `streamBrain`'s post-stream repair) and substitute the repaired text before `extractStructuredOutput`. Falls back to original if the repair call fails. Keeps the function tolerant of Fanar/OpenRouter outputs.
 
-Edge functions:
+## Out of scope
+- No database changes.
+- No UI redesign — only a small inline badge on drifted live-voice turns.
+- No new edge functions; only edits to existing ones.
+- Egyptian/Yemeni dialect_rules DB content parity (#11) is a content-team task, not code.
 
-- `generate-listen-script` — Takes `{format, topic, length, dialect}`. Calls Curriculum Brain / aiBrain with a format-specific prompt that enforces dialect rules (no MSA leakage), produces a structured JSON script aligned to user CEFR, plus title/summary/key_vocabulary. Inserts the episode row and returns it. ~30–60s.
-- `generate-listen-audio` — Background function called immediately after script creation when `audio_mode = full`. For each line, picks a voice from the dialect→voice map (re-use Live Voice / Conversation Simulator mapping; distinct voices per speaker role), generates TTS via Munsit (Gulf) or Azure (Egyptian/Yemeni) following the existing ASR/TTS engine priority, stitches per-line clips, uploads full MP3 to storage, updates `full_audio_url` + `duration_seconds`. Per-line clips also saved to `listen_line_audio` so tap-to-hear stays cheap on replays.
-- `generate-listen-line-audio` — On-demand single-line TTS for tap-to-hear mode; cache-first via `listen_line_audio`.
-
-All three follow existing patterns: `verify_jwt = false` where invoked by service flows, `SUPABASE_SERVICE_ROLE_KEY` for inserts, daily usage cap via `enforceDailyCap` on `generate-listen-script` (e.g. 3/day free).
-
-### Frontend
-
-- `src/pages/Listen.tsx` — Library + Create tabs.
-- `src/pages/ListenEpisode.tsx` — Player view at `/listen/:id`.
-- `src/components/listen/CreateEpisodeForm.tsx` — Format/topic/length/audio-mode picker with curated topic chips.
-- `src/components/listen/EpisodeCard.tsx` — Library card.
-- `src/components/listen/ScriptLine.tsx` — Speaker label + `TappableArabicText` + line play button.
-- `src/components/listen/EpisodePlayer.tsx` — Sticky bottom player for full-TTS episodes with line-highlight sync (use a simple per-line duration map persisted in the episode row).
-- `src/components/listen/KeyVocabularyPanel.tsx` — Vocab list + bulk add to My Words (reuse existing user_vocabulary hook).
-- `src/hooks/useListenEpisodes.ts` and `useListenEpisode.ts`.
-- Route added in `App.tsx`. Card added to `Today.tsx` / home shortcuts.
-
-### Prompt approach (per format)
-
-Shared rules: target user's CEFR, dialect-only (uses `_shared/dialectHelpers.ts` + dialect rulebook), output strict JSON schema. Format-specific framing:
-
-- Podcast: warm two-host banter, intro/segment/outro beats.
-- TED talk: single speaker, hook → personal story → core insight → call to action.
-- Interview: host asks 4–6 sharp questions; guest answers with concrete examples.
-- Story: third-person narrative with dialogue, vivid sensory detail, twist or moral.
-
-Topic library is hard-coded in TS (categories with ~10 prompts each, e.g. "Why we procrastinate", "The dying art of pearl diving", "How TikTok changed Khaleeji music", …) but custom input is always allowed.
-
-### Out of scope (for now)
-
-- Comments/likes on episodes.
-- Background music beds.
-- Multi-language transcripts beyond the existing English/transliteration toggles.
-- Admin pre-approval queue (anyone can publish; admins can delete).
+## Files touched
+- `supabase/functions/_shared/dialectHelpers.ts`
+- `supabase/functions/how-do-i-say/index.ts`
+- `supabase/functions/phrase-of-the-day/index.ts`
+- `supabase/functions/generate-listen-script/index.ts`
+- `supabase/functions/free-chat/index.ts`
+- `supabase/functions/conversation-practice/index.ts`
+- `supabase/functions/ai-resegment-transcript/index.ts`
+- `supabase/functions/curriculum-chat/index.ts`
+- `src/components/conversation/LiveVoicePanel.tsx`

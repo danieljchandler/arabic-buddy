@@ -3,7 +3,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { askBrain, BrainHttpError } from "../_shared/aiBrain.ts";
-import { getDialectLabel, type Dialect } from "../_shared/dialectHelpers.ts";
+import { getDialectLabel, getDialectTransliterationRules, type Dialect } from "../_shared/dialectHelpers.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
 
 const corsHeaders = {
@@ -61,7 +61,9 @@ Rules for the emit_translation tool call:
 - Transliteration: simple Latin letters easy for English speakers.
 - vocabulary: 3-8 most useful individual words with optional Arabic root.
 - culturalNotes: 2-4 practical sentences (politeness, gender, usage tips).
-- genderVariants: only when phrasing changes by speaker/listener gender.`;
+- genderVariants: only when phrasing changes by speaker/listener gender.
+
+${getDialectTransliterationRules(dialect)}`;
 }
 
 const TOOL_PARAMETERS = {

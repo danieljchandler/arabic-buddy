@@ -279,8 +279,9 @@ export function getDialectExamples(dialect: Dialect): string {
 
 // Arabic diacritics (tashkeel) Unicode range: U+064B – U+065F + U+0670
 const TASHKEEL_RE = /[\u064B-\u065F\u0670]/;
-// Arabic base consonant/letter range (excluding diacritics, tatweel, and digits)
-const ARABIC_LETTER_RE = /[\u0621-\u064A]/g;
+// Arabic base consonant/letter range. Non-global so per-character `.test()` is stateless.
+const ARABIC_LETTER_RE = /[\u0621-\u064A]/;
+const ARABIC_LETTER_RE_G = /[\u0621-\u064A]/g;
 
 /**
  * Measure what fraction of Arabic letters have an adjacent diacritic (tashkeel).
@@ -288,19 +289,16 @@ const ARABIC_LETTER_RE = /[\u0621-\u064A]/g;
  */
 export function measureTashkeelCoverage(text: string): number {
   if (!text) return 0;
-  const letters = text.match(ARABIC_LETTER_RE);
+  const letters = text.match(ARABIC_LETTER_RE_G);
   if (!letters || letters.length === 0) return 0;
 
   let vocalized = 0;
   for (let i = 0; i < text.length; i++) {
     if (ARABIC_LETTER_RE.test(text[i])) {
-      // Check if the next character is a diacritic
       if (i + 1 < text.length && TASHKEEL_RE.test(text[i + 1])) {
         vocalized++;
       }
     }
-    // Reset lastIndex since we're using .test() in a loop with a global regex
-    ARABIC_LETTER_RE.lastIndex = 0;
   }
   return vocalized / letters.length;
 }

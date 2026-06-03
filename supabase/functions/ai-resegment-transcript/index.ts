@@ -37,10 +37,31 @@ interface AILine {
   wordIndices: number[];
 }
 
-const SYSTEM_PROMPT = `You are an expert Arabic transcript editor for the Lahja dialect-learning platform.
+const DIALECT_MARKERS: Record<string, string> = {
+  Gulf: `Dialect-specific cues for GULF (Khaleeji):
+- Discourse markers / acknowledgements: "إي", "إيه", "هاه", "زين", "طيب", "ماشي", "أوكي", "والله".
+- Question particles: "شلون", "وين", "شنو", "متى", "ليش".
+- Vocatives: "يا أخوي", "يا حبيبي", "يا الغالي".`,
+  Egyptian: `Dialect-specific cues for EGYPTIAN (مصري):
+- Discourse markers / acknowledgements: "أيوة", "تمام", "ماشي", "طب", "بس", "خلاص", "كده".
+- Question particles: "إزاي", "فين", "إيه", "إمتى", "ليه".
+- Vocatives: "يا باشا", "يا حبيبي", "يا عم".`,
+  Yemeni: `Dialect-specific cues for YEMENI (يمني):
+- Discourse markers / acknowledgements: "إيوه", "أيوه", "زين", "خلاص", "بس", "والله", "صدّق".
+- Question particles: "كيف", "وين", "أيش", "إيش", "متى", "ليش".
+- Vocatives: "يا حيّ", "يا أخي", "يا أبو".`,
+};
+
+function buildSystemPrompt(dialect: string | undefined): string {
+  const key = dialect && DIALECT_MARKERS[dialect] ? dialect : "Gulf";
+  const markers = DIALECT_MARKERS[key];
+  return `You are an expert Arabic transcript editor for the Lahja dialect-learning platform.
 
 You receive a flattened list of timestamped Arabic words from ASR output and must
 group them into clean, learner-friendly subtitle lines.
+
+TARGET DIALECT: ${key}
+${markers}
 
 RULES (in priority order):
 1. PRESERVE every original word and its index. Do NOT invent, drop, rewrite, or reorder words.
@@ -48,14 +69,15 @@ RULES (in priority order):
 2. Start a NEW LINE whenever the speaker changes. Use existing speaker tags when present
    ("[A]", "[B]", etc.). When no tags exist, infer speaker changes from:
    - Long pauses between adjacent words (gap > 0.6s)
-   - Question/answer alternation
+   - Question/answer alternation (use the dialect-specific question particles above)
    - Vocatives ("يا ...") or direct address
-   - Discourse markers ("طيب", "تمام", "أيوة")
+   - Discourse markers from the dialect cues above (treat them as turn-starts when standalone)
    Label speakers "A", "B", "C"... in order of appearance.
 3. Each line should express ONE complete thought or clause. Aim for:
    - 2.5–7 seconds of audio
    - 4–14 Arabic words
-   - Avoid lines shorter than ~1.2s UNLESS they are a true short utterance from a different speaker (e.g. "أيوة", "لا والله").
+   - Avoid lines shorter than ~1.2s UNLESS they are a true short utterance from a different speaker
+     (e.g. a dialect acknowledgement listed above).
 4. Break at natural sentence/clause boundaries — never mid-phrase, never mid-idafa,
    never separating a particle from its noun.
 5. Do NOT translate to MSA. Keep the exact dialectal forms the speaker used.
@@ -64,6 +86,7 @@ RULES (in priority order):
 7. The line's start = first word's start, end = last word's end.
 
 Return your answer by calling the resegment_transcript tool with the structured output.`;
+}
 
 const TOOL_SCHEMA = {
   type: "function",
@@ -170,7 +193,7 @@ async function callGateway(
       body: JSON.stringify({
         model,
         messages: [
-          { role: "system", content: SYSTEM_PROMPT },
+          { role: "system", content: buildSystemPrompt(dialect) },
           {
             role: "user",
             content:

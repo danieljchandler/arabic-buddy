@@ -3,7 +3,8 @@
 // guidance and buffers the stream server-side because the client expects { reply }.
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { streamBrain, BrainHttpError } from "../_shared/aiBrain.ts";
-import { type Dialect } from "../_shared/dialectHelpers.ts";
+import { getDialectLabel, type Dialect } from "../_shared/dialectHelpers.ts";
+import { detectMsaLeaks } from "../_shared/msaLeakDetector.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
 
 const corsHeaders = {
@@ -73,11 +74,25 @@ serve(async (req) => {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 30_000);
 
+    // Multi-turn drift tracking: scan the last 3 assistant turns.
+    const effectiveDialect = dialect as Dialect;
+    const recentAssistantTurns = (messages as Array<{ role: string; content: string }>)
+      .filter((m) => m.role === "assistant")
+      .slice(-3)
+      .map((m) => m.content)
+      .join("\n");
+    const historyLeaks = recentAssistantTurns
+      ? detectMsaLeaks(recentAssistantTurns, effectiveDialect).leaks
+      : [];
+    const driftNudge = historyLeaks.length > 0
+      ? `\n\nSELF-CORRECTION (your earlier replies used MSA tokens: ${historyLeaks.slice(0, 8).join(", ")}). Do NOT repeat that pattern — use only ${getDialectLabel(effectiveDialect)} forms.`
+      : "";
+
     try {
       const streamed = await streamBrain({
         purpose: "conversation_practice_turn",
-        dialect: dialect as Dialect,
-        systemPromptExtra: difficultyExtras(difficulty),
+        dialect: effectiveDialect,
+        systemPromptExtra: difficultyExtras(difficulty) + driftNudge,
         messages,
         model: "google/gemini-3-flash-preview",
         temperature: 0.8,

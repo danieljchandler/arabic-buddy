@@ -1,6 +1,7 @@
 import { askBrain, BrainHttpError } from "../_shared/aiBrain.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { createErrorResponse } from "../_shared/errorResponse.ts";
+import { getDialectTransliterationRules, type Dialect } from "../_shared/dialectHelpers.ts";
 
 interface PhraseOut {
   phrase_arabic: string;
@@ -31,6 +32,7 @@ Include a brief cultural or usage note.`;
       purpose: 'phrase_of_the_day',
       dialect,
       userPrompt,
+      systemPromptExtra: getDialectTransliterationRules(dialect as Dialect),
       strategy: 'ensemble',
       maxTokens: 600,
       temperature: 0.8,

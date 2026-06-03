@@ -3,7 +3,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { askBrain } from "../_shared/aiBrain.ts";
-import { primeDialectPrompt, measureTashkeelCoverage, type Dialect } from "../_shared/dialectHelpers.ts";
+import { primeDialectPrompt, measureTashkeelCoverage, getDialectTransliterationRules, type Dialect } from "../_shared/dialectHelpers.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
 
 const corsHeaders = {
@@ -152,6 +152,8 @@ OUTPUT:
   - english: faithful natural English translation.
   - transliteration: optional simple Latin transliteration.
 - key_vocabulary: 8-15 useful words or short phrases drawn from the script: { arabic, english, note? } — pick learner-valuable items, not function words. arabic must be fully vocalized.
+
+${getDialectTransliterationRules(dialect)}
 
 Return ONLY the structured fields via the provided tool.`;
 

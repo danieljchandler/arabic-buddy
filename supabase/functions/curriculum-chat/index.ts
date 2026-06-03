@@ -628,15 +628,49 @@ serve(async (req) => {
       responseContent = await callLLM(config, fullMessages, 4096);
     }
 
-    // --- MSA Leak Detection for non-brain paths (#8) ---
-    // When content didn't go through askBrain (which has built-in MSA detection/repair),
-    // run the leak detector and log results for monitoring.
+    // --- MSA Leak Detection + repair for non-brain paths (#8) ---
+    // When content didn't go through askBrain, detect leaks and run a single
+    // gateway repair pass. Falls back to the original text on failure.
     if (!useBrain) {
       const leakResult = detectMsaLeaks(responseContent, dialect as Dialect);
       if (leakResult.leaks.length > 0) {
         console.warn(
           `curriculum-chat MSA leaks detected (non-brain path): dialect=${dialect} leaks=${leakResult.leaks.join(",")} score=${leakResult.score}`,
         );
+        try {
+          const repairKey = Deno.env.get("LOVABLE_API_KEY")?.trim();
+          if (repairKey) {
+            const repairSys = `You are a ${dialect} Arabic editor. The text below leaked MSA tokens: ${leakResult.leaks.join(", ")}. Rewrite it in authentic ${dialect} dialect ONLY, preserving any \`\`\`json code blocks and all field values' structure EXACTLY (only rewrite Arabic strings inside). Return ONLY the corrected text — no commentary.`;
+            const repairResp = await fetch(LOVABLE_GATEWAY, {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${repairKey}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                model: "google/gemini-2.5-flash",
+                messages: [
+                  { role: "system", content: repairSys },
+                  { role: "user", content: responseContent },
+                ],
+                temperature: 0.2,
+                max_tokens: 4096,
+              }),
+            });
+            if (repairResp.ok) {
+              const repairData = await repairResp.json();
+              const repaired = repairData?.choices?.[0]?.message?.content;
+              if (typeof repaired === "string" && repaired.trim().length > 0) {
+                console.log("curriculum-chat: applied MSA repair pass");
+                responseContent = repaired;
+              }
+            } else {
+              console.warn("curriculum-chat repair pass HTTP error", repairResp.status);
+            }
+          }
+        } catch (repairErr) {
+          console.warn("curriculum-chat repair pass failed:", repairErr);
+        }
       }
     }
 

@@ -22,6 +22,8 @@ interface LiveTurn {
   role: "user" | "assistant";
   text: string;
   partial?: boolean;
+  /** True if the turn contained detected MSA/wrong-dialect tokens. */
+  hasDialectDrift?: boolean;
 }
 
 interface StartArgs {
@@ -32,6 +34,22 @@ interface StartArgs {
 
 interface Options {
   onTurnFinalized?: (turn: LiveTurn) => void;
+  /** Called when MSA/wrong-dialect tokens are detected in model output. */
+  onDialectDrift?: (leaks: string[]) => void;
+}
+
+// Lightweight client-side MSA detector for live voice turns.
+// A subset of the server-side detector — catches the most common MSA leaks.
+const CLIENT_MSA_TOKENS: Record<string, string[]> = {
+  Gulf: ['الآن', 'لماذا', 'أين', 'ماذا', 'سوف', 'ليس', 'يريد', 'أريد', 'كيف', 'إزيك', 'دلوقتي', 'عايز'],
+  Egyptian: ['الآن', 'لماذا', 'أين', 'ماذا', 'سوف', 'ليس', 'يريد', 'أريد', 'كيف', 'شلونك', 'هالحين', 'يبي'],
+  Yemeni: ['الآن', 'لماذا', 'أين', 'ماذا', 'سوف', 'ليس', 'يريد', 'أريد', 'إزيك', 'دلوقتي', 'هالحين', 'يبي'],
+};
+
+function detectLiveLeaks(text: string, dialect: string): string[] {
+  if (!text) return [];
+  const tokens = CLIENT_MSA_TOKENS[dialect] ?? CLIENT_MSA_TOKENS.Gulf;
+  return tokens.filter((t) => text.includes(t));
 }
 
 // Tiny inline AudioWorklet that emits Float32 frames as Int16 PCM messages.
@@ -85,6 +103,7 @@ export function useGeminiLive(opts: Options = {}) {
   const userPartialRef = useRef<string>("");
   const modelPartialRef = useRef<string>("");
   const mutedRef = useRef(false);
+  const dialectRef = useRef<string>("Gulf");
 
   useEffect(() => {
     mutedRef.current = muted;
@@ -115,11 +134,28 @@ export function useGeminiLive(opts: Options = {}) {
   const finalizeTurns = useCallback(() => {
     const u = userPartialRef.current.trim();
     const m = modelPartialRef.current.trim();
+
+    // Check model output for MSA/wrong-dialect leaks.
+    let modelDrift = false;
+    if (m) {
+      const leaks = detectLiveLeaks(m, dialectRef.current);
+      if (leaks.length > 0) {
+        modelDrift = true;
+        opts.onDialectDrift?.(leaks);
+      }
+    }
+
     setTurns((prev) =>
-      prev.map((t) => (t.partial ? { ...t, partial: false } : t))
+      prev.map((t) => {
+        if (!t.partial) return t;
+        if (t.role === "assistant" && modelDrift) {
+          return { ...t, partial: false, hasDialectDrift: true };
+        }
+        return { ...t, partial: false };
+      })
     );
     if (u) opts.onTurnFinalized?.({ role: "user", text: u });
-    if (m) opts.onTurnFinalized?.({ role: "assistant", text: m });
+    if (m) opts.onTurnFinalized?.({ role: "assistant", text: m, hasDialectDrift: modelDrift });
     userPartialRef.current = "";
     modelPartialRef.current = "";
   }, [opts]);
@@ -200,6 +236,7 @@ export function useGeminiLive(opts: Options = {}) {
 
   const start = useCallback(async ({ dialect, difficulty, topicHint }: StartArgs) => {
     if (status === "connecting" || status === "live") return;
+    dialectRef.current = dialect || "Gulf";
     setError(null);
     setStatus("connecting");
     setTurns([]);

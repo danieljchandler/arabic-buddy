@@ -46,6 +46,8 @@ export interface BrainTask {
   maxTokens?: number;
   temperature?: number;
   arabicTextPath?: (parsed: unknown) => string;
+  /** When true, skip the MSA repair pass (for low-stakes internal calls). */
+  skipRepair?: boolean;
   /** When true, run a strict native-speaker validator after the repair pass. */
   validateDialect?: boolean;
 }
@@ -98,8 +100,9 @@ export async function askBrain<T = unknown>(task: BrainTask): Promise<BrainResul
       break;
   }
 
-  // MSA-guard + one repair pass for non-solo strategies.
-  if (strategy !== 'solo' && result.msaLeaks.leaks.length > 0) {
+  // MSA-guard + one repair pass when leaks are detected (all strategies).
+  // Callers may opt out with skipRepair for truly low-stakes internal calls.
+  if (!task.skipRepair && result.msaLeaks.leaks.length > 0) {
     try {
       const repaired = await runRepair<T>(task, result, apiKey);
       result = { ...repaired, msaRepairs: result.msaRepairs + 1 };
@@ -613,6 +616,34 @@ export async function streamBrain(task: StreamBrainTask): Promise<Response> {
               sourceFunction: task.purpose,
               metadata: { streaming: true, model: task.model ?? 'google/gemini-2.5-pro' },
             });
+            // Fire-and-forget a repair call so callers with onComplete can get
+            // the corrected text (e.g., conversation-practice buffers the stream).
+            if (task.onComplete) {
+              const apiKey = Deno.env.get('LOVABLE_API_KEY');
+              if (apiKey && leaks.severity !== 'none') {
+                const repairSys = `${buildSystem({ purpose: task.purpose, dialect: task.dialect, userPrompt: '', systemPromptExtra: task.systemPromptExtra } as BrainTask)}\n\nThe previous output leaked MSA. Rewrite it in authentic ${getDialectLabel(task.dialect)} ONLY. The following MSA words MUST be replaced with dialectal equivalents: ${leaks.leaks.join(', ')}. Return ONLY the corrected text (no commentary).`;
+                fetch(GATEWAY_URL, {
+                  method: 'POST',
+                  headers: { 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    model: DEFAULT_FAST,
+                    max_tokens: 600,
+                    temperature: 0.2,
+                    messages: [
+                      { role: 'system', content: repairSys },
+                      { role: 'user', content: full },
+                    ],
+                  }),
+                }).then(async (r) => {
+                  if (!r.ok) return;
+                  const d = await r.json();
+                  const corrected = d?.choices?.[0]?.message?.content;
+                  if (corrected && typeof corrected === 'string') {
+                    try { Promise.resolve(task.onComplete!(corrected)).catch(() => {}); } catch { /* ignore */ }
+                  }
+                }).catch(() => {});
+              }
+            }
           }
         } catch { /* ignore */ }
       }

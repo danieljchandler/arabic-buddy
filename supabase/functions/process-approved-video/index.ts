@@ -503,27 +503,47 @@ async function runPipeline(
       .eq("id", videoId)
       .single();
 
+    // Align merged-Arabic lines to the source audio timeline.
+    //
+    // The naive approach (walking Deepgram word indices) breaks badly because:
+    //   - the AI merger rewrites/normalizes Arabic, so word counts no longer
+    //     match the ASR token stream;
+    //   - Deepgram often returns FAR fewer Arabic words than Soniox/Munsit
+    //     (English-tuned segmentation), so later lines end up with
+    //     undefined timestamps.
+    //
+    // Instead, take the total speech span from the most reliable timestamped
+    // source available and proportionally allocate to each line by character
+    // length. This keeps line audio in roughly the right place even when the
+    // merged text and the timestamped ASR diverge.
+    const alignLinesToAudio = (rawLines: any[]): any[] => {
+      if (!Array.isArray(rawLines) || rawLines.length === 0) return rawLines;
+      const words = relativeWords;
+      if (!words.length) return rawLines;
+      const spanStartMs = Math.max(0, Math.round((words[0]?.start ?? 0) * 1000));
+      const spanEndMs = Math.round((words[words.length - 1]?.end ?? 0) * 1000);
+      const totalSpan = Math.max(1, spanEndMs - spanStartMs);
+
+      const lens = rawLines.map((l: any) => {
+        const txt = String(l?.arabic ?? "").replace(/\s+/g, "");
+        return Math.max(1, txt.length);
+      });
+      const totalLen = lens.reduce((a, b) => a + b, 0);
+
+      let cursor = spanStartMs;
+      return rawLines.map((line: any, i: number) => {
+        const share = (lens[i] / totalLen) * totalSpan;
+        const startMs = Math.round(cursor);
+        const endMs = Math.round(cursor + share);
+        cursor += share;
+        return { ...line, startMs, endMs };
+      });
+    };
+
     if (refreshed?.transcription_status === "analysis_complete") {
       console.log("[pipeline] Results persisted directly by analyze-gulf-arabic");
 
-      // Apply Deepgram timestamps to the persisted lines
-      let lines = (refreshed.transcript_lines as any[]) || [];
-      if (relativeWords.length > 0 && lines.length > 0) {
-        let wordIdx = 0;
-        lines = lines.map((line: any) => {
-          const lineWords = line.arabic?.split(/\s+/).filter(Boolean) || [];
-          let startMs: number | undefined;
-          let endMs: number | undefined;
-          for (const _lw of lineWords) {
-            if (wordIdx < relativeWords.length) {
-              if (startMs === undefined) startMs = Math.round(relativeWords[wordIdx].start * 1000);
-              endMs = Math.round(relativeWords[wordIdx].end * 1000);
-              wordIdx++;
-            }
-          }
-          return { ...line, startMs, endMs };
-        });
-      }
+      const lines = alignLinesToAudio((refreshed.transcript_lines as any[]) || []);
 
       const title = refreshed.title || video.title;
       const titleArabic = refreshed.title_arabic || video.title_arabic;
@@ -540,23 +560,7 @@ async function runPipeline(
       // Fallback: HTTP response arrived before gateway timeout
       const result = analyzeData.result;
 
-      let lines = result.lines || [];
-      if (relativeWords.length > 0 && lines.length > 0) {
-        let wordIdx = 0;
-        lines = lines.map((line: any) => {
-          const lineWords = line.arabic?.split(/\s+/).filter(Boolean) || [];
-          let startMs: number | undefined;
-          let endMs: number | undefined;
-          for (const _lw of lineWords) {
-            if (wordIdx < relativeWords.length) {
-              if (startMs === undefined) startMs = Math.round(relativeWords[wordIdx].start * 1000);
-              endMs = Math.round(relativeWords[wordIdx].end * 1000);
-              wordIdx++;
-            }
-          }
-          return { ...line, startMs, endMs };
-        });
-      }
+      const lines = alignLinesToAudio(result.lines || []);
 
       const sanitizedLines = lines.map((line: any) => ({
         ...line,

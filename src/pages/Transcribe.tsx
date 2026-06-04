@@ -925,6 +925,11 @@ const Transcribe = () => {
         cultural_context: transcriptResult.culturalContext || null,
         audio_url: audioUrl || null,
         dialect: activeDialect,
+        engines_used: {
+          asr: enginesUsedRef.current,
+          translation: ['falcon-translate (Qwen+Gemini ensemble)'],
+          analysis: 'analyze-gulf-arabic (AI Gateway ensemble)',
+        },
       } as never);
       if (error) throw error;
       setIsSaved(true);

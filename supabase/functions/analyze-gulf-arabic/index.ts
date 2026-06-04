@@ -1670,8 +1670,8 @@ serve(async (req) => {
        console.log(
          'Applied dedicated translations to',
          dedicatedTranslations.length,
-         'lines.',
-         geminiTransResp.content && translationAi ? '(Gemini)' : '(Qwen fallback)'
+         'lines. tierWon=',
+         translationTierWon
        );
      }
 

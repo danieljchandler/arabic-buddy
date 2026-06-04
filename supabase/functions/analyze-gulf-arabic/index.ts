@@ -1658,19 +1658,63 @@ serve(async (req) => {
      const arabicOnlyText = mergedLines.map(l => l.arabic).join('\n');
      const hfApiKey = Deno.env.get('HUGGINGFACE_API_KEY') ?? '';
 
-      const [geminiTransResp, analysisResp, fanarMetaResp, fanarValidResp, camelDialectResult, diacritizedTranscript] = await Promise.all([
-        // Tier 1: Gemini 3.1 Pro Preview via Lovable AI gateway.
-        // (Native audio multimodality requires a direct Google API call with
-        // GEMINI_API_KEY — staged for a follow-up. For now we still beat the
-        // previous 2.5-Pro model on Arabic reasoning.)
-        callAI({
-          model: 'google/gemini-3.1-pro-preview',
-          systemPrompt: getTranslationSystemPrompt(detectedDialect, visualContext, sonioxTranslation),
-          userContent: mergedTranscriptText,
-          apiKey: '', // not used for lovable gateway
-          gateway: 'lovable',
-          maxTokens: 16384,
-        }),
+      const [translationEnsembleResult, analysisResp, fanarMetaResp, fanarValidResp, camelDialectResult, diacritizedTranscript] = await Promise.all([
+        // TRANSLATION ENSEMBLE — Gemini (1.0) + Claude Opus (1.0) co-equal peers,
+        // Qwen3-Max (0.5) as lighter-weight verifier. All three run in parallel;
+        // results are merged per-line by weighted Jaccard clustering. See
+        // mergeTranslationEnsemble() above.
+        (async () => {
+          const sys = getTranslationSystemPrompt(detectedDialect, visualContext, sonioxTranslation);
+          const settled = await Promise.allSettled([
+            callTranslationModel({
+              name: 'google/gemini-3.1-pro-preview',
+              via: 'lovable',
+              weight: 1.0,
+              model: 'google/gemini-3.1-pro-preview',
+              systemPrompt: sys,
+              userContent: mergedTranscriptText,
+              apiKey: '',
+              maxTokens: 16384,
+            }),
+            callTranslationModel({
+              name: 'anthropic/claude-opus-4.1',
+              via: 'openrouter',
+              weight: 1.0,
+              model: 'anthropic/claude-opus-4.1',
+              systemPrompt: sys,
+              userContent: mergedTranscriptText,
+              apiKey: OPENROUTER_API_KEY,
+              maxTokens: 8192,
+            }),
+            callTranslationModel({
+              name: 'qwen/qwen3-max',
+              via: 'openrouter',
+              weight: 0.5,
+              model: 'qwen/qwen3-max',
+              systemPrompt: sys,
+              userContent: mergedTranscriptText,
+              apiKey: OPENROUTER_API_KEY,
+              maxTokens: 4096,
+            }),
+          ]);
+          const candidates: EnsembleCandidate[] = settled.map((s, i) => {
+            const names = ['google/gemini-3.1-pro-preview', 'anthropic/claude-opus-4.1', 'qwen/qwen3-max'];
+            const vias: Array<'lovable' | 'openrouter'> = ['lovable', 'openrouter', 'openrouter'];
+            const weights = [1.0, 1.0, 0.5];
+            if (s.status === 'fulfilled') return s.value;
+            return {
+              name: names[i],
+              via: vias[i],
+              weight: weights[i],
+              translations: [],
+              status: 'failed' as const,
+              latencyMs: 0,
+              chars: 0,
+              error: s.reason instanceof Error ? s.reason.message : String(s.reason),
+            };
+          });
+          return candidates;
+        })(),
        // Call 2: vocabulary + grammar (Qwen, unchanged from Step 2)
        callAI({
          systemPrompt: getAnalysisSystemPrompt(false, detectedDialect),

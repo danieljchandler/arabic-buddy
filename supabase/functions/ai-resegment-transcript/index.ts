@@ -225,8 +225,9 @@ async function callGateway(
     return parsed.lines ?? [];
   };
 
-  // Use Pro for big inputs (better long-context reasoning), Flash otherwise.
-  const primary = flat.length > 120 ? "google/gemini-2.5-pro" : "google/gemini-3-flash-preview";
+  // Flash is fast enough for re-segmentation and stays well under the 150s
+  // edge-function idle timeout. Pro was timing out on long transcripts.
+  const primary = "google/gemini-3-flash-preview";
   const fallback = "google/gemini-2.5-flash";
 
   try {

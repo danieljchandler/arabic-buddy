@@ -821,6 +821,7 @@ const Transcribe = () => {
         sonioxText ? "Soniox" : null,
       ].filter(Boolean);
       console.log(`Transcription engines used: ${enginesUsed.join(" + ")}`);
+      enginesUsedRef.current = enginesUsed as string[];
       if (fanarData && !fanarData.fanarUsed) {
         console.log(`Fanar ASR skipped: ${fanarData.fanarAvailable === false ? 'budget exhausted' : 'not used'} (remaining: ${fanarData.budgetRemaining ?? '?'})`);
       }

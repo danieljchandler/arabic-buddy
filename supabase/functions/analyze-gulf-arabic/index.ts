@@ -386,8 +386,209 @@ Rules:
 No additional text outside JSON.`;
 };
 
-// Returned by the dedicated translation call (Gemini primary / Qwen fallback)
+// Returned by the dedicated translation call (one per ensemble model)
 type TranslationAI = { translations: string[] };
+
+// ============================================================================
+// TRANSLATION ENSEMBLE — Gemini + Claude (weight 1.0) + Qwen (weight 0.5)
+// All three run in parallel; per-line winner is chosen by weighted vote with
+// Jaccard token-overlap clustering. Gemini+Claude agreement always wins.
+// ============================================================================
+type EnsembleCandidate = {
+  name: string;
+  via: string;
+  weight: number;
+  translations: string[];
+  status: 'ok' | 'failed' | 'parse_failed' | 'empty';
+  latencyMs: number;
+  chars: number;
+  error?: string;
+};
+
+type EnsembleLineResult = {
+  translation: string;
+  needs_review: boolean;
+  winner_models: string[];
+};
+
+function _normalizeForCompare(s: string): string {
+  return (s || '')
+    .toLowerCase()
+    .replace(/[.,!?;:'"()[\]{}…—–\-]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function _jaccard(a: string, b: string): number {
+  const ta = new Set(_normalizeForCompare(a).split(' ').filter(Boolean));
+  const tb = new Set(_normalizeForCompare(b).split(' ').filter(Boolean));
+  if (ta.size === 0 && tb.size === 0) return 1;
+  if (ta.size === 0 || tb.size === 0) return 0;
+  let inter = 0;
+  for (const t of ta) if (tb.has(t)) inter++;
+  return inter / (ta.size + tb.size - inter);
+}
+
+/**
+ * Merge candidate translations for ONE line using weighted clustering.
+ * Returns the chosen translation, a needs_review flag, and which models won.
+ */
+function mergeOneLine(
+  candidates: Array<{ name: string; weight: number; text: string }>,
+): EnsembleLineResult {
+  const present = candidates.filter((c) => c.text && c.text.trim().length > 0);
+  if (present.length === 0) {
+    return { translation: '', needs_review: true, winner_models: [] };
+  }
+  if (present.length === 1) {
+    return {
+      translation: present[0].text.trim(),
+      needs_review: present[0].weight < 1.0, // a single low-weight verifier is uncertain
+      winner_models: [present[0].name],
+    };
+  }
+
+  // Cluster by Jaccard >= 0.6
+  const clusters: Array<{ members: typeof present; weight: number }> = [];
+  for (const cand of present) {
+    let added = false;
+    for (const cluster of clusters) {
+      const repr = cluster.members[0].text;
+      if (_jaccard(repr, cand.text) >= 0.6) {
+        cluster.members.push(cand);
+        cluster.weight += cand.weight;
+        added = true;
+        break;
+      }
+    }
+    if (!added) clusters.push({ members: [cand], weight: cand.weight });
+  }
+
+  // Sort by weight desc
+  clusters.sort((a, b) => b.weight - a.weight);
+  const top = clusters[0];
+
+  // Gemini + Claude agreement (cluster contains both) → always wins
+  const hasGemini = (c: typeof top) => c.members.some((m) => m.name.includes('gemini'));
+  const hasClaude = (c: typeof top) => c.members.some((m) => m.name.includes('claude'));
+  const geminiClaudeCluster = clusters.find((c) => hasGemini(c) && hasClaude(c));
+  if (geminiClaudeCluster) {
+    // Pick the longest (most detailed) translation in that cluster
+    const winner = geminiClaudeCluster.members
+      .slice()
+      .sort((a, b) => b.text.length - a.text.length)[0];
+    return {
+      translation: winner.text.trim(),
+      needs_review: false,
+      winner_models: geminiClaudeCluster.members.map((m) => m.name),
+    };
+  }
+
+  // Otherwise: top cluster wins if its weight >= 1.5 (e.g. one peer + Qwen)
+  if (top.weight >= 1.5) {
+    const winner = top.members.slice().sort((a, b) => b.text.length - a.text.length)[0];
+    return {
+      translation: winner.text.trim(),
+      needs_review: false,
+      winner_models: top.members.map((m) => m.name),
+    };
+  }
+
+  // Full disagreement (each model in its own cluster) → Claude > Gemini > Qwen by default
+  const claude = present.find((c) => c.name.includes('claude'));
+  const gemini = present.find((c) => c.name.includes('gemini'));
+  const fallback = claude ?? gemini ?? present[0];
+  return {
+    translation: fallback.text.trim(),
+    needs_review: true,
+    winner_models: [fallback.name],
+  };
+}
+
+/**
+ * Merge an array of candidate translation sets into a final per-line result.
+ * Each candidate provides translations[] aligned to the same input line indices.
+ */
+function mergeTranslationEnsemble(
+  candidates: EnsembleCandidate[],
+  lineCount: number,
+): { lines: EnsembleLineResult[]; agreements: { all_three: number; gemini_claude: number; needs_review: number }; perModelWins: Record<string, number> } {
+  const okCands = candidates.filter((c) => c.status === 'ok' && c.translations.length > 0);
+  const lines: EnsembleLineResult[] = [];
+  const perModelWins: Record<string, number> = {};
+  let all_three = 0;
+  let gemini_claude = 0;
+  let needs_review = 0;
+
+  for (let i = 0; i < lineCount; i++) {
+    const lineCands = okCands.map((c) => ({
+      name: c.name,
+      weight: c.weight,
+      text: c.translations[i] ?? '',
+    }));
+    const res = mergeOneLine(lineCands);
+    lines.push(res);
+    if (res.needs_review) needs_review++;
+    const hasG = res.winner_models.some((n) => n.includes('gemini'));
+    const hasC = res.winner_models.some((n) => n.includes('claude'));
+    const hasQ = res.winner_models.some((n) => n.includes('qwen'));
+    if (hasG && hasC && hasQ) all_three++;
+    else if (hasG && hasC) gemini_claude++;
+    for (const m of res.winner_models) perModelWins[m] = (perModelWins[m] ?? 0) + 1;
+  }
+  return { lines, agreements: { all_three, gemini_claude, needs_review }, perModelWins };
+}
+
+async function callTranslationModel(opts: {
+  name: string;
+  via: 'lovable' | 'openrouter';
+  weight: number;
+  model: string;
+  systemPrompt: string;
+  userContent: string;
+  apiKey: string;
+  maxTokens: number;
+}): Promise<EnsembleCandidate> {
+  const t0 = Date.now();
+  try {
+    const resp = await callAI({
+      model: opts.model,
+      systemPrompt: opts.systemPrompt,
+      userContent: opts.userContent,
+      apiKey: opts.apiKey,
+      gateway: opts.via,
+      maxTokens: opts.maxTokens,
+    });
+    const latencyMs = Date.now() - t0;
+    if (!resp.content) {
+      return { name: opts.name, via: opts.via, weight: opts.weight, translations: [], status: 'failed', latencyMs, chars: 0, error: resp.error };
+    }
+    const parsed = safeJsonParse<TranslationAI>(resp.content);
+    if (!parsed?.translations?.length) {
+      return { name: opts.name, via: opts.via, weight: opts.weight, translations: [], status: 'parse_failed', latencyMs, chars: resp.content.length };
+    }
+    return {
+      name: opts.name,
+      via: opts.via,
+      weight: opts.weight,
+      translations: parsed.translations.map((t) => (typeof t === 'string' ? t : '')),
+      status: 'ok',
+      latencyMs,
+      chars: parsed.translations.join('').length,
+    };
+  } catch (e) {
+    return {
+      name: opts.name,
+      via: opts.via,
+      weight: opts.weight,
+      translations: [],
+      status: 'failed',
+      latencyMs: Date.now() - t0,
+      chars: 0,
+      error: e instanceof Error ? e.message : String(e),
+    };
+  }
+}
 
 // Returned by Call 1 (merge only — no translations)
 type MergeOnlyAI = {

@@ -32,7 +32,27 @@ export const MODELS: ModelSpec[] = [
     tier: 'strong',
     tags: ['dialect', 'reasoning', 'multimodal'],
     approxLatencyMs: 3500,
-    notes: 'Best Gemini for nuanced dialect output.',
+  },
+  {
+    id: 'google/gemini-3.1-pro-preview',
+    tier: 'strong',
+    tags: ['dialect', 'reasoning', 'multimodal'],
+    approxLatencyMs: 4000,
+    notes: 'Top Gemini for nuanced dialect output. Pipeline-aligned drafter.',
+  },
+  {
+    id: 'anthropic/claude-opus-4.1',
+    tier: 'strong',
+    tags: ['dialect', 'reasoning', 'judge'],
+    approxLatencyMs: 4500,
+    notes: 'Pipeline-aligned drafter & judge. Strong instruction following.',
+  },
+  {
+    id: 'qwen/qwen3-max',
+    tier: 'strong',
+    tags: ['dialect', 'reasoning'],
+    approxLatencyMs: 4000,
+    notes: 'Third verifier in ensemble; weighted lower than Gemini/Claude.',
   },
   {
     id: 'openai/gpt-5-mini',
@@ -45,7 +65,6 @@ export const MODELS: ModelSpec[] = [
     tier: 'strong',
     tags: ['reasoning', 'judge', 'dialect'],
     approxLatencyMs: 4000,
-    notes: 'Preferred judge/critic.',
   },
 ];
 
@@ -61,9 +80,24 @@ export function pickModels(tags: ModelTag[], count: number): string[] {
 }
 
 export const DEFAULT_FAST = 'google/gemini-3-flash-preview';
-export const DEFAULT_JUDGE = 'openai/gpt-5';
+export const DEFAULT_JUDGE = 'anthropic/claude-opus-4.1';
 export const DEFAULT_DRAFTERS = [
-  'google/gemini-2.5-pro',
-  'openai/gpt-5-mini',
-  'google/gemini-3-flash-preview',
+  'google/gemini-3.1-pro-preview',
+  'anthropic/claude-opus-4.1',
+  'qwen/qwen3-max',
 ];
+
+/**
+ * Per-model voting weight used by the AI Brain's ensemble ranking.
+ * Higher = more authoritative when picking the winning candidate.
+ * Qwen is intentionally < Gemini/Claude so it acts as a tiebreaker, not a peer.
+ */
+export const MODEL_WEIGHTS: Record<string, number> = {
+  'google/gemini-3.1-pro-preview': 1.0,
+  'anthropic/claude-opus-4.1': 1.0,
+  'qwen/qwen3-max': 0.6,
+};
+
+export function getModelWeight(id: string): number {
+  return MODEL_WEIGHTS[id] ?? 0.8;
+}

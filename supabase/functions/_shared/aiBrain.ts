@@ -18,6 +18,7 @@ import {
   DEFAULT_FAST,
   DEFAULT_JUDGE,
   DEFAULT_DRAFTERS,
+  getModelWeight,
 } from './modelRegistry.ts';
 
 // Helper: scan with both hardcoded and rulebook-derived forbidden tokens.
@@ -328,14 +329,18 @@ async function runEnsemble<T>(task: BrainTask, apiKey: string): Promise<BrainRes
     throw firstErr?.reason ?? new BrainHttpError(500, 'all ensemble models failed');
   }
 
-  // Pick the candidate with the fewest MSA leaks; tiebreak by shortest raw.
+  // Rank by weighted leak score (leaks / weight) — lower is better.
+  // Qwen (weight 0.6) only wins when Gemini & Claude both have strictly more leaks.
+  // Tiebreak by raw length (shorter = tighter).
   const ranked = successes
     .map(({ s, model }) => {
       const text = extractScanText(task, s.value.parsed, s.value.raw);
       const leaks = scanLeaks(text, task.dialect);
-      return { model, parsed: s.value.parsed, raw: s.value.raw, leaks, text };
+      const weight = getModelWeight(model);
+      const score = leaks.leaks.length / weight;
+      return { model, parsed: s.value.parsed, raw: s.value.raw, leaks, text, weight, score };
     })
-    .sort((a, b) => a.leaks.leaks.length - b.leaks.leaks.length || a.raw.length - b.raw.length);
+    .sort((a, b) => a.score - b.score || a.raw.length - b.raw.length);
 
   const winner = ranked[0];
   // Agreement = share of candidates with the same leak-count bucket as winner.
@@ -356,7 +361,7 @@ async function runEnsemble<T>(task: BrainTask, apiKey: string): Promise<BrainRes
 async function runDraftCritic<T>(task: BrainTask, apiKey: string): Promise<BrainResult<T>> {
   const [drafter, critic] = task.models && task.models.length >= 2
     ? task.models
-    : ['google/gemini-2.5-pro', DEFAULT_JUDGE];
+    : ['google/gemini-3.1-pro-preview', DEFAULT_JUDGE];
 
   const sys = buildSystem(task);
   const draft = await callModel({
@@ -423,9 +428,9 @@ async function runCouncil<T>(task: BrainTask, apiKey: string): Promise<BrainResu
     throw firstErr?.reason ?? new BrainHttpError(500, 'all council drafters failed');
   }
 
-  const judgeSys = `${sys}\n\nYou are the judge. You are given ${ok.length} candidate responses. Choose the most authentic ${getDialectLabel(task.dialect)} answer, merging the best phrasing if helpful. Never use MSA. Return ONLY the final answer in the same format as the candidates (no commentary).`;
+  const judgeSys = `${sys}\n\nYou are the judge. You are given ${ok.length} candidate responses, each labeled with a trust weight (1.0 = peer, <1.0 = verifier/tiebreaker). Prefer the higher-weight candidates; only side with a lower-weight candidate when the higher-weight ones clearly drift to MSA or another dialect. Merge the best phrasing if helpful. Never use MSA. Return ONLY the final answer in the same format as the candidates (no commentary).`;
   const judgeUser = `Original request:\n${stringifyUserPrompt(task.userPrompt)}\n\nCandidates:\n${ok
-    .map((x, i) => `--- Candidate ${i + 1} (${x.model}) ---\n${x.d.value.raw}`)
+    .map((x, i) => `--- Candidate ${i + 1} (${x.model}, weight: ${getModelWeight(x.model).toFixed(1)}) ---\n${x.d.value.raw}`)
     .join('\n\n')}`;
 
   let final: { raw: string; parsed: unknown };
@@ -538,7 +543,7 @@ export async function streamBrain(task: StreamBrainTask): Promise<Response> {
 
   await primeDialectPrompt(task.dialect);
 
-  const model = task.model ?? 'google/gemini-2.5-pro';
+  const model = task.model ?? 'google/gemini-3.1-pro-preview';
   const isGpt5 = /^openai\/gpt-5/.test(model);
 
   const system = buildSystem({
@@ -614,7 +619,7 @@ export async function streamBrain(task: StreamBrainTask): Promise<Response> {
               leaks,
               offendingText: full,
               sourceFunction: task.purpose,
-              metadata: { streaming: true, model: task.model ?? 'google/gemini-2.5-pro' },
+              metadata: { streaming: true, model: task.model ?? 'google/gemini-3.1-pro-preview' },
             });
             // Fire-and-forget a repair call so callers with onComplete can get
             // the corrected text (e.g., conversation-practice buffers the stream).

@@ -489,20 +489,64 @@ async function runPipeline(
 
     console.log(`[pipeline] Got transcriptions from: ${engines.join(", ")}`);
 
-    // Munsit is the highest-priority Arabic-native engine for dialect text when present.
-    // Soniox is the strongest general engine (lowest WER on Arabic in 2026 benchmarks).
-    // Fall back to Fanar (Arabic-native), Azure (locale-tuned), then Deepgram.
-    // Deepgram words are still used for timestamp alignment regardless of which text wins.
-    const primaryText = munsitText || sonioxText || fanarText || azureText || deepgramText;
-    const relativeWords = deepgramResult?.words || [];
+    // ── Quality-weighted primary text picker ────────────────────────────
+    // Earlier code used a hardcoded waterfall (Munsit||Soniox||Fanar||…)
+    // which meant a 3-char Munsit response could beat a full Soniox one.
+    // Instead: of the Arabic-aware engines (Munsit/Soniox/Fanar), compute
+    // the median char length, drop anything < 50% of median, then take the
+    // longest of the survivors. Engine priority is the tie-breaker.
+    type EngineName = "Munsit" | "Soniox" | "Fanar" | "Azure" | "Deepgram";
+    const arabicCandidates: Array<{ name: EngineName; text: string; words: any[] }> = [
+      { name: "Munsit", text: munsitText, words: (munsitResult as any)?.words ?? [] },
+      { name: "Soniox", text: sonioxText, words: (sonioxResult as any)?.words ?? [] },
+      { name: "Fanar",  text: fanarText,  words: [] }, // Fanar has no word timings
+    ].filter(c => (c.text || "").trim().length > 0);
+
+    const PRIORITY: EngineName[] = ["Munsit", "Soniox", "Fanar", "Azure", "Deepgram"];
+    function pickPrimary(): { name: EngineName; text: string; words: any[] } {
+      if (arabicCandidates.length === 0) {
+        // Fall back to whatever is non-empty, priority order
+        const fallback =
+          (azureText && { name: "Azure" as EngineName, text: azureText, words: [] }) ||
+          (deepgramText && { name: "Deepgram" as EngineName, text: deepgramText, words: deepgramResult?.words ?? [] });
+        return fallback || { name: "Deepgram", text: deepgramText, words: deepgramResult?.words ?? [] };
+      }
+      const lens = arabicCandidates.map(c => c.text.length).sort((a, b) => a - b);
+      const median = lens[Math.floor(lens.length / 2)];
+      const valid = arabicCandidates.filter(c => c.text.length >= 0.5 * median);
+      // Longest first, priority as tie-breaker
+      valid.sort((a, b) => {
+        if (b.text.length !== a.text.length) return b.text.length - a.text.length;
+        return PRIORITY.indexOf(a.name) - PRIORITY.indexOf(b.name);
+      });
+      return valid[0];
+    }
+
+    const primary = pickPrimary();
+    const primaryText = primary.text;
+    const primaryEngine: EngineName = primary.name;
+    console.log(`[pipeline] Primary text: ${primaryEngine} (${primaryText.length} chars). Arabic candidates: ${arabicCandidates.map(c => `${c.name}=${c.text.length}`).join(", ")}`);
+
+    // Pick alignment word source: primary engine's own words if available,
+    // else Munsit/Soniox words, else Deepgram, else empty (proportional fallback).
+    const alignmentWords =
+      primary.words.length > 0 ? primary.words :
+      ((sonioxResult as any)?.words?.length ? (sonioxResult as any).words :
+       ((munsitResult as any)?.words?.length ? (munsitResult as any).words :
+        (deepgramResult?.words ?? [])));
+    const alignmentSource: EngineName =
+      primary.words.length > 0 ? primaryEngine :
+      ((sonioxResult as any)?.words?.length ? "Soniox" :
+       ((munsitResult as any)?.words?.length ? "Munsit" : "Deepgram"));
+    console.log(`[pipeline] Alignment words: ${alignmentSource} (${alignmentWords.length} words)`);
+    const relativeWords = alignmentWords;
 
 
     // ── Step 3: Analyze via analyze-gulf-arabic ──────────────────
     // Pass videoId so analyze-gulf-arabic persists results directly to DB,
     // making the pipeline resilient to Supabase gateway ~150s timeouts.
-    // Send Deepgram as `transcript` (it has the best word boundaries for downstream
-    // sentence segmentation); send the others as alternates so the LLM merge can
-    // pick the best wording per the engine-priority rules in the merge prompt.
+    // Send the QUALITY-PICKED primary text as `transcript`; everything else
+    // goes through as alternates for the LLM merge step.
     console.log("[pipeline] Step 3: Analyzing transcript...");
 
     // Meme videos: load on-screen text analysis the admin form pre-extracted
@@ -530,18 +574,35 @@ async function runPipeline(
       }
     }
 
+    // Generate a signed URL for the staged audio so analyze-gulf-arabic
+    // can pass it to Tier 1 (Gemini) as native multimodal input.
+    let audioRef: string | null = null;
+    try {
+      for (const path of storagePaths) {
+        const { data: signed } = await supabase.storage
+          .from("video-audio")
+          .createSignedUrl(path, 60 * 30); // 30 min
+        if (signed?.signedUrl) { audioRef = signed.signedUrl; break; }
+      }
+    } catch (e) {
+      console.warn("[pipeline] Signed URL failed (non-fatal):", e);
+    }
+
     const analyzeBody: Record<string, unknown> = {
-      transcript: deepgramText || primaryText,
+      transcript: primaryText,
+      primaryEngine,
       videoId,
       dialectModule,
       isMeme: !!video.is_meme,
     };
+    if (audioRef) analyzeBody.audioRef = audioRef;
     if (visualContextSummary) analyzeBody.visualContext = visualContextSummary;
     if (onScreenTextLines.length > 0) analyzeBody.onScreenTextSegments = onScreenTextLines;
     if (fanarText) analyzeBody.fanarTranscript = fanarText;
     if (sonioxText) analyzeBody.sonioxTranscript = sonioxText;
     if (munsitText) analyzeBody.munsitTranscript = munsitText;
     if (azureText) analyzeBody.azureTranscript = azureText;
+    if (deepgramText && primaryEngine !== "Deepgram") analyzeBody.deepgramTranscript = deepgramText;
     const sonioxTranslation = sonioxResult?.translationText;
     if (sonioxTranslation) analyzeBody.sonioxTranslation = sonioxTranslation;
 

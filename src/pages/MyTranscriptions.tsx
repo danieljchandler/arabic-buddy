@@ -59,7 +59,7 @@ export default function MyTranscriptions() {
     setLoading(true);
     const { data, error } = await supabase
       .from("saved_transcriptions")
-      .select("id,title,created_at,raw_transcript_arabic,vocabulary,grammar_points,lines,dialect")
+      .select("id,title,created_at,raw_transcript_arabic,vocabulary,grammar_points,lines,dialect,engines_used")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false });
     console.log("[MyTranscriptions] loaded for user", user.id, { count: data?.length, error });

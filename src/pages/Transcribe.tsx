@@ -196,6 +196,7 @@ const Transcribe = () => {
     details?: unknown;
   } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const enginesUsedRef = useRef<string[]>([]);
 
   // URL import state
   const [urlInput, setUrlInput] = useState("");
@@ -820,6 +821,7 @@ const Transcribe = () => {
         sonioxText ? "Soniox" : null,
       ].filter(Boolean);
       console.log(`Transcription engines used: ${enginesUsed.join(" + ")}`);
+      enginesUsedRef.current = enginesUsed as string[];
       if (fanarData && !fanarData.fanarUsed) {
         console.log(`Fanar ASR skipped: ${fanarData.fanarAvailable === false ? 'budget exhausted' : 'not used'} (remaining: ${fanarData.budgetRemaining ?? '?'})`);
       }
@@ -923,6 +925,11 @@ const Transcribe = () => {
         cultural_context: transcriptResult.culturalContext || null,
         audio_url: audioUrl || null,
         dialect: activeDialect,
+        engines_used: {
+          asr: enginesUsedRef.current,
+          translation: ['falcon-translate (Qwen+Gemini ensemble)'],
+          analysis: 'analyze-gulf-arabic (AI Gateway ensemble)',
+        },
       } as never);
       if (error) throw error;
       setIsSaved(true);

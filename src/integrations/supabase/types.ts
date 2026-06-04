@@ -1996,6 +1996,7 @@ export type Database = {
           created_at: string
           cultural_context: string | null
           dialect: string | null
+          engines_used: Json | null
           grammar_points: Json
           id: string
           lines: Json
@@ -2010,6 +2011,7 @@ export type Database = {
           created_at?: string
           cultural_context?: string | null
           dialect?: string | null
+          engines_used?: Json | null
           grammar_points?: Json
           id?: string
           lines?: Json
@@ -2024,6 +2026,7 @@ export type Database = {
           created_at?: string
           cultural_context?: string | null
           dialect?: string | null
+          engines_used?: Json | null
           grammar_points?: Json
           id?: string
           lines?: Json

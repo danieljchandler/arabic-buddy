@@ -33,6 +33,7 @@ type SavedRow = {
   grammar_points: any;
   lines: any;
   dialect: string | null;
+  engines_used: { asr?: string[]; translation?: string[]; analysis?: string } | null;
 };
 
 export default function MyTranscriptions() {
@@ -58,7 +59,7 @@ export default function MyTranscriptions() {
     setLoading(true);
     const { data, error } = await supabase
       .from("saved_transcriptions")
-      .select("id,title,created_at,raw_transcript_arabic,vocabulary,grammar_points,lines,dialect")
+      .select("id,title,created_at,raw_transcript_arabic,vocabulary,grammar_points,lines,dialect,engines_used")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false });
     console.log("[MyTranscriptions] loaded for user", user.id, { count: data?.length, error });
@@ -157,6 +158,22 @@ export default function MyTranscriptions() {
                       <Badge variant="secondary">{vocabCount} vocab</Badge>
                       <Badge variant="secondary">{grammarCount} grammar</Badge>
                     </div>
+                    {r.engines_used?.asr && r.engines_used.asr.length > 0 && (
+                      <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                        <span className="font-medium">ASR:</span>
+                        {r.engines_used.asr.map((e) => (
+                          <Badge key={e} variant="outline" className="text-[10px] px-1.5 py-0">{e}</Badge>
+                        ))}
+                        {r.engines_used.translation && r.engines_used.translation.length > 0 && (
+                          <>
+                            <span className="ml-2 font-medium">Translation:</span>
+                            {r.engines_used.translation.map((e) => (
+                              <Badge key={e} variant="outline" className="text-[10px] px-1.5 py-0">{e}</Badge>
+                            ))}
+                          </>
+                        )}
+                      </div>
+                    )}
                     <div className="flex gap-2">
                       <Button
                         size="sm"

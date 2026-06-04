@@ -1603,7 +1603,11 @@ serve(async (req) => {
        }
      }
 
-     console.log(`Translation cascade result: tierWon=${translationTierWon}, tiers=${JSON.stringify(translationTierLog)}`);
+      console.log(`Translation cascade result: tierWon=${translationTierWon}, tiers=${JSON.stringify(translationTierLog)}`);
+
+      const dedicatedTranslations: string[] = Array.isArray(translationAi?.translations)
+        ? translationAi!.translations.map((t) => (typeof t === 'string' ? t : ''))
+        : [];
 
      // --- Parse Call 2 (analysis) result ---
      let analysisAi: AnalysisAI | null = null;
@@ -1666,8 +1670,8 @@ serve(async (req) => {
        console.log(
          'Applied dedicated translations to',
          dedicatedTranslations.length,
-         'lines.',
-         geminiTransResp.content && translationAi ? '(Gemini)' : '(Qwen fallback)'
+         'lines. tierWon=',
+         translationTierWon
        );
      }
 

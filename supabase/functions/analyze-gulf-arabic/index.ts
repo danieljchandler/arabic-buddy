@@ -20,6 +20,7 @@ function generateId(): string {
    arabic: string;
    translation: string;
    tokens: WordToken[];
+   needs_review?: boolean;
  }
  
  interface VocabItem {

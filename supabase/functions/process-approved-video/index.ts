@@ -223,6 +223,11 @@ async function runPipeline(
       "Gulf";
     console.log(`[pipeline] dialectModule=${dialectModule} (from video.dialect=${rawDialect})`);
 
+    // Each engine returns { text, words?, latencyMs, ... }. `words` is in
+    // Deepgram-compatible shape: { text, start, end } in seconds. We capture
+    // native word/token timings from Soniox + Munsit so alignment doesn't
+    // depend on Deepgram's English-tuned Arabic word boundaries.
+
     // --- Deepgram ---
     const deepgramPromise = (async () => {
       const DEEPGRAM_API_KEY = Deno.env.get("DEEPGRAM_API_KEY");
@@ -232,6 +237,7 @@ async function runPipeline(
         model: "nova-3", language: "ar", diarize: "true", punctuate: "true", smart_format: "true",
       });
 
+      const t0 = Date.now();
       try {
         const resp = await fetch(`https://api.deepgram.com/v1/listen?${params}`, {
           method: "POST",
@@ -246,16 +252,21 @@ async function runPipeline(
         const words = (alt?.words ?? []).map((w: any) => ({
           text: w.punctuated_word ?? w.word ?? "", start: w.start, end: w.end,
         }));
-        console.log(`[pipeline] Deepgram: ${text.length} chars, ${words.length} words`);
-        return { text, words };
-      } catch (e) { console.warn("[pipeline] Deepgram failed:", e); return null; }
+        const latencyMs = Date.now() - t0;
+        console.log(`[pipeline] Deepgram: ${text.length} chars, ${words.length} words, ${latencyMs}ms`);
+        return { text, words, latencyMs };
+      } catch (e) {
+        console.warn("[pipeline] Deepgram failed:", e);
+        return { text: "", words: [], latencyMs: Date.now() - t0, error: String(e) };
+      }
     })();
 
-    // --- Fanar ---
+    // --- Fanar (text-only, no word timestamps) ---
     const fanarPromise = (async () => {
       const FANAR_API_KEY = Deno.env.get("FANAR_API_KEY")?.trim();
-      if (!FANAR_API_KEY) { console.warn("[pipeline] Fanar: no API key"); return { text: null }; }
+      if (!FANAR_API_KEY) { console.warn("[pipeline] Fanar: no API key"); return { text: null, latencyMs: 0 }; }
 
+      const t0 = Date.now();
       try {
         const fd = new FormData();
         fd.append("file", new File([audioBytes!], "audio.mp3", { type: audioContentType }));
@@ -271,19 +282,24 @@ async function runPipeline(
         });
         if (!resp.ok) { const t = await resp.text(); throw new Error(`HTTP ${resp.status}: ${t}`); }
         const data = await resp.json();
-        console.log(`[pipeline] Fanar: ${data.text?.length || 0} chars`);
-        return { text: data.text || null };
-      } catch (e) { console.warn("[pipeline] Fanar failed:", e); return { text: null }; }
+        const latencyMs = Date.now() - t0;
+        console.log(`[pipeline] Fanar: ${data.text?.length || 0} chars, ${latencyMs}ms`);
+        return { text: data.text || null, latencyMs };
+      } catch (e) {
+        console.warn("[pipeline] Fanar failed:", e);
+        return { text: null, latencyMs: Date.now() - t0, error: String(e) };
+      }
     })();
 
-    // --- Soniox ---
+    // --- Soniox: capture sub-word tokens, merge into word-level array ---
     const sonioxPromise = (async () => {
       const SONIOX_API_KEY = Deno.env.get("SONIOX_API_KEY");
-      if (!SONIOX_API_KEY) { console.warn("[pipeline] Soniox: no API key"); return { text: null, sonioxUsed: false }; }
+      if (!SONIOX_API_KEY) { console.warn("[pipeline] Soniox: no API key"); return { text: null, sonioxUsed: false, words: [], latencyMs: 0 }; }
 
       const SONIOX_BASE = "https://api.soniox.com/v1";
       const sHeaders = { Authorization: `Bearer ${SONIOX_API_KEY}` };
 
+      const t0 = Date.now();
       try {
         // Upload file
         const fd = new FormData();
@@ -332,15 +348,44 @@ async function runPipeline(
         // Cleanup
         fetch(`${SONIOX_BASE}/files/${fileId}`, { method: "DELETE", headers: sHeaders }).catch(() => {});
 
-        console.log(`[pipeline] Soniox: ${tData.text?.length || 0} chars`);
-        return { text: tData.text || null, sonioxUsed: true, translationText: tData.translation_text || null };
-      } catch (e) { console.warn("[pipeline] Soniox failed:", e); return { text: null, sonioxUsed: false }; }
+        // Merge sub-word tokens into word-level array compatible with Deepgram shape.
+        const tokens: any[] = Array.isArray(tData.tokens) ? tData.tokens : [];
+        const words: Array<{ text: string; start: number; end: number }> = [];
+        let curr = "";
+        let wStart = 0;
+        let wEnd = 0;
+        for (const tk of tokens) {
+          const txt: string = tk.text ?? "";
+          if (txt === "" || txt === " ") {
+            if (curr) { words.push({ text: curr, start: wStart / 1000, end: wEnd / 1000 }); curr = ""; }
+            continue;
+          }
+          if (txt.startsWith(" ") || !curr) {
+            if (curr) words.push({ text: curr, start: wStart / 1000, end: wEnd / 1000 });
+            curr = txt.trimStart();
+            wStart = tk.start_ms ?? 0;
+            wEnd = tk.end_ms ?? 0;
+          } else {
+            curr += txt;
+            wEnd = tk.end_ms ?? wEnd;
+          }
+        }
+        if (curr) words.push({ text: curr, start: wStart / 1000, end: wEnd / 1000 });
+
+        const latencyMs = Date.now() - t0;
+        console.log(`[pipeline] Soniox: ${tData.text?.length || 0} chars, ${words.length} words, ${latencyMs}ms`);
+        return { text: tData.text || null, sonioxUsed: true, translationText: tData.translation_text || null, words, latencyMs };
+      } catch (e) {
+        console.warn("[pipeline] Soniox failed:", e);
+        return { text: null, sonioxUsed: false, words: [], latencyMs: Date.now() - t0, error: String(e) };
+      }
     })();
 
-    // --- Munsit (Arabic-native dialect specialist; #1 priority for text) ---
+    // --- Munsit (Arabic-native; try to parse word/segment timings if present) ---
     const munsitPromise = (async () => {
       const MUNSIT_API_KEY = Deno.env.get("MUNSIT_API_KEY")?.trim();
-      if (!MUNSIT_API_KEY) { console.warn("[pipeline] Munsit: no API key"); return { text: null }; }
+      if (!MUNSIT_API_KEY) { console.warn("[pipeline] Munsit: no API key"); return { text: null, words: [], latencyMs: 0 }; }
+      const t0 = Date.now();
       try {
         const fd = new FormData();
         fd.append("file", new File([audioBytes!], "audio.mp3", { type: audioContentType }));
@@ -354,9 +399,35 @@ async function runPipeline(
         if (!resp.ok) { const t = await resp.text(); throw new Error(`HTTP ${resp.status}: ${t.slice(0, 200)}`); }
         const data = await resp.json();
         const text = (data.transcription as string | undefined) || "";
-        console.log(`[pipeline] Munsit: ${text.length} chars`);
-        return { text: text || null };
-      } catch (e) { console.warn("[pipeline] Munsit failed:", e); return { text: null }; }
+
+        // Try to capture word-level timings. Munsit responses can expose words at
+        // top-level `data.words`, or per-segment `data.segments[i].words`. Times
+        // may be in seconds or ms — normalize to seconds.
+        const words: Array<{ text: string; start: number; end: number }> = [];
+        const pushWord = (w: any) => {
+          if (!w) return;
+          const txt = (w.word ?? w.text ?? "").toString();
+          if (!txt) return;
+          let s = Number(w.start ?? w.start_ms ?? w.startMs ?? 0);
+          let e = Number(w.end ?? w.end_ms ?? w.endMs ?? 0);
+          // If values look like ms (large numbers), convert
+          if (s > 1000 || e > 1000) { s /= 1000; e /= 1000; }
+          words.push({ text: txt, start: s, end: e });
+        };
+        if (Array.isArray(data.words)) data.words.forEach(pushWord);
+        else if (Array.isArray(data.segments)) {
+          for (const seg of data.segments) {
+            if (Array.isArray(seg.words)) seg.words.forEach(pushWord);
+          }
+        }
+
+        const latencyMs = Date.now() - t0;
+        console.log(`[pipeline] Munsit: ${text.length} chars, ${words.length} words, ${latencyMs}ms`);
+        return { text: text || null, words, latencyMs };
+      } catch (e) {
+        console.warn("[pipeline] Munsit failed:", e);
+        return { text: null, words: [], latencyMs: Date.now() - t0, error: String(e) };
+      }
     })();
 
     // --- Azure Speech (locale-routed by dialect module) ---
@@ -418,20 +489,64 @@ async function runPipeline(
 
     console.log(`[pipeline] Got transcriptions from: ${engines.join(", ")}`);
 
-    // Munsit is the highest-priority Arabic-native engine for dialect text when present.
-    // Soniox is the strongest general engine (lowest WER on Arabic in 2026 benchmarks).
-    // Fall back to Fanar (Arabic-native), Azure (locale-tuned), then Deepgram.
-    // Deepgram words are still used for timestamp alignment regardless of which text wins.
-    const primaryText = munsitText || sonioxText || fanarText || azureText || deepgramText;
-    const relativeWords = deepgramResult?.words || [];
+    // ── Quality-weighted primary text picker ────────────────────────────
+    // Earlier code used a hardcoded waterfall (Munsit||Soniox||Fanar||…)
+    // which meant a 3-char Munsit response could beat a full Soniox one.
+    // Instead: of the Arabic-aware engines (Munsit/Soniox/Fanar), compute
+    // the median char length, drop anything < 50% of median, then take the
+    // longest of the survivors. Engine priority is the tie-breaker.
+    type EngineName = "Munsit" | "Soniox" | "Fanar" | "Azure" | "Deepgram";
+    const arabicCandidates: Array<{ name: EngineName; text: string; words: any[] }> = [
+      { name: "Munsit", text: munsitText, words: (munsitResult as any)?.words ?? [] },
+      { name: "Soniox", text: sonioxText, words: (sonioxResult as any)?.words ?? [] },
+      { name: "Fanar",  text: fanarText,  words: [] }, // Fanar has no word timings
+    ].filter(c => (c.text || "").trim().length > 0);
+
+    const PRIORITY: EngineName[] = ["Munsit", "Soniox", "Fanar", "Azure", "Deepgram"];
+    function pickPrimary(): { name: EngineName; text: string; words: any[] } {
+      if (arabicCandidates.length === 0) {
+        // Fall back to whatever is non-empty, priority order
+        const fallback =
+          (azureText && { name: "Azure" as EngineName, text: azureText, words: [] }) ||
+          (deepgramText && { name: "Deepgram" as EngineName, text: deepgramText, words: deepgramResult?.words ?? [] });
+        return fallback || { name: "Deepgram", text: deepgramText, words: deepgramResult?.words ?? [] };
+      }
+      const lens = arabicCandidates.map(c => c.text.length).sort((a, b) => a - b);
+      const median = lens[Math.floor(lens.length / 2)];
+      const valid = arabicCandidates.filter(c => c.text.length >= 0.5 * median);
+      // Longest first, priority as tie-breaker
+      valid.sort((a, b) => {
+        if (b.text.length !== a.text.length) return b.text.length - a.text.length;
+        return PRIORITY.indexOf(a.name) - PRIORITY.indexOf(b.name);
+      });
+      return valid[0];
+    }
+
+    const primary = pickPrimary();
+    const primaryText = primary.text;
+    const primaryEngine: EngineName = primary.name;
+    console.log(`[pipeline] Primary text: ${primaryEngine} (${primaryText.length} chars). Arabic candidates: ${arabicCandidates.map(c => `${c.name}=${c.text.length}`).join(", ")}`);
+
+    // Pick alignment word source: primary engine's own words if available,
+    // else Munsit/Soniox words, else Deepgram, else empty (proportional fallback).
+    const alignmentWords =
+      primary.words.length > 0 ? primary.words :
+      ((sonioxResult as any)?.words?.length ? (sonioxResult as any).words :
+       ((munsitResult as any)?.words?.length ? (munsitResult as any).words :
+        (deepgramResult?.words ?? [])));
+    const alignmentSource: EngineName =
+      primary.words.length > 0 ? primaryEngine :
+      ((sonioxResult as any)?.words?.length ? "Soniox" :
+       ((munsitResult as any)?.words?.length ? "Munsit" : "Deepgram"));
+    console.log(`[pipeline] Alignment words: ${alignmentSource} (${alignmentWords.length} words)`);
+    const relativeWords = alignmentWords;
 
 
     // ── Step 3: Analyze via analyze-gulf-arabic ──────────────────
     // Pass videoId so analyze-gulf-arabic persists results directly to DB,
     // making the pipeline resilient to Supabase gateway ~150s timeouts.
-    // Send Deepgram as `transcript` (it has the best word boundaries for downstream
-    // sentence segmentation); send the others as alternates so the LLM merge can
-    // pick the best wording per the engine-priority rules in the merge prompt.
+    // Send the QUALITY-PICKED primary text as `transcript`; everything else
+    // goes through as alternates for the LLM merge step.
     console.log("[pipeline] Step 3: Analyzing transcript...");
 
     // Meme videos: load on-screen text analysis the admin form pre-extracted
@@ -459,18 +574,35 @@ async function runPipeline(
       }
     }
 
+    // Generate a signed URL for the staged audio so analyze-gulf-arabic
+    // can pass it to Tier 1 (Gemini) as native multimodal input.
+    let audioRef: string | null = null;
+    try {
+      for (const path of storagePaths) {
+        const { data: signed } = await supabase.storage
+          .from("video-audio")
+          .createSignedUrl(path, 60 * 30); // 30 min
+        if (signed?.signedUrl) { audioRef = signed.signedUrl; break; }
+      }
+    } catch (e) {
+      console.warn("[pipeline] Signed URL failed (non-fatal):", e);
+    }
+
     const analyzeBody: Record<string, unknown> = {
-      transcript: deepgramText || primaryText,
+      transcript: primaryText,
+      primaryEngine,
       videoId,
       dialectModule,
       isMeme: !!video.is_meme,
     };
+    if (audioRef) analyzeBody.audioRef = audioRef;
     if (visualContextSummary) analyzeBody.visualContext = visualContextSummary;
     if (onScreenTextLines.length > 0) analyzeBody.onScreenTextSegments = onScreenTextLines;
     if (fanarText) analyzeBody.fanarTranscript = fanarText;
     if (sonioxText) analyzeBody.sonioxTranscript = sonioxText;
     if (munsitText) analyzeBody.munsitTranscript = munsitText;
     if (azureText) analyzeBody.azureTranscript = azureText;
+    if (deepgramText && primaryEngine !== "Deepgram") analyzeBody.deepgramTranscript = deepgramText;
     const sonioxTranslation = sonioxResult?.translationText;
     if (sonioxTranslation) analyzeBody.sonioxTranslation = sonioxTranslation;
 

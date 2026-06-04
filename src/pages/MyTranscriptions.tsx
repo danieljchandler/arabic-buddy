@@ -158,6 +158,22 @@ export default function MyTranscriptions() {
                       <Badge variant="secondary">{vocabCount} vocab</Badge>
                       <Badge variant="secondary">{grammarCount} grammar</Badge>
                     </div>
+                    {r.engines_used?.asr && r.engines_used.asr.length > 0 && (
+                      <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                        <span className="font-medium">ASR:</span>
+                        {r.engines_used.asr.map((e) => (
+                          <Badge key={e} variant="outline" className="text-[10px] px-1.5 py-0">{e}</Badge>
+                        ))}
+                        {r.engines_used.translation && r.engines_used.translation.length > 0 && (
+                          <>
+                            <span className="ml-2 font-medium">Translation:</span>
+                            {r.engines_used.translation.map((e) => (
+                              <Badge key={e} variant="outline" className="text-[10px] px-1.5 py-0">{e}</Badge>
+                            ))}
+                          </>
+                        )}
+                      </div>
+                    )}
                     <div className="flex gap-2">
                       <Button
                         size="sm"

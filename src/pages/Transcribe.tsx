@@ -196,6 +196,7 @@ const Transcribe = () => {
     details?: unknown;
   } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const enginesUsedRef = useRef<string[]>([]);
 
   // URL import state
   const [urlInput, setUrlInput] = useState("");

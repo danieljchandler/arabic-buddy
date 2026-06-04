@@ -33,6 +33,7 @@ type SavedRow = {
   grammar_points: any;
   lines: any;
   dialect: string | null;
+  engines_used: { asr?: string[]; translation?: string[]; analysis?: string } | null;
 };
 
 export default function MyTranscriptions() {

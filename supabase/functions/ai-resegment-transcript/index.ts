@@ -347,29 +347,33 @@ Deno.serve(async (req) => {
 
     const videoId = segments[0]?.video_id ?? "";
 
-    // For very long transcripts, chunk the input to keep model latency reasonable.
-    const CHUNK_SIZE = 350; // words per chunk
+    // Smaller chunks processed in parallel so we stay under the 150s
+    // edge-function idle timeout even for long transcripts.
+    const CHUNK_SIZE = 200; // words per chunk
     const allLines: AILine[] = [];
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 240_000); // 4 min hard cap
+    const timeout = setTimeout(() => controller.abort(), 140_000); // under 150s idle cap
 
     try {
       if (flat.length <= CHUNK_SIZE) {
         const lines = await callGateway(flat, apiKey, dialect, controller.signal);
         allLines.push(...lines);
       } else {
-        for (let offset = 0; offset < flat.length; offset += CHUNK_SIZE) {
-          const slice = flat.slice(offset, offset + CHUNK_SIZE);
-          // Re-index slice locally for the model, then map back.
-          const reindexed = slice.map((w, i) => ({ ...w, idx: i }));
-          const lines = await callGateway(reindexed, apiKey, dialect, controller.signal);
-          for (const line of lines) {
-            allLines.push({
+        const offsets: number[] = [];
+        for (let o = 0; o < flat.length; o += CHUNK_SIZE) offsets.push(o);
+
+        const results = await Promise.all(
+          offsets.map(async (offset) => {
+            const slice = flat.slice(offset, offset + CHUNK_SIZE);
+            const reindexed = slice.map((w, i) => ({ ...w, idx: i }));
+            const lines = await callGateway(reindexed, apiKey, dialect, controller.signal);
+            return lines.map((line) => ({
               ...line,
               wordIndices: (line.wordIndices ?? []).map((i) => i + offset),
-            });
-          }
-        }
+            }));
+          }),
+        );
+        for (const chunkLines of results) allLines.push(...chunkLines);
       }
     } finally {
       clearTimeout(timeout);

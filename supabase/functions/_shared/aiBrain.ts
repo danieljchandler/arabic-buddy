@@ -428,9 +428,9 @@ async function runCouncil<T>(task: BrainTask, apiKey: string): Promise<BrainResu
     throw firstErr?.reason ?? new BrainHttpError(500, 'all council drafters failed');
   }
 
-  const judgeSys = `${sys}\n\nYou are the judge. You are given ${ok.length} candidate responses. Choose the most authentic ${getDialectLabel(task.dialect)} answer, merging the best phrasing if helpful. Never use MSA. Return ONLY the final answer in the same format as the candidates (no commentary).`;
+  const judgeSys = `${sys}\n\nYou are the judge. You are given ${ok.length} candidate responses, each labeled with a trust weight (1.0 = peer, <1.0 = verifier/tiebreaker). Prefer the higher-weight candidates; only side with a lower-weight candidate when the higher-weight ones clearly drift to MSA or another dialect. Merge the best phrasing if helpful. Never use MSA. Return ONLY the final answer in the same format as the candidates (no commentary).`;
   const judgeUser = `Original request:\n${stringifyUserPrompt(task.userPrompt)}\n\nCandidates:\n${ok
-    .map((x, i) => `--- Candidate ${i + 1} (${x.model}) ---\n${x.d.value.raw}`)
+    .map((x, i) => `--- Candidate ${i + 1} (${x.model}, weight: ${getModelWeight(x.model).toFixed(1)}) ---\n${x.d.value.raw}`)
     .join('\n\n')}`;
 
   let final: { raw: string; parsed: unknown };

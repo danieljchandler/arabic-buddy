@@ -1458,9 +1458,12 @@ serve(async (req) => {
      const hfApiKey = Deno.env.get('HUGGINGFACE_API_KEY') ?? '';
 
       const [geminiTransResp, analysisResp, fanarMetaResp, fanarValidResp, camelDialectResult, diacritizedTranscript] = await Promise.all([
-        // Translation primary: Gemini 2.5 Pro via Lovable AI gateway
+        // Tier 1: Gemini 3.1 Pro Preview via Lovable AI gateway.
+        // (Native audio multimodality requires a direct Google API call with
+        // GEMINI_API_KEY — staged for a follow-up. For now we still beat the
+        // previous 2.5-Pro model on Arabic reasoning.)
         callAI({
-          model: 'google/gemini-2.5-pro',
+          model: 'google/gemini-3.1-pro-preview',
           systemPrompt: getTranslationSystemPrompt(detectedDialect, visualContext, sonioxTranslation),
           userContent: mergedTranscriptText,
           apiKey: '', // not used for lovable gateway

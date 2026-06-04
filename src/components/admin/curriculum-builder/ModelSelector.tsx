@@ -2,8 +2,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 
 export type LLMModelId =
+  | 'google/gemini-3.1-pro-preview'
+  | 'anthropic/claude-opus-4.1'
+  | 'qwen/qwen3-max'
   | 'google/gemini-3-flash-preview'
   | 'google/gemini-2.5-flash'
+  | 'google/gemini-2.5-pro'
   | 'anthropic/claude-sonnet-4-5'
   | 'qwen/qwen3-235b-a22b'
   | 'google/gemma-3-12b-it'
@@ -19,35 +23,61 @@ interface ModelOption {
 
 const MODEL_OPTIONS: ModelOption[] = [
   {
+    id: 'google/gemini-3.1-pro-preview',
+    name: 'Gemini 3.1 Pro',
+    provider: 'Lovable',
+    description: 'Pipeline-aligned drafter. Top dialect quality.',
+    badge: 'Recommended',
+  },
+  {
+    id: 'anthropic/claude-opus-4.1',
+    name: 'Claude Opus 4.1',
+    provider: 'Lovable',
+    description: 'Pipeline-aligned drafter & judge.',
+    badge: 'Pipeline',
+  },
+  {
+    id: 'qwen/qwen3-max',
+    name: 'Qwen3 Max',
+    provider: 'Lovable',
+    description: 'Third verifier (weighted lower than Gemini/Claude).',
+    badge: 'Verifier',
+  },
+  {
     id: 'google/gemini-3-flash-preview',
     name: 'Gemini 3 Flash',
     provider: 'Lovable',
-    description: 'Latest, fast, excellent Arabic support',
-    badge: 'Recommended',
+    description: 'Fast preview, lower cost.',
   },
   {
     id: 'google/gemini-2.5-flash',
     name: 'Gemini 2.5 Flash',
     provider: 'Lovable',
-    description: 'Fast, reliable, good Arabic support',
+    description: 'Fast, reliable.',
+  },
+  {
+    id: 'google/gemini-2.5-pro',
+    name: 'Gemini 2.5 Pro',
+    provider: 'Lovable',
+    description: 'Previous-gen strong Gemini.',
   },
   {
     id: 'anthropic/claude-sonnet-4-5',
-    name: 'Claude Sonnet',
+    name: 'Claude Sonnet 4.5',
     provider: 'OpenRouter',
-    description: 'Excellent reasoning and instruction following',
+    description: 'Strong reasoning, lower cost than Opus.',
   },
   {
     id: 'qwen/qwen3-235b-a22b',
     name: 'Qwen3 235B',
     provider: 'OpenRouter',
-    description: 'Strong reasoning, large context',
+    description: 'Strong reasoning, large context.',
   },
   {
     id: 'google/gemma-3-12b-it',
     name: 'Gemma 3 12B',
     provider: 'OpenRouter',
-    description: 'Good Arabic understanding',
+    description: 'Good Arabic understanding.',
   },
   {
     id: 'fanar',

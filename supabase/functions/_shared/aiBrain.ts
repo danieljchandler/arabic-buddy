@@ -619,7 +619,7 @@ export async function streamBrain(task: StreamBrainTask): Promise<Response> {
               leaks,
               offendingText: full,
               sourceFunction: task.purpose,
-              metadata: { streaming: true, model: task.model ?? 'google/gemini-2.5-pro' },
+              metadata: { streaming: true, model: task.model ?? 'google/gemini-3.1-pro-preview' },
             });
             // Fire-and-forget a repair call so callers with onComplete can get
             // the corrected text (e.g., conversation-practice buffers the stream).

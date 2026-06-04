@@ -967,6 +967,7 @@ export type Database = {
           difficulty_rationale: string | null
           duration_seconds: number | null
           embed_url: string
+          engines_used: Json | null
           grammar_points: Json
           id: string
           is_meme: boolean
@@ -994,6 +995,7 @@ export type Database = {
           difficulty_rationale?: string | null
           duration_seconds?: number | null
           embed_url: string
+          engines_used?: Json | null
           grammar_points?: Json
           id?: string
           is_meme?: boolean
@@ -1021,6 +1023,7 @@ export type Database = {
           difficulty_rationale?: string | null
           duration_seconds?: number | null
           embed_url?: string
+          engines_used?: Json | null
           grammar_points?: Json
           id?: string
           is_meme?: boolean

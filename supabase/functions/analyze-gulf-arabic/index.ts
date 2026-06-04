@@ -2014,6 +2014,7 @@ serve(async (req) => {
           id: `line-${generateId()}-${idx}`,
           arabic: String(l.arabic ?? '').trim(),
           translation: String(l.translation ?? '').trim(),
+          needs_review: Boolean(l.needs_review),
           tokens: toWordTokens(String(l.arabic ?? '').trim(), vocab, allWordGlosses),
         })),
        vocabulary: vocab,

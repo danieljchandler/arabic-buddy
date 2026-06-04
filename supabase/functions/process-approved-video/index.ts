@@ -457,16 +457,19 @@ async function runPipeline(
             continue;
           }
           if (txt.startsWith(" ") || !curr) {
-            if (curr) words.push({ text: curr, start: wStart / 1000, end: wEnd / 1000 });
+            if (curr) words.push({ text: curr, start: wStart / 1000, end: Math.max(wEnd, wStart) / 1000 });
             curr = txt.trimStart();
             wStart = tk.start_ms ?? 0;
-            wEnd = tk.end_ms ?? 0;
+            // Some Soniox tokens omit end_ms on the first sub-word of a phrase.
+            // Falling through to 0 here collapsed word timing — keep the
+            // token's own start_ms as a safe lower bound.
+            wEnd = tk.end_ms ?? tk.start_ms ?? 0;
           } else {
             curr += txt;
-            wEnd = tk.end_ms ?? wEnd;
+            wEnd = tk.end_ms ?? tk.start_ms ?? wEnd;
           }
         }
-        if (curr) words.push({ text: curr, start: wStart / 1000, end: wEnd / 1000 });
+        if (curr) words.push({ text: curr, start: wStart / 1000, end: Math.max(wEnd, wStart) / 1000 });
 
         const latencyMs = Date.now() - t0;
         console.log(`[pipeline] Soniox: ${tData.text?.length || 0} chars, ${words.length} words, ${latencyMs}ms`);
@@ -784,10 +787,41 @@ async function runPipeline(
     // merged text and the timestamped ASR diverge.
     const alignLinesToAudio = (rawLines: any[]): any[] => {
       if (!Array.isArray(rawLines) || rawLines.length === 0) return rawLines;
-      const words = relativeWords;
-      if (!words.length) return rawLines;
-      const spanStartMs = Math.max(0, Math.round((words[0]?.start ?? 0) * 1000));
-      const spanEndMs = Math.round((words[words.length - 1]?.end ?? 0) * 1000);
+
+      // Total audio duration in ms — the most reliable upper bound.
+      const audioDurationMs =
+        ((downloadDuration && downloadDuration > 0 ? downloadDuration : 0) * 1000) ||
+        (((video as any).duration_seconds && (video as any).duration_seconds > 0 ? (video as any).duration_seconds : 0) * 1000) ||
+        0;
+
+      // Scan all alignment words for true min start / max end. Some ASRs
+      // (notably Soniox) drop end_ms on the final token of a phrase, which
+      // previously collapsed the entire span to a single instant — every
+      // line ended up with startMs == endMs == first word offset.
+      let spanStartMs = Number.POSITIVE_INFINITY;
+      let spanEndMs = 0;
+      for (const w of relativeWords) {
+        const s = Number((w as any)?.start ?? 0) * 1000;
+        const e = Number((w as any)?.end ?? 0) * 1000;
+        if (s > 0 && s < spanStartMs) spanStartMs = s;
+        if (e > spanEndMs) spanEndMs = e;
+        if (s > spanEndMs) spanEndMs = s; // start-only tokens still extend span
+      }
+      if (!Number.isFinite(spanStartMs)) spanStartMs = 0;
+
+      // Degenerate span (missing or single-point word times) → fall back
+      // to full audio duration so line audio still plays in roughly the
+      // right place.
+      if (spanEndMs - spanStartMs < 500) {
+        if (audioDurationMs > 0) {
+          spanStartMs = 0;
+          spanEndMs = audioDurationMs;
+        } else {
+          spanStartMs = 0;
+          spanEndMs = Math.max(spanEndMs, rawLines.length * 2000);
+        }
+      }
+
       const totalSpan = Math.max(1, spanEndMs - spanStartMs);
 
       const lens = rawLines.map((l: any) => {

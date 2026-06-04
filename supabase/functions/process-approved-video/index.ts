@@ -457,16 +457,19 @@ async function runPipeline(
             continue;
           }
           if (txt.startsWith(" ") || !curr) {
-            if (curr) words.push({ text: curr, start: wStart / 1000, end: wEnd / 1000 });
+            if (curr) words.push({ text: curr, start: wStart / 1000, end: Math.max(wEnd, wStart) / 1000 });
             curr = txt.trimStart();
             wStart = tk.start_ms ?? 0;
-            wEnd = tk.end_ms ?? 0;
+            // Some Soniox tokens omit end_ms on the first sub-word of a phrase.
+            // Falling through to 0 here collapsed word timing — keep the
+            // token's own start_ms as a safe lower bound.
+            wEnd = tk.end_ms ?? tk.start_ms ?? 0;
           } else {
             curr += txt;
-            wEnd = tk.end_ms ?? wEnd;
+            wEnd = tk.end_ms ?? tk.start_ms ?? wEnd;
           }
         }
-        if (curr) words.push({ text: curr, start: wStart / 1000, end: wEnd / 1000 });
+        if (curr) words.push({ text: curr, start: wStart / 1000, end: Math.max(wEnd, wStart) / 1000 });
 
         const latencyMs = Date.now() - t0;
         console.log(`[pipeline] Soniox: ${tData.text?.length || 0} chars, ${words.length} words, ${latencyMs}ms`);

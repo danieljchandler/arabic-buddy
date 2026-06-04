@@ -18,6 +18,7 @@ import {
   DEFAULT_FAST,
   DEFAULT_JUDGE,
   DEFAULT_DRAFTERS,
+  getModelWeight,
 } from './modelRegistry.ts';
 
 // Helper: scan with both hardcoded and rulebook-derived forbidden tokens.

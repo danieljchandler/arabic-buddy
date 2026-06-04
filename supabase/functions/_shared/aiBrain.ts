@@ -543,7 +543,7 @@ export async function streamBrain(task: StreamBrainTask): Promise<Response> {
 
   await primeDialectPrompt(task.dialect);
 
-  const model = task.model ?? 'google/gemini-2.5-pro';
+  const model = task.model ?? 'google/gemini-3.1-pro-preview';
   const isGpt5 = /^openai\/gpt-5/.test(model);
 
   const system = buildSystem({

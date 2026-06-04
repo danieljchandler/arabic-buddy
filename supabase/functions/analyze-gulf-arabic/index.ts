@@ -1539,37 +1539,71 @@ serve(async (req) => {
        console.log('Fanar dialect validation received (first 150 chars):', fanarValidResp.content.slice(0, 150));
      }
 
-     // --- Parse Gemini translation result ---
+     // --- Parse Tier 1 (Gemini 3.1 Pro Preview) translation result ---
      let translationAi: TranslationAI | null = null;
+     let translationTierWon = 0;
+     const translationTierLog: Array<{ name: string; via: string; status: string }> = [];
      if (geminiTransResp.content) {
        translationAi = safeJsonParse<TranslationAI>(geminiTransResp.content);
-       if (translationAi?.translations) {
-         console.log('Gemini translation: parsed', translationAi.translations.length, 'lines.');
+       if (translationAi?.translations?.length) {
+         translationTierWon = 1;
+         translationTierLog.push({ name: 'google/gemini-3.1-pro-preview', via: 'lovable-gateway', status: 'ok' });
+         console.log('Tier 1 (Gemini 3.1 Pro Preview): parsed', translationAi.translations.length, 'lines.');
        }
      }
+     if (!translationTierWon) translationTierLog.push({ name: 'google/gemini-3.1-pro-preview', via: 'lovable-gateway', status: 'failed' });
 
-     // --- Fallback: Qwen translation-only call if Gemini failed or returned empty ---
+     // --- Tier 2: Claude Opus 4.1 via OpenRouter (best Anthropic for tone/nuance) ---
      if (!translationAi?.translations || translationAi.translations.length === 0) {
-       console.log('Gemini translation failed or empty, falling back to Qwen for translation...');
-       const qwenTransResp = await callAI({
+       console.log('Tier 1 failed — trying Tier 2 (Claude Opus 4.1 via OpenRouter)...');
+       const claudeResp = await callAI({
+         model: 'anthropic/claude-opus-4.1',
          systemPrompt: getTranslationSystemPrompt(detectedDialect, visualContext, sonioxTranslation),
          userContent: mergedTranscriptText,
          apiKey: OPENROUTER_API_KEY,
-         maxTokens: 4096,
+         gateway: 'openrouter',
+         maxTokens: 8192,
        });
-       if (qwenTransResp.content) {
-         translationAi = safeJsonParse<TranslationAI>(qwenTransResp.content);
-         if (translationAi?.translations) {
-           console.log('Qwen translation fallback: parsed', translationAi.translations.length, 'lines.');
+       if (claudeResp.content) {
+         translationAi = safeJsonParse<TranslationAI>(claudeResp.content);
+         if (translationAi?.translations?.length) {
+           translationTierWon = 2;
+           translationTierLog.push({ name: 'anthropic/claude-opus-4.1', via: 'openrouter', status: 'ok' });
+           console.log('Tier 2 (Claude Opus 4.1): parsed', translationAi.translations.length, 'lines.');
+         } else {
+           translationTierLog.push({ name: 'anthropic/claude-opus-4.1', via: 'openrouter', status: 'parse_failed' });
          }
+       } else {
+         translationTierLog.push({ name: 'anthropic/claude-opus-4.1', via: 'openrouter', status: 'failed' });
        }
      }
 
-
-     const dedicatedTranslations = translationAi?.translations ?? [];
-     if (dedicatedTranslations.length === 0) {
-       console.warn('Translation call produced no results; will use Call 2 embedded translations as last resort.');
+     // --- Tier 3: Qwen3-Max via OpenRouter (open-weight dialect safety net) ---
+     if (!translationAi?.translations || translationAi.translations.length === 0) {
+       console.log('Tier 2 failed — trying Tier 3 (Qwen3-Max via OpenRouter)...');
+       const qwenResp = await callAI({
+         model: 'qwen/qwen3-max',
+         systemPrompt: getTranslationSystemPrompt(detectedDialect, visualContext, sonioxTranslation),
+         userContent: mergedTranscriptText,
+         apiKey: OPENROUTER_API_KEY,
+         gateway: 'openrouter',
+         maxTokens: 4096,
+       });
+       if (qwenResp.content) {
+         translationAi = safeJsonParse<TranslationAI>(qwenResp.content);
+         if (translationAi?.translations?.length) {
+           translationTierWon = 3;
+           translationTierLog.push({ name: 'qwen/qwen3-max', via: 'openrouter', status: 'ok' });
+           console.log('Tier 3 (Qwen3-Max): parsed', translationAi.translations.length, 'lines.');
+         } else {
+           translationTierLog.push({ name: 'qwen/qwen3-max', via: 'openrouter', status: 'parse_failed' });
+         }
+       } else {
+         translationTierLog.push({ name: 'qwen/qwen3-max', via: 'openrouter', status: 'failed' });
+       }
      }
+
+     console.log(`Translation cascade result: tierWon=${translationTierWon}, tiers=${JSON.stringify(translationTierLog)}`);
 
      // --- Parse Call 2 (analysis) result ---
      let analysisAi: AnalysisAI | null = null;

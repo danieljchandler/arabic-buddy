@@ -922,7 +922,7 @@ async function runPipeline(
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: pipelineAuth,
+          Authorization: authHeader,
         },
         body: JSON.stringify({ videoId }),
       })

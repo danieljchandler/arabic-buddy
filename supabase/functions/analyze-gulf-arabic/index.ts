@@ -1882,16 +1882,17 @@ serve(async (req) => {
       const finalLines = mergedLines.map((mergedLine, i) => ({
         arabic: diacritizedPerLine[i] || mergedLine.arabic,
         translation: dedicatedTranslations[i] || call2Lines[i]?.translation || '',
+        needs_review: ensembleNeedsReview[i] ?? false,
       }));
 
-     if (dedicatedTranslations.length > 0) {
-       console.log(
-         'Applied dedicated translations to',
-         dedicatedTranslations.length,
-         'lines. tierWon=',
-         translationTierWon
-       );
-     }
+      if (dedicatedTranslations.length > 0) {
+        console.log(
+          `Applied ensemble translations to ${dedicatedTranslations.length} lines ` +
+            `(active=${translationProvenance.active_models}/3, ` +
+            `needs_review=${translationProvenance.agreements.needs_review})`,
+        );
+      }
+
 
      // Merge Fanar-Sadiq meta results if available
      if (fanarMetaResp.content) {

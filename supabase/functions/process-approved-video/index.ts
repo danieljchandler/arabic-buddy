@@ -10,6 +10,102 @@ const corsHeaders = {
 
 const ASR_TIMEOUT_MS = 5 * 60 * 1000;
 
+// ── MP3 frame chunker ────────────────────────────────────────────────────
+// Used for Munsit which has no async/polling endpoint and silently returns
+// an empty transcript for files above ~10 MB. We split the MP3 on real frame
+// boundaries (~60s per chunk), call /audio/transcribe in parallel for each
+// chunk, then stitch transcripts and shift word timestamps by chunk offset.
+// Non-MP3 inputs (mp4/m4a/webm/opus) are NOT chunked here — Munsit is just
+// skipped for those when oversized, since splitting those containers safely
+// requires a real demuxer.
+
+function isLikelyMp3(bytes: Uint8Array, contentType?: string): boolean {
+  if (contentType && /mpeg|mp3/i.test(contentType)) return true;
+  if (bytes.length < 3) return false;
+  // ID3v2 tag
+  if (bytes[0] === 0x49 && bytes[1] === 0x44 && bytes[2] === 0x33) return true;
+  // MPEG audio frame sync (0xFFE...)
+  if (bytes[0] === 0xFF && (bytes[1] & 0xE0) === 0xE0) return true;
+  return false;
+}
+
+function* iterMp3Frames(buf: Uint8Array): Generator<{ offset: number; size: number; durMs: number }> {
+  let i = 0;
+  // Skip ID3v2 header if present (10-byte header + synchsafe size)
+  if (buf[0] === 0x49 && buf[1] === 0x44 && buf[2] === 0x33 && buf.length > 10) {
+    const size = ((buf[6] & 0x7f) << 21) | ((buf[7] & 0x7f) << 14) | ((buf[8] & 0x7f) << 7) | (buf[9] & 0x7f);
+    i = 10 + size;
+  }
+  const BR_V1L3 = [0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 0];
+  const BR_V2L3 = [0, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160, 0];
+  const SR_V1 = [44100, 48000, 32000, 0];
+  const SR_V2 = [22050, 24000, 16000, 0];
+  const SR_V25 = [11025, 12000, 8000, 0];
+  while (i + 4 <= buf.length) {
+    if (buf[i] !== 0xFF || (buf[i + 1] & 0xE0) !== 0xE0) { i++; continue; }
+    const verBits = (buf[i + 1] >> 3) & 0x03;   // 0=2.5, 1=reserved, 2=2, 3=1
+    const layerBits = (buf[i + 1] >> 1) & 0x03; // 1=Layer III
+    if (verBits === 1 || layerBits !== 1) { i++; continue; }
+    const brIdx = (buf[i + 2] >> 4) & 0x0F;
+    const srIdx = (buf[i + 2] >> 2) & 0x03;
+    const pad = (buf[i + 2] >> 1) & 0x01;
+    if (brIdx === 0 || brIdx === 15 || srIdx === 3) { i++; continue; }
+    const isV1 = verBits === 3;
+    const br = (isV1 ? BR_V1L3 : BR_V2L3)[brIdx] * 1000;
+    const sr = (verBits === 3 ? SR_V1 : verBits === 2 ? SR_V2 : SR_V25)[srIdx];
+    const samples = isV1 ? 1152 : 576;
+    const size = Math.floor((samples / 8) * br / sr) + pad;
+    if (size < 4 || i + size > buf.length) { i++; continue; }
+    yield { offset: i, size, durMs: (samples / sr) * 1000 };
+    i += size;
+  }
+}
+
+function chunkMp3ByDuration(
+  bytes: Uint8Array,
+  targetSec: number,
+): Array<{ bytes: Uint8Array; offsetSec: number; durSec: number }> {
+  const chunks: Array<{ bytes: Uint8Array; offsetSec: number; durSec: number }> = [];
+  let chunkStart = -1;
+  let chunkDurMs = 0;
+  let cumMs = 0;
+  let lastEnd = 0;
+  for (const f of iterMp3Frames(bytes)) {
+    if (chunkStart < 0) chunkStart = f.offset;
+    chunkDurMs += f.durMs;
+    lastEnd = f.offset + f.size;
+    if (chunkDurMs >= targetSec * 1000) {
+      chunks.push({ bytes: bytes.slice(chunkStart, lastEnd), offsetSec: cumMs / 1000, durSec: chunkDurMs / 1000 });
+      cumMs += chunkDurMs;
+      chunkStart = -1;
+      chunkDurMs = 0;
+    }
+  }
+  if (chunkStart >= 0 && chunkDurMs > 0) {
+    chunks.push({ bytes: bytes.slice(chunkStart, lastEnd), offsetSec: cumMs / 1000, durSec: chunkDurMs / 1000 });
+  }
+  return chunks;
+}
+
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  worker: (item: T, idx: number) => Promise<R>,
+): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let next = 0;
+  const runners = new Array(Math.min(limit, items.length)).fill(0).map(async () => {
+    while (true) {
+      const idx = next++;
+      if (idx >= items.length) return;
+      results[idx] = await worker(items[idx], idx);
+    }
+  });
+  await Promise.all(runners);
+  return results;
+}
+
+
 function extractYouTubeVideoId(url: string): string | null {
   try {
     const parsed = new URL(url);

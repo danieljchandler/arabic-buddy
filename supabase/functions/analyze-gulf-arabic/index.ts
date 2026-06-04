@@ -20,6 +20,7 @@ function generateId(): string {
    arabic: string;
    translation: string;
    tokens: WordToken[];
+   needs_review?: boolean;
  }
  
  interface VocabItem {
@@ -386,8 +387,209 @@ Rules:
 No additional text outside JSON.`;
 };
 
-// Returned by the dedicated translation call (Gemini primary / Qwen fallback)
+// Returned by the dedicated translation call (one per ensemble model)
 type TranslationAI = { translations: string[] };
+
+// ============================================================================
+// TRANSLATION ENSEMBLE — Gemini + Claude (weight 1.0) + Qwen (weight 0.5)
+// All three run in parallel; per-line winner is chosen by weighted vote with
+// Jaccard token-overlap clustering. Gemini+Claude agreement always wins.
+// ============================================================================
+type EnsembleCandidate = {
+  name: string;
+  via: string;
+  weight: number;
+  translations: string[];
+  status: 'ok' | 'failed' | 'parse_failed' | 'empty';
+  latencyMs: number;
+  chars: number;
+  error?: string;
+};
+
+type EnsembleLineResult = {
+  translation: string;
+  needs_review: boolean;
+  winner_models: string[];
+};
+
+function _normalizeForCompare(s: string): string {
+  return (s || '')
+    .toLowerCase()
+    .replace(/[.,!?;:'"()[\]{}…—–\-]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function _jaccard(a: string, b: string): number {
+  const ta = new Set(_normalizeForCompare(a).split(' ').filter(Boolean));
+  const tb = new Set(_normalizeForCompare(b).split(' ').filter(Boolean));
+  if (ta.size === 0 && tb.size === 0) return 1;
+  if (ta.size === 0 || tb.size === 0) return 0;
+  let inter = 0;
+  for (const t of ta) if (tb.has(t)) inter++;
+  return inter / (ta.size + tb.size - inter);
+}
+
+/**
+ * Merge candidate translations for ONE line using weighted clustering.
+ * Returns the chosen translation, a needs_review flag, and which models won.
+ */
+function mergeOneLine(
+  candidates: Array<{ name: string; weight: number; text: string }>,
+): EnsembleLineResult {
+  const present = candidates.filter((c) => c.text && c.text.trim().length > 0);
+  if (present.length === 0) {
+    return { translation: '', needs_review: true, winner_models: [] };
+  }
+  if (present.length === 1) {
+    return {
+      translation: present[0].text.trim(),
+      needs_review: present[0].weight < 1.0, // a single low-weight verifier is uncertain
+      winner_models: [present[0].name],
+    };
+  }
+
+  // Cluster by Jaccard >= 0.6
+  const clusters: Array<{ members: typeof present; weight: number }> = [];
+  for (const cand of present) {
+    let added = false;
+    for (const cluster of clusters) {
+      const repr = cluster.members[0].text;
+      if (_jaccard(repr, cand.text) >= 0.6) {
+        cluster.members.push(cand);
+        cluster.weight += cand.weight;
+        added = true;
+        break;
+      }
+    }
+    if (!added) clusters.push({ members: [cand], weight: cand.weight });
+  }
+
+  // Sort by weight desc
+  clusters.sort((a, b) => b.weight - a.weight);
+  const top = clusters[0];
+
+  // Gemini + Claude agreement (cluster contains both) → always wins
+  const hasGemini = (c: typeof top) => c.members.some((m) => m.name.includes('gemini'));
+  const hasClaude = (c: typeof top) => c.members.some((m) => m.name.includes('claude'));
+  const geminiClaudeCluster = clusters.find((c) => hasGemini(c) && hasClaude(c));
+  if (geminiClaudeCluster) {
+    // Pick the longest (most detailed) translation in that cluster
+    const winner = geminiClaudeCluster.members
+      .slice()
+      .sort((a, b) => b.text.length - a.text.length)[0];
+    return {
+      translation: winner.text.trim(),
+      needs_review: false,
+      winner_models: geminiClaudeCluster.members.map((m) => m.name),
+    };
+  }
+
+  // Otherwise: top cluster wins if its weight >= 1.5 (e.g. one peer + Qwen)
+  if (top.weight >= 1.5) {
+    const winner = top.members.slice().sort((a, b) => b.text.length - a.text.length)[0];
+    return {
+      translation: winner.text.trim(),
+      needs_review: false,
+      winner_models: top.members.map((m) => m.name),
+    };
+  }
+
+  // Full disagreement (each model in its own cluster) → Claude > Gemini > Qwen by default
+  const claude = present.find((c) => c.name.includes('claude'));
+  const gemini = present.find((c) => c.name.includes('gemini'));
+  const fallback = claude ?? gemini ?? present[0];
+  return {
+    translation: fallback.text.trim(),
+    needs_review: true,
+    winner_models: [fallback.name],
+  };
+}
+
+/**
+ * Merge an array of candidate translation sets into a final per-line result.
+ * Each candidate provides translations[] aligned to the same input line indices.
+ */
+function mergeTranslationEnsemble(
+  candidates: EnsembleCandidate[],
+  lineCount: number,
+): { lines: EnsembleLineResult[]; agreements: { all_three: number; gemini_claude: number; needs_review: number }; perModelWins: Record<string, number> } {
+  const okCands = candidates.filter((c) => c.status === 'ok' && c.translations.length > 0);
+  const lines: EnsembleLineResult[] = [];
+  const perModelWins: Record<string, number> = {};
+  let all_three = 0;
+  let gemini_claude = 0;
+  let needs_review = 0;
+
+  for (let i = 0; i < lineCount; i++) {
+    const lineCands = okCands.map((c) => ({
+      name: c.name,
+      weight: c.weight,
+      text: c.translations[i] ?? '',
+    }));
+    const res = mergeOneLine(lineCands);
+    lines.push(res);
+    if (res.needs_review) needs_review++;
+    const hasG = res.winner_models.some((n) => n.includes('gemini'));
+    const hasC = res.winner_models.some((n) => n.includes('claude'));
+    const hasQ = res.winner_models.some((n) => n.includes('qwen'));
+    if (hasG && hasC && hasQ) all_three++;
+    else if (hasG && hasC) gemini_claude++;
+    for (const m of res.winner_models) perModelWins[m] = (perModelWins[m] ?? 0) + 1;
+  }
+  return { lines, agreements: { all_three, gemini_claude, needs_review }, perModelWins };
+}
+
+async function callTranslationModel(opts: {
+  name: string;
+  via: 'lovable' | 'openrouter';
+  weight: number;
+  model: string;
+  systemPrompt: string;
+  userContent: string;
+  apiKey: string;
+  maxTokens: number;
+}): Promise<EnsembleCandidate> {
+  const t0 = Date.now();
+  try {
+    const resp = await callAI({
+      model: opts.model,
+      systemPrompt: opts.systemPrompt,
+      userContent: opts.userContent,
+      apiKey: opts.apiKey,
+      gateway: opts.via,
+      maxTokens: opts.maxTokens,
+    });
+    const latencyMs = Date.now() - t0;
+    if (!resp.content) {
+      return { name: opts.name, via: opts.via, weight: opts.weight, translations: [], status: 'failed', latencyMs, chars: 0, error: resp.error };
+    }
+    const parsed = safeJsonParse<TranslationAI>(resp.content);
+    if (!parsed?.translations?.length) {
+      return { name: opts.name, via: opts.via, weight: opts.weight, translations: [], status: 'parse_failed', latencyMs, chars: resp.content.length };
+    }
+    return {
+      name: opts.name,
+      via: opts.via,
+      weight: opts.weight,
+      translations: parsed.translations.map((t) => (typeof t === 'string' ? t : '')),
+      status: 'ok',
+      latencyMs,
+      chars: parsed.translations.join('').length,
+    };
+  } catch (e) {
+    return {
+      name: opts.name,
+      via: opts.via,
+      weight: opts.weight,
+      translations: [],
+      status: 'failed',
+      latencyMs: Date.now() - t0,
+      chars: 0,
+      error: e instanceof Error ? e.message : String(e),
+    };
+  }
+}
 
 // Returned by Call 1 (merge only — no translations)
 type MergeOnlyAI = {
@@ -1457,19 +1659,63 @@ serve(async (req) => {
      const arabicOnlyText = mergedLines.map(l => l.arabic).join('\n');
      const hfApiKey = Deno.env.get('HUGGINGFACE_API_KEY') ?? '';
 
-      const [geminiTransResp, analysisResp, fanarMetaResp, fanarValidResp, camelDialectResult, diacritizedTranscript] = await Promise.all([
-        // Tier 1: Gemini 3.1 Pro Preview via Lovable AI gateway.
-        // (Native audio multimodality requires a direct Google API call with
-        // GEMINI_API_KEY — staged for a follow-up. For now we still beat the
-        // previous 2.5-Pro model on Arabic reasoning.)
-        callAI({
-          model: 'google/gemini-3.1-pro-preview',
-          systemPrompt: getTranslationSystemPrompt(detectedDialect, visualContext, sonioxTranslation),
-          userContent: mergedTranscriptText,
-          apiKey: '', // not used for lovable gateway
-          gateway: 'lovable',
-          maxTokens: 16384,
-        }),
+      const [translationEnsembleResult, analysisResp, fanarMetaResp, fanarValidResp, camelDialectResult, diacritizedTranscript] = await Promise.all([
+        // TRANSLATION ENSEMBLE — Gemini (1.0) + Claude Opus (1.0) co-equal peers,
+        // Qwen3-Max (0.5) as lighter-weight verifier. All three run in parallel;
+        // results are merged per-line by weighted Jaccard clustering. See
+        // mergeTranslationEnsemble() above.
+        (async () => {
+          const sys = getTranslationSystemPrompt(detectedDialect, visualContext, sonioxTranslation);
+          const settled = await Promise.allSettled([
+            callTranslationModel({
+              name: 'google/gemini-3.1-pro-preview',
+              via: 'lovable',
+              weight: 1.0,
+              model: 'google/gemini-3.1-pro-preview',
+              systemPrompt: sys,
+              userContent: mergedTranscriptText,
+              apiKey: '',
+              maxTokens: 16384,
+            }),
+            callTranslationModel({
+              name: 'anthropic/claude-opus-4.1',
+              via: 'openrouter',
+              weight: 1.0,
+              model: 'anthropic/claude-opus-4.1',
+              systemPrompt: sys,
+              userContent: mergedTranscriptText,
+              apiKey: OPENROUTER_API_KEY,
+              maxTokens: 8192,
+            }),
+            callTranslationModel({
+              name: 'qwen/qwen3-max',
+              via: 'openrouter',
+              weight: 0.5,
+              model: 'qwen/qwen3-max',
+              systemPrompt: sys,
+              userContent: mergedTranscriptText,
+              apiKey: OPENROUTER_API_KEY,
+              maxTokens: 4096,
+            }),
+          ]);
+          const candidates: EnsembleCandidate[] = settled.map((s, i) => {
+            const names = ['google/gemini-3.1-pro-preview', 'anthropic/claude-opus-4.1', 'qwen/qwen3-max'];
+            const vias: Array<'lovable' | 'openrouter'> = ['lovable', 'openrouter', 'openrouter'];
+            const weights = [1.0, 1.0, 0.5];
+            if (s.status === 'fulfilled') return s.value;
+            return {
+              name: names[i],
+              via: vias[i],
+              weight: weights[i],
+              translations: [],
+              status: 'failed' as const,
+              latencyMs: 0,
+              chars: 0,
+              error: s.reason instanceof Error ? s.reason.message : String(s.reason),
+            };
+          });
+          return candidates;
+        })(),
        // Call 2: vocabulary + grammar (Qwen, unchanged from Step 2)
        callAI({
          systemPrompt: getAnalysisSystemPrompt(false, detectedDialect),
@@ -1539,75 +1785,48 @@ serve(async (req) => {
        console.log('Fanar dialect validation received (first 150 chars):', fanarValidResp.content.slice(0, 150));
      }
 
-     // --- Parse Tier 1 (Gemini 3.1 Pro Preview) translation result ---
-     let translationAi: TranslationAI | null = null;
-     let translationTierWon = 0;
-     const translationTierLog: Array<{ name: string; via: string; status: string }> = [];
-     if (geminiTransResp.content) {
-       translationAi = safeJsonParse<TranslationAI>(geminiTransResp.content);
-       if (translationAi?.translations?.length) {
-         translationTierWon = 1;
-         translationTierLog.push({ name: 'google/gemini-3.1-pro-preview', via: 'lovable-gateway', status: 'ok' });
-         console.log('Tier 1 (Gemini 3.1 Pro Preview): parsed', translationAi.translations.length, 'lines.');
-       }
-     }
-     if (!translationTierWon) translationTierLog.push({ name: 'google/gemini-3.1-pro-preview', via: 'lovable-gateway', status: 'failed' });
+      // --- TRANSLATION ENSEMBLE: merge Gemini + Claude + Qwen candidates per line ---
+      const translationCandidates = translationEnsembleResult;
+      for (const c of translationCandidates) {
+        console.log(
+          `[ensemble] ${c.name} (w=${c.weight}, via=${c.via}): status=${c.status}, ` +
+            `lines=${c.translations.length}, latency=${c.latencyMs}ms, chars=${c.chars}` +
+            (c.error ? `, error=${c.error.slice(0, 120)}` : ''),
+        );
+      }
+      const okCount = translationCandidates.filter((c) => c.status === 'ok').length;
+      if (okCount === 0) {
+        console.warn('[ensemble] All 3 translation models failed — leaving translations empty.');
+      }
+      const ensembleMerge = mergeTranslationEnsemble(translationCandidates, mergedLines.length);
+      const dedicatedTranslations: string[] = ensembleMerge.lines.map((l) => l.translation);
+      const ensembleNeedsReview: boolean[] = ensembleMerge.lines.map((l) => l.needs_review);
 
-     // --- Tier 2: Claude Opus 4.1 via OpenRouter (best Anthropic for tone/nuance) ---
-     if (!translationAi?.translations || translationAi.translations.length === 0) {
-       console.log('Tier 1 failed — trying Tier 2 (Claude Opus 4.1 via OpenRouter)...');
-       const claudeResp = await callAI({
-         model: 'anthropic/claude-opus-4.1',
-         systemPrompt: getTranslationSystemPrompt(detectedDialect, visualContext, sonioxTranslation),
-         userContent: mergedTranscriptText,
-         apiKey: OPENROUTER_API_KEY,
-         gateway: 'openrouter',
-         maxTokens: 8192,
-       });
-       if (claudeResp.content) {
-         translationAi = safeJsonParse<TranslationAI>(claudeResp.content);
-         if (translationAi?.translations?.length) {
-           translationTierWon = 2;
-           translationTierLog.push({ name: 'anthropic/claude-opus-4.1', via: 'openrouter', status: 'ok' });
-           console.log('Tier 2 (Claude Opus 4.1): parsed', translationAi.translations.length, 'lines.');
-         } else {
-           translationTierLog.push({ name: 'anthropic/claude-opus-4.1', via: 'openrouter', status: 'parse_failed' });
-         }
-       } else {
-         translationTierLog.push({ name: 'anthropic/claude-opus-4.1', via: 'openrouter', status: 'failed' });
-       }
-     }
+      // Structured provenance for engines_used.translation
+      const translationProvenance = {
+        strategy: 'weighted_ensemble',
+        degraded: okCount < 3,
+        active_models: okCount,
+        agreements: ensembleMerge.agreements,
+        tiers: translationCandidates.map((c) => ({
+          name: c.name,
+          via: c.via,
+          weight: c.weight,
+          status: c.status,
+          latency_ms: c.latencyMs,
+          chars: c.chars,
+          lines_won: ensembleMerge.perModelWins[c.name] ?? 0,
+          ...(c.error ? { error: c.error.slice(0, 200) } : {}),
+        })),
+      };
+      console.log(
+        `[ensemble] merged ${dedicatedTranslations.length} lines | ` +
+          `all_three=${ensembleMerge.agreements.all_three} ` +
+          `gemini_claude=${ensembleMerge.agreements.gemini_claude} ` +
+          `needs_review=${ensembleMerge.agreements.needs_review} | ` +
+          `wins=${JSON.stringify(ensembleMerge.perModelWins)}`,
+      );
 
-     // --- Tier 3: Qwen3-Max via OpenRouter (open-weight dialect safety net) ---
-     if (!translationAi?.translations || translationAi.translations.length === 0) {
-       console.log('Tier 2 failed — trying Tier 3 (Qwen3-Max via OpenRouter)...');
-       const qwenResp = await callAI({
-         model: 'qwen/qwen3-max',
-         systemPrompt: getTranslationSystemPrompt(detectedDialect, visualContext, sonioxTranslation),
-         userContent: mergedTranscriptText,
-         apiKey: OPENROUTER_API_KEY,
-         gateway: 'openrouter',
-         maxTokens: 4096,
-       });
-       if (qwenResp.content) {
-         translationAi = safeJsonParse<TranslationAI>(qwenResp.content);
-         if (translationAi?.translations?.length) {
-           translationTierWon = 3;
-           translationTierLog.push({ name: 'qwen/qwen3-max', via: 'openrouter', status: 'ok' });
-           console.log('Tier 3 (Qwen3-Max): parsed', translationAi.translations.length, 'lines.');
-         } else {
-           translationTierLog.push({ name: 'qwen/qwen3-max', via: 'openrouter', status: 'parse_failed' });
-         }
-       } else {
-         translationTierLog.push({ name: 'qwen/qwen3-max', via: 'openrouter', status: 'failed' });
-       }
-     }
-
-      console.log(`Translation cascade result: tierWon=${translationTierWon}, tiers=${JSON.stringify(translationTierLog)}`);
-
-      const dedicatedTranslations: string[] = Array.isArray(translationAi?.translations)
-        ? translationAi!.translations.map((t) => (typeof t === 'string' ? t : ''))
-        : [];
 
      // --- Parse Call 2 (analysis) result ---
      let analysisAi: AnalysisAI | null = null;
@@ -1664,16 +1883,17 @@ serve(async (req) => {
       const finalLines = mergedLines.map((mergedLine, i) => ({
         arabic: diacritizedPerLine[i] || mergedLine.arabic,
         translation: dedicatedTranslations[i] || call2Lines[i]?.translation || '',
+        needs_review: ensembleNeedsReview[i] ?? false,
       }));
 
-     if (dedicatedTranslations.length > 0) {
-       console.log(
-         'Applied dedicated translations to',
-         dedicatedTranslations.length,
-         'lines. tierWon=',
-         translationTierWon
-       );
-     }
+      if (dedicatedTranslations.length > 0) {
+        console.log(
+          `Applied ensemble translations to ${dedicatedTranslations.length} lines ` +
+            `(active=${translationProvenance.active_models}/3, ` +
+            `needs_review=${translationProvenance.agreements.needs_review})`,
+        );
+      }
+
 
      // Merge Fanar-Sadiq meta results if available
      if (fanarMetaResp.content) {
@@ -1795,6 +2015,7 @@ serve(async (req) => {
           id: `line-${generateId()}-${idx}`,
           arabic: String(l.arabic ?? '').trim(),
           translation: String(l.translation ?? '').trim(),
+          needs_review: Boolean(l.needs_review),
           tokens: toWordTokens(String(l.arabic ?? '').trim(), vocab, allWordGlosses),
         })),
        vocabulary: vocab,
@@ -1899,6 +2120,23 @@ serve(async (req) => {
                   .map((w: string, wi: number) => ({ id: `tok-${line.id ?? wi}-${wi}`, surface: w })),
           }));
 
+          // Read-then-merge engines_used so we don't clobber ASR provenance written
+          // by process-approved-video. Translation ensemble is additive.
+          let mergedEnginesUsed: Record<string, unknown> = { translation: translationProvenance };
+          try {
+            const { data: existingRow } = await svc
+              .from('discover_videos')
+              .select('engines_used')
+              .eq('id', pipelineVideoId)
+              .single();
+            const existing = (existingRow?.engines_used && typeof existingRow.engines_used === 'object')
+              ? existingRow.engines_used as Record<string, unknown>
+              : {};
+            mergedEnginesUsed = { ...existing, translation: translationProvenance };
+          } catch (_) {
+            // non-fatal — fall back to translation-only
+          }
+
           const { error: saveErr } = await svc.from('discover_videos').update({
             transcript_lines: sanitizedLines,
             vocabulary: transcriptResult.vocabulary || [],
@@ -1908,6 +2146,7 @@ serve(async (req) => {
             difficulty: transcriptResult.difficulty || 'Intermediate',
             transcription_status: 'analysis_complete',
             transcription_error: null,
+            engines_used: mergedEnginesUsed,
           }).eq('id', pipelineVideoId);
 
           if (saveErr) {

@@ -1,101 +1,103 @@
-# Pipeline Overhaul — ASR Timing, Multimodal Translation, 3-Tier Fallback
+## Goal
+Replace the sequential 3-tier translation cascade in `analyze-gulf-arabic` with a **weighted ensemble**: Gemini 3.1 Pro + Claude Opus 4.1 translate in parallel as co-equal peers, and Qwen3-Max acts as a lighter-weight third opinion / tiebreaker.
 
-Synthesis of my audit + Gemini's spec, updated to route Tier 2/3 through OpenRouter with top-tier Claude Opus and Qwen models.
-
-## Current architecture (recap)
+## Architecture
 
 ```text
-audio ──┬─ Munsit / Soniox / Fanar / Azure / Deepgram (parallel)
-        ▼
-    waterfall picker  →  primaryText
-    Deepgram words    →  alignLinesToAudio (proportional by char length)
-        ▼
-    analyze-gulf-arabic
-      ├─ Gemini 2.5 Pro → fallback Qwen 235B
-      ├─ Fanar-Sadiq / Fanar-C (metadata + validate)
-      ├─ CAMeL (dialect classifier)
-      └─ Claude 4.5 + Gemini 2.5 Flash (vocab enrichment)
-        ▼
-    falcon-translate (per-line, redundant)
+                  ┌─────────────────────┐
+                  │  42 Arabic lines    │
+                  └──────────┬──────────┘
+                             │
+            ┌────────────────┼────────────────┐
+            ▼                ▼                ▼
+       Gemini 3.1 Pro   Claude Opus 4.1   Qwen3-Max
+       (weight 1.0)     (weight 1.0)      (weight 0.5)
+       direct Google    OpenRouter        OpenRouter
+            │                │                │
+            └────────────────┼────────────────┘
+                             ▼
+                  ┌─────────────────────┐
+                  │  Per-line merger    │
+                  │  (weighted vote +   │
+                  │   Claude arbiter on │
+                  │   disagreement)     │
+                  └──────────┬──────────┘
+                             ▼
+                  Final translations[42]
+                  + per-line provenance
 ```
 
-## Scope
+## Merging rules (per line)
 
-### 1. ASR timing + quality (`process-approved-video`)
+For each of the 42 lines we get up to 3 candidate English translations.
 
-1. **Preserve native timestamps.** Capture Soniox v4 `tokens[]` (already merged into `words[]` shape in `soniox-transcribe`) and Munsit word array inside `runPipeline`.
-2. **New `alignLinesToAudio` source of truth.**
-   - Soniox primary → Soniox tokens
-   - Munsit primary → Munsit words
-   - else → Deepgram words → finally proportional char allocation.
-3. **Quality-weighted primary picker.**
-   ```text
-   candidates = non-empty texts from {Munsit, Soniox, Fanar}
-   median = median(len(c))
-   valid  = [c for c in candidates if len(c) >= 0.5 * median]
-   primary = longest(valid); tie-break Munsit > Soniox > Fanar
-   ```
-   Azure + Deepgram remain alternates only.
-4. **Fix analyzer payload.** Send `transcript = primaryText` plus `primaryEngine` and `primaryWords`. Deepgram + others as `alternates.*`.
+1. **Normalize** — lowercase, strip punctuation, collapse whitespace for comparison only (preserve original casing for output).
+2. **Semantic similarity grouping** — group candidates whose normalized Jaccard token overlap ≥ 0.6 into the same cluster.
+3. **Weighted vote** — each cluster gets the sum of its members' weights (Gemini 1.0, Claude 1.0, Qwen 0.5).
+4. **Pick winner**:
+   - If one cluster's weight ≥ 1.5 → pick the **longest** (most detailed) translation in that cluster.
+   - If Gemini and Claude agree (cluster contains both) → always wins regardless of Qwen.
+   - If Gemini and Claude **disagree** and Qwen sides with one → that side wins (weight 1.5 vs 1.0).
+   - If all three disagree (3 separate clusters) → Claude wins by default (best literary English), and the line is flagged `needs_review: true`.
+5. **Fallback** — if a model returned nothing for a line, that slot is skipped (weights recomputed from available votes).
 
-### 2. Unified multimodal translation (`analyze-gulf-arabic`)
+## Provenance logging
 
-5. **Remove redundant `falcon-translate` from ingestion.** Keep the function deployed for the on-demand "translate one line" UI button only.
-6. **Native audio multimodality (Tier 1 only).** Forward signed URL from `video-audio` storage (or base64 if ≤20 MB) as `audioRef`. Tier 1 calls Google's API directly with `GEMINI_API_KEY` (already a secret) so we can attach `inline_data`/`file_data` audio parts — Lovable Gateway's chat-completions surface doesn't expose Gemini audio parts today.
-7. **Context-driven prompt.** Inject CAMeL classifier output (city-level dialect code + confidence) and Fanar-Sadiq metadata into a `<dialect_anchor>` block before the text alternates.
+Extend `engines_used.translation` jsonb structure:
+```json
+{
+  "strategy": "weighted_ensemble",
+  "tiers": [
+    { "name": "google/gemini-3.1-pro-preview", "weight": 1.0, "status": "ok", "latency_ms": 38342, "chars": 4820, "lines_won": 18 },
+    { "name": "anthropic/claude-opus-4.1", "weight": 1.0, "status": "ok", "latency_ms": 41200, "chars": 5102, "lines_won": 19 },
+    { "name": "qwen/qwen3-max", "weight": 0.5, "status": "ok", "latency_ms": 12400, "chars": 4655, "lines_won": 5 }
+  ],
+  "agreements": { "all_three": 12, "gemini_claude": 25, "needs_review": 2 }
+}
+```
 
-### 3. 3-tier sequential fallback (translation only)
+## Failure handling
 
-Single shared JSON schema. Sequential — try Tier 1, on failure / empty / non-conforming JSON, fall through.
+- Run all three in `Promise.allSettled` parallel; never block on the slowest.
+- If **any one** model fails → ensemble proceeds with remaining two (weights renormalized).
+- If **only one** model returns → use it directly, mark `degraded: true`.
+- If **all three** fail → return error to caller (no silent empty translations).
+- Hard timeout per model: 90s (Claude Opus is the slowest, ~60–80s typical).
 
-| Tier | Model | Path | Notes |
-|---|---|---|---|
-| 1 | `google/gemini-3.1-pro-preview` | Direct Google API (`GEMINI_API_KEY`) | Multimodal audio+text. Enable `thinkingConfig.thinkingBudget` for deliberation on regional idioms. |
-| 2 | `anthropic/claude-opus-4.1` | **OpenRouter** | Best Claude reasoning model for tone/cultural nuance. Enable extended thinking (`reasoning: { max_tokens: ... }`). Text-only. |
-| 3 | `qwen/qwen3-max` | **OpenRouter** | Alibaba's flagship; best Qwen for Arabic dialectal translation. Open-weight safety net. Text-only. |
+## Files to change
 
-OpenRouter routing rules:
-- Both Tier 2 and Tier 3 go through the existing `OPENROUTER_API_KEY` secret — no new keys needed.
-- If `claude-opus-4.1` is unavailable on OpenRouter at call time, auto-fall to `anthropic/claude-sonnet-4.5` (which is already used in enrichment).
-- If `qwen3-max` is unavailable, auto-fall to `qwen/qwen3-235b-a22b` (current model).
-- These intra-tier fallbacks happen silently and do NOT consume the tier counter.
+1. **`supabase/functions/analyze-gulf-arabic/index.ts`**
+   - Replace sequential cascade with `runTranslationEnsemble(lines, dialect)`
+   - Add `mergeTranslations(candidates[], weights[])` helper
+   - Update `translationTierWon` → `engines_used.translation` ensemble block
+   - Apply per-line `needs_review` flag into transcript_lines jsonb so the editor can highlight uncertain lines
 
-Vocab enrichment + Fanar validation stay as-is (parallel, inside Tier 1 success path). The 3-tier loop wraps **translation only**.
+2. **`supabase/functions/_shared/translationEnsemble.ts`** (new)
+   - Pure helper: `jaccard()`, `clusterCandidates()`, `pickWinner()`
+   - Three model callers: `callGeminiDirect()`, `callClaudeOpusOR()`, `callQwen3MaxOR()`
+   - All return `{ translations: string[], latencyMs, charCount, error? }`
 
-### 4. Database + hygiene
+3. **`src/integrations/supabase/types.ts`** — extend the optional `needs_review_lines` field on `discover_videos.engines_used` (backward compatible, additive).
 
-8. Keep `EdgeRuntime.waitUntil` background pattern.
-9. **Expanded `engines_used` JSONB** (backward-compatible):
-   ```json
-   {
-     "asr": [
-       { "name": "Munsit", "chars": 1240, "latencyMs": 4100, "won": true },
-       { "name": "Soniox", "chars": 1198, "latencyMs": 7200, "won": false }
-     ],
-     "translation": {
-       "tierWon": 1,
-       "tiers": [
-         { "name": "google/gemini-3.1-pro-preview", "via": "google-direct", "latencyMs": 6400, "status": "ok" },
-         { "name": "anthropic/claude-opus-4.1", "via": "openrouter", "status": "skipped" },
-         { "name": "qwen/qwen3-max", "via": "openrouter", "status": "skipped" }
-       ]
-     },
-     "analysis": "analyze-gulf-arabic"
-   }
-   ```
-10. **No migration.** `engines_used` is already `jsonb`. Update `MyTranscriptions.tsx` parser to read `engines_used.asr[].name` while still tolerating the old flat-array shape.
+## What stays unchanged
 
-## Out of scope
-- ElevenLabs Scribe in the ASR ensemble
-- Touching CAMeL / Fanar metadata calls
-- Curriculum or other AI brain pipelines
-- UI redesign beyond a small badge parser tweak
+- Tier 1 (Gemini) still uses **direct Google API** with audio multimodality (your prior decision).
+- Tier 2 + Tier 3 still go through OpenRouter via `OPENROUTER_API_KEY`.
+- `EdgeRuntime.waitUntil` background pattern preserved.
+- Schema is fully backward-compatible: `engines_used` is jsonb, new fields are additive.
+- No DB migration needed.
 
-## Implementation order
-1. Inline Soniox + Munsit word capture in `runPipeline`.
-2. `pickPrimaryText` helper + new `alignLinesToAudio` signature.
-3. Send `primaryText` / `primaryWords` / `primaryEngine` to `analyze-gulf-arabic`; drop Deepgram-first.
-4. Remove `falcon-translate` from ingestion path.
-5. Add `audioRef` (signed URL) to analyzer payload.
-6. Refactor translation into `runTranslationTier(tier, payload)`; sequential 1→2→3 with intra-tier model fallback.
-7. Expand `engines_used` write; update `MyTranscriptions.tsx` parser.
+## Out of scope (ask if you want)
+
+- Surfacing `needs_review` lines in the admin transcript editor UI
+- Adding a 4th verifier (e.g. Fanar) — current Fanar role is dialect validation, not translation
+- Recomputing weights dynamically based on per-language historical win rates
+
+## Open question
+
+When Gemini + Claude agree on a line, do you want me to pick:
+- (a) the **longer/more detailed** of the two (current proposal), or
+- (b) Claude's version always (more literary), or
+- (c) Gemini's version always (more literal)?
+
+I'll default to **(a) longest** unless you say otherwise.

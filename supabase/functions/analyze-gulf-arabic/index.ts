@@ -2119,6 +2119,23 @@ serve(async (req) => {
                   .map((w: string, wi: number) => ({ id: `tok-${line.id ?? wi}-${wi}`, surface: w })),
           }));
 
+          // Read-then-merge engines_used so we don't clobber ASR provenance written
+          // by process-approved-video. Translation ensemble is additive.
+          let mergedEnginesUsed: Record<string, unknown> = { translation: translationProvenance };
+          try {
+            const { data: existingRow } = await svc
+              .from('discover_videos')
+              .select('engines_used')
+              .eq('id', pipelineVideoId)
+              .single();
+            const existing = (existingRow?.engines_used && typeof existingRow.engines_used === 'object')
+              ? existingRow.engines_used as Record<string, unknown>
+              : {};
+            mergedEnginesUsed = { ...existing, translation: translationProvenance };
+          } catch (_) {
+            // non-fatal — fall back to translation-only
+          }
+
           const { error: saveErr } = await svc.from('discover_videos').update({
             transcript_lines: sanitizedLines,
             vocabulary: transcriptResult.vocabulary || [],
@@ -2128,6 +2145,7 @@ serve(async (req) => {
             difficulty: transcriptResult.difficulty || 'Intermediate',
             transcription_status: 'analysis_complete',
             transcription_error: null,
+            engines_used: mergedEnginesUsed,
           }).eq('id', pipelineVideoId);
 
           if (saveErr) {

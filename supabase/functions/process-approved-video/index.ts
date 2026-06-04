@@ -477,14 +477,25 @@ async function runPipeline(
       }
     })();
 
-    // --- Munsit (Arabic-native; try to parse word/segment timings if present) ---
+    // --- Munsit (Arabic-native; sync endpoint only — chunk MP3s for long audio) ---
     const munsitPromise = (async () => {
       const MUNSIT_API_KEY = Deno.env.get("MUNSIT_API_KEY")?.trim();
       if (!MUNSIT_API_KEY) { console.warn("[pipeline] Munsit: no API key"); return { text: null, words: [], latencyMs: 0 }; }
+
+      const audioU8 = new Uint8Array(audioBytes!);
+      const isMp3 = isLikelyMp3(audioU8, audioContentType);
+      const sizeMB = audioU8.byteLength / (1024 * 1024);
+      // Munsit's sync /audio/transcribe silently returns "" above ~10 MB.
+      // For MP3 we split on frame boundaries and run chunks in parallel.
+      const NEEDS_CHUNK = sizeMB > 9;
       const t0 = Date.now();
-      try {
+
+      const callOnce = async (
+        payload: Uint8Array,
+        label: string,
+      ): Promise<{ text: string; words: Array<{ text: string; start: number; end: number }> }> => {
         const fd = new FormData();
-        fd.append("file", new File([audioBytes!], "audio.mp3", { type: audioContentType }));
+        fd.append("file", new File([payload], "audio.mp3", { type: audioContentType }));
         fd.append("model", "munsit");
         const resp = await fetch("https://api.munsit.com/api/v1/audio/transcribe", {
           method: "POST",
@@ -494,11 +505,7 @@ async function runPipeline(
         });
         if (!resp.ok) { const t = await resp.text(); throw new Error(`HTTP ${resp.status}: ${t.slice(0, 200)}`); }
         const data = await resp.json();
-        const text = (data.transcription as string | undefined) || "";
-
-        // Try to capture word-level timings. Munsit responses can expose words at
-        // top-level `data.words`, or per-segment `data.segments[i].words`. Times
-        // may be in seconds or ms — normalize to seconds.
+        const text = ((data.transcription ?? data.text) as string | undefined) || "";
         const words: Array<{ text: string; start: number; end: number }> = [];
         const pushWord = (w: any) => {
           if (!w) return;
@@ -506,17 +513,47 @@ async function runPipeline(
           if (!txt) return;
           let s = Number(w.start ?? w.start_ms ?? w.startMs ?? 0);
           let e = Number(w.end ?? w.end_ms ?? w.endMs ?? 0);
-          // If values look like ms (large numbers), convert
           if (s > 1000 || e > 1000) { s /= 1000; e /= 1000; }
           words.push({ text: txt, start: s, end: e });
         };
-        if (Array.isArray(data.words)) data.words.forEach(pushWord);
+        if (Array.isArray(data.timestamps)) data.timestamps.forEach(pushWord);
+        else if (Array.isArray(data.words)) data.words.forEach(pushWord);
         else if (Array.isArray(data.segments)) {
-          for (const seg of data.segments) {
-            if (Array.isArray(seg.words)) seg.words.forEach(pushWord);
-          }
+          for (const seg of data.segments) if (Array.isArray(seg.words)) seg.words.forEach(pushWord);
+        }
+        console.log(`[pipeline] Munsit ${label}: ${text.length} chars, ${words.length} words`);
+        return { text, words };
+      };
+
+      try {
+        if (NEEDS_CHUNK && isMp3) {
+          const chunks = chunkMp3ByDuration(audioU8, 60);
+          if (chunks.length === 0) throw new Error("MP3 chunker yielded 0 frames");
+          console.log(`[pipeline] Munsit: ${sizeMB.toFixed(2)} MB MP3 → ${chunks.length} chunks (~60s each)`);
+          const parts = await mapWithConcurrency(chunks, 3, async (c, i) => {
+            try {
+              const r = await callOnce(c.bytes, `chunk ${i + 1}/${chunks.length} (@${c.offsetSec.toFixed(1)}s, ${(c.bytes.byteLength / 1024).toFixed(0)} KB)`);
+              return { ...r, offsetSec: c.offsetSec };
+            } catch (e) {
+              console.warn(`[pipeline] Munsit chunk ${i + 1} failed:`, e);
+              return { text: "", words: [], offsetSec: c.offsetSec };
+            }
+          });
+          const text = parts.map(p => p.text.trim()).filter(Boolean).join(" ");
+          const words = parts.flatMap(p =>
+            p.words.map(w => ({ text: w.text, start: w.start + p.offsetSec, end: w.end + p.offsetSec })),
+          );
+          const latencyMs = Date.now() - t0;
+          console.log(`[pipeline] Munsit (chunked): ${text.length} chars, ${words.length} words, ${chunks.length} chunks, ${latencyMs}ms`);
+          return { text: text || null, words, latencyMs };
         }
 
+        if (NEEDS_CHUNK && !isMp3) {
+          console.warn(`[pipeline] Munsit: skipping — ${sizeMB.toFixed(2)} MB non-MP3 (${audioContentType}) exceeds sync endpoint`);
+          return { text: null, words: [], latencyMs: Date.now() - t0, error: "oversize-non-mp3" };
+        }
+
+        const { text, words } = await callOnce(audioU8, "single");
         const latencyMs = Date.now() - t0;
         console.log(`[pipeline] Munsit: ${text.length} chars, ${words.length} words, ${latencyMs}ms`);
         return { text: text || null, words, latencyMs };
@@ -525,6 +562,7 @@ async function runPipeline(
         return { text: null, words: [], latencyMs: Date.now() - t0, error: String(e) };
       }
     })();
+
 
     // --- Azure Speech (locale-routed by dialect module) ---
     const azurePromise = (async () => {

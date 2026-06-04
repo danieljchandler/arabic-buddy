@@ -1784,75 +1784,48 @@ serve(async (req) => {
        console.log('Fanar dialect validation received (first 150 chars):', fanarValidResp.content.slice(0, 150));
      }
 
-     // --- Parse Tier 1 (Gemini 3.1 Pro Preview) translation result ---
-     let translationAi: TranslationAI | null = null;
-     let translationTierWon = 0;
-     const translationTierLog: Array<{ name: string; via: string; status: string }> = [];
-     if (geminiTransResp.content) {
-       translationAi = safeJsonParse<TranslationAI>(geminiTransResp.content);
-       if (translationAi?.translations?.length) {
-         translationTierWon = 1;
-         translationTierLog.push({ name: 'google/gemini-3.1-pro-preview', via: 'lovable-gateway', status: 'ok' });
-         console.log('Tier 1 (Gemini 3.1 Pro Preview): parsed', translationAi.translations.length, 'lines.');
-       }
-     }
-     if (!translationTierWon) translationTierLog.push({ name: 'google/gemini-3.1-pro-preview', via: 'lovable-gateway', status: 'failed' });
+      // --- TRANSLATION ENSEMBLE: merge Gemini + Claude + Qwen candidates per line ---
+      const translationCandidates = translationEnsembleResult;
+      for (const c of translationCandidates) {
+        console.log(
+          `[ensemble] ${c.name} (w=${c.weight}, via=${c.via}): status=${c.status}, ` +
+            `lines=${c.translations.length}, latency=${c.latencyMs}ms, chars=${c.chars}` +
+            (c.error ? `, error=${c.error.slice(0, 120)}` : ''),
+        );
+      }
+      const okCount = translationCandidates.filter((c) => c.status === 'ok').length;
+      if (okCount === 0) {
+        console.warn('[ensemble] All 3 translation models failed — leaving translations empty.');
+      }
+      const ensembleMerge = mergeTranslationEnsemble(translationCandidates, mergedLines.length);
+      const dedicatedTranslations: string[] = ensembleMerge.lines.map((l) => l.translation);
+      const ensembleNeedsReview: boolean[] = ensembleMerge.lines.map((l) => l.needs_review);
 
-     // --- Tier 2: Claude Opus 4.1 via OpenRouter (best Anthropic for tone/nuance) ---
-     if (!translationAi?.translations || translationAi.translations.length === 0) {
-       console.log('Tier 1 failed — trying Tier 2 (Claude Opus 4.1 via OpenRouter)...');
-       const claudeResp = await callAI({
-         model: 'anthropic/claude-opus-4.1',
-         systemPrompt: getTranslationSystemPrompt(detectedDialect, visualContext, sonioxTranslation),
-         userContent: mergedTranscriptText,
-         apiKey: OPENROUTER_API_KEY,
-         gateway: 'openrouter',
-         maxTokens: 8192,
-       });
-       if (claudeResp.content) {
-         translationAi = safeJsonParse<TranslationAI>(claudeResp.content);
-         if (translationAi?.translations?.length) {
-           translationTierWon = 2;
-           translationTierLog.push({ name: 'anthropic/claude-opus-4.1', via: 'openrouter', status: 'ok' });
-           console.log('Tier 2 (Claude Opus 4.1): parsed', translationAi.translations.length, 'lines.');
-         } else {
-           translationTierLog.push({ name: 'anthropic/claude-opus-4.1', via: 'openrouter', status: 'parse_failed' });
-         }
-       } else {
-         translationTierLog.push({ name: 'anthropic/claude-opus-4.1', via: 'openrouter', status: 'failed' });
-       }
-     }
+      // Structured provenance for engines_used.translation
+      const translationProvenance = {
+        strategy: 'weighted_ensemble',
+        degraded: okCount < 3,
+        active_models: okCount,
+        agreements: ensembleMerge.agreements,
+        tiers: translationCandidates.map((c) => ({
+          name: c.name,
+          via: c.via,
+          weight: c.weight,
+          status: c.status,
+          latency_ms: c.latencyMs,
+          chars: c.chars,
+          lines_won: ensembleMerge.perModelWins[c.name] ?? 0,
+          ...(c.error ? { error: c.error.slice(0, 200) } : {}),
+        })),
+      };
+      console.log(
+        `[ensemble] merged ${dedicatedTranslations.length} lines | ` +
+          `all_three=${ensembleMerge.agreements.all_three} ` +
+          `gemini_claude=${ensembleMerge.agreements.gemini_claude} ` +
+          `needs_review=${ensembleMerge.agreements.needs_review} | ` +
+          `wins=${JSON.stringify(ensembleMerge.perModelWins)}`,
+      );
 
-     // --- Tier 3: Qwen3-Max via OpenRouter (open-weight dialect safety net) ---
-     if (!translationAi?.translations || translationAi.translations.length === 0) {
-       console.log('Tier 2 failed — trying Tier 3 (Qwen3-Max via OpenRouter)...');
-       const qwenResp = await callAI({
-         model: 'qwen/qwen3-max',
-         systemPrompt: getTranslationSystemPrompt(detectedDialect, visualContext, sonioxTranslation),
-         userContent: mergedTranscriptText,
-         apiKey: OPENROUTER_API_KEY,
-         gateway: 'openrouter',
-         maxTokens: 4096,
-       });
-       if (qwenResp.content) {
-         translationAi = safeJsonParse<TranslationAI>(qwenResp.content);
-         if (translationAi?.translations?.length) {
-           translationTierWon = 3;
-           translationTierLog.push({ name: 'qwen/qwen3-max', via: 'openrouter', status: 'ok' });
-           console.log('Tier 3 (Qwen3-Max): parsed', translationAi.translations.length, 'lines.');
-         } else {
-           translationTierLog.push({ name: 'qwen/qwen3-max', via: 'openrouter', status: 'parse_failed' });
-         }
-       } else {
-         translationTierLog.push({ name: 'qwen/qwen3-max', via: 'openrouter', status: 'failed' });
-       }
-     }
-
-      console.log(`Translation cascade result: tierWon=${translationTierWon}, tiers=${JSON.stringify(translationTierLog)}`);
-
-      const dedicatedTranslations: string[] = Array.isArray(translationAi?.translations)
-        ? translationAi!.translations.map((t) => (typeof t === 'string' ? t : ''))
-        : [];
 
      // --- Parse Call 2 (analysis) result ---
      let analysisAi: AnalysisAI | null = null;

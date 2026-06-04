@@ -927,7 +927,7 @@ const Transcribe = () => {
         dialect: activeDialect,
         engines_used: {
           asr: enginesUsedRef.current,
-          translation: ['falcon-translate (Qwen+Gemini ensemble)'],
+          translation: ['gemini-3.1-pro-preview → claude-opus-4.1 → qwen3-max (3-tier cascade)'],
           analysis: 'analyze-gulf-arabic (AI Gateway ensemble)',
         },
       } as never);

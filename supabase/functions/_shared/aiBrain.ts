@@ -329,14 +329,18 @@ async function runEnsemble<T>(task: BrainTask, apiKey: string): Promise<BrainRes
     throw firstErr?.reason ?? new BrainHttpError(500, 'all ensemble models failed');
   }
 
-  // Pick the candidate with the fewest MSA leaks; tiebreak by shortest raw.
+  // Rank by weighted leak score (leaks / weight) — lower is better.
+  // Qwen (weight 0.6) only wins when Gemini & Claude both have strictly more leaks.
+  // Tiebreak by raw length (shorter = tighter).
   const ranked = successes
     .map(({ s, model }) => {
       const text = extractScanText(task, s.value.parsed, s.value.raw);
       const leaks = scanLeaks(text, task.dialect);
-      return { model, parsed: s.value.parsed, raw: s.value.raw, leaks, text };
+      const weight = getModelWeight(model);
+      const score = leaks.leaks.length / weight;
+      return { model, parsed: s.value.parsed, raw: s.value.raw, leaks, text, weight, score };
     })
-    .sort((a, b) => a.leaks.leaks.length - b.leaks.leaks.length || a.raw.length - b.raw.length);
+    .sort((a, b) => a.score - b.score || a.raw.length - b.raw.length);
 
   const winner = ranked[0];
   // Agreement = share of candidates with the same leak-count bucket as winner.

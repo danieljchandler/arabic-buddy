@@ -112,8 +112,9 @@ const StoryPlayer = () => {
       route: `/stories/${storyId}`,
       title: storyTitle,
       subtitle: `Scene ${pathTaken.length} of ${scenes.length}`,
+      dialect: activeDialect,
     });
-  }, [storyId, storyTitle, scenes, currentScene?.is_ending, pathTaken.length]);
+  }, [storyId, storyTitle, scenes, currentScene?.is_ending, pathTaken.length, activeDialect]);
 
   const handleChoice = (nextSceneOrder: number) => {
     setShowTranslation(false);

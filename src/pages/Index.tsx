@@ -64,7 +64,7 @@ const TILE_HINTS: Record<string, { title: string; body: string }> = {
   "battles": { title: "Vocab Battles", body: "Live head-to-head vocabulary duels. Fast, fun, and the best way to test if you actually know your words." },
   "friends": { title: "Friends", body: "Add friends, share progress, and cheer each other's streaks." },
   "analytics": { title: "Learning Analytics", body: "Beautiful charts of your progress: words learned, retention rate, time spent, dialect coverage." },
-  "my-path": { title: "My Path", body: "An adaptive curriculum built around your CEFR level and goals. Always knows what to teach you next." },
+  
   "placement": { title: "Placement Quiz", body: "20 adaptive questions to pin down your exact CEFR level so every lesson lands in your sweet spot." },
 };
 
@@ -337,10 +337,6 @@ const Index = () => {
                 <button onClick={() => navigate("/analytics")} className={cn("p-3 rounded-xl bg-gradient-to-b from-blue-500/10 to-indigo-500/10 border border-blue-500/20 flex flex-col items-center gap-1.5 transition-all duration-200 hover:border-blue-500/40 active:scale-[0.98]")}>
                   <BarChart3 className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                   <p className="font-semibold text-foreground text-xs">Analytics</p>
-                </button>
-                <button onClick={() => navigate("/my-path")} className={cn("p-3 rounded-xl bg-gradient-to-b from-emerald-500/10 to-teal-500/10 border border-emerald-500/20 flex flex-col items-center gap-1.5 transition-all duration-200 hover:border-emerald-500/40 active:scale-[0.98]")}>
-                  <Compass className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-                  <p className="font-semibold text-foreground text-xs">My Path</p>
                 </button>
               </div>
             </div>

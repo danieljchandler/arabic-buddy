@@ -141,10 +141,6 @@ export const PAGE_HINTS: Record<string, { title: string; body: string; cta?: str
     title: "Liked Videos",
     body: "Your saved Discover videos in one place. Rewatch favorites, mine them for vocab, or share with friends.",
   },
-  "learning-path": {
-    title: "Your Learning Path",
-    body: "An AI-built curriculum tuned to your level and goals. Each unit unlocks the next as you master it.",
-  },
   "learning-analytics": {
     title: "Learning Analytics",
     body: "Charts of your streak, time spent, words learned, and weak spots. See your progress in numbers.",

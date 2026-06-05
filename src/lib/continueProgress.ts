@@ -26,7 +26,7 @@ let lastWriteKey = "";
 export function recordContinue(entry: Omit<ContinueEntry, "updatedAt">): void {
   if (typeof window === "undefined") return;
   try {
-    const key = `${entry.kind}:${entry.route}:${entry.subtitle ?? ""}`;
+    const key = `${entry.kind}:${entry.route}:${entry.subtitle ?? ""}:${entry.dialect ?? ""}`;
     const now = Date.now();
     if (key === lastWriteKey && now - lastWriteAt < MIN_WRITE_INTERVAL_MS) return;
     lastWriteKey = key;

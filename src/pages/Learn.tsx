@@ -15,6 +15,7 @@ import { Loader2, Trophy, RotateCcw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import lahjaLogo from "@/assets/lahja-logo.png";
 import { recordContinue, clearContinue } from "@/lib/continueProgress";
+import { useDialect } from "@/contexts/DialectContext";
 
 type Phase = "intro" | "quiz";
 
@@ -25,6 +26,7 @@ const Learn = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
   const submitReview = useSubmitReview();
+  const { activeDialect } = useDialect();
 
   // Mixed mode: no lessonId, fetch all words shuffled
   const isMixedMode = !lessonId;
@@ -107,8 +109,9 @@ const Learn = () => {
       route: `/learn/${lessonId}`,
       title: topic.name || "Lesson",
       subtitle: `Word ${Math.min(currentIndex + 1, words.length)} of ${words.length}`,
+      dialect: activeDialect,
     });
-  }, [isMixedMode, lessonId, topic, words.length, currentIndex, isComplete]);
+  }, [isMixedMode, lessonId, topic, words.length, currentIndex, isComplete, activeDialect]);
 
   const handleContinueToQuiz = () => {
     setPhase("quiz");

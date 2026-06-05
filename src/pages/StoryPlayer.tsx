@@ -58,6 +58,7 @@ const StoryPlayer = () => {
   const { storyId } = useParams<{ storyId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { activeDialect } = useDialect();
   const { data: scenes, isLoading: scenesLoading } = useStoryScenes(storyId);
   const { data: progress } = useStoryProgress(storyId);
   const upsertProgress = useUpsertStoryProgress();

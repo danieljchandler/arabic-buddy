@@ -109,8 +109,9 @@ const Learn = () => {
       route: `/learn/${lessonId}`,
       title: topic.name || "Lesson",
       subtitle: `Word ${Math.min(currentIndex + 1, words.length)} of ${words.length}`,
+      dialect: activeDialect,
     });
-  }, [isMixedMode, lessonId, topic, words.length, currentIndex, isComplete]);
+  }, [isMixedMode, lessonId, topic, words.length, currentIndex, isComplete, activeDialect]);
 
   const handleContinueToQuiz = () => {
     setPhase("quiz");

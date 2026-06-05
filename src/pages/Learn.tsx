@@ -26,6 +26,7 @@ const Learn = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
   const submitReview = useSubmitReview();
+  const { activeDialect } = useDialect();
 
   // Mixed mode: no lessonId, fetch all words shuffled
   const isMixedMode = !lessonId;

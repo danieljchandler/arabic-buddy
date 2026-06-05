@@ -346,9 +346,10 @@ const DiscoverVideo = () => {
   useEffect(() => {
     if (!video?.id) return;
     const title = (video as any).title || (video as any).title_arabic || "Video";
+    const dialect = (video as any).dialect as string | undefined;
     const totalSec = Math.floor(currentTimeMs / 1000);
     if (totalSec <= 0) {
-      recordContinue({ kind: "video", route: `/discover/${video.id}`, title });
+      recordContinue({ kind: "video", route: `/discover/${video.id}`, title, dialect });
       return;
     }
     const mm = Math.floor(totalSec / 60);
@@ -358,6 +359,7 @@ const DiscoverVideo = () => {
       route: `/discover/${video.id}`,
       title,
       subtitle: `at ${mm}:${ss}`,
+      dialect,
     });
   }, [video?.id, currentTimeMs]);
 

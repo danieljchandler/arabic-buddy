@@ -8,6 +8,7 @@ import {
   formatRelativeTime,
   getContinue,
 } from "@/lib/continueProgress";
+import { useDialect } from "@/contexts/DialectContext";
 
 const KIND_META: Record<
   ContinueEntry["kind"],
@@ -20,6 +21,7 @@ const KIND_META: Record<
 
 export const ContinueCard = () => {
   const navigate = useNavigate();
+  const { activeDialect } = useDialect();
   const [entry, setEntry] = useState<ContinueEntry | null>(() => getContinue());
 
   useEffect(() => {
@@ -35,6 +37,8 @@ export const ContinueCard = () => {
   }, []);
 
   if (!entry) return null;
+  // Scope to current dialect module: hide entries tagged with a different dialect.
+  if (entry.dialect && entry.dialect !== activeDialect) return null;
 
   const { icon: Icon, label } = KIND_META[entry.kind];
 

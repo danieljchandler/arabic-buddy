@@ -15,6 +15,7 @@ import { Loader2, Trophy, RotateCcw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import lahjaLogo from "@/assets/lahja-logo.png";
 import { recordContinue, clearContinue } from "@/lib/continueProgress";
+import { useDialect } from "@/contexts/DialectContext";
 
 type Phase = "intro" | "quiz";
 

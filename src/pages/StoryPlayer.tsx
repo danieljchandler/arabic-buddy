@@ -17,6 +17,7 @@ import { Loader2, RotateCcw, BookOpen, Trophy, ArrowLeft, Sparkles, Plus, Check 
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { recordContinue, clearContinue } from '@/lib/continueProgress';
+import { useDialect } from '@/contexts/DialectContext';
 
 /**
  * Split a paragraph into sentences by sentence terminators (. ! ? ؟ and newlines),

@@ -55,8 +55,6 @@ const DailyStory = lazyPage(() => import("./pages/DailyStory"));
 const StoryPlayer = lazyPage(() => import("./pages/StoryPlayer"));
 const VocabBattles = lazyPage(() => import("./pages/VocabBattles"));
 const BattlePlay = lazyPage(() => import("./pages/BattlePlay"));
-const LearningPathSetup = lazyPage(() => import("./pages/LearningPathSetup"));
-const LearningPathDashboard = lazyPage(() => import("./pages/LearningPathDashboard"));
 const PlacementQuiz = lazyPage(() => import("./pages/PlacementQuiz"));
 const SouqNews = lazyPage(() => import("./pages/SouqNews"));
 const BibleReading = lazyPage(() => import("./pages/BibleReading"));
@@ -343,12 +341,6 @@ const App = () => {
             } />
             <Route path="/battles/:battleId" element={
               <ErrorBoundary name="BattlePlayRoute"><ProtectedRoute><BattlePlay /></ProtectedRoute></ErrorBoundary>
-            } />
-            <Route path="/my-path" element={
-              <ErrorBoundary name="LearningPathRoute"><ProtectedRoute><LearningPathDashboard /></ProtectedRoute></ErrorBoundary>
-            } />
-            <Route path="/my-path/setup" element={
-              <ErrorBoundary name="LearningPathSetupRoute"><ProtectedRoute><LearningPathSetup /></ProtectedRoute></ErrorBoundary>
             } />
             <Route path="/souq-news" element={
               <ErrorBoundary name="SouqNewsRoute"><SouqNews /></ErrorBoundary>

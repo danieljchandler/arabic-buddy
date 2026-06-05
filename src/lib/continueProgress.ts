@@ -11,6 +11,8 @@ export interface ContinueEntry {
   title: string;
   /** Secondary label (e.g. "Scene 3 of 8", "at 1:24", "Word 4 of 5"). */
   subtitle?: string;
+  /** Dialect this entry belongs to. Used to scope the card to the active module. */
+  dialect?: string;
   updatedAt: number;
 }
 

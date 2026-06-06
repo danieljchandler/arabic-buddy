@@ -80,24 +80,27 @@ export function pickModels(tags: ModelTag[], count: number): string[] {
 }
 
 export const DEFAULT_FAST = 'google/gemini-3-flash-preview';
-export const DEFAULT_JUDGE = 'openai/gpt-5';
-// Reverted from gemini-3.1-pro-preview / claude-opus-4.1 / qwen3-max because
-// those IDs were unavailable on the Lovable AI Gateway and/or returned no
-// tool_call on structured-output requests, causing askBrain to throw
-// "returned no tool call and no parsable JSON content".
+// Upgraded to the strongest models currently available on the Lovable AI
+// Gateway. anthropic/claude-opus-4.1 and qwen/qwen3-max are NOT routable
+// through the gateway, so we use the top Google + OpenAI tier instead.
+export const DEFAULT_JUDGE = 'openai/gpt-5.5';
 export const DEFAULT_DRAFTERS = [
-  'google/gemini-2.5-pro',
+  'google/gemini-3.1-pro-preview',
+  'openai/gpt-5.5',
   'openai/gpt-5',
-  'openai/gpt-5-mini',
 ];
 
 /**
  * Per-model voting weight used by the AI Brain's ensemble ranking.
  * Higher = more authoritative when picking the winning candidate.
+ * Gemini 3.1 Pro + GPT-5.5 are co-leads; GPT-5 acts as the lower-weight
+ * third verifier (analogous to Qwen's "tiebreaker" role in the pipeline).
  */
 export const MODEL_WEIGHTS: Record<string, number> = {
-  'google/gemini-2.5-pro': 1.0,
-  'openai/gpt-5': 1.0,
+  'google/gemini-3.1-pro-preview': 1.0,
+  'openai/gpt-5.5': 1.0,
+  'openai/gpt-5': 0.6,
+  'google/gemini-2.5-pro': 0.9,
   'openai/gpt-5-mini': 0.6,
 };
 

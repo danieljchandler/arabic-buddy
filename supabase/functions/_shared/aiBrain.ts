@@ -67,6 +67,14 @@ export interface BrainResult<T = unknown> {
 }
 
 const GATEWAY_URL = 'https://ai.gateway.lovable.dev/v1/chat/completions';
+const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
+
+// Models that aren't on the Lovable AI Gateway catalog and must go through
+// OpenRouter (uses OPENROUTER_API_KEY). Everything else goes through Lovable.
+function routeForModel(model: string): 'openrouter' | 'lovable' {
+  if (/^(anthropic|qwen|meta-llama|mistralai|deepseek|x-ai)\//.test(model)) return 'openrouter';
+  return 'lovable';
+}
 
 class BrainHttpError extends Error {
   constructor(public status: number, message: string) {

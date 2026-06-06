@@ -410,7 +410,7 @@ async function runDraftCritic<T>(task: BrainTask, apiKey: string): Promise<Brain
     : ['google/gemini-3.1-pro-preview', DEFAULT_JUDGE];
 
   const sys = buildSystem(task);
-  const draft = await callModel({
+  const draft = await callModelWithFallback({
     model: drafter,
     system: sys,
     user: task.userPrompt,
@@ -422,7 +422,7 @@ async function runDraftCritic<T>(task: BrainTask, apiKey: string): Promise<Brain
 
   const criticSys = `${sys}\n\nYou are reviewing a draft. If anything drifts to MSA or another dialect, REWRITE it in authentic ${getDialectLabel(task.dialect)}. Return ONLY the corrected output in the same format as the draft (no commentary).`;
   const criticUser = `Original request:\n${stringifyUserPrompt(task.userPrompt)}\n\nDraft to review:\n${draft.raw}`;
-  const critiqued = await callModel({
+  const critiqued = await callModelWithFallback({
     model: critic,
     system: criticSys,
     user: criticUser,
@@ -431,6 +431,7 @@ async function runDraftCritic<T>(task: BrainTask, apiKey: string): Promise<Brain
     temperature: 0.3,
     apiKey,
   });
+
 
   const text = extractScanText(task, critiqued.parsed, critiqued.raw);
   return {

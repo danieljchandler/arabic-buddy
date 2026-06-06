@@ -67,6 +67,14 @@ export interface BrainResult<T = unknown> {
 }
 
 const GATEWAY_URL = 'https://ai.gateway.lovable.dev/v1/chat/completions';
+const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
+
+// Models that aren't on the Lovable AI Gateway catalog and must go through
+// OpenRouter (uses OPENROUTER_API_KEY). Everything else goes through Lovable.
+function routeForModel(model: string): 'openrouter' | 'lovable' {
+  if (/^(anthropic|qwen|meta-llama|mistralai|deepseek|x-ai)\//.test(model)) return 'openrouter';
+  return 'lovable';
+}
 
 class BrainHttpError extends Error {
   constructor(public status: number, message: string) {
@@ -224,10 +232,24 @@ async function callModel(opts: CallOptions): Promise<{ raw: string; parsed: unkn
     body.tool_choice = { type: 'function', function: { name: opts.tool.name } };
   }
 
-  const res = await fetch(GATEWAY_URL, {
+  const route = routeForModel(opts.model);
+  let url: string;
+  let authKey: string | undefined;
+  if (route === 'openrouter') {
+    url = OPENROUTER_URL;
+    authKey = Deno.env.get('OPENROUTER_API_KEY');
+    if (!authKey) {
+      throw new BrainHttpError(500, `OPENROUTER_API_KEY not configured (required for ${opts.model})`);
+    }
+  } else {
+    url = GATEWAY_URL;
+    authKey = opts.apiKey;
+  }
+
+  const res = await fetch(url, {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${opts.apiKey}`,
+      Authorization: `Bearer ${authKey}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(body),
@@ -235,7 +257,7 @@ async function callModel(opts: CallOptions): Promise<{ raw: string; parsed: unkn
 
   if (!res.ok) {
     const text = await res.text().catch(() => '');
-    throw new BrainHttpError(res.status, `gateway ${opts.model} ${res.status}: ${text.slice(0, 200)}`);
+    throw new BrainHttpError(res.status, `${route} ${opts.model} ${res.status}: ${text.slice(0, 200)}`);
   }
 
   const data = await res.json();

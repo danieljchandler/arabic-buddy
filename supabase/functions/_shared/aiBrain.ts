@@ -301,26 +301,60 @@ async function callModel(opts: CallOptions): Promise<{ raw: string; parsed: unkn
 
 const STABLE_FALLBACKS = ['google/gemini-2.5-pro', 'google/gemini-2.5-flash', 'google/gemini-3-flash-preview'];
 
+/**
+ * Calls the requested (best) model. If it returns an empty/unparseable response
+ * — common with preview tool-calling — retries the SAME model up to 2 more
+ * times with small perturbations (lower temp, then nudged prompt) before
+ * grudgingly falling back to a stable Gemini build as a last resort.
+ */
 async function callModelWithFallback(opts: CallOptions): Promise<{ raw: string; parsed: unknown; model: string }> {
+  const recoverable = (msg: string) => /no tool call|invalid JSON|no parsable JSON|5\d\d/.test(msg);
+  let lastErr: unknown;
+
+  // Attempt 1: as requested.
   try {
     const r = await callModel(opts);
     return { ...r, model: opts.model };
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    // Retry on tool-call/parse failures — common with preview models.
-    const recoverable = /no tool call|invalid JSON|no parsable JSON|5\d\d/.test(msg);
-    if (!recoverable) throw err;
-    for (const fb of STABLE_FALLBACKS) {
-      if (fb === opts.model) continue;
-      try {
-        console.warn(`[aiBrain] ${opts.model} failed (${msg.slice(0, 120)}), falling back to ${fb}`);
-        const r = await callModel({ ...opts, model: fb });
-        return { ...r, model: fb };
-      } catch { /* try next */ }
-    }
-    throw err;
+    lastErr = err;
+    if (!recoverable(err instanceof Error ? err.message : String(err))) throw err;
   }
+
+  // Attempt 2: same model, lower temperature (more deterministic tool calls).
+  try {
+    console.warn(`[aiBrain] ${opts.model} retry #1 (lower temp)`);
+    const r = await callModel({ ...opts, temperature: 0.2 });
+    return { ...r, model: opts.model };
+  } catch (err) {
+    lastErr = err;
+    if (!recoverable(err instanceof Error ? err.message : String(err))) throw err;
+  }
+
+  // Attempt 3: same model, nudge the system prompt to remind it to use the tool.
+  if (opts.tool) {
+    try {
+      console.warn(`[aiBrain] ${opts.model} retry #2 (tool nudge)`);
+      const nudged = `${opts.system}\n\nIMPORTANT: You MUST respond by calling the function "${opts.tool.name}". Do not write any prose. Return only the function call.`;
+      const r = await callModel({ ...opts, system: nudged, temperature: 0.2 });
+      return { ...r, model: opts.model };
+    } catch (err) {
+      lastErr = err;
+      if (!recoverable(err instanceof Error ? err.message : String(err))) throw err;
+    }
+  }
+
+  // Last resort: stable fallback chain.
+  for (const fb of STABLE_FALLBACKS) {
+    if (fb === opts.model) continue;
+    try {
+      console.warn(`[aiBrain] ${opts.model} exhausted retries, falling back to ${fb}`);
+      const r = await callModel({ ...opts, model: fb });
+      return { ...r, model: fb };
+    } catch { /* try next */ }
+  }
+  throw lastErr;
 }
+
 
 async function runSolo<T>(task: BrainTask, apiKey: string): Promise<BrainResult<T>> {
   const model = task.models?.[0] ?? DEFAULT_FAST;

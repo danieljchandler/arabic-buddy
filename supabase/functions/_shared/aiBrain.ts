@@ -438,7 +438,7 @@ async function runDraftCritic<T>(task: BrainTask, apiKey: string): Promise<Brain
     output: critiqued.parsed as T,
     raw: critiqued.raw,
     strategy: 'draft_critic',
-    models: [drafter, critic],
+    models: [draft.model, critiqued.model],
     agreementScore: 1,
     msaLeaks: scanLeaks(text, task.dialect),
     msaRepairs: 0,

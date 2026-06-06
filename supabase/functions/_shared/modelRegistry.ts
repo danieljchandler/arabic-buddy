@@ -80,27 +80,30 @@ export function pickModels(tags: ModelTag[], count: number): string[] {
 }
 
 export const DEFAULT_FAST = 'google/gemini-3-flash-preview';
-// Upgraded to the strongest models currently available on the Lovable AI
-// Gateway. anthropic/claude-opus-4.1 and qwen/qwen3-max are NOT routable
-// through the gateway, so we use the top Google + OpenAI tier instead.
-export const DEFAULT_JUDGE = 'openai/gpt-5.5';
+// Gemini routes through the Lovable AI Gateway (LOVABLE_API_KEY).
+// Claude + Qwen route through OpenRouter (OPENROUTER_API_KEY) — see
+// routeForModel() in aiBrain.ts. This mirrors the analyze-gulf-arabic
+// translation pipeline's model trio.
+export const DEFAULT_JUDGE = 'anthropic/claude-opus-4.1';
 export const DEFAULT_DRAFTERS = [
   'google/gemini-3.1-pro-preview',
-  'openai/gpt-5.5',
-  'openai/gpt-5',
+  'anthropic/claude-opus-4.1',
+  'qwen/qwen3-max',
 ];
 
 /**
  * Per-model voting weight used by the AI Brain's ensemble ranking.
  * Higher = more authoritative when picking the winning candidate.
- * Gemini 3.1 Pro + GPT-5.5 are co-leads; GPT-5 acts as the lower-weight
- * third verifier (analogous to Qwen's "tiebreaker" role in the pipeline).
+ * Gemini 3.1 Pro + Claude Opus 4.1 are co-leads; Qwen3 Max acts as the
+ * lower-weight third verifier (tiebreaker only).
  */
 export const MODEL_WEIGHTS: Record<string, number> = {
   'google/gemini-3.1-pro-preview': 1.0,
-  'openai/gpt-5.5': 1.0,
-  'openai/gpt-5': 0.6,
+  'anthropic/claude-opus-4.1': 1.0,
+  'qwen/qwen3-max': 0.6,
   'google/gemini-2.5-pro': 0.9,
+  'openai/gpt-5': 0.8,
+  'openai/gpt-5.5': 0.9,
   'openai/gpt-5-mini': 0.6,
 };
 

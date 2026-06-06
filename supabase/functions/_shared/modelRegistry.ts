@@ -80,22 +80,25 @@ export function pickModels(tags: ModelTag[], count: number): string[] {
 }
 
 export const DEFAULT_FAST = 'google/gemini-3-flash-preview';
-export const DEFAULT_JUDGE = 'anthropic/claude-opus-4.1';
+export const DEFAULT_JUDGE = 'openai/gpt-5';
+// Reverted from gemini-3.1-pro-preview / claude-opus-4.1 / qwen3-max because
+// those IDs were unavailable on the Lovable AI Gateway and/or returned no
+// tool_call on structured-output requests, causing askBrain to throw
+// "returned no tool call and no parsable JSON content".
 export const DEFAULT_DRAFTERS = [
-  'google/gemini-3.1-pro-preview',
-  'anthropic/claude-opus-4.1',
-  'qwen/qwen3-max',
+  'google/gemini-2.5-pro',
+  'openai/gpt-5',
+  'openai/gpt-5-mini',
 ];
 
 /**
  * Per-model voting weight used by the AI Brain's ensemble ranking.
  * Higher = more authoritative when picking the winning candidate.
- * Qwen is intentionally < Gemini/Claude so it acts as a tiebreaker, not a peer.
  */
 export const MODEL_WEIGHTS: Record<string, number> = {
-  'google/gemini-3.1-pro-preview': 1.0,
-  'anthropic/claude-opus-4.1': 1.0,
-  'qwen/qwen3-max': 0.6,
+  'google/gemini-2.5-pro': 1.0,
+  'openai/gpt-5': 1.0,
+  'openai/gpt-5-mini': 0.6,
 };
 
 export function getModelWeight(id: string): number {

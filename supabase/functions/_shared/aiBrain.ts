@@ -361,7 +361,7 @@ async function runEnsemble<T>(task: BrainTask, apiKey: string): Promise<BrainRes
 async function runDraftCritic<T>(task: BrainTask, apiKey: string): Promise<BrainResult<T>> {
   const [drafter, critic] = task.models && task.models.length >= 2
     ? task.models
-    : ['google/gemini-2.5-pro', DEFAULT_JUDGE];
+    : ['google/gemini-3.1-pro-preview', DEFAULT_JUDGE];
 
   const sys = buildSystem(task);
   const draft = await callModel({

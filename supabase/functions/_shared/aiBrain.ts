@@ -299,9 +299,32 @@ async function callModel(opts: CallOptions): Promise<{ raw: string; parsed: unkn
 
 // ----------------- Strategies -----------------
 
+const STABLE_FALLBACKS = ['google/gemini-2.5-pro', 'google/gemini-2.5-flash', 'google/gemini-3-flash-preview'];
+
+async function callModelWithFallback(opts: CallOptions): Promise<{ raw: string; parsed: unknown; model: string }> {
+  try {
+    const r = await callModel(opts);
+    return { ...r, model: opts.model };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    // Retry on tool-call/parse failures — common with preview models.
+    const recoverable = /no tool call|invalid JSON|no parsable JSON|5\d\d/.test(msg);
+    if (!recoverable) throw err;
+    for (const fb of STABLE_FALLBACKS) {
+      if (fb === opts.model) continue;
+      try {
+        console.warn(`[aiBrain] ${opts.model} failed (${msg.slice(0, 120)}), falling back to ${fb}`);
+        const r = await callModel({ ...opts, model: fb });
+        return { ...r, model: fb };
+      } catch { /* try next */ }
+    }
+    throw err;
+  }
+}
+
 async function runSolo<T>(task: BrainTask, apiKey: string): Promise<BrainResult<T>> {
   const model = task.models?.[0] ?? DEFAULT_FAST;
-  const { raw, parsed } = await callModel({
+  const { raw, parsed, model: usedModel } = await callModelWithFallback({
     model,
     system: buildSystem(task),
     user: task.userPrompt,
@@ -315,13 +338,14 @@ async function runSolo<T>(task: BrainTask, apiKey: string): Promise<BrainResult<
     output: parsed as T,
     raw,
     strategy: 'solo',
-    models: [model],
+    models: [usedModel],
     agreementScore: 1,
     msaLeaks: scanLeaks(text, task.dialect),
     msaRepairs: 0,
     totalLatencyMs: 0,
   };
 }
+
 
 async function runEnsemble<T>(task: BrainTask, apiKey: string): Promise<BrainResult<T>> {
   const models = (task.models ?? DEFAULT_DRAFTERS).slice(0, 3);
@@ -386,7 +410,7 @@ async function runDraftCritic<T>(task: BrainTask, apiKey: string): Promise<Brain
     : ['google/gemini-3.1-pro-preview', DEFAULT_JUDGE];
 
   const sys = buildSystem(task);
-  const draft = await callModel({
+  const draft = await callModelWithFallback({
     model: drafter,
     system: sys,
     user: task.userPrompt,
@@ -398,7 +422,7 @@ async function runDraftCritic<T>(task: BrainTask, apiKey: string): Promise<Brain
 
   const criticSys = `${sys}\n\nYou are reviewing a draft. If anything drifts to MSA or another dialect, REWRITE it in authentic ${getDialectLabel(task.dialect)}. Return ONLY the corrected output in the same format as the draft (no commentary).`;
   const criticUser = `Original request:\n${stringifyUserPrompt(task.userPrompt)}\n\nDraft to review:\n${draft.raw}`;
-  const critiqued = await callModel({
+  const critiqued = await callModelWithFallback({
     model: critic,
     system: criticSys,
     user: criticUser,
@@ -408,12 +432,13 @@ async function runDraftCritic<T>(task: BrainTask, apiKey: string): Promise<Brain
     apiKey,
   });
 
+
   const text = extractScanText(task, critiqued.parsed, critiqued.raw);
   return {
     output: critiqued.parsed as T,
     raw: critiqued.raw,
     strategy: 'draft_critic',
-    models: [drafter, critic],
+    models: [draft.model, critiqued.model],
     agreementScore: 1,
     msaLeaks: scanLeaks(text, task.dialect),
     msaRepairs: 0,

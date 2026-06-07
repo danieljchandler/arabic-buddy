@@ -65,9 +65,19 @@ Deno.serve(async (req) => {
     }
 
     const searchData = await searchRes.json();
-    const articles = searchData.data || [];
+    // Firecrawl v1 returns { data: [...] }, v2 returns { data: { web: [...] } }
+    let articles: any[] = [];
+    if (Array.isArray(searchData.data)) {
+      articles = searchData.data;
+    } else if (Array.isArray(searchData.data?.web)) {
+      articles = searchData.data.web;
+    } else if (Array.isArray(searchData.web)) {
+      articles = searchData.web;
+    }
+    console.log(`Firecrawl returned ${articles.length} articles for ${dialect}`);
 
     if (articles.length === 0) {
+      console.log("Firecrawl response keys:", Object.keys(searchData));
       return new Response(
         JSON.stringify({ articles: [] }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }

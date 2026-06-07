@@ -40,44 +40,55 @@ Deno.serve(async (req) => {
     const query = REGION_QUERIES[dialect] || REGION_QUERIES.Gulf;
     console.log("Searching news:", query);
 
-    const searchRes = await fetch("https://api.firecrawl.dev/v1/search", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${FIRECRAWL_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
+    async function firecrawlSearch(tbs: string | null) {
+      const body: Record<string, unknown> = {
         query,
         limit: 5,
         lang: "en",
-        tbs: "qdr:d",
         scrapeOptions: { formats: ["markdown"] },
-      }),
-    });
-
-    if (!searchRes.ok) {
-      const errText = await searchRes.text();
-      console.error("Firecrawl error:", searchRes.status, errText);
-      return new Response(
-        JSON.stringify({ error: "Failed to fetch news articles" }),
-        { status: searchRes.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      };
+      if (tbs) body.tbs = tbs;
+      const res = await fetch("https://api.firecrawl.dev/v1/search", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${FIRECRAWL_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const errText = await res.text();
+        console.error("Firecrawl error:", res.status, errText);
+        return { ok: false as const, status: res.status, articles: [] as any[] };
+      }
+      const json = await res.json();
+      let arr: any[] = [];
+      if (Array.isArray(json.data)) arr = json.data;
+      else if (Array.isArray(json.data?.web)) arr = json.data.web;
+      else if (Array.isArray(json.web)) arr = json.web;
+      if (json.warning) console.log(`Firecrawl warning (tbs=${tbs}):`, json.warning);
+      return { ok: true as const, status: 200, articles: arr };
     }
 
-    const searchData = await searchRes.json();
-    // Firecrawl v1 returns { data: [...] }, v2 returns { data: { web: [...] } }
+    // Try last day, then widen to last week, then no time filter.
     let articles: any[] = [];
-    if (Array.isArray(searchData.data)) {
-      articles = searchData.data;
-    } else if (Array.isArray(searchData.data?.web)) {
-      articles = searchData.data.web;
-    } else if (Array.isArray(searchData.web)) {
-      articles = searchData.web;
+    for (const tbs of ["qdr:d", "qdr:w", null]) {
+      const r = await firecrawlSearch(tbs);
+      if (!r.ok) {
+        return new Response(
+          JSON.stringify({ error: "Failed to fetch news articles" }),
+          { status: r.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      if (r.articles.length > 0) {
+        articles = r.articles;
+        console.log(`Firecrawl returned ${articles.length} articles for ${dialect} (tbs=${tbs ?? "none"})`);
+        break;
+      }
     }
-    console.log(`Firecrawl returned ${articles.length} articles for ${dialect}`);
 
     if (articles.length === 0) {
-      console.log("Firecrawl response keys:", Object.keys(searchData));
+      console.log(`No articles found for ${dialect} after fallbacks`);
       return new Response(
         JSON.stringify({ articles: [] }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }

@@ -66,7 +66,13 @@ export const PhraseOfTheDay = () => {
       }
       if (!data) throw lastErr || new Error("No data");
       setPhrase(data);
-      localStorage.setItem(cacheKey(activeDialect, today), JSON.stringify(data));
+      // Don't cache phrases that needed MSA repair — they may still be borderline.
+      const repairs = Number(data?._meta?.msaRepairs ?? 0);
+      if (repairs === 0) {
+        localStorage.setItem(cacheKey(activeDialect, today), JSON.stringify(data));
+      } else {
+        localStorage.removeItem(cacheKey(activeDialect, today));
+      }
 
     } catch (e: any) {
       // Silently swallow — the Lovable preview fetch proxy occasionally drops

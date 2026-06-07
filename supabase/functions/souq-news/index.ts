@@ -125,6 +125,7 @@ Return ONLY the JSON object, no markdown fencing.`;
           },
           body: JSON.stringify({
             model: "google/gemini-3-flash-preview",
+            response_format: { type: "json_object" },
             messages: [
               { role: "system", content: systemPrompt },
               {
@@ -151,9 +152,20 @@ Return ONLY the JSON object, no markdown fencing.`;
         const aiData = await aiRes.json();
         const raw = aiData.choices?.[0]?.message?.content || "";
 
-        // Parse JSON from response (strip markdown fences if present)
-        const cleaned = raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-        const parsed = JSON.parse(cleaned);
+        // Parse JSON from response (strip markdown fences if present, extract first {...} block)
+        let cleaned = raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+        const firstBrace = cleaned.indexOf("{");
+        const lastBrace = cleaned.lastIndexOf("}");
+        if (firstBrace !== -1 && lastBrace > firstBrace) {
+          cleaned = cleaned.slice(firstBrace, lastBrace + 1);
+        }
+        let parsed;
+        try {
+          parsed = JSON.parse(cleaned);
+        } catch (parseErr) {
+          console.error("JSON parse failed. Raw (first 500):", raw.slice(0, 500));
+          throw parseErr;
+        }
 
         rewrittenArticles.push({
           ...parsed,

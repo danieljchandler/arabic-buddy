@@ -118,7 +118,7 @@ For each article, return a JSON object with:
 - "summary_english": Brief English summary (1-2 sentences)
 - "vocabulary": Array of 2-3 key dialect words from your retelling, each as {"word_arabic": "...", "word_english": "..."}
 
-Return ONLY the JSON object, no markdown fencing.`;
+Return ONLY the JSON object, no markdown fencing. CRITICAL: use ONLY ASCII punctuation for JSON structure (commas \`,\`, colons \`:\`, quotes \`"\`). Never use Arabic comma \`،\` or Arabic semicolon \`؛\` as JSON separators — they are valid only inside string values.`;
 
     const rewrittenArticles = [];
 

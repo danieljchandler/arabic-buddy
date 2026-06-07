@@ -163,7 +163,7 @@ Return ONLY the JSON object, no markdown fencing.`;
         const aiData = await aiRes.json();
         const raw = aiData.choices?.[0]?.message?.content || "";
 
-        // Parse JSON from response (strip markdown fences if present, extract first {...} block)
+        // Parse JSON from response (strip markdown fences, extract first {...} block)
         let cleaned = raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
         const firstBrace = cleaned.indexOf("{");
         const lastBrace = cleaned.lastIndexOf("}");
@@ -173,9 +173,18 @@ Return ONLY the JSON object, no markdown fencing.`;
         let parsed;
         try {
           parsed = JSON.parse(cleaned);
-        } catch (parseErr) {
-          console.error("JSON parse failed. Raw (first 500):", raw.slice(0, 500));
-          throw parseErr;
+        } catch (_e1) {
+          // Gemini sometimes emits Arabic punctuation as JSON separators.
+          // Repair structural occurrences only (after closing quote / brace / bracket).
+          const repaired = cleaned
+            .replace(/(["}\]\d])\s*،/g, "$1,")
+            .replace(/(["}\]\d])\s*؛/g, "$1;");
+          try {
+            parsed = JSON.parse(repaired);
+          } catch (parseErr) {
+            console.error("JSON parse failed. Raw (first 500):", raw.slice(0, 500));
+            throw parseErr;
+          }
         }
 
         rewrittenArticles.push({

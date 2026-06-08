@@ -14,6 +14,7 @@ import {
 import { detectMsaLeaks, type MsaLeakResult } from './msaLeakDetector.ts';
 import { logMsaViolations, logValidatorResult } from './msaViolationLogger.ts';
 import { validateDialect, type ValidatorResult } from './dialectValidator.ts';
+import { emitMetric } from './featureMetrics.ts';
 import {
   DEFAULT_FAST,
   DEFAULT_JUDGE,

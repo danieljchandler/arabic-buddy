@@ -3,7 +3,7 @@ import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { useLessons } from '@/hooks/useLessons';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, LogOut, BookOpen, Plus, Settings, Mic, PlayCircle, Upload, GraduationCap, Sparkles, BookMarked, TrendingUp, Image as ImageIcon, Laugh, MessageCircle, Languages } from 'lucide-react';
+import { Loader2, LogOut, BookOpen, Plus, Settings, Mic, PlayCircle, Upload, GraduationCap, Sparkles, BookMarked, TrendingUp, Image as ImageIcon, Laugh, MessageCircle, Languages, Activity, AlertTriangle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 import lahjaIcon from '@/assets/lahja-icon.png';
@@ -303,6 +303,34 @@ const Dashboard = () => {
                     <div>
                       <h3 className="font-semibold text-lg">Curriculum Coverage</h3>
                       <p className="text-muted-foreground">What the AI has already taught — prevents duplicates, plans reinforcement</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="cursor-pointer hover:shadow-lg transition-shadow border-amber-500/30" onClick={() => navigate('/admin/metrics')}>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-4">
+                    <div className="bg-amber-500/10 rounded-full p-4">
+                      <Activity className="h-8 w-8 text-amber-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-lg">Feature Metrics</h3>
+                      <p className="text-muted-foreground">Souq News, AI Brain & dialect health — error rates and leak scores per dialect</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="cursor-pointer hover:shadow-lg transition-shadow border-rose-500/30" onClick={() => navigate('/admin/errors')}>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-4">
+                    <div className="bg-rose-500/10 rounded-full p-4">
+                      <AlertTriangle className="h-8 w-8 text-rose-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-lg">Error Log</h3>
+                      <p className="text-muted-foreground">Client & edge function exceptions with stack traces</p>
                     </div>
                   </div>
                 </CardContent>

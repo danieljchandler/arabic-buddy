@@ -1,4 +1,7 @@
 import { getDialectIdentity, getDialectVocabRules, type Dialect } from "../_shared/dialectHelpers.ts";
+import { emitMetric } from "../_shared/featureMetrics.ts";
+
+const FEATURE = "souq-news";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -17,11 +20,16 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const startedAt = Date.now();
+  let dialect: string = "Gulf";
+
   try {
-    const { dialect = "Gulf" } = await req.json();
+    const body = await req.json();
+    dialect = body?.dialect ?? "Gulf";
 
     const FIRECRAWL_API_KEY = Deno.env.get("FIRECRAWL_API_KEY");
     if (!FIRECRAWL_API_KEY) {
+      emitMetric({ feature: FEATURE, event: "config_missing", dialect, status: "error", meta: { missing: "FIRECRAWL_API_KEY" } });
       return new Response(
         JSON.stringify({ error: "Firecrawl not configured" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -30,17 +38,18 @@ Deno.serve(async (req) => {
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
+      emitMetric({ feature: FEATURE, event: "config_missing", dialect, status: "error", meta: { missing: "LOVABLE_API_KEY" } });
       return new Response(
         JSON.stringify({ error: "AI gateway not configured" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // 1. Search for recent news via Firecrawl
     const query = REGION_QUERIES[dialect] || REGION_QUERIES.Gulf;
     console.log("Searching news:", query);
 
     async function firecrawlSearch(tbs: string | null) {
+      const fcStart = Date.now();
       const body: Record<string, unknown> = {
         query,
         limit: 5,
@@ -56,9 +65,19 @@ Deno.serve(async (req) => {
         },
         body: JSON.stringify(body),
       });
+      const elapsed = Date.now() - fcStart;
       if (!res.ok) {
         const errText = await res.text();
         console.error("Firecrawl error:", res.status, errText);
+        emitMetric({
+          feature: FEATURE,
+          event: "firecrawl_search",
+          dialect,
+          status: "error",
+          durationMs: elapsed,
+          count: 0,
+          meta: { tbs: tbs ?? "none", http_status: res.status, error: errText.slice(0, 500) },
+        });
         return { ok: false as const, status: res.status, articles: [] as any[] };
       }
       const json = await res.json();
@@ -67,14 +86,24 @@ Deno.serve(async (req) => {
       else if (Array.isArray(json.data?.web)) arr = json.data.web;
       else if (Array.isArray(json.web)) arr = json.web;
       if (json.warning) console.log(`Firecrawl warning (tbs=${tbs}):`, json.warning);
+      emitMetric({
+        feature: FEATURE,
+        event: "firecrawl_search",
+        dialect,
+        status: arr.length === 0 ? "warn" : "ok",
+        durationMs: elapsed,
+        count: arr.length,
+        meta: { tbs: tbs ?? "none", warning: json.warning ?? null },
+      });
       return { ok: true as const, status: 200, articles: arr };
     }
 
-    // Try last day, then widen to last week, then no time filter.
     let articles: any[] = [];
+    let chosenTbs: string | null = null;
     for (const tbs of ["qdr:d", "qdr:w", null]) {
       const r = await firecrawlSearch(tbs);
       if (!r.ok) {
+        emitMetric({ feature: FEATURE, event: "request_failed", dialect, status: "error", durationMs: Date.now() - startedAt, meta: { stage: "firecrawl" } });
         return new Response(
           JSON.stringify({ error: "Failed to fetch news articles" }),
           { status: r.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -82,6 +111,7 @@ Deno.serve(async (req) => {
       }
       if (r.articles.length > 0) {
         articles = r.articles;
+        chosenTbs = tbs;
         console.log(`Firecrawl returned ${articles.length} articles for ${dialect} (tbs=${tbs ?? "none"})`);
         break;
       }
@@ -89,13 +119,20 @@ Deno.serve(async (req) => {
 
     if (articles.length === 0) {
       console.log(`No articles found for ${dialect} after fallbacks`);
+      emitMetric({
+        feature: FEATURE,
+        event: "no_articles",
+        dialect,
+        status: "warn",
+        count: 0,
+        durationMs: Date.now() - startedAt,
+      });
       return new Response(
         JSON.stringify({ articles: [] }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // 2. Rewrite each article in dialect via Lovable AI
     const dialectIdentity = getDialectIdentity(dialect as Dialect);
     const vocabRules = getDialectVocabRules(dialect as Dialect);
 
@@ -122,6 +159,8 @@ Return ONLY the JSON object, no markdown fencing. CRITICAL: use ONLY ASCII punct
 
     let creditsExhausted = false;
     let rateLimited = false;
+    let parseErrors = 0;
+    let aiErrors = 0;
 
     const settled = await Promise.all(
       articles.slice(0, 4).map(async (article) => {
@@ -129,6 +168,7 @@ Return ONLY the JSON object, no markdown fencing. CRITICAL: use ONLY ASCII punct
           ? article.markdown.slice(0, 2000)
           : article.description || article.title || "";
 
+        const aiStart = Date.now();
         try {
           const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
             method: "POST",
@@ -155,6 +195,15 @@ Return ONLY the JSON object, no markdown fencing. CRITICAL: use ONLY ASCII punct
             console.error("AI error:", status, errBody);
             if (status === 429) rateLimited = true;
             if (status === 402) creditsExhausted = true;
+            aiErrors++;
+            emitMetric({
+              feature: FEATURE,
+              event: "ai_rewrite",
+              dialect,
+              status: "error",
+              durationMs: Date.now() - aiStart,
+              meta: { http_status: status, error: errBody.slice(0, 400), article: (article.title || "").slice(0, 200) },
+            });
             return null;
           }
 
@@ -168,6 +217,7 @@ Return ONLY the JSON object, no markdown fencing. CRITICAL: use ONLY ASCII punct
             cleaned = cleaned.slice(firstBrace, lastBrace + 1);
           }
           let parsed;
+          let repairUsed = false;
           try {
             parsed = JSON.parse(cleaned);
           } catch (_e1) {
@@ -176,11 +226,34 @@ Return ONLY the JSON object, no markdown fencing. CRITICAL: use ONLY ASCII punct
               .replace(/(["}\]\d])\s*؛/g, "$1;");
             try {
               parsed = JSON.parse(repaired);
+              repairUsed = true;
             } catch (parseErr) {
+              parseErrors++;
               console.error("JSON parse failed. Raw (first 500):", raw.slice(0, 500));
+              emitMetric({
+                feature: FEATURE,
+                event: "json_parse",
+                dialect,
+                status: "error",
+                durationMs: Date.now() - aiStart,
+                meta: {
+                  article: (article.title || "").slice(0, 200),
+                  raw_preview: raw.slice(0, 400),
+                  error: parseErr instanceof Error ? parseErr.message : String(parseErr),
+                },
+              });
               throw parseErr;
             }
           }
+
+          emitMetric({
+            feature: FEATURE,
+            event: "ai_rewrite",
+            dialect,
+            status: repairUsed ? "warn" : "ok",
+            durationMs: Date.now() - aiStart,
+            meta: { repair_used: repairUsed, article: (article.title || "").slice(0, 200) },
+          });
 
           return {
             ...parsed,
@@ -195,12 +268,14 @@ Return ONLY the JSON object, no markdown fencing. CRITICAL: use ONLY ASCII punct
     );
 
     if (creditsExhausted) {
+      emitMetric({ feature: FEATURE, event: "request_failed", dialect, status: "error", durationMs: Date.now() - startedAt, meta: { reason: "credits_exhausted" } });
       return new Response(
         JSON.stringify({ error: "AI credits exhausted. Please add funds." }),
         { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
     if (rateLimited && settled.every((x) => x === null)) {
+      emitMetric({ feature: FEATURE, event: "request_failed", dialect, status: "error", durationMs: Date.now() - startedAt, meta: { reason: "rate_limited" } });
       return new Response(
         JSON.stringify({ error: "Rate limit exceeded, please try again shortly." }),
         { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -210,12 +285,38 @@ Return ONLY the JSON object, no markdown fencing. CRITICAL: use ONLY ASCII punct
     const rewrittenArticles = settled.filter((x) => x !== null);
     console.log(`Returning ${rewrittenArticles.length} rewritten articles for ${dialect}`);
 
+    const successRate = articles.length > 0 ? rewrittenArticles.length / Math.min(articles.length, 4) : 0;
+    emitMetric({
+      feature: FEATURE,
+      event: "request_complete",
+      dialect,
+      status: rewrittenArticles.length === 0 ? "error" : (parseErrors > 0 || aiErrors > 0 ? "warn" : "ok"),
+      durationMs: Date.now() - startedAt,
+      count: rewrittenArticles.length,
+      score: successRate,
+      meta: {
+        firecrawl_tbs: chosenTbs ?? "none",
+        firecrawl_count: articles.length,
+        attempted: Math.min(articles.length, 4),
+        parse_errors: parseErrors,
+        ai_errors: aiErrors,
+      },
+    });
+
     return new Response(
       JSON.stringify({ articles: rewrittenArticles }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (e) {
     console.error("souq-news error:", e);
+    emitMetric({
+      feature: FEATURE,
+      event: "unhandled_error",
+      dialect,
+      status: "error",
+      durationMs: Date.now() - startedAt,
+      meta: { error: e instanceof Error ? e.message : String(e) },
+    });
     return new Response(
       JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

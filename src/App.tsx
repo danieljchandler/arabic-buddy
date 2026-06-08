@@ -71,6 +71,7 @@ const ListenEpisode = lazyPage(() => import("./pages/ListenEpisode"));
 const Terms = lazyPage(() => import("./pages/Terms"));
 const Privacy = lazyPage(() => import("./pages/Privacy"));
 const AdminErrors = lazyPage(() => import("./pages/admin/AdminErrors"));
+const AdminFeatureMetrics = lazyPage(() => import("./pages/admin/AdminFeatureMetrics"));
 
 // Admin pages
 const AdminLayout = lazyPage(() => import("./pages/admin/AdminLayout"));
@@ -424,6 +425,7 @@ const App = () => {
               <Route path="set-phrases" element={<AdminSetPhrases />} />
               <Route path="dialect-rules" element={<AdminDialectRules />} />
               <Route path="errors" element={<AdminErrors />} />
+              <Route path="metrics" element={<AdminFeatureMetrics />} />
             </Route>
 
             <Route path="/set-phrases" element={<ErrorBoundary name="SetPhrasesRoute"><SetPhrases /></ErrorBoundary>} />

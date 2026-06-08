@@ -14,6 +14,7 @@ import {
 import { detectMsaLeaks, type MsaLeakResult } from './msaLeakDetector.ts';
 import { logMsaViolations, logValidatorResult } from './msaViolationLogger.ts';
 import { validateDialect, type ValidatorResult } from './dialectValidator.ts';
+import { emitMetric } from './featureMetrics.ts';
 import {
   DEFAULT_FAST,
   DEFAULT_JUDGE,
@@ -157,6 +158,28 @@ export async function askBrain<T = unknown>(task: BrainTask): Promise<BrainResul
     });
   }
 
+
+  // Structured metric for the admin observability dashboard.
+  try {
+    const leakCount = result.msaLeaks?.leaks?.length ?? 0;
+    emitMetric({
+      feature: 'ai-brain',
+      event: 'ask_brain',
+      dialect: task.dialect,
+      status: leakCount > 0 ? 'warn' : 'ok',
+      durationMs: result.totalLatencyMs,
+      count: leakCount,
+      score: result.validator?.score ?? null,
+      meta: {
+        purpose: task.purpose,
+        strategy: result.strategy,
+        models: result.models,
+        repairs: result.msaRepairs,
+        leaks: result.msaLeaks?.leaks ?? [],
+        validator_verdict: result.validator?.verdict ?? null,
+      },
+    });
+  } catch { /* never throw from metrics */ }
 
   return result;
 }

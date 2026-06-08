@@ -1050,6 +1050,48 @@ export type Database = {
           },
         ]
       }
+      feature_metrics: {
+        Row: {
+          count: number | null
+          created_at: string
+          dialect: string | null
+          duration_ms: number | null
+          event: string
+          feature: string
+          id: string
+          meta: Json
+          score: number | null
+          status: string
+          user_id: string | null
+        }
+        Insert: {
+          count?: number | null
+          created_at?: string
+          dialect?: string | null
+          duration_ms?: number | null
+          event: string
+          feature: string
+          id?: string
+          meta?: Json
+          score?: number | null
+          status?: string
+          user_id?: string | null
+        }
+        Update: {
+          count?: number | null
+          created_at?: string
+          dialect?: string | null
+          duration_ms?: number | null
+          event?: string
+          feature?: string
+          id?: string
+          meta?: Json
+          score?: number | null
+          status?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       grammar_exercises: {
         Row: {
           category: string

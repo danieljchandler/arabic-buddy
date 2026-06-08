@@ -1050,6 +1050,59 @@ export type Database = {
           },
         ]
       }
+      feature_alerts: {
+        Row: {
+          acknowledged_at: string | null
+          acknowledged_by: string | null
+          alert_type: string
+          created_at: string
+          dialect: string | null
+          event: string
+          feature: string
+          id: string
+          message: string
+          meta: Json | null
+          metric_id: string | null
+          severity: string
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          alert_type: string
+          created_at?: string
+          dialect?: string | null
+          event: string
+          feature: string
+          id?: string
+          message: string
+          meta?: Json | null
+          metric_id?: string | null
+          severity?: string
+        }
+        Update: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          alert_type?: string
+          created_at?: string
+          dialect?: string | null
+          event?: string
+          feature?: string
+          id?: string
+          message?: string
+          meta?: Json | null
+          metric_id?: string | null
+          severity?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feature_alerts_metric_id_fkey"
+            columns: ["metric_id"]
+            isOneToOne: false
+            referencedRelation: "feature_metrics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       feature_metrics: {
         Row: {
           count: number | null

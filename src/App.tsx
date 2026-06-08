@@ -425,6 +425,7 @@ const App = () => {
               <Route path="set-phrases" element={<AdminSetPhrases />} />
               <Route path="dialect-rules" element={<AdminDialectRules />} />
               <Route path="errors" element={<AdminErrors />} />
+              <Route path="metrics" element={<AdminFeatureMetrics />} />
             </Route>
 
             <Route path="/set-phrases" element={<ErrorBoundary name="SetPhrasesRoute"><SetPhrases /></ErrorBoundary>} />

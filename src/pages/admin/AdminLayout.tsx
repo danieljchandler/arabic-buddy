@@ -6,6 +6,7 @@ import { useToast } from '@/hooks/use-toast';
 import { TranscriptionStatusBanner } from '@/components/admin/TranscriptionStatusBanner';
 import { TranscriptionJobProvider } from '@/contexts/TranscriptionJobContext';
 import { useDialect } from '@/contexts/DialectContext';
+import AlertsBell from '@/components/admin/AlertsBell';
 
 const DIALECT_META: Record<string, { flag: string; label: string; color: string }> = {
   Gulf: { flag: '🌊', label: 'Gulf Arabic Module', color: 'bg-sky-600' },
@@ -87,6 +88,7 @@ const AdminLayout = () => {
       <TranscriptionJobProvider>
         <Outlet />
         <TranscriptionStatusBanner />
+        {isAdmin && <AlertsBell />}
       </TranscriptionJobProvider>
     </>
   );

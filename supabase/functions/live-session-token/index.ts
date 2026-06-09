@@ -78,10 +78,11 @@ Deno.serve(async (req) => {
     const voiceName = DIALECT_VOICE[dialect] ?? DIALECT_VOICE.Gulf;
     const systemInstruction = buildSystemInstruction(dialect, difficulty, topicHint);
 
-    // Token is single-use; once consumed it lets the resulting session run for ~10min.
+    // Token is single-use to start a session for 1 minute, then valid for the
+    // active Live session. With a constrained token the setup is fixed server-side.
     const now = Date.now();
-    const tokenExpire = new Date(now + 60 * 1000).toISOString();
-    const sessionExpire = new Date(now + 10 * 60 * 1000).toISOString();
+    const tokenExpire = new Date(now + 30 * 60 * 1000).toISOString();
+    const newSessionExpire = new Date(now + 60 * 1000).toISOString();
 
     const upstream = await fetch(
       `https://generativelanguage.googleapis.com/v1alpha/auth_tokens?key=${GEMINI_API_KEY}`,
@@ -91,7 +92,7 @@ Deno.serve(async (req) => {
         body: JSON.stringify({
           uses: 1,
           expireTime: tokenExpire,
-          newSessionExpireTime: sessionExpire,
+          newSessionExpireTime: newSessionExpire,
           bidiGenerateContentSetup: {
             model: LIVE_MODEL,
             generationConfig: {
@@ -130,7 +131,7 @@ Deno.serve(async (req) => {
         expireTime: data.expireTime ?? tokenExpire,
         model: LIVE_MODEL,
         voice: voiceName,
-        sessionExpireTime: sessionExpire,
+        newSessionExpireTime: newSessionExpire,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );

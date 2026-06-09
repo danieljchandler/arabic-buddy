@@ -326,7 +326,7 @@ export function useGeminiLive(opts: Options = {}) {
       });
 
       const setup = tokenData.setup ?? {
-        model: tokenData.model ?? "models/gemini-2.0-flash-live-001",
+        model: tokenData.model ?? "models/gemini-3.1-flash-live-preview",
         generationConfig: { responseModalities: ["AUDIO"] },
       };
       ws.send(JSON.stringify({ setup }));

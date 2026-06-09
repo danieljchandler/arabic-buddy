@@ -256,13 +256,15 @@ export function useGeminiLive(opts: Options = {}) {
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
 
+      let firstMsgLogged = false;
       ws.onmessage = async (ev) => {
         const data = ev.data;
-        if (typeof data === "string") {
-          handleServerMessage(data);
-        } else if (data instanceof Blob) {
-          handleServerMessage(await data.text());
+        const text = typeof data === "string" ? data : data instanceof Blob ? await data.text() : "";
+        if (!firstMsgLogged) {
+          firstMsgLogged = true;
+          console.debug("[live] first server message", text.slice(0, 300));
         }
+        if (text) handleServerMessage(text);
       };
       ws.onerror = (e) => {
         console.error("[live] ws error", e);
@@ -270,8 +272,13 @@ export function useGeminiLive(opts: Options = {}) {
         setStatus("error");
         cleanup();
       };
-      ws.onclose = () => {
+      ws.onclose = (ev) => {
+        console.warn("[live] ws closed", ev.code, ev.reason);
         if (status !== "ending") {
+          if (ev.code !== 1000 && ev.code !== 1005) {
+            setError(`Voice session ended (${ev.code}${ev.reason ? `: ${ev.reason}` : ""})`);
+            setStatus("error");
+          }
           finalizeTurns();
         }
       };

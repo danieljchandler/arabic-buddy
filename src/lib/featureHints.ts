@@ -2,8 +2,8 @@
  * User preference: whether to show the small (i) feature-hint icons
  * sprinkled across the app. Default: ON.
  */
-const KEY = "lahja:feature-hints-enabled";
-const EVENT = "lahja:feature-hints-changed";
+const KEY = "hakiya:feature-hints-enabled";
+const EVENT = "hakiya:feature-hints-changed";
 
 export function loadFeatureHintsEnabled(): boolean {
   try {

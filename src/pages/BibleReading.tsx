@@ -56,7 +56,7 @@ interface PassageData {
 }
 
 // ─── Session persistence helpers ─────────────────────────────────────────────
-const STORAGE_KEY = "lahja_bible_session";
+const STORAGE_KEY = "hakiya_bible_session";
 const SESSION_TTL_MS = 4 * 60 * 60 * 1000; // 4 hours
 
 interface BibleSession {

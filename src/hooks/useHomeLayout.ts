@@ -17,10 +17,10 @@ export function useHomeLayout() {
 
   useEffect(() => {
     const sync = () => setState(loadHomeLayout());
-    window.addEventListener("lahja:home-layout-changed", sync as EventListener);
+    window.addEventListener("hakiya:home-layout-changed", sync as EventListener);
     window.addEventListener("storage", sync);
     return () => {
-      window.removeEventListener("lahja:home-layout-changed", sync as EventListener);
+      window.removeEventListener("hakiya:home-layout-changed", sync as EventListener);
       window.removeEventListener("storage", sync);
     };
   }, []);

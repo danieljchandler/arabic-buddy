@@ -3,7 +3,7 @@ import { Sparkles, X } from "lucide-react";
 import { useReducedMotion } from "@/lib/uiPrefs";
 import { cn } from "@/lib/utils";
 
-const STORAGE_KEY = "lahja:alphabet:milestone-seen";
+const STORAGE_KEY = "hakiya:alphabet:milestone-seen";
 
 function getSeen(): number[] {
   try {

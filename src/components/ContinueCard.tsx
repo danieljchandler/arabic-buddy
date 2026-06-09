@@ -26,11 +26,11 @@ export const ContinueCard = () => {
 
   useEffect(() => {
     const refresh = () => setEntry(getContinue());
-    window.addEventListener("lahja:continue-changed", refresh);
+    window.addEventListener("hakiya:continue-changed", refresh);
     window.addEventListener("storage", refresh);
     window.addEventListener("focus", refresh);
     return () => {
-      window.removeEventListener("lahja:continue-changed", refresh);
+      window.removeEventListener("hakiya:continue-changed", refresh);
       window.removeEventListener("storage", refresh);
       window.removeEventListener("focus", refresh);
     };

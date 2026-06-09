@@ -266,6 +266,7 @@ export function useGeminiLive(opts: Options = {}) {
       wsRef.current = ws;
 
       let firstMsgLogged = false;
+      let opened = false;
       ws.onmessage = async (ev) => {
         const data = ev.data;
         const text = typeof data === "string" ? data : data instanceof Blob ? await data.text() : "";
@@ -275,26 +276,49 @@ export function useGeminiLive(opts: Options = {}) {
         }
         if (text) handleServerMessage(text);
       };
-      ws.onerror = (e) => {
-        console.error("[live] ws error", e);
-        setError("Voice connection error");
-        setStatus("error");
-        cleanup();
-      };
-      ws.onclose = (ev) => {
-        console.warn("[live] ws closed", ev.code, ev.reason);
-        if (status !== "ending") {
-          if (ev.code !== 1000 && ev.code !== 1005) {
-            setError(`Voice session ended (${ev.code}${ev.reason ? `: ${ev.reason}` : ""})`);
-            setStatus("error");
-          }
-          finalizeTurns();
-        }
-      };
 
       await new Promise<void>((resolve, reject) => {
-        ws.onopen = () => resolve();
-        setTimeout(() => reject(new Error("WebSocket open timeout")), 8000);
+        const timer = setTimeout(
+          () => reject(new Error("WebSocket open timeout (20s) — network or browser may be blocking the connection")),
+          20000,
+        );
+        ws.onopen = () => {
+          opened = true;
+          clearTimeout(timer);
+          resolve();
+        };
+        ws.onerror = (e) => {
+          if (!opened) {
+            clearTimeout(timer);
+            console.error("[live] ws error before open", e);
+            reject(new Error("Voice connection failed to open"));
+          } else {
+            console.error("[live] ws error", e);
+            setError("Voice connection error");
+            setStatus("error");
+            cleanup();
+          }
+        };
+        ws.onclose = (ev) => {
+          console.warn("[live] ws closed", ev.code, ev.reason);
+          if (!opened) {
+            clearTimeout(timer);
+            const detail = ev.reason
+              ? `${ev.code}: ${ev.reason}`
+              : ev.code === 1006
+                ? "1006 — connection closed before opening. Network, CSP, or extension may be blocking the WebSocket."
+                : String(ev.code);
+            reject(new Error(`Voice connection closed (${detail})`));
+            return;
+          }
+          if (status !== "ending") {
+            if (ev.code !== 1000 && ev.code !== 1005) {
+              setError(`Voice session ended (${ev.code}${ev.reason ? `: ${ev.reason}` : ""})`);
+              setStatus("error");
+            }
+            finalizeTurns();
+          }
+        };
       });
 
       // 3. Mic capture → 16 kHz PCM frames.

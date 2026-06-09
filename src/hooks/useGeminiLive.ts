@@ -3,8 +3,9 @@
 //   1. POST to /functions/v1/live-session-token to mint an ephemeral access token
 //      (server holds GEMINI_API_KEY; token is single-use, ~60s to bind).
 //   2. Open wss://generativelanguage.googleapis.com/ws/...BidiGenerateContentConstrained
-//      with ?access_token=<token>. The setup message is already baked into the
-//      token (model, voice, system instruction).
+//      with ?access_token=<token>. The token constrains the setup (model,
+//      voice, system instruction), but the WebSocket protocol still requires a
+//      setup message as the first client message.
 //   3. Capture mic at 16 kHz mono PCM via AudioWorklet, send as
 //      realtimeInput.mediaChunks base64 frames every ~100ms.
 //   4. Play back the model's 24 kHz PCM audio via an AudioContext queue.
@@ -260,7 +261,8 @@ export function useGeminiLive(opts: Options = {}) {
       if (tokenErr) throw new Error(tokenErr.message || "Failed to get session token");
       if (!tokenData?.token) throw new Error(tokenData?.error || "No token returned");
 
-      // 2. Open WebSocket. Token already encodes setup config.
+      // 2. Open WebSocket. Ephemeral token constrains setup config, but Gemini
+      // still requires the first client WebSocket frame to be `{ setup: ... }`.
       // Ephemeral Live tokens must use the constrained endpoint; the regular
       // BidiGenerateContent endpoint treats them as unauthenticated callers.
       const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContentConstrained?access_token=${encodeURIComponent(tokenData.token)}`;
@@ -322,6 +324,12 @@ export function useGeminiLive(opts: Options = {}) {
           }
         };
       });
+
+      const setup = tokenData.setup ?? {
+        model: tokenData.model ?? "models/gemini-2.0-flash-live-001",
+        generationConfig: { responseModalities: ["AUDIO"] },
+      };
+      ws.send(JSON.stringify({ setup }));
 
       // 3. Mic capture → 16 kHz PCM frames.
       const stream = await navigator.mediaDevices.getUserMedia({

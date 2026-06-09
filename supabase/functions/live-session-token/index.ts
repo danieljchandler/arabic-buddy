@@ -106,6 +106,9 @@ Deno.serve(async (req) => {
             },
             outputAudioTranscription: {},
             inputAudioTranscription: {},
+            realtimeInputConfig: {
+              automaticActivityDetection: {},
+            },
           },
         }),
       },

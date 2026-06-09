@@ -16,7 +16,8 @@ import {
   Target,
   Check,
 } from 'lucide-react';
-import lahjaIcon from '@/assets/lahja-icon.png';
+import hakiyaIconAsset from '@/assets/hakiya-icon.png.asset.json';
+const lahjaIcon = hakiyaIconAsset.url;
 
 type Step = 'welcome' | 'dialect' | 'level' | 'goal';
 
@@ -111,7 +112,7 @@ const Onboarding = () => {
         } as any, { onConflict: 'user_id,week_start_date' });
       }
 
-      toast.success('Welcome to Lahja! 🎉');
+      toast.success('Welcome to Hakiya! 🎉');
       navigate('/');
     } catch (e) {
       console.error(e);
@@ -150,13 +151,13 @@ const Onboarding = () => {
         {/* ─── WELCOME ─────────────────────────── */}
         {step === 'welcome' && (
           <div className="text-center space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-            <img src={lahjaIcon} alt="Lahja" className="h-20 w-20 mx-auto" />
+            <img src={lahjaIcon} alt="Hakiya" className="h-20 w-20 mx-auto" />
             <div>
               <h1 className="text-3xl font-bold font-heading text-foreground mb-3">
                 !أهلاً وسهلاً
               </h1>
               <h2 className="text-xl font-semibold text-foreground mb-2">
-                Welcome to Lahja
+                Welcome to Hakiya
               </h2>
               <p className="text-muted-foreground leading-relaxed">
                 Learn Arabic dialects through real conversations, videos, and interactive lessons.

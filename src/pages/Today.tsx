@@ -129,7 +129,7 @@ const TodayPage = () => {
               <InfoHint
                 size="md"
                 title="Your daily queue"
-                body="Everything Lahja recommends for you today — reviews, a challenge, listening, reading and more. Knock them out to hit your goal and grow your streak."
+                body="Everything Hakiya recommends for you today — reviews, a challenge, listening, reading and more. Knock them out to hit your goal and grow your streak."
               />
             </div>
             <p className="text-sm text-muted-foreground mt-1">

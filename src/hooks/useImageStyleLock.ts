@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 
-const STORAGE_KEY = "lahja:imageStyleLock:v1";
+const STORAGE_KEY = "hakiya:imageStyleLock:v1";
 
 export interface ImageStyleLock {
   enabled: boolean;

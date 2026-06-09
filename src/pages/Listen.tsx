@@ -35,7 +35,7 @@ const LENGTH_META: Record<ListenLength, { label: string; sub: string }> = {
 };
 
 const Listen = () => {
-  useDocumentTitle("Listen — Lahja");
+  useDocumentTitle("Listen — Hakiya");
   const navigate = useNavigate();
   const { activeDialect } = useDialect();
   const { data: episodes, isLoading } = useListenEpisodes();

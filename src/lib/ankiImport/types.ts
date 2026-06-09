@@ -1,10 +1,13 @@
-export type LahjaStage =
+export type HakiyaStage =
   | "NEW"
   | "LEARNING_1D"
   | "LEARNING_3D"
   | "REVIEWING_7D"
   | "REVIEWING_14D"
   | "MATURE_21D";
+
+/** @deprecated Use HakiyaStage. Kept as an alias during the Lahja → Hakiya rename. */
+export type LahjaStage = HakiyaStage;
 
 export interface AnkiMediaRef {
   filename: string;

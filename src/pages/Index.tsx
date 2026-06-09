@@ -13,7 +13,8 @@ import { cn } from "@/lib/utils";
 import { AppShell } from "@/components/layout/AppShell";
 import { Badge } from "@/components/ui/badge";
 import { XPDisplay, StreakDisplay, WeeklyGoalCard, AchievementsGrid } from "@/components/gamification";
-import lahjaLogo from "@/assets/lahja-logo.png";
+import hakiyaLogoAsset from "@/assets/hakiya-logo.png.asset.json";
+const lahjaLogo = hakiyaLogoAsset.url;
 import { useState } from "react";
 import { NotificationBell } from "@/components/NotificationBell";
 import { useDialect, DialectModule } from "@/contexts/DialectContext";
@@ -142,7 +143,7 @@ const Index = () => {
 
       {/* Top bar with logo and auth */}
       <div className="flex items-center justify-between mb-4">
-        <img src={lahjaLogo} alt="Lahja" className="h-20" />
+        <img src={lahjaLogo} alt="Hakiya" className="h-20" />
         
         <div className="flex items-center gap-3">
           {!authLoading && (isAuthenticated ? (

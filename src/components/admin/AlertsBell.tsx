@@ -69,7 +69,7 @@ const AlertsBell = () => {
             });
             try {
               if (typeof Notification !== "undefined" && Notification.permission === "granted") {
-                new Notification(`Lahja alert: ${a.feature}`, {
+                new Notification(`Hakiya alert: ${a.feature}`, {
                   body: a.message,
                   tag: a.id,
                 });

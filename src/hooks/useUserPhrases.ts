@@ -125,7 +125,7 @@ export const useUpdateUserPhraseReview = () => {
       const newLapses = failed ? (args.currentLapses ?? 0) + 1 : (args.currentLapses ?? 0);
       const leechTrackingEnabled = (() => {
         try {
-          const raw = localStorage.getItem("lahja:leech-tracking-enabled");
+          const raw = localStorage.getItem("hakiya:leech-tracking-enabled");
           return raw === null ? true : raw === "true";
         } catch {
           return true;

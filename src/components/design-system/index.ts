@@ -1,7 +1,7 @@
 /**
- * Lahja Design System Components
+ * Hakiya Design System Components
  * 
- * These are the official reusable UI components for the Lahja app.
+ * These are the official reusable UI components for the Hakiya app.
  * Use these components consistently throughout the application.
  * Do NOT introduce new visual styles - extend these components instead.
  */

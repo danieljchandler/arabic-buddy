@@ -13,7 +13,8 @@ import { AppShell } from "@/components/layout/AppShell";
 import { cn } from "@/lib/utils";
 import { Loader2, Trophy, RotateCcw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import lahjaLogo from "@/assets/lahja-logo.png";
+import hakiyaLogoAsset from "@/assets/hakiya-logo.png.asset.json";
+const lahjaLogo = hakiyaLogoAsset.url;
 import { recordContinue, clearContinue } from "@/lib/continueProgress";
 import { useDialect } from "@/contexts/DialectContext";
 
@@ -275,7 +276,7 @@ const Learn = () => {
         <HomeButton />
         
         <Link to="/" className="flex items-center">
-          <img src={lahjaLogo} alt="Lahja" className="h-8" />
+          <img src={lahjaLogo} alt="Hakiya" className="h-8" />
         </Link>
         
         <div className="w-11" />

@@ -1,11 +1,13 @@
 import { useNavigate } from "react-router-dom";
 import { ArrowRight, Headphones, Brain, PlayCircle, Globe2 } from "lucide-react";
 import { Button } from "@/components/design-system";
-import lahjaLogo from "@/assets/lahja-logo.png";
+import hakiyaLogoAsset from "@/assets/hakiya-logo.png.asset.json";
+
+const hakiyaLogo = hakiyaLogoAsset.url;
 
 /**
  * Logged-out landing hero shown on `/` when the visitor isn't authenticated.
- * Goal: explain Lahja in one screen and push to /auth or /placement.
+ * Goal: explain Hakiya in one screen and push to /auth or /placement.
  */
 export function LandingHero() {
   const navigate = useNavigate();
@@ -14,7 +16,7 @@ export function LandingHero() {
     <section className="py-6">
       {/* Logo */}
       <div className="flex justify-center mb-6">
-        <img src={lahjaLogo} alt="Lahja" className="h-20" />
+        <img src={hakiyaLogo} alt="Hakiya" className="h-20" />
       </div>
 
       {/* Hero copy */}

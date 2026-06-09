@@ -13,13 +13,13 @@ const Terms = () => {
         <p className="text-sm text-muted-foreground">Last updated: May 29, 2026</p>
 
         <p>
-          Welcome to Lahja. By creating an account or using this site you agree to
+          Welcome to Hakiya. By creating an account or using this site you agree to
           these terms. They're written in plain English on purpose.
         </p>
 
-        <h2>What Lahja is</h2>
+        <h2>What Hakiya is</h2>
         <p>
-          Lahja is an Arabic-learning web app focused on spoken dialects (Gulf,
+          Hakiya is an Arabic-learning web app focused on spoken dialects (Gulf,
           Egyptian, Yemeni). We provide lessons, flashcards, audio, AI-assisted
           practice, and tools to learn from real media (videos, social posts,
           transcriptions you upload).
@@ -57,7 +57,7 @@ const Terms = () => {
 
         <h2>Your content</h2>
         <p>
-          You keep ownership of audio, text, or media you upload. You grant Lahja a
+          You keep ownership of audio, text, or media you upload. You grant Hakiya a
           limited license to store, process, and display that content so we can
           provide the service to you (e.g. transcribing audio, generating
           flashcards). We won't sell your content.
@@ -65,7 +65,7 @@ const Terms = () => {
 
         <h2>AI-generated content</h2>
         <p>
-          Lahja uses AI models to generate translations, explanations, images, audio,
+          Hakiya uses AI models to generate translations, explanations, images, audio,
           and example sentences. AI output can be wrong. Don't rely on it for
           professional, legal, medical, or safety-critical decisions.
         </p>
@@ -78,7 +78,7 @@ const Terms = () => {
 
         <h2>Limitation of liability</h2>
         <p>
-          To the maximum extent allowed by law, Lahja's liability for any claim
+          To the maximum extent allowed by law, Hakiya's liability for any claim
           related to the service is limited to the amount you paid us in the 12
           months before the claim.
         </p>
@@ -86,12 +86,13 @@ const Terms = () => {
         <h2>Changes</h2>
         <p>
           We may update these terms. If a change is material we'll tell you in the
-          app or by email. Continuing to use Lahja after a change means you accept
+          app or by email. Continuing to use Hakiya after a change means you accept
           the new terms.
         </p>
 
         <h2>Contact</h2>
         <p>
+          {/* TODO(rebrand-email): swap to new Hakiya contact email when domain is set up. */}
           Questions? Email <a href="mailto:hello@lahja-arabic.com">hello@lahja-arabic.com</a>.
         </p>
       </article>

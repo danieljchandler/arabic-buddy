@@ -10,7 +10,8 @@ import { HomeButton } from "@/components/HomeButton";
 import { AppShell } from "@/components/layout/AppShell";
 import { Loader2, Mail, Lock, UserPlus, LogIn } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import lahjaIcon from "@/assets/lahja-icon.png";
+import hakiyaIconAsset from "@/assets/hakiya-icon.png.asset.json";
+const lahjaIcon = hakiyaIconAsset.url;
 
 // Lightweight inline validators — dropping `zod` here saves ~12 kB gz on the Auth chunk.
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -125,11 +126,11 @@ const Auth = () => {
         <div className="text-center mb-10">
           <img 
             src={lahjaIcon} 
-            alt="Lahja" 
+            alt="Hakiya" 
             className="h-14 w-14 mx-auto mb-5"
           />
           <h1 className="text-2xl font-bold text-foreground mb-2 font-heading">
-            {isLogin ? "Welcome Back" : "Join Lahja"}
+            {isLogin ? "Welcome Back" : "Join Hakiya"}
           </h1>
           <p className="text-muted-foreground">
             {isLogin

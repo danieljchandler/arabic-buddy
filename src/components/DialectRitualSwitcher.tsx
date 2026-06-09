@@ -149,7 +149,7 @@ export const DialectRitualSwitcher = ({ className }: Props) => {
             <div className="flex items-center justify-between mb-4">
               <div className="flex flex-col">
                 <span className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground font-semibold">
-                  Lahja · لهجة
+                  Hakiya · حكية
                 </span>
                 <h2 className="text-t-title font-bold text-foreground">
                   Choose your dialect

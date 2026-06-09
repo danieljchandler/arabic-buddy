@@ -9,7 +9,7 @@ const NotFound = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    document.title = "Page not found — Lahja";
+    document.title = "Page not found — Hakiya";
     console.warn("404: route not found:", location.pathname);
   }, [location.pathname]);
 

@@ -107,6 +107,15 @@ export function useGeminiLive(opts: Options = {}) {
 
   useEffect(() => {
     mutedRef.current = muted;
+    // When muting, send an explicit audioStreamEnd as a fallback turn boundary
+    // in case VAD didn't trigger (user paused mid-sentence and tapped mute).
+    if (muted && wsRef.current && wsRef.current.readyState === 1) {
+      try {
+        wsRef.current.send(JSON.stringify({ realtimeInput: { audioStreamEnd: true } }));
+      } catch (e) {
+        console.warn("[live] audioStreamEnd send failed", e);
+      }
+    }
   }, [muted]);
 
   const appendUserPartial = useCallback((text: string) => {
@@ -256,13 +265,15 @@ export function useGeminiLive(opts: Options = {}) {
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
 
+      let firstMsgLogged = false;
       ws.onmessage = async (ev) => {
         const data = ev.data;
-        if (typeof data === "string") {
-          handleServerMessage(data);
-        } else if (data instanceof Blob) {
-          handleServerMessage(await data.text());
+        const text = typeof data === "string" ? data : data instanceof Blob ? await data.text() : "";
+        if (!firstMsgLogged) {
+          firstMsgLogged = true;
+          console.debug("[live] first server message", text.slice(0, 300));
         }
+        if (text) handleServerMessage(text);
       };
       ws.onerror = (e) => {
         console.error("[live] ws error", e);
@@ -270,8 +281,13 @@ export function useGeminiLive(opts: Options = {}) {
         setStatus("error");
         cleanup();
       };
-      ws.onclose = () => {
+      ws.onclose = (ev) => {
+        console.warn("[live] ws closed", ev.code, ev.reason);
         if (status !== "ending") {
+          if (ev.code !== 1000 && ev.code !== 1005) {
+            setError(`Voice session ended (${ev.code}${ev.reason ? `: ${ev.reason}` : ""})`);
+            setStatus("error");
+          }
           finalizeTurns();
         }
       };
@@ -309,7 +325,7 @@ export function useGeminiLive(opts: Options = {}) {
         const b64 = bufToBase64(ev.data as ArrayBuffer);
         wsRef.current.send(JSON.stringify({
           realtimeInput: {
-            mediaChunks: [{ mimeType: "audio/pcm;rate=16000", data: b64 }],
+            audio: { mimeType: "audio/pcm;rate=16000", data: b64 },
           },
         }));
       };

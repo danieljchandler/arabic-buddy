@@ -107,6 +107,15 @@ export function useGeminiLive(opts: Options = {}) {
 
   useEffect(() => {
     mutedRef.current = muted;
+    // When muting, send an explicit audioStreamEnd as a fallback turn boundary
+    // in case VAD didn't trigger (user paused mid-sentence and tapped mute).
+    if (muted && wsRef.current && wsRef.current.readyState === 1) {
+      try {
+        wsRef.current.send(JSON.stringify({ realtimeInput: { audioStreamEnd: true } }));
+      } catch (e) {
+        console.warn("[live] audioStreamEnd send failed", e);
+      }
+    }
   }, [muted]);
 
   const appendUserPartial = useCallback((text: string) => {

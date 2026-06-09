@@ -84,6 +84,25 @@ Deno.serve(async (req) => {
     const tokenExpire = new Date(now + 30 * 60 * 1000).toISOString();
     const newSessionExpire = new Date(now + 60 * 1000).toISOString();
 
+    const liveSetup = {
+      model: LIVE_MODEL,
+      generationConfig: {
+        responseModalities: ["AUDIO"],
+        speechConfig: {
+          voiceConfig: { prebuiltVoiceConfig: { voiceName } },
+          languageCode: "ar-XA",
+        },
+      },
+      systemInstruction: {
+        parts: [{ text: systemInstruction }],
+      },
+      outputAudioTranscription: {},
+      inputAudioTranscription: {},
+      realtimeInputConfig: {
+        automaticActivityDetection: {},
+      },
+    };
+
     const upstream = await fetch(
       `https://generativelanguage.googleapis.com/v1alpha/auth_tokens?key=${GEMINI_API_KEY}`,
       {
@@ -93,24 +112,7 @@ Deno.serve(async (req) => {
           uses: 1,
           expireTime: tokenExpire,
           newSessionExpireTime: newSessionExpire,
-          bidiGenerateContentSetup: {
-            model: LIVE_MODEL,
-            generationConfig: {
-              responseModalities: ["AUDIO"],
-              speechConfig: {
-                voiceConfig: { prebuiltVoiceConfig: { voiceName } },
-                languageCode: "ar-XA",
-              },
-            },
-            systemInstruction: {
-              parts: [{ text: systemInstruction }],
-            },
-            outputAudioTranscription: {},
-            inputAudioTranscription: {},
-            realtimeInputConfig: {
-              automaticActivityDetection: {},
-            },
-          },
+          bidiGenerateContentSetup: liveSetup,
         }),
       },
     );
@@ -131,6 +133,7 @@ Deno.serve(async (req) => {
         expireTime: data.expireTime ?? tokenExpire,
         model: LIVE_MODEL,
         voice: voiceName,
+        setup: liveSetup,
         newSessionExpireTime: newSessionExpire,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },

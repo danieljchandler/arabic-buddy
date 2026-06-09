@@ -309,7 +309,7 @@ export function useGeminiLive(opts: Options = {}) {
         const b64 = bufToBase64(ev.data as ArrayBuffer);
         wsRef.current.send(JSON.stringify({
           realtimeInput: {
-            mediaChunks: [{ mimeType: "audio/pcm;rate=16000", data: b64 }],
+            audio: { mimeType: "audio/pcm;rate=16000", data: b64 },
           },
         }));
       };

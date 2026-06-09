@@ -10,7 +10,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const LIVE_MODEL = "models/gemini-2.5-flash-preview-native-audio-dialog";
+const LIVE_MODEL = "models/gemini-2.5-flash-native-audio-preview-09-2025";
 
 // Native-audio voices that work with the Live preview model.
 // Mapping aims to roughly match each dialect module's persona.

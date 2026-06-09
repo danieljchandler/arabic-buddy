@@ -2,7 +2,7 @@
 // Flow:
 //   1. POST to /functions/v1/live-session-token to mint an ephemeral access token
 //      (server holds GEMINI_API_KEY; token is single-use, ~60s to bind).
-//   2. Open wss://generativelanguage.googleapis.com/ws/...BidiGenerateContent
+//   2. Open wss://generativelanguage.googleapis.com/ws/...BidiGenerateContentConstrained
 //      with ?access_token=<token>. The setup message is already baked into the
 //      token (model, voice, system instruction).
 //   3. Capture mic at 16 kHz mono PCM via AudioWorklet, send as
@@ -261,7 +261,9 @@ export function useGeminiLive(opts: Options = {}) {
       if (!tokenData?.token) throw new Error(tokenData?.error || "No token returned");
 
       // 2. Open WebSocket. Token already encodes setup config.
-      const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?access_token=${encodeURIComponent(tokenData.token)}`;
+      // Ephemeral Live tokens must use the constrained endpoint; the regular
+      // BidiGenerateContent endpoint treats them as unauthenticated callers.
+      const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContentConstrained?access_token=${encodeURIComponent(tokenData.token)}`;
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
 

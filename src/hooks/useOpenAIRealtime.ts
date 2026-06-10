@@ -1,10 +1,10 @@
 // useOpenAIRealtime — manages an OpenAI Realtime API voice session via WebRTC.
 // Flow:
-//   1. POST /functions/v1/realtime-session-token to mint an ephemeral client_secret.
+//   1. Build a WebRTC SDP offer in the browser.
 //   2. Create RTCPeerConnection, add mic track, attach <audio> sink for model voice,
 //      open a data channel for JSON events.
-//   3. SDP exchange with https://api.openai.com/v1/realtime?model=...
-//      using ephemeral key as Bearer.
+//   3. POST the SDP offer to /functions/v1/realtime-session-token. The edge
+//      function creates the Realtime call with OpenAI and returns the SDP answer.
 //   4. Stream user + assistant transcripts from data-channel events.
 //
 // Drop-in replacement for useGeminiLive: same exported shape.
@@ -184,17 +184,7 @@ export function useOpenAIRealtime(opts: Options = {}) {
     assistantBufRef.current.clear();
 
     try {
-      // 1. Mint ephemeral key.
-      const { data: tokenData, error: tokenErr } = await supabase.functions.invoke("realtime-session-token", {
-        body: { dialect, difficulty, topicHint },
-      });
-      if (tokenErr) throw new Error(tokenErr.message || "Failed to get session token");
-      if (!tokenData?.client_secret) throw new Error(tokenData?.error || "No ephemeral key returned");
-
-      const ephemeralKey: string = tokenData.client_secret;
-      const model: string = tokenData.model;
-
-      // 2. Set up peer connection.
+      // 1. Set up peer connection.
       const pc = new RTCPeerConnection();
       pcRef.current = pc;
 
@@ -247,21 +237,30 @@ export function useOpenAIRealtime(opts: Options = {}) {
         }
       };
 
-      // 3. SDP exchange.
+      // 2. SDP exchange through our edge function. This avoids exposing OpenAI
+      // credentials and uses OpenAI's current /v1/realtime/calls interface.
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
 
-      const sdpResp = await fetch(`https://api.openai.com/v1/realtime?model=${encodeURIComponent(model)}`, {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      const sdpResp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/realtime-session-token`, {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${ephemeralKey}`,
-          "Content-Type": "application/sdp",
+          "Authorization": `Bearer ${token}`,
+          "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          "Content-Type": "application/json",
         },
-        body: offer.sdp,
+        body: JSON.stringify({ dialect, difficulty, topicHint, sdp: offer.sdp }),
       });
       if (!sdpResp.ok) {
         const t = await sdpResp.text();
-        throw new Error(`SDP exchange failed (${sdpResp.status}): ${t.slice(0, 200)}`);
+        let message = t;
+        try {
+          const parsed = JSON.parse(t);
+          message = parsed?.details || parsed?.message || parsed?.error || t;
+        } catch {}
+        throw new Error(`Voice setup failed (${sdpResp.status}): ${String(message).slice(0, 300)}`);
       }
       const answerSdp = await sdpResp.text();
       await pc.setRemoteDescription({ type: "answer", sdp: answerSdp });

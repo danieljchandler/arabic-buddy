@@ -32,6 +32,12 @@ interface Options {
   onDialectDrift?: (leaks: string[]) => void;
 }
 
+interface InternalLiveTurn extends LiveTurn {
+  _id: string;
+}
+
+type RealtimeEvent = Record<string, unknown>;
+
 const CLIENT_MSA_TOKENS: Record<string, string[]> = {
   Gulf: ['الآن', 'لماذا', 'أين', 'ماذا', 'سوف', 'ليس', 'يريد', 'أريد', 'كيف', 'إزيك', 'دلوقتي', 'عايز'],
   Egyptian: ['الآن', 'لماذا', 'أين', 'ماذا', 'سوف', 'ليس', 'يريد', 'أريد', 'كيف', 'شلونك', 'هالحين', 'يبي'],
@@ -47,7 +53,7 @@ function detectLiveLeaks(text: string, dialect: string): string[] {
 export function useOpenAIRealtime(opts: Options = {}) {
   const [status, setStatus] = useState<LiveStatus>("idle");
   const [error, setError] = useState<string | null>(null);
-  const [turns, setTurns] = useState<LiveTurn[]>([]);
+  const [turns, setTurns] = useState<InternalLiveTurn[]>([]);
   const [muted, setMuted] = useState(false);
 
   const pcRef = useRef<RTCPeerConnection | null>(null);
@@ -70,8 +76,8 @@ export function useOpenAIRealtime(opts: Options = {}) {
 
   const upsertTurn = useCallback((role: "user" | "assistant", id: string, text: string, partial: boolean) => {
     setTurns((prev) => {
-      const idx = prev.findIndex((t) => (t as any)._id === id);
-      const next = { role, text, partial, _id: id } as LiveTurn & { _id: string };
+      const idx = prev.findIndex((t) => t._id === id);
+      const next: InternalLiveTurn = { role, text, partial, _id: id };
       if (idx >= 0) {
         const copy = [...prev];
         copy[idx] = { ...copy[idx], ...next };
@@ -92,7 +98,7 @@ export function useOpenAIRealtime(opts: Options = {}) {
     }
     setTurns((prev) =>
       prev.map((t) =>
-        (t as any)._id === id
+        t._id === id
           ? { ...t, text: finalText, partial: false, hasDialectDrift: drift }
           : t,
       ),

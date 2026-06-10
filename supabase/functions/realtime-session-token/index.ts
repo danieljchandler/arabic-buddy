@@ -1,7 +1,9 @@
 // realtime-session-token — creates an OpenAI Realtime WebRTC call through the
 // current /v1/realtime/calls unified interface. The browser sends its SDP offer
 // here; this function attaches the dialect-specific session config server-side
-// and returns OpenAI's SDP answer. The OPENAI_API_KEY never leaves the server.
+// and returns OpenAI's SDP answer. If an older preview sends no SDP, we fall
+// back to minting a short-lived client secret. The OPENAI_API_KEY never leaves
+// the server.
 //
 // Per-dialect system prompt + voice is baked into the session config.
 import { getDialectIdentity, getDialectVocabRules, primeDialectPrompt, type Dialect } from "../_shared/dialectHelpers.ts";
@@ -83,18 +85,6 @@ Deno.serve(async (req) => {
   try {
     const body = await req.json().catch(() => ({}));
     const sdp = typeof body.sdp === "string" ? body.sdp.trim() : "";
-    if (!sdp || !sdp.startsWith("v=")) {
-      return new Response(
-        JSON.stringify({
-          error: "Invalid SDP offer",
-          message: "The browser did not send a WebRTC SDP offer. Refresh the preview and try Live voice again in Chrome or Edge.",
-          received_keys: Object.keys(body ?? {}),
-          has_sdp: typeof body.sdp === "string",
-        }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
-
     const dialect = (body.dialect ?? "Gulf") as Dialect;
     const difficulty = (body.difficulty ?? "beginner") as string;
     const topicHint = (body.topicHint ?? "") as string;
@@ -125,6 +115,50 @@ Deno.serve(async (req) => {
         },
       },
     };
+
+    if (!sdp) {
+      const tokenUpstream = await fetch("https://api.openai.com/v1/realtime/client_secrets", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${OPENAI_API_KEY}`,
+          "Content-Type": "application/json",
+          "OpenAI-Safety-Identifier": await safetyIdentifier(cap.userId),
+        },
+        body: JSON.stringify({ session: sessionConfig }),
+      });
+
+      if (!tokenUpstream.ok) {
+        const txt = await tokenUpstream.text();
+        console.error("[realtime-session-token] client secret upstream error", tokenUpstream.status, txt);
+        return new Response(
+          JSON.stringify({ error: "Failed to mint Realtime client secret", details: txt }),
+          { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+
+      const data = await tokenUpstream.json();
+      return new Response(
+        JSON.stringify({
+          value: data.value,
+          client_secret: data.value,
+          expires_at: data.expires_at,
+          model: REALTIME_MODEL,
+          voice,
+          session_id: data.session?.id,
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    if (!sdp.startsWith("v=")) {
+      return new Response(
+        JSON.stringify({
+          error: "Invalid SDP offer",
+          message: "The browser sent a malformed WebRTC offer. Refresh the preview and try Live voice again in Chrome or Edge.",
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
 
     const form = new FormData();
     form.set("sdp", sdp);

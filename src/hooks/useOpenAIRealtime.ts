@@ -256,6 +256,10 @@ export function useOpenAIRealtime(opts: Options = {}) {
       // credentials and uses OpenAI's current /v1/realtime/calls interface.
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
+      const offerSdp = pc.localDescription?.sdp || offer.sdp;
+      if (!offerSdp) {
+        throw new Error("Browser did not generate a voice connection offer. Try Chrome or Edge in a new window.");
+      }
 
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
@@ -266,7 +270,7 @@ export function useOpenAIRealtime(opts: Options = {}) {
           "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ dialect, difficulty, topicHint, sdp: offer.sdp }),
+        body: JSON.stringify({ dialect, difficulty, topicHint, sdp: offerSdp }),
       });
       if (!sdpResp.ok) {
         const t = await sdpResp.text();

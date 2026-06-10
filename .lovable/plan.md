@@ -4,7 +4,7 @@ Swap the broken Gemini Live voice in `/conversation` for OpenAI's Realtime API (
 
 ## Why OpenAI Realtime
 - Battle-tested low-latency voice (same engine as the ChatGPT app's Advanced Voice).
-- Stable, documented ephemeral-token flow → safe browser WebRTC connection.
+- Current documented WebRTC flow through `/v1/realtime/calls`, keeping the OpenAI key server-side.
 - Strong dialect adherence when given a strict system prompt.
 
 ## What changes
@@ -20,14 +20,13 @@ Replaces `live-session-token`. Each call:
   - Gulf → `ballad` (warm, grounded)
   - Egyptian → `shimmer` (bright, expressive)
   - Yemeni → `verse` (measured)
-- Calls `POST https://api.openai.com/v1/realtime/sessions` with `model: gpt-4o-realtime-preview`, the system prompt, voice, `modalities: ["audio","text"]`, input/output audio transcription enabled, and server VAD.
-- Returns the ephemeral `client_secret` + session config to the browser.
+- Calls `POST https://api.openai.com/v1/realtime/calls` with `model: gpt-realtime-2`, the browser SDP offer, and the system prompt/session config in a server-side multipart request.
+- Returns OpenAI's SDP answer to the browser; no OpenAI token or client secret is exposed.
 - Keeps the existing daily usage cap (`enforceDailyCap('live-session', 30)`).
 
 ### 3. New hook: `useOpenAIRealtime`
 Replaces `useGeminiLive`. Same exported shape (`status`, `error`, `turns`, `muted`, `setMuted`, `start`, `stop`) so the UI panel needs almost no changes. Implementation:
-- Fetch ephemeral token from `realtime-session-token`.
-- Use **WebRTC** (OpenAI's recommended browser path): create `RTCPeerConnection`, add the mic track, attach a remote `<audio>` sink for the model's voice, open a data channel for events, then SDP-exchange with `https://api.openai.com/v1/realtime?model=...` using the ephemeral key as Bearer.
+- Use **WebRTC** (OpenAI's recommended browser path): create `RTCPeerConnection`, add the mic track, attach a remote `<audio>` sink for the model's voice, open a data channel for events, then send the SDP offer to `realtime-session-token` for server-side exchange with OpenAI.
 - On the data channel:
   - Stream user partials from `conversation.item.input_audio_transcription.delta/.completed`.
   - Stream assistant partials from `response.audio_transcript.delta` and finalize on `response.audio_transcript.done` / `response.done`.
@@ -44,7 +43,7 @@ Replaces `useGeminiLive`. Same exported shape (`status`, `error`, `turns`, `mute
 
 ## Technical notes
 - Browser uses WebRTC (not raw WebSocket) — gives us echo cancellation, jitter buffer, and built-in audio playback element instead of hand-rolled PCM queueing.
-- Ephemeral token is single-use and ~60s to bind; the live session itself can run for tens of minutes.
+- The SDP exchange is proxied through the edge function so the browser never receives OpenAI credentials.
 - Dialect prompt assembly reuses your existing rulebook so admin edits to `dialect_rules` automatically flow into live voice.
 - Per-dialect difficulty addendum (beginner/intermediate/advanced) is unchanged.
 

@@ -83,6 +83,7 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json().catch(() => ({}));
+    const sdp = typeof body.sdp === "string" ? body.sdp.trim() : "";
     const dialect = (body.dialect ?? "Gulf") as Dialect;
     const difficulty = (body.difficulty ?? "beginner") as string;
     const topicHint = (body.topicHint ?? "") as string;
@@ -149,6 +150,42 @@ Deno.serve(async (req) => {
         JSON.stringify({ error: "Malformed Realtime client secret response" }),
         { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
+    }
+
+    // Compatibility for stale browser bundles that still send an SDP offer to
+    // this function and expect an SDP answer back. Do a two-step exchange: mint
+    // the ephemeral key above, then send the raw SDP to OpenAI with that key.
+    // This intentionally avoids edge-runtime FormData/multipart handling.
+    if (sdp) {
+      if (!sdp.startsWith("v=")) {
+        return new Response(
+          JSON.stringify({ error: "Invalid SDP offer", message: "The browser sent a malformed WebRTC offer." }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+
+      const sdpUpstream = await fetch("https://api.openai.com/v1/realtime/calls", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${tokenValue}`,
+          "Content-Type": "application/sdp",
+        },
+        body: sdp,
+      });
+
+      if (!sdpUpstream.ok) {
+        const txt = await sdpUpstream.text();
+        console.error("[realtime-session-token] raw SDP upstream error", sdpUpstream.status, txt);
+        return new Response(
+          JSON.stringify({ error: "Failed to exchange Realtime SDP", details: txt }),
+          { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+
+      const answerSdp = await sdpUpstream.text();
+      return new Response(answerSdp, {
+        headers: { ...corsHeaders, "Content-Type": "application/sdp" },
+      });
     }
 
     return new Response(

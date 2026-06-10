@@ -1,6 +1,7 @@
-// realtime-session-token — mints a short-lived OpenAI Realtime API ephemeral
-// token so the browser can open a WebRTC connection to gpt-4o-realtime-preview
-// directly. The OPENAI_API_KEY never leaves the server.
+// realtime-session-token — creates an OpenAI Realtime WebRTC call through the
+// current /v1/realtime/calls unified interface. The browser sends its SDP offer
+// here; this function attaches the dialect-specific session config server-side
+// and returns OpenAI's SDP answer. The OPENAI_API_KEY never leaves the server.
 //
 // Per-dialect system prompt + voice is baked into the session config.
 import { getDialectIdentity, getDialectVocabRules, primeDialectPrompt, type Dialect } from "../_shared/dialectHelpers.ts";
@@ -12,7 +13,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const REALTIME_MODEL = "gpt-4o-realtime-preview-2024-12-17";
+const REALTIME_MODEL = "gpt-realtime-2";
 
 // OpenAI Realtime voices: alloy, ash, ballad, coral, echo, sage, shimmer, verse.
 // Mapping chosen to roughly match each dialect persona.
@@ -57,6 +58,14 @@ Strict rules:
 ${topic}`;
 }
 
+async function safetyIdentifier(userId: string): Promise<string> {
+  const bytes = new TextEncoder().encode(userId);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -73,6 +82,14 @@ Deno.serve(async (req) => {
 
   try {
     const body = await req.json().catch(() => ({}));
+    const sdp = typeof body.sdp === "string" ? body.sdp.trim() : "";
+    if (!sdp || !sdp.startsWith("v=")) {
+      return new Response(
+        JSON.stringify({ error: "Invalid SDP offer" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     const dialect = (body.dialect ?? "Gulf") as Dialect;
     const difficulty = (body.difficulty ?? "beginner") as string;
     const topicHint = (body.topicHint ?? "") as string;
@@ -82,29 +99,39 @@ Deno.serve(async (req) => {
 
     const voice = DIALECT_VOICE[dialect] ?? DIALECT_VOICE.Gulf;
     const instructions = buildSystemInstruction(dialect, difficulty, topicHint);
+    const sessionConfig = {
+      type: "realtime",
+      model: REALTIME_MODEL,
+      output_modalities: ["audio"],
+      instructions,
+      audio: {
+        input: {
+          transcription: {
+            model: "gpt-4o-transcribe",
+            language: "ar",
+            prompt: `Arabic speech. The learner may use ${dialect} dialect or English. Preserve Arabic dialect wording in the transcript.`,
+          },
+          turn_detection: {
+            type: "semantic_vad",
+          },
+        },
+        output: {
+          voice,
+        },
+      },
+    };
 
-    const upstream = await fetch("https://api.openai.com/v1/realtime/sessions", {
+    const form = new FormData();
+    form.set("sdp", sdp);
+    form.set("session", JSON.stringify(sessionConfig));
+
+    const upstream = await fetch("https://api.openai.com/v1/realtime/calls", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${OPENAI_API_KEY}`,
-        "Content-Type": "application/json",
-        "OpenAI-Beta": "realtime=v1",
+        "OpenAI-Safety-Identifier": await safetyIdentifier(cap.userId),
       },
-      body: JSON.stringify({
-        model: REALTIME_MODEL,
-        voice,
-        modalities: ["audio", "text"],
-        instructions,
-        input_audio_format: "pcm16",
-        output_audio_format: "pcm16",
-        input_audio_transcription: { model: "whisper-1" },
-        turn_detection: {
-          type: "server_vad",
-          threshold: 0.5,
-          prefix_padding_ms: 300,
-          silence_duration_ms: 600,
-        },
-      }),
+      body: form,
     });
 
     if (!upstream.ok) {
@@ -116,18 +143,10 @@ Deno.serve(async (req) => {
       );
     }
 
-    const data = await upstream.json();
-    // data.client_secret = { value, expires_at }
-    return new Response(
-      JSON.stringify({
-        client_secret: data.client_secret?.value,
-        expires_at: data.client_secret?.expires_at,
-        model: REALTIME_MODEL,
-        voice,
-        session_id: data.id,
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
+    const answerSdp = await upstream.text();
+    return new Response(answerSdp, {
+      headers: { ...corsHeaders, "Content-Type": "application/sdp" },
+    });
   } catch (e) {
     console.error("[realtime-session-token] error", e);
     return new Response(

@@ -1,45 +1,63 @@
-## What's broken
 
-The browser console shows `WebSocket open timeout` → `ws closed 1006`. Direct tests prove:
-- The token endpoint mints valid tokens.
-- A raw WebSocket to Google's Live API opens successfully from outside the browser.
+## Goal
+Swap the broken Gemini Live voice in `/conversation` for OpenAI's Realtime API ("ChatGPT live"), keeping the same UI but routing each dialect (Gulf / Egyptian / Yemeni) to its own tailored system prompt and voice.
 
-So the failure is in how the browser-side hook waits for `onopen`, plus a too-strict 8s deadline and a flaky preview-stage model.
+## Why OpenAI Realtime
+- Battle-tested low-latency voice (same engine as the ChatGPT app's Advanced Voice).
+- Stable, documented ephemeral-token flow → safe browser WebRTC connection.
+- Strong dialect adherence when given a strict system prompt.
 
-## Three fixes
+## What changes
 
-### 1. `src/hooks/useGeminiLive.ts` — fix the open-promise race
+### 1. Secret
+Add `OPENAI_API_KEY` (your existing OpenAI key) so the edge function can mint ephemeral Realtime tokens. Never shipped to the browser.
 
-The current `await new Promise(...)` only resolves on `ws.onopen` and rejects on timeout. If the WS closes before opening (1006), nothing rejects until 8s elapses, so we always show the misleading "timeout" message instead of the real close code, and we never surface the real failure cause.
+### 2. New edge function: `realtime-session-token`
+Replaces `live-session-token`. Each call:
+- Reads `dialect`, `difficulty`, `topicHint` from the request.
+- Builds a per-dialect system prompt using the existing Dialect Rulebook helpers (`getDialectIdentity`, `getDialectVocabRules`) — so Gulf/Egyptian/Yemeni each get their own identity, vocab rules, MSA-forbidden guidance, plus a "spoken dialogue, short turns" voice-call addendum.
+- Picks a voice per dialect (initial mapping; tunable later):
+  - Gulf → `ballad` (warm, grounded)
+  - Egyptian → `shimmer` (bright, expressive)
+  - Yemeni → `verse` (measured)
+- Calls `POST https://api.openai.com/v1/realtime/sessions` with `model: gpt-4o-realtime-preview`, the system prompt, voice, `modalities: ["audio","text"]`, input/output audio transcription enabled, and server VAD.
+- Returns the ephemeral `client_secret` + session config to the browser.
+- Keeps the existing daily usage cap (`enforceDailyCap('live-session', 30)`).
 
-Change the open wait to:
-- Resolve on `onopen`.
-- Reject on `onclose` if `readyState` never reached OPEN, surfacing `code`/`reason`.
-- Reject on `onerror` if it fires before open.
-- Extend the deadline from 8s → 20s (handshake latency from constrained networks can exceed 8s).
+### 3. New hook: `useOpenAIRealtime`
+Replaces `useGeminiLive`. Same exported shape (`status`, `error`, `turns`, `muted`, `setMuted`, `start`, `stop`) so the UI panel needs almost no changes. Implementation:
+- Fetch ephemeral token from `realtime-session-token`.
+- Use **WebRTC** (OpenAI's recommended browser path): create `RTCPeerConnection`, add the mic track, attach a remote `<audio>` sink for the model's voice, open a data channel for events, then SDP-exchange with `https://api.openai.com/v1/realtime?model=...` using the ephemeral key as Bearer.
+- On the data channel:
+  - Stream user partials from `conversation.item.input_audio_transcription.delta/.completed`.
+  - Stream assistant partials from `response.audio_transcript.delta` and finalize on `response.audio_transcript.done` / `response.done`.
+  - Run the same client-side MSA leak detector and flag drift turns (`hasDialectDrift`) so the existing "used MSA" badge keeps working.
+- Mute = disable the mic `RTCRtpSender` track; end = close peer connection + stop tracks.
 
-Keep the existing `onmessage`/`onclose`/`onerror` handlers in place for the live session; the open-phase listeners just need to also signal the promise.
+### 4. `LiveVoicePanel`
+- Swap `useGeminiLive` → `useOpenAIRealtime` (one-line change).
+- Footer text: "Voice powered by ChatGPT Realtime."
 
-### 2. `supabase/functions/live-session-token/index.ts` — switch to the GA Live model
+### 5. Cleanup
+- Delete `supabase/functions/live-session-token/` and `src/hooks/useGeminiLive.ts` once the new path is verified.
+- Keep `GEMINI_API_KEY` secret in place (used elsewhere in the app).
 
-The current model is `gemini-2.5-flash-native-audio-preview-09-2025` — a dated preview that has gone in and out of availability. Switch to the GA model `gemini-2.0-flash-live-001` for stability. Native-audio voices (`Charon`, `Aoede`, `Orus`) and the `ar-XA` language code stay the same.
-
-If the user later wants the newer native-audio preview back for higher dialect fidelity, we can add it as an opt-in.
-
-### 3. `src/hooks/useGeminiLive.ts` — clearer error surface
-
-When `onclose` fires with `code 1006` and no reason, replace the generic "Voice session ended (1006)" with: "Voice connection closed before opening. This usually means the network or browser blocked the WebSocket. Try a different network or browser."
-
-## Verification
-
-After the changes:
-1. Redeploy `live-session-token`.
-2. Open `/conversation` in a new window (mic blocked in Lovable's preview iframe — known constraint).
-3. Tap the live-voice button. Within ~3s, status should go `connecting → live` and the tutor should greet the user in dialect.
-4. If it still fails, the new error message will tell us whether it's a close-before-open (network/CSP) or a real timeout (server slow), and the console will log the close code + reason.
+## Technical notes
+- Browser uses WebRTC (not raw WebSocket) — gives us echo cancellation, jitter buffer, and built-in audio playback element instead of hand-rolled PCM queueing.
+- Ephemeral token is single-use and ~60s to bind; the live session itself can run for tens of minutes.
+- Dialect prompt assembly reuses your existing rulebook so admin edits to `dialect_rules` automatically flow into live voice.
+- Per-dialect difficulty addendum (beginner/intermediate/advanced) is unchanged.
 
 ## Out of scope
+- No changes to the rest of Conversation Simulator (text mode, topic picker, history saving).
+- No new UI screens; just the existing live panel, now backed by OpenAI.
 
-- Two-stage architecture (Gemini text → Munsit/ElevenLabs TTS).
-- Swapping providers to OpenAI Realtime or Claude.
-- Changing the dialect voice mapping.
+## Files touched
+- add: `supabase/functions/realtime-session-token/index.ts`
+- add: `src/hooks/useOpenAIRealtime.ts`
+- edit: `src/components/conversation/LiveVoicePanel.tsx`
+- delete (after verification): `supabase/functions/live-session-token/index.ts`, `src/hooks/useGeminiLive.ts`
+- secret: add `OPENAI_API_KEY`
+
+## Open question
+Confirm voice choices per dialect (Gulf=ballad, Egyptian=shimmer, Yemeni=verse) or pick from OpenAI's set: alloy, ash, ballad, coral, echo, sage, shimmer, verse. I'll proceed with the defaults above unless you say otherwise.

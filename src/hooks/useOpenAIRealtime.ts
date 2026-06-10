@@ -109,19 +109,19 @@ export function useOpenAIRealtime(opts: Options = {}) {
   }, [opts]);
 
   const cleanup = useCallback(() => {
-    try { dcRef.current?.close(); } catch {}
+    try { dcRef.current?.close(); } catch { /* noop */ }
     dcRef.current = null;
-    try { pcRef.current?.getSenders().forEach((s) => s.track?.stop()); } catch {}
-    try { pcRef.current?.close(); } catch {}
+    try { pcRef.current?.getSenders().forEach((s) => s.track?.stop()); } catch { /* noop */ }
+    try { pcRef.current?.close(); } catch { /* noop */ }
     pcRef.current = null;
-    try { localStreamRef.current?.getTracks().forEach((t) => t.stop()); } catch {}
+    try { localStreamRef.current?.getTracks().forEach((t) => t.stop()); } catch { /* noop */ }
     localStreamRef.current = null;
     if (audioElRef.current) {
       try {
         audioElRef.current.pause();
         audioElRef.current.srcObject = null;
         audioElRef.current.remove();
-      } catch {}
+      } catch { /* noop */ }
       audioElRef.current = null;
     }
     micSenderRef.current = null;
@@ -137,21 +137,21 @@ export function useOpenAIRealtime(opts: Options = {}) {
     endingRef.current = false;
   }, [cleanup]);
 
-  const handleEvent = useCallback((evt: any) => {
-    const type: string = evt?.type ?? "";
+  const handleEvent = useCallback((evt: RealtimeEvent) => {
+    const type = typeof evt.type === "string" ? evt.type : "";
 
     // User speech transcripts (Whisper).
     if (type === "conversation.item.input_audio_transcription.delta") {
-      const id = evt.item_id ?? "user-current";
+      const id = typeof evt.item_id === "string" ? evt.item_id : "user-current";
       const prev = userBufRef.current.get(id) ?? "";
-      const next = prev + (evt.delta ?? "");
+      const next = prev + (typeof evt.delta === "string" ? evt.delta : "");
       userBufRef.current.set(id, next);
       upsertTurn("user", id, next, true);
       return;
     }
     if (type === "conversation.item.input_audio_transcription.completed") {
-      const id = evt.item_id ?? "user-current";
-      const finalText = evt.transcript ?? userBufRef.current.get(id) ?? "";
+      const id = typeof evt.item_id === "string" ? evt.item_id : "user-current";
+      const finalText = typeof evt.transcript === "string" ? evt.transcript : userBufRef.current.get(id) ?? "";
       userBufRef.current.delete(id);
       finalizeTurn("user", id, finalText);
       return;
@@ -159,16 +159,24 @@ export function useOpenAIRealtime(opts: Options = {}) {
 
     // Assistant audio transcript (what the model is saying).
     if (type === "response.audio_transcript.delta") {
-      const id = evt.item_id ?? evt.response_id ?? "assistant-current";
+      const id = typeof evt.item_id === "string"
+        ? evt.item_id
+        : typeof evt.response_id === "string"
+        ? evt.response_id
+        : "assistant-current";
       const prev = assistantBufRef.current.get(id) ?? "";
-      const next = prev + (evt.delta ?? "");
+      const next = prev + (typeof evt.delta === "string" ? evt.delta : "");
       assistantBufRef.current.set(id, next);
       upsertTurn("assistant", id, next, true);
       return;
     }
     if (type === "response.audio_transcript.done") {
-      const id = evt.item_id ?? evt.response_id ?? "assistant-current";
-      const finalText = evt.transcript ?? assistantBufRef.current.get(id) ?? "";
+      const id = typeof evt.item_id === "string"
+        ? evt.item_id
+        : typeof evt.response_id === "string"
+        ? evt.response_id
+        : "assistant-current";
+      const finalText = typeof evt.transcript === "string" ? evt.transcript : assistantBufRef.current.get(id) ?? "";
       assistantBufRef.current.delete(id);
       finalizeTurn("assistant", id, finalText);
       return;
@@ -176,7 +184,8 @@ export function useOpenAIRealtime(opts: Options = {}) {
 
     if (type === "error") {
       console.error("[realtime] server error", evt);
-      setError(evt?.error?.message ?? "Realtime server error");
+      const err = evt.error as { message?: unknown } | undefined;
+      setError(typeof err?.message === "string" ? err.message : "Realtime server error");
     }
   }, [finalizeTurn, upsertTurn]);
 
@@ -265,7 +274,7 @@ export function useOpenAIRealtime(opts: Options = {}) {
         try {
           const parsed = JSON.parse(t);
           message = parsed?.details || parsed?.message || parsed?.error || t;
-        } catch {}
+        } catch { /* noop */ }
         throw new Error(`Voice setup failed (${sdpResp.status}): ${String(message).slice(0, 300)}`);
       }
       const answerSdp = await sdpResp.text();

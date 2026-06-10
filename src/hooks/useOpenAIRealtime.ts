@@ -217,13 +217,26 @@ export function useOpenAIRealtime(opts: Options = {}) {
       const pc = new RTCPeerConnection();
       pcRef.current = pc;
 
-      // Remote audio sink — model voice.
+      // Remote audio sink — model voice. Must be in the DOM for some browsers
+      // to actually route audio, and we call .play() explicitly because the
+      // mic-gesture context is lost after our async awaits.
       const audioEl = document.createElement("audio");
       audioEl.autoplay = true;
+      (audioEl as HTMLAudioElement & { playsInline?: boolean }).playsInline = true;
+      audioEl.setAttribute("playsinline", "");
+      audioEl.style.display = "none";
+      document.body.appendChild(audioEl);
       audioElRef.current = audioEl;
       pc.ontrack = (e) => {
         audioEl.srcObject = e.streams[0];
+        audioEl.play().catch((err) => {
+          console.warn("[realtime] audio autoplay blocked", err);
+        });
       };
+
+      // Explicitly request a receive transceiver so the SDP offer advertises
+      // we want the model's audio track (some browsers won't add recv otherwise).
+      pc.addTransceiver("audio", { direction: "recvonly" });
 
       // Local mic.
       const stream = await navigator.mediaDevices.getUserMedia({

@@ -88,6 +88,7 @@ Deno.serve(async (req) => {
       headers: {
         "Authorization": `Bearer ${OPENAI_API_KEY}`,
         "Content-Type": "application/json",
+        "OpenAI-Beta": "realtime=v1",
       },
       body: JSON.stringify({
         model: REALTIME_MODEL,

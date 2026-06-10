@@ -85,7 +85,12 @@ Deno.serve(async (req) => {
     const sdp = typeof body.sdp === "string" ? body.sdp.trim() : "";
     if (!sdp || !sdp.startsWith("v=")) {
       return new Response(
-        JSON.stringify({ error: "Invalid SDP offer" }),
+        JSON.stringify({
+          error: "Invalid SDP offer",
+          message: "The browser did not send a WebRTC SDP offer. Refresh the preview and try Live voice again in Chrome or Edge.",
+          received_keys: Object.keys(body ?? {}),
+          has_sdp: typeof body.sdp === "string",
+        }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }

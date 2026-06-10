@@ -1,9 +1,8 @@
-// realtime-session-token — creates an OpenAI Realtime WebRTC call through the
-// current /v1/realtime/calls unified interface. The browser sends its SDP offer
-// here; this function attaches the dialect-specific session config server-side
-// and returns OpenAI's SDP answer. If an older preview sends no SDP, we fall
-// back to minting a short-lived client secret. The OPENAI_API_KEY never leaves
-// the server.
+// realtime-session-token — mints a short-lived OpenAI Realtime client secret.
+// The browser uses that ephemeral key for the WebRTC SDP exchange directly with
+// OpenAI. This avoids forwarding SDP through the edge runtime, which can corrupt
+// multipart payloads and produce OpenAI's "failed to unmarshal SDP: EOF" error.
+// The long-lived OPENAI_API_KEY never leaves the server.
 //
 // Per-dialect system prompt + voice is baked into the session config.
 import { getDialectIdentity, getDialectVocabRules, primeDialectPrompt, type Dialect } from "../_shared/dialectHelpers.ts";
@@ -116,76 +115,90 @@ Deno.serve(async (req) => {
       },
     };
 
-    if (!sdp) {
-      const tokenUpstream = await fetch("https://api.openai.com/v1/realtime/client_secrets", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${OPENAI_API_KEY}`,
-          "Content-Type": "application/json",
-          "OpenAI-Safety-Identifier": await safetyIdentifier(cap.userId),
-        },
-        body: JSON.stringify({ session: sessionConfig }),
-      });
-
-      if (!tokenUpstream.ok) {
-        const txt = await tokenUpstream.text();
-        console.error("[realtime-session-token] client secret upstream error", tokenUpstream.status, txt);
-        return new Response(
-          JSON.stringify({ error: "Failed to mint Realtime client secret", details: txt }),
-          { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-        );
-      }
-
-      const data = await tokenUpstream.json();
-      return new Response(
-        JSON.stringify({
-          value: data.value,
-          client_secret: data.value,
-          expires_at: data.expires_at,
-          model: REALTIME_MODEL,
-          voice,
-          session_id: data.session?.id,
-        }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
-
-    if (!sdp.startsWith("v=")) {
-      return new Response(
-        JSON.stringify({
-          error: "Invalid SDP offer",
-          message: "The browser sent a malformed WebRTC offer. Refresh the preview and try Live voice again in Chrome or Edge.",
-        }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
-
-    const form = new FormData();
-    form.set("sdp", sdp);
-    form.set("session", JSON.stringify(sessionConfig));
-
-    const upstream = await fetch("https://api.openai.com/v1/realtime/calls", {
+    const tokenUpstream = await fetch("https://api.openai.com/v1/realtime/client_secrets", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${OPENAI_API_KEY}`,
+        "Content-Type": "application/json",
         "OpenAI-Safety-Identifier": await safetyIdentifier(cap.userId),
       },
-      body: form,
+      body: JSON.stringify({ session: sessionConfig }),
     });
 
-    if (!upstream.ok) {
-      const txt = await upstream.text();
-      console.error("[realtime-session-token] upstream error", upstream.status, txt);
+    if (!tokenUpstream.ok) {
+      const txt = await tokenUpstream.text();
+      console.error("[realtime-session-token] client secret upstream error", tokenUpstream.status, txt);
       return new Response(
-        JSON.stringify({ error: "Failed to mint Realtime session token", details: txt }),
+        JSON.stringify({ error: "Failed to mint Realtime client secret", details: txt }),
         { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
-    const answerSdp = await upstream.text();
-    return new Response(answerSdp, {
-      headers: { ...corsHeaders, "Content-Type": "application/sdp" },
-    });
+    const data = await tokenUpstream.json();
+    const tokenValue =
+      typeof data.value === "string"
+        ? data.value
+        : typeof data.client_secret?.value === "string"
+        ? data.client_secret.value
+        : typeof data.client_secret === "string"
+        ? data.client_secret
+        : "";
+
+    if (!tokenValue) {
+      console.error("[realtime-session-token] malformed client secret response", data);
+      return new Response(
+        JSON.stringify({ error: "Malformed Realtime client secret response" }),
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    // Compatibility for stale browser bundles that still send an SDP offer to
+    // this function and expect an SDP answer back. Do a two-step exchange: mint
+    // the ephemeral key above, then send the raw SDP to OpenAI with that key.
+    // This intentionally avoids edge-runtime FormData/multipart handling.
+    if (sdp) {
+      if (!sdp.startsWith("v=")) {
+        return new Response(
+          JSON.stringify({ error: "Invalid SDP offer", message: "The browser sent a malformed WebRTC offer." }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+
+      const sdpUpstream = await fetch("https://api.openai.com/v1/realtime/calls", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${tokenValue}`,
+          "Content-Type": "application/sdp",
+        },
+        body: sdp,
+      });
+
+      if (!sdpUpstream.ok) {
+        const txt = await sdpUpstream.text();
+        console.error("[realtime-session-token] raw SDP upstream error", sdpUpstream.status, txt);
+        return new Response(
+          JSON.stringify({ error: "Failed to exchange Realtime SDP", details: txt }),
+          { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+
+      const answerSdp = await sdpUpstream.text();
+      return new Response(answerSdp, {
+        headers: { ...corsHeaders, "Content-Type": "application/sdp" },
+      });
+    }
+
+    return new Response(
+      JSON.stringify({
+        value: tokenValue,
+        client_secret: tokenValue,
+        expires_at: data.expires_at ?? data.client_secret?.expires_at,
+        model: REALTIME_MODEL,
+        voice,
+        session_id: data.session?.id,
+      }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
   } catch (e) {
     console.error("[realtime-session-token] error", e);
     return new Response(

@@ -3,9 +3,10 @@
 //   1. Build a WebRTC SDP offer in the browser.
 //   2. Create RTCPeerConnection, add mic track, attach <audio> sink for model voice,
 //      open a data channel for JSON events.
-//   3. POST the SDP offer to /functions/v1/realtime-session-token. The edge
-//      function creates the Realtime call with OpenAI and returns the SDP answer.
-//   4. Stream user + assistant transcripts from data-channel events.
+//   3. Fetch a short-lived Realtime client secret from our edge function.
+//   4. POST the raw SDP offer directly to OpenAI's /v1/realtime/calls with
+//      the ephemeral key and apply the returned SDP answer.
+//   5. Stream user + assistant transcripts from data-channel events.
 //
 // Drop-in replacement for useGeminiLive: same exported shape.
 
@@ -38,6 +39,11 @@ interface InternalLiveTurn extends LiveTurn {
 
 type RealtimeEvent = Record<string, unknown>;
 
+interface ClientSecretResponse {
+  value?: string;
+  client_secret?: string | { value?: string };
+}
+
 const CLIENT_MSA_TOKENS: Record<string, string[]> = {
   Gulf: ['الآن', 'لماذا', 'أين', 'ماذا', 'سوف', 'ليس', 'يريد', 'أريد', 'كيف', 'إزيك', 'دلوقتي', 'عايز'],
   Egyptian: ['الآن', 'لماذا', 'أين', 'ماذا', 'سوف', 'ليس', 'يريد', 'أريد', 'كيف', 'شلونك', 'هالحين', 'يبي'],
@@ -48,6 +54,13 @@ function detectLiveLeaks(text: string, dialect: string): string[] {
   if (!text) return [];
   const tokens = CLIENT_MSA_TOKENS[dialect] ?? CLIENT_MSA_TOKENS.Gulf;
   return tokens.filter((t) => text.includes(t));
+}
+
+function extractClientSecret(payload: ClientSecretResponse): string {
+  if (typeof payload.value === "string") return payload.value;
+  if (typeof payload.client_secret === "string") return payload.client_secret;
+  if (typeof payload.client_secret?.value === "string") return payload.client_secret.value;
+  return "";
 }
 
 export function useOpenAIRealtime(opts: Options = {}) {
@@ -157,8 +170,9 @@ export function useOpenAIRealtime(opts: Options = {}) {
       return;
     }
 
-    // Assistant audio transcript (what the model is saying).
-    if (type === "response.audio_transcript.delta") {
+    // Assistant audio transcript (what the model is saying). Handle both GA
+    // output_audio_transcript events and legacy audio_transcript names.
+    if (type === "response.output_audio_transcript.delta" || type === "response.audio_transcript.delta") {
       const id = typeof evt.item_id === "string"
         ? evt.item_id
         : typeof evt.response_id === "string"
@@ -170,7 +184,7 @@ export function useOpenAIRealtime(opts: Options = {}) {
       upsertTurn("assistant", id, next, true);
       return;
     }
-    if (type === "response.audio_transcript.done") {
+    if (type === "response.output_audio_transcript.done" || type === "response.audio_transcript.done") {
       const id = typeof evt.item_id === "string"
         ? evt.item_id
         : typeof evt.response_id === "string"
@@ -252,8 +266,35 @@ export function useOpenAIRealtime(opts: Options = {}) {
         }
       };
 
-      // 2. SDP exchange through our edge function. This avoids exposing OpenAI
-      // credentials and uses OpenAI's current /v1/realtime/calls interface.
+      // 2. Get a short-lived OpenAI Realtime client secret from our edge
+      // function. The long-lived OpenAI key stays server-side.
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      const tokenResp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/realtime-session-token`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ dialect, difficulty, topicHint }),
+      });
+      if (!tokenResp.ok) {
+        const t = await tokenResp.text();
+        let message = t;
+        try {
+          const parsed = JSON.parse(t);
+          message = parsed?.details || parsed?.message || parsed?.error || t;
+        } catch { /* noop */ }
+        throw new Error(`Voice token failed (${tokenResp.status}): ${String(message).slice(0, 300)}`);
+      }
+      const clientSecret = extractClientSecret(await tokenResp.json());
+      if (!clientSecret) {
+        throw new Error("Voice token response was missing a client secret.");
+      }
+
+      // 3. SDP exchange directly with OpenAI using the ephemeral key. Sending
+      // raw application/sdp avoids edge-runtime multipart serialization issues.
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
       const offerSdp = pc.localDescription?.sdp || offer.sdp;
@@ -261,16 +302,13 @@ export function useOpenAIRealtime(opts: Options = {}) {
         throw new Error("Browser did not generate a voice connection offer. Try Chrome or Edge in a new window.");
       }
 
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-      const sdpResp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/realtime-session-token`, {
+      const sdpResp = await fetch("https://api.openai.com/v1/realtime/calls", {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${token}`,
-          "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-          "Content-Type": "application/json",
+          "Authorization": `Bearer ${clientSecret}`,
+          "Content-Type": "application/sdp",
         },
-        body: JSON.stringify({ dialect, difficulty, topicHint, sdp: offerSdp }),
+        body: offerSdp,
       });
       if (!sdpResp.ok) {
         const t = await sdpResp.text();

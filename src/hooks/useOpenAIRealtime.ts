@@ -229,7 +229,7 @@ export function useOpenAIRealtime(opts: Options = {}) {
       pc.onconnectionstatechange = () => {
         const st = pc.connectionState;
         if (st === "failed" || st === "disconnected" || st === "closed") {
-          if (!endingRef.current && status !== "idle") {
+          if (!endingRef.current) {
             setError(`Voice connection ${st}`);
             setStatus("error");
             cleanup();

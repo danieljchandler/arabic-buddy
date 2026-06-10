@@ -1,7 +1,9 @@
-// live-session-token — mints a short-lived ephemeral token so the browser can
-// open a Gemini Live API WebSocket directly (audio in/out) without ever seeing
-// GEMINI_API_KEY. Token is bound to model + system instruction + voice.
-import { getDialectIdentity, getDialectVocabRules, type Dialect } from "../_shared/dialectHelpers.ts";
+// realtime-session-token — mints a short-lived OpenAI Realtime API ephemeral
+// token so the browser can open a WebRTC connection to gpt-4o-realtime-preview
+// directly. The OPENAI_API_KEY never leaves the server.
+//
+// Per-dialect system prompt + voice is baked into the session config.
+import { getDialectIdentity, getDialectVocabRules, primeDialectPrompt, type Dialect } from "../_shared/dialectHelpers.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
 
 const corsHeaders = {
@@ -10,14 +12,14 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const LIVE_MODEL = "models/gemini-3.1-flash-live-preview";
+const REALTIME_MODEL = "gpt-4o-realtime-preview-2024-12-17";
 
-// Native-audio voices that work with the Live preview model.
-// Mapping aims to roughly match each dialect module's persona.
+// OpenAI Realtime voices: alloy, ash, ballad, coral, echo, sage, shimmer, verse.
+// Mapping chosen to roughly match each dialect persona.
 const DIALECT_VOICE: Record<string, string> = {
-  Gulf: "Charon",     // deep, grounded male — Khaliji elder vibe
-  Egyptian: "Aoede",  // warm, expressive female — Cairo storyteller
-  Yemeni: "Orus",     // measured male — Sana'ani host
+  Gulf: "ballad",     // warm, grounded — Khaliji vibe
+  Egyptian: "shimmer",// bright, expressive — Cairo storyteller
+  Yemeni: "verse",    // measured — Sana'ani host
 };
 
 function difficultyExtras(difficulty: string): string {
@@ -41,7 +43,7 @@ function buildSystemInstruction(dialect: Dialect, difficulty: string, topicHint?
 
 ${vocab}
 
-You are a friendly conversation partner on a voice call. This is spoken dialogue — keep every turn short (1-2 sentences), natural, and back-and-forth. NEVER read out long monologues.
+You are a friendly conversation partner on a voice call. This is spoken dialogue — keep every turn short (1-2 sentences), natural, and back-and-forth. NEVER read long monologues. Wait for the student to respond.
 
 ${difficultyExtras(difficulty)}
 
@@ -50,6 +52,7 @@ Strict rules:
 - Never switch to another Arabic dialect.
 - If the student speaks English, briefly answer in dialect and gently guide them back.
 - No transliteration, no Latin-letter pronunciation guides.
+- Use natural spoken intonation, not reading-aloud style.
 
 ${topic}`;
 }
@@ -57,14 +60,13 @@ ${topic}`;
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
-  // 30 live sessions/user/day on free tier.
   const cap = await enforceDailyCap(req, "live-session", 30, corsHeaders);
   if (cap.limited) return cap.response;
 
-  const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-  if (!GEMINI_API_KEY) {
+  const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+  if (!OPENAI_API_KEY) {
     return new Response(
-      JSON.stringify({ error: "GEMINI_API_KEY not configured" }),
+      JSON.stringify({ error: "OPENAI_API_KEY not configured" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
@@ -75,70 +77,58 @@ Deno.serve(async (req) => {
     const difficulty = (body.difficulty ?? "beginner") as string;
     const topicHint = (body.topicHint ?? "") as string;
 
-    const voiceName = DIALECT_VOICE[dialect] ?? DIALECT_VOICE.Gulf;
-    const systemInstruction = buildSystemInstruction(dialect, difficulty, topicHint);
+    // Warm the dialect rulebook cache so identity/vocab include admin edits.
+    try { await primeDialectPrompt(dialect); } catch { /* fallback to hard-coded */ }
 
-    // Token is single-use to start a session for 1 minute, then valid for the
-    // active Live session. With a constrained token the setup is fixed server-side.
-    const now = Date.now();
-    const tokenExpire = new Date(now + 30 * 60 * 1000).toISOString();
-    const newSessionExpire = new Date(now + 60 * 1000).toISOString();
+    const voice = DIALECT_VOICE[dialect] ?? DIALECT_VOICE.Gulf;
+    const instructions = buildSystemInstruction(dialect, difficulty, topicHint);
 
-    const liveSetup = {
-      model: LIVE_MODEL,
-      generationConfig: {
-        responseModalities: ["AUDIO"],
-        speechConfig: {
-          voiceConfig: { prebuiltVoiceConfig: { voiceName } },
+    const upstream = await fetch("https://api.openai.com/v1/realtime/sessions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${OPENAI_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: REALTIME_MODEL,
+        voice,
+        modalities: ["audio", "text"],
+        instructions,
+        input_audio_format: "pcm16",
+        output_audio_format: "pcm16",
+        input_audio_transcription: { model: "whisper-1" },
+        turn_detection: {
+          type: "server_vad",
+          threshold: 0.5,
+          prefix_padding_ms: 300,
+          silence_duration_ms: 600,
         },
-      },
-      systemInstruction: {
-        parts: [{ text: systemInstruction }],
-      },
-      outputAudioTranscription: {},
-      inputAudioTranscription: {},
-      realtimeInputConfig: {
-        automaticActivityDetection: {},
-      },
-    };
-
-    const upstream = await fetch(
-      `https://generativelanguage.googleapis.com/v1alpha/auth_tokens?key=${GEMINI_API_KEY}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          uses: 1,
-          expireTime: tokenExpire,
-          newSessionExpireTime: newSessionExpire,
-          bidiGenerateContentSetup: liveSetup,
-        }),
-      },
-    );
+      }),
+    });
 
     if (!upstream.ok) {
       const txt = await upstream.text();
-      console.error("[live-session-token] upstream error", upstream.status, txt);
+      console.error("[realtime-session-token] upstream error", upstream.status, txt);
       return new Response(
-        JSON.stringify({ error: "Failed to mint Live session token", details: txt }),
+        JSON.stringify({ error: "Failed to mint Realtime session token", details: txt }),
         { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
     const data = await upstream.json();
+    // data.client_secret = { value, expires_at }
     return new Response(
       JSON.stringify({
-        token: data.name,
-        expireTime: data.expireTime ?? tokenExpire,
-        model: LIVE_MODEL,
-        voice: voiceName,
-        setup: liveSetup,
-        newSessionExpireTime: newSessionExpire,
+        client_secret: data.client_secret?.value,
+        expires_at: data.client_secret?.expires_at,
+        model: REALTIME_MODEL,
+        voice,
+        session_id: data.id,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (e) {
-    console.error("[live-session-token] error", e);
+    console.error("[realtime-session-token] error", e);
     return new Response(
       JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },

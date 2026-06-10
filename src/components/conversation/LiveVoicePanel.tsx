@@ -7,7 +7,7 @@ import { useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Loader2, Mic, MicOff, PhoneOff, Radio, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useGeminiLive } from "@/hooks/useGeminiLive";
+import { useOpenAIRealtime } from "@/hooks/useOpenAIRealtime";
 import { TappableArabicText } from "@/components/shared/TappableArabicText";
 
 interface Props {
@@ -25,7 +25,7 @@ export function LiveVoicePanel({
   onTurnFinalized,
   onExitLive,
 }: Props) {
-  const { status, error, turns, muted, setMuted, start, stop } = useGeminiLive({
+  const { status, error, turns, muted, setMuted, start, stop } = useOpenAIRealtime({
     onTurnFinalized,
   });
 
@@ -136,7 +136,7 @@ export function LiveVoicePanel({
       </div>
 
       <p className="text-[11px] text-center text-muted-foreground">
-        Voice powered by Gemini Live. Best on Chrome or Edge.
+        Voice powered by ChatGPT Realtime. Best on Chrome or Edge.
       </p>
     </div>
   );

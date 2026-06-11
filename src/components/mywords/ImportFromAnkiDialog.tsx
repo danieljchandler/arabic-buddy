@@ -378,12 +378,68 @@ export function ImportFromAnkiDialog({ open, onOpenChange }: Props) {
                 {progress.message}
               </div>
             )}
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              In Anki: <span className="font-medium">File → Export</span>, choose
-              "Anki Deck Package (.apkg)" and tick <span className="font-medium">"Support older Anki versions"</span> + "Include media".
-            </p>
+            <div className="rounded-lg border border-amber-500/30 bg-amber-50/50 dark:bg-amber-950/20 p-3 text-xs text-muted-foreground leading-relaxed space-y-1">
+              <p className="font-medium text-foreground">In Anki: File → Export</p>
+              <ul className="list-disc list-inside space-y-0.5">
+                <li>Format: <span className="font-medium">Anki Deck Package (.apkg)</span></li>
+                <li>✅ Support older Anki versions</li>
+                <li>✅ <span className="font-medium text-amber-700 dark:text-amber-500">Include scheduling information</span> — required to keep your review progress</li>
+                <li>✅ Include media</li>
+              </ul>
+            </div>
+
+            {priorCount !== null && priorCount > 0 && (
+              <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-muted/30 p-3">
+                <div className="text-xs">
+                  <p className="font-medium">
+                    {priorCount.toLocaleString()} card{priorCount === 1 ? "" : "s"} from a previous Anki import
+                  </p>
+                  <p className="text-muted-foreground">
+                    Delete them first so a re-import with scheduling info isn't skipped as duplicates.
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0 text-destructive hover:text-destructive"
+                  onClick={() => setConfirmWipe(true)}
+                  disabled={wiping}
+                >
+                  {wiping ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Trash2 className="h-3.5 w-3.5" />
+                  )}
+                  <span className="ml-1.5">Delete previous</span>
+                </Button>
+              </div>
+            )}
           </div>
         )}
+
+        <AlertDialog open={confirmWipe} onOpenChange={setConfirmWipe}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete previous Anki import?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will permanently remove {priorCount?.toLocaleString() ?? "all"} card{priorCount === 1 ? "" : "s"} previously imported from Anki for the <span className="font-medium">{activeDialect}</span> dialect, along with any review progress you've made on them here. Cards added other ways are not affected.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={wiping}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleDeletePrevious();
+                }}
+                disabled={wiping}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {wiping ? "Deleting…" : "Delete"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         {step === "preview" && deck && (
           <div className="space-y-4">

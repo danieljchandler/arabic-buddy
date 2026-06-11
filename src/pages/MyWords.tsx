@@ -47,6 +47,11 @@ const MyWords = () => {
   const [ankiOpen, setAnkiOpen] = useState(false);
   const [deckFilter, setDeckFilter] = useState<string | null>(null);
   const [tagFilter, setTagFilter] = useState<string | null>(null);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
+  const queryClient = useQueryClient();
 
   const deckOptions = useMemo(() => {
     const m = new Map<string, number>();

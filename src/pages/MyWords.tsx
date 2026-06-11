@@ -96,6 +96,49 @@ const MyWords = () => {
     }
   };
 
+  const toggleSelected = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const exitSelectMode = () => {
+    setSelectMode(false);
+    setSelectedIds(new Set());
+  };
+
+  const selectAllVisible = () => {
+    if (!filteredWords) return;
+    setSelectedIds(new Set(filteredWords.map((w) => w.id)));
+  };
+
+  const handleBulkDelete = async () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    setBulkDeleting(true);
+    try {
+      // Delete in chunks of 200 to keep URL length sane
+      const CHUNK = 200;
+      for (let i = 0; i < ids.length; i += CHUNK) {
+        const slice = ids.slice(i, i + CHUNK);
+        const { error } = await supabase.from("user_vocabulary").delete().in("id", slice);
+        if (error) throw error;
+      }
+      toast.success(`Deleted ${ids.length} card${ids.length === 1 ? "" : "s"}`);
+      queryClient.invalidateQueries({ queryKey: ["user-vocabulary"] });
+      queryClient.invalidateQueries({ queryKey: ["user-vocabulary-due"] });
+      exitSelectMode();
+    } catch (err: any) {
+      console.error("[mywords] bulk delete error", err);
+      toast.error(err?.message || "Failed to delete selected cards");
+    } finally {
+      setBulkDeleting(false);
+      setConfirmBulkDelete(false);
+    }
+  };
+
   if (authLoading || isLoading) {
     return (
       <AppShell>

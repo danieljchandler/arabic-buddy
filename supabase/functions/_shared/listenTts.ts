@@ -152,18 +152,14 @@ export async function planProvider(dialect: string): Promise<ProviderPlan> {
     };
   }
 
-  if (dialect === "Egyptian" && munsitKey) {
-    const modelId = await pickMunsitModelId(munsitKey);
-    if (modelId) {
-      return {
-        provider: "munsit",
-        ext: "wav",
-        contentType: "audio/wav",
-        munsitVoices: MUNSIT_FUSHA_VOICES,
-        munsitModelId: modelId,
-      };
-    }
-    console.warn("listenTts: Munsit unavailable for Egyptian, falling back to Azure");
+  if (dialect === "Egyptian" && Deno.env.get("ELEVENLABS_API_KEY")) {
+    return {
+      provider: "elevenlabs",
+      ext: "mp3",
+      contentType: "audio/mpeg",
+      elevenLabsVoices: ELEVENLABS_EGYPTIAN_VOICES,
+      elevenLabsModelId: "eleven_multilingual_v2",
+    };
   }
 
 

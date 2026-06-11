@@ -30,13 +30,10 @@ export interface ProviderPlan {
   elevenLabsModelId?: string;
 }
 
-// ElevenLabs voices that handle Arabic well via eleven_multilingual_v2.
-// Order: female, male, female, male — picked up via pickVoiceSlot.
+// Native Egyptian Arabic voices from the workspace library.
 const ELEVENLABS_EGYPTIAN_VOICES = [
-  "EXAVITQu4vr4xnSDxMaL", // Sarah (female)
-  "JBFqnCBsd6RMkjVDRZzb", // George (male)
-  "XrExE9yKIg1WjnnlVkGX", // Matilda (female)
-  "onwK4e9ZLuTAKqWW03F9", // Daniel (male)
+  "DWMVT5WflKt0P8OPpIrY", // Hanafi (male, ar-EG)
+  "rMheqEfwsIJckq2yCdb5", // Ahmed Yahia (male, ar-EG)
 ];
 
 const AZURE_VOICE_MAP: Record<string, string[]> = {

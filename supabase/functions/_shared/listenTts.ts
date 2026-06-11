@@ -302,6 +302,38 @@ export async function synthesizeGemini(
   return pcmToWav(pcm, sampleRate);
 }
 
+export async function synthesizeElevenLabs(
+  text: string,
+  voiceId: string,
+  modelId: string,
+): Promise<Uint8Array> {
+  const key = Deno.env.get("ELEVENLABS_API_KEY");
+  if (!key) throw new Error("ELEVENLABS_API_KEY missing");
+  const resp = await fetch(
+    `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`,
+    {
+      method: "POST",
+      headers: { "xi-api-key": key, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        text,
+        model_id: modelId,
+        voice_settings: {
+          stability: 0.4,
+          similarity_boost: 0.8,
+          style: 0.5,
+          use_speaker_boost: true,
+        },
+      }),
+      signal: AbortSignal.timeout(60_000),
+    },
+  );
+  if (!resp.ok) {
+    const err = await resp.text();
+    throw new Error(`ElevenLabs TTS ${resp.status}: ${err.slice(0, 200)}`);
+  }
+  return new Uint8Array(await resp.arrayBuffer());
+}
+
 export async function synthesizeLine(
   text: string,
   role: string,
@@ -317,6 +349,11 @@ export async function synthesizeLine(
     const voices = plan.geminiVoices!;
     const slot = pickVoiceSlot(role, index) % voices.length;
     return synthesizeGemini(text, voices[slot], plan.geminiStylePrefix ?? "");
+  }
+  if (plan.provider === "elevenlabs") {
+    const voices = plan.elevenLabsVoices!;
+    const slot = pickVoiceSlot(role, index) % voices.length;
+    return synthesizeElevenLabs(text, voices[slot], plan.elevenLabsModelId ?? "eleven_multilingual_v2");
   }
   const voices = plan.azureVoices!;
   const slot = pickVoiceSlot(role, index) % voices.length;

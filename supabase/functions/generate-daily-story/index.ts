@@ -136,6 +136,9 @@ Return ONLY the structured fields via the provided tool.`;
         purpose: "story",
         dialect: dialect as Dialect,
         strategy: "draft_critic",
+        // Avoid expensive/credit-limited defaults (claude-opus-4.1 was returning 402,
+        // gemini-3.1-pro-preview was tool-call flaking). Use reliable Gemini 2.5 stack.
+        models: ["google/gemini-2.5-pro", "google/gemini-2.5-flash"],
         systemPromptExtra: systemExtra,
         userPrompt,
         maxTokens: 2048,

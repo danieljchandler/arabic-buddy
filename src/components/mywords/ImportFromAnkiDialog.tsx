@@ -63,12 +63,52 @@ export function ImportFromAnkiDialog({ open, onOpenChange }: Props) {
     mediaUploaded: number;
   } | null>(null);
 
+  const [confirmWipe, setConfirmWipe] = useState(false);
+  const [wiping, setWiping] = useState(false);
+  const [priorCount, setPriorCount] = useState<number | null>(null);
+
   const reset = () => {
     setStep("upload");
     setFilename("");
     setDeck(null);
     setProgress(null);
     setResult(null);
+  };
+
+  // Load count of existing Anki-imported cards for current user+dialect
+  const refreshPriorCount = async () => {
+    if (!user) return;
+    const { count } = await supabase
+      .from("user_vocabulary")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .eq("dialect", activeDialect)
+      .eq("source", "anki_import");
+    setPriorCount(count ?? 0);
+  };
+
+  const handleDeletePrevious = async () => {
+    if (!user) return;
+    setWiping(true);
+    try {
+      const { error, count } = await supabase
+        .from("user_vocabulary")
+        .delete({ count: "exact" })
+        .eq("user_id", user.id)
+        .eq("dialect", activeDialect)
+        .eq("source", "anki_import");
+      if (error) throw error;
+      toast.success(`Deleted ${count ?? 0} previously imported cards`);
+      setPriorCount(0);
+      qc.invalidateQueries({ queryKey: ["user-vocabulary"] });
+      qc.invalidateQueries({ queryKey: ["user-vocabulary-due"] });
+    } catch (err: any) {
+      console.error("[anki] delete previous error", err);
+      toast.error(err?.message || "Could not delete previous import");
+    } finally {
+      setWiping(false);
+      setConfirmWipe(false);
+    }
   };
 
   const handleClose = (next: boolean) => {

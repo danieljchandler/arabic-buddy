@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
+import { MODEL_LINEUPS } from "../_shared/modelRegistry.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -60,20 +61,30 @@ serve(async (req) => {
 
     const msaPrompt = `Convert this ${dialectLabel} word/phrase to Modern Standard Arabic (فصحى). Return ONLY the MSA Arabic script, no explanation.${contextBlock}`;
 
-    async function callLovable(systemPrompt: string, userContent: string, maxTokens: number): Promise<string | null> {
-      if (!LOVABLE_API_KEY) return null;
+    const OPENROUTER_API_KEY = Deno.env.get('OPENROUTER_API_KEY') ?? '';
+
+    function routeForModel(model: string): 'lovable' | 'openrouter' {
+      return /^(anthropic|qwen|meta-llama|mistralai|deepseek|x-ai)\//.test(model)
+        ? 'openrouter'
+        : 'lovable';
+    }
+
+    async function callModel(model: string, systemPrompt: string, userContent: string, maxTokens: number): Promise<string | null> {
+      const route = routeForModel(model);
+      const url = route === 'openrouter'
+        ? 'https://openrouter.ai/api/v1/chat/completions'
+        : 'https://ai.gateway.lovable.dev/v1/chat/completions';
+      const apiKey = route === 'openrouter' ? OPENROUTER_API_KEY : (LOVABLE_API_KEY ?? '');
+      if (!apiKey) return null;
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 12_000);
+      const timeout = setTimeout(() => controller.abort(), 15_000);
       try {
-        const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        const response = await fetch(url, {
           method: 'POST',
           signal: controller.signal,
-          headers: {
-            'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-            'Content-Type': 'application/json',
-          },
+          headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            model: 'google/gemini-2.5-flash',
+            model,
             messages: [
               { role: 'system', content: systemPrompt },
               { role: 'user', content: userContent },
@@ -82,79 +93,41 @@ serve(async (req) => {
             temperature: 0.1,
           }),
         });
-        if (!response.ok) return null;
+        if (!response.ok) {
+          console.warn(`[translate-phrase] ${route} ${model} ${response.status}`);
+          return null;
+        }
         const data = await response.json();
         return (data?.choices?.[0]?.message?.content ?? '').trim() || null;
-      } catch {
+      } catch (e) {
+        console.warn(`[translate-phrase] ${model} failed:`, e instanceof Error ? e.message : String(e));
         return null;
       } finally {
         clearTimeout(timeout);
       }
     }
 
-    // Run translation and MSA in parallel via Lovable gateway
-    const [translation, msa] = await Promise.all([
-      callLovable(translationPrompt, phrase, 50),
-      callLovable(msaPrompt, phrase, 50),
+    // TRANSLATION lineup ensemble (Claude Sonnet 4.5 + Gemini 3.5 Flash).
+    // Both run in parallel; Claude preferred when both succeed. MSA conversion
+    // is a single cheap Gemini call.
+    const [claudeT, geminiT, msa] = await Promise.all([
+      callModel(MODEL_LINEUPS.TRANSLATION.drafters[0], translationPrompt, phrase, 80),
+      callModel(MODEL_LINEUPS.TRANSLATION.drafters[1], translationPrompt, phrase, 80),
+      callModel(MODEL_LINEUPS.TRANSLATION.drafters[1], msaPrompt, phrase, 50),
     ]);
 
-    // Fallback to OpenRouter if Lovable failed
-    if (!translation) {
-      const OPENROUTER_API_KEY = Deno.env.get('OPENROUTER_API_KEY');
-      if (OPENROUTER_API_KEY) {
-        async function callOpenRouter(systemPrompt: string, userContent: string): Promise<string | null> {
-          const controller = new AbortController();
-          const timeout = setTimeout(() => controller.abort(), 15_000);
-          try {
-            const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-              method: 'POST',
-              signal: controller.signal,
-              headers: {
-                'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                model: 'qwen/qwen3-235b-a22b',
-                messages: [
-                  { role: 'system', content: systemPrompt },
-                  { role: 'user', content: userContent },
-                ],
-                max_tokens: 30,
-                temperature: 0.1,
-              }),
-            });
-            if (!response.ok) return null;
-            const data = await response.json();
-            return (data?.choices?.[0]?.message?.content ?? '').trim() || null;
-          } catch {
-            return null;
-          } finally {
-            clearTimeout(timeout);
-          }
-        }
+    const translation = claudeT ?? geminiT ?? '';
 
-        const fallbackTranslation = await callOpenRouter(translationPrompt, phrase);
-        const fallbackMsa = msa || await callOpenRouter(msaPrompt, phrase);
-        
-        return new Response(JSON.stringify({ 
-          translation: fallbackTranslation || '', 
-          msa: fallbackMsa || '' 
-        }), {
-          status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        });
-      }
-    }
+    console.log('Translation:', phrase, '->', translation, `(claude=${!!claudeT}, gemini=${!!geminiT})`);
 
-    console.log('Translation:', phrase, '->', translation);
-
-    return new Response(JSON.stringify({ translation: translation || '', msa: msa || '' }), {
-      status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    return new Response(JSON.stringify({ translation, msa: msa || '' }), {
+      status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
   } catch (error) {
     console.error('translate-phrase error:', error);
     return new Response(JSON.stringify({ error: 'Internal server error' }), {
-      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 });

@@ -19,6 +19,7 @@ import {
   DEFAULT_FAST,
   DEFAULT_JUDGE,
   DEFAULT_DRAFTERS,
+  MODEL_LINEUPS,
   getModelWeight,
 } from './modelRegistry.ts';
 
@@ -462,9 +463,11 @@ async function runEnsemble<T>(task: BrainTask, apiKey: string): Promise<BrainRes
 }
 
 async function runDraftCritic<T>(task: BrainTask, apiKey: string): Promise<BrainResult<T>> {
+  // CONTENT lineup: Gemini drafts, Claude critiques. Source of truth =
+  // MODEL_LINEUPS.CONTENT in modelRegistry.ts.
   const [drafter, critic] = task.models && task.models.length >= 2
     ? task.models
-    : ['google/gemini-3.1-pro-preview', DEFAULT_JUDGE];
+    : [MODEL_LINEUPS.CONTENT.drafters[0], MODEL_LINEUPS.CONTENT.judge];
 
   const sys = buildSystem(task);
   const draft = await callModelWithFallback({

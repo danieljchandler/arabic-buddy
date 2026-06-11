@@ -1,13 +1,16 @@
 // =============================================================================
 // falcon-translate (Gulf Arabic Line-by-Line Translation Engine)
 // =============================================================================
-// LEGACY NAME: This function was originally built on the Falcon model but now uses
-// a Qwen 3 235B + Gemini 2.5 Flash parallel ensemble via OpenRouter for
-// translating Gulf Arabic (Khaliji) transcript lines to English.
+// LEGACY NAME: This function was originally built on the Falcon model but now
+// uses the canonical TRANSLATION lineup (Claude Sonnet 4.5 + Gemini 3.5 Flash)
+// from _shared/modelRegistry.ts. Both models run in parallel; the first
+// non-empty response wins. Do NOT hardcode model IDs here — bump them in the
+// registry instead.
 // =============================================================================
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { MODEL_LINEUPS } from "../_shared/modelRegistry.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -36,15 +39,30 @@ function parseNumberedTranslations(generatedText: string, arabicLines: string[])
   return translations;
 }
 
-async function callOpenRouterTranslate(
+// Lovable AI Gateway = Gemini family. OpenRouter = Claude / Qwen / others.
+function routeForModel(model: string): 'lovable' | 'openrouter' {
+  if (/^(anthropic|qwen|meta-llama|mistralai|deepseek|x-ai)\//.test(model)) return 'openrouter';
+  return 'lovable';
+}
+
+async function callTranslate(
   model: string,
   numberedLines: string,
-  apiKey: string,
+  keys: { openrouter: string; lovable: string },
 ): Promise<string | null> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 90_000);
   try {
-    const response = await fetch(OPENROUTER_ENDPOINT, {
+    const route = routeForModel(model);
+    const url = route === 'openrouter'
+      ? OPENROUTER_ENDPOINT
+      : 'https://ai.gateway.lovable.dev/v1/chat/completions';
+    const apiKey = route === 'openrouter' ? keys.openrouter : keys.lovable;
+    if (!apiKey) {
+      console.warn(`${route} key missing for ${model}`);
+      return null;
+    }
+    const response = await fetch(url, {
       method: 'POST',
       signal: controller.signal,
       headers: {
@@ -66,13 +84,13 @@ async function callOpenRouterTranslate(
       }),
     });
     if (!response.ok) {
-      console.warn(`OpenRouter ${model} error:`, response.status);
+      console.warn(`${route} ${model} error:`, response.status);
       return null;
     }
     const data = await response.json();
     return data?.choices?.[0]?.message?.content || null;
   } catch (e) {
-    console.warn(`OpenRouter ${model} failed:`, e instanceof Error ? e.message : String(e));
+    console.warn(`${model} failed:`, e instanceof Error ? e.message : String(e));
     return null;
   } finally {
     clearTimeout(timeout);
@@ -111,8 +129,9 @@ serve(async (req) => {
       );
     }
 
-    const OPENROUTER_API_KEY = Deno.env.get('OPENROUTER_API_KEY');
-    if (!OPENROUTER_API_KEY) {
+    const OPENROUTER_API_KEY = Deno.env.get('OPENROUTER_API_KEY') ?? '';
+    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY') ?? '';
+    if (!OPENROUTER_API_KEY && !LOVABLE_API_KEY) {
       return new Response(
         JSON.stringify({ error: 'AI service not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -123,12 +142,15 @@ serve(async (req) => {
 
     const numberedLines = arabicLines.map((line: string, i: number) => `${i + 1}. ${line}`).join('\n');
 
-    const [qwenText, geminiText] = await Promise.all([
-      callOpenRouterTranslate('qwen/qwen3-235b-a22b', numberedLines, OPENROUTER_API_KEY),
-      callOpenRouterTranslate('google/gemini-2.5-flash', numberedLines, OPENROUTER_API_KEY),
-    ]);
+    // TRANSLATION lineup from registry — Claude Sonnet 4.5 (OpenRouter) +
+    // Gemini 3.5 Flash (Lovable Gateway), run in parallel.
+    const [claudeText, geminiText] = await Promise.all(
+      MODEL_LINEUPS.TRANSLATION.drafters.map((m) =>
+        callTranslate(m, numberedLines, { openrouter: OPENROUTER_API_KEY, lovable: LOVABLE_API_KEY })
+      )
+    );
 
-    const generatedText = qwenText ?? geminiText ?? '';
+    const generatedText = claudeText ?? geminiText ?? '';
 
     if (!generatedText) {
       console.error('All translation models returned empty content');
@@ -138,7 +160,7 @@ serve(async (req) => {
       );
     }
 
-    console.log(`falcon-translate: response length=${generatedText.length} (qwen=${!!qwenText}, gemini=${!!geminiText})`);
+    console.log(`falcon-translate: response length=${generatedText.length} (claude=${!!claudeText}, gemini=${!!geminiText})`);
 
     const translations = parseNumberedTranslations(generatedText, arabicLines);
 

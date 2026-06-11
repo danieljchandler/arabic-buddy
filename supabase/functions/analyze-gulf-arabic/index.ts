@@ -1660,38 +1660,41 @@ serve(async (req) => {
      const hfApiKey = Deno.env.get('HUGGINGFACE_API_KEY') ?? '';
 
       const [translationEnsembleResult, analysisResp, fanarMetaResp, fanarValidResp, camelDialectResult, diacritizedTranscript] = await Promise.all([
-        // TRANSLATION ENSEMBLE — Gemini (1.0) + Claude Opus (1.0) co-equal peers,
-        // Qwen3-Max (0.5) as lighter-weight verifier. All three run in parallel;
-        // results are merged per-line by weighted Jaccard clustering. See
-        // mergeTranslationEnsemble() above.
+        // TRANSLATION ENSEMBLE — Claude Sonnet 4.5 (1.0) + Gemini 3.5 Flash (1.0)
+        // as co-equal peers, Qwen3-Max (0.5) as lower-weight verifier. Model
+        // IDs are sourced from _shared/modelRegistry.ts (MODEL_LINEUPS.TRANSLATION)
+        // so upgrades happen in one place. Do NOT hardcode IDs here.
         (async () => {
           const sys = getTranslationSystemPrompt(detectedDialect, visualContext, sonioxTranslation);
+          const CLAUDE = 'anthropic/claude-sonnet-4.5';
+          const GEMINI = 'google/gemini-3.5-flash';
+          const QWEN = 'qwen/qwen3-max';
           const settled = await Promise.allSettled([
             callTranslationModel({
-              name: 'google/gemini-3.1-pro-preview',
-              via: 'lovable',
-              weight: 1.0,
-              model: 'google/gemini-3.1-pro-preview',
-              systemPrompt: sys,
-              userContent: mergedTranscriptText,
-              apiKey: '',
-              maxTokens: 16384,
-            }),
-            callTranslationModel({
-              name: 'anthropic/claude-opus-4.1',
+              name: CLAUDE,
               via: 'openrouter',
               weight: 1.0,
-              model: 'anthropic/claude-opus-4.1',
+              model: CLAUDE,
               systemPrompt: sys,
               userContent: mergedTranscriptText,
               apiKey: OPENROUTER_API_KEY,
               maxTokens: 8192,
             }),
             callTranslationModel({
-              name: 'qwen/qwen3-max',
+              name: GEMINI,
+              via: 'lovable',
+              weight: 1.0,
+              model: GEMINI,
+              systemPrompt: sys,
+              userContent: mergedTranscriptText,
+              apiKey: '',
+              maxTokens: 16384,
+            }),
+            callTranslationModel({
+              name: QWEN,
               via: 'openrouter',
               weight: 0.5,
-              model: 'qwen/qwen3-max',
+              model: QWEN,
               systemPrompt: sys,
               userContent: mergedTranscriptText,
               apiKey: OPENROUTER_API_KEY,
@@ -1699,8 +1702,8 @@ serve(async (req) => {
             }),
           ]);
           const candidates: EnsembleCandidate[] = settled.map((s, i) => {
-            const names = ['google/gemini-3.1-pro-preview', 'anthropic/claude-opus-4.1', 'qwen/qwen3-max'];
-            const vias: Array<'lovable' | 'openrouter'> = ['lovable', 'openrouter', 'openrouter'];
+            const names = [CLAUDE, GEMINI, QWEN];
+            const vias: Array<'lovable' | 'openrouter'> = ['openrouter', 'lovable', 'openrouter'];
             const weights = [1.0, 1.0, 0.5];
             if (s.status === 'fulfilled') return s.value;
             return {

@@ -467,7 +467,7 @@ async function runDraftCritic<T>(task: BrainTask, apiKey: string): Promise<Brain
   // MODEL_LINEUPS.CONTENT in modelRegistry.ts.
   const [drafter, critic] = task.models && task.models.length >= 2
     ? task.models
-    : [DEFAULT_DRAFTERS[0] ?? DEFAULT_FAST, DEFAULT_JUDGE];
+    : [MODEL_LINEUPS.CONTENT.drafters[0], MODEL_LINEUPS.CONTENT.judge];
 
   const sys = buildSystem(task);
   const draft = await callModelWithFallback({

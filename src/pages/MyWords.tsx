@@ -5,7 +5,7 @@ import { useUserPhrases, useUserPhrasesDueCount, useDeleteUserPhrase } from "@/h
 import { useAuth } from "@/hooks/useAuth";
 import { useDialect } from "@/contexts/DialectContext";
 import { Button } from "@/components/ui/button";
-import { BookOpen, Trash2, ChevronLeft, ChevronRight, Loader2, Shuffle, Sparkles, Quote, MessageCircleQuestion, Upload } from "lucide-react";
+import { BookOpen, Trash2, ChevronLeft, ChevronRight, Loader2, Shuffle, Sparkles, Quote, MessageCircleQuestion, Upload, CheckSquare, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
@@ -15,6 +15,19 @@ import { ImportFromAnkiDialog } from "@/components/mywords/ImportFromAnkiDialog"
 import { Wand2 } from "lucide-react";
 import { InfoHint } from "@/components/InfoHint";
 import { PAGE_HINTS } from "@/lib/pageHints";
+import { Checkbox } from "@/components/ui/checkbox";
+import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const MyWords = () => {
   const navigate = useNavigate();
@@ -34,6 +47,11 @@ const MyWords = () => {
   const [ankiOpen, setAnkiOpen] = useState(false);
   const [deckFilter, setDeckFilter] = useState<string | null>(null);
   const [tagFilter, setTagFilter] = useState<string | null>(null);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
+  const queryClient = useQueryClient();
 
   const deckOptions = useMemo(() => {
     const m = new Map<string, number>();
@@ -75,6 +93,49 @@ const MyWords = () => {
       toast.success("تم حذف الكلمة");
     } catch (error) {
       toast.error("فشل حذف الكلمة");
+    }
+  };
+
+  const toggleSelected = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const exitSelectMode = () => {
+    setSelectMode(false);
+    setSelectedIds(new Set());
+  };
+
+  const selectAllVisible = () => {
+    if (!filteredWords) return;
+    setSelectedIds(new Set(filteredWords.map((w) => w.id)));
+  };
+
+  const handleBulkDelete = async () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    setBulkDeleting(true);
+    try {
+      // Delete in chunks of 200 to keep URL length sane
+      const CHUNK = 200;
+      for (let i = 0; i < ids.length; i += CHUNK) {
+        const slice = ids.slice(i, i + CHUNK);
+        const { error } = await supabase.from("user_vocabulary").delete().in("id", slice);
+        if (error) throw error;
+      }
+      toast.success(`Deleted ${ids.length} card${ids.length === 1 ? "" : "s"}`);
+      queryClient.invalidateQueries({ queryKey: ["user-vocabulary"] });
+      queryClient.invalidateQueries({ queryKey: ["user-vocabulary-due"] });
+      exitSelectMode();
+    } catch (err: any) {
+      console.error("[mywords] bulk delete error", err);
+      toast.error(err?.message || "Failed to delete selected cards");
+    } finally {
+      setBulkDeleting(false);
+      setConfirmBulkDelete(false);
     }
   };
 
@@ -344,6 +405,68 @@ const MyWords = () => {
         </div>
       )}
 
+      {/* Bulk select toolbar */}
+      {filteredWords && filteredWords.length > 0 && (
+        <div className="mb-2 flex items-center justify-between gap-2 flex-wrap">
+          {!selectMode ? (
+            <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground" onClick={() => setSelectMode(true)}>
+              <CheckSquare className="h-4 w-4" />
+              Select
+            </Button>
+          ) : (
+            <>
+              <div className="flex items-center gap-2 text-sm">
+                <span className="font-medium">{selectedIds.size} selected</span>
+                <button className="text-xs text-primary hover:underline" onClick={selectAllVisible}>
+                  Select all ({filteredWords.length})
+                </button>
+                {selectedIds.size > 0 && (
+                  <button className="text-xs text-muted-foreground hover:underline" onClick={() => setSelectedIds(new Set())}>
+                    Clear
+                  </button>
+                )}
+              </div>
+              <div className="flex items-center gap-1.5 ml-auto">
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  className="gap-1.5"
+                  disabled={selectedIds.size === 0 || bulkDeleting}
+                  onClick={() => setConfirmBulkDelete(true)}
+                >
+                  {bulkDeleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                  Delete {selectedIds.size > 0 ? selectedIds.size : ""}
+                </Button>
+                <Button variant="ghost" size="sm" onClick={exitSelectMode} disabled={bulkDeleting}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      <AlertDialog open={confirmBulkDelete} onOpenChange={setConfirmBulkDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {selectedIds.size} card{selectedIds.size === 1 ? "" : "s"}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently removes the selected words and their review progress. This can't be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); handleBulkDelete(); }}
+              disabled={bulkDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {bulkDeleting ? "Deleting…" : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Word list */}
       {filteredWords && filteredWords.length > 0 && (
         <div className="rounded-xl bg-card border border-border overflow-hidden">
@@ -356,11 +479,22 @@ const MyWords = () => {
               className={cn(
                 "p-4",
                 "hover:bg-muted/50 transition-colors",
+                selectMode && selectedIds.has(word.id) && "bg-primary/5",
+                selectMode && "cursor-pointer",
                 index < (filteredWords?.length ?? 0) - 1 && "border-b border-border"
               )}
+              onClick={selectMode ? () => toggleSelected(word.id) : undefined}
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
+                  {selectMode && (
+                    <Checkbox
+                      checked={selectedIds.has(word.id)}
+                      onCheckedChange={() => toggleSelected(word.id)}
+                      onClick={(e) => e.stopPropagation()}
+                      className="shrink-0"
+                    />
+                  )}
                   {word.image_url ? (
                     <img
                       src={word.image_url}

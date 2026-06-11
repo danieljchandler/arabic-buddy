@@ -479,11 +479,22 @@ const MyWords = () => {
               className={cn(
                 "p-4",
                 "hover:bg-muted/50 transition-colors",
+                selectMode && selectedIds.has(word.id) && "bg-primary/5",
+                selectMode && "cursor-pointer",
                 index < (filteredWords?.length ?? 0) - 1 && "border-b border-border"
               )}
+              onClick={selectMode ? () => toggleSelected(word.id) : undefined}
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
+                  {selectMode && (
+                    <Checkbox
+                      checked={selectedIds.has(word.id)}
+                      onCheckedChange={() => toggleSelected(word.id)}
+                      onClick={(e) => e.stopPropagation()}
+                      className="shrink-0"
+                    />
+                  )}
                   {word.image_url ? (
                     <img
                       src={word.image_url}

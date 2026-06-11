@@ -129,8 +129,9 @@ serve(async (req) => {
       );
     }
 
-    const OPENROUTER_API_KEY = Deno.env.get('OPENROUTER_API_KEY');
-    if (!OPENROUTER_API_KEY) {
+    const OPENROUTER_API_KEY = Deno.env.get('OPENROUTER_API_KEY') ?? '';
+    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY') ?? '';
+    if (!OPENROUTER_API_KEY && !LOVABLE_API_KEY) {
       return new Response(
         JSON.stringify({ error: 'AI service not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -141,12 +142,15 @@ serve(async (req) => {
 
     const numberedLines = arabicLines.map((line: string, i: number) => `${i + 1}. ${line}`).join('\n');
 
-    const [qwenText, geminiText] = await Promise.all([
-      callOpenRouterTranslate('qwen/qwen3-235b-a22b', numberedLines, OPENROUTER_API_KEY),
-      callOpenRouterTranslate('google/gemini-2.5-flash', numberedLines, OPENROUTER_API_KEY),
-    ]);
+    // TRANSLATION lineup from registry — Claude Sonnet 4.5 (OpenRouter) +
+    // Gemini 3.5 Flash (Lovable Gateway), run in parallel.
+    const [claudeText, geminiText] = await Promise.all(
+      MODEL_LINEUPS.TRANSLATION.drafters.map((m) =>
+        callTranslate(m, numberedLines, { openrouter: OPENROUTER_API_KEY, lovable: LOVABLE_API_KEY })
+      )
+    );
 
-    const generatedText = qwenText ?? geminiText ?? '';
+    const generatedText = claudeText ?? geminiText ?? '';
 
     if (!generatedText) {
       console.error('All translation models returned empty content');
@@ -156,7 +160,7 @@ serve(async (req) => {
       );
     }
 
-    console.log(`falcon-translate: response length=${generatedText.length} (qwen=${!!qwenText}, gemini=${!!geminiText})`);
+    console.log(`falcon-translate: response length=${generatedText.length} (claude=${!!claudeText}, gemini=${!!geminiText})`);
 
     const translations = parseNumberedTranslations(generatedText, arabicLines);
 

@@ -11,7 +11,7 @@ const GULF_DIALECTS = new Set([
   "saudi", "kuwaiti", "qatari", "bahraini", "omani",
 ]);
 
-export type Provider = "munsit" | "azure" | "gemini";
+export type Provider = "munsit" | "azure" | "gemini" | "elevenlabs";
 
 export interface ProviderPlan {
   provider: Provider;
@@ -25,7 +25,19 @@ export interface ProviderPlan {
   // For Gemini: prebuilt voice names + style prefix injected into each prompt.
   geminiVoices?: string[];
   geminiStylePrefix?: string;
+  // For ElevenLabs: ordered list of voice IDs (alternated by speaker slot).
+  elevenLabsVoices?: string[];
+  elevenLabsModelId?: string;
 }
+
+// ElevenLabs voices that handle Arabic well via eleven_multilingual_v2.
+// Order: female, male, female, male — picked up via pickVoiceSlot.
+const ELEVENLABS_EGYPTIAN_VOICES = [
+  "EXAVITQu4vr4xnSDxMaL", // Sarah (female)
+  "JBFqnCBsd6RMkjVDRZzb", // George (male)
+  "XrExE9yKIg1WjnnlVkGX", // Matilda (female)
+  "onwK4e9ZLuTAKqWW03F9", // Daniel (male)
+];
 
 const AZURE_VOICE_MAP: Record<string, string[]> = {
   Egyptian: ["ar-EG-ShakirNeural", "ar-EG-SalmaNeural"],

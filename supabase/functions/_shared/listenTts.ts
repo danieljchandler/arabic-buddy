@@ -461,6 +461,10 @@ export function estimateSeconds(bytes: number, plan: ProviderPlan): number {
     // Gemini TTS returns 24 kHz mono 16-bit PCM = 48000 B/s.
     return Math.max(0, Math.round((bytes - 44) / 48000));
   }
+  if (plan.provider === "elevenlabs") {
+    // ElevenLabs MP3 at 128 kbps CBR.
+    return Math.round((bytes * 8) / 128000);
+  }
   // Azure 48 kbps CBR MP3
   return Math.round((bytes * 8) / 48000);
 }

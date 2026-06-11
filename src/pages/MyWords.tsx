@@ -405,6 +405,68 @@ const MyWords = () => {
         </div>
       )}
 
+      {/* Bulk select toolbar */}
+      {filteredWords && filteredWords.length > 0 && (
+        <div className="mb-2 flex items-center justify-between gap-2 flex-wrap">
+          {!selectMode ? (
+            <Button variant="ghost" size="sm" className="gap-1.5 text-muted-foreground" onClick={() => setSelectMode(true)}>
+              <CheckSquare className="h-4 w-4" />
+              Select
+            </Button>
+          ) : (
+            <>
+              <div className="flex items-center gap-2 text-sm">
+                <span className="font-medium">{selectedIds.size} selected</span>
+                <button className="text-xs text-primary hover:underline" onClick={selectAllVisible}>
+                  Select all ({filteredWords.length})
+                </button>
+                {selectedIds.size > 0 && (
+                  <button className="text-xs text-muted-foreground hover:underline" onClick={() => setSelectedIds(new Set())}>
+                    Clear
+                  </button>
+                )}
+              </div>
+              <div className="flex items-center gap-1.5 ml-auto">
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  className="gap-1.5"
+                  disabled={selectedIds.size === 0 || bulkDeleting}
+                  onClick={() => setConfirmBulkDelete(true)}
+                >
+                  {bulkDeleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                  Delete {selectedIds.size > 0 ? selectedIds.size : ""}
+                </Button>
+                <Button variant="ghost" size="sm" onClick={exitSelectMode} disabled={bulkDeleting}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      <AlertDialog open={confirmBulkDelete} onOpenChange={setConfirmBulkDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {selectedIds.size} card{selectedIds.size === 1 ? "" : "s"}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently removes the selected words and their review progress. This can't be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); handleBulkDelete(); }}
+              disabled={bulkDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {bulkDeleting ? "Deleting…" : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Word list */}
       {filteredWords && filteredWords.length > 0 && (
         <div className="rounded-xl bg-card border border-border overflow-hidden">

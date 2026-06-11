@@ -144,6 +144,16 @@ export async function planProvider(dialect: string): Promise<ProviderPlan> {
     };
   }
 
+  if (dialect === "Egyptian" && Deno.env.get("ELEVENLABS_API_KEY")) {
+    return {
+      provider: "elevenlabs",
+      ext: "mp3",
+      contentType: "audio/mpeg",
+      elevenLabsVoices: ELEVENLABS_EGYPTIAN_VOICES,
+      elevenLabsModelId: "eleven_multilingual_v2",
+    };
+  }
+
   return {
     provider: "azure",
     ext: "mp3",

@@ -11,7 +11,7 @@ const GULF_DIALECTS = new Set([
   "saudi", "kuwaiti", "qatari", "bahraini", "omani",
 ]);
 
-export type Provider = "munsit" | "azure" | "gemini";
+export type Provider = "munsit" | "azure" | "gemini" | "elevenlabs";
 
 export interface ProviderPlan {
   provider: Provider;
@@ -25,7 +25,19 @@ export interface ProviderPlan {
   // For Gemini: prebuilt voice names + style prefix injected into each prompt.
   geminiVoices?: string[];
   geminiStylePrefix?: string;
+  // For ElevenLabs: ordered list of voice IDs (alternated by speaker slot).
+  elevenLabsVoices?: string[];
+  elevenLabsModelId?: string;
 }
+
+// ElevenLabs voices that handle Arabic well via eleven_multilingual_v2.
+// Order: female, male, female, male — picked up via pickVoiceSlot.
+const ELEVENLABS_EGYPTIAN_VOICES = [
+  "EXAVITQu4vr4xnSDxMaL", // Sarah (female)
+  "JBFqnCBsd6RMkjVDRZzb", // George (male)
+  "XrExE9yKIg1WjnnlVkGX", // Matilda (female)
+  "onwK4e9ZLuTAKqWW03F9", // Daniel (male)
+];
 
 const AZURE_VOICE_MAP: Record<string, string[]> = {
   Egyptian: ["ar-EG-ShakirNeural", "ar-EG-SalmaNeural"],
@@ -129,6 +141,16 @@ export async function planProvider(dialect: string): Promise<ProviderPlan> {
       contentType: "audio/wav",
       geminiVoices: GEMINI_VOICES_DEFAULT,
       geminiStylePrefix: NEUTRAL_YEMENI_STYLE,
+    };
+  }
+
+  if (dialect === "Egyptian" && Deno.env.get("ELEVENLABS_API_KEY")) {
+    return {
+      provider: "elevenlabs",
+      ext: "mp3",
+      contentType: "audio/mpeg",
+      elevenLabsVoices: ELEVENLABS_EGYPTIAN_VOICES,
+      elevenLabsModelId: "eleven_multilingual_v2",
     };
   }
 
@@ -280,6 +302,38 @@ export async function synthesizeGemini(
   return pcmToWav(pcm, sampleRate);
 }
 
+export async function synthesizeElevenLabs(
+  text: string,
+  voiceId: string,
+  modelId: string,
+): Promise<Uint8Array> {
+  const key = Deno.env.get("ELEVENLABS_API_KEY");
+  if (!key) throw new Error("ELEVENLABS_API_KEY missing");
+  const resp = await fetch(
+    `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`,
+    {
+      method: "POST",
+      headers: { "xi-api-key": key, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        text,
+        model_id: modelId,
+        voice_settings: {
+          stability: 0.4,
+          similarity_boost: 0.8,
+          style: 0.5,
+          use_speaker_boost: true,
+        },
+      }),
+      signal: AbortSignal.timeout(60_000),
+    },
+  );
+  if (!resp.ok) {
+    const err = await resp.text();
+    throw new Error(`ElevenLabs TTS ${resp.status}: ${err.slice(0, 200)}`);
+  }
+  return new Uint8Array(await resp.arrayBuffer());
+}
+
 export async function synthesizeLine(
   text: string,
   role: string,
@@ -295,6 +349,11 @@ export async function synthesizeLine(
     const voices = plan.geminiVoices!;
     const slot = pickVoiceSlot(role, index) % voices.length;
     return synthesizeGemini(text, voices[slot], plan.geminiStylePrefix ?? "");
+  }
+  if (plan.provider === "elevenlabs") {
+    const voices = plan.elevenLabsVoices!;
+    const slot = pickVoiceSlot(role, index) % voices.length;
+    return synthesizeElevenLabs(text, voices[slot], plan.elevenLabsModelId ?? "eleven_multilingual_v2");
   }
   const voices = plan.azureVoices!;
   const slot = pickVoiceSlot(role, index) % voices.length;
@@ -401,6 +460,10 @@ export function estimateSeconds(bytes: number, plan: ProviderPlan): number {
   if (plan.provider === "gemini") {
     // Gemini TTS returns 24 kHz mono 16-bit PCM = 48000 B/s.
     return Math.max(0, Math.round((bytes - 44) / 48000));
+  }
+  if (plan.provider === "elevenlabs") {
+    // ElevenLabs MP3 at 128 kbps CBR.
+    return Math.round((bytes * 8) / 128000);
   }
   // Azure 48 kbps CBR MP3
   return Math.round((bytes * 8) / 48000);

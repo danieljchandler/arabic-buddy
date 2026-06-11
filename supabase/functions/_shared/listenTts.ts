@@ -36,6 +36,16 @@ const ELEVENLABS_EGYPTIAN_VOICES = [
   "rMheqEfwsIJckq2yCdb5", // Ahmed Yahia (male, ar-EG)
 ];
 
+// Munsit Fusha (MSA) voices — used as a temporary Egyptian fallback since
+// Munsit doesn't yet offer Egyptian dialect voices. Alternated F/M/F/M.
+const MUNSIT_FUSHA_VOICES = [
+  "OUOdy43qiHKwzVLRScXFnUe8", // Arwa (female)
+  "yRRuMDhFftPmzIAA6odGikIC", // Fares (male)
+  "lQhCsHldPPHNMpcZBfvtqLHF", // Ruba (female)
+  "tmip9TnndVNGlYHsC6c4sht8", // Moataz (male)
+];
+
+
 const AZURE_VOICE_MAP: Record<string, string[]> = {
   Egyptian: ["ar-EG-ShakirNeural", "ar-EG-SalmaNeural"],
   Yemeni: ["ar-YE-MaryamNeural", "ar-YE-SalehNeural"],
@@ -141,15 +151,20 @@ export async function planProvider(dialect: string): Promise<ProviderPlan> {
     };
   }
 
-  if (dialect === "Egyptian" && Deno.env.get("ELEVENLABS_API_KEY")) {
-    return {
-      provider: "elevenlabs",
-      ext: "mp3",
-      contentType: "audio/mpeg",
-      elevenLabsVoices: ELEVENLABS_EGYPTIAN_VOICES,
-      elevenLabsModelId: "eleven_multilingual_v2",
-    };
+  if (dialect === "Egyptian" && munsitKey) {
+    const modelId = await pickMunsitModelId(munsitKey);
+    if (modelId) {
+      return {
+        provider: "munsit",
+        ext: "wav",
+        contentType: "audio/wav",
+        munsitVoices: MUNSIT_FUSHA_VOICES,
+        munsitModelId: modelId,
+      };
+    }
+    console.warn("listenTts: Munsit unavailable for Egyptian, falling back to Azure");
   }
+
 
   return {
     provider: "azure",

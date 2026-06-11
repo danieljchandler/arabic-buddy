@@ -111,6 +111,13 @@ export function ImportFromAnkiDialog({ open, onOpenChange }: Props) {
     }
   };
 
+  useEffect(() => {
+    if (open && user) {
+      refreshPriorCount();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, user?.id, activeDialect]);
+
   const handleClose = (next: boolean) => {
     if (!next && step !== "importing") {
       reset();

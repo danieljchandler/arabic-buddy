@@ -39,15 +39,30 @@ function parseNumberedTranslations(generatedText: string, arabicLines: string[])
   return translations;
 }
 
-async function callOpenRouterTranslate(
+// Lovable AI Gateway = Gemini family. OpenRouter = Claude / Qwen / others.
+function routeForModel(model: string): 'lovable' | 'openrouter' {
+  if (/^(anthropic|qwen|meta-llama|mistralai|deepseek|x-ai)\//.test(model)) return 'openrouter';
+  return 'lovable';
+}
+
+async function callTranslate(
   model: string,
   numberedLines: string,
-  apiKey: string,
+  keys: { openrouter: string; lovable: string },
 ): Promise<string | null> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 90_000);
   try {
-    const response = await fetch(OPENROUTER_ENDPOINT, {
+    const route = routeForModel(model);
+    const url = route === 'openrouter'
+      ? OPENROUTER_ENDPOINT
+      : 'https://ai.gateway.lovable.dev/v1/chat/completions';
+    const apiKey = route === 'openrouter' ? keys.openrouter : keys.lovable;
+    if (!apiKey) {
+      console.warn(`${route} key missing for ${model}`);
+      return null;
+    }
+    const response = await fetch(url, {
       method: 'POST',
       signal: controller.signal,
       headers: {
@@ -69,13 +84,13 @@ async function callOpenRouterTranslate(
       }),
     });
     if (!response.ok) {
-      console.warn(`OpenRouter ${model} error:`, response.status);
+      console.warn(`${route} ${model} error:`, response.status);
       return null;
     }
     const data = await response.json();
     return data?.choices?.[0]?.message?.content || null;
   } catch (e) {
-    console.warn(`OpenRouter ${model} failed:`, e instanceof Error ? e.message : String(e));
+    console.warn(`${model} failed:`, e instanceof Error ? e.message : String(e));
     return null;
   } finally {
     clearTimeout(timeout);

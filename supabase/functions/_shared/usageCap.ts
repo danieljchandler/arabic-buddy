@@ -65,6 +65,21 @@ async function hasActiveSubscription(userId: string): Promise<boolean> {
   }
 }
 
+async function isAdminUser(userId: string): Promise<boolean> {
+  try {
+    const supa = admin();
+    const { data } = await supa
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId)
+      .eq("role", "admin")
+      .maybeSingle();
+    return !!data;
+  } catch {
+    return false;
+  }
+}
+
 export async function enforceDailyCap(
   req: Request,
   key: string,

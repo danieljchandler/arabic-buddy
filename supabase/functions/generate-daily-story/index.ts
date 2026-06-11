@@ -136,9 +136,8 @@ Return ONLY the structured fields via the provided tool.`;
         purpose: "story",
         dialect: dialect as Dialect,
         strategy: "draft_critic",
-        // Avoid expensive/credit-limited defaults (claude-opus-4.1 was returning 402,
-        // gemini-3.1-pro-preview was tool-call flaking). Use reliable Gemini 2.5 stack.
-        models: ["google/gemini-2.5-pro", "google/gemini-2.5-flash"],
+        // Uses MODEL_LINEUPS.CONTENT (Gemini 3.5 Flash drafts, Claude Sonnet 4.5 critiques)
+        // from _shared/modelRegistry.ts. Do not hardcode model IDs here.
         systemPromptExtra: systemExtra,
         userPrompt,
         maxTokens: 2048,

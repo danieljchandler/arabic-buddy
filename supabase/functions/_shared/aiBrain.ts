@@ -19,6 +19,7 @@ import {
   DEFAULT_FAST,
   DEFAULT_JUDGE,
   DEFAULT_DRAFTERS,
+  MODEL_LINEUPS,
   getModelWeight,
 } from './modelRegistry.ts';
 

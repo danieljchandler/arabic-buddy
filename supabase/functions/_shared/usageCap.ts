@@ -97,7 +97,7 @@ export async function enforceDailyCap(
     };
   }
 
-  if (await hasActiveSubscription(userId)) {
+  if (await hasActiveSubscription(userId) || await isAdminUser(userId)) {
     return { limited: false, userId, count: 0, limit: Number.POSITIVE_INFINITY };
   }
 

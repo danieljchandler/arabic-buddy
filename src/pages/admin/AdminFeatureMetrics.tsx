@@ -63,6 +63,54 @@ const AdminFeatureMetrics = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dialect, status, feature, hours]);
 
+  const [teaching, setTeaching] = useState<string | null>(null);
+
+  const teachAI = async (input: {
+    key: string;
+    metric_id?: string;
+    feature: string;
+    event: string;
+    dialect: string | null;
+    meta?: Record<string, unknown> | null;
+    leaks?: string[];
+    message?: string;
+  }) => {
+    if (!input.dialect || !["Gulf", "Egyptian", "Yemeni"].includes(input.dialect)) {
+      toast.error("Cannot teach AI", { description: "Event has no recognized dialect." });
+      return;
+    }
+    setTeaching(input.key);
+    try {
+      const { data, error } = await supabase.functions.invoke("learn-from-metric", {
+        body: {
+          metric_id: input.metric_id,
+          feature: input.feature,
+          event: input.event,
+          dialect: input.dialect,
+          meta: input.meta ?? {},
+          leaks: input.leaks ?? [],
+          message: input.message ?? "",
+        },
+      });
+      if (error) throw error;
+      const inserted = (data as { inserted?: number })?.inserted ?? 0;
+      if (inserted > 0) {
+        toast.success(`Drafted ${inserted} rule${inserted === 1 ? "" : "s"}`, {
+          description: "Review in Dialect Rules → Draft tab.",
+          action: { label: "Open", onClick: () => window.location.assign("/admin/dialect-rules") },
+        });
+      } else {
+        toast.message("AI returned no proposals", { description: "Try a different event." });
+      }
+    } catch (e) {
+      toast.error("Teach AI failed", {
+        description: e instanceof Error ? e.message : "Unknown error",
+      });
+    } finally {
+      setTeaching(null);
+    }
+  };
+
   // Summary by feature × dialect
   const summary = useMemo(() => {
     const map = new Map<

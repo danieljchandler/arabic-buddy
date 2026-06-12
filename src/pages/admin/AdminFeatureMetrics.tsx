@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Loader2, RefreshCw, Activity } from "lucide-react";
+import { Loader2, RefreshCw, Activity, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 interface MetricRow {
@@ -61,6 +62,54 @@ const AdminFeatureMetrics = () => {
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dialect, status, feature, hours]);
+
+  const [teaching, setTeaching] = useState<string | null>(null);
+
+  const teachAI = async (input: {
+    key: string;
+    metric_id?: string;
+    feature: string;
+    event: string;
+    dialect: string | null;
+    meta?: Record<string, unknown> | null;
+    leaks?: string[];
+    message?: string;
+  }) => {
+    if (!input.dialect || !["Gulf", "Egyptian", "Yemeni"].includes(input.dialect)) {
+      toast.error("Cannot teach AI", { description: "Event has no recognized dialect." });
+      return;
+    }
+    setTeaching(input.key);
+    try {
+      const { data, error } = await supabase.functions.invoke("learn-from-metric", {
+        body: {
+          metric_id: input.metric_id,
+          feature: input.feature,
+          event: input.event,
+          dialect: input.dialect,
+          meta: input.meta ?? {},
+          leaks: input.leaks ?? [],
+          message: input.message ?? "",
+        },
+      });
+      if (error) throw error;
+      const inserted = (data as { inserted?: number })?.inserted ?? 0;
+      if (inserted > 0) {
+        toast.success(`Drafted ${inserted} rule${inserted === 1 ? "" : "s"}`, {
+          description: "Review in Dialect Rules → Draft tab.",
+          action: { label: "Open", onClick: () => window.location.assign("/admin/dialect-rules") },
+        });
+      } else {
+        toast.message("AI returned no proposals", { description: "Try a different event." });
+      }
+    } catch (e) {
+      toast.error("Teach AI failed", {
+        description: e instanceof Error ? e.message : "Unknown error",
+      });
+    } finally {
+      setTeaching(null);
+    }
+  };
 
   // Summary by feature × dialect
   const summary = useMemo(() => {
@@ -190,29 +239,73 @@ const AdminFeatureMetrics = () => {
               <th className="text-right p-2">Err %</th>
               <th className="text-right p-2">Avg ms</th>
               <th className="text-right p-2">Avg leaks</th>
+              <th className="text-right p-2">Teach</th>
             </tr>
           </thead>
           <tbody>
             {summary.length === 0 ? (
               <tr>
-                <td colSpan={9} className="p-4 text-center text-muted-foreground">
+                <td colSpan={10} className="p-4 text-center text-muted-foreground">
                   {loading ? "Loading…" : "No events in this window."}
                 </td>
               </tr>
             ) : (
-              summary.map((s) => (
-                <tr key={`${s.feature}-${s.dialect}`} className="border-t">
-                  <td className="p-2 font-medium">{s.feature}</td>
-                  <td className="p-2">{s.dialect}</td>
-                  <td className="p-2 text-right">{s.total}</td>
-                  <td className="p-2 text-right text-emerald-700">{s.ok}</td>
-                  <td className="p-2 text-right text-amber-700">{s.warn}</td>
-                  <td className="p-2 text-right text-rose-700">{s.err}</td>
-                  <td className="p-2 text-right">{(s.errorRate * 100).toFixed(0)}%</td>
-                  <td className="p-2 text-right">{s.avgDuration || "—"}</td>
-                  <td className="p-2 text-right">{s.avgLeaks ? s.avgLeaks.toFixed(2) : "—"}</td>
-                </tr>
-              ))
+              summary.map((s) => {
+                const canTeach =
+                  (s.err > 0 || s.avgLeaks > 0) &&
+                  ["Gulf", "Egyptian", "Yemeni"].includes(s.dialect);
+                const sampleLeaks = rows
+                  .filter(
+                    (r) =>
+                      r.feature === s.feature &&
+                      (r.dialect ?? "-") === s.dialect &&
+                      Array.isArray((r.meta as { leaks?: unknown })?.leaks),
+                  )
+                  .flatMap((r) => ((r.meta as { leaks?: string[] }).leaks ?? []))
+                  .slice(0, 30);
+                const key = `sum:${s.feature}:${s.dialect}`;
+                return (
+                  <tr key={`${s.feature}-${s.dialect}`} className="border-t">
+                    <td className="p-2 font-medium">{s.feature}</td>
+                    <td className="p-2">{s.dialect}</td>
+                    <td className="p-2 text-right">{s.total}</td>
+                    <td className="p-2 text-right text-emerald-700">{s.ok}</td>
+                    <td className="p-2 text-right text-amber-700">{s.warn}</td>
+                    <td className="p-2 text-right text-rose-700">{s.err}</td>
+                    <td className="p-2 text-right">{(s.errorRate * 100).toFixed(0)}%</td>
+                    <td className="p-2 text-right">{s.avgDuration || "—"}</td>
+                    <td className="p-2 text-right">{s.avgLeaks ? s.avgLeaks.toFixed(2) : "—"}</td>
+                    <td className="p-2 text-right">
+                      {canTeach ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={teaching === key}
+                          onClick={() =>
+                            teachAI({
+                              key,
+                              feature: s.feature,
+                              event: "summary_rollup",
+                              dialect: s.dialect,
+                              leaks: sampleLeaks,
+                              message: `Rollup: ${s.err} errors, avg ${s.avgLeaks.toFixed(2)} leaks/event over ${s.total} events.`,
+                              meta: { errors: s.err, warns: s.warn, total: s.total, avgLeaks: s.avgLeaks },
+                            })
+                          }
+                        >
+                          {teaching === key ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <Sparkles className="h-3 w-3" />
+                          )}
+                        </Button>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
@@ -228,41 +321,97 @@ const AdminFeatureMetrics = () => {
         <p className="text-muted-foreground text-sm">No events.</p>
       ) : (
         <div className="space-y-1">
-          {rows.map((r) => (
-            <details key={r.id} className="border rounded p-2 bg-card text-xs">
-              <summary className="cursor-pointer flex items-center gap-2">
-                <span
-                  className={`px-1.5 py-0.5 rounded ${STATUS_COLOR[r.status] ?? "bg-muted"}`}
-                >
-                  {r.status}
-                </span>
-                <span className="font-mono">{r.feature}</span>
-                <span className="text-muted-foreground">/{r.event}</span>
-                {r.dialect && (
-                  <span className="px-1.5 py-0.5 rounded bg-blue-100 text-blue-900">
-                    {r.dialect}
+          {rows.map((r) => {
+            const leaks = Array.isArray((r.meta as { leaks?: unknown })?.leaks)
+              ? ((r.meta as { leaks?: string[] }).leaks as string[])
+              : [];
+            const canTeach =
+              !!r.dialect &&
+              ["Gulf", "Egyptian", "Yemeni"].includes(r.dialect) &&
+              (r.status === "warn" ||
+                r.status === "error" ||
+                leaks.length > 0 ||
+                r.event === "dialect_leak");
+            return (
+              <details key={r.id} className="border rounded p-2 bg-card text-xs">
+                <summary className="cursor-pointer flex items-center gap-2">
+                  <span
+                    className={`px-1.5 py-0.5 rounded ${STATUS_COLOR[r.status] ?? "bg-muted"}`}
+                  >
+                    {r.status}
                   </span>
+                  <span className="font-mono">{r.feature}</span>
+                  <span className="text-muted-foreground">/{r.event}</span>
+                  {r.dialect && (
+                    <span className="px-1.5 py-0.5 rounded bg-blue-100 text-blue-900">
+                      {r.dialect}
+                    </span>
+                  )}
+                  {r.duration_ms != null && (
+                    <span className="text-muted-foreground">{r.duration_ms}ms</span>
+                  )}
+                  {r.count != null && (
+                    <span className="text-muted-foreground">n={r.count}</span>
+                  )}
+                  {r.score != null && (
+                    <span className="text-muted-foreground">
+                      score={Number(r.score).toFixed(2)}
+                    </span>
+                  )}
+                  <span className="ml-auto text-muted-foreground">
+                    {new Date(r.created_at).toLocaleString()}
+                  </span>
+                  {canTeach && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-6 px-2"
+                      disabled={teaching === r.id}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        void teachAI({
+                          key: r.id,
+                          metric_id: r.id,
+                          feature: r.feature,
+                          event: r.event,
+                          dialect: r.dialect,
+                          meta: r.meta,
+                          leaks,
+                          message:
+                            (r.meta as { error?: string } | null)?.error ??
+                            (r.meta as { message?: string } | null)?.message ??
+                            "",
+                        });
+                      }}
+                    >
+                      {teaching === r.id ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <>
+                          <Sparkles className="h-3 w-3 mr-1" /> Teach AI
+                        </>
+                      )}
+                    </Button>
+                  )}
+                </summary>
+                {r.meta && Object.keys(r.meta).length > 0 && (
+                  <pre className="mt-2 bg-muted p-2 rounded whitespace-pre-wrap overflow-auto max-h-64">
+                    {JSON.stringify(r.meta, null, 2)}
+                  </pre>
                 )}
-                {r.duration_ms != null && (
-                  <span className="text-muted-foreground">{r.duration_ms}ms</span>
-                )}
-                {r.count != null && <span className="text-muted-foreground">n={r.count}</span>}
-                {r.score != null && (
-                  <span className="text-muted-foreground">score={Number(r.score).toFixed(2)}</span>
-                )}
-                <span className="ml-auto text-muted-foreground">
-                  {new Date(r.created_at).toLocaleString()}
-                </span>
-              </summary>
-              {r.meta && Object.keys(r.meta).length > 0 && (
-                <pre className="mt-2 bg-muted p-2 rounded whitespace-pre-wrap overflow-auto max-h-64">
-                  {JSON.stringify(r.meta, null, 2)}
-                </pre>
-              )}
-            </details>
-          ))}
+              </details>
+            );
+          })}
         </div>
       )}
+      <div className="mt-4 text-xs text-muted-foreground">
+        Drafted rules appear in{" "}
+        <Link to="/admin/dialect-rules" className="underline">
+          Dialect Rules → Draft
+        </Link>
+        .
+      </div>
     </div>
   );
 };

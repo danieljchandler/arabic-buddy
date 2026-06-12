@@ -320,53 +320,6 @@ const AdminFeatureMetrics = () => {
       ) : rows.length === 0 ? (
         <p className="text-muted-foreground text-sm">No events.</p>
       ) : (
-        <div className="space-y-1">
-          {rows.map((r) => {
-            const leaks = Array.isArray((r.meta as { leaks?: unknown })?.leaks)
-              ? ((r.meta as { leaks?: string[] }).leaks as string[])
-              : [];
-            const canTeach =
-              !!r.dialect &&
-              ["Gulf", "Egyptian", "Yemeni"].includes(r.dialect) &&
-              (r.status === "warn" || r.status === "error" || leaks.length > 0 || r.event === "dialect_leak");
-            return (
-            <details key={r.id} className="border rounded p-2 bg-card text-xs">
-              <summary className="cursor-pointer flex items-center gap-2">
-                <span
-                  className={`px-1.5 py-0.5 rounded ${STATUS_COLOR[r.status] ?? "bg-muted"}`}
-                >
-                  {r.status}
-                </span>
-                <span className="font-mono">{r.feature}</span>
-                <span className="text-muted-foreground">/{r.event}</span>
-              summary.map((s) => (
-                <tr key={`${s.feature}-${s.dialect}`} className="border-t">
-                  <td className="p-2 font-medium">{s.feature}</td>
-                  <td className="p-2">{s.dialect}</td>
-                  <td className="p-2 text-right">{s.total}</td>
-                  <td className="p-2 text-right text-emerald-700">{s.ok}</td>
-                  <td className="p-2 text-right text-amber-700">{s.warn}</td>
-                  <td className="p-2 text-right text-rose-700">{s.err}</td>
-                  <td className="p-2 text-right">{(s.errorRate * 100).toFixed(0)}%</td>
-                  <td className="p-2 text-right">{s.avgDuration || "—"}</td>
-                  <td className="p-2 text-right">{s.avgLeaks ? s.avgLeaks.toFixed(2) : "—"}</td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Event log */}
-      <h2 className="font-semibold mb-2">Recent events ({rows.length})</h2>
-      {loading ? (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-6 w-6 animate-spin" />
-        </div>
-      ) : rows.length === 0 ? (
-        <p className="text-muted-foreground text-sm">No events.</p>
-      ) : (
-        <div className="space-y-1">
           {rows.map((r) => (
             <details key={r.id} className="border rounded p-2 bg-card text-xs">
               <summary className="cursor-pointer flex items-center gap-2">

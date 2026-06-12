@@ -412,7 +412,6 @@ const AdminFeatureMetrics = () => {
         </Link>
         .
       </div>
-      )}
     </div>
   );
 };

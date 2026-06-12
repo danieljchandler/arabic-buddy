@@ -239,16 +239,106 @@ const AdminFeatureMetrics = () => {
               <th className="text-right p-2">Err %</th>
               <th className="text-right p-2">Avg ms</th>
               <th className="text-right p-2">Avg leaks</th>
+              <th className="text-right p-2">Teach</th>
             </tr>
           </thead>
           <tbody>
             {summary.length === 0 ? (
               <tr>
-                <td colSpan={9} className="p-4 text-center text-muted-foreground">
+                <td colSpan={10} className="p-4 text-center text-muted-foreground">
                   {loading ? "Loading…" : "No events in this window."}
                 </td>
               </tr>
             ) : (
+              summary.map((s) => {
+                const canTeach =
+                  (s.err > 0 || s.avgLeaks > 0) &&
+                  ["Gulf", "Egyptian", "Yemeni"].includes(s.dialect);
+                const sampleLeaks = rows
+                  .filter(
+                    (r) =>
+                      r.feature === s.feature &&
+                      (r.dialect ?? "-") === s.dialect &&
+                      Array.isArray((r.meta as { leaks?: unknown })?.leaks),
+                  )
+                  .flatMap((r) => ((r.meta as { leaks?: string[] }).leaks ?? []))
+                  .slice(0, 30);
+                const key = `sum:${s.feature}:${s.dialect}`;
+                return (
+                  <tr key={`${s.feature}-${s.dialect}`} className="border-t">
+                    <td className="p-2 font-medium">{s.feature}</td>
+                    <td className="p-2">{s.dialect}</td>
+                    <td className="p-2 text-right">{s.total}</td>
+                    <td className="p-2 text-right text-emerald-700">{s.ok}</td>
+                    <td className="p-2 text-right text-amber-700">{s.warn}</td>
+                    <td className="p-2 text-right text-rose-700">{s.err}</td>
+                    <td className="p-2 text-right">{(s.errorRate * 100).toFixed(0)}%</td>
+                    <td className="p-2 text-right">{s.avgDuration || "—"}</td>
+                    <td className="p-2 text-right">{s.avgLeaks ? s.avgLeaks.toFixed(2) : "—"}</td>
+                    <td className="p-2 text-right">
+                      {canTeach ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={teaching === key}
+                          onClick={() =>
+                            teachAI({
+                              key,
+                              feature: s.feature,
+                              event: "summary_rollup",
+                              dialect: s.dialect,
+                              leaks: sampleLeaks,
+                              message: `Rollup: ${s.err} errors, avg ${s.avgLeaks.toFixed(2)} leaks/event over ${s.total} events.`,
+                              meta: { errors: s.err, warns: s.warn, total: s.total, avgLeaks: s.avgLeaks },
+                            })
+                          }
+                        >
+                          {teaching === key ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <Sparkles className="h-3 w-3" />
+                          )}
+                        </Button>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Event log */}
+      <h2 className="font-semibold mb-2">Recent events ({rows.length})</h2>
+      {loading ? (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-6 w-6 animate-spin" />
+        </div>
+      ) : rows.length === 0 ? (
+        <p className="text-muted-foreground text-sm">No events.</p>
+      ) : (
+        <div className="space-y-1">
+          {rows.map((r) => {
+            const leaks = Array.isArray((r.meta as { leaks?: unknown })?.leaks)
+              ? ((r.meta as { leaks?: string[] }).leaks as string[])
+              : [];
+            const canTeach =
+              !!r.dialect &&
+              ["Gulf", "Egyptian", "Yemeni"].includes(r.dialect) &&
+              (r.status === "warn" || r.status === "error" || leaks.length > 0 || r.event === "dialect_leak");
+            return (
+            <details key={r.id} className="border rounded p-2 bg-card text-xs">
+              <summary className="cursor-pointer flex items-center gap-2">
+                <span
+                  className={`px-1.5 py-0.5 rounded ${STATUS_COLOR[r.status] ?? "bg-muted"}`}
+                >
+                  {r.status}
+                </span>
+                <span className="font-mono">{r.feature}</span>
+                <span className="text-muted-foreground">/{r.event}</span>
               summary.map((s) => (
                 <tr key={`${s.feature}-${s.dialect}`} className="border-t">
                   <td className="p-2 font-medium">{s.feature}</td>

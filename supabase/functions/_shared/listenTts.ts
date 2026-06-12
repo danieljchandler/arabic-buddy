@@ -128,7 +128,9 @@ const NEUTRAL_YEMENI_STYLE =
 
 export async function planProvider(dialect: string): Promise<ProviderPlan> {
   const munsitKey = Deno.env.get("MUNSIT_API_KEY");
-  if (dialect === "Gulf" && munsitKey) {
+  // Yemeni routes through Munsit's Khaleeji voices — closer to Yemeni
+  // pronunciation than Azure MSA, and matches the client useAzureTTS routing.
+  if ((dialect === "Gulf" || dialect === "Yemeni") && munsitKey) {
     const m = await loadMunsitGulfVoices(munsitKey);
     if (m) {
       return {
@@ -139,17 +141,7 @@ export async function planProvider(dialect: string): Promise<ProviderPlan> {
         munsitModelId: m.modelId,
       };
     }
-    console.warn("listenTts: Munsit unavailable for Gulf, falling back to Azure");
-  }
-
-  if (dialect === "Yemeni" && Deno.env.get("GEMINI_API_KEY")) {
-    return {
-      provider: "gemini",
-      ext: "wav",
-      contentType: "audio/wav",
-      geminiVoices: GEMINI_VOICES_DEFAULT,
-      geminiStylePrefix: NEUTRAL_YEMENI_STYLE,
-    };
+    console.warn(`listenTts: Munsit unavailable for ${dialect}, falling back to Azure`);
   }
 
   if (dialect === "Egyptian" && Deno.env.get("ELEVENLABS_API_KEY")) {

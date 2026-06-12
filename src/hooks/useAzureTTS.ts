@@ -59,7 +59,7 @@ export function useAzureTTS({ text, skip = false, dialect }: UseAzureTTSOptions)
   // Explicit `dialect` prop wins; otherwise fall back to the global active dialect
   // so all Gulf playback automatically routes through Munsit.
   const effectiveDialect = dialect ?? activeDialect;
-  const useMunsit = isGulf(effectiveDialect);
+  const useMunsit = isMunsitDialect(effectiveDialect);
 
   const revokePreviousUrl = useCallback(() => {
     if (blobUrlRef.current) {

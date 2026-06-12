@@ -27,14 +27,18 @@ interface UseAzureTTSResult {
   regenerate: () => void;
 }
 
-const GULF_DIALECT_LABELS = new Set([
+// Dialects routed through Munsit (Arabic-native voice) instead of Azure.
+// Yemeni is included because Munsit's Khaleeji voice is closer to Yemeni
+// pronunciation than Azure's MSA voices.
+const MUNSIT_DIALECT_LABELS = new Set([
   "gulf", "khaleeji",
   "saudi", "kuwaiti", "uae", "emirati", "bahraini", "qatari", "omani",
+  "yemeni", "yemen",
 ]);
 
-function isGulf(dialect: DialectHint): boolean {
+function isMunsitDialect(dialect: DialectHint): boolean {
   if (!dialect) return false;
-  return GULF_DIALECT_LABELS.has(String(dialect).toLowerCase());
+  return MUNSIT_DIALECT_LABELS.has(String(dialect).toLowerCase());
 }
 
 /**

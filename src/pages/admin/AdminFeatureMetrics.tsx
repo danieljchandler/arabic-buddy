@@ -320,40 +320,98 @@ const AdminFeatureMetrics = () => {
       ) : rows.length === 0 ? (
         <p className="text-muted-foreground text-sm">No events.</p>
       ) : (
-          {rows.map((r) => (
-            <details key={r.id} className="border rounded p-2 bg-card text-xs">
-              <summary className="cursor-pointer flex items-center gap-2">
-                <span
-                  className={`px-1.5 py-0.5 rounded ${STATUS_COLOR[r.status] ?? "bg-muted"}`}
-                >
-                  {r.status}
-                </span>
-                <span className="font-mono">{r.feature}</span>
-                <span className="text-muted-foreground">/{r.event}</span>
-                {r.dialect && (
-                  <span className="px-1.5 py-0.5 rounded bg-blue-100 text-blue-900">
-                    {r.dialect}
+        <div className="space-y-1">
+          {rows.map((r) => {
+            const leaks = Array.isArray((r.meta as { leaks?: unknown })?.leaks)
+              ? ((r.meta as { leaks?: string[] }).leaks as string[])
+              : [];
+            const canTeach =
+              !!r.dialect &&
+              ["Gulf", "Egyptian", "Yemeni"].includes(r.dialect) &&
+              (r.status === "warn" ||
+                r.status === "error" ||
+                leaks.length > 0 ||
+                r.event === "dialect_leak");
+            return (
+              <details key={r.id} className="border rounded p-2 bg-card text-xs">
+                <summary className="cursor-pointer flex items-center gap-2">
+                  <span
+                    className={`px-1.5 py-0.5 rounded ${STATUS_COLOR[r.status] ?? "bg-muted"}`}
+                  >
+                    {r.status}
                   </span>
+                  <span className="font-mono">{r.feature}</span>
+                  <span className="text-muted-foreground">/{r.event}</span>
+                  {r.dialect && (
+                    <span className="px-1.5 py-0.5 rounded bg-blue-100 text-blue-900">
+                      {r.dialect}
+                    </span>
+                  )}
+                  {r.duration_ms != null && (
+                    <span className="text-muted-foreground">{r.duration_ms}ms</span>
+                  )}
+                  {r.count != null && (
+                    <span className="text-muted-foreground">n={r.count}</span>
+                  )}
+                  {r.score != null && (
+                    <span className="text-muted-foreground">
+                      score={Number(r.score).toFixed(2)}
+                    </span>
+                  )}
+                  <span className="ml-auto text-muted-foreground">
+                    {new Date(r.created_at).toLocaleString()}
+                  </span>
+                  {canTeach && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-6 px-2"
+                      disabled={teaching === r.id}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        void teachAI({
+                          key: r.id,
+                          metric_id: r.id,
+                          feature: r.feature,
+                          event: r.event,
+                          dialect: r.dialect,
+                          meta: r.meta,
+                          leaks,
+                          message:
+                            (r.meta as { error?: string } | null)?.error ??
+                            (r.meta as { message?: string } | null)?.message ??
+                            "",
+                        });
+                      }}
+                    >
+                      {teaching === r.id ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <>
+                          <Sparkles className="h-3 w-3 mr-1" /> Teach AI
+                        </>
+                      )}
+                    </Button>
+                  )}
+                </summary>
+                {r.meta && Object.keys(r.meta).length > 0 && (
+                  <pre className="mt-2 bg-muted p-2 rounded whitespace-pre-wrap overflow-auto max-h-64">
+                    {JSON.stringify(r.meta, null, 2)}
+                  </pre>
                 )}
-                {r.duration_ms != null && (
-                  <span className="text-muted-foreground">{r.duration_ms}ms</span>
-                )}
-                {r.count != null && <span className="text-muted-foreground">n={r.count}</span>}
-                {r.score != null && (
-                  <span className="text-muted-foreground">score={Number(r.score).toFixed(2)}</span>
-                )}
-                <span className="ml-auto text-muted-foreground">
-                  {new Date(r.created_at).toLocaleString()}
-                </span>
-              </summary>
-              {r.meta && Object.keys(r.meta).length > 0 && (
-                <pre className="mt-2 bg-muted p-2 rounded whitespace-pre-wrap overflow-auto max-h-64">
-                  {JSON.stringify(r.meta, null, 2)}
-                </pre>
-              )}
-            </details>
-          ))}
+              </details>
+            );
+          })}
         </div>
+      )}
+      <div className="mt-4 text-xs text-muted-foreground">
+        Drafted rules appear in{" "}
+        <Link to="/admin/dialect-rules" className="underline">
+          Dialect Rules → Draft
+        </Link>
+        .
+      </div>
       )}
     </div>
   );

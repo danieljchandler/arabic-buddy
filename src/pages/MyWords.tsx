@@ -47,11 +47,48 @@ const MyWords = () => {
   const [ankiOpen, setAnkiOpen] = useState(false);
   const [deckFilter, setDeckFilter] = useState<string | null>(null);
   const [tagFilter, setTagFilter] = useState<string | null>(null);
+  const [sourceFilter, setSourceFilter] = useState<"anki" | "app" | null>(null);
+  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
   const queryClient = useQueryClient();
+
+  const CATEGORY_LABELS: Record<string, string> = {
+    "transcription": "🎬 Videos",
+    "listen": "🎙 Podcast",
+    "podcast": "🎙 Podcast",
+    "souq-news": "📰 Souq News",
+    "bible": "📖 Bible",
+    "reading-practice": "📚 Reading",
+    "daily-story": "📔 Stories",
+    "discover": "🔍 Discover",
+    "tutor-upload": "🎯 Tutor Upload",
+    "picture_scene": "🖼 Picture Scenes",
+    "free-chat": "💬 Chat",
+    "how-do-i-say": "❓ How do I say",
+  };
+  const categoryLabel = (src: string) => CATEGORY_LABELS[src] || `· ${src}`;
+
+  const sourceCounts = useMemo(() => {
+    let anki = 0, app = 0;
+    for (const w of words || []) {
+      if (w.source === "anki_import") anki++;
+      else app++;
+    }
+    return { anki, app };
+  }, [words]);
+
+  const categoryOptions = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const w of words || []) {
+      if (w.source === "anki_import") continue;
+      const key = w.source || "other";
+      m.set(key, (m.get(key) || 0) + 1);
+    }
+    return Array.from(m.entries()).sort((a, b) => b[1] - a[1]);
+  }, [words]);
 
   const deckOptions = useMemo(() => {
     const m = new Map<string, number>();
@@ -72,11 +109,20 @@ const MyWords = () => {
   const filteredWords = useMemo(() => {
     if (!words) return words;
     return words.filter((w) => {
+      if (sourceFilter === "anki" && w.source !== "anki_import") return false;
+      if (sourceFilter === "app" && w.source === "anki_import") return false;
+      if (categoryFilter && w.source !== categoryFilter) return false;
       if (deckFilter && w.deck_name !== deckFilter) return false;
       if (tagFilter && !(w.tags || []).includes(tagFilter)) return false;
       return true;
     });
-  }, [words, deckFilter, tagFilter]);
+  }, [words, sourceFilter, categoryFilter, deckFilter, tagFilter]);
+
+  const selectSource = (next: "anki" | "app" | null) => {
+    setSourceFilter(next);
+    setDeckFilter(null);
+    setCategoryFilter(null);
+  };
 
   const toggleContext = (id: string) => {
     setExpandedContext((prev) => {
@@ -335,10 +381,87 @@ const MyWords = () => {
         </div>
       )}
 
-      {/* Deck + Tag filters */}
-      {words && words.length > 0 && (deckOptions.length > 0 || tagOptions.length > 0) && (
+      {/* Source + Category + Deck + Tag filters */}
+      {words && words.length > 0 && (
         <div className="mb-3 space-y-2">
-          {deckOptions.length > 0 && (
+          {/* Source row */}
+          {(sourceCounts.anki > 0 && sourceCounts.app > 0) && (
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-1.5">Source</p>
+              <div className="flex flex-wrap gap-1.5">
+                <button
+                  onClick={() => selectSource(null)}
+                  className={cn(
+                    "px-2.5 py-1 rounded-full text-xs border transition-colors",
+                    !sourceFilter
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-card border-border text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  All
+                </button>
+                <button
+                  onClick={() => selectSource(sourceFilter === "anki" ? null : "anki")}
+                  className={cn(
+                    "px-2.5 py-1 rounded-full text-xs border transition-colors",
+                    sourceFilter === "anki"
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-card border-border text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  📥 Anki <span className="opacity-70">· {sourceCounts.anki}</span>
+                </button>
+                <button
+                  onClick={() => selectSource(sourceFilter === "app" ? null : "app")}
+                  className={cn(
+                    "px-2.5 py-1 rounded-full text-xs border transition-colors",
+                    sourceFilter === "app"
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-card border-border text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  ✨ App <span className="opacity-70">· {sourceCounts.app}</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Category row (shown when App selected, or when no source filter & no anki cards) */}
+          {sourceFilter !== "anki" && categoryOptions.length > 0 && (
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-1.5">Category</p>
+              <div className="flex flex-wrap gap-1.5">
+                <button
+                  onClick={() => setCategoryFilter(null)}
+                  className={cn(
+                    "px-2.5 py-1 rounded-full text-xs border transition-colors",
+                    !categoryFilter
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-card border-border text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  All
+                </button>
+                {categoryOptions.map(([src, n]) => (
+                  <button
+                    key={src}
+                    onClick={() => setCategoryFilter(categoryFilter === src ? null : src)}
+                    className={cn(
+                      "px-2.5 py-1 rounded-full text-xs border transition-colors",
+                      categoryFilter === src
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-card border-border text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {categoryLabel(src)} <span className="opacity-70">· {n}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Decks row (Anki only) */}
+          {sourceFilter !== "app" && deckOptions.length > 0 && (
             <div>
               <p className="text-xs font-medium text-muted-foreground mb-1.5">Decks</p>
               <div className="flex flex-wrap gap-1.5">
@@ -370,6 +493,7 @@ const MyWords = () => {
               </div>
             </div>
           )}
+
           {tagOptions.length > 0 && (
             <div>
               <p className="text-xs font-medium text-muted-foreground mb-1.5">Tags</p>

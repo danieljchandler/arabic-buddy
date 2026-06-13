@@ -139,7 +139,7 @@ export const VocabularyCard = ({
 
       {/* Answer Display */}
       {showAnswer && (
-        <AnswerReveal arabic={word.word_arabic} english={word.word_english} />
+        <AnswerReveal arabic={word.word_arabic} english={word.word_english} onReveal={playAudio} />
       )}
 
       {/* Repeat Button */}

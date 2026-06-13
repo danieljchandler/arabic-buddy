@@ -21,17 +21,18 @@ export const IntroCard = ({ word, onContinue, topicLabel }: IntroCardProps) => {
   const [showArabic, setShowArabic] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Auto-play audio when card appears + reset reveal
+  // Reset reveal state on new word. Do NOT auto-play audio — the learner should
+  // try to produce the Arabic themselves first, then tap "Show Arabic" to hear it.
   useEffect(() => {
     setShowArabic(false);
-    const timer = setTimeout(() => {
-      if (word.audio_url && audioRef.current) {
-        audioRef.current.currentTime = 0;
-        audioRef.current.play().catch(() => {});
-      }
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [word.id, word.audio_url]);
+  }, [word.id]);
+
+  const playStoredAudio = () => {
+    if (word.audio_url && audioRef.current) {
+      audioRef.current.currentTime = 0;
+      audioRef.current.play().catch(() => {});
+    }
+  };
 
   return (
     <div className="w-full max-w-sm mx-auto text-center">

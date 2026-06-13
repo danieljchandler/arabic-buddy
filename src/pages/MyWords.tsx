@@ -381,10 +381,87 @@ const MyWords = () => {
         </div>
       )}
 
-      {/* Deck + Tag filters */}
-      {words && words.length > 0 && (deckOptions.length > 0 || tagOptions.length > 0) && (
+      {/* Source + Category + Deck + Tag filters */}
+      {words && words.length > 0 && (
         <div className="mb-3 space-y-2">
-          {deckOptions.length > 0 && (
+          {/* Source row */}
+          {(sourceCounts.anki > 0 && sourceCounts.app > 0) && (
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-1.5">Source</p>
+              <div className="flex flex-wrap gap-1.5">
+                <button
+                  onClick={() => selectSource(null)}
+                  className={cn(
+                    "px-2.5 py-1 rounded-full text-xs border transition-colors",
+                    !sourceFilter
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-card border-border text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  All
+                </button>
+                <button
+                  onClick={() => selectSource(sourceFilter === "anki" ? null : "anki")}
+                  className={cn(
+                    "px-2.5 py-1 rounded-full text-xs border transition-colors",
+                    sourceFilter === "anki"
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-card border-border text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  📥 Anki <span className="opacity-70">· {sourceCounts.anki}</span>
+                </button>
+                <button
+                  onClick={() => selectSource(sourceFilter === "app" ? null : "app")}
+                  className={cn(
+                    "px-2.5 py-1 rounded-full text-xs border transition-colors",
+                    sourceFilter === "app"
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-card border-border text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  ✨ App <span className="opacity-70">· {sourceCounts.app}</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Category row (shown when App selected, or when no source filter & no anki cards) */}
+          {sourceFilter !== "anki" && categoryOptions.length > 0 && (
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-1.5">Category</p>
+              <div className="flex flex-wrap gap-1.5">
+                <button
+                  onClick={() => setCategoryFilter(null)}
+                  className={cn(
+                    "px-2.5 py-1 rounded-full text-xs border transition-colors",
+                    !categoryFilter
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-card border-border text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  All
+                </button>
+                {categoryOptions.map(([src, n]) => (
+                  <button
+                    key={src}
+                    onClick={() => setCategoryFilter(categoryFilter === src ? null : src)}
+                    className={cn(
+                      "px-2.5 py-1 rounded-full text-xs border transition-colors",
+                      categoryFilter === src
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-card border-border text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {categoryLabel(src)} <span className="opacity-70">· {n}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Decks row (Anki only) */}
+          {sourceFilter !== "app" && deckOptions.length > 0 && (
             <div>
               <p className="text-xs font-medium text-muted-foreground mb-1.5">Decks</p>
               <div className="flex flex-wrap gap-1.5">
@@ -416,6 +493,7 @@ const MyWords = () => {
               </div>
             </div>
           )}
+
           {tagOptions.length > 0 && (
             <div>
               <p className="text-xs font-medium text-muted-foreground mb-1.5">Tags</p>

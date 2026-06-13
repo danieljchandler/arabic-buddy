@@ -47,11 +47,48 @@ const MyWords = () => {
   const [ankiOpen, setAnkiOpen] = useState(false);
   const [deckFilter, setDeckFilter] = useState<string | null>(null);
   const [tagFilter, setTagFilter] = useState<string | null>(null);
+  const [sourceFilter, setSourceFilter] = useState<"anki" | "app" | null>(null);
+  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkDeleting, setBulkDeleting] = useState(false);
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
   const queryClient = useQueryClient();
+
+  const CATEGORY_LABELS: Record<string, string> = {
+    "transcription": "🎬 Videos",
+    "listen": "🎙 Podcast",
+    "podcast": "🎙 Podcast",
+    "souq-news": "📰 Souq News",
+    "bible": "📖 Bible",
+    "reading-practice": "📚 Reading",
+    "daily-story": "📔 Stories",
+    "discover": "🔍 Discover",
+    "tutor-upload": "🎯 Tutor Upload",
+    "picture_scene": "🖼 Picture Scenes",
+    "free-chat": "💬 Chat",
+    "how-do-i-say": "❓ How do I say",
+  };
+  const categoryLabel = (src: string) => CATEGORY_LABELS[src] || `· ${src}`;
+
+  const sourceCounts = useMemo(() => {
+    let anki = 0, app = 0;
+    for (const w of words || []) {
+      if (w.source === "anki_import") anki++;
+      else app++;
+    }
+    return { anki, app };
+  }, [words]);
+
+  const categoryOptions = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const w of words || []) {
+      if (w.source === "anki_import") continue;
+      const key = w.source || "other";
+      m.set(key, (m.get(key) || 0) + 1);
+    }
+    return Array.from(m.entries()).sort((a, b) => b[1] - a[1]);
+  }, [words]);
 
   const deckOptions = useMemo(() => {
     const m = new Map<string, number>();
@@ -72,11 +109,20 @@ const MyWords = () => {
   const filteredWords = useMemo(() => {
     if (!words) return words;
     return words.filter((w) => {
+      if (sourceFilter === "anki" && w.source !== "anki_import") return false;
+      if (sourceFilter === "app" && w.source === "anki_import") return false;
+      if (categoryFilter && w.source !== categoryFilter) return false;
       if (deckFilter && w.deck_name !== deckFilter) return false;
       if (tagFilter && !(w.tags || []).includes(tagFilter)) return false;
       return true;
     });
-  }, [words, deckFilter, tagFilter]);
+  }, [words, sourceFilter, categoryFilter, deckFilter, tagFilter]);
+
+  const selectSource = (next: "anki" | "app" | null) => {
+    setSourceFilter(next);
+    setDeckFilter(null);
+    setCategoryFilter(null);
+  };
 
   const toggleContext = (id: string) => {
     setExpandedContext((prev) => {

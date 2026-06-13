@@ -70,7 +70,13 @@ export const IntroCard = ({ word, onContinue, topicLabel }: IntroCardProps) => {
         )}
         <button
           type="button"
-          onClick={() => setShowArabic((v) => !v)}
+          onClick={() => {
+            setShowArabic((v) => {
+              const next = !v;
+              if (next) playStoredAudio();
+              return next;
+            });
+          }}
           className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline focus:outline-none"
         >
           {showArabic ? (

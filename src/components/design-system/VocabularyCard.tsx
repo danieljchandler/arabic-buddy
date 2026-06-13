@@ -197,7 +197,11 @@ const AnswerReveal = ({ arabic, english, onReveal }: { arabic: string; english: 
         type="button"
         onClick={(e) => {
           e.stopPropagation();
-          setShowArabic((v) => !v);
+          setShowArabic((v) => {
+            const next = !v;
+            if (next) onReveal?.();
+            return next;
+          });
         }}
         className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline focus:outline-none"
       >

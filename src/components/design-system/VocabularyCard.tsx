@@ -139,7 +139,7 @@ export const VocabularyCard = ({
 
       {/* Answer Display */}
       {showAnswer && (
-        <AnswerReveal arabic={word.word_arabic} english={word.word_english} />
+        <AnswerReveal arabic={word.word_arabic} english={word.word_english} onReveal={playAudio} />
       )}
 
       {/* Repeat Button */}
@@ -171,7 +171,7 @@ export const VocabularyCard = ({
  * AnswerReveal — shows the English word and lets the learner produce the Arabic
  * themselves before optionally revealing the script. Arabic is hidden by default.
  */
-const AnswerReveal = ({ arabic, english }: { arabic: string; english: string }) => {
+const AnswerReveal = ({ arabic, english, onReveal }: { arabic: string; english: string; onReveal?: () => void }) => {
   const [showArabic, setShowArabic] = useState(false);
   // Reset to hidden whenever a new word is shown
   useEffect(() => {
@@ -197,7 +197,11 @@ const AnswerReveal = ({ arabic, english }: { arabic: string; english: string }) 
         type="button"
         onClick={(e) => {
           e.stopPropagation();
-          setShowArabic((v) => !v);
+          setShowArabic((v) => {
+            const next = !v;
+            if (next) onReveal?.();
+            return next;
+          });
         }}
         className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline focus:outline-none"
       >

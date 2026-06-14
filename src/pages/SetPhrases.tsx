@@ -8,6 +8,7 @@ import { Loader2, MessageCircle, Sparkles, ArrowRight } from "lucide-react";
 import { useDialect } from "@/contexts/DialectContext";
 import { InfoHint } from "@/components/InfoHint";
 import { PAGE_HINTS } from "@/lib/pageHints";
+import { RequestSituationCard } from "@/components/set-phrases/RequestSituationCard";
 
 const SetPhrases = () => {
   const navigate = useNavigate();
@@ -46,6 +47,8 @@ const SetPhrases = () => {
             </Button>
           </div>
         </Card>
+
+        <RequestSituationCard />
 
         <div>
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1 mb-2">

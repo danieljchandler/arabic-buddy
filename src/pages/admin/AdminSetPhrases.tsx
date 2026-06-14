@@ -68,6 +68,7 @@ const AdminSetPhrases = () => {
   const togglePublish = async (id: string, current: string) => {
     const next = current === "published" ? "draft" : "published";
     await sb.from("set_phrases").update({ status: next }).eq("id", id);
+    toast.success(next === "published" ? "Approved & published" : "Moved back to draft");
     refetch();
   };
 

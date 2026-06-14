@@ -218,8 +218,27 @@ const AdminSetPhrases = () => {
                     </div>
                   </div>
                   <div className="flex flex-col gap-1 shrink-0">
-                    <Button size="sm" variant={p.status === "published" ? "default" : "outline"} onClick={() => togglePublish(p.id, p.status)}>
-                      {p.status}
+                    <Button
+                      size="sm"
+                      variant={p.status === "published" ? "default" : "outline"}
+                      className={
+                        p.status === "published"
+                          ? "bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600"
+                          : "border-emerald-600 text-emerald-700 hover:bg-emerald-50"
+                      }
+                      onClick={() => togglePublish(p.id, p.status)}
+                    >
+                      {p.status === "published" ? (
+                        <>
+                          <Check className="h-4 w-4 mr-1" />
+                          Approved
+                        </>
+                      ) : (
+                        <>
+                          <Check className="h-4 w-4 mr-1" />
+                          Approve
+                        </>
+                      )}
                     </Button>
                     <div className="flex gap-1">
                       <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => startEdit(p)}>

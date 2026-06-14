@@ -174,6 +174,11 @@ const AdminSetPhrases = () => {
         </Button>
       </Card>
 
+      <AdminRequestSituationCard
+        occasions={(occasions ?? []).map((o: any) => ({ id: o.id, name: o.name }))}
+        onSaved={() => refetch()}
+      />
+
       <Card className="p-4">
         <h2 className="font-semibold mb-3">Phrases ({phrases?.length ?? 0})</h2>
         <div className="space-y-2">

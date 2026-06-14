@@ -8,6 +8,7 @@ import { Loader2, MessageCircle, Sparkles, ArrowRight } from "lucide-react";
 import { useDialect } from "@/contexts/DialectContext";
 import { InfoHint } from "@/components/InfoHint";
 import { PAGE_HINTS } from "@/lib/pageHints";
+import { RequestSituationCard } from "@/components/set-phrases/RequestSituationCard";
 
 const SetPhrases = () => {
   const navigate = useNavigate();

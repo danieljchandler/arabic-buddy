@@ -21,6 +21,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { AdminRequestSituationCard } from "@/components/admin/AdminRequestSituationCard";
 
 const sb = supabase as any;
 

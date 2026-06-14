@@ -6,7 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Sparkles, ArrowLeft, Plus, Pencil, Trash2, Save, X, Check, RotateCcw } from "lucide-react";
+import { Loader2, Sparkles, ArrowLeft, Plus, Pencil, Trash2, Save, X, Check } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";

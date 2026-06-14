@@ -48,6 +48,8 @@ const SetPhrases = () => {
           </div>
         </Card>
 
+        <RequestSituationCard />
+
         <div>
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1 mb-2">
             By occasion

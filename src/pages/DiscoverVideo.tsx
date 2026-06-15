@@ -1409,23 +1409,23 @@ const DiscoverVideo = () => {
         />
 
 
-          {video.cultural_context && (
-            <details className="group">
-              <summary className="flex items-center gap-2 cursor-pointer text-sm font-semibold text-foreground">
-                <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180 text-muted-foreground" />
-                Cultural Context
-              </summary>
-              <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
-                {video.cultural_context}
-              </p>
-            </details>
-          )}
+        {video.cultural_context && (
+          <details className="group">
+            <summary className="flex items-center gap-2 cursor-pointer text-sm font-semibold text-foreground">
+              <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180 text-muted-foreground" />
+              Cultural Context
+            </summary>
+            <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
+              {video.cultural_context}
+            </p>
+          </details>
+        )}
 
-          {/* Video Rating */}
-          <VideoRating videoId={video.id} userId={user?.id} />
-        </div>
-      )}
+        {/* Video Rating */}
+        <VideoRating videoId={video.id} userId={user?.id} />
+      </div>
     </div>
+
   );
 };
 

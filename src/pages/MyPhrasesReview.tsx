@@ -356,7 +356,10 @@ const MyPhrasesReview = () => {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setShowAnswer(true)}
+                onClick={() => {
+                  setShowAnswer(true);
+                  if (effectiveAudio) playAudio(effectiveAudio);
+                }}
                 className="gap-1.5 text-muted-foreground"
               >
                 <Eye className="h-4 w-4" />

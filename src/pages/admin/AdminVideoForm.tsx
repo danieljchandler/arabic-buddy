@@ -22,6 +22,71 @@ import { extractFramesWithTimestamps } from "@/lib/videoFrameExtractor";
 
 const DIALECTS = ["Saudi", "Kuwaiti", "UAE", "Bahraini", "Qatari", "Omani", "Gulf", "MSA", "Egyptian", "Levantine", "Maghrebi"];
 const DIFFICULTIES = ["Beginner", "Intermediate", "Advanced", "Expert"];
+const CEFR_LEVELS = ["A1", "A2", "B1", "B2", "C1", "C2"] as const;
+
+function GenerateGrammarRow({
+  videoId,
+  onAdded,
+}: {
+  videoId: string;
+  onAdded: (added: number) => void;
+}) {
+  const [level, setLevel] = useState<string>("B1");
+  const [count, setCount] = useState<number>(4);
+  const [busy, setBusy] = useState(false);
+
+  const handleClick = async () => {
+    setBusy(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("extract-grammar-points", {
+        body: { video_id: videoId, target_level: level, count },
+      });
+      if (error) throw error;
+      const added = (data as any)?.added ?? 0;
+      if (added > 0) toast.success(`Added ${added} grammar note${added === 1 ? "" : "s"} at ${level}`);
+      else toast.info((data as any)?.message || "No new grammar notes");
+      onAdded(added);
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to generate");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-wrap items-end gap-3">
+      <div className="space-y-1">
+        <Label className="text-xs">Target level</Label>
+        <Select value={level} onValueChange={setLevel}>
+          <SelectTrigger className="h-9 w-24"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {CEFR_LEVELS.map((l) => (
+              <SelectItem key={l} value={l}>{l}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      <div className="space-y-1">
+        <Label className="text-xs">Count</Label>
+        <Input
+          type="number"
+          min={1}
+          max={8}
+          value={count}
+          onChange={(e) => setCount(Math.max(1, Math.min(8, Number(e.target.value) || 4)))}
+          className="h-9 w-20"
+        />
+      </div>
+      <Button onClick={handleClick} disabled={busy} size="sm">
+        {busy ? <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" /> : <Sparkles className="h-3.5 w-3.5 mr-2" />}
+        Generate
+      </Button>
+      <p className="text-xs text-muted-foreground basis-full">
+        Adds new level-tagged points to this video. Existing titles are skipped.
+      </p>
+    </div>
+  );
+}
 
 const AdminVideoForm = () => {
   const navigate = useNavigate();
@@ -1307,6 +1372,25 @@ const AdminVideoForm = () => {
         )}
 
         {/* Editable Grammar Points */}
+        {/* Grammar generator (admin) */}
+        {isEditing && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Generate Grammar Notes</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <GenerateGrammarRow
+                videoId={videoId!}
+                onAdded={(added) => {
+                  if (added > 0) {
+                    queryClient.invalidateQueries({ queryKey: ["discover-video", videoId] });
+                  }
+                }}
+              />
+            </CardContent>
+          </Card>
+        )}
+
         {grammarPoints.length > 0 && (
           <Card>
             <CardHeader>

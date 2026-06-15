@@ -168,6 +168,9 @@ verify_jwt = true
 [functions.extract-concepts]
 verify_jwt = true
 
+[functions.extract-grammar-points]
+verify_jwt = true
+
 [functions.update-mastery]
 verify_jwt = true
 

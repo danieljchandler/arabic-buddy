@@ -329,15 +329,9 @@ const MyWordsReview = () => {
     setShowLyrics(false);
   }, [currentWord?.id, currentWord?.card_type]);
 
-  // Auto-play: only on recognition cards (audio reinforces what's shown).
-  // Production cards never autoplay — hearing the word defeats the recall exercise.
-  useEffect(() => {
-    if (!effectiveWordAudio || !currentWord) return;
-    if (currentWord.card_type === "recognition") {
-      playAudio(effectiveWordAudio);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentWord?.id, currentWord?.card_type, effectiveWordAudio]);
+  // Audio never autoplays on card change. The learner taps "Play" or
+  // "Reveal Arabic" to hear the word — this preserves the recall exercise
+  // and prevents the Arabic audio from playing while only English is shown.
 
   const generateJingle = async (word: DueCard, regenerate = false) => {
     if (!user) return;

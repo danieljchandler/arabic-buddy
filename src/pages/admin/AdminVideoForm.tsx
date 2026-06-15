@@ -1307,6 +1307,25 @@ const AdminVideoForm = () => {
         )}
 
         {/* Editable Grammar Points */}
+        {/* Grammar generator (admin) */}
+        {isEditing && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Generate Grammar Notes</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <GenerateGrammarRow
+                videoId={videoId!}
+                onAdded={(added) => {
+                  if (added > 0) {
+                    queryClient.invalidateQueries({ queryKey: ["discover-video", videoId] });
+                  }
+                }}
+              />
+            </CardContent>
+          </Card>
+        )}
+
         {grammarPoints.length > 0 && (
           <Card>
             <CardHeader>

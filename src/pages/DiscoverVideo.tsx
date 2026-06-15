@@ -32,6 +32,9 @@ import { VideoRating } from "@/components/discover/VideoRating";
 import { AskAISentence } from "@/components/shared/AskAISentence";
 import { supabase } from "@/integrations/supabase/client";
 import { recordContinue } from "@/lib/continueProgress";
+import { useUserLevel } from "@/hooks/useUserLevel";
+import { useQueryClient } from "@tanstack/react-query";
+import { Sparkles } from "lucide-react";
 
 declare global {
   interface Window {

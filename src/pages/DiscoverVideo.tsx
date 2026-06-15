@@ -305,6 +305,144 @@ const LikeButton = ({ videoId, isAuthenticated }: { videoId: string; isAuthentic
   );
 };
 
+/* ── Grammar Notes Section ───────────────────────────────── */
+type GrammarPoint = {
+  title: string;
+  explanation: string;
+  examples?: string[];
+  cefr_level?: "A1" | "A2" | "B1" | "B2" | "C1" | "C2";
+};
+
+const LEVEL_ORDER = ["A1", "A2", "B1", "B2", "C1", "C2"] as const;
+const difficultyToCefr = (d?: string | null): "A1" | "A2" | "B1" | "B2" | "C1" | "C2" => {
+  const v = (d || "").toLowerCase();
+  if (v.startsWith("begin")) return "A2";
+  if (v.startsWith("adv")) return "C1";
+  return "B1";
+};
+
+const GrammarNotesSection = ({
+  videoId,
+  points,
+  videoDifficulty,
+}: {
+  videoId: string;
+  points: GrammarPoint[];
+  videoDifficulty?: string | null;
+}) => {
+  const { placementLevel } = useUserLevel();
+  const qc = useQueryClient();
+  const userLevel = (placementLevel as any) || difficultyToCefr(videoDifficulty);
+  const [showAll, setShowAll] = useState(false);
+  const [generating, setGenerating] = useState(false);
+
+  const filtered = useMemo(() => {
+    if (showAll) return points;
+    const userIdx = LEVEL_ORDER.indexOf(userLevel);
+    if (userIdx < 0) return points;
+    return points.filter((p) => {
+      const lvl = (p.cefr_level || difficultyToCefr(videoDifficulty)) as any;
+      const idx = LEVEL_ORDER.indexOf(lvl);
+      // show points at user level or one below
+      return idx >= 0 && idx <= userIdx && idx >= userIdx - 1;
+    });
+  }, [points, showAll, userLevel, videoDifficulty]);
+
+  const handleGenerate = async () => {
+    setGenerating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("extract-grammar-points", {
+        body: { video_id: videoId, target_level: userLevel, count: 4 },
+      });
+      if (error) throw error;
+      if ((data as any)?.added > 0) {
+        toast.success(`Added ${(data as any).added} new grammar note${(data as any).added === 1 ? "" : "s"}`);
+        qc.invalidateQueries({ queryKey: ["discover-video", videoId] });
+      } else {
+        toast.info((data as any)?.message || "No new grammar notes found");
+      }
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to generate grammar notes");
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  return (
+    <details className="group" open>
+      <summary className="flex items-center justify-between gap-2 cursor-pointer text-sm font-semibold text-foreground">
+        <span className="flex items-center gap-2">
+          <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180 text-muted-foreground" />
+          Grammar Notes ({filtered.length}
+          {points.length !== filtered.length ? `/${points.length}` : ""})
+        </span>
+        <span className="flex items-center gap-2">
+          {points.length > 0 && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                setShowAll((v) => !v);
+              }}
+              className="text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline"
+            >
+              {showAll ? `My level (${userLevel})` : "All levels"}
+            </button>
+          )}
+        </span>
+      </summary>
+      <div className="mt-3 space-y-2">
+        {filtered.length === 0 && (
+          <p className="text-sm text-muted-foreground">
+            {points.length === 0
+              ? "No grammar notes yet."
+              : `No notes at your level (${userLevel}). Try "All levels" or generate more.`}
+          </p>
+        )}
+        {filtered.map((p, i) => (
+          <div key={i} className="p-3 rounded-lg bg-muted/50 space-y-1.5">
+            <div className="flex items-center justify-between gap-2">
+              <h4 className="text-sm font-semibold text-foreground">{p.title}</h4>
+              {p.cefr_level && (
+                <Badge variant="outline" className="text-[10px] font-mono">{p.cefr_level}</Badge>
+              )}
+            </div>
+            <p className="text-sm text-muted-foreground leading-relaxed">{p.explanation}</p>
+            {p.examples && p.examples.length > 0 && (
+              <ul className="mt-1 space-y-1">
+                {p.examples.slice(0, 2).map((ex, j) => (
+                  <li
+                    key={j}
+                    dir="rtl"
+                    className="text-sm text-foreground/90 px-2 py-1 rounded bg-background/60"
+                    style={{ fontFamily: "'Cairo', sans-serif" }}
+                  >
+                    {ex}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        ))}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleGenerate}
+          disabled={generating}
+          className="w-full mt-2"
+        >
+          {generating ? (
+            <Loader2 className="h-3.5 w-3.5 mr-2 animate-spin" />
+          ) : (
+            <Sparkles className="h-3.5 w-3.5 mr-2" />
+          )}
+          Generate more at my level ({userLevel})
+        </Button>
+      </div>
+    </details>
+  );
+};
+
 /* ── Main Page ────────────────────────────────────────────── */
 const DiscoverVideo = () => {
   const { videoId } = useParams<{ videoId: string }>();

@@ -15,6 +15,13 @@ interface LogArgs {
   metadata?: Record<string, unknown>;
   /** If true (or severity >= medium), also enqueue a native-review row. */
   enqueueReview?: boolean;
+  /**
+   * Native-speaker validator result, when one ran for this same text.
+   * If the validator scored the text as authentic (verdict='pass' AND
+   * score >= 4), we treat the detector hits as likely false positives:
+   * severity is forced to 'low' and the native-review enqueue is skipped.
+   */
+  validator?: { ok: boolean; verdict: 'pass' | 'rewrite' | 'unknown'; score: number };
 }
 
 interface LogValidatorArgs {
@@ -42,6 +49,18 @@ export function logMsaViolations(args: LogArgs): void {
     const sb = client();
     if (!sb) return;
 
+    // Validator-gated downgrade: if the native-speaker validator already
+    // judged this text authentic, the detector hits are almost always false
+    // positives (over-broad rule entries, spelling variants). Downgrade and
+    // skip native review.
+    const validatorPassed =
+      args.validator?.ok === true &&
+      args.validator.verdict === 'pass' &&
+      args.validator.score >= 4;
+    const effectiveSeverity: MsaLeakResult['severity'] = validatorPassed
+      ? 'low'
+      : args.leaks.severity;
+
     const snippet = (args.offendingText ?? '').slice(0, 2000);
     const ruleHits = args.leaks.ruleHits ?? {};
     const rows = args.leaks.leaks.slice(0, 20).map((token) => ({
@@ -52,7 +71,10 @@ export function logMsaViolations(args: LogArgs): void {
       detected_by: 'msa_leak_detector',
       source_function: args.sourceFunction,
       metadata: {
-        severity: args.leaks.severity,
+        severity: effectiveSeverity,
+        original_severity: args.leaks.severity,
+        validator_passed: validatorPassed,
+        validator_score: args.validator?.score ?? null,
         ...(args.metadata ?? {}),
       },
     }));
@@ -60,11 +82,14 @@ export function logMsaViolations(args: LogArgs): void {
     sb.from('dialect_rule_violations').insert(rows as any).then(
       ({ data, error }) => {
         if (error) console.warn('[msaViolationLogger] insert failed:', error.message);
-        // Enqueue native review when medium/high severity (or explicit flag).
+        // Enqueue native review when medium/high severity (or explicit flag),
+        // but never when the validator already cleared the text.
         const shouldReview =
-          args.enqueueReview === true ||
-          args.leaks.severity === 'medium' ||
-          args.leaks.severity === 'high';
+          !validatorPassed && (
+            args.enqueueReview === true ||
+            effectiveSeverity === 'medium' ||
+            effectiveSeverity === 'high'
+          );
         if (!shouldReview) return;
         const violationId = (data as any)?.[0]?.id ?? null;
         sb.from('dialect_native_reviews').insert([{
@@ -76,7 +101,7 @@ export function logMsaViolations(args: LogArgs): void {
           violation_id: violationId,
           source_function: args.sourceFunction,
           metadata: {
-            severity: args.leaks.severity,
+            severity: effectiveSeverity,
             leaks: args.leaks.leaks,
             ...(args.metadata ?? {}),
           },

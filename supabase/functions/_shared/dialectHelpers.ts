@@ -12,6 +12,7 @@
 // the cache. All sync getters fall back to the hard-coded strings on cache miss.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
+import { ALWAYS_ALLOWED, normalizeArabic } from './msaLeakDetector.ts';
 
 export type Dialect = 'Gulf' | 'Egyptian' | 'Yemeni' | string;
 
@@ -145,25 +146,28 @@ function renderFewShot(rules: DialectRule[]): string {
   return lines.join('\n');
 }
 
-function harvestForbiddenTokens(rules: DialectRule[]): ForbiddenToken[] {
+function harvestForbiddenTokens(rules: DialectRule[], dialect: Dialect): ForbiddenToken[] {
+  // Important: we do NOT split multi-word bad examples into individual
+  // tokens. Splitting a contrastive MSA sentence like "كيف حالك" or
+  // "البيت الذي بجانب المسجد كبير" would poison the detector with neutral
+  // words. Multi-word phrases are still matched as whole phrases; single
+  // tokens become forbidden tokens. Tokens in the per-dialect
+  // ALWAYS_ALLOWED whitelist are dropped defensively.
+  const allowed = ALWAYS_ALLOWED[dialect] ?? new Set<string>();
   const out = new Map<string, string | undefined>();
   for (const r of rules) {
     const bad = Array.isArray(r.examples?.bad) ? r.examples.bad : [];
     for (const item of bad) {
       const s = asString(item);
       if (!s) continue;
-      // Split multi-word strings into individual tokens too, so a "bad" example
-      // like "كيف حالك" contributes both the phrase and its words for matching.
-      const tokens = new Set<string>([s]);
-      s.split(/\s+/).forEach((t) => {
-        const cleaned = t.replace(/^[\p{P}]+|[\p{P}]+$/gu, '');
-        if (cleaned && /[\u0600-\u06FF]/.test(cleaned) && cleaned.length >= 2) {
-          tokens.add(cleaned);
-        }
-      });
-      for (const t of tokens) {
-        if (!out.has(t)) out.set(t, r.id);
-      }
+      const cleaned = s.replace(/^[\p{P}]+|[\p{P}]+$/gu, '').trim();
+      if (!cleaned) continue;
+      if (!/[\u0600-\u06FF]/.test(cleaned)) continue;
+      if (cleaned.length < 2) continue;
+      // Skip if this token (normalized) is in the always-allowed whitelist —
+      // guards against admins pasting neutral words as bad examples.
+      if (allowed.has(normalizeArabic(cleaned))) continue;
+      if (!out.has(cleaned)) out.set(cleaned, r.id);
     }
   }
   return [...out.entries()].map(([token, rule_id]) => ({ token, rule_id }));
@@ -181,7 +185,7 @@ function renderPrompt(dialect: Dialect, rules: DialectRule[]): RenderedPrompt {
   }
   const vocabRules = others.length ? lines.join('\n') : fallbackVocab(dialect);
   const fewShot = renderFewShot(rules);
-  const forbiddenTokens = harvestForbiddenTokens(rules);
+  const forbiddenTokens = harvestForbiddenTokens(rules, dialect);
 
   return {
     identity,

@@ -48,6 +48,78 @@ const SOURCE_BADGE: Record<RuleSource, string> = {
   corpus_mined: 'bg-teal-500/10 text-teal-700 border-teal-500/30',
 };
 
+// Per-dialect words that are valid (or dialect-neutral) and must NEVER end
+// up as forbidden tokens. Kept in sync with ALWAYS_ALLOWED in
+// supabase/functions/_shared/msaLeakDetector.ts so admins get the same
+// guidance the runtime detector uses.
+const ADMIN_ALWAYS_ALLOWED: Record<string, string[]> = {
+  Gulf: ['أنا','هو','هي','من','في','ما','لي','لك','معي','اليوم','بكرة','أمس','البيت','بيت','الكتاب','السوق','القهوة','صديقي','حالك','كبير','صغير','كيف','وين','شلون','شلونك','شو','هالحين','بغيت','أبي','يبي','زين','كويس','مرحبا'],
+  Egyptian: ['أنا','هو','هي','من','في','ما','لي','لك','معي','النهارده','بكرة','إمبارح','البيت','بيت','الكتاب','السوق','القهوة','صحبي','صاحبي','كبير','صغير','كيف','إزاي','فين','ليه','كده','ده','دي','عايز','عاوز','كويس','مرحبا','أهلا'],
+  Yemeni: ['أنا','هو','هي','من','في','ما','لي','لك','معي','اليوم','بكرة','أمس','البيت','بيت','الكتاب','السوق','القهوة','صديقي','صاحبي','حالك','كبير','صغير','كيف','كيفك','وين','ليش','ذحين','ذلحين','الحين','لاحين','بغيت','يبغى','أبغى','أبي','أشتي','أشرب','شلون','شلونك','شفيك','وش','زين','هني','مرة','قات','شو'],
+};
+
+function normalizeArabicClient(s: string): string {
+  if (!s) return '';
+  return s
+    .replace(/[\u064B-\u065F\u0670\u0640]/g, '')
+    .replace(/[\u0622\u0623\u0625]/g, '\u0627')
+    .replace(/\u0649/g, '\u064A')
+    .replace(/\u0629/g, '\u0647')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function BadExamplesHelp({ value, dialect }: { value: string; dialect: string }) {
+  const allowedRaw = ADMIN_ALWAYS_ALLOWED[dialect] ?? [];
+  const allowed = new Set(allowedRaw.map(normalizeArabicClient));
+  const warnings: { line: string; reason: string }[] = [];
+  for (const raw of value.split('\n')) {
+    const line = raw.trim();
+    if (!line) continue;
+    const words = line.split(/\s+/).filter((w) => /[\u0600-\u06FF]/.test(w));
+    if (words.length > 2) {
+      warnings.push({ line, reason: `${words.length} words — bad examples should be a single MSA token, not a full sentence.` });
+      continue;
+    }
+    for (const w of words) {
+      const norm = normalizeArabicClient(w.replace(/^[\p{P}]+|[\p{P}]+$/gu, ''));
+      if (allowed.has(norm)) {
+        warnings.push({ line, reason: `"${w}" is a valid ${dialect} word and will be ignored by the detector.` });
+        break;
+      }
+    }
+  }
+  return (
+    <div className="mt-1.5 space-y-1.5">
+      <div className="text-[11px] text-muted-foreground leading-relaxed bg-muted/40 rounded p-2">
+        <span className="font-medium text-foreground">What to enter:</span>{' '}
+        ONLY forms that are <em>always</em> wrong in this dialect (e.g.{' '}
+        <span className="font-arabic">ليس</span>, <span className="font-arabic">لماذا</span>,{' '}
+        <span className="font-arabic">أريد</span>, <span className="font-arabic">الآن</span>).
+        Do NOT paste full MSA sentences — neutral words inside them (like{' '}
+        <span className="font-arabic">البيت</span>, <span className="font-arabic">كيف</span>,{' '}
+        <span className="font-arabic">أنا</span>) would get flagged as leaks.
+        For contrastive “say X, not Y” pairs, use a <code>msa_substitutions</code> rule instead —
+        those are not fed to the leak detector.
+      </div>
+      {warnings.length > 0 && (
+        <div className="text-[11px] text-amber-700 bg-amber-500/10 border border-amber-500/30 rounded p-2 space-y-1">
+          <div className="font-medium flex items-center gap-1">
+            <AlertTriangle className="h-3 w-3" /> These lines may produce false positives:
+          </div>
+          <ul className="list-disc pl-4 space-y-0.5">
+            {warnings.slice(0, 5).map((w, i) => (
+              <li key={i}>
+                <span className="font-arabic" dir="rtl">{w.line}</span> — {w.reason}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function formatExample(v: unknown): string {
   if (v == null) return '';
   if (typeof v === 'string') return v;
@@ -466,6 +538,7 @@ const RuleRow = ({ rule, dialect }: RuleRowProps) => {
                   onChange={(e) => setDraft({ ...draft, bad: e.target.value })}
                   rows={4}
                 />
+                <BadExamplesHelp value={draft.bad} dialect={rule.dialect} />
               </div>
             </div>
             <div className="flex justify-end gap-2">

@@ -150,6 +150,9 @@ export async function askBrain<T = unknown>(task: BrainTask): Promise<BrainResul
       leaks: result.msaLeaks,
       offendingText: result.raw ?? '',
       sourceFunction: task.purpose,
+      validator: result.validator
+        ? { ok: result.validator.ok, verdict: result.validator.verdict, score: result.validator.score }
+        : undefined,
       metadata: {
         strategy: result.strategy,
         models: result.models,

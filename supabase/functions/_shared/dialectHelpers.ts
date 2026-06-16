@@ -185,7 +185,7 @@ function renderPrompt(dialect: Dialect, rules: DialectRule[]): RenderedPrompt {
   }
   const vocabRules = others.length ? lines.join('\n') : fallbackVocab(dialect);
   const fewShot = renderFewShot(rules);
-  const forbiddenTokens = harvestForbiddenTokens(rules);
+  const forbiddenTokens = harvestForbiddenTokens(rules, dialect);
 
   return {
     identity,

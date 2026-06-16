@@ -466,6 +466,7 @@ const RuleRow = ({ rule, dialect }: RuleRowProps) => {
                   onChange={(e) => setDraft({ ...draft, bad: e.target.value })}
                   rows={4}
                 />
+                <BadExamplesHelp value={draft.bad} dialect={rule.dialect} />
               </div>
             </div>
             <div className="flex justify-end gap-2">

@@ -322,7 +322,7 @@ export const useBulkAddUserVocabulary = () => {
     ): Promise<{ added: number; skipped: number; total: number }> => {
       if (!user) throw new Error("Must be logged in");
       const dialect = args.dialect || activeDialect;
-      const source = args.source || "picture_scene";
+      const source = args.source || "bulk";
       const total = args.words.length;
       if (total === 0) return { added: 0, skipped: 0, total: 0 };
 

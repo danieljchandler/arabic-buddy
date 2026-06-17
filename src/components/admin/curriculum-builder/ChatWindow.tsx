@@ -23,7 +23,7 @@ const TYPE_META: Record<string, { label: string; icon: string }> = {
   daily_challenge_preview: { label: 'Daily Challenge', icon: '🔥' },
   conversation_preview: { label: 'Conversation', icon: '💬' },
   game_set_preview: { label: 'Game Set', icon: '🎮' },
-  picture_scene_preview: { label: 'Picture Scene', icon: '🖼️' },
+  
 };
 
 export const ChatWindow = ({

@@ -49,10 +49,6 @@ export const PAGE_HINTS: Record<string, { title: string; body: string; cta?: str
     title: "Learn from X",
     body: "Drop in an X (Twitter) post URL. We'll extract the Arabic, translate it, and turn the vocabulary into flashcards.",
   },
-  "picture-scenes": {
-    title: "Picture Scenes",
-    body: "AI-generated scenes with clickable hotspots. Tap objects to learn their names, then take a quick quiz to lock it in.",
-  },
   "tutor-upload": {
     title: "Tutor Upload",
     body: "Upload a lesson recording with your tutor and we'll auto-cut it into flashcards with audio, translations, and images.",

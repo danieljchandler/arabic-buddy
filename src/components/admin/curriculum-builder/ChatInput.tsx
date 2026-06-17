@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Send, X, MessageSquare, GraduationCap, BookOpen, Image as ImageIcon, PenLine, Headphones, BookOpenCheck, Flame, MessageCircle, Gamepad2 } from 'lucide-react';
+import { Send, X, MessageSquare, GraduationCap, BookOpen, PenLine, Headphones, BookOpenCheck, Flame, MessageCircle, Gamepad2 } from 'lucide-react';
 import { QuickActionsMenu } from './QuickActionsMenu';
 
 export type ChatMode =
@@ -14,7 +14,6 @@ export type ChatMode =
   | 'generate_daily_challenge'
   | 'generate_conversation'
   | 'generate_game_set'
-  | 'generate_picture_scene'
   | 'suggest_lessons'
   | 'suggest_vocab';
 
@@ -60,7 +59,7 @@ export const ChatInput = ({ onSend, disabled, isGenerating }: ChatInputProps) =>
     { mode: 'chat', label: 'Chat', icon: MessageSquare, prompt: '' },
     { mode: 'generate_lesson', label: 'Lesson', icon: GraduationCap, prompt: 'Create a complete lesson about: ' },
     { mode: 'generate_vocab', label: 'Vocab', icon: BookOpen, prompt: 'Generate vocabulary words for the topic: ' },
-    { mode: 'generate_picture_scene', label: 'Picture Scene', icon: ImageIcon, prompt: 'Create a picture scene for the theme: ' },
+    
     { mode: 'generate_grammar', label: 'Grammar', icon: PenLine, prompt: 'Create grammar drill exercises for: ' },
     { mode: 'generate_listening', label: 'Listening', icon: Headphones, prompt: 'Create listening exercises about: ' },
     { mode: 'generate_reading', label: 'Reading', icon: BookOpenCheck, prompt: 'Create a reading passage about: ' },

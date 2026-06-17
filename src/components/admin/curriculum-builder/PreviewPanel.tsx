@@ -16,7 +16,7 @@ import {
   ConversationPreviewCard,
   GameSetPreviewCard,
 } from './ContentPreviewCard';
-import { PictureScenePreviewCard } from './PictureScenePreviewCard';
+
 
 interface PreviewPanelProps {
   message: ChatMessage | null;
@@ -41,7 +41,7 @@ const TYPE_LABEL: Record<string, string> = {
   daily_challenge_preview: 'Daily Challenge',
   conversation_preview: 'Conversation',
   game_set_preview: 'Game Set',
-  picture_scene_preview: 'Picture Scene',
+  
 };
 
 export const PreviewPanel = ({
@@ -133,9 +133,6 @@ export const PreviewPanel = ({
               )}
               {type === 'game_set_preview' && (
                 <GameSetPreviewCard data={data} onApprove={() => onApproveContent(message.id, type, data)} />
-              )}
-              {type === 'picture_scene_preview' && (
-                <PictureScenePreviewCard data={data} onApprove={() => onApproveContent(message.id, type, data)} />
               )}
             </div>
           </ScrollArea>

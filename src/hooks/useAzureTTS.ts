@@ -41,6 +41,17 @@ function isMunsitDialect(dialect: DialectHint): boolean {
   return MUNSIT_DIALECT_LABELS.has(String(dialect).toLowerCase());
 }
 
+// Module-level serial queue for Munsit requests. Munsit's plan caps concurrent
+// requests (and we want to avoid 429s entirely), so we funnel every munsit-tts
+// fetch through a single-slot mutex. Azure has no such limit and is unaffected.
+let munsitChain: Promise<unknown> = Promise.resolve();
+function runOnMunsit<T>(task: () => Promise<T>): Promise<T> {
+  const next = munsitChain.then(task, task);
+  munsitChain = next.catch(() => {});
+  return next;
+}
+
+
 /**
  * Hook that generates speech from Arabic text via the appropriate TTS edge
  * function: `munsit-tts` for Gulf words (Arabic-native voice), `azure-tts`
@@ -89,7 +100,9 @@ export function useAzureTTS({ text, skip = false, dialect }: UseAzureTTSOptions)
         body: JSON.stringify({ text }),
       });
 
-      let response = await tryFetch(endpoint);
+      let response = useMunsit
+        ? await runOnMunsit(() => tryFetch(endpoint))
+        : await tryFetch(endpoint);
 
       // Munsit may return 200 with { fallback: true } on quota/rate-limit errors.
       let shouldFallback = !response.ok;
@@ -107,6 +120,7 @@ export function useAzureTTS({ text, skip = false, dialect }: UseAzureTTSOptions)
         console.warn(`munsit-tts unavailable (${response.status}); falling back to azure-tts`);
         response = await tryFetch("azure-tts");
       }
+
 
       if (reqId !== requestIdRef.current) return;
 

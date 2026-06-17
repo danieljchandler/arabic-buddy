@@ -100,7 +100,9 @@ export function useAzureTTS({ text, skip = false, dialect }: UseAzureTTSOptions)
         body: JSON.stringify({ text }),
       });
 
-      let response = await tryFetch(endpoint);
+      let response = useMunsit
+        ? await runOnMunsit(() => tryFetch(endpoint))
+        : await tryFetch(endpoint);
 
       // Munsit may return 200 with { fallback: true } on quota/rate-limit errors.
       let shouldFallback = !response.ok;
@@ -118,6 +120,7 @@ export function useAzureTTS({ text, skip = false, dialect }: UseAzureTTSOptions)
         console.warn(`munsit-tts unavailable (${response.status}); falling back to azure-tts`);
         response = await tryFetch("azure-tts");
       }
+
 
       if (reqId !== requestIdRef.current) return;
 

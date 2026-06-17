@@ -91,15 +91,26 @@ export function useAzureTTS({ text, skip = false, dialect }: UseAzureTTSOptions)
 
       let response = await tryFetch(endpoint);
 
-      // If Munsit fails (e.g. quota / cold-start), fall back to Azure transparently.
-      if (!response.ok && useMunsit) {
-        console.warn(`munsit-tts failed (${response.status}); falling back to azure-tts`);
+      // Munsit may return 200 with { fallback: true } on quota/rate-limit errors.
+      let shouldFallback = !response.ok;
+      if (response.ok && useMunsit) {
+        const ct = response.headers.get("content-type") ?? "";
+        if (ct.includes("application/json")) {
+          try {
+            const j = await response.clone().json();
+            if (j?.fallback) shouldFallback = true;
+          } catch { /* ignore */ }
+        }
+      }
+
+      if (shouldFallback && useMunsit) {
+        console.warn(`munsit-tts unavailable (${response.status}); falling back to azure-tts`);
         response = await tryFetch("azure-tts");
       }
 
       if (reqId !== requestIdRef.current) return;
 
-      if (response.ok) {
+      if (response.ok && (response.headers.get("content-type") ?? "").startsWith("audio/")) {
         const blob = await response.blob();
         revokePreviousUrl();
         const url = URL.createObjectURL(blob);

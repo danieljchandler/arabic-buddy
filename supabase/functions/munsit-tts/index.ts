@@ -183,9 +183,20 @@ serve(async (req) => {
     if (!resp.ok) {
       const t = await resp.text();
       console.error(`Munsit TTS ${resp.status}:`, t.slice(0, 300));
+      // Graceful degradation: signal client to fall back to another TTS provider
+      // (rate limit, quota, or upstream server errors)
+      const fallback = resp.status === 429 || resp.status === 402 || resp.status >= 500;
       return new Response(
-        JSON.stringify({ error: `Munsit TTS ${resp.status}`, detail: t.slice(0, 500) }),
-        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        JSON.stringify({
+          error: fallback ? "SERVICE_UNAVAILABLE" : `Munsit TTS ${resp.status}`,
+          detail: t.slice(0, 500),
+          fallback,
+          status: resp.status,
+        }),
+        {
+          status: fallback ? 200 : 502,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
       );
     }
 
@@ -200,8 +211,8 @@ serve(async (req) => {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("munsit-tts error:", msg);
     return new Response(
-      JSON.stringify({ error: msg }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      JSON.stringify({ error: "SERVICE_FAILED", detail: msg, fallback: true }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
 });

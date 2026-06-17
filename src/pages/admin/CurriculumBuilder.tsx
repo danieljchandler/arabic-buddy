@@ -52,7 +52,6 @@ const CurriculumBuilder = () => {
     approveDailyChallenge,
     approveConversationScenario,
     approveGameSet,
-    approvePictureScene,
   } = useCurriculumApproval();
   const { data: stages } = useStages();
 
@@ -181,15 +180,9 @@ const CurriculumBuilder = () => {
         case 'daily_challenge_preview': approveDailyChallenge.mutate(params); break;
         case 'conversation_preview': approveConversationScenario.mutate(params); break;
         case 'game_set_preview': approveGameSet.mutate(params); break;
-        case 'picture_scene_preview':
-          approvePictureScene.mutate({
-            ...params,
-            dialect: activeSession?.target_dialect || activeDialect,
-          });
-          break;
       }
     },
-    [activeSessionId, approveGrammarExercises, approveListeningExercises, approveReadingPassage, approveDailyChallenge, approveConversationScenario, approveGameSet, approvePictureScene, activeSession, activeDialect],
+    [activeSessionId, approveGrammarExercises, approveListeningExercises, approveReadingPassage, approveDailyChallenge, approveConversationScenario, approveGameSet, activeSession, activeDialect],
   );
 
   const sidebar = (

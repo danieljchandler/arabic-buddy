@@ -65,19 +65,6 @@ function extractFromContent(
     }
   }
 
-  // picture scene hotspots
-  if (Array.isArray(row.hotspots)) {
-    for (const h of row.hotspots) {
-      const ar = h?.word_arabic;
-      if (ar) push({
-        kind: "vocab",
-        key: norm(ar),
-        display_arabic: ar,
-        display_english: h?.word_english,
-        role: "introduce",
-      });
-    }
-  }
 
   // grammar
   if (row.grammar_point) {
@@ -147,7 +134,6 @@ serve(async (req) => {
       const tableMap: Record<string, string> = {
         lesson: "lessons",
         vocab: "lessons",
-        picture_scene: "picture_scenes",
         grammar: "grammar_exercises",
         listening: "listening_exercises",
         reading: "reading_passages",
@@ -158,12 +144,6 @@ serve(async (req) => {
       if (table) {
         const { data } = await service.from(table).select("*").eq("id", content_id).maybeSingle();
         row = data || {};
-        if (content_type === "picture_scene") {
-          const { data: hotspots } = await service
-            .from("picture_scene_hotspots").select("word_arabic, word_english")
-            .eq("scene_id", content_id);
-          row.hotspots = hotspots ?? [];
-        }
       } else {
         row = {};
       }

@@ -65,7 +65,7 @@ const MyWords = () => {
     "daily-story": "📔 Stories",
     "discover": "🔍 Discover",
     "tutor-upload": "🎯 Tutor Upload",
-    "picture_scene": "🖼 Picture Scenes",
+    
     "free-chat": "💬 Chat",
     "how-do-i-say": "❓ How do I say",
   };

@@ -155,12 +155,6 @@ verify_jwt = false
 [functions.ai-resegment-transcript]
 verify_jwt = true
 
-# Picture Scenes (admin-only image + audio generation, called from chat preview card)
-[functions.regenerate-scene-image]
-verify_jwt = true
-
-[functions.generate-scene-audio]
-verify_jwt = true
 
 [functions.coverage-planner]
 verify_jwt = true

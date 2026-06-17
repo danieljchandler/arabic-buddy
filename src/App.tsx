@@ -60,8 +60,6 @@ const SouqNews = lazyPage(() => import("./pages/SouqNews"));
 const BibleReading = lazyPage(() => import("./pages/BibleReading"));
 const BibleLessons = lazyPage(() => import("./pages/BibleLessons"));
 const MyTranscriptions = lazyPage(() => import("./pages/MyTranscriptions"));
-const PictureScenes = lazyPage(() => import("./pages/PictureScenes"));
-const PictureScenePlayer = lazyPage(() => import("./pages/PictureScenePlayer"));
 const AlphabetJourney = lazyPage(() => import("./pages/AlphabetJourney"));
 const AlphabetLetter = lazyPage(() => import("./pages/AlphabetLetter"));
 const AlphabetCheckpoint = lazyPage(() => import("./pages/AlphabetCheckpoint"));
@@ -95,8 +93,6 @@ const AdminMemes = lazyPage(() => import("./pages/admin/AdminMemes"));
 const AdminMemeForm = lazyPage(() => import("./pages/admin/AdminMemeForm"));
 const BibleAccess = lazyPage(() => import("./pages/admin/BibleAccess"));
 const AdminBibleLessons = lazyPage(() => import("./pages/admin/AdminBibleLessons"));
-const AdminPictureScenes = lazyPage(() => import("./pages/admin/AdminPictureScenes"));
-const AdminPictureSceneEdit = lazyPage(() => import("./pages/admin/AdminPictureSceneEdit"));
 const AdminCoverage = lazyPage(() => import("./pages/admin/AdminCoverage"));
 const AdminSetPhrases = lazyPage(() => import("./pages/admin/AdminSetPhrases"));
 const AdminDialectRules = lazyPage(() => import("./pages/admin/AdminDialectRules"));
@@ -361,12 +357,6 @@ const App = () => {
             <Route path="/my-transcriptions" element={
               <ErrorBoundary name="MyTranscriptionsRoute"><ProtectedRoute><MyTranscriptions /></ProtectedRoute></ErrorBoundary>
             } />
-            <Route path="/picture-scenes" element={
-              <ErrorBoundary name="PictureScenesRoute"><PictureScenes /></ErrorBoundary>
-            } />
-            <Route path="/picture-scenes/:sceneId" element={
-              <ErrorBoundary name="PictureScenePlayerRoute"><PictureScenePlayer /></ErrorBoundary>
-            } />
             <Route path="/alphabet" element={
               <ErrorBoundary name="AlphabetJourneyRoute"><AlphabetJourney /></ErrorBoundary>
             } />
@@ -416,8 +406,6 @@ const App = () => {
               <Route path="trending" element={<TrendingVideos />} />
               <Route path="bible-access" element={<BibleAccess />} />
               <Route path="bible-lessons" element={<AdminBibleLessons />} />
-              <Route path="picture-scenes" element={<AdminPictureScenes />} />
-              <Route path="picture-scenes/:sceneId" element={<AdminPictureSceneEdit />} />
               <Route path="coverage" element={<AdminCoverage />} />
               <Route path="memes" element={<AdminMemes />} />
               <Route path="memes/new" element={<AdminMemeForm />} />

@@ -277,31 +277,6 @@ IMPORTANT: Generate a vocabulary game set with word pairs. Include a JSON code b
 }
 \`\`\``,
 
-  generate_picture_scene: `
-IMPORTANT: Generate a picture-scene vocabulary set: a single themed scene (e.g. Kitchen, Souq, Bus station, Living room) containing 8–12 CONCRETE, easily-drawable nouns that can all coexist in one realistic image.
-
-Rules for the word list:
-- Only concrete, picturable objects (no abstract concepts, no verbs, no greetings).
-- Objects must be visually distinct from each other and reasonable to fit in one scene.
-- Use the target dialect spelling (Gulf / Egyptian / Yemeni). No MSA-only words.
-- Include a short, vivid English description of the overall scene the AI will render.
-
-Include a JSON code block:
-
-\`\`\`json
-{
-  "type": "picture_scene_preview",
-  "theme": "Kitchen",
-  "title": "In the Kitchen",
-  "title_arabic": "في المطبخ",
-  "scene_description": "A warm, photo-realistic top-down view of a tidy home kitchen counter with all the listed objects clearly visible and well-separated.",
-  "cefr_level": "A1",
-  "words": [
-    { "word_arabic": "خبز", "word_english": "bread", "transliteration": "khubz" },
-    { "word_arabic": "جدر", "word_english": "pot", "transliteration": "jidir" }
-  ]
-}
-\`\`\``,
 };
 
 function detectMode(mode: string | undefined, lastUserMessage?: string): string | undefined {
@@ -316,7 +291,7 @@ function detectMode(mode: string | undefined, lastUserMessage?: string): string 
   if (/\b(daily.*challenge|challenge set)\b/.test(msg)) return "generate_daily_challenge";
   if (/\b(conversation|scenario|role.?play|simulator)\b/.test(msg)) return "generate_conversation";
   if (/\b(game|matching|memory game)\b/.test(msg)) return "generate_game_set";
-  if (/\b(picture\s*scene|scene picture|themed image|interactive picture)\b/.test(msg)) return "generate_picture_scene";
+  
   return mode;
 }
 

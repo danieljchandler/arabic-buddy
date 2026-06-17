@@ -15,7 +15,7 @@ import {
   Gamepad2,
   Lightbulb,
   Sparkles,
-  Image as ImageIcon,
+  
   Languages,
   GitCompare,
   Plus,
@@ -42,7 +42,7 @@ const GROUPS: { label: string; actions: QuickAction[] }[] = [
     actions: [
       { label: 'Lesson', icon: GraduationCap, mode: 'generate_lesson', prompt: 'Create a complete lesson about: ' },
       { label: 'Vocabulary', icon: BookOpen, mode: 'generate_vocab', prompt: 'Generate vocabulary words for the topic: ' },
-      { label: 'Picture Scene', icon: ImageIcon, mode: 'generate_picture_scene', prompt: 'Create a picture scene for the theme: ' },
+      
     ],
   },
   {

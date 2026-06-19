@@ -3728,6 +3728,7 @@ export type Database = {
         Returns: undefined
       }
       redeem_invite_code: { Args: { _code: string }; Returns: Json }
+      verify_invite_code: { Args: { _code: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "user" | "recorder" | "bible_reader"

@@ -1316,6 +1316,71 @@ export type Database = {
         }
         Relationships: []
       }
+      invite_codes: {
+        Row: {
+          code: string
+          created_at: string
+          created_by: string | null
+          expires_at: string | null
+          id: string
+          max_uses: number
+          note: string | null
+          updated_at: string
+          uses: number
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          max_uses?: number
+          note?: string | null
+          updated_at?: string
+          uses?: number
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          max_uses?: number
+          note?: string | null
+          updated_at?: string
+          uses?: number
+        }
+        Relationships: []
+      }
+      invite_redemptions: {
+        Row: {
+          id: string
+          invite_code_id: string
+          redeemed_at: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          invite_code_id: string
+          redeemed_at?: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          invite_code_id?: string
+          redeemed_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invite_redemptions_invite_code_id_fkey"
+            columns: ["invite_code_id"]
+            isOneToOne: false
+            referencedRelation: "invite_codes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       learning_paths: {
         Row: {
           completed_at: string | null
@@ -1921,6 +1986,7 @@ export type Database = {
           display_name: string | null
           id: string
           institution_id: string | null
+          invited_via: string | null
           learning_reason: string | null
           msa_background: string | null
           onboarding_completed: boolean
@@ -1948,6 +2014,7 @@ export type Database = {
           display_name?: string | null
           id?: string
           institution_id?: string | null
+          invited_via?: string | null
           learning_reason?: string | null
           msa_background?: string | null
           onboarding_completed?: boolean
@@ -1975,6 +2042,7 @@ export type Database = {
           display_name?: string | null
           id?: string
           institution_id?: string | null
+          invited_via?: string | null
           learning_reason?: string | null
           msa_background?: string | null
           onboarding_completed?: boolean
@@ -3636,6 +3704,7 @@ export type Database = {
     Functions: {
       award_xp: { Args: { _amount: number; _reason?: string }; Returns: Json }
       grant_achievement: { Args: { _achievement_id: string }; Returns: Json }
+      has_redeemed_invite: { Args: never; Returns: boolean }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -3658,6 +3727,8 @@ export type Database = {
         Args: { _index: number; _score: number }
         Returns: undefined
       }
+      redeem_invite_code: { Args: { _code: string }; Returns: Json }
+      verify_invite_code: { Args: { _code: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "user" | "recorder" | "bible_reader"

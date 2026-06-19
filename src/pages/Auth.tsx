@@ -231,6 +231,34 @@ const Auth = () => {
               )}
             </div>
 
+            {/* Invite code (signup only) */}
+            {!isLogin && (
+              <div className="space-y-2">
+                <Label htmlFor="inviteCode" className="text-sm font-medium flex items-center gap-2">
+                  <Ticket className="h-4 w-4 text-muted-foreground" />
+                  Beta invite code
+                </Label>
+                <Input
+                  id="inviteCode"
+                  type="text"
+                  value={inviteCode}
+                  onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+                  placeholder="e.g. HAKIYA-XXXX"
+                  className="h-11 rounded-lg font-mono tracking-wider"
+                  autoCapitalize="characters"
+                  autoCorrect="off"
+                  disabled={isSubmitting}
+                />
+                {errors.inviteCode && (
+                  <p className="text-destructive text-sm">{errors.inviteCode}</p>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  Hakiya is in closed beta. Don't have a code? Email us at hello@hakiya.app.
+                </p>
+              </div>
+            )}
+
+
             {/* Submit Button */}
             <Button
               type="submit"

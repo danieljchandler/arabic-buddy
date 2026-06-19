@@ -93,8 +93,8 @@ const Auth = () => {
         // orphan users behind when a code is bad/expired/used up.
         const trimmedCode = inviteCode.trim().toUpperCase();
         const { data: codeOk, error: verifyError } = await supabase.rpc(
-          "verify_invite_code" as never,
-          { _code: trimmedCode } as never,
+          "verify_invite_code",
+          { _code: trimmedCode },
         );
         if (verifyError) {
           toast({
@@ -129,8 +129,8 @@ const Auth = () => {
         // Best-effort redemption. If it races (someone else used the last seat
         // between verify and redeem) we surface that and sign the user out.
         const { error: redeemError } = await supabase.rpc(
-          "redeem_invite_code" as never,
-          { _code: trimmedCode } as never,
+          "redeem_invite_code",
+          { _code: trimmedCode },
         );
         if (redeemError) {
           await supabase.auth.signOut();

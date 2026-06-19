@@ -8,17 +8,23 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { HomeButton } from "@/components/HomeButton";
 import { AppShell } from "@/components/layout/AppShell";
-import { Loader2, Mail, Lock, UserPlus, LogIn } from "lucide-react";
+import { Loader2, Mail, Lock, UserPlus, LogIn, Ticket } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import hakiyaIconAsset from "@/assets/hakiya-icon.png.asset.json";
 const lahjaIcon = hakiyaIconAsset.url;
 
 // Lightweight inline validators — dropping `zod` here saves ~12 kB gz on the Auth chunk.
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const validateAuthInput = (email: string, password: string) => {
-  const errors: { email?: string; password?: string } = {};
+const validateAuthInput = (
+  email: string,
+  password: string,
+  inviteCode: string,
+  isSignup: boolean,
+) => {
+  const errors: { email?: string; password?: string; inviteCode?: string } = {};
   if (!EMAIL_RE.test(email.trim())) errors.email = "Please enter a valid email address";
   if (password.length < 6) errors.password = "Password must be at least 6 characters";
+  if (isSignup && inviteCode.trim().length < 4) errors.inviteCode = "Invite code required";
   return errors;
 };
 
@@ -29,8 +35,9 @@ const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [inviteCode, setInviteCode] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [errors, setErrors] = useState<{ email?: string; password?: string; inviteCode?: string }>({});
 
   useEffect(() => {
     if (isAuthenticated && !loading) {
@@ -52,16 +59,16 @@ const Auth = () => {
   }, [isAuthenticated, loading, navigate]);
 
   const validateForm = () => {
-    const newErrors = validateAuthInput(email, password);
+    const newErrors = validateAuthInput(email, password, inviteCode, !isLogin);
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) return;
-    
+
     setIsSubmitting(true);
 
     try {
@@ -70,8 +77,8 @@ const Auth = () => {
         if (error) {
           toast({
             title: "Login Failed",
-            description: error.message === "Invalid login credentials" 
-              ? "Wrong email or password. Please try again." 
+            description: error.message === "Invalid login credentials"
+              ? "Wrong email or password. Please try again."
               : error.message,
             variant: "destructive",
           });
@@ -82,21 +89,63 @@ const Auth = () => {
           });
         }
       } else {
+        // Pre-validate invite code before creating the account so we don't leave
+        // orphan users behind when a code is bad/expired/used up.
+        const trimmedCode = inviteCode.trim().toUpperCase();
+        const { data: codeOk, error: verifyError } = await supabase.rpc(
+          "verify_invite_code" as never,
+          { _code: trimmedCode } as never,
+        );
+        if (verifyError) {
+          toast({
+            title: "Couldn't check invite code",
+            description: verifyError.message,
+            variant: "destructive",
+          });
+          return;
+        }
+        if (!codeOk) {
+          setErrors((prev) => ({ ...prev, inviteCode: "Invalid, expired, or fully used code" }));
+          toast({
+            title: "Invite code not accepted",
+            description: "Double-check the code or ask for a new one.",
+            variant: "destructive",
+          });
+          return;
+        }
+
         const { error } = await signUp(email, password);
         if (error) {
           toast({
             title: "Sign Up Failed",
-            description: error.message.includes("already registered") 
-              ? "This email is already registered. Try logging in." 
+            description: error.message.includes("already registered")
+              ? "This email is already registered. Try logging in."
               : error.message,
             variant: "destructive",
           });
-        } else {
-          toast({
-            title: "Account created",
-            description: "You're all set to start learning.",
-          });
+          return;
         }
+
+        // Best-effort redemption. If it races (someone else used the last seat
+        // between verify and redeem) we surface that and sign the user out.
+        const { error: redeemError } = await supabase.rpc(
+          "redeem_invite_code" as never,
+          { _code: trimmedCode } as never,
+        );
+        if (redeemError) {
+          await supabase.auth.signOut();
+          toast({
+            title: "Invite code couldn't be redeemed",
+            description: redeemError.message || "Please try again with a different code.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        toast({
+          title: "Account created",
+          description: "You're all set to start learning.",
+        });
       }
     } finally {
       setIsSubmitting(false);

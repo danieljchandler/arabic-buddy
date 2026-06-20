@@ -16,6 +16,13 @@ interface UseAzureTTSOptions {
    * Khaleeji pronunciation. All other dialects continue to use Azure.
    */
   dialect?: DialectHint;
+  /**
+   * Optional callback invoked once per successful generation with the raw
+   * audio blob. Call sites use this to upload the blob to storage and
+   * persist a URL on the flashcard so we never re-synthesize the same text.
+   * Errors thrown by the callback are caught and logged.
+   */
+  persist?: (blob: Blob) => Promise<void> | void;
 }
 
 interface UseAzureTTSResult {

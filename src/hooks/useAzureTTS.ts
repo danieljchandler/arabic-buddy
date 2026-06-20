@@ -67,12 +67,16 @@ function runOnMunsit<T>(task: () => Promise<T>): Promise<T> {
  * Returns a stable blob URL that is automatically revoked on unmount or when
  * the text/dialect changes.  Skips the request when `skip` is true.
  */
-export function useAzureTTS({ text, skip = false, dialect }: UseAzureTTSOptions): UseAzureTTSResult {
+export function useAzureTTS({ text, skip = false, dialect, persist }: UseAzureTTSOptions): UseAzureTTSResult {
   const { activeDialect } = useDialect();
   const [ttsUrl, setTtsUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const blobUrlRef = useRef<string | null>(null);
   const requestIdRef = useRef(0);
+  // Latest persist callback — read inside generate() so we don't restart on
+  // identity changes of the function passed in by the caller.
+  const persistRef = useRef(persist);
+  useEffect(() => { persistRef.current = persist; }, [persist]);
 
   // Explicit `dialect` prop wins; otherwise fall back to the global active dialect
   // so all Gulf playback automatically routes through Munsit.
@@ -137,6 +141,13 @@ export function useAzureTTS({ text, skip = false, dialect }: UseAzureTTSOptions)
         const url = URL.createObjectURL(blob);
         blobUrlRef.current = url;
         setTtsUrl(url);
+        // Persist to storage so we never resynthesize this text again.
+        const cb = persistRef.current;
+        if (cb) {
+          Promise.resolve()
+            .then(() => cb(blob))
+            .catch((err) => console.error("TTS persist failed:", err));
+        }
       }
     } catch (err) {
       console.error("TTS generation failed:", err);

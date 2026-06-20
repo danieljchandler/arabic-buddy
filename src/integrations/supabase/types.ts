@@ -2156,6 +2156,42 @@ export type Database = {
         }
         Relationships: []
       }
+      saved_text_translations: {
+        Row: {
+          created_at: string
+          detected_dialect: string | null
+          id: string
+          sentences: Json
+          source_dialect: string | null
+          source_text: string
+          title: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          detected_dialect?: string | null
+          id?: string
+          sentences?: Json
+          source_dialect?: string | null
+          source_text: string
+          title?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          detected_dialect?: string | null
+          id?: string
+          sentences?: Json
+          source_dialect?: string | null
+          source_text?: string
+          title?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       saved_transcriptions: {
         Row: {
           audio_url: string | null

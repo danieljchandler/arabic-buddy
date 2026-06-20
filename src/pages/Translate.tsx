@@ -16,10 +16,11 @@ import {
 import { InfoHint } from "@/components/InfoHint";
 import { TappableArabicText } from "@/components/shared/TappableArabicText";
 import { useTranslateText } from "@/hooks/useTranslateText";
+import { useSavedTranslations } from "@/hooks/useSavedTranslations";
 import { useDialect } from "@/contexts/DialectContext";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import { Languages, Loader2, BookmarkPlus, Info, RotateCcw } from "lucide-react";
+import { BookOpen, Check, Languages, Loader2, BookmarkPlus, Info, RotateCcw, Save } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type DialectOpt = "auto" | "Gulf" | "Egyptian" | "Yemeni";
@@ -44,9 +45,33 @@ const Translate = () => {
   const { activeDialect } = useDialect();
   const { isAuthenticated } = useAuth();
   const { translate, loading, result, error, reset } = useTranslateText();
+  const { save } = useSavedTranslations();
 
   const [text, setText] = useState("");
   const [dialectOpt, setDialectOpt] = useState<DialectOpt>("auto");
+  const [saving, setSaving] = useState(false);
+  const [savedId, setSavedId] = useState<string | null>(null);
+
+  const onSave = async () => {
+    if (!result) return;
+    setSaving(true);
+    try {
+      const row = await save({
+        source_text: text.trim(),
+        source_dialect: dialectOpt === "auto" ? null : dialectOpt,
+        detected_dialect: result.detected_dialect,
+        sentences: result.sentences,
+      });
+      if (row) {
+        setSavedId(row.id);
+        toast.success("Saved — open it any time from Saved Translations");
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to save");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const onSubmit = async () => {
     const trimmed = text.trim();
@@ -59,6 +84,7 @@ const Translate = () => {
       return;
     }
     try {
+      setSavedId(null);
       await translate(trimmed, dialectOpt);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Translation failed";
@@ -68,6 +94,7 @@ const Translate = () => {
 
   const onReset = () => {
     setText("");
+    setSavedId(null);
     reset();
   };
 
@@ -86,7 +113,13 @@ const Translate = () => {
             Translate & Save
             <InfoHint title={PAGE_HINT.title} body={PAGE_HINT.body} />
           </h1>
-          <div className="w-9" />
+          {isAuthenticated ? (
+            <Button asChild variant="ghost" size="icon" aria-label="Saved translations">
+              <Link to="/translate/saved"><BookOpen className="h-5 w-5" /></Link>
+            </Button>
+          ) : (
+            <div className="w-9" />
+          )}
         </div>
 
         <Card>
@@ -209,7 +242,26 @@ const Translate = () => {
             ))}
 
             {isAuthenticated && (
-              <div className="flex justify-center pt-2">
+              <div className="flex flex-wrap justify-center gap-2 pt-2">
+                <Button
+                  size="sm"
+                  onClick={onSave}
+                  disabled={saving || !!savedId}
+                  variant={savedId ? "secondary" : "default"}
+                >
+                  {saving ? (
+                    <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Saving…</>
+                  ) : savedId ? (
+                    <><Check className="h-4 w-4 mr-1" /> Saved</>
+                  ) : (
+                    <><Save className="h-4 w-4 mr-1" /> Save translation</>
+                  )}
+                </Button>
+                <Button asChild variant="outline" size="sm">
+                  <Link to="/translate/saved">
+                    <BookOpen className="h-4 w-4 mr-1" /> Saved translations
+                  </Link>
+                </Button>
                 <Button asChild variant="outline" size="sm">
                   <Link to="/my-words">Go to My Words</Link>
                 </Button>

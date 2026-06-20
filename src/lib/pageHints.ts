@@ -29,6 +29,10 @@ export const PAGE_HINTS: Record<string, { title: string; body: string; cta?: str
     title: "Transcribe",
     body: "Drop in audio, video, TikTok, or YouTube and get a word-by-word transcript with translations, dialect notes, and tappable vocab.",
   },
+  translate: {
+    title: "Translate & Save",
+    body: "Paste Arabic text and get a sentence-by-sentence breakdown — literal + natural + cultural notes. Tap any word to save it to My Words.",
+  },
   quiz: {
     title: "Quiz",
     body: "Quick multiple-choice rounds to test recall. Great as a 2-minute warmup or cooldown between bigger sessions.",

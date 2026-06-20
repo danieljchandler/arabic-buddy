@@ -235,7 +235,7 @@ const MyPhrasesReview = () => {
 
   if (!current) return null;
   const progress = ((safeIndex + 1) / duePhrases.length) * 100;
-  const effectiveAudio = ttsUrl;
+  const effectiveAudio = current.phrase_audio_url || ttsUrl;
 
   return (
     <AppShell compact>

@@ -663,6 +663,18 @@ const Index = () => {
             </button>
           ),
 
+          "translate": (
+            <button key="translate" onClick={() => navigate("/translate")} className={cn("w-full p-4 rounded-xl bg-card border border-border flex items-center gap-3 transition-all duration-200 hover:border-primary/20")}>
+              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                <Languages className="h-5 w-5 text-primary" />
+              </div>
+              <div className="text-left">
+                <p className="font-semibold text-foreground flex items-center gap-1.5">Translate &amp; Save<InfoHint title="Translate &amp; Save" body="Paste Arabic, get a sentence-by-sentence breakdown, tap words to save." /></p>
+                <p className="text-xs text-muted-foreground">Paste Arabic, save vocabulary</p>
+              </div>
+            </button>
+          ),
+
           "my-transcriptions": isAuthenticated ? (
             <button key="my-transcriptions" onClick={() => navigate("/my-transcriptions")} className={cn("w-full p-4 rounded-xl bg-card border border-border flex items-center gap-3 transition-all duration-200 hover:border-primary/20")}>
               <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">

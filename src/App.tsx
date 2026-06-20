@@ -212,6 +212,7 @@ const App = () => {
               }
             />
             <Route path="/my-words" element={<ErrorBoundary name="MyWordsRoute"><ProtectedRoute><MyWords /></ProtectedRoute></ErrorBoundary>} />
+            <Route path="/translate" element={<ErrorBoundary name="TranslateRoute"><ProtectedRoute><Translate /></ProtectedRoute></ErrorBoundary>} />
             <Route path="/review/my-words" element={<ErrorBoundary name="MyWordsReviewRoute"><ProtectedRoute><MyWordsReview /></ProtectedRoute></ErrorBoundary>} />
             <Route path="/review/my-phrases" element={<ErrorBoundary name="MyPhrasesReviewRoute"><ProtectedRoute><MyPhrasesReview /></ProtectedRoute></ErrorBoundary>} />
             <Route path="/tutor-upload" element={<ErrorBoundary name="TutorUploadRoute"><ProtectedRoute><TutorUpload /></ProtectedRoute></ErrorBoundary>} />

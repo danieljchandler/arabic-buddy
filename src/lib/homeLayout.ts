@@ -22,6 +22,7 @@ export type HomeSectionId =
   | "how-do-i-say"
   | "culture"
   | "transcribe"
+  | "translate"
   | "my-transcriptions";
 
 export interface HomeSectionMeta {

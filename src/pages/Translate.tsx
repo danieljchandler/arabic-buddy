@@ -84,6 +84,7 @@ const Translate = () => {
       return;
     }
     try {
+      setSavedId(null);
       await translate(trimmed, dialectOpt);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Translation failed";

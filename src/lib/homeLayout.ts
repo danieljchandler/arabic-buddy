@@ -22,6 +22,7 @@ export type HomeSectionId =
   | "how-do-i-say"
   | "culture"
   | "transcribe"
+  | "translate"
   | "my-transcriptions";
 
 export interface HomeSectionMeta {
@@ -54,6 +55,7 @@ export const HOME_SECTIONS: HomeSectionMeta[] = [
   { id: "how-do-i-say", label: "How do I say…?", description: "Phrase translator" },
   { id: "culture", label: "Culture Guide", description: "Culturally appropriate advice" },
   { id: "transcribe", label: "Transcribe Audio", description: "Convert audio to text" },
+  { id: "translate", label: "Translate & Save", description: "Paste Arabic, get nuanced translation, save words" },
   { id: "my-transcriptions", label: "My Transcriptions", description: "Saved transcripts" },
 ];
 

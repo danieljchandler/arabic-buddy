@@ -246,7 +246,7 @@ const MyWords = () => {
       </div>
 
       {/* AI suggest button */}
-      <div className="grid grid-cols-2 gap-2 mb-3">
+      <div className="grid grid-cols-3 gap-2 mb-3">
         <Button
           onClick={() => setSuggestOpen(true)}
           variant="outline"
@@ -254,6 +254,14 @@ const MyWords = () => {
         >
           <Wand2 className="h-4 w-4" />
           AI suggestions
+        </Button>
+        <Button
+          onClick={() => navigate("/translate")}
+          variant="outline"
+          className="w-full gap-2"
+        >
+          <Languages className="h-4 w-4" />
+          Add from text
         </Button>
         <Button
           onClick={() => setAnkiOpen(true)}

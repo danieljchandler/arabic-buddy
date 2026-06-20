@@ -2906,6 +2906,7 @@ export type Database = {
           next_review_at: string
           notes: string | null
           phrase_arabic: string
+          phrase_audio_url: string | null
           phrase_english: string
           repetitions: number
           source: string
@@ -2929,6 +2930,7 @@ export type Database = {
           next_review_at?: string
           notes?: string | null
           phrase_arabic: string
+          phrase_audio_url?: string | null
           phrase_english: string
           repetitions?: number
           source?: string
@@ -2952,6 +2954,7 @@ export type Database = {
           next_review_at?: string
           notes?: string | null
           phrase_arabic?: string
+          phrase_audio_url?: string | null
           phrase_english?: string
           repetitions?: number
           source?: string

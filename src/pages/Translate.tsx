@@ -236,7 +236,26 @@ const Translate = () => {
             ))}
 
             {isAuthenticated && (
-              <div className="flex justify-center pt-2">
+              <div className="flex flex-wrap justify-center gap-2 pt-2">
+                <Button
+                  size="sm"
+                  onClick={onSave}
+                  disabled={saving || !!savedId}
+                  variant={savedId ? "secondary" : "default"}
+                >
+                  {saving ? (
+                    <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Saving…</>
+                  ) : savedId ? (
+                    <><Check className="h-4 w-4 mr-1" /> Saved</>
+                  ) : (
+                    <><Save className="h-4 w-4 mr-1" /> Save translation</>
+                  )}
+                </Button>
+                <Button asChild variant="outline" size="sm">
+                  <Link to="/translate/saved">
+                    <BookOpen className="h-4 w-4 mr-1" /> Saved translations
+                  </Link>
+                </Button>
                 <Button asChild variant="outline" size="sm">
                   <Link to="/my-words">Go to My Words</Link>
                 </Button>

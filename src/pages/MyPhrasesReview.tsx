@@ -38,10 +38,31 @@ const MyPhrasesReview = () => {
       : 0;
   const current = duePhrases?.[safeIndex] ?? null;
 
+  // Persist TTS audio on first generation so subsequent reviews reuse it
+  // instead of calling the AI synthesis endpoint again.
+  const persistPhraseAudio = current && user && !current.phrase_audio_url
+    ? async (blob: Blob) => {
+        const phraseId = current.id;
+        const fileName = `tts/${user.id}/phrase-${phraseId}.mp3`;
+        const { error: uploadError } = await supabase.storage
+          .from("flashcard-audio")
+          .upload(fileName, blob, { contentType: blob.type || "audio/mpeg", upsert: true });
+        if (uploadError) throw uploadError;
+        const { data: urlData } = supabase.storage.from("flashcard-audio").getPublicUrl(fileName);
+        const audioUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+        const { error: updateError } = await (supabase.from("user_phrases") as any)
+          .update({ phrase_audio_url: audioUrl })
+          .eq("id", phraseId);
+        if (updateError) throw updateError;
+        current.phrase_audio_url = audioUrl;
+      }
+    : undefined;
+
   const { ttsUrl, isLoading: ttsLoading } = useAzureTTS({
     text: current?.phrase_arabic ?? "",
-    skip: !current,
+    skip: !current || Boolean(current?.phrase_audio_url),
     dialect: activeDialect,
+    persist: persistPhraseAudio,
   });
 
   const playAudio = async (url: string, options?: { repairJingle?: boolean }) => {

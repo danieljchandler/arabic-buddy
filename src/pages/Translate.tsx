@@ -113,7 +113,13 @@ const Translate = () => {
             Translate & Save
             <InfoHint title={PAGE_HINT.title} body={PAGE_HINT.body} />
           </h1>
-          <div className="w-9" />
+          {isAuthenticated ? (
+            <Button asChild variant="ghost" size="icon" aria-label="Saved translations">
+              <Link to="/translate/saved"><BookOpen className="h-5 w-5" /></Link>
+            </Button>
+          ) : (
+            <div className="w-9" />
+          )}
         </div>
 
         <Card>

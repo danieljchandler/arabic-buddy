@@ -313,11 +313,36 @@ const MyWordsReview = () => {
     distractorPool.length >= 3 &&
     currentIndex % 2 === 0;
 
-  // TTS fallback when no recorded word_audio_url is available
+  // TTS fallback when no recorded word_audio_url is available.
+  // When generated for the first time, upload the blob to storage and
+  // persist the URL on the card so subsequent reviews skip the TTS call.
+  const persistWordAudio = currentWord && user && !currentWord.word_audio_url
+    ? async (blob: Blob) => {
+        const wordId = currentWord.id;
+        const fileName = `tts/${user.id}/word-${wordId}.mp3`;
+        const { error: uploadError } = await supabase.storage
+          .from("flashcard-audio")
+          .upload(fileName, blob, { contentType: blob.type || "audio/mpeg", upsert: true });
+        if (uploadError) throw uploadError;
+        const { data: urlData } = supabase.storage.from("flashcard-audio").getPublicUrl(fileName);
+        const audioUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+        const { error: updateError } = await supabase
+          .from("user_vocabulary")
+          .update({ word_audio_url: audioUrl })
+          .eq("id", wordId);
+        if (updateError) throw updateError;
+        queryClient.setQueriesData<DueCard[] | undefined>(
+          { queryKey: ["user-vocabulary-due-words"] },
+          (prev) => prev?.map((c) => (c.id === wordId ? { ...c, word_audio_url: audioUrl } : c)),
+        );
+      }
+    : undefined;
+
   const { ttsUrl: wordTtsUrl, isLoading: wordTtsLoading } = useAzureTTS({
     text: currentWord?.word_arabic ?? "",
     skip: !currentWord || Boolean(currentWord.word_audio_url),
     dialect: activeDialect,
+    persist: persistWordAudio,
   });
 
   const effectiveWordAudio = currentWord?.word_audio_url || wordTtsUrl;

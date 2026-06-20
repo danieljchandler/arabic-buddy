@@ -25,6 +25,7 @@ export interface UserPhrase {
   mnemonic?: string | null;
   jingle_audio_url?: string | null;
   jingle_lyrics?: string | null;
+  phrase_audio_url?: string | null;
 }
 
 export const useUserPhrases = (mixAll = false) => {

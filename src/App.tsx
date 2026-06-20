@@ -24,6 +24,7 @@ const Quiz = lazyPage(() => import("./pages/Quiz"));
 const Auth = lazyPage(() => import("./pages/Auth"));
 const Review = lazyPage(() => import("./pages/Review"));
 const Transcribe = lazyPage(() => import("./pages/Transcribe"));
+const Translate = lazyPage(() => import("./pages/Translate"));
 const MyWords = lazyPage(() => import("./pages/MyWords"));
 const TutorUpload = lazyPage(() => import("./pages/TutorUpload"));
 const MyWordsReview = lazyPage(() => import("./pages/MyWordsReview"));

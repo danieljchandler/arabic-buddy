@@ -50,6 +50,15 @@ export const ReviewClozeCard = ({
 
   const cloze = useMemo(() => buildCloze(sentenceText, wordArabic), [sentenceText, wordArabic]);
 
+  // Sentence with the target word masked out so the audio doesn't reveal the
+  // answer. Recorded sentence audio always contains the word, so we ignore it
+  // for cloze cards and synthesise a masked version instead. After the learner
+  // answers, we fall back to the full audio so they can hear it in context.
+  const maskedSentence = useMemo(() => {
+    if (!cloze) return sentenceText;
+    return `${cloze.before} ... ${cloze.after}`.replace(/\s+/g, " ").trim();
+  }, [cloze, sentenceText]);
+
   const options = useMemo(() => {
     const pool = distractors.filter((d) => d && d !== wordArabic);
     const picks = shuffle(pool).slice(0, 3);
@@ -62,13 +71,21 @@ export const ReviewClozeCard = ({
     setShowTranslation(false);
   }, [wordArabic, sentenceText]);
 
-  // TTS fallback for the full sentence when no recorded audio
-  const { ttsUrl, isLoading: ttsLoading } = useAzureTTS({
-    text: sentenceText,
-    skip: Boolean(sentenceAudioUrl),
+  // Masked-sentence TTS (used before the learner answers).
+  const { ttsUrl: maskedUrl, isLoading: maskedLoading } = useAzureTTS({
+    text: maskedSentence,
+    skip: !cloze,
     dialect: activeDialect,
   });
-  const audioUrl = sentenceAudioUrl || ttsUrl;
+  // Full-sentence TTS fallback (used after answering, when no recording exists).
+  const { ttsUrl: fullTtsUrl, isLoading: fullTtsLoading } = useAzureTTS({
+    text: sentenceText,
+    skip: Boolean(sentenceAudioUrl) || selected == null,
+    dialect: activeDialect,
+  });
+  const fullAudioUrl = sentenceAudioUrl || fullTtsUrl;
+  const audioUrl = selected == null ? maskedUrl : fullAudioUrl;
+  const ttsLoading = selected == null ? maskedLoading : fullTtsLoading;
 
   const playAudio = (url: string) => {
     const a = new Audio(url);

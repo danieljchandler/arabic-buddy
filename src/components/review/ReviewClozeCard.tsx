@@ -147,7 +147,7 @@ export const ReviewClozeCard = ({
           className="gap-1.5"
         >
           {ttsLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
-          Play sentence
+          {selected == null ? "Play sentence (word muted)" : "Play full sentence"}
         </Button>
       </div>
 

@@ -204,6 +204,7 @@ const App = () => {
             <Route path="/index" element={<Navigate to="/" replace />} />
             <Route path="/today" element={<ErrorBoundary name="TodayRoute"><Today /></ErrorBoundary>} />
             <Route path="/auth" element={<ErrorBoundary name="AuthRoute"><Auth /></ErrorBoundary>} />
+            <Route path="/reset-password" element={<ErrorBoundary name="ResetPasswordRoute"><ResetPassword /></ErrorBoundary>} />
             <Route path="/review" element={<ErrorBoundary name="ReviewRoute"><ProtectedRoute><Review /></ProtectedRoute></ErrorBoundary>} />
             <Route
               path="/transcribe"

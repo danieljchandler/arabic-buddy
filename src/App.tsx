@@ -22,6 +22,7 @@ const Learn = lazyPage(() => import("./pages/Learn"));
 const NotFound = lazyPage(() => import("./pages/NotFound"));
 const Quiz = lazyPage(() => import("./pages/Quiz"));
 const Auth = lazyPage(() => import("./pages/Auth"));
+const ResetPassword = lazyPage(() => import("./pages/ResetPassword"));
 const Review = lazyPage(() => import("./pages/Review"));
 const Transcribe = lazyPage(() => import("./pages/Transcribe"));
 const Translate = lazyPage(() => import("./pages/Translate"));
@@ -203,6 +204,7 @@ const App = () => {
             <Route path="/index" element={<Navigate to="/" replace />} />
             <Route path="/today" element={<ErrorBoundary name="TodayRoute"><Today /></ErrorBoundary>} />
             <Route path="/auth" element={<ErrorBoundary name="AuthRoute"><Auth /></ErrorBoundary>} />
+            <Route path="/reset-password" element={<ErrorBoundary name="ResetPasswordRoute"><ResetPassword /></ErrorBoundary>} />
             <Route path="/review" element={<ErrorBoundary name="ReviewRoute"><ProtectedRoute><Review /></ProtectedRoute></ErrorBoundary>} />
             <Route
               path="/transcribe"

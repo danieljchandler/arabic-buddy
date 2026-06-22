@@ -168,6 +168,15 @@ const App = () => {
     };
 
     const onError = (event: ErrorEvent) => {
+      // Resource load failures (img/script/link) bubble here in capture phase
+      // with no .error and no .message. Those are not real script errors and
+      // must not trigger the crash toast / persisted-crash banner.
+      if (event.target && event.target !== window && !(event.error || event.message)) {
+        return;
+      }
+      if (!event.error && !event.message) {
+        return;
+      }
       console.error("Global error:", event.error ?? event.message);
       persistCrash(event.error ?? event.message);
       void logClientError({

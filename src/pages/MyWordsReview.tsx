@@ -595,7 +595,7 @@ const MyWordsReview = () => {
           {useCloze ? (
             <div>
               <ReviewClozeCard
-                wordArabic={currentWord.word_arabic}
+                wordArabic={currentArabic!}
                 wordEnglish={currentWord.word_english}
                 sentenceText={clozeSentenceText!}
                 sentenceEnglish={clozeSentenceEnglish}

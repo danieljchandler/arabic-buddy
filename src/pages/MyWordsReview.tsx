@@ -284,18 +284,32 @@ const MyWordsReview = () => {
   // Cloze variant: enable for recognition cards that have sentence context
   // containing the target word AND at least 3 distractor words available.
   // Falls back to auto-mined sentences from the user's saved transcripts (#13).
+  //
+  // Robustness: some saved cards have `word_arabic` / `word_english` swapped
+  // (e.g. an English gloss in `word_arabic`). Pick whichever side actually
+  // contains Arabic characters so the multiple-choice options never end up
+  // in English when Arabic is the only logical answer.
+  const ARABIC_RE = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/;
+  const pickArabic = (a?: string | null, b?: string | null): string | null => {
+    if (a && ARABIC_RE.test(a)) return a;
+    if (b && ARABIC_RE.test(b)) return b;
+    return null;
+  };
+  const currentArabic = currentWord
+    ? pickArabic(currentWord.word_arabic, currentWord.word_english)
+    : null;
   const distractorPool = (dueWords || [])
-    .map((d) => d.word_arabic)
-    .filter((w) => w && w !== currentWord?.word_arabic);
+    .map((d) => pickArabic(d.word_arabic, d.word_english))
+    .filter((w): w is string => !!w && w !== currentArabic);
   const sentenceHasOwnWord =
     !!currentWord?.sentence_text &&
-    !!currentWord?.word_arabic &&
-    currentWord.sentence_text.includes(currentWord.word_arabic);
+    !!currentArabic &&
+    currentWord.sentence_text.includes(currentArabic);
   // Look up a transcript-sourced cloze sentence only when the card lacks one.
   const { data: transcriptCloze } = useTranscriptCloze({
-    wordArabic: currentWord?.word_arabic,
+    wordArabic: currentArabic ?? undefined,
     dialect: activeDialect,
-    enabled: !!currentWord && !sentenceHasOwnWord && !isProduction,
+    enabled: !!currentWord && !!currentArabic && !sentenceHasOwnWord && !isProduction,
   });
   const clozeSentenceText = sentenceHasOwnWord
     ? currentWord!.sentence_text!
@@ -309,6 +323,7 @@ const MyWordsReview = () => {
   const clozeFromTranscript = !sentenceHasOwnWord && !!transcriptCloze;
   const useCloze =
     !isProduction &&
+    !!currentArabic &&
     !!clozeSentenceText &&
     distractorPool.length >= 3 &&
     currentIndex % 2 === 0;

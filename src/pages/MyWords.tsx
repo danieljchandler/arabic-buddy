@@ -719,6 +719,18 @@ const MyWords = () => {
         word={imageDialogWord}
         open={!!imageDialogWord}
         onOpenChange={(open) => { if (!open) setImageDialogWord(null); }}
+        onImageSaved={async (wordId, imageUrl) => {
+          const { error } = await supabase
+            .from("user_vocabulary")
+            .update({ image_url: imageUrl })
+            .eq("id", wordId);
+          if (error) {
+            toast.error("Failed to save image");
+            return;
+          }
+          queryClient.invalidateQueries({ queryKey: ["user-vocabulary"] });
+          queryClient.invalidateQueries({ queryKey: ["user-vocabulary-due"] });
+        }}
       />
 
       <SuggestFlashcardsDialog open={suggestOpen} onOpenChange={setSuggestOpen} />

@@ -60,7 +60,12 @@ export const ReviewClozeCard = ({
   }, [cloze, sentenceText]);
 
   const options = useMemo(() => {
-    const pool = distractors.filter((d) => d && d !== wordArabic);
+    // Only keep Arabic-script options so we never offer English answers when
+    // the prompt requires an Arabic word.
+    const ARABIC_RE = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/;
+    const pool = distractors.filter(
+      (d) => d && d !== wordArabic && ARABIC_RE.test(d),
+    );
     const picks = shuffle(pool).slice(0, 3);
     return shuffle([wordArabic, ...picks]);
   }, [distractors, wordArabic]);

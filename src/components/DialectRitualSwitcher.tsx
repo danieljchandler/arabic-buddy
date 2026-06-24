@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { ChevronDown, X } from "lucide-react";
 import { useDialect, DialectModule } from "@/contexts/DialectContext";
 import { cn } from "@/lib/utils";
+import { ArabianPeninsulaIcon } from "@/components/icons/ArabianPeninsulaIcon";
 
 type Meta = {
   id: DialectModule;
@@ -21,11 +22,11 @@ const DIALECTS: Meta[] = [
     id: "Gulf",
     arabic: "خليجي",
     english: "Gulf Arabic",
-    flag: "🌊",
+    flag: "🗺️",
     tag: "Majlis · Pearls · Coastal trade",
     tagArabic: "مرحبا بالمعازيب",
     vibe: "The unhurried cadence of the majlis — coffee, oud, the Gulf wind.",
-    hsl: "180 65% 32%",
+    hsl: "12 68% 32%",
   },
   {
     id: "Egyptian",
@@ -197,10 +198,15 @@ export const DialectRitualSwitcher = ({ className }: Props) => {
                         className="flex items-center justify-center w-14 h-14 rounded-xl text-2xl shrink-0"
                         style={{
                           backgroundColor: `hsl(${d.hsl} / 0.12)`,
+                          color: `hsl(${d.hsl})`,
                         }}
                         aria-hidden
                       >
-                        {d.flag}
+                        {d.id === "Gulf" ? (
+                          <ArabianPeninsulaIcon className="w-8 h-8" />
+                        ) : (
+                          d.flag
+                        )}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-baseline justify-between gap-3">
@@ -266,10 +272,17 @@ export const DialectRitualSwitcher = ({ className }: Props) => {
         <span className="flex items-center gap-3 min-w-0">
           <span
             className="flex items-center justify-center w-9 h-9 rounded-xl text-lg shrink-0"
-            style={{ backgroundColor: `hsl(${current.hsl} / 0.15)` }}
+            style={{
+              backgroundColor: `hsl(${current.hsl} / 0.15)`,
+              color: `hsl(${current.hsl})`,
+            }}
             aria-hidden
           >
-            {current.flag}
+            {current.id === "Gulf" ? (
+              <ArabianPeninsulaIcon className="w-5 h-5" />
+            ) : (
+              current.flag
+            )}
           </span>
           <span className="flex flex-col items-start min-w-0">
             <span className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">

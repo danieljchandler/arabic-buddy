@@ -33,8 +33,8 @@ const DIALECT_DEPENDENT_KEYS = [
  *  These override --primary / --accent / --ring at runtime so all primary-themed
  *  UI (buttons, focus rings, badges, links) reflects the active dialect. */
 const DIALECT_THEMES: Record<DialectModule, { primary: string; ring: string; glow: string }> = {
-  // Gulf — teal
-  Gulf:     { primary: '180 65% 32%', ring: '180 65% 32%', glow: '180 70% 45%' },
+  // Gulf — Sadu brick red
+  Gulf:     { primary: '12 68% 32%', ring: '12 68% 32%', glow: '28 70% 48%' },
   // Egyptian — amber / gold
   Egyptian: { primary: '38 85% 45%',  ring: '38 85% 45%',  glow: '42 95% 55%'  },
   // Yemeni — deep red

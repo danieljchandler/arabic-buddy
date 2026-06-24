@@ -1,67 +1,33 @@
-## Translate & Save — paste Arabic, get a nuanced English breakdown, tap to save words
+## Goal
+Reskin the Gulf dialect module: swap the wave emoji for a simple SVG illustration of the Arabian peninsula, and shift its color scheme from teal to a Sadu‑weaving palette (deep brick red with warm camel/black accents).
 
-### What the user gets
+## Color direction (Sadu-inspired)
+Sadu textiles are dominated by deep red, black, warm camel browns, and cream. The Gulf module currently uses teal `180 65% 32%`. I'll retune it to a Sadu brick red that stays clearly distinct from Yemeni's brighter red (`0 70% 42%`):
 
-A new page **/translate** ("Translate & Save") with a paste box. Submitting calls a new edge function that returns a structured, sentence-by-sentence breakdown. Each Arabic word in the output is tappable and can be added to **My Words** with one tap, reusing the existing flashcard flow.
+- Gulf primary: `12 68% 32%` (deep Sadu brick/madder red)
+- Gulf glow:    `28 70% 48%` (camel/amber accent)
+- Gulf ring:    `12 68% 32%`
 
-### Page layout (/translate)
+These propagate to the dialect chip background tint, picker card border, Arabic title color, and any other place that reads from the Gulf token.
 
-```text
-+------------------------------------------------------+
-| Translate & Save                                     |
-| Paste Gulf, Egyptian, or Yemeni Arabic               |
-| [ textarea, up to ~4000 chars ]                      |
-| Detected dialect: Gulf  [ Translate ]                |
-+------------------------------------------------------+
-| Sentence 1                                            |
-|   Arabic (TappableArabicText — tap word = save)       |
-|   Literal:  word-for-word gloss                       |
-|   Natural:  fluent English                            |
-|   Note:     (only if idiom / cultural reference)      |
-+------------------------------------------------------+
-| Sentence 2 ...                                        |
-+------------------------------------------------------+
-| Saved this session: 3 words  [ Go to My Words ]      |
-```
+## Icon
+Replace the 🌊 emoji on the Gulf card / chip with a small, flat SVG illustration of the Arabian peninsula (single filled silhouette with a subtle inner stroke — no labels, no borders of other countries). It will inherit `currentColor` so it tints with the active Sadu red.
 
-- Dialect is auto-detected by the model and shown as a chip; user can override via dropdown (Gulf / Egyptian / Yemeni) before re-translating.
-- Tapping any Arabic word opens the existing TappableArabicText popover (translation, audio, "Save to My Words"). Saved words land in `user_vocabulary` with `dialect` set to the detected/selected dialect, exactly like Transcribe / Reading Practice.
-- Empty state shows two example snippets the user can click to populate the box.
-- Entry points: tile on Home (Index) under the existing tools row, and a link from My Words ("Add from text").
+New file: `src/components/icons/ArabianPeninsulaIcon.tsx` — a `<svg viewBox="0 0 24 24">` peninsula path, accepts `className`.
 
-### Backend — new edge function `translate-text`
+## Files to change
 
-- Input: `{ text: string, dialect?: 'gulf' | 'egyptian' | 'yemeni' | 'auto' }`
-- Calls `askBrain` (existing AI Brain orchestrator) with a structured-output schema:
-  ```text
-  { detected_dialect, sentences: [
-      { arabic, literal, natural, note? }
-  ] }
-  ```
-- Uses the existing dialect rulebook / `primeDialectPrompt` so MSA leakage rules apply.
-- Default model: `google/gemini-3-flash-preview` via Lovable AI Gateway. Returns 429 / 402 surfaced to the UI with toasts (same pattern as other features).
-- `verify_jwt = false` is fine (function is read-only AI); rate-limit per user via the existing `increment_usage_counter('translate_text')` and cap at e.g. 30/day for non-admins.
+1. `src/components/icons/ArabianPeninsulaIcon.tsx` (new) — peninsula SVG.
+2. `src/components/DialectRitualSwitcher.tsx`
+   - Update Gulf entry: `hsl: "12 68% 32%"`.
+   - For Gulf, render `<ArabianPeninsulaIcon />` in the picker card icon tile and in the active chip's icon tile instead of `{d.flag}` / `{current.flag}`. Egyptian and Yemeni keep their flag emojis.
+3. `src/contexts/DialectContext.tsx`
+   - Update Gulf token: `{ primary: '12 68% 32%', ring: '12 68% 32%', glow: '28 70% 48%' }`.
+   - Update the "// Gulf — teal" comment to "// Gulf — Sadu red".
+4. `src/pages/Profile.tsx` (line 27)
+   - Update Gulf entry color to `12 68% 32%` and emoji → still shown as emoji elsewhere; if Profile renders the emoji, swap to the peninsula icon import there too. (I'll inspect Profile briefly before editing to confirm whether to replace the emoji here or leave it.)
+5. `src/config.ts` and `src/pages/Index.tsx` line 73
+   - `DIALECT_FLAGS.Gulf` / `DIALECT_MODULES` Gulf flag emoji: leave the data field as-is OR replace with a non-emoji marker. Since `DIALECT_MODULES` in Index isn't currently rendered and `config.ts` `DIALECT_FLAGS` is referenced in a few places, I'll grep its usages and either (a) keep 🌊 as a harmless fallback string, or (b) replace each render site with the peninsula icon. Default plan: keep the string in config but render the icon at the Gulf-specific UI surfaces (switcher + profile). No business-logic changes.
 
-### Saving vocabulary
-
-No new table. Reuse `useUserVocabulary` + `TappableArabicText`'s existing "save" path which already inserts into `public.user_vocabulary` with SRS defaults. The page only needs to pass the sentence's Arabic + its natural translation as context so the saved card gets a `context_sentence` / `context_translation` (columns already exist).
-
-### Files
-
-New:
-- `supabase/functions/translate-text/index.ts`
-- `src/pages/Translate.tsx`
-- `src/hooks/useTranslateText.ts` (thin wrapper calling the edge function via `supabase.functions.invoke`)
-
-Edited:
-- `src/App.tsx` — add `/translate` route
-- `src/pages/Index.tsx` — add tile
-- `src/pages/MyWords.tsx` — "Add from text" link
-- `src/lib/pageHints.ts` — hint for the new page
-
-### Out of scope (can be follow-ups)
-
-- File upload (.txt / PDF / DOCX) — user chose paste-only.
-- Bulk "save all words" button.
-- TTS playback of full passage (per-word audio already works via TappableArabicText).
-- Saving the full passage itself as a reading-practice item.
+## Out of scope
+No changes to lesson content, prompts, audio routing, or other dialects. Egyptian (amber) and Yemeni (red) palettes stay as-is.

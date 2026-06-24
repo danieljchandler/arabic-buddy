@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { ChevronDown, X } from "lucide-react";
 import { useDialect, DialectModule } from "@/contexts/DialectContext";
 import { cn } from "@/lib/utils";
-import { ArabianPeninsulaIcon } from "@/components/icons/ArabianPeninsulaIcon";
+import { DallahIcon } from "@/components/icons/DallahIcon";
 
 type Meta = {
   id: DialectModule;
@@ -203,7 +203,7 @@ export const DialectRitualSwitcher = ({ className }: Props) => {
                         aria-hidden
                       >
                         {d.id === "Gulf" ? (
-                          <ArabianPeninsulaIcon className="w-8 h-8" />
+                          <DallahIcon className="w-8 h-8" />
                         ) : (
                           d.flag
                         )}
@@ -279,7 +279,7 @@ export const DialectRitualSwitcher = ({ className }: Props) => {
             aria-hidden
           >
             {current.id === "Gulf" ? (
-              <ArabianPeninsulaIcon className="w-5 h-5" />
+              <DallahIcon className="w-5 h-5" />
             ) : (
               current.flag
             )}

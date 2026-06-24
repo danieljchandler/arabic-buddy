@@ -279,7 +279,7 @@ export const DialectRitualSwitcher = ({ className }: Props) => {
             aria-hidden
           >
             {current.id === "Gulf" ? (
-              <ArabianPeninsulaIcon className="w-5 h-5" />
+              <DallahIcon className="w-5 h-5" />
             ) : (
               current.flag
             )}

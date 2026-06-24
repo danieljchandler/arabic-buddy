@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { ChevronDown, X } from "lucide-react";
 import { useDialect, DialectModule } from "@/contexts/DialectContext";
 import { cn } from "@/lib/utils";
-import { DallahIcon } from "@/components/icons/DallahIcon";
+import dallahAsset from "@/assets/dallah-icon.png.asset.json";
 
 type Meta = {
   id: DialectModule;

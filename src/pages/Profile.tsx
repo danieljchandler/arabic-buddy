@@ -24,7 +24,7 @@ interface ProfileData {
 }
 
 const DIALECT_META: Record<string, { label: string; arabic: string; color: string; emoji: string }> = {
-  Gulf:     { label: "Gulf",     arabic: "خليجي", color: "180 65% 32%", emoji: "🌊" },
+  Gulf:     { label: "Gulf",     arabic: "خليجي", color: "12 68% 32%", emoji: "🗺️" },
   Egyptian: { label: "Egyptian", arabic: "مصري",  color: "38 85% 45%",  emoji: "🌅" },
   Yemeni:   { label: "Yemeni",   arabic: "يمني",  color: "0 70% 42%",   emoji: "🏔️" },
 };

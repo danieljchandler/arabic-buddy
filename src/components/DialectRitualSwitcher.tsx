@@ -198,10 +198,15 @@ export const DialectRitualSwitcher = ({ className }: Props) => {
                         className="flex items-center justify-center w-14 h-14 rounded-xl text-2xl shrink-0"
                         style={{
                           backgroundColor: `hsl(${d.hsl} / 0.12)`,
+                          color: `hsl(${d.hsl})`,
                         }}
                         aria-hidden
                       >
-                        {d.flag}
+                        {d.id === "Gulf" ? (
+                          <ArabianPeninsulaIcon className="w-8 h-8" />
+                        ) : (
+                          d.flag
+                        )}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-baseline justify-between gap-3">

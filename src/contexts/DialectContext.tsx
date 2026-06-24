@@ -29,16 +29,14 @@ const DIALECT_DEPENDENT_KEYS = [
   'smart-notifications',
 ];
 
-/** Per-dialect accent palette (HSL triplets, matches index.css token format).
- *  These override --primary / --accent / --ring at runtime so all primary-themed
- *  UI (buttons, focus rings, badges, links) reflects the active dialect. */
-const DIALECT_THEMES: Record<DialectModule, { primary: string; ring: string; glow: string }> = {
-  // Gulf — Sadu brick red
-  Gulf:     { primary: '12 68% 32%', ring: '12 68% 32%', glow: '28 70% 48%' },
-  // Egyptian — amber / gold
-  Egyptian: { primary: '38 85% 45%',  ring: '38 85% 45%',  glow: '42 95% 55%'  },
-  // Yemeni — deep red
-  Yemeni:   { primary: '0 70% 42%',   ring: '0 70% 42%',   glow: '0 75% 55%'   },
+/** Per-dialect accent palette (HSL triplets).
+ *  Exposed as --dialect-accent for opt-in components only.
+ *  We intentionally do NOT override --primary / --accent / --ring globally —
+ *  that washes the entire app in one dialect's hue. */
+const DIALECT_THEMES: Record<DialectModule, { accent: string; glow: string }> = {
+  Gulf:     { accent: '12 68% 32%', glow: '28 70% 48%' },
+  Egyptian: { accent: '38 85% 45%', glow: '42 95% 55%' },
+  Yemeni:   { accent: '0 70% 42%',  glow: '0 75% 55%'  },
 };
 
 function applyDialectTheme(dialect: DialectModule) {
@@ -46,10 +44,13 @@ function applyDialectTheme(dialect: DialectModule) {
   const theme = DIALECT_THEMES[dialect];
   const root = document.documentElement;
   try {
-    root.style.setProperty('--primary', theme.primary);
-    root.style.setProperty('--accent', theme.primary);
-    root.style.setProperty('--ring', theme.ring);
-    root.style.setProperty('--primary-glow', theme.glow);
+    root.style.setProperty('--dialect-accent', theme.accent);
+    root.style.setProperty('--dialect-glow', theme.glow);
+    // Clean up any previously-applied global overrides from earlier builds.
+    root.style.removeProperty('--primary');
+    root.style.removeProperty('--accent');
+    root.style.removeProperty('--ring');
+    root.style.removeProperty('--primary-glow');
     root.dataset.dialect = dialect.toLowerCase();
   } catch {
     // ignore (SSR / restricted iframe)

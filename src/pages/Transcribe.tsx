@@ -969,19 +969,38 @@ const Transcribe = () => {
       console.log("Save to My Words - VocabItem:", JSON.stringify({ arabic: word.arabic, sentenceText: word.sentenceText, sentenceEnglish: word.sentenceEnglish, startMs: word.startMs, endMs: word.endMs }));
       let sentenceAudioUrl: string | undefined;
 
-      // Clip sentence audio if timestamps and file are available
-      if (file && word.startMs !== undefined && word.endMs !== undefined) {
+      // Clip sentence audio if timestamps are available. Prefer the local
+      // File when present (fresh transcription); otherwise fall back to
+      // fetching the previously uploaded audio_url (saved transcription /
+      // imported video) so the clip is still attached to the flashcard.
+      if (word.startMs !== undefined && word.endMs !== undefined) {
         try {
-          const audioBuffer = await decodeAudioFile(file);
-          const wavBlob = clipToWav(audioBuffer, word.startMs, word.endMs);
-          const clipPath = `sentence-clips/${user!.id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.wav`;
-          const { error: uploadError } = await supabase.storage
-            .from("flashcard-audio")
-            .upload(clipPath, wavBlob, { contentType: "audio/wav" });
-          if (!uploadError) {
-            sentenceAudioUrl = supabase.storage.from("flashcard-audio").getPublicUrl(clipPath).data.publicUrl;
-          } else {
-            console.warn("Sentence audio upload failed:", uploadError);
+          let sourceFile: File | null = file;
+          if (!sourceFile && audioUrl) {
+            try {
+              const resp = await fetch(audioUrl);
+              if (resp.ok) {
+                const blob = await resp.blob();
+                sourceFile = new File([blob], "source-audio", {
+                  type: blob.type || "audio/mpeg",
+                });
+              }
+            } catch (fetchErr) {
+              console.warn("Could not fetch source audio for clipping:", fetchErr);
+            }
+          }
+          if (sourceFile) {
+            const audioBuffer = await decodeAudioFile(sourceFile);
+            const wavBlob = clipToWav(audioBuffer, word.startMs, word.endMs);
+            const clipPath = `sentence-clips/${user!.id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.wav`;
+            const { error: uploadError } = await supabase.storage
+              .from("flashcard-audio")
+              .upload(clipPath, wavBlob, { contentType: "audio/wav" });
+            if (!uploadError) {
+              sentenceAudioUrl = supabase.storage.from("flashcard-audio").getPublicUrl(clipPath).data.publicUrl;
+            } else {
+              console.warn("Sentence audio upload failed:", uploadError);
+            }
           }
         } catch (clipErr) {
           console.warn("Sentence audio clipping failed:", clipErr);

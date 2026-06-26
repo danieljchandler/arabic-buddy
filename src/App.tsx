@@ -19,7 +19,11 @@ const lazyPage = <T extends ComponentType<any>>(loader: () => Promise<{ default:
 const Index = lazyPage(() => import("./pages/Index"));
 const Today = lazyPage(() => import("./pages/Today"));
 const Learn = lazyPage(() => import("./pages/Learn"));
+const LearnHub = lazyPage(() => import("./pages/LearnHub"));
+const PracticeHub = lazyPage(() => import("./pages/PracticeHub"));
+const MeHub = lazyPage(() => import("./pages/MeHub"));
 const NotFound = lazyPage(() => import("./pages/NotFound"));
+
 const Quiz = lazyPage(() => import("./pages/Quiz"));
 const Auth = lazyPage(() => import("./pages/Auth"));
 const ResetPassword = lazyPage(() => import("./pages/ResetPassword"));
@@ -214,7 +218,11 @@ const App = () => {
             <Route path="/today" element={<ErrorBoundary name="TodayRoute"><Today /></ErrorBoundary>} />
             <Route path="/auth" element={<ErrorBoundary name="AuthRoute"><Auth /></ErrorBoundary>} />
             <Route path="/reset-password" element={<ErrorBoundary name="ResetPasswordRoute"><ResetPassword /></ErrorBoundary>} />
+            <Route path="/learn-hub" element={<ErrorBoundary name="LearnHubRoute"><LearnHub /></ErrorBoundary>} />
+            <Route path="/practice" element={<ErrorBoundary name="PracticeHubRoute"><PracticeHub /></ErrorBoundary>} />
+            <Route path="/me" element={<ErrorBoundary name="MeHubRoute"><ProtectedRoute><MeHub /></ProtectedRoute></ErrorBoundary>} />
             <Route path="/review" element={<ErrorBoundary name="ReviewRoute"><ProtectedRoute><Review /></ProtectedRoute></ErrorBoundary>} />
+
             <Route
               path="/transcribe"
               element={

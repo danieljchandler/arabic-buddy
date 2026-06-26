@@ -1,33 +1,68 @@
-## Goal
-Reskin the Gulf dialect module: swap the wave emoji for a simple SVG illustration of the Arabian peninsula, and shift its color scheme from teal to a Sadu‑weaving palette (deep brick red with warm camel/black accents).
+# Reorganize the app into 5 clear hubs (Discover preserved)
 
-## Color direction (Sadu-inspired)
-Sadu textiles are dominated by deep red, black, warm camel browns, and cream. The Gulf module currently uses teal `180 65% 32%`. I'll retune it to a Sadu brick red that stays clearly distinct from Yemeni's brighter red (`0 70% 42%`):
+Group every existing page into one of 5 hubs with a persistent bottom nav, and turn the home screen into a calm "Today" dashboard instead of a feature catalog. **Discover keeps its current full-screen, immersive look exactly as it is today** — it's the marquee feature and the bottom nav must not shrink or reframe it.
 
-- Gulf primary: `12 68% 32%` (deep Sadu brick/madder red)
-- Gulf glow:    `28 70% 48%` (camel/amber accent)
-- Gulf ring:    `12 68% 32%`
+## The 5 hubs (bottom nav)
 
-These propagate to the dialect chip background tint, picker card border, Arabic title color, and any other place that reads from the Gulf token.
+```text
+[ Today ]  [ Learn ]  [ Discover ]  [ Practice ]  [ Me ]
+```
 
-## Icon
-Replace the 🌊 emoji on the Gulf card / chip with a small, flat SVG illustration of the Arabian peninsula (single filled silhouette with a subtle inner stroke — no labels, no borders of other countries). It will inherit `currentColor` so it tints with the active Sadu red.
+Discover gets its own dedicated tab in the middle slot (the highest-prominence position on a mobile bottom nav) because it's a primary draw.
 
-New file: `src/components/icons/ArabianPeninsulaIcon.tsx` — a `<svg viewBox="0 0 24 24">` peninsula path, accepts `className`.
+1. **Today** (`/`) — daily dashboard only
+   - Majlis welcome, dialect switcher, Continue card, MSA bridge entry
+   - Due reviews, daily challenge, daily story, phrase of the day
+   - Streak / XP / weekly goal, one "Jump back in" row
+   - No feature grid here anymore
 
-## Files to change
+2. **Learn** (`/learn-hub`) — structured curriculum
+   - Placement Quiz, Alphabet Journey, Curriculum lessons (`/learn`), MSA→Dialect Bridge, Grammar Drills, Set Phrases
 
-1. `src/components/icons/ArabianPeninsulaIcon.tsx` (new) — peninsula SVG.
-2. `src/components/DialectRitualSwitcher.tsx`
-   - Update Gulf entry: `hsl: "12 68% 32%"`.
-   - For Gulf, render `<ArabianPeninsulaIcon />` in the picker card icon tile and in the active chip's icon tile instead of `{d.flag}` / `{current.flag}`. Egyptian and Yemeni keep their flag emojis.
-3. `src/contexts/DialectContext.tsx`
-   - Update Gulf token: `{ primary: '12 68% 32%', ring: '12 68% 32%', glow: '28 70% 48%' }`.
-   - Update the "// Gulf — teal" comment to "// Gulf — Sadu red".
-4. `src/pages/Profile.tsx` (line 27)
-   - Update Gulf entry color to `12 68% 32%` and emoji → still shown as emoji elsewhere; if Profile renders the emoji, swap to the peninsula icon import there too. (I'll inspect Profile briefly before editing to confirm whether to replace the emoji here or leave it.)
-5. `src/config.ts` and `src/pages/Index.tsx` line 73
-   - `DIALECT_FLAGS.Gulf` / `DIALECT_MODULES` Gulf flag emoji: leave the data field as-is OR replace with a non-emoji marker. Since `DIALECT_MODULES` in Index isn't currently rendered and `config.ts` `DIALECT_FLAGS` is referenced in a few places, I'll grep its usages and either (a) keep 🌊 as a harmless fallback string, or (b) replace each render site with the peninsula icon. Default plan: keep the string in config but render the icon at the Gulf-specific UI surfaces (switcher + profile). No business-logic changes.
+3. **Discover** (`/discover`) — unchanged
+   - Existing full-screen video feed UI, layout, gestures, autoplay, sizing all preserved
+   - Liked Videos accessed from inside Discover the same way it is today
+   - Bottom nav appears on the Discover feed list, but is **hidden the moment a video opens** (`/discover/:videoId`) so playback stays edge-to-edge
 
-## Out of scope
-No changes to lesson content, prompts, audio routing, or other dialects. Egyptian (amber) and Yemeni (red) palettes stay as-is.
+4. **Practice** (`/practice`) — active skills drills
+   - Review (SRS), My Words Review, My Phrases Review, Pronunciation, Conversation Simulator, Listening Practice, Reading Practice, Vocab Games, Vocab Battles, Daily Challenge
+
+5. **Me** (`/me`) — library, content tools & social
+   - My Words, My Phrases, Saved Translations, My Transcriptions, Liked Videos, Learning Analytics, Leaderboard, Friends, Profile, Settings, Pricing
+   - Plus the "content & tools" group that doesn't fit elsewhere: Listen (podcasts), Stories, Souq News, Bible Reading (if entitled), Dialect Compare, Culture Guide, How Do I Say, Meme Analyzer, Learn from X, Translate, Transcribe, Tutor Upload
+
+## What changes vs. what stays
+
+- **Discover:** zero visual changes. Same page component, same player, same fullscreen behavior. Only the nav route assignment changes.
+- **Routes:** unchanged. All existing URLs keep working. New routes added: `/learn-hub`, `/practice`, `/me`.
+- **Home (`/`):** stripped to the dashboard sections listed above. The big feature grid currently rendered from `homeLayout` is removed from Index.
+- **Bottom nav:** new persistent `BottomNav` component rendered by `AppShell`, shown on hub list routes, **hidden on focused flows**: `/discover/:videoId`, `/review/*`, `/quiz/*`, `/stories/:id`, `/learn/:id`, `/battles/:id`, `/listen/:id`, `/auth`, `/onboarding`, `/reset-password`.
+- **Top bar:** Profile/Settings/Admin icons move into Me; top bar keeps logo + notifications + sign-out.
+- **Admin entry:** stays gated, accessed from Me when `isAdmin`.
+- **Hidden-today rescue:** every page currently only reachable from the home grid now also has a tile in its hub, so nothing relies on a single discovery path.
+
+## Files to add
+
+- `src/components/layout/BottomNav.tsx` — 5-tab nav, active state via `useLocation`, lucide icons, hidden on focused-flow routes
+- `src/components/layout/HubGrid.tsx` — shared section + tile primitives reusing existing tile styling from `Index.tsx`
+- `src/pages/LearnHub.tsx`, `src/pages/PracticeHub.tsx`, `src/pages/MeHub.tsx`
+
+## Files to edit
+
+- `src/App.tsx` — register the 3 new hub routes (lazy)
+- `src/components/layout/AppShell.tsx` — render `BottomNav` with the hide-list; add bottom padding only when nav is visible so Discover video stays edge-to-edge
+- `src/pages/Index.tsx` — remove the feature-grid sections; keep gamification, continue, dialect, placement banner, phrase of the day; clean unused `TILE_HINTS`
+- `src/pages/Discover.tsx` — no UI changes; only ensure it tolerates the nav being present on the list view (bottom padding handled by AppShell)
+
+## Acceptance
+
+- Discover list and Discover video pages look identical to today (video page has no bottom nav)
+- From any hub, every existing feature is reachable in ≤2 taps
+- Home screen fits roughly one viewport without a feature catalog
+- No route removed, no feature removed
+
+## Out of scope (separate passes)
+
+- Per-user reordering of hub tiles
+- Cross-feature search
+- Desktop sidebar variant (mobile-first now; desktop can mirror later)

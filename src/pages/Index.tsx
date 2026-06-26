@@ -213,6 +213,31 @@ const Index = () => {
         <ChevronRight className="h-4 w-4 text-[#5C3A46]/60 shrink-0" />
       </button>
 
+      {/* Discover video preview */}
+      {previewVideo && (
+        <div className="mb-4">
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+              <Compass className="h-4 w-4 text-primary" />
+              Discover
+              <InfoHint title={TILE_HINTS.discover.title} body={TILE_HINTS.discover.body} />
+            </h2>
+            <button
+              onClick={() => navigate("/discover")}
+              className="text-xs text-primary font-medium flex items-center gap-0.5"
+            >
+              See all <ChevronRight className="h-3 w-3" />
+            </button>
+          </div>
+          <DiscoverPreviewCard
+            videos={previewVideos}
+            currentIndex={previewIndex}
+            onIndexChange={setPreviewIndex}
+            onOpen={(v) => navigate(`/discover/${v.id}`)}
+          />
+        </div>
+      )}
+
       {(() => {
         const sections: Partial<Record<HomeSectionId, React.ReactNode>> = {
           "phrase-of-the-day": <PhraseOfTheDay key="phrase-of-the-day" />,

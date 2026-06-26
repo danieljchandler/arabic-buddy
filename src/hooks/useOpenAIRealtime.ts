@@ -227,6 +227,25 @@ export function useOpenAIRealtime(opts: Options = {}) {
       audioEl.style.display = "none";
       document.body.appendChild(audioEl);
       audioElRef.current = audioEl;
+
+      // Unlock playback inside the user gesture by playing a silent muted
+      // stream synchronously. Once unlocked, swapping srcObject later in
+      // ontrack will play audibly without an autoplay-policy block.
+      try {
+        const unlockCtx = new (window.AudioContext ||
+          (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+        const dst = unlockCtx.createMediaStreamDestination();
+        const osc = unlockCtx.createOscillator();
+        const gain = unlockCtx.createGain();
+        gain.gain.value = 0;
+        osc.connect(gain).connect(dst);
+        osc.start();
+        audioEl.srcObject = dst.stream;
+        await audioEl.play().catch(() => {});
+      } catch (e) {
+        console.warn("[realtime] audio unlock failed", e);
+      }
+
       pc.ontrack = (e) => {
         audioEl.srcObject = e.streams[0];
         audioEl.play().catch((err) => {

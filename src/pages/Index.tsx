@@ -230,11 +230,10 @@ const Index = () => {
             </button>
           </div>
           <DiscoverPreviewCard
-            videos={previewVideos}
-            currentIndex={previewIndex}
-            onIndexChange={setPreviewIndex}
-            onOpen={(v) => navigate(`/discover/${v.id}`)}
+            video={previewVideo}
+            onClick={() => navigate(`/discover/${previewVideo.id}`)}
           />
+
         </div>
       )}
 

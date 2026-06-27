@@ -3,11 +3,11 @@ import { Sparkles, GraduationCap, Play, Brain, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const TABS = [
-  { to: "/", label: "Today", icon: Sparkles, match: (p: string) => p === "/" },
-  { to: "/learn-hub", label: "Learn", icon: GraduationCap, match: (p: string) => p.startsWith("/learn-hub") },
-  { to: "/discover", label: "Discover", icon: Play, match: (p: string) => p === "/discover" },
-  { to: "/practice", label: "Practice", icon: Brain, match: (p: string) => p.startsWith("/practice") },
-  { to: "/me", label: "Me", icon: User, match: (p: string) => p.startsWith("/me") },
+  { to: "/", label: "Today", icon: Sparkles, match: (p: string) => p === "/", tourId: "nav-today" },
+  { to: "/learn-hub", label: "Learn", icon: GraduationCap, match: (p: string) => p.startsWith("/learn-hub"), tourId: "nav-learn" },
+  { to: "/discover", label: "Discover", icon: Play, match: (p: string) => p === "/discover", tourId: "nav-discover" },
+  { to: "/practice", label: "Practice", icon: Brain, match: (p: string) => p.startsWith("/practice"), tourId: "nav-practice" },
+  { to: "/me", label: "Me", icon: User, match: (p: string) => p.startsWith("/me"), tourId: "nav-me" },
 ];
 
 /**
@@ -48,10 +48,10 @@ export function BottomNav() {
       aria-label="Primary"
     >
       <ul className="mx-auto flex max-w-2xl items-stretch justify-around">
-        {TABS.map(({ to, label, icon: Icon, match }) => {
+        {TABS.map(({ to, label, icon: Icon, match, tourId }) => {
           const active = match(pathname);
           return (
-            <li key={to} className="flex-1">
+            <li key={to} className="flex-1" data-tour={tourId}>
               <NavLink
                 to={to}
                 className={cn(

@@ -113,6 +113,7 @@ const Onboarding = () => {
         } as any, { onConflict: 'user_id,week_start_date' });
       }
 
+      markTourPending();
       toast.success('Welcome to Hakiya! 🎉');
       navigate('/');
     } catch (e) {

@@ -3,6 +3,7 @@ import { useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import borderFullPageImg from "@/assets/border-full-page.png";
 import { BottomNav, shouldShowBottomNav } from "@/components/layout/BottomNav";
+import { OnboardingTour } from "@/components/onboarding/OnboardingTour";
 
 interface AppShellProps {
   children: ReactNode;
@@ -50,6 +51,7 @@ export function AppShell({ children, className, compact = false }: AppShellProps
         {children}
       </div>
       <BottomNav />
+      <OnboardingTour />
     </div>
   );
 }

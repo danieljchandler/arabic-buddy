@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { markTourPending } from '@/components/onboarding/OnboardingTour';
 import { AppShell } from '@/components/layout/AppShell';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -112,6 +113,7 @@ const Onboarding = () => {
         } as any, { onConflict: 'user_id,week_start_date' });
       }
 
+      markTourPending();
       toast.success('Welcome to Hakiya! 🎉');
       navigate('/');
     } catch (e) {

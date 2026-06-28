@@ -104,6 +104,7 @@ const AdminCoverage = lazyPage(() => import("./pages/admin/AdminCoverage"));
 const AdminSetPhrases = lazyPage(() => import("./pages/admin/AdminSetPhrases"));
 const AdminDialectRules = lazyPage(() => import("./pages/admin/AdminDialectRules"));
 const AdminInviteCodes = lazyPage(() => import("./pages/admin/AdminInviteCodes"));
+const AdminFeedback = lazyPage(() => import("./pages/admin/AdminFeedback"));
 const SetPhrases = lazyPage(() => import("./pages/SetPhrases"));
 const SetPhrasesPractice = lazyPage(() => import("./pages/SetPhrasesPractice"));
 const SetPhrasesReview = lazyPage(() => import("./pages/SetPhrasesReview"));
@@ -439,6 +440,7 @@ const App = () => {
               <Route path="invite-codes" element={<AdminInviteCodes />} />
               <Route path="errors" element={<AdminErrors />} />
               <Route path="metrics" element={<AdminFeatureMetrics />} />
+              <Route path="feedback" element={<AdminFeedback />} />
             </Route>
 
             <Route path="/set-phrases" element={<ErrorBoundary name="SetPhrasesRoute"><SetPhrases /></ErrorBoundary>} />

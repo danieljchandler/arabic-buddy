@@ -53,7 +53,7 @@ const AdminFeedback = () => {
     },
   });
 
-  const updateRow = async (id: string, patch: Partial<FeedbackRow>) => {
+  const updateRow = async (id: string, patch: { status?: Status; admin_notes?: string }) => {
     const { error } = await supabase.from("beta_feedback").update(patch).eq("id", id);
     if (error) {
       toast.error(error.message);

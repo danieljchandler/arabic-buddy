@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import borderFullPageImg from "@/assets/border-full-page.png";
 import { BottomNav, shouldShowBottomNav } from "@/components/layout/BottomNav";
 import { OnboardingTour } from "@/components/onboarding/OnboardingTour";
+import { FeedbackWidget } from "@/components/feedback/FeedbackWidget";
 
 interface AppShellProps {
   children: ReactNode;
@@ -52,6 +53,7 @@ export function AppShell({ children, className, compact = false }: AppShellProps
       </div>
       <BottomNav />
       <OnboardingTour />
+      <FeedbackWidget />
     </div>
   );
 }

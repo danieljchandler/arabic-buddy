@@ -134,6 +134,48 @@ export type Database = {
         }
         Relationships: []
       }
+      beta_feedback: {
+        Row: {
+          admin_notes: string | null
+          context: Json
+          created_at: string
+          id: string
+          message: string
+          route: string | null
+          screenshot_url: string | null
+          status: string
+          type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          context?: Json
+          created_at?: string
+          id?: string
+          message: string
+          route?: string | null
+          screenshot_url?: string | null
+          status?: string
+          type: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          admin_notes?: string | null
+          context?: Json
+          created_at?: string
+          id?: string
+          message?: string
+          route?: string | null
+          screenshot_url?: string | null
+          status?: string
+          type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       bible_lessons: {
         Row: {
           book_name: string
@@ -3761,6 +3803,7 @@ export type Database = {
         Returns: number
       }
       is_admin: { Args: never; Returns: boolean }
+      is_beta_tester: { Args: never; Returns: boolean }
       is_recorder: { Args: never; Returns: boolean }
       record_checkpoint: {
         Args: { _index: number; _score: number }
@@ -3770,7 +3813,7 @@ export type Database = {
       verify_invite_code: { Args: { _code: string }; Returns: boolean }
     }
     Enums: {
-      app_role: "admin" | "user" | "recorder" | "bible_reader"
+      app_role: "admin" | "user" | "recorder" | "bible_reader" | "beta_tester"
       concept_kind: "vocab" | "grammar" | "theme" | "scenario" | "phrase"
       concept_role: "introduce" | "reinforce" | "assess"
       mastery_strength: "new" | "learning" | "familiar" | "strong" | "mastered"
@@ -3901,7 +3944,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "user", "recorder", "bible_reader"],
+      app_role: ["admin", "user", "recorder", "bible_reader", "beta_tester"],
       concept_kind: ["vocab", "grammar", "theme", "scenario", "phrase"],
       concept_role: ["introduce", "reinforce", "assess"],
       mastery_strength: ["new", "learning", "familiar", "strong", "mastered"],

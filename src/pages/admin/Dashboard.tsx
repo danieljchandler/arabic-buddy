@@ -337,6 +337,20 @@ const Dashboard = () => {
                   </div>
                 </CardContent>
               </Card>
+
+              <Card className="cursor-pointer hover:shadow-lg transition-shadow border-pink-500/30" onClick={() => navigate('/admin/feedback')}>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-4">
+                    <div className="bg-pink-500/10 rounded-full p-4">
+                      <MessageCircle className="h-8 w-8 text-pink-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-lg">Beta Feedback</h3>
+                      <p className="text-muted-foreground">Bugs, ideas, and praise sent in from beta testers</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </>
           )}
 

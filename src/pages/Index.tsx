@@ -215,27 +215,32 @@ const Index = () => {
 
       {/* Discover video preview */}
       {previewVideo && (
-        <div className="mb-4">
-          <div className="flex items-center justify-between mb-2">
-            <h2 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
-              <Compass className="h-4 w-4 text-primary" />
-              Discover
+        <div className="mb-5">
+          <div className="px-1 mb-3 flex items-baseline gap-3">
+            <span className="h-px flex-1 bg-[#5C3A46]/15" aria-hidden />
+            <h2
+              className="text-[10px] font-bold text-[#5C3A46]/70 uppercase tracking-[0.18em] flex items-center gap-1.5"
+              style={{ fontFamily: "'Montserrat', sans-serif" }}
+            >
+              <Compass className="h-3 w-3" />
+              Watch today
               <InfoHint title={TILE_HINTS.discover.title} body={TILE_HINTS.discover.body} />
             </h2>
-            <button
-              onClick={() => navigate("/discover")}
-              className="text-xs text-primary font-medium flex items-center gap-0.5"
-            >
-              See all <ChevronRight className="h-3 w-3" />
-            </button>
+            <span className="h-px flex-1 bg-[#5C3A46]/15" aria-hidden />
           </div>
           <DiscoverPreviewCard
             video={previewVideo}
             onClick={() => navigate(`/discover/${previewVideo.id}`)}
           />
-
+          <button
+            onClick={() => navigate("/discover")}
+            className="mt-2 text-xs text-primary font-semibold flex items-center gap-0.5 mx-auto"
+          >
+            See all videos <ChevronRight className="h-3 w-3" />
+          </button>
         </div>
       )}
+
 
       {(() => {
         const sections: Partial<Record<HomeSectionId, React.ReactNode>> = {

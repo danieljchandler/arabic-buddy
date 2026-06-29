@@ -213,10 +213,18 @@
     color: hsl(var(--muted-foreground));
   }
 
+  .shadow-elegant {
+    box-shadow: var(--shadow-elegant);
+  }
+  .shadow-card-soft {
+    box-shadow: var(--shadow-card);
+  }
+
   /* Subtle float animation for icons */
   .animate-float {
     animation: float 3s ease-in-out infinite;
   }
+
 
   @keyframes float {
     0%, 100% {

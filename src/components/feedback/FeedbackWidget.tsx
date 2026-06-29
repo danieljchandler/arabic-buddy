@@ -178,7 +178,8 @@ export function FeedbackWidget() {
     <>
       <button
         type="button"
-        onClick={() => setOpen(true)}
+        data-feedback-ignore="true"
+        onClick={openWithCapture}
         aria-label="Send feedback"
         className={cn(
           "fixed z-40 right-3 bottom-20 md:bottom-6 md:right-6",
@@ -187,11 +188,12 @@ export function FeedbackWidget() {
           "flex items-center justify-center transition-transform active:scale-95",
         )}
       >
-        <MessageSquarePlus className="h-5 w-5" />
+        {capturing ? <Loader2 className="h-5 w-5 animate-spin" /> : <MessageSquarePlus className="h-5 w-5" />}
       </button>
 
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent side="bottom" className="rounded-t-2xl max-h-[85vh] overflow-y-auto">
+        <SheetContent data-feedback-ignore="true" side="bottom" className="rounded-t-2xl max-h-[85vh] overflow-y-auto">
+
           <SheetHeader className="text-left">
             <SheetTitle>Send feedback</SheetTitle>
             <SheetDescription>

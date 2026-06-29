@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
-import { MessageSquarePlus, Bug, Lightbulb, HelpCircle, Heart, MoreHorizontal, Loader2 } from "lucide-react";
+import { MessageSquarePlus, Bug, Lightbulb, HelpCircle, Heart, MoreHorizontal, Loader2, Camera, X } from "lucide-react";
+import html2canvas from "html2canvas";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";

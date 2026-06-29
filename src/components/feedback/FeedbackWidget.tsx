@@ -128,6 +128,21 @@ export function FeedbackWidget() {
     }
     setSubmitting(true);
     try {
+      let screenshotPath: string | null = null;
+      if (includeShot && shot) {
+        try {
+          const blob = await (await fetch(shot)).blob();
+          const path = `${user.id}/${crypto.randomUUID()}.jpg`;
+          const { error: upErr } = await supabase.storage
+            .from("feedback-screenshots")
+            .upload(path, blob, { contentType: "image/jpeg", upsert: false });
+          if (upErr) throw upErr;
+          screenshotPath = path;
+        } catch (e) {
+          console.error("Screenshot upload failed:", e);
+          toast.error("Screenshot upload failed — sending without it.");
+        }
+      }
       const ctx = {
         dialect: activeDialect,
         viewport: typeof window !== "undefined" ? `${window.innerWidth}x${window.innerHeight}` : null,
@@ -142,11 +157,13 @@ export function FeedbackWidget() {
         message: trimmed,
         route: pathname,
         context: ctx as never,
+        screenshot_url: screenshotPath,
       });
       if (error) throw error;
       toast.success("Thanks — feedback sent!");
       setMessage("");
       setType("bug");
+      setShot(null);
       setOpen(false);
     } catch (err) {
       console.error("Failed to send feedback:", err);
@@ -155,6 +172,7 @@ export function FeedbackWidget() {
       setSubmitting(false);
     }
   };
+
 
   return (
     <>

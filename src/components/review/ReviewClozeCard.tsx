@@ -115,26 +115,26 @@ export const ReviewClozeCard = ({
   };
 
   return (
-    <div className="rounded-2xl bg-card border border-border p-6 text-center">
-      <div className="flex items-center justify-center gap-2 mb-5">
-        <span className="text-xs uppercase tracking-wide text-muted-foreground">
+    <div className="rounded-3xl bg-card border border-[#5C3A46]/15 p-7 text-center shadow-elegant">
+      <div className="flex items-center justify-center gap-2 mb-6">
+        <span className="text-[10px] uppercase tracking-[0.18em] font-semibold text-muted-foreground">
           Fill in the missing word
         </span>
       </div>
 
       {/* Sentence with blank */}
       <div
-        className="text-2xl leading-relaxed text-foreground mb-6"
+        className="text-3xl leading-loose text-foreground mb-7"
         style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
         dir="rtl"
       >
         <span>{cloze.before}</span>
         <span
           className={cn(
-            "inline-block min-w-[5rem] mx-1 px-3 py-0.5 rounded border-b-2 align-middle",
-            selected == null && "border-primary/70 bg-primary/5",
-            selected != null && selected === wordArabic && "border-green-600 bg-green-500/10 text-green-700",
-            selected != null && selected !== wordArabic && "border-red-600 bg-red-500/10 text-red-700"
+            "inline-block min-w-[5.5rem] mx-1.5 px-3 py-1 rounded-lg border-2 border-dashed align-middle transition-colors",
+            selected == null && "border-primary/50 bg-primary/8 text-primary/60",
+            selected != null && selected === wordArabic && "border-green-600 bg-green-500/15 text-green-700 border-solid",
+            selected != null && selected !== wordArabic && "border-red-600 bg-red-500/15 text-red-700 border-solid"
           )}
         >
           {selected ?? "ـــ"}
@@ -142,22 +142,29 @@ export const ReviewClozeCard = ({
         <span>{cloze.after}</span>
       </div>
 
-      {/* Audio */}
-      <div className="flex items-center justify-center gap-2 mb-6">
-        <Button
-          variant="default"
-          size="sm"
+      {/* Circular audio button */}
+      <div className="flex flex-col items-center justify-center gap-1.5 mb-7">
+        <button
+          type="button"
           onClick={() => audioUrl && playAudio(audioUrl)}
           disabled={!audioUrl || ttsLoading}
-          className="gap-1.5"
+          aria-label={selected == null ? "Play sentence with word muted" : "Play full sentence"}
+          className={cn(
+            "h-14 w-14 rounded-full flex items-center justify-center",
+            "bg-primary text-primary-foreground shadow-elegant",
+            "transition-all hover:scale-105 active:scale-95",
+            "disabled:opacity-50 disabled:cursor-not-allowed"
+          )}
         >
-          {ttsLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
-          {selected == null ? "Play sentence (word muted)" : "Play full sentence"}
-        </Button>
+          {ttsLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : <Play className="h-6 w-6 ml-0.5" />}
+        </button>
+        <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+          {selected == null ? "Word muted" : "Full sentence"}
+        </span>
       </div>
 
       {/* Choices */}
-      <div className="grid grid-cols-2 gap-2 mb-4">
+      <div className="grid grid-cols-2 gap-2.5 mb-2">
         {options.map((opt) => {
           const isPicked = selected === opt;
           const isTarget = opt === wordArabic;
@@ -168,10 +175,12 @@ export const ReviewClozeCard = ({
               onClick={() => handleSelect(opt)}
               disabled={selected != null}
               className={cn(
-                "rounded-lg border border-border bg-card px-3 py-3 text-lg transition-colors",
-                "hover:bg-muted/60 disabled:hover:bg-card",
-                reveal && isTarget && "border-green-600 bg-green-500/10",
-                reveal && isPicked && !isTarget && "border-red-600 bg-red-500/10",
+                "rounded-xl border-2 border-[#5C3A46]/15 bg-card px-3 min-h-[56px] text-xl transition-all",
+                "hover:border-primary/40 hover:bg-primary/5 hover:-translate-y-0.5",
+                "disabled:hover:translate-y-0",
+                reveal && isTarget && "border-green-600 bg-green-500/12",
+                reveal && isPicked && !isTarget && "border-red-600 bg-red-500/12",
+                reveal && !isTarget && !isPicked && "opacity-50",
               )}
               style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
               dir="rtl"
@@ -187,7 +196,7 @@ export const ReviewClozeCard = ({
       </div>
 
       {selected != null && (
-        <div className="animate-in fade-in duration-200 mt-4 text-center">
+        <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 mt-5 text-center">
           <p className="text-base text-foreground">
             <span className="font-semibold">{wordArabic}</span>
             <span className="text-muted-foreground"> — {wordEnglish}</span>
@@ -214,3 +223,4 @@ export const ReviewClozeCard = ({
     </div>
   );
 };
+

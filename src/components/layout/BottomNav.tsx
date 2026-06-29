@@ -43,11 +43,11 @@ export function BottomNav() {
 
   return (
     <nav
-      className="fixed bottom-0 inset-x-0 z-40 border-t border-[#5C3A46]/20 bg-[#F9F7F2]/95 backdrop-blur supports-[backdrop-filter]:bg-[#F9F7F2]/80"
+      className="fixed bottom-0 inset-x-0 z-40 border-t border-[#5C3A46]/15 bg-[#F9F7F2]/95 backdrop-blur supports-[backdrop-filter]:bg-[#F9F7F2]/85"
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       aria-label="Primary"
     >
-      <ul className="mx-auto flex max-w-2xl items-stretch justify-around">
+      <ul className="mx-auto flex max-w-2xl items-stretch justify-around px-2 pt-1.5 pb-1">
         {TABS.map(({ to, label, icon: Icon, match, tourId }) => {
           const active = match(pathname);
           return (
@@ -55,12 +55,23 @@ export function BottomNav() {
               <NavLink
                 to={to}
                 className={cn(
-                  "flex flex-col items-center justify-center gap-0.5 py-2 px-1 text-[11px] font-medium transition-colors",
-                  active ? "text-[#5C3A46]" : "text-[#5C3A46]/55 hover:text-[#5C3A46]/80",
+                  "relative flex flex-col items-center justify-center gap-0.5 py-1.5 px-2 mx-0.5 rounded-2xl text-[11px] transition-all",
+                  active
+                    ? "text-[#5C3A46] font-semibold bg-[#5C3A46]/8"
+                    : "text-[#5C3A46]/55 font-medium hover:text-[#5C3A46]/80 hover:bg-[#5C3A46]/4",
                 )}
               >
-                <Icon className={cn("h-5 w-5", active && "scale-110")} strokeWidth={active ? 2.4 : 2} />
-                <span>{label}</span>
+                <Icon
+                  className={cn("h-5 w-5 transition-transform", active && "scale-110")}
+                  strokeWidth={active ? 2.4 : 2}
+                />
+                <span className="leading-none">{label}</span>
+                {active && (
+                  <span
+                    className="absolute -top-1.5 left-1/2 -translate-x-1/2 h-1 w-1 rounded-full bg-[#5C3A46]"
+                    aria-hidden
+                  />
+                )}
               </NavLink>
             </li>
           );
@@ -69,3 +80,4 @@ export function BottomNav() {
     </nav>
   );
 }
+

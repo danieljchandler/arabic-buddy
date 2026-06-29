@@ -52,6 +52,49 @@ export function FeedbackWidget() {
   const [type, setType] = useState<FeedbackType>("bug");
   const [message, setMessage] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [includeShot, setIncludeShot] = useState(true);
+  const [shot, setShot] = useState<string | null>(null);
+  const [capturing, setCapturing] = useState(false);
+
+  const captureScreenshot = async () => {
+    setCapturing(true);
+    try {
+      // Briefly let the UI settle (sheet animations, etc.)
+      await new Promise((r) => setTimeout(r, 50));
+      const canvas = await html2canvas(document.body, {
+        useCORS: true,
+        allowTaint: false,
+        logging: false,
+        backgroundColor: "#ffffff",
+        scale: Math.min(window.devicePixelRatio || 1, 2),
+        ignoreElements: (el) =>
+          el.getAttribute?.("data-feedback-ignore") === "true" ||
+          el.closest?.("[data-feedback-ignore='true']") !== null,
+      });
+      // Compress
+      const maxW = 1280;
+      const ratio = canvas.width > maxW ? maxW / canvas.width : 1;
+      const out = document.createElement("canvas");
+      out.width = Math.round(canvas.width * ratio);
+      out.height = Math.round(canvas.height * ratio);
+      const ctx = out.getContext("2d");
+      if (ctx) ctx.drawImage(canvas, 0, 0, out.width, out.height);
+      setShot(out.toDataURL("image/jpeg", 0.7));
+    } catch (e) {
+      console.error("Screenshot failed:", e);
+      toast.error("Couldn't capture screenshot.");
+    } finally {
+      setCapturing(false);
+    }
+  };
+
+  const openWithCapture = async () => {
+    if (includeShot && !shot) {
+      await captureScreenshot();
+    }
+    setOpen(true);
+  };
+
 
   // Cmd/Ctrl + / to open
   useEffect(() => {

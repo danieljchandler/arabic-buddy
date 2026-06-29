@@ -241,9 +241,71 @@ export function FeedbackWidget() {
               <div className="mt-1 text-xs text-muted-foreground text-right">{message.length}/4000</div>
             </div>
 
+            <div className="rounded-md border bg-muted/30 p-3 space-y-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <Camera className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">Attach screenshot</span>
+                </div>
+                <Switch
+                  checked={includeShot}
+                  onCheckedChange={(v) => {
+                    setIncludeShot(v);
+                    if (!v) setShot(null);
+                  }}
+                />
+              </div>
+              {includeShot && (
+                <div className="space-y-2">
+                  {shot ? (
+                    <div className="relative">
+                      <img
+                        src={shot}
+                        alt="Screenshot preview"
+                        className="w-full max-h-48 object-contain rounded-md border bg-background"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShot(null)}
+                        className="absolute top-1 right-1 h-6 w-6 rounded-full bg-background/90 border flex items-center justify-center hover:bg-background"
+                        aria-label="Remove screenshot"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="text-xs text-muted-foreground">
+                      No screenshot captured. The widget is hidden from the capture.
+                    </div>
+                  )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={async () => {
+                      setOpen(false);
+                      // Wait for sheet close animation so it isn't in the capture
+                      await new Promise((r) => setTimeout(r, 250));
+                      await captureScreenshot();
+                      setOpen(true);
+                    }}
+                    disabled={capturing}
+                  >
+                    {capturing ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
+                    ) : (
+                      <Camera className="h-3.5 w-3.5 mr-1.5" />
+                    )}
+                    {shot ? "Retake screenshot" : "Capture screenshot"}
+                  </Button>
+                </div>
+              )}
+            </div>
+
             <div className="text-xs text-muted-foreground bg-muted/50 rounded-md px-3 py-2">
               Attached automatically: page <span className="font-mono">{pathname}</span> · {activeDialect} · viewport · last console errors
             </div>
+
 
             <div className="flex justify-end gap-2 pt-2">
               <Button variant="ghost" onClick={() => setOpen(false)} disabled={submitting}>

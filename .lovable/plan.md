@@ -1,68 +1,51 @@
-# Reorganize the app into 5 clear hubs (Discover preserved)
+# Design polish plan: Today, Hubs, Review
 
-Group every existing page into one of 5 hubs with a persistent bottom nav, and turn the home screen into a calm "Today" dashboard instead of a feature catalog. **Discover keeps its current full-screen, immersive look exactly as it is today** — it's the marquee feature and the bottom nav must not shrink or reframe it.
+Scope is presentation only — no business logic, no route changes. Everything stays inside the existing digital majlis palette (off-white #F9F7F2 surfaces, Desert Red borders, dialect accent per active module).
 
-## The 5 hubs (bottom nav)
+## 1. Today / Home dashboard (`src/pages/Index.tsx`)
 
-```text
-[ Today ]  [ Learn ]  [ Discover ]  [ Practice ]  [ Me ]
-```
+Problem: feels like a stack of unrelated cards with uneven rhythm and no clear focal point.
 
-Discover gets its own dedicated tab in the middle slot (the highest-prominence position on a mobile bottom nav) because it's a primary draw.
+- **Hero band**: tighter greeting block with the Arabic greeting as the dominant element (Noto Sans Arabic, large), English subgreeting muted. Include date + streak chip inline instead of as a separate card.
+- **Streak / XP**: collapse into a single horizontal "status strip" with streak flame, XP today, and goal ring — replaces the current full-width card.
+- **Primary CTA**: one prominent "Continue learning" button styled with the active dialect accent, full-width, with subtle gradient + shadow-elegant token.
+- **Discover preview card**: keep as-is structurally (per prior decision), but reframe with a section label "Watch today" and consistent 16px radius + border treatment so it matches sibling cards.
+- **Quick actions**: convert to a 2-col compact grid of icon tiles (Practice, Translate, My Words, Discover) instead of a vertical list. Removes scroll length.
+- **Spacing rhythm**: enforce 24px vertical gap between sections, 16px inside cards. Add a subtle watercolor divider between hero and content blocks.
 
-1. **Today** (`/`) — daily dashboard only
-   - Majlis welcome, dialect switcher, Continue card, MSA bridge entry
-   - Due reviews, daily challenge, daily story, phrase of the day
-   - Streak / XP / weekly goal, one "Jump back in" row
-   - No feature grid here anymore
+## 2. Hub navigation — Learn / Practice / Me
 
-2. **Learn** (`/learn-hub`) — structured curriculum
-   - Placement Quiz, Alphabet Journey, Curriculum lessons (`/learn`), MSA→Dialect Bridge, Grammar Drills, Set Phrases
+Problem: three hubs use slightly different card styles, icon sizes, and headings.
 
-3. **Discover** (`/discover`) — unchanged
-   - Existing full-screen video feed UI, layout, gestures, autoplay, sizing all preserved
-   - Liked Videos accessed from inside Discover the same way it is today
-   - Bottom nav appears on the Discover feed list, but is **hidden the moment a video opens** (`/discover/:videoId`) so playback stays edge-to-edge
+- **Unify HubGrid tile**: one shared tile component — square-ish, 4:3, icon top-left, title bold, one-line description muted, optional badge top-right. Apply across `LearnHub`, `PracticeHub`, `MeHub`.
+- **Section headers**: same eyebrow + H2 pattern on all three hubs (`text-xs uppercase tracking-wide text-muted` over `text-2xl font-display`).
+- **Grouping**: Learn = "Foundations / Skills / Content"; Practice = "Drills / Conversation / Games"; Me = "Library / Progress / Account". Same group header style across.
+- **BottomNav polish**: active tab gets a soft pill background in the dialect accent + label weight bump; inactive icons reduced to 70% opacity; add a 1px hairline top border using `border-border/60`.
+- **Page padding**: standardize `px-4 pt-6 pb-24` on every hub so BottomNav never overlaps content.
 
-4. **Practice** (`/practice`) — active skills drills
-   - Review (SRS), My Words Review, My Phrases Review, Pronunciation, Conversation Simulator, Listening Practice, Reading Practice, Vocab Games, Vocab Battles, Daily Challenge
+## 3. Flashcard review screens (`MyWordsReview`, `MyPhrasesReview`, `ReviewClozeCard`, recognition card)
 
-5. **Me** (`/me`) — library, content tools & social
-   - My Words, My Phrases, Saved Translations, My Transcriptions, Liked Videos, Learning Analytics, Leaderboard, Friends, Profile, Settings, Pricing
-   - Plus the "content & tools" group that doesn't fit elsewhere: Listen (podcasts), Stories, Souq News, Bible Reading (if entitled), Dialect Compare, Culture Guide, How Do I Say, Meme Analyzer, Learn from X, Translate, Transcribe, Tutor Upload
+Problem: cards feel utilitarian — heavy borders, inconsistent button hierarchy, cramped audio controls.
 
-## What changes vs. what stays
+- **Card frame**: switch from hard border to layered surface (off-white card on warm sand backdrop, `shadow-elegant`, 20px radius). Removes the "form field" feel.
+- **Arabic typography**: bump Arabic display size (`text-4xl` recognition, `text-3xl` cloze), generous line-height, center-aligned, with optional tashkil rendered in muted color so the unvocalized form stays dominant.
+- **Audio control**: single large circular play button (56px) with the dialect accent, replacing the small icon button. Waveform/loading state uses an animated ring.
+- **Reveal flow**: "Reveal" becomes a full-width ghost button under the card; once revealed, English translation fades in with a soft slide, and the rating buttons (Again / Hard / Good / Easy) appear as a 4-segment pill with color-coded accents (red→amber→teal→green) instead of equal gray buttons.
+- **Cloze blanks**: blank slot rendered as a rounded chip with dashed border in dialect accent; multiple-choice answers as large tap targets (min-h 56px), Arabic-only filtering already in place.
+- **Progress**: replace numeric "3 / 12" with a slim progress bar at the top + small counter on the right. Less visual noise.
+- **Empty / done state**: celebratory illustration block (use existing dallah / motif assets) instead of plain text.
 
-- **Discover:** zero visual changes. Same page component, same player, same fullscreen behavior. Only the nav route assignment changes.
-- **Routes:** unchanged. All existing URLs keep working. New routes added: `/learn-hub`, `/practice`, `/me`.
-- **Home (`/`):** stripped to the dashboard sections listed above. The big feature grid currently rendered from `homeLayout` is removed from Index.
-- **Bottom nav:** new persistent `BottomNav` component rendered by `AppShell`, shown on hub list routes, **hidden on focused flows**: `/discover/:videoId`, `/review/*`, `/quiz/*`, `/stories/:id`, `/learn/:id`, `/battles/:id`, `/listen/:id`, `/auth`, `/onboarding`, `/reset-password`.
-- **Top bar:** Profile/Settings/Admin icons move into Me; top bar keeps logo + notifications + sign-out.
-- **Admin entry:** stays gated, accessed from Me when `isAdmin`.
-- **Hidden-today rescue:** every page currently only reachable from the home grid now also has a tile in its hub, so nothing relies on a single discovery path.
+## Shared design system additions
 
-## Files to add
+- Add `--shadow-card`, `--shadow-elegant`, `--gradient-accent` tokens in `index.css` if not present, derived from current dialect primary.
+- Add `Card` variant `variant="majlis"` for the layered off-white surface so all three areas use the same primitive.
+- No new fonts, no palette changes, no route or data changes.
 
-- `src/components/layout/BottomNav.tsx` — 5-tab nav, active state via `useLocation`, lucide icons, hidden on focused-flow routes
-- `src/components/layout/HubGrid.tsx` — shared section + tile primitives reusing existing tile styling from `Index.tsx`
-- `src/pages/LearnHub.tsx`, `src/pages/PracticeHub.tsx`, `src/pages/MeHub.tsx`
+## Out of scope
 
-## Files to edit
+- Admin pages, Discover video player internals, onboarding tour visuals, settings.
+- Any dialect color rework (Gulf Sadu palette stays as-is).
 
-- `src/App.tsx` — register the 3 new hub routes (lazy)
-- `src/components/layout/AppShell.tsx` — render `BottomNav` with the hide-list; add bottom padding only when nav is visible so Discover video stays edge-to-edge
-- `src/pages/Index.tsx` — remove the feature-grid sections; keep gamification, continue, dialect, placement banner, phrase of the day; clean unused `TILE_HINTS`
-- `src/pages/Discover.tsx` — no UI changes; only ensure it tolerates the nav being present on the list view (bottom padding handled by AppShell)
+## Verification
 
-## Acceptance
-
-- Discover list and Discover video pages look identical to today (video page has no bottom nav)
-- From any hub, every existing feature is reachable in ≤2 taps
-- Home screen fits roughly one viewport without a feature catalog
-- No route removed, no feature removed
-
-## Out of scope (separate passes)
-
-- Per-user reordering of hub tiles
-- Cross-feature search
-- Desktop sidebar variant (mobile-first now; desktop can mirror later)
+After implementation: Playwright screenshots of `/`, `/learn-hub`, `/practice`, `/me`, `/review/my-words`, `/review/my-phrases` at mobile width (390) to confirm spacing rhythm and tile consistency.

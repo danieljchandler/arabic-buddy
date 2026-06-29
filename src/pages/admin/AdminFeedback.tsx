@@ -1,12 +1,35 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Trash2, ExternalLink } from "lucide-react";
+import { Loader2, Trash2, ExternalLink, ImageIcon } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
+
+function ScreenshotPreview({ path }: { path: string }) {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    supabase.storage
+      .from("feedback-screenshots")
+      .createSignedUrl(path, 60 * 60)
+      .then(({ data }) => {
+        if (!cancelled) setUrl(data?.signedUrl ?? null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [path]);
+  if (!url) return <div className="text-xs text-muted-foreground">Loading screenshot…</div>;
+  return (
+    <a href={url} target="_blank" rel="noreferrer" className="block">
+      <img src={url} alt="Feedback screenshot" className="max-h-96 w-auto rounded-md border" />
+    </a>
+  );
+}
+
 
 type Status = "new" | "triaged" | "in_progress" | "resolved" | "wont_fix";
 type FbType = "bug" | "idea" | "confusing" | "praise" | "other";

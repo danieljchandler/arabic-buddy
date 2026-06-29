@@ -211,12 +211,19 @@ const AdminFeedback = () => {
                           </Button>
                         </div>
                       </div>
+                      {row.screenshot_url && (
+                        <div>
+                          <div className="text-xs font-medium mb-1">Screenshot</div>
+                          <ScreenshotPreview path={row.screenshot_url} />
+                        </div>
+                      )}
                       <div>
                         <div className="text-xs font-medium mb-1">Context</div>
                         <pre className="text-xs bg-muted/50 rounded-md p-2 overflow-x-auto max-h-64">
 {JSON.stringify({ user_id: row.user_id, ...(row.context ?? {}) }, null, 2)}
                         </pre>
                       </div>
+
                     </div>
                   )}
                 </CardContent>

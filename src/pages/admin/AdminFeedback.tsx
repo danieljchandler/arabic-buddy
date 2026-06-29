@@ -179,16 +179,17 @@ const AdminFeedback = () => {
                           {s.replace("_", " ")}
                         </option>
                       ))}
-                      {row.screenshot_url && (
-                        <span className="text-xs inline-flex items-center gap-1 text-muted-foreground">
-                          <ImageIcon className="h-3 w-3" /> screenshot
-                        </span>
-                      )}
-                    </div>
+                    </select>
+                    {row.screenshot_url && (
+                      <span className="text-xs inline-flex items-center gap-1 text-muted-foreground">
+                        <ImageIcon className="h-3 w-3" /> screenshot
+                      </span>
+                    )}
                     <Button size="sm" variant="ghost" onClick={() => setExpanded(isOpen ? null : row.id)}>
                       {isOpen ? "Hide details" : "Show details"}
                     </Button>
                   </div>
+
 
 
                   {isOpen && (

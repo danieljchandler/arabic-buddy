@@ -20,8 +20,10 @@ interface FeedbackRow {
   status: Status;
   admin_notes: string | null;
   context: Record<string, unknown> | null;
+  screenshot_url: string | null;
   created_at: string;
 }
+
 
 const STATUSES: Status[] = ["new", "triaged", "in_progress", "resolved", "wont_fix"];
 const TYPE_COLORS: Record<FbType, string> = {

@@ -42,6 +42,7 @@ import { DIALECT_FLAGS, DIALECT_LABELS } from "@/config";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { TappableArabicText } from "@/components/shared/TappableArabicText";
 import { AskAISentence } from "@/components/shared/AskAISentence";
+import { VerseAudioButton } from "@/components/bible/VerseAudioButton";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 type ViewMode = "select" | "reading";
@@ -468,6 +469,9 @@ const BibleReadingInner = () => {
                           source="bible"
                           sentenceContext={{ arabic: dialectLine, english: englishLine }}
                         />
+                        <div dir="ltr" className="mt-1 flex justify-end">
+                          <VerseAudioButton text={dialectLine} dialect={activeDialect} label={`Listen (${dialectLabel})`} />
+                        </div>
                       </div>
                     )}
 

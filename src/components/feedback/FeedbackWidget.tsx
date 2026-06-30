@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { MessageSquarePlus, Bug, Lightbulb, HelpCircle, Heart, MoreHorizontal, Loader2, Camera, X } from "lucide-react";
-import html2canvas from "html2canvas";
+import { toJpeg } from "html-to-image";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
@@ -59,26 +59,29 @@ export function FeedbackWidget() {
   const captureScreenshot = async () => {
     setCapturing(true);
     try {
-      // Briefly let the UI settle (sheet animations, etc.)
       await new Promise((r) => setTimeout(r, 50));
-      const canvas = await html2canvas(document.body, {
-        useCORS: true,
-        allowTaint: false,
-        logging: false,
+      const dataUrl = await toJpeg(document.body, {
+        quality: 0.7,
+        cacheBust: true,
+        pixelRatio: Math.min(window.devicePixelRatio || 1, 2),
         backgroundColor: "#ffffff",
-        scale: Math.min(window.devicePixelRatio || 1, 2),
-        ignoreElements: (el) =>
-          el.getAttribute?.("data-feedback-ignore") === "true" ||
-          el.closest?.("[data-feedback-ignore='true']") !== null,
+        filter: (node) => {
+          if (!(node instanceof HTMLElement)) return true;
+          if (node.getAttribute("data-feedback-ignore") === "true") return false;
+          return true;
+        },
       });
-      // Compress
+      // Downscale if too wide
+      const img = new Image();
+      img.src = dataUrl;
+      await new Promise((res) => (img.onload = () => res(null)));
       const maxW = 1280;
-      const ratio = canvas.width > maxW ? maxW / canvas.width : 1;
+      const ratio = img.width > maxW ? maxW / img.width : 1;
       const out = document.createElement("canvas");
-      out.width = Math.round(canvas.width * ratio);
-      out.height = Math.round(canvas.height * ratio);
+      out.width = Math.round(img.width * ratio);
+      out.height = Math.round(img.height * ratio);
       const ctx = out.getContext("2d");
-      if (ctx) ctx.drawImage(canvas, 0, 0, out.width, out.height);
+      if (ctx) ctx.drawImage(img, 0, 0, out.width, out.height);
       setShot(out.toDataURL("image/jpeg", 0.7));
     } catch (e) {
       console.error("Screenshot failed:", e);

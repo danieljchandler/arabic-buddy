@@ -468,6 +468,9 @@ const BibleReadingInner = () => {
                           source="bible"
                           sentenceContext={{ arabic: dialectLine, english: englishLine }}
                         />
+                        <div dir="ltr" className="mt-1 flex justify-end">
+                          <VerseAudioButton text={dialectLine} dialect={activeDialect} label={`Listen (${dialectLabel})`} />
+                        </div>
                       </div>
                     )}
 

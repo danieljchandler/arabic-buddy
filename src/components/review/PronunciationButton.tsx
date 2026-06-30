@@ -39,6 +39,12 @@ export const PronunciationButton = ({
   const [tips, setTips] = useState<string[]>([]);
   const [tipsLoading, setTipsLoading] = useState(false);
 
+  // Reset when the target word changes (e.g. moving to next flashcard)
+  useEffect(() => {
+    reset();
+    setTips([]);
+  }, [word, reset]);
+
   // Fetch coaching tips when result arrives
   useEffect(() => {
     if (!result) {

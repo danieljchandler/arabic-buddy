@@ -123,6 +123,77 @@ export async function extractAndUploadAudioClip(
 }
 
 /**
+ * Fallback: synthesize TTS for a piece of Arabic text and upload it to
+ * `flashcard-audio`, returning a public URL. Used when native video audio
+ * is not available (e.g. YouTube Discover videos without an extracted
+ * audio track) so the flashcard still has a saved audio clip.
+ */
+const MUNSIT_DIALECTS = new Set([
+  "gulf", "khaleeji", "saudi", "kuwaiti", "uae", "emirati",
+  "bahraini", "qatari", "omani", "yemeni", "yemen",
+]);
+
+export async function synthesizeAndUploadTTS(
+  text: string,
+  userId: string,
+  dialect: string | null | undefined,
+  prefix: string = "tts",
+): Promise<string | null> {
+  if (!text?.trim()) return null;
+  try {
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+    const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData?.session?.access_token ?? anonKey;
+    const useMunsit = MUNSIT_DIALECTS.has(String(dialect ?? "").toLowerCase());
+
+    const call = (fn: string) =>
+      fetch(`${supabaseUrl}/functions/v1/${fn}`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+          apikey: anonKey,
+        },
+        body: JSON.stringify({ text }),
+      });
+
+    let response = await call(useMunsit ? "munsit-tts" : "azure-tts");
+    // munsit may return 200 with { fallback: true } under quota
+    if (response.ok && useMunsit) {
+      const ct = response.headers.get("content-type") ?? "";
+      if (ct.includes("application/json")) {
+        try {
+          const j = await response.clone().json();
+          if (j?.fallback) response = await call("azure-tts");
+        } catch { /* ignore */ }
+      }
+    }
+    if (!response.ok) {
+      if (useMunsit) response = await call("azure-tts");
+      if (!response.ok) return null;
+    }
+    const ct = response.headers.get("content-type") ?? "";
+    if (!ct.startsWith("audio/")) return null;
+
+    const blob = await response.blob();
+    const ext = ct.includes("wav") ? "wav" : ct.includes("mp3") || ct.includes("mpeg") ? "mp3" : "audio";
+    const path = `tts/${userId}/${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`;
+    const { error } = await supabase.storage
+      .from("flashcard-audio")
+      .upload(path, blob, { contentType: ct, upsert: false });
+    if (error) {
+      console.warn("TTS upload failed:", error);
+      return null;
+    }
+    return supabase.storage.from("flashcard-audio").getPublicUrl(path).data.publicUrl;
+  } catch (err) {
+    console.warn("synthesizeAndUploadTTS failed:", err);
+    return null;
+  }
+}
+
+/**
  * Resolve a fetchable audio URL for a Discover video.
  * Tries the private `video-audio` bucket first (signed URL), then falls
  * back to the public `audio` bucket via the `audio_files` lookup table.

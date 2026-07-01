@@ -104,6 +104,13 @@ const MyWordsReview = () => {
   const [jingleLoading, setJingleLoading] = useState(false);
   const [showLyrics, setShowLyrics] = useState(false);
   const [imageDialogOpen, setImageDialogOpen] = useState(false);
+  const [lastAction, setLastAction] = useState<null | {
+    cardId: string;
+    cardType: CardType;
+    prevIndex: number;
+    snapshot: Record<string, unknown>;
+  }>(null);
+  const [undoing, setUndoing] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const fallbackAudioUrlRef = useRef<string | null>(null);
   const updateImage = useUpdateUserVocabularyImage();

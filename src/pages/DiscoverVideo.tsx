@@ -26,6 +26,7 @@ import { extractTikTokVideoId, getTikTokEmbedUrl } from "@/lib/videoEmbed";
 import {
   resolveDiscoverVideoAudioUrl,
   extractAndUploadAudioClip,
+  synthesizeAndUploadTTS,
 } from "@/lib/vocabularyAudioContext";
 import type { TranscriptLine, WordToken, VocabItem } from "@/types/transcript";
 import { VideoRating } from "@/components/discover/VideoRating";

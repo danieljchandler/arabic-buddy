@@ -30,6 +30,12 @@ const MyPhrasesReview = () => {
   const [sessionCount, setSessionCount] = useState(0);
   const [jingleLoading, setJingleLoading] = useState(false);
   const [showLyrics, setShowLyrics] = useState(false);
+  const [lastAction, setLastAction] = useState<null | {
+    phraseId: string;
+    prevIndex: number;
+    snapshot: Record<string, unknown>;
+  }>(null);
+  const [undoing, setUndoing] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const safeIndex =

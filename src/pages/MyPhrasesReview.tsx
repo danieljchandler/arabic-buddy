@@ -146,6 +146,13 @@ const MyPhrasesReview = () => {
     if (!current || !duePhrases) return;
     const count = duePhrases.length;
 
+    // Snapshot current SRS state so the learner can undo an accidental tap.
+    const { data: snapshot } = await (supabase
+      .from("user_phrases")
+      .select("ease_factor, difficulty, interval_days, repetitions, next_review_at, last_reviewed_at, lapses, is_leech") as any)
+      .eq("id", current.id)
+      .maybeSingle();
+
     const result = calculateNextReview(
       rating,
       Number(current.ease_factor) || 0,
@@ -165,6 +172,15 @@ const MyPhrasesReview = () => {
       currentLapses: current.lapses ?? 0,
     });
 
+    const prevIndex = currentIndex;
+    if (snapshot) {
+      setLastAction({
+        phraseId: current.id,
+        prevIndex,
+        snapshot: snapshot as Record<string, unknown>,
+      });
+    }
+
     setSessionCount((p) => p + 1);
     setShowAnswer(false);
 
@@ -173,6 +189,35 @@ const MyPhrasesReview = () => {
     } else {
       await refetch();
       setCurrentIndex(0);
+    }
+
+    toast.success(`Marked ${rating}`, {
+      action: snapshot
+        ? { label: "Undo", onClick: () => handleUndo() }
+        : undefined,
+      duration: 4000,
+    });
+  };
+
+  const handleUndo = async () => {
+    if (!lastAction || undoing) return;
+    setUndoing(true);
+    try {
+      const { error } = await (supabase.from("user_phrases") as any)
+        .update(lastAction.snapshot)
+        .eq("id", lastAction.phraseId);
+      if (error) throw error;
+      setSessionCount((p) => Math.max(0, p - 1));
+      setCurrentIndex(lastAction.prevIndex);
+      setShowAnswer(false);
+      setLastAction(null);
+      await refetch();
+      toast.success("Rating undone");
+    } catch (err) {
+      console.error("Undo failed:", err);
+      toast.error("Couldn't undo — try again");
+    } finally {
+      setUndoing(false);
     }
   };
 

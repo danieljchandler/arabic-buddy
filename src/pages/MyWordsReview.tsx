@@ -6,7 +6,7 @@ import { useDialect } from "@/contexts/DialectContext";
 import { HomeButton } from "@/components/HomeButton";
 import { RatingButtons } from "@/components/review/RatingButtons";
 import { AppShell } from "@/components/layout/AppShell";
-import { Loader2, Trophy, LogIn, Eye, Volume2, Music, RefreshCw, Sparkles, Play, Brain, Mic2, Quote } from "lucide-react";
+import { Loader2, Trophy, LogIn, Eye, Volume2, Music, RefreshCw, Sparkles, Play, Brain, Mic2, Quote, Undo2 } from "lucide-react";
 import { LeechHelperPanel } from "@/components/review/LeechHelperPanel";
 import { SiblingWordsPanel } from "@/components/review/SiblingWordsPanel";
 import { useLeechPrefs } from "@/hooks/useLeechPrefs";

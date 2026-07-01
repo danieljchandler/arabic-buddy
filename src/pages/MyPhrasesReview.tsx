@@ -9,7 +9,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Rating, calculateNextReview } from "@/lib/spacedRepetition";
 import { useAzureTTS } from "@/hooks/useAzureTTS";
-import { Loader2, Trophy, LogIn, Eye, Volume2, Trash2, MessageCircleQuestion, Music, Play, RefreshCw } from "lucide-react";
+import { Loader2, Trophy, LogIn, Eye, Volume2, Trash2, MessageCircleQuestion, Music, Play, RefreshCw, Undo2 } from "lucide-react";
 import { LeechHelperPanel } from "@/components/review/LeechHelperPanel";
 import { useLeechPrefs } from "@/hooks/useLeechPrefs";
 import { createPlayableJingleAudio, createPlayableJingleAudioFromUrl } from "@/lib/jingleAudio";
@@ -30,6 +30,12 @@ const MyPhrasesReview = () => {
   const [sessionCount, setSessionCount] = useState(0);
   const [jingleLoading, setJingleLoading] = useState(false);
   const [showLyrics, setShowLyrics] = useState(false);
+  const [lastAction, setLastAction] = useState<null | {
+    phraseId: string;
+    prevIndex: number;
+    snapshot: Record<string, unknown>;
+  }>(null);
+  const [undoing, setUndoing] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const safeIndex =
@@ -140,6 +146,13 @@ const MyPhrasesReview = () => {
     if (!current || !duePhrases) return;
     const count = duePhrases.length;
 
+    // Snapshot current SRS state so the learner can undo an accidental tap.
+    const { data: snapshot } = await (supabase
+      .from("user_phrases")
+      .select("ease_factor, difficulty, interval_days, repetitions, next_review_at, last_reviewed_at, lapses, is_leech") as any)
+      .eq("id", current.id)
+      .maybeSingle();
+
     const result = calculateNextReview(
       rating,
       Number(current.ease_factor) || 0,
@@ -159,6 +172,15 @@ const MyPhrasesReview = () => {
       currentLapses: current.lapses ?? 0,
     });
 
+    const prevIndex = currentIndex;
+    if (snapshot) {
+      setLastAction({
+        phraseId: current.id,
+        prevIndex,
+        snapshot: snapshot as Record<string, unknown>,
+      });
+    }
+
     setSessionCount((p) => p + 1);
     setShowAnswer(false);
 
@@ -167,6 +189,35 @@ const MyPhrasesReview = () => {
     } else {
       await refetch();
       setCurrentIndex(0);
+    }
+
+    toast.success(`Marked ${rating}`, {
+      action: snapshot
+        ? { label: "Undo", onClick: () => handleUndo() }
+        : undefined,
+      duration: 4000,
+    });
+  };
+
+  const handleUndo = async () => {
+    if (!lastAction || undoing) return;
+    setUndoing(true);
+    try {
+      const { error } = await (supabase.from("user_phrases") as any)
+        .update(lastAction.snapshot)
+        .eq("id", lastAction.phraseId);
+      if (error) throw error;
+      setSessionCount((p) => Math.max(0, p - 1));
+      setCurrentIndex(lastAction.prevIndex);
+      setShowAnswer(false);
+      setLastAction(null);
+      await refetch();
+      toast.success("Rating undone");
+    } catch (err) {
+      console.error("Undo failed:", err);
+      toast.error("Couldn't undo — try again");
+    } finally {
+      setUndoing(false);
     }
   };
 
@@ -243,6 +294,19 @@ const MyPhrasesReview = () => {
       <div className="flex items-center justify-between mb-6">
         <HomeButton />
         <div className="flex items-center gap-2">
+          {lastAction && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleUndo}
+              disabled={undoing}
+              className="gap-1.5 h-8 px-2.5"
+              title="Undo last rating"
+            >
+              {undoing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Undo2 className="h-3.5 w-3.5" />}
+              <span className="text-xs font-medium">Undo</span>
+            </Button>
+          )}
           <div className="px-3 py-1.5 rounded-lg bg-card border border-border flex items-center gap-1.5">
             <MessageCircleQuestion className="h-3.5 w-3.5 text-primary" />
             <span className="text-sm font-medium">Phrase</span>

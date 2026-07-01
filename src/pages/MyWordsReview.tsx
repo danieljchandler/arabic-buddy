@@ -447,9 +447,9 @@ const MyWordsReview = () => {
     const snapshotFields = card.card_type === "production"
       ? "production_ease_factor, production_interval_days, production_repetitions, production_next_review_at, production_last_reviewed_at, production_lapses, is_leech"
       : "ease_factor, interval_days, repetitions, next_review_at, last_reviewed_at, lapses, is_leech, production_next_review_at";
-    const { data: snapshot } = await supabase
+    const { data: snapshot } = await (supabase
       .from("user_vocabulary")
-      .select(snapshotFields)
+      .select(snapshotFields as never) as any)
       .eq("id", card.id)
       .maybeSingle();
 

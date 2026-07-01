@@ -644,9 +644,11 @@ const DiscoverVideo = () => {
       }
       try {
         // Best-effort: clip the sentence audio from the source video so the
-        // flashcard plays with native audio. Falls back gracefully if any
-        // step fails (no audio yet, CORS issue, etc.).
+        // flashcard plays with native audio. If native audio isn't available
+        // (typical for YouTube videos without an extracted track), fall back
+        // to TTS so the flashcard is always saved with playable audio.
         let sentenceAudioUrl: string | undefined;
+        let wordAudioUrl: string | undefined;
         if (
           video &&
           typeof word.startMs === "number" &&
@@ -670,12 +672,24 @@ const DiscoverVideo = () => {
           }
         }
 
+        // TTS fallback for sentence + word (routed to native dialect voice).
+        const dialectHint = (video as any)?.dialect ?? null;
+        if (!sentenceAudioUrl && word.sentenceText) {
+          sentenceAudioUrl =
+            (await synthesizeAndUploadTTS(word.sentenceText, user.id, dialectHint, "sentence")) ?? undefined;
+        }
+        if (!wordAudioUrl && word.arabic) {
+          wordAudioUrl =
+            (await synthesizeAndUploadTTS(word.arabic, user.id, dialectHint, "word")) ?? undefined;
+        }
+
         await addUserVocabulary.mutateAsync({
           word_arabic: word.arabic,
           word_english: word.english,
           sentence_text: word.sentenceText,
           sentence_english: word.sentenceEnglish,
           sentence_audio_url: sentenceAudioUrl,
+          word_audio_url: wordAudioUrl,
           source: "discover",
         });
         setSavedWords((prev) => new Set(prev).add(word.arabic));

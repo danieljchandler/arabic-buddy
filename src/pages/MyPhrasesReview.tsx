@@ -294,6 +294,19 @@ const MyPhrasesReview = () => {
       <div className="flex items-center justify-between mb-6">
         <HomeButton />
         <div className="flex items-center gap-2">
+          {lastAction && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleUndo}
+              disabled={undoing}
+              className="gap-1.5 h-8 px-2.5"
+              title="Undo last rating"
+            >
+              {undoing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Undo2 className="h-3.5 w-3.5" />}
+              <span className="text-xs font-medium">Undo</span>
+            </Button>
+          )}
           <div className="px-3 py-1.5 rounded-lg bg-card border border-border flex items-center gap-1.5">
             <MessageCircleQuestion className="h-3.5 w-3.5 text-primary" />
             <span className="text-sm font-medium">Phrase</span>

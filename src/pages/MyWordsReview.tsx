@@ -443,6 +443,16 @@ const MyWordsReview = () => {
     const card = dueWords[currentIndex];
     const wordCount = dueWords.length;
 
+    // Snapshot the current DB row so the learner can undo this rating.
+    const snapshotFields = card.card_type === "production"
+      ? "production_ease_factor, production_interval_days, production_repetitions, production_next_review_at, production_last_reviewed_at, production_lapses, is_leech"
+      : "ease_factor, interval_days, repetitions, next_review_at, last_reviewed_at, lapses, is_leech, production_next_review_at";
+    const { data: snapshot } = await supabase
+      .from("user_vocabulary")
+      .select(snapshotFields)
+      .eq("id", card.id)
+      .maybeSingle();
+
     const result = calculateNextReview(
       rating,
       card.ease_factor,
@@ -465,6 +475,16 @@ const MyWordsReview = () => {
       currentProductionLapses: card.production_lapses,
     });
 
+    const prevIndex = currentIndex;
+    if (snapshot) {
+      setLastAction({
+        cardId: card.id,
+        cardType: card.card_type,
+        prevIndex,
+        snapshot: snapshot as Record<string, unknown>,
+      });
+    }
+
     setSessionCount((prev) => prev + 1);
     setShowAnswer(false);
 
@@ -473,6 +493,38 @@ const MyWordsReview = () => {
     } else {
       await refetch();
       setCurrentIndex(0);
+    }
+
+    toast.success(`Marked ${rating}`, {
+      action: snapshot
+        ? { label: "Undo", onClick: () => handleUndo() }
+        : undefined,
+      duration: 4000,
+    });
+  };
+
+  const handleUndo = async () => {
+    if (!lastAction || undoing) return;
+    setUndoing(true);
+    try {
+      const { error } = await supabase
+        .from("user_vocabulary")
+        .update(lastAction.snapshot as never)
+        .eq("id", lastAction.cardId);
+      if (error) throw error;
+      setSessionCount((prev) => Math.max(0, prev - 1));
+      setCurrentIndex(lastAction.prevIndex);
+      setShowAnswer(false);
+      setLastAction(null);
+      await queryClient.invalidateQueries({ queryKey: ["user-vocabulary-due-words"] });
+      queryClient.invalidateQueries({ queryKey: ["user-vocabulary"] });
+      queryClient.invalidateQueries({ queryKey: ["user-vocabulary-due"] });
+      toast.success("Rating undone");
+    } catch (err) {
+      console.error("Undo failed:", err);
+      toast.error("Couldn't undo — try again");
+    } finally {
+      setUndoing(false);
     }
   };
 

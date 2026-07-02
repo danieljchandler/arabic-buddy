@@ -458,6 +458,12 @@ const AdminVideoForm = () => {
       } else {
         // Mark existing row as pending (and update thumbnail if we just captured one)
         const updates: Record<string, unknown> = { transcription_status: "pending", is_meme: isMeme };
+        if (isMeme) {
+          updates.cultural_context = null;
+          updates.transcript_lines = [];
+          updates.vocabulary = [];
+          updates.grammar_points = [];
+        }
         if (saveThumbnail && saveThumbnail !== thumbnailUrl) updates.thumbnail_url = saveThumbnail;
         await (supabase.from("discover_videos" as any) as any)
           .update(updates)
@@ -500,6 +506,13 @@ const AdminVideoForm = () => {
             throw new Error(`Meme screen-text extraction failed: ${message}`);
           } else if (visualData?.processingQueued) {
             processingQueuedByVisual = true;
+            const foundText = visualData?.result?.onScreenTextSegments?.length ?? 0;
+            if (foundText === 0) {
+              toast.warning("No on-screen text found", {
+                description: "The meme will be flagged for review instead of inventing context.",
+                duration: 7000,
+              });
+            }
           }
         } catch (visualErr) {
           console.warn("Meme visual extraction error:", visualErr);

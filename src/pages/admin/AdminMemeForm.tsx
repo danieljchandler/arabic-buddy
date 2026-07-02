@@ -13,7 +13,7 @@ const AdminMemeForm = () => {
     if (!memeId || memeId === 'new') {
       navigate('/admin/videos/new?meme=1', { replace: true });
     } else {
-      navigate(`/admin/videos/${memeId}`, { replace: true });
+      navigate(`/admin/videos/${memeId}/edit?meme=1`, { replace: true });
     }
   }, [memeId, navigate]);
 

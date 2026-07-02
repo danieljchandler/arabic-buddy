@@ -24,6 +24,7 @@ export interface DiscoverVideo {
   transcription_status?: string;
   transcription_error?: string | null;
   trending_candidate_id?: string | null;
+  is_meme?: boolean;
 }
 
 export function useDiscoverVideos(filters?: { dialect?: string; difficulty?: string; search?: string }) {

@@ -52,7 +52,7 @@ function safeJsonParse<T>(content: string): T | null {
   }
 }
 
-const VISUAL_CONTEXT_PROMPT = `You are analyzing video frames from an Arabic social media video (TikTok, Instagram, YouTube Shorts) to help with transcription and translation accuracy.
+const VISUAL_CONTEXT_PROMPT = `You are analyzing video frames from an Arabic social media meme (TikTok, Instagram, YouTube Shorts) to help with transcription and translation accuracy.
 
 Output ONLY valid JSON matching this schema:
 {
@@ -76,12 +76,14 @@ Rules for onScreenTextSegments:
 - "POV:" text is extremely common on TikTok/Instagram — always capture it
 - Include BOTH Arabic-script text AND Latin-script text (English, romanized Arabic, etc.)
 - Only include text actually visible in the frames — do not infer or guess
+- If you are unsure about a word, include the visible characters with confidence "low" rather than omitting the whole overlay
 - Estimate timestamps based on which frame(s) the text appears in
 - confidence: "high" if text is clear and readable, "medium" if partially visible, "low" if uncertain
 - If the same text spans multiple consecutive frames, use a single segment with broader time range
 - Exclude platform UI (like/share buttons, app chrome) and invisible watermarks
 
-For sceneContext: describe location, number of people, activity, formal/informal tone.
+For sceneContext: describe ONLY what is visibly present in the frames: location, number of people, activity, formal/informal tone. Do not infer relationships, dialogue, location/country, or the joke.
+For culturalContext: explain only directly visible cultural signals or the literal role of the on-screen text. If the image alone is insufficient, use an empty string instead of guessing.
 For detectedDialectCues: national flags, license plates, TV channel logos, brand signs, architecture, clothing patterns, or any geographic markers suggesting a specific Gulf country.
 
 No additional text outside JSON.`;
@@ -157,7 +159,7 @@ serve(async (req) => {
 
     userContent.push({
       type: 'text',
-      text: `Analyze these ${cappedFrames.length} video frames from an Arabic social media video${titleNote}${durationNote}.\n\nFrame timestamps: ${timestampList}\n\nIdentify all on-screen text overlays, describe the scene, and note any cultural context or dialect cues.`,
+      text: `Analyze these ${cappedFrames.length} sampled frames from an Arabic social media meme${titleNote}${durationNote}.\n\nFrame timestamps: ${timestampList}\n\nPrimary task: OCR every visible on-screen text overlay. Secondary task: describe only visible scene facts. Do not explain the meme or infer context beyond what is visible in these frames.`,
     });
 
     const controller = new AbortController();
@@ -260,7 +262,12 @@ serve(async (req) => {
 
       await admin
         .from('discover_videos')
-        .update({ cultural_context: visualCulturalContext || null })
+        .update({
+          cultural_context: visualCulturalContext || 'Meme screen-text extraction found no readable on-screen text. Review the source video manually before publishing.',
+          transcription_error: result.onScreenTextSegments.length === 0
+            ? 'Meme screen-text extraction found no readable on-screen text.'
+            : null,
+        })
         .eq('id', videoId);
 
       if (kickoffProcessing) {

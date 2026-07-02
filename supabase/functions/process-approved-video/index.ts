@@ -103,6 +103,18 @@ function normalizeComparableText(text: string): string {
     .trim();
 }
 
+function normalizeLooseText(text: string): string {
+  return String(text ?? "")
+    .toLowerCase()
+    .replace(/[\s\u0640]+/g, "")
+    .replace(/[،؟.!:؛…\-—–"'()[\]{}«»]/g, "")
+    .trim();
+}
+
+function hasArabic(text: string): boolean {
+  return /[\u0600-\u06FF]/.test(text);
+}
+
 function tokenizeOnScreenText(text: string) {
   return String(text ?? "")
     .split(/\s+/)
@@ -125,14 +137,17 @@ function mergeOnScreenTextLines(rawLines: any[], onScreenSegments: any[]): any[]
     const text = String(segment?.text ?? "").trim();
     if (!text) continue;
 
-    const normalized = normalizeComparableText(text);
+    const normalized = hasArabic(text) ? normalizeComparableText(text) : normalizeLooseText(text);
     if (!normalized) continue;
 
-    const alreadyPresent = [...existingNormalized].some((existing) =>
-      existing === normalized ||
-      (normalized.length >= 4 && existing.includes(normalized)) ||
-      (existing.length >= 4 && normalized.includes(existing))
-    );
+    const alreadyPresent = [...existingNormalized].some((existing) => {
+      const existingKey = hasArabic(text) ? existing : normalizeLooseText(existing);
+      return (
+        existingKey === normalized ||
+        (normalized.length >= 4 && existingKey.includes(normalized)) ||
+        (existingKey.length >= 4 && normalized.includes(existingKey))
+      );
+    });
     if (alreadyPresent) continue;
 
     existingNormalized.add(normalized);
@@ -170,6 +185,14 @@ function combineContext(primary?: string | null, visual?: string | null): string
   const parts = [visual, primary].map((value) => String(value ?? "").trim()).filter(Boolean);
   if (parts.length === 0) return null;
   return [...new Set(parts)].join("\n\n");
+}
+
+function buildMemeReviewContext(onScreenSegments: any[], visualContext?: string | null): string | null {
+  if (Array.isArray(onScreenSegments) && onScreenSegments.length > 0) return visualContext ?? null;
+  return combineContext(
+    visualContext ?? null,
+    "Meme review warning: no readable on-screen text was extracted from the sampled video frames. Do not rely on inferred cultural context until an admin reviews the source video.",
+  );
 }
 
 async function mapWithConcurrency<T, R>(
@@ -794,7 +817,7 @@ async function runPipeline(
             visualContextSummary = `MEME — on-screen text segments:\n${onScreenSummary}\n\nScene: ${visualResult?.sceneContext ?? ""}`.trim();
             console.log(`[pipeline] Meme: ${segs.length} on-screen text segments loaded`);
           } else {
-            console.log("[pipeline] Meme: visual context loaded; no on-screen text detected");
+            console.warn("[pipeline] Meme: visual context loaded; no on-screen text detected — result will be flagged for review");
           }
         } else {
           console.warn(`[pipeline] Meme: no visual context file found for ${videoId}; processing audio only`);
@@ -952,7 +975,12 @@ async function runPipeline(
       const { error: finalErr } = await supabase.from("discover_videos").update({
         title, title_arabic: titleArabic,
         transcript_lines: lines,
-        cultural_context: combineContext(refreshed.cultural_context as string | null, visualCulturalContext),
+        cultural_context: video.is_meme
+          ? buildMemeReviewContext(onScreenTextLines, combineContext(refreshed.cultural_context as string | null, visualCulturalContext))
+          : combineContext(refreshed.cultural_context as string | null, visualCulturalContext),
+        transcription_error: video.is_meme && onScreenTextLines.length === 0
+          ? "Meme screen-text extraction found no readable on-screen text; review manually before publishing."
+          : null,
         transcription_status: "completed",
       }).eq("id", videoId);
 
@@ -1022,11 +1050,15 @@ async function runPipeline(
         transcript_lines: sanitizedLines,
         vocabulary: result.vocabulary || [],
         grammar_points: result.grammarPoints || [],
-        cultural_context: combineContext(result.culturalContext || null, visualCulturalContext),
+        cultural_context: video.is_meme
+          ? buildMemeReviewContext(onScreenTextLines, combineContext(result.culturalContext || null, visualCulturalContext))
+          : combineContext(result.culturalContext || null, visualCulturalContext),
         dialect: result.dialect || "Gulf",
         difficulty: result.difficulty || "Intermediate",
         transcription_status: "completed",
-        transcription_error: null,
+        transcription_error: video.is_meme && onScreenTextLines.length === 0
+          ? "Meme screen-text extraction found no readable on-screen text; review manually before publishing."
+          : null,
       }).eq("id", videoId);
 
       if (updateError) throw new Error(`Failed to save results: ${updateError.message}`);
@@ -1041,7 +1073,26 @@ async function runPipeline(
         .single();
 
       if (retry?.transcription_status === "analysis_complete") {
-        await supabase.from("discover_videos").update({ transcription_status: "completed" }).eq("id", videoId);
+        const { data: retryFull } = await supabase.from("discover_videos")
+          .select("transcript_lines, cultural_context, title, title_arabic")
+          .eq("id", videoId)
+          .single();
+
+        const retryLines = mergeOnScreenTextLines(
+          alignLinesToAudio((retryFull?.transcript_lines as any[]) || []),
+          onScreenTextLines,
+        );
+
+        await supabase.from("discover_videos").update({
+          transcript_lines: retryLines,
+          cultural_context: video.is_meme
+            ? buildMemeReviewContext(onScreenTextLines, combineContext(retryFull?.cultural_context as string | null, visualCulturalContext))
+            : combineContext(retryFull?.cultural_context as string | null, visualCulturalContext),
+          transcription_status: "completed",
+          transcription_error: video.is_meme && onScreenTextLines.length === 0
+            ? "Meme screen-text extraction found no readable on-screen text; review manually before publishing."
+            : null,
+        }).eq("id", videoId);
         console.log("[pipeline] Results found on retry check");
       } else {
         throw new Error("Analysis did not complete — no HTTP response and no direct-persist results found");

@@ -255,7 +255,7 @@ No additional text outside JSON.`;
 // ─── CALL 2 PROMPT ───────────────────────────────────────────────────────────
 // Analysis and enrichment. Receives the clean merged transcript from Call 1.
 // Produces per-line translations, vocabulary, and grammar points.
-const getAnalysisSystemPrompt = (isRetry: boolean = false, dialect?: string) => {
+const getAnalysisSystemPrompt = (isRetry: boolean = false, dialect?: string, visualContext?: string, isMeme: boolean = false) => {
   const strictPrefix = strictJsonPrefix(isRetry);
   const label = dialectShortLabel();
   const dialectNote = DIALECT_MODULE !== 'Gulf'
@@ -263,7 +263,10 @@ const getAnalysisSystemPrompt = (isRetry: boolean = false, dialect?: string) => 
     : (dialect && dialect !== 'Gulf'
         ? `\nThe audio is ${dialect} Gulf Arabic dialect. Prioritise ${dialect}-specific vocabulary, grammar patterns, and cultural notes in your output.`
         : '\nThe audio is Gulf Arabic (Khaliji) dialect.');
-  return `${strictPrefix}You are analyzing a ${label} transcript for language learners. You are given a clean pre-merged transcript split into numbered Arabic lines.${dialectNote}
+  const memeNote = isMeme
+    ? `\nThis is a meme. The on-screen text is a primary source of meaning and must drive the culturalContext. Use only the provided Arabic lines and the verified video context below. If the joke/context is unclear, say it is unclear instead of inventing relationships, locations, or slang.\nVerified video context:\n${visualContext || 'No verified on-screen text context was provided.'}`
+    : '';
+  return `${strictPrefix}You are analyzing a ${label} transcript for language learners. You are given a clean pre-merged transcript split into numbered Arabic lines.${dialectNote}${memeNote}
 
 Output ONLY valid JSON matching this schema:
 {
@@ -277,7 +280,7 @@ Rules:
 - lines: IMPORTANT — the output "lines" array MUST include ALL numbered lines from the input. Every single line, no exceptions. Keep the Arabic text EXACTLY as given, INCLUDING every tashkeel/harakat mark (fatha, damma, kasra, sukun, shadda, tanwin, dagger alif). The input lines arrive already voweled with dialect-accurate tashkeel — preserve every diacritic exactly. Do NOT strip, normalize, add, or re-vowel toward MSA. Provide a natural English translation for each line.
 - vocabulary: 5–8 useful ${label} words or phrases with English meaning and root when applicable.
 - grammarPoints: 2–4 dialect-specific grammar points with brief examples from the transcript.
-- culturalContext: Optional brief cultural note about the content.
+- culturalContext: Optional brief cultural note about the content. For memes, explicitly incorporate any on-screen text and do not infer unsupported context.
 - Keep translations and explanations concise.
 
 No additional text outside JSON.`;
@@ -1721,7 +1724,7 @@ serve(async (req) => {
         })(),
        // Call 2: vocabulary + grammar (Qwen, unchanged from Step 2)
        callAI({
-         systemPrompt: getAnalysisSystemPrompt(false, detectedDialect),
+         systemPrompt: getAnalysisSystemPrompt(false, detectedDialect, visualContext, memeMode),
          userContent: mergedTranscriptText,
          apiKey: OPENROUTER_API_KEY,
          isRetry: false,
@@ -1841,7 +1844,7 @@ serve(async (req) => {
      if (!analysisAi?.lines || analysisAi.lines.length === 0) {
        console.log('Call 2 parse failed, retrying with stricter prompt...');
        const analysisRetry = await callAI({
-         systemPrompt: getAnalysisSystemPrompt(true, detectedDialect),
+          systemPrompt: getAnalysisSystemPrompt(true, detectedDialect, visualContext, memeMode),
          userContent: mergedTranscriptText,
          apiKey: OPENROUTER_API_KEY,
          isRetry: true,

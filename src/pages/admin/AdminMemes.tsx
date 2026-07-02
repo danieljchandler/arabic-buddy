@@ -77,7 +77,7 @@ const AdminMemes = () => {
             <Card key={m.id} className="overflow-hidden hover:shadow-lg transition-shadow">
               <div
                 className="aspect-video bg-muted relative cursor-pointer"
-                onClick={() => navigate(`/admin/videos/${m.id}`)}
+                onClick={() => navigate(`/admin/videos/${m.id}/edit?meme=1`)}
               >
                 {m.thumbnail_url ? (
                   <img src={m.thumbnail_url} alt={m.title} className="w-full h-full object-cover" />
@@ -110,7 +110,7 @@ const AdminMemes = () => {
                   <Badge variant="outline" className="text-[10px] py-0">{m.platform}</Badge>
                 </div>
                 <div className="flex gap-2 pt-1">
-                  <Button size="sm" variant="outline" className="flex-1 gap-1" onClick={() => navigate(`/admin/videos/${m.id}`)}>
+                  <Button size="sm" variant="outline" className="flex-1 gap-1" onClick={() => navigate(`/admin/videos/${m.id}/edit?meme=1`)}>
                     <Edit className="h-3 w-3" /> Edit
                   </Button>
                   {m.published && (

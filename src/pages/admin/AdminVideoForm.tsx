@@ -317,7 +317,7 @@ const AdminVideoForm = () => {
       setDifficultyRationale((existingVideo as any).difficulty_rationale ?? null);
 
       setPublished(existingVideo.published);
-      setIsMeme((existingVideo as any).is_meme ?? false);
+      setIsMeme(Boolean((existingVideo as any).is_meme) || memeQueryFlag);
       setCulturalContext(existingVideo.cultural_context || "");
       setTranscriptLines(((existingVideo.transcript_lines as any[]) ?? []) as TranscriptLine[]);
       setVocabulary(((existingVideo.vocabulary as any[]) ?? []) as any[]);

@@ -137,8 +137,9 @@ serve(async (req) => {
       );
     }
 
-    // Cap frames to 15 to stay within request limits
-    const cappedFrames = frames.slice(0, 15);
+    // Keep the full client sample set. Meme punchlines/captions often appear
+    // on the final frame, so do not silently drop the end sample.
+    const cappedFrames = frames.slice(0, 16);
     console.log(`extract-visual-context: analyzing ${cappedFrames.length} frames (duration: ${audioDuration}s)`);
 
     // Build multimodal message: one image_url block per frame + a text block

@@ -72,7 +72,7 @@ export async function extractFramesWithTimestamps(
           await seekToTime(ts);
           ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
           frames.push({
-            dataUri: canvas.toDataURL('image/jpeg', 0.65),
+            dataUri: canvas.toDataURL('image/jpeg', 0.88),
             timestampSeconds: Math.round(ts * 10) / 10,
           });
         }

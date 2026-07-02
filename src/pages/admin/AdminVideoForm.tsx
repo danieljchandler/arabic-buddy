@@ -23,6 +23,7 @@ import { extractFramesWithTimestamps } from "@/lib/videoFrameExtractor";
 const DIALECTS = ["Saudi", "Kuwaiti", "UAE", "Bahraini", "Qatari", "Omani", "Gulf", "MSA", "Egyptian", "Levantine", "Maghrebi"];
 const DIFFICULTIES = ["Beginner", "Intermediate", "Advanced", "Expert"];
 const CEFR_LEVELS = ["A1", "A2", "B1", "B2", "C1", "C2"] as const;
+const isVideoFile = (file: File) => file.type.startsWith("video/") || /\.(mp4|mov|m4v|webm|mkv)$/i.test(file.name);
 
 function GenerateGrammarRow({
   videoId,
@@ -211,7 +212,7 @@ const AdminVideoForm = () => {
   };
 
   const detectFileDuration = useCallback((file: File) => {
-    const el = file.type.startsWith("video/") ? document.createElement("video") : document.createElement("audio");
+    const el = isVideoFile(file) ? document.createElement("video") : document.createElement("audio");
     el.preload = "metadata";
     const url = URL.createObjectURL(file);
     el.src = url;
@@ -231,7 +232,7 @@ const AdminVideoForm = () => {
    * a thumbnail from the embed.
    */
   const captureAndUploadThumbnail = useCallback(async (file: File): Promise<string | null> => {
-    if (!file.type.startsWith("video/")) return null;
+    if (!isVideoFile(file)) return null;
     return new Promise((resolve) => {
       const video = document.createElement("video");
       video.preload = "metadata";
@@ -417,7 +418,7 @@ const AdminVideoForm = () => {
     }
 
     // Capture thumbnail from uploaded video file when we don't already have one
-    if (!saveThumbnail && file.type.startsWith("video/")) {
+      if (!saveThumbnail && isVideoFile(file)) {
       const captured = await captureAndUploadThumbnail(file);
       if (captured) {
         saveThumbnail = captured;
@@ -479,7 +480,7 @@ const AdminVideoForm = () => {
       // service role, so a flaky second browser request cannot strand the row
       // in pending after OCR succeeds.
       let processingQueuedByVisual = false;
-      if (isMeme && file.type.startsWith("video/")) {
+      if (isMeme && isVideoFile(file)) {
         try {
           toast.info("Reading on-screen text from meme frames…");
           const frames = await extractFramesWithTimestamps(file, 1.5, 16, 1280);

@@ -338,7 +338,12 @@ serve(async (req) => {
       if (audioTranscript) {
         userContent.push({
           type: 'text',
-          text: `Analyze the Arabic meme in these ${images.length > 1 ? 'video frames' : 'image'}. Also, here is the audio transcript from the video:\n\n${audioTranscript}`,
+          text: `Analyze the Arabic meme in these ${images.length > 1 ? 'video frames' : 'image'}.
+
+The audio transcript below is provided ONLY as background context so you can explain the humor accurately. DO NOT copy audio-only text into "onScreenText.lines" — only text that is visibly written/overlaid on the frames belongs there. The spoken audio will be analyzed separately.
+
+Audio transcript (context only):
+${audioTranscript}`,
         });
       } else {
         userContent.push({

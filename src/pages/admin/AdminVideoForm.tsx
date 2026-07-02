@@ -475,51 +475,52 @@ const AdminVideoForm = () => {
       }
 
       // For memes, extract video frames and run on-screen text analysis up front.
-      // The result is stashed on the row so the pipeline can feed it to the
-      // analyzer and skip inventing audio that isn't there.
+      // The visual function now also kicks off the server pipeline with the
+      // service role, so a flaky second browser request cannot strand the row
+      // in pending after OCR succeeds.
+      let processingQueuedByVisual = false;
       if (isMeme && file.type.startsWith("video/")) {
         try {
           toast.info("Reading on-screen text from meme frames…");
           const frames = await extractFramesWithTimestamps(file, 2, 12, 1024);
           const { data: visualData, error: visualErr } = await supabase.functions.invoke(
             "extract-visual-context",
-            { body: { frames, videoTitle: title || undefined } },
+            { body: { frames, videoTitle: title || undefined, videoId: targetVideoId, kickoffProcessing: true } },
           );
           if (visualErr) {
             console.warn("extract-visual-context failed (non-fatal):", visualErr);
-          } else if (visualData?.result) {
-            await (supabase.from("discover_videos" as any) as any)
-              .update({ cultural_context: visualData.result.culturalContext || null })
-              .eq("id", targetVideoId);
-            // Stash full visual result for the pipeline via storage (jsonb column not present).
-            await supabase.storage
-              .from("video-audio")
-              .upload(`${targetVideoId}.visual.json`, new Blob([JSON.stringify(visualData.result)], { type: "application/json" }), { upsert: true });
+          } else if (visualData?.processingQueued) {
+            processingQueuedByVisual = true;
           }
         } catch (visualErr) {
           console.warn("Meme visual extraction error (non-fatal):", visualErr);
         }
       }
 
-      // Start the backend pipeline and wait for the acknowledgement before
-      // navigating away, otherwise mobile browsers can leave the video stuck in
-      // "pending" if the request is interrupted.
-      const { data: invokeData, error: invokeErr } = await supabase.functions.invoke(
-        "process-approved-video",
-        { body: { videoId: targetVideoId } }
-      );
+      let invokeData: unknown = { success: true, message: "Processing queued by visual analysis" };
+      if (!processingQueuedByVisual) {
+        // Start the backend pipeline and wait for the acknowledgement before
+        // navigating away, otherwise mobile browsers can leave the video stuck in
+        // "pending" if the request is interrupted.
+        const { data, error: invokeErr } = await supabase.functions.invoke(
+          "process-approved-video",
+          { body: { videoId: targetVideoId } }
+        );
 
-      if (invokeErr) {
-        console.error("process-approved-video failed:", invokeErr);
+        if (invokeErr) {
+          console.error("process-approved-video failed:", invokeErr);
 
-        await (supabase.from("discover_videos" as any) as any)
-          .update({
-            transcription_status: "failed",
-            transcription_error: `Failed to start processing: ${invokeErr.message ?? "unknown"}`,
-          })
-          .eq("id", targetVideoId);
+          await (supabase.from("discover_videos" as any) as any)
+            .update({
+              transcription_status: "failed",
+              transcription_error: `Failed to start processing: ${invokeErr.message ?? "unknown"}`,
+            })
+            .eq("id", targetVideoId);
 
-        throw new Error(invokeErr.message || "Failed to start processing");
+          throw new Error(invokeErr.message || "Failed to start processing");
+        }
+
+        invokeData = data;
       }
 
       console.log("process-approved-video kicked off successfully", invokeData);

@@ -27,6 +27,9 @@ interface VisualContextResult {
   detectedDialectCues: string[];
 }
 
+// deno-lint-ignore no-explicit-any
+declare const EdgeRuntime: any;
+
 function extractJsonObject(text: string): string {
   const cleaned = text
     .replace(/```json\n?/g, '')
@@ -109,10 +112,12 @@ serve(async (req) => {
     }
 
     const body = await req.json();
-    const { frames, audioDuration, videoTitle } = body as {
+    const { frames, audioDuration, videoTitle, videoId, kickoffProcessing } = body as {
       frames: VideoFrame[];
       audioDuration?: number;
       videoTitle?: string;
+      videoId?: string;
+      kickoffProcessing?: boolean;
     };
 
     if (!Array.isArray(frames) || frames.length === 0) {
@@ -224,8 +229,75 @@ serve(async (req) => {
 
     console.log(`extract-visual-context: found ${result.onScreenTextSegments.length} on-screen text segments`);
 
+    let processingQueued = false;
+    if (videoId) {
+      const { data: isAdmin, error: adminError } = await supabaseAuth.rpc('is_admin');
+      if (adminError || !isAdmin) {
+        return new Response(JSON.stringify({ error: 'Admin access required' }), {
+          status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+      const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+      const admin = createClient(supabaseUrl, serviceRoleKey);
+
+      await admin.storage
+        .from('video-audio')
+        .upload(`${videoId}.visual.json`, JSON.stringify(result), {
+          contentType: 'application/json',
+          upsert: true,
+        });
+
+      await admin
+        .from('discover_videos')
+        .update({ cultural_context: result.culturalContext || null })
+        .eq('id', videoId);
+
+      if (kickoffProcessing) {
+        const kickoff = async () => {
+          try {
+            const response = await fetch(`${supabaseUrl}/functions/v1/process-approved-video`, {
+              method: 'POST',
+              headers: {
+                Authorization: `Bearer ${serviceRoleKey}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ videoId }),
+            });
+
+            if (!response.ok) {
+              const detail = await response.text().catch(() => '');
+              await admin.from('discover_videos').update({
+                transcription_status: 'failed',
+                transcription_error: `Processing kickoff failed (${response.status}): ${detail.slice(0, 500)}`,
+              }).eq('id', videoId);
+              console.error(`extract-visual-context: processing kickoff failed for ${videoId}`, response.status, detail.slice(0, 300));
+            } else {
+              await response.text().catch(() => '');
+              console.log(`extract-visual-context: processing kicked off for ${videoId}`);
+            }
+          } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            await admin.from('discover_videos').update({
+              transcription_status: 'failed',
+              transcription_error: `Processing kickoff error: ${message}`,
+            }).eq('id', videoId);
+            console.error(`extract-visual-context: processing kickoff error for ${videoId}`, message);
+          }
+        };
+
+        processingQueued = true;
+        if (typeof EdgeRuntime !== 'undefined' && EdgeRuntime?.waitUntil) {
+          EdgeRuntime.waitUntil(kickoff());
+        } else {
+          kickoff();
+        }
+      }
+    }
+
     return new Response(
-      JSON.stringify({ success: true, result }),
+      JSON.stringify({ success: true, result, processingQueued }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (e) {

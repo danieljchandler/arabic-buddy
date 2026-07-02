@@ -361,13 +361,18 @@ ${audioTranscript}`,
     }
 
     // If we have audio transcript but no image analysis, run audio-only via AI Brain ensemble
-    if (audioTranscript && !imageBase64) {
+    // Also analyze the audio transcript on its own so users get a dedicated
+    // spoken-audio section (lines + vocab + grammar). This runs whenever
+    // audio text is present — with OR without images — so meme videos that
+    // have both on-screen text AND speech show both.
+    const audioTranscriptTrimmed = typeof audioTranscript === 'string' ? audioTranscript.trim() : '';
+    if (audioTranscriptTrimmed.length >= 3) {
       console.log(`Analyzing audio transcript via AI Brain (${dialect})...`);
       try {
         const brain = await askBrain<any>({
           purpose: 'meme_audio',
           dialect,
-          userPrompt: audioTranscript,
+          userPrompt: audioTranscriptTrimmed,
           systemPromptExtra: buildAudioPrompt(dialect),
           strategy: 'ensemble',
           maxTokens: 4096,

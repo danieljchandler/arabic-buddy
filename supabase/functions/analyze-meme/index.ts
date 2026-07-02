@@ -360,7 +360,7 @@ ${audioTranscript}`,
       }
     }
 
-    // If we have audio transcript but no image analysis, run audio-only via AI Brain ensemble
+    
     // Also analyze the audio transcript on its own so users get a dedicated
     // spoken-audio section (lines + vocab + grammar). This runs whenever
     // audio text is present — with OR without images — so meme videos that

@@ -87,6 +87,91 @@ function chunkMp3ByDuration(
   return chunks;
 }
 
+function generateId(): string {
+  return crypto.randomUUID().slice(0, 8);
+}
+
+function stripArabicDiacritics(text: string): string {
+  return text.replace(/[\u064B-\u065F\u0670]/g, "");
+}
+
+function normalizeComparableText(text: string): string {
+  return stripArabicDiacritics(String(text ?? ""))
+    .toLowerCase()
+    .replace(/[\s\u0640]+/g, "")
+    .replace(/[،؟.!:؛…\-—–"'()[\]{}«»]/g, "")
+    .trim();
+}
+
+function tokenizeOnScreenText(text: string) {
+  return String(text ?? "")
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((surface, index) => ({ id: `screen-tok-${generateId()}-${index}`, surface }));
+}
+
+function mergeOnScreenTextLines(rawLines: any[], onScreenSegments: any[]): any[] {
+  if (!Array.isArray(rawLines)) return [];
+  if (!Array.isArray(onScreenSegments) || onScreenSegments.length === 0) return rawLines;
+
+  const merged = [...rawLines];
+  const existingNormalized = new Set(
+    merged
+      .map((line) => normalizeComparableText(line?.arabic ?? ""))
+      .filter((value) => value.length > 0),
+  );
+
+  for (const [idx, segment] of onScreenSegments.entries()) {
+    const text = String(segment?.text ?? "").trim();
+    if (!text) continue;
+
+    const normalized = normalizeComparableText(text);
+    if (!normalized) continue;
+
+    const alreadyPresent = [...existingNormalized].some((existing) =>
+      existing === normalized ||
+      (normalized.length >= 4 && existing.includes(normalized)) ||
+      (existing.length >= 4 && normalized.includes(existing))
+    );
+    if (alreadyPresent) continue;
+
+    existingNormalized.add(normalized);
+    const startMs = Math.max(0, Math.round(Number(segment?.startSeconds ?? 0) * 1000));
+    const endMs = Math.max(startMs + 500, Math.round(Number(segment?.endSeconds ?? segment?.startSeconds ?? 0) * 1000));
+    merged.push({
+      id: `screen-line-${generateId()}-${idx}`,
+      arabic: text,
+      translation: String(segment?.translation ?? "").trim(),
+      startMs,
+      endMs,
+      source: "on_screen",
+      needs_review: segment?.confidence === "low",
+      tokens: tokenizeOnScreenText(text),
+    });
+  }
+
+  return merged.sort((a, b) => Number(a?.startMs ?? 0) - Number(b?.startMs ?? 0));
+}
+
+function buildVisualContextText(visualResult: any): string | null {
+  if (!visualResult) return null;
+  const segs = Array.isArray(visualResult?.onScreenTextSegments) ? visualResult.onScreenTextSegments : [];
+  const onScreenSummary = segs
+    .map((s: any) => `[${s.startSeconds}s-${s.endSeconds}s] ${s.text}${s.translation ? ` — ${s.translation}` : ""}`)
+    .join("\n");
+  return [
+    onScreenSummary ? `On-screen text:\n${onScreenSummary}` : "",
+    visualResult?.sceneContext ? `Scene: ${visualResult.sceneContext}` : "",
+    visualResult?.culturalContext ? `Cultural context: ${visualResult.culturalContext}` : "",
+  ].filter(Boolean).join("\n\n") || null;
+}
+
+function combineContext(primary?: string | null, visual?: string | null): string | null {
+  const parts = [visual, primary].map((value) => String(value ?? "").trim()).filter(Boolean);
+  if (parts.length === 0) return null;
+  return [...new Set(parts)].join("\n\n");
+}
+
 async function mapWithConcurrency<T, R>(
   items: T[],
   limit: number,
@@ -689,25 +774,37 @@ async function runPipeline(
     // Meme videos: load on-screen text analysis the admin form pre-extracted
     // (frames -> extract-visual-context -> stored as <id>.visual.json).
     let visualContextSummary: string | null = null;
+    let visualCulturalContext: string | null = null;
     let onScreenTextLines: any[] = [];
+    let visualContextLoaded = false;
     if (video.is_meme) {
       try {
         const { data: visualBlob } = await supabase.storage
           .from("video-audio")
           .download(`${videoId}.visual.json`);
         if (visualBlob) {
+          visualContextLoaded = true;
           const visualText = await visualBlob.text();
           const visualResult = JSON.parse(visualText);
           const segs = Array.isArray(visualResult?.onScreenTextSegments) ? visualResult.onScreenTextSegments : [];
           onScreenTextLines = segs;
+          visualCulturalContext = buildVisualContextText(visualResult);
           if (segs.length > 0) {
             const onScreenSummary = segs.map((s: any) => `[${s.startSeconds}s-${s.endSeconds}s] ${s.text}${s.translation ? ` (${s.translation})` : ""}`).join("\n");
             visualContextSummary = `MEME — on-screen text segments:\n${onScreenSummary}\n\nScene: ${visualResult?.sceneContext ?? ""}`.trim();
             console.log(`[pipeline] Meme: ${segs.length} on-screen text segments loaded`);
+          } else {
+            console.log("[pipeline] Meme: visual context loaded; no on-screen text detected");
           }
+        } else {
+          console.warn(`[pipeline] Meme: no visual context file found for ${videoId}; processing audio only`);
         }
       } catch (e) {
         console.warn("[pipeline] Meme visual context load failed (non-fatal):", e instanceof Error ? e.message : String(e));
+      }
+
+      if (!visualContextLoaded) {
+        throw new Error("Meme screen-text extraction is missing. Upload the original video file so the Meme Analyzer can read text on screen before transcription.");
       }
     }
 
@@ -843,7 +940,10 @@ async function runPipeline(
     if (refreshed?.transcription_status === "analysis_complete") {
       console.log("[pipeline] Results persisted directly by analyze-gulf-arabic");
 
-      const lines = alignLinesToAudio((refreshed.transcript_lines as any[]) || []);
+      const lines = mergeOnScreenTextLines(
+        alignLinesToAudio((refreshed.transcript_lines as any[]) || []),
+        onScreenTextLines,
+      );
 
       const title = refreshed.title || video.title;
       const titleArabic = refreshed.title_arabic || video.title_arabic;
@@ -852,6 +952,7 @@ async function runPipeline(
       const { error: finalErr } = await supabase.from("discover_videos").update({
         title, title_arabic: titleArabic,
         transcript_lines: lines,
+        cultural_context: combineContext(refreshed.cultural_context as string | null, visualCulturalContext),
         transcription_status: "completed",
       }).eq("id", videoId);
 
@@ -860,7 +961,10 @@ async function runPipeline(
       // Fallback: HTTP response arrived before gateway timeout
       const result = analyzeData.result;
 
-      const lines = alignLinesToAudio(result.lines || []);
+      const lines = mergeOnScreenTextLines(
+        alignLinesToAudio(result.lines || []),
+        onScreenTextLines,
+      );
 
       const sanitizedLines = lines.map((line: any) => ({
         ...line,
@@ -918,7 +1022,7 @@ async function runPipeline(
         transcript_lines: sanitizedLines,
         vocabulary: result.vocabulary || [],
         grammar_points: result.grammarPoints || [],
-        cultural_context: result.culturalContext || null,
+        cultural_context: combineContext(result.culturalContext || null, visualCulturalContext),
         dialect: result.dialect || "Gulf",
         difficulty: result.difficulty || "Intermediate",
         transcription_status: "completed",

@@ -40,16 +40,24 @@ export async function extractFramesWithTimestamps(
       canvas.height = Math.round(video.videoHeight * scale);
       const ctx = canvas.getContext('2d')!;
 
-      // Build list of timestamps to sample
-      const totalPossible = Math.floor(duration / intervalSeconds);
-      const frameCount = Math.min(Math.max(totalPossible, 1), maxFrames);
+      // Build list of timestamps to sample. Meme captions are often only on
+      // the opening/closing frames, so include near-start and near-end samples
+      // instead of only interior points.
+      const frameCount = Math.min(
+        Math.max(Math.ceil(duration / intervalSeconds) + 1, duration > 2 ? 3 : 1),
+        maxFrames,
+      );
 
       const timestamps: number[] = [];
       if (frameCount === 1) {
-        timestamps.push(duration / 2);
+        timestamps.push(Math.max(0, Math.min(duration / 2, duration - 0.05)));
       } else {
-        const step = duration / (frameCount + 1);
-        for (let i = 1; i <= frameCount; i++) timestamps.push(step * i);
+        const start = Math.min(0.25, Math.max(0, duration / 10));
+        const end = Math.max(start, duration - Math.min(0.25, duration / 10));
+        const step = (end - start) / (frameCount - 1);
+        for (let i = 0; i < frameCount; i++) {
+          timestamps.push(Math.max(0, Math.min(duration - 0.05, start + step * i)));
+        }
       }
 
       const seekToTime = (time: number): Promise<void> =>

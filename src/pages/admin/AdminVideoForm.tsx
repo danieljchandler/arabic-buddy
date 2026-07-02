@@ -482,19 +482,30 @@ const AdminVideoForm = () => {
       if (isMeme && file.type.startsWith("video/")) {
         try {
           toast.info("Reading on-screen text from meme frames…");
-          const frames = await extractFramesWithTimestamps(file, 2, 12, 1024);
+          const frames = await extractFramesWithTimestamps(file, 1.5, 16, 1280);
           const { data: visualData, error: visualErr } = await supabase.functions.invoke(
             "extract-visual-context",
-            { body: { frames, videoTitle: title || undefined, videoId: targetVideoId, kickoffProcessing: true } },
+            { body: { frames, audioDuration: durationSeconds ?? mediaDuration ?? undefined, videoTitle: title || undefined, videoId: targetVideoId, kickoffProcessing: true } },
           );
           if (visualErr) {
-            console.warn("extract-visual-context failed (non-fatal):", visualErr);
+            const message = await extractFunctionErrorMessage(visualErr);
+            console.warn("extract-visual-context failed:", visualErr);
+            await (supabase.from("discover_videos" as any) as any)
+              .update({
+                transcription_status: "failed",
+                transcription_error: `Meme screen-text extraction failed: ${message}`,
+              })
+              .eq("id", targetVideoId);
+            throw new Error(`Meme screen-text extraction failed: ${message}`);
           } else if (visualData?.processingQueued) {
             processingQueuedByVisual = true;
           }
         } catch (visualErr) {
-          console.warn("Meme visual extraction error (non-fatal):", visualErr);
+          console.warn("Meme visual extraction error:", visualErr);
+          throw visualErr instanceof Error ? visualErr : new Error("Meme screen-text extraction failed");
         }
+      } else if (isMeme) {
+        throw new Error("Upload the actual video file for memes so the analyzer can read text on screen. Audio-only files can only transcribe speech.");
       }
 
       let invokeData: unknown = { success: true, message: "Processing queued by visual analysis" };
@@ -693,6 +704,14 @@ const AdminVideoForm = () => {
 
     const parsed = parseVideoUrl(sourceUrl.trim());
     if (parsed?.platform === "youtube") {
+      if (isMeme) {
+        setIsDownloading(false);
+        toast.error("Upload the meme video file", {
+          description: "YouTube extraction only returns audio, so it cannot read captions or text on screen.",
+          duration: 8000,
+        });
+        return;
+      }
       const queued = await triggerRunPodFallback({ createPendingRecord: true });
       setIsDownloading(false);
       if (!queued) {
@@ -826,6 +845,14 @@ const AdminVideoForm = () => {
 
     const parsed = parseVideoUrl(sourceUrl.trim());
     if (parsed?.platform === "youtube") {
+      if (isMeme) {
+        setIsDownloading(false);
+        toast.error("Upload the meme video file", {
+          description: "Audio-only extraction cannot read captions or text on screen.",
+          duration: 8000,
+        });
+        return;
+      }
       const queued = await triggerRunPodFallback();
       setIsDownloading(false);
       if (!queued) {

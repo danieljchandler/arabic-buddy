@@ -249,9 +249,18 @@ serve(async (req) => {
           upsert: true,
         });
 
+      const onScreenSummary = result.onScreenTextSegments
+        .map((s) => `[${s.startSeconds}s-${s.endSeconds}s] ${s.text}${s.translation ? ` — ${s.translation}` : ''}`)
+        .join('\n');
+      const visualCulturalContext = [
+        onScreenSummary ? `On-screen text:\n${onScreenSummary}` : '',
+        result.sceneContext ? `Scene: ${result.sceneContext}` : '',
+        result.culturalContext ? `Cultural context: ${result.culturalContext}` : '',
+      ].filter(Boolean).join('\n\n');
+
       await admin
         .from('discover_videos')
-        .update({ cultural_context: result.culturalContext || null })
+        .update({ cultural_context: visualCulturalContext || null })
         .eq('id', videoId);
 
       if (kickoffProcessing) {

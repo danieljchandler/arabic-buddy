@@ -323,7 +323,7 @@ const AdminVideoForm = () => {
       setVocabulary(((existingVideo.vocabulary as any[]) ?? []) as any[]);
       setGrammarPoints(((existingVideo.grammar_points as any[]) ?? []) as any[]);
     }
-  }, [existingVideo]);
+  }, [existingVideo, memeQueryFlag]);
 
   const handleUrlParse = async () => {
     if (sourceUrl.includes("tiktok.com")) {

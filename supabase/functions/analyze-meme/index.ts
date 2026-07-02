@@ -338,7 +338,12 @@ serve(async (req) => {
       if (audioTranscript) {
         userContent.push({
           type: 'text',
-          text: `Analyze the Arabic meme in these ${images.length > 1 ? 'video frames' : 'image'}. Also, here is the audio transcript from the video:\n\n${audioTranscript}`,
+          text: `Analyze the Arabic meme in these ${images.length > 1 ? 'video frames' : 'image'}.
+
+The audio transcript below is provided ONLY as background context so you can explain the humor accurately. DO NOT copy audio-only text into "onScreenText.lines" — only text that is visibly written/overlaid on the frames belongs there. The spoken audio will be analyzed separately.
+
+Audio transcript (context only):
+${audioTranscript}`,
         });
       } else {
         userContent.push({
@@ -355,14 +360,19 @@ serve(async (req) => {
       }
     }
 
-    // If we have audio transcript but no image analysis, run audio-only via AI Brain ensemble
-    if (audioTranscript && !imageBase64) {
+    
+    // Also analyze the audio transcript on its own so users get a dedicated
+    // spoken-audio section (lines + vocab + grammar). This runs whenever
+    // audio text is present — with OR without images — so meme videos that
+    // have both on-screen text AND speech show both.
+    const audioTranscriptTrimmed = typeof audioTranscript === 'string' ? audioTranscript.trim() : '';
+    if (audioTranscriptTrimmed.length >= 3) {
       console.log(`Analyzing audio transcript via AI Brain (${dialect})...`);
       try {
         const brain = await askBrain<any>({
           purpose: 'meme_audio',
           dialect,
-          userPrompt: audioTranscript,
+          userPrompt: audioTranscriptTrimmed,
           systemPromptExtra: buildAudioPrompt(dialect),
           strategy: 'ensemble',
           maxTokens: 4096,

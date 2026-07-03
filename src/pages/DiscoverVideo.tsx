@@ -706,9 +706,17 @@ const DiscoverVideo = () => {
     [isAuthenticated, user, video, addUserVocabulary],
   );
 
-  const lines = useMemo(
+  const allLines = useMemo(
     () => ((video?.transcript_lines as any[]) ?? []) as TranscriptLine[],
     [video],
+  );
+  const onScreenLines = useMemo(
+    () => allLines.filter((l: any) => l?.source === "on_screen" || l?.segmentType === "text_overlay"),
+    [allLines],
+  );
+  const lines = useMemo(
+    () => allLines.filter((l: any) => !(l?.source === "on_screen" || l?.segmentType === "text_overlay")),
+    [allLines],
   );
 
   // For YouTube: find active line by time. For others: use manual index.
@@ -1444,6 +1452,27 @@ const DiscoverVideo = () => {
 
       {/* Vocabulary, grammar & cultural context footer */}
       <div className="border-t border-border bg-card px-4 py-4 space-y-4">
+        {onScreenLines.length > 0 && (
+          <details className="group" open={!!video.is_meme}>
+            <summary className="flex items-center gap-2 cursor-pointer text-sm font-semibold text-foreground">
+              <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180 text-muted-foreground" />
+              On-Screen Text ({onScreenLines.length})
+            </summary>
+            <div className="mt-3 space-y-2">
+              {onScreenLines.map((line) => (
+                <div key={line.id} className="p-2 rounded-lg bg-muted/50">
+                  <p dir="rtl" className="text-base font-medium text-foreground" style={{ fontFamily: "'Cairo', sans-serif" }}>
+                    {line.arabic}
+                  </p>
+                  {line.translation && showTranslations && (
+                    <p className="mt-1 text-xs text-muted-foreground">{line.translation}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </details>
+        )}
+
         {vocabulary.length > 0 && (
           <details className="group">
             <summary className="flex items-center gap-2 cursor-pointer text-sm font-semibold text-foreground">
@@ -1474,12 +1503,12 @@ const DiscoverVideo = () => {
 
 
         {video.cultural_context && (
-          <details className="group">
+          <details className="group" open={!!video.is_meme}>
             <summary className="flex items-center gap-2 cursor-pointer text-sm font-semibold text-foreground">
               <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180 text-muted-foreground" />
-              Cultural Context
+              {video.is_meme ? "Meme Insight" : "Cultural Context"}
             </summary>
-            <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
+            <p className="mt-2 text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
               {video.cultural_context}
             </p>
           </details>

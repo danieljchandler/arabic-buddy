@@ -706,9 +706,17 @@ const DiscoverVideo = () => {
     [isAuthenticated, user, video, addUserVocabulary],
   );
 
-  const lines = useMemo(
+  const allLines = useMemo(
     () => ((video?.transcript_lines as any[]) ?? []) as TranscriptLine[],
     [video],
+  );
+  const onScreenLines = useMemo(
+    () => allLines.filter((l: any) => l?.source === "on_screen" || l?.segmentType === "text_overlay"),
+    [allLines],
+  );
+  const lines = useMemo(
+    () => allLines.filter((l: any) => !(l?.source === "on_screen" || l?.segmentType === "text_overlay")),
+    [allLines],
   );
 
   // For YouTube: find active line by time. For others: use manual index.

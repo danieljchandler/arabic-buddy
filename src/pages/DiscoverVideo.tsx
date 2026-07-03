@@ -921,12 +921,12 @@ const DiscoverVideo = () => {
 
   // Use TikTok's official player iframe as a muted visual companion only.
   // Audio comes exclusively from the extracted source track below.
+  // `mute=1` on the URL is REQUIRED to keep the iframe silent from the very
+  // first frame — postMessage("mute") alone races with the player init and
+  // lets TikTok's native audio bleed through, causing echo/doubling.
   const tiktokIframeUrl = useMemo(() => {
     if (!video || video.platform !== "tiktok") return "";
-    // Only documented TikTok player params — invalid keys (e.g. mute, muted, controls=0)
-    // cause TikTok to refuse playback and show "Video is not available".
-    // Muting is handled via postMessage("mute") after the iframe loads.
-    const params = "?autoplay=0&music_info=0&description=0";
+    const params = "?autoplay=0&mute=1&music_info=0&description=0";
     if (resolvedTikTokVideoId) return `https://www.tiktok.com/player/v1/${resolvedTikTokVideoId}${params}`;
     return resolvedEmbedUrl;
   }, [video, resolvedEmbedUrl, resolvedTikTokVideoId]);
@@ -944,6 +944,55 @@ const DiscoverVideo = () => {
       // best-effort visual sync only
     }
   }, []);
+
+  // Listen for TikTok player state changes so pressing play/pause INSIDE the
+  // TikTok iframe also drives our hidden audio (and therefore the transcript
+  // + translation sync). Without this, tapping play on the TikTok video
+  // itself leaves the audio + subtitles frozen.
+  useEffect(() => {
+    if (!isTikTok || !tiktokIframeUrl) return;
+    const onMessage = (e: MessageEvent) => {
+      const data = e?.data as { type?: string; value?: any; "x-tiktok-player"?: boolean } | undefined;
+      if (!data || data["x-tiktok-player"] !== true) return;
+      // Re-assert mute whenever the player talks to us (defense in depth).
+      const audio = tiktokAudioRef.current;
+      switch (data.type) {
+        case "onPlayerReady":
+          sendTikTokCommand("mute");
+          break;
+        case "onStateChange":
+        case "onPlay":
+        case "play": {
+          if (!audio || !tiktokAudioReady) return;
+          sendTikTokCommand("mute");
+          if (data.type === "onStateChange") {
+            // TikTok state: 1 = playing, 2 = paused, 0 = ended
+            if (data.value === 1 && audio.paused) audio.play().catch(() => {});
+            else if (data.value === 2 && !audio.paused) audio.pause();
+            else if (data.value === 0) audio.pause();
+          } else if (audio.paused) {
+            audio.play().catch(() => {});
+          }
+          break;
+        }
+        case "onPause":
+        case "pause":
+          if (audio && !audio.paused) audio.pause();
+          break;
+        case "onCurrentTime":
+        case "currentTime": {
+          // Keep hidden audio time aligned with iframe scrubs (small drift).
+          const t = typeof data.value === "number" ? data.value : Number(data.value);
+          if (audio && Number.isFinite(t) && Math.abs(audio.currentTime - t) > 0.5) {
+            audio.currentTime = t;
+          }
+          break;
+        }
+      }
+    };
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, [isTikTok, tiktokIframeUrl, tiktokAudioReady, sendTikTokCommand]);
 
   // Keep the TikTok iframe visual-only. Sound is driven exclusively by our
   // hidden <audio> element via the extracted source track.

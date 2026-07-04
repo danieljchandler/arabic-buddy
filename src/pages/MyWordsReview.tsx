@@ -476,13 +476,16 @@ const MyWordsReview = () => {
     });
 
     const prevIndex = currentIndex;
-    if (snapshot) {
-      setLastAction({
-        cardId: card.id,
-        cardType: card.card_type,
-        prevIndex,
-        snapshot: snapshot as Record<string, unknown>,
-      });
+    const newAction = snapshot
+      ? {
+          cardId: card.id,
+          cardType: card.card_type,
+          prevIndex,
+          snapshot: snapshot as Record<string, unknown>,
+        }
+      : null;
+    if (newAction) {
+      setLastAction(newAction);
     }
 
     setSessionCount((prev) => prev + 1);
@@ -496,24 +499,25 @@ const MyWordsReview = () => {
     }
 
     toast.success(`Marked ${rating}`, {
-      action: snapshot
-        ? { label: "Undo", onClick: () => handleUndo() }
+      action: newAction
+        ? { label: "Undo", onClick: () => handleUndo(newAction) }
         : undefined,
       duration: 4000,
     });
   };
 
-  const handleUndo = async () => {
-    if (!lastAction || undoing) return;
+  const handleUndo = async (action?: NonNullable<typeof lastAction>) => {
+    const target = action ?? lastAction;
+    if (!target || undoing) return;
     setUndoing(true);
     try {
       const { error } = await supabase
         .from("user_vocabulary")
-        .update(lastAction.snapshot as never)
-        .eq("id", lastAction.cardId);
+        .update(target.snapshot as never)
+        .eq("id", target.cardId);
       if (error) throw error;
       setSessionCount((prev) => Math.max(0, prev - 1));
-      setCurrentIndex(lastAction.prevIndex);
+      setCurrentIndex(target.prevIndex);
       setShowAnswer(false);
       setLastAction(null);
       await queryClient.invalidateQueries({ queryKey: ["user-vocabulary-due-words"] });
@@ -620,7 +624,7 @@ const MyWordsReview = () => {
             <Button
               variant="outline"
               size="sm"
-              onClick={handleUndo}
+              onClick={() => handleUndo()}
               disabled={undoing}
               className="gap-1.5 h-8 px-2.5"
               title="Undo last rating"

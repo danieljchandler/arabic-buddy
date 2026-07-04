@@ -52,12 +52,36 @@ function extractJsonObject(text: string): string {
   return cleaned;
 }
 
+function tryRepairJson(text: string): string {
+  let s = text.trim();
+  // Balance braces/brackets: append missing closers.
+  const opens = (s.match(/[{[]/g) || []).length;
+  const closes = (s.match(/[}\]]/g) || []).length;
+  if (opens > closes) {
+    // Best-effort: strip trailing comma/partial value, then close
+    s = s.replace(/,\s*"[^"]*$/g, '').replace(/,\s*$/g, '');
+    const stack: string[] = [];
+    for (const ch of s) {
+      if (ch === '{') stack.push('}');
+      else if (ch === '[') stack.push(']');
+      else if (ch === '}' || ch === ']') stack.pop();
+    }
+    while (stack.length) s += stack.pop();
+  }
+  return s;
+}
+
 function safeJsonParse<T>(content: string): T | null {
+  const candidate = extractJsonObject(content);
   try {
-    return JSON.parse(extractJsonObject(content)) as T;
+    return JSON.parse(candidate) as T;
   } catch {
-    console.error('JSON parse error for content:', content.slice(0, 500));
-    return null;
+    try {
+      return JSON.parse(tryRepairJson(candidate)) as T;
+    } catch {
+      console.error('JSON parse error for content:', content.slice(0, 500));
+      return null;
+    }
   }
 }
 
@@ -146,6 +170,7 @@ async function callAI(
         messages,
         max_tokens: maxTokens,
         temperature: 0.3,
+        response_format: { type: 'json_object' },
       }),
     });
 
@@ -354,9 +379,36 @@ ${audioTranscript}`,
 
       const rawResponse = await callAI(buildMemePrompt(dialect), userContent, LOVABLE_API_KEY, 6000);
       onScreenResult = safeJsonParse<any>(rawResponse);
-      
+
       if (!onScreenResult) {
-        throw new Error('Failed to parse AI response. Please try again.');
+        // Retry once with a stricter reminder appended to the user content.
+        // Common failure modes: model returns an Arabic refusal ("أعتذر…") or
+        // truncated JSON. Give it one more chance with an explicit instruction.
+        console.warn('meme vision returned non-JSON, retrying once with stricter prompt');
+        const retryContent = Array.isArray(userContent)
+          ? [
+              ...userContent,
+              {
+                type: 'text',
+                text: 'IMPORTANT: Respond with ONE valid JSON object matching the schema and nothing else. No prose, no apologies, no markdown fences. If you cannot read the meme, still return the JSON with empty strings/arrays.',
+              } as any,
+            ]
+          : `${userContent}\n\nIMPORTANT: Respond with ONE valid JSON object matching the schema and nothing else. No prose, no apologies, no markdown fences. If you cannot read the meme, still return the JSON with empty strings/arrays.`;
+        const retryRaw = await callAI(buildMemePrompt(dialect), retryContent, LOVABLE_API_KEY, 6000);
+        onScreenResult = safeJsonParse<any>(retryRaw);
+      }
+
+      if (!onScreenResult) {
+        // Graceful degradation: return a minimal empty structure so the client
+        // can still show the audio analysis (if any) and prompt a retry, rather
+        // than 500-ing and wasting the upload.
+        console.warn('meme vision unparseable after retry — returning empty on-screen result');
+        onScreenResult = {
+          memeExplanation: { casual: '', cultural: '' },
+          onScreenText: { rawTranscriptArabic: '', lines: [], vocabulary: [], grammarPoints: [] },
+          glosses: {},
+          _parseError: true,
+        };
       }
     }
 

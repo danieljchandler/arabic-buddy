@@ -52,12 +52,36 @@ function extractJsonObject(text: string): string {
   return cleaned;
 }
 
+function tryRepairJson(text: string): string {
+  let s = text.trim();
+  // Balance braces/brackets: append missing closers.
+  const opens = (s.match(/[{[]/g) || []).length;
+  const closes = (s.match(/[}\]]/g) || []).length;
+  if (opens > closes) {
+    // Best-effort: strip trailing comma/partial value, then close
+    s = s.replace(/,\s*"[^"]*$/g, '').replace(/,\s*$/g, '');
+    const stack: string[] = [];
+    for (const ch of s) {
+      if (ch === '{') stack.push('}');
+      else if (ch === '[') stack.push(']');
+      else if (ch === '}' || ch === ']') stack.pop();
+    }
+    while (stack.length) s += stack.pop();
+  }
+  return s;
+}
+
 function safeJsonParse<T>(content: string): T | null {
+  const candidate = extractJsonObject(content);
   try {
-    return JSON.parse(extractJsonObject(content)) as T;
+    return JSON.parse(candidate) as T;
   } catch {
-    console.error('JSON parse error for content:', content.slice(0, 500));
-    return null;
+    try {
+      return JSON.parse(tryRepairJson(candidate)) as T;
+    } catch {
+      console.error('JSON parse error for content:', content.slice(0, 500));
+      return null;
+    }
   }
 }
 

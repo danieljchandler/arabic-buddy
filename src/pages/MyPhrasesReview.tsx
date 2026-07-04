@@ -302,7 +302,7 @@ const MyPhrasesReview = () => {
             <Button
               variant="outline"
               size="sm"
-              onClick={handleUndo}
+              onClick={() => handleUndo()}
               disabled={undoing}
               className="gap-1.5 h-8 px-2.5"
               title="Undo last rating"

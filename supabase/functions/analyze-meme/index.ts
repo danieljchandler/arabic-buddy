@@ -379,9 +379,36 @@ ${audioTranscript}`,
 
       const rawResponse = await callAI(buildMemePrompt(dialect), userContent, LOVABLE_API_KEY, 6000);
       onScreenResult = safeJsonParse<any>(rawResponse);
-      
+
       if (!onScreenResult) {
-        throw new Error('Failed to parse AI response. Please try again.');
+        // Retry once with a stricter reminder appended to the user content.
+        // Common failure modes: model returns an Arabic refusal ("أعتذر…") or
+        // truncated JSON. Give it one more chance with an explicit instruction.
+        console.warn('meme vision returned non-JSON, retrying once with stricter prompt');
+        const retryContent = Array.isArray(userContent)
+          ? [
+              ...userContent,
+              {
+                type: 'text',
+                text: 'IMPORTANT: Respond with ONE valid JSON object matching the schema and nothing else. No prose, no apologies, no markdown fences. If you cannot read the meme, still return the JSON with empty strings/arrays.',
+              } as any,
+            ]
+          : `${userContent}\n\nIMPORTANT: Respond with ONE valid JSON object matching the schema and nothing else. No prose, no apologies, no markdown fences. If you cannot read the meme, still return the JSON with empty strings/arrays.`;
+        const retryRaw = await callAI(buildMemePrompt(dialect), retryContent, LOVABLE_API_KEY, 6000);
+        onScreenResult = safeJsonParse<any>(retryRaw);
+      }
+
+      if (!onScreenResult) {
+        // Graceful degradation: return a minimal empty structure so the client
+        // can still show the audio analysis (if any) and prompt a retry, rather
+        // than 500-ing and wasting the upload.
+        console.warn('meme vision unparseable after retry — returning empty on-screen result');
+        onScreenResult = {
+          memeExplanation: { casual: '', cultural: '' },
+          onScreenText: { rawTranscriptArabic: '', lines: [], vocabulary: [], grammarPoints: [] },
+          glosses: {},
+          _parseError: true,
+        };
       }
     }
 

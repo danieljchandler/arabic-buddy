@@ -456,14 +456,12 @@ const AdminVideoForm = () => {
         if (insertErr) throw insertErr;
         targetVideoId = inserted.id;
       } else {
-        // Mark existing row as pending (and update thumbnail if we just captured one)
+        // Mark existing row as pending (and update thumbnail if we just captured one).
+        // IMPORTANT: do NOT pre-emptively wipe cultural_context / transcript_lines /
+        // vocabulary / grammar_points here. If visual extraction or the server
+        // pipeline hiccups, the previously-published content should stay intact.
+        // The server pipeline overwrites these fields atomically on success.
         const updates: Record<string, unknown> = { transcription_status: "pending", is_meme: isMeme };
-        if (isMeme) {
-          updates.cultural_context = null;
-          updates.transcript_lines = [];
-          updates.vocabulary = [];
-          updates.grammar_points = [];
-        }
         if (saveThumbnail && saveThumbnail !== thumbnailUrl) updates.thumbnail_url = saveThumbnail;
         await (supabase.from("discover_videos" as any) as any)
           .update(updates)

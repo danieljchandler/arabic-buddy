@@ -173,12 +173,15 @@ const MyPhrasesReview = () => {
     });
 
     const prevIndex = currentIndex;
-    if (snapshot) {
-      setLastAction({
-        phraseId: current.id,
-        prevIndex,
-        snapshot: snapshot as Record<string, unknown>,
-      });
+    const newAction = snapshot
+      ? {
+          phraseId: current.id,
+          prevIndex,
+          snapshot: snapshot as Record<string, unknown>,
+        }
+      : null;
+    if (newAction) {
+      setLastAction(newAction);
     }
 
     setSessionCount((p) => p + 1);
@@ -192,23 +195,24 @@ const MyPhrasesReview = () => {
     }
 
     toast.success(`Marked ${rating}`, {
-      action: snapshot
-        ? { label: "Undo", onClick: () => handleUndo() }
+      action: newAction
+        ? { label: "Undo", onClick: () => handleUndo(newAction) }
         : undefined,
       duration: 4000,
     });
   };
 
-  const handleUndo = async () => {
-    if (!lastAction || undoing) return;
+  const handleUndo = async (action?: NonNullable<typeof lastAction>) => {
+    const target = action ?? lastAction;
+    if (!target || undoing) return;
     setUndoing(true);
     try {
       const { error } = await (supabase.from("user_phrases") as any)
-        .update(lastAction.snapshot)
-        .eq("id", lastAction.phraseId);
+        .update(target.snapshot)
+        .eq("id", target.phraseId);
       if (error) throw error;
       setSessionCount((p) => Math.max(0, p - 1));
-      setCurrentIndex(lastAction.prevIndex);
+      setCurrentIndex(target.prevIndex);
       setShowAnswer(false);
       setLastAction(null);
       await refetch();

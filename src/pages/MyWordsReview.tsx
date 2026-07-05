@@ -498,12 +498,6 @@ const MyWordsReview = () => {
       setCurrentIndex(0);
     }
 
-    toast.success(`Marked ${rating}`, {
-      action: newAction
-        ? { label: "Undo", onClick: () => handleUndo(newAction) }
-        : undefined,
-      duration: 4000,
-    });
   };
 
   const handleUndo = async (action?: NonNullable<typeof lastAction>) => {

@@ -498,12 +498,6 @@ const MyWordsReview = () => {
       setCurrentIndex(0);
     }
 
-    toast.success(`Marked ${rating}`, {
-      action: newAction
-        ? { label: "Undo", onClick: () => handleUndo(newAction) }
-        : undefined,
-      duration: 4000,
-    });
   };
 
   const handleUndo = async (action?: NonNullable<typeof lastAction>) => {
@@ -620,19 +614,6 @@ const MyWordsReview = () => {
               ))}
             </SelectContent>
           </Select>
-          {lastAction && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handleUndo()}
-              disabled={undoing}
-              className="gap-1.5 h-8 px-2.5"
-              title="Undo last rating"
-            >
-              {undoing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Undo2 className="h-3.5 w-3.5" />}
-              <span className="text-xs font-medium">Undo</span>
-            </Button>
-          )}
           <div className="px-3 py-1.5 rounded-lg bg-card border border-border flex items-center gap-1.5">
 
             {isProduction ? <Mic2 className="h-3.5 w-3.5 text-primary" /> : <Brain className="h-3.5 w-3.5 text-primary" />}
@@ -945,6 +926,21 @@ const MyWordsReview = () => {
             repetitions={currentWord.repetitions}
             disabled={updateReview.isPending}
           />
+          {lastAction && (
+            <div className="mt-4 flex justify-center">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleUndo()}
+                disabled={undoing}
+                className="gap-1.5 text-muted-foreground"
+                title="Undo last rating"
+              >
+                {undoing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Undo2 className="h-3.5 w-3.5" />}
+                <span className="text-xs font-medium">Undo</span>
+              </Button>
+            </div>
+          )}
         </div>
       </div>
 

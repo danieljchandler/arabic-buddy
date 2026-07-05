@@ -1,3 +1,4 @@
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { askBrain, BrainHttpError } from "../_shared/aiBrain.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { createErrorResponse } from "../_shared/errorResponse.ts";
@@ -10,6 +11,56 @@ interface PhraseOut {
   notes: string;
 }
 
+// Broad topic wheel — the AI is nudged into one of these buckets per request so
+// the daily phrase actually varies instead of collapsing to safe greetings.
+const CATEGORIES: { key: string; prompt: string }[] = [
+  { key: "haggling", prompt: "haggling in the souq (asking for a discount, walking away, playful bargaining)" },
+  { key: "coffee_majlis", prompt: "coffee/tea and majlis small talk (pouring, refusing a third cup, complimenting the host)" },
+  { key: "traffic", prompt: "driving and traffic frustration (roundabouts, tailgaters, parking chaos)" },
+  { key: "weather_hot", prompt: "complaining about the heat / humidity / dust storm" },
+  { key: "weekend_plans", prompt: "weekend plans with friends (beach, desert, mall, farm)" },
+  { key: "family_teasing", prompt: "playful family teasing between siblings or cousins" },
+  { key: "work_complaints", prompt: "office/work complaints (boss, meetings, deadlines) in a casual register" },
+  { key: "food_praise", prompt: "praising or reacting to food (something delicious, too spicy, over-salted)" },
+  { key: "hospitality_insist", prompt: "insisting a guest eat/stay more (classic Arab hospitality push-and-pull)" },
+  { key: "surprise", prompt: "expressing genuine surprise or disbelief (no way, seriously, I can't believe it)" },
+  { key: "doubt_sarcasm", prompt: "sarcasm or gentle doubt (yeah right, sure buddy, we'll see)" },
+  { key: "encouragement", prompt: "encouraging someone before a challenge (you got this, don't be scared)" },
+  { key: "apology_soft", prompt: "a soft apology or making up after a small argument" },
+  { key: "compliment_looks", prompt: "complimenting someone's appearance or new outfit without being creepy" },
+  { key: "kids_scolding", prompt: "a parent gently scolding or bargaining with a small child" },
+  { key: "gossip", prompt: "leaning in to share a piece of gossip" },
+  { key: "dua_wellwish", prompt: "a heartfelt dua or well-wish for a friend (health, exam, travel)" },
+  { key: "idiom_animal", prompt: "an idiomatic expression involving an animal, body part, or food" },
+  { key: "proverb", prompt: "a short well-known dialect proverb with real cultural weight" },
+  { key: "money_broke", prompt: "joking about being broke at the end of the month" },
+  { key: "phone_tech", prompt: "phone / wifi / app frustration (battery dying, no signal, laggy)" },
+  { key: "tired_sleep", prompt: "being exhausted or begging for more sleep" },
+  { key: "directions", prompt: "giving casual directions or landmarks (turn after the mosque, next to the bakala)" },
+  { key: "sports_banter", prompt: "football/sports banter between fans of rival teams" },
+  { key: "shopping_indecision", prompt: "indecision while shopping (can't pick between two options)" },
+  { key: "invite_hangout", prompt: "casually inviting someone to hang out or grab shisha/coffee" },
+  { key: "refuse_polite", prompt: "politely refusing an invitation without offending" },
+  { key: "gratitude_deep", prompt: "expressing deep gratitude beyond the standard thank-you" },
+  { key: "market_produce", prompt: "buying fresh produce, fish, or meat at the market" },
+  { key: "prayer_mosque", prompt: "quick exchange around prayer time or at the mosque" },
+];
+
+function hashString(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return h;
+}
+
+function pickCategory(dialect: string, date: string, override?: string) {
+  if (override) {
+    const found = CATEGORIES.find((c) => c.key === override);
+    if (found) return found;
+  }
+  const idx = hashString(`${dialect}|${date}`) % CATEGORIES.length;
+  return CATEGORIES[idx];
+}
+
 Deno.serve(async (req) => {
   const cors = getCorsHeaders(req);
 
@@ -18,36 +69,79 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { dialect = "Gulf", seed } = await req.json().catch(() => ({}));
+    const { dialect = "Gulf", seed, category: categoryOverride, avoidCategories } = await req
+      .json()
+      .catch(() => ({}));
     const today = seed || new Date().toISOString().slice(0, 10);
 
-    const userPrompt = `Generate today's phrase of the day. Today's seed: ${today}.
-The phrase must be:
-- A short phrase or sentence (3-8 words), NOT a single word
-- Authentic, common, and useful in everyday conversation
-- Vary the topic each day (greetings, food, travel, feelings, idioms, expressions, etc.)
-Include a brief cultural or usage note.`;
+    // Skip categories the client already saw this session (from Refresh presses).
+    let category = pickCategory(dialect, today, categoryOverride);
+    if (Array.isArray(avoidCategories) && avoidCategories.length && !categoryOverride) {
+      const remaining = CATEGORIES.filter((c) => !avoidCategories.includes(c.key));
+      if (remaining.length) {
+        const idx = hashString(`${dialect}|${today}|${avoidCategories.length}`) % remaining.length;
+        category = remaining[idx];
+      }
+    }
+
+    // Recent-phrase avoid list — pull the last ~30 phrase-of-the-day outputs
+    // for this dialect so the model doesn't repeat itself.
+    let avoidBlock = "";
+    try {
+      const svc = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      );
+      const { data: recent } = await svc
+        .from("user_phrases")
+        .select("phrase_arabic, phrase_english")
+        .eq("source", "phrase-of-the-day")
+        .eq("dialect", dialect)
+        .order("created_at", { ascending: false })
+        .limit(30);
+      const rows = (recent ?? []) as { phrase_arabic: string; phrase_english: string }[];
+      if (rows.length) {
+        const list = rows
+          .map((r, i) => `${i + 1}. ${r.phrase_arabic} — ${r.phrase_english}`)
+          .join("\n");
+        avoidBlock = `\n\nDO NOT repeat, translate, or lightly paraphrase any of these recently-used phrases:\n${list}\n`;
+      }
+    } catch (e) {
+      console.warn("[phrase-of-the-day] avoid-list fetch failed", (e as Error).message);
+    }
+
+    const userPrompt = `Generate today's Phrase of the Day.
+
+Today's category: **${category.prompt}**
+Seed: ${today}-${category.key}
+
+Hard requirements:
+- The phrase must clearly fit the category above. If the category is not about greetings, DO NOT produce a greeting or a polite pleasantry.
+- 4 to 10 words. A real sentence or idiomatic expression, not a single word or a textbook line.
+- Must sound like something a native ${dialect} speaker would actually say to a friend today — colloquial, natural, dialect-authentic.
+- Avoid the most obvious tourist-phrasebook lines (hello, how are you, thank you, my name is, where is the bathroom, etc.) unless the category explicitly calls for them.
+- Include a short cultural or usage note (1–2 sentences) explaining when/why a native speaker would use it.${avoidBlock}`;
 
     const result = await askBrain<PhraseOut>({
-      purpose: 'phrase_of_the_day',
+      purpose: "phrase_of_the_day",
       dialect,
       userPrompt,
       systemPromptExtra: getDialectTransliterationRules(dialect as Dialect),
-      strategy: 'ensemble',
-      maxTokens: 600,
-      temperature: 0.8,
+      strategy: "solo",
+      maxTokens: 700,
+      temperature: 1.0,
       tool: {
-        name: 'return_phrase',
-        description: 'Return the phrase of the day with translation and notes',
+        name: "return_phrase",
+        description: "Return the phrase of the day with translation and notes",
         parameters: {
-          type: 'object',
+          type: "object",
           properties: {
-            phrase_arabic: { type: 'string', description: 'The phrase in Arabic script (dialect)' },
-            phrase_english: { type: 'string', description: 'Natural English translation' },
-            transliteration: { type: 'string', description: 'Romanized pronunciation' },
-            notes: { type: 'string', description: 'Brief cultural or usage note (1-2 sentences)' },
+            phrase_arabic: { type: "string", description: "The phrase in Arabic script (dialect)" },
+            phrase_english: { type: "string", description: "Natural English translation" },
+            transliteration: { type: "string", description: "Romanized pronunciation" },
+            notes: { type: "string", description: "Brief cultural or usage note (1-2 sentences)" },
           },
-          required: ['phrase_arabic', 'phrase_english', 'transliteration', 'notes'],
+          required: ["phrase_arabic", "phrase_english", "transliteration", "notes"],
           additionalProperties: false,
         },
       },
@@ -55,7 +149,18 @@ Include a brief cultural or usage note.`;
     });
 
     return new Response(
-      JSON.stringify({ ...result.output, dialect, date: today, _meta: { strategy: result.strategy, models: result.models, msaRepairs: result.msaRepairs } }),
+      JSON.stringify({
+        ...result.output,
+        dialect,
+        date: today,
+        category: category.key,
+        _meta: {
+          strategy: result.strategy,
+          models: result.models,
+          msaRepairs: result.msaRepairs,
+          category: category.key,
+        },
+      }),
       { headers: { ...cors, "Content-Type": "application/json" } },
     );
   } catch (err) {

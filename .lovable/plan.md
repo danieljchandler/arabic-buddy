@@ -1,51 +1,30 @@
-# Design polish plan: Today, Hubs, Review
+# Fix repetitive Phrase of the Day
 
-Scope is presentation only — no business logic, no route changes. Everything stays inside the existing digital majlis palette (off-white #F9F7F2 surfaces, Desert Red borders, dialect accent per active module).
+## Problem
+`supabase/functions/phrase-of-the-day/index.ts` uses a single generic prompt ("vary the topic each day") with the date as a seed. The AI has no memory of what it produced yesterday or last week, so it gravitates to the same handful of "safe" greetings/pleasantries. There is also no category rotation and no avoid-list, so ensemble strategy converges on similar outputs.
 
-## 1. Today / Home dashboard (`src/pages/Index.tsx`)
+## Fix (edge function only — no UI/schema changes)
 
-Problem: feels like a stack of unrelated cards with uneven rhythm and no clear focal point.
+1. **Category rotation.** Define a broad topic wheel in the function (~25 categories: food & coffee, weather, driving/traffic, work complaints, family teasing, shopping/haggling, weekend plans, sports, tech frustrations, health, compliments, apologies, sarcasm, kids, majlis small talk, travel, directions, prayer times, hospitality, gossip, dua/well-wishes, idioms, proverbs, expressions of surprise, expressions of doubt, etc.). Pick one deterministically from the seed (`hash(dialect + date) % categories.length`) so each day gets a different bucket per dialect, but also accept an optional `category` override from the client for the Refresh button to force a different bucket.
 
-- **Hero band**: tighter greeting block with the Arabic greeting as the dominant element (Noto Sans Arabic, large), English subgreeting muted. Include date + streak chip inline instead of as a separate card.
-- **Streak / XP**: collapse into a single horizontal "status strip" with streak flame, XP today, and goal ring — replaces the current full-width card.
-- **Primary CTA**: one prominent "Continue learning" button styled with the active dialect accent, full-width, with subtle gradient + shadow-elegant token.
-- **Discover preview card**: keep as-is structurally (per prior decision), but reframe with a section label "Watch today" and consistent 16px radius + border treatment so it matches sibling cards.
-- **Quick actions**: convert to a 2-col compact grid of icon tiles (Practice, Translate, My Words, Discover) instead of a vertical list. Removes scroll length.
-- **Spacing rhythm**: enforce 24px vertical gap between sections, 16px inside cards. Add a subtle watercolor divider between hero and content blocks.
+2. **Recent-phrase avoid list.** Query the last ~30 phrases produced for this dialect and inject their Arabic + English into the prompt as a "DO NOT repeat or paraphrase these" list. Source options:
+   - `user_phrases` where `source = 'phrase-of-the-day'` and `dialect = ?`, ordered by `created_at desc limit 30` (service client, aggregated across users — reflects what the feature has been emitting).
+   - Fallback: none, if table empty.
 
-## 2. Hub navigation — Learn / Practice / Me
+3. **Stronger prompt.** Rewrite the user prompt to:
+   - State the chosen category explicitly ("Today's category: **haggling in the souq**").
+   - Require the phrase be idiomatic to the dialect (not something a textbook would print).
+   - Forbid the generic greeting/pleasantry bucket unless that's the rolled category.
+   - Encode the avoid list.
+   - Ask for 4–10 words, not 3–8, to allow more expressive phrases.
 
-Problem: three hubs use slightly different card styles, icon sizes, and headings.
+4. **Sampling.** Bump `temperature` from `0.8` to `1.0` and switch `strategy` from `'ensemble'` (which averages toward safe answers) to `'solo'` with a random model pick from the phrase-suitable pool, or keep ensemble but add `diversityHint` to the prompt. Simpler: `strategy: 'solo'`, `temperature: 1.0`.
 
-- **Unify HubGrid tile**: one shared tile component — square-ish, 4:3, icon top-left, title bold, one-line description muted, optional badge top-right. Apply across `LearnHub`, `PracticeHub`, `MeHub`.
-- **Section headers**: same eyebrow + H2 pattern on all three hubs (`text-xs uppercase tracking-wide text-muted` over `text-2xl font-display`).
-- **Grouping**: Learn = "Foundations / Skills / Content"; Practice = "Drills / Conversation / Games"; Me = "Library / Progress / Account". Same group header style across.
-- **BottomNav polish**: active tab gets a soft pill background in the dialect accent + label weight bump; inactive icons reduced to 70% opacity; add a 1px hairline top border using `border-border/60`.
-- **Page padding**: standardize `px-4 pt-6 pb-24` on every hub so BottomNav never overlaps content.
+5. **Client cache.** In `src/components/PhraseOfTheDay.tsx`, extend the localStorage cache key to include the rolled category so a manual Refresh (which now sends a different category) doesn't collide with the cached daily entry. Keep the daily auto-fetch behavior identical.
 
-## 3. Flashcard review screens (`MyWordsReview`, `MyPhrasesReview`, `ReviewClozeCard`, recognition card)
-
-Problem: cards feel utilitarian — heavy borders, inconsistent button hierarchy, cramped audio controls.
-
-- **Card frame**: switch from hard border to layered surface (off-white card on warm sand backdrop, `shadow-elegant`, 20px radius). Removes the "form field" feel.
-- **Arabic typography**: bump Arabic display size (`text-4xl` recognition, `text-3xl` cloze), generous line-height, center-aligned, with optional tashkil rendered in muted color so the unvocalized form stays dominant.
-- **Audio control**: single large circular play button (56px) with the dialect accent, replacing the small icon button. Waveform/loading state uses an animated ring.
-- **Reveal flow**: "Reveal" becomes a full-width ghost button under the card; once revealed, English translation fades in with a soft slide, and the rating buttons (Again / Hard / Good / Easy) appear as a 4-segment pill with color-coded accents (red→amber→teal→green) instead of equal gray buttons.
-- **Cloze blanks**: blank slot rendered as a rounded chip with dashed border in dialect accent; multiple-choice answers as large tap targets (min-h 56px), Arabic-only filtering already in place.
-- **Progress**: replace numeric "3 / 12" with a slim progress bar at the top + small counter on the right. Less visual noise.
-- **Empty / done state**: celebratory illustration block (use existing dallah / motif assets) instead of plain text.
-
-## Shared design system additions
-
-- Add `--shadow-card`, `--shadow-elegant`, `--gradient-accent` tokens in `index.css` if not present, derived from current dialect primary.
-- Add `Card` variant `variant="majlis"` for the layered off-white surface so all three areas use the same primitive.
-- No new fonts, no palette changes, no route or data changes.
+## Files to edit
+- `supabase/functions/phrase-of-the-day/index.ts` — categories, avoid-list query, prompt rewrite, sampling change.
+- `src/components/PhraseOfTheDay.tsx` — pass `category` on refresh, adjust cache key. No visual changes.
 
 ## Out of scope
-
-- Admin pages, Discover video player internals, onboarding tour visuals, settings.
-- Any dialect color rework (Gulf Sadu palette stays as-is).
-
-## Verification
-
-After implementation: Playwright screenshots of `/`, `/learn-hub`, `/practice`, `/me`, `/review/my-words`, `/review/my-phrases` at mobile width (390) to confirm spacing rhythm and tile consistency.
+No schema changes, no new tables, no changes to `askBrain`, no UI redesign.

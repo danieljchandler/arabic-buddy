@@ -19,6 +19,7 @@ interface PhraseData {
 }
 
 const cacheKey = (dialect: string, date: string) => `phraseOfDay:${dialect}:${date}`;
+const seenKey = (dialect: string, date: string) => `phraseOfDay:seen:${dialect}:${date}`;
 
 export const PhraseOfTheDay = () => {
   const { activeDialect } = useDialect();
@@ -45,10 +46,18 @@ export const PhraseOfTheDay = () => {
           return;
         }
       }
-      const body = { dialect: activeDialect, seed: force ? `${today}-${Date.now()}` : today };
-      // The Lovable preview fetch proxy occasionally drops the first
-      // edge-function invocation. Retry up to 2 times with backoff before
-      // surfacing a failure to the user.
+      // Track categories already shown today so Refresh rotates to a new bucket.
+      let avoidCategories: string[] = [];
+      try {
+        avoidCategories = JSON.parse(localStorage.getItem(seenKey(activeDialect, today)) || "[]");
+      } catch { avoidCategories = []; }
+
+      const body: Record<string, unknown> = {
+        dialect: activeDialect,
+        seed: force ? `${today}-${Date.now()}` : today,
+      };
+      if (force && avoidCategories.length) body.avoidCategories = avoidCategories;
+
       let data: any = null;
       let lastErr: any = null;
       for (let attempt = 0; attempt < 3; attempt++) {
@@ -59,24 +68,30 @@ export const PhraseOfTheDay = () => {
           break;
         }
         lastErr = res.error || new Error(res.data?.error || "Unknown error");
-        // Only retry on network/transport failures, not real server errors.
         const msg = String(lastErr?.message || lastErr);
         if (!/Failed to send|fetch|network|load failed/i.test(msg)) break;
         await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
       }
       if (!data) throw lastErr || new Error("No data");
       setPhrase(data);
-      // Don't cache phrases that needed MSA repair — they may still be borderline.
-      const repairs = Number(data?._meta?.msaRepairs ?? 0);
-      if (repairs === 0) {
-        localStorage.setItem(cacheKey(activeDialect, today), JSON.stringify(data));
-      } else {
-        localStorage.removeItem(cacheKey(activeDialect, today));
+
+      // Record this category as seen for the day.
+      const cat = data?.category || data?._meta?.category;
+      if (cat && !avoidCategories.includes(cat)) {
+        try {
+          localStorage.setItem(
+            seenKey(activeDialect, today),
+            JSON.stringify([...avoidCategories, cat].slice(-20)),
+          );
+        } catch { /* ignore quota */ }
       }
 
+      // Don't cache phrases that needed MSA repair — they may still be borderline.
+      const repairs = Number(data?._meta?.msaRepairs ?? 0);
+      if (repairs === 0 && !force) {
+        localStorage.setItem(cacheKey(activeDialect, today), JSON.stringify(data));
+      }
     } catch (e: any) {
-      // Silently swallow — the Lovable preview fetch proxy occasionally drops
-      // edge-function invocations on initial load. The user can hit refresh.
       console.warn("[PhraseOfTheDay] fetch failed:", e?.message || e);
     } finally {
       setLoading(false);

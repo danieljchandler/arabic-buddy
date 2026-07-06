@@ -245,6 +245,20 @@ const Dashboard = () => {
                 </CardContent>
               </Card>
 
+              <Card className="cursor-pointer hover:shadow-lg transition-shadow border-accent/30" onClick={() => navigate('/admin/reading-library')}>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-4">
+                    <div className="bg-accent/10 rounded-full p-4">
+                      <BookOpen className="h-8 w-8 text-accent-foreground" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-lg">Reading Library</h3>
+                      <p className="text-muted-foreground">Import authentic Arabic stories for reading practice</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
               <Card className="cursor-pointer hover:shadow-lg transition-shadow border-primary/30" onClick={() => navigate('/admin/trending')}>
                 <CardContent className="pt-6">
                   <div className="flex items-center gap-4">

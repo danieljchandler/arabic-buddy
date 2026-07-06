@@ -49,6 +49,7 @@ const TILE_HINTS: Record<string, { title: string; body: string }> = {
   "vocab-games": { title: "Vocabulary Games", body: "Word matching, memory cards, fill-in-the-blanks — sneak in extra practice without it feeling like work." },
   "listening": { title: "Listening Practice", body: "Dictation, comprehension drills, and speed-listening — train your ear on real dialect audio." },
   "reading": { title: "Reading Practice", body: "Short passages with tap-to-translate. Build comprehension without ever reaching for a dictionary." },
+  "reading-library": { title: "Reading Library", body: "Authentic Arabic stories with line-by-line audio, tashkeel, and tap-to-translate. Real literature made learnable." },
   "listen": { title: "Listen", body: "AI-generated podcasts, TED-style talks, interviews and stories in your dialect. Tap any word to translate or save." },
   
   "bible": { title: "Bible Reading", body: "Read Scripture in Arabic with tap-to-translate, dialect audio, and built-in vocabulary tools." },

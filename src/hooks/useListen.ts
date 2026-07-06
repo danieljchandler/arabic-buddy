@@ -53,16 +53,17 @@ export function useListenEpisodes(opts?: { format?: ListenFormat | "all"; mineOn
     queryKey: ["listen-episodes", activeDialect, format, mineOnly, user?.id],
     queryFn: async (): Promise<ListenEpisode[]> => {
       let q = supabase
-        .from("listen_episodes" as never)
+        .from("listen_episodes")
         .select("*")
         .eq("dialect", activeDialect)
         .order("created_at", { ascending: false })
-        .limit(100) as any;
+        .limit(100);
       if (format !== "all") q = q.eq("format", format);
       if (mineOnly && user) q = q.eq("creator_id", user.id);
       const { data, error } = await q;
       if (error) throw error;
-      return (data ?? []) as ListenEpisode[];
+      // Cast needed: DB types declare script/key_vocabulary as Json but we parse them as typed arrays
+      return (data ?? []) as unknown as ListenEpisode[];
     },
     staleTime: 30_000,
   });
@@ -74,12 +75,13 @@ export function useListenEpisode(id: string | undefined) {
     enabled: !!id,
     queryFn: async (): Promise<ListenEpisode | null> => {
       const { data, error } = await supabase
-        .from("listen_episodes" as never)
+        .from("listen_episodes")
         .select("*")
         .eq("id", id!)
         .maybeSingle();
       if (error) throw error;
-      const ep = (data as ListenEpisode | null) ?? null;
+      // Cast needed: DB types declare script/key_vocabulary as Json but we parse them as typed arrays
+      const ep = (data as unknown as ListenEpisode | null) ?? null;
       // Stale-job watchdog: a pending episode whose heartbeat hasn't moved
       // in >5 min means the previous worker died (edge timeout, etc.).
       // Re-kick the synthesis job — it's resumable and will skip lines that
@@ -156,7 +158,7 @@ export function useGenerateListenLineAudio() {
 export function useIncrementPlayCount() {
   return useMutation({
     mutationFn: async (episodeId: string) => {
-      await supabase.rpc("increment_listen_play_count" as never, { _episode_id: episodeId } as never);
+      await supabase.rpc("increment_listen_play_count", { _episode_id: episodeId });
     },
   });
 }
@@ -165,7 +167,7 @@ export function useDeleteListenEpisode() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("listen_episodes" as never).delete().eq("id", id);
+      const { error } = await supabase.from("listen_episodes").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["listen-episodes"] }),

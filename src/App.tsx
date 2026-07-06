@@ -105,9 +105,13 @@ const AdminSetPhrases = lazyPage(() => import("./pages/admin/AdminSetPhrases"));
 const AdminDialectRules = lazyPage(() => import("./pages/admin/AdminDialectRules"));
 const AdminInviteCodes = lazyPage(() => import("./pages/admin/AdminInviteCodes"));
 const AdminFeedback = lazyPage(() => import("./pages/admin/AdminFeedback"));
+const AdminReadingLibrary = lazyPage(() => import("./pages/admin/AdminReadingLibrary"));
+const AdminReadingLibraryForm = lazyPage(() => import("./pages/admin/AdminReadingLibraryForm"));
 const SetPhrases = lazyPage(() => import("./pages/SetPhrases"));
 const SetPhrasesPractice = lazyPage(() => import("./pages/SetPhrasesPractice"));
 const SetPhrasesReview = lazyPage(() => import("./pages/SetPhrasesReview"));
+const ReadingLibrary = lazyPage(() => import("./pages/ReadingLibrary"));
+const ReadingLibraryStory = lazyPage(() => import("./pages/ReadingLibraryStory"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -441,11 +445,16 @@ const App = () => {
               <Route path="errors" element={<AdminErrors />} />
               <Route path="metrics" element={<AdminFeatureMetrics />} />
               <Route path="feedback" element={<AdminFeedback />} />
+              <Route path="reading-library" element={<AdminReadingLibrary />} />
+              <Route path="reading-library/new" element={<AdminReadingLibraryForm />} />
+              <Route path="reading-library/:id/edit" element={<AdminReadingLibraryForm />} />
             </Route>
 
             <Route path="/set-phrases" element={<ErrorBoundary name="SetPhrasesRoute"><SetPhrases /></ErrorBoundary>} />
             <Route path="/set-phrases/practice" element={<ErrorBoundary name="SetPhrasesPracticeRoute"><SetPhrasesPractice /></ErrorBoundary>} />
             <Route path="/set-phrases/review" element={<ErrorBoundary name="SetPhrasesReviewRoute"><SetPhrasesReview /></ErrorBoundary>} />
+            <Route path="/reading-library" element={<ErrorBoundary name="ReadingLibraryRoute"><ReadingLibrary /></ErrorBoundary>} />
+            <Route path="/reading-library/:id" element={<ErrorBoundary name="ReadingLibraryStoryRoute"><ReadingLibraryStory /></ErrorBoundary>} />
 
             <Route path="*" element={<NotFound />} />
           </Routes>

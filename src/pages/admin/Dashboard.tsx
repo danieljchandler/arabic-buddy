@@ -13,7 +13,7 @@ import { useDialect } from '@/contexts/DialectContext';
 const Dashboard = () => {
   const navigate = useNavigate();
   const { activeDialect } = useDialect();
-  const { user, isAdmin, isRecorder, role, signOut, loading: authLoading } = useAdminAuth();
+  const { user, isAdmin, isContentReviewer, isRecorder, role, signOut, loading: authLoading } = useAdminAuth();
   const { data: lessons, isLoading: lessonsLoading } = useLessons();
 
   // Get total word count for the active dialect
@@ -45,7 +45,13 @@ const Dashboard = () => {
 
   const wordCount = totalWords || 0;
   const lessonCount = lessons?.length || 0;
-  const roleLabel = isAdmin ? 'Admin' : isRecorder ? 'Recorder' : '';
+  const roleLabel = isAdmin
+    ? 'Admin'
+    : isContentReviewer
+      ? 'Content Reviewer'
+      : isRecorder
+        ? 'Recorder'
+        : '';
 
   return (
     <div className="min-h-screen bg-background">
@@ -370,6 +376,68 @@ const Dashboard = () => {
                 </div>
               </CardContent>
             </Card>
+          )}
+
+          {isContentReviewer && !isAdmin && !isRecorder && (
+            <>
+              <Card className="bg-accent/5 border-accent/20">
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-4">
+                    <div className="bg-accent/10 rounded-full p-4">
+                      <Mic className="h-8 w-8 text-accent" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-lg">Content Reviewer Access</h3>
+                      <p className="text-muted-foreground">
+                        You can update transcripts, translations, cultural notes, and dialect rules.
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/admin/videos')}>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-4">
+                    <div className="bg-primary/10 rounded-full p-4">
+                      <PlayCircle className="h-8 w-8 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-lg">Manage Video Content</h3>
+                      <p className="text-muted-foreground">Edit transcripts, translations, and cultural context</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="cursor-pointer hover:shadow-lg transition-shadow border-emerald-500/30" onClick={() => navigate('/admin/set-phrases')}>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-4">
+                    <div className="bg-emerald-500/10 rounded-full p-4">
+                      <MessageCircle className="h-8 w-8 text-emerald-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-lg">Set Phrases</h3>
+                      <p className="text-muted-foreground">Review translations and cultural notes</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="cursor-pointer hover:shadow-lg transition-shadow border-purple-500/30" onClick={() => navigate('/admin/dialect-rules')}>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-4">
+                    <div className="bg-purple-500/10 rounded-full p-4">
+                      <Languages className="h-8 w-8 text-purple-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-lg">Dialect Rulebook</h3>
+                      <p className="text-muted-foreground">Review and update dialect rules</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </>
           )}
         </div>
 

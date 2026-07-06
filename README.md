@@ -60,6 +60,15 @@ This project is built with:
 - shadcn-ui
 - Tailwind CSS
 
+## RBAC roles
+
+The app currently uses role assignments in `public.user_roles`:
+
+- `admin`: full access everywhere, including admin and Bible management.
+- `content_reviewer`: can manage content workflows (transcripts/translations/cultural notes/dialect rules) but is blocked from Bible access.
+- `beta_tester`: can access beta-only features.
+- `bible_reader`: grants Bible reading access (except when the user is also `content_reviewer`).
+
 ## How can I deploy this project?
 
 Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.

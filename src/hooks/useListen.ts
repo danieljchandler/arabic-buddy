@@ -158,7 +158,7 @@ export function useGenerateListenLineAudio() {
 export function useIncrementPlayCount() {
   return useMutation({
     mutationFn: async (episodeId: string) => {
-      await supabase.rpc("increment_listen_play_count" as never, { _episode_id: episodeId } as never);
+      await supabase.rpc("increment_listen_play_count", { _episode_id: episodeId });
     },
   });
 }

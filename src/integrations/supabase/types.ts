@@ -3783,8 +3783,27 @@ export type Database = {
       }
     }
     Functions: {
+      admin_find_user: {
+        Args: { _identifier: string }
+        Returns: {
+          email: string
+          user_id: string
+        }[]
+      }
+      admin_list_managed_roles: {
+        Args: never
+        Returns: {
+          created_at: string
+          email: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }[]
+      }
       award_xp: { Args: { _amount: number; _reason?: string }; Returns: Json }
+      can_manage_content: { Args: never; Returns: boolean }
       grant_achievement: { Args: { _achievement_id: string }; Returns: Json }
+      has_bible_access: { Args: never; Returns: boolean }
       has_redeemed_invite: { Args: never; Returns: boolean }
       has_role: {
         Args: {
@@ -3804,12 +3823,14 @@ export type Database = {
       }
       is_admin: { Args: never; Returns: boolean }
       is_beta_tester: { Args: never; Returns: boolean }
+      is_content_reviewer: { Args: never; Returns: boolean }
       is_recorder: { Args: never; Returns: boolean }
       record_checkpoint: {
         Args: { _index: number; _score: number }
         Returns: undefined
       }
       redeem_invite_code: { Args: { _code: string }; Returns: Json }
+      user_has_bible_access: { Args: { _user_id: string }; Returns: boolean }
       verify_invite_code: { Args: { _code: string }; Returns: boolean }
     }
     Enums: {

@@ -227,7 +227,7 @@ const ReadingLibraryStory = () => {
                       ? (line.dialect_vocalized || line.dialect || line.arabic_vocalized || line.arabic)
                       : (line.arabic_vocalized || line.arabic)
                     }
-                    english={line.english}
+                    sentenceContext={{ english: line.english ?? undefined }}
                     source="reading-library"
                   />
                 </div>

@@ -134,6 +134,143 @@ export type Database = {
         }
         Relationships: []
       }
+      authentic_stories: {
+        Row: {
+          audio_url: string | null
+          author: string | null
+          author_arabic: string | null
+          body_dialect: string | null
+          body_dialect_vocalized: string | null
+          body_english: string | null
+          body_fusha: string | null
+          body_fusha_vocalized: string | null
+          created_at: string
+          created_by: string | null
+          dialect: string
+          difficulty: string
+          duration_seconds: number | null
+          id: string
+          license: string
+          line_durations: Json | null
+          source_name: string | null
+          source_url: string | null
+          status: string
+          title: string
+          title_arabic: string | null
+          updated_at: string
+          video_preview_url: string | null
+          video_status: string
+          vocabulary: Json | null
+        }
+        Insert: {
+          audio_url?: string | null
+          author?: string | null
+          author_arabic?: string | null
+          body_dialect?: string | null
+          body_dialect_vocalized?: string | null
+          body_english?: string | null
+          body_fusha?: string | null
+          body_fusha_vocalized?: string | null
+          created_at?: string
+          created_by?: string | null
+          dialect?: string
+          difficulty?: string
+          duration_seconds?: number | null
+          id?: string
+          license?: string
+          line_durations?: Json | null
+          source_name?: string | null
+          source_url?: string | null
+          status?: string
+          title: string
+          title_arabic?: string | null
+          updated_at?: string
+          video_preview_url?: string | null
+          video_status?: string
+          vocabulary?: Json | null
+        }
+        Update: {
+          audio_url?: string | null
+          author?: string | null
+          author_arabic?: string | null
+          body_dialect?: string | null
+          body_dialect_vocalized?: string | null
+          body_english?: string | null
+          body_fusha?: string | null
+          body_fusha_vocalized?: string | null
+          created_at?: string
+          created_by?: string | null
+          dialect?: string
+          difficulty?: string
+          duration_seconds?: number | null
+          id?: string
+          license?: string
+          line_durations?: Json | null
+          source_name?: string | null
+          source_url?: string | null
+          status?: string
+          title?: string
+          title_arabic?: string | null
+          updated_at?: string
+          video_preview_url?: string | null
+          video_status?: string
+          vocabulary?: Json | null
+        }
+        Relationships: []
+      }
+      authentic_story_lines: {
+        Row: {
+          arabic: string
+          arabic_vocalized: string | null
+          audio_url: string | null
+          created_at: string
+          dialect: string | null
+          dialect_vocalized: string | null
+          duration_seconds: number | null
+          english: string | null
+          id: string
+          line_index: number
+          story_id: string
+          updated_at: string
+        }
+        Insert: {
+          arabic: string
+          arabic_vocalized?: string | null
+          audio_url?: string | null
+          created_at?: string
+          dialect?: string | null
+          dialect_vocalized?: string | null
+          duration_seconds?: number | null
+          english?: string | null
+          id?: string
+          line_index: number
+          story_id: string
+          updated_at?: string
+        }
+        Update: {
+          arabic?: string
+          arabic_vocalized?: string | null
+          audio_url?: string | null
+          created_at?: string
+          dialect?: string | null
+          dialect_vocalized?: string | null
+          duration_seconds?: number | null
+          english?: string | null
+          id?: string
+          line_index?: number
+          story_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "authentic_story_lines_story_id_fkey"
+            columns: ["story_id"]
+            isOneToOne: false
+            referencedRelation: "authentic_stories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       beta_feedback: {
         Row: {
           admin_notes: string | null

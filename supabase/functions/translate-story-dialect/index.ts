@@ -130,7 +130,7 @@ Keep the meaning faithful but make it sound natural in the dialect. Use authenti
     });
   } catch (e: any) {
     console.error("translate-story-dialect fatal:", e);
-    return new Response(JSON.stringify({ error: "internal", detail: String(e?.message ?? e) }), {
+    return new Response(JSON.stringify({ error: "internal", detail: "An unexpected error occurred" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

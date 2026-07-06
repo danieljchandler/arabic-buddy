@@ -16,6 +16,8 @@ const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
+  let parsedStoryId: string | null = null;
+
   try {
     const authHeader = req.headers.get("Authorization") ?? "";
     const token = authHeader.replace("Bearer ", "");
@@ -30,6 +32,7 @@ Deno.serve(async (req) => {
     }
 
     const { story_id } = await req.json();
+    parsedStoryId = story_id;
     if (!story_id) {
       return new Response(JSON.stringify({ error: "missing story_id" }), {
         status: 400,
@@ -155,14 +158,13 @@ Deno.serve(async (req) => {
     console.error("generate-story-full-audio fatal:", e);
     // Mark as failed
     try {
-      const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
-      const { story_id } = await req.clone().json().catch(() => ({ story_id: null }));
-      if (story_id) {
-        await admin.from("authentic_stories").update({ video_status: "failed" }).eq("id", story_id);
+      if (parsedStoryId) {
+        const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
+        await admin.from("authentic_stories").update({ video_status: "failed" }).eq("id", parsedStoryId);
       }
     } catch { /* ignore */ }
 
-    return new Response(JSON.stringify({ error: "internal", detail: String(e?.message ?? e) }), {
+    return new Response(JSON.stringify({ error: "internal", detail: "An unexpected error occurred" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

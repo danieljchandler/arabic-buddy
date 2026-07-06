@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -66,7 +66,7 @@ const AdminReadingLibraryForm = () => {
   });
 
   // Populate form fields when story loads
-  useState(() => {
+  useEffect(() => {
     if (story) {
       setTitle(story.title || '');
       setTitleArabic(story.title_arabic || '');
@@ -79,7 +79,7 @@ const AdminReadingLibraryForm = () => {
       setDialect(story.dialect || 'Gulf');
       setDifficulty(story.difficulty || 'intermediate');
     }
-  });
+  }, [story]);
 
   const handleImport = async () => {
     if (!title || !titleArabic || !bodyArabic) {

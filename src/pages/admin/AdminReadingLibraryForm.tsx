@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -18,19 +18,20 @@ type AuthenticStoryLine = Database['public']['Tables']['authentic_story_lines'][
 const AdminReadingLibraryForm = () => {
   const navigate = useNavigate();
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const isEditing = Boolean(id);
 
-  const [title, setTitle] = useState('');
-  const [titleArabic, setTitleArabic] = useState('');
+  const [title, setTitle] = useState(searchParams.get('title') || '');
+  const [titleArabic, setTitleArabic] = useState(searchParams.get('title_arabic') || '');
   const [author, setAuthor] = useState('');
   const [authorArabic, setAuthorArabic] = useState('');
   const [sourceUrl, setSourceUrl] = useState('');
-  const [sourceName, setSourceName] = useState('');
+  const [sourceName, setSourceName] = useState(searchParams.get('source_type')?.replace('_', ' ') || '');
   const [license, setLicense] = useState('public_domain');
   const [bodyArabic, setBodyArabic] = useState('');
-  const [dialect, setDialect] = useState('Gulf');
-  const [difficulty, setDifficulty] = useState('intermediate');
+  const [dialect, setDialect] = useState(searchParams.get('dialect') || 'Gulf');
+  const [difficulty, setDifficulty] = useState(searchParams.get('difficulty') || 'intermediate');
   const [importing, setImporting] = useState(false);
   const [generatingPreview, setGeneratingPreview] = useState(false);
   const [generatingFull, setGeneratingFull] = useState(false);

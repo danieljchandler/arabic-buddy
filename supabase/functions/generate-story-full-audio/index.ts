@@ -121,8 +121,8 @@ Deno.serve(async (req) => {
             duration_seconds: Math.round(estimatedDuration * 10) / 10,
           })
           .eq("id", line.id);
-      } catch (lineErr: any) {
-        console.warn(`TTS failed for line ${i}:`, lineErr?.message);
+      } catch (lineErr: unknown) {
+        console.warn(`TTS failed for line ${i}:`, lineErr instanceof Error ? lineErr.message : lineErr);
         lineDurations.push(0);
       }
     }
@@ -154,7 +154,7 @@ Deno.serve(async (req) => {
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch (e: any) {
+  } catch (e: unknown) {
     console.error("generate-story-full-audio fatal:", e);
     // Mark as failed
     try {

@@ -122,7 +122,7 @@ Deno.serve(async (req) => {
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch (e: any) {
+  } catch (e: unknown) {
     console.error("generate-story-preview-audio fatal:", e);
     return new Response(JSON.stringify({ error: "internal", detail: "An unexpected error occurred" }), {
       status: 500,

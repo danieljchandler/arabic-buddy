@@ -128,7 +128,7 @@ Keep the meaning faithful but make it sound natural in the dialect. Use authenti
     return new Response(JSON.stringify({ success: true, lines_translated: dialectLines.length }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch (e: any) {
+  } catch (e: unknown) {
     console.error("translate-story-dialect fatal:", e);
     return new Response(JSON.stringify({ error: "internal", detail: "An unexpected error occurred" }), {
       status: 500,

@@ -103,8 +103,8 @@ const AdminReadingLibraryForm = () => {
       toast.success('Story imported successfully!');
       queryClient.invalidateQueries({ queryKey: ['authentic-stories'] });
       navigate(`/admin/reading-library/${resp.data.story.id}/edit`);
-    } catch (e: any) {
-      toast.error(e.message || 'Import failed');
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Import failed');
     } finally {
       setImporting(false);
     }
@@ -135,8 +135,8 @@ const AdminReadingLibraryForm = () => {
       toast.success(`Translated to ${story?.dialect || dialect} dialect`);
       queryClient.invalidateQueries({ queryKey: ['authentic-story-lines', id] });
       queryClient.invalidateQueries({ queryKey: ['authentic-story', id] });
-    } catch (e: any) {
-      toast.error(e.message || 'Translation failed');
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Translation failed');
     } finally {
       setTranslating(false);
     }
@@ -152,8 +152,8 @@ const AdminReadingLibraryForm = () => {
       if (resp.error) throw new Error(resp.error.message);
       toast.success(`Preview generated (${resp.data.preview_lines} lines)`);
       queryClient.invalidateQueries({ queryKey: ['authentic-story', id] });
-    } catch (e: any) {
-      toast.error(e.message || 'Preview generation failed');
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Preview generation failed');
     } finally {
       setGeneratingPreview(false);
     }
@@ -169,8 +169,8 @@ const AdminReadingLibraryForm = () => {
       if (resp.error) throw new Error(resp.error.message);
       toast.success(`Full audio generated (${resp.data.total_duration}s)`);
       queryClient.invalidateQueries({ queryKey: ['authentic-story', id] });
-    } catch (e: any) {
-      toast.error(e.message || 'Full audio generation failed');
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Full audio generation failed');
     } finally {
       setGeneratingFull(false);
     }

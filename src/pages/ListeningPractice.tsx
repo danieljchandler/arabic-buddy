@@ -62,7 +62,7 @@ const ListeningPractice = () => {
   const addXP = useAddXP();
 
   // Restore persisted session
-  const [savedSession] = useState<any>(() => {
+  const [savedSession] = useState<{ mode: Mode; questions: Question[]; currentIndex: number; speedRate: number; score: number; totalAnswered: number } | null>(() => {
     try {
       const raw = localStorage.getItem('session_listening_practice');
       if (!raw) return null;
@@ -97,7 +97,7 @@ const ListeningPractice = () => {
         savedAt: Date.now(),
       };
       localStorage.setItem('session_listening_practice', JSON.stringify(entry));
-    } catch {}
+    } catch { /* persist is best-effort */ }
   }, [mode, questions, currentIndex, speedRate, score, totalAnswered]);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);

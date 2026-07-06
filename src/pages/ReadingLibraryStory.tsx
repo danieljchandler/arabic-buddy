@@ -12,6 +12,7 @@ import { TappableArabicText } from '@/components/shared/TappableArabicText';
 import { MarkUnknownsProvider } from '@/contexts/MarkUnknownsContext';
 import { SaveUnknownsBar } from '@/components/shared/SaveUnknownsBar';
 import { ArrowLeft, Loader2, Play, Pause, SkipForward, SkipBack, BookOpen, Eye, EyeOff } from 'lucide-react';
+import { toast } from 'sonner';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { cn } from '@/lib/utils';
 
@@ -97,7 +98,10 @@ const ReadingLibraryStory = () => {
       }
     };
 
-    audio.play().catch(() => setIsPlaying(false));
+    audio.play().catch(() => {
+      setIsPlaying(false);
+      toast.error('Failed to play audio');
+    });
   };
 
   const handlePlayPause = () => {

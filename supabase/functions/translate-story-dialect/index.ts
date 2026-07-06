@@ -57,7 +57,7 @@ Deno.serve(async (req) => {
     }
 
     // Translate all lines to dialect
-    const arabicLines = lines.map((l: any) => l.arabic || l.arabic_vocalized).join("\n");
+    const arabicLines = lines.map((l: { arabic?: string; arabic_vocalized?: string }) => l.arabic || l.arabic_vocalized).join("\n");
 
     const translateResult = await askBrain<{
       lines: Array<{ dialect: string; dialect_vocalized: string }>;
@@ -70,7 +70,7 @@ Deno.serve(async (req) => {
 1. Provide the dialect version in natural Arabic script
 2. Provide the dialect version with full tashkeel (diacritics)
 Keep the meaning faithful but make it sound natural in the dialect. Use authentic dialect vocabulary, grammar patterns, and expressions.`,
-      userPrompt: `Translate these ${lines.length} Fusha Arabic lines into ${targetDialect} dialect:\n${lines.map((l: any, i: number) => `${i + 1}. ${l.arabic}`).join("\n")}`,
+      userPrompt: `Translate these ${lines.length} Fusha Arabic lines into ${targetDialect} dialect:\n${lines.map((l: { arabic?: string }, i: number) => `${i + 1}. ${l.arabic}`).join("\n")}`,
       maxTokens: 6000,
       temperature: 0.3,
       tool: {

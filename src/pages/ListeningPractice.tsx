@@ -97,7 +97,7 @@ const ListeningPractice = () => {
         savedAt: Date.now(),
       };
       localStorage.setItem('session_listening_practice', JSON.stringify(entry));
-    } catch { /* persist is best-effort */ }
+    } catch { /* persist is best-effort — no action needed on failure */ }
   }, [mode, questions, currentIndex, speedRate, score, totalAnswered]);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);

@@ -50,7 +50,7 @@ Deno.serve(async (req) => {
       .from("user_roles")
       .select("role")
       .eq("user_id", user.id);
-    const isAdmin = roles?.some((r: any) => r.role === "admin");
+    const isAdmin = roles?.some((r: { role: string }) => r.role === "admin");
     if (!isAdmin) {
       return new Response(JSON.stringify({ error: "forbidden" }), {
         status: 403,

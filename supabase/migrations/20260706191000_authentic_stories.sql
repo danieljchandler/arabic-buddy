@@ -25,7 +25,7 @@ CREATE TABLE public.authentic_stories (
   audio_url text,
   line_durations jsonb,
   duration_seconds numeric,
-  created_by uuid REFERENCES auth.users(id),
+  created_by uuid REFERENCES auth.users(id) ON DELETE SET NULL,
   created_at timestamptz DEFAULT now(),
   updated_at timestamptz DEFAULT now()
 );

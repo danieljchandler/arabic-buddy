@@ -162,7 +162,7 @@ Deno.serve(async (req) => {
         const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
         await admin.from("authentic_stories").update({ video_status: "failed" }).eq("id", parsedStoryId);
       }
-    } catch { /* ignore */ }
+    } catch (cleanupErr) { console.warn("Failed to mark story as failed:", cleanupErr); }
 
     return new Response(JSON.stringify({ error: "internal", detail: "An unexpected error occurred" }), {
       status: 500,

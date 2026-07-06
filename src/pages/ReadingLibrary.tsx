@@ -9,6 +9,9 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, BookOpen, Clock, Headphones } from 'lucide-react';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import type { Database } from '@/integrations/supabase/types';
+
+type AuthenticStory = Database['public']['Tables']['authentic_stories']['Row'];
 
 const usePublishedStories = (filters: { difficulty?: string; dialect?: string }) =>
   useQuery({
@@ -29,7 +32,7 @@ const usePublishedStories = (filters: { difficulty?: string; dialect?: string })
 
       const { data, error } = await query;
       if (error) throw error;
-      return data;
+      return data as Pick<AuthenticStory, 'id' | 'title' | 'title_arabic' | 'author' | 'author_arabic' | 'source_name' | 'dialect' | 'difficulty' | 'duration_seconds' | 'video_status' | 'created_at'>[];
     },
   });
 
@@ -94,7 +97,7 @@ const ReadingLibrary = () => {
           </div>
         ) : stories && stories.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {stories.map((story: any) => (
+            {stories.map((story) => (
               <Card
                 key={story.id}
                 className="p-4 cursor-pointer hover:shadow-md transition-shadow"

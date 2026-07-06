@@ -1,4 +1,4 @@
-import { GraduationCap, BookOpen, Globe2, PenTool, MessageCircle, Sparkles } from "lucide-react";
+import { GraduationCap, BookOpen, Globe2, PenTool, MessageCircle, Sparkles, Library, Headphones } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { HubHeader, HubSection } from "@/components/layout/HubGrid";
 
@@ -63,6 +63,28 @@ const LearnHub = () => {
             icon: MessageCircle,
             to: "/set-phrases",
             accent: "bg-emerald-500/10 text-emerald-600",
+          },
+        ]}
+      />
+
+      <HubSection
+        title="Reading & Listening"
+        tiles={[
+          {
+            id: "reading-library",
+            label: "Reading Library",
+            description: "Authentic Arabic stories with synced audio",
+            icon: Library,
+            to: "/reading-library",
+            accent: "bg-indigo-500/10 text-indigo-600",
+          },
+          {
+            id: "listen",
+            label: "Listen",
+            description: "AI podcasts, talks & interviews in your dialect",
+            icon: Headphones,
+            to: "/listen",
+            accent: "bg-amber-500/10 text-amber-600",
           },
         ]}
       />

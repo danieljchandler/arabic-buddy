@@ -15,6 +15,10 @@ import { ArrowLeft, Loader2, Play, Pause, SkipForward, SkipBack, BookOpen, Eye, 
 import { toast } from 'sonner';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { cn } from '@/lib/utils';
+import type { Database } from '@/integrations/supabase/types';
+
+type AuthenticStory = Database['public']['Tables']['authentic_stories']['Row'];
+type AuthenticStoryLine = Database['public']['Tables']['authentic_story_lines']['Row'];
 
 const useStory = (id: string | undefined) =>
   useQuery({
@@ -27,7 +31,7 @@ const useStory = (id: string | undefined) =>
         .eq('id', id)
         .single();
       if (error) throw error;
-      return data;
+      return data as AuthenticStory;
     },
     enabled: Boolean(id),
   });
@@ -43,7 +47,7 @@ const useStoryLines = (storyId: string | undefined) =>
         .eq('story_id', storyId)
         .order('line_index', { ascending: true });
       if (error) throw error;
-      return data;
+      return data as AuthenticStoryLine[];
     },
     enabled: Boolean(storyId),
   });
@@ -63,7 +67,7 @@ const ReadingLibraryStory = () => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const lineRefs = useRef<(HTMLDivElement | null)[]>([]);
 
-  const hasAudio = lines?.some((l: any) => l.audio_url);
+  const hasAudio = lines?.some((l) => l.audio_url);
 
   // Auto-scroll to current line
   useEffect(() => {
@@ -77,13 +81,13 @@ const ReadingLibraryStory = () => {
 
   const playLine = (index: number) => {
     if (!lines || !lines[index]?.audio_url) return;
-    const line = lines[index] as any;
+    const line = lines[index];
 
     if (audioRef.current) {
       audioRef.current.pause();
     }
 
-    const audio = new Audio(line.audio_url);
+    const audio = new Audio(line.audio_url!);
     audioRef.current = audio;
     setCurrentLineIndex(index);
     setIsPlaying(true);
@@ -206,7 +210,7 @@ const ReadingLibraryStory = () => {
 
           {/* Story Lines */}
           <div className="space-y-4">
-            {lines && lines.map((line: any, idx: number) => (
+            {lines && lines.map((line, idx) => (
               <div
                 key={line.id}
                 ref={el => { lineRefs.current[idx] = el; }}

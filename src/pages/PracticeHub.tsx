@@ -1,4 +1,4 @@
-import { Brain, Mic, MessageSquare, Headphones, FileText, Gamepad2, Swords, Flame, BookOpen, MessageCircle } from "lucide-react";
+import { Brain, Mic, MessageSquare, Headphones, FileText, Gamepad2, Swords, Flame, BookOpen, MessageCircle, Library } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { HubHeader, HubSection } from "@/components/layout/HubGrid";
 import { useAuth } from "@/hooks/useAuth";
@@ -86,6 +86,14 @@ const PracticeHub = () => {
             description: "Passages with tap-to-translate",
             icon: FileText,
             to: "/reading",
+            accent: "bg-indigo-500/10 text-indigo-600",
+          },
+          {
+            id: "reading-library",
+            label: "Reading Library",
+            description: "Authentic Arabic stories with audio",
+            icon: Library,
+            to: "/reading-library",
             accent: "bg-indigo-500/10 text-indigo-600",
           },
         ]}

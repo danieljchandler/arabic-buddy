@@ -18,6 +18,9 @@ import { cn } from "@/lib/utils";
 import { InfoHint } from "@/components/InfoHint";
 import { PAGE_HINTS } from "@/lib/pageHints";
 import { Switch } from "@/components/ui/switch";
+import type { Database } from "@/integrations/supabase/types";
+
+type ListeningExercise = Database['public']['Tables']['listening_exercises']['Row'];
 import {
   Headphones,
   Play,
@@ -114,20 +117,20 @@ const ListeningPractice = () => {
     try {
       // Try pre-approved content first
       const { data: approved } = await supabase
-        .from("listening_exercises" as any)
+        .from("listening_exercises")
         .select("*")
         .eq("status", "published")
         .eq("mode", selectedMode)
         .limit(10);
 
       if (approved && approved.length >= 3) {
-        const shuffled = (approved as any[]).sort(() => Math.random() - 0.5).slice(0, 5);
-        setQuestions(shuffled.map((ex: any) => ({
+        const shuffled = (approved as ListeningExercise[]).sort(() => Math.random() - 0.5).slice(0, 5);
+        setQuestions(shuffled.map((ex) => ({
           type: selectedMode,
           audioText: ex.audio_text,
           audioTextEnglish: ex.audio_text_english,
-          options: ex.questions as any,
-          hint: ex.hint,
+          options: ex.questions as Question['options'],
+          hint: ex.hint ?? undefined,
         })));
         return;
       }

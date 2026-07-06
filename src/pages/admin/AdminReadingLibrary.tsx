@@ -1,10 +1,15 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useStorySuggestions, type StorySuggestion } from '@/hooks/useStorySuggestions';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Plus, ArrowLeft, BookOpen, Pencil, Trash2 } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Loader2, Plus, ArrowLeft, BookOpen, Pencil, Trash2, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Database } from '@/integrations/supabase/types';
 
@@ -47,6 +52,11 @@ const AdminReadingLibrary = () => {
   const navigate = useNavigate();
   const { data: stories, isLoading } = useAuthenticStories();
   const queryClient = useQueryClient();
+  const [suggestDialogOpen, setSuggestDialogOpen] = useState(false);
+  const [suggestDialect, setSuggestDialect] = useState('Gulf');
+  const [suggestDifficulty, setSuggestDifficulty] = useState('intermediate');
+  const [suggestions, setSuggestions] = useState<StorySuggestion[]>([]);
+  const suggestMutation = useStorySuggestions();
 
   const handleDelete = async (id: string) => {
     if (!confirm('Delete this authentic story?')) return;
@@ -57,6 +67,33 @@ const AdminReadingLibrary = () => {
       toast.success('Story deleted');
       queryClient.invalidateQueries({ queryKey: ['authentic-stories'] });
     }
+  };
+
+  const handleSuggest = async () => {
+    try {
+      const results = await suggestMutation.mutateAsync({
+        dialect: suggestDialect,
+        difficulty: suggestDifficulty,
+      });
+      setSuggestions(results);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to get suggestions';
+      toast.error(message);
+    }
+  };
+
+  const handleSelectSuggestion = (suggestion: StorySuggestion) => {
+    // Navigate to the new story form with suggestion data pre-filled via query params
+    const params = new URLSearchParams({
+      title: suggestion.title,
+      title_arabic: suggestion.title_arabic,
+      dialect: suggestDialect,
+      difficulty: suggestDifficulty,
+      source_type: suggestion.source_type,
+    });
+    setSuggestDialogOpen(false);
+    setSuggestions([]);
+    navigate(`/admin/reading-library/new?${params.toString()}`);
   };
 
   if (isLoading) {
@@ -78,10 +115,16 @@ const AdminReadingLibrary = () => {
             <BookOpen className="h-6 w-6 text-primary" />
             <h1 className="text-xl font-bold font-heading">Reading Library</h1>
           </div>
-          <Button onClick={() => navigate('/admin/reading-library/new')}>
-            <Plus className="h-4 w-4 mr-2" />
-            Import Story
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={() => setSuggestDialogOpen(true)}>
+              <Sparkles className="h-4 w-4 mr-2" />
+              Suggest Stories
+            </Button>
+            <Button onClick={() => navigate('/admin/reading-library/new')}>
+              <Plus className="h-4 w-4 mr-2" />
+              Import Story
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -138,6 +181,93 @@ const AdminReadingLibrary = () => {
           </div>
         )}
       </main>
+
+      {/* AI Story Suggestions Dialog */}
+      <Dialog open={suggestDialogOpen} onOpenChange={(open) => { setSuggestDialogOpen(open); if (!open) setSuggestions([]); }}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" />
+              AI Story Suggestions
+            </DialogTitle>
+            <DialogDescription>
+              Let AI find authentic Arabic stories for your reading library. It checks existing stories to avoid duplicates.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 pt-2">
+            {/* Filters */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Dialect</Label>
+                <Select value={suggestDialect} onValueChange={setSuggestDialect}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {['Gulf', 'Egyptian', 'Levantine', 'MSA'].map((d) => (
+                      <SelectItem key={d} value={d}>{d}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Difficulty</Label>
+                <Select value={suggestDifficulty} onValueChange={setSuggestDifficulty}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {['beginner', 'intermediate', 'advanced'].map((d) => (
+                      <SelectItem key={d} value={d}>{d}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <Button onClick={handleSuggest} disabled={suggestMutation.isPending} className="w-full">
+              {suggestMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Finding stories...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  {suggestions.length > 0 ? 'Get New Suggestions' : 'Find Stories'}
+                </>
+              )}
+            </Button>
+
+            {/* Suggestions list */}
+            {suggestions.length > 0 && (
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground font-medium">Choose a story to import:</p>
+                {suggestions.map((suggestion, idx) => (
+                  <Card key={idx} className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => handleSelectSuggestion(suggestion)}>
+                    <CardHeader className="pb-2">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <CardTitle className="text-base">{suggestion.title}</CardTitle>
+                          <p className="text-sm text-muted-foreground font-arabic" dir="rtl">{suggestion.title_arabic}</p>
+                        </div>
+                        <Badge variant="outline">{suggestion.source_type.replace('_', ' ')}</Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      <p className="text-sm text-muted-foreground mb-2">{suggestion.description}</p>
+                      <p className="text-sm text-muted-foreground font-arabic mb-3" dir="rtl">{suggestion.description_arabic}</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        <Badge variant="secondary">{suggestion.estimated_length}</Badge>
+                        {suggestion.themes.map((theme) => (
+                          <Badge key={theme} variant="outline" className="text-xs">{theme}</Badge>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

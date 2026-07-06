@@ -2,12 +2,13 @@ import { useState, useEffect, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
-export type UserRole = 'admin' | 'recorder' | null;
+export type UserRole = 'admin' | 'content_reviewer' | 'recorder' | null;
 
 export const useAdminAuth = () => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isContentReviewer, setIsContentReviewer] = useState(false);
   const [isRecorder, setIsRecorder] = useState(false);
   const [role, setRole] = useState<UserRole>(null);
   const [loading, setLoading] = useState(true);
@@ -52,6 +53,7 @@ export const useAdminAuth = () => {
           } else {
             currentUserIdRef.current = null;
             setIsAdmin(false);
+            setIsContentReviewer(false);
             setIsRecorder(false);
             setRole(null);
             setLoading(false);
@@ -70,20 +72,25 @@ export const useAdminAuth = () => {
 
   const checkRoles = async (userId: string) => {
     try {
-      // Check both roles in parallel
-      const [adminResult, recorderResult] = await Promise.all([
+      // Check all relevant roles in parallel
+      const [adminResult, contentReviewerResult, recorderResult] = await Promise.all([
         supabase.rpc('has_role', { _user_id: userId, _role: 'admin' }),
+        supabase.rpc('has_role', { _user_id: userId, _role: 'content_reviewer' }),
         supabase.rpc('has_role', { _user_id: userId, _role: 'recorder' }),
       ]);
 
       const adminRole = adminResult.data === true;
+      const contentReviewerRole = contentReviewerResult.data === true;
       const recorderRole = recorderResult.data === true;
 
       setIsAdmin(adminRole);
+      setIsContentReviewer(contentReviewerRole);
       setIsRecorder(recorderRole);
       
       if (adminRole) {
         setRole('admin');
+      } else if (contentReviewerRole) {
+        setRole('content_reviewer');
       } else if (recorderRole) {
         setRole('recorder');
       } else {
@@ -92,6 +99,7 @@ export const useAdminAuth = () => {
     } catch (err) {
       console.error('Error checking roles:', err);
       setIsAdmin(false);
+      setIsContentReviewer(false);
       setIsRecorder(false);
       setRole(null);
     } finally {
@@ -126,6 +134,7 @@ export const useAdminAuth = () => {
       setUser(null);
       setSession(null);
       setIsAdmin(false);
+      setIsContentReviewer(false);
       setIsRecorder(false);
       setRole(null);
     }
@@ -136,6 +145,7 @@ export const useAdminAuth = () => {
     user,
     session,
     isAdmin,
+    isContentReviewer,
     isRecorder,
     role,
     loading,

@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useNavigate, Outlet } from 'react-router-dom';
+import { useNavigate, Outlet, useLocation } from 'react-router-dom';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -7,6 +7,7 @@ import { TranscriptionStatusBanner } from '@/components/admin/TranscriptionStatu
 import { TranscriptionJobProvider } from '@/contexts/TranscriptionJobContext';
 import { useDialect } from '@/contexts/DialectContext';
 import AlertsBell from '@/components/admin/AlertsBell';
+import { canAccessContentReviewerAdminPath } from '@/lib/rbac';
 
 const DIALECT_META: Record<string, { flag: string; label: string; color: string }> = {
   Gulf: { flag: '🌊', label: 'Gulf Arabic Module', color: 'bg-sky-600' },
@@ -16,24 +17,29 @@ const DIALECT_META: Record<string, { flag: string; label: string; color: string 
 
 const AdminLayout = () => {
   const navigate = useNavigate();
-  const { user, isAdmin, isRecorder, loading } = useAdminAuth();
+  const location = useLocation();
+  const { user, isAdmin, isContentReviewer, isRecorder, loading } = useAdminAuth();
   const { toast } = useToast();
   const { activeDialect, setDialect } = useDialect();
+  const hasAnyPrivilegedRole = isAdmin || isRecorder || isContentReviewer;
+  const hasGeneralAdminAccess = isAdmin || isRecorder;
+  const hasContentReviewerAccess = isContentReviewer && canAccessContentReviewerAdminPath(location.pathname);
+  const hasAccess = hasGeneralAdminAccess || hasContentReviewerAccess;
 
   useEffect(() => {
     if (!loading) {
       if (!user) {
         navigate('/admin/login');
-      } else if (!isAdmin && !isRecorder) {
+      } else if (!hasAccess) {
         toast({
           variant: 'destructive',
           title: 'Access Denied',
-          description: 'You need admin or recorder privileges to access this area.',
+          description: 'You do not have permission to access this admin section.',
         });
-        navigate('/admin/login');
+        navigate(hasAnyPrivilegedRole ? '/admin' : '/admin/login', { replace: true });
       }
     }
-  }, [user, isAdmin, isRecorder, loading, navigate, toast]);
+  }, [user, hasAccess, hasAnyPrivilegedRole, loading, navigate, toast]);
 
   if (loading) {
     return (
@@ -46,7 +52,7 @@ const AdminLayout = () => {
     );
   }
 
-  if (!user || (!isAdmin && !isRecorder)) {
+  if (!user || !hasAccess) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">

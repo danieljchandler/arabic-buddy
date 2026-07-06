@@ -5,6 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Table,
   TableBody,
   TableCell,
@@ -13,121 +20,91 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { toast } from "sonner";
-import { Loader2, Plus, Trash2, BookOpen, Search } from "lucide-react";
+import { Loader2, Plus, Trash2, Shield, Search } from "lucide-react";
+import { MANAGED_ROLES, ROLE_LABELS, type ManagedRole } from "@/lib/rbac";
 
-interface BibleReader {
+interface ManagedRoleRow {
   id: string;
   user_id: string;
+  role: ManagedRole;
   created_at: string;
-  email?: string;
+  email: string | null;
 }
 
 const BibleAccess = () => {
   const { isAdmin } = useAdminAuth();
-  const [readers, setReaders] = useState<BibleReader[]>([]);
+  const [rows, setRows] = useState<ManagedRoleRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
+  const [selectedRole, setSelectedRole] = useState<ManagedRole>("bible_reader");
+  const [filterRole, setFilterRole] = useState<ManagedRole | "all">("all");
   const [adding, setAdding] = useState(false);
   const [removingId, setRemovingId] = useState<string | null>(null);
 
-  // ── Fetch current bible_reader users ─────────────────────────────────────
-  const fetchReaders = useCallback(async () => {
+  const fetchRoles = useCallback(async () => {
     setLoading(true);
     try {
-      // Get all user_roles with bible_reader role.
-      // Since we can't join auth.users from the client, we store the user_id
-      // and resolve emails via a separate admin lookup when available.
-      const { data, error } = await supabase
-        .from("user_roles")
-        .select("id, user_id, created_at")
-        .eq("role", "bible_reader")
-        .order("created_at", { ascending: false });
-
+      const { data, error } = await supabase.rpc("admin_list_managed_roles");
       if (error) throw error;
-      setReaders((data ?? []) as BibleReader[]);
+      setRows((data ?? []) as ManagedRoleRow[]);
     } catch (err) {
-      console.error("Error fetching bible readers:", err);
-      toast.error("Failed to load Bible readers");
+      console.error("Error fetching managed roles:", err);
+      toast.error("Failed to load role assignments");
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchReaders();
-  }, [fetchReaders]);
+    fetchRoles();
+  }, [fetchRoles]);
 
-  // ── Add a bible_reader by email ──────────────────────────────────────────
-  const addReader = async () => {
-    if (!email.trim()) return;
+  const addRole = async () => {
+    const rawIdentifier = identifier.trim();
+    if (!rawIdentifier) return;
     setAdding(true);
 
     try {
-      let userId: string | null = null;
+      const { data: resolved, error: resolveError } = await supabase.rpc(
+        "admin_find_user",
+        { _identifier: rawIdentifier }
+      );
+      if (resolveError) throw resolveError;
 
-      // Check if input is a UUID (admin may paste user ID directly)
-      const uuidRegex =
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-      if (uuidRegex.test(email.trim())) {
-        userId = email.trim();
-      } else {
-        // Try to find user by email in the profiles table.
-        // If the table doesn't have an email column, the query will fail
-        // gracefully and we'll prompt the admin to use a UUID instead.
-        try {
-          const { data: profileData, error: profileError } = await (supabase
-            .from("profiles")
-            .select("user_id")
-            .eq("display_name", email.trim()) as any)
-            .maybeSingle();
-
-          if (profileError) {
-            console.warn("Profile email lookup failed for", email.trim(), ":", profileError.message);
-          } else if (profileData?.user_id) {
-            userId = profileData.user_id;
-          }
-        } catch (e) {
-          console.warn("Profile lookup error:", e);
-        }
-      }
-
-      if (!userId) {
+      const resolvedUser = (resolved ?? [])[0] as { user_id: string; email: string | null } | undefined;
+      if (!resolvedUser?.user_id) {
         toast.error("User not found", {
-          description:
-            "Enter a valid user UUID. If your profiles table has an email column you can also enter the user's email.",
+          description: "Enter a valid account email or user UUID.",
         });
-        setAdding(false);
         return;
       }
 
-      // Check if already has the role
-      const { data: existing } = await supabase
+      const { data: existing, error: existingError } = await supabase
         .from("user_roles")
         .select("id")
-        .eq("user_id", userId)
-        .eq("role", "bible_reader")
+        .eq("user_id", resolvedUser.user_id)
+        .eq("role", selectedRole)
         .maybeSingle();
 
+      if (existingError) throw existingError;
+
       if (existing) {
-        toast.info("This user already has Bible reading access.");
-        setAdding(false);
+        toast.info("This role is already assigned to that user.");
         return;
       }
 
-      // Insert new role
       const { error: insertError } = await supabase
         .from("user_roles")
-        .insert({ user_id: userId, role: "bible_reader" });
+        .insert({ user_id: resolvedUser.user_id, role: selectedRole });
 
       if (insertError) throw insertError;
 
-      toast.success("Bible reading access granted!");
-      setEmail("");
-      fetchReaders();
+      toast.success(`${ROLE_LABELS[selectedRole]} granted`);
+      setIdentifier("");
+      await fetchRoles();
     } catch (err) {
-      console.error("Error adding bible reader:", err);
-      toast.error("Failed to grant access", {
+      console.error("Error adding role:", err);
+      toast.error("Failed to grant role", {
         description: err instanceof Error ? err.message : "Unknown error",
       });
     } finally {
@@ -135,22 +112,17 @@ const BibleAccess = () => {
     }
   };
 
-  // ── Remove bible_reader role ─────────────────────────────────────────────
-  const removeReader = async (roleRowId: string) => {
+  const removeRole = async (roleRowId: string) => {
     setRemovingId(roleRowId);
     try {
-      const { error } = await supabase
-        .from("user_roles")
-        .delete()
-        .eq("id", roleRowId);
-
+      const { error } = await supabase.from("user_roles").delete().eq("id", roleRowId);
       if (error) throw error;
 
-      toast.success("Access revoked");
-      setReaders((prev) => prev.filter((r) => r.id !== roleRowId));
+      setRows((prev) => prev.filter((r) => r.id !== roleRowId));
+      toast.success("Role revoked");
     } catch (err) {
-      console.error("Error removing bible reader:", err);
-      toast.error("Failed to revoke access");
+      console.error("Error revoking role:", err);
+      toast.error("Failed to revoke role");
     } finally {
       setRemovingId(null);
     }
@@ -159,86 +131,109 @@ const BibleAccess = () => {
   if (!isAdmin) {
     return (
       <div className="p-8 text-center text-muted-foreground">
-        Only admins can manage Bible reading access.
+        Only admins can manage role access.
       </div>
     );
   }
 
+  const visibleRows = filterRole === "all" ? rows : rows.filter((row) => row.role === filterRole);
+
   return (
-    <div className="max-w-3xl mx-auto p-6 space-y-6">
-      {/* Header */}
+    <div className="max-w-4xl mx-auto p-6 space-y-6">
       <div className="flex items-center gap-3">
         <div className="rounded-full bg-primary/10 p-2">
-          <BookOpen className="h-5 w-5 text-primary" />
+          <Shield className="h-5 w-5 text-primary" />
         </div>
         <div>
-          <h1 className="text-xl font-bold">Bible Reading Access</h1>
+          <h1 className="text-xl font-bold">Role Access Management</h1>
           <p className="text-sm text-muted-foreground">
-            Grant or revoke access to the Bible reading feature for specific
-            users.
+            Grant and revoke Bible reader, content reviewer, and beta tester roles.
           </p>
         </div>
       </div>
 
-      {/* Add user form */}
-      <div className="flex gap-2">
+      <div className="grid gap-2 md:grid-cols-[1fr_220px_auto]">
         <Input
           placeholder="User email or UUID"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && addReader()}
-          className="flex-1"
+          value={identifier}
+          onChange={(e) => setIdentifier(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && addRole()}
         />
-        <Button onClick={addReader} disabled={adding || !email.trim()}>
-          {adding ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Plus className="h-4 w-4" />
-          )}
+        <Select value={selectedRole} onValueChange={(value) => setSelectedRole(value as ManagedRole)}>
+          <SelectTrigger>
+            <SelectValue placeholder="Select role" />
+          </SelectTrigger>
+          <SelectContent>
+            {MANAGED_ROLES.map((role) => (
+              <SelectItem key={role} value={role}>
+                {ROLE_LABELS[role]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Button onClick={addRole} disabled={adding || !identifier.trim()}>
+          {adding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
           <span className="ml-1">Add</span>
         </Button>
       </div>
 
-      {/* Readers table */}
+      <div className="w-[220px]">
+        <Select value={filterRole} onValueChange={(value) => setFilterRole(value as ManagedRole | "all")}>
+          <SelectTrigger>
+            <SelectValue placeholder="Filter role" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All managed roles</SelectItem>
+            {MANAGED_ROLES.map((role) => (
+              <SelectItem key={role} value={role}>
+                {ROLE_LABELS[role]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
       {loading ? (
         <div className="flex items-center justify-center py-12">
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
-      ) : readers.length === 0 ? (
+      ) : visibleRows.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground">
           <Search className="h-8 w-8 mx-auto mb-2 opacity-50" />
-          <p>No users have Bible reading access yet.</p>
-          <p className="text-xs mt-1">
-            Add users above to give them access.
-          </p>
+          <p>No matching role assignments.</p>
+          <p className="text-xs mt-1">Add users above to grant access.</p>
         </div>
       ) : (
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead>Role</TableHead>
+              <TableHead>Email</TableHead>
               <TableHead>User ID</TableHead>
               <TableHead>Added</TableHead>
               <TableHead className="w-[80px]" />
             </TableRow>
           </TableHeader>
           <TableBody>
-            {readers.map((r) => (
-              <TableRow key={r.id}>
-                <TableCell className="font-mono text-xs">
-                  {r.user_id}
+            {visibleRows.map((row) => (
+              <TableRow key={row.id}>
+                <TableCell>
+                  <Badge variant="outline">{ROLE_LABELS[row.role]}</Badge>
                 </TableCell>
+                <TableCell className="text-sm">{row.email ?? "—"}</TableCell>
+                <TableCell className="font-mono text-xs">{row.user_id}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">
-                  {new Date(r.created_at).toLocaleDateString()}
+                  {new Date(row.created_at).toLocaleDateString()}
                 </TableCell>
                 <TableCell>
                   <Button
                     variant="ghost"
                     size="icon"
                     className="text-destructive hover:text-destructive"
-                    disabled={removingId === r.id}
-                    onClick={() => removeReader(r.id)}
+                    disabled={removingId === row.id}
+                    onClick={() => removeRole(row.id)}
                   >
-                    {removingId === r.id ? (
+                    {removingId === row.id ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
                       <Trash2 className="h-4 w-4" />
@@ -252,8 +247,7 @@ const BibleAccess = () => {
       )}
 
       <p className="text-xs text-muted-foreground">
-        Users with the <Badge variant="outline" className="text-xs">admin</Badge> role
-        automatically have Bible reading access.
+        Admin users always keep full access and do not need extra role assignments.
       </p>
     </div>
   );

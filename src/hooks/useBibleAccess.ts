@@ -3,8 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
 /**
- * Check whether the current user has the `bible_reader` (or `admin`) role,
- * which grants access to the Bible reading feature.
+ * Checks Bible access via SQL helper:
+ * admin OR (bible_reader AND NOT content_reviewer).
  */
 export const useBibleAccess = () => {
   const { user, loading: authLoading } = useAuth();
@@ -12,17 +12,11 @@ export const useBibleAccess = () => {
   const [loading, setLoading] = useState(true);
   const checkedUserRef = useRef<string | null>(null);
 
-  const checkAccess = useCallback(async (userId: string) => {
+  const checkAccess = useCallback(async () => {
     try {
-      const [bibleResult, adminResult] = await Promise.all([
-        supabase.rpc("has_role", {
-          _user_id: userId,
-          _role: "bible_reader",
-        }),
-        supabase.rpc("has_role", { _user_id: userId, _role: "admin" }),
-      ]);
-
-      setHasAccess(bibleResult.data === true || adminResult.data === true);
+      const { data, error } = await supabase.rpc("has_bible_access");
+      if (error) throw error;
+      setHasAccess(data === true);
     } catch (err) {
       console.error("Error checking bible access:", err);
       setHasAccess(false);
@@ -49,7 +43,7 @@ export const useBibleAccess = () => {
     checkedUserRef.current = user.id;
 
     setLoading(true);
-    checkAccess(user.id);
+    checkAccess();
   }, [user, authLoading, checkAccess]);
 
   return { hasAccess, loading: authLoading || loading };

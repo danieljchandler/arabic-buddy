@@ -281,9 +281,10 @@ serve(async (req) => {
     const { data: { user }, error: userError } = await supabase.auth.getUser(token);
     if (userError || !user) return err(401, "Invalid or expired token");
 
-    const { data: hasBibleRole } = await supabase.rpc("has_role", { _user_id: user.id, _role: "bible_reader" });
-    const { data: hasAdminRole } = await supabase.rpc("has_role", { _user_id: user.id, _role: "admin" });
-    if (!hasBibleRole && !hasAdminRole) {
+    const { data: canAccessBible, error: accessError } = await supabase.rpc("user_has_bible_access", {
+      _user_id: user.id,
+    });
+    if (accessError || !canAccessBible) {
       return err(403, "You do not have access to the Bible reading feature.");
     }
 

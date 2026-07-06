@@ -15,7 +15,7 @@ describe("rbac helpers", () => {
     expect(canAccessContentReviewerAdminPath("/admin/curriculum-builder")).toBe(false);
   });
 
-  it("keeps bible access denied for content reviewers unless admin", () => {
+  it("denies bible access to content reviewers unless admin", () => {
     expect(hasBibleAccessFromRoles(["bible_reader"])).toBe(true);
     expect(hasBibleAccessFromRoles(["content_reviewer"])).toBe(false);
     expect(hasBibleAccessFromRoles(["content_reviewer", "bible_reader"])).toBe(false);

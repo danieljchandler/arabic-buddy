@@ -11,6 +11,9 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, Loader2, Play, CheckCircle, Volume2, Globe } from 'lucide-react';
 import { toast } from 'sonner';
+import type { Database } from '@/integrations/supabase/types';
+
+type AuthenticStoryLine = Database['public']['Tables']['authentic_story_lines']['Row'];
 
 const AdminReadingLibraryForm = () => {
   const navigate = useNavigate();
@@ -370,7 +373,7 @@ const AdminReadingLibraryForm = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-3 max-h-[500px] overflow-y-auto">
-                {lines.map((line: any) => (
+                {lines.map((line: AuthenticStoryLine) => (
                   <div key={line.id} className="border rounded-lg p-3 space-y-1">
                     <div className="flex items-center gap-2">
                       <Badge variant="outline" className="text-xs">#{line.line_index}</Badge>

@@ -6,6 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Plus, ArrowLeft, BookOpen, Pencil, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+import type { Database } from '@/integrations/supabase/types';
+
+type AuthenticStory = Database['public']['Tables']['authentic_stories']['Row'];
 
 const useAuthenticStories = () =>
   useQuery({
@@ -85,7 +88,7 @@ const AdminReadingLibrary = () => {
       <main className="container mx-auto px-4 py-8">
         {stories && stories.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {stories.map((story: any) => (
+            {stories.map((story: AuthenticStory) => (
               <Card key={story.id} className="relative">
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">

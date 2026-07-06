@@ -62,6 +62,7 @@ export function useListenEpisodes(opts?: { format?: ListenFormat | "all"; mineOn
       if (mineOnly && user) q = q.eq("creator_id", user.id);
       const { data, error } = await q;
       if (error) throw error;
+      // Cast needed: DB types declare script/key_vocabulary as Json but we parse them as typed arrays
       return (data ?? []) as unknown as ListenEpisode[];
     },
     staleTime: 30_000,
@@ -79,6 +80,7 @@ export function useListenEpisode(id: string | undefined) {
         .eq("id", id!)
         .maybeSingle();
       if (error) throw error;
+      // Cast needed: DB types declare script/key_vocabulary as Json but we parse them as typed arrays
       const ep = (data as unknown as ListenEpisode | null) ?? null;
       // Stale-job watchdog: a pending episode whose heartbeat hasn't moved
       // in >5 min means the previous worker died (edge timeout, etc.).

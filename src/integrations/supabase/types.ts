@@ -3785,13 +3785,16 @@ export type Database = {
     Functions: {
       admin_find_user: {
         Args: { _identifier: string }
-        Returns: { email: string | null; user_id: string }[]
+        Returns: {
+          email: string
+          user_id: string
+        }[]
       }
       admin_list_managed_roles: {
         Args: never
         Returns: {
           created_at: string
-          email: string | null
+          email: string
           id: string
           role: Database["public"]["Enums"]["app_role"]
           user_id: string
@@ -3800,8 +3803,8 @@ export type Database = {
       award_xp: { Args: { _amount: number; _reason?: string }; Returns: Json }
       can_manage_content: { Args: never; Returns: boolean }
       grant_achievement: { Args: { _achievement_id: string }; Returns: Json }
-      has_redeemed_invite: { Args: never; Returns: boolean }
       has_bible_access: { Args: never; Returns: boolean }
+      has_redeemed_invite: { Args: never; Returns: boolean }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

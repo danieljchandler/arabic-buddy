@@ -15,7 +15,7 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY")!;
 
-const VEO_MODEL = "veo-3.0-fast-generate-preview";
+const VEO_MODEL = "veo-3.1-fast-generate-preview";
 const BUCKET = "story-videos";
 const POLL_INTERVAL_MS = 10_000;
 const POLL_MAX_MS = 10 * 60_000; // 10 min

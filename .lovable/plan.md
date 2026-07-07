@@ -1,30 +1,60 @@
-# Fix repetitive Phrase of the Day
-
 ## Problem
-`supabase/functions/phrase-of-the-day/index.ts` uses a single generic prompt ("vary the topic each day") with the date as a seed. The AI has no memory of what it produced yesterday or last week, so it gravitates to the same handful of "safe" greetings/pleasantries. There is also no category rotation and no avoid-list, so ensemble strategy converges on similar outputs.
 
-## Fix (edge function only — no UI/schema changes)
+The current `generate-story-video-full` function produces incoherent English-feeling clips because:
+1. The scene planner only receives a 3000-char slice of the story and returns 4 disconnected prompts with no shared character/setting anchor, so each Veo clip invents its own look.
+2. Prompts don't forbid English text, English speech, or Latin signage — Veo 3.1 defaults to adding English on-screen text and English narration audio.
+3. Clips are generated independently with no visual continuity between them.
+4. Veo caps a single generation at ~8s, so "one video of the whole story" isn't possible in one call — but we can make N clips read as one continuous film.
 
-1. **Category rotation.** Define a broad topic wheel in the function (~25 categories: food & coffee, weather, driving/traffic, work complaints, family teasing, shopping/haggling, weekend plans, sports, tech frustrations, health, compliments, apologies, sarcasm, kids, majlis small talk, travel, directions, prayer times, hospitality, gossip, dua/well-wishes, idioms, proverbs, expressions of surprise, expressions of doubt, etc.). Pick one deterministically from the seed (`hash(dialect + date) % categories.length`) so each day gets a different bucket per dialect, but also accept an optional `category` override from the client for the Refresh button to force a different bucket.
+## Fix
 
-2. **Recent-phrase avoid list.** Query the last ~30 phrases produced for this dialect and inject their Arabic + English into the prompt as a "DO NOT repeat or paraphrase these" list. Source options:
-   - `user_phrases` where `source = 'phrase-of-the-day'` and `dialect = ?`, ordered by `created_at desc limit 30` (service client, aggregated across users — reflects what the feature has been emitting).
-   - Fallback: none, if table empty.
+### 1. Two-pass planning (read the whole script first)
 
-3. **Stronger prompt.** Rewrite the user prompt to:
-   - State the chosen category explicitly ("Today's category: **haggling in the souq**").
-   - Require the phrase be idiomatic to the dialect (not something a textbook would print).
-   - Forbid the generic greeting/pleasantry bucket unless that's the rolled category.
-   - Encode the avoid list.
-   - Ask for 4–10 words, not 3–8, to allow more expressive phrases.
+Pass the **entire** Arabic story (plus English translation if present) to Gemini 2.5 Pro in one planning call that returns a single JSON object:
 
-4. **Sampling.** Bump `temperature` from `0.8` to `1.0` and switch `strategy` from `'ensemble'` (which averages toward safe answers) to `'solo'` with a random model pick from the phrase-suitable pool, or keep ensemble but add `diversityHint` to the prompt. Simpler: `strategy: 'solo'`, `temperature: 1.0`.
+```
+{
+  "style_anchor": "one paragraph describing lighting, palette, era, location, film grain",
+  "characters": [{ "id": "juha", "appearance": "..." }],
+  "scenes": [
+    { "index": 0, "arabic_beat": "...", "visual_prompt": "...", "duration": 8 },
+    ...
+  ]
+}
+```
 
-5. **Client cache.** In `src/components/PhraseOfTheDay.tsx`, extend the localStorage cache key to include the rolled category so a manual Refresh (which now sends a different category) doesn't collide with the cached daily entry. Keep the daily auto-fetch behavior identical.
+Rules baked into the planner prompt:
+- Scenes must cover the story start-to-end in order, no gaps.
+- Every `visual_prompt` MUST prepend the `style_anchor` and any characters that appear, so all clips share look and cast.
+- No on-screen text, no subtitles, no signage in Latin script, no English dialogue.
+- Setting explicitly named as Gulf/Egyptian/etc. per `story.dialect`.
+- 3–6 scenes, chosen by story length, not a hardcoded 4.
 
-## Files to edit
-- `supabase/functions/phrase-of-the-day/index.ts` — categories, avoid-list query, prompt rewrite, sampling change.
-- `src/components/PhraseOfTheDay.tsx` — pass `category` on refresh, adjust cache key. No visual changes.
+### 2. Continuity between clips
 
-## Out of scope
-No schema changes, no new tables, no changes to `askBrain`, no UI redesign.
+For scene `i > 0`, request Veo with `image` seeded from the **last frame of scene i-1** (Veo 3.1 supports reference-image conditioning). Extract the last frame server-side with a tiny ffmpeg-wasm call, or use Veo's `lastFrame` from the previous operation response when available. This makes the sequence feel like one continuous film.
+
+### 3. Silence / Arabic-only audio
+
+In the Veo request, set `generateAudio: false` (Veo 3.1 flag) so clips have no English narration. Story audio already exists separately and can be layered by the player.
+
+### 4. Prompt hardening
+
+Every per-scene prompt appended with a strict negative block:
+`Negative: english text, latin letters, subtitles, captions, watermarks, logos, western signage, modern clothing if period story, cartoonish style.`
+
+### 5. UI unchanged
+
+Admin still sees sequential segments; no player changes needed. Optionally add a "Regenerate scene N" button later — out of scope for this pass.
+
+## Files to change
+
+- `supabase/functions/generate-story-video-full/index.ts` — rewrite `planScenes` to return the structured plan above, rewrite `generateClip` to accept `{ prompt, referenceImageBytes?, durationSeconds }` and pass `generateAudio:false`, and add `extractLastFrame(bytes)` using a lightweight approach (call Veo's returned `lastFrame` if present; otherwise fall back to no reference for that scene).
+- No DB migration, no frontend change.
+
+## Technical notes
+
+- Model stays `veo-3.1-fast-generate-preview`. Reference-image field on the `instances[]` payload is `image: { bytesBase64Encoded, mimeType }`.
+- Planner model: `google/gemini-2.5-pro` via Lovable gateway (higher reasoning than flash, one call per story, cheap enough).
+- Keep `MAX_SCENES = 6`, min 3.
+- If last-frame extraction fails, degrade gracefully to prompt-only continuity (style_anchor already covers most of it).

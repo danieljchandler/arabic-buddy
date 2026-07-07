@@ -1,7 +1,8 @@
 // generate-story-video-full — After admin approves the preview, generate a
-// multi-scene "full" video for the story: split the story into ~4 scenes,
-// generate a Veo clip per scene, and append each clip URL to
-// authentic_stories.story_video_segments.
+// coherent multi-scene film for the story. The planner reads the ENTIRE script
+// once and returns a shared style anchor + character sheet + ordered scenes.
+// Every Veo prompt is prefixed with that shared context so all clips feel like
+// one continuous film. English text / speech / signage is explicitly forbidden.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
@@ -20,22 +21,81 @@ const VEO_MODEL = "veo-3.1-fast-generate-preview";
 const BUCKET = "listen-audio";
 const POLL_INTERVAL_MS = 10_000;
 const POLL_MAX_MS = 8 * 60_000;
-const MAX_SCENES = 4;
+const MIN_SCENES = 3;
+const MAX_SCENES = 6;
+
+const NEGATIVE = "no english text, no latin letters, no subtitles, no captions, no watermarks, no logos, no western signage, no modern anachronisms, no cartoon or anime style, no on-screen text of any language";
 
 type Story = {
   id: string;
   title: string;
+  title_arabic: string | null;
+  body_arabic: string | null;
   body_english: string | null;
   body_fusha: string | null;
   dialect: string | null;
   story_video_approved: boolean | null;
 };
 
-async function planScenes(story: Story): Promise<string[]> {
-  const summary = (story.body_english ?? story.body_fusha ?? "").slice(0, 3000);
-  const dialect = story.dialect ?? "Arab";
-  const sys = `You are a cinematic storyboard artist. Break an Arabic short story into ${MAX_SCENES} sequential visual scenes for a photorealistic short film. Each scene MUST be a self-contained prompt (max 90 words) for a text-to-video model (Google Veo). No on-screen text, no subtitles, no logos. Warm cinematic lighting, ${dialect} cultural setting. Return strict JSON: {"scenes":["...","...","...","..."]}.`;
-  const user = `Story title: ${story.title}\n\nStory:\n${summary}`;
+type Plan = {
+  style_anchor: string;
+  characters: { id: string; appearance: string }[];
+  scenes: {
+    index: number;
+    arabic_beat: string;
+    visual_prompt: string;
+    characters_in_scene: string[];
+  }[];
+};
+
+function culturalSetting(dialect: string | null): string {
+  const d = (dialect ?? "").toLowerCase();
+  if (d.includes("gulf") || d.includes("khaleeji") || d.includes("emirati") || d.includes("saudi")) return "authentic Gulf Arab (Khaleeji) setting: kanduras, ghutras, traditional souq or majlis architecture, desert or coastal palette";
+  if (d.includes("egypt")) return "authentic Egyptian setting: Cairo streets, galabiyas, distinctive Egyptian architecture and warm tones";
+  if (d.includes("yemen")) return "authentic Yemeni setting: Sana'a tower houses, jambiya belts, mountain terrain";
+  if (d.includes("levant") || d.includes("syria") || d.includes("lebanon") || d.includes("palest") || d.includes("jordan")) return "authentic Levantine setting: old-city stone architecture, Damascus/Beirut street life";
+  return "authentic Arab cultural setting matching the story's origin";
+}
+
+async function planFilm(story: Story): Promise<Plan> {
+  const fullArabic = story.body_arabic ?? story.body_fusha ?? "";
+  const fullEnglish = story.body_english ?? "";
+  const setting = culturalSetting(story.dialect);
+
+  const system = `You are a cinematic director planning a short photorealistic film that adapts an Arabic story with total fidelity to the script. You will read the ENTIRE story before responding. You will design a coherent visual world so every shot feels like one continuous film.
+
+Return STRICT JSON with this exact shape:
+{
+  "style_anchor": "one paragraph (<= 60 words) describing shared cinematic style: lighting, color palette, era, film grain, camera lens feel, and the ${setting}",
+  "characters": [
+    { "id": "short_slug", "appearance": "concrete visual description: age, build, face, hair, exact clothing, distinguishing features" }
+  ],
+  "scenes": [
+    {
+      "index": 0,
+      "arabic_beat": "the Arabic sentence(s) from the story this scene depicts, quoted verbatim",
+      "visual_prompt": "8-second single continuous shot description. Describe WHAT HAPPENS in the frame that visually matches the arabic_beat. Include camera framing and motion. Do NOT include style/setting/character descriptions here (those are prepended automatically). Do NOT include dialogue or narration. No on-screen text.",
+      "characters_in_scene": ["character_id_slug", ...]
+    }
+  ]
+}
+
+Hard rules:
+- Between ${MIN_SCENES} and ${MAX_SCENES} scenes, ordered start-to-end, covering the WHOLE story with no gaps.
+- Every scene MUST correspond to real content from the provided Arabic script. Do not invent events not in the story.
+- Characters listed once with consistent appearance; reused across scenes by id.
+- Scene visual_prompt must be a SINGLE continuous camera shot (no cuts, no split-screen, no montage).
+- ${NEGATIVE}.
+- Setting: ${setting}.
+- Output valid JSON only, no prose, no markdown fences.`;
+
+  const user = `STORY TITLE: ${story.title}${story.title_arabic ? ` / ${story.title_arabic}` : ""}
+DIALECT: ${story.dialect ?? "unspecified"}
+
+ARABIC SCRIPT (authoritative — every scene must match this):
+${fullArabic}
+
+${fullEnglish ? `ENGLISH REFERENCE TRANSLATION (context only, do NOT use English words in prompts):\n${fullEnglish}` : ""}`;
 
   const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
@@ -44,21 +104,47 @@ async function planScenes(story: Story): Promise<string[]> {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
+      model: "google/gemini-2.5-pro",
       messages: [
-        { role: "system", content: sys },
+        { role: "system", content: system },
         { role: "user", content: user },
       ],
       response_format: { type: "json_object" },
     }),
   });
-  if (!resp.ok) throw new Error(`scene planning failed: ${resp.status} ${await resp.text()}`);
+  if (!resp.ok) throw new Error(`film planning failed: ${resp.status} ${await resp.text()}`);
   const json = await resp.json();
   const content: string = json.choices?.[0]?.message?.content ?? "{}";
-  const parsed = JSON.parse(content);
-  const scenes: string[] = Array.isArray(parsed.scenes) ? parsed.scenes.filter((s: unknown) => typeof s === "string" && s.length > 10) : [];
-  if (scenes.length === 0) throw new Error("no scenes produced");
-  return scenes.slice(0, MAX_SCENES);
+  const parsed = JSON.parse(content) as Plan;
+  if (!parsed.style_anchor || !Array.isArray(parsed.scenes) || parsed.scenes.length < MIN_SCENES) {
+    throw new Error("planner produced invalid plan");
+  }
+  return {
+    style_anchor: parsed.style_anchor,
+    characters: Array.isArray(parsed.characters) ? parsed.characters : [],
+    scenes: parsed.scenes.slice(0, MAX_SCENES),
+  };
+}
+
+function buildScenePrompt(plan: Plan, sceneIdx: number): string {
+  const scene = plan.scenes[sceneIdx];
+  const cast = (scene.characters_in_scene ?? [])
+    .map((id) => plan.characters.find((c) => c.id === id))
+    .filter(Boolean)
+    .map((c) => `- ${c!.id}: ${c!.appearance}`)
+    .join("\n");
+  const continuity = sceneIdx === 0
+    ? "OPENING SHOT of the film."
+    : `Scene ${sceneIdx + 1} of ${plan.scenes.length}. Maintain visual continuity with prior scenes (same style, same characters, same world).`;
+
+  return [
+    `CINEMATIC STYLE (constant across the film): ${plan.style_anchor}`,
+    cast ? `CHARACTERS IN THIS SHOT (keep their appearance identical to prior scenes):\n${cast}` : "",
+    continuity,
+    `ACTION (this shot must visually depict this exact story beat): ${scene.arabic_beat}`,
+    `SHOT: ${scene.visual_prompt}`,
+    `CONSTRAINTS: ${NEGATIVE}. No spoken dialogue. Ambient sound only.`,
+  ].filter(Boolean).join("\n\n");
 }
 
 async function generateClip(prompt: string): Promise<Uint8Array> {
@@ -69,7 +155,13 @@ async function generateClip(prompt: string): Promise<Uint8Array> {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         instances: [{ prompt }],
-        parameters: { aspectRatio: "16:9", personGeneration: "allow_all", durationSeconds: 8 },
+        parameters: {
+          aspectRatio: "16:9",
+          personGeneration: "allow_all",
+          durationSeconds: 8,
+          generateAudio: false,
+          negativePrompt: NEGATIVE,
+        },
       }),
     },
   );
@@ -101,13 +193,16 @@ async function generateClip(prompt: string): Promise<Uint8Array> {
 
 async function runFull(admin: ReturnType<typeof createClient>, story: Story) {
   try {
-    const scenes = await planScenes(story);
-    console.log("planned scenes", story.id, scenes.length);
-    const segments: { url: string; prompt: string; index: number }[] = [];
+    const plan = await planFilm(story);
+    console.log("planned film", story.id, "scenes:", plan.scenes.length, "chars:", plan.characters.length);
 
-    for (let i = 0; i < scenes.length; i++) {
+
+    const segments: { url: string; prompt: string; index: number; arabic_beat: string }[] = [];
+
+    for (let i = 0; i < plan.scenes.length; i++) {
       try {
-        const bytes = await generateClip(scenes[i]);
+        const prompt = buildScenePrompt(plan, i);
+        const bytes = await generateClip(prompt);
         const path = `authentic-stories/${story.id}/full-${i}-${Date.now()}.mp4`;
         const up = await admin.storage.from(BUCKET).upload(path, bytes, {
           contentType: "video/mp4",
@@ -115,9 +210,13 @@ async function runFull(admin: ReturnType<typeof createClient>, story: Story) {
         });
         if (up.error) throw up.error;
         const { data: pub } = admin.storage.from(BUCKET).getPublicUrl(path);
-        segments.push({ url: pub.publicUrl, prompt: scenes[i], index: i });
+        segments.push({
+          url: pub.publicUrl,
+          prompt,
+          index: i,
+          arabic_beat: plan.scenes[i].arabic_beat,
+        });
 
-        // Persist progress after each successful segment
         await admin
           .from("authentic_stories")
           .update({ story_video_segments: segments })
@@ -171,7 +270,7 @@ Deno.serve(async (req) => {
 
     const { data: story, error: storyErr } = await admin
       .from("authentic_stories")
-      .select("id, title, body_english, body_fusha, dialect, story_video_approved")
+      .select("id, title, title_arabic, body_arabic, body_english, body_fusha, dialect, story_video_approved")
       .eq("id", story_id)
       .single();
     if (storyErr || !story) {

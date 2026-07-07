@@ -24,7 +24,7 @@ const POLL_MAX_MS = 8 * 60_000;
 const MIN_SCENES = 3;
 const MAX_SCENES = 6;
 
-const NEGATIVE = "no english text, no latin letters, no subtitles, no captions, no watermarks, no logos, no western signage, no modern anachronisms, no cartoon or anime style, no on-screen text of any language";
+const NEGATIVE = "no english speech, no english text, no latin letters, no subtitles, no captions, no watermarks, no logos, no western signage, no modern anachronisms, no cartoon or anime style, no on-screen text of any language";
 
 type Story = {
   id: string;
@@ -43,8 +43,12 @@ type Plan = {
     index: number;
     arabic_beat: string;
     visual_prompt: string;
+    spoken_arabic: string;
+    speaker: string;
+    delivery: string;
     characters_in_scene: string[];
   }[];
+
 };
 
 function culturalSetting(dialect: string | null): string {
@@ -73,20 +77,27 @@ Return STRICT JSON with this exact shape:
     {
       "index": 0,
       "arabic_beat": "the Arabic sentence(s) from the story this scene depicts, quoted verbatim",
-      "visual_prompt": "8-second single continuous shot description. Describe WHAT HAPPENS in the frame that visually matches the arabic_beat. Include camera framing and motion. Do NOT include style/setting/character descriptions here (those are prepended automatically). Do NOT include dialogue or narration. No on-screen text.",
+      "visual_prompt": "8-second single continuous shot description. Describe WHAT HAPPENS in the frame that visually matches the arabic_beat. Include camera framing and motion. Do NOT include style/setting/character descriptions here (those are prepended automatically). Do NOT include dialogue text here. No on-screen text.",
+      "spoken_arabic": "the exact Arabic words spoken aloud during this 8-second shot — either verbatim dialogue from the story, or a concise Arabic narrator line drawn verbatim from the arabic_beat. Must be short enough to be spoken naturally in ~8 seconds (roughly 15-25 words max). Arabic script only, fully vocalized where useful. NEVER English.",
+      "speaker": "character_id_slug of the speaker, or 'narrator'",
+      "delivery": "short description of tone and pacing, e.g. 'warm elderly male narrator, calm measured pace' or 'young woman, urgent whispered'",
       "characters_in_scene": ["character_id_slug", ...]
     }
   ]
 }
+
 
 Hard rules:
 - Between ${MIN_SCENES} and ${MAX_SCENES} scenes, ordered start-to-end, covering the WHOLE story with no gaps.
 - Every scene MUST correspond to real content from the provided Arabic script. Do not invent events not in the story.
 - Characters listed once with consistent appearance; reused across scenes by id.
 - Scene visual_prompt must be a SINGLE continuous camera shot (no cuts, no split-screen, no montage).
+- spoken_arabic MUST be Arabic script text drawn verbatim (or very lightly trimmed) from the arabic_beat. Never English. Never invented content.
+- Keep spoken_arabic short enough to fit an 8-second read (~15-25 words).
 - ${NEGATIVE}.
 - Setting: ${setting}.
 - Output valid JSON only, no prose, no markdown fences.`;
+
 
   const user = `STORY TITLE: ${story.title}${story.title_arabic ? ` / ${story.title_arabic}` : ""}
 DIALECT: ${story.dialect ?? "unspecified"}
@@ -137,15 +148,25 @@ function buildScenePrompt(plan: Plan, sceneIdx: number): string {
     ? "OPENING SHOT of the film."
     : `Scene ${sceneIdx + 1} of ${plan.scenes.length}. Maintain visual continuity with prior scenes (same style, same characters, same world).`;
 
+  const speakerLabel = scene.speaker && scene.speaker !== "narrator"
+    ? (plan.characters.find((c) => c.id === scene.speaker)?.appearance
+        ? `${scene.speaker} (${plan.characters.find((c) => c.id === scene.speaker)!.appearance})`
+        : scene.speaker)
+    : "an off-screen Arabic narrator";
+
+  const dialectHint = "spoken in natural Arabic (matching the story's dialect / classical Arabic as appropriate). NEVER English.";
+
   return [
     `CINEMATIC STYLE (constant across the film): ${plan.style_anchor}`,
     cast ? `CHARACTERS IN THIS SHOT (keep their appearance identical to prior scenes):\n${cast}` : "",
     continuity,
     `ACTION (this shot must visually depict this exact story beat): ${scene.arabic_beat}`,
     `SHOT: ${scene.visual_prompt}`,
-    `CONSTRAINTS: ${NEGATIVE}. Silent-feeling scene. If audio is generated, natural ambient sounds only; absolutely no spoken dialogue, no English speech, no narration, no subtitles.`,
+    `AUDIO — spoken line (Arabic only): ${speakerLabel} says, ${dialectHint} Delivery: ${scene.delivery || "clear, natural pacing"}. The exact spoken words (Arabic script, do NOT translate, do NOT render as on-screen text): «${scene.spoken_arabic}»`,
+    `CONSTRAINTS: ${NEGATIVE}. The only speech in this clip is the Arabic line above; no English words at all; no subtitles or captions burned into the frame; ambient sound may accompany the voice.`,
   ].filter(Boolean).join("\n\n");
 }
+
 
 async function generateClip(prompt: string): Promise<Uint8Array> {
   const kickoff = await fetch(

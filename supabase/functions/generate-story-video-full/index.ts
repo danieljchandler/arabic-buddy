@@ -100,10 +100,11 @@ ${fullEnglish ? `ENGLISH REFERENCE TRANSLATION (context only, do NOT use English
     method: "POST",
     headers: {
       Authorization: `Bearer ${LOVABLE_API_KEY}`,
+      "Lovable-API-Key": LOVABLE_API_KEY,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "google/gemini-2.5-pro",
+      model: "google/gemini-3-flash-preview",
       messages: [
         { role: "system", content: system },
         { role: "user", content: user },
@@ -190,12 +191,8 @@ async function generateClip(prompt: string): Promise<Uint8Array> {
   throw new Error("timeout waiting for Veo");
 }
 
-async function runFull(admin: ReturnType<typeof createClient>, story: Story) {
+async function runFull(admin: ReturnType<typeof createClient>, story: Story, plan: Plan) {
   try {
-    const plan = await planFilm(story);
-    console.log("planned film", story.id, "scenes:", plan.scenes.length, "chars:", plan.characters.length);
-
-
     const segments: { url: string; prompt: string; index: number; arabic_beat: string }[] = [];
 
     for (let i = 0; i < plan.scenes.length; i++) {
@@ -286,6 +283,9 @@ Deno.serve(async (req) => {
       });
     }
 
+    const plan = await planFilm(story as Story);
+    console.log("planned film", story_id, "scenes:", plan.scenes.length, "chars:", plan.characters.length);
+
     await admin
       .from("authentic_stories")
       .update({
@@ -296,7 +296,7 @@ Deno.serve(async (req) => {
       .eq("id", story_id);
 
     // @ts-ignore EdgeRuntime provided by Supabase edge runtime
-    EdgeRuntime.waitUntil(runFull(admin, story as Story));
+    EdgeRuntime.waitUntil(runFull(admin, story as Story, plan));
 
     return new Response(JSON.stringify({ status: "generating" }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

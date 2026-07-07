@@ -92,9 +92,12 @@ Hard rules:
 - Every scene MUST correspond to real content from the provided Arabic script. Do not invent events not in the story.
 - Characters listed once with consistent appearance; reused across scenes by id.
 - Scene visual_prompt must be a SINGLE continuous camera shot (no cuts, no split-screen, no montage).
+- spoken_arabic MUST be Arabic script text drawn verbatim (or very lightly trimmed) from the arabic_beat. Never English. Never invented content.
+- Keep spoken_arabic short enough to fit an 8-second read (~15-25 words).
 - ${NEGATIVE}.
 - Setting: ${setting}.
 - Output valid JSON only, no prose, no markdown fences.`;
+
 
   const user = `STORY TITLE: ${story.title}${story.title_arabic ? ` / ${story.title_arabic}` : ""}
 DIALECT: ${story.dialect ?? "unspecified"}

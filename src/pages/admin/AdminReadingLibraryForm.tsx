@@ -482,35 +482,30 @@ const AdminReadingLibraryForm = () => {
                 )}
               </div>
 
-              {/* Audio Preview */}
-              {story.video_preview_url && (
-                <div className="mt-4">
-                  <Label>Preview Audio</Label>
-                  <audio controls src={story.video_preview_url} className="w-full mt-1" />
-                </div>
-              )}
-
-              {/* Preview Video (single 8-second clip) */}
+              {/* Preview Scene (image + narration audio) */}
               {story.story_video_url && (
                 <div className="mt-4">
-                  <Label>Preview Video with Exact Arabic Narration (for approval)</Label>
-                  <video
-                    ref={previewVideoRef}
-                    controls
-                    playsInline
-                    src={story.story_video_url}
-                    onPlay={() => playSyncedAudio(previewVideoRef.current, previewAudioRef.current)}
-                    onPause={() => pauseSyncedAudio(previewAudioRef.current)}
-                    onSeeked={() => syncAudioToVideo(previewVideoRef.current, previewAudioRef.current)}
-                    onEnded={() => {
-                      pauseSyncedAudio(previewAudioRef.current);
-                      if (previewAudioRef.current) previewAudioRef.current.currentTime = 0;
-                    }}
-                    className="w-full mt-1 rounded-lg max-h-96 bg-black"
-                  />
-                  {story.video_preview_url && (
-                    <audio ref={previewAudioRef} src={story.video_preview_url} preload="auto" />
-                  )}
+                  <Label>Preview Scene with Arabic Narration (for approval)</Label>
+                  <div className="mt-1 rounded-lg overflow-hidden bg-muted relative">
+                    <img
+                      src={story.story_video_url}
+                      alt="Preview scene"
+                      className="w-full max-h-96 object-contain bg-black"
+                    />
+                    {story.video_preview_url && (
+                      <div className="p-3 bg-card border-t flex items-center gap-3">
+                        <Button size="sm" variant="default" onClick={togglePreviewAudio}>
+                          <Play className="h-4 w-4 mr-1" /> Play narration
+                        </Button>
+                        <audio
+                          ref={previewAudioRef}
+                          src={story.video_preview_url}
+                          controls
+                          className="flex-1"
+                        />
+                      </div>
+                    )}
+                  </div>
                   {story.story_video_approved && (
                     <p className="text-xs text-green-600 mt-1">✓ Approved</p>
                   )}
@@ -520,38 +515,60 @@ const AdminReadingLibraryForm = () => {
                 <p className="text-sm text-destructive mt-2">Preview error: {story.story_video_error}</p>
               )}
 
-              {/* Full Video (sequential playback of scene segments) */}
+              {/* Full Slideshow (sequential scene playback) */}
               {(() => {
-                const segs = (story.story_video_segments ?? []) as unknown as StoryVideoSegment[];
+                const segs = (story.story_video_segments ?? []) as unknown as StorySceneSegment[];
                 if (segs.length === 0) return null;
-                const activeSegment = segs[fullVideoIdx];
+                const active = segs[fullVideoIdx];
+                const activeImage = active?.image_url || active?.url;
                 return (
                   <div className="mt-4">
                     <Label>
-                      Full Video with Exact Arabic Narration — Scene {fullVideoIdx + 1} of {segs.length}
+                      Full Slideshow — Scene {fullVideoIdx + 1} of {segs.length}
                       {story.story_video_full_status === 'generating' && ' (more scenes generating…)'}
                     </Label>
-                    <video
-                      ref={fullVideoRef}
-                      key={activeSegment?.url}
-                      controls
-                      autoPlay
-                      playsInline
-                      src={activeSegment?.url}
-                      onPlay={() => playSyncedAudio(fullVideoRef.current, fullAudioRef.current)}
-                      onPause={() => pauseSyncedAudio(fullAudioRef.current)}
-                      onSeeked={() => syncAudioToVideo(fullVideoRef.current, fullAudioRef.current)}
-                      onEnded={() => {
-                        pauseSyncedAudio(fullAudioRef.current);
-                        if (fullVideoIdx + 1 < segs.length) setFullVideoIdx(fullVideoIdx + 1);
-                      }}
-                      className="w-full mt-1 rounded-lg max-h-96 bg-black"
-                    />
-                    {activeSegment?.audio_url && (
-                      <audio key={activeSegment.audio_url} ref={fullAudioRef} src={activeSegment.audio_url} preload="auto" />
-                    )}
-                    {activeSegment?.narration_arabic && (
-                      <p className="mt-2 text-sm font-arabic" dir="rtl">{activeSegment.narration_arabic}</p>
+                    <div className="mt-1 rounded-lg overflow-hidden bg-black">
+                      {activeImage && (
+                        <img
+                          src={activeImage}
+                          alt={`Scene ${fullVideoIdx + 1}`}
+                          className="w-full max-h-96 object-contain"
+                        />
+                      )}
+                      {active?.audio_url && (
+                        <div className="p-3 bg-card border-t flex items-center gap-3">
+                          <Button
+                            size="sm"
+                            variant="default"
+                            onClick={() => {
+                              const a = fullAudioRef.current;
+                              if (!a) return;
+                              if (a.paused) a.play().catch(() => {});
+                              else a.pause();
+                            }}
+                          >
+                            {fullPlaying ? <Pause className="h-4 w-4 mr-1" /> : <Play className="h-4 w-4 mr-1" />}
+                            {fullPlaying ? 'Pause' : 'Play'}
+                          </Button>
+                          <audio
+                            key={active.audio_url}
+                            ref={fullAudioRef}
+                            src={active.audio_url}
+                            controls
+                            autoPlay
+                            className="flex-1"
+                            onPlay={() => setFullPlaying(true)}
+                            onPause={() => setFullPlaying(false)}
+                            onEnded={() => {
+                              setFullPlaying(false);
+                              if (fullVideoIdx + 1 < segs.length) setFullVideoIdx(fullVideoIdx + 1);
+                            }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                    {active?.narration_arabic && (
+                      <p className="mt-2 text-sm font-arabic" dir="rtl">{active.narration_arabic}</p>
                     )}
                     <div className="flex gap-2 mt-2 flex-wrap">
                       {segs.map((_, i) => (
@@ -569,7 +586,7 @@ const AdminReadingLibraryForm = () => {
                 );
               })()}
               {story.story_video_full_status === 'failed' && story.story_video_full_error && (
-                <p className="text-sm text-destructive mt-2">Full video error: {story.story_video_full_error}</p>
+                <p className="text-sm text-destructive mt-2">Full slideshow error: {story.story_video_full_error}</p>
               )}
             </CardContent>
           </Card>

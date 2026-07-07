@@ -55,9 +55,11 @@ const AdminReadingLibraryForm = () => {
       return data;
     },
     enabled: isEditing,
-    refetchInterval: (q) =>
-      (q.state.data as { story_video_status?: string } | null)?.story_video_status === 'generating' ? 15000 : false,
-  });
+    refetchInterval: (q) => {
+      const s = q.state.data as { story_video_status?: string; story_video_full_status?: string } | null;
+      if (s?.story_video_status === 'generating' || s?.story_video_full_status === 'generating') return 15000;
+      return false;
+    },
 
   // Load story lines when editing
   const { data: lines } = useQuery({

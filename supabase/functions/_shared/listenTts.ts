@@ -343,7 +343,9 @@ export async function synthesizeLine(
   if (plan.provider === "munsit") {
     const voices = plan.munsitVoices!;
     const slot = pickVoiceSlot(role, index) % voices.length;
-    return synthesizeMunsit(text, voices[slot], plan.munsitModelId!);
+    // Narration → higher stability so it doesn't sound like shouting.
+    const stability = (role || "").toLowerCase() === "narrator" ? 0.8 : 0.6;
+    return synthesizeMunsit(text, voices[slot], plan.munsitModelId!, { stability });
   }
   if (plan.provider === "gemini") {
     const voices = plan.geminiVoices!;

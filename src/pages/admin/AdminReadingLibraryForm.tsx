@@ -246,9 +246,6 @@ const AdminReadingLibraryForm = () => {
       .from('authentic_stories')
       .update({ status: 'published' })
       .eq('id', id);
-      .from('authentic_stories')
-      .update({ status: 'published' })
-      .eq('id', id);
     if (error) {
       toast.error('Failed to publish');
     } else {

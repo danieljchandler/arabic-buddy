@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useStorySuggestions, type StorySuggestion } from '@/hooks/useStorySuggestions';
+import { useStorySuggestions, useGenerateStoryText, type StorySuggestion } from '@/hooks/useStorySuggestions';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -56,7 +56,9 @@ const AdminReadingLibrary = () => {
   const [suggestDialect, setSuggestDialect] = useState('Gulf');
   const [suggestDifficulty, setSuggestDifficulty] = useState('intermediate');
   const [suggestions, setSuggestions] = useState<StorySuggestion[]>([]);
+  const [creatingIdx, setCreatingIdx] = useState<number | null>(null);
   const suggestMutation = useStorySuggestions();
+  const generateTextMutation = useGenerateStoryText();
 
   const handleDelete = async (id: string) => {
     if (!confirm('Delete this authentic story?')) return;
@@ -82,18 +84,45 @@ const AdminReadingLibrary = () => {
     }
   };
 
-  const handleSelectSuggestion = (suggestion: StorySuggestion) => {
-    // Navigate to the new story form with suggestion data pre-filled via query params
-    const params = new URLSearchParams({
-      title: suggestion.title,
-      title_arabic: suggestion.title_arabic,
-      dialect: suggestDialect,
-      difficulty: suggestDifficulty,
-      source_type: suggestion.source_type,
-    });
-    setSuggestDialogOpen(false);
-    setSuggestions([]);
-    navigate(`/admin/reading-library/new?${params.toString()}`);
+  const handleSelectSuggestion = async (suggestion: StorySuggestion, idx: number) => {
+    setCreatingIdx(idx);
+    try {
+      // 1. Expand the suggestion into full Arabic story text (the missing "link").
+      const { body_arabic, author, author_arabic } = await generateTextMutation.mutateAsync({
+        suggestion,
+        dialect: suggestDialect,
+        difficulty: suggestDifficulty,
+      });
+
+      // 2. Import it straight away — no manual copy/paste required.
+      const resp = await supabase.functions.invoke('import-authentic-story', {
+        body: {
+          title: suggestion.title,
+          title_arabic: suggestion.title_arabic,
+          author: author || undefined,
+          author_arabic: author_arabic || undefined,
+          source_name: suggestion.source_type.replace('_', ' '),
+          license: 'public_domain',
+          body_arabic,
+          dialect: suggestDialect,
+          difficulty: suggestDifficulty,
+        },
+      });
+      if (resp.error) throw new Error(resp.error.message);
+      const storyId = resp.data?.story?.id;
+      if (!storyId) throw new Error('Story was created but no ID was returned');
+
+      toast.success('Story created!');
+      queryClient.invalidateQueries({ queryKey: ['authentic-stories'] });
+      setSuggestDialogOpen(false);
+      setSuggestions([]);
+      navigate(`/admin/reading-library/${storyId}/edit`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to create story';
+      toast.error(message);
+    } finally {
+      setCreatingIdx(null);
+    }
   };
 
   if (isLoading) {
@@ -239,9 +268,13 @@ const AdminReadingLibrary = () => {
             {/* Suggestions list */}
             {suggestions.length > 0 && (
               <div className="space-y-3">
-                <p className="text-sm text-muted-foreground font-medium">Choose a story to import:</p>
+                <p className="text-sm text-muted-foreground font-medium">Tap a story to create it instantly:</p>
                 {suggestions.map((suggestion, idx) => (
-                  <Card key={idx} className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => handleSelectSuggestion(suggestion)}>
+                  <Card
+                    key={idx}
+                    className={`transition-colors ${creatingIdx === null ? 'cursor-pointer hover:border-primary/50' : 'cursor-not-allowed opacity-60'}`}
+                    onClick={() => creatingIdx === null && handleSelectSuggestion(suggestion, idx)}
+                  >
                     <CardHeader className="pb-2">
                       <div className="flex items-start justify-between">
                         <div>
@@ -260,6 +293,12 @@ const AdminReadingLibrary = () => {
                           <Badge key={theme} variant="outline" className="text-xs">{theme}</Badge>
                         ))}
                       </div>
+                      {creatingIdx === idx && (
+                        <div className="flex items-center gap-2 mt-3 text-sm text-primary">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Writing story &amp; creating...
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 ))}

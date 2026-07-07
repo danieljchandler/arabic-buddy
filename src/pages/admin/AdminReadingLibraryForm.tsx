@@ -367,6 +367,25 @@ const AdminReadingLibraryForm = () => {
                   </>
                 )}
 
+                )}
+
+                <Button
+                  onClick={handleGenerateVideo}
+                  disabled={generatingVideo || story.story_video_status === 'generating'}
+                  variant="outline"
+                >
+                  {generatingVideo || story.story_video_status === 'generating' ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Film className="h-4 w-4 mr-2" />
+                  )}
+                  {story.story_video_status === 'generating'
+                    ? 'Generating Video…'
+                    : story.story_video_url
+                      ? 'Regenerate Video'
+                      : 'Generate Trailer Video'}
+                </Button>
+
                 {story.video_status === 'ready' && story.status !== 'published' && (
                   <Button onClick={handlePublish} variant="default">
                     <CheckCircle className="h-4 w-4 mr-2" />
@@ -381,6 +400,17 @@ const AdminReadingLibraryForm = () => {
                   <Label>Preview Audio</Label>
                   <audio controls src={story.video_preview_url} className="w-full mt-1" />
                 </div>
+              )}
+
+              {/* Trailer Video */}
+              {story.story_video_url && (
+                <div className="mt-4">
+                  <Label>Trailer Video</Label>
+                  <video controls src={story.story_video_url} className="w-full mt-1 rounded-lg max-h-96" />
+                </div>
+              )}
+              {story.story_video_status === 'failed' && story.story_video_error && (
+                <p className="text-sm text-destructive mt-2">Video error: {story.story_video_error}</p>
               )}
             </CardContent>
           </Card>

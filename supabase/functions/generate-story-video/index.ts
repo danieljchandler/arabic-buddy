@@ -74,7 +74,7 @@ async function pollAndStore(admin: ReturnType<typeof createClient>, storyId: str
       if (!vidRes.ok) throw new Error(`download failed: ${vidRes.status}`);
       const bytes = new Uint8Array(await vidRes.arrayBuffer());
 
-      const path = `${storyId}/${Date.now()}.mp4`;
+      const path = `authentic-stories/${storyId}/preview-${Date.now()}.mp4`;
       const up = await admin.storage.from(BUCKET).upload(path, bytes, {
         contentType: "video/mp4",
         upsert: true,

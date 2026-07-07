@@ -256,24 +256,11 @@ const AdminReadingLibraryForm = () => {
     }
   };
 
-  const syncAudioToVideo = (video: HTMLVideoElement | null, audio: HTMLAudioElement | null) => {
-    if (!video || !audio) return;
-    const audioDuration = Number.isFinite(audio.duration) ? audio.duration : video.currentTime;
-    audio.currentTime = Math.max(0, Math.min(video.currentTime, audioDuration));
-  };
-
-  const playSyncedAudio = async (video: HTMLVideoElement | null, audio: HTMLAudioElement | null) => {
-    if (!video || !audio) return;
-    syncAudioToVideo(video, audio);
-    try {
-      await audio.play();
-    } catch {
-      // Browser autoplay policy may block audio until the admin taps play again.
-    }
-  };
-
-  const pauseSyncedAudio = (audio: HTMLAudioElement | null) => {
-    audio?.pause();
+  const togglePreviewAudio = () => {
+    const a = previewAudioRef.current;
+    if (!a) return;
+    if (a.paused) a.play().catch(() => {});
+    else a.pause();
   };
 
   const handlePublish = async () => {

@@ -453,13 +453,13 @@ const AdminReadingLibraryForm = () => {
                   {generatingVideo || story.story_video_status === 'generating' ? (
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   ) : (
-                    <Film className="h-4 w-4 mr-2" />
+                    <ImageIcon className="h-4 w-4 mr-2" />
                   )}
                   {story.story_video_status === 'generating'
                     ? 'Generating Preview…'
                     : story.story_video_url
-                      ? 'Regenerate Preview'
-                      : 'Generate Preview Video'}
+                      ? 'Regenerate Preview Scene'
+                      : 'Generate Preview Scene'}
                 </Button>
 
                 {story.story_video_url && !story.story_video_approved && (
@@ -478,13 +478,13 @@ const AdminReadingLibraryForm = () => {
                     {generatingFullVideo || story.story_video_full_status === 'generating' ? (
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                     ) : (
-                      <Film className="h-4 w-4 mr-2" />
+                      <ImageIcon className="h-4 w-4 mr-2" />
                     )}
                     {story.story_video_full_status === 'generating'
-                      ? 'Generating Full Video…'
+                      ? 'Generating Full Slideshow…'
                       : (story.story_video_segments as unknown[])?.length
-                        ? 'Regenerate Full Video'
-                        : 'Generate Full Video'}
+                        ? 'Regenerate Full Slideshow'
+                        : 'Generate Full Slideshow'}
                   </Button>
                 )}
 

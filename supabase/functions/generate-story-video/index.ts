@@ -213,6 +213,18 @@ Deno.serve(async (req) => {
     const prompt = buildPrompt(story as Story, narration.text);
     console.log("veo prompt", story_id, prompt.slice(0, 200));
 
+    // Persist the deterministic Arabic narration immediately. Video kickoff can
+    // fail because of upstream quota/rate limits, but the admin should still be
+    // able to review the Arabic preview audio that was already generated.
+    await admin
+      .from("authentic_stories")
+      .update({
+        video_preview_url: narration.url,
+        line_durations: [narration.duration],
+        video_status: "preview_audio_generated",
+      })
+      .eq("id", story_id);
+
     // Kick off Veo long-running generation
     const kickoff = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${VEO_MODEL}:predictLongRunning?key=${GEMINI_API_KEY}`,
@@ -234,10 +246,26 @@ Deno.serve(async (req) => {
     if (!kickoff.ok) {
       const txt = await kickoff.text();
       console.error("veo kickoff failed", kickoff.status, txt);
+      const quotaExhausted = kickoff.status === 429 || txt.includes("RESOURCE_EXHAUSTED");
+      const videoError = quotaExhausted
+        ? "Video quota exhausted. Arabic preview audio was generated successfully; try preview video again later."
+        : txt.slice(0, 500);
       await admin
         .from("authentic_stories")
-        .update({ story_video_status: "failed", story_video_error: txt.slice(0, 500) })
+        .update({ story_video_status: "failed", story_video_error: videoError })
         .eq("id", story_id);
+
+      if (quotaExhausted) {
+        return new Response(JSON.stringify({
+          status: "audio_ready_video_quota_exhausted",
+          preview_url: narration.url,
+          detail: videoError,
+        }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       return new Response(JSON.stringify({ error: "veo_kickoff_failed", detail: txt }), {
         status: 502,
         headers: { ...corsHeaders, "Content-Type": "application/json" },

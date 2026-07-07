@@ -196,11 +196,6 @@ async function runFull(admin: ReturnType<typeof createClient>, story: Story) {
     const plan = await planFilm(story);
     console.log("planned film", story.id, "scenes:", plan.scenes.length, "chars:", plan.characters.length);
 
-    // Persist plan for admin visibility / debugging
-    await admin
-      .from("authentic_stories")
-      .update({ story_video_plan: plan })
-      .eq("id", story.id);
 
     const segments: { url: string; prompt: string; index: number; arabic_beat: string }[] = [];
 

@@ -30,7 +30,6 @@ type Story = {
   id: string;
   title: string;
   title_arabic: string | null;
-  body_arabic: string | null;
   body_english: string | null;
   body_fusha: string | null;
   dialect: string | null;
@@ -58,7 +57,7 @@ function culturalSetting(dialect: string | null): string {
 }
 
 async function planFilm(story: Story): Promise<Plan> {
-  const fullArabic = story.body_arabic ?? story.body_fusha ?? "";
+  const fullArabic = story.body_fusha ?? "";
   const fullEnglish = story.body_english ?? "";
   const setting = culturalSetting(story.dialect);
 
@@ -270,7 +269,7 @@ Deno.serve(async (req) => {
 
     const { data: story, error: storyErr } = await admin
       .from("authentic_stories")
-      .select("id, title, title_arabic, body_arabic, body_english, body_fusha, dialect, story_video_approved")
+      .select("id, title, title_arabic, body_english, body_fusha, dialect, story_video_approved")
       .eq("id", story_id)
       .single();
     if (storyErr || !story) {

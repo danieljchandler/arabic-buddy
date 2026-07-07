@@ -155,6 +155,10 @@ export type Database = {
           source_name: string | null
           source_url: string | null
           status: string
+          story_video_error: string | null
+          story_video_operation: string | null
+          story_video_status: string
+          story_video_url: string | null
           title: string
           title_arabic: string | null
           updated_at: string
@@ -182,6 +186,10 @@ export type Database = {
           source_name?: string | null
           source_url?: string | null
           status?: string
+          story_video_error?: string | null
+          story_video_operation?: string | null
+          story_video_status?: string
+          story_video_url?: string | null
           title: string
           title_arabic?: string | null
           updated_at?: string
@@ -209,6 +217,10 @@ export type Database = {
           source_name?: string | null
           source_url?: string | null
           status?: string
+          story_video_error?: string | null
+          story_video_operation?: string | null
+          story_video_status?: string
+          story_video_url?: string | null
           title?: string
           title_arabic?: string | null
           updated_at?: string

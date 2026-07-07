@@ -143,7 +143,7 @@ function buildScenePrompt(plan: Plan, sceneIdx: number): string {
     continuity,
     `ACTION (this shot must visually depict this exact story beat): ${scene.arabic_beat}`,
     `SHOT: ${scene.visual_prompt}`,
-    `CONSTRAINTS: ${NEGATIVE}. No spoken dialogue. Ambient sound only.`,
+    `CONSTRAINTS: ${NEGATIVE}. Silent-feeling scene. If audio is generated, natural ambient sounds only; absolutely no spoken dialogue, no English speech, no narration, no subtitles.`,
   ].filter(Boolean).join("\n\n");
 }
 
@@ -159,7 +159,6 @@ async function generateClip(prompt: string): Promise<Uint8Array> {
           aspectRatio: "16:9",
           personGeneration: "allow_all",
           durationSeconds: 8,
-          generateAudio: false,
           negativePrompt: NEGATIVE,
         },
       }),

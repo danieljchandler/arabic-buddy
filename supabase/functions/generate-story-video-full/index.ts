@@ -24,7 +24,7 @@ const POLL_MAX_MS = 8 * 60_000;
 const MIN_SCENES = 3;
 const MAX_SCENES = 6;
 
-const NEGATIVE = "no english text, no latin letters, no subtitles, no captions, no watermarks, no logos, no western signage, no modern anachronisms, no cartoon or anime style, no on-screen text of any language";
+const NEGATIVE = "no english speech, no english text, no latin letters, no subtitles, no captions, no watermarks, no logos, no western signage, no modern anachronisms, no cartoon or anime style, no on-screen text of any language";
 
 type Story = {
   id: string;

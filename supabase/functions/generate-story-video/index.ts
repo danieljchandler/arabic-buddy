@@ -187,12 +187,14 @@ Deno.serve(async (req) => {
       .order("line_index", { ascending: true })
       .limit(3);
 
-    // 1) Narration audio (Munsit / ElevenLabs / Azure)
-    const narration = await synthesizePreviewNarration(admin, story as Story, (lines ?? []) as StoryLine[]);
+    // Build narration text first (needed for image prompt), then run TTS + image gen in parallel.
+    const narrationText = buildNarrationText(story as Story, (lines ?? []) as StoryLine[]);
+    const prompt = buildImagePrompt(story as Story, narrationText);
 
-    // 2) Scene image
-    const prompt = buildImagePrompt(story as Story, narration.text);
-    const imgBytes = await generateSceneImage(prompt);
+    const [narration, imgBytes] = await Promise.all([
+      synthesizePreviewNarration(admin, story as Story, (lines ?? []) as StoryLine[]),
+      generateSceneImage(prompt),
+    ]);
     const imageUrl = await uploadImage(admin, story_id, imgBytes, "preview-scene");
 
     await admin

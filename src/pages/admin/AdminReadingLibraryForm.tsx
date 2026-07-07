@@ -180,6 +180,23 @@ const AdminReadingLibraryForm = () => {
     }
   };
 
+  const handleGenerateVideo = async () => {
+    if (!id) return;
+    setGeneratingVideo(true);
+    try {
+      const resp = await supabase.functions.invoke('generate-story-video', {
+        body: { story_id: id },
+      });
+      if (resp.error) throw new Error(resp.error.message);
+      toast.success('Video generation started — this takes 2–6 minutes');
+      queryClient.invalidateQueries({ queryKey: ['authentic-story', id] });
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Video generation failed');
+    } finally {
+      setGeneratingVideo(false);
+    }
+  };
+
   const handlePublish = async () => {
     if (!id) return;
     const { error } = await supabase

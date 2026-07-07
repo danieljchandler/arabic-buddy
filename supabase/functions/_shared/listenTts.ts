@@ -97,19 +97,12 @@ async function loadMunsitGulfVoices(apiKey: string): Promise<{ voices: string[];
     v.dialect.some((d) => GULF_DIALECTS.has(d.toLowerCase()))
   );
 
-  // Order by gender alternation so role-rotation gives perceptibly different voices.
+  // Story narration uses male Gulf voices only (user preference).
   const males = gulf.filter((v) => (v.gender ?? "").toLowerCase() === "male");
-  const females = gulf.filter((v) => (v.gender ?? "").toLowerCase() === "female");
-  const others = gulf.filter((v) => !["male", "female"].includes((v.gender ?? "").toLowerCase()));
-  const interleaved: string[] = [];
-  const max = Math.max(males.length, females.length, others.length);
-  for (let i = 0; i < max; i++) {
-    if (females[i]) interleaved.push(females[i].voice_id);
-    if (males[i]) interleaved.push(males[i].voice_id);
-    if (others[i]) interleaved.push(others[i].voice_id);
-  }
-  const fallback = gulf.length > 0 ? gulf.map((v) => v.voice_id) : all.slice(0, 4).map((v) => v.voice_id);
-  const voices = (interleaved.length > 0 ? interleaved : fallback).slice(0, 4);
+  const fallback = males.length > 0
+    ? males.map((v) => v.voice_id)
+    : (gulf.length > 0 ? gulf.map((v) => v.voice_id) : all.slice(0, 4).map((v) => v.voice_id));
+  const voices = fallback.slice(0, 4);
   if (voices.length === 0) return null;
 
   cachedMunsit = { voices, modelId };

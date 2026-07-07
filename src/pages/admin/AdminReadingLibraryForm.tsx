@@ -49,10 +49,9 @@ const AdminReadingLibraryForm = () => {
   const [approvingVideo, setApprovingVideo] = useState(false);
   const [generatingFullVideo, setGeneratingFullVideo] = useState(false);
   const [fullVideoIdx, setFullVideoIdx] = useState(0);
-  const previewVideoRef = useRef<HTMLVideoElement | null>(null);
   const previewAudioRef = useRef<HTMLAudioElement | null>(null);
-  const fullVideoRef = useRef<HTMLVideoElement | null>(null);
   const fullAudioRef = useRef<HTMLAudioElement | null>(null);
+  const [fullPlaying, setFullPlaying] = useState(false);
 
   // Load existing story when editing
   const { data: story, isLoading: loadingStory } = useQuery({

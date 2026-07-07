@@ -92,6 +92,7 @@ async function generateSceneImage(prompt: string): Promise<Uint8Array> {
       messages: [{ role: "user", content: prompt }],
       modalities: ["image", "text"],
     }),
+    signal: AbortSignal.timeout(90_000),
   });
   if (!resp.ok) throw new Error(`image gen failed: ${resp.status} ${await resp.text()}`);
   const json = await resp.json();

@@ -1,53 +1,53 @@
-## Can this actually be done?
+## Pivot: Slideshow stories instead of video
 
-Yes, but with an important limitation: Veo-style video generation is not reliable enough to guarantee exact Arabic speech inside the generated clip. Even with strong prompts and negative prompts, it can still produce English, omit speech, or improvise.
+Replace Veo video generation with AI-generated scene images played as a timed slideshow synced to the existing Munsit/ElevenLabs/Azure Arabic narration. Same admin approval flow, dramatically cheaper, and the Arabic audio remains exact to the script.
 
-The reliable architecture is to stop asking the video model to create spoken dialogue, and instead generate:
+## What changes
 
-1. A script-accurate silent visual clip from the full Arabic story plan
-2. A separate Arabic narration/audio track from the exact approved Arabic script lines
-3. A final composed video where the Arabic audio is overlaid onto the visual clip
+### 1. Content model
+- Split each story into ordered **scenes** (already how the planner thinks). Each scene stores:
+  - `image_url` — AI-generated illustration
+  - `audio_url` — Arabic narration for that scene's exact script lines
+  - `arabic_text` / `english_text` — the lines being narrated
+  - `duration_ms` — from the generated audio
+- Store as a JSON array on the story row (reusing `video_preview_url` / a new `scenes_json` column), so no heavy schema churn.
 
-That makes the preview and full video useful for learning because the speech is controlled by our backend, not guessed by the video model.
+### 2. Preview generation (admin "Generate Preview")
+- Planner picks **1 representative scene** from the Arabic script.
+- Generate **1 image** via Lovable AI Gateway (`google/gemini-3.1-flash-image`, cheap + fast, good for illustrated scenes).
+- Generate **1 Arabic narration clip** via existing `planProvider(dialect)` → Munsit / ElevenLabs / Azure.
+- Save `{ image_url, audio_url, arabic, english }` as the preview payload.
 
-## Proposed fix
+### 3. Full story generation (after admin approves preview)
+- Planner returns N ordered beats quoting exact Arabic lines.
+- For each beat, in parallel-with-limit:
+  - Generate scene image (same model, consistent style prompt so characters/setting stay coherent).
+  - Generate Arabic narration audio for that beat's exact lines.
+- Store the ordered scenes array on the story.
 
-1. **Preview generation**
-   - Keep preview as an admin-reviewable short video.
-   - Generate visuals only: no speech, no subtitles, no text.
-   - Use a prompt based on the full Arabic story, not just the English summary.
-   - Add strict negative prompt forbidding English, Latin letters, captions, signs, subtitles, and generated speech.
+### 4. Player (StoryPlayer / admin preview)
+- New lightweight slideshow component:
+  - Shows current scene image full-bleed
+  - Plays its audio; on `ended` advances to next scene
+  - Crossfade between images
+  - Controls: play/pause, prev/next, replay, show/hide Arabic + English captions (respecting global immersion prefs)
+- Admin form: preview player shows the single preview scene (image + audio, tap to play).
 
-2. **Arabic narration track**
-   - Generate Arabic audio separately from exact `body_fusha` / approved Arabic script excerpts.
-   - Prefer the project’s existing Arabic TTS stack and dialect-aware voice selection.
-   - The preview will have Arabic narration/audio over the generated visuals.
-
-3. **Full story video**
-   - Have the planner read the whole Arabic script once.
-   - Split the story into ordered beats that quote exact Arabic text.
-   - Generate visuals per beat, with no model-generated speech.
-   - Generate one Arabic narration/audio track from those exact beat lines.
-   - Compose the clips/audio into a single final video if the runtime path supports it; otherwise store ordered segments plus exact audio and present them continuously in the player.
-
-4. **Admin approval flow**
-   - Admin creates preview.
-   - Admin reviews the preview with Arabic narration.
-   - Only after approval does the app generate the full story video.
-
-5. **Validation and failure handling**
-   - Reject planner output if any planned narration contains Latin/English characters.
-   - Store the exact Arabic lines used for narration alongside the video metadata.
-   - Surface generation errors clearly in the admin UI instead of silently producing incoherent output.
+### 5. Cleanup
+- Stop calling Veo. Remove Veo prompt-building and the `veo-3.1-fast-generate-preview` code paths from `generate-story-video` and `generate-story-video-full`.
+- Keep the same edge function names and admin buttons so existing UI wiring works; only the internals change.
+- Update `.lovable/plan.md` to reflect the slideshow pivot.
 
 ## Technical details
 
-- Update `generate-story-video` so the preview uses Arabic script content and includes `negativePrompt`.
-- Update `generate-story-video-full` so Veo prompts are visual-only and never request spoken lines from Veo.
-- Add a deterministic Arabic audio generation step using the existing backend TTS services.
-- If final MP4 composition is feasible inside the current edge/runtime limits, compose video + audio into one stored MP4; if not, use the existing player to play ordered visual segments with the exact narration audio track.
-- Keep all backend secrets server-side and reuse existing storage buckets.
+- **Image model:** `google/gemini-3.1-flash-image` via `/v1/images/generations` (Vertex `generateContent` body). Non-streaming, upload PNG to `story-scenes` storage bucket, save public URL. Add a shared "style anchor" prefix to every scene prompt (e.g. "warm watercolor illustration, consistent character design, no text, no captions") so scenes look like one story.
+- **Negative constraints in prompt:** no Latin text, no captions, no subtitles, no signs — image must be purely visual.
+- **Audio:** reuse `synthesizeLine(dialect, "narrator", arabicText)` from `_shared/listenTts.ts`. Upload MP3 to existing audio bucket, save public URL, capture duration.
+- **Storage:** one bucket `story-scenes` (public read) for images; audio goes to the existing narration bucket already used by story generation.
+- **DB:** add `scenes_json JSONB` column on `interactive_stories` (or reuse an existing JSONB column if present). Preview writes a 1-element array; full generation writes the full array. `video_preview_url` becomes optional/legacy.
+- **Player:** new `src/components/stories/SlideshowPlayer.tsx` used by `StoryPlayer.tsx` and the admin form preview. Uses existing `useAudioPlayer` pattern.
+- **Cost note:** ~1 image + ~1 short TTS clip per scene, vs. a Veo generation per story. Order-of-magnitude cheaper and no per-project video quota.
 
-## Expected result
-
-The video model will no longer be responsible for speaking Arabic. It will only create visuals, while the Arabic narration comes from exact script text. This is the practical way to get a precise, Arabic-only learning video.
+## Out of scope
+- No MP4 stitching (unnecessary — slideshow is the delivery format).
+- No changes to the story planner's dialect rules, MSA leak checks, or admin approval gating.

@@ -205,9 +205,47 @@ const AdminReadingLibraryForm = () => {
     }
   };
 
+  const handleApproveVideo = async () => {
+    if (!id) return;
+    setApprovingVideo(true);
+    try {
+      const { error } = await supabase
+        .from('authentic_stories')
+        .update({ story_video_approved: true })
+        .eq('id', id);
+      if (error) throw error;
+      toast.success('Preview approved. You can now generate the full video.');
+      queryClient.invalidateQueries({ queryKey: ['authentic-story', id] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Approval failed');
+    } finally {
+      setApprovingVideo(false);
+    }
+  };
+
+  const handleGenerateFullVideo = async () => {
+    if (!id) return;
+    setGeneratingFullVideo(true);
+    try {
+      const resp = await supabase.functions.invoke('generate-story-video-full', {
+        body: { story_id: id },
+      });
+      if (resp.error) throw new Error(resp.error.message);
+      toast.success('Full video generation started — this takes 8–15 minutes');
+      queryClient.invalidateQueries({ queryKey: ['authentic-story', id] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Full video generation failed');
+    } finally {
+      setGeneratingFullVideo(false);
+    }
+  };
+
   const handlePublish = async () => {
     if (!id) return;
     const { error } = await supabase
+      .from('authentic_stories')
+      .update({ status: 'published' })
+      .eq('id', id);
       .from('authentic_stories')
       .update({ status: 'published' })
       .eq('id', id);

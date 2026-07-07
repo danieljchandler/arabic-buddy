@@ -60,6 +60,9 @@ const AdminReadingLibraryForm = () => {
       if (s?.story_video_status === 'generating' || s?.story_video_full_status === 'generating') return 15000;
       return false;
     },
+  });
+
+
 
   // Load story lines when editing
   const { data: lines } = useQuery({

@@ -427,19 +427,15 @@ const AdminReadingLibraryForm = () => {
                   Translate to Dialect
                 </Button>
 
-                {(story.status === 'content_approved' || story.status === 'video_preview') && (
-                  <>
-                    <Button onClick={handleGeneratePreview} disabled={generatingPreview} variant="outline">
-                      {generatingPreview ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Play className="h-4 w-4 mr-2" />}
-                      Generate Preview Audio
-                    </Button>
+                <Button onClick={handleGeneratePreview} disabled={generatingPreview} variant="outline">
+                  {generatingPreview ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Play className="h-4 w-4 mr-2" />}
+                  Generate Preview Audio
+                </Button>
 
-                    <Button onClick={handleGenerateFull} disabled={generatingFull} variant="outline">
-                      {generatingFull ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Volume2 className="h-4 w-4 mr-2" />}
-                      Generate Full Audio
-                    </Button>
-                  </>
-                )}
+                <Button onClick={handleGenerateFull} disabled={generatingFull} variant="outline">
+                  {generatingFull ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Volume2 className="h-4 w-4 mr-2" />}
+                  Generate Full Audio
+                </Button>
 
 
 

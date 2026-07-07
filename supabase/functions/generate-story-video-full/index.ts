@@ -43,8 +43,12 @@ type Plan = {
     index: number;
     arabic_beat: string;
     visual_prompt: string;
+    spoken_arabic: string;
+    speaker: string;
+    delivery: string;
     characters_in_scene: string[];
   }[];
+
 };
 
 function culturalSetting(dialect: string | null): string {

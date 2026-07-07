@@ -52,6 +52,16 @@ const useStoryLines = (storyId: string | undefined) =>
     enabled: Boolean(storyId),
   });
 
+type StorySegment = {
+  image_url?: string;
+  url?: string;
+  audio_url?: string;
+  arabic_beat?: string;
+  narration_arabic?: string;
+  duration_seconds?: number;
+  index?: number;
+};
+
 const ReadingLibraryStory = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -64,10 +74,30 @@ const ReadingLibraryStory = () => {
   const [showEnglish, setShowEnglish] = useState(false);
   const [currentLineIndex, setCurrentLineIndex] = useState(-1);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [activeSceneIdx, setActiveSceneIdx] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const lineRefs = useRef<(HTMLDivElement | null)[]>([]);
 
+  const segments: StorySegment[] = Array.isArray(story?.story_video_segments)
+    ? (story!.story_video_segments as unknown as StorySegment[]).filter(
+        (s) => s && (s.image_url || s.url),
+      )
+    : [];
+  const sceneImages = segments.map((s) => (s.image_url || s.url) as string);
+  const heroImage = sceneImages[activeSceneIdx] ?? sceneImages[0];
+
   const hasAudio = lines?.some((l) => l.audio_url);
+
+  // Sync active scene image to line playback progress
+  useEffect(() => {
+    if (sceneImages.length === 0 || !lines || lines.length === 0) return;
+    if (currentLineIndex < 0) { setActiveSceneIdx(0); return; }
+    const idx = Math.min(
+      sceneImages.length - 1,
+      Math.floor((currentLineIndex / lines.length) * sceneImages.length),
+    );
+    setActiveSceneIdx(idx);
+  }, [currentLineIndex, lines?.length, sceneImages.length]);
 
   // Auto-scroll to current line
   useEffect(() => {

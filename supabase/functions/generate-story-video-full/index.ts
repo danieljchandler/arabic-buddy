@@ -148,15 +148,25 @@ function buildScenePrompt(plan: Plan, sceneIdx: number): string {
     ? "OPENING SHOT of the film."
     : `Scene ${sceneIdx + 1} of ${plan.scenes.length}. Maintain visual continuity with prior scenes (same style, same characters, same world).`;
 
+  const speakerLabel = scene.speaker && scene.speaker !== "narrator"
+    ? (plan.characters.find((c) => c.id === scene.speaker)?.appearance
+        ? `${scene.speaker} (${plan.characters.find((c) => c.id === scene.speaker)!.appearance})`
+        : scene.speaker)
+    : "an off-screen Arabic narrator";
+
+  const dialectHint = "spoken in natural Arabic (matching the story's dialect / classical Arabic as appropriate). NEVER English.";
+
   return [
     `CINEMATIC STYLE (constant across the film): ${plan.style_anchor}`,
     cast ? `CHARACTERS IN THIS SHOT (keep their appearance identical to prior scenes):\n${cast}` : "",
     continuity,
     `ACTION (this shot must visually depict this exact story beat): ${scene.arabic_beat}`,
     `SHOT: ${scene.visual_prompt}`,
-    `CONSTRAINTS: ${NEGATIVE}. Silent-feeling scene. If audio is generated, natural ambient sounds only; absolutely no spoken dialogue, no English speech, no narration, no subtitles.`,
+    `AUDIO — spoken line (Arabic only): ${speakerLabel} says, ${dialectHint} Delivery: ${scene.delivery || "clear, natural pacing"}. The exact spoken words (Arabic script, do NOT translate, do NOT render as on-screen text): «${scene.spoken_arabic}»`,
+    `CONSTRAINTS: ${NEGATIVE}. The only speech in this clip is the Arabic line above; no English words at all; no subtitles or captions burned into the frame; ambient sound may accompany the voice.`,
   ].filter(Boolean).join("\n\n");
 }
+
 
 async function generateClip(prompt: string): Promise<Uint8Array> {
   const kickoff = await fetch(

@@ -9,17 +9,19 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Loader2, Play, CheckCircle, Volume2, Globe, Film } from 'lucide-react';
+import { ArrowLeft, Loader2, Play, Pause, CheckCircle, Volume2, Globe, Image as ImageIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Database } from '@/integrations/supabase/types';
 
 type AuthenticStoryLine = Database['public']['Tables']['authentic_story_lines']['Row'];
-type StoryVideoSegment = {
-  url: string;
+type StorySceneSegment = {
+  image_url?: string;
+  url?: string; // legacy
   audio_url?: string;
   narration_arabic?: string;
   prompt?: string;
   index?: number;
+  duration_seconds?: number;
 };
 
 const AdminReadingLibraryForm = () => {

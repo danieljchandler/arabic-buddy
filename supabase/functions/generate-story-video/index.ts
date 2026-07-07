@@ -1,9 +1,10 @@
-// generate-story-video — Generates a short cinematic trailer video for an
-// authentic story using Google Veo 3 (via Gemini API). Kicks off a Long-Running
-// Operation, polls it in the background (EdgeRuntime.waitUntil), then downloads
-// the MP4 and uploads it to the story-videos storage bucket.
+// generate-story-video — Generates an admin-review preview for an authentic
+// story. Veo is used for visuals only; exact Arabic narration is generated
+// separately via TTS and stored on video_preview_url so the video model never
+// gets to improvise English speech.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { estimateSeconds, planProvider, synthesizeLine } from "../_shared/listenTts.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -21,6 +22,7 @@ const VEO_MODEL = "veo-3.1-fast-generate-preview";
 const BUCKET = "listen-audio";
 const POLL_INTERVAL_MS = 10_000;
 const POLL_MAX_MS = 10 * 60_000; // 10 min
+const NEGATIVE = "English speech, English text, Latin letters, captions, subtitles, signs, logos, watermarks, talking, dialogue, narration, voices, mouth speaking, on-screen text of any language";
 
 type Story = {
   id: string;
@@ -31,16 +33,75 @@ type Story = {
   dialect: string | null;
 };
 
-function buildPrompt(story: Story): string {
-  const eng = (story.body_english ?? "").slice(0, 600);
+type StoryLine = {
+  arabic: string | null;
+  arabic_vocalized: string | null;
+  dialect: string | null;
+  dialect_vocalized: string | null;
+};
+
+function hasLatin(text: string): boolean {
+  return /[A-Za-z]/.test(text);
+}
+
+function normalizeArabicText(text: string): string {
+  return text.replace(/\s+/g, " ").trim();
+}
+
+function firstWords(text: string, maxWords: number): string {
+  return normalizeArabicText(text).split(/\s+/).slice(0, maxWords).join(" ");
+}
+
+function pickLineText(line: StoryLine): string {
+  return normalizeArabicText(
+    line.dialect_vocalized || line.arabic_vocalized || line.dialect || line.arabic || "",
+  );
+}
+
+function buildNarrationText(story: Story, lines: StoryLine[]): string {
+  const fromLines = lines.map(pickLineText).find(Boolean);
+  const source = fromLines || story.body_fusha || "";
+  const firstSentence = normalizeArabicText(source).split(/(?<=[.!?؟。])\s+/)[0] || source;
+  const narration = firstWords(firstSentence, 26);
+  if (!narration) throw new Error("No Arabic script found for preview narration");
+  if (hasLatin(narration)) throw new Error("Preview narration contains Latin/English characters");
+  return narration;
+}
+
+async function synthesizePreviewNarration(
+  admin: ReturnType<typeof createClient>,
+  story: Story,
+  lines: StoryLine[],
+): Promise<{ url: string; text: string; duration: number }> {
+  const text = buildNarrationText(story, lines);
+  const plan = await planProvider(story.dialect || "Gulf");
+  const bytes = await synthesizeLine(text, "narrator", 0, plan);
+  const path = `authentic-stories/${story.id}/preview-narration-${Date.now()}.${plan.ext}`;
+  const up = await admin.storage.from(BUCKET).upload(path, bytes, {
+    contentType: plan.contentType,
+    upsert: true,
+  });
+  if (up.error) throw up.error;
+  const { data: pub } = admin.storage.from(BUCKET).getPublicUrl(path);
+  return { url: pub.publicUrl, text, duration: estimateSeconds(bytes.byteLength, plan) };
+}
+
+function buildPrompt(story: Story, narrationText: string): string {
+  const arabicScript = normalizeArabicText(story.body_fusha || narrationText).slice(0, 1400);
   const dialectCtx = story.dialect
     ? ` The setting reflects an authentic ${story.dialect} Arab cultural context.`
     : "";
-  return `A short cinematic trailer that visually captures this Arabic story titled "${story.title}".${dialectCtx}
+  return `Create an 8-second silent cinematic visual preview for this Arabic story.${dialectCtx}
 
-Story summary: ${eng}
+Arabic story title: ${story.title_arabic || story.title}
+Exact Arabic script excerpt to depict visually, without changing the events:
+${arabicScript}
 
-Style: warm cinematic lighting, rich Middle Eastern atmosphere, painterly composition, gentle camera movement, no on-screen text, no captions, no subtitles, no logos. Focus on characters, setting, and mood evoked by the narrative. Photorealistic.`;
+The separate narration audio will say exactly: «${narrationText}»
+
+Visual requirements: match the Arabic script excerpt precisely; show the characters, setting, and action implied by the Arabic text. Warm cinematic lighting, authentic Arab cultural details, gentle camera movement, photorealistic.
+
+Audio/text constraints for the generated video: visuals only. No speech, no voices, no dialogue, no narration, no lip-sync, no subtitles, no captions, no on-screen text, no logos, no signs. Never include English or Latin letters.`;
 }
 
 async function pollAndStore(admin: ReturnType<typeof createClient>, storyId: string, opName: string) {
@@ -141,7 +202,15 @@ Deno.serve(async (req) => {
       });
     }
 
-    const prompt = buildPrompt(story as Story);
+    const { data: lines } = await admin
+      .from("authentic_story_lines")
+      .select("arabic, arabic_vocalized, dialect, dialect_vocalized")
+      .eq("story_id", story_id)
+      .order("line_index", { ascending: true })
+      .limit(3);
+
+    const narration = await synthesizePreviewNarration(admin, story as Story, (lines ?? []) as StoryLine[]);
+    const prompt = buildPrompt(story as Story, narration.text);
     console.log("veo prompt", story_id, prompt.slice(0, 200));
 
     // Kick off Veo long-running generation
@@ -156,6 +225,7 @@ Deno.serve(async (req) => {
             aspectRatio: "16:9",
             personGeneration: "allow_all",
             durationSeconds: 8,
+            negativePrompt: NEGATIVE,
           },
         }),
       },
@@ -184,6 +254,9 @@ Deno.serve(async (req) => {
         story_video_status: "generating",
         story_video_operation: opName,
         story_video_error: null,
+        story_video_approved: false,
+        video_preview_url: narration.url,
+        line_durations: [narration.duration],
       })
       .eq("id", story_id);
 

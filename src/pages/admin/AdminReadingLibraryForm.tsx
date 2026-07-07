@@ -534,7 +534,7 @@ const AdminReadingLibraryForm = () => {
 
               {/* Full Video (sequential playback of scene segments) */}
               {(() => {
-                const segs = (story.story_video_segments ?? []) as StoryVideoSegment[];
+                const segs = (story.story_video_segments ?? []) as unknown as StoryVideoSegment[];
                 if (segs.length === 0) return null;
                 const activeSegment = segs[fullVideoIdx];
                 return (

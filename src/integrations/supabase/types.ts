@@ -155,8 +155,12 @@ export type Database = {
           source_name: string | null
           source_url: string | null
           status: string
+          story_video_approved: boolean
           story_video_error: string | null
+          story_video_full_error: string | null
+          story_video_full_status: string
           story_video_operation: string | null
+          story_video_segments: Json
           story_video_status: string
           story_video_url: string | null
           title: string
@@ -186,8 +190,12 @@ export type Database = {
           source_name?: string | null
           source_url?: string | null
           status?: string
+          story_video_approved?: boolean
           story_video_error?: string | null
+          story_video_full_error?: string | null
+          story_video_full_status?: string
           story_video_operation?: string | null
+          story_video_segments?: Json
           story_video_status?: string
           story_video_url?: string | null
           title: string
@@ -217,8 +225,12 @@ export type Database = {
           source_name?: string | null
           source_url?: string | null
           status?: string
+          story_video_approved?: boolean
           story_video_error?: string | null
+          story_video_full_error?: string | null
+          story_video_full_status?: string
           story_video_operation?: string | null
+          story_video_segments?: Json
           story_video_status?: string
           story_video_url?: string | null
           title?: string

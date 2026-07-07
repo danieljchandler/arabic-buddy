@@ -37,6 +37,9 @@ const AdminReadingLibraryForm = () => {
   const [generatingFull, setGeneratingFull] = useState(false);
   const [translating, setTranslating] = useState(false);
   const [generatingVideo, setGeneratingVideo] = useState(false);
+  const [approvingVideo, setApprovingVideo] = useState(false);
+  const [generatingFullVideo, setGeneratingFullVideo] = useState(false);
+  const [fullVideoIdx, setFullVideoIdx] = useState(0);
 
   // Load existing story when editing
   const { data: story, isLoading: loadingStory } = useQuery({
@@ -52,9 +55,14 @@ const AdminReadingLibraryForm = () => {
       return data;
     },
     enabled: isEditing,
-    refetchInterval: (q) =>
-      (q.state.data as { story_video_status?: string } | null)?.story_video_status === 'generating' ? 15000 : false,
+    refetchInterval: (q) => {
+      const s = q.state.data as { story_video_status?: string; story_video_full_status?: string } | null;
+      if (s?.story_video_status === 'generating' || s?.story_video_full_status === 'generating') return 15000;
+      return false;
+    },
   });
+
+
 
   // Load story lines when editing
   const { data: lines } = useQuery({
@@ -194,6 +202,41 @@ const AdminReadingLibraryForm = () => {
       toast.error(e instanceof Error ? e.message : 'Video generation failed');
     } finally {
       setGeneratingVideo(false);
+    }
+  };
+
+  const handleApproveVideo = async () => {
+    if (!id) return;
+    setApprovingVideo(true);
+    try {
+      const { error } = await supabase
+        .from('authentic_stories')
+        .update({ story_video_approved: true })
+        .eq('id', id);
+      if (error) throw error;
+      toast.success('Preview approved. You can now generate the full video.');
+      queryClient.invalidateQueries({ queryKey: ['authentic-story', id] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Approval failed');
+    } finally {
+      setApprovingVideo(false);
+    }
+  };
+
+  const handleGenerateFullVideo = async () => {
+    if (!id) return;
+    setGeneratingFullVideo(true);
+    try {
+      const resp = await supabase.functions.invoke('generate-story-video-full', {
+        body: { story_id: id },
+      });
+      if (resp.error) throw new Error(resp.error.message);
+      toast.success('Full video generation started — this takes 8–15 minutes');
+      queryClient.invalidateQueries({ queryKey: ['authentic-story', id] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Full video generation failed');
+    } finally {
+      setGeneratingFullVideo(false);
     }
   };
 
@@ -380,11 +423,37 @@ const AdminReadingLibraryForm = () => {
                     <Film className="h-4 w-4 mr-2" />
                   )}
                   {story.story_video_status === 'generating'
-                    ? 'Generating Video…'
+                    ? 'Generating Preview…'
                     : story.story_video_url
-                      ? 'Regenerate Video'
-                      : 'Generate Trailer Video'}
+                      ? 'Regenerate Preview'
+                      : 'Generate Preview Video'}
                 </Button>
+
+                {story.story_video_url && !story.story_video_approved && (
+                  <Button onClick={handleApproveVideo} disabled={approvingVideo} variant="default">
+                    {approvingVideo ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <CheckCircle className="h-4 w-4 mr-2" />}
+                    Approve Preview
+                  </Button>
+                )}
+
+                {story.story_video_approved && (
+                  <Button
+                    onClick={handleGenerateFullVideo}
+                    disabled={generatingFullVideo || story.story_video_full_status === 'generating'}
+                    variant="outline"
+                  >
+                    {generatingFullVideo || story.story_video_full_status === 'generating' ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Film className="h-4 w-4 mr-2" />
+                    )}
+                    {story.story_video_full_status === 'generating'
+                      ? 'Generating Full Video…'
+                      : (story.story_video_segments as unknown[])?.length
+                        ? 'Regenerate Full Video'
+                        : 'Generate Full Video'}
+                  </Button>
+                )}
 
                 {story.video_status === 'ready' && story.status !== 'published' && (
                   <Button onClick={handlePublish} variant="default">
@@ -402,15 +471,63 @@ const AdminReadingLibraryForm = () => {
                 </div>
               )}
 
-              {/* Trailer Video */}
+              {/* Preview Video (single 8-second clip) */}
               {story.story_video_url && (
                 <div className="mt-4">
-                  <Label>Trailer Video</Label>
-                  <video controls src={story.story_video_url} className="w-full mt-1 rounded-lg max-h-96" />
+                  <Label>Preview Video (for approval)</Label>
+                  <video
+                    controls
+                    playsInline
+                    src={story.story_video_url}
+                    className="w-full mt-1 rounded-lg max-h-96 bg-black"
+                  />
+                  {story.story_video_approved && (
+                    <p className="text-xs text-green-600 mt-1">✓ Approved</p>
+                  )}
                 </div>
               )}
               {story.story_video_status === 'failed' && story.story_video_error && (
-                <p className="text-sm text-destructive mt-2">Video error: {story.story_video_error}</p>
+                <p className="text-sm text-destructive mt-2">Preview error: {story.story_video_error}</p>
+              )}
+
+              {/* Full Video (sequential playback of scene segments) */}
+              {(() => {
+                const segs = (story.story_video_segments ?? []) as Array<{ url: string; prompt?: string; index?: number }>;
+                if (segs.length === 0) return null;
+                return (
+                  <div className="mt-4">
+                    <Label>
+                      Full Video — Scene {fullVideoIdx + 1} of {segs.length}
+                      {story.story_video_full_status === 'generating' && ' (more scenes generating…)'}
+                    </Label>
+                    <video
+                      key={segs[fullVideoIdx]?.url}
+                      controls
+                      autoPlay
+                      playsInline
+                      src={segs[fullVideoIdx]?.url}
+                      onEnded={() => {
+                        if (fullVideoIdx + 1 < segs.length) setFullVideoIdx(fullVideoIdx + 1);
+                      }}
+                      className="w-full mt-1 rounded-lg max-h-96 bg-black"
+                    />
+                    <div className="flex gap-2 mt-2 flex-wrap">
+                      {segs.map((_, i) => (
+                        <Button
+                          key={i}
+                          size="sm"
+                          variant={i === fullVideoIdx ? 'default' : 'outline'}
+                          onClick={() => setFullVideoIdx(i)}
+                        >
+                          Scene {i + 1}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+              {story.story_video_full_status === 'failed' && story.story_video_full_error && (
+                <p className="text-sm text-destructive mt-2">Full video error: {story.story_video_full_error}</p>
               )}
             </CardContent>
           </Card>

@@ -16,7 +16,9 @@ const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY")!;
 
 const VEO_MODEL = "veo-3.1-fast-generate-preview";
-const BUCKET = "story-videos";
+// listen-audio is the project's public media bucket; story-videos is private and
+// workspace policy blocks flipping it to public, so we reuse listen-audio for playback.
+const BUCKET = "listen-audio";
 const POLL_INTERVAL_MS = 10_000;
 const POLL_MAX_MS = 10 * 60_000; // 10 min
 
@@ -72,7 +74,7 @@ async function pollAndStore(admin: ReturnType<typeof createClient>, storyId: str
       if (!vidRes.ok) throw new Error(`download failed: ${vidRes.status}`);
       const bytes = new Uint8Array(await vidRes.arrayBuffer());
 
-      const path = `${storyId}/${Date.now()}.mp4`;
+      const path = `authentic-stories/${storyId}/preview-${Date.now()}.mp4`;
       const up = await admin.storage.from(BUCKET).upload(path, bytes, {
         contentType: "video/mp4",
         upsert: true,

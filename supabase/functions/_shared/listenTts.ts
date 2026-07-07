@@ -159,7 +159,10 @@ export async function planProvider(dialect: string): Promise<ProviderPlan> {
 export function pickVoiceSlot(role: string, index: number): number {
   const r = (role || "").toLowerCase();
   if (r.includes("host_b") || r === "guest" || r === "character") return 1;
-  if (r === "narrator") return 2;
+  // Narrator uses the same primary voice slot the podcast host uses — that
+  // voice is proven to sound natural on long-form narration. Slot 2 previously
+  // picked a more energetic voice that sounded like shouting on stories.
+  if (r === "narrator") return 0;
   if (r === "speaker") return 0;
   return index % 2;
 }

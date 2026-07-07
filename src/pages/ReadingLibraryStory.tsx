@@ -204,6 +204,40 @@ const ReadingLibraryStory = () => {
             </div>
           </div>
 
+          {/* Scene slideshow */}
+          {sceneImages.length > 0 && (
+            <div className="mb-4">
+              <div className="relative rounded-xl overflow-hidden bg-muted aspect-video shadow-sm">
+                <img
+                  src={heroImage}
+                  alt={`Scene ${activeSceneIdx + 1}`}
+                  className="w-full h-full object-cover transition-opacity duration-500"
+                />
+                {sceneImages.length > 1 && (
+                  <div className="absolute bottom-2 right-2 bg-black/60 text-white text-xs px-2 py-0.5 rounded">
+                    {activeSceneIdx + 1} / {sceneImages.length}
+                  </div>
+                )}
+              </div>
+              {sceneImages.length > 1 && (
+                <div className="flex gap-2 mt-2 overflow-x-auto pb-1">
+                  {sceneImages.map((src, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setActiveSceneIdx(i)}
+                      className={cn(
+                        'shrink-0 w-16 h-16 rounded-md overflow-hidden border-2 transition',
+                        i === activeSceneIdx ? 'border-primary' : 'border-transparent opacity-70 hover:opacity-100',
+                      )}
+                    >
+                      <img src={src} alt={`Scene ${i + 1} thumbnail`} className="w-full h-full object-cover" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Controls */}
           <Card className="p-3 mb-4">
             <div className="flex flex-wrap items-center gap-4">

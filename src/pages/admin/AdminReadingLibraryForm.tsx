@@ -52,6 +52,8 @@ const AdminReadingLibraryForm = () => {
       return data;
     },
     enabled: isEditing,
+    refetchInterval: (q) =>
+      (q.state.data as { story_video_status?: string } | null)?.story_video_status === 'generating' ? 15000 : false,
   });
 
   // Load story lines when editing

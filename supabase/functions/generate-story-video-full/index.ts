@@ -2,9 +2,11 @@
 // coherent multi-scene film for the story. The planner reads the ENTIRE script
 // once and returns a shared style anchor + character sheet + ordered scenes.
 // Every Veo prompt is prefixed with that shared context so all clips feel like
-// one continuous film. English text / speech / signage is explicitly forbidden.
+// one continuous film. Veo is visual-only; exact Arabic narration is generated
+// separately from the script so English speech cannot leak into the video.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { estimateSeconds, planProvider, synthesizeLine } from "../_shared/listenTts.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -24,7 +26,7 @@ const POLL_MAX_MS = 8 * 60_000;
 const MIN_SCENES = 3;
 const MAX_SCENES = 6;
 
-const NEGATIVE = "no english speech, no english text, no latin letters, no subtitles, no captions, no watermarks, no logos, no western signage, no modern anachronisms, no cartoon or anime style, no on-screen text of any language";
+const NEGATIVE = "English speech, English text, Latin letters, captions, subtitles, signs, logos, watermarks, talking, dialogue, narration, voices, mouth speaking, lip sync, on-screen text of any language, western signage, modern anachronisms, cartoon style, anime style";
 
 type Story = {
   id: string;
@@ -43,13 +45,29 @@ type Plan = {
     index: number;
     arabic_beat: string;
     visual_prompt: string;
-    spoken_arabic: string;
-    speaker: string;
-    delivery: string;
     characters_in_scene: string[];
   }[];
 
 };
+
+function hasLatin(text: string): boolean {
+  return /[A-Za-z]/.test(text);
+}
+
+function normalizeArabicText(text: string): string {
+  return text.replace(/\s+/g, " ").trim();
+}
+
+function firstWords(text: string, maxWords: number): string {
+  return normalizeArabicText(text).split(/\s+/).slice(0, maxWords).join(" ");
+}
+
+function validateArabicOnly(label: string, text: string): string {
+  const normalized = normalizeArabicText(text);
+  if (!normalized) throw new Error(`${label} is empty`);
+  if (hasLatin(normalized)) throw new Error(`${label} contains Latin/English characters`);
+  return normalized;
+}
 
 function culturalSetting(dialect: string | null): string {
   const d = (dialect ?? "").toLowerCase();
@@ -77,10 +95,7 @@ Return STRICT JSON with this exact shape:
     {
       "index": 0,
       "arabic_beat": "the Arabic sentence(s) from the story this scene depicts, quoted verbatim",
-      "visual_prompt": "8-second single continuous shot description. Describe WHAT HAPPENS in the frame that visually matches the arabic_beat. Include camera framing and motion. Do NOT include style/setting/character descriptions here (those are prepended automatically). Do NOT include dialogue text here. No on-screen text.",
-      "spoken_arabic": "the exact Arabic words spoken aloud during this 8-second shot — either verbatim dialogue from the story, or a concise Arabic narrator line drawn verbatim from the arabic_beat. Must be short enough to be spoken naturally in ~8 seconds (roughly 15-25 words max). Arabic script only, fully vocalized where useful. NEVER English.",
-      "speaker": "character_id_slug of the speaker, or 'narrator'",
-      "delivery": "short description of tone and pacing, e.g. 'warm elderly male narrator, calm measured pace' or 'young woman, urgent whispered'",
+      "visual_prompt": "8-second single continuous shot description. Describe WHAT HAPPENS in the frame that visually matches the arabic_beat. Include camera framing and motion. Do NOT include style/setting/character descriptions here (those are prepended automatically). Do NOT include dialogue text here. No on-screen text. No speech.",
       "characters_in_scene": ["character_id_slug", ...]
     }
   ]
@@ -92,8 +107,8 @@ Hard rules:
 - Every scene MUST correspond to real content from the provided Arabic script. Do not invent events not in the story.
 - Characters listed once with consistent appearance; reused across scenes by id.
 - Scene visual_prompt must be a SINGLE continuous camera shot (no cuts, no split-screen, no montage).
-- spoken_arabic MUST be Arabic script text drawn verbatim (or very lightly trimmed) from the arabic_beat. Never English. Never invented content.
-- Keep spoken_arabic short enough to fit an 8-second read (~15-25 words).
+- arabic_beat MUST be Arabic script quoted verbatim from the provided script. Never English. Never summarize in English.
+- Veo will be visuals-only. Do not request speech, lip-sync, voiceover, subtitles, captions, or on-screen text.
 - ${NEGATIVE}.
 - Setting: ${setting}.
 - Output valid JSON only, no prose, no markdown fences.`;
@@ -133,7 +148,13 @@ ${fullEnglish ? `ENGLISH REFERENCE TRANSLATION (context only, do NOT use English
   return {
     style_anchor: parsed.style_anchor,
     characters: Array.isArray(parsed.characters) ? parsed.characters : [],
-    scenes: parsed.scenes.slice(0, MAX_SCENES),
+    scenes: parsed.scenes.slice(0, MAX_SCENES).map((scene, idx) => ({
+      ...scene,
+      index: idx,
+      arabic_beat: validateArabicOnly(`scene ${idx + 1} arabic_beat`, scene.arabic_beat),
+      visual_prompt: scene.visual_prompt || "A precise silent visual depiction of the Arabic story beat.",
+      characters_in_scene: Array.isArray(scene.characters_in_scene) ? scene.characters_in_scene : [],
+    })),
   };
 }
 
@@ -148,23 +169,38 @@ function buildScenePrompt(plan: Plan, sceneIdx: number): string {
     ? "OPENING SHOT of the film."
     : `Scene ${sceneIdx + 1} of ${plan.scenes.length}. Maintain visual continuity with prior scenes (same style, same characters, same world).`;
 
-  const speakerLabel = scene.speaker && scene.speaker !== "narrator"
-    ? (plan.characters.find((c) => c.id === scene.speaker)?.appearance
-        ? `${scene.speaker} (${plan.characters.find((c) => c.id === scene.speaker)!.appearance})`
-        : scene.speaker)
-    : "an off-screen Arabic narrator";
-
-  const dialectHint = "spoken in natural Arabic (matching the story's dialect / classical Arabic as appropriate). NEVER English.";
-
   return [
     `CINEMATIC STYLE (constant across the film): ${plan.style_anchor}`,
     cast ? `CHARACTERS IN THIS SHOT (keep their appearance identical to prior scenes):\n${cast}` : "",
     continuity,
     `ACTION (this shot must visually depict this exact story beat): ${scene.arabic_beat}`,
     `SHOT: ${scene.visual_prompt}`,
-    `AUDIO — spoken line (Arabic only): ${speakerLabel} says, ${dialectHint} Delivery: ${scene.delivery || "clear, natural pacing"}. The exact spoken words (Arabic script, do NOT translate, do NOT render as on-screen text): «${scene.spoken_arabic}»`,
-    `CONSTRAINTS: ${NEGATIVE}. The only speech in this clip is the Arabic line above; no English words at all; no subtitles or captions burned into the frame; ambient sound may accompany the voice.`,
+    `AUDIO CONSTRAINT: Generate visuals only. No speech, no voices, no narration, no lip-sync, no dialogue, no subtitles, no captions, no on-screen text. A separate Arabic narration track will be added outside the video model.`,
+    `CONSTRAINTS: ${NEGATIVE}.`,
   ].filter(Boolean).join("\n\n");
+}
+
+async function synthesizeSceneNarration(
+  admin: ReturnType<typeof createClient>,
+  story: Story,
+  sceneIndex: number,
+  arabicBeat: string,
+): Promise<{ audio_url: string; narration_arabic: string; duration_seconds: number }> {
+  const narration = validateArabicOnly(`scene ${sceneIndex + 1} narration`, firstWords(arabicBeat, 32));
+  const providerPlan = await planProvider(story.dialect || "Gulf");
+  const bytes = await synthesizeLine(narration, "narrator", sceneIndex, providerPlan);
+  const path = `authentic-stories/${story.id}/full-${sceneIndex}-narration-${Date.now()}.${providerPlan.ext}`;
+  const up = await admin.storage.from(BUCKET).upload(path, bytes, {
+    contentType: providerPlan.contentType,
+    upsert: true,
+  });
+  if (up.error) throw up.error;
+  const { data: pub } = admin.storage.from(BUCKET).getPublicUrl(path);
+  return {
+    audio_url: pub.publicUrl,
+    narration_arabic: narration,
+    duration_seconds: estimateSeconds(bytes.byteLength, providerPlan),
+  };
 }
 
 
@@ -213,11 +249,20 @@ async function generateClip(prompt: string): Promise<Uint8Array> {
 
 async function runFull(admin: ReturnType<typeof createClient>, story: Story, plan: Plan) {
   try {
-    const segments: { url: string; prompt: string; index: number; arabic_beat: string }[] = [];
+    const segments: {
+      url: string;
+      audio_url: string;
+      narration_arabic: string;
+      duration_seconds: number;
+      prompt: string;
+      index: number;
+      arabic_beat: string;
+    }[] = [];
 
     for (let i = 0; i < plan.scenes.length; i++) {
       try {
         const prompt = buildScenePrompt(plan, i);
+        const narration = await synthesizeSceneNarration(admin, story, i, plan.scenes[i].arabic_beat);
         const bytes = await generateClip(prompt);
         const path = `authentic-stories/${story.id}/full-${i}-${Date.now()}.mp4`;
         const up = await admin.storage.from(BUCKET).upload(path, bytes, {
@@ -228,6 +273,9 @@ async function runFull(admin: ReturnType<typeof createClient>, story: Story, pla
         const { data: pub } = admin.storage.from(BUCKET).getPublicUrl(path);
         segments.push({
           url: pub.publicUrl,
+          audio_url: narration.audio_url,
+          narration_arabic: narration.narration_arabic,
+          duration_seconds: narration.duration_seconds,
           prompt,
           index: i,
           arabic_beat: plan.scenes[i].arabic_beat,

@@ -52,6 +52,16 @@ const useStoryLines = (storyId: string | undefined) =>
     enabled: Boolean(storyId),
   });
 
+type StorySegment = {
+  image_url?: string;
+  url?: string;
+  audio_url?: string;
+  arabic_beat?: string;
+  narration_arabic?: string;
+  duration_seconds?: number;
+  index?: number;
+};
+
 const ReadingLibraryStory = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -64,10 +74,30 @@ const ReadingLibraryStory = () => {
   const [showEnglish, setShowEnglish] = useState(false);
   const [currentLineIndex, setCurrentLineIndex] = useState(-1);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [activeSceneIdx, setActiveSceneIdx] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const lineRefs = useRef<(HTMLDivElement | null)[]>([]);
 
+  const segments: StorySegment[] = Array.isArray(story?.story_video_segments)
+    ? (story!.story_video_segments as unknown as StorySegment[]).filter(
+        (s) => s && (s.image_url || s.url),
+      )
+    : [];
+  const sceneImages = segments.map((s) => (s.image_url || s.url) as string);
+  const heroImage = sceneImages[activeSceneIdx] ?? sceneImages[0];
+
   const hasAudio = lines?.some((l) => l.audio_url);
+
+  // Sync active scene image to line playback progress
+  useEffect(() => {
+    if (sceneImages.length === 0 || !lines || lines.length === 0) return;
+    if (currentLineIndex < 0) { setActiveSceneIdx(0); return; }
+    const idx = Math.min(
+      sceneImages.length - 1,
+      Math.floor((currentLineIndex / lines.length) * sceneImages.length),
+    );
+    setActiveSceneIdx(idx);
+  }, [currentLineIndex, lines?.length, sceneImages.length]);
 
   // Auto-scroll to current line
   useEffect(() => {
@@ -173,6 +203,40 @@ const ReadingLibraryStory = () => {
               <Badge variant="secondary">{story.dialect}</Badge>
             </div>
           </div>
+
+          {/* Scene slideshow */}
+          {sceneImages.length > 0 && (
+            <div className="mb-4">
+              <div className="relative rounded-xl overflow-hidden bg-muted aspect-video shadow-sm">
+                <img
+                  src={heroImage}
+                  alt={`Scene ${activeSceneIdx + 1}`}
+                  className="w-full h-full object-cover transition-opacity duration-500"
+                />
+                {sceneImages.length > 1 && (
+                  <div className="absolute bottom-2 right-2 bg-black/60 text-white text-xs px-2 py-0.5 rounded">
+                    {activeSceneIdx + 1} / {sceneImages.length}
+                  </div>
+                )}
+              </div>
+              {sceneImages.length > 1 && (
+                <div className="flex gap-2 mt-2 overflow-x-auto pb-1">
+                  {sceneImages.map((src, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setActiveSceneIdx(i)}
+                      className={cn(
+                        'shrink-0 w-16 h-16 rounded-md overflow-hidden border-2 transition',
+                        i === activeSceneIdx ? 'border-primary' : 'border-transparent opacity-70 hover:opacity-100',
+                      )}
+                    >
+                      <img src={src} alt={`Scene ${i + 1} thumbnail`} className="w-full h-full object-cover" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Controls */}
           <Card className="p-3 mb-4">

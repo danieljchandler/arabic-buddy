@@ -89,8 +89,8 @@ async function generateSceneImage(prompt: string): Promise<Uint8Array> {
     },
     body: JSON.stringify({
       model: IMAGE_MODEL,
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-      generationConfig: { responseModalities: ["TEXT", "IMAGE"] },
+      messages: [{ role: "user", content: prompt }],
+      modalities: ["image", "text"],
     }),
   });
   if (!resp.ok) throw new Error(`image gen failed: ${resp.status} ${await resp.text()}`);

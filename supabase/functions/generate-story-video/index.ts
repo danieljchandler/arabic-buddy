@@ -1,7 +1,9 @@
-// generate-story-video — Generates an admin-review preview for an authentic
-// story. Veo is used for visuals only; exact Arabic narration is generated
-// separately via TTS and stored on video_preview_url so the video model never
-// gets to improvise English speech.
+// generate-story-video — Generate a slideshow-style preview: one AI-generated
+// scene image + one Arabic narration clip. Cheap replacement for Veo video.
+// Reused columns:
+//   story_video_url      -> preview scene IMAGE url
+//   video_preview_url    -> preview narration AUDIO url
+//   story_video_status   -> 'generating' | 'ready' | 'failed'
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { estimateSeconds, planProvider, synthesizeLine } from "../_shared/listenTts.ts";
@@ -14,15 +16,10 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY")!;
+const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY")!;
 
-const VEO_MODEL = "veo-3.1-fast-generate-preview";
-// listen-audio is the project's public media bucket; story-videos is private and
-// workspace policy blocks flipping it to public, so we reuse listen-audio for playback.
+const IMAGE_MODEL = "google/gemini-3.1-flash-image";
 const BUCKET = "listen-audio";
-const POLL_INTERVAL_MS = 10_000;
-const POLL_MAX_MS = 10 * 60_000; // 10 min
-const NEGATIVE = "English speech, English text, Latin letters, captions, subtitles, signs, logos, watermarks, talking, dialogue, narration, voices, mouth speaking, on-screen text of any language";
 
 type Story = {
   id: string;
@@ -43,15 +40,12 @@ type StoryLine = {
 function hasLatin(text: string): boolean {
   return /[A-Za-z]/.test(text);
 }
-
 function normalizeArabicText(text: string): string {
   return text.replace(/\s+/g, " ").trim();
 }
-
 function firstWords(text: string, maxWords: number): string {
   return normalizeArabicText(text).split(/\s+/).slice(0, maxWords).join(" ");
 }
-
 function pickLineText(line: StoryLine): string {
   return normalizeArabicText(
     line.dialect_vocalized || line.arabic_vocalized || line.dialect || line.arabic || "",
@@ -66,6 +60,47 @@ function buildNarrationText(story: Story, lines: StoryLine[]): string {
   if (!narration) throw new Error("No Arabic script found for preview narration");
   if (hasLatin(narration)) throw new Error("Preview narration contains Latin/English characters");
   return narration;
+}
+
+function culturalSetting(dialect: string | null): string {
+  const d = (dialect ?? "").toLowerCase();
+  if (d.includes("gulf") || d.includes("khaleeji") || d.includes("emirati") || d.includes("saudi"))
+    return "authentic Gulf Arab (Khaleeji) setting — kanduras, ghutras, desert/coastal palette";
+  if (d.includes("egypt")) return "authentic Egyptian setting — Cairo streets, galabiyas, warm tones";
+  if (d.includes("yemen")) return "authentic Yemeni setting — Sana'a tower houses, mountain terrain";
+  if (d.includes("levant") || d.includes("syria") || d.includes("lebanon") || d.includes("palest") || d.includes("jordan"))
+    return "authentic Levantine setting — old-city stone architecture";
+  return "authentic Arab cultural setting matching the story's origin";
+}
+
+function buildImagePrompt(story: Story, arabicScript: string): string {
+  const setting = culturalSetting(story.dialect);
+  const excerpt = normalizeArabicText(arabicScript).slice(0, 800);
+  return `Warm cinematic storybook illustration for an Arabic short story. ${setting}. Photorealistic painterly style, soft natural lighting, rich color palette, no text of any language, no captions, no signs, no logos, no watermarks, no Latin letters, no Arabic letters visible in the scene. Depict the following story moment visually only:\n\n${excerpt}`;
+}
+
+async function generateSceneImage(prompt: string): Promise<Uint8Array> {
+  const resp = await fetch("https://ai.gateway.lovable.dev/v1/images/generations", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${LOVABLE_API_KEY}`,
+      "Lovable-API-Key": LOVABLE_API_KEY,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: IMAGE_MODEL,
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      generationConfig: { responseModalities: ["TEXT", "IMAGE"] },
+    }),
+  });
+  if (!resp.ok) throw new Error(`image gen failed: ${resp.status} ${await resp.text()}`);
+  const json = await resp.json();
+  const b64: string | undefined = json?.data?.[0]?.b64_json;
+  if (!b64) throw new Error(`no image in response: ${JSON.stringify(json).slice(0, 300)}`);
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes;
 }
 
 async function synthesizePreviewNarration(
@@ -86,90 +121,27 @@ async function synthesizePreviewNarration(
   return { url: pub.publicUrl, text, duration: estimateSeconds(bytes.byteLength, plan) };
 }
 
-function buildPrompt(story: Story, narrationText: string): string {
-  const arabicScript = normalizeArabicText(story.body_fusha || narrationText).slice(0, 1400);
-  const dialectCtx = story.dialect
-    ? ` The setting reflects an authentic ${story.dialect} Arab cultural context.`
-    : "";
-  return `Create an 8-second silent cinematic visual preview for this Arabic story.${dialectCtx}
-
-Arabic story title: ${story.title_arabic || story.title}
-Exact Arabic script excerpt to depict visually, without changing the events:
-${arabicScript}
-
-The separate narration audio will say exactly: «${narrationText}»
-
-Visual requirements: match the Arabic script excerpt precisely; show the characters, setting, and action implied by the Arabic text. Warm cinematic lighting, authentic Arab cultural details, gentle camera movement, photorealistic.
-
-Audio/text constraints for the generated video: visuals only. No speech, no voices, no dialogue, no narration, no lip-sync, no subtitles, no captions, no on-screen text, no logos, no signs. Never include English or Latin letters.`;
-}
-
-async function pollAndStore(admin: ReturnType<typeof createClient>, storyId: string, opName: string) {
-  const started = Date.now();
-  try {
-    while (Date.now() - started < POLL_MAX_MS) {
-      await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
-      const opRes = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/${opName}?key=${GEMINI_API_KEY}`,
-      );
-      if (!opRes.ok) {
-        const txt = await opRes.text();
-        console.error("veo poll error", opRes.status, txt);
-        continue;
-      }
-      const op = await opRes.json();
-      if (!op.done) continue;
-
-      if (op.error) {
-        throw new Error(`Veo failed: ${JSON.stringify(op.error)}`);
-      }
-
-      const gen = op.response?.generateVideoResponse ?? op.response;
-      const sample = gen?.generatedSamples?.[0] ?? gen?.generatedVideos?.[0];
-      const uri: string | undefined = sample?.video?.uri;
-      if (!uri) throw new Error(`No video uri in response: ${JSON.stringify(op.response).slice(0, 400)}`);
-
-      // Download the MP4 (Google requires the API key)
-      const dlUrl = uri.includes("?") ? `${uri}&key=${GEMINI_API_KEY}` : `${uri}?key=${GEMINI_API_KEY}`;
-      const vidRes = await fetch(dlUrl);
-      if (!vidRes.ok) throw new Error(`download failed: ${vidRes.status}`);
-      const bytes = new Uint8Array(await vidRes.arrayBuffer());
-
-      const path = `authentic-stories/${storyId}/preview-${Date.now()}.mp4`;
-      const up = await admin.storage.from(BUCKET).upload(path, bytes, {
-        contentType: "video/mp4",
-        upsert: true,
-      });
-      if (up.error) throw up.error;
-
-      const { data: pub } = admin.storage.from(BUCKET).getPublicUrl(path);
-      await admin
-        .from("authentic_stories")
-        .update({
-          story_video_url: pub.publicUrl,
-          story_video_status: "ready",
-          story_video_error: null,
-        })
-        .eq("id", storyId);
-      console.log("story video ready", storyId, pub.publicUrl);
-      return;
-    }
-    throw new Error("timeout waiting for Veo");
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error("generate-story-video bg failed", storyId, message);
-    await admin
-      .from("authentic_stories")
-      .update({ story_video_status: "failed", story_video_error: message.slice(0, 500) })
-      .eq("id", storyId);
-  }
+async function uploadImage(
+  admin: ReturnType<typeof createClient>,
+  storyId: string,
+  bytes: Uint8Array,
+  label: string,
+): Promise<string> {
+  const path = `authentic-stories/${storyId}/${label}-${Date.now()}.png`;
+  const up = await admin.storage.from(BUCKET).upload(path, bytes, {
+    contentType: "image/png",
+    upsert: true,
+  });
+  if (up.error) throw up.error;
+  const { data: pub } = admin.storage.from(BUCKET).getPublicUrl(path);
+  return pub.publicUrl;
 }
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    if (!GEMINI_API_KEY) throw new Error("Missing GEMINI_API_KEY");
+    if (!LOVABLE_API_KEY) throw new Error("Missing LOVABLE_API_KEY");
 
     const authHeader = req.headers.get("Authorization") ?? "";
     const token = authHeader.replace("Bearer ", "");
@@ -202,6 +174,11 @@ Deno.serve(async (req) => {
       });
     }
 
+    await admin
+      .from("authentic_stories")
+      .update({ story_video_status: "generating", story_video_error: null, story_video_approved: false })
+      .eq("id", story_id);
+
     const { data: lines } = await admin
       .from("authentic_story_lines")
       .select("arabic, arabic_vocalized, dialect, dialect_vocalized")
@@ -209,95 +186,49 @@ Deno.serve(async (req) => {
       .order("line_index", { ascending: true })
       .limit(3);
 
+    // 1) Narration audio (Munsit / ElevenLabs / Azure)
     const narration = await synthesizePreviewNarration(admin, story as Story, (lines ?? []) as StoryLine[]);
-    const prompt = buildPrompt(story as Story, narration.text);
-    console.log("veo prompt", story_id, prompt.slice(0, 200));
 
-    // Persist the deterministic Arabic narration immediately. Video kickoff can
-    // fail because of upstream quota/rate limits, but the admin should still be
-    // able to review the Arabic preview audio that was already generated.
+    // 2) Scene image
+    const prompt = buildImagePrompt(story as Story, narration.text);
+    const imgBytes = await generateSceneImage(prompt);
+    const imageUrl = await uploadImage(admin, story_id, imgBytes, "preview-scene");
+
     await admin
       .from("authentic_stories")
       .update({
+        story_video_url: imageUrl,
         video_preview_url: narration.url,
         line_durations: [narration.duration],
-        video_status: "preview_audio_generated",
-      })
-      .eq("id", story_id);
-
-    // Kick off Veo long-running generation
-    const kickoff = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${VEO_MODEL}:predictLongRunning?key=${GEMINI_API_KEY}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          instances: [{ prompt }],
-          parameters: {
-            aspectRatio: "16:9",
-            personGeneration: "allow_all",
-            durationSeconds: 8,
-            negativePrompt: NEGATIVE,
-          },
-        }),
-      },
-    );
-
-    if (!kickoff.ok) {
-      const txt = await kickoff.text();
-      console.error("veo kickoff failed", kickoff.status, txt);
-      const quotaExhausted = kickoff.status === 429 || txt.includes("RESOURCE_EXHAUSTED");
-      const videoError = quotaExhausted
-        ? "Video quota exhausted. Arabic preview audio was generated successfully; try preview video again later."
-        : txt.slice(0, 500);
-      await admin
-        .from("authentic_stories")
-        .update({ story_video_status: "failed", story_video_error: videoError })
-        .eq("id", story_id);
-
-      if (quotaExhausted) {
-        return new Response(JSON.stringify({
-          status: "audio_ready_video_quota_exhausted",
-          preview_url: narration.url,
-          detail: videoError,
-        }), {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      return new Response(JSON.stringify({ error: "veo_kickoff_failed", detail: txt }), {
-        status: 502,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const opJson = await kickoff.json();
-    const opName: string | undefined = opJson.name;
-    if (!opName) throw new Error(`no operation name: ${JSON.stringify(opJson)}`);
-
-    await admin
-      .from("authentic_stories")
-      .update({
-        story_video_status: "generating",
-        story_video_operation: opName,
+        story_video_status: "ready",
+        video_status: "preview_ready",
         story_video_error: null,
-        story_video_approved: false,
-        video_preview_url: narration.url,
-        line_durations: [narration.duration],
       })
       .eq("id", story_id);
-
-    // @ts-ignore EdgeRuntime is provided by Deno Deploy in Supabase edge functions
-    EdgeRuntime.waitUntil(pollAndStore(admin, story_id, opName));
 
     return new Response(
-      JSON.stringify({ status: "generating", operation: opName }),
+      JSON.stringify({
+        status: "ready",
+        image_url: imageUrl,
+        audio_url: narration.url,
+        narration_arabic: narration.text,
+        duration_seconds: narration.duration,
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
     console.error("generate-story-video error", message);
+    try {
+      const body = await req.clone().json().catch(() => ({}));
+      if (body?.story_id) {
+        const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
+        await admin
+          .from("authentic_stories")
+          .update({ story_video_status: "failed", story_video_error: message.slice(0, 500) })
+          .eq("id", body.story_id);
+      }
+    } catch { /* ignore */ }
     return new Response(JSON.stringify({ error: message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

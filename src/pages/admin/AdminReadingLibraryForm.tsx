@@ -207,7 +207,11 @@ const AdminReadingLibraryForm = () => {
         body: { story_id: id },
       });
       if (resp.error) throw new Error(resp.error.message);
-      toast.success('Video generation started — this takes 2–6 minutes');
+      if (resp.data?.status === 'audio_ready_video_quota_exhausted') {
+        toast.warning(resp.data.detail || 'Arabic preview audio is ready, but preview video quota is exhausted.');
+      } else {
+        toast.success('Video generation started — this takes 2–6 minutes');
+      }
       queryClient.invalidateQueries({ queryKey: ['authentic-story', id] });
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : 'Video generation failed');

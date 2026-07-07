@@ -243,10 +243,10 @@ const AdminReadingLibraryForm = () => {
         body: { story_id: id },
       });
       if (resp.error) throw new Error(resp.error.message);
-      toast.success('Full video generation started — this takes 8–15 minutes');
+      toast.success('Full slideshow generation started — scenes will appear as they render');
       queryClient.invalidateQueries({ queryKey: ['authentic-story', id] });
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Full video generation failed');
+      toast.error(e instanceof Error ? e.message : 'Full slideshow generation failed');
     } finally {
       setGeneratingFullVideo(false);
     }

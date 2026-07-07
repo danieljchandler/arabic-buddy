@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -14,6 +14,13 @@ import { toast } from 'sonner';
 import type { Database } from '@/integrations/supabase/types';
 
 type AuthenticStoryLine = Database['public']['Tables']['authentic_story_lines']['Row'];
+type StoryVideoSegment = {
+  url: string;
+  audio_url?: string;
+  narration_arabic?: string;
+  prompt?: string;
+  index?: number;
+};
 
 const AdminReadingLibraryForm = () => {
   const navigate = useNavigate();
@@ -40,6 +47,10 @@ const AdminReadingLibraryForm = () => {
   const [approvingVideo, setApprovingVideo] = useState(false);
   const [generatingFullVideo, setGeneratingFullVideo] = useState(false);
   const [fullVideoIdx, setFullVideoIdx] = useState(0);
+  const previewVideoRef = useRef<HTMLVideoElement | null>(null);
+  const previewAudioRef = useRef<HTMLAudioElement | null>(null);
+  const fullVideoRef = useRef<HTMLVideoElement | null>(null);
+  const fullAudioRef = useRef<HTMLAudioElement | null>(null);
 
   // Load existing story when editing
   const { data: story, isLoading: loadingStory } = useQuery({
@@ -238,6 +249,25 @@ const AdminReadingLibraryForm = () => {
     } finally {
       setGeneratingFullVideo(false);
     }
+  };
+
+  const syncAudioToVideo = (video: HTMLVideoElement | null, audio: HTMLAudioElement | null) => {
+    if (!video || !audio) return;
+    audio.currentTime = Math.min(video.currentTime, Math.max(audio.duration || video.currentTime, 0));
+  };
+
+  const playSyncedAudio = async (video: HTMLVideoElement | null, audio: HTMLAudioElement | null) => {
+    if (!video || !audio) return;
+    syncAudioToVideo(video, audio);
+    try {
+      await audio.play();
+    } catch {
+      // Browser autoplay policy may block audio until the admin taps play again.
+    }
+  };
+
+  const pauseSyncedAudio = (audio: HTMLAudioElement | null) => {
+    audio?.pause();
   };
 
   const handlePublish = async () => {
@@ -474,13 +504,24 @@ const AdminReadingLibraryForm = () => {
               {/* Preview Video (single 8-second clip) */}
               {story.story_video_url && (
                 <div className="mt-4">
-                  <Label>Preview Video (for approval)</Label>
+                  <Label>Preview Video with Exact Arabic Narration (for approval)</Label>
                   <video
+                    ref={previewVideoRef}
                     controls
                     playsInline
                     src={story.story_video_url}
+                    onPlay={() => playSyncedAudio(previewVideoRef.current, previewAudioRef.current)}
+                    onPause={() => pauseSyncedAudio(previewAudioRef.current)}
+                    onSeeked={() => syncAudioToVideo(previewVideoRef.current, previewAudioRef.current)}
+                    onEnded={() => {
+                      pauseSyncedAudio(previewAudioRef.current);
+                      if (previewAudioRef.current) previewAudioRef.current.currentTime = 0;
+                    }}
                     className="w-full mt-1 rounded-lg max-h-96 bg-black"
                   />
+                  {story.video_preview_url && (
+                    <audio ref={previewAudioRef} src={story.video_preview_url} preload="auto" />
+                  )}
                   {story.story_video_approved && (
                     <p className="text-xs text-green-600 mt-1">✓ Approved</p>
                   )}
@@ -492,25 +533,37 @@ const AdminReadingLibraryForm = () => {
 
               {/* Full Video (sequential playback of scene segments) */}
               {(() => {
-                const segs = (story.story_video_segments ?? []) as Array<{ url: string; prompt?: string; index?: number }>;
+                const segs = (story.story_video_segments ?? []) as StoryVideoSegment[];
                 if (segs.length === 0) return null;
+                const activeSegment = segs[fullVideoIdx];
                 return (
                   <div className="mt-4">
                     <Label>
-                      Full Video — Scene {fullVideoIdx + 1} of {segs.length}
+                      Full Video with Exact Arabic Narration — Scene {fullVideoIdx + 1} of {segs.length}
                       {story.story_video_full_status === 'generating' && ' (more scenes generating…)'}
                     </Label>
                     <video
-                      key={segs[fullVideoIdx]?.url}
+                      ref={fullVideoRef}
+                      key={activeSegment?.url}
                       controls
                       autoPlay
                       playsInline
-                      src={segs[fullVideoIdx]?.url}
+                      src={activeSegment?.url}
+                      onPlay={() => playSyncedAudio(fullVideoRef.current, fullAudioRef.current)}
+                      onPause={() => pauseSyncedAudio(fullAudioRef.current)}
+                      onSeeked={() => syncAudioToVideo(fullVideoRef.current, fullAudioRef.current)}
                       onEnded={() => {
+                        pauseSyncedAudio(fullAudioRef.current);
                         if (fullVideoIdx + 1 < segs.length) setFullVideoIdx(fullVideoIdx + 1);
                       }}
                       className="w-full mt-1 rounded-lg max-h-96 bg-black"
                     />
+                    {activeSegment?.audio_url && (
+                      <audio key={activeSegment.audio_url} ref={fullAudioRef} src={activeSegment.audio_url} preload="auto" />
+                    )}
+                    {activeSegment?.narration_arabic && (
+                      <p className="mt-2 text-sm font-arabic" dir="rtl">{activeSegment.narration_arabic}</p>
+                    )}
                     <div className="flex gap-2 mt-2 flex-wrap">
                       {segs.map((_, i) => (
                         <Button

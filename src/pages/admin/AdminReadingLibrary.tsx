@@ -109,12 +109,14 @@ const AdminReadingLibrary = () => {
         },
       });
       if (resp.error) throw new Error(resp.error.message);
+      const storyId = resp.data?.story?.id;
+      if (!storyId) throw new Error('Story was created but no ID was returned');
 
       toast.success('Story created!');
       queryClient.invalidateQueries({ queryKey: ['authentic-stories'] });
       setSuggestDialogOpen(false);
       setSuggestions([]);
-      navigate(`/admin/reading-library/${resp.data.story.id}/edit`);
+      navigate(`/admin/reading-library/${storyId}/edit`);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to create story';
       toast.error(message);

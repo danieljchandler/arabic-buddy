@@ -30,7 +30,6 @@ type Story = {
   id: string;
   title: string;
   title_arabic: string | null;
-  body_arabic: string | null;
   body_english: string | null;
   body_fusha: string | null;
   dialect: string | null;
@@ -58,7 +57,7 @@ function culturalSetting(dialect: string | null): string {
 }
 
 async function planFilm(story: Story): Promise<Plan> {
-  const fullArabic = story.body_arabic ?? story.body_fusha ?? "";
+  const fullArabic = story.body_fusha ?? "";
   const fullEnglish = story.body_english ?? "";
   const setting = culturalSetting(story.dialect);
 
@@ -101,10 +100,11 @@ ${fullEnglish ? `ENGLISH REFERENCE TRANSLATION (context only, do NOT use English
     method: "POST",
     headers: {
       Authorization: `Bearer ${LOVABLE_API_KEY}`,
+      "Lovable-API-Key": LOVABLE_API_KEY,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "google/gemini-2.5-pro",
+      model: "google/gemini-3-flash-preview",
       messages: [
         { role: "system", content: system },
         { role: "user", content: user },
@@ -143,7 +143,7 @@ function buildScenePrompt(plan: Plan, sceneIdx: number): string {
     continuity,
     `ACTION (this shot must visually depict this exact story beat): ${scene.arabic_beat}`,
     `SHOT: ${scene.visual_prompt}`,
-    `CONSTRAINTS: ${NEGATIVE}. No spoken dialogue. Ambient sound only.`,
+    `CONSTRAINTS: ${NEGATIVE}. Silent-feeling scene. If audio is generated, natural ambient sounds only; absolutely no spoken dialogue, no English speech, no narration, no subtitles.`,
   ].filter(Boolean).join("\n\n");
 }
 
@@ -159,7 +159,6 @@ async function generateClip(prompt: string): Promise<Uint8Array> {
           aspectRatio: "16:9",
           personGeneration: "allow_all",
           durationSeconds: 8,
-          generateAudio: false,
           negativePrompt: NEGATIVE,
         },
       }),
@@ -191,12 +190,8 @@ async function generateClip(prompt: string): Promise<Uint8Array> {
   throw new Error("timeout waiting for Veo");
 }
 
-async function runFull(admin: ReturnType<typeof createClient>, story: Story) {
+async function runFull(admin: ReturnType<typeof createClient>, story: Story, plan: Plan) {
   try {
-    const plan = await planFilm(story);
-    console.log("planned film", story.id, "scenes:", plan.scenes.length, "chars:", plan.characters.length);
-
-
     const segments: { url: string; prompt: string; index: number; arabic_beat: string }[] = [];
 
     for (let i = 0; i < plan.scenes.length; i++) {
@@ -270,7 +265,7 @@ Deno.serve(async (req) => {
 
     const { data: story, error: storyErr } = await admin
       .from("authentic_stories")
-      .select("id, title, title_arabic, body_arabic, body_english, body_fusha, dialect, story_video_approved")
+      .select("id, title, title_arabic, body_english, body_fusha, dialect, story_video_approved")
       .eq("id", story_id)
       .single();
     if (storyErr || !story) {
@@ -287,6 +282,9 @@ Deno.serve(async (req) => {
       });
     }
 
+    const plan = await planFilm(story as Story);
+    console.log("planned film", story_id, "scenes:", plan.scenes.length, "chars:", plan.characters.length);
+
     await admin
       .from("authentic_stories")
       .update({
@@ -297,7 +295,7 @@ Deno.serve(async (req) => {
       .eq("id", story_id);
 
     // @ts-ignore EdgeRuntime provided by Supabase edge runtime
-    EdgeRuntime.waitUntil(runFull(admin, story as Story));
+    EdgeRuntime.waitUntil(runFull(admin, story as Story, plan));
 
     return new Response(JSON.stringify({ status: "generating" }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

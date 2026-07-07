@@ -77,11 +77,15 @@ Return STRICT JSON with this exact shape:
     {
       "index": 0,
       "arabic_beat": "the Arabic sentence(s) from the story this scene depicts, quoted verbatim",
-      "visual_prompt": "8-second single continuous shot description. Describe WHAT HAPPENS in the frame that visually matches the arabic_beat. Include camera framing and motion. Do NOT include style/setting/character descriptions here (those are prepended automatically). Do NOT include dialogue or narration. No on-screen text.",
+      "visual_prompt": "8-second single continuous shot description. Describe WHAT HAPPENS in the frame that visually matches the arabic_beat. Include camera framing and motion. Do NOT include style/setting/character descriptions here (those are prepended automatically). Do NOT include dialogue text here. No on-screen text.",
+      "spoken_arabic": "the exact Arabic words spoken aloud during this 8-second shot — either verbatim dialogue from the story, or a concise Arabic narrator line drawn verbatim from the arabic_beat. Must be short enough to be spoken naturally in ~8 seconds (roughly 15-25 words max). Arabic script only, fully vocalized where useful. NEVER English.",
+      "speaker": "character_id_slug of the speaker, or 'narrator'",
+      "delivery": "short description of tone and pacing, e.g. 'warm elderly male narrator, calm measured pace' or 'young woman, urgent whispered'",
       "characters_in_scene": ["character_id_slug", ...]
     }
   ]
 }
+
 
 Hard rules:
 - Between ${MIN_SCENES} and ${MAX_SCENES} scenes, ordered start-to-end, covering the WHOLE story with no gaps.

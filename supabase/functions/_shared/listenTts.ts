@@ -203,6 +203,7 @@ export async function synthesizeMunsit(
   text: string,
   voiceId: string,
   modelId: string,
+  opts: { stability?: number; speed?: number } = {},
 ): Promise<Uint8Array> {
   const key = Deno.env.get("MUNSIT_API_KEY");
   if (!key) throw new Error("MUNSIT_API_KEY missing");
@@ -212,8 +213,10 @@ export async function synthesizeMunsit(
     body: JSON.stringify({
       voice_id: voiceId,
       text,
-      stability: 0.6,
-      speed: 1.0,
+      // Higher stability → calmer, less "shouty" delivery. Podcast dialogue
+      // sounds fine at 0.6; long narration benefits from 0.75+.
+      stability: typeof opts.stability === "number" ? opts.stability : 0.6,
+      speed: typeof opts.speed === "number" ? opts.speed : 1.0,
       streaming: false,
     }),
     signal: AbortSignal.timeout(45_000),

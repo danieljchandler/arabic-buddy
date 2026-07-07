@@ -253,7 +253,8 @@ const AdminReadingLibraryForm = () => {
 
   const syncAudioToVideo = (video: HTMLVideoElement | null, audio: HTMLAudioElement | null) => {
     if (!video || !audio) return;
-    audio.currentTime = Math.min(video.currentTime, Math.max(audio.duration || video.currentTime, 0));
+    const audioDuration = Number.isFinite(audio.duration) ? audio.duration : video.currentTime;
+    audio.currentTime = Math.max(0, Math.min(video.currentTime, audioDuration));
   };
 
   const playSyncedAudio = async (video: HTMLVideoElement | null, audio: HTMLAudioElement | null) => {

@@ -1,9 +1,8 @@
-// generate-story-video-full — After admin approves the preview, generate a
-// coherent multi-scene film for the story. The planner reads the ENTIRE script
-// once and returns a shared style anchor + character sheet + ordered scenes.
-// Every Veo prompt is prefixed with that shared context so all clips feel like
-// one continuous film. Veo is visual-only; exact Arabic narration is generated
-// separately from the script so English speech cannot leak into the video.
+// generate-story-video-full — After admin approves the preview slideshow,
+// generate the full multi-scene slideshow: N scene images + N Arabic
+// narration clips, saved as ordered segments on story_video_segments.
+// Each segment: { image_url, audio_url, narration_arabic, arabic_beat,
+// duration_seconds, prompt, index }.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { estimateSeconds, planProvider, synthesizeLine } from "../_shared/listenTts.ts";
@@ -16,17 +15,12 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY")!;
 const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY")!;
 
-const VEO_MODEL = "veo-3.1-fast-generate-preview";
+const IMAGE_MODEL = "google/gemini-3.1-flash-image";
 const BUCKET = "listen-audio";
-const POLL_INTERVAL_MS = 10_000;
-const POLL_MAX_MS = 8 * 60_000;
 const MIN_SCENES = 3;
 const MAX_SCENES = 6;
-
-const NEGATIVE = "English speech, English text, Latin letters, captions, subtitles, signs, logos, watermarks, talking, dialogue, narration, voices, mouth speaking, lip sync, on-screen text of any language, western signage, modern anachronisms, cartoon style, anime style";
 
 type Story = {
   id: string;
@@ -47,21 +41,13 @@ type Plan = {
     visual_prompt: string;
     characters_in_scene: string[];
   }[];
-
 };
 
-function hasLatin(text: string): boolean {
-  return /[A-Za-z]/.test(text);
-}
-
-function normalizeArabicText(text: string): string {
-  return text.replace(/\s+/g, " ").trim();
-}
-
+function hasLatin(text: string): boolean { return /[A-Za-z]/.test(text); }
+function normalizeArabicText(text: string): string { return text.replace(/\s+/g, " ").trim(); }
 function firstWords(text: string, maxWords: number): string {
   return normalizeArabicText(text).split(/\s+/).slice(0, maxWords).join(" ");
 }
-
 function validateArabicOnly(label: string, text: string): string {
   const normalized = normalizeArabicText(text);
   if (!normalized) throw new Error(`${label} is empty`);
@@ -71,10 +57,12 @@ function validateArabicOnly(label: string, text: string): string {
 
 function culturalSetting(dialect: string | null): string {
   const d = (dialect ?? "").toLowerCase();
-  if (d.includes("gulf") || d.includes("khaleeji") || d.includes("emirati") || d.includes("saudi")) return "authentic Gulf Arab (Khaleeji) setting: kanduras, ghutras, traditional souq or majlis architecture, desert or coastal palette";
+  if (d.includes("gulf") || d.includes("khaleeji") || d.includes("emirati") || d.includes("saudi"))
+    return "authentic Gulf Arab (Khaleeji) setting: kanduras, ghutras, traditional souq or majlis architecture, desert or coastal palette";
   if (d.includes("egypt")) return "authentic Egyptian setting: Cairo streets, galabiyas, distinctive Egyptian architecture and warm tones";
   if (d.includes("yemen")) return "authentic Yemeni setting: Sana'a tower houses, jambiya belts, mountain terrain";
-  if (d.includes("levant") || d.includes("syria") || d.includes("lebanon") || d.includes("palest") || d.includes("jordan")) return "authentic Levantine setting: old-city stone architecture, Damascus/Beirut street life";
+  if (d.includes("levant") || d.includes("syria") || d.includes("lebanon") || d.includes("palest") || d.includes("jordan"))
+    return "authentic Levantine setting: old-city stone architecture";
   return "authentic Arab cultural setting matching the story's origin";
 }
 
@@ -83,36 +71,32 @@ async function planFilm(story: Story): Promise<Plan> {
   const fullEnglish = story.body_english ?? "";
   const setting = culturalSetting(story.dialect);
 
-  const system = `You are a cinematic director planning a short photorealistic film that adapts an Arabic story with total fidelity to the script. You will read the ENTIRE story before responding. You will design a coherent visual world so every shot feels like one continuous film.
+  const system = `You are a storyboard director planning a slideshow that adapts an Arabic story. You will read the ENTIRE story and design a coherent visual world where every scene image feels like part of one storybook.
 
-Return STRICT JSON with this exact shape:
+Return STRICT JSON:
 {
-  "style_anchor": "one paragraph (<= 60 words) describing shared cinematic style: lighting, color palette, era, film grain, camera lens feel, and the ${setting}",
+  "style_anchor": "one paragraph (<=60 words) describing shared illustration style: lighting, color palette, era, painterly feel, and the ${setting}",
   "characters": [
     { "id": "short_slug", "appearance": "concrete visual description: age, build, face, hair, exact clothing, distinguishing features" }
   ],
   "scenes": [
     {
       "index": 0,
-      "arabic_beat": "the Arabic sentence(s) from the story this scene depicts, quoted verbatim",
-      "visual_prompt": "8-second single continuous shot description. Describe WHAT HAPPENS in the frame that visually matches the arabic_beat. Include camera framing and motion. Do NOT include style/setting/character descriptions here (those are prepended automatically). Do NOT include dialogue text here. No on-screen text. No speech.",
-      "characters_in_scene": ["character_id_slug", ...]
+      "arabic_beat": "the Arabic sentence(s) from the story this scene depicts, quoted verbatim from the script",
+      "visual_prompt": "single storybook illustration description of WHAT IS DEPICTED in the frame that matches arabic_beat. Do NOT include style/setting/character descriptions (prepended automatically). No text in image, no captions, no subtitles.",
+      "characters_in_scene": ["character_id_slug"]
     }
   ]
 }
 
-
 Hard rules:
 - Between ${MIN_SCENES} and ${MAX_SCENES} scenes, ordered start-to-end, covering the WHOLE story with no gaps.
-- Every scene MUST correspond to real content from the provided Arabic script. Do not invent events not in the story.
+- Every scene MUST correspond to real content from the provided Arabic script. Do not invent events.
 - Characters listed once with consistent appearance; reused across scenes by id.
-- Scene visual_prompt must be a SINGLE continuous camera shot (no cuts, no split-screen, no montage).
-- arabic_beat MUST be Arabic script quoted verbatim from the provided script. Never English. Never summarize in English.
-- Veo will be visuals-only. Do not request speech, lip-sync, voiceover, subtitles, captions, or on-screen text.
-- ${NEGATIVE}.
+- arabic_beat MUST be Arabic script quoted verbatim from the provided script. Never English.
+- No text/captions/subtitles/signs in the generated image.
 - Setting: ${setting}.
 - Output valid JSON only, no prose, no markdown fences.`;
-
 
   const user = `STORY TITLE: ${story.title}${story.title_arabic ? ` / ${story.title_arabic}` : ""}
 DIALECT: ${story.dialect ?? "unspecified"}
@@ -138,7 +122,7 @@ ${fullEnglish ? `ENGLISH REFERENCE TRANSLATION (context only, do NOT use English
       response_format: { type: "json_object" },
     }),
   });
-  if (!resp.ok) throw new Error(`film planning failed: ${resp.status} ${await resp.text()}`);
+  if (!resp.ok) throw new Error(`scene planning failed: ${resp.status} ${await resp.text()}`);
   const json = await resp.json();
   const content: string = json.choices?.[0]?.message?.content ?? "{}";
   const parsed = JSON.parse(content) as Plan;
@@ -152,7 +136,7 @@ ${fullEnglish ? `ENGLISH REFERENCE TRANSLATION (context only, do NOT use English
       ...scene,
       index: idx,
       arabic_beat: validateArabicOnly(`scene ${idx + 1} arabic_beat`, scene.arabic_beat),
-      visual_prompt: scene.visual_prompt || "A precise silent visual depiction of the Arabic story beat.",
+      visual_prompt: scene.visual_prompt || "A precise storybook depiction of the Arabic story beat.",
       characters_in_scene: Array.isArray(scene.characters_in_scene) ? scene.characters_in_scene : [],
     })),
   };
@@ -165,19 +149,38 @@ function buildScenePrompt(plan: Plan, sceneIdx: number): string {
     .filter(Boolean)
     .map((c) => `- ${c!.id}: ${c!.appearance}`)
     .join("\n");
-  const continuity = sceneIdx === 0
-    ? "OPENING SHOT of the film."
-    : `Scene ${sceneIdx + 1} of ${plan.scenes.length}. Maintain visual continuity with prior scenes (same style, same characters, same world).`;
-
   return [
-    `CINEMATIC STYLE (constant across the film): ${plan.style_anchor}`,
-    cast ? `CHARACTERS IN THIS SHOT (keep their appearance identical to prior scenes):\n${cast}` : "",
-    continuity,
-    `ACTION (this shot must visually depict this exact story beat): ${scene.arabic_beat}`,
-    `SHOT: ${scene.visual_prompt}`,
-    `AUDIO CONSTRAINT: Generate visuals only. No speech, no voices, no narration, no lip-sync, no dialogue, no subtitles, no captions, no on-screen text. A separate Arabic narration track will be added outside the video model.`,
-    `CONSTRAINTS: ${NEGATIVE}.`,
+    `ILLUSTRATION STYLE (constant across the whole story): ${plan.style_anchor}`,
+    cast ? `CHARACTERS IN THIS SCENE (keep appearance identical across scenes):\n${cast}` : "",
+    `SCENE ${sceneIdx + 1} of ${plan.scenes.length}. Storybook illustration depicting this exact story beat.`,
+    `STORY BEAT (do not include the text in the image, only depict it visually): ${scene.arabic_beat}`,
+    `SCENE DESCRIPTION: ${scene.visual_prompt}`,
+    `CONSTRAINTS: No text of any language in the image. No captions, no subtitles, no signs, no logos, no watermarks, no Latin letters, no Arabic letters. Purely visual.`,
   ].filter(Boolean).join("\n\n");
+}
+
+async function generateSceneImage(prompt: string): Promise<Uint8Array> {
+  const resp = await fetch("https://ai.gateway.lovable.dev/v1/images/generations", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${LOVABLE_API_KEY}`,
+      "Lovable-API-Key": LOVABLE_API_KEY,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: IMAGE_MODEL,
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      generationConfig: { responseModalities: ["TEXT", "IMAGE"] },
+    }),
+  });
+  if (!resp.ok) throw new Error(`image gen failed: ${resp.status} ${await resp.text()}`);
+  const json = await resp.json();
+  const b64: string | undefined = json?.data?.[0]?.b64_json;
+  if (!b64) throw new Error(`no image in response: ${JSON.stringify(json).slice(0, 300)}`);
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes;
 }
 
 async function synthesizeSceneNarration(
@@ -186,7 +189,7 @@ async function synthesizeSceneNarration(
   sceneIndex: number,
   arabicBeat: string,
 ): Promise<{ audio_url: string; narration_arabic: string; duration_seconds: number }> {
-  const narration = validateArabicOnly(`scene ${sceneIndex + 1} narration`, firstWords(arabicBeat, 32));
+  const narration = validateArabicOnly(`scene ${sceneIndex + 1} narration`, firstWords(arabicBeat, 40));
   const providerPlan = await planProvider(story.dialect || "Gulf");
   const bytes = await synthesizeLine(narration, "narrator", sceneIndex, providerPlan);
   const path = `authentic-stories/${story.id}/full-${sceneIndex}-narration-${Date.now()}.${providerPlan.ext}`;
@@ -203,76 +206,45 @@ async function synthesizeSceneNarration(
   };
 }
 
-
-async function generateClip(prompt: string): Promise<Uint8Array> {
-  const kickoff = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${VEO_MODEL}:predictLongRunning?key=${GEMINI_API_KEY}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        instances: [{ prompt }],
-        parameters: {
-          aspectRatio: "16:9",
-          personGeneration: "allow_all",
-          durationSeconds: 8,
-          negativePrompt: NEGATIVE,
-        },
-      }),
-    },
-  );
-  if (!kickoff.ok) throw new Error(`veo kickoff: ${kickoff.status} ${await kickoff.text()}`);
-  const { name: opName } = await kickoff.json();
-  if (!opName) throw new Error("no operation name");
-
-  const started = Date.now();
-  while (Date.now() - started < POLL_MAX_MS) {
-    await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
-    const opRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/${opName}?key=${GEMINI_API_KEY}`,
-    );
-    if (!opRes.ok) continue;
-    const op = await opRes.json();
-    if (!op.done) continue;
-    if (op.error) throw new Error(`veo error: ${JSON.stringify(op.error)}`);
-    const gen = op.response?.generateVideoResponse ?? op.response;
-    const sample = gen?.generatedSamples?.[0] ?? gen?.generatedVideos?.[0];
-    const uri: string | undefined = sample?.video?.uri;
-    if (!uri) throw new Error("no video uri");
-    const dlUrl = uri.includes("?") ? `${uri}&key=${GEMINI_API_KEY}` : `${uri}?key=${GEMINI_API_KEY}`;
-    const vidRes = await fetch(dlUrl);
-    if (!vidRes.ok) throw new Error(`download: ${vidRes.status}`);
-    return new Uint8Array(await vidRes.arrayBuffer());
-  }
-  throw new Error("timeout waiting for Veo");
+async function uploadImage(
+  admin: ReturnType<typeof createClient>,
+  storyId: string,
+  bytes: Uint8Array,
+  label: string,
+): Promise<string> {
+  const path = `authentic-stories/${storyId}/${label}-${Date.now()}.png`;
+  const up = await admin.storage.from(BUCKET).upload(path, bytes, {
+    contentType: "image/png",
+    upsert: true,
+  });
+  if (up.error) throw up.error;
+  const { data: pub } = admin.storage.from(BUCKET).getPublicUrl(path);
+  return pub.publicUrl;
 }
 
 async function runFull(admin: ReturnType<typeof createClient>, story: Story, plan: Plan) {
   try {
     const segments: {
-      url: string;
+      image_url: string;
       audio_url: string;
       narration_arabic: string;
       duration_seconds: number;
       prompt: string;
       index: number;
       arabic_beat: string;
+      // legacy field kept for backwards compat in UI selectors
+      url?: string;
     }[] = [];
 
     for (let i = 0; i < plan.scenes.length; i++) {
       try {
         const prompt = buildScenePrompt(plan, i);
         const narration = await synthesizeSceneNarration(admin, story, i, plan.scenes[i].arabic_beat);
-        const bytes = await generateClip(prompt);
-        const path = `authentic-stories/${story.id}/full-${i}-${Date.now()}.mp4`;
-        const up = await admin.storage.from(BUCKET).upload(path, bytes, {
-          contentType: "video/mp4",
-          upsert: true,
-        });
-        if (up.error) throw up.error;
-        const { data: pub } = admin.storage.from(BUCKET).getPublicUrl(path);
+        const bytes = await generateSceneImage(prompt);
+        const imageUrl = await uploadImage(admin, story.id, bytes, `full-${i}-scene`);
         segments.push({
-          url: pub.publicUrl,
+          image_url: imageUrl,
+          url: imageUrl,
           audio_url: narration.audio_url,
           narration_arabic: narration.narration_arabic,
           duration_seconds: narration.duration_seconds,
@@ -290,13 +262,13 @@ async function runFull(admin: ReturnType<typeof createClient>, story: Story, pla
       }
     }
 
-    if (segments.length === 0) throw new Error("no segments generated");
+    if (segments.length === 0) throw new Error("no scenes generated");
 
     await admin
       .from("authentic_stories")
       .update({ story_video_full_status: "ready", story_video_full_error: null })
       .eq("id", story.id);
-    console.log("story full video ready", story.id, segments.length, "segments");
+    console.log("story slideshow ready", story.id, segments.length, "scenes");
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("generate-story-video-full bg failed", story.id, message);
@@ -310,7 +282,6 @@ async function runFull(admin: ReturnType<typeof createClient>, story: Story, pla
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
-    if (!GEMINI_API_KEY) throw new Error("Missing GEMINI_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("Missing LOVABLE_API_KEY");
 
     const authHeader = req.headers.get("Authorization") ?? "";
@@ -352,7 +323,7 @@ Deno.serve(async (req) => {
     }
 
     const plan = await planFilm(story as Story);
-    console.log("planned film", story_id, "scenes:", plan.scenes.length, "chars:", plan.characters.length);
+    console.log("planned slideshow", story_id, "scenes:", plan.scenes.length, "chars:", plan.characters.length);
 
     await admin
       .from("authentic_stories")
@@ -366,7 +337,7 @@ Deno.serve(async (req) => {
     // @ts-ignore EdgeRuntime provided by Supabase edge runtime
     EdgeRuntime.waitUntil(runFull(admin, story as Story, plan));
 
-    return new Response(JSON.stringify({ status: "generating" }), {
+    return new Response(JSON.stringify({ status: "generating", scenes: plan.scenes.length }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {

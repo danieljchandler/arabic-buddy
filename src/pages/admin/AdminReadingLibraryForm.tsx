@@ -36,6 +36,7 @@ const AdminReadingLibraryForm = () => {
   const [generatingPreview, setGeneratingPreview] = useState(false);
   const [generatingFull, setGeneratingFull] = useState(false);
   const [translating, setTranslating] = useState(false);
+  const [generatingVideo, setGeneratingVideo] = useState(false);
 
   // Load existing story when editing
   const { data: story, isLoading: loadingStory } = useQuery({

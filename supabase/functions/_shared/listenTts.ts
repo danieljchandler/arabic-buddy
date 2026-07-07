@@ -159,7 +159,10 @@ export async function planProvider(dialect: string): Promise<ProviderPlan> {
 export function pickVoiceSlot(role: string, index: number): number {
   const r = (role || "").toLowerCase();
   if (r.includes("host_b") || r === "guest" || r === "character") return 1;
-  if (r === "narrator") return 2;
+  // Narrator uses the same primary voice slot the podcast host uses — that
+  // voice is proven to sound natural on long-form narration. Slot 2 previously
+  // picked a more energetic voice that sounded like shouting on stories.
+  if (r === "narrator") return 0;
   if (r === "speaker") return 0;
   return index % 2;
 }
@@ -200,6 +203,7 @@ export async function synthesizeMunsit(
   text: string,
   voiceId: string,
   modelId: string,
+  opts: { stability?: number; speed?: number } = {},
 ): Promise<Uint8Array> {
   const key = Deno.env.get("MUNSIT_API_KEY");
   if (!key) throw new Error("MUNSIT_API_KEY missing");
@@ -209,8 +213,10 @@ export async function synthesizeMunsit(
     body: JSON.stringify({
       voice_id: voiceId,
       text,
-      stability: 0.6,
-      speed: 1.0,
+      // Higher stability → calmer, less "shouty" delivery. Podcast dialogue
+      // sounds fine at 0.6; long narration benefits from 0.75+.
+      stability: typeof opts.stability === "number" ? opts.stability : 0.6,
+      speed: typeof opts.speed === "number" ? opts.speed : 1.0,
       streaming: false,
     }),
     signal: AbortSignal.timeout(45_000),
@@ -337,7 +343,9 @@ export async function synthesizeLine(
   if (plan.provider === "munsit") {
     const voices = plan.munsitVoices!;
     const slot = pickVoiceSlot(role, index) % voices.length;
-    return synthesizeMunsit(text, voices[slot], plan.munsitModelId!);
+    // Narration → higher stability so it doesn't sound like shouting.
+    const stability = (role || "").toLowerCase() === "narrator" ? 0.8 : 0.6;
+    return synthesizeMunsit(text, voices[slot], plan.munsitModelId!, { stability });
   }
   if (plan.provider === "gemini") {
     const voices = plan.geminiVoices!;

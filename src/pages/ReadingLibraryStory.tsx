@@ -88,16 +88,21 @@ const ReadingLibraryStory = () => {
 
   const hasAudio = lines?.some((l) => l.audio_url);
 
-  // Sync active scene image to line playback progress
+  // The line shown as a caption under the picture. Defaults to 0 so the
+  // reader always sees the first phrase; updates while audio plays and via
+  // prev/next controls.
+  const focusedIdx = currentLineIndex >= 0 ? currentLineIndex : 0;
+  const focusedLine = lines?.[focusedIdx];
+
+  // Sync active scene image to focused line
   useEffect(() => {
     if (sceneImages.length === 0 || !lines || lines.length === 0) return;
-    if (currentLineIndex < 0) { setActiveSceneIdx(0); return; }
     const idx = Math.min(
       sceneImages.length - 1,
-      Math.floor((currentLineIndex / lines.length) * sceneImages.length),
+      Math.floor((focusedIdx / lines.length) * sceneImages.length),
     );
     setActiveSceneIdx(idx);
-  }, [currentLineIndex, lines?.length, sceneImages.length]);
+  }, [focusedIdx, lines?.length, sceneImages.length]);
 
   // Auto-scroll to current line
   useEffect(() => {
@@ -110,25 +115,30 @@ const ReadingLibraryStory = () => {
   }, [currentLineIndex]);
 
   const playLine = (index: number) => {
-    if (!lines || !lines[index]?.audio_url) return;
+    if (!lines || !lines[index]) return;
     const line = lines[index];
 
     if (audioRef.current) {
       audioRef.current.pause();
+      audioRef.current = null;
     }
 
-    const audio = new Audio(line.audio_url!);
-    audioRef.current = audio;
     setCurrentLineIndex(index);
+
+    if (!line.audio_url) {
+      setIsPlaying(false);
+      return;
+    }
+
+    const audio = new Audio(line.audio_url);
+    audioRef.current = audio;
     setIsPlaying(true);
 
     audio.onended = () => {
-      // Auto-advance to next line
-      if (index + 1 < lines.length && lines[index + 1]?.audio_url) {
+      if (index + 1 < lines.length) {
         playLine(index + 1);
       } else {
         setIsPlaying(false);
-        setCurrentLineIndex(-1);
       }
     };
 
@@ -142,25 +152,26 @@ const ReadingLibraryStory = () => {
     if (isPlaying && audioRef.current) {
       audioRef.current.pause();
       setIsPlaying(false);
-    } else if (currentLineIndex >= 0) {
-      audioRef.current?.play();
+    } else if (audioRef.current && currentLineIndex >= 0) {
+      audioRef.current.play();
       setIsPlaying(true);
     } else {
-      playLine(0);
+      playLine(focusedIdx);
     }
   };
 
   const handleNext = () => {
     if (!lines) return;
-    const next = currentLineIndex + 1;
-    if (next < lines.length) playLine(next);
+    const next = Math.min(lines.length - 1, focusedIdx + 1);
+    if (next !== focusedIdx) playLine(next);
   };
 
   const handlePrev = () => {
     if (!lines) return;
-    const prev = Math.max(0, currentLineIndex - 1);
-    playLine(prev);
+    const prev = Math.max(0, focusedIdx - 1);
+    if (prev !== focusedIdx) playLine(prev);
   };
+
 
   if (loadingStory || loadingLines) {
     return (

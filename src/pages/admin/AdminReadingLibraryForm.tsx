@@ -264,6 +264,49 @@ const AdminReadingLibraryForm = () => {
     else a.pause();
   };
 
+  const regenerateSceneImage = async (sceneIndex: number, promptOverride?: string) => {
+    if (!id) return;
+    setSavingScene(true);
+    try {
+      const resp = await supabase.functions.invoke('edit-story-scene-image', {
+        body: { story_id: id, scene_index: sceneIndex, prompt: promptOverride },
+      });
+      if (resp.error) throw new Error(resp.error.message);
+      toast.success(`Scene ${sceneIndex + 1} image regenerated`);
+      setEditingScene(false);
+      await queryClient.invalidateQueries({ queryKey: ['authentic-story', id] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to regenerate scene image');
+    } finally {
+      setSavingScene(false);
+    }
+  };
+
+  const uploadSceneImage = async (sceneIndex: number, file: File) => {
+    if (!id) return;
+    setSavingScene(true);
+    try {
+      const dataUrl: string = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(file);
+      });
+      const resp = await supabase.functions.invoke('edit-story-scene-image', {
+        body: { story_id: id, scene_index: sceneIndex, image_data_url: dataUrl },
+      });
+      if (resp.error) throw new Error(resp.error.message);
+      toast.success(`Scene ${sceneIndex + 1} image replaced`);
+      setEditingScene(false);
+      await queryClient.invalidateQueries({ queryKey: ['authentic-story', id] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to upload image');
+    } finally {
+      setSavingScene(false);
+      if (sceneUploadRef.current) sceneUploadRef.current.value = '';
+    }
+  };
+
   const handlePublish = async () => {
     if (!id) return;
     const { error } = await supabase

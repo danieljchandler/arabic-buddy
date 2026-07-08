@@ -19,6 +19,7 @@ type StorySceneSegment = {
   url?: string; // legacy
   audio_url?: string;
   narration_arabic?: string;
+  arabic_beat?: string;
   prompt?: string;
   index?: number;
   duration_seconds?: number;

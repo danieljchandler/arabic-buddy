@@ -53,6 +53,10 @@ const AdminReadingLibraryForm = () => {
   const previewAudioRef = useRef<HTMLAudioElement | null>(null);
   const fullAudioRef = useRef<HTMLAudioElement | null>(null);
   const [fullPlaying, setFullPlaying] = useState(false);
+  const [editingScene, setEditingScene] = useState(false);
+  const [editPrompt, setEditPrompt] = useState('');
+  const [savingScene, setSavingScene] = useState(false);
+  const sceneUploadRef = useRef<HTMLInputElement | null>(null);
 
   // Load existing story when editing
   const { data: story, isLoading: loadingStory } = useQuery({

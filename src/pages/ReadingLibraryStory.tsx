@@ -229,25 +229,6 @@ const ReadingLibraryStory = () => {
                     {activeSceneIdx + 1} / {sceneImages.length}
                   </div>
                 )}
-                {/* Subtitle overlay: shows current line while audio plays */}
-                {currentLineIndex >= 0 && lines?.[currentLineIndex] && (
-                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/60 to-transparent p-3 sm:p-4">
-                    <div
-                      dir="rtl"
-                      className="text-white text-lg sm:text-xl leading-relaxed text-center font-arabic drop-shadow-lg"
-                      style={{ fontFamily: "'Noto Sans Arabic', serif" }}
-                    >
-                      {showDialect
-                        ? (lines[currentLineIndex].dialect_vocalized || lines[currentLineIndex].dialect || lines[currentLineIndex].arabic_vocalized || lines[currentLineIndex].arabic)
-                        : (lines[currentLineIndex].arabic_vocalized || lines[currentLineIndex].arabic)}
-                    </div>
-                    {showEnglish && lines[currentLineIndex].english && (
-                      <div className="text-white/85 text-xs sm:text-sm text-center mt-1.5 drop-shadow">
-                        {lines[currentLineIndex].english}
-                      </div>
-                    )}
-                  </div>
-                )}
               </div>
               {sceneImages.length > 1 && (
                 <div className="flex gap-2 mt-2 overflow-x-auto pb-1">
@@ -268,40 +249,62 @@ const ReadingLibraryStory = () => {
             </div>
           )}
 
-
-          {/* Controls */}
-          <Card className="p-3 mb-4">
-            <div className="flex flex-wrap items-center gap-4">
-              {/* Audio Controls */}
-              {hasAudio && (
-                <div className="flex items-center gap-1">
-                  <Button size="icon" variant="ghost" onClick={handlePrev} disabled={currentLineIndex <= 0}>
-                    <SkipBack className="h-4 w-4" />
-                  </Button>
-                  <Button size="icon" variant="default" onClick={handlePlayPause}>
-                    {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-                  </Button>
-                  <Button size="icon" variant="ghost" onClick={handleNext} disabled={!lines || currentLineIndex >= lines.length - 1}>
-                    <SkipForward className="h-4 w-4" />
-                  </Button>
-                </div>
+          {/* Caption card: current phrase under the picture, with prev/next */}
+          {lines && lines.length > 0 && focusedLine && (
+            <Card className="p-4 mb-4 border-2 border-primary/20 shadow-sm">
+              <div dir="rtl" className="text-xl leading-loose text-center min-h-[3rem]">
+                <TappableArabicText
+                  text={showDialect
+                    ? (focusedLine.dialect_vocalized || focusedLine.dialect || focusedLine.arabic_vocalized || focusedLine.arabic)
+                    : (focusedLine.arabic_vocalized || focusedLine.arabic)
+                  }
+                  sentenceContext={{ english: focusedLine.english ?? undefined }}
+                  source="reading-library"
+                />
+              </div>
+              {showEnglish && focusedLine.english && (
+                <p className="text-sm text-muted-foreground text-center mt-2 leading-relaxed">
+                  {focusedLine.english}
+                </p>
               )}
 
-              {/* Toggle Dialect */}
+              <div className="flex items-center justify-between gap-2 mt-4 pt-3 border-t border-border">
+                <Button size="icon" variant="ghost" onClick={handlePrev} disabled={focusedIdx <= 0}>
+                  <SkipBack className="h-4 w-4" />
+                </Button>
+                <div className="flex items-center gap-3">
+                  {hasAudio && (
+                    <Button size="icon" variant="default" onClick={handlePlayPause} className="h-11 w-11 rounded-full">
+                      {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
+                    </Button>
+                  )}
+                  <span className="text-xs text-muted-foreground tabular-nums">
+                    {focusedIdx + 1} / {lines.length}
+                  </span>
+                </div>
+                <Button size="icon" variant="ghost" onClick={handleNext} disabled={focusedIdx >= lines.length - 1}>
+                  <SkipForward className="h-4 w-4" />
+                </Button>
+              </div>
+            </Card>
+          )}
+
+          {/* Display toggles */}
+          <Card className="p-3 mb-4">
+            <div className="flex flex-wrap items-center gap-4">
               {story.body_dialect && (
                 <div className="flex items-center gap-2">
                   <Switch checked={showDialect} onCheckedChange={setShowDialect} id="dialect-toggle" />
                   <Label htmlFor="dialect-toggle" className="text-sm">Dialect</Label>
                 </div>
               )}
-
-              {/* Toggle English */}
               <div className="flex items-center gap-2">
                 <Switch checked={showEnglish} onCheckedChange={setShowEnglish} id="english-toggle" />
                 <Label htmlFor="english-toggle" className="text-sm">English</Label>
               </div>
             </div>
           </Card>
+
 
           {/* Story Lines */}
           <div className="space-y-4">

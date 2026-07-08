@@ -214,8 +214,27 @@ const ReadingLibraryStory = () => {
                   className="w-full h-full object-cover transition-opacity duration-500"
                 />
                 {sceneImages.length > 1 && (
-                  <div className="absolute bottom-2 right-2 bg-black/60 text-white text-xs px-2 py-0.5 rounded">
+                  <div className="absolute top-2 right-2 bg-black/60 text-white text-xs px-2 py-0.5 rounded">
                     {activeSceneIdx + 1} / {sceneImages.length}
+                  </div>
+                )}
+                {/* Subtitle overlay: shows current line while audio plays */}
+                {currentLineIndex >= 0 && lines?.[currentLineIndex] && (
+                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/60 to-transparent p-3 sm:p-4">
+                    <div
+                      dir="rtl"
+                      className="text-white text-lg sm:text-xl leading-relaxed text-center font-arabic drop-shadow-lg"
+                      style={{ fontFamily: "'Noto Sans Arabic', serif" }}
+                    >
+                      {showDialect
+                        ? (lines[currentLineIndex].dialect_vocalized || lines[currentLineIndex].dialect || lines[currentLineIndex].arabic_vocalized || lines[currentLineIndex].arabic)
+                        : (lines[currentLineIndex].arabic_vocalized || lines[currentLineIndex].arabic)}
+                    </div>
+                    {showEnglish && lines[currentLineIndex].english && (
+                      <div className="text-white/85 text-xs sm:text-sm text-center mt-1.5 drop-shadow">
+                        {lines[currentLineIndex].english}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -237,6 +256,7 @@ const ReadingLibraryStory = () => {
               )}
             </div>
           )}
+
 
           {/* Controls */}
           <Card className="p-3 mb-4">

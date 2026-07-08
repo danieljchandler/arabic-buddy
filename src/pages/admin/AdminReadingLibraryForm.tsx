@@ -614,13 +614,81 @@ const AdminReadingLibraryForm = () => {
                     {active?.narration_arabic && (
                       <p className="mt-2 text-sm font-arabic" dir="rtl">{active.narration_arabic}</p>
                     )}
-                    <div className="flex gap-2 mt-2 flex-wrap">
+
+                    {/* Per-scene image editing */}
+                    <div className="mt-3 border rounded-lg p-3 bg-muted/30 space-y-2">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <p className="text-xs font-semibold uppercase text-muted-foreground">
+                          Edit Scene {fullVideoIdx + 1} Image
+                        </p>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={savingScene}
+                            onClick={() => {
+                              setEditPrompt(active?.prompt || '');
+                              setEditingScene((v) => !v);
+                            }}
+                          >
+                            {editingScene ? 'Cancel' : 'Edit prompt'}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={savingScene}
+                            onClick={() => sceneUploadRef.current?.click()}
+                          >
+                            Upload image
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="default"
+                            disabled={savingScene || !active?.prompt}
+                            onClick={() => regenerateSceneImage(fullVideoIdx)}
+                          >
+                            {savingScene ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Regenerate'}
+                          </Button>
+                        </div>
+                      </div>
+                      <input
+                        ref={sceneUploadRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          if (f) uploadSceneImage(fullVideoIdx, f);
+                        }}
+                      />
+                      {editingScene && (
+                        <div className="space-y-2">
+                          <Textarea
+                            value={editPrompt}
+                            onChange={(e) => setEditPrompt(e.target.value)}
+                            rows={5}
+                            className="text-xs font-mono"
+                            placeholder="Image prompt sent to the generator"
+                          />
+                          <Button
+                            size="sm"
+                            disabled={savingScene || !editPrompt.trim()}
+                            onClick={() => regenerateSceneImage(fullVideoIdx, editPrompt)}
+                          >
+                            {savingScene ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : null}
+                            Regenerate with new prompt
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex gap-2 mt-3 flex-wrap">
                       {segs.map((_, i) => (
                         <Button
                           key={i}
                           size="sm"
                           variant={i === fullVideoIdx ? 'default' : 'outline'}
-                          onClick={() => setFullVideoIdx(i)}
+                          onClick={() => { setFullVideoIdx(i); setEditingScene(false); }}
                         >
                           Scene {i + 1}
                         </Button>

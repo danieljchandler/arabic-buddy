@@ -13,6 +13,8 @@ import { useLeechPrefs } from "@/hooks/useLeechPrefs";
 import { GenerateImageDialog } from "@/components/mywords/GenerateImageDialog";
 import { useUpdateUserVocabularyImage } from "@/hooks/useUserVocabulary";
 import { PronunciationButton } from "@/components/review/PronunciationButton";
+import { TappableArabicText } from "@/components/shared/TappableArabicText";
+
 import { Button } from "@/components/ui/button";
 import { Rating, calculateNextReview } from "@/lib/spacedRepetition";
 import { useQuery, useQueryClient } from "@tanstack/react-query";

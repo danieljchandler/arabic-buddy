@@ -791,13 +791,25 @@ const MyWordsReview = () => {
                         Hide
                       </button>
                     </div>
-                    <p
-                      className="text-sm leading-relaxed whitespace-pre-line"
+                    <div
+                      className="text-sm leading-relaxed space-y-1"
                       dir="rtl"
                       style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
                     >
-                      {currentWord.jingle_lyrics}
-                    </p>
+                      {currentWord.jingle_lyrics.split(/\r?\n/).map((line, i) => (
+                        line.trim() ? (
+                          <TappableArabicText
+                            key={i}
+                            text={line}
+                            source="jingle-lyrics"
+                            sentenceContext={{ arabic: currentWord.sentence_text || undefined, english: currentWord.sentence_english || undefined }}
+                          />
+                        ) : (
+                          <div key={i} className="h-2" />
+                        )
+                      ))}
+                    </div>
+
                   </div>
                 ) : (
                   <Button

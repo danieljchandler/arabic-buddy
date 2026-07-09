@@ -13,6 +13,8 @@ import { useLeechPrefs } from "@/hooks/useLeechPrefs";
 import { GenerateImageDialog } from "@/components/mywords/GenerateImageDialog";
 import { useUpdateUserVocabularyImage } from "@/hooks/useUserVocabulary";
 import { PronunciationButton } from "@/components/review/PronunciationButton";
+import { TappableArabicText } from "@/components/shared/TappableArabicText";
+
 import { Button } from "@/components/ui/button";
 import { Rating, calculateNextReview } from "@/lib/spacedRepetition";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -791,13 +793,25 @@ const MyWordsReview = () => {
                         Hide
                       </button>
                     </div>
-                    <p
-                      className="text-sm leading-relaxed whitespace-pre-line"
+                    <div
+                      className="text-sm leading-relaxed space-y-1"
                       dir="rtl"
                       style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
                     >
-                      {currentWord.jingle_lyrics}
-                    </p>
+                      {currentWord.jingle_lyrics.split(/\r?\n/).map((line, i) => (
+                        line.trim() ? (
+                          <TappableArabicText
+                            key={i}
+                            text={line}
+                            source="jingle-lyrics"
+                            sentenceContext={{ arabic: currentWord.sentence_text || undefined, english: currentWord.sentence_english || undefined }}
+                          />
+                        ) : (
+                          <div key={i} className="h-2" />
+                        )
+                      ))}
+                    </div>
+
                   </div>
                 ) : (
                   <Button

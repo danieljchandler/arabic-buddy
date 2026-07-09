@@ -15,6 +15,8 @@ import { useLeechPrefs } from "@/hooks/useLeechPrefs";
 import { createPlayableJingleAudio, createPlayableJingleAudioFromUrl } from "@/lib/jingleAudio";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { TappableArabicText } from "@/components/shared/TappableArabicText";
+
 
 const MyPhrasesReview = () => {
   const navigate = useNavigate();

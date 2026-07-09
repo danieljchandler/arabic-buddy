@@ -406,13 +406,25 @@ const MyPhrasesReview = () => {
                             Hide
                           </button>
                         </div>
-                        <p
-                          className="text-sm leading-relaxed whitespace-pre-line font-arabic"
+                        <div
+                          className="text-sm leading-relaxed font-arabic space-y-1"
                           dir="rtl"
                           style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
                         >
-                          {current.jingle_lyrics}
-                        </p>
+                          {current.jingle_lyrics.split(/\r?\n/).map((line, i) => (
+                            line.trim() ? (
+                              <TappableArabicText
+                                key={i}
+                                text={line}
+                                source="jingle-lyrics"
+                                sentenceContext={{ arabic: current.phrase_arabic, english: current.phrase_english }}
+                              />
+                            ) : (
+                              <div key={i} className="h-2" />
+                            )
+                          ))}
+                        </div>
+
                       </div>
                     ) : (
                       <Button

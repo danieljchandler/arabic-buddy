@@ -67,12 +67,20 @@ export const PhraseOfTheDay = () => {
           lastErr = null;
           break;
         }
+        if (res.data?.fallback) {
+          toast.error(res.data.message || "Phrase of the day unavailable right now.");
+          lastErr = null;
+          break;
+        }
         lastErr = res.error || new Error(res.data?.error || "Unknown error");
         const msg = String(lastErr?.message || lastErr);
         if (!/Failed to send|fetch|network|load failed/i.test(msg)) break;
         await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
       }
-      if (!data) throw lastErr || new Error("No data");
+      if (!data) {
+        if (lastErr) throw lastErr;
+        return;
+      }
       setPhrase(data);
 
       // Record this category as seen for the day.

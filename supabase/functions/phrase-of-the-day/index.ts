@@ -166,8 +166,28 @@ Hard requirements:
   } catch (err) {
     console.error("phrase-of-the-day error:", err);
     if (err instanceof BrainHttpError) {
-      if (err.status === 429) return createErrorResponse(429, "Rate limit exceeded, try again shortly.", cors);
-      if (err.status === 402) return createErrorResponse(402, "AI credits exhausted.", cors);
+      // Return 200 with a fallback signal so the client renders gracefully
+      // instead of showing a blank screen / runtime error.
+      if (err.status === 402) {
+        return new Response(
+          JSON.stringify({
+            error: "ai_credits_exhausted",
+            fallback: true,
+            message: "AI credits exhausted. Please add credits to continue generating fresh phrases.",
+          }),
+          { status: 200, headers: { ...cors, "Content-Type": "application/json" } },
+        );
+      }
+      if (err.status === 429) {
+        return new Response(
+          JSON.stringify({
+            error: "rate_limited",
+            fallback: true,
+            message: "Rate limit exceeded, try again shortly.",
+          }),
+          { status: 200, headers: { ...cors, "Content-Type": "application/json" } },
+        );
+      }
     }
     return createErrorResponse(
       500,

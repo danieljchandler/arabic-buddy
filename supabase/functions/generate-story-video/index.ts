@@ -197,6 +197,15 @@ Deno.serve(async (req) => {
     ]);
     const imageUrl = await uploadImage(admin, story_id, imgBytes, "preview-scene");
 
+    // Preserve 'ready' video_status if full audio was already generated —
+    // otherwise regenerating a preview scene would hide the Publish button.
+    const { data: currentRow } = await admin
+      .from("authentic_stories")
+      .select("video_status")
+      .eq("id", story_id)
+      .single();
+    const preserveReady = currentRow?.video_status === "ready";
+
     await admin
       .from("authentic_stories")
       .update({
@@ -204,7 +213,7 @@ Deno.serve(async (req) => {
         video_preview_url: narration.url,
         line_durations: [narration.duration],
         story_video_status: "ready",
-        video_status: "preview_ready",
+        ...(preserveReady ? {} : { video_status: "preview_ready" }),
         story_video_error: null,
       })
       .eq("id", story_id);

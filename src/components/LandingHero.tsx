@@ -16,7 +16,7 @@ export function LandingHero() {
     <section className="py-6">
       {/* Logo */}
       <div className="flex justify-center mb-6">
-        <img src={hakiyaLogo} alt="Hakiya" className="h-20" />
+        <img src={hakiyaLogo} alt="Hakiya" className="h-24" />
       </div>
 
       {/* Hero copy */}

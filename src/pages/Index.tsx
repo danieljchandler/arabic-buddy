@@ -144,7 +144,7 @@ const Index = () => {
 
       {/* Top bar with logo and auth */}
       <div className="flex items-center justify-between mb-4">
-        <img src={lahjaLogo} alt="Hakiya" className="h-20" />
+        <img src={lahjaLogo} alt="Hakiya" className="h-24" />
         
         <div className="flex items-center gap-3">
           {!authLoading && (isAuthenticated ? (

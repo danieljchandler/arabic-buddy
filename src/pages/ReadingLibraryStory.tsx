@@ -114,11 +114,26 @@ const ReadingLibraryStory = () => {
     }
   }, [currentLineIndex]);
 
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      if (audioRef.current) {
+        audioRef.current.onended = null;
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, []);
+
   const playLine = (index: number) => {
+    if (!mountedRef.current) return;
     if (!lines || !lines[index]) return;
     const line = lines[index];
 
     if (audioRef.current) {
+      audioRef.current.onended = null;
       audioRef.current.pause();
       audioRef.current = null;
     }
@@ -135,6 +150,7 @@ const ReadingLibraryStory = () => {
     setIsPlaying(true);
 
     audio.onended = () => {
+      if (!mountedRef.current) return;
       if (index + 1 < lines.length) {
         playLine(index + 1);
       } else {
@@ -143,6 +159,7 @@ const ReadingLibraryStory = () => {
     };
 
     audio.play().catch(() => {
+      if (!mountedRef.current) return;
       setIsPlaying(false);
       toast.error('Failed to play audio');
     });

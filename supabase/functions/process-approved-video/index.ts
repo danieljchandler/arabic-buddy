@@ -615,8 +615,12 @@ async function runPipeline(
           signal: AbortSignal.timeout(ASR_TIMEOUT_MS),
         });
         if (!resp.ok) { const t = await resp.text(); throw new Error(`HTTP ${resp.status}: ${t.slice(0, 200)}`); }
-        const data = await resp.json();
-        const text = ((data.transcription ?? data.text) as string | undefined) || "";
+        const raw = await resp.json();
+        // Munsit returns { statusCode, data: { transcription, attributes: { timestampsRaw: [...] } } }.
+        // Older/alt shapes may put fields at the root — fall back to that.
+        const payload = raw?.data ?? raw ?? {};
+        const attrs = payload?.attributes ?? {};
+        const text = ((payload.transcription ?? payload.text ?? raw.transcription ?? raw.text) as string | undefined) || "";
         const words: Array<{ text: string; start: number; end: number }> = [];
         const pushWord = (w: any) => {
           if (!w) return;
@@ -627,10 +631,24 @@ async function runPipeline(
           if (s > 1000 || e > 1000) { s /= 1000; e /= 1000; }
           words.push({ text: txt, start: s, end: e });
         };
-        if (Array.isArray(data.timestamps)) data.timestamps.forEach(pushWord);
-        else if (Array.isArray(data.words)) data.words.forEach(pushWord);
-        else if (Array.isArray(data.segments)) {
-          for (const seg of data.segments) if (Array.isArray(seg.words)) seg.words.forEach(pushWord);
+        const timestampsArr =
+          (Array.isArray(attrs.timestampsRaw) && attrs.timestampsRaw) ||
+          (Array.isArray(attrs.timestamps) && attrs.timestamps) ||
+          (Array.isArray(payload.timestamps) && payload.timestamps) ||
+          (Array.isArray(payload.words) && payload.words) ||
+          (Array.isArray(raw.timestamps) && raw.timestamps) ||
+          (Array.isArray(raw.words) && raw.words) ||
+          null;
+        if (timestampsArr) {
+          timestampsArr.forEach(pushWord);
+        } else {
+          const segs = payload.segments ?? raw.segments;
+          if (Array.isArray(segs)) {
+            for (const seg of segs) if (Array.isArray(seg.words)) seg.words.forEach(pushWord);
+          }
+        }
+        if (!text) {
+          console.warn(`[pipeline] Munsit ${label}: empty transcription — raw keys=${Object.keys(raw ?? {}).join(",")} data keys=${Object.keys(payload ?? {}).join(",")}`);
         }
         console.log(`[pipeline] Munsit ${label}: ${text.length} chars, ${words.length} words`);
         return { text, words };

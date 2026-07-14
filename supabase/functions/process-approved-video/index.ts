@@ -1081,21 +1081,32 @@ async function runPipeline(
 
       if (updateError) throw new Error(`Failed to save results: ${updateError.message}`);
     } else {
-      // Neither direct-persist nor HTTP response succeeded — wait briefly and retry DB check
-      console.log("[pipeline] Waiting 30s for analyze-gulf-arabic to finish persisting...");
-      await new Promise(r => setTimeout(r, 30_000));
-
-      const { data: retry } = await supabase.from("discover_videos")
-        .select("transcription_status")
-        .eq("id", videoId)
-        .single();
-
-      if (retry?.transcription_status === "analysis_complete") {
-        const { data: retryFull } = await supabase.from("discover_videos")
-          .select("transcript_lines, cultural_context, title, title_arabic")
+      // Neither direct-persist nor HTTP response succeeded — poll DB for
+      // late-arriving analyze-gulf-arabic completion.
+      //
+      // analyze-gulf-arabic can genuinely take up to ~3.5 minutes (ensemble
+      // of Claude + Qwen + Gemini + Fanar + gloss enrichment + diacritization).
+      // The 150s Supabase edge-function idle timeout can drop the HTTP
+      // response, but the function keeps running and persists directly.
+      // Poll for up to 4 minutes (24 * 10s) so we catch that late-arriving write.
+      console.log("[pipeline] No HTTP result — polling for late analyze-gulf-arabic persist (up to 4 min)...");
+      let landed = false;
+      let retryFull: any = null;
+      for (let attempt = 0; attempt < 24; attempt++) {
+        await new Promise(r => setTimeout(r, 10_000));
+        const { data: retry } = await supabase.from("discover_videos")
+          .select("transcription_status, transcript_lines, cultural_context, title, title_arabic")
           .eq("id", videoId)
           .single();
+        if (retry?.transcription_status === "analysis_complete") {
+          retryFull = retry;
+          landed = true;
+          console.log(`[pipeline] analyze results landed after ${(attempt + 1) * 10}s`);
+          break;
+        }
+      }
 
+      if (landed && retryFull) {
         const retryLines = mergeOnScreenTextLines(
           alignLinesToAudio((retryFull?.transcript_lines as any[]) || []),
           onScreenTextLines,
@@ -1111,11 +1122,11 @@ async function runPipeline(
             ? "Meme screen-text extraction found no readable on-screen text; review manually before publishing."
             : null,
         }).eq("id", videoId);
-        console.log("[pipeline] Results found on retry check");
       } else {
-        throw new Error("Analysis did not complete — no HTTP response and no direct-persist results found");
+        throw new Error("Analysis did not complete — no HTTP response and no direct-persist results found after 4 min");
       }
     }
+
 
     // NOTE: Intentionally keep staged audio in `video-audio/` so the Discover
     // player can stream it for subtitle sync (TikTok hidden-audio playback).

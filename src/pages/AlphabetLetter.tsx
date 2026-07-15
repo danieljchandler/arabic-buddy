@@ -12,6 +12,7 @@ import { SpotTheLetterGame } from "@/components/alphabet/SpotTheLetterGame";
 import { SoundMatchGame } from "@/components/alphabet/SoundMatchGame";
 import { XPPopupHost, fireXPPopup } from "@/components/alphabet/XPPopup";
 import { useDisplayPrefs } from "@/hooks/useDisplayPrefs";
+import { useDialect } from "@/contexts/DialectContext";
 import { Button } from "@/components/ui/button";
 import { tapFeedback } from "@/lib/tapFeedback";
 import { ChevronLeft, ChevronRight, Check, Sparkles } from "lucide-react";
@@ -33,6 +34,7 @@ const AlphabetLetter = () => {
   const letter = letterCode ? LETTERS_BY_CODE[letterCode] : undefined;
   const { progress, completeStep } = useAlphabetProgress();
   const { prefs } = useDisplayPrefs();
+  const { activeDialect } = useDialect();
   const [stepIdx, setStepIdx] = useState(0);
   const [done, setDone] = useState<Record<LetterStepId, boolean>>({} as any);
 
@@ -143,12 +145,12 @@ const AlphabetLetter = () => {
             </div>
             <div className="flex items-center justify-center gap-4">
               <div className="flex flex-col items-center gap-1">
-                <LetterAudioButton text={letter.name_ar} forceMsa size="lg" autoplay label="MSA pronunciation" />
-                <span className="text-[10px] uppercase tracking-wider text-muted-foreground">MSA</span>
+                <LetterAudioButton text={letter.name_ar} forceMsa size="lg" autoplay label="Fusha (MSA) pronunciation" />
+                <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Fusha</span>
               </div>
               <div className="flex flex-col items-center gap-1">
-                <LetterAudioButton text={letter.name_ar} size="lg" label="Dialect pronunciation" />
-                <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Dialect</span>
+                <LetterAudioButton text={letter.name_ar} size="lg" label={`${activeDialect} pronunciation`} />
+                <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{activeDialect}</span>
               </div>
             </div>
             <Button onClick={(e) => { tapFeedback(e.currentTarget); handleStepDone("meet"); setStepIdx(1); }} size="lg" className="w-full">

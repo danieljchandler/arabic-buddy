@@ -17,6 +17,11 @@ interface UseAzureTTSOptions {
    */
   dialect?: DialectHint;
   /**
+   * Optional explicit Azure voice name (e.g. "ar-SA-HamedNeural" for MSA,
+   * "ar-EG-ShakirNeural" for Egyptian). Ignored by Munsit routing.
+   */
+  voice?: string;
+  /**
    * Optional callback invoked once per successful generation with the raw
    * audio blob. Call sites use this to upload the blob to storage and
    * persist a URL on the flashcard so we never re-synthesize the same text.
@@ -67,7 +72,7 @@ function runOnMunsit<T>(task: () => Promise<T>): Promise<T> {
  * Returns a stable blob URL that is automatically revoked on unmount or when
  * the text/dialect changes.  Skips the request when `skip` is true.
  */
-export function useAzureTTS({ text, skip = false, dialect, persist }: UseAzureTTSOptions): UseAzureTTSResult {
+export function useAzureTTS({ text, skip = false, dialect, voice, persist }: UseAzureTTSOptions): UseAzureTTSResult {
   const { activeDialect } = useDialect();
   const [ttsUrl, setTtsUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -108,7 +113,9 @@ export function useAzureTTS({ text, skip = false, dialect, persist }: UseAzureTT
           "Content-Type": "application/json",
           apikey: anonKey,
         },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify(
+          fnName === "azure-tts" && voice ? { text, voice } : { text },
+        ),
       });
 
       let response = useMunsit
@@ -156,7 +163,7 @@ export function useAzureTTS({ text, skip = false, dialect, persist }: UseAzureTT
         setIsLoading(false);
       }
     }
-  }, [text, useMunsit, revokePreviousUrl]);
+  }, [text, useMunsit, voice, revokePreviousUrl]);
 
   useEffect(() => {
     if (skip || !text) {
@@ -172,7 +179,7 @@ export function useAzureTTS({ text, skip = false, dialect, persist }: UseAzureTT
       requestIdRef.current++;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [text, skip, useMunsit]);
+  }, [text, skip, useMunsit, voice]);
 
   useEffect(() => {
     return () => {

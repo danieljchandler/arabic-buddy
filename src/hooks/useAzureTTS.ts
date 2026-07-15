@@ -72,7 +72,7 @@ function runOnMunsit<T>(task: () => Promise<T>): Promise<T> {
  * Returns a stable blob URL that is automatically revoked on unmount or when
  * the text/dialect changes.  Skips the request when `skip` is true.
  */
-export function useAzureTTS({ text, skip = false, dialect, persist }: UseAzureTTSOptions): UseAzureTTSResult {
+export function useAzureTTS({ text, skip = false, dialect, voice, persist }: UseAzureTTSOptions): UseAzureTTSResult {
   const { activeDialect } = useDialect();
   const [ttsUrl, setTtsUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);

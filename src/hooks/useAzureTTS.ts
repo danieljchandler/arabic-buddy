@@ -179,7 +179,7 @@ export function useAzureTTS({ text, skip = false, dialect, voice, persist }: Use
       requestIdRef.current++;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [text, skip, useMunsit]);
+  }, [text, skip, useMunsit, voice]);
 
   useEffect(() => {
     return () => {

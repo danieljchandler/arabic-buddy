@@ -6,34 +6,32 @@ import { Check, X } from "lucide-react";
 
 interface SpotTheLetterGameProps {
   letter: ArabicLetter;
+  /** Pool of allowed letters whose example words can appear (defaults to all). */
+  pool?: ArabicLetter[];
   onComplete: (score: number) => void;
 }
 
 /** Returns true if word contains any form of the target letter's base char. */
 function wordContainsLetter(word: string, letter: ArabicLetter): boolean {
-  // Compare against the isolated form base char (strip tatweel/diacritics in display chars).
-  // Most isolated forms for these 28 letters are a single character that appears
-  // directly in words.
   return word.includes(letter.isolated);
 }
 
-function pickPool(target: ArabicLetter, count: number) {
-  // Collect candidate words from all 28 letters' examples, dedup.
-  const all = ARABIC_LETTERS.flatMap((l) => l.examples.map((e) => e.ar));
+function pickPool(target: ArabicLetter, count: number, sourceLetters: ArabicLetter[]) {
+  // Only use example words from letters the learner has already reached.
+  const all = sourceLetters.flatMap((l) => l.examples.map((e) => e.ar));
   const unique = Array.from(new Set(all));
-  // Ensure at least some contain target
   const withTarget = unique.filter((w) => wordContainsLetter(w, target));
   const without = unique.filter((w) => !wordContainsLetter(w, target));
   const shuffle = <T,>(arr: T[]) => [...arr].sort(() => Math.random() - 0.5);
-  const picks: string[] = [];
   const want = Math.min(count, unique.length);
   const targets = shuffle(withTarget).slice(0, Math.ceil(want / 2));
   const fillers = shuffle(without).slice(0, want - targets.length);
   return shuffle([...targets, ...fillers]);
 }
 
-export const SpotTheLetterGame = ({ letter, onComplete }: SpotTheLetterGameProps) => {
-  const words = useMemo(() => pickPool(letter, 8), [letter]);
+export const SpotTheLetterGame = ({ letter, pool, onComplete }: SpotTheLetterGameProps) => {
+  const sourceLetters = pool ?? ARABIC_LETTERS;
+  const words = useMemo(() => pickPool(letter, 8, sourceLetters), [letter, sourceLetters]);
   const [picked, setPicked] = useState<Record<string, boolean>>({});
   const [submitted, setSubmitted] = useState(false);
   const [score, setScore] = useState(0);

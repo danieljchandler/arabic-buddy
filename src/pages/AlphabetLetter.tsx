@@ -238,6 +238,7 @@ const AlphabetLetter = () => {
           <div className="space-y-6">
             <SoundMatchGame
               letter={letter}
+              pool={learnedPool}
               onComplete={(score) => handleStepDone("sound", { soundScore: score })}
             />
             {done.sound && (

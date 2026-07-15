@@ -49,6 +49,15 @@ const AlphabetLetter = () => {
 
   const next = ARABIC_LETTERS[(letter?.order_index ?? 0) + 1];
 
+  // Only quiz with letters the learner has already reached (current + previous).
+  const learnedPool = useMemo(
+    () =>
+      letter
+        ? ARABIC_LETTERS.filter((l) => l.order_index <= letter.order_index)
+        : ARABIC_LETTERS,
+    [letter],
+  );
+
   const handleStepDone = async (step: LetterStepId, extra?: { spotScore?: number; soundScore?: number }) => {
     if (!letter || done[step]) return;
     setDone((d) => ({ ...d, [step]: true }));

@@ -20,7 +20,7 @@ import type { TranscriptLine } from "@/types/transcript";
 import { TimeRangeSelector } from "@/components/transcript/TimeRangeSelector";
 import { extractFramesWithTimestamps } from "@/lib/videoFrameExtractor";
 
-const DIALECTS = ["Saudi", "Kuwaiti", "UAE", "Bahraini", "Qatari", "Omani", "Gulf", "MSA", "Egyptian", "Levantine", "Maghrebi"];
+const DIALECTS = ["Saudi", "Kuwaiti", "UAE", "Bahraini", "Qatari", "Omani", "Gulf", "MSA", "Egyptian", "Yemeni", "Levantine", "Maghrebi"];
 const DIFFICULTIES = ["Beginner", "Intermediate", "Advanced", "Expert"];
 const CEFR_LEVELS = ["A1", "A2", "B1", "B2", "C1", "C2"] as const;
 const isVideoFile = (file: File) => file.type.startsWith("video/") || /\.(mp4|mov|m4v|webm|mkv)$/i.test(file.name);

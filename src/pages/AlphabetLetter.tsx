@@ -145,12 +145,12 @@ const AlphabetLetter = () => {
             </div>
             <div className="flex items-center justify-center gap-4">
               <div className="flex flex-col items-center gap-1">
-                <LetterAudioButton text={letter.name_ar} forceMsa size="lg" autoplay label="MSA pronunciation" />
-                <span className="text-[10px] uppercase tracking-wider text-muted-foreground">MSA</span>
+                <LetterAudioButton text={letter.name_ar} forceMsa size="lg" autoplay label="Fusha (MSA) pronunciation" />
+                <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Fusha</span>
               </div>
               <div className="flex flex-col items-center gap-1">
-                <LetterAudioButton text={letter.name_ar} size="lg" label="Dialect pronunciation" />
-                <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Dialect</span>
+                <LetterAudioButton text={letter.name_ar} size="lg" label={`${activeDialect} pronunciation`} />
+                <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{activeDialect}</span>
               </div>
             </div>
             <Button onClick={(e) => { tapFeedback(e.currentTarget); handleStepDone("meet"); setStepIdx(1); }} size="lg" className="w-full">

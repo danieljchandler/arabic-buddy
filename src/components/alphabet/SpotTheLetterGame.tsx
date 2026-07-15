@@ -29,8 +29,9 @@ function pickPool(target: ArabicLetter, count: number, sourceLetters: ArabicLett
   return shuffle([...targets, ...fillers]);
 }
 
-export const SpotTheLetterGame = ({ letter, onComplete }: SpotTheLetterGameProps) => {
-  const words = useMemo(() => pickPool(letter, 8), [letter]);
+export const SpotTheLetterGame = ({ letter, pool, onComplete }: SpotTheLetterGameProps) => {
+  const sourceLetters = pool ?? ARABIC_LETTERS;
+  const words = useMemo(() => pickPool(letter, 8, sourceLetters), [letter, sourceLetters]);
   const [picked, setPicked] = useState<Record<string, boolean>>({});
   const [submitted, setSubmitted] = useState(false);
   const [score, setScore] = useState(0);

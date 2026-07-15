@@ -113,7 +113,9 @@ export function useAzureTTS({ text, skip = false, dialect, voice, persist }: Use
           "Content-Type": "application/json",
           apikey: anonKey,
         },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify(
+          fnName === "azure-tts" && voice ? { text, voice } : { text },
+        ),
       });
 
       let response = useMunsit

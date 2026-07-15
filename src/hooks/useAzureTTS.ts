@@ -17,6 +17,11 @@ interface UseAzureTTSOptions {
    */
   dialect?: DialectHint;
   /**
+   * Optional explicit Azure voice name (e.g. "ar-SA-HamedNeural" for MSA,
+   * "ar-EG-ShakirNeural" for Egyptian). Ignored by Munsit routing.
+   */
+  voice?: string;
+  /**
    * Optional callback invoked once per successful generation with the raw
    * audio blob. Call sites use this to upload the blob to storage and
    * persist a URL on the flashcard so we never re-synthesize the same text.

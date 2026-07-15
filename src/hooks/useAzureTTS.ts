@@ -163,7 +163,7 @@ export function useAzureTTS({ text, skip = false, dialect, voice, persist }: Use
         setIsLoading(false);
       }
     }
-  }, [text, useMunsit, revokePreviousUrl]);
+  }, [text, useMunsit, voice, revokePreviousUrl]);
 
   useEffect(() => {
     if (skip || !text) {

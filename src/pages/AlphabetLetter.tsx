@@ -12,6 +12,7 @@ import { SpotTheLetterGame } from "@/components/alphabet/SpotTheLetterGame";
 import { SoundMatchGame } from "@/components/alphabet/SoundMatchGame";
 import { XPPopupHost, fireXPPopup } from "@/components/alphabet/XPPopup";
 import { useDisplayPrefs } from "@/hooks/useDisplayPrefs";
+import { useDialect } from "@/contexts/DialectContext";
 import { Button } from "@/components/ui/button";
 import { tapFeedback } from "@/lib/tapFeedback";
 import { ChevronLeft, ChevronRight, Check, Sparkles } from "lucide-react";

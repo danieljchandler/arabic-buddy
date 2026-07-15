@@ -34,6 +34,7 @@ const AlphabetLetter = () => {
   const letter = letterCode ? LETTERS_BY_CODE[letterCode] : undefined;
   const { progress, completeStep } = useAlphabetProgress();
   const { prefs } = useDisplayPrefs();
+  const { activeDialect } = useDialect();
   const [stepIdx, setStepIdx] = useState(0);
   const [done, setDone] = useState<Record<LetterStepId, boolean>>({} as any);
 

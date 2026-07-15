@@ -223,6 +223,7 @@ const AlphabetLetter = () => {
           <div className="space-y-4">
             <SpotTheLetterGame
               letter={letter}
+              pool={learnedPool}
               onComplete={(score) => handleStepDone("spot", { spotScore: score })}
             />
             {done.spot && (

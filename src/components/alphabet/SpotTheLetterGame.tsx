@@ -11,9 +11,24 @@ interface SpotTheLetterGameProps {
   onComplete: (score: number) => void;
 }
 
+/**
+ * Normalize Arabic so alif variants (أ إ آ ٱ), ya (ى ئ), waw (ؤ), and
+ * ta marbuta (ة → ه) all compare equal to their base letter. Also strips
+ * tashkil (\u064B–\u0652) and tatweel (\u0640).
+ */
+function normalizeArabic(str: string): string {
+  return str
+    .replace(/[\u064B-\u0652\u0640]/g, "")
+    .replace(/[\u0622\u0623\u0625\u0671]/g, "\u0627")
+    .replace(/\u0649/g, "\u064A")
+    .replace(/\u0626/g, "\u064A")
+    .replace(/\u0624/g, "\u0648")
+    .replace(/\u0629/g, "\u0647");
+}
+
 /** Returns true if word contains any form of the target letter's base char. */
 function wordContainsLetter(word: string, letter: ArabicLetter): boolean {
-  return word.includes(letter.isolated);
+  return normalizeArabic(word).includes(normalizeArabic(letter.isolated));
 }
 
 function pickPool(target: ArabicLetter, count: number, sourceLetters: ArabicLetter[]) {

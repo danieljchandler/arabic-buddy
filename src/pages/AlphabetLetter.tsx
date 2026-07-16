@@ -131,6 +131,28 @@ const AlphabetLetter = () => {
             >
               {letter.isolated}
             </div>
+            {letter.variants && letter.variants.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                  Also written as
+                </p>
+                <div className="flex flex-wrap items-start justify-center gap-3">
+                  {letter.variants.map((v) => (
+                    <div key={v.glyph} className="flex flex-col items-center min-w-[64px]">
+                      <span
+                        className="text-4xl text-foreground leading-none"
+                        style={{ fontFamily: "'Noto Sans Arabic', serif" }}
+                      >
+                        {v.glyph}
+                      </span>
+                      <span className="mt-1 text-[10px] text-muted-foreground max-w-[80px] leading-tight">
+                        {v.note}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             <div>
               {prefs.showArabic && (
                 <p className="text-3xl text-foreground" style={{ fontFamily: "'Noto Sans Arabic', serif" }}>

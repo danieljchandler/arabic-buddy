@@ -47,6 +47,12 @@ export const LetterAudioButton = ({
   const [playing, setPlaying] = useState(false);
   const autoplayedRef = useRef(false);
 
+  // Reset the autoplay guard whenever the letter (text) changes so the next
+  // letter's audio actually plays instead of being silently skipped.
+  useEffect(() => {
+    autoplayedRef.current = false;
+  }, [text]);
+
   useEffect(() => {
     if (!ttsUrl) return;
     if (autoplay && !autoplayedRef.current) {

@@ -100,12 +100,25 @@ export const ARABIC_LETTERS: ArabicLetter[] = [
     examples: [{ ar: "ماء", translit: "ma'", en: "water" }, { ar: "مدرسة", translit: "madrasa", en: "school" }, { ar: "مفتاح", translit: "miftaḥ", en: "key" }] },
   { code: "nun", isolated: "ن", initial: "نـ", medial: "ـنـ", final: "ـن", name_ar: "نون", name_translit: "nun", sound_hint: "'n' as in 'noon'", order_index: 24,
     examples: [{ ar: "نجم", translit: "najm", en: "star" }, { ar: "نهر", translit: "nahr", en: "river" }, { ar: "نحلة", translit: "naḥla", en: "bee" }] },
-  { code: "ha_soft", isolated: "ه", initial: "هـ", medial: "ـهـ", final: "ـه", name_ar: "هاء", name_translit: "ha", sound_hint: "soft 'h' as in 'hello'", order_index: 25,
-    examples: [{ ar: "هلال", translit: "hilal", en: "crescent" }, { ar: "هدية", translit: "hadiyya", en: "gift" }, { ar: "هواء", translit: "hawa'", en: "air" }] },
+  { code: "ha_soft", isolated: "ه", initial: "هـ", medial: "ـهـ", final: "ـه", name_ar: "هاء", name_translit: "ha", sound_hint: "soft 'h' as in 'hello'. Ta marbuta (ة) is a related feminine ending.", order_index: 25,
+    examples: [{ ar: "هلال", translit: "hilal", en: "crescent" }, { ar: "هدية", translit: "hadiyya", en: "gift" }, { ar: "هواء", translit: "hawa'", en: "air" }],
+    variants: [
+      { glyph: "ه", note: "plain ha" },
+      { glyph: "ة", note: "ta marbuta (feminine ending)" },
+    ] },
   { code: "waw", isolated: "و", initial: "و", medial: "ـو", final: "ـو", name_ar: "واو", name_translit: "waw", sound_hint: "'w' as in 'water' or long 'oo'", order_index: 26,
-    examples: [{ ar: "ورد", translit: "ward", en: "roses" }, { ar: "ولد", translit: "walad", en: "boy" }, { ar: "وردة", translit: "warda", en: "rose" }] },
+    examples: [{ ar: "ورد", translit: "ward", en: "roses" }, { ar: "ولد", translit: "walad", en: "boy" }, { ar: "وردة", translit: "warda", en: "rose" }],
+    variants: [
+      { glyph: "و", note: "plain waw" },
+      { glyph: "ؤ", note: "waw with hamza" },
+    ] },
   { code: "ya", isolated: "ي", initial: "يـ", medial: "ـيـ", final: "ـي", name_ar: "ياء", name_translit: "ya", sound_hint: "'y' as in 'yes' or long 'ee'", order_index: 27,
-    examples: [{ ar: "يد", translit: "yad", en: "hand" }, { ar: "يوم", translit: "yawm", en: "day" }, { ar: "ياسمين", translit: "yasmin", en: "jasmine" }] },
+    examples: [{ ar: "يد", translit: "yad", en: "hand" }, { ar: "يوم", translit: "yawm", en: "day" }, { ar: "ياسمين", translit: "yasmin", en: "jasmine" }],
+    variants: [
+      { glyph: "ي", note: "plain ya" },
+      { glyph: "ى", note: "alif maqsura (dotless, word-final)" },
+      { glyph: "ئ", note: "ya with hamza" },
+    ] },
 ];
 
 export const LETTERS_BY_CODE: Record<string, ArabicLetter> = Object.fromEntries(

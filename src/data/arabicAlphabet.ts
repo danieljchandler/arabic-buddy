@@ -35,6 +35,12 @@ export interface ArabicLetter {
   examples: ArabicLetterExample[];
   /** Order index in the alphabet (0..27) */
   order_index: number;
+  /**
+   * Optional visual variants — alternate glyphs learners will encounter for
+   * this base letter (e.g. hamza-carrier alif forms أ إ آ, or dotless ya ى).
+   * Rendered as a small "also written as" row on the Meet step.
+   */
+  variants?: { glyph: string; note: string }[];
 }
 
 export const ARABIC_LETTERS: ArabicLetter[] = [

@@ -44,8 +44,14 @@ export interface ArabicLetter {
 }
 
 export const ARABIC_LETTERS: ArabicLetter[] = [
-  { code: "alif", isolated: "ا", initial: "ا", medial: "ـا", final: "ـا", name_ar: "ألف", name_translit: "alif", sound_hint: "long 'aa' like in 'father'", order_index: 0,
-    examples: [{ ar: "أب", translit: "ab", en: "father" }, { ar: "أم", translit: "umm", en: "mother" }, { ar: "أرنب", translit: "arnab", en: "rabbit" }] },
+  { code: "alif", isolated: "ا", initial: "ا", medial: "ـا", final: "ـا", name_ar: "ألف", name_translit: "alif", sound_hint: "long 'aa' like in 'father'. Often carries a hamza (ء) on top or below.", order_index: 0,
+    examples: [{ ar: "أب", translit: "ab", en: "father" }, { ar: "أم", translit: "umm", en: "mother" }, { ar: "أرنب", translit: "arnab", en: "rabbit" }],
+    variants: [
+      { glyph: "ا", note: "plain alif" },
+      { glyph: "أ", note: "hamza on top (short 'a')" },
+      { glyph: "إ", note: "hamza below (short 'i')" },
+      { glyph: "آ", note: "madda — long 'aa'" },
+    ] },
   { code: "ba", isolated: "ب", initial: "بـ", medial: "ـبـ", final: "ـب", name_ar: "باء", name_translit: "ba", sound_hint: "'b' as in 'book'", order_index: 1,
     examples: [{ ar: "بيت", translit: "bayt", en: "house" }, { ar: "باب", translit: "bab", en: "door" }, { ar: "بحر", translit: "baḥr", en: "sea" }] },
   { code: "ta", isolated: "ت", initial: "تـ", medial: "ـتـ", final: "ـت", name_ar: "تاء", name_translit: "ta", sound_hint: "'t' as in 'top'", order_index: 2,

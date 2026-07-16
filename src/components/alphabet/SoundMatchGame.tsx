@@ -79,7 +79,7 @@ export const SoundMatchGame = ({ letter, pool, onComplete }: SoundMatchGameProps
               />
             ))}
           </div>
-          <LetterAudioButton text={round.target.name_ar} forceMsa size="lg" autoplay label="Play letter sound" />
+          <LetterAudioButton key={round.target.code} text={round.target.name_ar} forceMsa size="lg" autoplay label="Play letter sound" />
           {/* Right waveform (mirror) */}
           <div className="flex items-end gap-0.5 h-7 pb-1" aria-hidden>
             {[0, 1, 2].map((i) => (

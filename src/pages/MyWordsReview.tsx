@@ -978,6 +978,13 @@ const MyWordsReview = () => {
           await updateImage.mutateAsync({ wordId, imageUrl });
         }}
       />
+
+      <SentencePracticeSheet
+        open={practiceOpen}
+        onOpenChange={setPracticeOpen}
+        targetArabic={currentWord.word_arabic}
+        targetEnglish={currentWord.word_english}
+      />
     </AppShell>
   );
 };

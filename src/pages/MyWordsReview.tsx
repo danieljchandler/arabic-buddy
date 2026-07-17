@@ -942,8 +942,18 @@ const MyWordsReview = () => {
             repetitions={currentWord.repetitions}
             disabled={updateReview.isPending}
           />
-          {lastAction && (
-            <div className="mt-4 flex justify-center">
+          <div className="mt-4 flex justify-center gap-2 flex-wrap">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setPracticeOpen(true)}
+              className="gap-1.5 text-muted-foreground"
+              title="Practice using this word in a sentence"
+            >
+              <MessageSquarePlus className="h-3.5 w-3.5" />
+              <span className="text-xs font-medium">Practice a sentence</span>
+            </Button>
+            {lastAction && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -955,8 +965,8 @@ const MyWordsReview = () => {
                 {undoing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Undo2 className="h-3.5 w-3.5" />}
                 <span className="text-xs font-medium">Undo</span>
               </Button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
 

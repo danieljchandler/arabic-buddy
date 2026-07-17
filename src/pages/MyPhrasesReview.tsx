@@ -9,7 +9,8 @@ import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Rating, calculateNextReview } from "@/lib/spacedRepetition";
 import { useAzureTTS } from "@/hooks/useAzureTTS";
-import { Loader2, Trophy, LogIn, Eye, Volume2, Trash2, MessageCircleQuestion, Music, Play, RefreshCw, Undo2 } from "lucide-react";
+import { Loader2, Trophy, LogIn, Eye, Volume2, Trash2, MessageCircleQuestion, Music, Play, RefreshCw, Undo2, MessageSquarePlus } from "lucide-react";
+import { SentencePracticeSheet } from "@/components/practice/SentencePracticeSheet";
 import { LeechHelperPanel } from "@/components/review/LeechHelperPanel";
 import { useLeechPrefs } from "@/hooks/useLeechPrefs";
 import { createPlayableJingleAudio, createPlayableJingleAudioFromUrl } from "@/lib/jingleAudio";
@@ -38,6 +39,7 @@ const MyPhrasesReview = () => {
     snapshot: Record<string, unknown>;
   }>(null);
   const [undoing, setUndoing] = useState(false);
+  const [practiceOpen, setPracticeOpen] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const safeIndex =
@@ -492,8 +494,18 @@ const MyPhrasesReview = () => {
             repetitions={current.repetitions}
             disabled={updateReview.isPending}
           />
-          {lastAction && (
-            <div className="mt-4 flex justify-center">
+          <div className="mt-4 flex justify-center gap-2 flex-wrap">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setPracticeOpen(true)}
+              className="gap-1.5 text-muted-foreground"
+              title="Practice using this phrase in a sentence"
+            >
+              <MessageSquarePlus className="h-3.5 w-3.5" />
+              <span className="text-xs font-medium">Practice a sentence</span>
+            </Button>
+            {lastAction && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -505,10 +517,17 @@ const MyPhrasesReview = () => {
                 {undoing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Undo2 className="h-3.5 w-3.5" />}
                 <span className="text-xs font-medium">Undo</span>
               </Button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
+
+      <SentencePracticeSheet
+        open={practiceOpen}
+        onOpenChange={setPracticeOpen}
+        targetArabic={current.phrase_arabic}
+        targetEnglish={current.phrase_english}
+      />
     </AppShell>
   );
 };

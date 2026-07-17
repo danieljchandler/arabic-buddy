@@ -1,58 +1,57 @@
-## Alphabet Journey — thorough fix
+## Sentence Practice on Flashcards
 
-Three real bugs and a data audit, all scoped to the alphabet feature.
+Add a "Make a sentence" action to every flashcard. User records themselves saying a sentence that uses the target word. Munsit transcribes it, then an AI coach (lenient with non-native pronunciation) returns structured feedback in the current dialect.
 
-### 1. Spot-the-Letter marks correct answers as wrong
+### UX flow
 
-`wordContainsLetter` in `src/components/alphabet/SpotTheLetterGame.tsx` does a raw `word.includes(letter.isolated)`. Arabic has multiple visually-related codepoints that must be treated as the same base letter:
+1. On any flashcard (My Words review, My Phrases review, and the Flashcard component used elsewhere), add a subtle **"Practice a sentence with this word"** button below the card body.
+2. Tapping opens a bottom-sheet / dialog:
+   - Big mic button → tap to start, tap to stop (with waveform/level meter, reuse `LevelMeter`).
+   - Shows the target word + English gloss at the top as a reminder.
+3. On stop:
+   - Upload audio → Munsit ASR (via new edge function).
+   - Send transcript + target word + dialect to AI coach.
+   - Show a loading state ("Listening…" → "Coaching…").
+4. Feedback card displays:
+   - **What we heard** — the raw transcript (tappable via `TappableArabicText`).
+   - **Did you use the word?** — green check / soft warning (lenient: accepts root + morphology matches, not just exact form).
+   - **Correctness** — 1-line verdict ("Makes sense" / "Almost — meaning is unclear").
+   - **More natural in [Dialect]** — rewritten sentence in the active dialect (tappable, with play button using existing TTS route for that dialect).
+   - **Why it changed** — 1-2 short bullets explaining the swap (grammar/word choice/naturalness).
+   - **Other ways to say it** — 1–2 alternative phrasings (tappable + play).
+   - **Pronunciation** — overall score + 1–2 tips (reuses `pronunciation-feedback` style; scored against the user's own transcript so non-natives aren't penalized for accent, only for intelligibility).
+5. Buttons: **Try again**, **Save sentence to My Phrases** (optional), **Done**.
 
-- ا ↔ أ إ آ ٱ ى (alif family)
-- ي ↔ ى ئ (ya family)
-- و ↔ ؤ (waw family)
-- ه ↔ ة (ha / ta marbuta)
-- Diacritics (tashkil `\u064B–\u0652`, tatweel `\u0640`) should be stripped
+### Leniency rules (baked into prompts)
 
-Result today: "أب / أم / أرنب" all read as *not containing* alif, so users who correctly tap them are told they're wrong (exactly what the user hit).
+- Target-word check: normalize both sides (strip tashkeel, alef/ya/ta-marbuta variants) and accept any inflected form sharing the root. Don't fail on missing diacritics or minor spelling.
+- Pronunciation score: grade *intelligibility*, not native-likeness. Instruct the coach to be encouraging, mention 1 concrete sound to work on, and never say "wrong."
+- If ASR returns empty/very short text → friendly "we couldn't hear that clearly, try again in a quieter spot" instead of an error.
 
-**Fix:** Add a `normalizeArabicChar` helper and compare normalized strings. Apply it inside `wordContainsLetter` and to the target letter's isolated form.
+### Files to add
 
-### 2. Alif "missing the hamza"
+- `src/components/practice/SentencePracticeSheet.tsx` — the dialog UI, recorder, feedback rendering.
+- `src/hooks/useSentencePractice.ts` — orchestrates record → transcribe → coach; returns `{ status, transcript, feedback, start, stop, retry }`.
+- `supabase/functions/practice-sentence-coach/index.ts` — accepts `{ audioBase64, mimeType, targetWord, targetWordEnglish, dialect }`, calls Munsit for ASR, then Lovable AI Gateway (TRANSLATION lineup via `_shared/modelRegistry.ts`) for structured coaching output (JSON tool call with `usedTarget`, `correctness`, `natural`, `naturalChanges[]`, `alternatives[]`, `pronunciationTip`, `overallScore`).
 
-Data-wise, alif's isolated glyph is `ا` (correct), but every example word in the seed list uses hamza-carrier alif (`أب`, `أم`, `أرنب`). In the "Meet the letter" step the user sees a bare `ا` while the examples on the next screen are all `أ…`, which reads as inconsistent.
+### Files to modify
 
-**Fix in `src/data/arabicAlphabet.ts`:**
-- Add an optional `variants?: string[]` field to `ArabicLetter`.
-- For alif: `variants: ["ا", "أ", "إ", "آ"]` with a one-liner hint that the hamza sits on/under alif.
-- Similar variant hint for ya (`ي / ى`) and ta marbuta note on ha.
+- `src/pages/MyWordsReview.tsx` — add the Practice button on the answer side of the card.
+- `src/pages/MyPhrasesReview.tsx` — same, targeting the phrase.
+- `src/components/Flashcard.tsx` — expose Practice button when a `targetWord` is present so any other flashcard surface picks it up automatically.
 
-**Fix in `src/pages/AlphabetLetter.tsx` (Meet step):** when `letter.variants` exists, render the variants row under the big glyph (small muted line, e.g. `ا  أ  إ  آ` with the label "also written as"). No layout changes elsewhere.
+### Technical details
 
-### 3. Sound Match plays letters that haven't been learned yet
+- ASR: reuse Munsit call pattern from `supabase/functions/score-set-phrase-voice/index.ts` (multipart, `x-api-key`, 25s timeout).
+- Model: `MODEL_LINEUPS.TRANSLATION` (Claude Sonnet 4.5 + Gemini 3.5 Flash ensemble) via `aiBrain`, purpose `translation` (already dialect-aware and MSA-leak-guarded per project rules).
+- Dialect voice for the "natural" sentence playback: reuse existing dialect TTS routing (`useAzureTTS` + Munsit Khaleeji for Gulf/Yemeni).
+- Structured output via tool-calling JSON schema (no `.min/.max` bounds per `ai-sdk-agent-patterns`).
+- CORS: reuse `_shared/cors.ts`.
+- No new tables; the feature is transient. Optional "save to My Phrases" reuses existing `user_phrases` insert path.
 
-`AlphabetLetter.tsx` already passes `learnedPool` to `SoundMatchGame`, but the game's audio button doesn't reliably re-autoplay on letter change, and there's no `key` guaranteeing a fresh mount. On top of that, `LetterAudioButton`'s `autoplayedRef` never resets, so after the first round the wrong (cached) audio can play or nothing plays at all — which is likely why the user heard sounds that felt out of place.
+### Verification
 
-**Fixes:**
-- In `src/components/alphabet/LetterAudioButton.tsx`: reset `autoplayedRef` in a `useEffect` keyed on `text` so autoplay works each time the letter changes.
-- In `src/components/alphabet/SoundMatchGame.tsx`: give the `<LetterAudioButton>` a `key={round.target.code}` (matches the pattern used in `AlphabetCheckpoint.tsx`) so it fully remounts per round and can't play stale audio.
-- Sanity-check: distractors are already scoped to `pool` (learnedPool). Confirmed correct — no logic change needed there.
-
-### 4. Letter-form data audit
-
-Walk through all 28 entries in `ARABIC_LETTERS` and verify the four forms use the correct joining behavior:
-
-- Non-connectors on their left (ا د ذ ر ز و) must have `medial` and `final` starting with the joiner `ـ` only when a preceding letter connects — current data is correct for these.
-- Ha (ه) medial should be `ـهـ` (correct).
-- Kaf (ك) medial `ـكـ` is correct; final form `ـك` is correct.
-- Ta marbuta is not its own letter — leave alone but mention in ha's hint (see item 2).
-
-If any single-entry glyph is wrong I'll correct it in the same pass. No expected changes beyond the alif variant addition, but this is the pass to catch anything the user noticed as "doesn't look right".
-
-### Files touched
-
-- `src/data/arabicAlphabet.ts` — add `variants`, add alif/ya variants, minor hint tweaks; verify all 28 forms.
-- `src/components/alphabet/SpotTheLetterGame.tsx` — normalization helper + updated `wordContainsLetter`.
-- `src/components/alphabet/SoundMatchGame.tsx` — `key` on the audio button.
-- `src/components/alphabet/LetterAudioButton.tsx` — reset autoplay ref on text change.
-- `src/pages/AlphabetLetter.tsx` — render variants row on Meet step when present.
-
-No backend, DB, or edge-function changes. No changes to checkpoints, tracer, or four-faces panel logic.
+- Record a clearly-in-Arabic sentence with the target word → transcript matches, `usedTarget: true`, natural rewrite differs subtly.
+- Record without the target word → warning row shown but still gives a rewrite.
+- Record silence → friendly retry prompt, no crash.
+- Switch dialect (Gulf → Egyptian) → natural rewrite and playback voice both change.

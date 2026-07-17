@@ -6,7 +6,8 @@ import { useDialect } from "@/contexts/DialectContext";
 import { HomeButton } from "@/components/HomeButton";
 import { RatingButtons } from "@/components/review/RatingButtons";
 import { AppShell } from "@/components/layout/AppShell";
-import { Loader2, Trophy, LogIn, Eye, Volume2, Music, RefreshCw, Sparkles, Play, Brain, Mic2, Quote, Undo2 } from "lucide-react";
+import { Loader2, Trophy, LogIn, Eye, Volume2, Music, RefreshCw, Sparkles, Play, Brain, Mic2, Quote, Undo2, MessageSquarePlus } from "lucide-react";
+import { SentencePracticeSheet } from "@/components/practice/SentencePracticeSheet";
 import { LeechHelperPanel } from "@/components/review/LeechHelperPanel";
 import { SiblingWordsPanel } from "@/components/review/SiblingWordsPanel";
 import { useLeechPrefs } from "@/hooks/useLeechPrefs";
@@ -106,6 +107,7 @@ const MyWordsReview = () => {
   const [jingleLoading, setJingleLoading] = useState(false);
   const [showLyrics, setShowLyrics] = useState(false);
   const [imageDialogOpen, setImageDialogOpen] = useState(false);
+  const [practiceOpen, setPracticeOpen] = useState(false);
   const [lastAction, setLastAction] = useState<null | {
     cardId: string;
     cardType: CardType;
@@ -940,8 +942,18 @@ const MyWordsReview = () => {
             repetitions={currentWord.repetitions}
             disabled={updateReview.isPending}
           />
-          {lastAction && (
-            <div className="mt-4 flex justify-center">
+          <div className="mt-4 flex justify-center gap-2 flex-wrap">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setPracticeOpen(true)}
+              className="gap-1.5 text-muted-foreground"
+              title="Practice using this word in a sentence"
+            >
+              <MessageSquarePlus className="h-3.5 w-3.5" />
+              <span className="text-xs font-medium">Practice a sentence</span>
+            </Button>
+            {lastAction && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -953,8 +965,8 @@ const MyWordsReview = () => {
                 {undoing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Undo2 className="h-3.5 w-3.5" />}
                 <span className="text-xs font-medium">Undo</span>
               </Button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
 
@@ -965,6 +977,13 @@ const MyWordsReview = () => {
         onImageSaved={async (wordId, imageUrl) => {
           await updateImage.mutateAsync({ wordId, imageUrl });
         }}
+      />
+
+      <SentencePracticeSheet
+        open={practiceOpen}
+        onOpenChange={setPracticeOpen}
+        targetArabic={currentWord.word_arabic}
+        targetEnglish={currentWord.word_english}
       />
     </AppShell>
   );

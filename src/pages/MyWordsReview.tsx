@@ -107,6 +107,7 @@ const MyWordsReview = () => {
   const [jingleLoading, setJingleLoading] = useState(false);
   const [showLyrics, setShowLyrics] = useState(false);
   const [imageDialogOpen, setImageDialogOpen] = useState(false);
+  const [practiceOpen, setPracticeOpen] = useState(false);
   const [lastAction, setLastAction] = useState<null | {
     cardId: string;
     cardType: CardType;

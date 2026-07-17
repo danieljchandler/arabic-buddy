@@ -39,6 +39,7 @@ const MyPhrasesReview = () => {
     snapshot: Record<string, unknown>;
   }>(null);
   const [undoing, setUndoing] = useState(false);
+  const [practiceOpen, setPracticeOpen] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const safeIndex =

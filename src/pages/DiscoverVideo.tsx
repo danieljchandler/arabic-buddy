@@ -948,7 +948,7 @@ const DiscoverVideo = () => {
   // In phrase mode, show the line at lineControlIndex to avoid stale activeLine during seek lag
   const displayLine = (playbackMode === "line" && lines[lineControlIndex])
     ? lines[lineControlIndex]
-    : activeLine;
+    : activeLine ?? lines[lineControlIndex] ?? null;
   const displayLineShadowClip = useMemo(
     () => (displayLine ? buildShadowClipForLine(displayLine, video, shadowAudioUrl) : null),
     [displayLine, video, shadowAudioUrl],

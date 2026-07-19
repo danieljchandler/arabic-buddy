@@ -949,6 +949,10 @@ const DiscoverVideo = () => {
   const displayLine = (playbackMode === "line" && lines[lineControlIndex])
     ? lines[lineControlIndex]
     : activeLine;
+  const displayLineShadowClip = useMemo(
+    () => (displayLine ? buildShadowClipForLine(displayLine, video, shadowAudioUrl) : null),
+    [displayLine, video, shadowAudioUrl],
+  );
 
   useEffect(() => {
     if (!activeLine) return;
@@ -1457,12 +1461,39 @@ const DiscoverVideo = () => {
                     </>
                   )}
                   {displayLine.arabic && (
-                    <div className="flex justify-center mt-2">
+                    <div className="flex flex-wrap justify-center gap-2 mt-2">
                       <AskAISentence
                         arabic={displayLine.arabic}
                         english={displayLine.translation}
                         variant="chip"
                         className="h-8 px-3 bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary"
+                      />
+                      {displayLineShadowClip && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleToggleShadow(displayLine.id)}
+                          className={cn(
+                            "h-8 px-3 gap-1.5 rounded-full text-xs font-medium",
+                            shadowLineId === displayLine.id
+                              ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                              : "bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary",
+                          )}
+                        >
+                          <Mic className="h-3.5 w-3.5" />
+                          {shadowLineId === displayLine.id ? "Close" : "Practice shadowing"}
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                  {shadowLineId === displayLine.id && displayLineShadowClip && (
+                    <div className="mx-auto max-w-xl text-left" onClick={(e) => e.stopPropagation()}>
+                      <InlineLineShadow
+                        clip={displayLineShadowClip}
+                        audioUrl={shadowAudioUrl ?? null}
+                        startMs={displayLine.startMs}
+                        endMs={displayLine.endMs}
+                        onClose={() => handleToggleShadow(displayLine.id)}
                       />
                     </div>
                   )}

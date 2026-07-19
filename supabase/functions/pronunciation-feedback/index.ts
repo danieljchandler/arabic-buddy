@@ -7,21 +7,57 @@ serve(async (req) => {
   }
 
   try {
-    const { word_arabic, word_english, scores, dialect } = await req.json();
-
-    if (!scores) {
-      return new Response(JSON.stringify({ error: "scores is required" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    const payload = await req.json();
+    const { mode } = payload;
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    const isSingleWord = (word_arabic || "").trim().split(/\s+/).length === 1;
+    // ── Shadow mode: coach on the gap between what the learner said and the
+    //    exact words the native speaker said in this clip. ──────────────────
+    let prompt: string;
+    if (mode === "shadow") {
+      const { referenceText, recognizedText, closeness, wordDiffs } = payload;
+      if (!referenceText) {
+        return new Response(JSON.stringify({ error: "referenceText is required" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const diffSummary = (Array.isArray(wordDiffs) ? wordDiffs : [])
+        .map((d: any) => {
+          if (d.status === "match") return null;
+          if (d.status === "missing") return `missed "${d.ref}"`;
+          if (d.status === "extra") return `added "${d.said}"`;
+          if (d.status === "sub") return `said "${d.said}" instead of "${d.ref}"`;
+          return null;
+        })
+        .filter(Boolean)
+        .join("; ");
+
+      prompt = `You are a friendly Arabic pronunciation coach. A learner is SHADOWING (repeating after) a native speaker clip.
+
+The native speaker said: "${referenceText}"
+The learner said (as heard by speech recognition): "${recognizedText || "(nothing recognised)"}"
+Closeness to the native clip: ${Math.round(closeness ?? 0)}/100.
+${diffSummary ? `Differences from the clip: ${diffSummary}.` : "The words matched the clip closely."}
+
+Give exactly 2-3 short, actionable tips (one sentence each) to help them match the native clip more closely. Reference the specific Arabic words/sounds they missed or changed. Be encouraging but specific. If they matched well, give tips on rhythm/intonation. Do not repeat the score.`;
+    } else {
+      // ── Legacy Azure-scores mode (unchanged). ──────────────────────────────
+      const { word_arabic, word_english, scores, dialect } = payload;
+
+      if (!scores) {
+        return new Response(JSON.stringify({ error: "scores is required" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const isSingleWord = (word_arabic || "").trim().split(/\s+/).length === 1;
 
     // Build a concise summary of the scores for the prompt
     const wordBreakdown = (scores.words || [])
@@ -36,7 +72,7 @@ serve(async (req) => {
 
     const dialectLabel = dialect === "ar-EG" ? "Egyptian Arabic" : dialect === "ar-YE" ? "Yemeni Arabic" : "Gulf Arabic (Saudi/Khaliji)";
 
-    const prompt = `You are a friendly Arabic pronunciation coach specializing in ${dialectLabel}.
+    prompt = `You are a friendly Arabic pronunciation coach specializing in ${dialectLabel}.
 
 A learner just attempted to pronounce: "${word_arabic}"${word_english ? ` (meaning: "${word_english}")` : ""}.
 
@@ -55,6 +91,7 @@ ${isSingleWord
   : "This is a phrase. Include word-level and fluency feedback."}
 
 Give exactly 2-3 short, actionable tips (one sentence each) to improve their pronunciation. Be encouraging but specific. Reference the actual Arabic words/sounds. Do not repeat the scores.`;
+    }
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",

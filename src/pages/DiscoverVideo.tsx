@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useDiscoverVideo } from "@/hooks/useDiscoverVideos";
+import { useDiscoverVideo, type DiscoverVideo as DiscoverVideoType } from "@/hooks/useDiscoverVideos";
 import { useAuth } from "@/hooks/useAuth";
 import { useAddUserVocabulary } from "@/hooks/useUserVocabulary";
 import { Badge } from "@/components/ui/badge";
@@ -27,10 +27,14 @@ import {
   resolveDiscoverVideoAudioUrl,
   extractAndUploadAudioClip,
   synthesizeAndUploadTTS,
+  extractAudioClipFromUrl,
 } from "@/lib/vocabularyAudioContext";
 import type { TranscriptLine, WordToken, VocabItem } from "@/types/transcript";
 import { VideoRating } from "@/components/discover/VideoRating";
 import { AskAISentence } from "@/components/shared/AskAISentence";
+import { LineShadowPanel } from "@/components/pronunciation/LineShadowPanel";
+import { DIALECT_LOCALE, extractYouTubeId, type ShadowClip } from "@/hooks/useShadowQueue";
+import { Mic } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { recordContinue } from "@/lib/continueProgress";
 import { useUserLevel } from "@/hooks/useUserLevel";
@@ -184,6 +188,10 @@ const TranscriptRow = ({
   savedWords,
   lineRef,
   onSeek,
+  video,
+  shadowAudioUrl,
+  isShadowing,
+  onToggleShadow,
 }: {
   line: TranscriptLine;
   isActive: boolean;
@@ -192,7 +200,39 @@ const TranscriptRow = ({
   savedWords?: Set<string>;
   lineRef?: React.Ref<HTMLDivElement>;
   onSeek?: (ms: number) => void;
+  video?: DiscoverVideoType;
+  shadowAudioUrl?: string | null;
+  isShadowing?: boolean;
+  onToggleShadow?: (lineId: string) => void;
 }) => {
+  // A line can be shadowed when it has timing and we can source the native clip:
+  // a YouTube segment (played in-place) or extracted audio.
+  const isYouTube = video?.platform === "youtube";
+  const youtubeId = isYouTube ? extractYouTubeId(video?.embed_url ?? null, video?.source_url ?? null) : null;
+  const canShadow =
+    !!video &&
+    !!line.arabic &&
+    line.startMs !== undefined &&
+    line.endMs !== undefined &&
+    (isYouTube ? !!youtubeId : !!shadowAudioUrl);
+
+  const shadowClip: ShadowClip | null =
+    canShadow && video
+      ? {
+          id: `line-${line.id}`,
+          source: isYouTube ? "youtube" : "audio",
+          youtubeId: youtubeId ?? undefined,
+          audioUrl: shadowAudioUrl ?? undefined,
+          text: line.arabic,
+          translation: line.translation,
+          startSec: (line.startMs ?? 0) / 1000,
+          endSec: (line.endMs ?? 0) / 1000,
+          dialect: video.dialect,
+          locale: DIALECT_LOCALE[video.dialect] ?? "ar-SA",
+          sourceTitle: video.title,
+        }
+      : null;
+
   return (
     <div
       ref={lineRef}
@@ -231,12 +271,41 @@ const TranscriptRow = ({
       </p>
 
       {line.arabic && (
-        <div className="mt-2" onClick={(e) => e.stopPropagation()}>
+        <div className="mt-2 flex flex-wrap items-center gap-2" onClick={(e) => e.stopPropagation()}>
           <AskAISentence
             arabic={line.arabic}
             english={line.translation}
             variant="chip"
             className="h-8 px-3 bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary"
+          />
+          {shadowClip && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onToggleShadow?.(line.id)}
+              className={cn(
+                "h-8 px-3 gap-1.5 rounded-full text-xs font-medium",
+                isShadowing
+                  ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                  : "bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary",
+              )}
+            >
+              <Mic className="h-3.5 w-3.5" />
+              {isShadowing ? "Close" : "Practice shadowing"}
+            </Button>
+          )}
+        </div>
+      )}
+
+      {/* Inline shadowing panel */}
+      {isShadowing && shadowClip && (
+        <div onClick={(e) => e.stopPropagation()}>
+          <InlineLineShadow
+            clip={shadowClip}
+            audioUrl={shadowAudioUrl ?? null}
+            startMs={line.startMs}
+            endMs={line.endMs}
+            onClose={() => onToggleShadow?.(line.id)}
           />
         </div>
       )}
@@ -258,6 +327,43 @@ const TranscriptRow = ({
       </div>
     </div>
   );
+};
+
+/* ── Inline shadow loader: extracts the native clip WAV (when audio is
+ *    available) then renders the shadowing panel. ─────────────────────── */
+const InlineLineShadow = ({
+  clip,
+  audioUrl,
+  startMs,
+  endMs,
+  onClose,
+}: {
+  clip: ShadowClip;
+  audioUrl: string | null;
+  startMs?: number;
+  endMs?: number;
+  onClose: () => void;
+}) => {
+  const [nativeClipWav, setNativeClipWav] = useState<Blob | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setNativeClipWav(null);
+    if (audioUrl && startMs !== undefined && endMs !== undefined) {
+      extractAudioClipFromUrl(audioUrl, startMs, endMs)
+        .then((blob) => {
+          if (!cancelled) setNativeClipWav(blob);
+        })
+        .catch(() => {
+          /* acoustic component is optional */
+        });
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [audioUrl, startMs, endMs]);
+
+  return <LineShadowPanel clip={clip} nativeClipWav={nativeClipWav} onClose={onClose} />;
 };
 
 /* ── Like Button ──────────────────────────────────────────── */
@@ -476,6 +582,11 @@ const DiscoverVideo = () => {
   const [lineControlIndex, setLineControlIndex] = useState(0);
   const [tiktokAudioUrl, setTiktokAudioUrl] = useState<string | null>(null);
   const [tiktokAudioReady, setTiktokAudioReady] = useState(false);
+  // Shadowing: which line's inline panel is open, and the resolved native
+  // audio URL used to extract clips for acoustic scoring (null for videos
+  // without downloadable audio, e.g. most YouTube).
+  const [shadowLineId, setShadowLineId] = useState<string | null>(null);
+  const [shadowAudioUrl, setShadowAudioUrl] = useState<string | null>(null);
   const [isTiktokAudioPlaying, setIsTiktokAudioPlaying] = useState(false);
   const tiktokAudioRef = useRef<HTMLAudioElement | null>(null);
   const phraseEndMsRef = useRef<number | null>(null);
@@ -504,6 +615,30 @@ const DiscoverVideo = () => {
       dialect,
     });
   }, [video?.id, currentTimeMs]);
+
+  // Resolve a downloadable native-audio URL for shadowing (used to extract
+  // per-line clips for acoustic scoring). Null when none exists yet.
+  useEffect(() => {
+    if (!video) {
+      setShadowAudioUrl(null);
+      return;
+    }
+    let cancelled = false;
+    resolveDiscoverVideoAudioUrl(video)
+      .then((url) => {
+        if (!cancelled) setShadowAudioUrl(url);
+      })
+      .catch(() => {
+        if (!cancelled) setShadowAudioUrl(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [video]);
+
+  const handleToggleShadow = useCallback((lineId: string) => {
+    setShadowLineId((cur) => (cur === lineId ? null : lineId));
+  }, []);
 
   // Load YouTube IFrame API
   useEffect(() => {
@@ -1445,6 +1580,10 @@ const DiscoverVideo = () => {
                 else lineRefs.current.delete(line.id);
               }}
               onSeek={handleSeek}
+              video={video}
+              shadowAudioUrl={shadowAudioUrl}
+              isShadowing={shadowLineId === line.id}
+              onToggleShadow={handleToggleShadow}
             />
           ))}
         </div>

@@ -45,7 +45,7 @@ interface RawLine {
   tokens?: unknown[];
 }
 
-const DIALECT_LOCALE: Record<string, string> = {
+export const DIALECT_LOCALE: Record<string, string> = {
   Gulf: "ar-SA",
   Saudi: "ar-SA",
   Kuwaiti: "ar-KW",
@@ -66,7 +66,7 @@ function dialectMatches(clipDialect: string, active: DialectModule): boolean {
   return clipDialect === active;
 }
 
-function extractYouTubeId(embedUrl: string | null, sourceUrl: string | null): string | null {
+export function extractYouTubeId(embedUrl: string | null, sourceUrl: string | null): string | null {
   for (const u of [embedUrl, sourceUrl]) {
     if (!u) continue;
     const m = u.match(/(?:youtube\.com\/(?:embed\/|watch\?v=|shorts\/|live\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);

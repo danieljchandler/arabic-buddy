@@ -180,6 +180,36 @@ const ClickableWord = ({
 };
 
 /* ── Transcript Line Row ──────────────────────────────────── */
+const buildShadowClipForLine = (
+  line: TranscriptLine,
+  video?: DiscoverVideoType,
+  shadowAudioUrl?: string | null,
+): ShadowClip | null => {
+  const startMs = Number(line.startMs);
+  const endMs = Number(line.endMs);
+  const hasTiming = Number.isFinite(startMs) && Number.isFinite(endMs) && endMs > startMs;
+  const isYouTube = video?.platform === "youtube";
+  const youtubeId = isYouTube ? extractYouTubeId(video?.embed_url ?? null, video?.source_url ?? null) : null;
+
+  if (!video || !line.arabic || !hasTiming || (isYouTube ? !youtubeId : !shadowAudioUrl)) {
+    return null;
+  }
+
+  return {
+    id: `line-${line.id}`,
+    source: isYouTube ? "youtube" : "audio",
+    youtubeId: youtubeId ?? undefined,
+    audioUrl: shadowAudioUrl ?? undefined,
+    text: line.arabic,
+    translation: line.translation,
+    startSec: startMs / 1000,
+    endSec: endMs / 1000,
+    dialect: video.dialect,
+    locale: DIALECT_LOCALE[video.dialect] ?? "ar-SA",
+    sourceTitle: video.title,
+  };
+};
+
 const TranscriptRow = ({
   line,
   isActive,
@@ -205,33 +235,7 @@ const TranscriptRow = ({
   isShadowing?: boolean;
   onToggleShadow?: (lineId: string) => void;
 }) => {
-  // A line can be shadowed when it has timing and we can source the native clip:
-  // a YouTube segment (played in-place) or extracted audio.
-  const isYouTube = video?.platform === "youtube";
-  const youtubeId = isYouTube ? extractYouTubeId(video?.embed_url ?? null, video?.source_url ?? null) : null;
-  const canShadow =
-    !!video &&
-    !!line.arabic &&
-    line.startMs !== undefined &&
-    line.endMs !== undefined &&
-    (isYouTube ? !!youtubeId : !!shadowAudioUrl);
-
-  const shadowClip: ShadowClip | null =
-    canShadow && video
-      ? {
-          id: `line-${line.id}`,
-          source: isYouTube ? "youtube" : "audio",
-          youtubeId: youtubeId ?? undefined,
-          audioUrl: shadowAudioUrl ?? undefined,
-          text: line.arabic,
-          translation: line.translation,
-          startSec: (line.startMs ?? 0) / 1000,
-          endSec: (line.endMs ?? 0) / 1000,
-          dialect: video.dialect,
-          locale: DIALECT_LOCALE[video.dialect] ?? "ar-SA",
-          sourceTitle: video.title,
-        }
-      : null;
+  const shadowClip = buildShadowClipForLine(line, video, shadowAudioUrl);
 
   return (
     <div

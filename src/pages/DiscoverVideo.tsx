@@ -180,6 +180,36 @@ const ClickableWord = ({
 };
 
 /* ── Transcript Line Row ──────────────────────────────────── */
+const buildShadowClipForLine = (
+  line: TranscriptLine,
+  video?: DiscoverVideoType,
+  shadowAudioUrl?: string | null,
+): ShadowClip | null => {
+  const startMs = Number(line.startMs);
+  const endMs = Number(line.endMs);
+  const hasTiming = Number.isFinite(startMs) && Number.isFinite(endMs) && endMs > startMs;
+  const isYouTube = video?.platform === "youtube";
+  const youtubeId = isYouTube ? extractYouTubeId(video?.embed_url ?? null, video?.source_url ?? null) : null;
+
+  if (!video || !line.arabic || !hasTiming || (isYouTube ? !youtubeId : !shadowAudioUrl)) {
+    return null;
+  }
+
+  return {
+    id: `line-${line.id}`,
+    source: isYouTube ? "youtube" : "audio",
+    youtubeId: youtubeId ?? undefined,
+    audioUrl: shadowAudioUrl ?? undefined,
+    text: line.arabic,
+    translation: line.translation,
+    startSec: startMs / 1000,
+    endSec: endMs / 1000,
+    dialect: video.dialect,
+    locale: DIALECT_LOCALE[video.dialect] ?? "ar-SA",
+    sourceTitle: video.title,
+  };
+};
+
 const TranscriptRow = ({
   line,
   isActive,
@@ -205,33 +235,7 @@ const TranscriptRow = ({
   isShadowing?: boolean;
   onToggleShadow?: (lineId: string) => void;
 }) => {
-  // A line can be shadowed when it has timing and we can source the native clip:
-  // a YouTube segment (played in-place) or extracted audio.
-  const isYouTube = video?.platform === "youtube";
-  const youtubeId = isYouTube ? extractYouTubeId(video?.embed_url ?? null, video?.source_url ?? null) : null;
-  const canShadow =
-    !!video &&
-    !!line.arabic &&
-    line.startMs !== undefined &&
-    line.endMs !== undefined &&
-    (isYouTube ? !!youtubeId : !!shadowAudioUrl);
-
-  const shadowClip: ShadowClip | null =
-    canShadow && video
-      ? {
-          id: `line-${line.id}`,
-          source: isYouTube ? "youtube" : "audio",
-          youtubeId: youtubeId ?? undefined,
-          audioUrl: shadowAudioUrl ?? undefined,
-          text: line.arabic,
-          translation: line.translation,
-          startSec: (line.startMs ?? 0) / 1000,
-          endSec: (line.endMs ?? 0) / 1000,
-          dialect: video.dialect,
-          locale: DIALECT_LOCALE[video.dialect] ?? "ar-SA",
-          sourceTitle: video.title,
-        }
-      : null;
+  const shadowClip = buildShadowClipForLine(line, video, shadowAudioUrl);
 
   return (
     <div
@@ -944,7 +948,11 @@ const DiscoverVideo = () => {
   // In phrase mode, show the line at lineControlIndex to avoid stale activeLine during seek lag
   const displayLine = (playbackMode === "line" && lines[lineControlIndex])
     ? lines[lineControlIndex]
-    : activeLine;
+    : activeLine ?? lines[lineControlIndex] ?? null;
+  const displayLineShadowClip = useMemo(
+    () => (displayLine ? buildShadowClipForLine(displayLine, video, shadowAudioUrl) : null),
+    [displayLine, video, shadowAudioUrl],
+  );
 
   useEffect(() => {
     if (!activeLine) return;
@@ -1453,12 +1461,39 @@ const DiscoverVideo = () => {
                     </>
                   )}
                   {displayLine.arabic && (
-                    <div className="flex justify-center mt-2">
+                    <div className="flex flex-wrap justify-center gap-2 mt-2">
                       <AskAISentence
                         arabic={displayLine.arabic}
                         english={displayLine.translation}
                         variant="chip"
                         className="h-8 px-3 bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary"
+                      />
+                      {displayLineShadowClip && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleToggleShadow(displayLine.id)}
+                          className={cn(
+                            "h-8 px-3 gap-1.5 rounded-full text-xs font-medium",
+                            shadowLineId === displayLine.id
+                              ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                              : "bg-primary/10 text-primary hover:bg-primary/15 hover:text-primary",
+                          )}
+                        >
+                          <Mic className="h-3.5 w-3.5" />
+                          {shadowLineId === displayLine.id ? "Close" : "Practice shadowing"}
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                  {shadowLineId === displayLine.id && displayLineShadowClip && (
+                    <div className="mx-auto max-w-xl text-left" onClick={(e) => e.stopPropagation()}>
+                      <InlineLineShadow
+                        clip={displayLineShadowClip}
+                        audioUrl={shadowAudioUrl ?? null}
+                        startMs={displayLine.startMs}
+                        endMs={displayLine.endMs}
+                        onClose={() => handleToggleShadow(displayLine.id)}
                       />
                     </div>
                   )}

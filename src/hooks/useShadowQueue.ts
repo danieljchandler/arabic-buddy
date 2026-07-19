@@ -67,10 +67,26 @@ function dialectMatches(clipDialect: string, active: DialectModule): boolean {
 }
 
 export function extractYouTubeId(embedUrl: string | null, sourceUrl: string | null): string | null {
-  for (const u of [embedUrl, sourceUrl]) {
-    if (!u) continue;
-    const m = u.match(/(?:youtube\.com\/(?:embed\/|watch\?v=|shorts\/|live\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
-    if (m) return m[1];
+  for (const raw of [embedUrl, sourceUrl]) {
+    if (!raw) continue;
+    try {
+      const url = new URL(raw);
+      const host = url.hostname.replace(/^www\./, "");
+      if (host === "youtu.be") {
+        const id = url.pathname.split("/").filter(Boolean)[0];
+        if (id) return id;
+      }
+      if (host === "youtube.com" || host === "youtube-nocookie.com" || host.endsWith(".youtube.com")) {
+        const queryId = url.searchParams.get("v");
+        if (queryId) return queryId;
+        const parts = url.pathname.split("/").filter(Boolean);
+        const markerIndex = parts.findIndex((p) => ["embed", "shorts", "live"].includes(p));
+        if (markerIndex >= 0 && parts[markerIndex + 1]) return parts[markerIndex + 1];
+      }
+    } catch {
+      const m = raw.match(/(?:youtube(?:-nocookie)?\.com\/(?:embed\/|shorts\/|live\/|watch\?(?:.*&)?v=)|youtu\.be\/)([a-zA-Z0-9_-]{6,})/);
+      if (m) return m[1];
+    }
   }
   return null;
 }

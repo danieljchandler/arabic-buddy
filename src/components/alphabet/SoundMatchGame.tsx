@@ -17,9 +17,15 @@ export const SoundMatchGame = ({ letter, pool, onComplete }: SoundMatchGameProps
 
   const rounds = useMemo(() => {
     const target = letter;
-    const others = allPool.filter((l) => l.code !== target.code);
     const shuffle = <T,>(arr: T[]) => [...arr].sort(() => Math.random() - 0.5);
-    const distractors = shuffle(others).slice(0, 3);
+    // Prefer learned letters as distractors; if the pool is too small (early letters),
+    // top up from the full alphabet so the grid always shows 4 tiles.
+    const learnedOthers = allPool.filter((l) => l.code !== target.code);
+    const fallbackOthers = ARABIC_LETTERS.filter(
+      (l) => l.code !== target.code && !learnedOthers.some((x) => x.code === l.code),
+    );
+    const pooled = [...shuffle(learnedOthers), ...shuffle(fallbackOthers)];
+    const distractors = pooled.slice(0, 3);
     const options = shuffle([target, ...distractors]);
     return [{ target, options }];
     // single round per visit keeps the lesson tight; the boss checkpoint composes its own multi-round

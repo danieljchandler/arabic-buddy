@@ -32,15 +32,26 @@ function wordContainsLetter(word: string, letter: ArabicLetter): boolean {
 }
 
 function pickPool(target: ArabicLetter, count: number, sourceLetters: ArabicLetter[]) {
-  // Only use example words from letters the learner has already reached.
-  const all = sourceLetters.flatMap((l) => l.examples.map((e) => e.ar));
-  const unique = Array.from(new Set(all));
-  const withTarget = unique.filter((w) => wordContainsLetter(w, target));
-  const without = unique.filter((w) => !wordContainsLetter(w, target));
+  // Prefer example words from letters the learner has already reached, but always
+  // guarantee at least some filler words that don't contain the target — otherwise
+  // the very first letter (alif) would render an all-correct grid.
+  const learnedWords = sourceLetters.flatMap((l) => l.examples.map((e) => e.ar));
+  const allWords = ARABIC_LETTERS.flatMap((l) => l.examples.map((e) => e.ar));
   const shuffle = <T,>(arr: T[]) => [...arr].sort(() => Math.random() - 0.5);
-  const want = Math.min(count, unique.length);
-  const targets = shuffle(withTarget).slice(0, Math.ceil(want / 2));
-  const fillers = shuffle(without).slice(0, want - targets.length);
+  const uniqueLearned = Array.from(new Set(learnedWords));
+  const uniqueAll = Array.from(new Set(allWords));
+  const want = Math.min(count, uniqueAll.length);
+  const wantTargets = Math.ceil(want / 2);
+  const wantFillers = want - wantTargets;
+
+  const learnedWithTarget = uniqueLearned.filter((w) => wordContainsLetter(w, target));
+  const learnedWithout = uniqueLearned.filter((w) => !wordContainsLetter(w, target));
+  const allWithout = uniqueAll.filter((w) => !wordContainsLetter(w, target));
+
+  const targets = shuffle(learnedWithTarget).slice(0, wantTargets);
+  // Fillers: prefer learned; top up from full alphabet if learned pool has no non-target words yet.
+  const fillerPool = learnedWithout.length >= wantFillers ? learnedWithout : allWithout;
+  const fillers = shuffle(fillerPool).slice(0, wantFillers);
   return shuffle([...targets, ...fillers]);
 }
 

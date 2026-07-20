@@ -93,6 +93,14 @@ export function LineShadowPanel({ clip, nativeClipWav, onClose }: Props) {
         </button>
       </div>
 
+      {/* Reference text — what the learner should repeat, always visible */}
+      <div className="bg-card border-2 border-border rounded-xl p-4 text-center">
+        <p className="text-2xl font-bold leading-relaxed" dir="rtl">
+          {clip.text}
+        </p>
+        {clip.translation && <p className="text-muted-foreground text-sm mt-2">{clip.translation}</p>}
+      </div>
+
       {/* Native source — YouTube needs a visible frame; audio stays hidden */}
       <div
         className={cn(

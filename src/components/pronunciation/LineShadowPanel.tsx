@@ -11,7 +11,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Mic, Loader2, RotateCcw, Volume2, AlertCircle, X, Lightbulb } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { ClipSourcePlayer, type ClipSourcePlayerHandle } from "./ClipSourcePlayer";
+import { ClipSourcePlayer, type ClipSourcePlayerHandle, type ExternalYouTubeController } from "./ClipSourcePlayer";
 import { CountdownRing } from "./CountdownRing";
 import { LevelMeter } from "./LevelMeter";
 import { useShadowRecorder } from "@/hooks/useShadowRecorder";
@@ -23,12 +23,14 @@ interface Props {
   clip: ShadowClip;
   /** Native clip audio (WAV) — enables the acoustic component when present. */
   nativeClipWav?: Blob | null;
+  /** Drives an already-existing YouTube player (e.g. the page's main video) instead of a fresh hidden iframe. */
+  externalYouTubeController?: ExternalYouTubeController | null;
   onClose: () => void;
 }
 
 type State = "idle" | "playing" | "recording" | "scoring" | "result" | "error";
 
-export function LineShadowPanel({ clip, nativeClipWav, onClose }: Props) {
+export function LineShadowPanel({ clip, nativeClipWav, externalYouTubeController, onClose }: Props) {
   const playerRef = useRef<ClipSourcePlayerHandle>(null);
   const recorder = useShadowRecorder();
   const { score, result, isLoading, error: scoreError, reset } = useShadowScore();
@@ -102,14 +104,22 @@ export function LineShadowPanel({ clip, nativeClipWav, onClose }: Props) {
         {clip.translation && <p className="text-muted-foreground text-sm mt-2">{clip.translation}</p>}
       </div>
 
-      {/* Native source — YouTube needs a visible frame; audio stays hidden */}
+      {/* Native source — a standalone YouTube clip needs a visible frame; audio
+          and clips reusing the page's main video (no frame of their own) stay hidden */}
       <div
         className={cn(
           "w-full overflow-hidden rounded-lg border border-border bg-card",
-          clip.source === "youtube" ? "aspect-video max-w-xs mx-auto" : "h-0 invisible",
+          clip.source === "youtube" && !externalYouTubeController ? "aspect-video max-w-xs mx-auto" : "h-0 invisible",
         )}
       >
-        <ClipSourcePlayer ref={playerRef} clip={clip} onEnded={handleClipEnded} onError={setPlayerError} className="w-full h-full" />
+        <ClipSourcePlayer
+          ref={playerRef}
+          clip={clip}
+          externalYouTubeController={externalYouTubeController}
+          onEnded={handleClipEnded}
+          onError={setPlayerError}
+          className="w-full h-full"
+        />
       </div>
 
       {/* Speed + listen */}

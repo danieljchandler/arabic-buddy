@@ -33,6 +33,7 @@ import type { TranscriptLine, WordToken, VocabItem } from "@/types/transcript";
 import { VideoRating } from "@/components/discover/VideoRating";
 import { AskAISentence } from "@/components/shared/AskAISentence";
 import { LineShadowPanel } from "@/components/pronunciation/LineShadowPanel";
+import type { ExternalYouTubeController } from "@/components/pronunciation/ClipSourcePlayer";
 import { DIALECT_LOCALE, extractYouTubeId, type ShadowClip } from "@/hooks/useShadowQueue";
 import { loadYouTubeIframeAPI } from "@/lib/youtubeIframeApi";
 import { Mic } from "lucide-react";
@@ -223,6 +224,7 @@ const TranscriptRow = ({
   shadowAudioUrl,
   isShadowing,
   onToggleShadow,
+  externalYouTubeController,
 }: {
   line: TranscriptLine;
   isActive: boolean;
@@ -235,6 +237,7 @@ const TranscriptRow = ({
   shadowAudioUrl?: string | null;
   isShadowing?: boolean;
   onToggleShadow?: (lineId: string) => void;
+  externalYouTubeController?: ExternalYouTubeController | null;
 }) => {
   const shadowClip = buildShadowClipForLine(line, video, shadowAudioUrl);
 
@@ -310,6 +313,7 @@ const TranscriptRow = ({
             audioUrl={shadowAudioUrl ?? null}
             startMs={line.startMs}
             endMs={line.endMs}
+            externalYouTubeController={externalYouTubeController}
             onClose={() => onToggleShadow?.(line.id)}
           />
         </div>
@@ -341,12 +345,14 @@ const InlineLineShadow = ({
   audioUrl,
   startMs,
   endMs,
+  externalYouTubeController,
   onClose,
 }: {
   clip: ShadowClip;
   audioUrl: string | null;
   startMs?: number;
   endMs?: number;
+  externalYouTubeController?: ExternalYouTubeController | null;
   onClose: () => void;
 }) => {
   const [nativeClipWav, setNativeClipWav] = useState<Blob | null>(null);
@@ -368,7 +374,14 @@ const InlineLineShadow = ({
     };
   }, [audioUrl, startMs, endMs]);
 
-  return <LineShadowPanel clip={clip} nativeClipWav={nativeClipWav} onClose={onClose} />;
+  return (
+    <LineShadowPanel
+      clip={clip}
+      nativeClipWav={nativeClipWav}
+      externalYouTubeController={externalYouTubeController}
+      onClose={onClose}
+    />
+  );
 };
 
 /* ── Like Button ──────────────────────────────────────────── */
@@ -597,6 +610,7 @@ const DiscoverVideo = () => {
   const phraseEndMsRef = useRef<number | null>(null);
   const phraseStartMsRef = useRef<number | null>(null);
   const isSeekingRef = useRef(false);
+  const shadowPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lineRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const transcriptContainerRef = useRef<HTMLDivElement>(null);
 
@@ -889,6 +903,66 @@ const DiscoverVideo = () => {
     },
     [handleSeek, isYouTube, isTikTok, lines, tiktokAudioReady],
   );
+
+  useEffect(() => {
+    return () => {
+      if (shadowPollRef.current) clearInterval(shadowPollRef.current);
+    };
+  }, []);
+
+  // Drives shadow-clip playback through the MAIN video's already-existing YT
+  // player instead of a fresh iframe. A brand new hidden iframe created only
+  // for shadowing has no prior engagement with the browser's autoplay policy,
+  // so its first programmatic playVideo() gets silently blocked until some
+  // other YouTube embed on the page has already played — this is why
+  // shadowing previously required pressing play on the main video first.
+  // Reusing the main player, which is already proven to play, avoids that.
+  const mainYouTubeShadowController = useMemo<ExternalYouTubeController | null>(() => {
+    if (!isYouTube) return null;
+    return {
+      play: async (startSec, endSec, rate, onEnded) => {
+        const p = playerRef.current;
+        if (!p?.seekTo || !p?.playVideo) return false;
+        if (shadowPollRef.current) {
+          clearInterval(shadowPollRef.current);
+          shadowPollRef.current = null;
+        }
+        isSeekingRef.current = true;
+        setTimeout(() => { isSeekingRef.current = false; }, 1200);
+        try {
+          p.setPlaybackRate?.(rate);
+        } catch {
+          /* not all rates supported */
+        }
+        p.seekTo(startSec, true);
+        p.playVideo();
+        shadowPollRef.current = setInterval(() => {
+          const cur = p.getCurrentTime?.() ?? 0;
+          if (cur >= endSec - 0.05) {
+            p.pauseVideo?.();
+            if (shadowPollRef.current) {
+              clearInterval(shadowPollRef.current);
+              shadowPollRef.current = null;
+            }
+            try {
+              p.setPlaybackRate?.(playbackSpeedRef.current);
+            } catch {
+              /* not all rates supported */
+            }
+            onEnded();
+          }
+        }, 80);
+        return true;
+      },
+      pause: () => {
+        if (shadowPollRef.current) {
+          clearInterval(shadowPollRef.current);
+          shadowPollRef.current = null;
+        }
+        playerRef.current?.pauseVideo?.();
+      },
+    };
+  }, [isYouTube]);
 
   const activeLineId = useMemo(() => {
     if (!lines.length) return null;
@@ -1486,6 +1560,7 @@ const DiscoverVideo = () => {
                         audioUrl={shadowAudioUrl ?? null}
                         startMs={displayLine.startMs}
                         endMs={displayLine.endMs}
+                        externalYouTubeController={mainYouTubeShadowController}
                         onClose={() => handleToggleShadow(displayLine.id)}
                       />
                     </div>
@@ -1612,6 +1687,7 @@ const DiscoverVideo = () => {
               shadowAudioUrl={shadowAudioUrl}
               isShadowing={shadowLineId === line.id}
               onToggleShadow={handleToggleShadow}
+              externalYouTubeController={mainYouTubeShadowController}
             />
           ))}
         </div>

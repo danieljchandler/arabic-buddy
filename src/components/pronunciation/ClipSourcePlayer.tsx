@@ -18,11 +18,29 @@ export interface ClipSourcePlayerHandle {
   isReady: () => boolean;
 }
 
+/**
+ * Lets a caller drive an ALREADY-EXISTING, already-engaged YouTube player
+ * (e.g. a page's main video) instead of ClipSourcePlayer spinning up its own
+ * fresh iframe. Browsers gate unmuted autoplay on a cross-origin iframe
+ * behind that origin having established engagement on the page — a brand
+ * new hidden iframe created just for shadowing has none, so its first
+ * programmatic playVideo() is silently blocked until some other YouTube
+ * embed on the page has already played. Reusing the main player sidesteps
+ * that entirely since it's already proven to play.
+ */
+export interface ExternalYouTubeController {
+  /** Seek to startSec, play at rate, and invoke onEnded once endSec is reached. Resolves true if playback started. */
+  play: (startSec: number, endSec: number, rate: number, onEnded: () => void) => Promise<boolean>;
+  pause: () => void;
+}
+
 interface Props {
   clip: ShadowClip;
   onEnded: () => void;
   onError?: (msg: string) => void;
   className?: string;
+  /** When set and clip.source === "youtube", drive this instead of creating a new iframe. */
+  externalYouTubeController?: ExternalYouTubeController | null;
 }
 
 interface YTPlayer {
@@ -35,13 +53,14 @@ interface YTPlayer {
 }
 
 export const ClipSourcePlayer = forwardRef<ClipSourcePlayerHandle, Props>(
-  ({ clip, onEnded, onError, className }, ref) => {
+  ({ clip, onEnded, onError, className, externalYouTubeController }, ref) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const audioRef = useRef<HTMLAudioElement>(null);
     const ytPlayerRef = useRef<YTPlayer | null>(null);
     const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const endedCalledRef = useRef(false);
-    const [ready, setReady] = useState(clip.source === "audio");
+    const usesExternalYouTube = clip.source === "youtube" && !!externalYouTubeController;
+    const [ready, setReady] = useState(clip.source === "audio" || usesExternalYouTube);
     // Resolves once the YT player fires onReady (or null if it never will — cancelled/failed).
     // play() awaits this instead of assuming ytPlayerRef is already populated.
     const readyPromiseRef = useRef<Promise<YTPlayer | null> | null>(null);
@@ -51,9 +70,9 @@ export const ClipSourcePlayer = forwardRef<ClipSourcePlayerHandle, Props>(
       endedCalledRef.current = false;
     }, [clip.id]);
 
-    // Mount YouTube player
+    // Mount YouTube player — skipped when an external controller drives an existing player instead.
     useEffect(() => {
-      if (clip.source !== "youtube" || !clip.youtubeId) return;
+      if (clip.source !== "youtube" || !clip.youtubeId || usesExternalYouTube) return;
       let cancelled = false;
       let player: YTPlayer | null = null;
       let resolveReady: (p: YTPlayer | null) => void;
@@ -100,15 +119,23 @@ export const ClipSourcePlayer = forwardRef<ClipSourcePlayerHandle, Props>(
         readyPromiseRef.current = null;
         setReady(false);
       };
-    }, [clip.id, clip.youtubeId, clip.source, onError]);
+    }, [clip.id, clip.youtubeId, clip.source, onError, usesExternalYouTube]);
 
     useImperativeHandle(ref, () => ({
       isReady: () => {
-        if (clip.source === "youtube") return !!ytPlayerRef.current && ready;
+        if (clip.source === "youtube") return usesExternalYouTube ? true : !!ytPlayerRef.current && ready;
         return !!audioRef.current;
       },
       play: async (rate = 1) => {
         endedCalledRef.current = false;
+        if (clip.source === "youtube" && externalYouTubeController) {
+          return externalYouTubeController.play(clip.startSec, clip.endSec, rate, () => {
+            if (!endedCalledRef.current) {
+              endedCalledRef.current = true;
+              onEnded();
+            }
+          });
+        }
         if (clip.source === "youtube") {
           let p = ytPlayerRef.current;
           if (!p) {
@@ -176,6 +203,10 @@ export const ClipSourcePlayer = forwardRef<ClipSourcePlayerHandle, Props>(
       },
       pause: () => {
         if (clip.source === "youtube") {
+          if (externalYouTubeController) {
+            externalYouTubeController.pause();
+            return;
+          }
           ytPlayerRef.current?.pauseVideo();
           if (pollRef.current) clearInterval(pollRef.current);
           pollRef.current = null;
@@ -183,7 +214,7 @@ export const ClipSourcePlayer = forwardRef<ClipSourcePlayerHandle, Props>(
           audioRef.current?.pause();
         }
       },
-    }), [clip, ready, onEnded, onError]);
+    }), [clip, ready, onEnded, onError, externalYouTubeController, usesExternalYouTube]);
 
     if (clip.source === "audio") {
       return (
@@ -192,6 +223,7 @@ export const ClipSourcePlayer = forwardRef<ClipSourcePlayerHandle, Props>(
         </div>
       );
     }
+    if (usesExternalYouTube) return null;
     return <div ref={containerRef} className={className} />;
   }
 );

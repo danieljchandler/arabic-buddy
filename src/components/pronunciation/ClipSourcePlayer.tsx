@@ -9,6 +9,7 @@
 
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import type { ShadowClip } from "@/hooks/useShadowQueue";
+import { loadYouTubeIframeAPI } from "@/lib/youtubeIframeApi";
 
 export interface ClipSourcePlayerHandle {
   play: (rate?: number) => Promise<void>;
@@ -21,22 +22,6 @@ interface Props {
   onEnded: () => void;
   onError?: (msg: string) => void;
   className?: string;
-}
-
-// ----- YouTube IFrame API loader (singleton) -----
-let ytReadyPromise: Promise<void> | null = null;
-function loadYouTubeAPI(): Promise<void> {
-  if (ytReadyPromise) return ytReadyPromise;
-  ytReadyPromise = new Promise((resolve) => {
-    if (typeof window === "undefined") return resolve();
-    const w = window as unknown as { YT?: { Player: unknown }; onYouTubeIframeAPIReady?: () => void };
-    if (w.YT && w.YT.Player) return resolve();
-    const tag = document.createElement("script");
-    tag.src = "https://www.youtube.com/iframe_api";
-    document.head.appendChild(tag);
-    w.onYouTubeIframeAPIReady = () => resolve();
-  });
-  return ytReadyPromise;
 }
 
 interface YTPlayer {
@@ -67,7 +52,7 @@ export const ClipSourcePlayer = forwardRef<ClipSourcePlayerHandle, Props>(
       if (clip.source !== "youtube" || !clip.youtubeId) return;
       let cancelled = false;
       let player: YTPlayer | null = null;
-      loadYouTubeAPI().then(() => {
+      loadYouTubeIframeAPI().then(() => {
         if (cancelled || !containerRef.current) return;
         const YT = (window as unknown as { YT: { Player: new (el: HTMLElement, opts: unknown) => YTPlayer } }).YT;
         const div = document.createElement("div");

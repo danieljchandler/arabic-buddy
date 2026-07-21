@@ -34,6 +34,7 @@ import { VideoRating } from "@/components/discover/VideoRating";
 import { AskAISentence } from "@/components/shared/AskAISentence";
 import { LineShadowPanel } from "@/components/pronunciation/LineShadowPanel";
 import { DIALECT_LOCALE, extractYouTubeId, type ShadowClip } from "@/hooks/useShadowQueue";
+import { loadYouTubeIframeAPI } from "@/lib/youtubeIframeApi";
 import { Mic } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { recordContinue } from "@/lib/continueProgress";
@@ -644,24 +645,17 @@ const DiscoverVideo = () => {
     setShadowLineId((cur) => (cur === lineId ? null : lineId));
   }, []);
 
-  // Load YouTube IFrame API
-  useEffect(() => {
-    if (video?.platform !== "youtube") return;
-    if (window.YT && window.YT.Player) return;
-    const tag = document.createElement("script");
-    tag.src = "https://www.youtube.com/iframe_api";
-    document.head.appendChild(tag);
-  }, [video?.platform]);
-
   // Initialize YouTube player
   useEffect(() => {
     if (!video || video.platform !== "youtube" || !iframeRef.current) return;
     const ytVideoId = video.embed_url.match(/embed\/([a-zA-Z0-9_-]+)/)?.[1];
     if (!ytVideoId) return;
 
+    let cancelled = false;
+
     const initPlayer = () => {
-      if (playerRef.current) return;
-      playerRef.current = new window.YT.Player(iframeRef.current!, {
+      if (cancelled || playerRef.current || !iframeRef.current) return;
+      playerRef.current = new window.YT.Player(iframeRef.current, {
         videoId: ytVideoId,
         playerVars: { enablejsapi: 1, modestbranding: 1, rel: 0 },
         events: {
@@ -693,13 +687,12 @@ const DiscoverVideo = () => {
       });
     };
 
-    if (window.YT && window.YT.Player) initPlayer();
-    else window.onYouTubeIframeAPIReady = initPlayer;
+    loadYouTubeIframeAPI().then(initPlayer);
 
     return () => {
+      cancelled = true;
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-   
   }, [video]);
 
   // Apply speed changes to YouTube player

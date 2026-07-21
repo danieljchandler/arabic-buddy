@@ -193,15 +193,10 @@ const buildShadowClipForLine = (
   const isYouTube = video?.platform === "youtube";
   const youtubeId = isYouTube ? extractYouTubeId(video?.embed_url ?? null, video?.source_url ?? null) : null;
 
-  if (!video || !line.arabic || !hasTiming || (isYouTube ? !youtubeId : !shadowAudioUrl)) {
-    return null;
-  }
+  if (!video || !line.arabic || !hasTiming) return null;
 
-  return {
+  const base = {
     id: `line-${line.id}`,
-    source: isYouTube ? "youtube" : "audio",
-    youtubeId: youtubeId ?? undefined,
-    audioUrl: shadowAudioUrl ?? undefined,
     text: line.arabic,
     translation: line.translation,
     startSec: startMs / 1000,
@@ -210,6 +205,20 @@ const buildShadowClipForLine = (
     locale: DIALECT_LOCALE[video.dialect] ?? "ar-SA",
     sourceTitle: video.title,
   };
+
+  // Prefer a downloadable native-audio clip whenever we have one. An <audio>
+  // element started by the user's tap plays reliably on every platform — the
+  // cross-origin YouTube iframe, by contrast, refuses to autoplay until the
+  // user has interacted inside it (that's why shadowing used to need the main
+  // video played first). We only fall back to driving the iframe when no audio
+  // file exists. Either way the reference stays the actual native clip.
+  if (shadowAudioUrl) {
+    return { ...base, source: "audio", audioUrl: shadowAudioUrl };
+  }
+  if (isYouTube && youtubeId) {
+    return { ...base, source: "youtube", youtubeId };
+  }
+  return null;
 };
 
 const TranscriptRow = ({

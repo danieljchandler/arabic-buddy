@@ -180,22 +180,29 @@ export const ClipSourcePlayer = forwardRef<ClipSourcePlayerHandle, Props>(
           }
           a.playbackRate = rate;
           a.currentTime = clip.startSec;
-          const onTime = () => {
-            if (a.currentTime >= clip.endSec - 0.05) {
-              a.pause();
-              a.removeEventListener("timeupdate", onTime);
-              if (!endedCalledRef.current) {
-                endedCalledRef.current = true;
-                onEnded();
-              }
+          const finish = () => {
+            a.pause();
+            a.removeEventListener("timeupdate", onTime);
+            a.removeEventListener("ended", finish);
+            if (!endedCalledRef.current) {
+              endedCalledRef.current = true;
+              onEnded();
             }
           };
+          const onTime = () => {
+            if (a.currentTime >= clip.endSec - 0.05) finish();
+          };
           a.addEventListener("timeupdate", onTime);
+          // Safety net: if the clip's end timestamp overruns the file's actual
+          // duration, timeupdate never crosses endSec — the natural "ended"
+          // event still advances us to recording instead of hanging.
+          a.addEventListener("ended", finish);
           try {
             await a.play();
             return true;
           } catch (e) {
             a.removeEventListener("timeupdate", onTime);
+            a.removeEventListener("ended", finish);
             onError?.(e instanceof Error ? e.message : "Audio playback failed");
             return false;
           }

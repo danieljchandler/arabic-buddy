@@ -165,8 +165,11 @@ async function munsitTranscribe(audioBase64: string, mimeType: string, apiKey: s
     const t = await resp.text();
     throw new Error(`Munsit ${resp.status}: ${t.slice(0, 200)}`);
   }
-  const data = await resp.json();
-  return (data.transcription ?? "").toString();
+  const raw = await resp.json();
+  // Munsit returns { statusCode, data: { transcription, ... } }; older/alt
+  // shapes may put transcription at the root — fall back to that.
+  const payload = raw?.data ?? raw ?? {};
+  return ((payload.transcription ?? raw.transcription ?? "") as string).toString();
 }
 
 serve(async (req) => {

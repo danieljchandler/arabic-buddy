@@ -150,10 +150,17 @@ async function munsitTranscribe(audioBase64: string, mimeType: string, apiKey: s
   const bin = atob(audioBase64);
   const bytes = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  const blob = new Blob([bytes], { type: mimeType || "audio/wav" });
+  const isWav =
+    (mimeType || "").includes("wav") ||
+    (bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46);
+  const effectiveType = isWav ? "audio/wav" : mimeType || "audio/webm";
+  const ext = isWav ? "wav" : effectiveType.includes("mp4") ? "m4a" : "webm";
+  const blob = new Blob([bytes], { type: effectiveType });
   const fd = new FormData();
-  fd.append("file", new File([blob], "utterance." + (mimeType.includes("wav") ? "wav" : "webm"), { type: blob.type }));
+  fd.append("file", new File([blob], `utterance.${ext}`, { type: effectiveType }));
   fd.append("model", "munsit");
+
+  console.log(`munsit request: bytes=${bytes.length} type=${effectiveType} ext=${ext}`);
 
   const resp = await fetch(`${MUNSIT_BASE}/audio/transcribe`, {
     method: "POST",
@@ -166,8 +173,7 @@ async function munsitTranscribe(audioBase64: string, mimeType: string, apiKey: s
     throw new Error(`Munsit ${resp.status}: ${t.slice(0, 200)}`);
   }
   const raw = await resp.json();
-  // Munsit returns { statusCode, data: { transcription, ... } }; older/alt
-  // shapes may put transcription at the root — fall back to that.
+  console.log("munsit raw:", JSON.stringify(raw).slice(0, 500));
   const payload = raw?.data ?? raw ?? {};
   return ((payload.transcription ?? raw.transcription ?? "") as string).toString();
 }

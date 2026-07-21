@@ -945,23 +945,51 @@ const DiscoverVideo = () => {
         }
         p.seekTo(startSec, true);
         p.playVideo();
-        shadowPollRef.current = setInterval(() => {
-          const cur = p.getCurrentTime?.() ?? 0;
-          if (cur >= endSec - 0.05) {
-            p.pauseVideo?.();
-            if (shadowPollRef.current) {
-              clearInterval(shadowPollRef.current);
-              shadowPollRef.current = null;
+
+        // Confirm playback actually STARTED (currentTime advancing inside the
+        // clip, or player state === PLAYING) before reporting success. If it
+        // never starts within the watchdog window, resolve false so the panel
+        // recovers instead of hanging forever on "Listening…".
+        return await new Promise<boolean>((resolve) => {
+          const startedAt = Date.now();
+          let confirmed = false;
+          let lastCur = -1;
+          let settled = false;
+          const settle = (v: boolean) => { if (!settled) { settled = true; resolve(v); } };
+          shadowPollRef.current = setInterval(() => {
+            const cur = p.getCurrentTime?.() ?? 0;
+            if (!confirmed) {
+              const advancing = lastCur >= 0 && cur > lastCur + 0.01;
+              const isPlaying = p.getPlayerState?.() === 1; // YT.PlayerState.PLAYING
+              if ((isPlaying || advancing) && cur >= startSec - 0.3 && cur < endSec) {
+                confirmed = true;
+                settle(true);
+              } else if (Date.now() - startedAt > 5000) {
+                if (shadowPollRef.current) {
+                  clearInterval(shadowPollRef.current);
+                  shadowPollRef.current = null;
+                }
+                try { p.pauseVideo?.(); } catch { /* ignore */ }
+                settle(false);
+                return;
+              }
             }
-            try {
-              p.setPlaybackRate?.(playbackSpeedRef.current);
-            } catch {
-              /* not all rates supported */
+            lastCur = cur;
+            if (confirmed && cur >= endSec - 0.05) {
+              try { p.pauseVideo?.(); } catch { /* ignore */ }
+              if (shadowPollRef.current) {
+                clearInterval(shadowPollRef.current);
+                shadowPollRef.current = null;
+              }
+              try {
+                p.setPlaybackRate?.(playbackSpeedRef.current);
+              } catch {
+                /* not all rates supported */
+              }
+              onEnded();
             }
-            onEnded();
-          }
-        }, 80);
-        return true;
+          }, 100);
+        });
       },
       pause: () => {
         if (shadowPollRef.current) {

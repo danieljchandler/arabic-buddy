@@ -69,7 +69,8 @@ export function LineShadowPanel({ clip, nativeClipWav, onClose }: Props) {
     setPlayerError(null);
     reset();
     setState("playing");
-    await playerRef.current?.play(rate);
+    const started = await playerRef.current?.play(rate);
+    if (!started) setState("idle");
   }, [rate, reset]);
 
   const handleClipEnded = useCallback(() => {

@@ -12,7 +12,8 @@ import type { ShadowClip } from "@/hooks/useShadowQueue";
 import { loadYouTubeIframeAPI } from "@/lib/youtubeIframeApi";
 
 export interface ClipSourcePlayerHandle {
-  play: (rate?: number) => Promise<void>;
+  /** Resolves true once playback actually started, false if the clip could not be played (e.g. player never became ready). */
+  play: (rate?: number) => Promise<boolean>;
   pause: () => void;
   isReady: () => boolean;
 }
@@ -41,6 +42,9 @@ export const ClipSourcePlayer = forwardRef<ClipSourcePlayerHandle, Props>(
     const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const endedCalledRef = useRef(false);
     const [ready, setReady] = useState(clip.source === "audio");
+    // Resolves once the YT player fires onReady (or null if it never will — cancelled/failed).
+    // play() awaits this instead of assuming ytPlayerRef is already populated.
+    const readyPromiseRef = useRef<Promise<YTPlayer | null> | null>(null);
 
     // Reset endedCalled when clip changes
     useEffect(() => {
@@ -52,8 +56,15 @@ export const ClipSourcePlayer = forwardRef<ClipSourcePlayerHandle, Props>(
       if (clip.source !== "youtube" || !clip.youtubeId) return;
       let cancelled = false;
       let player: YTPlayer | null = null;
+      let resolveReady: (p: YTPlayer | null) => void;
+      readyPromiseRef.current = new Promise<YTPlayer | null>((resolve) => {
+        resolveReady = resolve;
+      });
       loadYouTubeIframeAPI().then(() => {
-        if (cancelled || !containerRef.current) return;
+        if (cancelled || !containerRef.current) {
+          resolveReady(null);
+          return;
+        }
         const YT = (window as unknown as { YT: { Player: new (el: HTMLElement, opts: unknown) => YTPlayer } }).YT;
         const div = document.createElement("div");
         containerRef.current.innerHTML = "";
@@ -64,11 +75,17 @@ export const ClipSourcePlayer = forwardRef<ClipSourcePlayerHandle, Props>(
           height: "100%",
           playerVars: { controls: 0, modestbranding: 1, rel: 0, playsinline: 1, disablekb: 1, fs: 0 },
           events: {
-            onReady: () => setReady(true),
-            onError: () => onError?.("Video failed to load"),
+            onReady: () => {
+              ytPlayerRef.current = player;
+              setReady(true);
+              resolveReady(player);
+            },
+            onError: () => {
+              onError?.("Video failed to load");
+              resolveReady(null);
+            },
           },
         });
-        ytPlayerRef.current = player;
       });
       return () => {
         cancelled = true;
@@ -80,6 +97,7 @@ export const ClipSourcePlayer = forwardRef<ClipSourcePlayerHandle, Props>(
           /* ignore */
         }
         ytPlayerRef.current = null;
+        readyPromiseRef.current = null;
         setReady(false);
       };
     }, [clip.id, clip.youtubeId, clip.source, onError]);
@@ -92,8 +110,20 @@ export const ClipSourcePlayer = forwardRef<ClipSourcePlayerHandle, Props>(
       play: async (rate = 1) => {
         endedCalledRef.current = false;
         if (clip.source === "youtube") {
-          const p = ytPlayerRef.current;
-          if (!p) return;
+          let p = ytPlayerRef.current;
+          if (!p) {
+            const waitPromise = readyPromiseRef.current;
+            if (!waitPromise) {
+              onError?.("Video isn't loaded yet — try again.");
+              return false;
+            }
+            const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 8000));
+            p = await Promise.race([waitPromise, timeout]);
+            if (!p) {
+              onError?.("Video is taking too long to load — try again.");
+              return false;
+            }
+          }
           p.seekTo(clip.startSec, true);
           try {
             p.setPlaybackRate(rate);
@@ -103,9 +133,9 @@ export const ClipSourcePlayer = forwardRef<ClipSourcePlayerHandle, Props>(
           p.playVideo();
           if (pollRef.current) clearInterval(pollRef.current);
           pollRef.current = setInterval(() => {
-            const cur = p.getCurrentTime();
+            const cur = p!.getCurrentTime();
             if (cur >= clip.endSec - 0.05) {
-              p.pauseVideo();
+              p!.pauseVideo();
               if (pollRef.current) clearInterval(pollRef.current);
               pollRef.current = null;
               if (!endedCalledRef.current) {
@@ -114,9 +144,13 @@ export const ClipSourcePlayer = forwardRef<ClipSourcePlayerHandle, Props>(
               }
             }
           }, 80);
+          return true;
         } else {
           const a = audioRef.current;
-          if (!a) return;
+          if (!a) {
+            onError?.("Audio isn't loaded yet — try again.");
+            return false;
+          }
           a.playbackRate = rate;
           a.currentTime = clip.startSec;
           const onTime = () => {
@@ -132,9 +166,11 @@ export const ClipSourcePlayer = forwardRef<ClipSourcePlayerHandle, Props>(
           a.addEventListener("timeupdate", onTime);
           try {
             await a.play();
+            return true;
           } catch (e) {
             a.removeEventListener("timeupdate", onTime);
             onError?.(e instanceof Error ? e.message : "Audio playback failed");
+            return false;
           }
         }
       },

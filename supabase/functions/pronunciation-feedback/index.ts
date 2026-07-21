@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { logEdgeError } from "../_shared/logError.ts";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -169,6 +170,7 @@ Give exactly 2-3 short, actionable tips (one sentence each) to improve their pro
     });
   } catch (e) {
     console.error("pronunciation-feedback error:", e);
+    await logEdgeError("pronunciation-feedback", e);
     return new Response(
       JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

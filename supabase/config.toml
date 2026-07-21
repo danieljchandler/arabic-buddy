@@ -116,6 +116,9 @@ verify_jwt = false
 [functions.score-shadow-attempt]
 verify_jwt = false
 
+[functions.pronunciation-feedback]
+verify_jwt = false
+
 [functions.listening-quiz]
 verify_jwt = false
 

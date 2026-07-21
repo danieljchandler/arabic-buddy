@@ -193,15 +193,10 @@ const buildShadowClipForLine = (
   const isYouTube = video?.platform === "youtube";
   const youtubeId = isYouTube ? extractYouTubeId(video?.embed_url ?? null, video?.source_url ?? null) : null;
 
-  if (!video || !line.arabic || !hasTiming || (isYouTube ? !youtubeId : !shadowAudioUrl)) {
-    return null;
-  }
+  if (!video || !line.arabic || !hasTiming) return null;
 
-  return {
+  const base = {
     id: `line-${line.id}`,
-    source: isYouTube ? "youtube" : "audio",
-    youtubeId: youtubeId ?? undefined,
-    audioUrl: shadowAudioUrl ?? undefined,
     text: line.arabic,
     translation: line.translation,
     startSec: startMs / 1000,
@@ -210,6 +205,20 @@ const buildShadowClipForLine = (
     locale: DIALECT_LOCALE[video.dialect] ?? "ar-SA",
     sourceTitle: video.title,
   };
+
+  // Prefer a downloadable native-audio clip whenever we have one. An <audio>
+  // element started by the user's tap plays reliably on every platform — the
+  // cross-origin YouTube iframe, by contrast, refuses to autoplay until the
+  // user has interacted inside it (that's why shadowing used to need the main
+  // video played first). We only fall back to driving the iframe when no audio
+  // file exists. Either way the reference stays the actual native clip.
+  if (shadowAudioUrl) {
+    return { ...base, source: "audio", audioUrl: shadowAudioUrl };
+  }
+  if (isYouTube && youtubeId) {
+    return { ...base, source: "youtube", youtubeId };
+  }
+  return null;
 };
 
 const TranscriptRow = ({
@@ -936,23 +945,51 @@ const DiscoverVideo = () => {
         }
         p.seekTo(startSec, true);
         p.playVideo();
-        shadowPollRef.current = setInterval(() => {
-          const cur = p.getCurrentTime?.() ?? 0;
-          if (cur >= endSec - 0.05) {
-            p.pauseVideo?.();
-            if (shadowPollRef.current) {
-              clearInterval(shadowPollRef.current);
-              shadowPollRef.current = null;
+
+        // Confirm playback actually STARTED (currentTime advancing inside the
+        // clip, or player state === PLAYING) before reporting success. If it
+        // never starts within the watchdog window, resolve false so the panel
+        // recovers instead of hanging forever on "Listening…".
+        return await new Promise<boolean>((resolve) => {
+          const startedAt = Date.now();
+          let confirmed = false;
+          let lastCur = -1;
+          let settled = false;
+          const settle = (v: boolean) => { if (!settled) { settled = true; resolve(v); } };
+          shadowPollRef.current = setInterval(() => {
+            const cur = p.getCurrentTime?.() ?? 0;
+            if (!confirmed) {
+              const advancing = lastCur >= 0 && cur > lastCur + 0.01;
+              const isPlaying = p.getPlayerState?.() === 1; // YT.PlayerState.PLAYING
+              if ((isPlaying || advancing) && cur >= startSec - 0.3 && cur < endSec) {
+                confirmed = true;
+                settle(true);
+              } else if (Date.now() - startedAt > 5000) {
+                if (shadowPollRef.current) {
+                  clearInterval(shadowPollRef.current);
+                  shadowPollRef.current = null;
+                }
+                try { p.pauseVideo?.(); } catch { /* ignore */ }
+                settle(false);
+                return;
+              }
             }
-            try {
-              p.setPlaybackRate?.(playbackSpeedRef.current);
-            } catch {
-              /* not all rates supported */
+            lastCur = cur;
+            if (confirmed && cur >= endSec - 0.05) {
+              try { p.pauseVideo?.(); } catch { /* ignore */ }
+              if (shadowPollRef.current) {
+                clearInterval(shadowPollRef.current);
+                shadowPollRef.current = null;
+              }
+              try {
+                p.setPlaybackRate?.(playbackSpeedRef.current);
+              } catch {
+                /* not all rates supported */
+              }
+              onEnded();
             }
-            onEnded();
-          }
-        }, 80);
-        return true;
+          }, 100);
+        });
       },
       pause: () => {
         if (shadowPollRef.current) {

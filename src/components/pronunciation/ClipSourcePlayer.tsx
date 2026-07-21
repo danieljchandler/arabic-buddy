@@ -48,6 +48,7 @@ interface YTPlayer {
   playVideo: () => void;
   pauseVideo: () => void;
   getCurrentTime: () => number;
+  getPlayerState?: () => number;
   setPlaybackRate: (r: number) => void;
   destroy: () => void;
 }
@@ -151,27 +152,55 @@ export const ClipSourcePlayer = forwardRef<ClipSourcePlayerHandle, Props>(
               return false;
             }
           }
-          p.seekTo(clip.startSec, true);
+          const player = p;
+          player.seekTo(clip.startSec, true);
           try {
-            p.setPlaybackRate(rate);
+            player.setPlaybackRate(rate);
           } catch {
             /* not all rates supported */
           }
-          p.playVideo();
+          player.playVideo();
           if (pollRef.current) clearInterval(pollRef.current);
-          pollRef.current = setInterval(() => {
-            const cur = p!.getCurrentTime();
-            if (cur >= clip.endSec - 0.05) {
-              p!.pauseVideo();
-              if (pollRef.current) clearInterval(pollRef.current);
-              pollRef.current = null;
-              if (!endedCalledRef.current) {
-                endedCalledRef.current = true;
-                onEnded();
+
+          // Confirm playback actually STARTED before reporting success; if the
+          // browser blocks autoplay (fresh iframe with no engagement), resolve
+          // false within the watchdog window so the UI recovers instead of
+          // hanging forever on "Listening…".
+          return await new Promise<boolean>((resolve) => {
+            const startedAt = Date.now();
+            let confirmed = false;
+            let lastCur = -1;
+            let settled = false;
+            const settle = (v: boolean) => { if (!settled) { settled = true; resolve(v); } };
+            pollRef.current = setInterval(() => {
+              const cur = player.getCurrentTime();
+              if (!confirmed) {
+                const advancing = lastCur >= 0 && cur > lastCur + 0.01;
+                const isPlaying = player.getPlayerState?.() === 1; // YT.PlayerState.PLAYING
+                if ((isPlaying || advancing) && cur >= clip.startSec - 0.3 && cur < clip.endSec) {
+                  confirmed = true;
+                  settle(true);
+                } else if (Date.now() - startedAt > 5000) {
+                  if (pollRef.current) clearInterval(pollRef.current);
+                  pollRef.current = null;
+                  try { player.pauseVideo(); } catch { /* ignore */ }
+                  onError?.("Couldn't play the clip — tap Listen to try again.");
+                  settle(false);
+                  return;
+                }
               }
-            }
-          }, 80);
-          return true;
+              lastCur = cur;
+              if (confirmed && cur >= clip.endSec - 0.05) {
+                player.pauseVideo();
+                if (pollRef.current) clearInterval(pollRef.current);
+                pollRef.current = null;
+                if (!endedCalledRef.current) {
+                  endedCalledRef.current = true;
+                  onEnded();
+                }
+              }
+            }, 100);
+          });
         } else {
           const a = audioRef.current;
           if (!a) {
@@ -180,22 +209,29 @@ export const ClipSourcePlayer = forwardRef<ClipSourcePlayerHandle, Props>(
           }
           a.playbackRate = rate;
           a.currentTime = clip.startSec;
-          const onTime = () => {
-            if (a.currentTime >= clip.endSec - 0.05) {
-              a.pause();
-              a.removeEventListener("timeupdate", onTime);
-              if (!endedCalledRef.current) {
-                endedCalledRef.current = true;
-                onEnded();
-              }
+          const finish = () => {
+            a.pause();
+            a.removeEventListener("timeupdate", onTime);
+            a.removeEventListener("ended", finish);
+            if (!endedCalledRef.current) {
+              endedCalledRef.current = true;
+              onEnded();
             }
           };
+          const onTime = () => {
+            if (a.currentTime >= clip.endSec - 0.05) finish();
+          };
           a.addEventListener("timeupdate", onTime);
+          // Safety net: if the clip's end timestamp overruns the file's actual
+          // duration, timeupdate never crosses endSec — the natural "ended"
+          // event still advances us to recording instead of hanging.
+          a.addEventListener("ended", finish);
           try {
             await a.play();
             return true;
           } catch (e) {
             a.removeEventListener("timeupdate", onTime);
+            a.removeEventListener("ended", finish);
             onError?.(e instanceof Error ? e.message : "Audio playback failed");
             return false;
           }

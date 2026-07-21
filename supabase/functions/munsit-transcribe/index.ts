@@ -94,13 +94,16 @@ serve(async (req) => {
       );
     }
 
-    const data = await resp.json();
+    const raw = await resp.json();
+    // Munsit returns { statusCode, data: { transcription, ... } }; older/alt
+    // shapes may put fields at the root — fall back to that.
+    const data = raw?.data ?? raw ?? {};
     return new Response(
       JSON.stringify({
-        text: data.transcription ?? null,
-        duration: data.duration ?? null,
-        timestamps: data.timestamps ?? [],
-        transcriptionId: data.transcriptionId ?? null,
+        text: data.transcription ?? raw.transcription ?? null,
+        duration: data.duration ?? raw.duration ?? null,
+        timestamps: data.timestamps ?? raw.timestamps ?? [],
+        transcriptionId: data.transcriptionId ?? raw.transcriptionId ?? null,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );

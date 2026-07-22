@@ -18,6 +18,7 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { recordContinue, clearContinue } from '@/lib/continueProgress';
 import { useDialect } from '@/contexts/DialectContext';
+import { AskAISentence } from '@/components/shared/AskAISentence';
 
 /**
  * Split a paragraph into sentences by sentence terminators (. ! ? ؟ and newlines),
@@ -208,9 +209,12 @@ const StoryPlayer = () => {
                     return (
                       <div key={i} className="pb-3 border-b border-border/40 last:border-0">
                         <p className="text-2xl leading-relaxed font-medium">{ar}</p>
-                        {en && (
-                          <p className="text-sm text-muted-foreground mt-1.5" dir="ltr">{en}</p>
-                        )}
+                        <div className="flex items-center justify-between gap-2 mt-1.5" dir="ltr">
+                          {en ? (
+                            <p className="text-sm text-muted-foreground flex-1">{en}</p>
+                          ) : <span />}
+                          <AskAISentence arabic={ar} english={en} variant="chip" />
+                        </div>
                       </div>
                     );
                   })}

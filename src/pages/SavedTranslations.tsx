@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TappableArabicText } from "@/components/shared/TappableArabicText";
+import { AskAISentence } from "@/components/shared/AskAISentence";
 import { useSavedTranslations, type SavedTranslation } from "@/hooks/useSavedTranslations";
 import { toast } from "sonner";
 import { ArrowLeft, BookOpen, ChevronRight, Info, Loader2, Trash2 } from "lucide-react";
@@ -146,6 +147,9 @@ const SavedTranslations = () => {
                       <p>{s.note}</p>
                     </div>
                   )}
+                  <div className="flex justify-start pt-1 border-t border-border/40">
+                    <AskAISentence arabic={s.arabic} english={s.natural} variant="chip" />
+                  </div>
                 </CardContent>
               </Card>
             ))}

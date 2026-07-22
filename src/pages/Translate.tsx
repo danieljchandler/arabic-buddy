@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { InfoHint } from "@/components/InfoHint";
 import { TappableArabicText } from "@/components/shared/TappableArabicText";
+import { AskAISentence } from "@/components/shared/AskAISentence";
 import { useTranslateText } from "@/hooks/useTranslateText";
 import { useSavedTranslations } from "@/hooks/useSavedTranslations";
 import { useDialect } from "@/contexts/DialectContext";
@@ -237,6 +238,9 @@ const Translate = () => {
                       <p>{s.note}</p>
                     </div>
                   )}
+                  <div className="flex justify-start pt-1 border-t border-border/40">
+                    <AskAISentence arabic={s.arabic} english={s.natural} variant="chip" />
+                  </div>
                 </CardContent>
               </Card>
             ))}

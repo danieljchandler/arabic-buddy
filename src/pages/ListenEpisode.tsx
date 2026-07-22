@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { TappableArabicText } from "@/components/shared/TappableArabicText";
+import { AskAISentence } from "@/components/shared/AskAISentence";
 import { useDisplayPrefs } from "@/hooks/useDisplayPrefs";
 import { useAuth } from "@/hooks/useAuth";
 import { useAddUserVocabulary } from "@/hooks/useUserVocabulary";
@@ -152,16 +153,19 @@ const ListenEpisode = () => {
                 <span className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold">
                   {line.speaker}
                 </span>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="h-7 w-7"
-                  onClick={() => playLine(i)}
-                  disabled={lineAudio.isPending && playingLine !== i}
-                  aria-label="Play line"
-                >
-                  {playingLine === i ? <Loader2 className="h-4 w-4 animate-spin" /> : <Volume2 className="h-4 w-4" />}
-                </Button>
+                <div className="flex items-center gap-1 shrink-0">
+                  <AskAISentence arabic={line.arabic} english={line.english} variant="chip" />
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-7 w-7"
+                    onClick={() => playLine(i)}
+                    disabled={lineAudio.isPending && playingLine !== i}
+                    aria-label="Play line"
+                  >
+                    {playingLine === i ? <Loader2 className="h-4 w-4 animate-spin" /> : <Volume2 className="h-4 w-4" />}
+                  </Button>
+                </div>
               </div>
               <TappableArabicText
                 text={line.arabic}

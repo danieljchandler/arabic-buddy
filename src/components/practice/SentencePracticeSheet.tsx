@@ -11,6 +11,7 @@ import { Loader2, Mic, Square, RefreshCw, Sparkles, CheckCircle2, XCircle } from
 import { LevelMeter } from "@/components/pronunciation/LevelMeter";
 import { useShadowRecorder } from "@/hooks/useShadowRecorder";
 import { TappableArabicText } from "@/components/shared/TappableArabicText";
+import { AskAISentence } from "@/components/shared/AskAISentence";
 import { useDialect } from "@/contexts/DialectContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -130,6 +131,9 @@ export function SentencePracticeSheet({ open, onOpenChange, targetArabic, target
             {targetEnglish ? <> ({targetEnglish})</> : null}. Speak naturally — pronunciation doesn't
             need to be perfect.
           </SheetDescription>
+          <div className="flex justify-start pt-1">
+            <AskAISentence arabic={targetArabic} english={targetEnglish} variant="chip" />
+          </div>
         </SheetHeader>
 
         <div className="mt-6 space-y-6">

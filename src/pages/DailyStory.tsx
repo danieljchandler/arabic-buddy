@@ -5,6 +5,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { TappableArabicText } from "@/components/shared/TappableArabicText";
+import { AskAISentence } from "@/components/shared/AskAISentence";
 import { useAuth } from "@/hooks/useAuth";
 import { useDailyStory, useGenerateDailyStory } from "@/hooks/useDailyStory";
 import { useDisplayPrefs } from "@/hooks/useDisplayPrefs";
@@ -126,6 +127,14 @@ const DailyStoryPage = () => {
                 text={story.body_arabic}
                 source="daily-story"
                 sentenceContext={{ arabic: story.body_arabic, english: story.body_english ?? undefined }}
+              />
+            </div>
+
+            <div className="flex justify-start">
+              <AskAISentence
+                arabic={story.body_arabic}
+                english={story.body_english ?? undefined}
+                variant="chip"
               />
             </div>
 

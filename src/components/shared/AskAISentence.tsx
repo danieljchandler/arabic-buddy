@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -231,6 +232,10 @@ export const AskAISentence = ({
             <Sparkles className="h-4 w-4 text-primary" />
             Ask about this sentence
           </DialogTitle>
+          <DialogDescription className="sr-only">
+            Ask the AI tutor about this Arabic sentence — its translation, grammar,
+            vocabulary, or cultural context.
+          </DialogDescription>
           <div className="mt-2 rounded-lg bg-muted/40 p-2 text-right">
             <p className="font-arabic text-base text-foreground" dir="rtl">
               {arabic}

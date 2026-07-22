@@ -9,6 +9,7 @@ import { Card } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { TappableArabicText } from '@/components/shared/TappableArabicText';
+import { AskAISentence } from '@/components/shared/AskAISentence';
 import { MarkUnknownsProvider } from '@/contexts/MarkUnknownsContext';
 import { SaveUnknownsBar } from '@/components/shared/SaveUnknownsBar';
 import { ArrowLeft, Loader2, Play, Pause, SkipForward, SkipBack, BookOpen, Eye, EyeOff } from 'lucide-react';
@@ -284,6 +285,17 @@ const ReadingLibraryStory = () => {
                   {focusedLine.english}
                 </p>
               )}
+
+              <div className="flex justify-center mt-2">
+                <AskAISentence
+                  arabic={showDialect
+                    ? (focusedLine.dialect_vocalized || focusedLine.dialect || focusedLine.arabic_vocalized || focusedLine.arabic)
+                    : (focusedLine.arabic_vocalized || focusedLine.arabic)
+                  }
+                  english={focusedLine.english ?? undefined}
+                  variant="chip"
+                />
+              </div>
 
               <div className="flex items-center justify-between gap-2 mt-4 pt-3 border-t border-border">
                 <Button size="icon" variant="ghost" onClick={handlePrev} disabled={focusedIdx <= 0}>

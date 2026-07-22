@@ -25,6 +25,7 @@ import { cn } from "@/lib/utils";
 import { MarkUnknownsProvider, useMarkUnknowns } from "@/contexts/MarkUnknownsContext";
 import { MarkUnknownsToggle } from "@/components/shared/MarkUnknownsToggle";
 import { SaveUnknownsBar } from "@/components/shared/SaveUnknownsBar";
+import { AskAISentence } from "@/components/shared/AskAISentence";
 import {
   BookOpen,
   Check,
@@ -246,8 +247,9 @@ const TappableArabicLine = ({
         )}
       </button>
       {revealedLines.has(lineIdx) && (
-        <p className="text-sm text-muted-foreground">{line.english}</p>
+        <p className="text-sm text-muted-foreground flex-1">{line.english}</p>
       )}
+      <AskAISentence arabic={line.arabic} english={line.english} variant="chip" />
     </div>
   </div>
   );

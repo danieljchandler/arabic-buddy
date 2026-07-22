@@ -12,6 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { TappableArabicText } from "@/components/shared/TappableArabicText";
+import { AskAISentence } from "@/components/shared/AskAISentence";
 import { InfoHint } from "@/components/InfoHint";
 import { PAGE_HINTS } from "@/lib/pageHints";
 import { supabase } from "@/integrations/supabase/client";
@@ -524,6 +525,7 @@ export default function ConversationSimulator() {
                     >
                       <BookmarkPlus className="h-3 w-3 mr-1" /> Save phrase
                     </Button>
+                    <AskAISentence arabic={m.content} variant="chip" />
                   </div>
                 )}
               </div>

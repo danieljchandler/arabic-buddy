@@ -17,6 +17,7 @@ import { createPlayableJingleAudio, createPlayableJingleAudioFromUrl } from "@/l
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { TappableArabicText } from "@/components/shared/TappableArabicText";
+import { AskAISentence } from "@/components/shared/AskAISentence";
 
 
 const MyPhrasesReview = () => {
@@ -505,6 +506,13 @@ const MyPhrasesReview = () => {
               <MessageSquarePlus className="h-3.5 w-3.5" />
               <span className="text-xs font-medium">Practice a sentence</span>
             </Button>
+            {showAnswer && (
+              <AskAISentence
+                arabic={current.phrase_arabic}
+                english={current.phrase_english}
+                variant="chip"
+              />
+            )}
             {lastAction && (
               <Button
                 variant="ghost"

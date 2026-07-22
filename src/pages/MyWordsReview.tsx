@@ -15,6 +15,7 @@ import { GenerateImageDialog } from "@/components/mywords/GenerateImageDialog";
 import { useUpdateUserVocabularyImage } from "@/hooks/useUserVocabulary";
 import { PronunciationButton } from "@/components/review/PronunciationButton";
 import { TappableArabicText } from "@/components/shared/TappableArabicText";
+import { AskAISentence } from "@/components/shared/AskAISentence";
 
 import { Button } from "@/components/ui/button";
 import { Rating, calculateNextReview } from "@/lib/spacedRepetition";
@@ -953,6 +954,13 @@ const MyWordsReview = () => {
               <MessageSquarePlus className="h-3.5 w-3.5" />
               <span className="text-xs font-medium">Practice a sentence</span>
             </Button>
+            {(!isProduction || showAnswer) && (
+              <AskAISentence
+                arabic={currentWord.word_arabic}
+                english={currentWord.word_english}
+                variant="chip"
+              />
+            )}
             {lastAction && (
               <Button
                 variant="ghost"

@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Sparkles, BookmarkPlus, RefreshCw, Check, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { AskAISentence } from "@/components/shared/AskAISentence";
 
 interface PhraseData {
   phrase_arabic: string;
@@ -225,6 +226,13 @@ export const PhraseOfTheDay = () => {
                 </>
               )}
             </Button>
+            {showArabic && (
+              <AskAISentence
+                arabic={phrase.phrase_arabic}
+                english={phrase.phrase_english}
+                variant="chip"
+              />
+            )}
             {showArabic && (
               <Button
                 size="sm"

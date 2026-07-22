@@ -31,6 +31,7 @@ interface AskAISentenceProps {
 
 const SUGGESTED = [
   "Why is it translated like this?",
+  "How do I use this in a sentence?",
   "Explain the grammar",
   "Tell me more",
   "Give me alternatives",
@@ -230,11 +231,11 @@ export const AskAISentence = ({
         <DialogHeader className="px-4 pt-4 pb-2 border-b">
           <DialogTitle className="text-base flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-primary" />
-            Ask about this sentence
+            Ask about this
           </DialogTitle>
           <DialogDescription className="sr-only">
-            Ask the AI tutor about this Arabic sentence — its translation, grammar,
-            vocabulary, or cultural context.
+            Ask the AI tutor about this Arabic word, phrase, or sentence — its translation,
+            grammar, vocabulary, or cultural context.
           </DialogDescription>
           <div className="mt-2 rounded-lg bg-muted/40 p-2 text-right">
             <p className="font-arabic text-base text-foreground" dir="rtl">

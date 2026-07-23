@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useDialect } from "@/contexts/DialectContext";
-import { TOPIC_CATEGORIES } from "@/data/listenTopics";
+import { getTopicCategories } from "@/data/listenTopics";
 import {
   useListenEpisodes,
   useGenerateListenEpisode,
@@ -45,7 +45,8 @@ const Listen = () => {
   const [length, setLength] = useState<ListenLength>("medium");
   const [audioMode, setAudioMode] = useState<ListenAudioMode>("on_demand");
   const [topic, setTopic] = useState("");
-  const [activeCategory, setActiveCategory] = useState(TOPIC_CATEGORIES[0].id);
+  const topicCategories = getTopicCategories(activeDialect);
+  const [activeCategory, setActiveCategory] = useState(topicCategories[0].id);
 
   const handleGenerate = async (t?: string, category?: string | null) => {
     const finalTopic = (t ?? topic).trim();
@@ -68,7 +69,7 @@ const Listen = () => {
     }
   };
 
-  const currentCategory = TOPIC_CATEGORIES.find((c) => c.id === activeCategory)!;
+  const currentCategory = topicCategories.find((c) => c.id === activeCategory) ?? topicCategories[0];
 
   return (
     <AppShell>
@@ -209,7 +210,7 @@ const Listen = () => {
                 className="mb-3"
               />
               <div className="flex flex-wrap gap-1.5 mb-3">
-                {TOPIC_CATEGORIES.map((c) => (
+                {topicCategories.map((c) => (
                   <button
                     key={c.id}
                     type="button"

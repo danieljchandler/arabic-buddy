@@ -21,6 +21,7 @@ import { useAddXP } from "@/hooks/useGamification";
 import { useAddUserVocabulary } from "@/hooks/useUserVocabulary";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { markTaskCompletedToday } from "@/lib/todayCompletion";
 import { cn } from "@/lib/utils";
 import { MarkUnknownsProvider, useMarkUnknowns } from "@/contexts/MarkUnknownsContext";
 import { MarkUnknownsToggle } from "@/components/shared/MarkUnknownsToggle";
@@ -91,10 +92,11 @@ const DIFFICULTY_CONFIG = {
 interface WordEnrichment {
   definition?: string;
   root?: string;
+  transliteration?: string;
   otherUses?: { arabic: string; english: string }[];
 }
 
-/** Fetch definition + root + other uses for a word via AI */
+/** Fetch definition + root + transliteration + other uses for a word via AI */
 const enrichWord = async (word: string, dialect: string): Promise<WordEnrichment> => {
   try {
     const { data, error } = await supabase.functions.invoke("word-enrichment", {
@@ -104,6 +106,7 @@ const enrichWord = async (word: string, dialect: string): Promise<WordEnrichment
     return {
       definition: data?.definition || undefined,
       root: data?.root || undefined,
+      transliteration: data?.transliteration || undefined,
       otherUses: Array.isArray(data?.uses) ? data.uses : [],
     };
   } catch {
@@ -127,7 +130,7 @@ const TappableArabicLine = ({
   wordTranslations: Record<string, { translation: string; lineEnglish: string; enrichment?: WordEnrichment; enriching?: boolean }>;
   onWordTap: (word: string, lineIdx: number) => void;
   isAuthenticated: boolean;
-  onSaveFlashcard: (arabic: string, english: string, root?: string, sentence?: { arabic: string; english: string }) => void;
+  onSaveFlashcard: (arabic: string, english: string, root?: string, sentence?: { arabic: string; english: string }, transliteration?: string) => void;
   revealedLines: Set<number>;
   onToggleLine: (idx: number) => void;
 }) => {
@@ -220,7 +223,7 @@ const TappableArabicLine = ({
                       className="w-full text-xs mt-1"
                       onClick={(e) => {
                         e.stopPropagation();
-                        onSaveFlashcard(cleanWord, wordData.translation, wordData.enrichment?.root, { arabic: line.arabic, english: line.english });
+                        onSaveFlashcard(cleanWord, wordData.translation, wordData.enrichment?.root, { arabic: line.arabic, english: line.english }, wordData.enrichment?.transliteration);
                       }}
                     >
                       <BookmarkPlus className="h-3 w-3 mr-1" />
@@ -475,6 +478,7 @@ const ReadingPractice = () => {
     english: string,
     root?: string,
     sentence?: { arabic: string; english: string },
+    transliteration?: string,
   ) => {
     if (!isAuthenticated) {
       toast.error("Sign in to save flashcards");
@@ -485,6 +489,7 @@ const ReadingPractice = () => {
         word_arabic: arabic,
         word_english: english,
         root: root || undefined,
+        transliteration: transliteration || undefined,
         source: "reading-practice",
         sentence_text: sentence?.arabic || undefined,
         sentence_english: sentence?.english || undefined,
@@ -514,6 +519,7 @@ const ReadingPractice = () => {
       setCurrentQuestion((prev) => prev + 1);
     } else {
       setShowResults(true);
+      markTaskCompletedToday("reading");
     }
   };
 

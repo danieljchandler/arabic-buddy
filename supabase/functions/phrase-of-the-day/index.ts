@@ -15,7 +15,7 @@ interface PhraseOut {
 // the daily phrase actually varies instead of collapsing to safe greetings.
 const CATEGORIES: { key: string; prompt: string }[] = [
   { key: "haggling", prompt: "haggling in the souq (asking for a discount, walking away, playful bargaining)" },
-  { key: "coffee_majlis", prompt: "coffee/tea and majlis small talk (pouring, refusing a third cup, complimenting the host)" },
+  { key: "coffee_majlis", prompt: "coffee/tea and sit-down hosting small talk (pouring, refusing a third cup, complimenting the host)" },
   { key: "traffic", prompt: "driving and traffic frustration (roundabouts, tailgaters, parking chaos)" },
   { key: "weather_hot", prompt: "complaining about the heat / humidity / dust storm" },
   { key: "weekend_plans", prompt: "weekend plans with friends (beach, desert, mall, farm)" },
@@ -36,7 +36,7 @@ const CATEGORIES: { key: string; prompt: string }[] = [
   { key: "money_broke", prompt: "joking about being broke at the end of the month" },
   { key: "phone_tech", prompt: "phone / wifi / app frustration (battery dying, no signal, laggy)" },
   { key: "tired_sleep", prompt: "being exhausted or begging for more sleep" },
-  { key: "directions", prompt: "giving casual directions or landmarks (turn after the mosque, next to the bakala)" },
+  { key: "directions", prompt: "giving casual directions or landmarks (turn after the mosque, next to the corner shop)" },
   { key: "sports_banter", prompt: "football/sports banter between fans of rival teams" },
   { key: "shopping_indecision", prompt: "indecision while shopping (can't pick between two options)" },
   { key: "invite_hangout", prompt: "casually inviting someone to hang out or grab shisha/coffee" },

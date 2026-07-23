@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { askBrain, BrainHttpError } from "../_shared/aiBrain.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
+import { getDialectTransliterationRules, type Dialect } from "../_shared/dialectHelpers.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -10,6 +11,7 @@ const corsHeaders = {
 interface EnrichmentOut {
   definition?: string | null;
   root?: string | null;
+  transliteration?: string | null;
   uses?: Array<{ arabic: string; english: string }>;
 }
 
@@ -42,24 +44,26 @@ serve(async (req) => {
       ? `Task: given a multi-word Arabic PHRASE or expression, return its IDIOMATIC English meaning as a whole — NOT word-by-word. If it's a common collocation or idiom, give the figurative meaning. Also return the root of the head/most lexically meaningful word, and up to 3 related expressions in the SAME dialect.`
       : `Task: given an Arabic word, return its English definition, its root, and up to 3 related words/expressions in the SAME dialect.`;
 
+    const resolvedDialect = (dialect ?? 'Gulf') as Dialect;
     const userPrompt = `${isPhrase ? 'Phrase' : 'Word'}: ${trimmed}${contextLine}`;
 
     const result = await askBrain<EnrichmentOut>({
       purpose: 'vocab_definition',
-      dialect: dialect ?? 'Gulf',
+      dialect: resolvedDialect,
       userPrompt,
-      systemPromptExtra: systemExtra,
+      systemPromptExtra: `${systemExtra}\n\n${getDialectTransliterationRules(resolvedDialect)}\nAlso return a transliteration of the word/phrase itself.`,
       strategy: 'ensemble',
       maxTokens: 512,
       temperature: 0.2,
       tool: {
         name: 'return_enrichment',
-        description: 'Return the word/phrase definition, root, and related uses.',
+        description: 'Return the word/phrase definition, root, transliteration, and related uses.',
         parameters: {
           type: 'object',
           properties: {
             definition: { type: 'string', description: 'English meaning' },
             root: { type: 'string', description: 'Trilateral root, e.g. "ك-ت-ب", or empty string if not applicable' },
+            transliteration: { type: 'string', description: 'Latin-letter transliteration of the word/phrase' },
             uses: {
               type: 'array',
               description: 'Up to 3 related expressions in the same dialect',
@@ -74,7 +78,7 @@ serve(async (req) => {
               },
             },
           },
-          required: ['definition', 'root', 'uses'],
+          required: ['definition', 'root', 'transliteration', 'uses'],
           additionalProperties: false,
         },
       },
@@ -88,6 +92,7 @@ serve(async (req) => {
     return new Response(JSON.stringify({
       definition: out.definition || null,
       root: out.root || null,
+      transliteration: out.transliteration || null,
       uses: Array.isArray(out.uses) ? out.uses.slice(0, 5) : [],
       _meta: { strategy: result.strategy, models: result.models, msaRepairs: result.msaRepairs },
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });

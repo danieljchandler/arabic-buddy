@@ -1,7 +1,7 @@
 // Shared TTS helpers for the Listen feature.
 // - Gulf episodes → Munsit (WAV, multiple Gulf voices).
-// - Yemeni episodes → Gemini 2.5 Flash TTS with neutral-Yemeni style prompt (WAV).
-// - Egyptian episodes → Azure Neural TTS (MP3).
+// - Egyptian episodes → ElevenLabs native Egyptian voices, else Azure Neural TTS (MP3).
+// - Yemeni episodes → Azure Neural TTS using real ar-YE-* Yemeni voices (MP3).
 
 const MUNSIT_BASE = "https://api.munsit.com/api/v1";
 const GEMINI_TTS_MODEL = "gemini-2.5-flash-preview-tts";
@@ -110,20 +110,9 @@ async function loadMunsitGulfVoices(apiKey: string): Promise<{ voices: string[];
   return cachedMunsit;
 }
 
-// Prebuilt Gemini TTS voices — picked for tonal variety (2 female, 2 male).
-const GEMINI_VOICES_DEFAULT = ["Kore", "Puck", "Zephyr", "Charon"];
-
-const NEUTRAL_YEMENI_STYLE =
-  "Speak the following in a natural, conversational neutral Yemeni Arabic accent — " +
-  "broadly Yemeni, not tied to any specific city (not Sana'ani, not Adeni, not Ta'izzi). " +
-  "Warm, clear, medium pace, suited for a podcast or storytelling. " +
-  "Do not read this instruction aloud. Only voice what follows the colon: ";
-
 export async function planProvider(dialect: string): Promise<ProviderPlan> {
   const munsitKey = Deno.env.get("MUNSIT_API_KEY");
-  // Yemeni routes through Munsit's Khaleeji voices — closer to Yemeni
-  // pronunciation than Azure MSA, and matches the client useAzureTTS routing.
-  if ((dialect === "Gulf" || dialect === "Yemeni") && munsitKey) {
+  if (dialect === "Gulf" && munsitKey) {
     const m = await loadMunsitGulfVoices(munsitKey);
     if (m) {
       return {

@@ -3,7 +3,9 @@ import { Sparkles, GraduationCap, Play, Brain, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const TABS = [
-  { to: "/", label: "Today", icon: Sparkles, match: (p: string) => p === "/", tourId: "nav-today" },
+  // Labeled "Home" (not "Today") to avoid colliding with the separate /today
+  // task-queue page, reachable from here via the "Start today" card.
+  { to: "/", label: "Home", icon: Sparkles, match: (p: string) => p === "/", tourId: "nav-today" },
   { to: "/learn-hub", label: "Learn", icon: GraduationCap, match: (p: string) => p.startsWith("/learn-hub"), tourId: "nav-learn" },
   { to: "/discover", label: "Discover", icon: Play, match: (p: string) => p === "/discover", tourId: "nav-discover" },
   { to: "/practice", label: "Practice", icon: Brain, match: (p: string) => p.startsWith("/practice"), tourId: "nav-practice" },

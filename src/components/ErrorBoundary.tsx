@@ -12,6 +12,7 @@ type Props = {
 type State = {
   error: Error | null;
   errorType: "network" | "auth" | "unknown";
+  showDetails: boolean;
 };
 
 function classifyError(error: Error): "network" | "auth" | "unknown" {
@@ -27,19 +28,19 @@ function classifyError(error: Error): "network" | "auth" | "unknown" {
 
 const ERROR_MESSAGES: Record<string, { title: string; description: string; action: string }> = {
   network: {
-    title: "مشكلة في الاتصال",
-    description: "لم نتمكن من الاتصال بالخادم. تأكد من اتصالك بالإنترنت وحاول مرة أخرى.",
-    action: "إعادة المحاولة",
+    title: "Connection problem",
+    description: "We couldn't reach the server. Check your internet connection and try again.",
+    action: "Try again",
   },
   auth: {
-    title: "انتهت صلاحية الجلسة",
-    description: "يبدو أن جلستك قد انتهت. يرجى تسجيل الدخول مرة أخرى.",
-    action: "تسجيل الدخول",
+    title: "Your session expired",
+    description: "Please sign in again to continue.",
+    action: "Sign in",
   },
   unknown: {
-    title: "حدث خطأ في الصفحة",
-    description: "حصل خطأ أثناء عرض هذه الصفحة. تم تسجيل التفاصيل في الكونسول.",
-    action: "إعادة المحاولة",
+    title: "Something went wrong",
+    description: "This page hit an error while loading. The details have been logged.",
+    action: "Try again",
   },
 };
 
@@ -48,10 +49,10 @@ const ERROR_MESSAGES: Record<string, { title: string; description: string; actio
  * Provides specific error messages and recovery actions based on error type.
  */
 export class ErrorBoundary extends React.Component<Props, State> {
-  state: State = { error: null, errorType: "unknown" };
+  state: State = { error: null, errorType: "unknown", showDetails: false };
 
   static getDerivedStateFromError(error: Error): State {
-    return { error, errorType: classifyError(error) };
+    return { error, errorType: classifyError(error), showDetails: false };
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
@@ -71,8 +72,12 @@ export class ErrorBoundary extends React.Component<Props, State> {
     if (this.state.errorType === "auth") {
       window.location.href = "/auth";
     } else {
-      this.setState({ error: null, errorType: "unknown" });
+      this.setState({ error: null, errorType: "unknown", showDetails: false });
     }
+  };
+
+  toggleDetails = () => {
+    this.setState((s) => ({ showDetails: !s.showDetails }));
   };
 
   render() {
@@ -81,7 +86,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
     const messages = ERROR_MESSAGES[this.state.errorType];
 
     return (
-      <div className="min-h-screen bg-background p-4 md:p-8" dir="rtl">
+      <div className="min-h-screen bg-background p-4 md:p-8">
         <div className="max-w-2xl mx-auto">
           <Card>
             <CardHeader>
@@ -92,9 +97,20 @@ export class ErrorBoundary extends React.Component<Props, State> {
                 {messages.description}
               </p>
               {this.state.errorType === "unknown" && (
-                <pre className="text-xs whitespace-pre-wrap rounded-md bg-muted p-3 border">
-                  {String(this.state.error?.message ?? this.state.error)}
-                </pre>
+                <div>
+                  <button
+                    type="button"
+                    onClick={this.toggleDetails}
+                    className="text-xs text-muted-foreground underline hover:text-foreground"
+                  >
+                    {this.state.showDetails ? "Hide details" : "Show details"}
+                  </button>
+                  {this.state.showDetails && (
+                    <pre className="mt-2 text-xs whitespace-pre-wrap rounded-md bg-muted p-3 border">
+                      {String(this.state.error?.message ?? this.state.error)}
+                    </pre>
+                  )}
+                </div>
               )}
               <div className="flex gap-2">
                 <Button type="button" onClick={this.handleRetry}>
@@ -106,7 +122,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
                     variant="outline"
                     onClick={() => window.location.reload()}
                   >
-                    إعادة تحميل الصفحة
+                    Reload page
                   </Button>
                 )}
               </div>

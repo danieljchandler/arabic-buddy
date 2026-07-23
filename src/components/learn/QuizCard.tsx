@@ -10,6 +10,7 @@ interface QuizCardWord {
   word_english: string;
   image_url: string | null;
   audio_url: string | null;
+  transliteration?: string | null;
 }
 
 interface QuizCardProps {
@@ -92,9 +93,18 @@ export const QuizCard = ({ word, otherWords, onAnswer, topicLabel }: QuizCardPro
     setIsCorrect(correct);
     setShowResult(true);
 
-    setTimeout(() => {
-      onAnswer(correct);
-    }, 1500);
+    // Correct answers auto-advance quickly (positive reinforcement). Wrong
+    // answers wait for the learner to tap Continue so they actually read
+    // which option was right instead of it flashing past in 1.5s.
+    if (correct) {
+      setTimeout(() => {
+        onAnswer(correct);
+      }, 1500);
+    }
+  };
+
+  const handleContinue = () => {
+    onAnswer(isCorrect);
   };
 
   return (
@@ -114,29 +124,34 @@ export const QuizCard = ({ word, otherWords, onAnswer, topicLabel }: QuizCardPro
       </div>
 
       {/* Arabic word + audio button */}
-      <div className="flex items-center justify-center gap-4 mb-8 p-6 rounded-2xl bg-card border border-border">
-        <p className="text-5xl font-bold font-arabic leading-relaxed" dir="rtl">
-          {word.word_arabic}
-        </p>
-        <button
-          onClick={() => effectiveAudioUrl && playAudio(effectiveAudioUrl)}
-          aria-label="Play pronunciation"
-          className={cn(
-            "flex-shrink-0 p-3 rounded-full border transition-all duration-200",
-            "focus:outline-none focus:ring-2 focus:ring-primary/30",
-            effectiveAudioUrl
-              ? "bg-primary/10 text-primary border-primary/20 hover:bg-primary/20 hover:scale-110"
-              : "bg-muted text-muted-foreground border-border opacity-50 cursor-not-allowed",
-            isPlaying && "bg-primary text-primary-foreground border-primary animate-pulse"
-          )}
-          disabled={!effectiveAudioUrl && !isGeneratingAudio}
-        >
-          {isGeneratingAudio ? (
-            <Loader2 className="h-5 w-5 animate-spin" />
-          ) : (
-            <Volume2 className="h-5 w-5" />
-          )}
-        </button>
+      <div className="flex flex-col items-center justify-center gap-2 mb-8 p-6 rounded-2xl bg-card border border-border">
+        <div className="flex items-center justify-center gap-4">
+          <p className="text-5xl font-bold font-arabic leading-relaxed" dir="rtl">
+            {word.word_arabic}
+          </p>
+          <button
+            onClick={() => effectiveAudioUrl && playAudio(effectiveAudioUrl)}
+            aria-label="Play pronunciation"
+            className={cn(
+              "flex-shrink-0 p-3 rounded-full border transition-all duration-200",
+              "focus:outline-none focus:ring-2 focus:ring-primary/30",
+              effectiveAudioUrl
+                ? "bg-primary/10 text-primary border-primary/20 hover:bg-primary/20 hover:scale-110"
+                : "bg-muted text-muted-foreground border-border opacity-50 cursor-not-allowed",
+              isPlaying && "bg-primary text-primary-foreground border-primary animate-pulse"
+            )}
+            disabled={!effectiveAudioUrl && !isGeneratingAudio}
+          >
+            {isGeneratingAudio ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <Volume2 className="h-5 w-5" />
+            )}
+          </button>
+        </div>
+        {word.transliteration && (
+          <p className="text-sm text-muted-foreground italic">{word.transliteration}</p>
+        )}
       </div>
 
       {/* Multiple Choice Options */}
@@ -190,8 +205,20 @@ export const QuizCard = ({ word, otherWords, onAnswer, topicLabel }: QuizCardPro
             ? "bg-success/10 text-success"
             : "bg-destructive/10 text-destructive"
         )}>
-          {isCorrect ? "Correct! أحسنت" : "Not quite — keep practicing"}
+          {isCorrect
+            ? "Correct! أحسنت"
+            : `Not quite — "${word.word_arabic}" means "${word.word_english}", not "${selectedAnswer}"`}
         </div>
+      )}
+
+      {/* Wrong answers wait for the learner to acknowledge before advancing */}
+      {showResult && !isCorrect && (
+        <button
+          onClick={handleContinue}
+          className="mt-3 w-full py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity animate-in fade-in duration-300"
+        >
+          Continue
+        </button>
       )}
     </div>
   );

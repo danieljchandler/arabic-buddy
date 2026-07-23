@@ -24,14 +24,14 @@ type Step = 'welcome' | 'dialect' | 'level' | 'goal';
 
 const STEPS: Step[] = ['welcome', 'dialect', 'level', 'goal'];
 
+// Must match DialectModule ('Gulf' | 'Egyptian' | 'Yemeni') — the only values
+// DialectContext actually recognizes. Anything else silently falls back to
+// Gulf, which previously happened for every Saudi/Kuwaiti/Emirati/etc. pick,
+// while Egyptian and Yemeni (real, supported dialects) weren't offered at all.
 const DIALECTS = [
   { id: 'Gulf', label: 'Gulf Arabic', labelAr: 'خليجي', desc: 'Shared across all GCC countries', flag: '🌊' },
-  { id: 'Saudi', label: 'Saudi', labelAr: 'سعودي', desc: 'Najdi & Hejazi dialects', flag: '🇸🇦' },
-  { id: 'Kuwaiti', label: 'Kuwaiti', labelAr: 'كويتي', desc: 'Kuwaiti expressions', flag: '🇰🇼' },
-  { id: 'Emirati', label: 'Emirati', labelAr: 'إماراتي', desc: 'UAE dialect', flag: '🇦🇪' },
-  { id: 'Qatari', label: 'Qatari', labelAr: 'قطري', desc: 'Qatari expressions', flag: '🇶🇦' },
-  { id: 'Bahraini', label: 'Bahraini', labelAr: 'بحريني', desc: 'Bahraini dialect', flag: '🇧🇭' },
-  { id: 'Omani', label: 'Omani', labelAr: 'عماني', desc: 'Omani dialect', flag: '🇴🇲' },
+  { id: 'Egyptian', label: 'Egyptian Arabic', labelAr: 'مصري', desc: 'The most widely understood dialect', flag: '🇪🇬' },
+  { id: 'Yemeni', label: 'Yemeni Arabic', labelAr: 'يمني', desc: 'Yemeni expressions', flag: '🇾🇪' },
 ];
 
 const LEVELS = [

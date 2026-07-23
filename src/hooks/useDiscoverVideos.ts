@@ -2,6 +2,30 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 
+const DIFFICULTY_ORDER = ["Beginner", "Intermediate", "Advanced", "Expert"];
+const CEFR_TO_DIFFICULTY: Record<string, string> = {
+  A1: "Beginner", A2: "Beginner",
+  B1: "Intermediate", B2: "Intermediate",
+  C1: "Advanced", C2: "Expert",
+};
+
+/**
+ * Map a learner's CEFR placement level to the set of difficulty buckets
+ * within one step of their level (their bucket plus the adjacent one on
+ * each side), so the Discover feed can be filtered to level ±1 instead of
+ * showing every difficulty regardless of the learner's placement.
+ * Returns null (no filter) when the learner hasn't taken placement yet.
+ */
+export function difficultyWindow(cefrLevel: string | null | undefined): string[] | null {
+  if (!cefrLevel) return null;
+  const bucket = CEFR_TO_DIFFICULTY[cefrLevel.toUpperCase()];
+  const idx = DIFFICULTY_ORDER.indexOf(bucket);
+  if (idx === -1) return null;
+  const lo = Math.max(0, idx - 1);
+  const hi = Math.min(DIFFICULTY_ORDER.length - 1, idx + 1);
+  return DIFFICULTY_ORDER.slice(lo, hi + 1);
+}
+
 export interface DiscoverVideo {
   id: string;
   title: string;
@@ -13,6 +37,7 @@ export interface DiscoverVideo {
   duration_seconds: number | null;
   dialect: string;
   difficulty: string;
+  cefr_level?: string | null;
   transcript_lines: Json;
   vocabulary: Json;
   grammar_points: Json;
@@ -27,7 +52,7 @@ export interface DiscoverVideo {
   is_meme?: boolean;
 }
 
-export function useDiscoverVideos(filters?: { dialect?: string; difficulty?: string; search?: string }) {
+export function useDiscoverVideos(filters?: { dialect?: string; difficulty?: string | string[]; search?: string }) {
   return useQuery({
     queryKey: ["discover-videos", filters],
     queryFn: async () => {
@@ -40,7 +65,9 @@ export function useDiscoverVideos(filters?: { dialect?: string; difficulty?: str
       if (filters?.dialect) {
         query = query.eq("dialect", filters.dialect);
       }
-      if (filters?.difficulty) {
+      if (Array.isArray(filters?.difficulty)) {
+        if (filters.difficulty.length > 0) query = query.in("difficulty", filters.difficulty);
+      } else if (filters?.difficulty) {
         query = query.eq("difficulty", filters.difficulty);
       }
       if (filters?.search) {

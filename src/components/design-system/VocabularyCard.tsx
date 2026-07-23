@@ -11,6 +11,7 @@ export interface VocabularyWord {
   image_url: string | null;
   audio_url: string | null;
   image_position?: string | null;
+  transliteration?: string | null;
 }
 
 interface VocabularyCardProps {
@@ -139,7 +140,12 @@ export const VocabularyCard = ({
 
       {/* Answer Display */}
       {showAnswer && (
-        <AnswerReveal arabic={word.word_arabic} english={word.word_english} onReveal={playAudio} />
+        <AnswerReveal
+          arabic={word.word_arabic}
+          english={word.word_english}
+          transliteration={word.transliteration}
+          onReveal={playAudio}
+        />
       )}
 
       {/* Repeat Button */}
@@ -171,7 +177,7 @@ export const VocabularyCard = ({
  * AnswerReveal — shows the English word and lets the learner produce the Arabic
  * themselves before optionally revealing the script. Arabic is hidden by default.
  */
-const AnswerReveal = ({ arabic, english, onReveal }: { arabic: string; english: string; onReveal?: () => void }) => {
+const AnswerReveal = ({ arabic, english, transliteration, onReveal }: { arabic: string; english: string; transliteration?: string | null; onReveal?: () => void }) => {
   const [showArabic, setShowArabic] = useState(false);
   // Reset to hidden whenever a new word is shown
   useEffect(() => {
@@ -182,12 +188,17 @@ const AnswerReveal = ({ arabic, english, onReveal }: { arabic: string; english: 
     <div className="mt-5 text-center animate-in fade-in slide-in-from-bottom-4 duration-300">
       <p className="text-base text-muted-foreground font-sans mb-3">{english}</p>
       {showArabic ? (
-        <p
-          className="text-4xl font-bold text-foreground mb-2 font-arabic leading-relaxed animate-in fade-in duration-200"
-          dir="rtl"
-        >
-          {arabic}
-        </p>
+        <>
+          <p
+            className="text-4xl font-bold text-foreground mb-1 font-arabic leading-relaxed animate-in fade-in duration-200"
+            dir="rtl"
+          >
+            {arabic}
+          </p>
+          {transliteration && (
+            <p className="text-sm text-muted-foreground italic mb-2">{transliteration}</p>
+          )}
+        </>
       ) : (
         <p className="text-sm text-muted-foreground/70 italic mb-2">
           Try saying it in Arabic, then reveal

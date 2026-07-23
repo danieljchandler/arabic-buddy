@@ -16,6 +16,7 @@ import { InfoHint } from "@/components/InfoHint";
 import { PAGE_HINTS } from "@/lib/pageHints";
 import { useDialect } from "@/contexts/DialectContext";
 import { useAuth } from "@/hooks/useAuth";
+import { useUserLevel } from "@/hooks/useUserLevel";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Select,
@@ -118,11 +119,18 @@ const Discover = () => {
   const { user } = useAuth();
   const [tab, setTab] = useState<string>(user ? "feed" : "browse");
   const [seed, setSeed] = useState(() => Math.floor(Date.now() / (15 * 60 * 1000)));
+  const { difficulty: levelDifficulty, hasTakenPlacement } = useUserLevel();
 
   // Browse state
   const [search, setSearch] = useState("");
   const [dialect, setDialect] = useState<string>(activeDialect);
-  const [difficulty, setDifficulty] = useState("All");
+  // Default the difficulty filter to the learner's placement level (still a
+  // plain dropdown they can override) instead of always showing everything.
+  const [difficulty, setDifficulty] = useState(() =>
+    hasTakenPlacement
+      ? levelDifficulty.charAt(0).toUpperCase() + levelDifficulty.slice(1)
+      : "All"
+  );
 
   const { data: browseVideos, isLoading: isBrowseLoading } = useDiscoverVideos({
     dialect: dialect === "All" ? undefined : dialect,

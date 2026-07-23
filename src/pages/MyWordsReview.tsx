@@ -27,6 +27,8 @@ import { useAzureTTS } from "@/hooks/useAzureTTS";
 import { ReviewClozeCard } from "@/components/review/ReviewClozeCard";
 import { useTranscriptCloze } from "@/hooks/useTranscriptCloze";
 import { useNewCardCap, NEW_CAP_OPTIONS, formatCap } from "@/hooks/useNewCardCap";
+import { useRemainingNewCardBudget, useClaimNewCard } from "@/hooks/useNewCardBudget";
+import { useSRSStats } from "@/hooks/useSRSStats";
 import { createPlayableJingleAudio, createPlayableJingleAudioFromUrl } from "@/lib/jingleAudio";
 import {
   Select,
@@ -62,12 +64,14 @@ interface DueCard {
   is_leech: boolean;
   mnemonic: string | null;
   root: string | null;
+  transliteration: string | null;
 }
 
 interface RawRow {
   id: string;
   word_arabic: string;
   word_english: string;
+  transliteration: string | null;
   ease_factor: number;
   interval_days: number;
   repetitions: number;
@@ -99,6 +103,9 @@ const MyWordsReview = () => {
   const { enabled: leechTrackingEnabled } = useLeechPrefs();
   const updateReview = useUpdateUserVocabularyReview();
   const { cap: newCap, setCap: setNewCap } = useNewCardCap();
+  const { remaining: remainingNewBudget } = useRemainingNewCardBudget(newCap);
+  const claimNewCard = useClaimNewCard();
+  const { data: srsStats } = useSRSStats();
   const queryClient = useQueryClient();
 
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -165,7 +172,7 @@ const MyWordsReview = () => {
   }, []);
 
   const { data: dueWords, isLoading, refetch } = useQuery({
-    queryKey: ["user-vocabulary-due-words", user?.id, activeDialect, newCap],
+    queryKey: ["user-vocabulary-due-words", user?.id, activeDialect, newCap, remainingNewBudget],
     queryFn: async (): Promise<DueCard[]> => {
       if (!user) return [];
       const now = new Date().toISOString();
@@ -173,7 +180,7 @@ const MyWordsReview = () => {
       // Fetch all rows that are due in either direction. We do two queries
       // and merge so each direction can be tagged independently.
       const baseSelect =
-        "id, word_arabic, word_english, ease_factor, interval_days, repetitions, next_review_at, last_reviewed_at, production_ease_factor, production_interval_days, production_repetitions, production_next_review_at, production_last_reviewed_at, word_audio_url, sentence_audio_url, image_url, jingle_audio_url, jingle_lyrics, sentence_text, sentence_english, lapses, production_lapses, is_leech, mnemonic, root";
+        "id, word_arabic, word_english, transliteration, ease_factor, interval_days, repetitions, next_review_at, last_reviewed_at, production_ease_factor, production_interval_days, production_repetitions, production_next_review_at, production_last_reviewed_at, word_audio_url, sentence_audio_url, image_url, jingle_audio_url, jingle_lyrics, sentence_text, sentence_english, lapses, production_lapses, is_leech, mnemonic, root";
 
       const { data: recogRows, error: recogErr } = await (supabase
         .from("user_vocabulary")
@@ -200,6 +207,7 @@ const MyWordsReview = () => {
           id: r.id,
           word_arabic: r.word_arabic,
           word_english: r.word_english,
+          transliteration: r.transliteration ?? null,
           ease_factor: r.ease_factor,
           interval_days: r.interval_days,
           repetitions: r.repetitions,
@@ -225,6 +233,7 @@ const MyWordsReview = () => {
           id: r.id,
           word_arabic: r.word_arabic,
           word_english: r.word_english,
+          transliteration: r.transliteration ?? null,
           ease_factor: r.production_ease_factor,
           interval_days: r.production_interval_days,
           repetitions: r.production_repetitions,
@@ -253,7 +262,10 @@ const MyWordsReview = () => {
       //    don't all clump at the end.
       // 3. Interleave recognition vs production within each bucket so the
       //    user keeps switching modes (Anki/Duolingo-style mixing).
-      const NEW_CAP = newCap;
+      // The user's session preference, further capped by how many new cards
+      // they've actually already studied today (server-persisted, survives
+      // reloads) — see useNewCardBudget.
+      const NEW_CAP = Math.min(newCap, remainingNewBudget);
       const splitMix = (arr: DueCard[]) => {
         const recog = arr.filter((c) => c.card_type === "recognition");
         const prod = arr.filter((c) => c.card_type === "production");
@@ -466,6 +478,8 @@ const MyWordsReview = () => {
       card.repetitions,
     );
 
+    const wasNew = card.repetitions === 0;
+
     await updateReview.mutateAsync({
       wordId: card.id,
       stability: result.stability,
@@ -479,6 +493,10 @@ const MyWordsReview = () => {
       currentLapses: card.lapses,
       currentProductionLapses: card.production_lapses,
     });
+
+    // Claim daily new-card budget on the card's first-ever rating (not on
+    // every fetch), so the counter is reload-proof and never double-counts.
+    if (wasNew) claimNewCard.mutate();
 
     const prevIndex = currentIndex;
     const newAction = snapshot
@@ -578,7 +596,13 @@ const MyWordsReview = () => {
           <p className="text-muted-foreground mb-8">
             No cards due for review right now. Come back later!
           </p>
-          <Button onClick={() => navigate("/my-words")}>Back to My Words</Button>
+          {srsStats && srsStats.curriculumDue > 0 ? (
+            <Button onClick={() => navigate("/review")}>
+              Continue with {srsStats.curriculumDue} curriculum card{srsStats.curriculumDue === 1 ? "" : "s"}
+            </Button>
+          ) : (
+            <Button onClick={() => navigate("/my-words")}>Back to My Words</Button>
+          )}
         </div>
       </AppShell>
     );
@@ -709,23 +733,33 @@ const MyWordsReview = () => {
                     </p>
                   </>
                 ) : (
-                  <p
-                    className="text-4xl font-bold text-foreground mb-6 animate-in fade-in duration-200"
-                    style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
-                    dir="rtl"
-                  >
-                    {currentWord.word_arabic}
-                  </p>
+                  <>
+                    <p
+                      className="text-4xl font-bold text-foreground mb-1 animate-in fade-in duration-200"
+                      style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
+                      dir="rtl"
+                    >
+                      {currentWord.word_arabic}
+                    </p>
+                    {currentWord.transliteration && (
+                      <p className="text-sm text-muted-foreground italic mb-5">{currentWord.transliteration}</p>
+                    )}
+                  </>
                 )}
               </>
             ) : (
-              <p
-                className="text-4xl font-bold text-foreground mb-6"
-                style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
-                dir="rtl"
-              >
-                {currentWord.word_arabic}
-              </p>
+              <>
+                <p
+                  className="text-4xl font-bold text-foreground mb-1"
+                  style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
+                  dir="rtl"
+                >
+                  {currentWord.word_arabic}
+                </p>
+                {currentWord.transliteration && (
+                  <p className="text-sm text-muted-foreground italic mb-5">{currentWord.transliteration}</p>
+                )}
+              </>
             )}
 
             {/* Ask AI about this word */}

@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { getDialectLabel, type Dialect } from "../_shared/dialectHelpers.ts";
+import { getDialectLabel, getTashkeelMandate, getDialectTransliterationRules, type Dialect } from "../_shared/dialectHelpers.ts";
 import { askBrain } from "../_shared/aiBrain.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
 
@@ -44,6 +44,13 @@ serve(async (req) => {
 - Set passages in culturally authentic contexts.
 - Generate engaging, culturally relevant passages appropriate for the difficulty level.
 - The primary passage text MUST be in ${dialectLabel} dialect, not MSA.
+
+${getTashkeelMandate()}
+- title and every line's "arabic" field must be fully vocalized.
+
+${getDialectTransliterationRules(dialect as Dialect)}
+- Provide a transliteration for every line.
+
 - Return the structured fields via the provided tool only.`;
 
     const userPrompt = `Generate a reading comprehension exercise.
@@ -83,8 +90,12 @@ Split the passage into individual sentences in the "lines" array (each line = on
                 type: "array",
                 items: {
                   type: "object",
-                  properties: { arabic: { type: "string" }, english: { type: "string" } },
-                  required: ["arabic", "english"],
+                  properties: {
+                    arabic: { type: "string" },
+                    transliteration: { type: "string" },
+                    english: { type: "string" },
+                  },
+                  required: ["arabic", "transliteration", "english"],
                 },
               },
               difficulty: { type: "string" },

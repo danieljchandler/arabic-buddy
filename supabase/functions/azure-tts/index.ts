@@ -12,6 +12,8 @@
  *   ar-SA-ZariyahNeural  Saudi Arabic — female
  *   ar-KW-FahedNeural    Kuwaiti Arabic — male
  *   ar-QA-MoazNeural     Qatari Arabic — male
+ *   ar-YE-MaryamNeural   Yemeni Arabic — female
+ *   ar-YE-SalehNeural    Yemeni Arabic — male
  *
  * Request body:
  *   {
@@ -71,6 +73,8 @@ const SUPPORTED_VOICES = [
   'ar-OM-AyshaNeural',
   'ar-EG-ShakirNeural',
   'ar-EG-SalmaNeural',
+  'ar-YE-MaryamNeural',
+  'ar-YE-SalehNeural',
 ];
 
 /** Build SSML for the Azure TTS request */

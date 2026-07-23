@@ -62,6 +62,9 @@ const Pricing = () => {
           <p className="text-muted-foreground text-lg">
             Unlock the full power of Hakiya to accelerate your Arabic learning
           </p>
+          <Badge variant="outline" className="mt-3">
+            Hakiya is in closed beta — pricing below reflects our upcoming public launch
+          </Badge>
         </div>
 
         {loading ? (
@@ -235,8 +238,7 @@ const Pricing = () => {
                   },
                   {
                     q: 'Do you offer student or annual pricing?',
-                    // TODO(rebrand-email): swap to new Hakiya contact email when domain is set up.
-                    a: 'Annual plans (2 months free) and student discounts are coming shortly after launch. Email hello@lahja.app to be notified.',
+                    a: 'Annual plans (2 months free) and student discounts are coming shortly after launch. Email hello@hakiya.app to be notified.',
                   },
                 ].map(({ q, a }) => (
                   <div key={q} className="border-b border-border pb-4">

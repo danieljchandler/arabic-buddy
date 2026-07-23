@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Volume2 } from "lucide-react";
 import { useAzureTTS } from "@/hooks/useAzureTTS";
-import { useDialect } from "@/contexts/DialectContext";
 import { cn } from "@/lib/utils";
 
 interface LetterAudioButtonProps {
@@ -16,10 +15,6 @@ interface LetterAudioButtonProps {
 
 /** MSA voice used for the Fusha button — a formal, MSA-style Arabic voice. */
 const MSA_VOICE = "ar-SA-HamedNeural";
-/** Explicit Azure voice per dialect. Gulf/Yemeni route through Munsit instead. */
-const DIALECT_VOICE: Record<string, string> = {
-  Egyptian: "ar-EG-ShakirNeural",
-};
 
 /**
  * Round speaker button. Wraps useAzureTTS to fetch and play a short clip.
@@ -33,11 +28,10 @@ export const LetterAudioButton = ({
   autoplay = false,
   label,
 }: LetterAudioButtonProps) => {
-  const { activeDialect } = useDialect();
-  // Fusha: force Azure MSA voice. Dialect: let the hook route (Munsit for
-  // Gulf/Yemeni), and pass an explicit Azure voice for dialects that stay on Azure.
+  // Fusha: force Azure MSA voice. Dialect: let the hook route (Munsit for Gulf,
+  // auto-selected Azure voice for Egyptian/Yemeni).
   const dialectProp = forceMsa ? "MSA" : undefined;
-  const voice = forceMsa ? MSA_VOICE : DIALECT_VOICE[activeDialect];
+  const voice = forceMsa ? MSA_VOICE : undefined;
   const { ttsUrl, isLoading } = useAzureTTS({
     text,
     dialect: dialectProp,

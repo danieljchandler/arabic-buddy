@@ -10,6 +10,8 @@ export interface UserXP {
   level: number;
   xp_this_week: number;
   week_start_date: string;
+  xp_today: number;
+  xp_today_date: string;
 }
 
 export interface Achievement {
@@ -85,10 +87,14 @@ export function useUserXP() {
           level: 1,
           xp_this_week: 0,
           week_start_date: new Date().toISOString().split("T")[0],
+          xp_today: 0,
+          xp_today_date: new Date().toISOString().split("T")[0],
         } as UserXP;
       }
 
-      return data as UserXP;
+      // Cast via unknown: generated types.ts predates the xp_today/xp_today_date
+      // columns (migration 20260723040000), so the select("*") row type is stale.
+      return data as unknown as UserXP;
     },
     enabled: !!user,
   });

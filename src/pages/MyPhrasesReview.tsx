@@ -345,6 +345,15 @@ const MyPhrasesReview = () => {
                   <p className="text-xs text-muted-foreground italic">{current.notes}</p>
                 )}
 
+                <div className="flex justify-center">
+                  <AskAISentence
+                    arabic={current.phrase_arabic}
+                    english={current.phrase_english}
+                    variant="chip"
+                  />
+                </div>
+
+
                 {/* Circular play + secondary actions */}
                 <div className="flex flex-col items-center gap-2 pt-1">
                   <button

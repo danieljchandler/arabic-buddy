@@ -150,7 +150,8 @@ serve(async (req) => {
     const brain = await askBrain<BrainOutput>({
       purpose: "how_do_i_say",
       dialect,
-      strategy: "ensemble",
+      // Strategy resolved by pickStrategy(purpose) → council (drafters + judge),
+      // matching this function's documented multi-model consensus.
       userPrompt: trimmedPhrase,
       systemPromptExtra: buildExtras(dialect),
       maxTokens: 2048,

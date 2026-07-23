@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { askBrain, BrainHttpError } from "../_shared/aiBrain.ts";
+import { enforceDailyCap } from "../_shared/usageCap.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -10,6 +11,10 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
+
+  // Free-tier daily cap (anonymous → 401, paid/admin unlimited).
+  const cap = await enforceDailyCap(req, 'hf-chat', 40, corsHeaders);
+  if (cap.limited) return cap.response;
 
   try {
     const { prompt, dialect = 'Gulf', strategy } = await req.json() as {

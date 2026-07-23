@@ -33,6 +33,8 @@
  *                           (e.g. "eastus", "uaenorth")
  */
 
+import { enforceDailyCap } from "../_shared/usageCap.ts";
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -89,6 +91,11 @@ Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
+
+  // Generous free-tier daily cap: blocks anonymous abuse of paid TTS while
+  // leaving normal (even heavy) logged-in playback unaffected. Paid/admin bypass.
+  const cap = await enforceDailyCap(req, 'azure-tts', 400, corsHeaders);
+  if (cap.limited) return cap.response;
 
   try {
     let body: { text: string; voice?: string };

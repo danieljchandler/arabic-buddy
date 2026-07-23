@@ -13,6 +13,7 @@
  *       MUNSIT_TTS_MODEL_ID    — explicit model_id (default: "munsit-tts-v1")
  */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { enforceDailyCap } from "../_shared/usageCap.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -118,6 +119,11 @@ async function getVoice(apiKey: string): Promise<{ voiceId: string; modelId: str
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
+  // Generous free-tier daily cap: blocks anonymous abuse of paid TTS while
+  // leaving normal (even heavy) logged-in playback unaffected. Paid/admin bypass.
+  const cap = await enforceDailyCap(req, "munsit-tts", 400, corsHeaders);
+  if (cap.limited) return cap.response;
 
   const apiKey = Deno.env.get("MUNSIT_API_KEY");
   if (!apiKey) {

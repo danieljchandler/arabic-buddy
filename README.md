@@ -1,82 +1,70 @@
-# Welcome to your Lovable project
+# Hakiya — Learn Spoken Arabic
 
-## Project info
+Hakiya is a web app for learning **spoken (dialectal) Arabic** — Gulf (Khaliji),
+Egyptian, and Yemeni — with native audio, spaced-repetition flashcards, and
+lessons built from real Arabic media. The emphasis throughout is on authentic
+dialect, never Modern Standard Arabic (MSA / فصحى).
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## Tech stack
 
-## How can I edit this code?
+- **Frontend:** Vite + React + TypeScript, shadcn-ui, Tailwind CSS
+- **Backend:** Supabase (Postgres + Row-Level Security, Auth, Edge Functions)
+- **AI:** dialect-aware generation orchestrated through a shared "Brain"
+  (`supabase/functions/_shared/aiBrain.ts`) that layers dialect identity, an
+  MSA-leak detector, a repair pass, and an optional native-speaker validator on
+  top of the underlying models. Model IDs are centralized in
+  `supabase/functions/_shared/modelRegistry.ts` — do not hardcode them in
+  feature code.
 
-There are several ways of editing your application.
+## Local development
 
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
+Requires Node.js (or Bun) and the Supabase CLI for the backend.
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+# Install dependencies
+npm install          # or: bun install
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Start the dev server
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+Copy `.env.example` to `.env` and fill in the client variables
+(`VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`). Server-side secrets for
+the edge functions are configured in the Supabase dashboard, not committed.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## Useful scripts
 
-**Use GitHub Codespaces**
+| Command | Description |
+| --- | --- |
+| `npm run dev` | Start the Vite dev server |
+| `npm run build` | Production build |
+| `npm run lint` | Lint the codebase |
+| `npm test` | Run the Vitest suite |
+| `npm run test:coverage` | Run tests with coverage |
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## Project layout
 
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+- `src/` — React app (pages, components, hooks, domain logic in `src/lib`)
+- `supabase/functions/` — Deno edge functions (AI, TTS/STT, billing, content)
+- `supabase/functions/_shared/` — shared helpers (Brain, dialect rules, CORS,
+  usage caps, model registry)
+- `supabase/migrations/` — database schema and RLS policies
+- `docs/` — planning notes and branding assets
 
 ## RBAC roles
 
-The app currently uses role assignments in `public.user_roles`:
+Roles are assigned in `public.user_roles` (INSERT/UPDATE/DELETE restricted to
+admins via RLS; users may only read their own role):
 
 - `admin`: full access everywhere, including admin and Bible management.
-- `content_reviewer`: can manage content workflows (transcripts/translations/cultural notes/dialect rules) but is blocked from Bible access.
+- `content_reviewer`: can manage content workflows (transcripts / translations /
+  cultural notes / dialect rules) but is blocked from Bible access.
 - `beta_tester`: can access beta-only features.
-- `bible_reader`: grants Bible reading access (except when the user is also `content_reviewer`).
+- `bible_reader`: grants Bible reading access (except when the user is also
+  `content_reviewer`).
 
-## How can I deploy this project?
+## Deployment
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+The frontend is a static Vite build; the backend runs as Supabase Edge
+Functions. Set `ALLOWED_ORIGINS` (comma-separated) as an edge-function secret to
+restrict CORS to your production domain(s).

@@ -130,6 +130,12 @@ const DailyStoryPage = () => {
               />
             </div>
 
+            {story.body_transliteration && (
+              <p className="text-sm text-muted-foreground italic">
+                {story.body_transliteration}
+              </p>
+            )}
+
             <div className="flex justify-start">
               <AskAISentence
                 arabic={story.body_arabic}

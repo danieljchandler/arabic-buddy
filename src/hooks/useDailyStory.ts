@@ -10,6 +10,7 @@ export interface DailyStory {
   dialect: string;
   title: string;
   body_arabic: string;
+  body_transliteration: string | null;
   body_english: string | null;
   vocab_used: string[];
   new_words: string[];

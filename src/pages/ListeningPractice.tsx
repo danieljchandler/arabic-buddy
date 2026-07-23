@@ -41,6 +41,7 @@ type Mode = "dictation" | "comprehension" | "speed";
 interface Question {
   type: Mode;
   audioText: string;
+  audioTextTransliteration?: string;
   audioTextEnglish: string;
   options?: { text: string; textArabic: string; correct: boolean }[];
   hint?: string;
@@ -540,6 +541,11 @@ const ListeningPractice = () => {
                   <p className="text-2xl font-arabic mb-1" dir="rtl">
                     {currentQuestion.audioText}
                   </p>
+                  {currentQuestion.audioTextTransliteration && (
+                    <p className="text-sm text-muted-foreground italic mb-1">
+                      {currentQuestion.audioTextTransliteration}
+                    </p>
+                  )}
                   {showEnglish && (
                     <p className="text-sm text-muted-foreground animate-in fade-in duration-200">
                       {currentQuestion.audioTextEnglish}

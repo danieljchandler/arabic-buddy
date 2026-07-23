@@ -13,12 +13,15 @@ interface PhraseOut {
 
 // Broad topic wheel — the AI is nudged into one of these buckets per request so
 // the daily phrase actually varies instead of collapsing to safe greetings.
-const CATEGORIES: { key: string; prompt: string }[] = [
+// Most situations are dialect-neutral (SHARED_CATEGORIES); a few are tied to a
+// specific culture's daily life and get a per-dialect variant instead of a
+// one-size-fits-all Gulf framing (majlis coffee culture, desert/mall weekends,
+// shisha hangouts don't describe Egyptian or Yemeni daily life). Mirrors the
+// SHARED_TOPICS / per-dialect split in src/data/listenTopics.ts.
+const SHARED_CATEGORIES: { key: string; prompt: string }[] = [
   { key: "haggling", prompt: "haggling in the souq (asking for a discount, walking away, playful bargaining)" },
-  { key: "coffee_majlis", prompt: "coffee/tea and sit-down hosting small talk (pouring, refusing a third cup, complimenting the host)" },
-  { key: "traffic", prompt: "driving and traffic frustration (roundabouts, tailgaters, parking chaos)" },
-  { key: "weather_hot", prompt: "complaining about the heat / humidity / dust storm" },
-  { key: "weekend_plans", prompt: "weekend plans with friends (beach, desert, mall, farm)" },
+  { key: "traffic", prompt: "driving and traffic frustration (tailgaters, parking chaos, bad drivers)" },
+  { key: "weather_hot", prompt: "complaining about the heat / humidity / dust" },
   { key: "family_teasing", prompt: "playful family teasing between siblings or cousins" },
   { key: "work_complaints", prompt: "office/work complaints (boss, meetings, deadlines) in a casual register" },
   { key: "food_praise", prompt: "praising or reacting to food (something delicious, too spicy, over-salted)" },
@@ -39,12 +42,33 @@ const CATEGORIES: { key: string; prompt: string }[] = [
   { key: "directions", prompt: "giving casual directions or landmarks (turn after the mosque, next to the corner shop)" },
   { key: "sports_banter", prompt: "football/sports banter between fans of rival teams" },
   { key: "shopping_indecision", prompt: "indecision while shopping (can't pick between two options)" },
-  { key: "invite_hangout", prompt: "casually inviting someone to hang out or grab shisha/coffee" },
   { key: "refuse_polite", prompt: "politely refusing an invitation without offending" },
   { key: "gratitude_deep", prompt: "expressing deep gratitude beyond the standard thank-you" },
   { key: "market_produce", prompt: "buying fresh produce, fish, or meat at the market" },
   { key: "prayer_mosque", prompt: "quick exchange around prayer time or at the mosque" },
 ];
+
+const DIALECT_CATEGORIES: Record<string, { key: string; prompt: string }[]> = {
+  Gulf: [
+    { key: "coffee_majlis", prompt: "coffee/tea and sit-down hosting small talk in a majlis (pouring, refusing a third cup, complimenting the host)" },
+    { key: "weekend_plans", prompt: "weekend plans with friends (beach, desert, mall, farm)" },
+    { key: "invite_hangout", prompt: "casually inviting someone to hang out or grab shisha/coffee" },
+  ],
+  Egyptian: [
+    { key: "coffee_majlis", prompt: "hanging out at an ahwa (coffeehouse) over tea, shisha, and backgammon/dominoes with the guys" },
+    { key: "weekend_plans", prompt: "weekend plans with friends (Nile-side walk/felucca, club, mall, family lunch)" },
+    { key: "invite_hangout", prompt: "casually inviting someone to the ahwa for tea or shisha" },
+  ],
+  Yemeni: [
+    { key: "coffee_majlis", prompt: "an afternoon qat chew (maqyal) with friends — settling in, passing the bag, easy conversation" },
+    { key: "weekend_plans", prompt: "weekend plans with friends or family (visiting relatives, a qat session, a trip to the old souq)" },
+    { key: "invite_hangout", prompt: "casually inviting someone to a qat session or for tea at the mafraj (sitting room)" },
+  ],
+};
+
+function categoriesFor(dialect: string): { key: string; prompt: string }[] {
+  return [...SHARED_CATEGORIES, ...(DIALECT_CATEGORIES[dialect] ?? DIALECT_CATEGORIES.Gulf)];
+}
 
 function hashString(s: string): number {
   let h = 0;
@@ -53,12 +77,13 @@ function hashString(s: string): number {
 }
 
 function pickCategory(dialect: string, date: string, override?: string) {
+  const categories = categoriesFor(dialect);
   if (override) {
-    const found = CATEGORIES.find((c) => c.key === override);
+    const found = categories.find((c) => c.key === override);
     if (found) return found;
   }
-  const idx = hashString(`${dialect}|${date}`) % CATEGORIES.length;
-  return CATEGORIES[idx];
+  const idx = hashString(`${dialect}|${date}`) % categories.length;
+  return categories[idx];
 }
 
 Deno.serve(async (req) => {
@@ -77,7 +102,7 @@ Deno.serve(async (req) => {
     // Skip categories the client already saw this session (from Refresh presses).
     let category = pickCategory(dialect, today, categoryOverride);
     if (Array.isArray(avoidCategories) && avoidCategories.length && !categoryOverride) {
-      const remaining = CATEGORIES.filter((c) => !avoidCategories.includes(c.key));
+      const remaining = categoriesFor(dialect).filter((c) => !avoidCategories.includes(c.key));
       if (remaining.length) {
         const idx = hashString(`${dialect}|${today}|${avoidCategories.length}`) % remaining.length;
         category = remaining[idx];

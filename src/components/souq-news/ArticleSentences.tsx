@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 
 interface Sentence {
   arabic: string;
+  transliteration?: string;
   english: string;
 }
 
@@ -68,6 +69,11 @@ export const ArticleSentences = ({
                 english: line.english || summaryEnglish,
               }}
             />
+            {line.transliteration && (
+              <p className="text-xs text-muted-foreground italic mt-1">
+                {line.transliteration}
+              </p>
+            )}
             <div className="mt-2 flex items-center justify-between gap-2">
               {line.english ? (
                 <button

@@ -204,9 +204,12 @@ export const AskAISentence = ({
     variant === "chip" ? (
       <Button
         type="button"
-        variant="ghost"
+        variant="outline"
         size="sm"
-        className={cn("h-7 gap-1 text-xs text-muted-foreground hover:text-primary", className)}
+        className={cn(
+          "h-7 gap-1 rounded-full border-primary/40 bg-primary/5 px-2.5 text-xs font-medium text-primary hover:bg-primary/10 hover:text-primary",
+          className,
+        )}
       >
         <Sparkles className="h-3 w-3" />
         Ask AI

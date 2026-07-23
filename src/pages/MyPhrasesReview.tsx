@@ -17,6 +17,7 @@ import { createPlayableJingleAudio, createPlayableJingleAudioFromUrl } from "@/l
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { TappableArabicText } from "@/components/shared/TappableArabicText";
+import { AskAISentence } from "@/components/shared/AskAISentence";
 
 
 const MyPhrasesReview = () => {
@@ -343,6 +344,15 @@ const MyPhrasesReview = () => {
                 {current.notes && (
                   <p className="text-xs text-muted-foreground italic">{current.notes}</p>
                 )}
+
+                <div className="flex justify-center">
+                  <AskAISentence
+                    arabic={current.phrase_arabic}
+                    english={current.phrase_english}
+                    variant="chip"
+                  />
+                </div>
+
 
                 {/* Circular play + secondary actions */}
                 <div className="flex flex-col items-center gap-2 pt-1">

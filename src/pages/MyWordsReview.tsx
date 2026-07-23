@@ -15,6 +15,7 @@ import { GenerateImageDialog } from "@/components/mywords/GenerateImageDialog";
 import { useUpdateUserVocabularyImage } from "@/hooks/useUserVocabulary";
 import { PronunciationButton } from "@/components/review/PronunciationButton";
 import { TappableArabicText } from "@/components/shared/TappableArabicText";
+import { AskAISentence } from "@/components/shared/AskAISentence";
 
 import { Button } from "@/components/ui/button";
 import { Rating, calculateNextReview } from "@/lib/spacedRepetition";
@@ -726,6 +727,18 @@ const MyWordsReview = () => {
                 {currentWord.word_arabic}
               </p>
             )}
+
+            {/* Ask AI about this word */}
+            {(!isProduction || showAnswer) && currentArabic && (
+              <div className="flex justify-center mb-4 -mt-2">
+                <AskAISentence
+                  arabic={currentArabic}
+                  english={currentWord.word_english}
+                  variant="chip"
+                />
+              </div>
+            )}
+
 
             {/* Audio buttons */}
             <div className="flex items-center justify-center gap-2 flex-wrap mb-8">

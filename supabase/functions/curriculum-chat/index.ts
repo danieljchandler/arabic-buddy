@@ -36,7 +36,9 @@ const MODEL_REGISTRY: Record<string, ModelConfig> = {
   },
   "anthropic/claude-sonnet-4-5": {
     endpoint: OPENROUTER_ENDPOINT,
-    model: "anthropic/claude-sonnet-4-5",
+    // Registry key stays hyphenated (the ModelSelector sends that), but OpenRouter
+    // resolves the dotted ID — the hyphen form 404s on this route.
+    model: "anthropic/claude-sonnet-4.5",
     keyEnv: "OPENROUTER_API_KEY",
   },
   "qwen/qwen3-235b-a22b": {

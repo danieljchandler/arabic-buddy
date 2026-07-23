@@ -1,11 +1,16 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { logEdgeError } from "../_shared/logError.ts";
+import { enforceDailyCap } from "../_shared/usageCap.ts";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+
+  // Free-tier daily cap (anonymous → 401, paid/admin unlimited).
+  const cap = await enforceDailyCap(req, "pronunciation-feedback", 60, corsHeaders);
+  if (cap.limited) return cap.response;
 
   try {
     const payload = await req.json();
@@ -71,7 +76,14 @@ Give exactly 2-3 short, actionable tips (one sentence each) to help them match t
       })
       .join("\n");
 
-    const dialectLabel = dialect === "ar-EG" ? "Egyptian Arabic" : dialect === "ar-YE" ? "Yemeni Arabic" : "Gulf Arabic (Saudi/Khaliji)";
+    // Accept both Azure locale codes (ar-EG / ar-YE) and the canonical dialect
+    // keys (Egyptian / Yemeni / Gulf) used elsewhere in the app.
+    const d = String(dialect ?? "");
+    const dialectLabel = (d === "ar-EG" || d === "Egyptian")
+      ? "Egyptian Arabic"
+      : (d === "ar-YE" || d === "Yemeni")
+        ? "Yemeni Arabic"
+        : "Gulf Arabic (Saudi/Khaliji)";
 
     prompt = `You are a friendly Arabic pronunciation coach specializing in ${dialectLabel}.
 

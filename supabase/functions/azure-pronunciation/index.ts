@@ -48,6 +48,8 @@
  *                           (e.g. "eastus", "uaenorth")
  */
 
+import { enforceDailyCap } from "../_shared/usageCap.ts";
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
@@ -146,6 +148,10 @@ Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
+
+  // Free-tier daily cap (anonymous → 401, paid/admin unlimited).
+  const cap = await enforceDailyCap(req, 'azure-pronunciation', 60, corsHeaders);
+  if (cap.limited) return cap.response;
 
   try {
     // Parse request body — return 400 for malformed JSON

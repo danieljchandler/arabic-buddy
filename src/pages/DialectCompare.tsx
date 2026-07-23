@@ -34,6 +34,7 @@ const dialectColors: Record<string, string> = {
   "Gulf Arabic": "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20",
   "Egyptian Arabic": "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20",
   "Levantine Arabic": "bg-sky-500/10 text-sky-700 dark:text-sky-400 border-sky-500/20",
+  "Yemeni Arabic": "bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/20",
   "Modern Standard Arabic (MSA)": "bg-purple-500/10 text-purple-700 dark:text-purple-400 border-purple-500/20",
 };
 
@@ -41,6 +42,7 @@ const dialectFlags: Record<string, string> = {
   "Gulf Arabic": "🇦🇪",
   "Egyptian Arabic": "🇪🇬",
   "Levantine Arabic": "🇱🇧",
+  "Yemeni Arabic": "🇾🇪",
   "Modern Standard Arabic (MSA)": "📚",
 };
 
@@ -98,7 +100,7 @@ export default function DialectCompare() {
           <h1 className="text-2xl font-bold text-foreground inline-flex items-center gap-2">Dialect Compare <InfoHint {...PAGE_HINTS["dialect-compare"]} size="md" /></h1>
         </div>
         <p className="text-muted-foreground">
-          See how words differ across Gulf, Egyptian, Levantine Arabic, and MSA
+          See how words differ across Gulf, Egyptian, Levantine, Yemeni Arabic, and MSA
         </p>
       </div>
 

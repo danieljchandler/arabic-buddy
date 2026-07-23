@@ -80,6 +80,7 @@ const AdminFeatureMetrics = lazyPage(() => import("./pages/admin/AdminFeatureMet
 
 // Admin pages
 const AdminLayout = lazyPage(() => import("./pages/admin/AdminLayout"));
+const AdminLogin = lazyPage(() => import("./pages/admin/AdminLogin"));
 const Dashboard = lazyPage(() => import("./pages/admin/Dashboard"));
 const Topics = lazyPage(() => import("./pages/admin/Topics"));
 const TopicForm = lazyPage(() => import("./pages/admin/TopicForm"));
@@ -91,7 +92,6 @@ const AdminVideoForm = lazyPage(() => import("./pages/admin/AdminVideoForm"));
 const Stages = lazyPage(() => import("./pages/admin/Stages"));
 const LessonWords = lazyPage(() => import("./pages/admin/LessonWords"));
 const LessonImport = lazyPage(() => import("./pages/admin/LessonImport"));
-const LlmLogs = lazyPage(() => import("./pages/admin/LlmLogs"));
 const CurriculumBuilder = lazyPage(() => import("./pages/admin/CurriculumBuilder"));
 const AdminStories = lazyPage(() => import("./pages/admin/AdminStories"));
 const AdminStoryForm = lazyPage(() => import("./pages/admin/AdminStoryForm"));
@@ -406,6 +406,10 @@ const App = () => {
               <ErrorBoundary name="AlphabetLetterRoute"><AlphabetLetter /></ErrorBoundary>
             } />
 
+            {/* Standalone login — must sit OUTSIDE AdminLayout, which redirects
+                unauthenticated visitors here before rendering its Outlet. */}
+            <Route path="/admin/login" element={<ErrorBoundary name="AdminLoginRoute"><AdminLogin /></ErrorBoundary>} />
+
             <Route path="/admin" element={<ErrorBoundary name="AdminRoute"><AdminLayout /></ErrorBoundary>}>
               <Route index element={<Dashboard />} />
               {/* Curriculum routes */}
@@ -426,7 +430,6 @@ const App = () => {
               <Route path="videos" element={<AdminVideos />} />
               <Route path="videos/new" element={<AdminVideoForm />} />
               <Route path="videos/:videoId/edit" element={<AdminVideoForm />} />
-              <Route path="llm-logs" element={<LlmLogs />} />
               <Route path="curriculum-builder" element={<CurriculumBuilder />} />
               <Route path="curriculum-builder/:sessionId" element={<CurriculumBuilder />} />
               <Route path="stories" element={<AdminStories />} />

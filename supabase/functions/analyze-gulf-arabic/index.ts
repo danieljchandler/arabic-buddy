@@ -1958,7 +1958,8 @@ serve(async (req) => {
 
       const claudeEnrichPromise = (vocab.length > 0)
         ? callAI({
-            model: 'anthropic/claude-sonnet-4-5',
+            // OpenRouter uses the dotted ID; the hyphen form 404s on this route.
+            model: 'anthropic/claude-sonnet-4.5',
             systemPrompt: getVocabEnrichmentSystemPrompt(),
             userContent: `Vocabulary list to enrich:\n${JSON.stringify(vocab.map(v => ({ arabic: v.arabic, english: v.english, root: v.root })))}`,
             apiKey: OPENROUTER_API_KEY,

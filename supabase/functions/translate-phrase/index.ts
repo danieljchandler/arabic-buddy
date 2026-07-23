@@ -120,6 +120,16 @@ serve(async (req) => {
 
     console.log('Translation:', phrase, '->', translation, `(claude=${!!claudeT}, gemini=${!!geminiT})`);
 
+    // Both models failed (e.g. missing API keys or upstream errors). Surface a
+    // real error instead of silently returning an empty translation that looks
+    // like "no result" to the learner.
+    if (!translation) {
+      return new Response(
+        JSON.stringify({ error: 'translation_unavailable', message: 'Translation service is temporarily unavailable. Please try again.' }),
+        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      );
+    }
+
     return new Response(JSON.stringify({ translation, msa: msa || '' }), {
       status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

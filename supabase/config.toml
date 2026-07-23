@@ -11,21 +11,18 @@ verify_jwt = true
 [functions.customer-portal]
 verify_jwt = true
 
-# Admin / pipeline functions — MUST verify JWT
+# Admin / pipeline functions — MUST verify JWT.
+# Called from authed admin flows (user JWT) and server-to-server from
+# receive-audio / extract-visual-context (service-role key — a valid JWT), so
+# requiring a valid JWT here does not break the pipeline.
 [functions.process-approved-video]
-verify_jwt = false
+verify_jwt = true
 
 [functions.curriculum-chat]
 verify_jwt = true
 
 # User-data functions — require authentication
 [functions.generate-flashcard-image]
-verify_jwt = true
-
-[functions.generate-learning-path]
-verify_jwt = true
-
-[functions.weekly-coach]
 verify_jwt = true
 
 [functions.generate-story]
@@ -44,9 +41,6 @@ verify_jwt = false
 # ─── Public learning content functions ────────────────────────────────────────
 # These serve public learning content or lightweight AI helpers.
 # They rely on the Supabase anon key (apikey header) rather than user JWTs.
-[functions.elevenlabs-transcribe]
-verify_jwt = false
-
 [functions.deepgram-transcribe]
 verify_jwt = false
 
@@ -62,9 +56,6 @@ verify_jwt = false
 [functions.elevenlabs-tts]
 verify_jwt = false
 
-[functions.falcon-translate]
-verify_jwt = false
-
 [functions.classify-tutor-segments]
 verify_jwt = false
 
@@ -74,13 +65,7 @@ verify_jwt = false
 [functions.scrape-x-post]
 verify_jwt = false
 
-[functions.fetch-youtube-captions]
-verify_jwt = false
-
 [functions.how-do-i-say]
-verify_jwt = false
-
-[functions.translate-jais]
 verify_jwt = false
 
 [functions.fanar-transcribe]
@@ -98,16 +83,10 @@ verify_jwt = false
 [functions.translate-phrase]
 verify_jwt = false
 
-[functions.resolve-tiktok-url]
-verify_jwt = false
-
 [functions.discover-trending-videos]
 verify_jwt = false
 
 [functions.conversation-practice]
-verify_jwt = false
-
-[functions.elevenlabs-scribe-token]
 verify_jwt = false
 
 [functions.azure-pronunciation]
@@ -146,9 +125,6 @@ verify_jwt = false
 [functions.soniox-transcribe]
 verify_jwt = false
 
-[functions.azure-stt]
-verify_jwt = false
-
 [functions.munsit-tts]
 verify_jwt = false
 
@@ -161,17 +137,10 @@ verify_jwt = false
 [functions.ai-resegment-transcript]
 verify_jwt = true
 
-
-[functions.coverage-planner]
-verify_jwt = true
-
 [functions.extract-concepts]
 verify_jwt = true
 
 [functions.extract-grammar-points]
-verify_jwt = true
-
-[functions.update-mastery]
 verify_jwt = true
 
 [functions.free-chat]

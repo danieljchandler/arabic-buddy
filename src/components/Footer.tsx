@@ -16,9 +16,8 @@ export function Footer() {
           <Link to="/privacy" className="hover:text-foreground hover:underline transition-colors">
             Privacy
           </Link>
-          {/* TODO(rebrand-email): replace with new Hakiya contact email when domain is set up. */}
           <a
-            href="mailto:hello@lahja-arabic.com"
+            href="mailto:hello@hakiya.app"
             className="hover:text-foreground hover:underline transition-colors"
           >
             Contact

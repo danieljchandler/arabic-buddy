@@ -7,6 +7,7 @@ import {
   useReviewStats,
 } from "@/hooks/useReview";
 import { useReviewQueue } from "@/hooks/useReviewQueue";
+import { useUserVocabularyDueCount } from "@/hooks/useUserVocabulary";
 import { PronunciationButton } from "@/components/review/PronunciationButton";
 import { RatingButtons } from "@/components/review/RatingButtons";
 import { HomeButton } from "@/components/HomeButton";
@@ -35,6 +36,7 @@ const Review = () => {
   const { data: dueWords, isLoading: wordsLoading, refetch } = useDueWords(mixAll);
   const { data: stats } = useReviewStats(mixAll);
   const { enqueue, pendingCount, isFlushing, isOnline } = useReviewQueue();
+  const { data: myWordsDue } = useUserVocabularyDueCount(mixAll);
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [sessionCount, setSessionCount] = useState(0);
@@ -189,7 +191,13 @@ const Review = () => {
             </div>
           )}
 
-          <Button onClick={() => navigate("/")}>Back to Topics</Button>
+          {myWordsDue && myWordsDue.dueCount > 0 ? (
+            <Button onClick={() => navigate("/review/my-words")}>
+              Continue with {myWordsDue.dueCount} My Words card{myWordsDue.dueCount === 1 ? "" : "s"}
+            </Button>
+          ) : (
+            <Button onClick={() => navigate("/")}>Back to Topics</Button>
+          )}
         </div>
       </AppShell>
     );

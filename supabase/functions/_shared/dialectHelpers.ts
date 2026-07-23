@@ -339,3 +339,19 @@ const TRANSLITERATION_RULES: Record<string, string> = {
 export function getDialectTransliterationRules(dialect: Dialect): string {
   return TRANSLITERATION_RULES[dialect] ?? TRANSLITERATION_RULES.Gulf;
 }
+
+// =================== Tashkeel mandate (shared prompt block) ===================
+
+/**
+ * Reusable "fully vocalize every Arabic line" instruction block, proven in
+ * generate-listen-script. Un-vocalized Arabic causes mispronunciation when
+ * read aloud by TTS, so any generator whose output gets voiced (or shown as
+ * a reading target) should include this in its system prompt.
+ */
+export function getTashkeelMandate(): string {
+  return `TASHKEEL (CRITICAL FOR TTS PRONUNCIATION):
+- Every Arabic sentence/line MUST be FULLY VOCALIZED with tashkeel (fatha, kasra, damma, sukun, shadda, tanween) on every consonant where a vowel applies.
+- Example: write "مَرْحَبًا يَا جَمَاعَة" — NOT "مرحبا يا جماعة".
+- This is mandatory so the TTS engine pronounces dialect words correctly. Missing tashkeel = wrong pronunciation.
+- Apply tashkeel to the dialect spellings (do NOT force MSA forms just to add diacritics).`;
+}

@@ -85,7 +85,7 @@ const Privacy = () => {
           <li>Ask what data we hold about you.</li>
         </ul>
         <p>
-          Email <a href="mailto:hello@lahja-arabic.com">hello@lahja-arabic.com</a> for
+          Email <a href="mailto:hello@hakiya.app">hello@hakiya.app</a> for
           any of the above. We'll respond within 30 days.
         </p>
 
@@ -110,7 +110,7 @@ const Privacy = () => {
 
         <h2>Contact</h2>
         <p>
-          Privacy questions: <a href="mailto:hello@lahja-arabic.com">hello@lahja-arabic.com</a>.
+          Privacy questions: <a href="mailto:hello@hakiya.app">hello@hakiya.app</a>.
         </p>
       </article>
       <Footer />

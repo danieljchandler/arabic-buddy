@@ -64,23 +64,25 @@ const TodayPage = () => {
   }, []);
 
   const xpToday = useMemo(() => {
-    // Approximate "today's XP" from weekly XP; if unavailable fall back to 0.
-    // Backend tracks daily totals via gamification.add_xp; we don't have a
-    // dedicated daily field on UserXP, so this is best-effort. We use the
-    // weekly value capped at goal as a visible signal until a dedicated
-    // daily field is wired.
-    const weekly = xp?.xp_this_week ?? 0;
-    return Math.min(weekly, goal);
-  }, [xp?.xp_this_week, goal]);
+    // Real per-day total from user_xp.xp_today (reset server-side in
+    // award_xp() whenever xp_today_date rolls to a new UTC day). Guard
+    // against stale cached data spanning a day boundary.
+    const todayUtc = new Date().toISOString().slice(0, 10);
+    if (!xp || xp.xp_today_date !== todayUtc) return 0;
+    return xp.xp_today;
+  }, [xp]);
 
   const visibleTasks = tasks.filter((t) => !t.hidden);
   const completed = visibleTasks.filter((t) => t.done).length;
   const total = visibleTasks.length;
 
   const handleTaskClick = (taskId: string, route: string) => {
-    // Mark non-SRS one-shot tasks as completed when the user starts them.
-    // SRS tasks (flashcards, set-phrases) auto-complete when due count hits 0.
-    if (["daily-challenge", "reading", "listening", "souq"].includes(taskId)) {
+    // daily-challenge, reading, and souq mark themselves complete on their own
+    // real completion event (finishing the challenge/quiz/article), not here.
+    // "listening" has no single completion event to hook (it routes to the
+    // Discover browse list, not one specific clip), so it still completes on
+    // click as an acknowledged limitation.
+    if (taskId === "listening") {
       markTaskCompletedToday(taskId);
     }
     navigate(route);

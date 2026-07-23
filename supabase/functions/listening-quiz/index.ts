@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { getDialectLabel, type Dialect } from "../_shared/dialectHelpers.ts";
+import { getDialectLabel, getTashkeelMandate, type Dialect } from "../_shared/dialectHelpers.ts";
 import { askBrain } from "../_shared/aiBrain.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
 
@@ -45,6 +45,10 @@ serve(async (req) => {
 - Generate exercises using these vocabulary words the student knows: ${vocabContext}
 - Student level: ${difficulty}. ${levelGuidance}
 - All audioText fields MUST be authentic ${dialectLabel}, never MSA.
+
+${getTashkeelMandate()}
+- Every audioText field must be fully vocalized — these are read aloud by text-to-speech and unvocalized text causes mispronunciation.
+
 - Return the structured questions via the provided tool only.`;
 
     let userPrompt = "";

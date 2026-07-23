@@ -92,8 +92,7 @@ const Terms = () => {
 
         <h2>Contact</h2>
         <p>
-          {/* TODO(rebrand-email): swap to new Hakiya contact email when domain is set up. */}
-          Questions? Email <a href="mailto:hello@lahja-arabic.com">hello@lahja-arabic.com</a>.
+          Questions? Email <a href="mailto:hello@hakiya.app">hello@hakiya.app</a>.
         </p>
       </article>
       <Footer />

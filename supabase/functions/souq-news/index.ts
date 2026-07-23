@@ -1,4 +1,4 @@
-import { getDialectIdentity, getDialectVocabRules, type Dialect } from "../_shared/dialectHelpers.ts";
+import { getDialectIdentity, getDialectVocabRules, getTashkeelMandate, type Dialect } from "../_shared/dialectHelpers.ts";
 import { emitMetric } from "../_shared/featureMetrics.ts";
 
 const FEATURE = "souq-news";
@@ -147,9 +147,12 @@ You are retelling news stories to a friend at the souq (market). Your tone is:
 - You NEVER use Modern Standard Arabic (فصحى) — everything is in dialect
 - Keep it concise: 3-5 sentences per story
 
+${getTashkeelMandate()}
+- title_dialect and body_dialect (and each sentence in "sentences") must be fully vocalized.
+
 For each article, return a JSON object with:
-- "title_dialect": A catchy dialect headline (Arabic)
-- "body_dialect": The story retold in dialect (Arabic, 3-5 sentences) — this is the full body as one string
+- "title_dialect": A catchy dialect headline (Arabic), fully vocalized
+- "body_dialect": The story retold in dialect (Arabic, 3-5 sentences, fully vocalized) — this is the full body as one string
 - "sentences": Array of {"arabic": "...", "english": "..."} — split body_dialect into its individual sentences and provide a faithful English translation for EACH sentence. The arabic values concatenated must equal body_dialect.
 - "title_english": English translation of the headline
 - "summary_english": Brief English summary (1-2 sentences)

@@ -15,6 +15,7 @@ import { useUserLevel } from "@/hooks/useUserLevel";
 import { InfoHint } from "@/components/InfoHint";
 import { PAGE_HINTS } from "@/lib/pageHints";
 import { toast } from "sonner";
+import { markTaskCompletedToday } from "@/lib/todayCompletion";
 import { cn } from "@/lib/utils";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -246,6 +247,7 @@ const DailyChallenge = () => {
     } else {
       // Complete
       setSessionComplete(true);
+      markTaskCompletedToday("daily-challenge");
       const totalXP = Math.round(score * baseXP * streakMultiplier);
 
       if (isAuthenticated && user) {
@@ -442,6 +444,7 @@ const DailyChallenge = () => {
                             setMatchSelected(null);
                             if (newMatched.size === challenge.questions.length) {
                               setSessionComplete(true);
+                              markTaskCompletedToday("daily-challenge");
                               const totalXP = Math.round(newMatched.size * baseXP * streakMultiplier);
                               if (isAuthenticated && user) {
                                 addXP.mutate({ amount: totalXP, reason: "daily_challenge" });
@@ -490,6 +493,7 @@ const DailyChallenge = () => {
                             setMatchSelected(null);
                             if (newMatched.size === challenge.questions.length) {
                               setSessionComplete(true);
+                              markTaskCompletedToday("daily-challenge");
                               const totalXP = Math.round(newMatched.size * baseXP * streakMultiplier);
                               if (isAuthenticated && user) {
                                 addXP.mutate({ amount: totalXP, reason: "daily_challenge" });

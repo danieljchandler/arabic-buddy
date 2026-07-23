@@ -5,7 +5,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { askBrain } from "../_shared/aiBrain.ts";
-import type { Dialect } from "../_shared/dialectHelpers.ts";
+import { getTashkeelMandate, type Dialect } from "../_shared/dialectHelpers.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
 
 const corsHeaders = {
@@ -23,6 +23,33 @@ interface VocabRow {
   stage: string;
   interval_days: number;
 }
+
+// Cold-start fallback: a small curated starter set per dialect so a brand-new
+// user (with fewer than 3 saved words) still gets a story on day one instead
+// of a "not enough vocab" wall.
+const STARTER_WORDS: Record<string, VocabRow[]> = {
+  Gulf: [
+    { word_arabic: "بيت", word_english: "house", stage: "NEW", interval_days: 0 },
+    { word_arabic: "أكل", word_english: "food", stage: "NEW", interval_days: 0 },
+    { word_arabic: "صديق", word_english: "friend", stage: "NEW", interval_days: 0 },
+    { word_arabic: "شغل", word_english: "work", stage: "NEW", interval_days: 0 },
+    { word_arabic: "زين", word_english: "good", stage: "NEW", interval_days: 0 },
+  ],
+  Egyptian: [
+    { word_arabic: "بيت", word_english: "house", stage: "NEW", interval_days: 0 },
+    { word_arabic: "أكل", word_english: "food", stage: "NEW", interval_days: 0 },
+    { word_arabic: "صاحب", word_english: "friend", stage: "NEW", interval_days: 0 },
+    { word_arabic: "شغل", word_english: "work", stage: "NEW", interval_days: 0 },
+    { word_arabic: "كويس", word_english: "good", stage: "NEW", interval_days: 0 },
+  ],
+  Yemeni: [
+    { word_arabic: "بيت", word_english: "house", stage: "NEW", interval_days: 0 },
+    { word_arabic: "أكل", word_english: "food", stage: "NEW", interval_days: 0 },
+    { word_arabic: "صاحب", word_english: "friend", stage: "NEW", interval_days: 0 },
+    { word_arabic: "شغل", word_english: "work", stage: "NEW", interval_days: 0 },
+    { word_arabic: "زين", word_english: "good", stage: "NEW", interval_days: 0 },
+  ],
+};
 
 function todayUtc(): string {
   const d = new Date();
@@ -100,16 +127,14 @@ Deno.serve(async (req) => {
       .limit(5);
 
     const mature = (matureRows ?? []) as VocabRow[];
-    const fresh = (newRows ?? []) as VocabRow[];
+    let fresh = (newRows ?? []) as VocabRow[];
 
+    // Cold start: pad with a small built-in starter set so a brand-new user
+    // still gets a story instead of hitting a wall on day one.
     if (mature.length + fresh.length < 3) {
-      return new Response(
-        JSON.stringify({
-          error: "not_enough_vocab",
-          message: "Add a few more words to your deck to unlock your daily story.",
-        }),
-        { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+      const starters = STARTER_WORDS[dialect] ?? STARTER_WORDS.Gulf;
+      const known = new Set([...mature, ...fresh].map((w) => w.word_arabic));
+      fresh = [...fresh, ...starters.filter((w) => !known.has(w.word_arabic))];
     }
 
     const matureList = mature.map((w) => `${w.word_arabic} (${w.word_english})`).join(", ");
@@ -120,6 +145,10 @@ Deno.serve(async (req) => {
 Write a vivid, self-contained micro-story of about 180-220 Arabic words.
 Weave in as many of the learner's MATURE words as feels natural, and gently introduce each of the NEW words at least once (use them in context so meaning is inferable).
 Reading level: late beginner to intermediate. Short sentences, concrete imagery, one clear arc.
+
+${getTashkeelMandate()}
+- body_arabic must be fully vocalized — it is read aloud by text-to-speech.
+
 Return ONLY the structured fields via the provided tool.`;
 
     const userPrompt = `MATURE words (review-anchored): ${matureList || "(none yet)"}\nNEW words to gently introduce: ${newList || "(none yet)"}`;

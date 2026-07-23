@@ -21,6 +21,7 @@ import { useBridgeMode } from "@/hooks/useBridgeMode";
 interface WordEnrichment {
   definition?: string;
   root?: string;
+  transliteration?: string;
   otherUses?: { arabic: string; english: string }[];
 }
 
@@ -54,6 +55,7 @@ const enrichWord = async (
     return {
       definition: data?.definition || undefined,
       root: data?.root || undefined,
+      transliteration: data?.transliteration || undefined,
       otherUses: Array.isArray(data?.uses) ? data.uses : [],
     };
   } catch {
@@ -163,7 +165,7 @@ export const TappableArabicText = ({
     }
   };
 
-  const saveAsFlashcard = (arabic: string, english: string, root?: string) => {
+  const saveAsFlashcard = (arabic: string, english: string, root?: string, transliteration?: string) => {
     if (!user) {
       toast.error("Sign in to save flashcards");
       return;
@@ -173,6 +175,7 @@ export const TappableArabicText = ({
         word_arabic: arabic,
         word_english: english,
         root: root || undefined,
+        transliteration: transliteration || undefined,
         source,
         sentence_text: sentenceContext?.arabic || text || undefined,
         sentence_english: sentenceContext?.english || undefined,
@@ -240,7 +243,7 @@ export const TappableArabicText = ({
       toast.info("Translate first, then save");
       return;
     }
-    saveAsFlashcard(phraseText, english, phraseData?.enrichment?.root);
+    saveAsFlashcard(phraseText, english, phraseData?.enrichment?.root, phraseData?.enrichment?.transliteration);
   };
 
   // ── Long-press handlers (mobile-first) ────────────────────────────
@@ -469,7 +472,7 @@ export const TappableArabicText = ({
                         className="w-full text-xs mt-1"
                         onClick={(e) => {
                           e.stopPropagation();
-                          saveAsFlashcard(cleanWord, wordData.translation, wordData.enrichment?.root);
+                          saveAsFlashcard(cleanWord, wordData.translation, wordData.enrichment?.root, wordData.enrichment?.transliteration);
                         }}
                       >
                         <BookmarkPlus className="h-3 w-3 mr-1" />

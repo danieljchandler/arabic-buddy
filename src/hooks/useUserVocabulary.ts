@@ -113,10 +113,11 @@ export const useAddUserVocabulary = () => {
   const { activeDialect } = useDialect();
 
   return useMutation({
-    mutationFn: async (word: { 
-      word_arabic: string; 
-      word_english: string; 
+    mutationFn: async (word: {
+      word_arabic: string;
+      word_english: string;
       root?: string;
+      transliteration?: string;
       source?: string;
       sentence_text?: string;
       sentence_english?: string;
@@ -133,6 +134,7 @@ export const useAddUserVocabulary = () => {
           word_arabic: word.word_arabic,
           word_english: word.word_english,
           root: word.root || null,
+          transliteration: word.transliteration || null,
           source: word.source || "transcription",
           sentence_text: word.sentence_text || null,
           sentence_english: word.sentence_english || null,

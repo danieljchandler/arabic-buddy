@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useReviewStats } from "@/hooks/useReview";
 import { useUserVocabularyDueCount } from "@/hooks/useUserVocabulary";
 import { useSRSStats } from "@/hooks/useSRSStats";
-import { useDiscoverVideos } from "@/hooks/useDiscoverVideos";
+import { useDiscoverVideos, difficultyWindow } from "@/hooks/useDiscoverVideos";
 import { Button } from "@/components/design-system";
 import { Settings, Brain, LogIn, LogOut, Mic, BookOpen, Sparkles, GraduationCap, Laugh, Play, ChevronRight, Twitter, MessageCircleQuestion, Compass, MessageSquare, MessageCircle, Globe2, Headphones, Trophy, FileText, Flame, BarChart3, PenTool, Gamepad2, Users, Swords, Newspaper, BookMarked, Image as ImageIcon, Languages } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -88,7 +88,14 @@ const Index = () => {
   const { data: myWordsStats } = useUserVocabularyDueCount();
   const { data: stats } = useReviewStats();
   const { data: srsStats } = useSRSStats();
-  const { data: discoverVideos } = useDiscoverVideos({ dialect: activeDialect });
+  // Dialect-aware placement level (see the profile fetch below) — feeds the
+  // Discover feed's difficulty filter so a beginner isn't shown the same feed
+  // as a C1 learner.
+  const [placementLevel, setPlacementLevel] = useState<string | null>(null);
+  const { data: discoverVideos } = useDiscoverVideos({
+    dialect: activeDialect,
+    difficulty: difficultyWindow(placementLevel) ?? undefined,
+  });
   const { hasAccess: hasBibleAccess } = useBibleAccess();
 
   const { state: homeLayout } = useHomeLayout();
@@ -98,7 +105,6 @@ const Index = () => {
     : null;
   const { isAdmin } = useAdminAuth();
   const [previewIndex, setPreviewIndex] = useState(0);
-  const [placementLevel, setPlacementLevel] = useState<string | null>(null);
   const previewVideos = discoverVideos?.slice(0, 5) ?? [];
   const previewVideo = previewVideos[previewIndex];
 
@@ -152,7 +158,7 @@ const Index = () => {
               <span className="text-sm text-muted-foreground hidden sm:inline">
                 {user?.email?.split("@")[0]}
               </span>
-              <Button variant="ghost" size="icon" onClick={handleSignOut} className="text-muted-foreground hover:text-foreground" title="Sign out">
+              <Button variant="ghost" size="icon" onClick={handleSignOut} className="text-muted-foreground hover:text-foreground" title="Sign out" aria-label="Sign out">
                 <LogOut className="h-4 w-4" />
               </Button>
             </div>
@@ -166,15 +172,15 @@ const Index = () => {
           {isAuthenticated && (
             <>
               <NotificationBell />
-              <Button variant="ghost" size="icon" onClick={() => navigate("/profile")} className="text-muted-foreground hover:text-foreground" title="Profile">
+              <Button variant="ghost" size="icon" onClick={() => navigate("/profile")} className="text-muted-foreground hover:text-foreground" title="Profile" aria-label="Profile">
                 <Users className="h-4 w-4" />
               </Button>
-              <Button variant="ghost" size="icon" onClick={() => navigate("/settings")} className="text-muted-foreground hover:text-foreground" title="Settings">
+              <Button variant="ghost" size="icon" onClick={() => navigate("/settings")} className="text-muted-foreground hover:text-foreground" title="Settings" aria-label="Settings">
                 <Settings className="h-4 w-4" />
               </Button>
             </>
           )}
-          <Button variant="ghost" size="icon" onClick={() => navigate("/admin")} className="text-muted-foreground/50 hover:text-muted-foreground" title="Admin">
+          <Button variant="ghost" size="icon" onClick={() => navigate("/admin")} className="text-muted-foreground/50 hover:text-muted-foreground" title="Admin" aria-label="Admin">
             <GraduationCap className="h-4 w-4" />
           </Button>
         </div>

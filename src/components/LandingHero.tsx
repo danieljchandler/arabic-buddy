@@ -41,7 +41,7 @@ export function LandingHero() {
           className="flex-1 h-12 text-base"
           onClick={() => navigate("/auth")}
         >
-          Get started — it's free
+          Join the beta — it's free
           <ArrowRight className="h-4 w-4 ml-2" />
         </Button>
         <Button
@@ -63,7 +63,7 @@ export function LandingHero() {
         <ValueCard
           icon={<Brain className="h-5 w-5" />}
           title="Smart spaced repetition"
-          body="Words come back exactly when you're about to forget them. Built on the SM-2 algorithm."
+          body="Words come back exactly when you're about to forget them. Built on FSRS, the modern successor to SM-2."
         />
         <ValueCard
           icon={<PlayCircle className="h-5 w-5" />}

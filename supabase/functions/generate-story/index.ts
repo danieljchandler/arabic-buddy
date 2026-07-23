@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { askBrain, BrainHttpError } from "../_shared/aiBrain.ts";
-import type { Dialect } from "../_shared/dialectHelpers.ts";
+import { getTashkeelMandate, getDialectTransliterationRules, type Dialect } from "../_shared/dialectHelpers.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
 
 const corsHeaders = {
@@ -54,6 +54,12 @@ Difficulty rules at ${targetDifficulty} level:
 
 ${guidance ? `Additional guidance from the author:\n${guidance}\n` : ""}
 
+${getTashkeelMandate()}
+- narrative_arabic, choices' text_arabic, and ending_message_arabic must all be fully vocalized.
+
+${getDialectTransliterationRules(targetDialect)}
+- Provide a transliteration for narrative_arabic on every scene.
+
 You MUST call the generate_story function. No text outside the function call.`;
 
     const userPrompt = `Create an interactive ${targetDialect} Arabic story about: ${prompt}
@@ -74,7 +80,8 @@ The story should have ${numScenes} scenes. Make the narrative engaging and educa
             type: "object",
             properties: {
               scene_order: { type: "number", description: "Scene index starting from 0" },
-              narrative_arabic: { type: "string", description: `Scene narrative in ${targetDialect} Arabic (2-4 sentences)` },
+              narrative_arabic: { type: "string", description: `Scene narrative in ${targetDialect} Arabic (2-4 sentences), FULLY VOCALIZED with tashkeel` },
+              narrative_transliteration: { type: "string", description: "Latin-letter transliteration of narrative_arabic" },
               narrative_english: { type: "string", description: "English translation (2-4 sentences)" },
               vocabulary: {
                 type: "array",
@@ -110,6 +117,7 @@ The story should have ${numScenes} scenes. Make the narrative engaging and educa
             required: [
               "scene_order",
               "narrative_arabic",
+              "narrative_transliteration",
               "narrative_english",
               "vocabulary",
               "is_ending",

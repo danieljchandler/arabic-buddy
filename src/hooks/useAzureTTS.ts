@@ -40,17 +40,32 @@ interface UseAzureTTSResult {
 }
 
 // Dialects routed through Munsit (Arabic-native voice) instead of Azure.
-// Yemeni is included because Munsit's Khaleeji voice is closer to Yemeni
-// pronunciation than Azure's MSA voices.
 const MUNSIT_DIALECT_LABELS = new Set([
   "gulf", "khaleeji",
   "saudi", "kuwaiti", "uae", "emirati", "bahraini", "qatari", "omani",
-  "yemeni", "yemen",
 ]);
 
 function isMunsitDialect(dialect: DialectHint): boolean {
   if (!dialect) return false;
   return MUNSIT_DIALECT_LABELS.has(String(dialect).toLowerCase());
+}
+
+// Default Azure voice per non-Gulf dialect, used whenever a caller doesn't
+// pass an explicit `voice`. Without this, callers that omit `voice` (most of
+// them — VocabularyCard, QuizCard, ReviewImageQuizCard, etc.) silently fell
+// back to azure-tts's hardcoded Gulf default voice for every dialect.
+const DEFAULT_AZURE_VOICE: Record<string, string> = {
+  egyptian: "ar-EG-ShakirNeural",
+  egypt: "ar-EG-ShakirNeural",
+  // Real native Yemeni neural voices — more authentic than routing Yemeni
+  // through Munsit's Gulf/Khaleeji voice.
+  yemeni: "ar-YE-MaryamNeural",
+  yemen: "ar-YE-MaryamNeural",
+};
+
+function defaultAzureVoiceFor(dialect: DialectHint): string | undefined {
+  if (!dialect) return undefined;
+  return DEFAULT_AZURE_VOICE[String(dialect).toLowerCase()];
 }
 
 // Module-level serial queue for Munsit requests. Munsit's plan caps concurrent
@@ -87,6 +102,9 @@ export function useAzureTTS({ text, skip = false, dialect, voice, persist }: Use
   // so all Gulf playback automatically routes through Munsit.
   const effectiveDialect = dialect ?? activeDialect;
   const useMunsit = isMunsitDialect(effectiveDialect);
+  // Explicit `voice` prop wins; otherwise auto-select a dialect-correct Azure
+  // voice so non-Gulf playback isn't silently voiced in azure-tts's Gulf default.
+  const effectiveVoice = voice ?? defaultAzureVoiceFor(effectiveDialect);
 
   const revokePreviousUrl = useCallback(() => {
     if (blobUrlRef.current) {
@@ -114,7 +132,7 @@ export function useAzureTTS({ text, skip = false, dialect, voice, persist }: Use
           apikey: anonKey,
         },
         body: JSON.stringify(
-          fnName === "azure-tts" && voice ? { text, voice } : { text },
+          fnName === "azure-tts" && effectiveVoice ? { text, voice: effectiveVoice } : { text },
         ),
       });
 
@@ -163,7 +181,7 @@ export function useAzureTTS({ text, skip = false, dialect, voice, persist }: Use
         setIsLoading(false);
       }
     }
-  }, [text, useMunsit, voice, revokePreviousUrl]);
+  }, [text, useMunsit, effectiveVoice, revokePreviousUrl]);
 
   useEffect(() => {
     if (skip || !text) {
@@ -179,7 +197,7 @@ export function useAzureTTS({ text, skip = false, dialect, voice, persist }: Use
       requestIdRef.current++;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [text, skip, useMunsit, voice]);
+  }, [text, skip, useMunsit, effectiveVoice]);
 
   useEffect(() => {
     return () => {

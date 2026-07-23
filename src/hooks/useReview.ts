@@ -4,6 +4,8 @@ import { useAuth } from './useAuth';
 import { calculateNextReview, Rating } from '@/lib/spacedRepetition';
 import { useAddXP, useIncrementReviews, useCheckAchievements } from './useGamification';
 import { useDialect } from '@/contexts/DialectContext';
+import { useNewCardCap } from './useNewCardCap';
+import { useRemainingNewCardBudget } from './useNewCardBudget';
 
 interface WordReview {
   id: string;
@@ -40,9 +42,11 @@ interface WordWithReview extends VocabularyWord {
 export const useDueWords = (mixAll = false) => {
   const { user } = useAuth();
   const { activeDialect } = useDialect();
+  const { cap: newCap } = useNewCardCap();
+  const { remaining: remainingNewBudget } = useRemainingNewCardBudget(newCap);
 
   return useQuery({
-    queryKey: ['due-words', user?.id, mixAll ? 'all' : activeDialect],
+    queryKey: ['due-words', user?.id, mixAll ? 'all' : activeDialect, remainingNewBudget],
     queryFn: async (): Promise<WordWithReview[]> => {
       if (!user) return [];
 
@@ -114,7 +118,16 @@ export const useDueWords = (mixAll = false) => {
           return new Date(a.review.next_review_at).getTime() - new Date(b.review.next_review_at).getTime();
         });
 
-      return dueWords || [];
+      if (!dueWords) return [];
+
+      // Cap new (never-reviewed) words to the remaining daily new-card
+      // budget — shared with the personal-vocab review path via
+      // daily_new_card_counts, so this is a real daily limit, not a
+      // per-page-load one.
+      const newWords = dueWords.filter((w) => !w.review);
+      const reviewWords = dueWords.filter((w) => !!w.review);
+      const cappedNew = newWords.slice(0, remainingNewBudget);
+      return [...cappedNew, ...reviewWords];
     },
     enabled: !!user,
   });
@@ -202,6 +215,11 @@ export async function submitRatingToServer(
       .from('word_reviews')
       .insert(reviewData);
     if (error) throw error;
+
+    // First-ever rating of this word: claim daily new-card budget (shared
+    // with the personal-vocab review path). Best-effort — never blocks the
+    // review submission.
+    (supabase.rpc as any)('increment_new_card_count', { _amount: 1 }).catch(() => {});
   }
 
   return { result, rating };

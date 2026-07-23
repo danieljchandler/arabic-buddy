@@ -178,7 +178,7 @@ describe("QuizCard audio", () => {
     expect(onAnswer).toHaveBeenCalledWith(true);
   });
 
-  it("calls onAnswer(false) after a wrong option is selected", async () => {
+  it("waits for Continue after a wrong answer, then calls onAnswer(false)", async () => {
     vi.useFakeTimers();
     const onAnswer = vi.fn();
 
@@ -192,9 +192,14 @@ describe("QuizCard audio", () => {
 
     fireEvent.click(screen.getByText("cat"));
 
+    // Wrong answers no longer auto-advance — the learner must read the
+    // correction and tap Continue.
     await act(async () => {
       vi.advanceTimersByTime(1500);
     });
+    expect(onAnswer).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByText("Continue"));
 
     expect(onAnswer).toHaveBeenCalledWith(false);
   });

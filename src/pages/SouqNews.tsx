@@ -12,6 +12,7 @@ import { ArticleSentences } from "@/components/souq-news/ArticleSentences";
 import { MarkUnknownsProvider } from "@/contexts/MarkUnknownsContext";
 import { MarkUnknownsToggle } from "@/components/shared/MarkUnknownsToggle";
 import { SaveUnknownsBar } from "@/components/shared/SaveUnknownsBar";
+import { markTaskCompletedToday } from "@/lib/todayCompletion";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import {
@@ -81,7 +82,13 @@ const SouqNews = () => {
   const toggleCard = (i: number) => {
     setExpandedCards((prev) => {
       const next = new Set(prev);
-      next.has(i) ? next.delete(i) : next.add(i);
+      const opening = !next.has(i);
+      if (opening) {
+        next.add(i);
+        markTaskCompletedToday("souq");
+      } else {
+        next.delete(i);
+      }
       return next;
     });
   };

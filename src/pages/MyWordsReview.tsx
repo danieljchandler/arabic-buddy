@@ -728,6 +728,18 @@ const MyWordsReview = () => {
               </p>
             )}
 
+            {/* Ask AI about this word */}
+            {(!isProduction || showAnswer) && currentArabic && (
+              <div className="flex justify-center mb-4 -mt-2">
+                <AskAISentence
+                  arabic={currentArabic}
+                  english={currentWord.word_english}
+                  variant="chip"
+                />
+              </div>
+            )}
+
+
             {/* Audio buttons */}
             <div className="flex items-center justify-center gap-2 flex-wrap mb-8">
               <Button

@@ -1568,6 +1568,17 @@ const DiscoverVideo = () => {
                       </p>
                     </>
                   )}
+                  {showLiteral && displayLine.literal && (
+                    <p
+                      className="text-xs italic text-muted-foreground/80 leading-relaxed"
+                      style={{ fontFamily: "'Open Sans', sans-serif" }}
+                    >
+                      <span className="not-italic uppercase tracking-wide text-[9px] mr-1.5 text-muted-foreground/60">
+                        Literal
+                      </span>
+                      {displayLine.literal}
+                    </p>
+                  )}
                   {displayLine.arabic && (
                     <div className="flex flex-wrap justify-center gap-2 mt-2">
                       <AskAISentence

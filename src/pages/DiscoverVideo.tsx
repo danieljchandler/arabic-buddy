@@ -226,6 +226,7 @@ const TranscriptRow = ({
   line,
   isActive,
   showTranslation,
+  showLiteral,
   onSave,
   savedWords,
   lineRef,
@@ -239,6 +240,7 @@ const TranscriptRow = ({
   line: TranscriptLine;
   isActive: boolean;
   showTranslation: boolean;
+  showLiteral?: boolean;
   onSave?: (word: VocabItem) => void;
   savedWords?: Set<string>;
   lineRef?: React.Ref<HTMLDivElement>;
@@ -340,7 +342,7 @@ const TranscriptRow = ({
       >
         <TranslationPair
           variant="compact"
-          literal={line.literal}
+          literal={showLiteral ? line.literal : undefined}
           natural={line.translation}
         />
       </div>
@@ -590,6 +592,7 @@ const DiscoverVideo = () => {
   const [currentTimeMs, setCurrentTimeMs] = useState(0);
   const [savedWords, setSavedWords] = useState<Set<string>>(new Set());
   const [showTranslations, setShowTranslations] = useState(false);
+  const [showLiteral, setShowLiteral] = useState(false);
   const [playbackMode, setPlaybackMode] = useState<"continuous" | "line">("continuous");
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const playbackSpeedRef = useRef(playbackSpeed);
@@ -1565,6 +1568,17 @@ const DiscoverVideo = () => {
                       </p>
                     </>
                   )}
+                  {showLiteral && displayLine.literal && (
+                    <p
+                      className="text-xs italic text-muted-foreground/80 leading-relaxed"
+                      style={{ fontFamily: "'Open Sans', sans-serif" }}
+                    >
+                      <span className="not-italic uppercase tracking-wide text-[9px] mr-1.5 text-muted-foreground/60">
+                        Literal
+                      </span>
+                      {displayLine.literal}
+                    </p>
+                  )}
                   {displayLine.arabic && (
                     <div className="flex flex-wrap justify-center gap-2 mt-2">
                       <AskAISentence
@@ -1682,6 +1696,11 @@ const DiscoverVideo = () => {
             checked={showTranslations}
             onCheckedChange={setShowTranslations}
           />
+          <span className="text-xs text-muted-foreground ml-2">Literal</span>
+          <Switch
+            checked={showLiteral}
+            onCheckedChange={setShowLiteral}
+          />
         </div>
       </div>
 
@@ -1714,6 +1733,7 @@ const DiscoverVideo = () => {
               line={line}
               isActive={activeLineId === line.id}
               showTranslation={showTranslations}
+              showLiteral={showLiteral}
               onSave={isAuthenticated ? handleSaveToMyWords : undefined}
               savedWords={savedWords}
               lineRef={(el) => {

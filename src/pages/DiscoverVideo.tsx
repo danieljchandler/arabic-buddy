@@ -226,6 +226,7 @@ const TranscriptRow = ({
   line,
   isActive,
   showTranslation,
+  showLiteral,
   onSave,
   savedWords,
   lineRef,
@@ -239,6 +240,7 @@ const TranscriptRow = ({
   line: TranscriptLine;
   isActive: boolean;
   showTranslation: boolean;
+  showLiteral?: boolean;
   onSave?: (word: VocabItem) => void;
   savedWords?: Set<string>;
   lineRef?: React.Ref<HTMLDivElement>;

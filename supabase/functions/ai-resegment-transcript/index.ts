@@ -23,6 +23,7 @@ interface Segment {
   end: number;
   text: string;
   translation: string;
+  literal?: string;
   confidence: number;
   words: Word[];
   speaker?: string;
@@ -33,6 +34,7 @@ interface AILine {
   end: number;
   text: string;
   translation: string;
+  literal?: string;
   speaker?: string;
   wordIndices: number[];
 }
@@ -83,6 +85,9 @@ RULES (in priority order):
 5. Do NOT translate to MSA. Keep the exact dialectal forms the speaker used.
 6. Provide a faithful, casual English translation for each line — natural spoken English,
    not literal word-for-word.
+6b. ALSO provide a "literal" word-for-word English gloss for each line that preserves the
+   Arabic word order (e.g. "what news-your?" for "شخبارك؟"). It may sound stiff or
+   ungrammatical — that is expected; it shows learners how the sentence is built.
 7. The line's start = first word's start, end = last word's end.
 
 Return your answer by calling the resegment_transcript tool with the structured output.`;
@@ -108,6 +113,11 @@ const TOOL_SCHEMA = {
               translation: {
                 type: "string",
                 description: "Natural casual English translation of the line.",
+              },
+              literal: {
+                type: "string",
+                description:
+                  "Word-for-word English gloss of the line preserving Arabic word order; may sound stiff; reveals sentence structure.",
               },
               speaker: {
                 type: "string",
@@ -268,6 +278,7 @@ function rebuildSegments(
       end: Number(end.toFixed(3)),
       text: line.text?.trim() || words.map((w) => w.word).join(" "),
       translation: line.translation?.trim() ?? "",
+      ...(line.literal?.trim() ? { literal: line.literal.trim() } : {}),
       confidence: Number(avgConf.toFixed(3)),
       words,
       ...(line.speaker ? { speaker: line.speaker } : {}),

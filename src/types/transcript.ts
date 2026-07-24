@@ -10,6 +10,7 @@
    id: string;
    arabic: string;          // full sentence as spoken
    translation: string;     // English sentence translation
+   literal?: string;        // word-for-word English gloss of the whole line
    tokens: WordToken[];     // clickable words
    startMs?: number;        // for future audio sync
    endMs?: number;
@@ -76,6 +77,7 @@ export type Segment = {
   end: number;         // seconds
   text: string;        // Arabic
   translation: string; // English
+  literal?: string;    // word-for-word English gloss
   confidence: number;  // average of word confidences
   words: Word[];
   speaker?: string;

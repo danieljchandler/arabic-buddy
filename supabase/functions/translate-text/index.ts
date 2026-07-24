@@ -5,6 +5,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { askBrain } from "../_shared/aiBrain.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
+import { LITERAL_GLOSS_RULE, literalSchema } from "../_shared/literalGloss.ts";
 import type { Dialect } from "../_shared/dialectHelpers.ts";
 
 const corsHeaders = {
@@ -63,6 +64,7 @@ You will receive a passage of colloquial Arabic. Your job:
    - literal: a close word-for-word English gloss (may sound stiff)
    - natural: a fluent, idiomatic English translation
    - note: ONLY when the sentence contains an idiom, cultural reference, register shift, sarcasm, or a word whose surface meaning would mislead an English speaker. Otherwise omit the field.
+${LITERAL_GLOSS_RULE}
 Do not add sentences that aren't in the input. Do not translate to MSA. Return ONLY the structured tool call.`;
 
     const userPrompt =
@@ -101,7 +103,7 @@ Do not add sentences that aren't in the input. Do not translate to MSA. Return O
                   type: "object",
                   properties: {
                     arabic: { type: "string", description: "Sentence verbatim from input." },
-                    literal: { type: "string", description: "Word-for-word English gloss." },
+                    literal: literalSchema("sentence"),
                     natural: { type: "string", description: "Fluent English translation." },
                     note: {
                       type: "string",

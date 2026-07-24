@@ -19,6 +19,7 @@ function generateId(): string {
    id: string;
    arabic: string;
    translation: string;
+   literal?: string;
    tokens: WordToken[];
    needs_review?: boolean;
  }
@@ -376,14 +377,15 @@ const getTranslationSystemPrompt = (dialect?: string, visualContext?: string, so
     ? `\n\nReference translation (Soniox ASR+Translation engine):\n${sonioxTranslation}\nThis machine translation is provided as a reference only. Use it to inform your translations but prioritize accuracy and natural English phrasing.`
     : '';
   return `You are a ${label} translator specializing in the ${label} dialect.${dialectNote}${visualNote}${sonioxNote}
-You will be given numbered Arabic lines. Translate each line to natural English.
+You will be given numbered Arabic lines. For each line produce BOTH a natural English translation and a literal word-for-word gloss.
 
 Output ONLY valid JSON matching this schema:
-{"translations": ["English for line 1", "English for line 2", ...]}
+{"translations": ["Natural English for line 1", ...], "literals": ["Word-for-word gloss for line 1", ...]}
 
 Rules:
-- The output array must have exactly the same number of items as there are numbered lines.
+- Both arrays must have exactly the same number of items as there are numbered lines, aligned by index.
 - Translations should be natural and idiomatic, not word-for-word.
+- Literals are a close word-for-word English gloss preserving the Arabic word order (e.g. "what news-your?" for "شخبارك؟"). They may sound stiff or ungrammatical — that is expected; they show learners how the sentence is built.
 - Preserve the tone and meaning of Gulf Arabic dialect.
 - Keep each translation concise.
 
@@ -391,7 +393,7 @@ No additional text outside JSON.`;
 };
 
 // Returned by the dedicated translation call (one per ensemble model)
-type TranslationAI = { translations: string[] };
+type TranslationAI = { translations: string[]; literals?: string[] };
 
 // ============================================================================
 // TRANSLATION ENSEMBLE — Gemini + Claude (weight 1.0) + Qwen (weight 0.5)
@@ -403,6 +405,7 @@ type EnsembleCandidate = {
   via: string;
   weight: number;
   translations: string[];
+  literals: string[];
   status: 'ok' | 'failed' | 'parse_failed' | 'empty';
   latencyMs: number;
   chars: number;
@@ -411,6 +414,7 @@ type EnsembleCandidate = {
 
 type EnsembleLineResult = {
   translation: string;
+  literal: string;
   needs_review: boolean;
   winner_models: string[];
 };
@@ -438,15 +442,16 @@ function _jaccard(a: string, b: string): number {
  * Returns the chosen translation, a needs_review flag, and which models won.
  */
 function mergeOneLine(
-  candidates: Array<{ name: string; weight: number; text: string }>,
+  candidates: Array<{ name: string; weight: number; text: string; literal: string }>,
 ): EnsembleLineResult {
   const present = candidates.filter((c) => c.text && c.text.trim().length > 0);
   if (present.length === 0) {
-    return { translation: '', needs_review: true, winner_models: [] };
+    return { translation: '', literal: '', needs_review: true, winner_models: [] };
   }
   if (present.length === 1) {
     return {
       translation: present[0].text.trim(),
+      literal: (present[0].literal ?? '').trim(),
       needs_review: present[0].weight < 1.0, // a single low-weight verifier is uncertain
       winner_models: [present[0].name],
     };
@@ -483,6 +488,7 @@ function mergeOneLine(
       .sort((a, b) => b.text.length - a.text.length)[0];
     return {
       translation: winner.text.trim(),
+      literal: (winner.literal ?? '').trim(),
       needs_review: false,
       winner_models: geminiClaudeCluster.members.map((m) => m.name),
     };
@@ -493,6 +499,7 @@ function mergeOneLine(
     const winner = top.members.slice().sort((a, b) => b.text.length - a.text.length)[0];
     return {
       translation: winner.text.trim(),
+      literal: (winner.literal ?? '').trim(),
       needs_review: false,
       winner_models: top.members.map((m) => m.name),
     };
@@ -504,6 +511,7 @@ function mergeOneLine(
   const fallback = claude ?? gemini ?? present[0];
   return {
     translation: fallback.text.trim(),
+    literal: (fallback.literal ?? '').trim(),
     needs_review: true,
     winner_models: [fallback.name],
   };
@@ -529,6 +537,7 @@ function mergeTranslationEnsemble(
       name: c.name,
       weight: c.weight,
       text: c.translations[i] ?? '',
+      literal: c.literals[i] ?? '',
     }));
     const res = mergeOneLine(lineCands);
     lines.push(res);
@@ -565,17 +574,20 @@ async function callTranslationModel(opts: {
     });
     const latencyMs = Date.now() - t0;
     if (!resp.content) {
-      return { name: opts.name, via: opts.via, weight: opts.weight, translations: [], status: 'failed', latencyMs, chars: 0, error: resp.error };
+      return { name: opts.name, via: opts.via, weight: opts.weight, translations: [], literals: [], status: 'failed', latencyMs, chars: 0, error: resp.error };
     }
     const parsed = safeJsonParse<TranslationAI>(resp.content);
     if (!parsed?.translations?.length) {
-      return { name: opts.name, via: opts.via, weight: opts.weight, translations: [], status: 'parse_failed', latencyMs, chars: resp.content.length };
+      return { name: opts.name, via: opts.via, weight: opts.weight, translations: [], literals: [], status: 'parse_failed', latencyMs, chars: resp.content.length };
     }
     return {
       name: opts.name,
       via: opts.via,
       weight: opts.weight,
       translations: parsed.translations.map((t) => (typeof t === 'string' ? t : '')),
+      literals: Array.isArray(parsed.literals)
+        ? parsed.literals.map((l) => (typeof l === 'string' ? l : ''))
+        : [],
       status: 'ok',
       latencyMs,
       chars: parsed.translations.join('').length,
@@ -586,6 +598,7 @@ async function callTranslationModel(opts: {
       via: opts.via,
       weight: opts.weight,
       translations: [],
+      literals: [],
       status: 'failed',
       latencyMs: Date.now() - t0,
       chars: 0,
@@ -1681,7 +1694,7 @@ serve(async (req) => {
               systemPrompt: sys,
               userContent: mergedTranscriptText,
               apiKey: OPENROUTER_API_KEY,
-              maxTokens: 8192,
+              maxTokens: 16384,
             }),
             callTranslationModel({
               name: GEMINI,
@@ -1701,7 +1714,7 @@ serve(async (req) => {
               systemPrompt: sys,
               userContent: mergedTranscriptText,
               apiKey: OPENROUTER_API_KEY,
-              maxTokens: 4096,
+              maxTokens: 8192,
             }),
           ]);
           const candidates: EnsembleCandidate[] = settled.map((s, i) => {
@@ -1714,6 +1727,7 @@ serve(async (req) => {
               via: vias[i],
               weight: weights[i],
               translations: [],
+              literals: [],
               status: 'failed' as const,
               latencyMs: 0,
               chars: 0,
@@ -1806,6 +1820,7 @@ serve(async (req) => {
       }
       const ensembleMerge = mergeTranslationEnsemble(translationCandidates, mergedLines.length);
       const dedicatedTranslations: string[] = ensembleMerge.lines.map((l) => l.translation);
+      const dedicatedLiterals: string[] = ensembleMerge.lines.map((l) => l.literal);
       const ensembleNeedsReview: boolean[] = ensembleMerge.lines.map((l) => l.needs_review);
 
       // Structured provenance for engines_used.translation
@@ -1889,6 +1904,7 @@ serve(async (req) => {
       const finalLines = mergedLines.map((mergedLine, i) => ({
         arabic: diacritizedPerLine[i] || mergedLine.arabic,
         translation: dedicatedTranslations[i] || call2Lines[i]?.translation || '',
+        literal: dedicatedLiterals[i] || '',
         needs_review: ensembleNeedsReview[i] ?? false,
       }));
 
@@ -2022,6 +2038,7 @@ serve(async (req) => {
           id: `line-${generateId()}-${idx}`,
           arabic: String(l.arabic ?? '').trim(),
           translation: String(l.translation ?? '').trim(),
+          literal: String(l.literal ?? '').trim(),
           needs_review: Boolean(l.needs_review),
           tokens: toWordTokens(String(l.arabic ?? '').trim(), vocab, allWordGlosses),
         })),

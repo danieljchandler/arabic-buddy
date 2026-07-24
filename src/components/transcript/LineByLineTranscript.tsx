@@ -12,6 +12,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { useDialect } from "@/contexts/DialectContext";
 import { AskAISentence } from "@/components/shared/AskAISentence";
+import { TranslationPair } from "@/components/shared/TranslationPair";
  
  interface LineByLineTranscriptProps {
    lines: TranscriptLine[];
@@ -659,17 +660,15 @@ interface TranscriptLineCardProps {
        <div
          className={cn(
            "overflow-hidden transition-all duration-200",
-           showTranslation ? "max-h-40 opacity-100 mt-3" : "max-h-0 opacity-0"
+           showTranslation ? "max-h-64 opacity-100 mt-3" : "max-h-0 opacity-0"
          )}
        >
-          <div className="pt-3 border-t border-border/50 space-y-2">
-            <p
-              className="text-sm text-muted-foreground leading-relaxed"
-              dir="ltr"
-              style={{ fontFamily: "'Open Sans', sans-serif" }}
-            >
-              {line.translation}
-            </p>
+          <div className="pt-3 border-t border-border/50 space-y-2" style={{ fontFamily: "'Open Sans', sans-serif" }}>
+            <TranslationPair
+              variant="compact"
+              literal={line.literal}
+              natural={line.translation}
+            />
             <AskAISentence
               arabic={line.arabic}
               english={line.translation}

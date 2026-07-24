@@ -25,6 +25,7 @@ interface TranscriptLine {
   id: string;
   arabic: string;
   translation: string;
+  literal?: string;
   tokens: WordToken[];
 }
 
@@ -225,7 +226,8 @@ Output ONLY valid JSON matching this schema:
     "lines": [
       {
         "arabic": "string - one line/segment of on-screen text in authentic ${label} Arabic spelling",
-        "translation": "string - English translation"
+        "translation": "string - natural English translation",
+        "literal": "string - word-for-word English gloss preserving Arabic word order (may sound stiff; shows how the line is built)"
       }
     ],
     "vocabulary": [
@@ -262,7 +264,8 @@ Output ONLY valid JSON matching this schema:
   "lines": [
     {
       "arabic": "string - one segment of spoken text in authentic ${label} Arabic",
-      "translation": "string - English translation"
+      "translation": "string - natural English translation",
+      "literal": "string - word-for-word English gloss preserving Arabic word order (may sound stiff; shows how the line is built)"
     }
   ],
   "vocabulary": [
@@ -462,6 +465,7 @@ ${audioTranscript}`,
         id: `line-${generateId()}-${idx}`,
         arabic: String(l.arabic ?? ''),
         translation: String(l.translation ?? ''),
+        literal: String(l.literal ?? '').trim(),
         tokens: toWordTokens(String(l.arabic ?? ''), onScreenGlosses),
       }));
     }
@@ -495,6 +499,7 @@ ${audioTranscript}`,
           id: `audio-line-${generateId()}-${idx}`,
           arabic: String(l.arabic ?? ''),
           translation: String(l.translation ?? ''),
+          literal: String(l.literal ?? '').trim(),
           tokens: toWordTokens(String(l.arabic ?? ''), audioGlosses),
         })),
         vocabulary: (audioResult.vocabulary ?? [])

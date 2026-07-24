@@ -1184,12 +1184,18 @@ const DiscoverVideo = () => {
 
   // Use TikTok's official player iframe as a muted visual companion only.
   // Audio comes exclusively from the extracted source track below.
-  // `mute=1` on the URL is REQUIRED to keep the iframe silent from the very
-  // first frame — postMessage("mute") alone races with the player init and
-  // lets TikTok's native audio bleed through, causing echo/doubling.
+  //
+  // The mute MUST come from the URL param, and TikTok spells it `muted` — the
+  // `mute=1` we used before is not a recognized param, so the player loaded at
+  // its default (muted=0, i.e. NOT muted). That silent bug is what froze the
+  // frame: browsers only allow programmatic play() of *muted* media without an
+  // in-iframe user gesture, so our postMessage("play") counted as unmuted
+  // autoplay-without-activation and was blocked (tapping the video directly
+  // still worked, because that's a real in-iframe gesture). With `muted=1` the
+  // player is genuinely muted from the first frame and the play command lands.
   const tiktokIframeUrl = useMemo(() => {
     if (!video || video.platform !== "tiktok") return "";
-    const params = "?autoplay=0&mute=1&music_info=0&description=0";
+    const params = "?autoplay=0&muted=1&music_info=0&description=0";
     if (resolvedTikTokVideoId) return `https://www.tiktok.com/player/v1/${resolvedTikTokVideoId}${params}`;
     return resolvedEmbedUrl;
   }, [video, resolvedEmbedUrl, resolvedTikTokVideoId]);

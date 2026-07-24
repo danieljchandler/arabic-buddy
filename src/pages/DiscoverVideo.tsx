@@ -1185,17 +1185,22 @@ const DiscoverVideo = () => {
   // Use TikTok's official player iframe as a muted visual companion only.
   // Audio comes exclusively from the extracted source track below.
   //
-  // The mute MUST come from the URL param, and TikTok spells it `muted` — the
-  // `mute=1` we used before is not a recognized param, so the player loaded at
-  // its default (muted=0, i.e. NOT muted). That silent bug is what froze the
-  // frame: browsers only allow programmatic play() of *muted* media without an
-  // in-iframe user gesture, so our postMessage("play") counted as unmuted
-  // autoplay-without-activation and was blocked (tapping the video directly
-  // still worked, because that's a real in-iframe gesture). With `muted=1` the
-  // player is genuinely muted from the first frame and the play command lands.
+  // The mute MUST come from the URL param, spelled `muted` (an earlier `mute=1`
+  // was ignored, leaving the player audible). But muting alone isn't enough: a
+  // cross-origin iframe won't honour a postMessage("play") until it has had a
+  // real user gesture INSIDE it, so the first press of our external red button
+  // could never start the frame (tapping the video directly did, because that
+  // is an in-iframe gesture).
+  //
+  // `autoplay=1` is what breaks that deadlock: the player is allowed to start
+  // muted on its own (muted autoplay needs no gesture), and once it has started
+  // it accepts our play/pause/seek commands for the rest of the session. We
+  // immediately park it (seek 0 + pause) on that first autoplay tick — see the
+  // priming branch in the message listener — so it sits warmed-up and ready
+  // without running ahead of the audio.
   const tiktokIframeUrl = useMemo(() => {
     if (!video || video.platform !== "tiktok") return "";
-    const params = "?autoplay=0&muted=1&music_info=0&description=0";
+    const params = "?autoplay=1&muted=1&music_info=0&description=0";
     if (resolvedTikTokVideoId) return `https://www.tiktok.com/player/v1/${resolvedTikTokVideoId}${params}`;
     return resolvedEmbedUrl;
   }, [video, resolvedEmbedUrl, resolvedTikTokVideoId]);
@@ -1222,6 +1227,12 @@ const DiscoverVideo = () => {
   // confirms the target state via onStateChange (1 = playing, 2 = paused,
   // 0 = ended), or we exhaust a short retry budget.
   const tiktokPlayerReadyRef = useRef(false);
+  // One-time autoplay "priming": the muted frame is allowed to start on its own
+  // (muted autoplay needs no gesture); once it has, later play commands land. We
+  // park it immediately so it doesn't run ahead of the audio. mountedAt bounds
+  // priming to that initial autoplay, so a much later in-iframe tap isn't parked.
+  const tiktokPrimedRef = useRef(false);
+  const tiktokMountedAtRef = useRef(0);
   const tiktokObservedStateRef = useRef<number | null>(null);
   const tiktokVideoSyncTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const ensureTikTokVideoPlaying = useCallback((desired: boolean) => {
@@ -1244,6 +1255,12 @@ const DiscoverVideo = () => {
     if (reachedTarget()) {
       if (desired) setTiktokNeedsManualPlay(false);
       return;
+    }
+    // Align the muted video to the hidden audio (our master clock) before we
+    // start it, so the frame and the sound begin from the same position.
+    if (desired) {
+      const audio = tiktokAudioRef.current;
+      if (audio) sendTikTokCommand("seekTo", audio.currentTime);
     }
     const attempt = () => {
       // Re-assert mute (defense in depth) then drive to the desired state.
@@ -1286,6 +1303,8 @@ const DiscoverVideo = () => {
   // so a stray timer never posts commands to a torn-down iframe.
   useEffect(() => {
     setTiktokNeedsManualPlay(false);
+    tiktokPrimedRef.current = false;
+    tiktokMountedAtRef.current = Date.now();
     return () => {
       if (tiktokVideoSyncTimerRef.current) {
         clearInterval(tiktokVideoSyncTimerRef.current);
@@ -1313,22 +1332,46 @@ const DiscoverVideo = () => {
         case "onStateChange":
         case "onPlay":
         case "play": {
-          if (data.type === "onStateChange" && typeof data.value === "number") {
+          sendTikTokCommand("mute");
+          const state =
+            data.type === "onStateChange" && typeof data.value === "number"
+              ? data.value
+              : null;
+          if (state !== null) {
             // Record the player's real state so ensureTikTokVideoPlaying's
             // retry loop can stop once the video actually reaches the target.
-            tiktokObservedStateRef.current = data.value;
-            // The frame is actually playing now — clear any manual-tap hint,
-            // whether it got there from our retries or the user's own tap.
-            if (data.value === 1) setTiktokNeedsManualPlay(false);
+            tiktokObservedStateRef.current = state;
+            // The frame is actually playing now — clear any manual-tap hint.
+            if (state === 1) setTiktokNeedsManualPlay(false);
           }
-          if (!audio || !tiktokAudioReady) return;
-          sendTikTokCommand("mute");
-          if (data.type === "onStateChange") {
-            // TikTok state: 1 = playing, 2 = paused, 0 = ended
-            if (data.value === 1 && audio.paused) audio.play().catch(() => {});
-            else if (data.value === 2 && !audio.paused) audio.pause();
-            else if (data.value === 0) audio.pause();
-          } else if (audio.paused) {
+          // "Playing" = an explicit state 1, or a bare onPlay/play with no value.
+          const startedPlaying = state === 1 || state === null;
+
+          // Priming: the very first "playing" comes from autoplay=1, before the
+          // user pressed play. Park the muted video at the start (paused, warmed
+          // up) so later play commands are honoured — and do NOT start the audio.
+          if (
+            startedPlaying &&
+            !tiktokPrimedRef.current &&
+            Date.now() - tiktokMountedAtRef.current < 6000 &&
+            (!audio || audio.paused)
+          ) {
+            tiktokPrimedRef.current = true;
+            sendTikTokCommand("seekTo", 0);
+            sendTikTokCommand("pause");
+            break;
+          }
+
+          if (!audio || !tiktokAudioReady) break;
+          // Mirror the player's real state onto the hidden audio (master clock).
+          if (state === 2) {
+            if (!audio.paused) audio.pause();
+          } else if (state === 0) {
+            audio.pause();
+          } else if (startedPlaying && audio.paused) {
+            // Started from inside the iframe (a direct tap). Align the video to
+            // the audio and start the audio so the two stay in sync.
+            sendTikTokCommand("seekTo", audio.currentTime);
             audio.play().catch(() => {});
           }
           break;
@@ -1339,10 +1382,18 @@ const DiscoverVideo = () => {
           break;
         case "onCurrentTime":
         case "currentTime": {
-          // Keep hidden audio time aligned with iframe scrubs (small drift).
+          // Audio is the master clock: if the muted video drifts from it while
+          // playing, nudge the VIDEO back to the audio. (The old code did the
+          // reverse — pulling the audio to the video — which is what knocked the
+          // sound and the transcript out of sync.)
           const t = typeof data.value === "number" ? data.value : Number(data.value);
-          if (audio && Number.isFinite(t) && Math.abs(audio.currentTime - t) > 0.5) {
-            audio.currentTime = t;
+          if (
+            audio &&
+            !audio.paused &&
+            Number.isFinite(t) &&
+            Math.abs(t - audio.currentTime) > 1
+          ) {
+            sendTikTokCommand("seekTo", audio.currentTime);
           }
           break;
         }

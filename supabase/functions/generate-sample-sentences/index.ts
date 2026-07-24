@@ -8,7 +8,7 @@ const corsHeaders = {
 };
 
 interface SentencesOut {
-  sentences: Array<{ arabic: string; english: string }>;
+  sentences: Array<{ arabic: string; english: string; literal?: string }>;
 }
 
 serve(async (req) => {
@@ -35,7 +35,7 @@ serve(async (req) => {
       purpose: 'sample_sentences',
       dialect: dialect ?? 'Gulf',
       userPrompt,
-      systemPromptExtra: `Task: generate natural, everyday EXAMPLE SENTENCES using the given word. The sentences must be conversational, NOT MSA, and reflect how a native speaker of this dialect would actually say them.`,
+      systemPromptExtra: `Task: generate natural, everyday EXAMPLE SENTENCES using the given word. The sentences must be conversational, NOT MSA, and reflect how a native speaker of this dialect would actually say them. For each sentence provide "english" (a natural translation) and "literal" (a word-for-word English gloss preserving the Arabic word order; it may sound stiff — it shows how the sentence is built).`,
       strategy: 'ensemble',
       maxTokens: 600,
       temperature: 0.7,
@@ -54,8 +54,9 @@ serve(async (req) => {
                 properties: {
                   arabic: { type: 'string' },
                   english: { type: 'string' },
+                  literal: { type: 'string', description: 'Word-for-word English gloss preserving Arabic word order; may sound stiff.' },
                 },
-                required: ['arabic', 'english'],
+                required: ['arabic', 'english', 'literal'],
                 additionalProperties: false,
               },
             },

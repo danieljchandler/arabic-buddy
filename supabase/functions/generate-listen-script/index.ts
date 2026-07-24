@@ -5,6 +5,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { askBrain } from "../_shared/aiBrain.ts";
 import { primeDialectPrompt, measureTashkeelCoverage, getDialectTransliterationRules, type Dialect } from "../_shared/dialectHelpers.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
+import { literalSchema } from "../_shared/literalGloss.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -46,6 +47,7 @@ interface ScriptLine {
   speaker_role: string;
   arabic: string;
   english: string;
+  literal?: string;
   transliteration?: string;
 }
 
@@ -146,10 +148,11 @@ TASHKEEL (CRITICAL FOR TTS PRONUNCIATION):
 OUTPUT:
 - title: a short, catchy Arabic title (≤ 60 chars), fully vocalized.
 - summary: a one-sentence English teaser (≤ 140 chars).
-- script: array of lines, each { speaker, speaker_role, arabic, english, transliteration? }.
+- script: array of lines, each { speaker, speaker_role, arabic, english, literal, transliteration? }.
   - speaker_role: one of "host_a","host_b","speaker","host","guest","narrator","character".
   - arabic: the line in target dialect, FULLY VOCALIZED with tashkeel.
   - english: faithful natural English translation.
+  - literal: word-for-word English gloss preserving Arabic word order (may sound stiff; shows how the line is built).
   - transliteration: optional simple Latin transliteration.
 - key_vocabulary: 8-15 useful words or short phrases drawn from the script: { arabic, english, note? } — pick learner-valuable items, not function words. arabic must be fully vocalized.
 
@@ -168,7 +171,7 @@ Return ONLY the structured fields via the provided tool.`;
         models: ["google/gemini-2.5-flash"],
         systemPromptExtra: systemExtra,
         userPrompt,
-        maxTokens: 6000,
+        maxTokens: 8000,
         temperature: 0.8,
         arabicTextPath: (p: any) =>
           Array.isArray(p?.script) ? p.script.map((l: any) => l?.arabic ?? "").join("\n") : "",
@@ -189,6 +192,7 @@ Return ONLY the structured fields via the provided tool.`;
                     speaker_role: { type: "string" },
                     arabic: { type: "string" },
                     english: { type: "string" },
+                    literal: literalSchema("line"),
                     transliteration: { type: "string" },
                   },
                   required: ["speaker", "speaker_role", "arabic", "english"],

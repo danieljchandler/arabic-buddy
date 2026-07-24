@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { TappableArabicText } from "@/components/shared/TappableArabicText";
 import { AskAISentence } from "@/components/shared/AskAISentence";
+import { TranslationPair } from "@/components/shared/TranslationPair";
 import { useDisplayPrefs } from "@/hooks/useDisplayPrefs";
 import { useAuth } from "@/hooks/useAuth";
 import { useAddUserVocabulary } from "@/hooks/useUserVocabulary";
@@ -173,7 +174,11 @@ const ListenEpisode = () => {
                 sentenceContext={{ arabic: line.arabic, english: line.english }}
               />
               {showEnglish && line.english && (
-                <p className="text-xs text-muted-foreground italic">{line.english}</p>
+                <TranslationPair
+                  variant="compact"
+                  literal={line.literal}
+                  natural={line.english}
+                />
               )}
             </Card>
           ))}

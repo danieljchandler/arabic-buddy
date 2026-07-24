@@ -7,6 +7,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { askBrain } from "../_shared/aiBrain.ts";
 import { getTashkeelMandate, getDialectTransliterationRules, type Dialect } from "../_shared/dialectHelpers.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
+import { LITERAL_GLOSS_RULE } from "../_shared/literalGloss.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -152,6 +153,9 @@ ${getTashkeelMandate()}
 ${getDialectTransliterationRules(dialect as Dialect)}
 - Provide a transliteration for body_arabic as body_transliteration.
 
+${LITERAL_GLOSS_RULE}
+- Provide the whole-story literal gloss as body_english_literal.
+
 Return ONLY the structured fields via the provided tool.`;
 
     const userPrompt = `MATURE words (review-anchored): ${matureList || "(none yet)"}\nNEW words to gently introduce: ${newList || "(none yet)"}`;
@@ -163,6 +167,7 @@ Return ONLY the structured fields via the provided tool.`;
         body_arabic: string;
         body_transliteration: string;
         body_english: string;
+        body_english_literal: string;
         used_mature: string[];
         used_new: string[];
       }>({
@@ -173,7 +178,7 @@ Return ONLY the structured fields via the provided tool.`;
         // from _shared/modelRegistry.ts. Do not hardcode model IDs here.
         systemPromptExtra: systemExtra,
         userPrompt,
-        maxTokens: 2048,
+        maxTokens: 3072,
         temperature: 0.7,
         arabicTextPath: (p: any) => p?.body_arabic ?? "",
         tool: {
@@ -185,7 +190,8 @@ Return ONLY the structured fields via the provided tool.`;
               title: { type: "string", description: "Short evocative Arabic title" },
               body_arabic: { type: "string", description: "Story in target dialect, ~200 Arabic words" },
               body_transliteration: { type: "string", description: "Latin-letter transliteration of body_arabic, following the dialect's transliteration rules" },
-              body_english: { type: "string", description: "Faithful English translation" },
+              body_english: { type: "string", description: "Faithful natural English translation" },
+              body_english_literal: { type: "string", description: "Word-for-word English gloss of the story preserving Arabic word order (may sound stiff; shows how sentences are built)" },
               used_mature: { type: "array", items: { type: "string" } },
               used_new: { type: "array", items: { type: "string" } },
             },
@@ -212,6 +218,7 @@ Return ONLY the structured fields via the provided tool.`;
     const bodyArabic = String(parsed.body_arabic ?? "").trim();
     const bodyTransliteration = String(parsed.body_transliteration ?? "").trim();
     const bodyEnglish = String(parsed.body_english ?? "").trim();
+    const bodyEnglishLiteral = String(parsed.body_english_literal ?? "").trim();
     if (!bodyArabic) {
       return new Response(
         JSON.stringify({ error: "empty_story", raw: brain.raw.slice(0, 400) }),
@@ -234,6 +241,7 @@ Return ONLY the structured fields via the provided tool.`;
           body_arabic: bodyArabic,
           body_transliteration: bodyTransliteration || null,
           body_english: bodyEnglish || null,
+          body_english_literal: bodyEnglishLiteral || null,
           vocab_used: vocabUsed,
           new_words: newUsed,
           updated_at: new Date().toISOString(),

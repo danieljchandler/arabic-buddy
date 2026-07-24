@@ -27,6 +27,7 @@ import { MarkUnknownsProvider, useMarkUnknowns } from "@/contexts/MarkUnknownsCo
 import { MarkUnknownsToggle } from "@/components/shared/MarkUnknownsToggle";
 import { SaveUnknownsBar } from "@/components/shared/SaveUnknownsBar";
 import { AskAISentence } from "@/components/shared/AskAISentence";
+import { TranslationPair } from "@/components/shared/TranslationPair";
 import {
   BookOpen,
   Check,
@@ -56,6 +57,7 @@ interface VocabItem {
 interface PassageLine {
   arabic: string;
   english: string;
+  literal?: string;
 }
 
 interface Question {
@@ -250,7 +252,12 @@ const TappableArabicLine = ({
         )}
       </button>
       {revealedLines.has(lineIdx) && (
-        <p className="text-sm text-muted-foreground flex-1">{line.english}</p>
+        <TranslationPair
+          variant="compact"
+          literal={line.literal}
+          natural={line.english}
+          className="flex-1"
+        />
       )}
       <AskAISentence arabic={line.arabic} english={line.english} variant="chip" />
     </div>

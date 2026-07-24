@@ -156,7 +156,7 @@ ${getDialectTransliterationRules(dialect as Dialect)}
 For each article, return a JSON object with:
 - "title_dialect": A catchy dialect headline (Arabic), fully vocalized
 - "body_dialect": The story retold in dialect (Arabic, 3-5 sentences, fully vocalized) — this is the full body as one string
-- "sentences": Array of {"arabic": "...", "transliteration": "...", "english": "..."} — split body_dialect into its individual sentences, provide a Latin-letter transliteration and a faithful English translation for EACH sentence. The arabic values concatenated must equal body_dialect.
+- "sentences": Array of {"arabic": "...", "transliteration": "...", "english": "...", "literal": "..."} — split body_dialect into its individual sentences, provide a Latin-letter transliteration, a faithful natural English translation, and a "literal" word-for-word English gloss (preserving Arabic word order; may sound stiff — it shows how each sentence is built) for EACH sentence. The arabic values concatenated must equal body_dialect.
 - "title_english": English translation of the headline
 - "summary_english": Brief English summary (1-2 sentences)
 - "vocabulary": Array of 2-3 key dialect words from your retelling, each as {"word_arabic": "...", "word_english": "..."}

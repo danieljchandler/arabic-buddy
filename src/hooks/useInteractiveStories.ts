@@ -8,6 +8,7 @@ export interface StoryScene {
   scene_order: number;
   narrative_arabic: string;
   narrative_english: string;
+  narrative_literal?: string | null;
   vocabulary: { word_arabic: string; word_english: string }[];
   choices: { text_arabic: string; text_english: string; next_scene_order: number }[];
   is_ending: boolean;

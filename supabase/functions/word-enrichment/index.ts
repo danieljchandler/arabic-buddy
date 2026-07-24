@@ -10,6 +10,7 @@ const corsHeaders = {
 
 interface EnrichmentOut {
   definition?: string | null;
+  literal?: string | null;
   root?: string | null;
   transliteration?: string | null;
   uses?: Array<{ arabic: string; english: string }>;
@@ -41,8 +42,14 @@ serve(async (req) => {
       : '';
 
     const systemExtra = isPhrase
-      ? `Task: given a multi-word Arabic PHRASE or expression, return its IDIOMATIC English meaning as a whole — NOT word-by-word. If it's a common collocation or idiom, give the figurative meaning. Also return the root of the head/most lexically meaningful word, and up to 3 related expressions in the SAME dialect.`
+      ? `Task: given a multi-word Arabic PHRASE or expression, return its IDIOMATIC English meaning as a whole — NOT word-by-word — in "definition". SEPARATELY, in "literal", give a word-for-word English gloss that preserves the Arabic word order (may sound stiff — it shows how the phrase is built). Also return the root of the head/most lexically meaningful word, and up to 3 related expressions in the SAME dialect.`
       : `Task: given an Arabic word, return its English definition, its root, and up to 3 related words/expressions in the SAME dialect.`;
+
+    // literal (word-for-word gloss) only makes sense for multi-word phrases.
+    const phraseProps = isPhrase
+      ? { literal: { type: 'string', description: 'Word-for-word English gloss preserving Arabic word order; may sound stiff.' } }
+      : {};
+    const phraseRequired = isPhrase ? ['literal'] : [];
 
     const resolvedDialect = (dialect ?? 'Gulf') as Dialect;
     const userPrompt = `${isPhrase ? 'Phrase' : 'Word'}: ${trimmed}${contextLine}`;
@@ -62,6 +69,7 @@ serve(async (req) => {
           type: 'object',
           properties: {
             definition: { type: 'string', description: 'English meaning' },
+            ...phraseProps,
             root: { type: 'string', description: 'Trilateral root, e.g. "ك-ت-ب", or empty string if not applicable' },
             transliteration: { type: 'string', description: 'Latin-letter transliteration of the word/phrase' },
             uses: {
@@ -78,7 +86,7 @@ serve(async (req) => {
               },
             },
           },
-          required: ['definition', 'root', 'transliteration', 'uses'],
+          required: ['definition', ...phraseRequired, 'root', 'transliteration', 'uses'],
           additionalProperties: false,
         },
       },
@@ -91,6 +99,7 @@ serve(async (req) => {
     const out = result.output;
     return new Response(JSON.stringify({
       definition: out.definition || null,
+      literal: out.literal || null,
       root: out.root || null,
       transliteration: out.transliteration || null,
       uses: Array.isArray(out.uses) ? out.uses.slice(0, 5) : [],

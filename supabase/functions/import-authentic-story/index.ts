@@ -82,6 +82,7 @@ Deno.serve(async (req) => {
         arabic: string;
         arabic_vocalized: string;
         english: string;
+        literal?: string;
       }>;
       vocabulary: Array<{ arabic: string; english: string; root?: string }>;
     }>({
@@ -94,10 +95,11 @@ Deno.serve(async (req) => {
 1. Split it into logical lines/sentences (each line should be a complete sentence or short paragraph suitable for line-by-line reading).
 2. Add full tashkeel (diacritics) to each line.
 3. Translate each line to natural English.
+3b. ALSO provide a "literal" word-for-word English gloss of each line, preserving the Arabic word order (it may sound stiff — it shows how the sentence is built).
 4. Extract 10-20 key vocabulary items with their English meanings and Arabic root (if applicable).
 Maintain the original text faithfully — do not summarize or alter meaning.`,
       userPrompt: `Process this Arabic text into lines with tashkeel and English translations:\n\n${body_arabic}`,
-      maxTokens: 8000,
+      maxTokens: 12000,
       temperature: 0.2,
       tool: {
         name: "emit_processed_story",
@@ -112,7 +114,8 @@ Maintain the original text faithfully — do not summarize or alter meaning.`,
                 properties: {
                   arabic: { type: "string", description: "Original Arabic line" },
                   arabic_vocalized: { type: "string", description: "Arabic line with full tashkeel" },
-                  english: { type: "string", description: "English translation" },
+                  english: { type: "string", description: "Natural English translation" },
+                  literal: { type: "string", description: "Word-for-word English gloss preserving Arabic word order; may sound stiff; shows sentence structure." },
                 },
                 required: ["arabic", "arabic_vocalized", "english"],
               },
@@ -188,6 +191,7 @@ Maintain the original text faithfully — do not summarize or alter meaning.`,
       arabic: l.arabic,
       arabic_vocalized: l.arabic_vocalized,
       english: l.english,
+      english_literal: l.literal ?? null,
     }));
 
     const { error: linesErr } = await supabaseAdmin

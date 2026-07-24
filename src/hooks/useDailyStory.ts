@@ -12,6 +12,7 @@ export interface DailyStory {
   body_arabic: string;
   body_transliteration: string | null;
   body_english: string | null;
+  body_english_literal: string | null;
   vocab_used: string[];
   new_words: string[];
   audio_url: string | null;

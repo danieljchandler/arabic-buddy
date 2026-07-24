@@ -12,6 +12,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { useDialect } from "@/contexts/DialectContext";
 import { AskAISentence } from "@/components/shared/AskAISentence";
+import { TranslationPair } from "@/components/shared/TranslationPair";
  
  interface LineByLineTranscriptProps {
    lines: TranscriptLine[];
@@ -39,6 +40,7 @@ interface InlineTokenProps {
   compoundOpen?: boolean;
   compoundGloss?: string;
   compoundMsa?: string;
+  compoundLiteral?: string;
   compoundSurface?: string;
   onCompoundOpenChange?: (open: boolean) => void;
   onAddCompoundToVocab?: () => void;
@@ -63,6 +65,7 @@ const InlineToken = ({
   compoundOpen,
   compoundGloss,
   compoundMsa,
+  compoundLiteral,
   compoundSurface,
   onCompoundOpenChange,
   onAddCompoundToVocab,
@@ -184,6 +187,14 @@ const InlineToken = ({
               ) : compoundGloss ? (
                 <>
                   <p className="text-sm text-muted-foreground">{compoundGloss}</p>
+                  {compoundLiteral && (
+                    <p className="text-xs italic text-muted-foreground/80">
+                      <span className="not-italic uppercase tracking-wide text-[9px] mr-1 text-muted-foreground/60">
+                        Literal
+                      </span>
+                      {compoundLiteral}
+                    </p>
+                  )}
                   {compoundMsa && (
                     <p className="text-xs text-muted-foreground/70" dir="rtl">
                       (فصحى: {compoundMsa})
@@ -387,6 +398,7 @@ interface TranscriptLineCardProps {
       wordCount: number;
       translation: string | null;
       msa: string | null;
+      literal: string | null;
       loading: boolean;
     } | null>(null);
    const selectionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -486,7 +498,7 @@ interface TranscriptLineCardProps {
          .slice(newMin, newMax + 1)
          .map(t => t.surface)
          .join(' ');
-        setLiveCompound({ firstIdx: newMin, surface: combinedSurface, wordCount: newSpan + 1, translation: null, msa: null, loading: true });
+        setLiveCompound({ firstIdx: newMin, surface: combinedSurface, wordCount: newSpan + 1, translation: null, msa: null, literal: null, loading: true });
          supabase.functions
            .invoke('translate-phrase', {
              body: {
@@ -498,10 +510,10 @@ interface TranscriptLineCardProps {
            })
           .then(({ data, error }) => {
             if (!error && data?.translation) {
-              setLiveCompound({ firstIdx: newMin, surface: combinedSurface, wordCount: newSpan + 1, translation: data.translation, msa: data.msa || null, loading: false });
+              setLiveCompound({ firstIdx: newMin, surface: combinedSurface, wordCount: newSpan + 1, translation: data.translation, msa: data.msa || null, literal: data.literal || null, loading: false });
             } else {
               console.warn('phrase translation failed:', error);
-              setLiveCompound({ firstIdx: newMin, surface: combinedSurface, wordCount: newSpan + 1, translation: null, msa: null, loading: false });
+              setLiveCompound({ firstIdx: newMin, surface: combinedSurface, wordCount: newSpan + 1, translation: null, msa: null, literal: null, loading: false });
             }
           })
          .catch((err) => {
@@ -605,6 +617,7 @@ interface TranscriptLineCardProps {
                  : undefined;
                const isLoadingCompound = isThisCompoundAnchor && !!thisLiveCompound?.loading;
                const compoundMsa = isThisCompoundAnchor ? (thisLiveCompound?.msa ?? undefined) : undefined;
+               const compoundLiteral = isThisCompoundAnchor ? (thisLiveCompound?.literal ?? undefined) : undefined;
 
                const compoundVocabItem: VocabItem = {
                  arabic: compoundSurface || token.surface,
@@ -632,6 +645,7 @@ interface TranscriptLineCardProps {
                       compoundOpen={isThisCompoundAnchor ? true : undefined}
                       compoundGloss={compoundGloss}
                       compoundMsa={compoundMsa}
+                      compoundLiteral={compoundLiteral}
                       compoundSurface={compoundSurface}
                       isLoadingCompound={isLoadingCompound}
                      onCompoundOpenChange={(open) => {
@@ -659,17 +673,15 @@ interface TranscriptLineCardProps {
        <div
          className={cn(
            "overflow-hidden transition-all duration-200",
-           showTranslation ? "max-h-40 opacity-100 mt-3" : "max-h-0 opacity-0"
+           showTranslation ? "max-h-64 opacity-100 mt-3" : "max-h-0 opacity-0"
          )}
        >
-          <div className="pt-3 border-t border-border/50 space-y-2">
-            <p
-              className="text-sm text-muted-foreground leading-relaxed"
-              dir="ltr"
-              style={{ fontFamily: "'Open Sans', sans-serif" }}
-            >
-              {line.translation}
-            </p>
+          <div className="pt-3 border-t border-border/50 space-y-2" style={{ fontFamily: "'Open Sans', sans-serif" }}>
+            <TranslationPair
+              variant="compact"
+              literal={line.literal}
+              natural={line.translation}
+            />
             <AskAISentence
               arabic={line.arabic}
               english={line.translation}

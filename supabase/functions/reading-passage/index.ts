@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getDialectLabel, getTashkeelMandate, getDialectTransliterationRules, type Dialect } from "../_shared/dialectHelpers.ts";
 import { askBrain } from "../_shared/aiBrain.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
+import { LITERAL_GLOSS_RULE, literalSchema } from "../_shared/literalGloss.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -51,6 +52,9 @@ ${getTashkeelMandate()}
 ${getDialectTransliterationRules(dialect as Dialect)}
 - Provide a transliteration for every line.
 
+${LITERAL_GLOSS_RULE}
+- Provide a "literal" gloss for every line.
+
 - Return the structured fields via the provided tool only.`;
 
     const userPrompt = `Generate a reading comprehension exercise.
@@ -59,7 +63,7 @@ Difficulty: ${difficulty} (${difficultyGuide[difficulty] || difficultyGuide.begi
 ${topicContext}
 ${vocabContext}
 
-Split the passage into individual sentences in the "lines" array (each line = one sentence with its Arabic text and English translation). Generate 3-4 vocabulary items and 2-3 comprehension questions.`;
+Split the passage into individual sentences in the "lines" array (each line = one sentence with its Arabic text, natural English translation, and literal word-for-word gloss). Generate 3-4 vocabulary items and 2-3 comprehension questions.`;
 
     let passage: any;
     try {
@@ -69,7 +73,7 @@ Split the passage into individual sentences in the "lines" array (each line = on
         strategy: "draft_critic",
         systemPromptExtra: systemExtra,
         userPrompt,
-        maxTokens: 2048,
+        maxTokens: 3072,
         temperature: 0.8,
         arabicTextPath: (p: any) => {
           const parts: string[] = [];
@@ -94,6 +98,7 @@ Split the passage into individual sentences in the "lines" array (each line = on
                     arabic: { type: "string" },
                     transliteration: { type: "string" },
                     english: { type: "string" },
+                    literal: literalSchema("sentence"),
                   },
                   required: ["arabic", "transliteration", "english"],
                 },

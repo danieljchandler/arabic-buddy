@@ -12,6 +12,7 @@ export interface ListenScriptLine {
   speaker_role: string;
   arabic: string;
   english: string;
+  literal?: string;
   transliteration?: string;
 }
 

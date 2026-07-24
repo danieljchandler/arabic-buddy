@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { TappableArabicText } from "@/components/shared/TappableArabicText";
 import { AskAISentence } from "@/components/shared/AskAISentence";
+import { TranslationPair } from "@/components/shared/TranslationPair";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -8,6 +9,7 @@ interface Sentence {
   arabic: string;
   transliteration?: string;
   english: string;
+  literal?: string;
 }
 
 interface ArticleSentencesProps {
@@ -103,9 +105,11 @@ export const ArticleSentences = ({
               )}
             >
               <div className="overflow-hidden">
-                <p className="text-sm text-foreground/80 leading-relaxed">
-                  {line.english}
-                </p>
+                <TranslationPair
+                  variant="compact"
+                  literal={line.literal}
+                  natural={line.english}
+                />
               </div>
             </div>
           </div>

@@ -61,6 +61,10 @@ serve(async (req) => {
 
     const msaPrompt = `Convert this ${dialectLabel} word/phrase to Modern Standard Arabic (فصحى). Return ONLY the MSA Arabic script, no explanation.${contextBlock}`;
 
+    // For multi-word phrases, also produce a word-for-word literal gloss so
+    // learners see how the phrase is built. Single words don't need one.
+    const literalPrompt = `You are a ${dialectLabel} translator. Give a word-for-word English gloss of the given Arabic phrase, preserving the Arabic word order (e.g. "what news-your?" for "شخبارك؟"). It may sound stiff — that is expected. Return ONLY the gloss, no explanation.${contextBlock}`;
+
     const OPENROUTER_API_KEY = Deno.env.get('OPENROUTER_API_KEY') ?? '';
 
     function routeForModel(model: string): 'lovable' | 'openrouter' {
@@ -110,10 +114,14 @@ serve(async (req) => {
     // TRANSLATION lineup ensemble (Claude Sonnet 4.5 + Gemini 3.5 Flash).
     // Both run in parallel; Claude preferred when both succeed. MSA conversion
     // is a single cheap Gemini call.
-    const [claudeT, geminiT, msa] = await Promise.all([
+    const [claudeT, geminiT, msa, literalT] = await Promise.all([
       callModel(MODEL_LINEUPS.TRANSLATION.drafters[0], translationPrompt, phrase, 80),
       callModel(MODEL_LINEUPS.TRANSLATION.drafters[1], translationPrompt, phrase, 80),
       callModel(MODEL_LINEUPS.TRANSLATION.drafters[1], msaPrompt, phrase, 50),
+      // Literal gloss only for multi-word phrases.
+      isWord
+        ? Promise.resolve(null)
+        : callModel(MODEL_LINEUPS.TRANSLATION.drafters[1], literalPrompt, phrase, 80),
     ]);
 
     const translation = claudeT ?? geminiT ?? '';
@@ -130,7 +138,7 @@ serve(async (req) => {
       );
     }
 
-    return new Response(JSON.stringify({ translation, msa: msa || '' }), {
+    return new Response(JSON.stringify({ translation, msa: msa || '', literal: literalT || '' }), {
       status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 

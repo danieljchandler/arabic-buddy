@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TappableArabicText } from "@/components/shared/TappableArabicText";
 import { AskAISentence } from "@/components/shared/AskAISentence";
+import { TranslationPair } from "@/components/shared/TranslationPair";
 import { useSavedTranslations, type SavedTranslation } from "@/hooks/useSavedTranslations";
 import { toast } from "sonner";
 import { ArrowLeft, BookOpen, ChevronRight, Info, Loader2, Trash2 } from "lucide-react";
@@ -127,20 +128,12 @@ const SavedTranslations = () => {
                     source="translate-text"
                     sentenceContext={{ arabic: s.arabic, english: s.natural }}
                   />
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 border-t border-border/40">
-                    <div>
-                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-0.5">
-                        Literal
-                      </p>
-                      <p className="text-sm text-foreground/80 italic">{s.literal}</p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-0.5">
-                        Natural
-                      </p>
-                      <p className="text-sm font-medium">{s.natural}</p>
-                    </div>
-                  </div>
+                  <TranslationPair
+                    variant="grid"
+                    literal={s.literal}
+                    natural={s.natural}
+                    className="pt-1 border-t border-border/40"
+                  />
                   {s.note && (
                     <div className="rounded-md bg-amber-50 border border-amber-200 p-2.5 flex gap-2 text-xs text-amber-900 dark:bg-amber-950/30 dark:border-amber-900/40 dark:text-amber-200">
                       <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />

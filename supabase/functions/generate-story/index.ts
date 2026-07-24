@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { askBrain, BrainHttpError } from "../_shared/aiBrain.ts";
 import { getTashkeelMandate, getDialectTransliterationRules, type Dialect } from "../_shared/dialectHelpers.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
+import { LITERAL_GLOSS_RULE } from "../_shared/literalGloss.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -60,6 +61,9 @@ ${getTashkeelMandate()}
 ${getDialectTransliterationRules(targetDialect)}
 - Provide a transliteration for narrative_arabic on every scene.
 
+${LITERAL_GLOSS_RULE}
+- Provide "narrative_literal" for every scene.
+
 You MUST call the generate_story function. No text outside the function call.`;
 
     const userPrompt = `Create an interactive ${targetDialect} Arabic story about: ${prompt}
@@ -82,7 +86,8 @@ The story should have ${numScenes} scenes. Make the narrative engaging and educa
               scene_order: { type: "number", description: "Scene index starting from 0" },
               narrative_arabic: { type: "string", description: `Scene narrative in ${targetDialect} Arabic (2-4 sentences), FULLY VOCALIZED with tashkeel` },
               narrative_transliteration: { type: "string", description: "Latin-letter transliteration of narrative_arabic" },
-              narrative_english: { type: "string", description: "English translation (2-4 sentences)" },
+              narrative_english: { type: "string", description: "Natural English translation (2-4 sentences)" },
+              narrative_literal: { type: "string", description: "Word-for-word English gloss of the narrative preserving Arabic word order (may sound stiff; shows how sentences are built)" },
               vocabulary: {
                 type: "array",
                 description: "2-4 key vocabulary words from this scene",
@@ -119,6 +124,7 @@ The story should have ${numScenes} scenes. Make the narrative engaging and educa
               "narrative_arabic",
               "narrative_transliteration",
               "narrative_english",
+              "narrative_literal",
               "vocabulary",
               "is_ending",
               "choices",
@@ -146,7 +152,7 @@ The story should have ${numScenes} scenes. Make the narrative engaging and educa
           description: "Generate a complete interactive Arabic story with scenes and choices",
           parameters,
         },
-        maxTokens: 4000,
+        maxTokens: 6000,
         temperature: 0.8,
         arabicTextPath: (p) => {
           const story = p as { scenes?: Array<{ narrative_arabic?: string }> };

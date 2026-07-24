@@ -20,12 +20,13 @@ import { useBridgeMode } from "@/hooks/useBridgeMode";
 
 interface WordEnrichment {
   definition?: string;
+  literal?: string;
   root?: string;
   transliteration?: string;
   otherUses?: { arabic: string; english: string }[];
 }
 
-interface SampleSentence { arabic: string; english: string }
+interface SampleSentence { arabic: string; english: string; literal?: string }
 
 interface WordData {
   translation: string;
@@ -54,6 +55,7 @@ const enrichWord = async (
     if (error) throw error;
     return {
       definition: data?.definition || undefined,
+      literal: data?.literal || undefined,
       root: data?.root || undefined,
       transliteration: data?.transliteration || undefined,
       otherUses: Array.isArray(data?.uses) ? data.uses : [],
@@ -459,6 +461,14 @@ export const TappableArabicText = ({
                             <div key={i} className="text-xs">
                               <p className="font-arabic text-foreground" dir="rtl">{s.arabic}</p>
                               <p className="text-muted-foreground">{s.english}</p>
+                              {s.literal && (
+                                <p className="italic text-muted-foreground/70">
+                                  <span className="not-italic uppercase tracking-wide text-[9px] mr-1 text-muted-foreground/50">
+                                    Literal
+                                  </span>
+                                  {s.literal}
+                                </p>
+                              )}
                             </div>
                           ))}
                         </div>
@@ -506,6 +516,14 @@ export const TappableArabicText = ({
                 )}
                 {phraseData && !phraseData.enriching && phraseData.translation && (
                   <p className="text-sm text-foreground mt-1">{phraseData.translation}</p>
+                )}
+                {phraseData && !phraseData.enriching && phraseData.enrichment?.literal && (
+                  <p className="text-xs italic text-muted-foreground/80 mt-0.5">
+                    <span className="not-italic uppercase tracking-wide text-[9px] mr-1 text-muted-foreground/60">
+                      Literal
+                    </span>
+                    {phraseData.enrichment.literal}
+                  </p>
                 )}
               </div>
               <Button

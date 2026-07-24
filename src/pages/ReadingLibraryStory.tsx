@@ -10,6 +10,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { TappableArabicText } from '@/components/shared/TappableArabicText';
 import { AskAISentence } from '@/components/shared/AskAISentence';
+import { TranslationPair } from '@/components/shared/TranslationPair';
 import { MarkUnknownsProvider } from '@/contexts/MarkUnknownsContext';
 import { SaveUnknownsBar } from '@/components/shared/SaveUnknownsBar';
 import { ArrowLeft, Loader2, Play, Pause, SkipForward, SkipBack, BookOpen, Eye, EyeOff } from 'lucide-react';
@@ -281,9 +282,12 @@ const ReadingLibraryStory = () => {
                 />
               </div>
               {showEnglish && focusedLine.english && (
-                <p className="text-sm text-muted-foreground text-center mt-2 leading-relaxed">
-                  {focusedLine.english}
-                </p>
+                <TranslationPair
+                  variant="compact"
+                  literal={(focusedLine as { english_literal?: string | null }).english_literal}
+                  natural={focusedLine.english}
+                  className="text-center mt-2"
+                />
               )}
 
               <div className="flex justify-center mt-2">
@@ -361,7 +365,12 @@ const ReadingLibraryStory = () => {
 
                 {/* English translation */}
                 {showEnglish && line.english && (
-                  <p className="text-sm text-muted-foreground mt-1">{line.english}</p>
+                  <TranslationPair
+                    variant="compact"
+                    literal={(line as { english_literal?: string | null }).english_literal}
+                    natural={line.english}
+                    className="mt-1"
+                  />
                 )}
               </div>
             ))}

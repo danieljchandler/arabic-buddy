@@ -23,6 +23,7 @@ interface SceneForm {
   scene_order: number;
   narrative_arabic: string;
   narrative_english: string;
+  narrative_literal?: string;
   vocabulary: { word_arabic: string; word_english: string }[];
   choices: { text_arabic: string; text_english: string; next_scene_order: number }[];
   is_ending: boolean;
@@ -34,6 +35,7 @@ const emptyScene = (order: number): SceneForm => ({
   scene_order: order,
   narrative_arabic: '',
   narrative_english: '',
+  narrative_literal: '',
   vocabulary: [],
   choices: [],
   is_ending: false,
@@ -95,6 +97,7 @@ const AdminStoryForm = () => {
           scene_order: s.scene_order,
           narrative_arabic: s.narrative_arabic,
           narrative_english: s.narrative_english,
+          narrative_literal: (s as { narrative_literal?: string }).narrative_literal ?? '',
           vocabulary: s.vocabulary,
           choices: s.choices,
           is_ending: s.is_ending,
@@ -183,6 +186,7 @@ const AdminStoryForm = () => {
             scene_order: s.scene_order ?? 0,
             narrative_arabic: s.narrative_arabic ?? '',
             narrative_english: s.narrative_english ?? '',
+            narrative_literal: s.narrative_literal ?? '',
             vocabulary: Array.isArray(s.vocabulary) ? s.vocabulary : [],
             choices: Array.isArray(s.choices) ? s.choices : [],
             is_ending: s.is_ending ?? false,
@@ -239,6 +243,7 @@ const AdminStoryForm = () => {
         scene_order: s.scene_order,
         narrative_arabic: s.narrative_arabic,
         narrative_english: s.narrative_english,
+        narrative_literal: s.narrative_literal || null,
         vocabulary: s.vocabulary,
         choices: s.choices,
         is_ending: s.is_ending,
@@ -381,6 +386,15 @@ const AdminStoryForm = () => {
                       rows={3}
                     />
                   </div>
+                </div>
+                <div>
+                  <Label>Narrative (Literal — word-for-word)</Label>
+                  <Textarea
+                    value={scene.narrative_literal ?? ''}
+                    onChange={(e) => updateScene(sIdx, { narrative_literal: e.target.value })}
+                    placeholder="entered-I the-café and-saw-I..."
+                    rows={2}
+                  />
                 </div>
 
                 {/* Is Ending toggle */}

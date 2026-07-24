@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { TappableArabicText } from "@/components/shared/TappableArabicText";
 import { AskAISentence } from "@/components/shared/AskAISentence";
+import { TranslationPair } from "@/components/shared/TranslationPair";
 import { useAuth } from "@/hooks/useAuth";
 import { useDailyStory, useGenerateDailyStory } from "@/hooks/useDailyStory";
 import { useDisplayPrefs } from "@/hooks/useDisplayPrefs";
@@ -145,8 +146,12 @@ const DailyStoryPage = () => {
             </div>
 
             {showEnglish && story.body_english && (
-              <div className="text-sm text-muted-foreground border-t border-border pt-3 leading-relaxed">
-                {story.body_english}
+              <div className="border-t border-border pt-3">
+                <TranslationPair
+                  variant="compact"
+                  literal={story.body_english_literal}
+                  natural={story.body_english}
+                />
               </div>
             )}
 

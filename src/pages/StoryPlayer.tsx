@@ -19,6 +19,7 @@ import { toast } from 'sonner';
 import { recordContinue, clearContinue } from '@/lib/continueProgress';
 import { useDialect } from '@/contexts/DialectContext';
 import { AskAISentence } from '@/components/shared/AskAISentence';
+import { TranslationPair } from '@/components/shared/TranslationPair';
 
 /**
  * Split a paragraph into sentences by sentence terminators (. ! ? ؟ and newlines),
@@ -244,9 +245,13 @@ const StoryPlayer = () => {
               </div>
 
               {!lineByLine && showTranslation && (
-                <p className="text-base text-muted-foreground animate-in fade-in duration-200">
-                  {currentScene.narrative_english}
-                </p>
+                <div className="animate-in fade-in duration-200">
+                  <TranslationPair
+                    variant="compact"
+                    literal={currentScene.narrative_literal}
+                    natural={currentScene.narrative_english}
+                  />
+                </div>
               )}
 
               {/* Vocabulary pills */}

@@ -342,7 +342,7 @@ const TranscriptRow = ({
       >
         <TranslationPair
           variant="compact"
-          literal={line.literal}
+          literal={showLiteral ? line.literal : undefined}
           natural={line.translation}
         />
       </div>

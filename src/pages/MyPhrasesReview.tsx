@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useDialect } from "@/contexts/DialectContext";
 import { useDueUserPhrases, useUpdateUserPhraseReview, useDeleteUserPhrase } from "@/hooks/useUserPhrases";
+import { useSRSStats } from "@/hooks/useSRSStats";
 import { HomeButton } from "@/components/HomeButton";
 import { RatingButtons } from "@/components/review/RatingButtons";
 import { AppShell } from "@/components/layout/AppShell";
@@ -26,6 +27,7 @@ const MyPhrasesReview = () => {
   const { activeDialect } = useDialect();
   const { enabled: leechTrackingEnabled } = useLeechPrefs();
   const { data: duePhrases, isLoading, refetch } = useDueUserPhrases();
+  const { data: srsStats } = useSRSStats();
   const updateReview = useUpdateUserPhraseReview();
   const deletePhrase = useDeleteUserPhrase();
 
@@ -281,7 +283,17 @@ const MyPhrasesReview = () => {
           <p className="text-muted-foreground mb-8">
             No phrases due for review right now.
           </p>
-          <Button onClick={() => navigate("/my-words")}>Back to My Words</Button>
+          {srsStats && srsStats.curriculumDue > 0 ? (
+            <Button onClick={() => navigate("/review")}>
+              Continue with {srsStats.curriculumDue} curriculum card{srsStats.curriculumDue === 1 ? "" : "s"}
+            </Button>
+          ) : srsStats && srsStats.myWordsDue > 0 ? (
+            <Button onClick={() => navigate("/review/my-words")}>
+              Continue with {srsStats.myWordsDue} My Words card{srsStats.myWordsDue === 1 ? "" : "s"}
+            </Button>
+          ) : (
+            <Button onClick={() => navigate("/my-words")}>Back to My Words</Button>
+          )}
         </div>
       </AppShell>
     );

@@ -335,7 +335,7 @@ const Index = () => {
               )}
               {srsStats && srsStats.totalDueNow > 0 && (
                 <button
-                  onClick={() => navigate(srsStats.myWordsDue >= srsStats.curriculumDue ? "/review/my-words" : "/review")}
+                  onClick={() => navigate(srsStats.curriculumDue > 0 ? "/review" : "/review/my-words")}
                   className="w-full p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-between"
                 >
                   <div className="flex items-center gap-2">

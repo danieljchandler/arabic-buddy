@@ -1204,6 +1204,56 @@ const DiscoverVideo = () => {
     }
   }, []);
 
+  // Robust, self-correcting sync of the muted TikTok video to a desired play
+  // state. A single fire-and-forget postMessage("play") races the iframe
+  // player's initialization and is silently dropped — which is why pressing
+  // the custom (red) play button below the video used to start the audio but
+  // leave the video frozen. Here we re-send the command until the player
+  // confirms the target state via onStateChange (1 = playing, 2 = paused,
+  // 0 = ended), or we exhaust a short retry budget.
+  const tiktokPlayerReadyRef = useRef(false);
+  const tiktokObservedStateRef = useRef<number | null>(null);
+  const tiktokVideoSyncTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const ensureTikTokVideoPlaying = useCallback((desired: boolean) => {
+    if (tiktokVideoSyncTimerRef.current) {
+      clearInterval(tiktokVideoSyncTimerRef.current);
+      tiktokVideoSyncTimerRef.current = null;
+    }
+    const reachedTarget = () =>
+      desired
+        ? tiktokObservedStateRef.current === 1
+        : tiktokObservedStateRef.current === 2 || tiktokObservedStateRef.current === 0;
+    const attempt = () => {
+      // Re-assert mute (defense in depth) then drive to the desired state.
+      sendTikTokCommand("mute");
+      sendTikTokCommand(desired ? "play" : "pause");
+    };
+    attempt();
+    let tries = 0;
+    tiktokVideoSyncTimerRef.current = setInterval(() => {
+      tries += 1;
+      if (reachedTarget() || tries >= 6) {
+        if (tiktokVideoSyncTimerRef.current) {
+          clearInterval(tiktokVideoSyncTimerRef.current);
+          tiktokVideoSyncTimerRef.current = null;
+        }
+        return;
+      }
+      attempt();
+    }, 300);
+  }, [sendTikTokCommand]);
+
+  // Stop any pending retry loop when the video changes or the page unmounts,
+  // so a stray timer never posts commands to a torn-down iframe.
+  useEffect(() => {
+    return () => {
+      if (tiktokVideoSyncTimerRef.current) {
+        clearInterval(tiktokVideoSyncTimerRef.current);
+        tiktokVideoSyncTimerRef.current = null;
+      }
+    };
+  }, [video?.id]);
+
   // Listen for TikTok player state changes so pressing play/pause INSIDE the
   // TikTok iframe also drives our hidden audio (and therefore the transcript
   // + translation sync). Without this, tapping play on the TikTok video
@@ -1217,11 +1267,17 @@ const DiscoverVideo = () => {
       const audio = tiktokAudioRef.current;
       switch (data.type) {
         case "onPlayerReady":
+          tiktokPlayerReadyRef.current = true;
           sendTikTokCommand("mute");
           break;
         case "onStateChange":
         case "onPlay":
         case "play": {
+          if (data.type === "onStateChange" && typeof data.value === "number") {
+            // Record the player's real state so ensureTikTokVideoPlaying's
+            // retry loop can stop once the video actually reaches the target.
+            tiktokObservedStateRef.current = data.value;
+          }
           if (!audio || !tiktokAudioReady) return;
           sendTikTokCommand("mute");
           if (data.type === "onStateChange") {
@@ -1447,8 +1503,8 @@ const DiscoverVideo = () => {
               sendTikTokCommand("mute");
             }}
             onTimeUpdate={(e) => setCurrentTimeMs((e.currentTarget.currentTime || 0) * 1000)}
-            onPlay={() => { setIsTiktokAudioPlaying(true); sendTikTokCommand("mute"); sendTikTokCommand("play"); }}
-            onPause={() => { setIsTiktokAudioPlaying(false); sendTikTokCommand("pause"); }}
+            onPlay={() => { setIsTiktokAudioPlaying(true); ensureTikTokVideoPlaying(true); }}
+            onPause={() => { setIsTiktokAudioPlaying(false); ensureTikTokVideoPlaying(false); }}
             onSeeked={(e) => { sendTikTokCommand("mute"); sendTikTokCommand("seekTo", e.currentTarget.currentTime); }}
             onEnded={() => { setIsTiktokAudioPlaying(false); sendTikTokCommand("pause"); }}
           />
@@ -1461,8 +1517,15 @@ const DiscoverVideo = () => {
                 onClick={() => {
                   const audio = tiktokAudioRef.current;
                   if (!audio) return;
-                  if (isTiktokAudioPlaying) audio.pause();
-                  else audio.play().catch(() => toast.error("Audio playback failed"));
+                  // Drive the video directly from the click too (rides the real
+                  // user gesture, in addition to the audio onPlay/onPause path).
+                  if (isTiktokAudioPlaying) {
+                    audio.pause();
+                    ensureTikTokVideoPlaying(false);
+                  } else {
+                    audio.play().catch(() => toast.error("Audio playback failed"));
+                    ensureTikTokVideoPlaying(true);
+                  }
                 }}
                 disabled={!tiktokAudioReady}
               >

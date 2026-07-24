@@ -1200,7 +1200,10 @@ const DiscoverVideo = () => {
   // without running ahead of the audio.
   const tiktokIframeUrl = useMemo(() => {
     if (!video || video.platform !== "tiktok") return "";
-    const params = "?autoplay=1&muted=1&music_info=0&description=0";
+    // rel=0 disables TikTok's "more videos" related-videos overlay. Without it,
+    // once the primed frame is sitting paused the player covers it with a grid
+    // of other clips instead of the still poster frame.
+    const params = "?autoplay=1&muted=1&music_info=0&description=0&rel=0";
     if (resolvedTikTokVideoId) return `https://www.tiktok.com/player/v1/${resolvedTikTokVideoId}${params}`;
     return resolvedEmbedUrl;
   }, [video, resolvedEmbedUrl, resolvedTikTokVideoId]);
@@ -1368,11 +1371,12 @@ const DiscoverVideo = () => {
             if (!audio.paused) audio.pause();
           } else if (state === 0) {
             audio.pause();
-          } else if (startedPlaying && audio.paused) {
-            // Started from inside the iframe (a direct tap). Align the video to
-            // the audio and start the audio so the two stay in sync.
+          } else if (startedPlaying) {
+            // The frame has reached "playing". Align it to the audio (master
+            // clock) so start latency doesn't leave the two offset, and if the
+            // audio isn't going yet (a direct in-iframe tap) kick it off too.
             sendTikTokCommand("seekTo", audio.currentTime);
-            audio.play().catch(() => {});
+            if (audio.paused) audio.play().catch(() => {});
           }
           break;
         }
@@ -1387,11 +1391,15 @@ const DiscoverVideo = () => {
           // reverse — pulling the audio to the video — which is what knocked the
           // sound and the transcript out of sync.)
           const t = typeof data.value === "number" ? data.value : Number(data.value);
+          // Only while playing at normal speed: the muted frame plays at 1x and
+          // can't change rate, so at other speeds it can't track the audio and
+          // constant re-seeks would just stutter — leave it be there.
           if (
             audio &&
             !audio.paused &&
+            playbackSpeedRef.current === 1 &&
             Number.isFinite(t) &&
-            Math.abs(t - audio.currentTime) > 1
+            Math.abs(t - audio.currentTime) > 0.4
           ) {
             sendTikTokCommand("seekTo", audio.currentTime);
           }

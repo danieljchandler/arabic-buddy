@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { getDialectLabel, getTashkeelMandate, type Dialect } from "../_shared/dialectHelpers.ts";
+import { getDialectLabel, getTashkeelMandate, getDialectTransliterationRules, type Dialect } from "../_shared/dialectHelpers.ts";
 import { askBrain } from "../_shared/aiBrain.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
 
@@ -11,6 +11,7 @@ const corsHeaders = {
 interface QuizQuestion {
   type: "dictation" | "comprehension" | "speed";
   audioText: string;
+  audioTextTransliteration?: string;
   audioTextEnglish: string;
   options?: { text: string; textArabic: string; correct: boolean }[];
   hint?: string;
@@ -49,6 +50,9 @@ serve(async (req) => {
 ${getTashkeelMandate()}
 - Every audioText field must be fully vocalized — these are read aloud by text-to-speech and unvocalized text causes mispronunciation.
 
+${getDialectTransliterationRules(dialect as Dialect)}
+- Provide a Latin-letter transliteration for every audioText as audioTextTransliteration.
+
 - Return the structured questions via the provided tool only.`;
 
     let userPrompt = "";
@@ -84,6 +88,7 @@ ${getTashkeelMandate()}
                   properties: {
                     type: { type: "string", enum: ["dictation", "comprehension", "speed"] },
                     audioText: { type: "string" },
+                    audioTextTransliteration: { type: "string" },
                     audioTextEnglish: { type: "string" },
                     hint: { type: "string" },
                     options: {

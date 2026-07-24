@@ -5,7 +5,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { askBrain } from "../_shared/aiBrain.ts";
-import { getTashkeelMandate, type Dialect } from "../_shared/dialectHelpers.ts";
+import { getTashkeelMandate, getDialectTransliterationRules, type Dialect } from "../_shared/dialectHelpers.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
 
 const corsHeaders = {
@@ -149,6 +149,9 @@ Reading level: late beginner to intermediate. Short sentences, concrete imagery,
 ${getTashkeelMandate()}
 - body_arabic must be fully vocalized — it is read aloud by text-to-speech.
 
+${getDialectTransliterationRules(dialect as Dialect)}
+- Provide a transliteration for body_arabic as body_transliteration.
+
 Return ONLY the structured fields via the provided tool.`;
 
     const userPrompt = `MATURE words (review-anchored): ${matureList || "(none yet)"}\nNEW words to gently introduce: ${newList || "(none yet)"}`;
@@ -158,6 +161,7 @@ Return ONLY the structured fields via the provided tool.`;
       brain = await askBrain<{
         title: string;
         body_arabic: string;
+        body_transliteration: string;
         body_english: string;
         used_mature: string[];
         used_new: string[];
@@ -180,11 +184,12 @@ Return ONLY the structured fields via the provided tool.`;
             properties: {
               title: { type: "string", description: "Short evocative Arabic title" },
               body_arabic: { type: "string", description: "Story in target dialect, ~200 Arabic words" },
+              body_transliteration: { type: "string", description: "Latin-letter transliteration of body_arabic, following the dialect's transliteration rules" },
               body_english: { type: "string", description: "Faithful English translation" },
               used_mature: { type: "array", items: { type: "string" } },
               used_new: { type: "array", items: { type: "string" } },
             },
-            required: ["title", "body_arabic", "body_english", "used_mature", "used_new"],
+            required: ["title", "body_arabic", "body_transliteration", "body_english", "used_mature", "used_new"],
           },
         },
       });
@@ -205,6 +210,7 @@ Return ONLY the structured fields via the provided tool.`;
 
     const title = String(parsed.title ?? "").slice(0, 160) || "قصة اليوم";
     const bodyArabic = String(parsed.body_arabic ?? "").trim();
+    const bodyTransliteration = String(parsed.body_transliteration ?? "").trim();
     const bodyEnglish = String(parsed.body_english ?? "").trim();
     if (!bodyArabic) {
       return new Response(
@@ -226,6 +232,7 @@ Return ONLY the structured fields via the provided tool.`;
           dialect,
           title,
           body_arabic: bodyArabic,
+          body_transliteration: bodyTransliteration || null,
           body_english: bodyEnglish || null,
           vocab_used: vocabUsed,
           new_words: newUsed,

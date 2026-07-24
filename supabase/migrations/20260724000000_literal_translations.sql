@@ -10,3 +10,9 @@ ALTER TABLE public.daily_vocab_stories
 
 ALTER TABLE public.authentic_story_lines
   ADD COLUMN IF NOT EXISTS english_literal text;
+
+ALTER TABLE public.set_phrases
+  ADD COLUMN IF NOT EXISTS phrase_literal text;
+
+ALTER TABLE public.set_phrases
+  ADD COLUMN IF NOT EXISTS reply_literal text;

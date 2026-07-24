@@ -32,6 +32,7 @@ Rules:
 - CRITICAL: Every phrase MUST include the most common native reply (reply_arabic, reply_english, reply_transliteration). Set phrases are conversational — there is ALWAYS an expected response (greeting → return greeting, condolence → standard reply, congratulations → standard reply, thanks → standard reply, etc.). Never omit the reply. If multiple replies are common, pick the single most frequent one.
 - The reply must be authentic to the same dialect as the phrase, NOT MSA.
 - Provide a 1-sentence English scenario where someone would say the phrase.
+- For BOTH the phrase and its reply, also provide a "literal" word-for-word English gloss (phrase_literal, reply_literal) that preserves the Arabic word order (e.g. "what news-your?" for "شخبارك؟"). It may sound stiff — it shows learners how the phrase is built.
 - Cultural sensitivity: respectful tone for funerals/religious.`;
 
   const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -58,9 +59,11 @@ Rules:
                   properties: {
                     phrase_arabic: { type: "string" },
                     phrase_english: { type: "string" },
+                    phrase_literal: { type: "string", description: "Word-for-word English gloss of the phrase, preserving Arabic word order." },
                     phrase_transliteration: { type: "string" },
                     reply_arabic: { type: "string" },
                     reply_english: { type: "string" },
+                    reply_literal: { type: "string", description: "Word-for-word English gloss of the reply, preserving Arabic word order." },
                     reply_transliteration: { type: "string" },
                     scenario_english: { type: "string" },
                     cultural_note: { type: "string" },
@@ -129,9 +132,11 @@ serve(async (req) => {
           dialect,
           phrase_arabic: p.phrase_arabic,
           phrase_english: p.phrase_english ?? null,
+          phrase_literal: p.phrase_literal ?? null,
           phrase_transliteration: p.phrase_transliteration ?? null,
           reply_arabic: p.reply_arabic ?? null,
           reply_english: p.reply_english ?? null,
+          reply_literal: p.reply_literal ?? null,
           reply_transliteration: p.reply_transliteration ?? null,
           scenario_english: p.scenario_english ?? null,
           cultural_note: p.cultural_note ?? null,

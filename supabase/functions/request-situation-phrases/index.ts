@@ -63,6 +63,7 @@ Rules:
 - Generate ${n} REAL phrases a native speaker would actually say in the described situation.
 - Mix difficulty A1-B2; mix formality where appropriate.
 - Include accurate English meaning and a Latin-script transliteration.
+- Also include a "literal" word-for-word English gloss preserving the Arabic word order (may sound stiff; shows how the phrase is built).
 - Add a short note ONLY if cultural/usage context matters; otherwise leave empty.
 - NEVER invent unnatural phrases. NEVER use MSA when a dialect form exists.`;
 
@@ -90,6 +91,7 @@ Rules:
                     properties: {
                       phrase_arabic: { type: "string" },
                       phrase_english: { type: "string" },
+                      literal: { type: "string", description: "Word-for-word English gloss preserving Arabic word order." },
                       transliteration: { type: "string" },
                       notes: { type: "string" },
                     },
@@ -130,6 +132,7 @@ Rules:
     const phrases = (parsed.phrases ?? []).map((p: any) => ({
       phrase_arabic: String(p.phrase_arabic ?? "").trim(),
       phrase_english: String(p.phrase_english ?? "").trim(),
+      literal: String(p.literal ?? "").trim(),
       transliteration: String(p.transliteration ?? "").trim(),
       notes: p.notes ? String(p.notes).trim() : "",
     })).filter((p: any) => p.phrase_arabic && p.phrase_english);

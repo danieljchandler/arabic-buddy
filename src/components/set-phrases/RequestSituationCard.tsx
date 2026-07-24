@@ -11,6 +11,7 @@ import { toast } from "sonner";
 interface GeneratedPhrase {
   phrase_arabic: string;
   phrase_english: string;
+  literal?: string;
   transliteration: string;
   notes?: string;
 }
@@ -156,6 +157,14 @@ export const RequestSituationCard = () => {
                 <p className="text-xs italic text-muted-foreground mt-0.5">{p.transliteration}</p>
               )}
               <p className="text-sm mt-1">{p.phrase_english}</p>
+              {p.literal && (
+                <p className="text-xs italic text-muted-foreground/80 mt-0.5">
+                  <span className="not-italic uppercase tracking-wide text-[9px] mr-1 text-muted-foreground/60">
+                    Literal
+                  </span>
+                  {p.literal}
+                </p>
+              )}
               {p.notes && <p className="text-[11px] text-muted-foreground mt-1">{p.notes}</p>}
               <div className="flex justify-end mt-2">
                 {saved.has(i) ? (

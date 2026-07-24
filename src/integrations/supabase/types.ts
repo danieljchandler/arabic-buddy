@@ -2553,10 +2553,12 @@ export type Database = {
           phrase_arabic: string
           phrase_audio_url: string | null
           phrase_english: string | null
+          phrase_literal: string | null
           phrase_transliteration: string | null
           reply_arabic: string | null
           reply_audio_url: string | null
           reply_english: string | null
+          reply_literal: string | null
           reply_transliteration: string | null
           scenario_english: string | null
           status: string
@@ -2577,10 +2579,12 @@ export type Database = {
           phrase_arabic: string
           phrase_audio_url?: string | null
           phrase_english?: string | null
+          phrase_literal?: string | null
           phrase_transliteration?: string | null
           reply_arabic?: string | null
           reply_audio_url?: string | null
           reply_english?: string | null
+          reply_literal?: string | null
           reply_transliteration?: string | null
           scenario_english?: string | null
           status?: string
@@ -2601,10 +2605,12 @@ export type Database = {
           phrase_arabic?: string
           phrase_audio_url?: string | null
           phrase_english?: string | null
+          phrase_literal?: string | null
           phrase_transliteration?: string | null
           reply_arabic?: string | null
           reply_audio_url?: string | null
           reply_english?: string | null
+          reply_literal?: string | null
           reply_transliteration?: string | null
           scenario_english?: string | null
           status?: string

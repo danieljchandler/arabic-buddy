@@ -1685,6 +1685,11 @@ const DiscoverVideo = () => {
             checked={showTranslations}
             onCheckedChange={setShowTranslations}
           />
+          <span className="text-xs text-muted-foreground ml-2">Literal</span>
+          <Switch
+            checked={showLiteral}
+            onCheckedChange={setShowLiteral}
+          />
         </div>
       </div>
 

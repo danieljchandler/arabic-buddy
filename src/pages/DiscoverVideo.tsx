@@ -1236,6 +1236,10 @@ const DiscoverVideo = () => {
   // priming to that initial autoplay, so a much later in-iframe tap isn't parked.
   const tiktokPrimedRef = useRef(false);
   const tiktokMountedAtRef = useRef(0);
+  // Whether the frame has already been aligned to the audio for the current
+  // play run. Guards against re-seeking on every "playing" event — buffering
+  // recovery (state 3 → 1) mid-clip otherwise re-seeks and makes motion choppy.
+  const tiktokAlignedRef = useRef(false);
   const tiktokObservedStateRef = useRef<number | null>(null);
   const tiktokVideoSyncTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const ensureTikTokVideoPlaying = useCallback((desired: boolean) => {
@@ -1308,6 +1312,7 @@ const DiscoverVideo = () => {
     setTiktokNeedsManualPlay(false);
     tiktokPrimedRef.current = false;
     tiktokMountedAtRef.current = Date.now();
+    tiktokAlignedRef.current = false;
     return () => {
       if (tiktokVideoSyncTimerRef.current) {
         clearInterval(tiktokVideoSyncTimerRef.current);
@@ -1368,15 +1373,25 @@ const DiscoverVideo = () => {
           if (!audio || !tiktokAudioReady) break;
           // Mirror the player's real state onto the hidden audio (master clock).
           if (state === 2) {
+            tiktokAlignedRef.current = false; // real pause — next play re-aligns
             if (!audio.paused) audio.pause();
           } else if (state === 0) {
+            tiktokAlignedRef.current = false;
             audio.pause();
           } else if (startedPlaying) {
-            // The frame has reached "playing". Align it to the audio (master
-            // clock) so start latency doesn't leave the two offset, and if the
-            // audio isn't going yet (a direct in-iframe tap) kick it off too.
-            sendTikTokCommand("seekTo", audio.currentTime);
-            if (audio.paused) audio.play().catch(() => {});
+            if (audio.paused) {
+              // Started from inside the iframe (a direct tap): align the frame
+              // to the audio and start the audio so the two run together.
+              sendTikTokCommand("seekTo", audio.currentTime);
+              audio.play().catch(() => {});
+              tiktokAlignedRef.current = true;
+            } else if (!tiktokAlignedRef.current) {
+              // First "playing" of this run after a red-button start: align the
+              // frame to the audio ONCE. Do NOT repeat on buffering recovery
+              // (state 3 → 1) — re-seeking mid-clip is what makes motion choppy.
+              sendTikTokCommand("seekTo", audio.currentTime);
+              tiktokAlignedRef.current = true;
+            }
           }
           break;
         }

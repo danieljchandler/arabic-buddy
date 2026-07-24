@@ -1722,6 +1722,7 @@ const DiscoverVideo = () => {
               line={line}
               isActive={activeLineId === line.id}
               showTranslation={showTranslations}
+              showLiteral={showLiteral}
               onSave={isAuthenticated ? handleSaveToMyWords : undefined}
               savedWords={savedWords}
               lineRef={(el) => {

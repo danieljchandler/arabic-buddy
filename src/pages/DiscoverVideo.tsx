@@ -619,6 +619,10 @@ const DiscoverVideo = () => {
   const [shadowLineId, setShadowLineId] = useState<string | null>(null);
   const [shadowAudioUrl, setShadowAudioUrl] = useState<string | null>(null);
   const [isTiktokAudioPlaying, setIsTiktokAudioPlaying] = useState(false);
+  // When the muted player/v1 iframe never confirms it started (unresolved
+  // video id, or cross-origin muted-autoplay refused), we prompt the user to
+  // tap the video's own play button. Non-blocking hint — see render below.
+  const [tiktokNeedsManualPlay, setTiktokNeedsManualPlay] = useState(false);
   const tiktokAudioRef = useRef<HTMLAudioElement | null>(null);
   const phraseEndMsRef = useRef<number | null>(null);
   const phraseStartMsRef = useRef<number | null>(null);
@@ -1219,33 +1223,63 @@ const DiscoverVideo = () => {
       clearInterval(tiktokVideoSyncTimerRef.current);
       tiktokVideoSyncTimerRef.current = null;
     }
+    // Only the player/v1 iframe accepts inbound postMessage control. When we
+    // never resolved a numeric TikTok video id the iframe falls back to a plain
+    // embed URL that ignores these commands, so there's nothing to drive — ask
+    // the user to tap the video's own play button instead.
+    if (!resolvedTikTokVideoId) {
+      if (desired) setTiktokNeedsManualPlay(true);
+      return;
+    }
     const reachedTarget = () =>
       desired
         ? tiktokObservedStateRef.current === 1
         : tiktokObservedStateRef.current === 2 || tiktokObservedStateRef.current === 0;
+    if (reachedTarget()) {
+      if (desired) setTiktokNeedsManualPlay(false);
+      return;
+    }
     const attempt = () => {
       // Re-assert mute (defense in depth) then drive to the desired state.
       sendTikTokCommand("mute");
       sendTikTokCommand(desired ? "play" : "pause");
     };
     attempt();
-    let tries = 0;
+    // Retry on a time budget rather than a fixed count: the player can take a
+    // second or two to finish initializing, and commands sent before its
+    // onPlayerReady are silently dropped. Keep re-asserting until the player
+    // confirms the target state via onStateChange, or ~4s elapse.
+    const startedAt = Date.now();
     tiktokVideoSyncTimerRef.current = setInterval(() => {
-      tries += 1;
-      if (reachedTarget() || tries >= 6) {
+      if (reachedTarget()) {
+        if (desired) setTiktokNeedsManualPlay(false);
         if (tiktokVideoSyncTimerRef.current) {
           clearInterval(tiktokVideoSyncTimerRef.current);
           tiktokVideoSyncTimerRef.current = null;
         }
         return;
       }
+      if (Date.now() - startedAt > 4000) {
+        if (tiktokVideoSyncTimerRef.current) {
+          clearInterval(tiktokVideoSyncTimerRef.current);
+          tiktokVideoSyncTimerRef.current = null;
+        }
+        // The frame never reported "playing" — muted cross-origin autoplay is
+        // not guaranteed even with autoplay permission. Surface a manual-tap
+        // hint so the user can start the video with a real in-iframe gesture.
+        if (desired && tiktokObservedStateRef.current !== 1) {
+          setTiktokNeedsManualPlay(true);
+        }
+        return;
+      }
       attempt();
     }, 300);
-  }, [sendTikTokCommand]);
+  }, [sendTikTokCommand, resolvedTikTokVideoId]);
 
   // Stop any pending retry loop when the video changes or the page unmounts,
   // so a stray timer never posts commands to a torn-down iframe.
   useEffect(() => {
+    setTiktokNeedsManualPlay(false);
     return () => {
       if (tiktokVideoSyncTimerRef.current) {
         clearInterval(tiktokVideoSyncTimerRef.current);
@@ -1277,6 +1311,9 @@ const DiscoverVideo = () => {
             // Record the player's real state so ensureTikTokVideoPlaying's
             // retry loop can stop once the video actually reaches the target.
             tiktokObservedStateRef.current = data.value;
+            // The frame is actually playing now — clear any manual-tap hint,
+            // whether it got there from our retries or the user's own tap.
+            if (data.value === 1) setTiktokNeedsManualPlay(false);
           }
           if (!audio || !tiktokAudioReady) return;
           sendTikTokCommand("mute");
@@ -1442,6 +1479,17 @@ const DiscoverVideo = () => {
                     >
                       View on TikTok
                     </a>
+                  )}
+                  {/* Fallback prompt when the muted iframe never confirms it
+                      started. pointer-events-none is essential: the hint must
+                      never intercept the tap meant for TikTok's own play button
+                      sitting underneath it. */}
+                  {tiktokNeedsManualPlay && (
+                    <div className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center px-3">
+                      <span className="rounded-full bg-black/75 px-3 py-1 text-xs font-medium text-white shadow-lg">
+                        Tap the video to start it
+                      </span>
+                    </div>
                   )}
                 </div>
               </div>

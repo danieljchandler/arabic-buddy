@@ -29,6 +29,7 @@ import { useTranscriptCloze } from "@/hooks/useTranscriptCloze";
 import { useNewCardCap, NEW_CAP_OPTIONS, formatCap } from "@/hooks/useNewCardCap";
 import { useRemainingNewCardBudget, useClaimNewCard } from "@/hooks/useNewCardBudget";
 import { useSRSStats } from "@/hooks/useSRSStats";
+import { useUserPhrasesDueCount } from "@/hooks/useUserPhrases";
 import { createPlayableJingleAudio, createPlayableJingleAudioFromUrl } from "@/lib/jingleAudio";
 import {
   Select,
@@ -106,6 +107,7 @@ const MyWordsReview = () => {
   const { remaining: remainingNewBudget } = useRemainingNewCardBudget(newCap);
   const claimNewCard = useClaimNewCard();
   const { data: srsStats } = useSRSStats();
+  const { data: phrasesDue } = useUserPhrasesDueCount();
   const queryClient = useQueryClient();
 
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -599,6 +601,10 @@ const MyWordsReview = () => {
           {srsStats && srsStats.curriculumDue > 0 ? (
             <Button onClick={() => navigate("/review")}>
               Continue with {srsStats.curriculumDue} curriculum card{srsStats.curriculumDue === 1 ? "" : "s"}
+            </Button>
+          ) : phrasesDue && phrasesDue.dueCount > 0 ? (
+            <Button onClick={() => navigate("/review/my-phrases")}>
+              Continue with {phrasesDue.dueCount} phrase card{phrasesDue.dueCount === 1 ? "" : "s"}
             </Button>
           ) : (
             <Button onClick={() => navigate("/my-words")}>Back to My Words</Button>

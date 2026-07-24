@@ -8,6 +8,7 @@ import {
 } from "@/hooks/useReview";
 import { useReviewQueue } from "@/hooks/useReviewQueue";
 import { useUserVocabularyDueCount } from "@/hooks/useUserVocabulary";
+import { useUserPhrasesDueCount } from "@/hooks/useUserPhrases";
 import { PronunciationButton } from "@/components/review/PronunciationButton";
 import { RatingButtons } from "@/components/review/RatingButtons";
 import { HomeButton } from "@/components/HomeButton";
@@ -37,6 +38,7 @@ const Review = () => {
   const { data: stats } = useReviewStats(mixAll);
   const { enqueue, pendingCount, isFlushing, isOnline } = useReviewQueue();
   const { data: myWordsDue } = useUserVocabularyDueCount(mixAll);
+  const { data: phrasesDue } = useUserPhrasesDueCount(mixAll);
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [sessionCount, setSessionCount] = useState(0);
@@ -194,6 +196,10 @@ const Review = () => {
           {myWordsDue && myWordsDue.dueCount > 0 ? (
             <Button onClick={() => navigate("/review/my-words")}>
               Continue with {myWordsDue.dueCount} My Words card{myWordsDue.dueCount === 1 ? "" : "s"}
+            </Button>
+          ) : phrasesDue && phrasesDue.dueCount > 0 ? (
+            <Button onClick={() => navigate("/review/my-phrases")}>
+              Continue with {phrasesDue.dueCount} phrase card{phrasesDue.dueCount === 1 ? "" : "s"}
             </Button>
           ) : (
             <Button onClick={() => navigate("/")}>Back to Topics</Button>

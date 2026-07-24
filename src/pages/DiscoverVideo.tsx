@@ -32,6 +32,7 @@ import {
 import type { TranscriptLine, WordToken, VocabItem } from "@/types/transcript";
 import { VideoRating } from "@/components/discover/VideoRating";
 import { AskAISentence } from "@/components/shared/AskAISentence";
+import { TranslationPair } from "@/components/shared/TranslationPair";
 import { LineShadowPanel } from "@/components/pronunciation/LineShadowPanel";
 import type { ExternalYouTubeController } from "@/components/pronunciation/ClipSourcePlayer";
 import { DIALECT_LOCALE, extractYouTubeId, type ShadowClip } from "@/hooks/useShadowQueue";
@@ -332,16 +333,16 @@ const TranscriptRow = ({
       <div
         className={cn(
           "overflow-hidden transition-all duration-200",
-          showTranslation ? "max-h-40 opacity-100 mt-1" : "max-h-0 opacity-0",
+          showTranslation ? "max-h-64 opacity-100 mt-1" : "max-h-0 opacity-0",
         )}
         onClick={(e) => e.stopPropagation()}
+        style={{ fontFamily: "'Open Sans', sans-serif" }}
       >
-        <p
-          className="text-sm text-muted-foreground leading-relaxed"
-          style={{ fontFamily: "'Open Sans', sans-serif" }}
-        >
-          {line.translation}
-        </p>
+        <TranslationPair
+          variant="compact"
+          literal={line.literal}
+          natural={line.translation}
+        />
       </div>
     </div>
   );

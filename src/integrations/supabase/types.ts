@@ -252,7 +252,6 @@ export type Database = {
           dialect_vocalized: string | null
           duration_seconds: number | null
           english: string | null
-          english_literal: string | null
           id: string
           line_index: number
           story_id: string
@@ -267,7 +266,6 @@ export type Database = {
           dialect_vocalized?: string | null
           duration_seconds?: number | null
           english?: string | null
-          english_literal?: string | null
           id?: string
           line_index: number
           story_id: string
@@ -282,7 +280,6 @@ export type Database = {
           dialect_vocalized?: string | null
           duration_seconds?: number | null
           english?: string | null
-          english_literal?: string | null
           id?: string
           line_index?: number
           story_id?: string
@@ -963,7 +960,6 @@ export type Database = {
           audio_url: string | null
           body_arabic: string
           body_english: string | null
-          body_english_literal: string | null
           created_at: string
           dialect: string
           id: string
@@ -978,7 +974,6 @@ export type Database = {
           audio_url?: string | null
           body_arabic: string
           body_english?: string | null
-          body_english_literal?: string | null
           created_at?: string
           dialect?: string
           id?: string
@@ -993,7 +988,6 @@ export type Database = {
           audio_url?: string | null
           body_arabic?: string
           body_english?: string | null
-          body_english_literal?: string | null
           created_at?: string
           dialect?: string
           id?: string
@@ -2553,12 +2547,10 @@ export type Database = {
           phrase_arabic: string
           phrase_audio_url: string | null
           phrase_english: string | null
-          phrase_literal: string | null
           phrase_transliteration: string | null
           reply_arabic: string | null
           reply_audio_url: string | null
           reply_english: string | null
-          reply_literal: string | null
           reply_transliteration: string | null
           scenario_english: string | null
           status: string
@@ -2579,12 +2571,10 @@ export type Database = {
           phrase_arabic: string
           phrase_audio_url?: string | null
           phrase_english?: string | null
-          phrase_literal?: string | null
           phrase_transliteration?: string | null
           reply_arabic?: string | null
           reply_audio_url?: string | null
           reply_english?: string | null
-          reply_literal?: string | null
           reply_transliteration?: string | null
           scenario_english?: string | null
           status?: string
@@ -2605,12 +2595,10 @@ export type Database = {
           phrase_arabic?: string
           phrase_audio_url?: string | null
           phrase_english?: string | null
-          phrase_literal?: string | null
           phrase_transliteration?: string | null
           reply_arabic?: string | null
           reply_audio_url?: string | null
           reply_english?: string | null
-          reply_literal?: string | null
           reply_transliteration?: string | null
           scenario_english?: string | null
           status?: string
@@ -2685,7 +2673,6 @@ export type Database = {
           is_ending: boolean
           narrative_arabic: string
           narrative_english: string
-          narrative_literal: string | null
           scene_order: number
           story_id: string
           updated_at: string
@@ -2700,7 +2687,6 @@ export type Database = {
           is_ending?: boolean
           narrative_arabic?: string
           narrative_english?: string
-          narrative_literal?: string | null
           scene_order?: number
           story_id: string
           updated_at?: string
@@ -2715,7 +2701,6 @@ export type Database = {
           is_ending?: boolean
           narrative_arabic?: string
           narrative_english?: string
-          narrative_literal?: string | null
           scene_order?: number
           story_id?: string
           updated_at?: string

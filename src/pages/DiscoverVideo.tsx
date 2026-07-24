@@ -1385,26 +1385,15 @@ const DiscoverVideo = () => {
           if (audio && !audio.paused) audio.pause();
           break;
         case "onCurrentTime":
-        case "currentTime": {
-          // Audio is the master clock: if the muted video drifts from it while
-          // playing, nudge the VIDEO back to the audio. (The old code did the
-          // reverse — pulling the audio to the video — which is what knocked the
-          // sound and the transcript out of sync.)
-          const t = typeof data.value === "number" ? data.value : Number(data.value);
-          // Only while playing at normal speed: the muted frame plays at 1x and
-          // can't change rate, so at other speeds it can't track the audio and
-          // constant re-seeks would just stutter — leave it be there.
-          if (
-            audio &&
-            !audio.paused &&
-            playbackSpeedRef.current === 1 &&
-            Number.isFinite(t) &&
-            Math.abs(t - audio.currentTime) > 0.4
-          ) {
-            sendTikTokCommand("seekTo", audio.currentTime);
-          }
+        case "currentTime":
+          // Intentionally no continuous re-seeking. The frame and the hidden
+          // audio are the same media at 1x, so aligning once when playback
+          // starts (and on explicit scrubs via the audio's onSeeked handler)
+          // keeps them together. Seeking the iframe on every tick to shave
+          // sub-second drift made the video visibly choppy — and tended to feed
+          // itself, since a fresh seek briefly reports a transitional position
+          // that reads as more drift.
           break;
-        }
       }
     };
     window.addEventListener("message", onMessage);

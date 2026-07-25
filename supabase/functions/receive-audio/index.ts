@@ -1,11 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getCorsHeaders } from "../_shared/cors.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
-
-function jsonResponse(body: unknown, status = 200) {
+function jsonResponse(body: unknown, corsHeaders: Record<string, string>, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -13,6 +9,7 @@ function jsonResponse(body: unknown, status = 200) {
 }
 
 Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -23,7 +20,7 @@ Deno.serve(async (req) => {
 
   const callbackSecret = Deno.env.get("RUNPOD_CALLBACK_SECRET");
   if (!callbackSecret) {
-    return jsonResponse({ error: "RUNPOD_CALLBACK_SECRET not configured" }, 500);
+    return jsonResponse({ error: "RUNPOD_CALLBACK_SECRET not configured" }, corsHeaders, 500);
   }
 
   const auth = req.headers.get("Authorization")?.trim() ?? "";
@@ -67,7 +64,7 @@ Deno.serve(async (req) => {
     form = await req.formData();
   } catch (error) {
     console.error("receive-audio: invalid form payload", error);
-    return jsonResponse({ error: "Invalid form-data payload" }, 400);
+    return jsonResponse({ error: "Invalid form-data payload" }, corsHeaders, 400);
   }
 
   const audioFile = form.get("audio") as File | null;
@@ -84,7 +81,7 @@ Deno.serve(async (req) => {
       hasAudio: Boolean(audioFile),
       hasVideoId: Boolean(video_id),
     });
-    return jsonResponse({ error: "Missing audio or video_id" }, 400);
+    return jsonResponse({ error: "Missing audio or video_id" }, corsHeaders, 400);
   }
 
   console.log(
@@ -103,7 +100,7 @@ Deno.serve(async (req) => {
 
   if (uploadError) {
     console.error("receive-audio: failed audio bucket upload", uploadError.message);
-    return jsonResponse({ error: uploadError.message }, 500);
+    return jsonResponse({ error: uploadError.message }, corsHeaders, 500);
   }
 
   const { data: urlData } = supabase.storage.from("audio").getPublicUrl(storagePath);
@@ -121,7 +118,7 @@ Deno.serve(async (req) => {
 
   if (dbError) {
     console.error("receive-audio: failed audio_files insert", dbError.message);
-    return jsonResponse({ error: dbError.message }, 500);
+    return jsonResponse({ error: dbError.message }, corsHeaders, 500);
   }
 
   let targetDiscoverVideoId: string | null = discover_video_id || null;
@@ -212,5 +209,5 @@ Deno.serve(async (req) => {
     discover_video_id: targetDiscoverVideoId,
     processing_triggered: processingTriggered,
     processing_error: processingError,
-  });
+  }, corsHeaders);
 });

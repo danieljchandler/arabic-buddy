@@ -3,11 +3,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
 import { askBrain, BrainHttpError } from "../_shared/aiBrain.ts";
 import { getDialectIdentity, getDialectVocabRules, getDialectLabel, type Dialect } from "../_shared/dialectHelpers.ts";
+import { getCorsHeaders } from "../_shared/cors.ts";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
-};
 
 function generateId(): string {
   return crypto.randomUUID().slice(0, 8);
@@ -291,6 +288,7 @@ No additional text outside JSON.`;
 
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }

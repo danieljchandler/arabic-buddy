@@ -2,8 +2,8 @@
 // Returns: per-dialect counts, top offending MSA tokens, top source functions,
 // recent unresolved samples. Optionally filters by dialect.
 
-import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
+import { getCorsHeaders } from "../_shared/cors.ts";
 
 interface ReqBody {
   dialect?: string;
@@ -12,6 +12,7 @@ interface ReqBody {
 }
 
 Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   try {

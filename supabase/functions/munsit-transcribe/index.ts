@@ -17,16 +17,13 @@
  */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
+import { getCorsHeaders } from "../_shared/cors.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
 
 const MUNSIT_BASE = "https://api.munsit.com/api/v1";
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   // Free-tier daily cap: 10 transcriptions / user / day. Paid users bypass.

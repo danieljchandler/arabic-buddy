@@ -1,12 +1,8 @@
 // process-approved-video — v2: accept anon-key bearer + early logging
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getCorsHeaders } from "../_shared/cors.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
 
 const ASR_TIMEOUT_MS = 5 * 60 * 1000;
 
@@ -1173,6 +1169,7 @@ async function runPipeline(
 
 // ── HTTP handler ───────────────────────────────────────────────────────────
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
   console.log(`[handler] ${req.method} ${req.url}`);
 
   if (req.method === "OPTIONS") {

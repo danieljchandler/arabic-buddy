@@ -3,21 +3,31 @@ import {
   buildSRSForecast,
   computeSRSRetentionRate,
   createEmptyStageBreakdown,
-  getSRSStageByRepetitions,
+  getSRSStageByStability,
 } from "@/lib/srsStats";
 
 describe("srsStats helpers", () => {
-  it("classifies stage boundaries by repetitions", () => {
-    expect(getSRSStageByRepetitions(0)).toBe("new");
-    expect(getSRSStageByRepetitions(1)).toBe("learning");
-    expect(getSRSStageByRepetitions(2)).toBe("learning");
-    expect(getSRSStageByRepetitions(3)).toBe("familiar");
-    expect(getSRSStageByRepetitions(4)).toBe("familiar");
-    expect(getSRSStageByRepetitions(5)).toBe("practiced");
-    expect(getSRSStageByRepetitions(7)).toBe("practiced");
-    expect(getSRSStageByRepetitions(8)).toBe("strong");
-    expect(getSRSStageByRepetitions(12)).toBe("strong");
-    expect(getSRSStageByRepetitions(13)).toBe("mastered");
+  it("classifies a never-reviewed card as new regardless of stability", () => {
+    expect(getSRSStageByStability(0, 0)).toBe("new");
+    expect(getSRSStageByStability(0, 999)).toBe("new");
+  });
+
+  it("classifies stage boundaries by stability once a card has been reviewed", () => {
+    expect(getSRSStageByStability(1, 0.5)).toBe("learning");
+    expect(getSRSStageByStability(1, 3)).toBe("familiar");
+    expect(getSRSStageByStability(1, 6.9)).toBe("familiar");
+    expect(getSRSStageByStability(1, 7)).toBe("practiced");
+    expect(getSRSStageByStability(1, 20)).toBe("practiced");
+    expect(getSRSStageByStability(1, 21)).toBe("strong");
+    expect(getSRSStageByStability(1, 59)).toBe("strong");
+    expect(getSRSStageByStability(1, 60)).toBe("mastered");
+  });
+
+  it("does not call a chronically-lapsed card mastered just because repetitions kept climbing", () => {
+    // calculateNextReview's forget branch preserves repetitions on "again"
+    // (doesn't reset to 0), so a card with many repetitions can still have
+    // low stability if it keeps getting forgotten. Stage should reflect that.
+    expect(getSRSStageByStability(15, 0.5)).toBe("learning");
   });
 
   it("builds a 7-day forecast and buckets overdue cards into today", () => {

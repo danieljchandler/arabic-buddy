@@ -5,12 +5,8 @@ import { enforceDailyCap } from "../_shared/usageCap.ts";
 import { askBrain, BrainHttpError } from "../_shared/aiBrain.ts";
 import { detectMsaLeaks } from "../_shared/msaLeakDetector.ts";
 import type { Dialect } from "../_shared/dialectHelpers.ts";
+import { getCorsHeaders } from "../_shared/cors.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
 
 const LOVABLE_GATEWAY = "https://ai.gateway.lovable.dev/v1/chat/completions";
 const OPENROUTER_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
@@ -443,6 +439,7 @@ function extractStructuredOutput(content: string): {
 }
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }

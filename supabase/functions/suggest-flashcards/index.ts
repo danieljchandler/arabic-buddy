@@ -1,7 +1,5 @@
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { getCorsHeaders } from "../_shared/cors.ts";
+
 
 const DIALECT_GUIDE: Record<string, string> = {
   Gulf: "Gulf Arabic (Khaleeji) — as spoken in UAE, Saudi, Kuwait, Qatar, Bahrain, Oman. Use Khaleeji vocabulary and forms (e.g. شلونك, وايد, زين). Do NOT use MSA or Egyptian.",
@@ -10,6 +8,7 @@ const DIALECT_GUIDE: Record<string, string> = {
 };
 
 Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {

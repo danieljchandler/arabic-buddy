@@ -1,16 +1,17 @@
 import { useState, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import {
   useDueWords,
   useReviewStats,
 } from "@/hooks/useReview";
 import { useReviewQueue } from "@/hooks/useReviewQueue";
-import { useUserVocabularyDueCount } from "@/hooks/useUserVocabulary";
-import { useUserPhrasesDueCount } from "@/hooks/useUserPhrases";
+import { useReviewSession } from "@/hooks/useReviewSession";
 import { PronunciationButton } from "@/components/review/PronunciationButton";
 import { RatingButtons } from "@/components/review/RatingButtons";
+import { SessionHandoff } from "@/components/review/SessionHandoff";
+import { SessionProgress } from "@/components/review/SessionProgress";
 import { HomeButton } from "@/components/HomeButton";
 import { Button } from "@/components/ui/button";
 import { AppShell } from "@/components/layout/AppShell";
@@ -19,8 +20,6 @@ import { Rating, calculateNextReview, elapsedDaysSince } from "@/lib/spacedRepet
 import { Loader2, Trophy, Brain, Sparkles, LogIn, Shuffle, Eye, Volume2, ImagePlus, WifiOff, CloudUpload } from "lucide-react";
 import { GenerateImageDialog } from "@/components/mywords/GenerateImageDialog";
 import { useReviewKeyboard } from "@/hooks/useKeyboardShortcuts";
-import { InfoHint } from "@/components/InfoHint";
-import { PAGE_HINTS } from "@/lib/pageHints";
 
 
 const DIALECT_FLAGS: Record<string, string> = {
@@ -37,8 +36,7 @@ const Review = () => {
   const { data: dueWords, isLoading: wordsLoading, refetch } = useDueWords(mixAll);
   const { data: stats } = useReviewStats(mixAll);
   const { enqueue, pendingCount, isFlushing, isOnline } = useReviewQueue();
-  const { data: myWordsDue } = useUserVocabularyDueCount(mixAll);
-  const { data: phrasesDue } = useUserPhrasesDueCount(mixAll);
+  const session = useReviewSession(mixAll);
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [sessionCount, setSessionCount] = useState(0);
@@ -146,6 +144,29 @@ const Review = () => {
   }
 
   if (!dueWords || dueWords.length === 0) {
+    // The other decks' counts load independently of this one, and they read as
+    // 0 until they arrive — deciding now would flash "All caught up" before
+    // forwarding. Wait for real numbers first.
+    if (session.isLoading) {
+      return (
+        <AppShell compact>
+          <div className="flex items-center justify-center py-24">
+            <Loader2 className="h-10 w-10 animate-spin text-primary" />
+          </div>
+        </AppShell>
+      );
+    }
+
+    // "/review" is the single entry point for the daily session, so arriving
+    // with no curriculum cards shouldn't dead-end on "All caught up" while
+    // other decks have work waiting — forward straight into the next one.
+    // Only on arrival: if cards were rated here, show the completion state
+    // first and let the learner choose to continue.
+    const forwardTo = sessionCount === 0 ? session.nextDeck("curriculum") : null;
+    if (forwardTo) {
+      return <Navigate to={forwardTo.route} replace />;
+    }
+
     return (
       <AppShell compact>
         <div className="flex items-center justify-between mb-6">
@@ -171,13 +192,13 @@ const Review = () => {
           </div>
         </div>
 
-        <div className="text-center max-w-sm mx-auto py-12">
-          <Trophy className="h-14 w-14 mx-auto mb-6 text-primary" />
-          <h1 className="text-xl font-bold text-foreground mb-3 inline-flex items-center gap-2 justify-center">All Caught Up <InfoHint {...PAGE_HINTS["review"]} /></h1>
-          <p className="text-muted-foreground mb-8">
-            You've reviewed all your due {mixAll ? "" : `${activeDialect} `}words. Come back later for more practice.
-          </p>
-
+        <SessionHandoff
+          deckId="curriculum"
+          session={session}
+          message={`You've reviewed all your due ${mixAll ? "" : `${activeDialect} `}curriculum words.`}
+          fallbackLabel="Back to Topics"
+          fallbackRoute="/"
+        >
           {stats && (
             <div className="grid grid-cols-2 gap-4 mb-8">
               <div className="bg-card rounded-xl p-4 border border-border">
@@ -192,19 +213,7 @@ const Review = () => {
               </div>
             </div>
           )}
-
-          {myWordsDue && myWordsDue.dueCount > 0 ? (
-            <Button onClick={() => navigate("/review/my-words")}>
-              Continue with {myWordsDue.dueCount} My Words card{myWordsDue.dueCount === 1 ? "" : "s"}
-            </Button>
-          ) : phrasesDue && phrasesDue.dueCount > 0 ? (
-            <Button onClick={() => navigate("/review/my-phrases")}>
-              Continue with {phrasesDue.dueCount} phrase card{phrasesDue.dueCount === 1 ? "" : "s"}
-            </Button>
-          ) : (
-            <Button onClick={() => navigate("/")}>Back to Topics</Button>
-          )}
-        </div>
+        </SessionHandoff>
       </AppShell>
     );
   }
@@ -217,8 +226,6 @@ const Review = () => {
 
   const currentWord = dueWords[safeIndex];
   if (!currentWord) return null;
-
-  const progress = ((safeIndex + 1) / dueWords.length) * 100;
 
   const dialectFlag = DIALECT_FLAGS[currentWord.dialect_module || "Gulf"] || "";
   const dialectLabel = currentWord.dialect_module || "Gulf";
@@ -286,17 +293,12 @@ const Review = () => {
       )}
 
       {/* Progress bar */}
-      <div className="mb-6">
-        <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-          <div
-            className="h-full bg-primary transition-all duration-300"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-        <p className="text-center text-xs text-muted-foreground mt-2">
-          {currentIndex + 1} / {dueWords.length} due
-        </p>
-      </div>
+      <SessionProgress
+        deckId="curriculum"
+        session={session}
+        position={safeIndex + 1}
+        total={dueWords.length}
+      />
 
       {/* Card */}
       <div className="py-4">

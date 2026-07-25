@@ -36,12 +36,29 @@ export const createEmptyStageBreakdown = (): SRSStageBreakdown => ({
   mastered: 0,
 });
 
-export const getSRSStageByRepetitions = (repetitions: number): keyof SRSStageBreakdown => {
+/**
+ * Classify a card's SRS stage from its FSRS stability (days until 90%
+ * retention probability) rather than raw repetition count. Repetitions alone
+ * are a poor proxy for memory strength: a lapsed card that's been rated
+ * "again" many times keeps its repetition count (it isn't reset — see
+ * calculateNextReview's forget branch), so a chronically-forgotten card could
+ * still cross a repetition threshold and display as "mastered" while its
+ * actual stability is low. Stability directly answers "how well is this
+ * remembered right now," which is what a mastery display should show.
+ *
+ * Thresholds mirror common spaced-repetition conventions: still in the first
+ * day is "learning," a week is "familiar," three weeks is "practiced," two
+ * months is "strong," and beyond that is "mastered."
+ */
+export const getSRSStageByStability = (
+  repetitions: number,
+  stability: number,
+): keyof SRSStageBreakdown => {
   if (repetitions <= 0) return "new";
-  if (repetitions <= 2) return "learning";
-  if (repetitions <= 4) return "familiar";
-  if (repetitions <= 7) return "practiced";
-  if (repetitions <= 12) return "strong";
+  if (stability < 1) return "learning";
+  if (stability < 7) return "familiar";
+  if (stability < 21) return "practiced";
+  if (stability < 60) return "strong";
   return "mastered";
 };
 

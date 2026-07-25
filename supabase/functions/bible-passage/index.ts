@@ -6,24 +6,19 @@ import {
   getDialectVocabRules,
   getDialectExamples,
 } from "../_shared/dialectHelpers.ts";
+import { getCorsHeaders } from "../_shared/cors.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
-
-function ok(body: unknown) {
+function ok(body: unknown, corsHeaders: Record<string, string>) {
   return new Response(JSON.stringify(body), {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 }
 
-function fallback(body: Record<string, unknown>) {
-  return ok({ fallback: true, ...body });
+function fallback(body: Record<string, unknown>, corsHeaders: Record<string, string>) {
+  return ok({ fallback: true, ...body }, corsHeaders);
 }
 
-function err(status: number, message: string) {
+function err(status: number, message: string, corsHeaders: Record<string, string>) {
   return new Response(JSON.stringify({ error: message }), {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -264,6 +259,7 @@ ${JSON.stringify(paired, null, 2)}`;
 }
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -271,7 +267,7 @@ serve(async (req) => {
   try {
     // ── Auth ──────────────────────────────────────────────────────────────
     const authHeader = req.headers.get("authorization");
-    if (!authHeader) return err(401, "Authentication required");
+    if (!authHeader) return err(401, "Authentication required", corsHeaders);
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -279,13 +275,13 @@ serve(async (req) => {
 
     const token = authHeader.replace("Bearer ", "");
     const { data: { user }, error: userError } = await supabase.auth.getUser(token);
-    if (userError || !user) return err(401, "Invalid or expired token");
+    if (userError || !user) return err(401, "Invalid or expired token", corsHeaders);
 
     const { data: canAccessBible, error: accessError } = await supabase.rpc("user_has_bible_access", {
       _user_id: user.id,
     });
     if (accessError || !canAccessBible) {
-      return err(403, "You do not have access to the Bible reading feature.");
+      return err(403, "You do not have access to the Bible reading feature.", corsHeaders);
     }
 
     // ── Parse body ───────────────────────────────────────────────────────
@@ -299,7 +295,7 @@ serve(async (req) => {
     } = await req.json();
 
     if (!arabicVersion || !bookNumber || !chapter) {
-      return err(400, "arabicVersion, bookNumber, and chapter are required.");
+      return err(400, "arabicVersion, bookNumber, and chapter are required.", corsHeaders);
     }
 
     // ── Fetch Arabic + English in parallel BEFORE running dialect conversion,
@@ -313,7 +309,7 @@ serve(async (req) => {
       console.error("Arabic Bible fetch failed:", arabicResult.reason);
       return fallback({
         error: "Bible text is temporarily unavailable. Please try again.",
-      });
+      }, corsHeaders);
     }
 
     const arabicRaw = arabicResult.value;
@@ -351,7 +347,7 @@ serve(async (req) => {
       chapter,
       dialect,
       fallback: fallbackUsed,
-    });
+    }, corsHeaders);
   } catch (error) {
     console.error("bible-passage error:", error);
     const status =

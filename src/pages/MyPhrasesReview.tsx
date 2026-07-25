@@ -3,7 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useDialect } from "@/contexts/DialectContext";
 import { useDueUserPhrases, useUpdateUserPhraseReview, useDeleteUserPhrase } from "@/hooks/useUserPhrases";
-import { useSRSStats } from "@/hooks/useSRSStats";
+import { useReviewSession } from "@/hooks/useReviewSession";
+import { SessionHandoff } from "@/components/review/SessionHandoff";
+import { SessionProgress } from "@/components/review/SessionProgress";
 import { HomeButton } from "@/components/HomeButton";
 import { RatingButtons } from "@/components/review/RatingButtons";
 import { AppShell } from "@/components/layout/AppShell";
@@ -37,7 +39,7 @@ const MyPhrasesReview = () => {
   const { activeDialect } = useDialect();
   const { enabled: leechTrackingEnabled } = useLeechPrefs();
   const { data: duePhrases, isLoading, refetch } = useDueUserPhrases();
-  const { data: srsStats } = useSRSStats();
+  const session = useReviewSession();
   const updateReview = useUpdateUserPhraseReview();
   const deletePhrase = useDeleteUserPhrase();
 
@@ -290,30 +292,18 @@ const MyPhrasesReview = () => {
             </div>
           )}
         </div>
-        <div className="text-center max-w-sm mx-auto py-12">
-          <Trophy className="h-14 w-14 mx-auto mb-6 text-primary" />
-          <h1 className="text-xl font-bold mb-3">All Caught Up!</h1>
-          <p className="text-muted-foreground mb-8">
-            No phrases due for review right now.
-          </p>
-          {srsStats && srsStats.curriculumDue > 0 ? (
-            <Button onClick={() => navigate("/review")}>
-              Continue with {srsStats.curriculumDue} curriculum card{srsStats.curriculumDue === 1 ? "" : "s"}
-            </Button>
-          ) : srsStats && srsStats.myWordsDue > 0 ? (
-            <Button onClick={() => navigate("/review/my-words")}>
-              Continue with {srsStats.myWordsDue} My Words card{srsStats.myWordsDue === 1 ? "" : "s"}
-            </Button>
-          ) : (
-            <Button onClick={() => navigate("/my-words")}>Back to My Words</Button>
-          )}
-        </div>
+        <SessionHandoff
+          deckId="my-phrases"
+          session={session}
+          message="No phrases due for review right now."
+          fallbackLabel="Back to My Words"
+          fallbackRoute="/my-words"
+        />
       </AppShell>
     );
   }
 
   if (!current) return null;
-  const progress = ((safeIndex + 1) / duePhrases.length) * 100;
   const effectiveAudio = current.phrase_audio_url || ttsUrl;
 
   return (
@@ -334,14 +324,12 @@ const MyPhrasesReview = () => {
       </div>
 
       {/* Progress */}
-      <div className="mb-6">
-        <div className="h-1.5 bg-[#5C3A46]/10 rounded-full overflow-hidden">
-          <div className="h-full bg-primary transition-all duration-300" style={{ width: `${progress}%` }} />
-        </div>
-        <p className="text-center text-[10px] uppercase tracking-wider text-muted-foreground mt-2 font-medium">
-          {safeIndex + 1} / {duePhrases.length} due
-        </p>
-      </div>
+      <SessionProgress
+        deckId="my-phrases"
+        session={session}
+        position={safeIndex + 1}
+        total={duePhrases.length}
+      />
 
       {/* Card */}
       <div className="py-4">

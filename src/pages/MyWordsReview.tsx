@@ -28,8 +28,9 @@ import { ReviewClozeCard } from "@/components/review/ReviewClozeCard";
 import { useTranscriptCloze } from "@/hooks/useTranscriptCloze";
 import { useNewCardCap, NEW_CAP_OPTIONS, formatCap } from "@/hooks/useNewCardCap";
 import { useRemainingNewCardBudget, useClaimNewCard } from "@/hooks/useNewCardBudget";
-import { useSRSStats } from "@/hooks/useSRSStats";
-import { useUserPhrasesDueCount } from "@/hooks/useUserPhrases";
+import { useReviewSession } from "@/hooks/useReviewSession";
+import { SessionHandoff } from "@/components/review/SessionHandoff";
+import { SessionProgress } from "@/components/review/SessionProgress";
 import { createPlayableJingleAudio, createPlayableJingleAudioFromUrl } from "@/lib/jingleAudio";
 import {
   Select,
@@ -110,8 +111,7 @@ const MyWordsReview = () => {
   const { cap: newCap, setCap: setNewCap } = useNewCardCap();
   const { remaining: remainingNewBudget } = useRemainingNewCardBudget(newCap);
   const claimNewCard = useClaimNewCard();
-  const { data: srsStats } = useSRSStats();
-  const { data: phrasesDue } = useUserPhrasesDueCount();
+  const session = useReviewSession();
   const queryClient = useQueryClient();
 
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -618,24 +618,13 @@ const MyWordsReview = () => {
             </div>
           )}
         </div>
-        <div className="text-center max-w-sm mx-auto py-12">
-          <Trophy className="h-14 w-14 mx-auto mb-6 text-primary" />
-          <h1 className="text-xl font-bold text-foreground mb-3">All Caught Up!</h1>
-          <p className="text-muted-foreground mb-8">
-            No cards due for review right now. Come back later!
-          </p>
-          {srsStats && srsStats.curriculumDue > 0 ? (
-            <Button onClick={() => navigate("/review")}>
-              Continue with {srsStats.curriculumDue} curriculum card{srsStats.curriculumDue === 1 ? "" : "s"}
-            </Button>
-          ) : phrasesDue && phrasesDue.dueCount > 0 ? (
-            <Button onClick={() => navigate("/review/my-phrases")}>
-              Continue with {phrasesDue.dueCount} phrase card{phrasesDue.dueCount === 1 ? "" : "s"}
-            </Button>
-          ) : (
-            <Button onClick={() => navigate("/my-words")}>Back to My Words</Button>
-          )}
-        </div>
+        <SessionHandoff
+          deckId="my-words"
+          session={session}
+          message="No saved words due for review right now."
+          fallbackLabel="Back to My Words"
+          fallbackRoute="/my-words"
+        />
       </AppShell>
     );
   }
@@ -647,7 +636,6 @@ const MyWordsReview = () => {
 
   if (!currentWord) return null;
 
-  const progress = ((safeIndex + 1) / dueWords.length) * 100;
 
   return (
     <AppShell compact>
@@ -690,13 +678,13 @@ const MyWordsReview = () => {
       </div>
 
       {/* Progress */}
-      <div className="mb-6">
-        <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-          <div className="h-full bg-primary transition-all duration-300" style={{ width: `${progress}%` }} />
-        </div>
-        <div className="flex items-center justify-center gap-3 text-xs text-muted-foreground mt-2">
-          <span>{currentIndex + 1} / {dueWords.length}</span>
-          <span className="text-border">·</span>
+      <SessionProgress
+        deckId="my-words"
+        session={session}
+        position={safeIndex + 1}
+        total={dueWords.length}
+      >
+        <div className="flex items-center justify-center gap-3 text-xs text-muted-foreground mt-1">
           <span className="inline-flex items-center gap-1">
             <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
             {newRemaining} new
@@ -706,7 +694,7 @@ const MyWordsReview = () => {
             {reviewRemaining} review
           </span>
         </div>
-      </div>
+      </SessionProgress>
 
       {/* Card */}
       <div className="py-4">

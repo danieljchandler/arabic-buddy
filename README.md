@@ -41,6 +41,17 @@ the edge functions are configured in the Supabase dashboard, not committed.
 | `npm run lint` | Lint the codebase |
 | `npm test` | Run the Vitest suite |
 | `npm run test:coverage` | Run tests with coverage |
+| `npm run test:e2e` | Run the Playwright end-to-end suite |
+| `npm run test:e2e:ui` | Run the E2E suite in Playwright's UI mode |
+
+### End-to-end tests
+
+`e2e/` runs the real app in a browser. It needs **no Supabase credentials**:
+`playwright.config.ts` points the dev server at a fake Supabase host, and
+`e2e/support/supabase.ts` seeds an auth session into `localStorage` and answers
+every request from fixtures. The suite is hermetic — no network, no shared
+state — so it verifies the app's own routing and rendering rather than that
+queries match the production schema.
 
 ## Project layout
 

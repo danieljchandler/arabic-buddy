@@ -5,7 +5,10 @@
  * which origins may call your functions.  When the variable is not set the
  * default is to allow only the known production domain.
  */
-const DEFAULT_ORIGINS = 'https://lahja-arabic.lovable.app';
+// hakiya.app is the current production domain (see index.html's canonical
+// link/OG tags); lahja-arabic.lovable.app is kept for the pre-rebrand Lovable
+// preview URL in case it's still linked anywhere.
+const DEFAULT_ORIGINS = 'https://hakiya.app,https://lahja-arabic.lovable.app';
 
 function getAllowedOrigins(): string[] {
   const raw = Deno.env.get('ALLOWED_ORIGINS') ?? DEFAULT_ORIGINS;
@@ -34,15 +37,3 @@ export function getCorsHeaders(req?: Request): Record<string, string> {
     'Vary': 'Origin',
   };
 }
-
-/**
- * Legacy constant kept for backward compatibility with functions that haven't
- * been migrated to getCorsHeaders() yet.
- *
- * @deprecated Use getCorsHeaders(req) instead.
- */
-export const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
-  'Vary': 'Origin',
-};

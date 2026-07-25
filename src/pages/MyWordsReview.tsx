@@ -236,7 +236,7 @@ const MyWordsReview = () => {
           id: r.id,
           word_arabic: r.word_arabic,
           word_english: r.word_english,
-          transliteration: r.transliteration ?? null,
+          transliteration: null,
           ease_factor: r.production_ease_factor,
           interval_days: r.production_interval_days,
           repetitions: r.production_repetitions,

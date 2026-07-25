@@ -3,6 +3,7 @@ import type { Rating } from "@/lib/spacedRepetition";
 export interface QueuedReviewSnapshot {
   id: string;
   ease_factor: number;
+  difficulty?: number | null;
   interval_days: number;
   repetitions: number;
   last_reviewed_at: string | null;

@@ -131,8 +131,13 @@ const LEARNING_INTERVALS: Record<Rating, number> = {
  * @param rating     User's recall rating
  * @param stability  Current stability S (stored in ease_factor column). 0 for new cards.
  * @param difficulty Current difficulty D (stored in difficulty column). 5 for new cards.
- * @param intervalDays  Last scheduled interval in days (used as proxy for elapsed time)
+ * @param intervalDays  Last scheduled interval in days (fallback elapsed proxy)
  * @param repetitions   Number of completed reviews so far
+ * @param elapsedDays   Actual days since the last review (from last_reviewed_at).
+ *                      When supplied, FSRS retrievability is measured at the real
+ *                      review moment instead of assuming the card was reviewed on
+ *                      schedule — so overdue reviews are no longer mis-estimated.
+ *                      Compute it with {@link elapsedDaysSince}.
  */
 export function calculateNextReview(
   rating: Rating,
@@ -140,6 +145,7 @@ export function calculateNextReview(
   difficulty: number,
   intervalDays: number,
   repetitions: number,
+  elapsedDays?: number,
 ): ReviewResult {
   const r = RATING_NUM[rating];
   const isNewCard = repetitions === 0 || stability <= 0;
@@ -166,7 +172,13 @@ export function calculateNextReview(
     // ── Established card ────────────────────────────────────────────────────
     const s = stability;
     const d = difficulty > 0 ? difficulty : 5.0;
-    const elapsed = Math.max(intervalDays, 1); // assume reviewed near schedule
+    // Prefer real elapsed time (from last_reviewed_at) when the caller supplies
+    // it; fall back to the scheduled interval only when it's unknown. A card
+    // reviewed on the day it's due gives elapsed ≈ interval (unchanged
+    // behaviour); a card reviewed late now correctly lowers retrievability.
+    const elapsed = elapsedDays != null
+      ? Math.max(elapsedDays, 0)
+      : Math.max(intervalDays, 1);
     const ret = retrievability(elapsed, s);
 
     newDifficulty = nextDifficulty(d, r);
@@ -228,7 +240,21 @@ export function estimateNextInterval(
   difficulty: number,
   intervalDays: number,
   repetitions: number,
+  elapsedDays?: number,
 ): string {
-  const result = calculateNextReview(rating, stability, difficulty, intervalDays, repetitions);
+  const result = calculateNextReview(rating, stability, difficulty, intervalDays, repetitions, elapsedDays);
   return getIntervalDisplay(result.intervalDays);
+}
+
+/**
+ * Days elapsed since an ISO timestamp, for feeding real elapsed time into
+ * {@link calculateNextReview}. Returns undefined when no usable timestamp is
+ * available (e.g. a never-reviewed card), so the scheduler falls back to the
+ * scheduled interval.
+ */
+export function elapsedDaysSince(lastReviewedAt: string | null | undefined): number | undefined {
+  if (!lastReviewedAt) return undefined;
+  const then = new Date(lastReviewedAt).getTime();
+  if (Number.isNaN(then)) return undefined;
+  return Math.max(0, (Date.now() - then) / (24 * 60 * 60 * 1000));
 }

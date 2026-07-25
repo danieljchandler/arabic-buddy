@@ -3,8 +3,8 @@ import { Sparkles, GraduationCap, Play, Brain, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const TABS = [
-  // Labeled "Home" (not "Today") to avoid colliding with the separate /today
-  // task-queue page, reachable from here via the "Start today" card.
+  // The daily task queue lives directly on this tab (Index.tsx) — labeled
+  // "Home" since it also carries onboarding/explore content, not "Today".
   { to: "/", label: "Home", icon: Sparkles, match: (p: string) => p === "/", tourId: "nav-today" },
   { to: "/learn-hub", label: "Learn", icon: GraduationCap, match: (p: string) => p.startsWith("/learn-hub"), tourId: "nav-learn" },
   { to: "/discover", label: "Discover", icon: Play, match: (p: string) => p === "/discover", tourId: "nav-discover" },

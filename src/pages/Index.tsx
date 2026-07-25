@@ -1,17 +1,21 @@
 import { useNavigate } from "react-router-dom";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useBibleAccess } from "@/hooks/useBibleAccess";
 import { supabase } from "@/integrations/supabase/client";
 import { useReviewStats } from "@/hooks/useReview";
 import { useUserVocabularyDueCount } from "@/hooks/useUserVocabulary";
 import { useSRSStats } from "@/hooks/useSRSStats";
+import { useUserXP } from "@/hooks/useGamification";
+import { useTodayQueue } from "@/hooks/useTodayQueue";
 import { useDiscoverVideos, difficultyWindow } from "@/hooks/useDiscoverVideos";
 import { Button } from "@/components/design-system";
-import { Settings, Brain, LogIn, LogOut, Mic, BookOpen, Sparkles, GraduationCap, Laugh, Play, ChevronRight, Twitter, MessageCircleQuestion, Compass, MessageSquare, MessageCircle, Globe2, Headphones, Trophy, FileText, Flame, BarChart3, PenTool, Gamepad2, Users, Swords, Newspaper, BookMarked, Image as ImageIcon, Languages } from "lucide-react";
+import { Settings, Brain, LogIn, LogOut, Mic, BookOpen, Sparkles, GraduationCap, Laugh, Play, ChevronRight, Twitter, MessageCircleQuestion, Compass, MessageSquare, MessageCircle, Globe2, Headphones, Trophy, FileText, Flame, BarChart3, PenTool, Gamepad2, Users, Swords, Newspaper, BookMarked, Image as ImageIcon, Languages, Settings2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AppShell } from "@/components/layout/AppShell";
 import { Badge } from "@/components/ui/badge";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { Input } from "@/components/ui/input";
 import { XPDisplay, StreakDisplay, WeeklyGoalCard, AchievementsGrid } from "@/components/gamification";
 import hakiyaLogoAsset from "@/assets/hakiya-logo.png.asset.json";
 const lahjaLogo = hakiyaLogoAsset.url;
@@ -29,45 +33,52 @@ import { InfoHint } from "@/components/InfoHint";
 import { useAlphabetProgress } from "@/hooks/useAlphabetProgress";
 import { ARABIC_LETTERS } from "@/data/arabicAlphabet";
 import { DailyLetterGoalRing } from "@/components/alphabet/DailyLetterGoalRing";
+import { DailyGoalRing } from "@/components/today/DailyGoalRing";
+import { TaskRow } from "@/components/today/TaskRow";
+import { getDailyGoal, setDailyGoal, markTaskCompletedToday } from "@/lib/todayCompletion";
 import { ContinueCard } from "@/components/ContinueCard";
 import { LandingHero } from "@/components/LandingHero";
 import { Footer } from "@/components/Footer";
 
 
 const TILE_HINTS: Record<string, { title: string; body: string }> = {
-  "today": { title: "Start today", body: "Your daily learning queue — reviews, a challenge, listening and reading, all picked for today. The fastest way to grow your streak." },
   "review": { title: "Smart review", body: "Spaced repetition surfaces only the words you're about to forget. Quick taps now mean rock-solid long-term memory." },
   "my-words": { title: "My Words", body: "Every word you've saved — with native audio, images, and SRS scheduling. Your personal vocabulary deck, on autopilot." },
-  "new-words": { title: "Learn new words", body: "Pick up fresh vocabulary at your level with audio, images, and quick example sentences." },
   "discover": { title: "Discover videos", body: "Real native videos with synced subtitles. Tap any word to learn it, then save it to review later." },
-  "tutor-upload": { title: "Tutor Upload", body: "Drop in audio from your tutor and we'll auto-extract the new words and turn them into flashcards." },
-  "pronunciation": { title: "Pronunciation Practice", body: "Record yourself and get instant AI scoring on each syllable — like a patient native speaker in your pocket." },
-  "conversation": { title: "Conversation Simulator", body: "Free-form chat with realistic native voices. Practice ordering coffee, small talk, anything — judgment-free." },
-  "set-phrases": { title: "Set Phrases", body: "Greetings, weddings, Eid wishes, condolences — the expressions natives use on autopilot. Voice-quiz yourself." },
-  "stories": { title: "Interactive Stories", body: "Choose-your-adventure tales in Arabic. Comprehension-building that actually feels like a game." },
-  "grammar": { title: "Grammar Drills", body: "AI-generated drills for conjugation, pronouns, and tricky structures — bite-sized and personalized." },
-  "vocab-games": { title: "Vocabulary Games", body: "Word matching, memory cards, fill-in-the-blanks — sneak in extra practice without it feeling like work." },
-  "listening": { title: "Listening Practice", body: "Dictation, comprehension drills, and speed-listening — train your ear on real dialect audio." },
-  "reading": { title: "Reading Practice", body: "Short passages with tap-to-translate. Build comprehension without ever reaching for a dictionary." },
-  "reading-library": { title: "Reading Library", body: "Authentic Arabic stories with line-by-line audio, tashkeel, and tap-to-translate. Real literature made learnable." },
-  "listen": { title: "Listen", body: "AI-generated podcasts, TED-style talks, interviews and stories in your dialect. Tap any word to translate or save." },
-  
-  "bible": { title: "Bible Reading", body: "Read Scripture in Arabic with tap-to-translate, dialect audio, and built-in vocabulary tools." },
-  "souq-news": { title: "Souq News", body: "Today's headlines retold like a friend gossiping in dialect. Casual Arabic + current events." },
-  "dialect-compare": { title: "Dialect Compare", body: "See the same word across Gulf, Egyptian and more — perfect for travelers and curious linguists." },
-  "meme": { title: "Meme Analyzer", body: "Paste an Arabic meme and we'll break it down: the text, the joke, the slang, the cultural reference." },
-  "learn-from-x": { title: "Learn from X", body: "Drop an X (Twitter) post link and we'll turn it into a mini lesson — vocab, grammar, the works." },
-  "how-do-i-say": { title: "How do I say…?", body: "Type any phrase in English and get a natural, dialect-accurate translation with audio." },
-  "culture": { title: "Culture Guide", body: "Ask 'what do I do?' for any social situation and get culturally-appropriate Gulf or Egyptian advice." },
-  "transcribe": { title: "Transcribe Audio", body: "Upload Arabic audio or video and get an editable, word-accurate transcript with translations." },
-  "my-transcriptions": { title: "My Transcriptions", body: "Every transcript you've saved, ready to revisit and turn into flashcards." },
-  "daily-challenge": { title: "Daily Challenge", body: "A fresh bite-sized mission every day. Finish it for bonus XP and your streak multiplier." },
-  "leaderboard": { title: "Leaderboard", body: "See where you stack up against other learners this week. Friendly competition, real motivation." },
-  "battles": { title: "Vocab Battles", body: "Live head-to-head vocabulary duels. Fast, fun, and the best way to test if you actually know your words." },
-  "friends": { title: "Friends", body: "Add friends, share progress, and cheer each other's streaks." },
-  "analytics": { title: "Learning Analytics", body: "Beautiful charts of your progress: words learned, retention rate, time spent, dialect coverage." },
-  
   "placement": { title: "Placement Quiz", body: "20 adaptive questions to pin down your exact CEFR level so every lesson lands in your sweet spot." },
+};
+
+// Daily-queue task hints, keyed by useTodayQueue's TodayTaskId — moved here
+// from the old standalone Today.tsx page now that the queue is inline.
+const TASK_HINTS: Record<string, { title: string; body: string }> = {
+  flashcards: {
+    title: "Flashcards review",
+    body: "We surface only the words your brain is about to forget — quick taps now mean long-term memory later.",
+  },
+  "daily-challenge": {
+    title: "Daily challenge",
+    body: "A fresh bite-sized mission every day. Finish it to fire up your streak multiplier and earn bonus XP.",
+  },
+  reading: {
+    title: "Reading practice",
+    body: "Short passages with tap-to-translate. Build comprehension without ever reaching for a dictionary.",
+  },
+  "daily-story": {
+    title: "Today's story",
+    body: "A fresh ~200-word story written around words you already know, with a few new ones gently introduced. Tap any word for an instant gloss.",
+  },
+  listening: {
+    title: "Listening clip",
+    body: "Real native videos with synced subtitles — train your ear on how Arabic actually sounds in the wild.",
+  },
+  souq: {
+    title: "Souq News",
+    body: "Today's headlines, retold like a friend gossiping in dialect. Casual Arabic + current events in one go.",
+  },
+  "set-phrases": {
+    title: "Set phrases",
+    body: "Greetings, weddings, Eid wishes — the go-to expressions natives use on autopilot. Voice-quiz yourself.",
+  },
 };
 
 const DIALECT_MODULES: { id: DialectModule; label: string; flag: string }[] = [
@@ -107,6 +118,39 @@ const Index = () => {
   const [previewIndex, setPreviewIndex] = useState(0);
   const previewVideos = discoverVideos?.slice(0, 5) ?? [];
   const previewVideo = previewVideos[previewIndex];
+
+  // Daily queue — inlined here (was previously a separate /today page the
+  // user had to navigate to via a "Start today" card).
+  const { data: xp } = useUserXP();
+  const todayTasks = useTodayQueue();
+  const [dailyGoal, setDailyGoalState] = useState<number>(() => getDailyGoal());
+  const [goalDraft, setGoalDraft] = useState<string>(String(dailyGoal));
+
+  useEffect(() => {
+    const onGoalChange = () => setDailyGoalState(getDailyGoal());
+    window.addEventListener("today:goal-changed", onGoalChange);
+    return () => window.removeEventListener("today:goal-changed", onGoalChange);
+  }, []);
+
+  const xpToday = useMemo(() => {
+    const todayUtc = new Date().toISOString().slice(0, 10);
+    if (!xp || xp.xp_today_date !== todayUtc) return 0;
+    return xp.xp_today;
+  }, [xp]);
+
+  const visibleTasks = todayTasks.filter((t) => !t.hidden);
+  const tasksCompleted = visibleTasks.filter((t) => t.done).length;
+  const tasksTotal = visibleTasks.length;
+
+  const handleTaskClick = (taskId: string, route: string) => {
+    // daily-challenge, reading, and souq mark themselves complete on their own
+    // real completion event; "listening" has no single completion event to
+    // hook (it routes to the Discover browse list), so it completes on click.
+    if (taskId === "listening") {
+      markTaskCompletedToday(taskId);
+    }
+    navigate(route);
+  };
 
   // Check onboarding + placement status for authenticated users (per active dialect)
   useEffect(() => {
@@ -196,61 +240,6 @@ const Index = () => {
         <DialectRitualSwitcher />
       </div>
 
-      {/* Continue where you left off */}
-      {isAuthenticated && <ContinueCard />}
-
-
-      {/* MSA → Dialect bridge entry */}
-      <button
-        onClick={() => navigate("/bridge")}
-        className={cn(
-          "w-full mb-4 px-4 py-3 rounded-2xl text-left",
-          "bg-gradient-to-r from-[#5C3A46]/8 via-[#F9F7F2] to-[#5C3A46]/8",
-          "border border-[#5C3A46]/25 hover:border-[#5C3A46]/50",
-          "flex items-center gap-3 transition-all active:scale-[0.99]"
-        )}
-      >
-        <div className="h-9 w-9 rounded-xl bg-[#5C3A46]/10 flex items-center justify-center shrink-0">
-          <Globe2 className="h-4 w-4 text-[#5C3A46]" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-[#5C3A46]">Coming from MSA?</p>
-          <p className="text-[11px] text-[#5C3A46]/70 truncate">
-            Bridge <span className="font-arabic" dir="rtl">الفصحى</span> into {activeDialect} dialect
-          </p>
-        </div>
-        <ChevronRight className="h-4 w-4 text-[#5C3A46]/60 shrink-0" />
-      </button>
-
-      {/* Discover video preview */}
-      {previewVideo && (
-        <div className="mb-5">
-          <div className="px-1 mb-3 flex items-baseline gap-3">
-            <span className="h-px flex-1 bg-[#5C3A46]/15" aria-hidden />
-            <h2
-              className="text-[10px] font-bold text-[#5C3A46]/70 uppercase tracking-[0.18em] flex items-center gap-1.5"
-              style={{ fontFamily: "'Montserrat', sans-serif" }}
-            >
-              <Compass className="h-3 w-3" />
-              Watch today
-              <InfoHint title={TILE_HINTS.discover.title} body={TILE_HINTS.discover.body} />
-            </h2>
-            <span className="h-px flex-1 bg-[#5C3A46]/15" aria-hidden />
-          </div>
-          <DiscoverPreviewCard
-            video={previewVideo}
-            onClick={() => navigate(`/discover/${previewVideo.id}`)}
-          />
-          <button
-            onClick={() => navigate("/discover")}
-            className="mt-2 text-xs text-primary font-semibold flex items-center gap-0.5 mx-auto"
-          >
-            See all videos <ChevronRight className="h-3 w-3" />
-          </button>
-        </div>
-      )}
-
-
       {(() => {
         const sections: Partial<Record<HomeSectionId, React.ReactNode>> = {
           "phrase-of-the-day": <PhraseOfTheDay key="phrase-of-the-day" />,
@@ -288,27 +277,114 @@ const Index = () => {
               </button>
             ) : null,
 
-          "gamification": isAuthenticated ? (
-            <div key="gamification" className="space-y-3">
-              <button
-                onClick={() => navigate("/today")}
-                className="w-full p-4 rounded-2xl bg-gradient-to-br from-primary/15 via-primary/10 to-transparent border-2 border-primary/30 flex items-center gap-3 transition-all hover:border-primary/50 hover:shadow-md active:scale-[0.99] text-left"
-              >
-                <div className="h-12 w-12 rounded-xl bg-primary/20 flex items-center justify-center shrink-0">
-                  <Sparkles className="h-6 w-6 text-primary" />
-                </div>
+          // The daily task queue — the app's single "what do I do today" surface.
+          // This used to be a separate /today page reached via a "Start today"
+          // card; it's now inline so Home doesn't compete with a second home.
+          "daily-queue": isAuthenticated ? (
+            <div key="daily-queue" className="space-y-3">
+              <div className="flex items-center gap-4">
+                <DailyGoalRing current={xpToday} goal={dailyGoal} size={100} />
                 <div className="flex-1 min-w-0">
-                  <p className="font-bold text-foreground flex items-center gap-1.5" style={{ fontFamily: "'Montserrat', sans-serif" }}>Start today<InfoHint title={TILE_HINTS.today.title} body={TILE_HINTS.today.body} /></p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {srsStats && srsStats.totalDueNow >= 10
-                      ? `${srsStats.totalDueNow} cards due — clear them first`
-                      : currentLetter && alphabetMastered < 28
-                      ? `Next letter: ${currentLetter.name_translit}`
-                      : "Your daily learning queue"}
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-lg font-bold text-foreground" style={{ fontFamily: "'Montserrat', sans-serif" }}>
+                      Today
+                    </h2>
+                    <InfoHint
+                      size="md"
+                      title="Your daily queue"
+                      body="Everything Hakiya recommends for you today — reviews, a challenge, listening, reading and more. Knock them out to hit your goal and grow your streak."
+                    />
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-0.5">
+                    {tasksCompleted} of {tasksTotal} tasks done
                   </p>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="ghost" size="sm" className="mt-1 -ml-2 h-7 text-xs">
+                        <Settings2 className="h-3.5 w-3.5 mr-1" />
+                        Daily goal
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent align="start" className="w-56">
+                      <div className="space-y-2">
+                        <label className="text-xs font-semibold text-muted-foreground">Daily XP goal</label>
+                        <Input
+                          type="number"
+                          min={10}
+                          max={1000}
+                          value={goalDraft}
+                          onChange={(e) => setGoalDraft(e.target.value)}
+                        />
+                        <Button
+                          size="sm"
+                          className="w-full"
+                          onClick={() => {
+                            const n = parseInt(goalDraft, 10);
+                            if (Number.isFinite(n) && n > 0) {
+                              setDailyGoal(n);
+                              setDailyGoalState(n);
+                            }
+                          }}
+                        >
+                          Save
+                        </Button>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
                 </div>
-                <ChevronRight className="h-5 w-5 text-primary shrink-0" />
-              </button>
+              </div>
+
+              <div className="space-y-3">
+                {visibleTasks.map((task) => (
+                  <TaskRow
+                    key={task.id}
+                    title={task.title}
+                    subtitle={task.subtitle}
+                    countBadge={task.countBadge}
+                    estMinutes={task.estMinutes}
+                    icon={task.icon}
+                    done={task.done}
+                    hint={TASK_HINTS[task.id]}
+                    onClick={() => handleTaskClick(task.id, task.route)}
+                  />
+                ))}
+                {visibleTasks.length === 0 && (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Sparkles className="h-8 w-8 mx-auto mb-2 text-primary" />
+                    <p className="font-semibold text-foreground">All caught up!</p>
+                    <p className="text-sm mt-1">No tasks due today. Explore something new below.</p>
+                  </div>
+                )}
+              </div>
+
+              {tasksCompleted > 0 && tasksCompleted === tasksTotal && (
+                <div className="rounded-2xl border-2 border-primary/30 bg-primary/5 p-4 text-center">
+                  <Sparkles className="h-6 w-6 mx-auto mb-1 text-primary" />
+                  <p className="font-semibold text-foreground text-sm">Daily goal complete</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Come back tomorrow to keep your streak.</p>
+                </div>
+              )}
+
+              {/* Curriculum SRS cards live in a separate deck the queue's
+                  "flashcards" task doesn't cover (see /review vs
+                  /review/my-words) — surface it here so it isn't unreachable
+                  from Home. */}
+              {srsStats && srsStats.curriculumDue > 0 && (
+                <button
+                  onClick={() => navigate("/review")}
+                  className="w-full p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-between"
+                >
+                  <div className="flex items-center gap-2">
+                    <Brain className="h-4 w-4 text-amber-600" />
+                    <span className="text-sm font-medium text-foreground">
+                      {srsStats.curriculumDue} curriculum {srsStats.curriculumDue === 1 ? "card" : "cards"} due
+                    </span>
+                  </div>
+                  <span className="text-xs text-amber-600 font-semibold">Review now →</span>
+                </button>
+              )}
+
+              {/* Secondary progression tracks — distinct from the daily queue */}
               {currentLetter && (
                 <button
                   onClick={() => navigate(alphabetMastered === 0 ? "/alphabet" : `/alphabet/${currentLetter.code}`)}
@@ -335,20 +411,6 @@ const Index = () => {
                   <ChevronRight className="h-5 w-5 text-[#5C3A46] shrink-0" />
                 </button>
               )}
-              {srsStats && srsStats.totalDueNow > 0 && (
-                <button
-                  onClick={() => navigate(srsStats.curriculumDue > 0 ? "/review" : "/review/my-words")}
-                  className="w-full p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-between"
-                >
-                  <div className="flex items-center gap-2">
-                    <Brain className="h-4 w-4 text-amber-600" />
-                    <span className="text-sm font-medium text-foreground">
-                      {srsStats.totalDueNow} {srsStats.totalDueNow === 1 ? "card" : "cards"} due for review
-                    </span>
-                  </div>
-                  <span className="text-xs text-amber-600 font-semibold">Review now →</span>
-                </button>
-              )}
               <div className="flex gap-3">
                 <XPDisplay compact className="flex-1" />
                 <StreakDisplay compact />
@@ -370,6 +432,60 @@ const Index = () => {
           </div>
         );
       })()}
+
+      {/* Explore — secondary browsing content, below the daily queue rather
+          than competing with it for the first screen. */}
+      <div className="mt-6 space-y-4">
+        {isAuthenticated && <ContinueCard />}
+
+        <button
+          onClick={() => navigate("/bridge")}
+          className={cn(
+            "w-full px-4 py-3 rounded-2xl text-left",
+            "bg-gradient-to-r from-[#5C3A46]/8 via-[#F9F7F2] to-[#5C3A46]/8",
+            "border border-[#5C3A46]/25 hover:border-[#5C3A46]/50",
+            "flex items-center gap-3 transition-all active:scale-[0.99]"
+          )}
+        >
+          <div className="h-9 w-9 rounded-xl bg-[#5C3A46]/10 flex items-center justify-center shrink-0">
+            <Globe2 className="h-4 w-4 text-[#5C3A46]" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-[#5C3A46]">Coming from MSA?</p>
+            <p className="text-[11px] text-[#5C3A46]/70 truncate">
+              Bridge <span className="font-arabic" dir="rtl">الفصحى</span> into {activeDialect} dialect
+            </p>
+          </div>
+          <ChevronRight className="h-4 w-4 text-[#5C3A46]/60 shrink-0" />
+        </button>
+
+        {previewVideo && (
+          <div>
+            <div className="px-1 mb-3 flex items-baseline gap-3">
+              <span className="h-px flex-1 bg-[#5C3A46]/15" aria-hidden />
+              <h2
+                className="text-[10px] font-bold text-[#5C3A46]/70 uppercase tracking-[0.18em] flex items-center gap-1.5"
+                style={{ fontFamily: "'Montserrat', sans-serif" }}
+              >
+                <Compass className="h-3 w-3" />
+                Watch today
+                <InfoHint title={TILE_HINTS.discover.title} body={TILE_HINTS.discover.body} />
+              </h2>
+              <span className="h-px flex-1 bg-[#5C3A46]/15" aria-hidden />
+            </div>
+            <DiscoverPreviewCard
+              video={previewVideo}
+              onClick={() => navigate(`/discover/${previewVideo.id}`)}
+            />
+            <button
+              onClick={() => navigate("/discover")}
+              className="mt-2 text-xs text-primary font-semibold flex items-center gap-0.5 mx-auto"
+            >
+              See all videos <ChevronRight className="h-3 w-3" />
+            </button>
+          </div>
+        )}
+      </div>
 
     </AppShell>
   );

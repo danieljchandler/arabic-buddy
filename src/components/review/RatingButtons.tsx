@@ -8,6 +8,8 @@ interface RatingButtonsProps {
   difficulty: number;
   intervalDays: number;
   repetitions: number;
+  /** Real days since last review, so the previewed intervals match scheduling. */
+  elapsedDays?: number;
   disabled?: boolean;
 }
 
@@ -22,6 +24,7 @@ export const RatingButtons = ({
   difficulty,
   intervalDays,
   repetitions,
+  elapsedDays,
   disabled,
 }: RatingButtonsProps) => {
   const buttons: { rating: Rating; label: string; icon: React.ReactNode; color: string }[] = [
@@ -58,7 +61,7 @@ export const RatingButtons = ({
       </p>
       <div className="grid grid-cols-4 gap-2">
         {buttons.map(({ rating, label, icon, color }) => {
-          const nextInterval = estimateNextInterval(rating, stability, difficulty, intervalDays, repetitions);
+          const nextInterval = estimateNextInterval(rating, stability, difficulty, intervalDays, repetitions, elapsedDays);
 
           return (
             <button

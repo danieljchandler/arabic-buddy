@@ -3286,6 +3286,7 @@ export type Database = {
       user_set_phrases: {
         Row: {
           created_at: string
+          difficulty: number
           ease_factor: number
           id: string
           interval_days: number
@@ -3300,6 +3301,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          difficulty?: number
           ease_factor?: number
           id?: string
           interval_days?: number
@@ -3314,6 +3316,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          difficulty?: number
           ease_factor?: number
           id?: string
           interval_days?: number
@@ -3360,6 +3363,7 @@ export type Database = {
           msa_note: string | null
           next_review_at: string
           phonetic: string | null
+          production_difficulty: number
           production_ease_factor: number
           production_interval_days: number
           production_lapses: number
@@ -3405,6 +3409,7 @@ export type Database = {
           msa_note?: string | null
           next_review_at?: string
           phonetic?: string | null
+          production_difficulty?: number
           production_ease_factor?: number
           production_interval_days?: number
           production_lapses?: number
@@ -3450,6 +3455,7 @@ export type Database = {
           msa_note?: string | null
           next_review_at?: string
           phonetic?: string | null
+          production_difficulty?: number
           production_ease_factor?: number
           production_interval_days?: number
           production_lapses?: number

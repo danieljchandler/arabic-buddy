@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { localDateKey } from "@/lib/localDate";
 
 export interface UserXP {
   id: string;
@@ -86,9 +87,9 @@ export function useUserXP() {
           total_xp: 0,
           level: 1,
           xp_this_week: 0,
-          week_start_date: new Date().toISOString().split("T")[0],
+          week_start_date: localDateKey(),
           xp_today: 0,
-          xp_today_date: new Date().toISOString().split("T")[0],
+          xp_today_date: localDateKey(),
         } as UserXP;
       }
 
@@ -153,7 +154,7 @@ export function useWeeklyGoal() {
       const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
       const monday = new Date(today);
       monday.setDate(today.getDate() + mondayOffset);
-      const weekStart = monday.toISOString().split("T")[0];
+      const weekStart = localDateKey(monday);
 
       const { data, error } = await supabase
         .from("weekly_goals")

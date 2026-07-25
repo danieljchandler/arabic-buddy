@@ -68,6 +68,10 @@ function defaultAzureVoiceFor(dialect: DialectHint): string | undefined {
   return DEFAULT_AZURE_VOICE[String(dialect).toLowerCase()];
 }
 
+// Hard ceiling on any single TTS request. Also the safety valve for the munsit
+// serial queue below — see tryFetch for why an unbounded request is dangerous.
+const TTS_FETCH_TIMEOUT_MS = 12_000;
+
 // Module-level serial queue for Munsit requests. Munsit's plan caps concurrent
 // requests (and we want to avoid 429s entirely), so we funnel every munsit-tts
 // fetch through a single-slot mutex. Azure has no such limit and is unaffected.
@@ -124,17 +128,30 @@ export function useAzureTTS({ text, skip = false, dialect, voice, persist }: Use
 
       const endpoint = useMunsit ? "munsit-tts" : "azure-tts";
 
-      const tryFetch = (fnName: string) => fetch(`${supabaseUrl}/functions/v1/${fnName}`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-          apikey: anonKey,
-        },
-        body: JSON.stringify(
-          fnName === "azure-tts" && effectiveVoice ? { text, voice: effectiveVoice } : { text },
-        ),
-      });
+      // Always bound the request. Munsit calls are serialized through a
+      // single-slot module mutex (runOnMunsit); without a timeout a single hung
+      // fetch would leave that chain pending forever and deadlock ALL Gulf TTS
+      // for the rest of the session. The abort guarantees the task settles.
+      const tryFetch = async (fnName: string) => {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), TTS_FETCH_TIMEOUT_MS);
+        try {
+          return await fetch(`${supabaseUrl}/functions/v1/${fnName}`, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+              apikey: anonKey,
+            },
+            body: JSON.stringify(
+              fnName === "azure-tts" && effectiveVoice ? { text, voice: effectiveVoice } : { text },
+            ),
+            signal: controller.signal,
+          });
+        } finally {
+          clearTimeout(timer);
+        }
+      };
 
       let response = useMunsit
         ? await runOnMunsit(() => tryFetch(endpoint))

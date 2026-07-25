@@ -127,6 +127,7 @@ const MyWordsReview = () => {
   const [undoing, setUndoing] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const fallbackAudioUrlRef = useRef<string | null>(null);
+  const ratingInFlightRef = useRef(false);
   const updateImage = useUpdateUserVocabularyImage();
 
   const playAudio = async (url: string, options?: { repairJingle?: boolean }) => {
@@ -459,70 +460,86 @@ const MyWordsReview = () => {
 
   const handleRate = async (rating: Rating) => {
     if (!dueWords || !dueWords[currentIndex]) return;
+    // Guard against a double-tap firing two ratings for the same card before
+    // the mutation resolves (which double-counts sessionCount and skips a card).
+    if (ratingInFlightRef.current) return;
+    ratingInFlightRef.current = true;
     const card = dueWords[currentIndex];
     const wordCount = dueWords.length;
 
-    // Snapshot the current DB row so the learner can undo this rating.
-    const snapshotFields = card.card_type === "production"
-      ? "production_ease_factor, production_interval_days, production_repetitions, production_next_review_at, production_last_reviewed_at, production_lapses, is_leech"
-      : "ease_factor, interval_days, repetitions, next_review_at, last_reviewed_at, lapses, is_leech, production_next_review_at";
-    const { data: snapshot } = await (supabase
-      .from("user_vocabulary")
-      .select(snapshotFields as never) as any)
-      .eq("id", card.id)
-      .maybeSingle();
+    try {
+      // Snapshot the current DB row so the learner can undo this rating.
+      const snapshotFields = card.card_type === "production"
+        ? "production_ease_factor, production_interval_days, production_repetitions, production_next_review_at, production_last_reviewed_at, production_lapses, is_leech"
+        : "ease_factor, interval_days, repetitions, next_review_at, last_reviewed_at, lapses, is_leech, production_next_review_at";
+      const { data: snapshot } = await (supabase
+        .from("user_vocabulary")
+        .select(snapshotFields as never) as any)
+        .eq("id", card.id)
+        .maybeSingle();
 
-    const result = calculateNextReview(
-      rating,
-      card.ease_factor,
-      5.0,
-      card.interval_days,
-      card.repetitions,
-    );
+      const result = calculateNextReview(
+        rating,
+        card.ease_factor,
+        5.0,
+        card.interval_days,
+        card.repetitions,
+      );
 
-    const wasNew = card.repetitions === 0;
+      const wasNew = card.repetitions === 0;
 
-    await updateReview.mutateAsync({
-      wordId: card.id,
-      stability: result.stability,
-      difficulty: result.difficulty,
-      intervalDays: result.intervalDays,
-      repetitions: result.repetitions,
-      nextReviewAt: result.nextReviewAt,
-      cardType: card.card_type,
-      rating,
-      productionLocked: card.production_locked,
-      currentLapses: card.lapses,
-      currentProductionLapses: card.production_lapses,
-    });
+      await updateReview.mutateAsync({
+        wordId: card.id,
+        stability: result.stability,
+        difficulty: result.difficulty,
+        intervalDays: result.intervalDays,
+        repetitions: result.repetitions,
+        nextReviewAt: result.nextReviewAt,
+        cardType: card.card_type,
+        rating,
+        productionLocked: card.production_locked,
+        currentLapses: card.lapses,
+        currentProductionLapses: card.production_lapses,
+      });
 
-    // Claim daily new-card budget on the card's first-ever rating (not on
-    // every fetch), so the counter is reload-proof and never double-counts.
-    if (wasNew) claimNewCard.mutate();
+      // Claim daily new-card budget on the card's first-ever rating (not on
+      // every fetch), so the counter is reload-proof and never double-counts.
+      if (wasNew) claimNewCard.mutate();
 
-    const prevIndex = currentIndex;
-    const newAction = snapshot
-      ? {
-          cardId: card.id,
-          cardType: card.card_type,
-          prevIndex,
-          snapshot: snapshot as Record<string, unknown>,
-        }
-      : null;
-    if (newAction) {
-      setLastAction(newAction);
+      const prevIndex = currentIndex;
+      const newAction = snapshot
+        ? {
+            cardId: card.id,
+            cardType: card.card_type,
+            prevIndex,
+            snapshot: snapshot as Record<string, unknown>,
+          }
+        : null;
+      if (newAction) {
+        setLastAction(newAction);
+      }
+
+      setSessionCount((prev) => prev + 1);
+      setShowAnswer(false);
+
+      if (currentIndex < wordCount - 1) {
+        setCurrentIndex((prev) => prev + 1);
+      } else {
+        await refetch();
+        setCurrentIndex(0);
+      }
+    } catch (err) {
+      // Don't strand the learner on a frozen card with no feedback. The card
+      // wasn't updated in the DB, so it stays due and returns on the next fetch.
+      console.error("Failed to save review rating:", err);
+      toast.error("Couldn't save your rating — it will come back around. Try again.");
+      setShowAnswer(false);
+      if (currentIndex < wordCount - 1) {
+        setCurrentIndex((prev) => prev + 1);
+      }
+    } finally {
+      ratingInFlightRef.current = false;
     }
-
-    setSessionCount((prev) => prev + 1);
-    setShowAnswer(false);
-
-    if (currentIndex < wordCount - 1) {
-      setCurrentIndex((prev) => prev + 1);
-    } else {
-      await refetch();
-      setCurrentIndex(0);
-    }
-
   };
 
   const handleUndo = async (action?: NonNullable<typeof lastAction>) => {

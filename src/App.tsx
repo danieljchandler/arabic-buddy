@@ -17,7 +17,6 @@ const lazyPage = <T extends ComponentType<any>>(loader: () => Promise<{ default:
   lazy(lazyRetry(loader));
 
 const Index = lazyPage(() => import("./pages/Index"));
-const Today = lazyPage(() => import("./pages/Today"));
 const Learn = lazyPage(() => import("./pages/Learn"));
 const LearnHub = lazyPage(() => import("./pages/LearnHub"));
 const PracticeHub = lazyPage(() => import("./pages/PracticeHub"));
@@ -220,7 +219,9 @@ const App = () => {
             {/* Public learning app */}
             <Route path="/" element={<ErrorBoundary name="HomeRoute"><Index /></ErrorBoundary>} />
             <Route path="/index" element={<Navigate to="/" replace />} />
-            <Route path="/today" element={<ErrorBoundary name="TodayRoute"><Today /></ErrorBoundary>} />
+            {/* The daily queue now lives inline on "/" (see Index.tsx) instead
+                of a separate page — redirect old links/bookmarks. */}
+            <Route path="/today" element={<Navigate to="/" replace />} />
             <Route path="/auth" element={<ErrorBoundary name="AuthRoute"><Auth /></ErrorBoundary>} />
             <Route path="/reset-password" element={<ErrorBoundary name="ResetPasswordRoute"><ResetPassword /></ErrorBoundary>} />
             <Route path="/learn-hub" element={<ErrorBoundary name="LearnHubRoute"><LearnHub /></ErrorBoundary>} />

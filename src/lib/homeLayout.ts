@@ -1,29 +1,16 @@
 // Shared config & persistence for the home page section layout.
 // Users can hide/show sections and reorder them from Settings.
+//
+// This list previously carried ~20 additional ids (discover, new-words,
+// review, grammar, meme, transcribe, ...) that Settings let users toggle and
+// reorder, but Index.tsx never actually gated any of them behind
+// isSectionVisible/order — toggling them did nothing on the home page. The
+// list now only contains ids Index actually renders conditionally on.
 
 export type HomeSectionId =
-  | "phrase-of-the-day"
   | "placement-banner"
-  | "gamification"
-  | "discover"
-  | "new-words"
-  | "review"
-  | "my-words"
-  | "tutor-upload"
-  | "speaking"
-  | "grammar"
-  | "games"
-  | "comprehension"
-  | "bible"
-  | "souq-news"
-  | "dialect-compare"
-  | "meme"
-  | "learn-from-x"
-  | "how-do-i-say"
-  | "culture"
-  | "transcribe"
-  | "translate"
-  | "my-transcriptions";
+  | "daily-queue"
+  | "phrase-of-the-day";
 
 export interface HomeSectionMeta {
   id: HomeSectionId;
@@ -35,28 +22,9 @@ export interface HomeSectionMeta {
 
 /** Default order — matches the historical layout. */
 export const HOME_SECTIONS: HomeSectionMeta[] = [
-  { id: "phrase-of-the-day", label: "Phrase of the Day", description: "Daily dialect phrase" },
   { id: "placement-banner", label: "Placement Quiz Prompt", description: "Shown until quiz completed", alwaysOn: true },
-  { id: "gamification", label: "Stats & Goals", description: "XP, streak, weekly goal, achievements, quick links" },
-  { id: "discover", label: "Discover Videos", description: "Featured video preview" },
-  { id: "new-words", label: "New Words", description: "Curriculum vocabulary entry point" },
-  { id: "review", label: "Review", description: "Spaced repetition due cards" },
-  { id: "my-words", label: "My Words", description: "Your saved vocabulary" },
-  { id: "tutor-upload", label: "Tutor Upload", description: "Extract flashcards from tutor audio" },
-  { id: "speaking", label: "Speaking Practice", description: "Pronunciation, conversation & stories" },
-  { id: "grammar", label: "Grammar Drills", description: "AI-powered grammar exercises" },
-  { id: "games", label: "Vocabulary Games", description: "Match, memory, fill-in-the-blank" },
-  { id: "comprehension", label: "Comprehension", description: "Listening & reading practice" },
-  { id: "bible", label: "Bible Reading", description: "Scripture (only if access granted)", alwaysOn: true },
-  { id: "souq-news", label: "Souq News", description: "Daily dialect news" },
-  { id: "dialect-compare", label: "Dialect Compare", description: "Compare words across dialects" },
-  { id: "meme", label: "Meme Analyzer", description: "Break down Arabic memes" },
-  { id: "learn-from-x", label: "Learn from X Post", description: "Analyze posts from X" },
-  { id: "how-do-i-say", label: "How do I say…?", description: "Phrase translator" },
-  { id: "culture", label: "Culture Guide", description: "Culturally appropriate advice" },
-  { id: "transcribe", label: "Transcribe Audio", description: "Convert audio to text" },
-  { id: "translate", label: "Translate & Save", description: "Paste Arabic, get nuanced translation, save words" },
-  { id: "my-transcriptions", label: "My Transcriptions", description: "Saved transcripts" },
+  { id: "daily-queue", label: "Today's Queue", description: "Your daily tasks, goal ring, streak and stats", alwaysOn: true },
+  { id: "phrase-of-the-day", label: "Phrase of the Day", description: "Daily dialect phrase" },
 ];
 
 const STORAGE_KEY = "hakiya:home-layout:v1";

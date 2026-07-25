@@ -6,7 +6,7 @@ import {
   buildSRSForecast,
   computeSRSRetentionRate,
   createEmptyStageBreakdown,
-  getSRSStageByRepetitions,
+  getSRSStageByStability,
   type SRSForecastPoint,
   type SRSStageBreakdown,
 } from "@/lib/srsStats";
@@ -28,6 +28,8 @@ type UserVocabularySRSRow = Pick<
   | "production_interval_days"
   | "lapses"
   | "production_lapses"
+  | "ease_factor"
+  | "production_ease_factor"
 >;
 
 export interface SRSStats {
@@ -71,7 +73,7 @@ export const useSRSStats = () => {
           .eq("user_id", user.id),
         supabase
           .from("user_vocabulary")
-          .select("repetitions, next_review_at, production_next_review_at, production_repetitions, interval_days, production_interval_days, lapses, production_lapses")
+          .select("repetitions, next_review_at, production_next_review_at, production_repetitions, interval_days, production_interval_days, lapses, production_lapses, ease_factor, production_ease_factor")
           .eq("user_id", user.id),
       ]);
 
@@ -93,7 +95,7 @@ export const useSRSStats = () => {
       wordReviews.forEach((review) => {
         curriculumCards += 1;
         const repetitions = review.repetitions ?? 0;
-        stageBreakdown[getSRSStageByRepetitions(repetitions)] += 1;
+        stageBreakdown[getSRSStageByStability(repetitions, review.ease_factor ?? 0)] += 1;
         retentionInputs.push({ repetitions, lapses: review.lapses ?? 0 });
         forecastDates.push(review.next_review_at);
 
@@ -105,7 +107,7 @@ export const useSRSStats = () => {
       userVocabulary.forEach((word) => {
         const recognitionRepetitions = word.repetitions ?? 0;
         myWordsCards += 1;
-        stageBreakdown[getSRSStageByRepetitions(recognitionRepetitions)] += 1;
+        stageBreakdown[getSRSStageByStability(recognitionRepetitions, word.ease_factor ?? 0)] += 1;
         retentionInputs.push({ repetitions: recognitionRepetitions, lapses: word.lapses ?? 0 });
         forecastDates.push(word.next_review_at);
 
@@ -117,7 +119,7 @@ export const useSRSStats = () => {
         if (hasProductionCard) {
           const productionRepetitions = word.production_repetitions ?? 0;
           myWordsCards += 1;
-          stageBreakdown[getSRSStageByRepetitions(productionRepetitions)] += 1;
+          stageBreakdown[getSRSStageByStability(productionRepetitions, word.production_ease_factor ?? 0)] += 1;
           retentionInputs.push({ repetitions: productionRepetitions, lapses: word.production_lapses ?? 0 });
           forecastDates.push(word.production_next_review_at);
 

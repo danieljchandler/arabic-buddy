@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
-import { calculateNextReview, Rating } from '@/lib/spacedRepetition';
+import { calculateNextReview, elapsedDaysSince, Rating } from '@/lib/spacedRepetition';
 import { useAddXP, useIncrementReviews, useCheckAchievements } from './useGamification';
 import { useDialect } from '@/contexts/DialectContext';
 import { useNewCardCap } from './useNewCardCap';
@@ -12,6 +12,10 @@ interface WordReview {
   user_id: string;
   word_id: string;
   ease_factor: number;  // stores FSRS stability
+  // FSRS difficulty (1–10). Optional here because the generated Supabase types
+  // predate the difficulty column; the column exists at runtime (select('*')
+  // returns it) and callers fall back to 5.0 when it's absent.
+  difficulty?: number;
   interval_days: number;
   repetitions: number;
   last_reviewed_at: string | null;
@@ -188,16 +192,18 @@ export async function submitRatingToServer(
   currentReview: WordReview | null
 ) {
   const stability = currentReview?.ease_factor ?? 0;
-  const difficulty = 5.0;
+  const difficulty = currentReview?.difficulty ?? 5.0;
   const intervalDays = currentReview?.interval_days ?? 0;
   const repetitions = currentReview?.repetitions ?? 0;
+  const elapsedDays = elapsedDaysSince(currentReview?.last_reviewed_at);
 
-  const result = calculateNextReview(rating, stability, difficulty, intervalDays, repetitions);
+  const result = calculateNextReview(rating, stability, difficulty, intervalDays, repetitions, elapsedDays);
 
   const reviewData = {
     user_id: userId,
     word_id: wordId,
     ease_factor: result.stability,
+    difficulty: result.difficulty,
     interval_days: Math.max(0, Math.round(result.intervalDays)),
     repetitions: result.repetitions,
     next_review_at: result.nextReviewAt.toISOString(),

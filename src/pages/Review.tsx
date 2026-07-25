@@ -15,7 +15,7 @@ import { HomeButton } from "@/components/HomeButton";
 import { Button } from "@/components/ui/button";
 import { AppShell } from "@/components/layout/AppShell";
 import { useDialect } from "@/contexts/DialectContext";
-import { Rating, calculateNextReview } from "@/lib/spacedRepetition";
+import { Rating, calculateNextReview, elapsedDaysSince } from "@/lib/spacedRepetition";
 import { Loader2, Trophy, Brain, Sparkles, LogIn, Shuffle, Eye, Volume2, ImagePlus, WifiOff, CloudUpload } from "lucide-react";
 import { GenerateImageDialog } from "@/components/mywords/GenerateImageDialog";
 import { useReviewKeyboard } from "@/hooks/useKeyboardShortcuts";
@@ -224,8 +224,10 @@ const Review = () => {
   const dialectLabel = currentWord.dialect_module || "Gulf";
 
   const stability = currentWord.review?.ease_factor ?? 0;
+  const difficulty = currentWord.review?.difficulty ?? 5.0;
   const intervalDays = currentWord.review?.interval_days ?? 0;
   const repetitions = currentWord.review?.repetitions ?? 0;
+  const elapsedDays = elapsedDaysSince(currentWord.review?.last_reviewed_at);
 
   return (
     <AppShell compact>
@@ -379,9 +381,10 @@ const Review = () => {
           <RatingButtons
             onRate={handleRate}
             stability={stability}
-            difficulty={5.0}
+            difficulty={difficulty}
             intervalDays={intervalDays}
             repetitions={repetitions}
+            elapsedDays={elapsedDays}
             disabled={false}
           />
         </div>

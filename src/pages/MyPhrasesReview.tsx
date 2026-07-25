@@ -18,7 +18,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Rating, calculateNextReview } from "@/lib/spacedRepetition";
+import { Rating, calculateNextReview, elapsedDaysSince } from "@/lib/spacedRepetition";
 import { useAzureTTS } from "@/hooks/useAzureTTS";
 import { Loader2, Trophy, LogIn, Eye, Volume2, Trash2, MessageCircleQuestion, Music, Play, RefreshCw, Undo2, MessageSquarePlus } from "lucide-react";
 import { SentencePracticeSheet } from "@/components/practice/SentencePracticeSheet";
@@ -176,6 +176,7 @@ const MyPhrasesReview = () => {
       Number(current.difficulty) || 5,
       current.interval_days,
       current.repetitions,
+      elapsedDaysSince(current.last_reviewed_at),
     );
 
     await updateReview.mutateAsync({
@@ -526,6 +527,7 @@ const MyPhrasesReview = () => {
             difficulty={Number(current.difficulty) || 5}
             intervalDays={current.interval_days}
             repetitions={current.repetitions}
+            elapsedDays={elapsedDaysSince(current.last_reviewed_at)}
             disabled={updateReview.isPending}
           />
           <div className="mt-4 flex justify-center gap-2 flex-wrap">

@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
 import { useDialect } from "@/contexts/DialectContext";
-import { calculateNextReview, type Rating } from "@/lib/spacedRepetition";
+import { calculateNextReview, elapsedDaysSince, type Rating } from "@/lib/spacedRepetition";
 
 const sb = supabase as any;
 
@@ -179,17 +179,19 @@ export const useReviewPhrase = () => {
         .maybeSingle();
 
       const stability = existing?.ease_factor ?? 0;
-      const difficulty = 5;
+      const difficulty = existing?.difficulty ?? 5;
       const intervalDays = existing?.interval_days ?? 0;
       const repetitions = existing?.repetitions ?? 0;
+      const elapsedDays = elapsedDaysSince(existing?.last_reviewed_at);
 
-      const next = calculateNextReview(rating, stability, difficulty, intervalDays, repetitions);
+      const next = calculateNextReview(rating, stability, difficulty, intervalDays, repetitions, elapsedDays);
 
       const row = {
         user_id: user.id,
         phrase_id: phraseId,
         source: existing?.source ?? "reviewed",
         ease_factor: next.stability,
+        difficulty: next.difficulty,
         interval_days: Math.max(1, Math.round(next.intervalDays)),
         repetitions: next.repetitions,
         next_review_at: next.nextReviewAt.toISOString(),

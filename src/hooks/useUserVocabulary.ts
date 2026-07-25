@@ -12,6 +12,7 @@ export interface UserVocabularyWord {
   root: string | null;
   source: string;
   ease_factor: number;
+  difficulty: number;
   interval_days: number;
   repetitions: number;
   next_review_at: string;
@@ -238,6 +239,7 @@ export const useUpdateUserVocabularyReview = () => {
         cardType === "production"
           ? {
               production_ease_factor: stability,
+              production_difficulty: difficulty,
               production_interval_days: Math.max(0, Math.round(intervalDays)),
               production_repetitions: repetitions,
               production_next_review_at: nextReviewAt.toISOString(),
@@ -247,6 +249,7 @@ export const useUpdateUserVocabularyReview = () => {
             }
           : {
               ease_factor: stability,
+              difficulty,
               interval_days: Math.max(0, Math.round(intervalDays)),
               repetitions,
               next_review_at: nextReviewAt.toISOString(),

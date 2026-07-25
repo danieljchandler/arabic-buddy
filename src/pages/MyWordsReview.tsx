@@ -18,7 +18,7 @@ import { TappableArabicText } from "@/components/shared/TappableArabicText";
 import { AskAISentence } from "@/components/shared/AskAISentence";
 
 import { Button } from "@/components/ui/button";
-import { Rating, calculateNextReview } from "@/lib/spacedRepetition";
+import { Rating, calculateNextReview, elapsedDaysSince } from "@/lib/spacedRepetition";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -47,9 +47,11 @@ interface DueCard {
   word_english: string;
   // active SRS fields for the chosen direction
   ease_factor: number;
+  difficulty: number;
   interval_days: number;
   repetitions: number;
   due_at: string;
+  last_reviewed_at: string | null;
   card_type: CardType;
   // production lock state (used when rating recognition)
   production_locked: boolean;
@@ -74,11 +76,13 @@ interface RawRow {
   word_english: string;
   transliteration: string | null;
   ease_factor: number;
+  difficulty: number;
   interval_days: number;
   repetitions: number;
   next_review_at: string;
   last_reviewed_at: string | null;
   production_ease_factor: number;
+  production_difficulty: number;
   production_interval_days: number;
   production_repetitions: number;
   production_next_review_at: string | null;
@@ -183,7 +187,7 @@ const MyWordsReview = () => {
       // Fetch all rows that are due in either direction. We do two queries
       // and merge so each direction can be tagged independently.
       const baseSelect =
-        "id, word_arabic, word_english, ease_factor, interval_days, repetitions, next_review_at, last_reviewed_at, production_ease_factor, production_interval_days, production_repetitions, production_next_review_at, production_last_reviewed_at, word_audio_url, sentence_audio_url, image_url, jingle_audio_url, jingle_lyrics, sentence_text, sentence_english, lapses, production_lapses, is_leech, mnemonic, root";
+        "id, word_arabic, word_english, ease_factor, difficulty, interval_days, repetitions, next_review_at, last_reviewed_at, production_ease_factor, production_difficulty, production_interval_days, production_repetitions, production_next_review_at, production_last_reviewed_at, word_audio_url, sentence_audio_url, image_url, jingle_audio_url, jingle_lyrics, sentence_text, sentence_english, lapses, production_lapses, is_leech, mnemonic, root";
 
       const { data: recogRows, error: recogErr } = await (supabase
         .from("user_vocabulary")
@@ -212,9 +216,11 @@ const MyWordsReview = () => {
           word_english: r.word_english,
           transliteration: null,
           ease_factor: r.ease_factor,
+          difficulty: r.difficulty ?? 5.0,
           interval_days: r.interval_days,
           repetitions: r.repetitions,
           due_at: r.next_review_at,
+          last_reviewed_at: r.last_reviewed_at,
           card_type: "recognition",
           production_locked: r.production_next_review_at === null,
           word_audio_url: r.word_audio_url,
@@ -238,9 +244,11 @@ const MyWordsReview = () => {
           word_english: r.word_english,
           transliteration: null,
           ease_factor: r.production_ease_factor,
+          difficulty: r.production_difficulty ?? 5.0,
           interval_days: r.production_interval_days,
           repetitions: r.production_repetitions,
           due_at: r.production_next_review_at!,
+          last_reviewed_at: r.production_last_reviewed_at,
           card_type: "production",
           production_locked: false,
           word_audio_url: r.word_audio_url,
@@ -470,8 +478,8 @@ const MyWordsReview = () => {
     try {
       // Snapshot the current DB row so the learner can undo this rating.
       const snapshotFields = card.card_type === "production"
-        ? "production_ease_factor, production_interval_days, production_repetitions, production_next_review_at, production_last_reviewed_at, production_lapses, is_leech"
-        : "ease_factor, interval_days, repetitions, next_review_at, last_reviewed_at, lapses, is_leech, production_next_review_at";
+        ? "production_ease_factor, production_difficulty, production_interval_days, production_repetitions, production_next_review_at, production_last_reviewed_at, production_lapses, is_leech"
+        : "ease_factor, difficulty, interval_days, repetitions, next_review_at, last_reviewed_at, lapses, is_leech, production_next_review_at";
       const { data: snapshot } = await (supabase
         .from("user_vocabulary")
         .select(snapshotFields as never) as any)
@@ -481,9 +489,10 @@ const MyWordsReview = () => {
       const result = calculateNextReview(
         rating,
         card.ease_factor,
-        5.0,
+        card.difficulty ?? 5.0,
         card.interval_days,
         card.repetitions,
+        elapsedDaysSince(card.last_reviewed_at),
       );
 
       const wasNew = card.repetitions === 0;
@@ -1007,9 +1016,10 @@ const MyWordsReview = () => {
           <RatingButtons
             onRate={handleRate}
             stability={currentWord.ease_factor}
-            difficulty={5.0}
+            difficulty={currentWord.difficulty ?? 5.0}
             intervalDays={currentWord.interval_days}
             repetitions={currentWord.repetitions}
+            elapsedDays={elapsedDaysSince(currentWord.last_reviewed_at)}
             disabled={updateReview.isPending}
           />
           <div className="mt-4 flex justify-center gap-2 flex-wrap">

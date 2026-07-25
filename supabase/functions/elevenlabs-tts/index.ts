@@ -1,26 +1,30 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
+import { getCorsHeaders } from "../_shared/cors.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+// Voices this function is allowed to synthesize. Callers can only pick from
+// this set; anything else falls back to the default, so an attacker can't
+// select arbitrary/premium ElevenLabs voices by injecting a voiceId.
+const DEFAULT_VOICE_ID = "JBFqnCBsd6RMkjVDRZzb";
+const ALLOWED_VOICE_IDS = new Set<string>([DEFAULT_VOICE_ID]);
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
   // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Generous free-tier daily cap: blocks anonymous abuse of paid TTS while
-  // leaving normal (even heavy) logged-in playback unaffected. Paid/admin bypass.
+  // This function runs with verify_jwt=false; there is NO gateway auth. The
+  // daily cap below is the only access control — it requires a signed-in user
+  // and blocks anonymous abuse of the paid TTS API. Paid/admin users bypass.
   const cap = await enforceDailyCap(req, "elevenlabs-tts", 300, corsHeaders);
   if (cap.limited) return cap.response;
 
-  // Auth is handled at the gateway level via verify_jwt config
   try {
-    const { text, voiceId = "JBFqnCBsd6RMkjVDRZzb" } = await req.json();
-    
+    const { text, voiceId: requestedVoiceId } = await req.json();
+    const voiceId = ALLOWED_VOICE_IDS.has(requestedVoiceId) ? requestedVoiceId : DEFAULT_VOICE_ID;
+
     if (!text) {
       return new Response(
         JSON.stringify({ error: "Text is required" }),

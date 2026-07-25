@@ -34,11 +34,8 @@
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { getCorsHeaders } from "../_shared/cors.ts";
+import { enforceDailyCap } from "../_shared/usageCap.ts";
 
 const FARASA_TIMEOUT_MS = 20_000;
 
@@ -354,9 +351,14 @@ function parseDependency(raw: string): DepToken[] {
 // ── Main handler ──────────────────────────────────────────────────────────────
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
+
+  // Requires a signed-in user; blocks anonymous abuse of the external NLP API.
+  const cap = await enforceDailyCap(req, 'farasa', 200, corsHeaders);
+  if (cap.limited) return cap.response;
 
   try {
     const body = await req.json();

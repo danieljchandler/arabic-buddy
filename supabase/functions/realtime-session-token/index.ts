@@ -7,12 +7,7 @@
 // Per-dialect system prompt + voice is baked into the session config.
 import { getDialectIdentity, getDialectVocabRules, primeDialectPrompt, type Dialect } from "../_shared/dialectHelpers.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
+import { getCorsHeaders } from "../_shared/cors.ts";
 
 const REALTIME_MODEL = "gpt-realtime-2";
 
@@ -68,6 +63,7 @@ async function safetyIdentifier(userId: string): Promise<string> {
 }
 
 Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   const cap = await enforceDailyCap(req, "live-session", 30, corsHeaders);

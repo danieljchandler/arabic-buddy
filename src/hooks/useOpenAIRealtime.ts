@@ -74,6 +74,7 @@ export function useOpenAIRealtime(opts: Options = {}) {
   const micSenderRef = useRef<RTCRtpSender | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const audioElRef = useRef<HTMLAudioElement | null>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
   const dialectRef = useRef<string>("Gulf");
   const endingRef = useRef(false);
 
@@ -136,6 +137,10 @@ export function useOpenAIRealtime(opts: Options = {}) {
         audioElRef.current.remove();
       } catch { /* noop */ }
       audioElRef.current = null;
+    }
+    if (audioCtxRef.current) {
+      try { void audioCtxRef.current.close(); } catch { /* noop */ }
+      audioCtxRef.current = null;
     }
     micSenderRef.current = null;
     userBufRef.current.clear();
@@ -232,8 +237,13 @@ export function useOpenAIRealtime(opts: Options = {}) {
       // stream synchronously. Once unlocked, swapping srcObject later in
       // ontrack will play audibly without an autoplay-policy block.
       try {
+        // Close any context left over from a prior start before creating a new
+        // one — browsers cap concurrent AudioContexts (~6) and a leak here would
+        // eventually break voice practice after repeated start/stop cycles.
+        try { await audioCtxRef.current?.close(); } catch { /* noop */ }
         const unlockCtx = new (window.AudioContext ||
           (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+        audioCtxRef.current = unlockCtx;
         const dst = unlockCtx.createMediaStreamDestination();
         const osc = unlockCtx.createOscillator();
         const gain = unlockCtx.createGain();

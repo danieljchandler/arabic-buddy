@@ -66,7 +66,10 @@ export function useSessionState<T extends Record<string, any>>(
   ttlMs: number = DEFAULT_TTL_MS
 ): { state: T; update: (partial: Partial<T>) => void; clear: () => void; restored: boolean } {
   const storageKey = `session_${key}`;
-  const [restored, setRestored] = useState(false);
+  // Whether state was rehydrated from storage. Determined once, synchronously,
+  // inside the state initializer below — using a ref avoids updating a second
+  // hook during render (a React anti-pattern that caused an extra render).
+  const restoredRef = useRef(false);
 
   const [state, setState] = useState<T>(() => {
     try {
@@ -77,7 +80,7 @@ export function useSessionState<T extends Record<string, any>>(
         localStorage.removeItem(storageKey);
         return initialState;
       }
-      setRestored(true);
+      restoredRef.current = true;
       return { ...initialState, ...entry.data };
     } catch {
       return initialState;
@@ -106,5 +109,5 @@ export function useSessionState<T extends Record<string, any>>(
     setState(initialState);
   }, [storageKey, initialState]);
 
-  return { state, update, clear, restored };
+  return { state, update, clear, restored: restoredRef.current };
 }

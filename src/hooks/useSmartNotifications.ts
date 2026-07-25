@@ -114,7 +114,7 @@ export function useSmartNotifications() {
           title: "New weekly coaching ready",
           body: latestRec.motivation_message || "Your AI coach has personalized advice for you.",
           icon: "🎯",
-          actionUrl: "/my-path",
+          actionUrl: "/analytics",
           priority: "low",
           createdAt: new Date(latestRec.created_at),
         });

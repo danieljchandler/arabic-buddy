@@ -81,6 +81,12 @@ export function useLearningAnalytics() {
           .maybeSingle(),
       ]);
 
+      // Surface the core query failures instead of silently rendering a
+      // dashboard full of zeros. The word sources drive nearly every metric,
+      // so if either fails let React Query show the error/retry state.
+      if (wordReviewsRes.error) throw wordReviewsRes.error;
+      if (userVocabRes.error) throw userVocabRes.error;
+
       const allWords = [
         ...(wordReviewsRes.data || []),
         ...(userVocabRes.data || []),
@@ -236,6 +242,24 @@ export function useLearningAnalytics() {
 
       const challenges = (challengeRes.data as any[]) || [];
 
+      // Consecutive-day daily-challenge streak, counted back from today. The
+      // streak stays "current" if today isn't done yet but yesterday was.
+      const toLocalKey = (d: Date) =>
+        `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      const challengeDates = new Set(
+        challenges.map((c) => String(c.challenge_date).slice(0, 10)),
+      );
+      let challengeStreak = 0;
+      const cursor = new Date();
+      cursor.setHours(0, 0, 0, 0);
+      if (!challengeDates.has(toLocalKey(cursor))) {
+        cursor.setDate(cursor.getDate() - 1);
+      }
+      while (challengeDates.has(toLocalKey(cursor))) {
+        challengeStreak++;
+        cursor.setDate(cursor.getDate() - 1);
+      }
+
       return {
         totalWords,
         masteredWords,
@@ -249,7 +273,7 @@ export function useLearningAnalytics() {
         level: xpRes.data?.level || 1,
         stageBreakdown,
         dailyActivity,
-        challengeStreak: 0,
+        challengeStreak,
         challengesCompleted: challenges.length,
         skillRadar,
         vocabGrowth,

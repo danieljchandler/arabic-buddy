@@ -606,7 +606,6 @@ const DiscoverVideo = () => {
   const playerRef = useRef<any>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const iframeRef = useRef<HTMLDivElement>(null);
-  const [tiktokEmbedReadyKey, setTiktokEmbedReadyKey] = useState(0);
   const [resolvedTikTokVideoId, setResolvedTikTokVideoId] = useState<string | null>(null);
   const [resolvedTikTokAuthorUrl, setResolvedTikTokAuthorUrl] = useState<string | null>(null);
   const [isYouTubePlaying, setIsYouTubePlaying] = useState(false);
@@ -1132,7 +1131,13 @@ const DiscoverVideo = () => {
   const lastReportedRef = useRef<{ s: number; completed: boolean }>({ s: 0, completed: false });
   useEffect(() => {
     if (!videoId || !user) return;
-    const seconds = Math.floor((isYouTube || video?.platform === "html5" ? currentTimeMs : timerMs) / 1000);
+    // Use the real media clock (currentTimeMs) whenever one drives playback:
+    // YouTube, native html5, and TikTok with an extracted audio track. Only the
+    // legacy manual-timer TikTok fallback relies on timerMs. Reading timerMs on
+    // the TikTok-audio path left watched_seconds at 0 and never recorded a view.
+    const usingRealClock =
+      isYouTube || video?.platform === "html5" || (isTikTok && tiktokAudioReady);
+    const seconds = Math.floor((usingRealClock ? currentTimeMs : timerMs) / 1000);
     if (seconds <= 0) return;
     const duration = video?.duration_seconds ?? 0;
     const completed = duration > 0 && seconds / duration >= 0.85;
@@ -1140,7 +1145,7 @@ const DiscoverVideo = () => {
     if (seconds - last.s < 10 && completed === last.completed) return;
     lastReportedRef.current = { s: seconds, completed };
     recordView.mutate({ videoId, watchedSeconds: seconds, completed });
-  }, [currentTimeMs, timerMs, videoId, user, video?.duration_seconds, video?.platform, isYouTube, recordView]);
+  }, [currentTimeMs, timerMs, videoId, user, video?.duration_seconds, video?.platform, isYouTube, isTikTok, tiktokAudioReady, recordView]);
 
 
   const vocabulary = useMemo(
@@ -1416,23 +1421,8 @@ const DiscoverVideo = () => {
   }, [isTikTok, tiktokIframeUrl, tiktokAudioReady, sendTikTokCommand]);
 
   // Keep the TikTok iframe visual-only. Sound is driven exclusively by our
-  // hidden <audio> element via the extracted source track.
-
-  // Blockquote embed disabled — kept as empty fallback so older code paths
-  // that check for it short-circuit to the iframe.
-  const tiktokBlockquoteHtml = "";
-
-  useEffect(() => {
-    if (!video || video.platform !== "tiktok" || !tiktokBlockquoteHtml) return;
-    const scriptId = "tiktok-embed-script";
-    if (document.getElementById(scriptId)) return;
-    const script = document.createElement("script");
-    script.id = scriptId;
-    script.async = true;
-    script.src = "https://www.tiktok.com/embed.js";
-    script.onload = () => setTiktokEmbedReadyKey((prev) => prev + 1);
-    document.body.appendChild(script);
-  }, [video, tiktokBlockquoteHtml]);
+  // hidden <audio> element via the extracted source track. (The legacy
+  // blockquote embed path has been removed — the iframe is the only renderer.)
 
   useEffect(() => {
     if (!video || video.platform !== "tiktok") return;
@@ -1519,13 +1509,7 @@ const DiscoverVideo = () => {
             <div className="mx-auto flex w-full justify-center px-2 py-2">
               <div className="w-full max-w-[420px]">
                 <div className={cn("relative aspect-[9/16] w-full overflow-hidden rounded-md bg-black", verticalVideoMaxHeightClass)}>
-                  {tiktokBlockquoteHtml ? (
-                    <div
-                      key={`${resolvedTikTokVideoId}-${tiktokEmbedReadyKey}`}
-                      className="absolute inset-0 overflow-y-auto"
-                      dangerouslySetInnerHTML={{ __html: tiktokBlockquoteHtml }}
-                    />
-                  ) : tiktokIframeUrl ? (
+                  {tiktokIframeUrl ? (
                     <iframe
                       ref={tiktokIframeElRef}
                       src={tiktokIframeUrl}

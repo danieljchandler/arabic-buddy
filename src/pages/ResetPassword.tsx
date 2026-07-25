@@ -112,6 +112,7 @@ const ResetPassword = () => {
                 <Input
                   id="password"
                   type="password"
+                  autoComplete="new-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
@@ -128,6 +129,7 @@ const ResetPassword = () => {
                 <Input
                   id="confirm"
                   type="password"
+                  autoComplete="new-password"
                   value={confirm}
                   onChange={(e) => setConfirm(e.target.value)}
                   placeholder="••••••••"

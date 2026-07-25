@@ -327,7 +327,7 @@ const Review = () => {
             </div>
 
             <p
-              className="text-4xl font-bold text-foreground mb-6"
+              className="text-4xl font-bold text-foreground mb-6 break-words max-w-full"
               style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
               dir="rtl"
             >

@@ -101,7 +101,7 @@ const LeaderboardRow = ({
 
       <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center shrink-0 overflow-hidden">
         {entry.avatar_url ? (
-          <img src={entry.avatar_url} alt={`${entry.display_name || "Anonymous"}'s avatar`} className="w-full h-full object-cover" />
+          <img src={entry.avatar_url} alt={`${entry.display_name || "Anonymous"}'s avatar`} loading="lazy" width={40} height={40} className="w-full h-full object-cover" />
         ) : (
           <User className="h-5 w-5 text-muted-foreground" />
         )}
@@ -198,6 +198,7 @@ const ProfileEditDialog = () => {
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
               placeholder="Your name on the leaderboard"
+              maxLength={50}
             />
           </div>
 

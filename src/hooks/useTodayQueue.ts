@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useUserVocabularyDueCount } from "@/hooks/useUserVocabulary";
+import { useReviewSession } from "@/hooks/useReviewSession";
 import { useUserSetPhrasesDueCount } from "@/hooks/useSetPhrases";
 import { useDiscoverVideos } from "@/hooks/useDiscoverVideos";
 import { useDialect } from "@/contexts/DialectContext";
@@ -40,11 +40,14 @@ const useCompletionTick = () => {
 export const useTodayQueue = (): TodayTask[] => {
   useCompletionTick();
   const { activeDialect } = useDialect();
-  const { data: vocabDue } = useUserVocabularyDueCount();
+  // Covers all three SRS decks (curriculum, saved words, saved phrases) — the
+  // flashcards task used to count only the personal-vocabulary deck, so cards
+  // due elsewhere never showed up in the daily queue.
+  const session = useReviewSession();
   const { data: phrasesDue } = useUserSetPhrasesDueCount();
   const { data: videos } = useDiscoverVideos({ dialect: activeDialect });
 
-  const vocabDueCount = vocabDue?.dueCount ?? 0;
+  const vocabDueCount = session.totalDue;
   const hasListening = (videos?.length ?? 0) > 0;
 
   const tasks: TodayTask[] = [
@@ -55,7 +58,9 @@ export const useTodayQueue = (): TodayTask[] => {
       countBadge: vocabDueCount > 0 ? String(vocabDueCount) : undefined,
       estMinutes: Math.max(2, Math.min(15, Math.ceil(vocabDueCount * 0.4))),
       icon: Brain,
-      route: "/review/my-words",
+      // "/review" is the session entry point — it walks every deck that has
+      // cards due, forwarding past any that are already clear.
+      route: "/review",
       done: vocabDueCount === 0,
       hidden: vocabDueCount === 0 && !isTaskCompletedToday("flashcards"),
       xpEstimate: vocabDueCount * 3,

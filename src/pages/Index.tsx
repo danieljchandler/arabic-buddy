@@ -365,11 +365,11 @@ const Index = () => {
                 </div>
               )}
 
-              {/* Curriculum SRS cards live in a separate deck the queue's
-                  "flashcards" task doesn't cover (see /review vs
-                  /review/my-words) — surface it here so it isn't unreachable
-                  from Home. */}
-              {srsStats && srsStats.curriculumDue > 0 && (
+              {/* One entry point into the review session — "/review" walks
+                  every deck with cards due (curriculum, saved words, saved
+                  phrases) rather than stranding cards in a deck the learner
+                  would have to remember to visit. */}
+              {srsStats && srsStats.totalDueNow > 0 && (
                 <button
                   onClick={() => navigate("/review")}
                   className="w-full p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-between"
@@ -377,7 +377,7 @@ const Index = () => {
                   <div className="flex items-center gap-2">
                     <Brain className="h-4 w-4 text-amber-600" />
                     <span className="text-sm font-medium text-foreground">
-                      {srsStats.curriculumDue} curriculum {srsStats.curriculumDue === 1 ? "card" : "cards"} due
+                      {srsStats.totalDueNow} {srsStats.totalDueNow === 1 ? "card" : "cards"} due for review
                     </span>
                   </div>
                   <span className="text-xs text-amber-600 font-semibold">Review now →</span>

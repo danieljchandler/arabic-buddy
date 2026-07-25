@@ -1,7 +1,7 @@
 import { ReactNode } from "react";
 import { useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import borderFullPageImg from "@/assets/border-full-page.png";
+import borderFullPageImg from "@/assets/border-full-page.webp";
 import { BottomNav, shouldShowBottomNav } from "@/components/layout/BottomNav";
 import { OnboardingTour } from "@/components/onboarding/OnboardingTour";
 import { FeedbackWidget } from "@/components/feedback/FeedbackWidget";

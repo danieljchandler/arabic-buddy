@@ -1,7 +1,5 @@
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
-};
+import { getCorsHeaders } from '../_shared/cors.ts';
+import { enforceDailyCap } from '../_shared/usageCap.ts';
 
 const YOUTUBE_API_KEY = Deno.env.get('YOUTUBE_API_KEY');
 
@@ -52,9 +50,15 @@ interface VideoCandidate {
 const MAX_PER_REGION = 8;
 
 Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
+
+  // Admin-only in the UI, and it drives the paid YouTube Data API. Require a
+  // signed-in user (admins bypass the cap) so it can't be triggered anonymously.
+  const cap = await enforceDailyCap(req, 'discover-trending-videos', 100, corsHeaders);
+  if (cap.limited) return cap.response;
 
   if (!YOUTUBE_API_KEY) {
     return new Response(

@@ -3,6 +3,16 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { Loader2, ArrowLeft, Play, Pause, Volume2, Plus, Check, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { TappableArabicText } from "@/components/shared/TappableArabicText";
@@ -35,6 +45,7 @@ const ListenEpisode = () => {
   const [playingLine, setPlayingLine] = useState<number | null>(null);
   const [isPlayingFull, setIsPlayingFull] = useState(false);
   const [addedVocab, setAddedVocab] = useState<Set<string>>(new Set());
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const incrementedRef = useRef(false);
 
   useEffect(() => {
@@ -106,8 +117,8 @@ const ListenEpisode = () => {
     toast.success("Words added to your deck");
   };
 
-  const handleDelete = async () => {
-    if (!confirm("Delete this episode?")) return;
+  const confirmDelete = async () => {
+    setConfirmDeleteOpen(false);
     await deleteEp.mutateAsync(episode.id);
     navigate("/listen");
   };
@@ -211,12 +222,32 @@ const ListenEpisode = () => {
 
         {isOwner && (
           <div className="pt-4">
-            <Button variant="ghost" size="sm" className="text-destructive" onClick={handleDelete}>
+            <Button variant="ghost" size="sm" className="text-destructive" onClick={() => setConfirmDeleteOpen(true)}>
               <Trash2 className="h-3.5 w-3.5 mr-1" />Delete episode
             </Button>
           </div>
         )}
       </div>
+
+      <AlertDialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this episode?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently deletes the episode. This can't be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppShell>
   );
 };

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
@@ -30,6 +30,9 @@ const validateAuthInput = (
 
 const Auth = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  // Where the user was headed before being bounced to /auth (set by ProtectedRoute).
+  const redirectTo = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname;
   const { toast } = useToast();
   const { signIn, signUp, isAuthenticated, loading } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
@@ -51,12 +54,12 @@ const Auth = () => {
         if (data && !(data as any).onboarding_completed) {
           navigate('/onboarding');
         } else {
-          navigate('/');
+          navigate(redirectTo && redirectTo !== '/auth' ? redirectTo : '/');
         }
       };
       checkOnboarding();
     }
-  }, [isAuthenticated, loading, navigate]);
+  }, [isAuthenticated, loading, navigate, redirectTo]);
 
   const validateForm = () => {
     const newErrors = validateAuthInput(email, password, inviteCode, !isLogin);

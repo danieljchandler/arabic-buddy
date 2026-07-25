@@ -1,13 +1,8 @@
 import { getDialectIdentity, getDialectVocabRules, getTashkeelMandate, getDialectTransliterationRules, type Dialect } from "../_shared/dialectHelpers.ts";
 import { emitMetric } from "../_shared/featureMetrics.ts";
+import { getCorsHeaders } from "../_shared/cors.ts";
 
 const FEATURE = "souq-news";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
 
 const REGION_QUERIES: Record<string, string> = {
   Gulf: "Saudi Arabia UAE Qatar Kuwait Bahrain Oman news today",
@@ -16,6 +11,7 @@ const REGION_QUERIES: Record<string, string> = {
 };
 
 Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }

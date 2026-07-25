@@ -8,6 +8,16 @@ import { HomeButton } from "@/components/HomeButton";
 import { RatingButtons } from "@/components/review/RatingButtons";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Rating, calculateNextReview } from "@/lib/spacedRepetition";
 import { useAzureTTS } from "@/hooks/useAzureTTS";
 import { Loader2, Trophy, LogIn, Eye, Volume2, Trash2, MessageCircleQuestion, Music, Play, RefreshCw, Undo2, MessageSquarePlus } from "lucide-react";
@@ -226,9 +236,11 @@ const MyPhrasesReview = () => {
     }
   };
 
-  const handleDelete = async () => {
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+
+  const confirmDelete = async () => {
+    setConfirmDeleteOpen(false);
     if (!current) return;
-    if (!confirm("Remove this phrase from your saved list?")) return;
     try {
       await deletePhrase.mutateAsync(current.id);
       toast.success("Phrase removed");
@@ -497,7 +509,7 @@ const MyPhrasesReview = () => {
             <Button
               variant="ghost"
               size="sm"
-              onClick={handleDelete}
+              onClick={() => setConfirmDeleteOpen(true)}
               className="text-muted-foreground hover:text-destructive gap-1.5 text-xs"
             >
               <Trash2 className="h-3.5 w-3.5" />
@@ -550,6 +562,26 @@ const MyPhrasesReview = () => {
         targetArabic={current.phrase_arabic}
         targetEnglish={current.phrase_english}
       />
+
+      <AlertDialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove this phrase?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This removes the phrase from your saved list. You can add it again later.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppShell>
   );
 };

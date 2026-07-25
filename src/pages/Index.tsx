@@ -180,9 +180,11 @@ const Index = () => {
               </Button>
             </>
           )}
-          <Button variant="ghost" size="icon" onClick={() => navigate("/admin")} className="text-muted-foreground/50 hover:text-muted-foreground" title="Admin" aria-label="Admin">
-            <GraduationCap className="h-4 w-4" />
-          </Button>
+          {isAdmin && (
+            <Button variant="ghost" size="icon" onClick={() => navigate("/admin")} className="text-muted-foreground/50 hover:text-muted-foreground" title="Admin" aria-label="Admin">
+              <GraduationCap className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       </div>
 

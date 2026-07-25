@@ -284,19 +284,29 @@ export const TappableArabicText = ({
           const marked = marking && markUnknowns.isMarked(cleanWord);
 
           if (marking) {
+            const toggleMark = () =>
+              cleanWord &&
+              markUnknowns.toggle({
+                arabic: cleanWord,
+                sentence_text: sentenceContext?.arabic || text,
+                sentence_english: sentenceContext?.english,
+              });
             return (
               <span
                 key={wIdx}
-                onClick={() =>
-                  cleanWord &&
-                  markUnknowns.toggle({
-                    arabic: cleanWord,
-                    sentence_text: sentenceContext?.arabic || text,
-                    sentence_english: sentenceContext?.english,
-                  })
-                }
+                role="button"
+                tabIndex={0}
+                aria-pressed={marked}
+                aria-label={`${marked ? "Unmark" : "Mark"} “${cleanWord}” as unknown`}
+                onClick={toggleMark}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    toggleMark();
+                  }
+                }}
                 className={cn(
-                  "cursor-pointer rounded px-0.5 transition-colors",
+                  "cursor-pointer rounded px-0.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
                   marked
                     ? "bg-yellow-300/70 text-foreground dark:bg-yellow-500/40"
                     : "hover:bg-yellow-200/40"
@@ -314,12 +324,22 @@ export const TappableArabicText = ({
             return (
               <span
                 key={wIdx}
+                role="button"
+                tabIndex={0}
+                aria-label={`Extend phrase selection to “${clean(word)}”`}
                 onClick={(e) => {
                   e.stopPropagation();
                   extendPhrase(wIdx);
                 }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    extendPhrase(wIdx);
+                  }
+                }}
                 className={cn(
-                  "cursor-pointer rounded px-1 transition-colors select-none",
+                  "cursor-pointer rounded px-1 transition-colors select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
                   inRange
                     ? "bg-primary/25 text-foreground ring-1 ring-primary/40"
                     : "hover:bg-primary/10",
@@ -335,10 +355,19 @@ export const TappableArabicText = ({
             <Popover key={wIdx}>
               <PopoverTrigger asChild>
                 <span
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Look up “${clean(word)}”`}
                   onPointerDown={() => onPointerDown(wIdx)}
                   onPointerUp={onPointerUp}
                   onPointerLeave={onPointerUp}
                   onPointerCancel={onPointerUp}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      handleWordTap(word);
+                    }
+                  }}
                   onClick={(e) => {
                     if (longPressFired.current) {
                       // Long-press just started phrase mode — swallow the tap so popover doesn't open
@@ -350,7 +379,7 @@ export const TappableArabicText = ({
                     handleWordTap(word);
                   }}
                   className={cn(
-                    "cursor-pointer rounded px-0.5 transition-colors select-none",
+                    "cursor-pointer rounded px-0.5 transition-colors select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
                     wordData
                       ? "text-primary underline underline-offset-4 decoration-primary/30"
                       : "hover:bg-primary/10"

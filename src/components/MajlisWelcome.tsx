@@ -110,7 +110,6 @@ export function MajlisWelcome() {
           <p
             className="text-2xl sm:text-3xl leading-tight text-[#5C3A46] font-arabic"
             dir="rtl"
-            style={{ fontFamily: "'Noto Sans Arabic', serif" }}
           >
             {greeting.ar}
           </p>

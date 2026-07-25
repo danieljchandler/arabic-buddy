@@ -22,6 +22,7 @@ export default {
         sans: ["Open Sans", "Noto Sans Arabic", "sans-serif"],
         heading: ["Montserrat", "Noto Sans Arabic", "sans-serif"],
         arabic: ["Noto Sans Arabic", "Open Sans", "sans-serif"],
+        cairo: ["Cairo", "Noto Sans Arabic", "sans-serif"],
       },
       fontSize: {
         // Locked typographic scale — 1.25 ratio, Lahja rhythm
@@ -138,6 +139,16 @@ export default {
           "0%": { opacity: "0", transform: "translateY(8px)" },
           "100%": { opacity: "1", transform: "translateY(0)" },
         },
+        // Playful hints on VocabularyCard (tap-to-hear cue, replay button).
+        "bounce-gentle": {
+          "0%, 100%": { transform: "translateY(0)" },
+          "50%": { transform: "translateY(-4px)" },
+        },
+        "wiggle": {
+          "0%, 100%": { transform: "rotate(0deg)" },
+          "25%": { transform: "rotate(-7deg)" },
+          "75%": { transform: "rotate(7deg)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -149,6 +160,8 @@ export default {
         "slide-in-bottom": "slide-in-bottom 320ms cubic-bezier(0.16, 1, 0.3, 1) both",
         // Alias
         "fade-in": "fade-up 360ms cubic-bezier(0.16, 1, 0.3, 1) both",
+        "bounce-gentle": "bounce-gentle 1.8s ease-in-out infinite",
+        "wiggle": "wiggle 0.5s ease-in-out infinite",
       },
     },
   },

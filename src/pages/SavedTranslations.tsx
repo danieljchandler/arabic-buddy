@@ -5,6 +5,16 @@ import { HomeButton } from "@/components/HomeButton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { TappableArabicText } from "@/components/shared/TappableArabicText";
 import { AskAISentence } from "@/components/shared/AskAISentence";
 import { TranslationPair } from "@/components/shared/TranslationPair";
@@ -16,9 +26,12 @@ const SavedTranslations = () => {
   const { items, loading, remove } = useSavedTranslations();
   const [active, setActive] = useState<SavedTranslation | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
-  const onDelete = async (id: string) => {
-    if (!confirm("Delete this saved translation?")) return;
+  const confirmDelete = async () => {
+    const id = pendingDeleteId;
+    setPendingDeleteId(null);
+    if (!id) return;
     setDeletingId(id);
     try {
       await remove(id);
@@ -33,7 +46,7 @@ const SavedTranslations = () => {
 
   return (
     <AppShell>
-      <div className="mx-auto w-full max-w-2xl px-4 py-6 space-y-4">
+      <div className="space-y-4">
         <div className="flex items-center justify-between gap-3">
           {active ? (
             <Button variant="ghost" size="sm" onClick={() => setActive(null)}>
@@ -93,9 +106,9 @@ const SavedTranslations = () => {
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                        onClick={() => onDelete(it.id)}
+                        onClick={() => setPendingDeleteId(it.id)}
                         disabled={deletingId === it.id}
-                        aria-label="Delete"
+                        aria-label="Delete saved translation"
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -149,6 +162,29 @@ const SavedTranslations = () => {
           </div>
         )}
       </div>
+
+      <AlertDialog
+        open={!!pendingDeleteId}
+        onOpenChange={(open) => !open && setPendingDeleteId(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this saved translation?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This can't be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppShell>
   );
 };

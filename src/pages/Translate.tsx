@@ -107,7 +107,7 @@ const Translate = () => {
 
   return (
     <AppShell>
-      <div className="mx-auto w-full max-w-2xl px-4 py-6 space-y-5">
+      <div className="space-y-5">
         <div className="flex items-center justify-between gap-3">
           <HomeButton />
           <h1 className="text-xl font-bold flex items-center gap-2">

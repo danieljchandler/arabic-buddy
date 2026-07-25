@@ -1,13 +1,9 @@
+import { getCorsHeaders } from "../_shared/cors.ts";
 // AI Re-segment Transcript
 // Takes existing word-level segments and asks an LLM to restructure them into
 // thought-by-thought lines, starting a new line on speaker changes. Word
 // timings are preserved by anchoring back to the original word objects.
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
 
 interface Word {
   word: string;
@@ -324,6 +320,7 @@ function rebuildSegments(
 }
 
 Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }

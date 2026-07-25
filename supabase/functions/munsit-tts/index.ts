@@ -14,12 +14,8 @@
  */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
+import { getCorsHeaders } from "../_shared/cors.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
 
 const MUNSIT_BASE = "https://api.munsit.com/api/v1";
 
@@ -118,6 +114,7 @@ async function getVoice(apiKey: string): Promise<{ voiceId: string; modelId: str
 }
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   // Generous free-tier daily cap: blocks anonymous abuse of paid TTS while

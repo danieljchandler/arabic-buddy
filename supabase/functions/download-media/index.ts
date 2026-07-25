@@ -1,15 +1,12 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { getCorsHeaders } from "../_shared/cors.ts";
 
 function encodeBase64(data: Uint8Array): string {
   const binString = Array.from(data, (b) => String.fromCharCode(b)).join('');
   return btoa(binString);
 }
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
-};
 
 const MAX_FILE_SIZE = 25 * 1024 * 1024;
 
@@ -751,6 +748,7 @@ async function downloadTikTok(url: string): Promise<{ base64: string; contentTyp
 
 // ─── Main handler ───────────────────────────────────────────────────────────
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }

@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { corsHeaders } from "../_shared/cors.ts";
+import { getCorsHeaders } from "../_shared/cors.ts";
 
 const DEFAULT_RUNPOD_ENDPOINT = "https://api.runpod.ai/v2/up6r2cq58yg74u/run";
 const CALLBACK_WAIT_MS = 3 * 60 * 1000;
@@ -12,7 +12,7 @@ type TriggerPayload = {
   attempt?: number;
 };
 
-function jsonResponse(body: unknown, status = 200) {
+function jsonResponse(body: unknown, corsHeaders: Record<string, string>, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -144,6 +144,7 @@ async function scheduleCallbackWatch(payload: {
 }
 
 Deno.serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -158,18 +159,18 @@ Deno.serve(async (req) => {
   const CALLBACK_SECRET = Deno.env.get("RUNPOD_CALLBACK_SECRET");
 
   if (!RUNPOD_API_KEY) {
-    return jsonResponse({ error: "RUNPOD_API_KEY not configured" }, 500);
+    return jsonResponse({ error: "RUNPOD_API_KEY not configured" }, corsHeaders, 500);
   }
 
   if (!SUPABASE_URL || !CALLBACK_SECRET) {
-    return jsonResponse({ error: "RUNPOD callback configuration missing" }, 500);
+    return jsonResponse({ error: "RUNPOD callback configuration missing" }, corsHeaders, 500);
   }
 
   const { youtube_url, video_id, discover_video_id, attempt }: TriggerPayload = await req.json();
   const queueAttempt = Math.max(1, Math.min(MAX_RUNPOD_ATTEMPTS, Number(attempt) || 1));
 
   if (!youtube_url || !video_id) {
-    return jsonResponse({ error: "Missing youtube_url or video_id" }, 400);
+    return jsonResponse({ error: "Missing youtube_url or video_id" }, corsHeaders, 400);
   }
 
   const callbackUrl = `${SUPABASE_URL}/functions/v1/receive-audio`;
@@ -249,7 +250,7 @@ Deno.serve(async (req) => {
         });
       }
 
-      return jsonResponse({ job_id: runpodData.id, status: runpodData?.status, attempt: queueAttempt });
+      return jsonResponse({ job_id: runpodData.id, status: runpodData?.status, attempt: queueAttempt }, corsHeaders);
     } catch (error) {
       lastFailure = {
         endpoint,
@@ -273,5 +274,5 @@ Deno.serve(async (req) => {
     }
   }
 
-  return jsonResponse({ error: "RunPod request failed", details: lastFailure }, 502);
+  return jsonResponse({ error: "RunPod request failed", details: lastFailure }, corsHeaders, 502);
 });

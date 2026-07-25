@@ -183,7 +183,7 @@ const MyWordsReview = () => {
       // Fetch all rows that are due in either direction. We do two queries
       // and merge so each direction can be tagged independently.
       const baseSelect =
-        "id, word_arabic, word_english, transliteration, ease_factor, interval_days, repetitions, next_review_at, last_reviewed_at, production_ease_factor, production_interval_days, production_repetitions, production_next_review_at, production_last_reviewed_at, word_audio_url, sentence_audio_url, image_url, jingle_audio_url, jingle_lyrics, sentence_text, sentence_english, lapses, production_lapses, is_leech, mnemonic, root";
+        "id, word_arabic, word_english, ease_factor, interval_days, repetitions, next_review_at, last_reviewed_at, production_ease_factor, production_interval_days, production_repetitions, production_next_review_at, production_last_reviewed_at, word_audio_url, sentence_audio_url, image_url, jingle_audio_url, jingle_lyrics, sentence_text, sentence_english, lapses, production_lapses, is_leech, mnemonic, root";
 
       const { data: recogRows, error: recogErr } = await (supabase
         .from("user_vocabulary")
@@ -210,7 +210,7 @@ const MyWordsReview = () => {
           id: r.id,
           word_arabic: r.word_arabic,
           word_english: r.word_english,
-          transliteration: r.transliteration ?? null,
+          transliteration: null,
           ease_factor: r.ease_factor,
           interval_days: r.interval_days,
           repetitions: r.repetitions,
@@ -236,7 +236,7 @@ const MyWordsReview = () => {
           id: r.id,
           word_arabic: r.word_arabic,
           word_english: r.word_english,
-          transliteration: r.transliteration ?? null,
+          transliteration: null,
           ease_factor: r.production_ease_factor,
           interval_days: r.production_interval_days,
           repetitions: r.production_repetitions,

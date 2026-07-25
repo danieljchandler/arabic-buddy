@@ -2,7 +2,7 @@ import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { useLessonImport } from '@/hooks/useLessonImport';
-import { parseLessonXlsx, ParsedLessonPlan } from '@/lib/parseLessonXlsx';
+import type { ParsedLessonPlan } from '@/lib/parseLessonXlsx';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
@@ -25,6 +25,9 @@ const LessonImport = () => {
 
     try {
       const buffer = await file.arrayBuffer();
+      // Dynamic import so the heavy SheetJS (xlsx) bundle loads only when an
+      // admin actually picks a file, not on every visit to this route.
+      const { parseLessonXlsx } = await import('@/lib/parseLessonXlsx');
       const result = parseLessonXlsx(buffer);
       setParsed(result);
       toast({ title: 'File parsed successfully', description: `Found ${result.vocabulary.length} vocabulary words.` });

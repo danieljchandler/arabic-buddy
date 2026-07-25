@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { parseLocalDate } from "@/lib/localDate";
 
 export interface SmartNotification {
   id: string;
@@ -60,7 +61,9 @@ export function useSmartNotifications() {
         .maybeSingle();
 
       if (streak && streak.current_streak > 0 && streak.last_review_date) {
-        const lastReview = new Date(streak.last_review_date);
+        // Parse the date-only column as LOCAL midnight so the "streak at risk"
+        // window is measured in the user's timezone, not shifted by the UTC offset.
+        const lastReview = parseLocalDate(streak.last_review_date);
         const hoursSince = (now.getTime() - lastReview.getTime()) / (1000 * 60 * 60);
 
         if (hoursSince >= 20 && hoursSince < 48) {

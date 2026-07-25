@@ -68,6 +68,20 @@ export default defineConfig(({ mode }) => ({
   },
   build: {
     minify: 'esbuild',
+    rollupOptions: {
+      output: {
+        // Split large, stable vendor libraries into their own cacheable chunks
+        // so they aren't duplicated across route chunks and don't invalidate on
+        // app-code changes. recharts (+ d3) is isolated so it loads only for the
+        // routes that render charts (e.g. /analytics), not the whole app.
+        manualChunks: {
+          "vendor-react": ["react", "react-dom", "react-router-dom"],
+          "vendor-supabase": ["@supabase/supabase-js"],
+          "vendor-query": ["@tanstack/react-query"],
+          "vendor-charts": ["recharts"],
+        },
+      },
+    },
   },
   esbuild: mode === 'production' ? {
     drop: ['console', 'debugger'],

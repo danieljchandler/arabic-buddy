@@ -155,7 +155,7 @@ const Onboarding = () => {
           <div className="text-center space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
             <img src={lahjaIcon} alt="Hakiya" className="h-20 w-20 mx-auto" />
             <div>
-              <h1 className="text-3xl font-bold font-heading text-foreground mb-3">
+              <h1 className="text-3xl font-bold font-heading text-foreground mb-3" dir="rtl">
                 !أهلاً وسهلاً
               </h1>
               <h2 className="text-xl font-semibold text-foreground mb-2">

@@ -132,6 +132,8 @@ export const QuizCard = ({ word, otherWords, onAnswer, topicLabel }: QuizCardPro
           <button
             onClick={() => effectiveAudioUrl && playAudio(effectiveAudioUrl)}
             aria-label="Play pronunciation"
+            aria-disabled={!effectiveAudioUrl}
+            aria-busy={isGeneratingAudio}
             className={cn(
               "flex-shrink-0 p-3 rounded-full border transition-all duration-200",
               "focus:outline-none focus:ring-2 focus:ring-primary/30",

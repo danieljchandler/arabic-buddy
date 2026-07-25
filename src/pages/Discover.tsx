@@ -228,7 +228,7 @@ const Discover = () => {
             </div>
             <div className="flex gap-2">
               <Select value={dialect} onValueChange={setDialect}>
-                <SelectTrigger className="w-[140px]">
+                <SelectTrigger className="flex-1 min-w-0">
                   <SelectValue placeholder="Dialect" />
                 </SelectTrigger>
                 <SelectContent>
@@ -238,7 +238,7 @@ const Discover = () => {
                 </SelectContent>
               </Select>
               <Select value={difficulty} onValueChange={setDifficulty}>
-                <SelectTrigger className="w-[140px]">
+                <SelectTrigger className="flex-1 min-w-0">
                   <SelectValue placeholder="Level" />
                 </SelectTrigger>
                 <SelectContent>

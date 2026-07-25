@@ -60,7 +60,10 @@ describe("QuizCard audio", () => {
   });
 
   it("renders the audio button", () => {
-    vi.stubGlobal("fetch", vi.fn().mockReturnValue(new Promise(() => {})));
+    // Use a settled (rejected) fetch, not a never-resolving promise: this word
+    // routes through the module-level munsit serial queue, and a hung request
+    // would leave that queue pending and starve every later test's TTS call.
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("Network error")));
     render(<QuizCard word={makeWord()} otherWords={otherWords} onAnswer={vi.fn()} />);
     expect(screen.getByRole("button", { name: /play pronunciation/i })).toBeInTheDocument();
   });
@@ -108,7 +111,11 @@ describe("QuizCard audio", () => {
     const audioBlob = new Blob(["audio"], { type: "audio/mpeg" });
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue({ ok: true, blob: () => Promise.resolve(audioBlob) })
+      vi.fn().mockResolvedValue({
+        ok: true,
+        headers: { get: () => "audio/mpeg" },
+        blob: () => Promise.resolve(audioBlob),
+      })
     );
 
     render(<QuizCard word={makeWord()} otherWords={otherWords} onAnswer={vi.fn()} />);

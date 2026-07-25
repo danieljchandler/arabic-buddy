@@ -1,4 +1,4 @@
-import saduBannerImg from "@/assets/sadu-banner.png";
+import saduBannerImg from "@/assets/sadu-banner.webp";
 
 /**
  * SaduBanner - Geometric diamond strip banner

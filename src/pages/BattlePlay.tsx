@@ -30,10 +30,15 @@ const BattlePlay = () => {
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [showResult, setShowResult] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(60);
-  const [startTime, setStartTime] = useState<number>(0);
   const [totalTimeMs, setTotalTimeMs] = useState(0);
 
   const timerRef = useRef<ReturnType<typeof setInterval>>();
+  // Refs mirror score/startTime so finishGame reads live values even when it is
+  // invoked from the timer's interval closure (captured once at game start).
+  // Without this the timeout path always submitted score 0.
+  const scoreRef = useRef(0);
+  const startTimeRef = useRef(0);
+  const finishedRef = useRef(false);
 
   const isChallenger = battle?.challenger_id === user?.id;
   const questions: BattleQuestion[] = battle?.questions || [];
@@ -59,17 +64,24 @@ const BattlePlay = () => {
   }, [gameState]);
 
   const startGame = () => {
+    finishedRef.current = false;
+    scoreRef.current = 0;
+    startTimeRef.current = Date.now();
     setGameState('playing');
     setCurrentQuestion(0);
     setScore(0);
     setTimeRemaining(battle?.time_limit_seconds || 60);
-    setStartTime(Date.now());
   };
 
   const finishGame = useCallback(async () => {
+    // Idempotency guard: the timer and the last-question path can both fire.
+    if (finishedRef.current) return;
+    finishedRef.current = true;
+
     setGameState('finished');
     clearInterval(timerRef.current);
-    const elapsed = Date.now() - startTime;
+    const elapsed = Date.now() - startTimeRef.current;
+    const finalScore = scoreRef.current;
     setTotalTimeMs(elapsed);
 
     if (!battleId) return;
@@ -78,13 +90,13 @@ const BattlePlay = () => {
       if (isChallenger) {
         await submitChallenger.mutateAsync({
           battleId,
-          score,
+          score: finalScore,
           timeMs: elapsed,
         });
       } else {
         await submitOpponent.mutateAsync({
           battleId,
-          score,
+          score: finalScore,
           timeMs: elapsed,
         });
       }
@@ -92,7 +104,7 @@ const BattlePlay = () => {
     } catch (err: any) {
       toast.error(err.message || 'Failed to submit score');
     }
-  }, [battleId, isChallenger, score, startTime, submitChallenger, submitOpponent]);
+  }, [battleId, isChallenger, submitChallenger, submitOpponent]);
 
   const handleAnswer = (answerIndex: number) => {
     if (showResult) return;
@@ -102,7 +114,10 @@ const BattlePlay = () => {
 
     const isCorrect = answerIndex === question.correct_index;
     if (isCorrect) {
-      setScore((prev) => prev + 1);
+      // Update the ref synchronously so a finishGame fired from the final
+      // question (or the timer) counts this answer instead of missing it.
+      scoreRef.current += 1;
+      setScore(scoreRef.current);
     }
 
     // Move to next question after brief delay

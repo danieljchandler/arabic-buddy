@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, lazy, Suspense } from "react";
 import { useNavigate } from "react-router-dom";
 import { useUserVocabulary, useUserVocabularyDueCount, useDeleteUserVocabulary, type UserVocabularyWord } from "@/hooks/useUserVocabulary";
 import { useUserPhrases, useUserPhrasesDueCount, useDeleteUserPhrase } from "@/hooks/useUserPhrases";
@@ -11,7 +11,11 @@ import { toast } from "sonner";
 import { AppShell } from "@/components/layout/AppShell";
 import { GenerateImageDialog } from "@/components/mywords/GenerateImageDialog";
 import { SuggestFlashcardsDialog } from "@/components/mywords/SuggestFlashcardsDialog";
-import { ImportFromAnkiDialog } from "@/components/mywords/ImportFromAnkiDialog";
+// Lazy + mounted only while open: keeps the heavy Anki parsers (sql.js, fflate)
+// out of the My Words chunk until the user actually opens the import dialog.
+const ImportFromAnkiDialog = lazy(() =>
+  import("@/components/mywords/ImportFromAnkiDialog").then((m) => ({ default: m.ImportFromAnkiDialog })),
+);
 import { Wand2 } from "lucide-react";
 import { InfoHint } from "@/components/InfoHint";
 import { PAGE_HINTS } from "@/lib/pageHints";
@@ -631,6 +635,9 @@ const MyWords = () => {
                     <img
                       src={word.image_url}
                       alt={word.word_english}
+                      loading="lazy"
+                      width={40}
+                      height={40}
                       className="w-10 h-10 rounded-lg object-cover border border-border flex-shrink-0"
                     />
                   ) : (
@@ -734,7 +741,11 @@ const MyWords = () => {
       />
 
       <SuggestFlashcardsDialog open={suggestOpen} onOpenChange={setSuggestOpen} />
-      <ImportFromAnkiDialog open={ankiOpen} onOpenChange={setAnkiOpen} />
+      {ankiOpen && (
+        <Suspense fallback={null}>
+          <ImportFromAnkiDialog open={ankiOpen} onOpenChange={setAnkiOpen} />
+        </Suspense>
+      )}
     </AppShell>
   );
 };

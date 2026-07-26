@@ -19,6 +19,7 @@ import { AskAISentence } from "@/components/shared/AskAISentence";
 
 import { Button } from "@/components/ui/button";
 import { Rating, calculateNextReview, elapsedDaysSince } from "@/lib/spacedRepetition";
+import { buildReviewOrder, scheduleDirectionFor, type CardDirection } from "@/lib/reviewOrder";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -40,7 +41,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-type CardType = "recognition" | "production";
+// Shared with the curriculum deck via src/lib/reviewOrder.ts. This deck doesn't
+// serve `audio` cards yet, but the ordering treats every direction alike.
+type CardType = CardDirection;
 
 interface DueCard {
   id: string;
@@ -266,42 +269,16 @@ const MyWordsReview = () => {
         });
       }
 
-      // Smart scheduler:
-      // 1. Cap NEW cards per session (repetitions === 0) so the user doesn't
-      //    drown in fresh material.
-      // 2. Interleave new vs review cards (alternate when possible) so reviews
-      //    don't all clump at the end.
-      // 3. Interleave recognition vs production within each bucket so the
-      //    user keeps switching modes (Anki/Duolingo-style mixing).
-      // The user's session preference, further capped by how many new cards
-      // they've actually already studied today (server-persisted, survives
-      // reloads) — see useNewCardBudget.
-      const NEW_CAP = Math.min(newCap, remainingNewBudget);
-      const splitMix = (arr: DueCard[]) => {
-        const recog = arr.filter((c) => c.card_type === "recognition");
-        const prod = arr.filter((c) => c.card_type === "production");
-        const out: DueCard[] = [];
-        const max = Math.max(recog.length, prod.length);
-        for (let i = 0; i < max; i++) {
-          if (i < recog.length) out.push(recog[i]);
-          if (i < prod.length) out.push(prod[i]);
-        }
-        return out;
-      };
-
-      const isNew = (c: DueCard) => c.repetitions === 0;
-      cards.sort((a, b) => a.due_at.localeCompare(b.due_at));
-      const newCards = splitMix(cards.filter(isNew)).slice(0, NEW_CAP);
-      const reviewCards = splitMix(cards.filter((c) => !isNew(c)));
-
-      // Round-robin new + review for a varied session
-      const session: DueCard[] = [];
-      const len = Math.max(newCards.length, reviewCards.length);
-      for (let i = 0; i < len; i++) {
-        if (i < reviewCards.length) session.push(reviewCards[i]);
-        if (i < newCards.length) session.push(newCards[i]);
-      }
-      return session;
+      // Ordering (due-date priority, new-card cap, direction interleaving) lives
+      // in src/lib/reviewOrder.ts so the curriculum deck gets the same treatment
+      // — it previously had neither interleaving nor a cap.
+      //
+      // The cap is the user's session preference, further limited by how many
+      // new cards they've already studied today (server-persisted, so it
+      // survives reloads) — see useNewCardBudget.
+      return buildReviewOrder(cards, {
+        newCardCap: Math.min(newCap, remainingNewBudget),
+      });
     },
     enabled: !!user,
   });
@@ -504,7 +481,8 @@ const MyWordsReview = () => {
         intervalDays: result.intervalDays,
         repetitions: result.repetitions,
         nextReviewAt: result.nextReviewAt,
-        cardType: card.card_type,
+        // Audio cards share the recognition schedule — see scheduleDirectionFor.
+        cardType: scheduleDirectionFor(card.card_type),
         rating,
         productionLocked: card.production_locked,
         currentLapses: card.lapses,

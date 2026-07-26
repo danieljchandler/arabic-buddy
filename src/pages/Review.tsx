@@ -17,7 +17,9 @@ import { Button } from "@/components/ui/button";
 import { AppShell } from "@/components/layout/AppShell";
 import { useDialect } from "@/contexts/DialectContext";
 import { Rating, calculateNextReview, elapsedDaysSince } from "@/lib/spacedRepetition";
-import { Loader2, Trophy, Brain, Sparkles, LogIn, Shuffle, Eye, Volume2, ImagePlus, WifiOff, CloudUpload } from "lucide-react";
+import { scheduleDirectionFor } from "@/lib/reviewOrder";
+import { ReviewAudioCard } from "@/components/review/ReviewAudioCard";
+import { Loader2, Trophy, Brain, Sparkles, LogIn, Shuffle, Eye, Volume2, ImagePlus, WifiOff, CloudUpload, PenLine, BookOpen } from "lucide-react";
 import { GenerateImageDialog } from "@/components/mywords/GenerateImageDialog";
 import { useReviewKeyboard } from "@/hooks/useKeyboardShortcuts";
 
@@ -65,6 +67,29 @@ const Review = () => {
     audio.play().catch(console.error);
   };
 
+  /**
+   * Cache a synthesised pronunciation onto the shared curriculum word.
+   *
+   * `vocabulary_words` is admin/recorder-write only, so unlike the personal
+   * deck the client can't stamp `audio_url` itself — without this every
+   * audio-first card would re-synthesise the same word on every review, for
+   * every learner. The edge function does the write under the service role and
+   * re-synthesises from the word's own text, so nothing arbitrary can be
+   * attached to a shared row. Best-effort: a failure just means we synthesise
+   * again next time.
+   */
+  const persistCurriculumAudio = useCallback(async () => {
+    const word = dueWords?.[currentIndex];
+    if (!word || word.audio_url) return;
+    try {
+      await supabase.functions.invoke("persist-word-audio", {
+        body: { wordId: word.id, dialect: word.dialect_module },
+      });
+    } catch (err) {
+      console.warn("Couldn't cache word audio:", err);
+    }
+  }, [dueWords, currentIndex]);
+
   const goToNext = async () => {
     if (!dueWords) return;
     setShowAnswer(false);
@@ -81,11 +106,15 @@ const Review = () => {
     const word = dueWords[currentIndex];
     const wordCount = dueWords.length;
 
-    // Queue locally; background processor retries on network failures
+    // Queue locally; background processor retries on network failures.
+    // The direction decides which column set the rating lands in — getting it
+    // wrong silently corrupts the card's schedule, so it is passed explicitly
+    // rather than inferred at flush time.
     enqueue({
       wordId: word.id,
       rating,
       currentReview: word.review,
+      direction: scheduleDirectionFor(word.card_type),
     });
 
     setSessionCount((prev) => prev + 1);
@@ -230,11 +259,21 @@ const Review = () => {
   const dialectFlag = DIALECT_FLAGS[currentWord.dialect_module || "Gulf"] || "";
   const dialectLabel = currentWord.dialect_module || "Gulf";
 
-  const stability = currentWord.review?.ease_factor ?? 0;
-  const difficulty = currentWord.review?.difficulty ?? 5.0;
-  const intervalDays = currentWord.review?.interval_days ?? 0;
-  const repetitions = currentWord.review?.repetitions ?? 0;
-  const elapsedDays = elapsedDaysSince(currentWord.review?.last_reviewed_at);
+  // Which schedule this card is being rated against. Audio and recognition
+  // share one (see scheduleDirectionFor); production has its own, so the
+  // interval preview on the rating buttons must read from the matching columns
+  // or it shows the learner the wrong next-review estimate.
+  const isProduction = currentWord.card_type === "production";
+  const isAudio = currentWord.card_type === "audio";
+  const review = currentWord.review;
+
+  const stability = (isProduction ? review?.production_ease_factor : review?.ease_factor) ?? 0;
+  const difficulty = (isProduction ? review?.production_difficulty : review?.difficulty) ?? 5.0;
+  const intervalDays = (isProduction ? review?.production_interval_days : review?.interval_days) ?? 0;
+  const repetitions = (isProduction ? review?.production_repetitions : review?.repetitions) ?? 0;
+  const elapsedDays = elapsedDaysSince(
+    isProduction ? review?.production_last_reviewed_at : review?.last_reviewed_at,
+  );
 
   return (
     <AppShell compact>
@@ -303,9 +342,35 @@ const Review = () => {
       {/* Card */}
       <div className="py-4">
         <div className="max-w-sm mx-auto">
+          {isAudio ? (
+            <ReviewAudioCard
+              wordArabic={currentWord.word_arabic}
+              wordEnglish={currentWord.word_english}
+              audioUrl={currentWord.audio_url}
+              showAnswer={showAnswer}
+              onReveal={() => setShowAnswer(true)}
+              onAudioGenerated={persistCurriculumAudio}
+            />
+          ) : (
           <div className="rounded-2xl bg-card border border-border p-8 text-center">
-            {/* Image if available */}
-            {currentWord.image_url && (
+            {/* Direction label — without it, a production card looks like a
+                recognition card the learner has simply failed to read. */}
+            <div className="flex items-center justify-center gap-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wider mb-6">
+              {isProduction ? (
+                <>
+                  <PenLine className="h-3.5 w-3.5" />
+                  Say it in Arabic
+                </>
+              ) : (
+                <>
+                  <BookOpen className="h-3.5 w-3.5" />
+                  Recognise
+                </>
+              )}
+            </div>
+            {/* Image if available. Hidden on production cards — a picture of the
+                answer turns recall into recognition. */}
+            {!isProduction && currentWord.image_url && (
               <div className="mb-4 rounded-lg overflow-hidden bg-muted aspect-[4/3] flex items-center justify-center">
                 <img
                   src={currentWord.image_url}
@@ -317,30 +382,42 @@ const Review = () => {
                 />
               </div>
             )}
-            {/* Generate image button */}
-            <div className="mb-6 flex justify-center">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setImageDialogOpen(true)}
-                className="gap-1.5 text-muted-foreground"
+            {/* Generate image button. Production cards don't show an image, so
+                there's nothing to generate from here. */}
+            {!isProduction && (
+              <div className="mb-6 flex justify-center">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setImageDialogOpen(true)}
+                  className="gap-1.5 text-muted-foreground"
+                >
+                  <ImagePlus className="h-4 w-4" />
+                  {currentWord.image_url ? "Regenerate Image" : "Generate Image"}
+                </Button>
+              </div>
+            )}
+
+            {isProduction ? (
+              /* Prompt in English; the Arabic is what the learner has to
+                 produce, so it stays hidden until they've committed. */
+              <p className="text-3xl font-bold text-foreground mb-6 break-words max-w-full">
+                {currentWord.word_english}
+              </p>
+            ) : (
+              <p
+                className="text-4xl font-bold text-foreground mb-6 break-words max-w-full"
+                style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
+                dir="rtl"
               >
-                <ImagePlus className="h-4 w-4" />
-                {currentWord.image_url ? "Regenerate Image" : "Generate Image"}
-              </Button>
-            </div>
+                {currentWord.word_arabic}
+              </p>
+            )}
 
-            <p
-              className="text-4xl font-bold text-foreground mb-6 break-words max-w-full"
-              style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
-              dir="rtl"
-            >
-              {currentWord.word_arabic}
-            </p>
-
-            {/* Audio button */}
+            {/* Audio button. Never before the answer on a production card — it
+                would simply read out the answer. */}
             <div className="flex items-center justify-center gap-2 flex-wrap mb-8">
-              {currentWord.audio_url && (
+              {currentWord.audio_url && (!isProduction || showAnswer) && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -353,15 +430,28 @@ const Review = () => {
               )}
             </div>
 
-            {/* Pronunciation practice */}
-            <div className="mb-6">
-              <PronunciationButton word={currentWord.word_arabic} />
-            </div>
+            {/* Pronunciation practice. Same reasoning: on a production card the
+                learner must recall the word before being scored saying it. */}
+            {(!isProduction || showAnswer) && (
+              <div className="mb-6">
+                <PronunciationButton word={currentWord.word_arabic} />
+              </div>
+            )}
 
-            {/* Reveal English */}
+            {/* Reveal the other side */}
             {showAnswer && (
               <div className="animate-in fade-in duration-200 mb-4">
-                <p className="text-xl text-muted-foreground">{currentWord.word_english}</p>
+                {isProduction ? (
+                  <p
+                    className="text-3xl font-bold text-foreground break-words"
+                    style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
+                    dir="rtl"
+                  >
+                    {currentWord.word_arabic}
+                  </p>
+                ) : (
+                  <p className="text-xl text-muted-foreground">{currentWord.word_english}</p>
+                )}
               </div>
             )}
             {!showAnswer && (
@@ -372,10 +462,11 @@ const Review = () => {
                 className="gap-1.5 text-muted-foreground"
               >
                 <Eye className="h-4 w-4" />
-                Reveal English
+                {isProduction ? "Reveal Arabic" : "Reveal English"}
               </Button>
             )}
           </div>
+          )}
         </div>
 
         {/* Self-rating always visible */}

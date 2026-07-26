@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { getSRSStageByStability } from "@/lib/srsStats";
 
 export interface AnalyticsData {
   totalWords: number;
@@ -53,11 +54,11 @@ export function useLearningAnalytics() {
       ] = await Promise.all([
         supabase
           .from("word_reviews")
-          .select("stage, review_count, correct_count, last_reviewed_at, created_at")
+          .select("repetitions, ease_factor, review_count, correct_count, last_reviewed_at, created_at")
           .eq("user_id", user.id),
         supabase
           .from("user_vocabulary")
-          .select("stage, review_count, correct_count, last_reviewed_at, created_at, word_arabic, word_english")
+          .select("repetitions, ease_factor, review_count, correct_count, last_reviewed_at, created_at, word_arabic, word_english")
           .eq("user_id", user.id),
         supabase
           .from("review_streaks")
@@ -97,37 +98,30 @@ export function useLearningAnalytics() {
       const totalCorrect = allWords.reduce((sum, w) => sum + (w.correct_count || 0), 0);
       const accuracy = totalReviews > 0 ? Math.round((totalCorrect / totalReviews) * 100) : 0;
 
-      // Stage breakdown
+      // Stage breakdown.
+      //
+      // This used to read the persisted `stage` column, which only the Anki
+      // importer ever writes — the review paths never update it, so for words
+      // added in-app it stayed at its database default no matter how much you
+      // reviewed, and this chart never moved. (Its repetition fallback was dead
+      // too: it read `repetitions`, which wasn't in the SELECT.)
+      //
+      // Derive the stage from live SRS state instead, using the same helper as
+      // the Card Health chart on this page so both agree.
       const stageCounts: Record<string, number> = {};
       STAGE_ORDER.forEach((s) => (stageCounts[s] = 0));
-      // Map legacy/import stage names (Hakiya stages) onto STAGE_N buckets.
-      const STAGE_ALIAS: Record<string, string> = {
-        NEW: "NEW",
-        STAGE_1: "STAGE_1",
-        STAGE_2: "STAGE_2",
-        STAGE_3: "STAGE_3",
-        STAGE_4: "STAGE_4",
-        STAGE_5: "STAGE_5",
-        LEARNING_1D: "STAGE_1",
-        LEARNING_3D: "STAGE_2",
-        REVIEWING_7D: "STAGE_3",
-        REVIEWING_14D: "STAGE_4",
-        MATURE_21D: "STAGE_5",
+      const SRS_STAGE_TO_BUCKET: Record<ReturnType<typeof getSRSStageByStability>, string> = {
+        new: "NEW",
+        learning: "STAGE_1",
+        familiar: "STAGE_2",
+        practiced: "STAGE_3",
+        strong: "STAGE_4",
+        mastered: "STAGE_5",
       };
       allWords.forEach((w) => {
-        const raw = w.stage || "NEW";
-        const reps = (w as any).repetitions ?? 0;
-        let stage = STAGE_ALIAS[raw];
-        if (!stage) {
-          // Fall back to repetition-based bucketing instead of dumping into NEW.
-          if (reps <= 0) stage = "NEW";
-          else if (reps < 3) stage = "STAGE_1";
-          else if (reps < 5) stage = "STAGE_2";
-          else if (reps < 8) stage = "STAGE_3";
-          else if (reps < 13) stage = "STAGE_4";
-          else stage = "STAGE_5";
-        }
-        stageCounts[stage]++;
+        const reps = (w as { repetitions?: number | null }).repetitions ?? 0;
+        const stability = (w as { ease_factor?: number | null }).ease_factor ?? 0;
+        stageCounts[SRS_STAGE_TO_BUCKET[getSRSStageByStability(reps, stability)]]++;
       });
 
       const stageBreakdown = STAGE_ORDER.map((stage) => ({

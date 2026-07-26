@@ -52,6 +52,28 @@ test.describe("signed in — home", () => {
   });
 });
 
+test.describe("signed in — analytics", () => {
+  test("word mastery reflects live SRS state, not a frozen stage column", async ({ page }) => {
+    await signIn(page);
+    await stubSupabase(page, {
+      tables: {
+        // Two well-established cards: high stability, several reviews. Read from
+        // the persisted `stage` column these would show as New forever, since
+        // only the Anki importer ever writes it.
+        user_vocabulary: [
+          { repetitions: 9, ease_factor: 120, review_count: 9, correct_count: 8, word_arabic: "أ", word_english: "a" },
+          { repetitions: 7, ease_factor: 90, review_count: 7, correct_count: 7, word_arabic: "ب", word_english: "b" },
+        ],
+      },
+    });
+    await page.goto("/analytics");
+
+    const mastered = page.locator("div").filter({ hasText: /^Mastered/ }).first();
+    await expect(mastered).toContainText("2");
+    await expect(mastered).toContainText("100%");
+  });
+});
+
 test.describe("signed in — review session", () => {
   test("shows a curriculum card with session-wide progress", async ({ page }) => {
     await signIn(page);

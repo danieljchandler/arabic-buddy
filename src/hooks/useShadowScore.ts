@@ -14,6 +14,7 @@ import { useCallback, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { blobToWav } from "@/lib/audioToWav";
 import { acousticSimilarity } from "@/lib/acousticSimilarity";
+import { useDialect } from "@/contexts/DialectContext";
 
 export interface ShadowWordDiff {
   ref?: string;
@@ -56,6 +57,9 @@ async function blobToBase64(blob: Blob): Promise<string> {
 }
 
 export function useShadowScore() {
+  // Sent to the scorer so the words the learner missed are recorded against the
+  // right dialect in `learner_errors` (they feed the learner profile).
+  const { activeDialect } = useDialect();
   const [result, setResult] = useState<ShadowScoreResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -86,7 +90,7 @@ export function useShadowScore() {
         // 1. Transcript match (server) + 2. acoustic match (client) in parallel.
         const [fnResponse, acoustic] = await Promise.all([
           supabase.functions.invoke("score-shadow-attempt", {
-            body: { audioBase64, mimeType: "audio/wav", referenceText },
+            body: { audioBase64, mimeType: "audio/wav", referenceText, dialect: activeDialect },
           }),
           nativeClipWav
             ? acousticSimilarity(userWav, nativeClipWav).catch(() => null)
@@ -145,7 +149,7 @@ export function useShadowScore() {
         if (reqId === requestIdRef.current) setIsLoading(false);
       }
     },
-    [],
+    [activeDialect],
   );
 
   const reset = useCallback(() => {

@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getDialectVocabRules, getDialectLabel, getDialectExamples } from "../_shared/dialectHelpers.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { buildLearnerProfile } from "../_shared/learnerProfile.ts";
 
 
 serve(async (req) => {
@@ -28,7 +29,27 @@ serve(async (req) => {
     const challengeTypes = ["translate", "fill_blank", "unscramble", "match", "dictation", "culture", "speed"];
     const todayType = challengeTypes[dayOfWeek];
 
-    const vocabContext = userVocab.length > 0
+    // Source the challenge words from the learner's own deck rather than the
+    // client-supplied `userVocab`, which was the whole curriculum shuffled
+    // (useAllWords) — so the "daily challenge" routinely quizzed words the
+    // learner had never studied. Weak and in-progress words come first: those
+    // are the ones worth spending a daily challenge on.
+    let learnerWords: string[] = [];
+    try {
+      const profile = await buildLearnerProfile({
+        userId: cap.userId,
+        dialect,
+        budget: { known: 10, learning: 10, weak: 8 },
+      });
+      learnerWords = [...profile.weak, ...profile.learning, ...profile.known]
+        .map((w) => `${w.arabic} (${w.english})`);
+    } catch (e) {
+      console.warn("daily-challenge: learner profile unavailable, using defaults:", e);
+    }
+
+    const vocabContext = learnerWords.length > 0
+      ? learnerWords.slice(0, 15).join(", ")
+      : userVocab.length > 0
       ? userVocab.slice(0, 15).map((w: any) => `${w.word_arabic} (${w.word_english})`).join(", ")
       : defaultExamples;
 

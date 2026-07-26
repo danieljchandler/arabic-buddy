@@ -16,7 +16,6 @@ import {
 } from "@/components/ui/popover";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserLevel } from "@/hooks/useUserLevel";
-import { useAllWords } from "@/hooks/useAllWords";
 import { useAddXP } from "@/hooks/useGamification";
 import { useAddUserVocabulary } from "@/hooks/useUserVocabulary";
 import { supabase } from "@/integrations/supabase/client";
@@ -270,7 +269,6 @@ const ReadingPractice = () => {
   const { isAuthenticated, user } = useAuth();
   const { activeDialect } = useDialect();
   const { difficulty: userDifficulty } = useUserLevel();
-  const { data: allWords } = useAllWords();
   const addXP = useAddXP();
   const addVocab = useAddUserVocabulary();
 
@@ -401,15 +399,15 @@ const ReadingPractice = () => {
         return;
       }
 
-      const wordsToUse = allWords?.slice(0, 20) || [];
+      // No userVocab: the passage is now built from a server-side learner
+      // profile (supabase/functions/_shared/learnerProfile.ts) using real SRS
+      // state. What used to be sent here was `useAllWords` — the entire
+      // curriculum vocabulary, shuffled — described to the model as "words the
+      // student knows", which is exactly what it wasn't.
       const { data, error } = await supabase.functions.invoke("reading-passage", {
         body: {
           difficulty: selectedDifficulty,
           topic: customTopic.trim() || undefined,
-          userVocab: wordsToUse.map((w) => ({
-            word_arabic: w.word_arabic,
-            word_english: w.word_english,
-          })),
           dialect: activeDialect,
         },
       });

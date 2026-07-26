@@ -194,7 +194,9 @@ const DailyChallenge = () => {
         return;
       }
 
-      // Fallback to live AI generation
+      // Fallback to live AI generation. The challenge words come from the
+      // server-side learner profile (real SRS state, weak words first); this
+      // list is only a cold-start fallback for a learner with no deck yet.
       const wordsToUse = allWords?.slice(0, 20) || [];
       const { data, error } = await supabase.functions.invoke("daily-challenge", {
         body: {

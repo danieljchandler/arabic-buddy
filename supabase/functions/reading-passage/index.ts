@@ -4,6 +4,7 @@ import { askBrain } from "../_shared/aiBrain.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
 import { LITERAL_GLOSS_RULE, literalSchema } from "../_shared/literalGloss.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { learnerPromptBlock } from "../_shared/learnerProfile.ts";
 
 
 serve(async (req) => {
@@ -17,13 +18,17 @@ serve(async (req) => {
   if (cap.limited) return cap.response;
 
   try {
-    const { difficulty = "beginner", topic, userVocab = [], dialect = "Gulf" } = await req.json();
+    const { difficulty = "beginner", topic, dialect = "Gulf" } = await req.json();
 
     const dialectLabel = getDialectLabel(dialect);
 
-    const vocabContext = userVocab.length > 0
-      ? `Include some of these words the student knows: ${userVocab.slice(0, 15).map((w: any) => w.word_arabic).join(", ")}`
-      : "";
+    // Learner model, built server-side from the caller's real SRS state across
+    // both decks. This replaces the old client-supplied `userVocab` argument,
+    // which was fed the entire curriculum vocabulary shuffled (useAllWords) and
+    // labelled "words the student knows" — so passages were being built around
+    // words the learner had often never seen. Callers may still send `userVocab`;
+    // it is deliberately ignored.
+    const learnerBlock = await learnerPromptBlock({ userId: cap.userId, dialect });
 
     const culturalContext = dialect === "Egyptian"
       ? "daily life, culture, or social situations in Egypt (Cairo, Alexandria, etc.)"
@@ -53,13 +58,14 @@ ${getDialectTransliterationRules(dialect as Dialect)}
 ${LITERAL_GLOSS_RULE}
 - Provide a "literal" gloss for every line.
 
-- Return the structured fields via the provided tool only.`;
+- Return the structured fields via the provided tool only.
+
+${learnerBlock}`;
 
     const userPrompt = `Generate a reading comprehension exercise.
 
 Difficulty: ${difficulty} (${difficultyGuide[difficulty] || difficultyGuide.beginner})
 ${topicContext}
-${vocabContext}
 
 Split the passage into individual sentences in the "lines" array (each line = one sentence with its Arabic text, natural English translation, and literal word-for-word gloss). Generate 3-4 vocabulary items and 2-3 comprehension questions.`;
 

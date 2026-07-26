@@ -44,7 +44,8 @@ const ReadingLibrary = () => {
 
   const { data: stories, isLoading } = usePublishedStories({ difficulty, dialect });
 
-  const formatDuration = (seconds?: number) => {
+  // duration_seconds is nullable in the DB, so accept null as well as undefined.
+  const formatDuration = (seconds?: number | null) => {
     if (!seconds) return null;
     const mins = Math.floor(seconds / 60);
     return `${mins} min`;

@@ -28,7 +28,8 @@ export interface VocabularyWord {
   word_english: string;
   image_url: string | null;
   audio_url: string | null;
-  topic_id: string;
+  // Nullable in the schema: words attached to a lesson have no topic.
+  topic_id: string | null;
   image_position?: string | null;
   dialect_module?: string;
 }

@@ -61,7 +61,8 @@ const Learn = () => {
     interval_days: number;
     repetitions: number;
     last_reviewed_at: string | null;
-    next_review_at: string | null;
+    // Non-null in the schema — every review row carries a due date.
+    next_review_at: string;
   }>>(new Map());
 
   // Fetch existing reviews for SRS integration

@@ -49,6 +49,7 @@ const BulkWordImport = () => {
   const { data: topic } = useQuery({
     queryKey: ['topic-info', topicId],
     queryFn: async () => {
+      if (!topicId) throw new Error('Missing topicId in route');
       const { data, error } = await supabase
         .from('topics')
         .select('name, name_arabic, icon, gradient')
@@ -58,6 +59,7 @@ const BulkWordImport = () => {
       if (error) throw error;
       return data;
     },
+    enabled: !!topicId,
   });
 
   const uploadAudioFile = async (file: File): Promise<string> => {
@@ -80,8 +82,9 @@ const BulkWordImport = () => {
 
   const mutation = useMutation({
     mutationFn: async () => {
+      if (!topicId) throw new Error('Missing topicId in route');
       setIsUploading(true);
-      
+
       const validEntries = entries.filter(
         (e) => e.wordArabic.trim() && e.wordEnglish.trim()
       );

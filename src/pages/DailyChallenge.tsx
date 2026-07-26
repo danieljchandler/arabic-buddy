@@ -528,7 +528,7 @@ const DailyChallenge = () => {
         )}
 
         {/* Options (non-match types) */}
-        {challenge.type !== 'match' && currentQuestion.options && (
+        {challenge.type !== 'match' && currentQuestion?.options && (
           <div className="space-y-2">
             {currentQuestion.options.map((option, i) => {
               const isSelected = selectedAnswer === option;
@@ -558,7 +558,7 @@ const DailyChallenge = () => {
         )}
 
         {/* Result + Next (non-match types) */}
-        {challenge.type !== 'match' && showResult && (
+        {challenge.type !== 'match' && showResult && currentQuestion && (
           <div className="space-y-3">
             <div className={cn(
               "p-3 rounded-xl text-center",

@@ -671,7 +671,7 @@ const Transcribe = () => {
         // Return null immediately so the parallel pipeline doesn't waste time on it.
         // Re-enable when CNTXT restores their DNS / publishes a new endpoint.
         console.log("Munsit ASR: disabled (api.cntxt.tools DNS dead)");
-        return { text: null } as { text?: string };
+        return { text: undefined } as { text?: string };
       })();
 
       // Fanar ASR (budget-gated — the edge function handles budget checks)

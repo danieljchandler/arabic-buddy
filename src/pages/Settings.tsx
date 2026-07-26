@@ -10,12 +10,13 @@ import { Switch } from '@/components/ui/switch';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { Loader2, Check, ArrowLeft, User, Globe2, Target, Eye, Heart, ChevronRight, Camera, AlertTriangle, Info, Compass } from 'lucide-react';
+import { Loader2, Check, ArrowLeft, User, Globe2, Target, Eye, Heart, ChevronRight, Camera, AlertTriangle, Info, Compass, Bell } from 'lucide-react';
 import { HomeLayoutEditor } from '@/components/settings/HomeLayoutEditor';
 import { DisplayPrefsEditor } from '@/components/settings/DisplayPrefsEditor';
 import { useLeechPrefs } from '@/hooks/useLeechPrefs';
 import { useFeatureHints } from '@/hooks/useFeatureHints';
 import { useSubscription } from '@/hooks/useSubscription';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { getTopicCategories } from '@/data/listenTopics';
 import { LEARNING_REASONS, reasonLabel, reasonIdFromLabel } from '@/data/learningReasons';
 
@@ -101,6 +102,8 @@ const Settings = () => {
   // generators read, so editing them here changes what gets generated next.
   const [reason, setReason] = useState<string | null>(null);
   const [interests, setInterests] = useState<string[]>([]);
+
+  const push = usePushNotifications();
 
   // Same taxonomy the Listen catalog uses, scoped to the selected dialect.
   const topicCategories = getTopicCategories(dialect);
@@ -513,6 +516,35 @@ const Settings = () => {
               {clearingLeeches ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Clear all leech flags'}
             </Button>
           </section>
+
+          {/* Reminders. Hidden entirely when the browser can't do push or the
+              deployment has no VAPID key — a dead toggle is worse than none. */}
+          {push.isSupported && (
+            <section className="space-y-3">
+              <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                <Bell className="h-4 w-4" />
+                Reminders
+              </div>
+              <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-card border border-border">
+                <div className="min-w-0">
+                  <p className="font-medium text-foreground text-sm">Review reminders</p>
+                  <p className="text-xs text-muted-foreground">
+                    {push.permission === 'denied'
+                      ? 'Blocked in your browser settings — allow notifications for this site to enable.'
+                      : 'One evening nudge when you have cards waiting.'}
+                  </p>
+                </div>
+                <Switch
+                  checked={push.isSubscribed}
+                  disabled={push.isBusy || push.permission === 'denied'}
+                  onCheckedChange={(next) => {
+                    if (next) void push.subscribe();
+                    else void push.unsubscribe();
+                  }}
+                />
+              </div>
+            </section>
+          )}
 
           {/* Privacy Section */}
           <section className="space-y-3">

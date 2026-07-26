@@ -75,9 +75,48 @@ function hoursSince(iso: string | null): number {
   return (Date.now() - then) / 3_600_000;
 }
 
+/**
+ * Only the scheduler (service role) or an admin may run this.
+ *
+ * Without a guard anyone who knows the URL could trigger a send round — not a
+ * data leak (the response is just counts), but it would let a stranger push
+ * notifications to every subscribed learner, which is exactly how an app gets
+ * its notifications switched off.
+ */
+async function isAuthorised(req: Request): Promise<boolean> {
+  const auth = req.headers.get("authorization") ?? "";
+  const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
+  if (!token) return false;
+  if (token === SERVICE_ROLE) return true;
+
+  try {
+    const supa = createClient(SUPABASE_URL, SERVICE_ROLE, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+    const { data, error } = await supa.auth.getUser(token);
+    if (error || !data?.user) return false;
+    const { data: role } = await supa
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", data.user.id)
+      .eq("role", "admin")
+      .maybeSingle();
+    return !!role;
+  } catch {
+    return false;
+  }
+}
+
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
+  if (!(await isAuthorised(req))) {
+    return new Response(JSON.stringify({ error: "forbidden" }), {
+      status: 403,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
 
   if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
     // Fail loudly rather than reporting a successful run that sent nothing.

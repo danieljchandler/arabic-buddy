@@ -335,6 +335,7 @@ const Onboarding = () => {
                 <button
                   key={r.id}
                   onClick={() => setReason((prev) => (prev === r.id ? null : r.id))}
+                  aria-pressed={reason === r.id}
                   className={cn(
                     'w-full flex items-center gap-3 p-3.5 rounded-xl border-2 transition-all duration-200 text-left',
                     reason === r.id

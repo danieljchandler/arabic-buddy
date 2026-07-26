@@ -26,9 +26,11 @@ export const ContinueCard = () => {
   const [entry, setEntry] = useState<ContinueEntry | null>(() => getContinue());
   const { data: resumable } = useResumableLesson(activeDialect);
   // Dismissing clears localStorage, but the server row survives by design — the
-  // learner really is mid-lesson. Without this the card would reappear
-  // instantly and the dismiss button would look broken.
-  const [dismissed, setDismissed] = useState(false);
+  // learner really is mid-lesson — so without this the card reappears instantly
+  // and the button looks broken. Keyed on the dismissed route rather than a
+  // session-wide flag, so starting a different lesson (or switching dialect)
+  // shows the card again instead of suppressing it for the whole visit.
+  const [dismissedRoute, setDismissedRoute] = useState<string | null>(null);
 
   useEffect(() => {
     const refresh = () => setEntry(getContinue());
@@ -48,7 +50,7 @@ export const ContinueCard = () => {
   // cleared cache.
   const localEntry =
     entry && (!entry.dialect || entry.dialect === activeDialect) ? entry : null;
-  const resolved: ContinueEntry | null = dismissed ? null : localEntry ?? (resumable
+  const candidate: ContinueEntry | null = localEntry ?? (resumable
     ? {
         kind: "lesson",
         route: `/learn/${resumable.lessonId}`,
@@ -61,6 +63,7 @@ export const ContinueCard = () => {
       }
     : null);
 
+  const resolved = candidate && candidate.route !== dismissedRoute ? candidate : null;
   if (!resolved) return null;
 
   const { icon: Icon, label } = KIND_META[resolved.kind];
@@ -108,7 +111,7 @@ export const ContinueCard = () => {
           e.stopPropagation();
           clearContinue();
           setEntry(null);
-          setDismissed(true);
+          setDismissedRoute(resolved.route);
         }}
         className="px-2 text-muted-foreground/60 hover:text-foreground transition-colors"
         aria-label="Dismiss"

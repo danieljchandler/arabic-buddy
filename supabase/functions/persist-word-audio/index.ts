@@ -29,6 +29,26 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const BUCKET = "flashcard-audio";
 
+/**
+ * Dialect → Azure voice. Mirrors DEFAULT_AZURE_VOICE in src/hooks/useAzureTTS.ts.
+ *
+ * azure-tts takes `voice`, not `dialect` — passing a dialect name silently falls
+ * through to its Gulf default, so every Egyptian and Yemeni curriculum word
+ * would have been cached with a Gulf voice.
+ */
+const VOICE_BY_DIALECT: Record<string, string> = {
+  egyptian: "ar-EG-ShakirNeural",
+  egypt: "ar-EG-ShakirNeural",
+  yemeni: "ar-YE-MaryamNeural",
+  yemen: "ar-YE-MaryamNeural",
+};
+
+function voiceFor(dialect: string | null | undefined): string | undefined {
+  if (!dialect) return undefined;
+  // Gulf has no entry: azure-tts's own default is already a Gulf voice.
+  return VOICE_BY_DIALECT[String(dialect).toLowerCase()];
+}
+
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -82,7 +102,7 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         text: word.word_arabic,
-        dialect: dialect || word.dialect_module || "Gulf",
+        voice: voiceFor(dialect || word.dialect_module),
       }),
     });
 

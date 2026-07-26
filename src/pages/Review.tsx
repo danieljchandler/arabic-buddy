@@ -347,6 +347,7 @@ const Review = () => {
               wordArabic={currentWord.word_arabic}
               wordEnglish={currentWord.word_english}
               audioUrl={currentWord.audio_url}
+              dialect={currentWord.dialect_module}
               showAnswer={showAnswer}
               onReveal={() => setShowAnswer(true)}
               onAudioGenerated={persistCurriculumAudio}

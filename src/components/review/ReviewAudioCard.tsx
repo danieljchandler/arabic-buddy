@@ -11,6 +11,12 @@ interface Props {
   wordEnglish: string;
   /** Recorded audio, when the word has any. TTS fills in otherwise. */
   audioUrl?: string | null;
+  /**
+   * The word's own dialect. Needed because /review has a "Mix All" mode that
+   * serves cards from every dialect — falling back to the ambient active
+   * dialect would synthesise an Egyptian word with a Gulf voice.
+   */
+  dialect?: string | null;
   /** Revealed state is owned by the review page so rating can gate on it. */
   showAnswer: boolean;
   onReveal: () => void;
@@ -34,18 +40,20 @@ export const ReviewAudioCard = ({
   wordArabic,
   wordEnglish,
   audioUrl,
+  dialect,
   showAnswer,
   onReveal,
   onAudioGenerated,
 }: Props) => {
   const { activeDialect } = useDialect();
+  const voiceDialect = dialect ?? activeDialect;
   const [hasPlayed, setHasPlayed] = useState(false);
   const autoPlayedFor = useRef<string | null>(null);
 
   const { ttsUrl, isLoading, regenerate } = useAzureTTS({
     text: wordArabic,
     skip: Boolean(audioUrl),
-    dialect: activeDialect,
+    dialect: voiceDialect,
     persist: onAudioGenerated,
   });
   const { isPlaying, play } = useAudioPlayer();

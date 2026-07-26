@@ -90,6 +90,27 @@ describe("classifyRows", () => {
     const { known } = classifyRows([row(), row()]);
     expect(known).toHaveLength(1);
   });
+
+  it("does not put the same word in both known and learning", () => {
+    // The same word can sit in both decks at different maturities. Without the
+    // cross-bucket filter the prompt would tell the model a word is
+    // simultaneously mastered and in need of reinforcement.
+    const { known, learning } = classifyRows([
+      row({ intervalDays: 30, repetitions: 5 }),
+      row({ intervalDays: 1, repetitions: 0 }),
+    ]);
+    expect(known.map((w) => w.arabic)).toEqual(["بيت"]);
+    expect(learning).toHaveLength(0);
+  });
+
+  it("filters the overlap even when the immature row comes first", () => {
+    const { known, learning } = classifyRows([
+      row({ intervalDays: 1, repetitions: 0 }),
+      row({ intervalDays: 30, repetitions: 5 }),
+    ]);
+    expect(known.map((w) => w.arabic)).toEqual(["بيت"]);
+    expect(learning).toHaveLength(0);
+  });
 });
 
 describe("dedupe", () => {

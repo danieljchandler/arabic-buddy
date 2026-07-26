@@ -21,7 +21,10 @@
  */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { recordLearnerErrorsForRequest } from "../_shared/learnerErrors.ts";
+import {
+  recordLearnerErrorsForRequest,
+  resolveLearnerErrorsForRequest,
+} from "../_shared/learnerErrors.ts";
 
 
 const MUNSIT_BASE = "https://api.munsit.com/api/v1";
@@ -215,6 +218,15 @@ serve(async (req) => {
           detail: { transcriptSimilarity },
         })),
       );
+    } else {
+      // Clean take — clear the words previously flagged, so the weak set decays
+      // instead of only ever growing. Matched per word, since that's how they
+      // were recorded.
+      const matched = wordDiffs
+        .filter((d) => d.status === "match")
+        .map((d) => d.ref)
+        .filter((w): w is string => !!w);
+      void resolveLearnerErrorsForRequest(req, matched, dialect);
     }
 
     return new Response(

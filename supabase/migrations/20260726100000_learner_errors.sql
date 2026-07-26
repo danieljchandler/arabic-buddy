@@ -17,7 +17,10 @@
 
 CREATE TABLE public.learner_errors (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id uuid NOT NULL,
+  -- Cascades on account deletion. Several older owned tables use a bare uuid
+  -- here and are left holding orphaned rows; this is a new table, so it does it
+  -- properly.
+  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   dialect text NOT NULL DEFAULT 'Gulf',
   -- Which scoring surface produced this.
   source text NOT NULL CHECK (source IN (
@@ -48,7 +51,11 @@ CREATE INDEX idx_learner_errors_user_recent
   ON public.learner_errors (user_id, dialect, created_at DESC)
   WHERE resolved_at IS NULL;
 
-GRANT SELECT, UPDATE ON public.learner_errors TO authenticated;
+-- UPDATE is column-scoped: a learner may dismiss their own error, but must not
+-- be able to rewrite target_arabic, error_kind or detail — those feed the
+-- learner profile that content generation is conditioned on.
+GRANT SELECT ON public.learner_errors TO authenticated;
+GRANT UPDATE (resolved_at) ON public.learner_errors TO authenticated;
 GRANT ALL ON public.learner_errors TO service_role;
 
 ALTER TABLE public.learner_errors ENABLE ROW LEVEL SECURITY;
@@ -57,7 +64,7 @@ CREATE POLICY "Users can view their own errors"
   ON public.learner_errors
   FOR SELECT
   TO authenticated
-  USING (auth.uid() = user_id);
+  USING ((select auth.uid()) = user_id);
 
 -- Users may only resolve/dismiss their own rows; inserts come from the
 -- scoring edge functions under the service role, which bypasses RLS.
@@ -65,8 +72,8 @@ CREATE POLICY "Users can resolve their own errors"
   ON public.learner_errors
   FOR UPDATE
   TO authenticated
-  USING (auth.uid() = user_id)
-  WITH CHECK (auth.uid() = user_id);
+  USING ((select auth.uid()) = user_id)
+  WITH CHECK ((select auth.uid()) = user_id);
 
 
 -- Interests, alongside the already-existing-but-unused profiles.learning_reason.

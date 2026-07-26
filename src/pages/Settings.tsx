@@ -10,12 +10,14 @@ import { Switch } from '@/components/ui/switch';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { Loader2, Check, ArrowLeft, User, Globe2, Target, Eye, Heart, ChevronRight, Camera, AlertTriangle, Info } from 'lucide-react';
+import { Loader2, Check, ArrowLeft, User, Globe2, Target, Eye, Heart, ChevronRight, Camera, AlertTriangle, Info, Compass } from 'lucide-react';
 import { HomeLayoutEditor } from '@/components/settings/HomeLayoutEditor';
 import { DisplayPrefsEditor } from '@/components/settings/DisplayPrefsEditor';
 import { useLeechPrefs } from '@/hooks/useLeechPrefs';
 import { useFeatureHints } from '@/hooks/useFeatureHints';
 import { useSubscription } from '@/hooks/useSubscription';
+import { getTopicCategories } from '@/data/listenTopics';
+import { LEARNING_REASONS, reasonLabel, reasonIdFromLabel } from '@/data/learningReasons';
 
 const DIALECTS = [
   { id: 'Gulf', label: 'Gulf Arabic', labelAr: 'خليجي', flag: '🌊' },
@@ -95,6 +97,18 @@ const Settings = () => {
   const [level, setLevel] = useState('beginner');
   const [goal, setGoal] = useState('regular');
   const [showOnLeaderboard, setShowOnLeaderboard] = useState(true);
+  // Purpose + topics. Both feed the server-side learner profile that content
+  // generators read, so editing them here changes what gets generated next.
+  const [reason, setReason] = useState<string | null>(null);
+  const [interests, setInterests] = useState<string[]>([]);
+
+  // Same taxonomy the Listen catalog uses, scoped to the selected dialect.
+  const topicCategories = getTopicCategories(dialect);
+
+  const toggleInterest = (id: string) =>
+    setInterests((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id],
+    );
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -106,7 +120,7 @@ const Settings = () => {
     const load = async () => {
       const { data } = await supabase
         .from('profiles' as any)
-        .select('display_name, avatar_url, preferred_dialect, proficiency_level, weekly_goal, show_on_leaderboard')
+        .select('display_name, avatar_url, preferred_dialect, proficiency_level, weekly_goal, show_on_leaderboard, learning_reason, interests')
         .eq('user_id', user.id)
         .maybeSingle();
 
@@ -118,6 +132,8 @@ const Settings = () => {
         setLevel(p.proficiency_level || 'beginner');
         setGoal(p.weekly_goal || 'regular');
         setShowOnLeaderboard(p.show_on_leaderboard ?? true);
+        setReason(reasonIdFromLabel(p.learning_reason));
+        setInterests(Array.isArray(p.interests) ? p.interests : []);
       }
       setLoading(false);
     };
@@ -179,6 +195,8 @@ const Settings = () => {
           proficiency_level: level,
           weekly_goal: goal,
           show_on_leaderboard: showOnLeaderboard,
+          learning_reason: reasonLabel(reason),
+          interests,
         } as any)
         .eq('user_id', user.id);
 
@@ -372,6 +390,57 @@ const Settings = () => {
                   <span className="text-xs text-muted-foreground">{g.desc}</span>
                 </button>
               ))}
+            </div>
+          </section>
+
+          {/* What you want Arabic for — feeds generated content */}
+          <section className="space-y-3">
+            <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+              <Compass className="h-4 w-4" />
+              What you're learning for
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Shapes the situations and topics in your stories, listening and drills.
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              {LEARNING_REASONS.map((r) => (
+                <button
+                  key={r.id}
+                  onClick={() => setReason((prev) => (prev === r.id ? null : r.id))}
+                  aria-pressed={reason === r.id}
+                  className={cn(
+                    'flex flex-col items-center gap-1 p-3 rounded-xl border-2 transition-all duration-200',
+                    reason === r.id
+                      ? 'border-primary bg-primary/5'
+                      : 'border-border bg-card hover:border-primary/30'
+                  )}
+                >
+                  <span className="text-2xl">{r.icon}</span>
+                  <span className="font-semibold text-foreground text-sm">{r.label}</span>
+                </button>
+              ))}
+            </div>
+
+            <div className="flex flex-wrap gap-2 pt-1">
+              {topicCategories.map((c) => {
+                const selected = interests.includes(c.id);
+                return (
+                  <button
+                    key={c.id}
+                    onClick={() => toggleInterest(c.id)}
+                    aria-pressed={selected}
+                    className={cn(
+                      'flex items-center gap-1.5 px-3 py-2 rounded-full border-2 text-sm transition-all duration-200',
+                      selected
+                        ? 'border-primary bg-primary/5 text-foreground font-medium'
+                        : 'border-border bg-card text-muted-foreground hover:border-primary/30'
+                    )}
+                  >
+                    <span>{c.emoji}</span>
+                    <span>{c.label}</span>
+                  </button>
+                );
+              })}
             </div>
           </section>
 

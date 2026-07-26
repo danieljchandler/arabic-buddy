@@ -17,12 +17,14 @@ import {
   Target,
   Check,
 } from 'lucide-react';
+import { getTopicCategories } from '@/data/listenTopics';
+import { LEARNING_REASONS, reasonLabel } from '@/data/learningReasons';
 import hakiyaIconAsset from '@/assets/hakiya-icon.png.asset.json';
 const lahjaIcon = hakiyaIconAsset.url;
 
-type Step = 'welcome' | 'dialect' | 'level' | 'goal';
+type Step = 'welcome' | 'dialect' | 'level' | 'purpose' | 'goal';
 
-const STEPS: Step[] = ['welcome', 'dialect', 'level', 'goal'];
+const STEPS: Step[] = ['welcome', 'dialect', 'level', 'purpose', 'goal'];
 
 // Must match DialectModule ('Gulf' | 'Egyptian' | 'Yemeni') — the only values
 // DialectContext actually recognizes. Anything else silently falls back to
@@ -49,6 +51,7 @@ const GOALS = [
   { id: 'intensive', label: 'Intensive', desc: '30+ min/day · every day', icon: '🚀', reviewTarget: 150, xpTarget: 750 },
 ];
 
+
 const Onboarding = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated, loading } = useAuth();
@@ -56,7 +59,18 @@ const Onboarding = () => {
   const [dialect, setDialect] = useState('Gulf');
   const [level, setLevel] = useState('beginner');
   const [goal, setGoal] = useState('regular');
+  const [reason, setReason] = useState<string | null>(null);
+  const [interests, setInterests] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+
+  // Same taxonomy the Listen catalog uses, scoped to the dialect just picked —
+  // no second topic vocabulary to keep in sync.
+  const topicCategories = getTopicCategories(dialect);
+
+  const toggleInterest = (id: string) =>
+    setInterests((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id],
+    );
 
   useEffect(() => {
     if (!loading && !isAuthenticated) {
@@ -94,6 +108,11 @@ const Onboarding = () => {
           preferred_dialect: dialect,
           proficiency_level: level,
           weekly_goal: goal,
+          // Both feed the server-side learner profile that content generators
+          // are conditioned on. Nullable/empty is fine — the profile simply
+          // omits whatever it doesn't know.
+          learning_reason: reasonLabel(reason),
+          interests,
         } as any)
         .eq('user_id', user.id);
 
@@ -286,6 +305,81 @@ const Onboarding = () => {
                   )}
                 </button>
               ))}
+            </div>
+
+            <div className="flex gap-3">
+              <Button variant="outline" onClick={prev} className="h-11">
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Button onClick={next} className="flex-1 h-11">
+                Continue <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* ─── PURPOSE ─────────────────────────── */}
+        {step === 'purpose' && (
+          <div className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-300">
+            <div className="text-center">
+              <h2 className="text-2xl font-bold font-heading text-foreground mb-2">
+                What do you want to use Arabic for?
+              </h2>
+              <p className="text-muted-foreground text-sm">
+                This shapes the situations and topics we write about. Both are optional.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              {LEARNING_REASONS.map((r) => (
+                <button
+                  key={r.id}
+                  onClick={() => setReason((prev) => (prev === r.id ? null : r.id))}
+                  className={cn(
+                    'w-full flex items-center gap-3 p-3.5 rounded-xl border-2 transition-all duration-200 text-left',
+                    reason === r.id
+                      ? 'border-primary bg-primary/5 shadow-sm'
+                      : 'border-border bg-card hover:border-primary/30'
+                  )}
+                >
+                  <span className="text-2xl">{r.icon}</span>
+                  <div className="flex-1 min-w-0">
+                    <span className="font-semibold text-foreground block">{r.label}</span>
+                    <p className="text-xs text-muted-foreground">{r.desc}</p>
+                  </div>
+                  {reason === r.id && <Check className="h-5 w-5 text-primary shrink-0" />}
+                </button>
+              ))}
+            </div>
+
+            <div>
+              <p className="text-sm font-semibold text-foreground mb-1">
+                Topics you'd enjoy
+              </p>
+              <p className="text-xs text-muted-foreground mb-3">
+                Pick any that appeal — we'll lean on them for stories and listening.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {topicCategories.map((c) => {
+                  const selected = interests.includes(c.id);
+                  return (
+                    <button
+                      key={c.id}
+                      onClick={() => toggleInterest(c.id)}
+                      aria-pressed={selected}
+                      className={cn(
+                        'flex items-center gap-1.5 px-3 py-2 rounded-full border-2 text-sm transition-all duration-200',
+                        selected
+                          ? 'border-primary bg-primary/5 text-foreground font-medium'
+                          : 'border-border bg-card text-muted-foreground hover:border-primary/30'
+                      )}
+                    >
+                      <span>{c.emoji}</span>
+                      <span>{c.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             <div className="flex gap-3">

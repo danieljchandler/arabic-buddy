@@ -19,6 +19,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
+import { recordLearnerErrors, resolveLearnerErrors } from "../_shared/learnerErrors.ts";
 import { askBrain, BrainHttpError } from "../_shared/aiBrain.ts";
 import { getDialectLabel, getDialectTransliterationRules, type Dialect } from "../_shared/dialectHelpers.ts";
 import { MODEL_IDS } from "../_shared/modelRegistry.ts";
@@ -215,6 +216,27 @@ serve(async (req) => {
         }
       }
       throw e;
+    }
+
+    // The coach's verdict is the app's clearest signal about production: it
+    // knows whether the learner actually used the target word and whether a
+    // native speaker would have understood them. Persist the misses so the
+    // target comes back around in generated content; clear them on a clean run.
+    const feedback = brain.output as CoachFeedback;
+    if (feedback?.used_target_word === false || feedback?.understandable === false) {
+      void recordLearnerErrors(cap.userId, [{
+        source: "sentence_coach",
+        dialect: resolvedDialect,
+        targetArabic,
+        producedArabic: transcript ?? null,
+        errorKind: feedback?.used_target_word === false ? "wrong_word" : "other",
+        detail: {
+          natural_rewrite: feedback?.natural_rewrite ?? null,
+          tips: feedback?.tips ?? [],
+        },
+      }]);
+    } else {
+      void resolveLearnerErrors(cap.userId, targetArabic, resolvedDialect);
     }
 
     return new Response(

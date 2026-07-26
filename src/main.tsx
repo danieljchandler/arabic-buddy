@@ -2,8 +2,10 @@ import { createRoot } from "react-dom/client";
 import "./index.css";
 import "./lib/storageBootstrap";
 import { runBrandMigration } from "./lib/brandMigration";
+import { registerServiceWorker } from "./lib/serviceWorker";
 
 runBrandMigration();
+registerServiceWorker();
 
 
 const root = document.getElementById("root");

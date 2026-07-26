@@ -10,7 +10,7 @@
  * (matched / substituted / missing / extra vs the clip's words) that the
  * caller feeds to `pronunciation-feedback` for coaching tips.
  *
- * Body: { audioBase64: string, mimeType?: string, referenceText: string }
+ * Body: { audioBase64: string, mimeType?: string, referenceText: string, dialect?: string }
  * Response: {
  *   recognizedText: string,
  *   transcriptSimilarity: number,   // 0..1 — how close to the clip's words
@@ -21,6 +21,7 @@
  */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { recordLearnerErrorsForRequest } from "../_shared/learnerErrors.ts";
 
 
 const MUNSIT_BASE = "https://api.munsit.com/api/v1";
@@ -179,7 +180,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const { audioBase64, mimeType, referenceText } = await req.json();
+    const { audioBase64, mimeType, referenceText, dialect } = await req.json();
     if (!audioBase64 || !referenceText) {
       return new Response(JSON.stringify({ error: "audioBase64 and referenceText are required" }), {
         status: 400,
@@ -197,6 +198,24 @@ serve(async (req) => {
     console.log(
       `shadow score sim=${transcriptSimilarity.toFixed(2)} ref="${referenceText.slice(0, 40)}" heard="${recognizedText.slice(0, 40)}"`,
     );
+
+    // Record the words the learner dropped or substituted. This function has no
+    // usage cap, so the user id comes from the bearer token directly; anonymous
+    // callers simply record nothing. Fire-and-forget — scoring must not wait.
+    const missed = wordDiffs.filter((d) => d.status === "missing" || d.status === "sub");
+    if (missed.length > 0) {
+      void recordLearnerErrorsForRequest(
+        req,
+        missed.map((d) => ({
+          source: "shadow" as const,
+          dialect,
+          targetArabic: d.ref ?? "",
+          producedArabic: d.said ?? null,
+          errorKind: d.status === "missing" ? "omission" : "wrong_word",
+          detail: { transcriptSimilarity },
+        })),
+      );
+    }
 
     return new Response(
       JSON.stringify({ recognizedText, transcriptSimilarity, wordDiffs }),

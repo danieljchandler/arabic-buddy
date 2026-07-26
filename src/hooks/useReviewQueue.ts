@@ -9,6 +9,7 @@ import {
 } from "@/hooks/useGamification";
 import { submitRatingToServer } from "@/hooks/useReview";
 import type { Rating } from "@/lib/spacedRepetition";
+import type { ScheduleDirection } from "@/lib/reviewOrder";
 import {
   all,
   bumpAttempts,
@@ -40,6 +41,8 @@ interface EnqueueArgs {
   wordId: string;
   rating: Rating;
   currentReview: QueuedReviewSnapshot | null;
+  /** Which schedule to update. Defaults to recognition. */
+  direction?: ScheduleDirection;
 }
 
 export function useReviewQueue() {
@@ -81,7 +84,12 @@ export function useReviewQueue() {
             user.id,
             item.wordId,
             item.rating,
-            item.currentReview as any
+            item.currentReview as any,
+            // Entries queued before directions existed carry no `direction`;
+            // those were all recognition ratings, so defaulting keeps a queue
+            // that survived the deploy flushing correctly instead of writing
+            // them into the wrong column set.
+            item.direction ?? "recognition"
           );
           remove(user.id, item.id);
           setPendingCount(count(user.id));
@@ -127,6 +135,7 @@ export function useReviewQueue() {
         wordId: args.wordId,
         rating: args.rating,
         currentReview: args.currentReview,
+        direction: args.direction ?? "recognition",
       });
       setPendingCount(count(user.id));
       void flush();

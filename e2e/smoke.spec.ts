@@ -114,3 +114,110 @@ test.describe("signed in — review session", () => {
     await expect(page.getByRole("button", { name: /continue with/i })).toHaveCount(0);
   });
 });
+
+test.describe("signed in — curriculum", () => {
+  const STAGE_ID = "55555555-0000-4000-8000-000000000001";
+  const LESSON_A = "66666666-0000-4000-8000-000000000001";
+  const LESSON_B = "66666666-0000-4000-8000-000000000002";
+
+  const curriculumTables = (progress: Record<string, unknown>[] = []) => ({
+    curriculum_stages: [
+      {
+        id: STAGE_ID,
+        name: "Foundations",
+        name_arabic: "الأساسيات",
+        stage_number: 1,
+        cefr_level: "A1",
+        description: null,
+        display_order: 1,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+    ],
+    lessons: [
+      {
+        id: LESSON_A,
+        stage_id: STAGE_ID,
+        title: "Greetings",
+        title_arabic: "تحيات",
+        icon: "📚",
+        gradient: "bg-gradient-green",
+        display_order: 1,
+        dialect_module: "Gulf",
+        cefr_target: "A1",
+        duration_minutes: 15,
+        unlock_condition: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        vocabulary_words: [{ id: "w1" }, { id: "w2" }],
+      },
+      {
+        id: LESSON_B,
+        stage_id: STAGE_ID,
+        title: "At the Market",
+        title_arabic: "في السوق",
+        icon: "📚",
+        gradient: "bg-gradient-green",
+        display_order: 2,
+        dialect_module: "Gulf",
+        cefr_target: "A1",
+        duration_minutes: 15,
+        unlock_condition: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        vocabulary_words: [{ id: "w3" }],
+      },
+    ],
+    lesson_progress: progress,
+  });
+
+  test("lists stages with their lessons — the curriculum used to be admin-only", async ({ page }) => {
+    await signIn(page);
+    await stubSupabase(page, { tables: curriculumTables() });
+    await page.goto("/curriculum");
+
+    await expect(page.getByRole("heading", { name: "Foundations" })).toBeVisible();
+    await expect(page.getByRole("link", { name: /Greetings/ })).toBeVisible();
+    await expect(page.getByRole("link", { name: /At the Market/ })).toBeVisible();
+  });
+
+  test("marks exactly one lesson as next up", async ({ page }) => {
+    await signIn(page);
+    await stubSupabase(page, { tables: curriculumTables() });
+    await page.goto("/curriculum");
+
+    // One obvious next action, not a wall of equally-weighted rows.
+    await expect(page.getByText("Next up")).toHaveCount(1);
+  });
+
+  test("shows a completed lesson with its best score, and moves next up along", async ({ page }) => {
+    await signIn(page);
+    await stubSupabase(page, {
+      tables: curriculumTables([
+        {
+          lesson_id: LESSON_A,
+          status: "completed",
+          last_word_index: 0,
+          words_seen: 2,
+          words_total: 2,
+          best_score: 90,
+          completed_at: new Date().toISOString(),
+        },
+      ]),
+    });
+    await page.goto("/curriculum");
+
+    await expect(page.getByText(/Completed · best 90%/)).toBeVisible();
+    const nextUp = page.getByRole("link", { name: /At the Market/ });
+    await expect(nextUp).toContainText("Next up");
+  });
+
+  test("a lesson row links into the lesson", async ({ page }) => {
+    await signIn(page);
+    await stubSupabase(page, { tables: curriculumTables() });
+    await page.goto("/curriculum");
+
+    await page.getByRole("link", { name: /Greetings/ }).click();
+    await expect(page).toHaveURL(new RegExp(`/learn/${LESSON_A}$`));
+  });
+});

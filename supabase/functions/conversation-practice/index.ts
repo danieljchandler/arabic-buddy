@@ -7,6 +7,7 @@ import { getDialectLabel, type Dialect } from "../_shared/dialectHelpers.ts";
 import { detectMsaLeaks } from "../_shared/msaLeakDetector.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { learnerPromptBlock } from "../_shared/learnerProfile.ts";
 
 
 function difficultyExtras(difficulty: string): string {
@@ -85,11 +86,20 @@ serve(async (req) => {
       ? `\n\nSELF-CORRECTION (your earlier replies used MSA tokens: ${historyLeaks.slice(0, 8).join(", ")}). Do NOT repeat that pattern — use only ${getDialectLabel(effectiveDialect)} forms.`
       : "";
 
+    // A conversation partner who knows your vocabulary can stay inside it and
+    // stretch just past it — the difference between practice and a wall of text.
+    // Only the first turn pays the query: on later turns the same profile is
+    // already reflected in the history the model can see.
+    const learnerBlock = messages.length <= 2
+      ? await learnerPromptBlock({ userId: cap.userId, dialect: effectiveDialect })
+      : "";
+    const learnerNudge = learnerBlock ? `\n\n${learnerBlock}` : "";
+
     try {
       const streamed = await streamBrain({
         purpose: "conversation_practice_turn",
         dialect: effectiveDialect,
-        systemPromptExtra: difficultyExtras(difficulty) + driftNudge,
+        systemPromptExtra: difficultyExtras(difficulty) + driftNudge + learnerNudge,
         messages,
         model: "google/gemini-3-flash-preview",
         temperature: 0.8,

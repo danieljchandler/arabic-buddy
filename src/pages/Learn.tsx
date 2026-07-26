@@ -17,6 +17,10 @@ import hakiyaLogoAsset from "@/assets/hakiya-logo.png.asset.json";
 const lahjaLogo = hakiyaLogoAsset.url;
 import { recordContinue, clearContinue } from "@/lib/continueProgress";
 import { useDialect } from "@/contexts/DialectContext";
+import { SoundSpotlight } from "@/components/learn/SoundSpotlight";
+import { LessonPlanSection } from "@/components/learn/LessonPlanSection";
+import { useLessonProgressFor, useUpsertLessonProgress } from "@/hooks/useLessonProgress";
+import { ListChecks, Sparkles } from "lucide-react";
 
 type Phase = "intro" | "quiz";
 
@@ -55,6 +59,12 @@ const Learn = () => {
   const [phase, setPhase] = useState<Phase>("intro");
   const [sessionResults, setSessionResults] = useState({ correct: 0, total: 0 });
   const [isComplete, setIsComplete] = useState(false);
+
+  const { data: savedProgress } = useLessonProgressFor(isMixedMode ? undefined : lessonId);
+  const upsertProgress = useUpsertLessonProgress();
+  // Resume once per lesson, not on every progress refetch — otherwise saving
+  // progress would immediately yank the learner back to the saved index.
+  const [hasResumed, setHasResumed] = useState(false);
   const [userReviews, setUserReviews] = useState<Map<string, {
     id: string;
     ease_factor: number;
@@ -97,9 +107,28 @@ const Learn = () => {
     setPhase("intro");
     setSessionResults({ correct: 0, total: 0 });
     setIsComplete(false);
+    setHasResumed(false);
   }, [lessonId]);
 
-  // Record "continue where you left off"
+  // Pick up where the learner left off, on whatever device they left off on.
+  useEffect(() => {
+    if (hasResumed || isMixedMode || words.length === 0) return;
+    if (!savedProgress) return;
+    setHasResumed(true);
+    if (savedProgress.status === "completed") return;
+    const resumeAt = Math.min(
+      Math.max(0, savedProgress.last_word_index),
+      words.length - 1,
+    );
+    if (resumeAt > 0) {
+      setCurrentIndex(resumeAt);
+      setPhase("intro");
+    }
+  }, [hasResumed, isMixedMode, savedProgress, words.length]);
+
+  // Record "continue where you left off". localStorage stays as the fast local
+  // path (it works signed-out and makes the Home card instant); lesson_progress
+  // below is the durable one that survives a device change.
   useEffect(() => {
     if (isMixedMode || !lessonId || !topic || words.length === 0) return;
     if (isComplete) {
@@ -114,6 +143,21 @@ const Learn = () => {
       dialect: activeDialect,
     });
   }, [isMixedMode, lessonId, topic, words.length, currentIndex, isComplete, activeDialect]);
+
+  // Server-side progress: how far through, and whether it's finished. Mixed mode
+  // isn't a lesson, so it has nothing to record against.
+  useEffect(() => {
+    if (isMixedMode || !lessonId || !user || words.length === 0 || isComplete) return;
+    upsertProgress.mutate({
+      lessonId,
+      lastWordIndex: currentIndex,
+      wordsSeen: currentIndex + 1,
+      wordsTotal: words.length,
+    });
+    // Deliberately keyed on the card index only: this should fire once per card
+    // advance, not on every render or mutation-identity change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMixedMode, lessonId, user?.id, currentIndex, words.length, isComplete]);
 
   const handleContinueToQuiz = () => {
     setPhase("quiz");
@@ -155,6 +199,19 @@ const Learn = () => {
         setPhase("intro");
       } else {
         setIsComplete(true);
+        // Score from the freshly-updated tallies, not from `sessionResults`,
+        // which this render still sees at its pre-answer value.
+        if (!isMixedMode && lessonId && user) {
+          const correct = sessionResults.correct + (isCorrect ? 1 : 0);
+          const total = sessionResults.total + 1;
+          upsertProgress.mutate({
+            lessonId,
+            completed: true,
+            wordsSeen: words.length,
+            wordsTotal: words.length,
+            score: total > 0 ? Math.round((correct / total) * 100) : 0,
+          });
+        }
       }
     }, 500);
   };
@@ -164,6 +221,8 @@ const Learn = () => {
     setPhase("intro");
     setSessionResults({ correct: 0, total: 0 });
     setIsComplete(false);
+    // Already resumed once this visit; a deliberate restart starts at the top.
+    setHasResumed(true);
   };
 
   if (isLoading) {
@@ -246,11 +305,30 @@ const Learn = () => {
             </p>
           </div>
 
+          {/* Authored "take it outside the app" tasks. Renders only when the
+              lesson was imported with a real-world prompts sheet. */}
+          {!isMixedMode && (topic?.realWorldPrompts?.length ?? 0) > 0 && (
+            <div className="mb-8 text-left">
+              <LessonPlanSection
+                title="Try this today"
+                icon={Sparkles}
+                rows={topic!.realWorldPrompts}
+                defaultOpen
+                blurb="Use what you just learned somewhere real."
+              />
+            </div>
+          )}
+
           <div className="space-y-3">
             <Button onClick={handleRestartSession} className="w-full">
               <RotateCcw className="h-4 w-4 mr-2" />
               {isMixedMode ? "Learn More Words" : "Practice Again"}
             </Button>
+            {!isMixedMode && (
+              <Button variant="outline" onClick={() => navigate("/curriculum")} className="w-full">
+                Back to Curriculum
+              </Button>
+            )}
             <Button variant="outline" onClick={() => navigate("/")} className="w-full">
               Back Home
             </Button>
@@ -302,6 +380,22 @@ const Learn = () => {
           Quiz
         </div>
       </div>
+
+      {/* The authored lesson plan. Both sections were parsed by the importer,
+          dropped at insert, and rendered nowhere until now; they're empty for
+          lessons imported before that was fixed, and empty sections render
+          nothing. Shown on the first card only, so they introduce the lesson
+          rather than interrupting it. */}
+      {!isMixedMode && currentIndex === 0 && phase === "intro" && (
+        <div className="mb-4 space-y-3">
+          <SoundSpotlight entries={topic?.soundSpotlight ?? []} />
+          <LessonPlanSection
+            title="What's in this lesson"
+            icon={ListChecks}
+            rows={topic?.lessonSequence ?? []}
+          />
+        </div>
+      )}
 
       {/* Main Content */}
       <div className="py-4">

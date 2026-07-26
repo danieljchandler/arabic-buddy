@@ -10,6 +10,10 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import {
+  recordLearnerErrorsForRequest,
+  resolveLearnerErrorsForRequest,
+} from "../_shared/learnerErrors.ts";
 
 
 const MUNSIT_BASE = "https://api.munsit.com/api/v1";
@@ -111,13 +115,18 @@ serve(async (req) => {
 
     const { data: phrase, error } = await supabase
       .from("set_phrases")
-      .select("phrase_arabic, reply_arabic, accepted_variants")
+      .select("phrase_arabic, reply_arabic, accepted_variants, dialect")
       .eq("id", phraseId)
       .maybeSingle();
     if (error || !phrase) throw new Error("phrase not found");
 
     const canonical = (target === "reply" ? phrase.reply_arabic : phrase.phrase_arabic) || "";
     if (!canonical) throw new Error("no canonical text for target");
+
+    // Take the dialect from the phrase itself rather than the request body —
+    // it's authoritative, and recorded errors must land in the same bucket the
+    // learner profile reads.
+    const dialect = phrase.dialect || "Gulf";
 
     const variants: string[] = Array.isArray(phrase.accepted_variants)
       ? phrase.accepted_variants.filter((v: unknown) => typeof v === "string")
@@ -141,6 +150,21 @@ serve(async (req) => {
     else if (best >= 0.55) quality = 3;
     else if (best >= 0.35) quality = 2;
     const accepted = best >= 0.75;
+
+    // Record rejected attempts so the phrase resurfaces in generated practice;
+    // clear the flag once it's said acceptably. Fire-and-forget.
+    if (!accepted) {
+      void recordLearnerErrorsForRequest(req, [{
+        source: "set_phrase_voice",
+        dialect,
+        targetArabic: canonical,
+        producedArabic: transcript,
+        errorKind: "mispronunciation",
+        detail: { similarity: best, quality, target: target ?? "phrase", phraseId },
+      }]);
+    } else {
+      void resolveLearnerErrorsForRequest(req, canonical, dialect);
+    }
 
     return new Response(
       JSON.stringify({ transcript, similarity: best, quality, accepted, canonical }),

@@ -50,6 +50,7 @@
 
 import { enforceDailyCap } from "../_shared/usageCap.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { recordLearnerErrors, resolveLearnerErrors } from "../_shared/learnerErrors.ts";
 
 
 const AZURE_SPEECH_KEY = Deno.env.get('AZURE_SPEECH_KEY') ?? '';
@@ -67,6 +68,17 @@ function getSttEndpoint(): string {
 }
 
 const SUPPORTED_LOCALES = ['ar-SA', 'ar-QA', 'ar-KW', 'ar-BH', 'ar-AE', 'ar-OM', 'ar-EG'];
+
+/**
+ * Map an Azure locale back to the app's dialect module, so recorded errors land
+ * in the same bucket the learner's deck uses. Every Gulf country locale folds to
+ * "Gulf"; ar-EG is the only non-Gulf locale Azure assessment supports here.
+ */
+function localeToDialect(locale: string): string {
+  if (locale === 'ar-EG') return 'Egyptian';
+  if (locale === 'ar-YE') return 'Yemeni';
+  return 'Gulf';
+}
 
 /** Azure Pronunciation Assessment config sent as base64 header */
 interface PronunciationConfig {
@@ -290,6 +302,29 @@ Deno.serve(async (req: Request) => {
 
     const result = parseAzureResponse(nbest, locale);
     console.log(`Pronunciation assessment [${locale}] overall=${result.overall} accuracy=${result.accuracy} words=${result.words.length}`);
+
+    // Persist the words Azure flagged so they can be targeted later. Azure's
+    // per-word errorType is the most precise signal the app produces about
+    // production, and until now it was rendered once and dropped.
+    // Fire-and-forget: never let bookkeeping delay or fail the learner's result.
+    const mispronounced = result.words.filter(
+      (w) => w.errorType && w.errorType !== 'None' && w.word,
+    );
+    if (mispronounced.length > 0) {
+      void recordLearnerErrors(
+        cap.userId,
+        mispronounced.map((w) => ({
+          source: 'pronunciation' as const,
+          dialect: localeToDialect(locale),
+          targetArabic: w.word,
+          errorKind: String(w.errorType).toLowerCase(),
+          detail: { locale, accuracy: w.accuracy, overall: result.overall },
+        })),
+      );
+    } else if (referenceText) {
+      // Clean run — stop drilling this text.
+      void resolveLearnerErrors(cap.userId, referenceText, localeToDialect(locale));
+    }
 
     return new Response(JSON.stringify(result), {
       status: 200,

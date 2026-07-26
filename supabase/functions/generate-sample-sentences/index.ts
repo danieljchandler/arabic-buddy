@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { askBrain, BrainHttpError } from "../_shared/aiBrain.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { learnerPromptBlock } from "../_shared/learnerProfile.ts";
 
 
 interface SentencesOut {
@@ -26,6 +27,18 @@ serve(async (req) => {
       });
     }
 
+    // An example sentence is only useful if the learner can read the rest of it.
+    // Keep the surrounding words inside their lexicon; the target word is the
+    // one new thing. Weak words are excluded — an example sentence should not
+    // stack two difficulties at once.
+    const learnerBlock = await learnerPromptBlock({
+      userId: cap.userId,
+      dialect: dialect ?? 'Gulf',
+      budget: { known: 80, learning: 10, weak: 0 },
+      includeWeak: false,
+      includeInterests: false,
+    });
+
     const defLine = definition ? `\nDefinition/sense to use: "${String(definition).trim()}"` : '';
     const userPrompt = `Word: ${word.trim().slice(0, 100)}${defLine}\n\nGenerate 3 short, natural sentences in this dialect using the word in the given sense. Vary the contexts (home, work, with friends, etc.).`;
 
@@ -33,7 +46,9 @@ serve(async (req) => {
       purpose: 'sample_sentences',
       dialect: dialect ?? 'Gulf',
       userPrompt,
-      systemPromptExtra: `Task: generate natural, everyday EXAMPLE SENTENCES using the given word. The sentences must be conversational, NOT MSA, and reflect how a native speaker of this dialect would actually say them. For each sentence provide "english" (a natural translation) and "literal" (a word-for-word English gloss preserving the Arabic word order; it may sound stiff — it shows how the sentence is built).`,
+      systemPromptExtra: `Task: generate natural, everyday EXAMPLE SENTENCES using the given word. The sentences must be conversational, NOT MSA, and reflect how a native speaker of this dialect would actually say them. For each sentence provide "english" (a natural translation) and "literal" (a word-for-word English gloss preserving the Arabic word order; it may sound stiff — it shows how the sentence is built).
+
+${learnerBlock}`,
       strategy: 'ensemble',
       maxTokens: 600,
       temperature: 0.7,

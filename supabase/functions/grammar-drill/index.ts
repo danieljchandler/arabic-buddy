@@ -3,6 +3,7 @@ import { getDialectLabel, type Dialect } from "../_shared/dialectHelpers.ts";
 import { askBrain } from "../_shared/aiBrain.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { learnerPromptBlock } from "../_shared/learnerProfile.ts";
 
 
 serve(async (req) => {
@@ -17,12 +18,24 @@ serve(async (req) => {
     const { category, difficulty, dialect = "Gulf" } = await req.json();
     const dialectLabel = getDialectLabel(dialect);
 
+    // Drills built from the learner's own lexicon test the grammar point rather
+    // than doubling as an unintended vocabulary test. Interests are irrelevant
+    // to a conjugation drill, so they're left out.
+    const learnerBlock = await learnerPromptBlock({
+      userId: cap.userId,
+      dialect,
+      budget: { known: 60, learning: 15, weak: 10 },
+      includeInterests: false,
+    });
+
     const systemExtra = `You are a ${dialectLabel} grammar teacher. Generate exactly 5 multiple-choice grammar drill questions.
 Category: ${category || "mixed"}
 Difficulty: ${difficulty || "beginner"}
 Each question tests a specific ${dialectLabel} grammar concept (verb conjugation, pronouns, sentence structure, negation, possessives, etc.).
 All Arabic text MUST be authentic ${dialectLabel}, never MSA.
-Return the questions via the provided tool only.`;
+Return the questions via the provided tool only.
+
+${learnerBlock}`;
 
     const userPrompt = `Generate 5 ${difficulty || "beginner"} level ${dialectLabel} grammar questions about "${category || "mixed grammar"}". Each question should have the Arabic text, an English explanation of what's being tested, 4 answer choices (with Arabic text + English gloss), and indicate the correct answer index (0-3). Include a brief explanation for why the correct answer is right.`;
 

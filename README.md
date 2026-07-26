@@ -15,6 +15,13 @@ dialect, never Modern Standard Arabic (MSA / فصحى).
   top of the underlying models. Model IDs are centralized in
   `supabase/functions/_shared/modelRegistry.ts` — do not hardcode them in
   feature code.
+- **Learner model:** generated content is conditioned on what each learner
+  actually knows. `supabase/functions/_shared/learnerProfile.ts` assembles their
+  known / in-progress / weak vocabulary from real SRS state across both decks,
+  plus CEFR placement and stated interests, and generators pass it to `askBrain`
+  as `systemPromptExtra`. Its pure half (`learnerProfileCore.ts`) is unit-tested
+  from the Vitest suite. Never send a client-supplied "words the user knows"
+  list — build it server-side.
 
 ## Local development
 
@@ -53,6 +60,25 @@ every request from fixtures. The suite is hermetic — no network, no shared
 state — so it verifies the app's own routing and rendering rather than that
 queries match the production schema.
 
+## Curriculum
+
+Stages and lessons live in `curriculum_stages` / `lessons` and are walked by the
+learner at `/curriculum` (`src/pages/Curriculum.tsx`), with progress in
+`lesson_progress`. The path state — which lesson is "next up", completion
+percentages, best-score merging — is pure and tested in `src/lib/lessonPath.ts`.
+
+Gating is deliberately **soft**: `lessons.unlock_condition` is free text imported
+from a spreadsheet, not a machine-readable rule, so it's shown as guidance while
+exactly one lesson is marked "Next up" and anything can be opened.
+
+Lesson plans imported from `.xlsx` (`src/lib/parseLessonXlsx.ts` →
+`useLessonImport`) persist their authored sections. `sound_spotlight`,
+`lesson_sequence` and `real_world_prompts` are rendered to the learner in
+`src/pages/Learn.tsx`; `image_scenes`, `flashcard_spec` and `design_rationale`
+are stored as authoring metadata and have no learner-facing surface. Every
+section renders nothing when empty, so lessons imported before this was wired up
+are unaffected.
+
 ## Project layout
 
 - `src/` — React app (pages, components, hooks, domain logic in `src/lib`)
@@ -73,6 +99,28 @@ admins via RLS; users may only read their own role):
 - `beta_tester`: can access beta-only features.
 - `bible_reader`: grants Bible reading access (except when the user is also
   `content_reviewer`).
+
+## PWA and push notifications
+
+The frontend is installable: `public/manifest.webmanifest` plus a hand-rolled
+service worker in `public/sw.js`. The worker caches the app shell, the
+content-hashed build assets, and card audio, and **never** caches Supabase — so
+auth, decks and AI calls always hit the network. It is registered in production
+builds only (`src/lib/serviceWorker.ts`), which keeps the hermetic Playwright
+suite deterministic.
+
+Web push is optional and off unless configured. Generate a keypair once:
+
+```sh
+npx web-push generate-vapid-keys
+```
+
+Then set `VITE_VAPID_PUBLIC_KEY` for the frontend, and `VAPID_PUBLIC_KEY`,
+`VAPID_PRIVATE_KEY` and `VAPID_SUBJECT` as edge-function secrets. Schedule
+`notify-due-reviews` hourly (Supabase dashboard → Cron); it only notifies inside
+each learner's local evening, at most once a day, and only when enough cards are
+actually due. With no key set, the Settings toggle hides itself rather than
+offering something that can't work.
 
 ## Deployment
 

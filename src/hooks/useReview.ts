@@ -2,12 +2,18 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { calculateNextReview, elapsedDaysSince, Rating } from '@/lib/spacedRepetition';
+import {
+  buildReviewOrder,
+  scheduleDirectionFor,
+  type CardDirection,
+  type ScheduleDirection,
+} from '@/lib/reviewOrder';
 import { useAddXP, useIncrementReviews, useCheckAchievements } from './useGamification';
 import { useDialect } from '@/contexts/DialectContext';
 import { useNewCardCap } from './useNewCardCap';
 import { useRemainingNewCardBudget } from './useNewCardBudget';
 
-interface WordReview {
+export interface WordReview {
   id: string;
   user_id: string;
   word_id: string;
@@ -20,6 +26,20 @@ interface WordReview {
   repetitions: number;
   last_reviewed_at: string | null;
   next_review_at: string;
+  // Recognition-side lapse/leech tracking, added alongside the production
+  // schedule. Optional for the same reason as `difficulty` — the generated
+  // types lag the migration.
+  lapses?: number | null;
+  is_leech?: boolean | null;
+  // Production schedule (meaning → Arabic). production_next_review_at is null
+  // until the learner recognises the word reliably; see buildReviewUpdate.
+  production_lapses?: number | null;
+  production_ease_factor?: number | null;
+  production_difficulty?: number | null;
+  production_interval_days?: number | null;
+  production_repetitions?: number | null;
+  production_last_reviewed_at?: string | null;
+  production_next_review_at?: string | null;
 }
 
 export interface VocabularyWord {
@@ -44,6 +64,21 @@ interface WordWithReview extends VocabularyWord {
   };
 }
 
+/**
+ * A curriculum word presented in one direction.
+ *
+ * The deck used to serve one flip card per word — Arabic → English, tap, rate.
+ * A word can now appear as up to three cards in a session (recognition, audio,
+ * production), each with its own schedule fields hoisted to the top level so
+ * the ordering in src/lib/reviewOrder.ts and the rating path don't have to know
+ * which column set they came from.
+ */
+export interface DueCurriculumCard extends WordWithReview {
+  card_type: CardDirection;
+  due_at: string;
+  repetitions: number;
+}
+
 export const useDueWords = (mixAll = false) => {
   const { user } = useAuth();
   const { activeDialect } = useDialect();
@@ -52,7 +87,7 @@ export const useDueWords = (mixAll = false) => {
 
   return useQuery({
     queryKey: ['due-words', user?.id, mixAll ? 'all' : activeDialect, remainingNewBudget],
-    queryFn: async (): Promise<WordWithReview[]> => {
+    queryFn: async (): Promise<DueCurriculumCard[]> => {
       if (!user) return [];
 
       const now = new Date().toISOString();
@@ -97,46 +132,75 @@ export const useDueWords = (mixAll = false) => {
 
       if (reviewsError) throw reviewsError;
 
-      const reviewMap = new Map(reviews?.map(r => [r.word_id, r]) || []);
+      const reviewMap = new Map((reviews ?? []).map(r => [r.word_id, r as unknown as WordReview]));
 
-      const dueWords = words
-        ?.map(word => {
-          const review = reviewMap.get(word.id) || null;
-          const lessonData = (word as any).lessons;
-          const topicData = (word as any).topics;
-          const resolvedTopic = lessonData
-            ? { name: lessonData.title, name_arabic: lessonData.title_arabic || '', gradient: lessonData.gradient, icon: lessonData.icon }
-            : topicData;
-          return {
+      const withReview: WordWithReview[] = (words ?? []).map(word => {
+        const review = reviewMap.get(word.id) || null;
+        const lessonData = (word as any).lessons;
+        const topicData = (word as any).topics;
+        const resolvedTopic = lessonData
+          ? { name: lessonData.title, name_arabic: lessonData.title_arabic || '', gradient: lessonData.gradient, icon: lessonData.icon }
+          : topicData;
+        return {
+          ...word,
+          review,
+          topic: resolvedTopic as WordWithReview['topic'],
+        };
+      });
+
+      const nowMs = new Date(now).getTime();
+      const cards: DueCurriculumCard[] = [];
+
+      for (const word of withReview) {
+        const review = word.review;
+
+        // Recognition. A word with no review row has never been seen, so it is
+        // due as a new card.
+        const recognitionDue = !review || new Date(review.next_review_at).getTime() <= nowMs;
+        if (recognitionDue) {
+          const repetitions = review?.repetitions ?? 0;
+          cards.push({
             ...word,
-            review,
-            topic: resolvedTopic as WordWithReview['topic'],
-          };
-        })
-        .filter(word => {
-          if (!word.review) return true;
-          return new Date(word.review.next_review_at) <= new Date(now);
-        })
-        .sort((a, b) => {
-          if (!a.review) return -1;
-          if (!b.review) return 1;
-          return new Date(a.review.next_review_at).getTime() - new Date(b.review.next_review_at).getTime();
-        });
+            // Alternate the input channel for recognition cards: hearing the
+            // word and recalling its meaning is the direction that matters most
+            // for a spoken dialect, and it was absent from every deck. Only
+            // words that have some audio to play can be served this way.
+            card_type: repetitions > 0 && hasAudio(word) && repetitions % 2 === 1
+              ? 'audio'
+              : 'recognition',
+            due_at: review?.next_review_at ?? now,
+            repetitions,
+          });
+        }
 
-      if (!dueWords) return [];
+        // Production, once unlocked by a confident recognition rating.
+        const productionDue =
+          !!review?.production_next_review_at &&
+          new Date(review.production_next_review_at).getTime() <= nowMs;
+        if (productionDue && review) {
+          cards.push({
+            ...word,
+            card_type: 'production',
+            due_at: review.production_next_review_at!,
+            repetitions: review.production_repetitions ?? 0,
+          });
+        }
+      }
 
-      // Cap new (never-reviewed) words to the remaining daily new-card
-      // budget — shared with the personal-vocab review path via
-      // daily_new_card_counts, so this is a real daily limit, not a
+      // Due-date priority, new-card cap and direction interleaving, shared with
+      // the personal deck. The new-card budget is server-persisted via
+      // daily_new_card_counts, so it's a real daily limit rather than a
       // per-page-load one.
-      const newWords = dueWords.filter((w) => !w.review);
-      const reviewWords = dueWords.filter((w) => !!w.review);
-      const cappedNew = newWords.slice(0, remainingNewBudget);
-      return [...cappedNew, ...reviewWords];
+      return buildReviewOrder(cards, { newCardCap: remainingNewBudget });
     },
     enabled: !!user,
   });
 };
+
+/** Whether a word has audio to play — recorded, or synthesisable from its text. */
+function hasAudio(word: VocabularyWord): boolean {
+  return !!word.audio_url || !!word.word_arabic;
+}
 
 export const useReviewStats = (mixAll = false) => {
   const { user } = useAuth();
@@ -170,9 +234,20 @@ export const useReviewStats = (mixAll = false) => {
         ? reviews?.filter(r => wordIdSet.has(r.word_id))
         : reviews;
 
-      const dueCount = filteredReviews?.filter(r => new Date(r.next_review_at) <= new Date(now)).length || 0;
-      const learnedCount = filteredReviews?.filter(r => r.repetitions >= 1).length || 0;
-      const masteredCount = filteredReviews?.filter(r => r.repetitions >= 5).length || 0;
+      // Count both directions: a word can be due for production while its
+      // recognition schedule is still weeks out, and the daily queue's badge
+      // would otherwise say "0 due" for a session that has cards in it.
+      const nowMs = new Date(now).getTime();
+      const rows = (filteredReviews ?? []) as unknown as WordReview[];
+      const dueCount = rows.reduce((sum, r) => {
+        let due = new Date(r.next_review_at).getTime() <= nowMs ? 1 : 0;
+        if (r.production_next_review_at && new Date(r.production_next_review_at).getTime() <= nowMs) {
+          due += 1;
+        }
+        return sum + due;
+      }, 0);
+      const learnedCount = rows.filter(r => r.repetitions >= 1).length;
+      const masteredCount = rows.filter(r => r.repetitions >= 5).length;
 
       return {
         totalWords: totalWords || 0,
@@ -186,41 +261,109 @@ export const useReviewStats = (mixAll = false) => {
   });
 };
 
+/** Lapses before a card is flagged a leech. Matches the personal deck. */
+const LEECH_THRESHOLD = 6;
+
+function leechTrackingEnabled(): boolean {
+  try {
+    const raw = localStorage.getItem('hakiya:leech-tracking-enabled');
+    return raw === null ? true : raw === 'true';
+  } catch {
+    return true;
+  }
+}
+
+/**
+ * Build the column update for one rating, for one direction.
+ *
+ * Split out and exported so the mapping from (rating, direction) to columns can
+ * be tested directly: writing a production rating into the recognition columns
+ * silently corrupts a card's schedule and is invisible until the learner notices
+ * a word coming back far too often.
+ */
+export function buildReviewUpdate(
+  rating: Rating,
+  direction: ScheduleDirection,
+  currentReview: WordReview | null,
+  now: Date = new Date(),
+): { update: Record<string, unknown>; result: ReturnType<typeof calculateNextReview> } {
+  const production = direction === 'production';
+
+  const stability = (production ? currentReview?.production_ease_factor : currentReview?.ease_factor) ?? 0;
+  const difficulty = (production ? currentReview?.production_difficulty : currentReview?.difficulty) ?? 5.0;
+  const intervalDays = (production ? currentReview?.production_interval_days : currentReview?.interval_days) ?? 0;
+  const repetitions = (production ? currentReview?.production_repetitions : currentReview?.repetitions) ?? 0;
+  const elapsedDays = elapsedDaysSince(
+    production ? currentReview?.production_last_reviewed_at : currentReview?.last_reviewed_at,
+  );
+
+  const result = calculateNextReview(rating, stability, difficulty, intervalDays, repetitions, elapsedDays);
+
+  const failed = rating === 'again';
+  const lapses = (currentReview?.lapses ?? 0) + (failed && !production ? 1 : 0);
+  const productionLapses = (currentReview?.production_lapses ?? 0) + (failed && production ? 1 : 0);
+  const isLeech = leechTrackingEnabled()
+    ? Math.max(lapses, productionLapses) >= LEECH_THRESHOLD
+    : false;
+
+  const nowIso = now.toISOString();
+  const update: Record<string, unknown> = production
+    ? {
+        production_ease_factor: result.stability,
+        production_difficulty: result.difficulty,
+        production_interval_days: Math.max(0, Math.round(result.intervalDays)),
+        production_repetitions: result.repetitions,
+        production_next_review_at: result.nextReviewAt.toISOString(),
+        production_last_reviewed_at: nowIso,
+        production_lapses: productionLapses,
+        is_leech: isLeech,
+      }
+    : {
+        ease_factor: result.stability,
+        difficulty: result.difficulty,
+        interval_days: Math.max(0, Math.round(result.intervalDays)),
+        repetitions: result.repetitions,
+        next_review_at: result.nextReviewAt.toISOString(),
+        last_reviewed_at: nowIso,
+        lapses,
+        is_leech: isLeech,
+      };
+
+  // Unlock the production direction once the learner can recognise the word.
+  // Mirrors the personal deck (useUserVocabulary): production is a harder skill,
+  // so asking for it before recognition is stable just manufactures failures.
+  if (
+    !production &&
+    (rating === 'good' || rating === 'easy') &&
+    !currentReview?.production_next_review_at
+  ) {
+    update.production_next_review_at = nowIso;
+  }
+
+  return { update, result };
+}
+
 export async function submitRatingToServer(
   userId: string,
   wordId: string,
   rating: Rating,
-  currentReview: WordReview | null
+  currentReview: WordReview | null,
+  direction: ScheduleDirection = 'recognition',
 ) {
-  const stability = currentReview?.ease_factor ?? 0;
-  const difficulty = currentReview?.difficulty ?? 5.0;
-  const intervalDays = currentReview?.interval_days ?? 0;
-  const repetitions = currentReview?.repetitions ?? 0;
-  const elapsedDays = elapsedDaysSince(currentReview?.last_reviewed_at);
-
-  const result = calculateNextReview(rating, stability, difficulty, intervalDays, repetitions, elapsedDays);
-
-  const reviewData = {
-    user_id: userId,
-    word_id: wordId,
-    ease_factor: result.stability,
-    difficulty: result.difficulty,
-    interval_days: Math.max(0, Math.round(result.intervalDays)),
-    repetitions: result.repetitions,
-    next_review_at: result.nextReviewAt.toISOString(),
-    last_reviewed_at: new Date().toISOString(),
-  };
+  const { update, result } = buildReviewUpdate(rating, direction, currentReview);
 
   if (currentReview) {
     const { error } = await supabase
       .from('word_reviews')
-      .update(reviewData)
+      .update(update as never)
       .eq('id', currentReview.id);
     if (error) throw error;
   } else {
+    // A word with no row can only be rated in recognition — production is
+    // unlocked from an existing recognition row, never created cold.
     const { error } = await supabase
       .from('word_reviews')
-      .insert(reviewData);
+      .insert({ user_id: userId, word_id: wordId, ...update } as never);
     if (error) throw error;
 
     // First-ever rating of this word: claim daily new-card budget (shared

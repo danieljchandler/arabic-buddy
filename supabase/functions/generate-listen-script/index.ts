@@ -7,6 +7,7 @@ import { primeDialectPrompt, measureTashkeelCoverage, getDialectTransliterationR
 import { enforceDailyCap } from "../_shared/usageCap.ts";
 import { literalSchema } from "../_shared/literalGloss.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { learnerPromptBlock } from "../_shared/learnerProfile.ts";
 
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -122,6 +123,15 @@ EGYPTIAN AUTHENTICITY (CRITICAL — this script is EGYPTIAN, not generic Arabic)
 
     const dialectFlavor = dialect === "Yemeni" ? YEMENI_FLAVOR : dialect === "Egyptian" ? EGYPTIAN_FLAVOR : "";
 
+    // Condition the script on what this learner actually knows, so an episode is
+    // listenable input rather than a wall of unfamiliar vocabulary. Interests are
+    // excluded — the topic is already chosen explicitly by the caller.
+    const learnerBlock = await learnerPromptBlock({
+      userId: cap.userId,
+      dialect,
+      includeInterests: false,
+    });
+
     const systemExtra = `You are a creative writer producing engaging spoken-word content in dialect Arabic.
 
 ${framing}
@@ -155,7 +165,9 @@ OUTPUT:
 
 ${getDialectTransliterationRules(dialect)}
 
-Return ONLY the structured fields via the provided tool.`;
+Return ONLY the structured fields via the provided tool.
+
+${learnerBlock}`;
 
     const userPrompt = `Write the ${format} now about: ${topic}. Make it genuinely interesting — surprising angles, concrete details, real emotion.`;
 

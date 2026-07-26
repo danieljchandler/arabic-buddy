@@ -25,6 +25,9 @@ const supabasePublishableKey =
   process.env.SUPABASE_ANON_KEY ??
   FALLBACK_SUPABASE_PUBLISHABLE_KEY;
 
+const vapidPublicKey =
+  process.env.VITE_VAPID_PUBLIC_KEY ?? process.env.VAPID_PUBLIC_KEY ?? "";
+
 // https://vitejs.dev/config/ — cache bust v5
 export default defineConfig(({ mode }) => ({
   // Lovable Cloud can rewrite the root .env after backend changes, which makes
@@ -59,6 +62,12 @@ export default defineConfig(({ mode }) => ({
     ...(supabasePublishableKey
       ? { 'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(supabasePublishableKey) }
       : {}),
+    // Web push VAPID public key. Injected the same way as the Supabase vars
+    // because `envDir` points away from the repo root, so a root .env is not
+    // read. Deliberately no fallback: when it's unset the value is the empty
+    // string, usePushNotifications reports itself unsupported, and the Settings
+    // toggle hides rather than offering something that can't work.
+    'import.meta.env.VITE_VAPID_PUBLIC_KEY': JSON.stringify(vapidPublicKey),
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
   resolve: {

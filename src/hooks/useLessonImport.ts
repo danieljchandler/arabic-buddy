@@ -56,6 +56,19 @@ export const useLessonImport = () => {
           display_order: plan.lessonNumber,
           dialect_module: plan.dialectModule || 'Gulf',
           status: 'draft',
+          // The authored lesson plan. parseLessonXlsx has produced all of these
+          // since it was written and the columns have existed since the
+          // curriculum restructure, but the insert dropped every one — so a
+          // designed lesson arrived as a bare vocabulary list. Learn.tsx renders
+          // the learner-facing sections; the rest is authoring metadata kept for
+          // the admin tooling.
+          unlock_condition: plan.unlockCondition || null,
+          lesson_sequence: plan.lessonSequence ?? [],
+          image_scenes: plan.imageScenes ?? [],
+          flashcard_spec: plan.flashcardSpec ?? [],
+          real_world_prompts: plan.realWorldPrompts ?? [],
+          design_rationale: plan.designRationale ?? [],
+          sound_spotlight: plan.soundSpotlight ?? [],
         } as never)
         .select()
         .single();

@@ -1,4 +1,4 @@
-import { GraduationCap, BookOpen, Globe2, PenTool, MessageCircle, Sparkles, Library, Headphones } from "lucide-react";
+import { GraduationCap, BookOpen, Globe2, PenTool, MessageCircle, Sparkles, Library, Headphones, Shuffle } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { HubHeader, HubSection } from "@/components/layout/HubGrid";
 
@@ -35,10 +35,20 @@ const LearnHub = () => {
           {
             id: "lessons",
             label: "Lessons",
-            description: "Your personalized path at your level",
+            // Was pointing at /learn, which with no lesson id serves a shuffled
+            // batch of five unseen words — the opposite of a path.
+            description: "Stage by stage, with your progress saved",
             icon: Sparkles,
-            to: "/learn",
+            to: "/curriculum",
             accent: "bg-primary/10 text-primary",
+          },
+          {
+            id: "quick-practice",
+            label: "Quick Practice",
+            description: "A fast batch of new words, no path required",
+            icon: Shuffle,
+            to: "/learn",
+            accent: "bg-sky-500/10 text-sky-600",
           },
           {
             id: "bridge",

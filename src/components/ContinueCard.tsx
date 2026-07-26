@@ -9,6 +9,7 @@ import {
   getContinue,
 } from "@/lib/continueProgress";
 import { useDialect } from "@/contexts/DialectContext";
+import { useResumableLesson } from "@/hooks/useLessonProgress";
 
 const KIND_META: Record<
   ContinueEntry["kind"],
@@ -23,6 +24,11 @@ export const ContinueCard = () => {
   const navigate = useNavigate();
   const { activeDialect } = useDialect();
   const [entry, setEntry] = useState<ContinueEntry | null>(() => getContinue());
+  const { data: resumable } = useResumableLesson(activeDialect);
+  // Dismissing clears localStorage, but the server row survives by design — the
+  // learner really is mid-lesson. Without this the card would reappear
+  // instantly and the dismiss button would look broken.
+  const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
     const refresh = () => setEntry(getContinue());
@@ -36,11 +42,28 @@ export const ContinueCard = () => {
     };
   }, []);
 
-  if (!entry) return null;
-  // Scope to current dialect module: hide entries tagged with a different dialect.
-  if (entry.dialect && entry.dialect !== activeDialect) return null;
+  // localStorage is the fast path — it's instant on load and works signed-out —
+  // but it holds one entry with a 7-day TTL and doesn't cross devices. Fall back
+  // to the server-side lesson progress so resuming survives a new device or a
+  // cleared cache.
+  const localEntry =
+    entry && (!entry.dialect || entry.dialect === activeDialect) ? entry : null;
+  const resolved: ContinueEntry | null = dismissed ? null : localEntry ?? (resumable
+    ? {
+        kind: "lesson",
+        route: `/learn/${resumable.lessonId}`,
+        title: resumable.title,
+        subtitle: resumable.wordsTotal
+          ? `Word ${Math.min(resumable.lastWordIndex + 1, resumable.wordsTotal)} of ${resumable.wordsTotal}`
+          : undefined,
+        dialect: activeDialect,
+        updatedAt: new Date(resumable.updatedAt).getTime(),
+      }
+    : null);
 
-  const { icon: Icon, label } = KIND_META[entry.kind];
+  if (!resolved) return null;
+
+  const { icon: Icon, label } = KIND_META[resolved.kind];
 
   return (
     <div
@@ -53,8 +76,8 @@ export const ContinueCard = () => {
       )}
     >
       <button
-        onClick={() => navigate(entry.route)}
-        aria-label={`Continue ${label}: ${entry.title}`}
+        onClick={() => navigate(resolved.route)}
+        aria-label={`Continue ${label}: ${resolved.title}`}
         className="flex-1 min-w-0 flex items-center gap-3 p-4 text-left active:scale-[0.99] transition-transform"
       >
         <div className="h-11 w-11 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
@@ -66,15 +89,15 @@ export const ContinueCard = () => {
               Continue {label.toLowerCase()}
             </span>
             <span className="text-[10px] text-muted-foreground">
-              · {formatRelativeTime(entry.updatedAt)}
+              · {formatRelativeTime(resolved.updatedAt)}
             </span>
           </div>
           <p className="font-semibold text-foreground text-sm truncate">
-            {entry.title}
+            {resolved.title}
           </p>
-          {entry.subtitle && (
+          {resolved.subtitle && (
             <p className="text-xs text-muted-foreground truncate">
-              {entry.subtitle}
+              {resolved.subtitle}
             </p>
           )}
         </div>
@@ -85,6 +108,7 @@ export const ContinueCard = () => {
           e.stopPropagation();
           clearContinue();
           setEntry(null);
+          setDismissed(true);
         }}
         className="px-2 text-muted-foreground/60 hover:text-foreground transition-colors"
         aria-label="Dismiss"

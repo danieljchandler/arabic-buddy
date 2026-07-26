@@ -60,6 +60,25 @@ every request from fixtures. The suite is hermetic — no network, no shared
 state — so it verifies the app's own routing and rendering rather than that
 queries match the production schema.
 
+## Curriculum
+
+Stages and lessons live in `curriculum_stages` / `lessons` and are walked by the
+learner at `/curriculum` (`src/pages/Curriculum.tsx`), with progress in
+`lesson_progress`. The path state — which lesson is "next up", completion
+percentages, best-score merging — is pure and tested in `src/lib/lessonPath.ts`.
+
+Gating is deliberately **soft**: `lessons.unlock_condition` is free text imported
+from a spreadsheet, not a machine-readable rule, so it's shown as guidance while
+exactly one lesson is marked "Next up" and anything can be opened.
+
+Lesson plans imported from `.xlsx` (`src/lib/parseLessonXlsx.ts` →
+`useLessonImport`) persist their authored sections. `sound_spotlight`,
+`lesson_sequence` and `real_world_prompts` are rendered to the learner in
+`src/pages/Learn.tsx`; `image_scenes`, `flashcard_spec` and `design_rationale`
+are stored as authoring metadata and have no learner-facing surface. Every
+section renders nothing when empty, so lessons imported before this was wired up
+are unaffected.
+
 ## Project layout
 
 - `src/` — React app (pages, components, hooks, domain logic in `src/lib`)

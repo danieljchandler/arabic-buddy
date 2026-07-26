@@ -12,6 +12,15 @@ export interface Lesson {
   created_at: string;
   updated_at: string;
   word_count?: number;
+  /** Needed to group lessons under their stage on the curriculum path. */
+  stage_id: string | null;
+  cefr_target: string | null;
+  duration_minutes: number | null;
+  /**
+   * Free text from the lesson spreadsheet, shown as guidance on the curriculum
+   * page. Deliberately not parsed into a gate — see src/pages/Curriculum.tsx.
+   */
+  unlock_condition: string | null;
 }
 
 /** Fetch lessons from the lessons table, filtered by active dialect module and optional stage */
@@ -45,6 +54,10 @@ export const useLessons = (stageId?: string | undefined) => {
         created_at: lesson.created_at,
         updated_at: lesson.updated_at,
         word_count: lesson.vocabulary_words?.length || 0,
+        stage_id: lesson.stage_id ?? null,
+        cefr_target: lesson.cefr_target ?? null,
+        duration_minutes: lesson.duration_minutes ?? null,
+        unlock_condition: lesson.unlock_condition ?? null,
       })) as Lesson[];
     },
   });

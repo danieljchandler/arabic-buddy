@@ -19,6 +19,7 @@ const lazyPage = <T extends ComponentType<any>>(loader: () => Promise<{ default:
 const Index = lazyPage(() => import("./pages/Index"));
 const Learn = lazyPage(() => import("./pages/Learn"));
 const LearnHub = lazyPage(() => import("./pages/LearnHub"));
+const Curriculum = lazyPage(() => import("./pages/Curriculum"));
 const PracticeHub = lazyPage(() => import("./pages/PracticeHub"));
 const MeHub = lazyPage(() => import("./pages/MeHub"));
 const NotFound = lazyPage(() => import("./pages/NotFound"));
@@ -248,6 +249,7 @@ const App = () => {
                 <MemeAnalyzer />
               </ErrorBoundary>
             } />
+            <Route path="/curriculum" element={<ErrorBoundary name="CurriculumRoute"><Curriculum /></ErrorBoundary>} />
             <Route path="/learn" element={<ErrorBoundary name="LearnRoute"><Learn /></ErrorBoundary>} />
             <Route path="/learn/:lessonId" element={<ErrorBoundary name="LearnLessonRoute"><Learn /></ErrorBoundary>} />
             <Route path="/quiz/:lessonId" element={<ErrorBoundary name="QuizRoute"><Quiz /></ErrorBoundary>} />

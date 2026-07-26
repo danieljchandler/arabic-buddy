@@ -15,6 +15,19 @@ export interface VocabularyWord {
   updated_at: string;
 }
 
+/**
+ * A pronunciation note authored alongside the lesson's vocabulary.
+ * Shape comes from parseLessonXlsx's "SOUND SPOTLIGHT" section.
+ */
+export interface SoundSpotlightEntry {
+  sound?: string;
+  example?: string;
+  explanation?: string;
+}
+
+/** Free-form rows from the lesson spreadsheet's sequence / prompts sheets. */
+export type LessonPlanRow = Record<string, string>;
+
 export interface TopicWithWords {
   id: string;
   name: string;
@@ -23,6 +36,28 @@ export interface TopicWithWords {
   gradient: string;
   display_order: number;
   words: VocabularyWord[];
+  /**
+   * The authored lesson plan. These columns have existed since the curriculum
+   * restructure and parseLessonXlsx has always produced them, but the importer
+   * dropped them at insert and nothing selected them — so a designed lesson
+   * reached the learner as a bare vocabulary list. Empty arrays for any lesson
+   * imported before that was fixed; every renderer omits an empty section.
+   */
+  soundSpotlight: SoundSpotlightEntry[];
+  realWorldPrompts: LessonPlanRow[];
+  lessonSequence: LessonPlanRow[];
+}
+
+/**
+ * Coerce a JSONB column into rows, tolerating null, a non-array, or entries that
+ * aren't objects — this data originates in a spreadsheet, so it's only as
+ * well-formed as whoever authored the sheet.
+ */
+function asRows(value: unknown): LessonPlanRow[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter(
+    (row): row is LessonPlanRow => !!row && typeof row === 'object' && !Array.isArray(row),
+  );
 }
 
 /**
@@ -51,6 +86,12 @@ export const useTopic = (id: string | undefined) => {
 
         if (wordsError) throw wordsError;
 
+        const plan = lesson as unknown as {
+          sound_spotlight?: unknown;
+          real_world_prompts?: unknown;
+          lesson_sequence?: unknown;
+        };
+
         return {
           id: lesson.id,
           name: lesson.title,
@@ -59,6 +100,9 @@ export const useTopic = (id: string | undefined) => {
           gradient: lesson.gradient,
           display_order: lesson.display_order,
           words: (words || []) as VocabularyWord[],
+          soundSpotlight: asRows(plan.sound_spotlight) as SoundSpotlightEntry[],
+          realWorldPrompts: asRows(plan.real_world_prompts),
+          lessonSequence: asRows(plan.lesson_sequence),
         } as TopicWithWords;
       }
 
@@ -79,9 +123,13 @@ export const useTopic = (id: string | undefined) => {
 
       if (wordsError) throw wordsError;
 
+      // Legacy topics have no lesson plan; the renderers omit empty sections.
       return {
         ...topic,
         words: (words || []) as VocabularyWord[],
+        soundSpotlight: [],
+        realWorldPrompts: [],
+        lessonSequence: [],
       } as TopicWithWords;
     },
     enabled: !!id,

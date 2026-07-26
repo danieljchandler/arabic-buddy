@@ -673,7 +673,7 @@ const AdminVideoForm = () => {
 
     try {
       if (options?.createPendingRecord) {
-        targetVideoId = await ensurePendingVideoRecord();
+        targetVideoId = (await ensurePendingVideoRecord()) ?? null;
         if (!targetVideoId) {
           toast.error("Please sign in to queue processing");
           return false;

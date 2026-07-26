@@ -99,7 +99,9 @@ export const buildSRSForecast = (
 export const computeSRSRetentionRate = (
   reviews: Array<{ repetitions?: number | null; lapses?: number | null }>,
 ): number => {
-  const totals = reviews.reduce(
+  // Annotated so the accumulator isn't inferred as the (all-optional) element
+  // type, which would make every running total possibly null.
+  const totals = reviews.reduce<{ repetitions: number; lapses: number }>(
     (acc, review) => {
       const repetitions = Math.max(0, review.repetitions ?? 0);
       const lapses = Math.max(0, Math.min(repetitions, review.lapses ?? 0));

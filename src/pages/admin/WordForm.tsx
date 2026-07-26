@@ -80,6 +80,7 @@ const WordForm = () => {
   const { data: topic } = useQuery({
     queryKey: ['topic-info', topicId],
     queryFn: async () => {
+      if (!topicId) throw new Error('Missing topicId in route');
       const { data, error } = await supabase
         .from('topics')
         .select('name, name_arabic, icon, gradient')
@@ -89,6 +90,7 @@ const WordForm = () => {
       if (error) throw error;
       return data;
     },
+    enabled: !!topicId,
   });
 
   // Fetch existing word if editing
@@ -134,6 +136,7 @@ const WordForm = () => {
 
         if (error) throw error;
       } else {
+        if (!topicId) throw new Error('Missing topicId in route');
         const { data: maxOrder } = await supabase
           .from('vocabulary_words')
           .select('display_order')

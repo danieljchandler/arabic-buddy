@@ -115,15 +115,17 @@ export const useSRSStats = () => {
           myWordsDue += 1;
         }
 
-        const hasProductionCard = !!word.production_next_review_at;
-        if (hasProductionCard) {
+        // Narrow the timestamp itself rather than a separate boolean, so the
+        // non-null value flows through (this previously needed an `as string`).
+        const productionDueAt = word.production_next_review_at;
+        if (productionDueAt) {
           const productionRepetitions = word.production_repetitions ?? 0;
           myWordsCards += 1;
           stageBreakdown[getSRSStageByStability(productionRepetitions, word.production_ease_factor ?? 0)] += 1;
           retentionInputs.push({ repetitions: productionRepetitions, lapses: word.production_lapses ?? 0 });
-          forecastDates.push(word.production_next_review_at);
+          forecastDates.push(productionDueAt);
 
-          if (new Date(word.production_next_review_at as string) <= now) {
+          if (new Date(productionDueAt) <= now) {
             myWordsDue += 1;
           }
         }

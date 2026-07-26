@@ -607,7 +607,8 @@ const ReadingPractice = () => {
     setQaRevealedLines(new Set());
   };
 
-  const score = answers.reduce((acc, ans, idx) => {
+  // Annotated so the accumulator isn't inferred from the (nullable) element type.
+  const score = answers.reduce<number>((acc, ans, idx) => {
     if (ans !== null && passage?.questions[idx]?.options[ans]?.correct) return acc + 1;
     return acc;
   }, 0);

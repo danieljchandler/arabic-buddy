@@ -1061,7 +1061,7 @@ const DiscoverVideo = () => {
     ? lines[lineControlIndex]
     : activeLine ?? lines[lineControlIndex] ?? null;
   const displayLineShadowClip = useMemo(
-    () => (displayLine ? buildShadowClipForLine(displayLine, video, shadowAudioUrl) : null),
+    () => (displayLine ? buildShadowClipForLine(displayLine, video ?? undefined, shadowAudioUrl) : null),
     [displayLine, video, shadowAudioUrl],
   );
 

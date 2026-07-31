@@ -60,7 +60,15 @@ const Learn = () => {
   const [sessionResults, setSessionResults] = useState({ correct: 0, total: 0 });
   const [isComplete, setIsComplete] = useState(false);
 
-  const { data: savedProgress } = useLessonProgressFor(isMixedMode ? undefined : lessonId);
+  const {
+    data: savedProgress,
+    isSuccess: progressLoaded,
+    isFetching: progressFetching,
+  } = useLessonProgressFor(isMixedMode ? undefined : lessonId);
+  // Settled *and* successful. isFetched would also be true after an error and
+  // for a stale cached value mid-refetch, which would let the resume lock in on
+  // the wrong position and then ignore the real one.
+  const progressSettled = progressLoaded && !progressFetching;
   const upsertProgress = useUpsertLessonProgress();
   // Resume once per lesson, not on every progress refetch — otherwise saving
   // progress would immediately yank the learner back to the saved index.
@@ -111,11 +119,15 @@ const Learn = () => {
   }, [lessonId]);
 
   // Pick up where the learner left off, on whatever device they left off on.
+  //
+  // Gated on the query having settled rather than on `savedProgress` being
+  // truthy. A learner starting a lesson fresh has no row, so a truthiness guard
+  // would leave this armed — and the first save's refetch would then fire it
+  // and yank them back to the saved index mid-session.
   useEffect(() => {
-    if (hasResumed || isMixedMode || words.length === 0) return;
-    if (!savedProgress) return;
+    if (hasResumed || isMixedMode || words.length === 0 || !progressSettled) return;
     setHasResumed(true);
-    if (savedProgress.status === "completed") return;
+    if (!savedProgress || savedProgress.status === "completed") return;
     const resumeAt = Math.min(
       Math.max(0, savedProgress.last_word_index),
       words.length - 1,
@@ -124,7 +136,7 @@ const Learn = () => {
       setCurrentIndex(resumeAt);
       setPhase("intro");
     }
-  }, [hasResumed, isMixedMode, savedProgress, words.length]);
+  }, [hasResumed, isMixedMode, progressSettled, savedProgress, words.length]);
 
   // Record "continue where you left off". localStorage stays as the fast local
   // path (it works signed-out and makes the Home card instant); lesson_progress
@@ -148,6 +160,11 @@ const Learn = () => {
   // isn't a lesson, so it has nothing to record against.
   useEffect(() => {
     if (isMixedMode || !lessonId || !user || words.length === 0 || isComplete) return;
+    // Never write before the resume attempt has run for THIS lesson. On mount
+    // currentIndex is 0, so an early write would persist 0 and destroy the
+    // saved position the learner was about to be restored to. `hasResumed` is
+    // reset on every lessonId change, so it's a per-lesson readiness token.
+    if (!hasResumed) return;
     upsertProgress.mutate({
       lessonId,
       lastWordIndex: currentIndex,

@@ -102,7 +102,11 @@ export function buildReviewOrder<T extends SchedulableCard>(
   cards: T[],
   { newCardCap }: OrderOptions,
 ): T[] {
-  const sorted = [...cards].sort((a, b) => a.due_at.localeCompare(b.due_at));
+  // Compare instants, not strings. due_at arrives from two sources with
+  // different serialisations — Postgres timestamptz ("…+00:00") and JS
+  // toISOString() ("…Z") — so equal instants would otherwise sort on their
+  // punctuation, and any non-UTC offset would sort by wall clock.
+  const sorted = [...cards].sort((a, b) => Date.parse(a.due_at) - Date.parse(b.due_at));
 
   const cap = Math.max(0, newCardCap);
   const newCards = interleaveDirections(sorted.filter(isNewCard)).slice(0, cap);

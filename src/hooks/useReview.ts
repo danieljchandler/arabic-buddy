@@ -350,6 +350,17 @@ export async function submitRatingToServer(
   currentReview: WordReview | null,
   direction: ScheduleDirection = 'recognition',
 ) {
+  // A production rating with no existing row would build a production-only
+  // column set and insert it without next_review_at, which is NOT NULL — a
+  // constraint violation surfacing as an opaque failure. Production is only ever
+  // unlocked from an existing recognition row, so this is unreachable; fail
+  // loudly rather than relying on a comment.
+  if (!currentReview && direction === 'production') {
+    throw new Error(
+      `Cannot create a production review for word ${wordId} with no recognition row`,
+    );
+  }
+
   const { update, result } = buildReviewUpdate(rating, direction, currentReview);
 
   if (currentReview) {

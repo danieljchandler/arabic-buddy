@@ -111,10 +111,11 @@ export async function recordLearnerErrorsForRequest(
 /** Resolve the user from the request, then clear. Counterpart of the above. */
 export async function resolveLearnerErrorsForRequest(
   req: Request,
-  targetArabic: string,
+  targetArabic: string | string[],
   dialect?: string,
 ): Promise<void> {
-  if (!targetArabic?.trim()) return;
+  const targets = Array.isArray(targetArabic) ? targetArabic : [targetArabic];
+  if (targets.every((t) => !t?.trim())) return;
   const userId = await resolveUserId(req);
   await resolveLearnerErrors(userId, targetArabic, dialect);
 }
@@ -127,10 +128,20 @@ export async function resolveLearnerErrorsForRequest(
  */
 export async function resolveLearnerErrors(
   userId: string | null | undefined,
-  targetArabic: string,
+  targetArabic: string | string[],
   dialect?: string,
 ): Promise<void> {
-  if (!userId || !targetArabic?.trim()) return;
+  if (!userId) return;
+
+  // Accepts a list because errors are recorded per word: a clean utterance
+  // clears several at once, and one `in` beats N round trips.
+  const targets = [...new Set(
+    (Array.isArray(targetArabic) ? targetArabic : [targetArabic])
+      .map((t) => t?.trim())
+      .filter((t): t is string => !!t),
+  )];
+  if (targets.length === 0) return;
+
   try {
     const supa = createClient(SUPABASE_URL, SERVICE_ROLE, {
       auth: { persistSession: false, autoRefreshToken: false },
@@ -139,7 +150,7 @@ export async function resolveLearnerErrors(
       .from("learner_errors")
       .update({ resolved_at: new Date().toISOString() })
       .eq("user_id", userId)
-      .eq("target_arabic", targetArabic.trim())
+      .in("target_arabic", targets)
       .is("resolved_at", null);
     if (dialect) q = q.eq("dialect", dialect);
     const { error } = await q;

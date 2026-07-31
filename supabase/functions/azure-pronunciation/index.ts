@@ -321,9 +321,12 @@ Deno.serve(async (req: Request) => {
           detail: { locale, accuracy: w.accuracy, overall: result.overall },
         })),
       );
-    } else if (referenceText) {
-      // Clean run — stop drilling this text.
-      void resolveLearnerErrors(cap.userId, referenceText, localeToDialect(locale));
+    } else {
+      // Clean run — clear the words we'd previously flagged. Resolve per word,
+      // not on referenceText: errors are recorded against individual words, so
+      // resolving the whole utterance would never match anything.
+      const spoken = result.words.map((w) => w.word).filter(Boolean);
+      void resolveLearnerErrors(cap.userId, spoken, localeToDialect(locale));
     }
 
     return new Response(JSON.stringify(result), {

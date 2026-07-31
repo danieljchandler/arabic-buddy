@@ -50,6 +50,21 @@ the edge functions are configured in the Supabase dashboard, not committed.
 | `npm run test:coverage` | Run tests with coverage |
 | `npm run test:e2e` | Run the Playwright end-to-end suite |
 | `npm run test:e2e:ui` | Run the E2E suite in Playwright's UI mode |
+| `npm run lint:ratchet` | Fail only if lint errors increased (what CI runs) |
+
+### Continuous integration
+
+`.github/workflows/ci.yml` runs on every push to `main` and every pull request:
+typecheck, lint ratchet, Vitest, production build (one job), and Playwright
+(a second job, so a browser problem is distinguishable from a type error at a
+glance). A failed E2E run uploads its HTML report as an artifact.
+
+**Lint is a ratchet, not a clean-lint gate.** The repo carries a few hundred
+pre-existing errors — almost all `no-explicit-any` — so requiring zero would
+make every build red and train everyone to ignore CI. `scripts/lint-ratchet.mjs`
+fails only when the error count goes *up*, and prints the new number to use when
+you bring it down. Lower `BASELINE` in that file in the same commit that reduces
+it.
 
 ### End-to-end tests
 

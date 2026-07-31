@@ -156,6 +156,14 @@ export async function buildLearnerProfile(
         .select("word_arabic, word_english, interval_days, repetitions, lapses, is_leech")
         .eq("user_id", userId)
         .eq("dialect", dialect)
+        // Struggling cards first, then most-mature. Ordering by interval alone
+        // would put them last — a failed card's interval resets to near zero —
+        // so a learner with more than FETCH_LIMIT saved words would have an
+        // empty weak set, exactly the learner whose weak set matters most.
+        // Lapses are ordered too, not just leeches: classifyRows treats 2+
+        // lapses as struggling, well below the leech threshold of 6.
+        .order("is_leech", { ascending: false })
+        .order("lapses", { ascending: false })
         .order("interval_days", { ascending: false })
         .limit(FETCH_LIMIT),
     ),

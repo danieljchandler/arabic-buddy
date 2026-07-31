@@ -110,6 +110,7 @@ export function classifyRows(rows: ScheduleRow[], errorTargets: Set<string> = ne
   const known: LearnerWord[] = [];
   const learning: LearnerWord[] = [];
   const weak: LearnerWord[] = [];
+  const knownArabic = new Set<string>();
 
   for (const row of rows) {
     const arabic = row.arabic?.trim();
@@ -124,13 +125,26 @@ export function classifyRows(rows: ScheduleRow[], errorTargets: Set<string> = ne
 
     // A leech is still seen material, so it counts toward the lexicon — it just
     // needs targeting rather than assuming.
-    if (mature) known.push(word);
-    else learning.push(word);
+    if (mature) {
+      known.push(word);
+      knownArabic.add(arabic);
+    } else {
+      learning.push(word);
+    }
 
     if (struggling || errorTargets.has(arabic)) weak.push(word);
   }
 
-  return { known: dedupe(known), learning: dedupe(learning), weak: dedupe(weak) };
+  return {
+    known: dedupe(known),
+    // The same word can appear in both decks at different maturities. Without
+    // this filter it would land in known AND learning, and the prompt would
+    // tell the model a word is simultaneously mastered and in need of
+    // reinforcement. Filtering after the loop also covers the case where the
+    // immature row is processed first.
+    learning: dedupe(learning).filter((w) => !knownArabic.has(w.arabic)),
+    weak: dedupe(weak),
+  };
 }
 
 /**

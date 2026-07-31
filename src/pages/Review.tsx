@@ -83,12 +83,15 @@ const Review = () => {
     if (!word || word.audio_url) return;
     try {
       await supabase.functions.invoke("persist-word-audio", {
-        body: { wordId: word.id, dialect: word.dialect_module },
+        // Same fallback the card uses for playback. Sending the raw nullable
+        // column instead would let the learner hear one voice and cache
+        // another — and the cache is written once and never revisited.
+        body: { wordId: word.id, dialect: word.dialect_module ?? activeDialect },
       });
     } catch (err) {
       console.warn("Couldn't cache word audio:", err);
     }
-  }, [dueWords, currentIndex]);
+  }, [dueWords, currentIndex, activeDialect]);
 
   const goToNext = async () => {
     if (!dueWords) return;
@@ -347,6 +350,7 @@ const Review = () => {
               wordArabic={currentWord.word_arabic}
               wordEnglish={currentWord.word_english}
               audioUrl={currentWord.audio_url}
+              dialect={currentWord.dialect_module ?? activeDialect}
               showAnswer={showAnswer}
               onReveal={() => setShowAnswer(true)}
               onAudioGenerated={persistCurriculumAudio}

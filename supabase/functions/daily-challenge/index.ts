@@ -34,15 +34,21 @@ serve(async (req) => {
     // (useAllWords) — so the "daily challenge" routinely quizzed words the
     // learner had never studied. Weak and in-progress words come first: those
     // are the ones worth spending a daily challenge on.
-    let learnerWords: string[] = [];
+    const learnerWords: string[] = [];
     try {
       const profile = await buildLearnerProfile({
         userId: cap.userId,
         dialect,
         budget: { known: 10, learning: 10, weak: 8 },
       });
-      learnerWords = [...profile.weak, ...profile.learning, ...profile.known]
-        .map((w) => `${w.arabic} (${w.english})`);
+      // Weak words also appear in known/learning by design, so dedupe on the
+      // Arabic form — otherwise duplicates eat the 15 prompt slots.
+      const seen = new Set<string>();
+      for (const w of [...profile.weak, ...profile.learning, ...profile.known]) {
+        if (seen.has(w.arabic)) continue;
+        seen.add(w.arabic);
+        learnerWords.push(`${w.arabic} (${w.english})`);
+      }
     } catch (e) {
       console.warn("daily-challenge: learner profile unavailable, using defaults:", e);
     }

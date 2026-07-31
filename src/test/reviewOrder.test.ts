@@ -134,17 +134,23 @@ describe("buildReviewOrder", () => {
     expect(ids(out)).toEqual(["latest", "middle", "late"]);
   });
 
-  it("compares instants, not strings, across timestamp serialisations", () => {
+  it("treats the same instant as equal across timestamp serialisations", () => {
     // Postgres returns "…+00:00"; JS toISOString() returns "…Z". Both reach
-    // due_at, so a lexicographic sort ordered equal instants by punctuation.
+    // due_at. These two are the SAME instant, so the sort must be a no-op and
+    // input order must survive — the timestamps have to be identical for this
+    // to test anything, because any real difference orders them the same way
+    // under both comparators.
+    //
+    // Under localeCompare, '+' (0x2B) sorts before 'Z' (0x5A), so the offset
+    // form would jump ahead of an equal instant. That's the regression.
     const out = buildReviewOrder(
       [
-        card("zulu", "recognition", 2, "2026-01-02T00:00:00Z"),
+        card("zulu", "recognition", 2, "2026-01-01T00:00:00Z"),
         card("offset", "recognition", 2, "2026-01-01T00:00:00+00:00"),
       ],
       { newCardCap: 0 },
     );
-    expect(ids(out)).toEqual(["offset", "zulu"]);
+    expect(ids(out)).toEqual(["zulu", "offset"]);
   });
 
   it("orders a non-UTC offset by its instant, not its wall clock", () => {

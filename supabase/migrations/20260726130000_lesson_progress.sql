@@ -11,7 +11,7 @@
 
 CREATE TABLE public.lesson_progress (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_id uuid NOT NULL,
   lesson_id uuid NOT NULL REFERENCES public.lessons(id) ON DELETE CASCADE,
   status text NOT NULL DEFAULT 'in_progress'
     CHECK (status IN ('in_progress', 'completed')),
@@ -40,17 +40,17 @@ CREATE POLICY "Users can view their own lesson progress"
   ON public.lesson_progress
   FOR SELECT
   TO authenticated
-  USING ((select auth.uid()) = user_id);
+  USING (auth.uid() = user_id);
 
 CREATE POLICY "Users can create their own lesson progress"
   ON public.lesson_progress
   FOR INSERT
   TO authenticated
-  WITH CHECK ((select auth.uid()) = user_id);
+  WITH CHECK (auth.uid() = user_id);
 
 CREATE POLICY "Users can update their own lesson progress"
   ON public.lesson_progress
   FOR UPDATE
   TO authenticated
-  USING ((select auth.uid()) = user_id)
-  WITH CHECK ((select auth.uid()) = user_id);
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);

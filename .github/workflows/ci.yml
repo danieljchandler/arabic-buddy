@@ -1,0 +1,89 @@
+name: CI
+
+# The repo had no CI at all, so the Vitest and Playwright suites only ever ran
+# where someone remembered to run them. This is the guard.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  # Lets a red build be re-run from the Actions tab without an empty commit.
+  workflow_dispatch:
+
+# A new push supersedes an in-flight run for the same ref. Cancel the old one
+# rather than paying for a result nobody will look at — except on main, where
+# every commit's status is worth keeping.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+permissions:
+  contents: read
+
+jobs:
+  # Typecheck, lint and unit tests. Fast, no browser needed — this is the job
+  # that should catch most things, so it runs on its own and reports quickly.
+  check:
+    name: Typecheck, lint & unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # tsconfig.app.json is the one that covers src/ (and the shared edge-
+      # function modules the tests import). The Deno functions themselves are
+      # not typechecked here — they have no local toolchain.
+      - name: Typecheck
+        run: npx tsc --noEmit -p tsconfig.app.json
+
+      # Ratchet, not a clean-lint gate: the repo carries ~596 pre-existing
+      # errors, so requiring zero would make every build red and train people
+      # to ignore CI. This fails only when the count goes up.
+      - name: Lint (no new errors)
+        run: npm run lint:ratchet
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Production build
+        run: npm run build
+
+  # Browser tests. Separate job so a Playwright/browser problem is
+  # distinguishable at a glance from a type or unit-test failure.
+  e2e:
+    name: End-to-end
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # Only Chromium — playwright.config.ts defines just the one project.
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      # No secrets needed: playwright.config.ts points the dev server at a fake
+      # Supabase host and e2e/support/supabase.ts answers every request from
+      # fixtures, so the suite is hermetic.
+      - name: E2E tests
+        run: npm run test:e2e
+
+      - name: Upload report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

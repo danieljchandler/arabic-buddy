@@ -24,6 +24,11 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { getDialectLabel, type Dialect } from "./dialectHelpers.ts";
 import {
+  STRENGTH_LADDER,
+  type ConceptMastery,
+  type MasteryStrength,
+} from "./conceptMasteryCore.ts";
+import {
   classifyRows,
   DEFAULT_BUDGET,
   renderProfileForPrompt,
@@ -87,6 +92,9 @@ const FETCH_LIMIT = 400;
 /** Recent unresolved errors considered when marking words weak. */
 const ERROR_LOOKBACK = 60;
 
+/** Grammar concepts fetched. Well above the six drill categories per dialect. */
+const MASTERY_LIMIT = 50;
+
 const CEFR_COLUMN: Record<string, string> = {
   gulf: "placement_level_gulf",
   egyptian: "placement_level_egyptian",
@@ -126,6 +134,10 @@ async function safeRow(query: Query): Promise<Row | null> {
 const str = (v: unknown): string | null => (typeof v === "string" ? v : null);
 const num = (v: unknown): number | null => (typeof v === "number" ? v : null);
 
+function isStrength(v: unknown): v is MasteryStrength {
+  return typeof v === "string" && (STRENGTH_LADDER as readonly string[]).includes(v);
+}
+
 /**
  * Assemble the learner profile for one user in one dialect.
  *
@@ -149,7 +161,7 @@ export async function buildLearnerProfile(
   // Each query is independently fault-tolerant: a learner with no personal deck,
   // or an environment where learner_errors hasn't been migrated yet, should still
   // get whatever profile the other queries can produce.
-  const [personalRows, curriculumRows, profileRow, errorRows] = await Promise.all([
+  const [personalRows, curriculumRows, profileRow, errorRows, masteryRows] = await Promise.all([
     safeRows(
       supabase
         .from("user_vocabulary")
@@ -202,6 +214,22 @@ export async function buildLearnerProfile(
         .order("created_at", { ascending: false })
         .limit(ERROR_LOOKBACK),
     ),
+
+    // Structural weakness, which the word decks can't see: a learner can have
+    // every word in a sentence at a comfortable interval and still not be able
+    // to negate it. Six drill categories per dialect, so the limit is slack.
+    safeRows(
+      supabase
+        .from("user_concept_mastery")
+        .select(
+          "exposures, correct, incorrect, ease, strength, next_due_at, last_seen_at, " +
+            "curriculum_concepts!inner(key, display_english, kind, dialect)",
+        )
+        .eq("user_id", userId)
+        .eq("curriculum_concepts.kind", "grammar")
+        .eq("curriculum_concepts.dialect", dialect)
+        .limit(MASTERY_LIMIT),
+    ),
   ]);
 
   const personal: ScheduleRow[] = personalRows.map((row) => ({
@@ -235,6 +263,24 @@ export async function buildLearnerProfile(
 
   const buckets = classifyRows([...personal, ...curriculum], errorTargets);
 
+  const weakGrammar: ConceptMastery[] = masteryRows.flatMap((row) => {
+    const concept = (row.curriculum_concepts ?? {}) as Row;
+    const key = str(concept.key);
+    if (!key) return [];
+    return [{
+      conceptKey: key,
+      label: str(concept.display_english) ?? key,
+      exposures: num(row.exposures) ?? 0,
+      correct: num(row.correct) ?? 0,
+      incorrect: num(row.incorrect) ?? 0,
+      // `ease` is numeric in Postgres, which PostgREST may return as a string.
+      ease: Number(row.ease ?? 2.5) || 2.5,
+      strength: isStrength(row.strength) ? row.strength : "new",
+      nextDueAt: str(row.next_due_at),
+      lastSeenAt: str(row.last_seen_at),
+    }];
+  });
+
   // Prefer the dialect-specific placement; fall back to the legacy single
   // placement, then to the self-reported level from onboarding.
   const dialectColumn = CEFR_COLUMN[String(dialect).toLowerCase()];
@@ -256,6 +302,9 @@ export async function buildLearnerProfile(
     learning: sample(buckets.learning, budget.learning),
     weak: sample(buckets.weak, budget.weak),
     knownTotal: buckets.known.length,
+    // Not sampled: there are only six categories, and which grammar point a
+    // learner is failing is not something to randomise for variety.
+    weakGrammar,
   };
 }
 

@@ -1,10 +1,16 @@
 // Pure half of the learner model: types, bucketing, sampling, and prompt
-// rendering. Deliberately dependency-free — no Deno globals, no esm.sh imports,
-// no dialect rulebook — so it can be unit-tested from the frontend Vitest suite
-// (src/test/learnerProfileCore.test.ts) while the IO half (learnerProfile.ts)
-// stays a Deno edge-function module.
+// rendering. Free of Deno globals and esm.sh imports — the one import is the
+// equally pure conceptMasteryCore — so it can be unit-tested from the frontend
+// Vitest suite (src/test/learnerProfileCore.test.ts) while the IO half
+// (learnerProfile.ts) stays a Deno edge-function module.
 //
 // See learnerProfile.ts for why this exists at all.
+
+import {
+  pickWeakConcepts,
+  renderWeakGrammarForPrompt,
+  type ConceptMastery,
+} from "./conceptMasteryCore.ts";
 
 export interface LearnerWord {
   arabic: string;
@@ -30,6 +36,11 @@ export interface LearnerProfile {
   weak: LearnerWord[];
   /** Total established words, before sampling. Signals overall lexicon size. */
   knownTotal: number;
+  /**
+   * Grammar points the learner keeps missing in drills. Empty for anyone who
+   * hasn't drilled, which is why every consumer treats it as optional.
+   */
+  weakGrammar: ConceptMastery[];
 }
 
 export interface ProfileBudget {
@@ -192,6 +203,14 @@ export function renderProfileForPrompt(
     lines.push(
       `- STRUGGLING with these (work at least one or two in, in a clear context that makes the meaning inferable): ${list(profile.weak)}`,
     );
+  }
+  if (includeWeak) {
+    // Lexical weakness and structural weakness are different problems and want
+    // different treatment: a shaky word wants another exposure in context, a
+    // shaky grammar point wants the correct form modelled. Kept as its own line
+    // so the model doesn't blur them.
+    const grammar = renderWeakGrammarForPrompt(pickWeakConcepts(profile.weakGrammar ?? []));
+    if (grammar) lines.push(grammar);
   }
 
   if (lines.length === 0) return "";

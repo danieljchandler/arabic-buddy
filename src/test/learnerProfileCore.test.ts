@@ -163,6 +163,7 @@ const profile = (over: Partial<LearnerProfile> = {}): LearnerProfile => ({
   learning: [],
   weak: [],
   knownTotal: 1,
+  weakGrammar: [],
   ...over,
 });
 
@@ -199,5 +200,39 @@ describe("renderProfileForPrompt", () => {
 
   it("tells the model not to leak the profile into the output", () => {
     expect(renderProfileForPrompt(profile())).toContain("Never list these words");
+  });
+
+  const shaky = {
+    conceptKey: "negation",
+    label: "Negation",
+    exposures: 8,
+    correct: 2,
+    incorrect: 6,
+    ease: 2.1,
+    strength: "learning" as const,
+    nextDueAt: null,
+    lastSeenAt: null,
+  };
+
+  it("names weak grammar separately from weak vocabulary", () => {
+    const out = renderProfileForPrompt(
+      profile({ weak: [{ arabic: "شغل", english: "work" }], weakGrammar: [shaky] }),
+    );
+    // Two different problems: a shaky word wants another exposure, a shaky
+    // structure wants the correct form modelled. They must not share a line.
+    expect(out).toContain("Negation (25% correct over 8 attempts)");
+    const grammarLine = out.split("\n").find((l) => l.includes("Negation"));
+    expect(grammarLine).not.toContain("شغل");
+  });
+
+  it("says nothing about grammar the learner has never got wrong", () => {
+    const solid = { ...shaky, conceptKey: "pronouns", label: "Pronouns", correct: 8, incorrect: 0 };
+    expect(renderProfileForPrompt(profile({ weakGrammar: [solid] }))).not.toContain("Pronouns");
+  });
+
+  it("omits weak grammar when includeWeak is false", () => {
+    const p = profile({ weakGrammar: [shaky] });
+    expect(renderProfileForPrompt(p)).toContain("Negation");
+    expect(renderProfileForPrompt(p, { includeWeak: false })).not.toContain("Negation");
   });
 });

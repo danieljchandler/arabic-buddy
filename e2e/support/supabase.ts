@@ -76,7 +76,8 @@ export interface StubOptions {
 const iso = (offsetMs: number) => new Date(Date.now() + offsetMs).toISOString();
 const DAY = 24 * 60 * 60 * 1000;
 
-const wordId = (i: number) => `11111111-0000-4000-8000-${String(i).padStart(12, "0")}`;
+/** Exported so a test overriding `word_reviews` can point at a seeded word. */
+export const wordId = (i: number) => `11111111-0000-4000-8000-${String(i).padStart(12, "0")}`;
 const vocabId = (i: number) => `22222222-0000-4000-8000-${String(i).padStart(12, "0")}`;
 const phraseId = (i: number) => `33333333-0000-4000-8000-${String(i).padStart(12, "0")}`;
 

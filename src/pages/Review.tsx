@@ -19,6 +19,8 @@ import { useDialect } from "@/contexts/DialectContext";
 import { Rating, calculateNextReview, elapsedDaysSince } from "@/lib/spacedRepetition";
 import { scheduleDirectionFor } from "@/lib/reviewOrder";
 import { ReviewAudioCard } from "@/components/review/ReviewAudioCard";
+import { LeechHelperPanel } from "@/components/review/LeechHelperPanel";
+import { useLeechPrefs } from "@/hooks/useLeechPrefs";
 import { Loader2, Trophy, Brain, Sparkles, LogIn, Shuffle, Eye, Volume2, ImagePlus, WifiOff, CloudUpload, PenLine, BookOpen } from "lucide-react";
 import { GenerateImageDialog } from "@/components/mywords/GenerateImageDialog";
 import { useReviewKeyboard } from "@/hooks/useKeyboardShortcuts";
@@ -33,6 +35,7 @@ const Review = () => {
   const navigate = useNavigate();
   const { isAuthenticated, loading: authLoading } = useAuth();
   const { activeDialect } = useDialect();
+  const { enabled: leechTrackingEnabled } = useLeechPrefs();
   const [mixAll, setMixAll] = useState(false);
 
   const { data: dueWords, isLoading: wordsLoading, refetch } = useDueWords(mixAll);
@@ -470,6 +473,21 @@ const Review = () => {
               </Button>
             )}
           </div>
+          )}
+
+          {/* Rescue for a card the learner keeps failing. The personal decks
+              have had this since leech tracking landed; the curriculum deck —
+              the one the app hands every learner — had nothing. */}
+          {leechTrackingEnabled && review?.is_leech && review?.id && (
+            <LeechHelperPanel
+              kind="curriculum"
+              rowId={review.id}
+              arabic={currentWord.word_arabic}
+              english={currentWord.word_english}
+              dialect={currentWord.dialect_module ?? activeDialect}
+              mnemonic={review.mnemonic ?? null}
+              invalidateKeys={[["due-words"]]}
+            />
           )}
         </div>
 

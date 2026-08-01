@@ -186,10 +186,16 @@ export async function buildLearnerProfile(
       supabase
         .from("word_reviews")
         .select(
-          "interval_days, repetitions, vocabulary_words!inner(word_arabic, word_english, dialect_module)",
+          "interval_days, repetitions, lapses, is_leech, " +
+            "vocabulary_words!inner(word_arabic, word_english, dialect_module)",
         )
         .eq("user_id", userId)
         .eq("vocabulary_words.dialect_module", dialect)
+        // Same ordering as the personal deck, and for the same reason: a failed
+        // card's interval resets to near zero, so ordering by interval alone
+        // would push exactly the struggling words past FETCH_LIMIT.
+        .order("is_leech", { ascending: false })
+        .order("lapses", { ascending: false })
         .order("interval_days", { ascending: false })
         .limit(FETCH_LIMIT),
     ),
@@ -248,10 +254,8 @@ export async function buildLearnerProfile(
       english: str(joined.word_english),
       intervalDays: num(row.interval_days),
       repetitions: num(row.repetitions),
-      // word_reviews tracks neither lapses nor leeches today (Phase 2 of the
-      // plan adds them) — null means "unknown", not "fine".
-      lapses: null,
-      isLeech: null,
+      lapses: num(row.lapses),
+      isLeech: row.is_leech === true,
     };
   });
 

@@ -31,6 +31,8 @@ export interface WordReview {
   // types lag the migration.
   lapses?: number | null;
   is_leech?: boolean | null;
+  /** Learner's own memory hook for a stuck card; written by LeechHelperPanel. */
+  mnemonic?: string | null;
   // Production schedule (meaning → Arabic). production_next_review_at is null
   // until the learner recognises the word reliably; see buildReviewUpdate.
   production_lapses?: number | null;

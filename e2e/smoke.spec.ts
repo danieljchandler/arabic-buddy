@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { signIn, stubSupabase, TEST_USER_ID } from "./support/supabase";
+import { signIn, stubSupabase, TEST_USER_ID, wordId } from "./support/supabase";
 
 test.describe("signed out", () => {
   test("landing page renders with a sign-up call to action", async ({ page }) => {
@@ -277,5 +277,63 @@ test.describe("signed in — grammar drills", () => {
     await page.goto("/grammar");
 
     await expect(page.getByText(/You're weakest on/)).toContainText("Negation");
+  });
+});
+
+test.describe("signed in — curriculum leeches", () => {
+  const reviewRow = (over: Record<string, unknown> = {}) => ({
+    id: "44444444-0000-4000-8000-000000000000",
+    user_id: TEST_USER_ID,
+    word_id: wordId(0),
+    ease_factor: 5,
+    difficulty: 5,
+    interval_days: 1,
+    repetitions: 2,
+    lapses: 7,
+    is_leech: false,
+    mnemonic: null,
+    last_reviewed_at: new Date(Date.now() - 3 * 86400000).toISOString(),
+    next_review_at: new Date(Date.now() - 86400000).toISOString(),
+    ...over,
+  });
+
+  test("a stuck curriculum card offers the rescue panel", async ({ page }) => {
+    await signIn(page);
+    await stubSupabase(page, {
+      curriculumDue: 1,
+      tables: { word_reviews: [reviewRow({ is_leech: true })] },
+    });
+    await page.goto("/review");
+
+    // The personal decks have had this since leech tracking landed; the deck
+    // the app hands every learner had nothing.
+    await expect(page.getByText("Stuck on this one?")).toBeVisible();
+    await expect(page.getByRole("button", { name: /Generate AI mnemonic/ })).toBeVisible();
+  });
+
+  test("shows an already-saved mnemonic instead of the generate button", async ({ page }) => {
+    await signIn(page);
+    await stubSupabase(page, {
+      curriculumDue: 1,
+      tables: {
+        word_reviews: [reviewRow({ is_leech: true, mnemonic: "sounds like the English word" })],
+      },
+    });
+    await page.goto("/review");
+
+    await expect(page.getByText("sounds like the English word")).toBeVisible();
+    await expect(page.getByRole("button", { name: /Generate AI mnemonic/ })).toHaveCount(0);
+  });
+
+  test("stays out of the way on a card that isn't stuck", async ({ page }) => {
+    await signIn(page);
+    await stubSupabase(page, {
+      curriculumDue: 1,
+      tables: { word_reviews: [reviewRow({ is_leech: false })] },
+    });
+    await page.goto("/review");
+
+    await expect(page.getByText("كلمة1")).toBeVisible();
+    await expect(page.getByText("Stuck on this one?")).toHaveCount(0);
   });
 });

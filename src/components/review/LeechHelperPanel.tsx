@@ -7,9 +7,20 @@ import { toast } from "sonner";
 import { Loader2, Brain, RefreshCw, AlertTriangle, X } from "lucide-react";
 
 
+/**
+ * Which deck the leech lives in.
+ *
+ * "word"/"phrase" are the two decks a learner builds themselves. "curriculum"
+ * is the deck the app hands them — the structured material everyone works
+ * through — which had no rescue at all until now: a learner failing a
+ * curriculum word for the seventh time got no mnemonic, no flag, and no way to
+ * reset the count, while their own saved words got all three.
+ */
+export type LeechKind = "word" | "phrase" | "curriculum";
+
 interface LeechHelperPanelProps {
-  /** "word" or "phrase" — controls table. */
-  kind: "word" | "phrase";
+  /** Which deck the row belongs to — controls the table written to. */
+  kind: LeechKind;
   rowId: string;
   /** Arabic text to memorize. */
   arabic: string;
@@ -22,9 +33,20 @@ interface LeechHelperPanelProps {
   invalidateKeys?: string[][];
 }
 
-const TABLE_BY_KIND: Record<"word" | "phrase", "user_vocabulary" | "user_phrases"> = {
+const TABLE_BY_KIND: Record<LeechKind, "user_vocabulary" | "user_phrases" | "word_reviews"> = {
   word: "user_vocabulary",
   phrase: "user_phrases",
+  // The per-user row for a curriculum word. The mnemonic goes here rather than
+  // on vocabulary_words because a memory hook is personal, not content —
+  // vocabulary_words is shared by every learner.
+  curriculum: "word_reviews",
+};
+
+/** Only the two word decks carry a second, production-direction lapse counter. */
+const HAS_PRODUCTION_LAPSES: Record<LeechKind, boolean> = {
+  word: true,
+  phrase: false,
+  curriculum: true,
 };
 
 export function LeechHelperPanel({
@@ -57,7 +79,16 @@ export function LeechHelperPanel({
     setMnLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke("generate-mnemonic", {
-        body: { arabic, english, transliteration, dialect, kind },
+        body: {
+          arabic,
+          english,
+          transliteration,
+          dialect,
+          // The function interpolates this straight into its prompt ("Arabic
+          // ${kind}s they keep forgetting"), so it takes the noun, not the deck
+          // name — a curriculum card is still a word.
+          kind: kind === "phrase" ? "phrase" : "word",
+        },
       });
       if (error) throw new Error(error.message || "Failed");
       const text = (data as { mnemonic?: string })?.mnemonic;
@@ -82,7 +113,11 @@ export function LeechHelperPanel({
   const dismissLeech = async () => {
     try {
       await (supabase.from(TABLE_BY_KIND[kind]) as any)
-        .update({ is_leech: false, lapses: 0, ...(kind === "word" ? { production_lapses: 0 } : {}) })
+        .update({
+          is_leech: false,
+          lapses: 0,
+          ...(HAS_PRODUCTION_LAPSES[kind] ? { production_lapses: 0 } : {}),
+        })
         .eq("id", rowId);
       invalidate();
       toast.success("Cleared — we'll stop flagging this card.");

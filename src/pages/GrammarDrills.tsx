@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useDialect } from "@/contexts/DialectContext";
 import { useNavigate } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
@@ -6,6 +6,8 @@ import { HomeButton } from "@/components/HomeButton";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserLevel } from "@/hooks/useUserLevel";
+import { useGrammarMastery, useRecordGrammarOutcome } from "@/hooks/useGrammarMastery";
+import { buildCategoryProgress, GRAMMAR_CATEGORIES } from "@/lib/grammarCategories";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { InfoHint } from "@/components/InfoHint";
@@ -37,15 +39,6 @@ interface DrillQuestion {
   correct_index: number;
   explanation: string;
 }
-
-const CATEGORIES = [
-  { id: "verb-conjugation", label: "Verb Conjugation", labelAr: "تصريف الأفعال", icon: "🔄" },
-  { id: "pronouns", label: "Pronouns", labelAr: "الضمائر", icon: "👤" },
-  { id: "negation", label: "Negation", labelAr: "النفي", icon: "🚫" },
-  { id: "possessives", label: "Possessives", labelAr: "الملكية", icon: "🏠" },
-  { id: "questions", label: "Question Forms", labelAr: "الأسئلة", icon: "❓" },
-  { id: "sentence-structure", label: "Sentence Structure", labelAr: "بنية الجملة", icon: "📝" },
-];
 
 const DIFFICULTIES = [
   { id: "beginner", label: "Beginner", color: "text-green-600 dark:text-green-400" },
@@ -81,18 +74,35 @@ const GrammarDrills = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showResult, setShowResult] = useState(false);
   const [showEnglish, setShowEnglish] = useState(false);
+  // One entry per question answered, in order. The order matters to the mastery
+  // ladder — finishing on a miss is treated differently from finishing on a hit
+  // — so this is kept rather than derived from `score`.
+  const [outcomes, setOutcomes] = useState<boolean[]>(savedSession?.outcomes ?? []);
+
+  const { data: masteryByKey } = useGrammarMastery(activeDialect);
+  const recordOutcome = useRecordGrammarOutcome();
+  // Guards against a second submit if the results screen re-renders or the
+  // learner navigates back into it.
+  const submittedRef = useRef(false);
+
+  const categories = useMemo(
+    () => buildCategoryProgress(masteryByKey ?? new Map()),
+    [masteryByKey],
+  );
+  const focusCategory = categories.find((c) => c.focus) ?? null;
+  const resultCategory = categories.find((c) => c.id === category) ?? null;
 
   // Persist session state
   useEffect(() => {
     if (questions.length === 0) return;
     try {
       const entry = {
-        data: { category, difficulty, questions, currentIndex, score },
+        data: { category, difficulty, questions, currentIndex, score, outcomes },
         savedAt: Date.now(),
       };
       localStorage.setItem('session_grammar_drills', JSON.stringify(entry));
     } catch {}
-  }, [category, difficulty, questions, currentIndex, score]);
+  }, [category, difficulty, questions, currentIndex, score, outcomes]);
 
   const fetchDrill = async (cat: string) => {
     setIsLoading(true);
@@ -102,6 +112,8 @@ const GrammarDrills = () => {
     setSelectedAnswer(null);
     setScore(0);
     setShowResult(false);
+    setOutcomes([]);
+    submittedRef.current = false;
 
     try {
       // Try pre-approved content first
@@ -148,9 +160,11 @@ const GrammarDrills = () => {
   const handleAnswer = (index: number) => {
     if (selectedAnswer !== null) return;
     setSelectedAnswer(index);
-    if (index === questions[currentIndex].correct_index) {
+    const correct = index === questions[currentIndex].correct_index;
+    if (correct) {
       setScore((s) => s + 1);
     }
+    setOutcomes((prev) => [...prev, correct]);
   };
 
   const nextQuestion = () => {
@@ -159,7 +173,26 @@ const GrammarDrills = () => {
       setSelectedAnswer(null);
     } else {
       setShowResult(true);
+      finishDrill();
     }
+  };
+
+  /**
+   * Send the round's answers to the mastery ladder.
+   *
+   * Until this existed the score was rendered on the results screen and thrown
+   * away: nothing knew which structures the learner kept missing, so the next
+   * drill was generated as if they'd never answered a question.
+   */
+  const finishDrill = () => {
+    if (submittedRef.current || !category || outcomes.length === 0) return;
+    submittedRef.current = true;
+    recordOutcome.mutate({
+      category,
+      categoryLabel: GRAMMAR_CATEGORIES.find((c) => c.id === category)?.label,
+      dialect: activeDialect,
+      outcomes,
+    });
   };
 
   const resetDrill = () => {
@@ -169,6 +202,8 @@ const GrammarDrills = () => {
     setSelectedAnswer(null);
     setScore(0);
     setShowResult(false);
+    setOutcomes([]);
+    submittedRef.current = false;
   };
 
   if (!isAuthenticated) {
@@ -202,6 +237,16 @@ const GrammarDrills = () => {
           {pct >= 80 && <p className="text-sm text-green-600 dark:text-green-400">Excellent! 🎉</p>}
           {pct >= 50 && pct < 80 && <p className="text-sm text-yellow-600 dark:text-yellow-400">Good effort! Keep practicing 💪</p>}
           {pct < 50 && <p className="text-sm text-red-600 dark:text-red-400">Keep going — practice makes perfect! 📚</p>}
+
+          {/* The round's standing after this attempt, not just this attempt.
+              Shown only once the write has landed — claiming a new strength
+              before it saves would be a lie the next page load contradicts. */}
+          {resultCategory?.strengthLabel && !recordOutcome.isPending && (
+            <p className="text-sm text-muted-foreground">
+              {resultCategory.label}: <span className="text-foreground font-medium">{resultCategory.strengthLabel}</span>
+              {" "}overall — {resultCategory.mastery?.correct}/{resultCategory.mastery?.exposures} across all your drills.
+            </p>
+          )}
           <div className="flex gap-3 justify-center pt-4">
             <Button variant="outline" onClick={resetDrill}>
               <RotateCcw className="h-4 w-4 mr-2" /> New Drill
@@ -352,6 +397,17 @@ const GrammarDrills = () => {
           ))}
         </div>
 
+        {/* Where the ladder pays off: one concrete suggestion instead of six
+            equally-weighted tiles. Silent when the learner is solid across the
+            board, or signed out with no mastery to read. */}
+        {!isLoading && focusCategory && (
+          <p className="text-xs text-muted-foreground">
+            {focusCategory.mastery
+              ? <>You're weakest on <strong className="text-foreground">{focusCategory.label}</strong> — {focusCategory.accuracyPct}% so far. Worth another round.</>
+              : <>You haven't tried <strong className="text-foreground">{focusCategory.label}</strong> yet.</>}
+          </p>
+        )}
+
         {/* Category grid */}
         {isLoading ? (
           <div className="flex flex-col items-center gap-3 py-12">
@@ -360,20 +416,33 @@ const GrammarDrills = () => {
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-3">
-            {CATEGORIES.map((cat) => (
+            {categories.map((cat) => (
               <button
                 key={cat.id}
                 onClick={() => fetchDrill(cat.id)}
                 className={cn(
-                  "p-4 rounded-xl bg-card border border-border",
+                  "p-4 rounded-xl bg-card border",
                   "flex flex-col items-center gap-2 text-center",
                   "transition-all duration-200",
-                  "hover:border-primary/30 active:scale-[0.97]"
+                  "hover:border-primary/30 active:scale-[0.97]",
+                  cat.focus ? "border-primary/50 ring-1 ring-primary/20" : "border-border"
                 )}
               >
                 <span className="text-2xl">{cat.icon}</span>
                 <p className="font-semibold text-foreground text-sm">{cat.label}</p>
                 <p className="text-xs text-muted-foreground" dir="rtl">{cat.labelAr}</p>
+                {/* Strength, once there's something to report. An untouched
+                    category shows nothing rather than a zeroed-out bar. */}
+                {cat.strengthLabel && (
+                  <span
+                    className={cn(
+                      "text-[10px] font-medium px-2 py-0.5 rounded-full",
+                      cat.strengthClass
+                    )}
+                  >
+                    {cat.strengthLabel} · {cat.accuracyPct}%
+                  </span>
+                )}
               </button>
             ))}
           </div>

@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { signIn, stubSupabase } from "./support/supabase";
+import { signIn, stubSupabase, TEST_USER_ID } from "./support/supabase";
 
 test.describe("signed out", () => {
   test("landing page renders with a sign-up call to action", async ({ page }) => {
@@ -219,5 +219,63 @@ test.describe("signed in — curriculum", () => {
 
     await page.getByRole("link", { name: /Greetings/ }).click();
     await expect(page).toHaveURL(new RegExp(`/learn/${LESSON_A}$`));
+  });
+});
+
+test.describe("signed in — grammar drills", () => {
+  /**
+   * `user_concept_mastery` rows as PostgREST returns them for the embedded
+   * `curriculum_concepts!inner(...)` select the page issues.
+   */
+  const masteryRow = (key: string, label: string, exposures: number, correct: number) => ({
+    user_id: TEST_USER_ID,
+    exposures,
+    correct,
+    incorrect: exposures - correct,
+    ease: 2.3,
+    strength: correct / exposures >= 0.8 ? "strong" : "learning",
+    next_due_at: new Date().toISOString(),
+    last_seen_at: new Date().toISOString(),
+    curriculum_concepts: { key, display_english: label, kind: "grammar", dialect: "Gulf" },
+  });
+
+  test("a category the learner has drilled shows its standing", async ({ page }) => {
+    await signIn(page);
+    await stubSupabase(page, {
+      tables: { user_concept_mastery: [masteryRow("negation", "Negation", 10, 3)] },
+    });
+    await page.goto("/grammar");
+
+    // The score used to be rendered once on the results screen and dropped.
+    await expect(page.getByText(/Just started · 30%/)).toBeVisible();
+  });
+
+  test("shows nothing for categories never drilled", async ({ page }) => {
+    await signIn(page);
+    await stubSupabase(page, { tables: { user_concept_mastery: [] } });
+    await page.goto("/grammar");
+
+    await expect(page.getByRole("button", { name: /Negation/ })).toBeVisible();
+    // A zeroed-out bar on a category you've never opened is noise, not data.
+    await expect(page.getByText(/·\s*\d+%/)).toHaveCount(0);
+  });
+
+  test("nudges toward one category instead of six equal tiles", async ({ page }) => {
+    await signIn(page);
+    await stubSupabase(page, {
+      tables: {
+        user_concept_mastery: [
+          masteryRow("verb-conjugation", "Verb Conjugation", 10, 9),
+          masteryRow("pronouns", "Pronouns", 10, 9),
+          masteryRow("negation", "Negation", 10, 2),
+          masteryRow("possessives", "Possessives", 10, 9),
+          masteryRow("questions", "Question Forms", 10, 9),
+          masteryRow("sentence-structure", "Sentence Structure", 10, 9),
+        ],
+      },
+    });
+    await page.goto("/grammar");
+
+    await expect(page.getByText(/You're weakest on/)).toContainText("Negation");
   });
 });

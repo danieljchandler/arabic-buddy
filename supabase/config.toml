@@ -167,3 +167,9 @@ verify_jwt = true
 
 [functions.generate-listen-audio]
 verify_jwt = false
+
+# Writes the caller's own grammar mastery. Stated explicitly rather than relying
+# on the platform default — this one writes learner data, so the requirement
+# should be visible here as well as enforced in the function.
+[functions.record-grammar-outcome]
+verify_jwt = true

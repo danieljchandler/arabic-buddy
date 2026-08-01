@@ -22,6 +22,8 @@ dialect, never Modern Standard Arabic (MSA / فصحى).
   as `systemPromptExtra`. Its pure half (`learnerProfileCore.ts`) is unit-tested
   from the Vitest suite. Never send a client-supplied "words the user knows"
   list — build it server-side.
+- **Grammar mastery:** the learner model also carries *structural* weakness, not
+  just lexical — see "Grammar mastery" below.
 
 ## Local development
 
@@ -102,6 +104,40 @@ are unaffected.
   usage caps, model registry)
 - `supabase/migrations/` — database schema and RLS policies
 - `docs/` — planning notes and branding assets
+
+## Grammar mastery
+
+Vocabulary has a full SRS; grammar used to have nothing. A Grammar Drills score
+was rendered on the results screen and dropped, so no part of the app knew which
+*structures* a learner kept missing — only which words.
+
+`user_concept_mastery` (created back in `20260503134531`, never written to until
+now) is the ladder. `record-grammar-outcome` folds a finished drill's answers
+into it, one exposure per question, keyed on the drill **category** rather than
+the model's free-text `grammar_point` — the six category ids are also
+`curriculum_concepts.key` values, so they're a contract: renaming one starts a
+fresh concept and orphans the old history. The edge function keeps its own copy
+of the id list as an allowlist so a drift returns 400 instead of quietly
+splitting a learner's record.
+
+The ladder itself lives in `supabase/functions/_shared/conceptMasteryCore.ts`
+(pure, unit-tested) with the IO in `conceptMastery.ts`. Its one non-obvious rule:
+**a wrong answer never promotes.** Strength is derived from cumulative accuracy,
+so a learner sitting just under a gate would otherwise cross it *by getting the
+question wrong* — one more exposure can lift the average past the threshold. A
+miss demotes one rung and makes the concept due immediately.
+
+Reads and writes are deliberately asymmetric. The client reads its own mastery
+straight from the table under RLS (`useGrammarMastery`); it cannot write — that
+goes through the edge function under the service role, so nobody posts
+themselves a score. Both ends consume the shared core, so the UI and the server
+agree on what "familiar" means.
+
+It feeds back in two directions: `GrammarDrills` shows per-category strength and
+nudges toward one category instead of six equal tiles, and `buildLearnerProfile`
+carries `weakGrammar` into every generator's prompt as its own line — a shaky
+word wants another exposure in context, a shaky structure wants the correct form
+modelled, and blurring them helps neither.
 
 ## RBAC roles
 

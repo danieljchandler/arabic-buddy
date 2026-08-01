@@ -105,6 +105,25 @@ are unaffected.
 - `supabase/migrations/` — database schema and RLS policies
 - `docs/` — planning notes and branding assets
 
+## The learner's mistakes
+
+`learner_errors` collects every pronunciation miss, shadowing gap, sentence-coach
+failure and set-phrase mismatch, written by the scoring edge functions under the
+service role. It fed the `weak` bucket in the learner profile from the start —
+so the *content generators* knew what a learner kept getting wrong, while the
+learner themselves could not see a single row.
+
+`/mistakes` (`src/pages/Mistakes.tsx`) is the read side. Rows are grouped by
+target rather than listed raw — six misses on one word is one problem, not six —
+and ranked by count then recency, in `src/lib/mistakes.ts` (pure, unit-tested).
+Each entry shows what you were aiming for, what came out, how often and how
+recently, with TTS on demand to hear it correct.
+
+Reads and writes are asymmetric, as with grammar mastery: the client may read
+its own rows and set `resolved_at`, and nothing else. `20260726140000` revoked
+blanket UPDATE and re-granted it on that one column, because `target_arabic` and
+`detail` feed the learner's own content generation.
+
 ## Grammar mastery
 
 Vocabulary has a full SRS; grammar used to have nothing. A Grammar Drills score

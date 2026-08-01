@@ -337,3 +337,64 @@ test.describe("signed in — curriculum leeches", () => {
     await expect(page.getByText("Stuck on this one?")).toHaveCount(0);
   });
 });
+
+test.describe("signed in — mistakes", () => {
+  const errorRow = (over: Record<string, unknown> = {}) => ({
+    id: `e-${Math.random().toString(36).slice(2)}`,
+    user_id: TEST_USER_ID,
+    dialect: "Gulf",
+    source: "pronunciation",
+    target_arabic: "شغل",
+    produced_arabic: "شغال",
+    error_kind: "mispronunciation",
+    resolved_at: null,
+    created_at: new Date().toISOString(),
+    ...over,
+  });
+
+  test("shows what the learner keeps getting wrong", async ({ page }) => {
+    await signIn(page);
+    await stubSupabase(page, {
+      tables: {
+        learner_errors: [
+          errorRow(),
+          errorRow(),
+          errorRow({ target_arabic: "مشى", produced_arabic: null, source: "quiz" }),
+        ],
+      },
+    });
+    await page.goto("/mistakes");
+
+    // Every one of these was recorded and fed to the AI; none of it was ever
+    // shown to the person who made them.
+    await expect(page.getByText("شغل", { exact: true })).toBeVisible();
+    await expect(page.getByText("2 times · last today")).toBeVisible();
+    await expect(page.getByText("شغال")).toBeVisible();
+  });
+
+  test("ranks the most troublesome target first", async ({ page }) => {
+    await signIn(page);
+    await stubSupabase(page, {
+      tables: {
+        learner_errors: [
+          errorRow({ target_arabic: "once" }),
+          errorRow({ target_arabic: "thrice" }),
+          errorRow({ target_arabic: "thrice" }),
+          errorRow({ target_arabic: "thrice" }),
+        ],
+      },
+    });
+    await page.goto("/mistakes");
+
+    const headings = page.locator("[dir='rtl']").filter({ hasText: /once|thrice/ });
+    await expect(headings.first()).toHaveText("thrice");
+  });
+
+  test("congratulates a clean record instead of showing an empty list", async ({ page }) => {
+    await signIn(page);
+    await stubSupabase(page, { tables: { learner_errors: [] } });
+    await page.goto("/mistakes");
+
+    await expect(page.getByText("Nothing outstanding.")).toBeVisible();
+  });
+});

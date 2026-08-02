@@ -1,14 +1,20 @@
-import { Brain, Mic, MessageSquare, Headphones, FileText, Gamepad2, Swords, Flame, BookOpen, MessageCircle } from "lucide-react";
+import { Brain, Mic, MessageSquare, Headphones, FileText, Gamepad2, Swords, Flame, BookOpen, MessageCircle, AlertTriangle } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { HubHeader, HubSection } from "@/components/layout/HubGrid";
 import { useAuth } from "@/hooks/useAuth";
 import { useSRSStats } from "@/hooks/useSRSStats";
+import { useMistakes } from "@/hooks/useLearnerErrors";
+import { useDialect } from "@/contexts/DialectContext";
 import { Badge } from "@/components/ui/badge";
 
 const PracticeHub = () => {
   const { isAuthenticated } = useAuth();
+  const { activeDialect } = useDialect();
   const { data: srs } = useSRSStats();
   const due = srs?.totalDueNow ?? 0;
+  // Distinct targets, not raw rows: six misses on one word is one thing to fix.
+  const { data: mistakes } = useMistakes(activeDialect);
+  const mistakeCount = mistakes?.length ?? 0;
 
   return (
     <AppShell>
@@ -65,6 +71,22 @@ const PracticeHub = () => {
             icon: MessageSquare,
             to: "/conversation",
             accent: "bg-primary/10 text-primary",
+          },
+          {
+            id: "mistakes",
+            label: "Your Mistakes",
+            description: "What keeps tripping you up",
+            icon: AlertTriangle,
+            to: "/mistakes",
+            accent: "bg-amber-500/10 text-amber-600",
+            show: isAuthenticated,
+            badge: mistakeCount > 0
+              ? (
+                <Badge className="bg-amber-500/15 text-amber-700 border-amber-500/30">
+                  {mistakeCount}
+                </Badge>
+              )
+              : undefined,
           },
         ]}
       />

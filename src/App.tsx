@@ -20,6 +20,7 @@ const Index = lazyPage(() => import("./pages/Index"));
 const Learn = lazyPage(() => import("./pages/Learn"));
 const LearnHub = lazyPage(() => import("./pages/LearnHub"));
 const Curriculum = lazyPage(() => import("./pages/Curriculum"));
+const Mistakes = lazyPage(() => import("./pages/Mistakes"));
 const PracticeHub = lazyPage(() => import("./pages/PracticeHub"));
 const MeHub = lazyPage(() => import("./pages/MeHub"));
 const NotFound = lazyPage(() => import("./pages/NotFound"));
@@ -328,6 +329,11 @@ const App = () => {
             <Route path="/grammar" element={
               <ErrorBoundary name="GrammarRoute">
                 <GrammarDrills />
+              </ErrorBoundary>
+            } />
+            <Route path="/mistakes" element={
+              <ErrorBoundary name="MistakesRoute">
+                <ProtectedRoute><Mistakes /></ProtectedRoute>
               </ErrorBoundary>
             } />
             <Route path="/vocab-games" element={

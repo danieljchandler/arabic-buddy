@@ -4,6 +4,7 @@ import {
   type ConceptMastery,
   type MasteryStrength,
 } from "../../supabase/functions/_shared/conceptMasteryCore";
+import type { GrammarCategoryId } from "../../supabase/functions/_shared/grammarTaxonomy";
 
 /**
  * The grammar-drill taxonomy, and the presentation logic for a learner's
@@ -21,12 +22,17 @@ import {
  */
 
 export interface GrammarCategory {
-  id: string;
+  id: GrammarCategoryId;
   label: string;
   labelAr: string;
   icon: string;
 }
 
+/**
+ * Ids come from the shared taxonomy, so this file only supplies presentation.
+ * Typing `id` as GrammarCategoryId means a typo here is a compile error rather
+ * than a category that silently records mastery nothing else can find.
+ */
 export const GRAMMAR_CATEGORIES: GrammarCategory[] = [
   { id: "verb-conjugation", label: "Verb Conjugation", labelAr: "تصريف الأفعال", icon: "🔄" },
   { id: "pronouns", label: "Pronouns", labelAr: "الضمائر", icon: "👤" },

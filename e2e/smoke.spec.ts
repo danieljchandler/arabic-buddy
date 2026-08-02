@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { signIn, stubSupabase, TEST_USER_ID } from "./support/supabase";
+import { signIn, stubSupabase, TEST_USER_ID, wordId } from "./support/supabase";
 
 test.describe("signed out", () => {
   test("landing page renders with a sign-up call to action", async ({ page }) => {
@@ -277,5 +277,124 @@ test.describe("signed in — grammar drills", () => {
     await page.goto("/grammar");
 
     await expect(page.getByText(/You're weakest on/)).toContainText("Negation");
+  });
+});
+
+test.describe("signed in — curriculum leeches", () => {
+  const reviewRow = (over: Record<string, unknown> = {}) => ({
+    id: "44444444-0000-4000-8000-000000000000",
+    user_id: TEST_USER_ID,
+    word_id: wordId(0),
+    ease_factor: 5,
+    difficulty: 5,
+    interval_days: 1,
+    repetitions: 2,
+    lapses: 7,
+    is_leech: false,
+    mnemonic: null,
+    last_reviewed_at: new Date(Date.now() - 3 * 86400000).toISOString(),
+    next_review_at: new Date(Date.now() - 86400000).toISOString(),
+    ...over,
+  });
+
+  test("a stuck curriculum card offers the rescue panel", async ({ page }) => {
+    await signIn(page);
+    await stubSupabase(page, {
+      curriculumDue: 1,
+      tables: { word_reviews: [reviewRow({ is_leech: true })] },
+    });
+    await page.goto("/review");
+
+    // The personal decks have had this since leech tracking landed; the deck
+    // the app hands every learner had nothing.
+    await expect(page.getByText("Stuck on this one?")).toBeVisible();
+    await expect(page.getByRole("button", { name: /Generate AI mnemonic/ })).toBeVisible();
+  });
+
+  test("shows an already-saved mnemonic instead of the generate button", async ({ page }) => {
+    await signIn(page);
+    await stubSupabase(page, {
+      curriculumDue: 1,
+      tables: {
+        word_reviews: [reviewRow({ is_leech: true, mnemonic: "sounds like the English word" })],
+      },
+    });
+    await page.goto("/review");
+
+    await expect(page.getByText("sounds like the English word")).toBeVisible();
+    await expect(page.getByRole("button", { name: /Generate AI mnemonic/ })).toHaveCount(0);
+  });
+
+  test("stays out of the way on a card that isn't stuck", async ({ page }) => {
+    await signIn(page);
+    await stubSupabase(page, {
+      curriculumDue: 1,
+      tables: { word_reviews: [reviewRow({ is_leech: false })] },
+    });
+    await page.goto("/review");
+
+    await expect(page.getByText("كلمة1")).toBeVisible();
+    await expect(page.getByText("Stuck on this one?")).toHaveCount(0);
+  });
+});
+
+test.describe("signed in — mistakes", () => {
+  const errorRow = (over: Record<string, unknown> = {}) => ({
+    id: `e-${Math.random().toString(36).slice(2)}`,
+    user_id: TEST_USER_ID,
+    dialect: "Gulf",
+    source: "pronunciation",
+    target_arabic: "شغل",
+    produced_arabic: "شغال",
+    error_kind: "mispronunciation",
+    resolved_at: null,
+    created_at: new Date().toISOString(),
+    ...over,
+  });
+
+  test("shows what the learner keeps getting wrong", async ({ page }) => {
+    await signIn(page);
+    await stubSupabase(page, {
+      tables: {
+        learner_errors: [
+          errorRow(),
+          errorRow(),
+          errorRow({ target_arabic: "مشى", produced_arabic: null, source: "quiz" }),
+        ],
+      },
+    });
+    await page.goto("/mistakes");
+
+    // Every one of these was recorded and fed to the AI; none of it was ever
+    // shown to the person who made them.
+    await expect(page.getByText("شغل", { exact: true })).toBeVisible();
+    await expect(page.getByText("2 times · last today")).toBeVisible();
+    await expect(page.getByText("شغال")).toBeVisible();
+  });
+
+  test("ranks the most troublesome target first", async ({ page }) => {
+    await signIn(page);
+    await stubSupabase(page, {
+      tables: {
+        learner_errors: [
+          errorRow({ target_arabic: "once" }),
+          errorRow({ target_arabic: "thrice" }),
+          errorRow({ target_arabic: "thrice" }),
+          errorRow({ target_arabic: "thrice" }),
+        ],
+      },
+    });
+    await page.goto("/mistakes");
+
+    const headings = page.locator("[dir='rtl']").filter({ hasText: /once|thrice/ });
+    await expect(headings.first()).toHaveText("thrice");
+  });
+
+  test("congratulates a clean record instead of showing an empty list", async ({ page }) => {
+    await signIn(page);
+    await stubSupabase(page, { tables: { learner_errors: [] } });
+    await page.goto("/mistakes");
+
+    await expect(page.getByText("Nothing outstanding.")).toBeVisible();
   });
 });

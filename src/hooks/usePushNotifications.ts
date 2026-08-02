@@ -98,7 +98,9 @@ export function usePushNotifications(): PushState {
         (await registration.pushManager.subscribe({
           // Required by Chrome: we never send data-less pushes anyway.
           userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY!),
+          applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY!)
+            .slice()
+            .buffer as ArrayBuffer,
         }));
 
       const { error } = await supabase.from("push_subscriptions" as never).upsert(

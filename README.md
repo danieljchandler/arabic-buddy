@@ -139,6 +139,17 @@ fresh concept and orphans the old history. The edge function keeps its own copy
 of the id list as an allowlist so a drift returns 400 instead of quietly
 splitting a learner's record.
 
+**One key space.** `curriculum_concepts` grew two writers that both produced
+`kind: 'grammar'` rows and disagreed about the key: `extract-concepts` used the
+model's free-text `grammar_point` ("Negation with ما", "negation of the past
+tense", "Past-tense negation" — three rows, one concept), while the mastery
+ladder used the six category ids. Content was therefore tagged with concepts no
+learner's mastery could join to. Both writers now go through
+`_shared/grammarTaxonomy.ts`, which maps prose onto a canonical category or
+slugs it when the taxonomy has no home for it. Migration `20260801150000` merges
+the rows that already exist; its keyword table is a copy of the module's, pinned
+by a test that parses the `.sql` and fails on drift.
+
 The ladder itself lives in `supabase/functions/_shared/conceptMasteryCore.ts`
 (pure, unit-tested) with the IO in `conceptMastery.ts`. Its one non-obvious rule:
 **a wrong answer never promotes.** Strength is derived from cumulative accuracy,

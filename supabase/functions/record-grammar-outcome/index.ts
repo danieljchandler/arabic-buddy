@@ -20,24 +20,19 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { resolveUserId } from "../_shared/learnerErrors.ts";
 import { recordConceptOutcomes } from "../_shared/conceptMastery.ts";
+import { GRAMMAR_CATEGORY_IDS, GRAMMAR_CATEGORY_SET } from "../_shared/grammarTaxonomy.ts";
 
 /**
- * The drill categories, mirroring CATEGORIES in src/lib/grammarCategories.ts.
+ * Still an allowlist rather than free text: the category becomes a
+ * `curriculum_concepts` key, and accepting arbitrary strings would let any
+ * authenticated client mint concept rows that leak into the coverage planner
+ * and the admin heatmap.
  *
- * An allowlist rather than free text: the category becomes a `curriculum_concepts`
- * key, and accepting arbitrary strings would let any authenticated client mint
- * concept rows that then leak into the coverage planner and the admin heatmap.
- * If the two lists drift, this returns 400 — loudly — rather than quietly
- * recording mastery against a concept nothing else knows about.
+ * The list itself now comes from the shared taxonomy instead of a copy kept in
+ * step by hand — the drill UI and extract-concepts read the same one, which is
+ * what makes drill mastery and tagged content land on the same key.
  */
-const CATEGORY_KEYS = new Set([
-  "verb-conjugation",
-  "pronouns",
-  "negation",
-  "possessives",
-  "questions",
-  "sentence-structure",
-]);
+const CATEGORY_KEYS = GRAMMAR_CATEGORY_SET;
 
 const DIALECTS = new Set(["Gulf", "Egyptian", "Yemeni"]);
 
@@ -65,7 +60,7 @@ serve(async (req) => {
 
     if (typeof category !== "string" || !CATEGORY_KEYS.has(category)) {
       return json(
-        { error: `Unknown category. Expected one of: ${[...CATEGORY_KEYS].join(", ")}` },
+        { error: `Unknown category. Expected one of: ${GRAMMAR_CATEGORY_IDS.join(", ")}` },
         400,
       );
     }

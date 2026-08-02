@@ -12,6 +12,11 @@
 // can show. Keying on generated prose would mint a new concept row for every
 // paraphrase the model produced and measure nothing.
 //
+// extract-concepts now canonicalises its own grammar keys onto that same
+// taxonomy (_shared/grammarTaxonomy.ts), so content tagged with a grammar point
+// and a learner's drill mastery land on one concept row and can finally be
+// joined — which is the whole reason the concept graph exists.
+//
 // Everything here is best-effort and never throws: recording mastery must not
 // be able to fail the request the learner is waiting on.
 

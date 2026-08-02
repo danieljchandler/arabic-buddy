@@ -5,6 +5,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { canonicalGrammarKey, GRAMMAR_CATEGORY_SET } from "../_shared/grammarTaxonomy.ts";
 
 
 interface ExtractedConcept {
@@ -62,11 +63,22 @@ function extractFromContent(
   }
 
 
-  // grammar
+  // Grammar. The key goes through the shared taxonomy rather than being the
+  // model's prose lower-cased: "Negation with ما", "negation of the past tense"
+  // and "Past-tense negation" are one concept, and keying on the raw string
+  // made three — none of which a learner's drill mastery could ever join to.
+  // The prose is kept as display_english so the concept is still readable.
+  //
+  // grammar_exercises rows carry an explicit `category` from the fixed
+  // taxonomy, which beats inferring one from prose, so it wins when present.
+  const grammarCategory = typeof row.category === "string" && GRAMMAR_CATEGORY_SET.has(row.category)
+    ? row.category
+    : null;
+
   if (row.grammar_point) {
     push({
       kind: "grammar",
-      key: norm(row.grammar_point).toLowerCase(),
+      key: grammarCategory ?? canonicalGrammarKey(row.grammar_point),
       display_english: row.grammar_point,
       role: contentType === "grammar" ? "introduce" : "reinforce",
     });
@@ -76,7 +88,7 @@ function extractFromContent(
       const label = typeof g === "string" ? g : g?.point || g?.name;
       if (label) push({
         kind: "grammar",
-        key: norm(label).toLowerCase(),
+        key: canonicalGrammarKey(label),
         display_english: label,
         role: "reinforce",
       });

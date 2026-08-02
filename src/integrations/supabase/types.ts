@@ -958,12 +958,40 @@ export type Database = {
         }
         Relationships: []
       }
+      daily_new_card_counts: {
+        Row: {
+          count: number
+          created_at: string
+          day: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          count?: number
+          created_at?: string
+          day?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          count?: number
+          created_at?: string
+          day?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       daily_vocab_stories: {
         Row: {
           audio_url: string | null
           body_arabic: string
           body_english: string | null
           body_english_literal: string | null
+          body_transliteration: string | null
           created_at: string
           dialect: string
           id: string
@@ -979,6 +1007,7 @@ export type Database = {
           body_arabic: string
           body_english?: string | null
           body_english_literal?: string | null
+          body_transliteration?: string | null
           created_at?: string
           dialect?: string
           id?: string
@@ -994,6 +1023,7 @@ export type Database = {
           body_arabic?: string
           body_english?: string | null
           body_english_literal?: string | null
+          body_transliteration?: string | null
           created_at?: string
           dialect?: string
           id?: string
@@ -1590,6 +1620,66 @@ export type Database = {
           },
         ]
       }
+      learner_errors: {
+        Row: {
+          created_at: string
+          detail: Json
+          dialect: string
+          error_kind: string
+          id: string
+          produced_arabic: string | null
+          resolved_at: string | null
+          source: string
+          target_arabic: string
+          user_id: string
+          user_vocabulary_id: string | null
+          word_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          detail?: Json
+          dialect?: string
+          error_kind?: string
+          id?: string
+          produced_arabic?: string | null
+          resolved_at?: string | null
+          source: string
+          target_arabic: string
+          user_id: string
+          user_vocabulary_id?: string | null
+          word_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          detail?: Json
+          dialect?: string
+          error_kind?: string
+          id?: string
+          produced_arabic?: string | null
+          resolved_at?: string | null
+          source?: string
+          target_arabic?: string
+          user_id?: string
+          user_vocabulary_id?: string | null
+          word_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "learner_errors_user_vocabulary_id_fkey"
+            columns: ["user_vocabulary_id"]
+            isOneToOne: false
+            referencedRelation: "user_vocabulary"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "learner_errors_word_id_fkey"
+            columns: ["word_id"]
+            isOneToOne: false
+            referencedRelation: "vocabulary_words"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       learning_paths: {
         Row: {
           completed_at: string | null
@@ -1643,6 +1733,56 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      lesson_progress: {
+        Row: {
+          best_score: number | null
+          completed_at: string | null
+          id: string
+          last_word_index: number
+          lesson_id: string
+          started_at: string
+          status: string
+          updated_at: string
+          user_id: string
+          words_seen: number
+          words_total: number
+        }
+        Insert: {
+          best_score?: number | null
+          completed_at?: string | null
+          id?: string
+          last_word_index?: number
+          lesson_id: string
+          started_at?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+          words_seen?: number
+          words_total?: number
+        }
+        Update: {
+          best_score?: number | null
+          completed_at?: string | null
+          id?: string
+          last_word_index?: number
+          lesson_id?: string
+          started_at?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+          words_seen?: number
+          words_total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lesson_progress_lesson_id_fkey"
+            columns: ["lesson_id"]
+            isOneToOne: false
+            referencedRelation: "lessons"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       lessons: {
         Row: {
@@ -2195,6 +2335,7 @@ export type Database = {
           display_name: string | null
           id: string
           institution_id: string | null
+          interests: string[]
           invited_via: string | null
           learning_reason: string | null
           msa_background: string | null
@@ -2223,6 +2364,7 @@ export type Database = {
           display_name?: string | null
           id?: string
           institution_id?: string | null
+          interests?: string[]
           invited_via?: string | null
           learning_reason?: string | null
           msa_background?: string | null
@@ -2251,6 +2393,7 @@ export type Database = {
           display_name?: string | null
           id?: string
           institution_id?: string | null
+          interests?: string[]
           invited_via?: string | null
           learning_reason?: string | null
           msa_background?: string | null
@@ -2280,6 +2423,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      push_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string
+          disabled_at: string | null
+          endpoint: string
+          id: string
+          last_sent_at: string | null
+          p256dh: string
+          timezone: string | null
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          auth: string
+          created_at?: string
+          disabled_at?: string | null
+          endpoint: string
+          id?: string
+          last_sent_at?: string | null
+          p256dh: string
+          timezone?: string | null
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          auth?: string
+          created_at?: string
+          disabled_at?: string | null
+          endpoint?: string
+          id?: string
+          last_sent_at?: string | null
+          p256dh?: string
+          timezone?: string | null
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       reading_passages: {
         Row: {
@@ -3380,6 +3562,7 @@ export type Database = {
           source_upload_id: string | null
           stage: string
           tags: string[] | null
+          transliteration: string | null
           updated_at: string
           user_id: string
           word_arabic: string
@@ -3426,6 +3609,7 @@ export type Database = {
           source_upload_id?: string | null
           stage?: string
           tags?: string[] | null
+          transliteration?: string | null
           updated_at?: string
           user_id: string
           word_arabic: string
@@ -3472,6 +3656,7 @@ export type Database = {
           source_upload_id?: string | null
           stage?: string
           tags?: string[] | null
+          transliteration?: string | null
           updated_at?: string
           user_id?: string
           word_arabic?: string
@@ -3490,6 +3675,8 @@ export type Database = {
           user_id: string
           week_start_date: string
           xp_this_week: number
+          xp_today: number
+          xp_today_date: string
         }
         Insert: {
           created_at?: string
@@ -3500,6 +3687,8 @@ export type Database = {
           user_id: string
           week_start_date?: string
           xp_this_week?: number
+          xp_today?: number
+          xp_today_date?: string
         }
         Update: {
           created_at?: string
@@ -3510,6 +3699,8 @@ export type Database = {
           user_id?: string
           week_start_date?: string
           xp_this_week?: number
+          xp_today?: number
+          xp_today_date?: string
         }
         Relationships: []
       }
@@ -3874,9 +4065,19 @@ export type Database = {
           ease_factor: number
           id: string
           interval_days: number
+          is_leech: boolean
+          lapses: number
           last_result: string | null
           last_reviewed_at: string | null
+          mnemonic: string | null
           next_review_at: string
+          production_difficulty: number
+          production_ease_factor: number
+          production_interval_days: number
+          production_lapses: number
+          production_last_reviewed_at: string | null
+          production_next_review_at: string | null
+          production_repetitions: number
           repetitions: number
           review_count: number
           stage: string
@@ -3890,9 +4091,19 @@ export type Database = {
           ease_factor?: number
           id?: string
           interval_days?: number
+          is_leech?: boolean
+          lapses?: number
           last_result?: string | null
           last_reviewed_at?: string | null
+          mnemonic?: string | null
           next_review_at?: string
+          production_difficulty?: number
+          production_ease_factor?: number
+          production_interval_days?: number
+          production_lapses?: number
+          production_last_reviewed_at?: string | null
+          production_next_review_at?: string | null
+          production_repetitions?: number
           repetitions?: number
           review_count?: number
           stage?: string
@@ -3906,9 +4117,19 @@ export type Database = {
           ease_factor?: number
           id?: string
           interval_days?: number
+          is_leech?: boolean
+          lapses?: number
           last_result?: string | null
           last_reviewed_at?: string | null
+          mnemonic?: string | null
           next_review_at?: string
+          production_difficulty?: number
+          production_ease_factor?: number
+          production_interval_days?: number
+          production_lapses?: number
+          production_last_reviewed_at?: string | null
+          production_next_review_at?: string | null
+          production_repetitions?: number
           repetitions?: number
           review_count?: number
           stage?: string
@@ -3998,6 +4219,7 @@ export type Database = {
         Args: { _episode_id: string }
         Returns: undefined
       }
+      increment_new_card_count: { Args: { _amount?: number }; Returns: number }
       increment_review_count: { Args: never; Returns: undefined }
       increment_usage_counter: {
         Args: { _amount?: number; _key: string; _user_id: string }

@@ -14,7 +14,9 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 import { ALWAYS_ALLOWED, normalizeArabic } from './msaLeakDetector.ts';
 
-export type Dialect = 'Gulf' | 'Egyptian' | 'Yemeni' | string;
+// Defined in dialectTypes.ts (import-free) and re-exported here so every
+// existing `from './dialectHelpers.ts'` import keeps working unchanged.
+export type { Dialect } from './dialectTypes.ts';
 
 // =================== Hard-coded fallback (parity with seed) ===================
 

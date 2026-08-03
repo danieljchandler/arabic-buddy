@@ -10,7 +10,7 @@
 // guards against admins pasting full MSA sentences as bad examples and
 // poisoning the detector with neutral words.
 
-import type { Dialect } from './dialectHelpers.ts';
+import type { Dialect } from './dialectTypes.ts';
 
 // ---------- Arabic normalization ----------
 

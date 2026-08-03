@@ -60,6 +60,26 @@ function callBudget(d: Deadline): number {
   return Math.max(1_000, Math.min(d.callTimeoutMs, remainingMs(d)));
 }
 
+type PassLog = Array<{ pass: string; model: string; ms: number }>;
+
+/** Time one model pass into `log`, whether it succeeds or throws. */
+async function timePass<R extends { model?: string }>(
+  log: PassLog,
+  pass: string,
+  fallbackModel: string,
+  fn: () => Promise<R>,
+): Promise<R> {
+  const t0 = Date.now();
+  try {
+    const r = await fn();
+    log.push({ pass, model: r.model ?? fallbackModel, ms: Date.now() - t0 });
+    return r;
+  } catch (err) {
+    log.push({ pass: `${pass}:failed`, model: fallbackModel, ms: Date.now() - t0 });
+    throw err;
+  }
+}
+
 export type MultimodalContent =
   | string
   | Array<{ type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } }>;
@@ -111,6 +131,14 @@ export interface BrainResult<T = unknown> {
   totalLatencyMs: number;
   /** Set when validateDialect was requested and the validator returned a result. */
   validator?: ValidatorResult;
+  /**
+   * True when a rewrite pass already ran against these exact leak tokens and
+   * failed to shift them. Signals that another rewrite with the same
+   * instruction is not going to converge either.
+   */
+  leakRewriteStalled?: boolean;
+  /** Per-pass wall-clock timings, so a slow request can be diagnosed from logs. */
+  passes: Array<{ pass: string; model: string; ms: number }>;
 }
 
 const GATEWAY_URL = 'https://ai.gateway.lovable.dev/v1/chat/completions';
@@ -165,7 +193,14 @@ export async function askBrain<T = unknown>(task: BrainTask): Promise<BrainResul
   // Skipped when the budget is spent: shipping output with a few leaks beats
   // burning another full generation and timing the caller out entirely.
   if (!task.skipRepair && result.msaLeaks.leaks.length > 0) {
-    if (remainingMs(deadline) < MIN_PASS_BUDGET_MS) {
+    if (result.leakRewriteStalled) {
+      // A rewrite already ran against these exact tokens and they came back
+      // unchanged. Another one costs a full generation to produce the same text.
+      console.warn(
+        '[aiBrain] skipping repair pass, a rewrite already failed to shift these leaks:',
+        result.msaLeaks.leaks.join(', '),
+      );
+    } else if (remainingMs(deadline) < MIN_PASS_BUDGET_MS) {
       console.warn('[aiBrain] skipping repair pass, latency budget spent');
     } else {
       try {
@@ -198,6 +233,14 @@ export async function askBrain<T = unknown>(task: BrainTask): Promise<BrainResul
   }
 
   result.totalLatencyMs = Date.now() - start;
+
+  // One line per request in the function logs saying exactly where the time
+  // went. Without it, diagnosing "it's slow" means guessing at which pass ran.
+  console.log(
+    `[aiBrain] ${task.purpose} ${result.strategy} ${result.totalLatencyMs}ms ` +
+      `[${(result.passes ?? []).map((p) => `${p.pass}=${p.ms}ms`).join(' ')}]` +
+      ` leaks=${result.msaLeaks?.leaks?.length ?? 0} repairs=${result.msaRepairs}`,
+  );
 
   if (result.msaLeaks?.leaks?.length) {
     logMsaViolations({
@@ -236,6 +279,7 @@ export async function askBrain<T = unknown>(task: BrainTask): Promise<BrainResul
         repairs: result.msaRepairs,
         leaks: result.msaLeaks?.leaks ?? [],
         validator_verdict: result.validator?.verdict ?? null,
+        passes: result.passes ?? [],
       },
     });
   } catch { /* never throw from metrics */ }
@@ -483,7 +527,8 @@ async function callModelWithFallback(
 
 async function runSolo<T>(task: BrainTask, apiKey: string, deadline: Deadline): Promise<BrainResult<T>> {
   const model = task.models?.[0] ?? DEFAULT_FAST;
-  const { raw, parsed, model: usedModel } = await callModelWithFallback({
+  const passes: PassLog = [];
+  const { raw, parsed, model: usedModel } = await timePass(passes, 'solo', model, () => callModelWithFallback({
     model,
     system: buildSystem(task),
     user: task.userPrompt,
@@ -491,7 +536,7 @@ async function runSolo<T>(task: BrainTask, apiKey: string, deadline: Deadline): 
     maxTokens: task.maxTokens,
     temperature: task.temperature,
     apiKey,
-  }, deadline);
+  }, deadline));
   const text = extractScanText(task, parsed, raw);
   return {
     output: parsed as T,
@@ -502,6 +547,7 @@ async function runSolo<T>(task: BrainTask, apiKey: string, deadline: Deadline): 
     msaLeaks: scanLeaks(text, task.dialect),
     msaRepairs: 0,
     totalLatencyMs: 0,
+    passes,
   };
 }
 
@@ -509,6 +555,8 @@ async function runSolo<T>(task: BrainTask, apiKey: string, deadline: Deadline): 
 async function runEnsemble<T>(task: BrainTask, apiKey: string, deadline: Deadline): Promise<BrainResult<T>> {
   const models = (task.models ?? DEFAULT_DRAFTERS).slice(0, 3);
   const sys = buildSystem(task);
+  const passes: PassLog = [];
+  const ensembleStart = Date.now();
   const settled = await Promise.allSettled(
     models.map((m) =>
       callModel({
@@ -529,6 +577,8 @@ async function runEnsemble<T>(task: BrainTask, apiKey: string, deadline: Deadlin
       s: PromiseFulfilledResult<{ raw: string; parsed: unknown }>;
       model: string;
     }>;
+
+  passes.push({ pass: 'ensemble', model: models.join('+'), ms: Date.now() - ensembleStart });
 
   if (successes.length === 0) {
     const firstErr = settled.find((s) => s.status === 'rejected') as PromiseRejectedResult | undefined;
@@ -561,6 +611,7 @@ async function runEnsemble<T>(task: BrainTask, apiKey: string, deadline: Deadlin
     msaLeaks: winner.leaks,
     msaRepairs: 0,
     totalLatencyMs: 0,
+    passes,
   };
 }
 
@@ -571,8 +622,9 @@ async function runDraftCritic<T>(task: BrainTask, apiKey: string, deadline: Dead
     ? task.models
     : [MODEL_LINEUPS.CONTENT.drafters[0], MODEL_LINEUPS.CONTENT.judge];
 
+  const passes: PassLog = [];
   const sys = buildSystem(task);
-  const draft = await callModelWithFallback({
+  const draft = await timePass(passes, 'draft', drafter, () => callModelWithFallback({
     model: drafter,
     system: sys,
     user: task.userPrompt,
@@ -580,11 +632,11 @@ async function runDraftCritic<T>(task: BrainTask, apiKey: string, deadline: Dead
     maxTokens: task.maxTokens,
     temperature: task.temperature,
     apiKey,
-  }, deadline);
+  }, deadline));
 
   const draftText = extractScanText(task, draft.parsed, draft.raw);
   const draftLeaks = scanLeaks(draftText, task.dialect);
-  const shipDraft = (): BrainResult<T> => ({
+  const shipDraft = (stalled = false): BrainResult<T> => ({
     output: draft.parsed as T,
     raw: draft.raw,
     strategy: 'draft_critic',
@@ -593,37 +645,39 @@ async function runDraftCritic<T>(task: BrainTask, apiKey: string, deadline: Dead
     msaLeaks: draftLeaks,
     msaRepairs: 0,
     totalLatencyMs: 0,
+    leakRewriteStalled: stalled,
+    passes,
   });
 
   // The critic re-generates the entire payload from scratch — for structured
   // content (fully vocalized Arabic, transliteration, gloss, quiz) that is by
   // far the most expensive step in the pipeline, and it used to run on every
-  // request whether or not there was anything to fix.
+  // single request whether or not there was anything to fix.
   //
-  // Its actual job is catching dialect drift, and that is measurable locally
-  // for free: the MSA leak detector plus whatever completeness check the caller
-  // supplies. So a draft that already passes ships as-is, and anything either
-  // check flags still gets the full rewrite. Nothing that would have been
-  // corrected before goes uncorrected now — the pass just stops firing on
-  // drafts that were already clean.
+  // It now runs only for problems it is actually the right tool for: structural
+  // and completeness failures, which need the whole payload re-emitted. MSA
+  // leaks deliberately do NOT trigger it, because askBrain already has a repair
+  // pass for exactly that and the repair pass is strictly better at it — it is
+  // handed the offending tokens by name, where the critic gets only a vague
+  // "rewrite it if it drifts". Running both meant two full generations spent on
+  // one problem, on nearly every request: the detector's universal list includes
+  // demonstratives like هذا/هذه that ordinary dialect prose uses freely, so
+  // "leaks > 0" was true almost always and neither pass could ever clear them.
   const gateReason = task.qualityGate ? safeGate(task.qualityGate, draft.parsed, draftText) : null;
-  const needsCritic = task.alwaysCritique === true || draftLeaks.leaks.length > 0 || gateReason !== null;
+  const needsCritic = task.alwaysCritique === true || gateReason !== null;
 
   if (!needsCritic) return shipDraft();
   if (remainingMs(deadline) < MIN_PASS_BUDGET_MS) {
     console.warn('[aiBrain] draft needs critic but latency budget is spent; shipping draft');
     return shipDraft();
   }
-  console.warn(
-    `[aiBrain] running critic on ${task.purpose} draft:`,
-    gateReason ? `gate=${gateReason}` : `leaks=${draftLeaks.leaks.join(',')}`,
-  );
+  console.warn(`[aiBrain] running critic on ${task.purpose} draft: gate=${gateReason ?? 'forced'}`);
 
   const criticSys = `${sys}\n\nYou are reviewing a draft. If anything drifts to MSA or another dialect, REWRITE it in authentic ${getDialectLabel(task.dialect)}. Return ONLY the corrected output in the same format as the draft (no commentary).`;
   const criticUser = `Original request:\n${stringifyUserPrompt(task.userPrompt)}\n\nDraft to review:\n${draft.raw}`;
   let critiqued: { raw: string; parsed: unknown; model: string };
   try {
-    critiqued = await callModelWithFallback({
+    critiqued = await timePass(passes, 'critic', critic, () => callModelWithFallback({
       model: critic,
       system: criticSys,
       user: criticUser,
@@ -631,7 +685,7 @@ async function runDraftCritic<T>(task: BrainTask, apiKey: string, deadline: Dead
       maxTokens: task.maxTokens,
       temperature: 0.3,
       apiKey,
-    }, deadline);
+    }, deadline));
   } catch (err) {
     // A failed critic used to fail the whole task, dropping callers onto their
     // hardcoded stub passage. The draft is a far better answer than that.
@@ -642,11 +696,17 @@ async function runDraftCritic<T>(task: BrainTask, apiKey: string, deadline: Dead
   const text = extractScanText(task, critiqued.parsed, critiqued.raw);
   const criticLeaks = scanLeaks(text, task.dialect);
 
+  // The critic rewrote the whole payload, so it had its shot at the leaks too.
+  // If the same tokens survived it unchanged, a further repair pass carrying the
+  // same instruction will not converge either — they are words the model insists
+  // on, which in practice means the detector is flagging legitimate dialect.
+  const stalled =
+    criticLeaks.leaks.length > 0 &&
+    criticLeaks.leaks.every((t) => draftLeaks.leaks.includes(t));
+
   // The critic rewrites rather than merges, so it can come back worse than what
   // it was given. Keep the draft when the rewrite regresses: either it dropped a
   // field the draft had, or it drifted further into MSA without fixing anything.
-  // (Shipping the draft still leaves its leaks on the result, so askBrain's
-  // repair pass gets its turn either way.)
   const criticGateReason = task.qualityGate ? safeGate(task.qualityGate, critiqued.parsed, text) : null;
   const fixedCompleteness = gateReason !== null && criticGateReason === null;
   const brokeCompleteness = gateReason === null && criticGateReason !== null;
@@ -668,6 +728,8 @@ async function runDraftCritic<T>(task: BrainTask, apiKey: string, deadline: Dead
     msaLeaks: criticLeaks,
     msaRepairs: 0,
     totalLatencyMs: 0,
+    leakRewriteStalled: stalled,
+    passes,
   };
 }
 
@@ -689,6 +751,8 @@ async function runCouncil<T>(task: BrainTask, apiKey: string, deadline: Deadline
   const drafters = (task.models ?? DEFAULT_DRAFTERS).slice(0, 3);
   const judge = DEFAULT_JUDGE;
   const sys = buildSystem(task);
+  const passes: PassLog = [];
+  const draftStart = Date.now();
 
   const drafts = await Promise.allSettled(
     drafters.map((m) =>
@@ -704,6 +768,8 @@ async function runCouncil<T>(task: BrainTask, apiKey: string, deadline: Deadline
       }),
     ),
   );
+  passes.push({ pass: 'council-drafts', model: drafters.join('+'), ms: Date.now() - draftStart });
+
   const ok = drafts
     .map((d, i) => ({ d, model: drafters[i] }))
     .filter((x) => x.d.status === 'fulfilled') as Array<{
@@ -722,6 +788,7 @@ async function runCouncil<T>(task: BrainTask, apiKey: string, deadline: Deadline
 
   let final: { raw: string; parsed: unknown };
   let judgeUsed = true;
+  const judgeStart = Date.now();
   try {
     if (remainingMs(deadline) < MIN_PASS_BUDGET_MS) throw new BrainHttpError(504, 'latency budget spent before judge');
     final = await callModel({
@@ -739,6 +806,7 @@ async function runCouncil<T>(task: BrainTask, apiKey: string, deadline: Deadline
     judgeUsed = false;
     final = ok[0].d.value;
   }
+  passes.push({ pass: judgeUsed ? 'judge' : 'judge:failed', model: judge, ms: Date.now() - judgeStart });
 
   const text = extractScanText(task, final.parsed, final.raw);
   return {
@@ -750,12 +818,14 @@ async function runCouncil<T>(task: BrainTask, apiKey: string, deadline: Deadline
     msaLeaks: scanLeaks(text, task.dialect),
     msaRepairs: 0,
     totalLatencyMs: 0,
+    passes,
   };
 }
 
 async function runRepair<T>(task: BrainTask, prior: BrainResult<T>, apiKey: string, deadline: Deadline): Promise<BrainResult<T>> {
   const sys = `${buildSystem(task)}\n\nThe previous output leaked MSA. Rewrite it in authentic ${getDialectLabel(task.dialect)} ONLY. The following MSA words MUST be replaced with dialectal equivalents: ${prior.msaLeaks.leaks.join(', ')}. Return ONLY the corrected output in the same format (no commentary).`;
   const user = `Original request:\n${stringifyUserPrompt(task.userPrompt)}\n\nFlawed output to correct:\n${prior.raw}`;
+  const repairStart = Date.now();
   const { raw, parsed } = await callModel({
     model: DEFAULT_JUDGE,
     system: sys,
@@ -773,6 +843,7 @@ async function runRepair<T>(task: BrainTask, prior: BrainResult<T>, apiKey: stri
     raw,
     models: [...prior.models, DEFAULT_JUDGE],
     msaLeaks: scanLeaks(text, task.dialect),
+    passes: [...prior.passes, { pass: 'repair', model: DEFAULT_JUDGE, ms: Date.now() - repairStart }],
   };
 }
 

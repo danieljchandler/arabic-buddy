@@ -32,6 +32,12 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Stage timings, logged on every request and returned to the caller. "It's
+  // slow" is not diagnosable without knowing which stage ate the wall clock.
+  const t0 = Date.now();
+  const timing: Record<string, number> = {};
+  const mark = (stage: string, from: number) => { timing[stage] = Date.now() - from; };
+
   try {
     const { difficulty = "beginner", topic, dialect = "Gulf" } = await req.json();
 
@@ -41,7 +47,9 @@ serve(async (req) => {
     const priming = primeDialectPrompt(dialect as Dialect);
 
     // Free-tier daily cap
+    const capStart = Date.now();
     const cap = await enforceDailyCap(req, "reading-passage", 15, corsHeaders);
+    mark("cap", capStart);
     if (cap.limited) return cap.response;
 
     const dialectLabel = getDialectLabel(dialect);
@@ -52,10 +60,12 @@ serve(async (req) => {
     // labelled "words the student knows" — so passages were being built around
     // words the learner had often never seen. Callers may still send `userVocab`;
     // it is deliberately ignored.
+    const profileStart = Date.now();
     const [learnerBlock] = await Promise.all([
       learnerPromptBlock({ userId: cap.userId, dialect }),
       priming,
     ]);
+    mark("profile+rules", profileStart);
 
     const culturalContext = dialect === "Egyptian"
       ? "daily life, culture, or social situations in Egypt (Cairo, Alexandria, etc.)"
@@ -97,6 +107,8 @@ ${topicContext}
 Split the passage into individual sentences in the "lines" array (each line = one sentence with its Arabic text, natural English translation, and literal word-for-word gloss). Generate 3-4 vocabulary items and 2-3 comprehension questions.`;
 
     let passage: any;
+    let brainPasses: unknown[] = [];
+    const brainStart = Date.now();
     try {
       const brain = await askBrain<any>({
         purpose: "reading_passage",
@@ -180,10 +192,13 @@ Split the passage into individual sentences in the "lines" array (each line = on
         },
       });
       passage = brain.output;
+      brainPasses = brain.passes ?? [];
+      mark("generate", brainStart);
       if (brain.msaLeaks.leaks.length > 0) {
         console.warn("reading-passage MSA leaks after repair:", brain.msaLeaks.leaks, "repairs:", brain.msaRepairs);
       }
     } catch (e: any) {
+      mark("generate", brainStart);
       console.error("reading-passage brain error:", e?.status, e?.message);
       if (e?.status === 402) {
         return new Response(JSON.stringify({ error: "Not enough AI credits." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -214,7 +229,17 @@ Split the passage into individual sentences in the "lines" array (each line = on
       };
     }
 
-    return new Response(JSON.stringify({ passage }), {
+    timing.total = Date.now() - t0;
+    console.log(
+      `[reading-passage] ${difficulty}/${dialect} total=${timing.total}ms`,
+      timing,
+      brainPasses,
+    );
+
+    // `_timing` is diagnostic only — the client reads `passage`. It is here so a
+    // slow generation can be attributed from the browser's network tab without
+    // needing access to the function logs.
+    return new Response(JSON.stringify({ passage, _timing: { ...timing, passes: brainPasses } }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {

@@ -1,11 +1,30 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { getDialectLabel, getTashkeelMandate, getDialectTransliterationRules, type Dialect } from "../_shared/dialectHelpers.ts";
+import {
+  getDialectLabel,
+  getTashkeelMandate,
+  getDialectTransliterationRules,
+  primeDialectPrompt,
+  type Dialect,
+} from "../_shared/dialectHelpers.ts";
 import { askBrain } from "../_shared/aiBrain.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
 import { LITERAL_GLOSS_RULE, literalSchema } from "../_shared/literalGloss.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { learnerPromptBlock } from "../_shared/learnerProfile.ts";
+import { readingPassageGate } from "../_shared/passageQualityCore.ts";
 
+/**
+ * Wall-clock ceiling for the generation, kept under the client's own timeout so
+ * a slow run surfaces as a real error with a retry rather than an unbounded
+ * spinner. Must stay in sync with PASSAGE_TIMEOUT_MS in
+ * src/pages/ReadingPractice.tsx.
+ *
+ * This is a ceiling, not a target: the typical request now finishes in one
+ * drafting pass well inside it. It is sized to still fit a draft *plus* a full
+ * critic rewrite when the quality gate demands one, so bounding the pathological
+ * case never costs a passage that needed fixing.
+ */
+const GENERATION_BUDGET_MS = 80_000;
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -13,12 +32,17 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Free-tier daily cap
-  const cap = await enforceDailyCap(req, "reading-passage", 15, corsHeaders);
-  if (cap.limited) return cap.response;
-
   try {
     const { difficulty = "beginner", topic, dialect = "Gulf" } = await req.json();
+
+    // Warm the dialect rulebook cache now. It depends on nothing else in the
+    // request, so it has no business sitting behind the auth and learner-profile
+    // round trips the way it did when askBrain was the first to touch it.
+    const priming = primeDialectPrompt(dialect as Dialect);
+
+    // Free-tier daily cap
+    const cap = await enforceDailyCap(req, "reading-passage", 15, corsHeaders);
+    if (cap.limited) return cap.response;
 
     const dialectLabel = getDialectLabel(dialect);
 
@@ -28,7 +52,10 @@ serve(async (req) => {
     // labelled "words the student knows" — so passages were being built around
     // words the learner had often never seen. Callers may still send `userVocab`;
     // it is deliberately ignored.
-    const learnerBlock = await learnerPromptBlock({ userId: cap.userId, dialect });
+    const [learnerBlock] = await Promise.all([
+      learnerPromptBlock({ userId: cap.userId, dialect }),
+      priming,
+    ]);
 
     const culturalContext = dialect === "Egyptian"
       ? "daily life, culture, or social situations in Egypt (Cairo, Alexandria, etc.)"
@@ -79,6 +106,15 @@ Split the passage into individual sentences in the "lines" array (each line = on
         userPrompt,
         maxTokens: 3072,
         temperature: 0.8,
+        budgetMs: GENERATION_BUDGET_MS,
+        // What the critic pass is actually there to guarantee, stated as a
+        // check we can run locally in microseconds. A draft that already has
+        // full tashkeel, a transliteration, a natural translation and a literal
+        // gloss on every line — plus vocabulary and an answerable quiz — is
+        // finished, and re-generating it through the critic only costs the
+        // learner another 30-60s of spinner. Anything missing still triggers
+        // the full rewrite. See _shared/passageQualityCore.ts.
+        qualityGate: readingPassageGate,
         arabicTextPath: (p: any) => {
           const parts: string[] = [];
           if (typeof p?.title === "string") parts.push(p.title);
@@ -104,7 +140,10 @@ Split the passage into individual sentences in the "lines" array (each line = on
                     english: { type: "string" },
                     literal: literalSchema("sentence"),
                   },
-                  required: ["arabic", "transliteration", "english"],
+                  // `literal` is required here, not merely described: the quality
+                  // gate below refuses a draft without it, and a schema that asks
+                  // for it up front is much cheaper than a rewrite pass that adds it.
+                  required: ["arabic", "transliteration", "english", "literal"],
                 },
               },
               difficulty: { type: "string" },
@@ -132,7 +171,7 @@ Split the passage into individual sentences in the "lines" array (each line = on
                       },
                     },
                   },
-                  required: ["question", "options"],
+                  required: ["question", "questionEnglish", "options"],
                 },
               },
             },

@@ -3529,6 +3529,7 @@ export type Database = {
           created_at: string
           deck_name: string | null
           dialect: string
+          difficulty: number
           ease_factor: number
           id: string
           image_url: string | null
@@ -3576,6 +3577,7 @@ export type Database = {
           created_at?: string
           deck_name?: string | null
           dialect?: string
+          difficulty?: number
           ease_factor?: number
           id?: string
           image_url?: string | null
@@ -3623,6 +3625,7 @@ export type Database = {
           created_at?: string
           deck_name?: string | null
           dialect?: string
+          difficulty?: number
           ease_factor?: number
           id?: string
           image_url?: string | null

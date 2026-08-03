@@ -57,6 +57,7 @@ interface PassageLine {
   arabic: string;
   english: string;
   literal?: string;
+  transliteration?: string;
 }
 
 interface Question {
@@ -83,6 +84,30 @@ interface QAMessage {
   vocabulary?: VocabItem[];
   followUp?: string;
 }
+
+/**
+ * Hard ceiling on a passage generation. The edge function budgets itself
+ * GENERATION_BUDGET_MS (80s) and returns a real error past that; this is that
+ * plus network slack. Without it a slow or wedged request left the learner on
+ * an indefinite "Generating passage..." spinner with no way back.
+ */
+const PASSAGE_TIMEOUT_MS = 95_000;
+
+class PassageTimeoutError extends Error {
+  constructor() {
+    super("Passage generation timed out");
+    this.name = "PassageTimeoutError";
+  }
+}
+
+/** Reject with PassageTimeoutError if `promise` hasn't settled in `ms`. */
+const withTimeout = <T,>(promise: Promise<T>, ms: number): Promise<T> => {
+  let timer: ReturnType<typeof setTimeout>;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new PassageTimeoutError()), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer)) as Promise<T>;
+};
 
 const DIFFICULTY_CONFIG = {
   beginner: { label: "Beginner", color: "bg-green-500/20 text-green-700 dark:text-green-400", xp: 10 },
@@ -251,12 +276,18 @@ const TappableArabicLine = ({
         )}
       </button>
       {revealedLines.has(lineIdx) && (
-        <TranslationPair
-          variant="compact"
-          literal={line.literal}
-          natural={line.english}
-          className="flex-1"
-        />
+        <div className="flex-1 space-y-1">
+          {line.transliteration && (
+            <p className="text-xs text-muted-foreground/80 tracking-wide" dir="ltr">
+              {line.transliteration}
+            </p>
+          )}
+          <TranslationPair
+            variant="compact"
+            literal={line.literal}
+            natural={line.english}
+          />
+        </div>
       )}
       <AskAISentence arabic={line.arabic} english={line.english} variant="chip" />
     </div>
@@ -297,6 +328,8 @@ const ReadingPractice = () => {
   const [difficulty, setDifficulty] = useState<Difficulty | null>(savedSession?.difficulty ?? null);
   const [passage, setPassage] = useState<Passage | null>(savedSession?.passage ?? null);
   const [loading, setLoading] = useState(false);
+  const [loadStartedAt, setLoadStartedAt] = useState<number | null>(null);
+  const [loadElapsed, setLoadElapsed] = useState(0);
   const [customTopic, setCustomTopic] = useState("");
   const [revealedLines, setRevealedLines] = useState<Set<number>>(new Set());
   const [currentQuestion, setCurrentQuestion] = useState(savedSession?.currentQuestion ?? 0);
@@ -315,6 +348,8 @@ const ReadingPractice = () => {
   const [qaDifficulty, setQaDifficulty] = useState<Difficulty>("beginner");
   const [qaRevealedLines, setQaRevealedLines] = useState<Set<string>>(new Set());
   const chatEndRef = useRef<HTMLDivElement>(null);
+  /** Bumped per generation so a cancelled request can't land on the screen later. */
+  const loadRequestRef = useRef(0);
 
   // Restore passage mode if we had a saved session
   useEffect(() => {
@@ -340,6 +375,20 @@ const ReadingPractice = () => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [qaMessages, qaLoading]);
 
+  // Tick the generation timer so a long wait reads as progress rather than a
+  // hang, and the learner can judge whether to keep waiting.
+  useEffect(() => {
+    if (loadStartedAt === null) {
+      setLoadElapsed(0);
+      return;
+    }
+    setLoadElapsed(0);
+    const id = setInterval(() => {
+      setLoadElapsed(Math.floor((Date.now() - loadStartedAt) / 1000));
+    }, 1000);
+    return () => clearInterval(id);
+  }, [loadStartedAt]);
+
   /** Normalize passage data */
   const normalizePassage = (raw: any): Passage => {
     let lines: PassageLine[] = raw.lines || [];
@@ -354,7 +403,12 @@ const ReadingPractice = () => {
     return {
       title: raw.title,
       titleEnglish: raw.titleEnglish || raw.title_english || "",
-      lines,
+      lines: lines.map((l) => ({
+        arabic: l.arabic,
+        english: l.english,
+        literal: l.literal || undefined,
+        transliteration: l.transliteration || undefined,
+      })),
       difficulty: raw.difficulty,
       vocabulary: raw.vocabulary || [],
       questions: raw.questions || [],
@@ -362,9 +416,13 @@ const ReadingPractice = () => {
   };
 
   const loadPassage = async (selectedDifficulty: Difficulty) => {
+    const requestId = ++loadRequestRef.current;
+    const isStale = () => loadRequestRef.current !== requestId;
+
     setDifficulty(selectedDifficulty);
     setMode("passage");
     setLoading(true);
+    setLoadStartedAt(Date.now());
     setPassage(null);
     setQuizStarted(false);
     setCurrentQuestion(0);
@@ -381,6 +439,8 @@ const ReadingPractice = () => {
         .eq("difficulty", selectedDifficulty)
         .eq("dialect", activeDialect)
         .limit(10);
+
+      if (isStale()) return;
 
       if (approved && approved.length > 0) {
         const picked = (approved as any[])[Math.floor(Math.random() * approved.length)];
@@ -404,14 +464,18 @@ const ReadingPractice = () => {
       // state. What used to be sent here was `useAllWords` — the entire
       // curriculum vocabulary, shuffled — described to the model as "words the
       // student knows", which is exactly what it wasn't.
-      const { data, error } = await supabase.functions.invoke("reading-passage", {
-        body: {
-          difficulty: selectedDifficulty,
-          topic: customTopic.trim() || undefined,
-          dialect: activeDialect,
-        },
-      });
+      const { data, error } = await withTimeout(
+        supabase.functions.invoke("reading-passage", {
+          body: {
+            difficulty: selectedDifficulty,
+            topic: customTopic.trim() || undefined,
+            dialect: activeDialect,
+          },
+        }),
+        PASSAGE_TIMEOUT_MS,
+      );
 
+      if (isStale()) return;
       if (error) throw error;
 
       if (data.passage) {
@@ -422,12 +486,20 @@ const ReadingPractice = () => {
         throw new Error("No passage generated");
       }
     } catch (e) {
+      if (isStale()) return;
       console.error("Failed to load passage:", e);
-      toast.error("Failed to load passage. Please try again.");
+      toast.error(
+        e instanceof PassageTimeoutError
+          ? "That took too long to generate. Please try again."
+          : "Failed to load passage. Please try again.",
+      );
       setDifficulty(null);
       setMode("select");
     } finally {
-      setLoading(false);
+      if (!isStale()) {
+        setLoading(false);
+        setLoadStartedAt(null);
+      }
     }
   };
 
@@ -529,6 +601,11 @@ const ReadingPractice = () => {
   };
 
   const resetSession = () => {
+    // Orphan any in-flight generation so a late response can't yank the learner
+    // back onto a passage they already walked away from.
+    loadRequestRef.current++;
+    setLoading(false);
+    setLoadStartedAt(null);
     setMode("select");
     setDifficulty(null);
     setPassage(null);
@@ -897,9 +974,22 @@ const ReadingPractice = () => {
   if (loading || !passage) {
     return (
       <AppShell>
-        <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+        <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 text-center px-6">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-muted-foreground">Generating passage...</p>
+          <div className="space-y-1">
+            <p className="text-muted-foreground">
+              {loadElapsed >= 25
+                ? "Still writing — adding vowels and translations..."
+                : "Generating passage..."}
+            </p>
+            {loadElapsed >= 5 && (
+              <p className="text-xs text-muted-foreground/70">{loadElapsed}s</p>
+            )}
+          </div>
+          <Button variant="ghost" size="sm" onClick={resetSession}>
+            <X className="h-4 w-4 mr-1" />
+            Cancel
+          </Button>
         </div>
       </AppShell>
     );

@@ -29,10 +29,17 @@ export type CapResult = CapAllowed | CapBlocked;
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
+// One client per isolate rather than one per call: every createClient here was
+// building a fresh PostgREST/GoTrue stack on a path that runs before any user
+// work starts.
+let cached: ReturnType<typeof createClient> | null = null;
 function admin() {
-  return createClient(SUPABASE_URL, SERVICE_ROLE, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
+  if (!cached) {
+    cached = createClient(SUPABASE_URL, SERVICE_ROLE, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+  }
+  return cached;
 }
 
 async function getUserId(req: Request): Promise<string | null> {
@@ -40,8 +47,7 @@ async function getUserId(req: Request): Promise<string | null> {
   const token = auth.startsWith("Bearer ") ? auth.slice(7) : null;
   if (!token) return null;
   try {
-    const supa = createClient(SUPABASE_URL, SERVICE_ROLE);
-    const { data, error } = await supa.auth.getUser(token);
+    const { data, error } = await admin().auth.getUser(token);
     if (error || !data?.user) return null;
     return data.user.id;
   } catch {
@@ -97,7 +103,13 @@ export async function enforceDailyCap(
     };
   }
 
-  if (await hasActiveSubscription(userId) || await isAdminUser(userId)) {
+  // Both are independent lookups; `await a || await b` serialised them on the
+  // critical path of every AI request for no reason.
+  const [subscribed, isAdmin] = await Promise.all([
+    hasActiveSubscription(userId),
+    isAdminUser(userId),
+  ]);
+  if (subscribed || isAdmin) {
     return { limited: false, userId, count: 0, limit: Number.POSITIVE_INFINITY };
   }
 

@@ -281,31 +281,10 @@ export function getDialectExamples(dialect: Dialect): string {
 
 // =================== Tashkeel validation ===================
 
-// Arabic diacritics (tashkeel) Unicode range: U+064B – U+065F + U+0670
-const TASHKEEL_RE = /[\u064B-\u065F\u0670]/;
-// Arabic base consonant/letter range. Non-global so per-character `.test()` is stateless.
-const ARABIC_LETTER_RE = /[\u0621-\u064A]/;
-const ARABIC_LETTER_RE_G = /[\u0621-\u064A]/g;
-
-/**
- * Measure what fraction of Arabic letters have an adjacent diacritic (tashkeel).
- * Returns a ratio between 0.0 (no tashkeel) and 1.0 (fully vocalized).
- */
-export function measureTashkeelCoverage(text: string): number {
-  if (!text) return 0;
-  const letters = text.match(ARABIC_LETTER_RE_G);
-  if (!letters || letters.length === 0) return 0;
-
-  let vocalized = 0;
-  for (let i = 0; i < text.length; i++) {
-    if (ARABIC_LETTER_RE.test(text[i])) {
-      if (i + 1 < text.length && TASHKEEL_RE.test(text[i + 1])) {
-        vocalized++;
-      }
-    }
-  }
-  return vocalized / letters.length;
-}
+// The implementation moved to passageQualityCore.ts, which is import-free so it
+// can be unit-tested from the frontend Vitest suite. Re-exported here so the
+// existing callers keep their import path.
+export { measureTashkeelCoverage } from './passageQualityCore.ts';
 
 // =================== Transliteration rules ===================
 

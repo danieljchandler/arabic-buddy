@@ -7,28 +7,41 @@ const GULF_PASSAGE = [
   "رُحْتُ السُّوق هٰذَا الصُّبْح مَعَ رِفِيجِي.",
   "شِرِينَا خُضَار وَفَوَاكِه طَازَجَة.",
   "هٰذِه أَوَّل مَرَّة أَرُوح لِهٰذَا السُّوق.",
+  "عِنْدَمَا وِصَلْنَا كَان الزِّحَام وَاجِد.",
 ].join(" ");
 
-describe("detectMsaLeaks false positives", () => {
-  // This is the behaviour that made reading-passage slow: the universal leak
-  // list contains demonstratives that ordinary Gulf prose uses freely, so
-  // `leaks.length > 0` was true on nearly every generated passage.
-  //
-  // aiBrain therefore must NOT treat a non-empty leak set as grounds for a full
-  // critic rewrite — leaks route to the targeted repair pass instead, and a
-  // rewrite that leaves the same tokens in place is not retried. If this test
-  // ever starts passing with zero leaks (because the detector was tuned), that
-  // policy can be revisited; until then it documents why the policy exists.
-  it("flags ordinary Gulf demonstratives, so leaks alone cannot gate a rewrite", () => {
+describe("detectMsaLeaks", () => {
+  // This passage used to report three leaks — هذا, هذه, عندما — all of them
+  // ordinary Gulf. Every generated passage therefore tripped the detector and
+  // paid for a rewrite pass that could never clear them, because the model kept
+  // writing the same words: they were never wrong. That was the bulk of the
+  // reading-practice latency.
+  it("does not flag ordinary Gulf demonstratives", () => {
     const result = detectMsaLeaks(GULF_PASSAGE, "Gulf");
-    expect(result.leaks).toContain("هذا");
-    expect(result.leaks.length).toBeGreaterThan(0);
+    expect(result.leaks).toEqual([]);
+    expect(result.severity).toBe("none");
   });
 
-  it("still catches genuine cross-dialect drift", () => {
+  it("still flags them for Egyptian, where ده/دي is the norm", () => {
+    const result = detectMsaLeaks("هَذَا الْبَيْت كِبِير", "Egyptian");
+    expect(result.leaks).toContain("هذا");
+  });
+
+  it("catches genuine cross-dialect drift in Gulf", () => {
     // Egyptian-only forms have no business in a Gulf passage.
     const result = detectMsaLeaks("أَنَا عَايِز أَرُوح دِلْوَقْتِي", "Gulf");
     expect(result.leaks).toEqual(expect.arrayContaining(["عايز", "دلوقتي"]));
+  });
+
+  it("still catches unambiguous MSA in Gulf", () => {
+    const result = detectMsaLeaks("سَوْفَ أَذْهَبُ إِلَى الْبَيْتِ الَّذِي هُنَاك", "Gulf");
+    expect(result.leaks).toEqual(expect.arrayContaining(["سوف"]));
+  });
+
+  it("matches whole words only, not substrings", () => {
+    // هذاك is a Gulf demonstrative in its own right; it must not match هذا.
+    const result = detectMsaLeaks("شِفْت هَذَاكْ الرِّيَال", "Egyptian");
+    expect(result.leaks).not.toContain("هذا");
   });
 
   it("reports nothing for empty input", () => {

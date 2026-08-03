@@ -275,7 +275,7 @@ export const TappableArabicText = ({
           className
         )}
         dir="rtl"
-        style={{ fontFamily: "'Cairo', sans-serif" }}
+        style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}
       >
         {words.map((word, wIdx) => {
           const cleanWord = clean(word);

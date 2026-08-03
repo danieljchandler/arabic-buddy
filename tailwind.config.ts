@@ -22,7 +22,7 @@ export default {
         sans: ["Open Sans", "Noto Sans Arabic", "sans-serif"],
         heading: ["Montserrat", "Noto Sans Arabic", "sans-serif"],
         arabic: ["Noto Sans Arabic", "Open Sans", "sans-serif"],
-        cairo: ["Cairo", "Noto Sans Arabic", "sans-serif"],
+        cairo: ["Noto Naskh Arabic", "Noto Sans Arabic", "serif"],
       },
       fontSize: {
         // Locked typographic scale — 1.25 ratio, Lahja rhythm

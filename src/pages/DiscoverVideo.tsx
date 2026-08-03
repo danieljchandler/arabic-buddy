@@ -273,7 +273,7 @@ const TranscriptRow = ({
           isActive ? "text-foreground font-medium" : "text-foreground/80",
         )}
         dir="rtl"
-        style={{ fontFamily: "'Cairo', 'Traditional Arabic', sans-serif" }}
+        style={{ fontFamily: "'Noto Naskh Arabic', 'Traditional Arabic', serif" }}
       >
         {line.tokens && line.tokens.length > 0
           ? line.tokens.map((token, i) => (
@@ -552,7 +552,7 @@ const GrammarNotesSection = ({
                     key={j}
                     dir="rtl"
                     className="text-sm text-foreground/90 px-2 py-1 rounded bg-background/60"
-                    style={{ fontFamily: "'Cairo', sans-serif" }}
+                    style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}
                   >
                     {ex}
                   </li>
@@ -1576,7 +1576,7 @@ const DiscoverVideo = () => {
               <p
                 className="text-sm text-foreground/70 mt-0.5"
                 dir="rtl"
-                style={{ fontFamily: "'Cairo', sans-serif" }}
+                style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}
               >
                 {video.title_arabic}
               </p>
@@ -1706,7 +1706,7 @@ const DiscoverVideo = () => {
                   <p
                     className="text-lg font-medium text-foreground leading-[2]"
                     dir="rtl"
-                    style={{ fontFamily: "'Cairo', 'Traditional Arabic', sans-serif" }}
+                    style={{ fontFamily: "'Noto Naskh Arabic', 'Traditional Arabic', serif" }}
                   >
                     {displayLine.tokens && displayLine.tokens.length > 0
                       ? displayLine.tokens.map((token, i) => (
@@ -1926,7 +1926,7 @@ const DiscoverVideo = () => {
             <div className="mt-3 space-y-2">
               {onScreenLines.map((line) => (
                 <div key={line.id} className="p-2 rounded-lg bg-muted/50">
-                  <p dir="rtl" className="text-base font-medium text-foreground" style={{ fontFamily: "'Cairo', sans-serif" }}>
+                  <p dir="rtl" className="text-base font-medium text-foreground" style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}>
                     {line.arabic}
                   </p>
                   {line.translation && showTranslations && (
@@ -1950,7 +1950,7 @@ const DiscoverVideo = () => {
                   key={i}
                   className="flex items-center justify-between gap-2 p-2 rounded-lg bg-muted/50 text-sm"
                 >
-                  <span dir="rtl" className="font-medium text-foreground" style={{ fontFamily: "'Cairo', sans-serif" }}>
+                  <span dir="rtl" className="font-medium text-foreground" style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}>
                     {v.arabic}
                   </span>
                   <span className="text-muted-foreground text-xs truncate">{v.english}</span>

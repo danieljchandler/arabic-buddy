@@ -147,7 +147,7 @@ export const ArticleQuiz = ({ article }: ArticleQuizProps) => {
       <p
         className="text-sm font-semibold text-foreground leading-relaxed font-arabic"
         dir="rtl"
-        style={{ fontFamily: "'Cairo', sans-serif" }}
+        style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}
       >
         {q.question_arabic}
       </p>
@@ -184,7 +184,7 @@ export const ArticleQuiz = ({ article }: ArticleQuizProps) => {
                   <XCircle className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
                 )}
                 <div className="flex-1 min-w-0">
-                  <p className="font-arabic" dir="rtl" style={{ fontFamily: "'Cairo', sans-serif" }}>
+                  <p className="font-arabic" dir="rtl" style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}>
                     {choice.arabic}
                   </p>
                   <p className="text-xs text-muted-foreground mt-0.5">{choice.english}</p>

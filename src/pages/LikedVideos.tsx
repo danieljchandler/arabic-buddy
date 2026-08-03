@@ -62,7 +62,7 @@ const LikedVideoCard = ({
         <p
           className="text-xs text-muted-foreground line-clamp-1 mb-2"
           dir="rtl"
-          style={{ fontFamily: "'Cairo', sans-serif" }}
+          style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}
         >
           {video.title_arabic}
         </p>

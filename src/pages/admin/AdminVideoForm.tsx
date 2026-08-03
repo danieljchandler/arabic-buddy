@@ -1365,7 +1365,7 @@ const AdminVideoForm = () => {
                     }}
                     dir="rtl"
                     className="flex-1 h-8 text-sm"
-                    style={{ fontFamily: "'Cairo', sans-serif" }}
+                    style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}
                     placeholder="Arabic"
                   />
                   <Input

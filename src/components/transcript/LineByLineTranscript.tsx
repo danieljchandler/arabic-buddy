@@ -579,7 +579,7 @@ interface TranscriptLineCardProps {
          <div
            className="flex-1 text-lg leading-loose cursor-pointer"
            dir="rtl"
-           style={{ fontFamily: "'Cairo', 'Traditional Arabic', sans-serif" }}
+           style={{ fontFamily: "'Noto Naskh Arabic', 'Traditional Arabic', serif" }}
            onClick={(e) => {
              if ((e.target as HTMLElement).closest("[data-token]")) return;
              onToggle();

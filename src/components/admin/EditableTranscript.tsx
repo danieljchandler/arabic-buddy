@@ -34,7 +34,7 @@ const EditableToken = ({
         <span
           dir="rtl"
           className="text-sm font-medium"
-          style={{ fontFamily: "'Cairo', sans-serif" }}
+          style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}
         >
           {token.surface}
         </span>
@@ -267,7 +267,7 @@ const EditableLineCard = ({
                 onChange={(e) => setArabicVal(e.target.value)}
                 dir="rtl"
                 className="flex-1"
-                style={{ fontFamily: "'Cairo', sans-serif" }}
+                style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}
                 autoFocus
                 onKeyDown={(e) => {
                   if (e.key === "Enter") saveArabic();
@@ -285,7 +285,7 @@ const EditableLineCard = ({
             <div
               className="text-lg leading-loose cursor-pointer group"
               dir="rtl"
-              style={{ fontFamily: "'Cairo', 'Traditional Arabic', sans-serif" }}
+              style={{ fontFamily: "'Noto Naskh Arabic', 'Traditional Arabic', serif" }}
               onClick={() => setEditingArabic(true)}
             >
               {line.tokens && line.tokens.length > 0 ? (

@@ -473,7 +473,7 @@ export default function ConversationSimulator() {
             return (
               <div key={i} className="flex justify-end">
                 <div className="max-w-[85%] rounded-2xl rounded-tr-sm px-3 py-2 bg-primary text-primary-foreground">
-                  <p dir="rtl" className="font-arabic text-base leading-relaxed" style={{ fontFamily: "'Cairo', sans-serif" }}>
+                  <p dir="rtl" className="font-arabic text-base leading-relaxed" style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}>
                     {m.content}
                   </p>
                 </div>

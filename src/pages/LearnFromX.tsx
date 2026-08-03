@@ -246,7 +246,7 @@ const LearnFromX = () => {
                   Analyzing Arabic content…
                 </div>
                 <div className="p-3 rounded-lg bg-muted/50 border border-border">
-                  <p className="text-sm text-foreground leading-relaxed" dir="rtl" style={{ fontFamily: "'Cairo', sans-serif" }}>
+                  <p className="text-sm text-foreground leading-relaxed" dir="rtl" style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}>
                     {extractedText}
                   </p>
                 </div>
@@ -300,7 +300,7 @@ const LearnFromX = () => {
                             <span
                               className="text-xl font-bold text-foreground"
                               dir="rtl"
-                              style={{ fontFamily: "'Cairo', sans-serif" }}
+                              style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}
                             >
                               {vocab.arabic}
                             </span>
@@ -360,7 +360,7 @@ const LearnFromX = () => {
                       {gp.examples && gp.examples.length > 0 && (
                         <ul className="space-y-1">
                           {gp.examples.map((ex, j) => (
-                            <li key={j} className="text-sm text-foreground bg-muted/50 rounded px-2 py-1" dir="rtl" style={{ fontFamily: "'Cairo', sans-serif" }}>
+                            <li key={j} className="text-sm text-foreground bg-muted/50 rounded px-2 py-1" dir="rtl" style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}>
                               {ex}
                             </li>
                           ))}

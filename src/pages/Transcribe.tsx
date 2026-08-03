@@ -1314,7 +1314,7 @@ const Transcribe = () => {
               </div>
             </CardHeader>
             <CardContent>
-              <p className="text-right text-lg leading-relaxed text-foreground" dir="rtl" style={{ fontFamily: "'Cairo', 'Traditional Arabic', sans-serif" }}>
+              <p className="text-right text-lg leading-relaxed text-foreground" dir="rtl" style={{ fontFamily: "'Noto Naskh Arabic', 'Traditional Arabic', serif" }}>
                 {transcript}
               </p>
             </CardContent>

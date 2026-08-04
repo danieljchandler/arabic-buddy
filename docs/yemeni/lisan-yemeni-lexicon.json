@@ -5,10 +5,10 @@
   "rows_read": 994413,
   "rows_skipped": 41586,
   "unique_norm_tokens": 98089,
-  "dialect_function_words": 561,
-  "dialect_content_words": 639,
+  "dialect_function_words": 396,
+  "dialect_content_words": 804,
   "msa_pair_types": 63321,
-  "allowlist_size": 2796
+  "allowlist_size": 2875
  },
  "tokens": [
   {

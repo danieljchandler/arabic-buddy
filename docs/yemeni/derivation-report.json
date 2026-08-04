@@ -4,10 +4,10 @@
   "rows_read": 994413,
   "rows_skipped": 41586,
   "unique_norm_tokens": 98089,
-  "dialect_function_words": 561,
-  "dialect_content_words": 639,
+  "dialect_function_words": 396,
+  "dialect_content_words": 804,
   "msa_pair_types": 63321,
-  "allowlist_size": 2796
+  "allowlist_size": 2875
  },
  "checks": [
   {
@@ -28,12 +28,12 @@
   {
    "check": "top10_not_generic",
    "pass": true,
-   "detail": "top10=['بس', 'اللي', 'ولا', 'هه', 'له', 'ومن', 'مش', 'عليه', 'لك', 'لهم']"
+   "detail": "top10=['بس', 'اللي', 'هه', 'مش', 'ايش', 'ده', 'اكثر', 'احنا', 'لما', 'مالك']"
   },
   {
-   "check": "low_overlap_with_top200_frequency",
-   "pass": false,
-   "detail": "58/200 overlap"
+   "check": "content_words_low_overlap_with_top200_frequency",
+   "pass": true,
+   "detail": "21/200 overlap"
   },
   {
    "check": "dialect_specific_size",
@@ -43,7 +43,7 @@
   {
    "check": "function_word_evidence_present",
    "pass": true,
-   "detail": "561 function words"
+   "detail": "396 function words"
   },
   {
    "check": "msa_pairs_differ",

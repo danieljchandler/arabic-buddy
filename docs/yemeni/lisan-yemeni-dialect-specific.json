@@ -4,10 +4,10 @@
   "rows_read": 994413,
   "rows_skipped": 41586,
   "unique_norm_tokens": 98089,
-  "dialect_function_words": 561,
-  "dialect_content_words": 639,
+  "dialect_function_words": 396,
+  "dialect_content_words": 804,
   "msa_pair_types": 63321,
-  "allowlist_size": 2796
+  "allowlist_size": 2875
  },
  "dialect_specific": [
   {
@@ -33,17 +33,6 @@
    "class": "function_word"
   },
   {
-   "token": "وَلا",
-   "norm": "ولا",
-   "count": 3680,
-   "pos": "أداة نفي",
-   "gloss": "[part.] + no/not/non-",
-   "msa": "لا",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.995,
-   "class": "function_word"
-  },
-  {
    "token": "هه",
    "norm": "هه",
    "count": 1982,
@@ -55,28 +44,6 @@
    "class": "function_word"
   },
   {
-   "token": "له",
-   "norm": "له",
-   "count": 1400,
-   "pos": "حرف جر",
-   "gloss": "to/for + it/him (it/he has)",
-   "msa": "ل1",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.92,
-   "class": "function_word"
-  },
-  {
-   "token": "ومن",
-   "norm": "ومن",
-   "count": 1359,
-   "pos": "حرف جر",
-   "gloss": "from",
-   "msa": "ومن",
-   "da": "مِنْ",
-   "msa_lemma_zero_ratio": 0.867,
-   "class": "function_word"
-  },
-  {
    "token": "مُش",
    "norm": "مش",
    "count": 1350,
@@ -85,50 +52,6 @@
    "msa": "مُشْ",
    "da": "",
    "msa_lemma_zero_ratio": 0.944,
-   "class": "function_word"
-  },
-  {
-   "token": "عليه",
-   "norm": "عليه",
-   "count": 1220,
-   "pos": "حرف جر",
-   "gloss": "on/above",
-   "msa": "عَلَى",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.179,
-   "class": "function_word"
-  },
-  {
-   "token": "لَك",
-   "norm": "لك",
-   "count": 1193,
-   "pos": "حرف جر",
-   "gloss": "to/for + you",
-   "msa": "لك",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.954,
-   "class": "function_word"
-  },
-  {
-   "token": "لَهُمْ",
-   "norm": "لهم",
-   "count": 1187,
-   "pos": "حرف جر",
-   "gloss": "[.for/to+ them [masc.pl",
-   "msa": "هُمْ",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.834,
-   "class": "function_word"
-  },
-  {
-   "token": "فِيهِ",
-   "norm": "فيه",
-   "count": 1094,
-   "pos": "حرف جر",
-   "gloss": "inaton",
-   "msa": "فِي",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.761,
    "class": "function_word"
   },
   {
@@ -154,17 +77,6 @@
    "class": "function_word"
   },
   {
-   "token": "فيها",
-   "norm": "فيها",
-   "count": 1031,
-   "pos": "حرف جر",
-   "gloss": "in",
-   "msa": "فيها",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.995,
-   "class": "function_word"
-  },
-  {
    "token": "أَكْثَر",
    "norm": "اكثر",
    "count": 922,
@@ -173,83 +85,6 @@
    "msa": "أَكْثَر",
    "da": "",
    "msa_lemma_zero_ratio": 0.974,
-   "class": "function_word"
-  },
-  {
-   "token": "وهو",
-   "norm": "وهو",
-   "count": 915,
-   "pos": "ضمير",
-   "gloss": "[part.] + it/he",
-   "msa": "هُوَ2",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.097,
-   "class": "function_word"
-  },
-  {
-   "token": "لَكُم",
-   "norm": "لكم",
-   "count": 900,
-   "pos": "ضمير",
-   "gloss": "to/for + you [masc.pl.] (you have)",
-   "msa": "لِ-",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.986,
-   "class": "function_word"
-  },
-  {
-   "token": "عليكم",
-   "norm": "عليكم",
-   "count": 836,
-   "pos": "حرف جر",
-   "gloss": "on/above",
-   "msa": "عَلَى",
-   "da": "عَلَى",
-   "msa_lemma_zero_ratio": 0.035,
-   "class": "function_word"
-  },
-  {
-   "token": "وإلا",
-   "norm": "والا",
-   "count": 832,
-   "pos": "أداة ربط",
-   "gloss": "or",
-   "msa": "وإلا",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.992,
-   "class": "function_word"
-  },
-  {
-   "token": "وأنت",
-   "norm": "وانت",
-   "count": 816,
-   "pos": "ضمير",
-   "gloss": "you [masc.sg.] | are + you [masc.sg.]",
-   "msa": "أنتَ",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.816,
-   "class": "function_word"
-  },
-  {
-   "token": "عليك",
-   "norm": "عليك",
-   "count": 814,
-   "pos": "حرف جر",
-   "gloss": "on;above",
-   "msa": "عليك",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.055,
-   "class": "function_word"
-  },
-  {
-   "token": "عليهم",
-   "norm": "عليهم",
-   "count": 784,
-   "pos": "حرف جر",
-   "gloss": "on/above",
-   "msa": "عَلَى",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.014,
    "class": "function_word"
   },
   {
@@ -264,17 +99,6 @@
    "class": "function_word"
   },
   {
-   "token": "وَهُم",
-   "norm": "وهم",
-   "count": 736,
-   "pos": "ضمير",
-   "gloss": "they",
-   "msa": "هُمْ",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.0,
-   "class": "function_word"
-  },
-  {
    "token": "لما",
    "norm": "لما",
    "count": 724,
@@ -283,39 +107,6 @@
    "msa": "لما",
    "da": "",
    "msa_lemma_zero_ratio": 0.968,
-   "class": "function_word"
-  },
-  {
-   "token": "مِنهُم",
-   "norm": "منهم",
-   "count": 710,
-   "pos": "حرف جر",
-   "gloss": "from",
-   "msa": "مِنْ",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.824,
-   "class": "function_word"
-  },
-  {
-   "token": "وَلَكِن",
-   "norm": "ولكن",
-   "count": 710,
-   "pos": "عطف",
-   "gloss": "and + but",
-   "msa": "لَكِن",
-   "da": "لَكِنْ1",
-   "msa_lemma_zero_ratio": 0.996,
-   "class": "function_word"
-  },
-  {
-   "token": "لنا",
-   "norm": "لنا",
-   "count": 699,
-   "pos": "حرف جر",
-   "gloss": "to/for_+_us_(we_have)",
-   "msa": "لنا",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.898,
    "class": "function_word"
   },
   {
@@ -341,72 +132,6 @@
    "class": "function_word"
   },
   {
-   "token": "وَعَلَى",
-   "norm": "وعلي",
-   "count": 609,
-   "pos": "حرف جر",
-   "gloss": "on/above",
-   "msa": "عَلَى",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.215,
-   "class": "function_word"
-  },
-  {
-   "token": "لها",
-   "norm": "لها",
-   "count": 596,
-   "pos": "حرف جر",
-   "gloss": "to;him_(it;he_has);them;her_(it;she_has;they_have);for",
-   "msa": "لِ2",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.096,
-   "class": "function_word"
-  },
-  {
-   "token": "وأنتم",
-   "norm": "وانتم",
-   "count": 590,
-   "pos": "ضمير",
-   "gloss": "you [masc.pl.] | are + you [masc.pl.]",
-   "msa": "أنتم",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.0,
-   "class": "function_word"
-  },
-  {
-   "token": "علينا",
-   "norm": "علينا",
-   "count": 575,
-   "pos": "حرف جر",
-   "gloss": "on/above",
-   "msa": "عَلَى",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.057,
-   "class": "function_word"
-  },
-  {
-   "token": "وَفِي",
-   "norm": "وفي",
-   "count": 563,
-   "pos": "حرف جر",
-   "gloss": "in",
-   "msa": "فِي",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.966,
-   "class": "function_word"
-  },
-  {
-   "token": "لي",
-   "norm": "لي",
-   "count": 549,
-   "pos": "حرف جر",
-   "gloss": "for/to | L./12th/(pounds/lira)",
-   "msa": "ل1",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.845,
-   "class": "function_word"
-  },
-  {
    "token": "لإنه",
    "norm": "لانه",
    "count": 517,
@@ -415,83 +140,6 @@
    "msa": "لإنه",
    "da": "",
    "msa_lemma_zero_ratio": 0.578,
-   "class": "function_word"
-  },
-  {
-   "token": "به",
-   "norm": "به",
-   "count": 501,
-   "pos": "حرف جر",
-   "gloss": "with;by;him;them;her",
-   "msa": "به",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.944,
-   "class": "function_word"
-  },
-  {
-   "token": "وهذا",
-   "norm": "وهذا",
-   "count": 501,
-   "pos": "ضمير اشارة",
-   "gloss": "these;this",
-   "msa": "وهذا",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.99,
-   "class": "function_word"
-  },
-  {
-   "token": "وَما",
-   "norm": "وما",
-   "count": 499,
-   "pos": "أداة نفي",
-   "gloss": "[part.] + some",
-   "msa": "مَا",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.986,
-   "class": "function_word"
-  },
-  {
-   "token": "وَأَنْ",
-   "norm": "وان",
-   "count": 480,
-   "pos": "أداة ربط",
-   "gloss": "That, to",
-   "msa": "أَنْ",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.51,
-   "class": "function_word"
-  },
-  {
-   "token": "منه",
-   "norm": "منه",
-   "count": 465,
-   "pos": "حرف جر",
-   "gloss": "from it",
-   "msa": "من",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.994,
-   "class": "function_word"
-  },
-  {
-   "token": "عليها",
-   "norm": "عليها",
-   "count": 461,
-   "pos": "حرف جر",
-   "gloss": "on/above",
-   "msa": "عَلَى",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.108,
-   "class": "function_word"
-  },
-  {
-   "token": "وَلَوْ",
-   "norm": "ولو",
-   "count": 454,
-   "pos": "أداة ربط",
-   "gloss": "[and.] + if",
-   "msa": "لَوْ",
-   "da": "لَوْ",
-   "msa_lemma_zero_ratio": 0.271,
    "class": "function_word"
   },
   {
@@ -528,39 +176,6 @@
    "class": "function_word"
   },
   {
-   "token": "فِيكم",
-   "norm": "فيكم",
-   "count": 419,
-   "pos": "حرف جر",
-   "gloss": "in",
-   "msa": "فِي2",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.998,
-   "class": "function_word"
-  },
-  {
-   "token": "مِنكُم",
-   "norm": "منكم",
-   "count": 417,
-   "pos": "حرف جر",
-   "gloss": "from + you [masc.pl.]",
-   "msa": "مِن",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.981,
-   "class": "function_word"
-  },
-  {
-   "token": "وَلَيْسَ",
-   "norm": "وليس",
-   "count": 415,
-   "pos": "أداة نفي",
-   "gloss": "[part.] + not",
-   "msa": "لَيْسَ",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.082,
-   "class": "function_word"
-  },
-  {
    "token": "إنكم",
    "norm": "انكم",
    "count": 407,
@@ -569,17 +184,6 @@
    "msa": "إنكم",
    "da": "",
    "msa_lemma_zero_ratio": 0.656,
-   "class": "function_word"
-  },
-  {
-   "token": "بها",
-   "norm": "بها",
-   "count": 403,
-   "pos": "حرف جر",
-   "gloss": "of/in/with/by + it/them/her",
-   "msa": "بها",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.61,
    "class": "function_word"
   },
   {
@@ -594,28 +198,6 @@
    "class": "function_word"
   },
   {
-   "token": "فيهم",
-   "norm": "فيهم",
-   "count": 399,
-   "pos": "حرف جر",
-   "gloss": "in/on/by/about/among + them",
-   "msa": "فيهم",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.995,
-   "class": "function_word"
-  },
-  {
-   "token": "وَلَمْ",
-   "norm": "ولم",
-   "count": 393,
-   "pos": "أداة نفي",
-   "gloss": "did not",
-   "msa": "لَمْ",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.132,
-   "class": "function_word"
-  },
-  {
    "token": "داخل",
    "norm": "داخل",
    "count": 375,
@@ -627,17 +209,6 @@
    "class": "function_word"
   },
   {
-   "token": "وأنا",
-   "norm": "وانا",
-   "count": 365,
-   "pos": "ضمير",
-   "gloss": "I",
-   "msa": "أنا",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.255,
-   "class": "function_word"
-  },
-  {
    "token": "انتو",
    "norm": "انتو",
    "count": 361,
@@ -646,17 +217,6 @@
    "msa": "أنتم",
    "da": "",
    "msa_lemma_zero_ratio": 0.726,
-   "class": "function_word"
-  },
-  {
-   "token": "منها",
-   "norm": "منها",
-   "count": 344,
-   "pos": "حرف جر",
-   "gloss": "from it/her",
-   "msa": "مِن",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.933,
    "class": "function_word"
   },
   {
@@ -679,28 +239,6 @@
    "msa": "هٰذا",
    "da": "",
    "msa_lemma_zero_ratio": 1.0,
-   "class": "function_word"
-  },
-  {
-   "token": "والآن",
-   "norm": "والان",
-   "count": 328,
-   "pos": "ظرف",
-   "gloss": "now;right_now",
-   "msa": "والآن",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.896,
-   "class": "function_word"
-  },
-  {
-   "token": "وهي",
-   "norm": "وهي",
-   "count": 323,
-   "pos": "ضمير اشارة",
-   "gloss": "is/are + it/they/she | it/they/she",
-   "msa": "هِيَ",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.003,
    "class": "function_word"
   },
   {
@@ -737,17 +275,6 @@
    "class": "function_word"
   },
   {
-   "token": "منك",
-   "norm": "منك",
-   "count": 308,
-   "pos": "حرف جر",
-   "gloss": "indeed + from | from",
-   "msa": "مِنْ",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.958,
-   "class": "function_word"
-  },
-  {
    "token": "بِلا",
    "norm": "بلا",
    "count": 306,
@@ -767,50 +294,6 @@
    "msa": "وِش",
    "da": "",
    "msa_lemma_zero_ratio": 0.993,
-   "class": "function_word"
-  },
-  {
-   "token": "وَإِذا",
-   "norm": "واذا",
-   "count": 286,
-   "pos": "أداة ربط",
-   "gloss": "[part.] + If, whether, when, whenever",
-   "msa": "إِذا",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.983,
-   "class": "function_word"
-  },
-  {
-   "token": "فيك",
-   "norm": "فيك",
-   "count": 279,
-   "pos": "حرف جر",
-   "gloss": "in",
-   "msa": "فيك",
-   "da": "",
-   "msa_lemma_zero_ratio": 1.0,
-   "class": "function_word"
-  },
-  {
-   "token": "عَنهُ",
-   "norm": "عنه",
-   "count": 279,
-   "pos": "حرف جر",
-   "gloss": "(away) from, off, about, on, over",
-   "msa": "عَنْ",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.093,
-   "class": "function_word"
-  },
-  {
-   "token": "وَنَحْنُ",
-   "norm": "ونحن",
-   "count": 265,
-   "pos": "ضمير",
-   "gloss": "we",
-   "msa": "نحن",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.204,
    "class": "function_word"
   },
   {
@@ -880,17 +363,6 @@
    "class": "function_word"
   },
   {
-   "token": "عنك",
-   "norm": "عنك",
-   "count": 235,
-   "pos": "حرف جر",
-   "gloss": "off;about;on;over",
-   "msa": "عنك",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.234,
-   "class": "function_word"
-  },
-  {
    "token": "كلنا",
    "norm": "كلنا",
    "count": 234,
@@ -910,28 +382,6 @@
    "msa": "مَا",
    "da": "",
    "msa_lemma_zero_ratio": 0.062,
-   "class": "function_word"
-  },
-  {
-   "token": "وَبَعْد",
-   "norm": "وبعد",
-   "count": 223,
-   "pos": "ظرف",
-   "gloss": "and + after",
-   "msa": "بَعْد",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.265,
-   "class": "function_word"
-  },
-  {
-   "token": "بهم",
-   "norm": "بهم",
-   "count": 220,
-   "pos": "حرف جر",
-   "gloss": "with/by + them [masc.pl.]",
-   "msa": "بِ",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.5,
    "class": "function_word"
   },
   {
@@ -979,17 +429,6 @@
    "class": "function_word"
   },
   {
-   "token": "فَهُو",
-   "norm": "فهو",
-   "count": 209,
-   "pos": "ضمير",
-   "gloss": "so/and + He is",
-   "msa": "هُوَ2",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.01,
-   "class": "function_word"
-  },
-  {
    "token": "مَهْما",
    "norm": "مهما",
    "count": 206,
@@ -1009,28 +448,6 @@
    "msa": "ما",
    "da": "بِمَا",
    "msa_lemma_zero_ratio": 0.76,
-   "class": "function_word"
-  },
-  {
-   "token": "عنها",
-   "norm": "عنها",
-   "count": 192,
-   "pos": "حرف جر",
-   "gloss": "(away) from, off, about, on, over",
-   "msa": "عَنْ",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.193,
-   "class": "function_word"
-  },
-  {
-   "token": "عنهم",
-   "norm": "عنهم",
-   "count": 190,
-   "pos": "حرف جر",
-   "gloss": "(away)_from,_off,_about,_on,_over",
-   "msa": "عن",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.326,
    "class": "function_word"
   },
   {
@@ -1078,17 +495,6 @@
    "class": "function_word"
   },
   {
-   "token": "فَهِمَ",
-   "norm": "فهم",
-   "count": 173,
-   "pos": "ضمير",
-   "gloss": "understand + he/it [verb]",
-   "msa": "فَهِم-َ",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.289,
-   "class": "function_word"
-  },
-  {
    "token": "شُو",
    "norm": "شو",
    "count": 169,
@@ -1133,17 +539,6 @@
    "class": "function_word"
   },
   {
-   "token": "بِكَمْ",
-   "norm": "بكم",
-   "count": 151,
-   "pos": "حرف جر",
-   "gloss": "[part.] + how",
-   "msa": "كَمْ",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.974,
-   "class": "function_word"
-  },
-  {
    "token": "بِهٰذا",
    "norm": "بهذا",
    "count": 150,
@@ -1163,17 +558,6 @@
    "msa": "لِأَنْ",
    "da": "لِأَنَّ",
    "msa_lemma_zero_ratio": 0.28,
-   "class": "function_word"
-  },
-  {
-   "token": "وَالَّذِي",
-   "norm": "والذي",
-   "count": 140,
-   "pos": "اسم موصول",
-   "gloss": "[part.] + which/who/whom [masc.sg.]",
-   "msa": "الَّذِي",
-   "da": "الَّذِي",
-   "msa_lemma_zero_ratio": 0.021,
    "class": "function_word"
   },
   {
@@ -1276,28 +660,6 @@
    "class": "function_word"
   },
   {
-   "token": "وهَلْ",
-   "norm": "وهل",
-   "count": 124,
-   "pos": "أداة استفهام",
-   "gloss": "do?/is?",
-   "msa": "هَلْ",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.048,
-   "class": "function_word"
-  },
-  {
-   "token": "عَنكُم",
-   "norm": "عنكم",
-   "count": 123,
-   "pos": "حرف جر",
-   "gloss": "about, on, over + you [masc.pl",
-   "msa": "عَنْ",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.138,
-   "class": "function_word"
-  },
-  {
    "token": "جَمِيعاً",
    "norm": "جميعا",
    "count": 120,
@@ -1306,17 +668,6 @@
    "msa": "جَمِيع",
    "da": "",
    "msa_lemma_zero_ratio": 0.992,
-   "class": "function_word"
-  },
-  {
-   "token": "فينا",
-   "norm": "فينا",
-   "count": 117,
-   "pos": "حرف جر",
-   "gloss": "in",
-   "msa": "فينا",
-   "da": "",
-   "msa_lemma_zero_ratio": 1.0,
    "class": "function_word"
   },
   {
@@ -1342,17 +693,6 @@
    "class": "function_word"
   },
   {
-   "token": "وَهٰذِهِ",
-   "norm": "وهذه",
-   "count": 109,
-   "pos": "ضمير اشارة",
-   "gloss": "[part.] + this/these",
-   "msa": "هٰذا",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.963,
-   "class": "function_word"
-  },
-  {
    "token": "وانتو",
    "norm": "وانتو",
    "count": 108,
@@ -1361,39 +701,6 @@
    "msa": "أنتم",
    "da": "",
    "msa_lemma_zero_ratio": 0.333,
-   "class": "function_word"
-  },
-  {
-   "token": "وإلى",
-   "norm": "والي",
-   "count": 107,
-   "pos": "حرف جر",
-   "gloss": "to",
-   "msa": "إلَى",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.355,
-   "class": "function_word"
-  },
-  {
-   "token": "وَحَتَّى",
-   "norm": "وحتي",
-   "count": 104,
-   "pos": "عطف",
-   "gloss": "[part.] + even",
-   "msa": "حَتَّى",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.962,
-   "class": "function_word"
-  },
-  {
-   "token": "إِلَيهِ",
-   "norm": "اليه",
-   "count": 104,
-   "pos": "حرف جر",
-   "gloss": "to/towards + it/him",
-   "msa": "إلَى",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.038,
    "class": "function_word"
   },
   {
@@ -1463,17 +770,6 @@
    "class": "function_word"
   },
   {
-   "token": "بِيَ",
-   "norm": "بي",
-   "count": 92,
-   "pos": "حرف جر",
-   "gloss": "with/by + me",
-   "msa": "بِ",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.902,
-   "class": "function_word"
-  },
-  {
    "token": "هيك",
    "norm": "هيك",
    "count": 91,
@@ -1482,17 +778,6 @@
    "msa": "هيك",
    "da": "",
    "msa_lemma_zero_ratio": 0.989,
-   "class": "function_word"
-  },
-  {
-   "token": "بِك",
-   "norm": "بك",
-   "count": 91,
-   "pos": "حرف جر",
-   "gloss": "with/by + you",
-   "msa": "بِك",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.934,
    "class": "function_word"
   },
   {
@@ -1507,28 +792,6 @@
    "class": "function_word"
   },
   {
-   "token": "منّي",
-   "norm": "مني",
-   "count": 89,
-   "pos": "حرف جر",
-   "gloss": "indeed + from | from",
-   "msa": "مِنْ",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.91,
-   "class": "function_word"
-  },
-  {
-   "token": "فَما",
-   "norm": "فما",
-   "count": 89,
-   "pos": "ضمير استفهام",
-   "gloss": "so/and + not",
-   "msa": "ما",
-   "da": "",
-   "msa_lemma_zero_ratio": 1.0,
-   "class": "function_word"
-  },
-  {
    "token": "لأي",
    "norm": "لاي",
    "count": 86,
@@ -1537,17 +800,6 @@
    "msa": "لأي",
    "da": "",
    "msa_lemma_zero_ratio": 0.907,
-   "class": "function_word"
-  },
-  {
-   "token": "وَأَيّ",
-   "norm": "واي",
-   "count": 84,
-   "pos": "اسم كم",
-   "gloss": "any",
-   "msa": "أَيّ",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.964,
    "class": "function_word"
   },
   {
@@ -1562,17 +814,6 @@
    "class": "function_word"
   },
   {
-   "token": "فهي",
-   "norm": "فهي",
-   "count": 83,
-   "pos": "ضمير اشارة",
-   "gloss": "so/and + it/they/she",
-   "msa": "هِيَ",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.0,
-   "class": "function_word"
-  },
-  {
    "token": "مِمّا",
    "norm": "مما",
    "count": 82,
@@ -1581,17 +822,6 @@
    "msa": "مِمَّا",
    "da": "مِمَّا",
    "msa_lemma_zero_ratio": 0.805,
-   "class": "function_word"
-  },
-  {
-   "token": "فَمَنْ",
-   "norm": "فمن",
-   "count": 81,
-   "pos": "ضمير استفهام",
-   "gloss": "who/whom",
-   "msa": "مَنْ",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.864,
    "class": "function_word"
   },
   {
@@ -1628,28 +858,6 @@
    "class": "function_word"
   },
   {
-   "token": "فَهٰذا",
-   "norm": "فهذا",
-   "count": 74,
-   "pos": "ضمير اشارة",
-   "gloss": "so/and + this [masc.sg.]",
-   "msa": "هٰذا",
-   "da": "",
-   "msa_lemma_zero_ratio": 1.0,
-   "class": "function_word"
-  },
-  {
-   "token": "وإنه",
-   "norm": "وانه",
-   "count": 74,
-   "pos": "أداة ربط",
-   "gloss": "that",
-   "msa": "وإنه",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.541,
-   "class": "function_word"
-  },
-  {
    "token": "ماـلهُم",
    "norm": "مالهم",
    "count": 73,
@@ -1658,28 +866,6 @@
    "msa": "مال",
    "da": "",
    "msa_lemma_zero_ratio": 0.822,
-   "class": "function_word"
-  },
-  {
-   "token": "وَكَمْ",
-   "norm": "وكم",
-   "count": 71,
-   "pos": "ضمير استفهام",
-   "gloss": "[part.] + how many/much",
-   "msa": "كَمْ",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.986,
-   "class": "function_word"
-  },
-  {
-   "token": "وَكَذٰلِكَ",
-   "norm": "وكذلك",
-   "count": 70,
-   "pos": "ضمير اشارة",
-   "gloss": "and + also",
-   "msa": "ذٰلِكَ",
-   "da": "",
-   "msa_lemma_zero_ratio": 1.0,
    "class": "function_word"
   },
   {
@@ -1702,39 +888,6 @@
    "msa": "حِين",
    "da": "",
    "msa_lemma_zero_ratio": 0.928,
-   "class": "function_word"
-  },
-  {
-   "token": "وعن",
-   "norm": "وعن",
-   "count": 67,
-   "pos": "حرف جر",
-   "gloss": "(away)_from;off;about;on;over",
-   "msa": "عن 1",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.239,
-   "class": "function_word"
-  },
-  {
-   "token": "فَإِنْ",
-   "norm": "فان",
-   "count": 66,
-   "pos": "أداة ربط",
-   "gloss": "so/and + Although, (even) though, even if, despite, in spite of the fact that, verily, truly",
-   "msa": "إِنْ",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.788,
-   "class": "function_word"
-  },
-  {
-   "token": "بِنا",
-   "norm": "بنا",
-   "count": 66,
-   "pos": "ضمير",
-   "gloss": "with/by + us",
-   "msa": "بِنا",
-   "da": "",
-   "msa_lemma_zero_ratio": 1.0,
    "class": "function_word"
   },
   {
@@ -1801,17 +954,6 @@
    "msa": "عَنْ",
    "da": "",
    "msa_lemma_zero_ratio": 0.138,
-   "class": "function_word"
-  },
-  {
-   "token": "مننا",
-   "norm": "مننا",
-   "count": 65,
-   "pos": "حرف جر",
-   "gloss": "from",
-   "msa": "مننا",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.985,
    "class": "function_word"
   },
   {
@@ -1958,17 +1100,6 @@
    "class": "function_word"
   },
   {
-   "token": "ومنهم",
-   "norm": "ومنهم",
-   "count": 54,
-   "pos": "حرف جر",
-   "gloss": "[part.] + from + them [masc.pl.]",
-   "msa": "مِن",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.963,
-   "class": "function_word"
-  },
-  {
    "token": "لأني",
    "norm": "لاني",
    "count": 54,
@@ -1977,17 +1108,6 @@
    "msa": "لأني",
    "da": "",
    "msa_lemma_zero_ratio": 0.759,
-   "class": "function_word"
-  },
-  {
-   "token": "وَلوْلَا",
-   "norm": "ولولا",
-   "count": 54,
-   "pos": "أداة ربط",
-   "gloss": "except_for; had_it_not_been_for; if_not; unless_",
-   "msa": "لَوْلا",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.0,
    "class": "function_word"
   },
   {
@@ -2057,17 +1177,6 @@
    "class": "function_word"
   },
   {
-   "token": "وذلك",
-   "norm": "وذلك",
-   "count": 51,
-   "pos": "ضمير اشارة",
-   "gloss": "that",
-   "msa": "وذلك",
-   "da": "",
-   "msa_lemma_zero_ratio": 1.0,
-   "class": "function_word"
-  },
-  {
    "token": "أَغْلَبُهُم",
    "norm": "اغلبهم",
    "count": 51,
@@ -2076,17 +1185,6 @@
    "msa": "أَغْلَب",
    "da": "",
    "msa_lemma_zero_ratio": 0.98,
-   "class": "function_word"
-  },
-  {
-   "token": "وفيه",
-   "norm": "وفيه",
-   "count": 51,
-   "pos": "حرف جر",
-   "gloss": "in",
-   "msa": "فِي2",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.863,
    "class": "function_word"
   },
   {
@@ -2145,17 +1243,6 @@
    "class": "function_word"
   },
   {
-   "token": "فأنت",
-   "norm": "فانت",
-   "count": 49,
-   "pos": "ضمير",
-   "gloss": "you [masc.sg.] | are + you [masc.sg.]",
-   "msa": "أنتَ",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.429,
-   "class": "function_word"
-  },
-  {
    "token": "لَلَحَيْنَ",
    "norm": "للحين",
    "count": 49,
@@ -2178,17 +1265,6 @@
    "class": "function_word"
   },
   {
-   "token": "وَالَّتِي",
-   "norm": "والتي",
-   "count": 48,
-   "pos": "اسم موصول",
-   "gloss": "[part.] + which/who/whom [fem.sg.]",
-   "msa": "الَّذِي",
-   "da": "الَّتي",
-   "msa_lemma_zero_ratio": 0.0,
-   "class": "function_word"
-  },
-  {
    "token": "ويش",
    "norm": "ويش",
    "count": 48,
@@ -2200,17 +1276,6 @@
    "class": "function_word"
   },
   {
-   "token": "وَأَيْضاً",
-   "norm": "وايضا",
-   "count": 47,
-   "pos": "ظرف",
-   "gloss": "[part.] + also, too, as well (as), along with, in addition (to)",
-   "msa": "أَيْضاً",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.128,
-   "class": "function_word"
-  },
-  {
    "token": "بِمَنْ",
    "norm": "بمن",
    "count": 47,
@@ -2219,28 +1284,6 @@
    "msa": "مَنْ",
    "da": "مَنْ",
    "msa_lemma_zero_ratio": 0.702,
-   "class": "function_word"
-  },
-  {
-   "token": "فَلَم",
-   "norm": "فلم",
-   "count": 46,
-   "pos": "أداة نفي",
-   "gloss": "so/and + not",
-   "msa": "لَمْ",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.152,
-   "class": "function_word"
-  },
-  {
-   "token": "وَجَمِيع",
-   "norm": "وجميع",
-   "count": 46,
-   "pos": "اسم كم",
-   "gloss": "[part.] + all, entire, every, whole",
-   "msa": "جَمِيع",
-   "da": "",
-   "msa_lemma_zero_ratio": 1.0,
    "class": "function_word"
   },
   {
@@ -2277,28 +1320,6 @@
    "class": "function_word"
   },
   {
-   "token": "فهل",
-   "norm": "فهل",
-   "count": 45,
-   "pos": "أداة استفهام",
-   "gloss": "do?/is?",
-   "msa": "هَلْ",
-   "da": "هَلْ",
-   "msa_lemma_zero_ratio": 0.0,
-   "class": "function_word"
-  },
-  {
-   "token": "فَأَنْتُم",
-   "norm": "فانتم",
-   "count": 45,
-   "pos": "ضمير",
-   "gloss": "so/and + you [masc.pl.]",
-   "msa": "أنتم",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.0,
-   "class": "function_word"
-  },
-  {
    "token": "مَنو",
    "norm": "منو",
    "count": 45,
@@ -2307,17 +1328,6 @@
    "msa": "مَنـهو",
    "da": "",
    "msa_lemma_zero_ratio": 1.0,
-   "class": "function_word"
-  },
-  {
-   "token": "وماذا",
-   "norm": "وماذا",
-   "count": 44,
-   "pos": "أداة استفهام",
-   "gloss": "and + what",
-   "msa": "ماذا",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.068,
    "class": "function_word"
   },
   {
@@ -2332,28 +1342,6 @@
    "class": "function_word"
   },
   {
-   "token": "وله",
-   "norm": "وله",
-   "count": 43,
-   "pos": "حرف جر",
-   "gloss": "he/it + has",
-   "msa": "وله",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.977,
-   "class": "function_word"
-  },
-  {
-   "token": "وَهٰكَذا",
-   "norm": "وهكذا",
-   "count": 40,
-   "pos": "ظرف",
-   "gloss": "[part.] + this way, this, thus",
-   "msa": "هٰكَذا",
-   "da": "",
-   "msa_lemma_zero_ratio": 1.0,
-   "class": "function_word"
-  },
-  {
    "token": "ونص",
    "norm": "ونص",
    "count": 40,
@@ -2362,17 +1350,6 @@
    "msa": "نص",
    "da": "",
    "msa_lemma_zero_ratio": 1.0,
-   "class": "function_word"
-  },
-  {
-   "token": "وَيْا",
-   "norm": "ويا",
-   "count": 39,
-   "pos": "أداة نداء",
-   "gloss": "something with | together",
-   "msa": "مَعَ",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.282,
    "class": "function_word"
   },
   {
@@ -2420,17 +1397,6 @@
    "class": "function_word"
   },
   {
-   "token": "وَقَبْلَ",
-   "norm": "وقبل",
-   "count": 38,
-   "pos": "ظرف",
-   "gloss": "before",
-   "msa": "قَبل",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.842,
-   "class": "function_word"
-  },
-  {
    "token": "بأنهم",
    "norm": "بانهم",
    "count": 38,
@@ -2475,28 +1441,6 @@
    "class": "function_word"
   },
   {
-   "token": "ولَكُم",
-   "norm": "ولكم",
-   "count": 35,
-   "pos": "ضمير",
-   "gloss": "to/for_+_you",
-   "msa": "ولَكُم",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.914,
-   "class": "function_word"
-  },
-  {
-   "token": "وَهُنا",
-   "norm": "وهنا",
-   "count": 34,
-   "pos": "ضمير اشارة",
-   "gloss": "Here",
-   "msa": "هُنا",
-   "da": "هُنَا",
-   "msa_lemma_zero_ratio": 0.265,
-   "class": "function_word"
-  },
-  {
    "token": "مالَم",
    "norm": "مالم",
    "count": 34,
@@ -2508,17 +1452,6 @@
    "class": "function_word"
   },
   {
-   "token": "وَأَنَّهُم",
-   "norm": "وانهم",
-   "count": 33,
-   "pos": "أداة ربط",
-   "gloss": "[part.] + that + they [masc.pl.]",
-   "msa": "أَنَّ",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.364,
-   "class": "function_word"
-  },
-  {
    "token": "ليهم",
    "norm": "ليهم",
    "count": 33,
@@ -2527,17 +1460,6 @@
    "msa": "لهم",
    "da": "",
    "msa_lemma_zero_ratio": 1.0,
-   "class": "function_word"
-  },
-  {
-   "token": "وَكَما",
-   "norm": "وكما",
-   "count": 32,
-   "pos": "ضمير استفهام",
-   "gloss": "and + as",
-   "msa": "كَمَا",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.625,
    "class": "function_word"
   },
   {
@@ -2585,28 +1507,6 @@
    "class": "function_word"
   },
   {
-   "token": "وَلَنا",
-   "norm": "ولنا",
-   "count": 31,
-   "pos": "حرف جر",
-   "gloss": "for + us",
-   "msa": "لنا",
-   "da": "",
-   "msa_lemma_zero_ratio": 1.0,
-   "class": "function_word"
-  },
-  {
-   "token": "وأنتي",
-   "norm": "وانتي",
-   "count": 31,
-   "pos": "ضمير",
-   "gloss": "you [fem.sg.] | are + you [fem.sg.]",
-   "msa": "أنتِ",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.613,
-   "class": "function_word"
-  },
-  {
    "token": "لِبَعْض",
    "norm": "لبعض",
    "count": 30,
@@ -2651,17 +1551,6 @@
    "class": "function_word"
   },
   {
-   "token": "فَنَحْنُ",
-   "norm": "فنحن",
-   "count": 29,
-   "pos": "ضمير",
-   "gloss": "so/and + we",
-   "msa": "نحن",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.0,
-   "class": "function_word"
-  },
-  {
    "token": "هاذا",
    "norm": "هاذا",
    "count": 29,
@@ -2692,28 +1581,6 @@
    "msa": "كُلّ",
    "da": "",
    "msa_lemma_zero_ratio": 1.0,
-   "class": "function_word"
-  },
-  {
-   "token": "فَهٰذِهِ",
-   "norm": "فهذه",
-   "count": 28,
-   "pos": "ضمير اشارة",
-   "gloss": "so/and + this/these",
-   "msa": "هٰذا",
-   "da": "",
-   "msa_lemma_zero_ratio": 1.0,
-   "class": "function_word"
-  },
-  {
-   "token": "إِلَيها",
-   "norm": "اليها",
-   "count": 28,
-   "pos": "حرف جر",
-   "gloss": "to/towards",
-   "msa": "إلَى",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.536,
    "class": "function_word"
   },
   {
@@ -2838,28 +1705,6 @@
    "class": "function_word"
   },
   {
-   "token": "وَفِيها",
-   "norm": "وفيها",
-   "count": 25,
-   "pos": "حرف جر",
-   "gloss": "in/on/at/of/about/with + it/her/them",
-   "msa": "فِي",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.8,
-   "class": "function_word"
-  },
-  {
-   "token": "ولإن",
-   "norm": "ولان",
-   "count": 25,
-   "pos": "أداة ربط",
-   "gloss": "because",
-   "msa": "لإن",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.44,
-   "class": "function_word"
-  },
-  {
    "token": "باللي",
    "norm": "باللي",
    "count": 25,
@@ -2868,50 +1713,6 @@
    "msa": "الَّذِي",
    "da": "",
    "msa_lemma_zero_ratio": 0.8,
-   "class": "function_word"
-  },
-  {
-   "token": "ومنها",
-   "norm": "ومنها",
-   "count": 25,
-   "pos": "حرف جر",
-   "gloss": "[part.] + from + it/them/her",
-   "msa": "مِن",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.68,
-   "class": "function_word"
-  },
-  {
-   "token": "وعليها",
-   "norm": "وعليها",
-   "count": 24,
-   "pos": "حرف جر",
-   "gloss": "on/above",
-   "msa": "عَلَى",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.458,
-   "class": "function_word"
-  },
-  {
-   "token": "وهناك",
-   "norm": "وهناك",
-   "count": 24,
-   "pos": "ضمير اشارة",
-   "gloss": "and+there",
-   "msa": "هُنَاكَ",
-   "da": "هُنَاكَ",
-   "msa_lemma_zero_ratio": 0.25,
-   "class": "function_word"
-  },
-  {
-   "token": "عني",
-   "norm": "عني",
-   "count": 24,
-   "pos": "حرف جر",
-   "gloss": "(away) from$#$off$#$about$#$on$#$over",
-   "msa": "عَنْ",
-   "da": "عَنْ",
-   "msa_lemma_zero_ratio": 0.042,
    "class": "function_word"
   },
   {
@@ -2926,28 +1727,6 @@
    "class": "function_word"
   },
   {
-   "token": "إِلَيهِم",
-   "norm": "اليهم",
-   "count": 24,
-   "pos": "حرف جر",
-   "gloss": "to/towards",
-   "msa": "إلَى",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.375,
-   "class": "function_word"
-  },
-  {
-   "token": "ولهم",
-   "norm": "ولهم",
-   "count": 23,
-   "pos": "حرف جر",
-   "gloss": "[part.] + to/for + them [masc.pl.] (they have)",
-   "msa": "لِ-",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.87,
-   "class": "function_word"
-  },
-  {
    "token": "وَلِيه",
    "norm": "وليه",
    "count": 23,
@@ -2956,17 +1735,6 @@
    "msa": "لِماذا",
    "da": "",
    "msa_lemma_zero_ratio": 0.957,
-   "class": "function_word"
-  },
-  {
-   "token": "وَمِنكُم",
-   "norm": "ومنكم",
-   "count": 23,
-   "pos": "حرف جر",
-   "gloss": "and +  from + you [masc.pl.]",
-   "msa": "مِن",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.913,
    "class": "function_word"
   },
   {
@@ -3014,28 +1782,6 @@
    "class": "function_word"
   },
   {
-   "token": "إِلَيكَ",
-   "norm": "اليك",
-   "count": 22,
-   "pos": "حرف جر",
-   "gloss": "to/towards + you [masc.sg.]",
-   "msa": "إلَى",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.0,
-   "class": "function_word"
-  },
-  {
-   "token": "عَنَنّا",
-   "norm": "عننا",
-   "count": 22,
-   "pos": "حرف جر",
-   "gloss": "about+us [verb]",
-   "msa": "عَنْ",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.045,
-   "class": "function_word"
-  },
-  {
    "token": "وَرُبَّما",
    "norm": "وربما",
    "count": 22,
@@ -3080,17 +1826,6 @@
    "class": "function_word"
   },
   {
-   "token": "فَإِذا",
-   "norm": "فاذا",
-   "count": 22,
-   "pos": "أداة ربط",
-   "gloss": "so/and + If, whether, when, whenever",
-   "msa": "إِذا",
-   "da": "",
-   "msa_lemma_zero_ratio": 1.0,
-   "class": "function_word"
-  },
-  {
    "token": "امبارح",
    "norm": "امبارح",
    "count": 22,
@@ -3102,17 +1837,6 @@
    "class": "function_word"
   },
   {
-   "token": "وهَؤلاء",
-   "norm": "وهؤلاء",
-   "count": 21,
-   "pos": "ضمير اشارة",
-   "gloss": "these/those",
-   "msa": "هَؤلاء",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.952,
-   "class": "function_word"
-  },
-  {
    "token": "وَعَادَك",
    "norm": "وعادك",
    "count": 21,
@@ -3121,17 +1845,6 @@
    "msa": "عاد",
    "da": "",
    "msa_lemma_zero_ratio": 0.857,
-   "class": "function_word"
-  },
-  {
-   "token": "فأنه",
-   "norm": "فانه",
-   "count": 21,
-   "pos": "أداة ربط",
-   "gloss": "that",
-   "msa": "أنه",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.476,
    "class": "function_word"
   },
   {
@@ -3245,17 +1958,6 @@
    "class": "function_word"
   },
   {
-   "token": "فَأَنا",
-   "norm": "فانا",
-   "count": 19,
-   "pos": "ضمير",
-   "gloss": "so/and + I",
-   "msa": "أنا",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.684,
-   "class": "function_word"
-  },
-  {
    "token": "وَحِين",
    "norm": "وحين",
    "count": 19,
@@ -3264,17 +1966,6 @@
    "msa": "حِين",
    "da": "",
    "msa_lemma_zero_ratio": 0.895,
-   "class": "function_word"
-  },
-  {
-   "token": "وَالَّذِينَ",
-   "norm": "والذين",
-   "count": 19,
-   "pos": "ضمير",
-   "gloss": "[part.] + who/whom [pl.]",
-   "msa": "الَّذِي",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.0,
    "class": "function_word"
   },
   {
@@ -3311,17 +2002,6 @@
    "class": "function_word"
   },
   {
-   "token": "وَعليه",
-   "norm": "وعليه",
-   "count": 19,
-   "pos": "حرف جر",
-   "gloss": "on/above",
-   "msa": "عَلَى",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.0,
-   "class": "function_word"
-  },
-  {
    "token": "ماـفِيكُم",
    "norm": "مافيكم",
    "count": 19,
@@ -3344,34 +2024,12 @@
    "class": "function_word"
   },
   {
-   "token": "وَإِنَّها",
-   "norm": "وانها",
-   "count": 18,
-   "pos": "أداة ربط",
-   "gloss": "[part.] + indeed + it/they/she",
-   "msa": "إنَّ",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.056,
-   "class": "function_word"
-  },
-  {
    "token": "وَكافَّة",
    "norm": "وكافه",
    "count": 18,
    "pos": "اسم كم",
    "gloss": "[part.] + all + [fem.sg.]",
    "msa": "كافَّة",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.944,
-   "class": "function_word"
-  },
-  {
-   "token": "فَماذا",
-   "norm": "فماذا",
-   "count": 18,
-   "pos": "ضمير استفهام",
-   "gloss": "what",
-   "msa": "ماذا",
    "da": "",
    "msa_lemma_zero_ratio": 0.944,
    "class": "function_word"
@@ -3465,34 +2123,12 @@
    "class": "function_word"
   },
   {
-   "token": "عليهن",
-   "norm": "عليهن",
-   "count": 17,
-   "pos": "حرف جر",
-   "gloss": "on/above",
-   "msa": "عَلَى",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.118,
-   "class": "function_word"
-  },
-  {
    "token": "لِش",
    "norm": "لش",
    "count": 17,
    "pos": "حرف جر",
    "gloss": "to/for + you[fem.sg]",
    "msa": "لِكِ",
-   "da": "",
-   "msa_lemma_zero_ratio": 1.0,
-   "class": "function_word"
-  },
-  {
-   "token": "وَلَها",
-   "norm": "ولها",
-   "count": 16,
-   "pos": "حرف جر",
-   "gloss": "and+ tofor+ her(she has)",
-   "msa": "وَلَها",
    "da": "",
    "msa_lemma_zero_ratio": 1.0,
    "class": "function_word"
@@ -3553,17 +2189,6 @@
    "class": "function_word"
   },
   {
-   "token": "وَعَلَيكُم",
-   "norm": "وعليكم",
-   "count": 15,
-   "pos": "حرف جر",
-   "gloss": "on/above",
-   "msa": "عَلَى",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.4,
-   "class": "function_word"
-  },
-  {
    "token": "بأيش",
    "norm": "بايش",
    "count": 15,
@@ -3605,17 +2230,6 @@
    "msa": "كله",
    "da": "",
    "msa_lemma_zero_ratio": 0.867,
-   "class": "function_word"
-  },
-  {
-   "token": "إليكم",
-   "norm": "اليكم",
-   "count": 15,
-   "pos": "حرف جر",
-   "gloss": "to;towards",
-   "msa": "إليكم",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.8,
    "class": "function_word"
   },
   {
@@ -3704,17 +2318,6 @@
    "msa": "أُمَّال",
    "da": "",
    "msa_lemma_zero_ratio": 0.714,
-   "class": "function_word"
-  },
-  {
-   "token": "وَعَلَيكَ",
-   "norm": "وعليك",
-   "count": 14,
-   "pos": "حرف جر",
-   "gloss": "on/above + you [masc.sg.]",
-   "msa": "عَلَى",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.071,
    "class": "function_word"
   },
   {
@@ -3817,17 +2420,6 @@
    "class": "function_word"
   },
   {
-   "token": "فلو",
-   "norm": "فلو",
-   "count": 13,
-   "pos": "أداة ربط",
-   "gloss": "if",
-   "msa": "لَوْ",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.077,
-   "class": "function_word"
-  },
-  {
    "token": "كَكُلّ",
    "norm": "ككل",
    "count": 13,
@@ -3916,17 +2508,6 @@
    "class": "function_word"
   },
   {
-   "token": "فلَنْ",
-   "norm": "فلن",
-   "count": 13,
-   "pos": "أداة نفي",
-   "gloss": "not, never, nevermore",
-   "msa": "لَنْ",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.0,
-   "class": "function_word"
-  },
-  {
    "token": "لِتِلْكَ",
    "norm": "لتلك",
    "count": 12,
@@ -3944,17 +2525,6 @@
    "pos": "اسم كم",
    "gloss": "half + two [acc.]",
    "msa": "نِصْف",
-   "da": "",
-   "msa_lemma_zero_ratio": 1.0,
-   "class": "function_word"
-  },
-  {
-   "token": "ومنه",
-   "norm": "ومنه",
-   "count": 12,
-   "pos": "حرف جر",
-   "gloss": "from",
-   "msa": "منه",
    "da": "",
    "msa_lemma_zero_ratio": 1.0,
    "class": "function_word"
@@ -3993,28 +2563,6 @@
    "class": "function_word"
   },
   {
-   "token": "وإنِّي",
-   "norm": "واني",
-   "count": 12,
-   "pos": "أداة ربط",
-   "gloss": "that + I",
-   "msa": "إنِّي",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.75,
-   "class": "function_word"
-  },
-  {
-   "token": "فِيأَ",
-   "norm": "فيا",
-   "count": 12,
-   "pos": "أداة نداء",
-   "gloss": "in, by + does/is/are/do",
-   "msa": "أَ",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.417,
-   "class": "function_word"
-  },
-  {
    "token": "الأَغْلَب",
    "norm": "الاغلب",
    "count": 12,
@@ -4023,39 +2571,6 @@
    "msa": "أَغْلَب",
    "da": "",
    "msa_lemma_zero_ratio": 1.0,
-   "class": "function_word"
-  },
-  {
-   "token": "وَعَلَيهِم",
-   "norm": "وعليهم",
-   "count": 12,
-   "pos": "حرف جر",
-   "gloss": "on/above",
-   "msa": "عَلَى",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.083,
-   "class": "function_word"
-  },
-  {
-   "token": "وَوَ",
-   "norm": "وو",
-   "count": 12,
-   "pos": "عطف",
-   "gloss": "[part.] + and",
-   "msa": "وو",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.5,
-   "class": "function_word"
-  },
-  {
-   "token": "وانك",
-   "norm": "وانك",
-   "count": 12,
-   "pos": "أداة ربط",
-   "gloss": "that",
-   "msa": "وانك",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.667,
    "class": "function_word"
   },
   {
@@ -4125,17 +2640,6 @@
    "class": "function_word"
   },
   {
-   "token": "فأنهم",
-   "norm": "فانهم",
-   "count": 11,
-   "pos": "أداة ربط",
-   "gloss": "so/and + that + they [masc.pl.]",
-   "msa": "أَنَّ",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.091,
-   "class": "function_word"
-  },
-  {
    "token": "أَوَّه",
    "norm": "اوه",
    "count": 11,
@@ -4166,17 +2670,6 @@
    "msa": "دوام",
    "da": "",
    "msa_lemma_zero_ratio": 1.0,
-   "class": "function_word"
-  },
-  {
-   "token": "فهناك",
-   "norm": "فهناك",
-   "count": 11,
-   "pos": "ظرف",
-   "gloss": "andso+there",
-   "msa": "هُنَاك",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.727,
    "class": "function_word"
   },
   {
@@ -4345,17 +2838,6 @@
    "class": "function_word"
   },
   {
-   "token": "وَلِكَيْ",
-   "norm": "ولكي",
-   "count": 10,
-   "pos": "أداة ربط",
-   "gloss": "[part.] + in order + that",
-   "msa": "كَيْ",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.1,
-   "class": "function_word"
-  },
-  {
    "token": "عله",
    "norm": "عله",
    "count": 10,
@@ -4510,28 +2992,6 @@
    "class": "function_word"
   },
   {
-   "token": "وَعَلَينا",
-   "norm": "وعلينا",
-   "count": 9,
-   "pos": "حرف جر",
-   "gloss": "on/above",
-   "msa": "عَلَى",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.333,
-   "class": "function_word"
-  },
-  {
-   "token": "منهن",
-   "norm": "منهن",
-   "count": 9,
-   "pos": "حرف جر",
-   "gloss": "from + them [fem.pl.]",
-   "msa": "مِن",
-   "da": "",
-   "msa_lemma_zero_ratio": 1.0,
-   "class": "function_word"
-  },
-  {
    "token": "لَوْلاهُم",
    "norm": "لولاهم",
    "count": 9,
@@ -4543,17 +3003,6 @@
    "class": "function_word"
   },
   {
-   "token": "إِلَينا",
-   "norm": "الينا",
-   "count": 9,
-   "pos": "حرف جر",
-   "gloss": "to/towards + us",
-   "msa": "إلَى",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.111,
-   "class": "function_word"
-  },
-  {
    "token": "قديش",
    "norm": "قديش",
    "count": 9,
@@ -4562,17 +3011,6 @@
    "msa": "كَم",
    "da": "",
    "msa_lemma_zero_ratio": 1.0,
-   "class": "function_word"
-  },
-  {
-   "token": "وأَنَّنا",
-   "norm": "واننا",
-   "count": 9,
-   "pos": "أداة ربط",
-   "gloss": "and+that + we",
-   "msa": "أَنَّ",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.333,
    "class": "function_word"
   },
   {
@@ -4598,28 +3036,6 @@
    "class": "function_word"
   },
   {
-   "token": "فعليك",
-   "norm": "فعليك",
-   "count": 9,
-   "pos": "حرف جر",
-   "gloss": "on;above;to;at",
-   "msa": "عَلَى",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.222,
-   "class": "function_word"
-  },
-  {
-   "token": "فَلَوْلا",
-   "norm": "فلولا",
-   "count": 9,
-   "pos": "أداة ربط",
-   "gloss": "so/and + except for, had it not been for, if not, unless",
-   "msa": "لَوْلا",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.0,
-   "class": "function_word"
-  },
-  {
    "token": "بِذا",
    "norm": "بذا",
    "count": 9,
@@ -4628,17 +3044,6 @@
    "msa": "بِذا",
    "da": "",
    "msa_lemma_zero_ratio": 0.444,
-   "class": "function_word"
-  },
-  {
-   "token": "فِلَّة",
-   "norm": "فله",
-   "count": 9,
-   "pos": "حرف جر",
-   "gloss": "villa/country house + [fem.sg.]",
-   "msa": "فِلَّة",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.667,
    "class": "function_word"
   },
   {
@@ -4752,17 +3157,6 @@
    "class": "function_word"
   },
   {
-   "token": "فيهن",
-   "norm": "فيهن",
-   "count": 9,
-   "pos": "حرف جر",
-   "gloss": "in",
-   "msa": "فيهن",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.889,
-   "class": "function_word"
-  },
-  {
    "token": "بِهٰؤُلاءِ",
    "norm": "بهؤلاء",
    "count": 8,
@@ -4870,17 +3264,6 @@
    "msa": "هُمْ",
    "da": "",
    "msa_lemma_zero_ratio": 0.25,
-   "class": "function_word"
-  },
-  {
-   "token": "فَهٰؤُلاءِ",
-   "norm": "فهؤلاء",
-   "count": 8,
-   "pos": "ضمير اشارة",
-   "gloss": "so\that+these",
-   "msa": "هٰؤُلاءِ",
-   "da": "",
-   "msa_lemma_zero_ratio": 1.0,
    "class": "function_word"
   },
   {
@@ -5082,17 +3465,6 @@
    "class": "function_word"
   },
   {
-   "token": "وغَدًا",
-   "norm": "وغدا",
-   "count": 7,
-   "pos": "ظرف",
-   "gloss": "and+tomorrow",
-   "msa": "غَدًا",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.857,
-   "class": "function_word"
-  },
-  {
    "token": "وَشُو",
    "norm": "وشو",
    "count": 7,
@@ -5101,17 +3473,6 @@
    "msa": "شُو",
    "da": "",
    "msa_lemma_zero_ratio": 0.857,
-   "class": "function_word"
-  },
-  {
-   "token": "فَأَيّ",
-   "norm": "فاي",
-   "count": 7,
-   "pos": "اسم موصول",
-   "gloss": "so/and + which/whatever/whichever",
-   "msa": "أَيّ",
-   "da": "",
-   "msa_lemma_zero_ratio": 1.0,
    "class": "function_word"
   },
   {
@@ -5137,17 +3498,6 @@
    "class": "function_word"
   },
   {
-   "token": "وَلَدَيْهِ",
-   "norm": "ولديه",
-   "count": 7,
-   "pos": "ظرف",
-   "gloss": "have [acc.] + his/its",
-   "msa": "لَدي",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.571,
-   "class": "function_word"
-  },
-  {
    "token": "ساي",
    "norm": "ساي",
    "count": 7,
@@ -5156,17 +3506,6 @@
    "msa": "ساي",
    "da": "",
    "msa_lemma_zero_ratio": 1.0,
-   "class": "function_word"
-  },
-  {
-   "token": "وَثُمَّ",
-   "norm": "وثم",
-   "count": 7,
-   "pos": "عطف",
-   "gloss": "[part.] + then, afterwards, next, moreover",
-   "msa": "ثُمَّ",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.0,
    "class": "function_word"
   },
   {
@@ -5390,17 +3729,6 @@
    "class": "function_word"
   },
   {
-   "token": "فَكَما",
-   "norm": "فكما",
-   "count": 6,
-   "pos": "عطف",
-   "gloss": "so/and + and/as/also",
-   "msa": "كَمَا",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.5,
-   "class": "function_word"
-  },
-  {
    "token": "ولإنه",
    "norm": "ولانه",
    "count": 6,
@@ -5456,28 +3784,6 @@
    "class": "function_word"
   },
   {
-   "token": "لهن",
-   "norm": "لهن",
-   "count": 6,
-   "pos": "حرف جر",
-   "gloss": "for/to | L./12th/(pounds/lira)",
-   "msa": "ل1",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.0,
-   "class": "function_word"
-  },
-  {
-   "token": "فَكَمْ",
-   "norm": "فكم",
-   "count": 6,
-   "pos": "ضمير استفهام",
-   "gloss": "so/and + how many/much",
-   "msa": "كَمْ",
-   "da": "",
-   "msa_lemma_zero_ratio": 1.0,
-   "class": "function_word"
-  },
-  {
    "token": "ليكن",
    "norm": "ليكن",
    "count": 6,
@@ -5489,34 +3795,12 @@
    "class": "function_word"
   },
   {
-   "token": "فأَنَّها",
-   "norm": "فانها",
-   "count": 6,
-   "pos": "أداة ربط",
-   "gloss": "that",
-   "msa": "أَنَّ",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.333,
-   "class": "function_word"
-  },
-  {
    "token": "بتاعهم",
    "norm": "بتاعهم",
    "count": 6,
    "pos": "ضمير",
    "gloss": "Theirs",
    "msa": "بتاع",
-   "da": "",
-   "msa_lemma_zero_ratio": 1.0,
-   "class": "function_word"
-  },
-  {
-   "token": "فَأَنَنّا",
-   "norm": "فاننا",
-   "count": 6,
-   "pos": "أداة ربط",
-   "gloss": "so/and + complain/moan + we [verb]",
-   "msa": "أَنّ-ِ",
    "da": "",
    "msa_lemma_zero_ratio": 1.0,
    "class": "function_word"
@@ -5698,39 +3982,6 @@
    "class": "function_word"
   },
   {
-   "token": "لهما",
-   "norm": "لهما",
-   "count": 5,
-   "pos": "حرف جر",
-   "gloss": "for/to | L./12th/(pounds/lira)",
-   "msa": "ل1",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.0,
-   "class": "function_word"
-  },
-  {
-   "token": "وَبَيْنَما",
-   "norm": "وبينما",
-   "count": 5,
-   "pos": "أداة ربط",
-   "gloss": "[part.] + whereas/while",
-   "msa": "بينما",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.0,
-   "class": "function_word"
-  },
-  {
-   "token": "فَعَن",
-   "norm": "فعن",
-   "count": 5,
-   "pos": "حرف جر",
-   "gloss": "Narrated",
-   "msa": "عَنْ",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.0,
-   "class": "function_word"
-  },
-  {
    "token": "بِماذا",
    "norm": "بماذا",
    "count": 5,
@@ -5761,17 +4012,6 @@
    "msa": "هكَذا",
    "da": "",
    "msa_lemma_zero_ratio": 0.8,
-   "class": "function_word"
-  },
-  {
-   "token": "وَتِلْكَ",
-   "norm": "وتلك",
-   "count": 5,
-   "pos": "ضمير اشارة",
-   "gloss": "[part.] + that/those",
-   "msa": "ذٰلِكَ",
-   "da": "",
-   "msa_lemma_zero_ratio": 1.0,
    "class": "function_word"
   },
   {
@@ -5852,34 +4092,12 @@
    "class": "function_word"
   },
   {
-   "token": "وَبِكُم",
-   "norm": "وبكم",
-   "count": 5,
-   "pos": "حرف جر",
-   "gloss": "[part.] + with/by + you [masc.pl.]",
-   "msa": "بِ",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.8,
-   "class": "function_word"
-  },
-  {
    "token": "وَإِيّاكَ",
    "norm": "واياك",
    "count": 5,
    "pos": "ضمير",
    "gloss": "part.] + to/for + you.]",
    "msa": "إياك",
-   "da": "",
-   "msa_lemma_zero_ratio": 1.0,
-   "class": "function_word"
-  },
-  {
-   "token": "بِهِنَّ",
-   "norm": "بهن",
-   "count": 5,
-   "pos": "حرف جر",
-   "gloss": "with/by",
-   "msa": "بِ",
    "da": "",
    "msa_lemma_zero_ratio": 1.0,
    "class": "function_word"
@@ -5907,17 +4125,6 @@
    "class": "function_word"
   },
   {
-   "token": "وَهن",
-   "norm": "وهن",
-   "count": 5,
-   "pos": "ضمير اشارة",
-   "gloss": "and + they(women)",
-   "msa": "هن",
-   "da": "",
-   "msa_lemma_zero_ratio": 1.0,
-   "class": "function_word"
-  },
-  {
    "token": "هاهي",
    "norm": "هاهي",
    "count": 5,
@@ -5937,17 +4144,6 @@
    "msa": "هذا",
    "da": "",
    "msa_lemma_zero_ratio": 1.0,
-   "class": "function_word"
-  },
-  {
-   "token": "وكُلّاً",
-   "norm": "وكلا",
-   "count": 5,
-   "pos": "اسم كم",
-   "gloss": "all, entire, every, whole",
-   "msa": "كُلّاً",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.8,
    "class": "function_word"
   },
   {
@@ -6135,17 +4331,6 @@
    "msa": "ذَلحِين",
    "da": "",
    "msa_lemma_zero_ratio": 1.0,
-   "class": "function_word"
-  },
-  {
-   "token": "فَعَلِيُّكُم",
-   "norm": "فعليكم",
-   "count": 5,
-   "pos": "حرف جر",
-   "gloss": "so/and + Ali + [def.nom] + your [masc.pl.]",
-   "msa": "عَلِيّ",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.4,
    "class": "function_word"
   },
   {
@@ -6573,17 +4758,6 @@
    "pos": "اسم",
    "gloss": "just / nothing but/mere/only",
    "msa": "مُجَرَّد",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.958,
-   "class": "content_word"
-  },
-  {
-   "token": "معك",
-   "norm": "معك",
-   "count": 309,
-   "pos": "اسم",
-   "gloss": "something_with;at;with",
-   "msa": "معك",
    "da": "",
    "msa_lemma_zero_ratio": 0.958,
    "class": "content_word"
@@ -8709,17 +6883,6 @@
    "msa": "واهله",
    "da": "",
    "msa_lemma_zero_ratio": 0.926,
-   "class": "content_word"
-  },
-  {
-   "token": "وَلَكَ",
-   "norm": "ولك",
-   "count": 54,
-   "pos": "اسم",
-   "gloss": "[part.] + to/for + you [masc.sg.] (you have)",
-   "msa": "لِ-",
-   "da": "",
-   "msa_lemma_zero_ratio": 0.981,
    "class": "content_word"
   },
   {
@@ -11319,17 +9482,6 @@
    "class": "content_word"
   },
   {
-   "token": "ول",
-   "norm": "ول",
-   "count": 25,
-   "pos": "اسم",
-   "gloss": "Oh",
-   "msa": "ول",
-   "da": "",
-   "msa_lemma_zero_ratio": 1.0,
-   "class": "content_word"
-  },
-  {
    "token": "لِلعِلْم",
    "norm": "للعلم",
    "count": 25,
@@ -11349,17 +9501,6 @@
    "msa": "أَنْجَس",
    "da": "",
    "msa_lemma_zero_ratio": 0.92,
-   "class": "content_word"
-  },
-  {
-   "token": "فَكُلْ",
-   "norm": "فكل",
-   "count": 25,
-   "pos": "اسم",
-   "gloss": "every/ all",
-   "msa": "كُل",
-   "da": "",
-   "msa_lemma_zero_ratio": 1.0,
    "class": "content_word"
   },
   {
@@ -13208,6 +11349,1865 @@
    "msa": "وَطَن",
    "da": "",
    "msa_lemma_zero_ratio": 0.944,
+   "class": "content_word"
+  },
+  {
+   "token": "والسَعُودِيِّينَ",
+   "norm": "والسعوديين",
+   "count": 18,
+   "pos": "اسم",
+   "gloss": "and + the + Saudi + [masc.pl.]",
+   "msa": "سَعُودِيِّينَ",
+   "da": "",
+   "msa_lemma_zero_ratio": 0.944,
+   "class": "content_word"
+  },
+  {
+   "token": "فَسادُهُم",
+   "norm": "فسادهم",
+   "count": 18,
+   "pos": "اسم",
+   "gloss": "corruption + their",
+   "msa": "فَساد",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "لِلوَحْدَة",
+   "norm": "للوحده",
+   "count": 18,
+   "pos": "اسم",
+   "gloss": "to/for + the + unity + [fem.sg.]",
+   "msa": "وَحْدَة",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "الدَّرْس",
+   "norm": "الدرس",
+   "count": 18,
+   "pos": "اسم",
+   "gloss": "the + lesson/study",
+   "msa": "دَرْس",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "الشَّرِيفَة",
+   "norm": "الشريفه",
+   "count": 18,
+   "pos": "صفة",
+   "gloss": "the + noble/honorable/respectable + [fem.sg.]",
+   "msa": "شَرِيف",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "المَطَافي",
+   "norm": "المطافي",
+   "count": 18,
+   "pos": "اسم",
+   "gloss": "fire extinguishing",
+   "msa": "مطافي",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "حَرَرْنا",
+   "norm": "حررنا",
+   "count": 18,
+   "pos": "فعل ماضي",
+   "gloss": "be hot + we [verb]",
+   "msa": "حَرّ-ُِ",
+   "da": "",
+   "msa_lemma_zero_ratio": 0.944,
+   "class": "content_word"
+  },
+  {
+   "token": "عَمِيد",
+   "norm": "عميد",
+   "count": 18,
+   "pos": "اسم",
+   "gloss": "dean/chief",
+   "msa": "عَمِيد",
+   "da": "",
+   "msa_lemma_zero_ratio": 0.944,
+   "class": "content_word"
+  },
+  {
+   "token": "النَّجاح",
+   "norm": "النجاح",
+   "count": 18,
+   "pos": "اسم",
+   "gloss": "the + success",
+   "msa": "نَجاح",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "كَرِيمَة",
+   "norm": "كريمه",
+   "count": 18,
+   "pos": "صفة",
+   "gloss": "distinguished/generous/noble/precious + [fem.sg.]",
+   "msa": "كَرِيم",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "شايفين",
+   "norm": "شايفين",
+   "count": 18,
+   "pos": "صفة",
+   "gloss": "seeing",
+   "msa": "شايف",
+   "da": "",
+   "msa_lemma_zero_ratio": 0.944,
+   "class": "content_word"
+  },
+  {
+   "token": "مَصِيرُهُم",
+   "norm": "مصيرهم",
+   "count": 18,
+   "pos": "اسم",
+   "gloss": "path/destiny/fate + their",
+   "msa": "مَصِير",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "طُلّاب",
+   "norm": "طلاب",
+   "count": 18,
+   "pos": "اسم",
+   "gloss": "students",
+   "msa": "طالِب",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "ضابح",
+   "norm": "ضابح",
+   "count": 18,
+   "pos": "صفة",
+   "gloss": "annoyed",
+   "msa": "ضابح",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "وَبِالنِّسْبَة",
+   "norm": "وبالنسبه",
+   "count": 18,
+   "pos": "اسم",
+   "gloss": "[part.] + with/by + the + ratio/rate/percentage figure + [fem.sg.]",
+   "msa": "نِسْبَة",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "اِبْنُكَ",
+   "norm": "ابنك",
+   "count": 18,
+   "pos": "اسم",
+   "gloss": "son/junior (Jr.) + [def.nom] + your [masc.sg.]",
+   "msa": "ٱِبْن",
+   "da": "",
+   "msa_lemma_zero_ratio": 0.944,
+   "class": "content_word"
+  },
+  {
+   "token": "بِعَيْن",
+   "norm": "بعين",
+   "count": 18,
+   "pos": "اسم",
+   "gloss": "eye",
+   "msa": "عَيْن",
+   "da": "",
+   "msa_lemma_zero_ratio": 0.944,
+   "class": "content_word"
+  },
+  {
+   "token": "الرّاتِب",
+   "norm": "الراتب",
+   "count": 18,
+   "pos": "اسم",
+   "gloss": "the + salary/pay",
+   "msa": "راتِب",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "تَقْبِيل",
+   "norm": "تقبيل",
+   "count": 18,
+   "pos": "اسم",
+   "gloss": "for+kissing",
+   "msa": "تَقْبِيل",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "المُطْلَقَات",
+   "norm": "المطلقات",
+   "count": 18,
+   "pos": "صفة",
+   "gloss": "divorced + [fem.sg.]",
+   "msa": "مُطَلّق",
+   "da": "",
+   "msa_lemma_zero_ratio": 0.944,
+   "class": "content_word"
+  },
+  {
+   "token": "تَعَدّ",
+   "norm": "تعد",
+   "count": 18,
+   "pos": "اسم",
+   "gloss": "attacked/longer/no longer",
+   "msa": "عَد",
+   "da": "",
+   "msa_lemma_zero_ratio": 0.944,
+   "class": "content_word"
+  },
+  {
+   "token": "رأسها",
+   "norm": "راسها",
+   "count": 18,
+   "pos": "اسم",
+   "gloss": "head;top",
+   "msa": "رأسها",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "حَرَّرَتوا",
+   "norm": "حررتوا",
+   "count": 18,
+   "pos": "فعل ماضي",
+   "gloss": "liberate/free",
+   "msa": "حَرَّرَ",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "الثَّوْر",
+   "norm": "الثور",
+   "count": 18,
+   "pos": "اسم",
+   "gloss": "the + bull/ox",
+   "msa": "ثَوْر",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "بِمُجَرَّد",
+   "norm": "بمجرد",
+   "count": 18,
+   "pos": "اسم",
+   "gloss": "nothing but/mere | for no other reason but/for the sole reason that",
+   "msa": "مُجرَّد",
+   "da": "",
+   "msa_lemma_zero_ratio": 0.944,
+   "class": "content_word"
+  },
+  {
+   "token": "بالصميل",
+   "norm": "بالصميل",
+   "count": 18,
+   "pos": "اسم",
+   "gloss": "by + stick/baton/force",
+   "msa": "صميل",
+   "da": "",
+   "msa_lemma_zero_ratio": 0.944,
+   "class": "content_word"
+  },
+  {
+   "token": "وُجُوهُكُم",
+   "norm": "وجوهكم",
+   "count": 18,
+   "pos": "اسم",
+   "gloss": "faces + [def.nom] + your [masc.pl.]",
+   "msa": "وَجْه",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "النُصْ",
+   "norm": "النص",
+   "count": 18,
+   "pos": "اسم",
+   "gloss": "the + half",
+   "msa": "نُصْ",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "يَتْبَعُونَ",
+   "norm": "يتبعون",
+   "count": 18,
+   "pos": "فعل مضارع",
+   "gloss": "they (people) + follow/pursue + [masc.pl.]",
+   "msa": "تَبِع-َ",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "وحِزْبُهُ",
+   "norm": "وحزبه",
+   "count": 18,
+   "pos": "اسم",
+   "gloss": "party + his",
+   "msa": "حِزْب",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "وحُوثي",
+   "norm": "وحوثي",
+   "count": 18,
+   "pos": "اسم",
+   "gloss": "and Houthi",
+   "msa": "حُوثي",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "حَدُّكَ",
+   "norm": "حدك",
+   "count": 18,
+   "pos": "اسم",
+   "gloss": "extent/limit/level + [def.nom] + your [masc.sg.]",
+   "msa": "حَدّ",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "لِعِلْمِكَ",
+   "norm": "لعلمك",
+   "count": 18,
+   "pos": "اسم",
+   "gloss": "for/to + knowledge/knowing + [def.gen.] + your [masc.sg.]",
+   "msa": "عِلْم",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "اِتَقِ",
+   "norm": "اتق",
+   "count": 18,
+   "pos": "فعل أمر",
+   "gloss": "be devout/be pious",
+   "msa": "اتَقَى",
+   "da": "",
+   "msa_lemma_zero_ratio": 0.944,
+   "class": "content_word"
+  },
+  {
+   "token": "طيزك",
+   "norm": "طيزك",
+   "count": 18,
+   "pos": "اسم",
+   "gloss": "to+ your + ass",
+   "msa": "مؤخره",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "الرُّدُود",
+   "norm": "الردود",
+   "count": 17,
+   "pos": "اسم",
+   "gloss": "the + replies/responses",
+   "msa": "رَدّ",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "بِالرَّدّ",
+   "norm": "بالرد",
+   "count": 17,
+   "pos": "اسم",
+   "gloss": "in + the + reply/response",
+   "msa": "رَدّ",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "فَأَطْرَيْنَ",
+   "norm": "فاطرين",
+   "count": 17,
+   "pos": "صفة",
+   "gloss": "breaking fast+ they",
+   "msa": "فاطر",
+   "da": "",
+   "msa_lemma_zero_ratio": 0.941,
+   "class": "content_word"
+  },
+  {
+   "token": "وَالعَفَافِيش",
+   "norm": "والعفافيش",
+   "count": 17,
+   "pos": "اسم",
+   "gloss": "and + Afafeesh",
+   "msa": "عفَّاشيّ",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "ردود",
+   "norm": "ردود",
+   "count": 17,
+   "pos": "اسم",
+   "gloss": "replies;responses;return;repulsion;in_reply_to;in_answer_to",
+   "msa": "رد",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "سَتَبْقَى",
+   "norm": "ستبقي",
+   "count": 17,
+   "pos": "فعل مضارع",
+   "gloss": "will + it/they/she + remain/last + [ind.]",
+   "msa": "بَقِي-َ",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "أَرْواحُهُم",
+   "norm": "ارواحهم",
+   "count": 17,
+   "pos": "اسم",
+   "gloss": "spirits/souls + [def.nom] + their",
+   "msa": "رُوح",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "بُيُوتُنا",
+   "norm": "بيوتنا",
+   "count": 17,
+   "pos": "اسم",
+   "gloss": "houses + [def.nom] + our",
+   "msa": "بَيْت",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "وَرَبُّنا",
+   "norm": "وربنا",
+   "count": 17,
+   "pos": "اسم",
+   "gloss": "to/for + Allah/God + [def.gen.] | by + Allah/God + [def.gen.] | Allah/God",
+   "msa": "الله",
+   "da": "",
+   "msa_lemma_zero_ratio": 0.941,
+   "class": "content_word"
+  },
+  {
+   "token": "خَيْرهم",
+   "norm": "خيرهم",
+   "count": 17,
+   "pos": "اسم",
+   "gloss": "good+their",
+   "msa": "خَيْر",
+   "da": "",
+   "msa_lemma_zero_ratio": 0.941,
+   "class": "content_word"
+  },
+  {
+   "token": "باعرف",
+   "norm": "باعرف",
+   "count": 17,
+   "pos": "فعل مضارع",
+   "gloss": "know;be_known",
+   "msa": "بعرف",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "وَالنَّصْر",
+   "norm": "والنصر",
+   "count": 17,
+   "pos": "اسم",
+   "gloss": "[part.] + the + victory/assistance",
+   "msa": "نَصْر",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "أَهْلُهم",
+   "norm": "اهلهم",
+   "count": 17,
+   "pos": "اسم",
+   "gloss": "Their family",
+   "msa": "أَهْل",
+   "da": "",
+   "msa_lemma_zero_ratio": 0.941,
+   "class": "content_word"
+  },
+  {
+   "token": "جانا",
+   "norm": "جانا",
+   "count": 17,
+   "pos": "فعل ماضي",
+   "gloss": "occur;come;arrive",
+   "msa": "جانا",
+   "da": "",
+   "msa_lemma_zero_ratio": 0.941,
+   "class": "content_word"
+  },
+  {
+   "token": "مَلالِي",
+   "norm": "ملالي",
+   "count": 17,
+   "pos": "اسم",
+   "gloss": "mullahs/Muslim clerics",
+   "msa": "مَلالِي",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "حُدُودُهُ",
+   "norm": "حدوده",
+   "count": 17,
+   "pos": "اسم",
+   "gloss": "border/frontier/limits + [def.nom] + its/his",
+   "msa": "حَدّ",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "هَدَفَها",
+   "norm": "هدفها",
+   "count": 17,
+   "pos": "اسم",
+   "gloss": "aim/intend + he/it [verb] + it/them/her",
+   "msa": "هَدَف-ِ",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "نِظامُهُ",
+   "norm": "نظامه",
+   "count": 17,
+   "pos": "اسم",
+   "gloss": "regime/government + its/his",
+   "msa": "نِظام",
+   "da": "",
+   "msa_lemma_zero_ratio": 0.941,
+   "class": "content_word"
+  },
+  {
+   "token": "أمها",
+   "norm": "امها",
+   "count": 17,
+   "pos": "اسم",
+   "gloss": "mother;maternal;mothers",
+   "msa": "أمها",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "حَدّكُم",
+   "norm": "حدكم",
+   "count": 17,
+   "pos": "اسم",
+   "gloss": "circle + your [masc.pl.]",
+   "msa": "حَدّ",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "عُرُوقُكَ",
+   "norm": "عروقك",
+   "count": 17,
+   "pos": "اسم",
+   "gloss": "roots/ancestry + [def.nom] + your [masc.sg.]",
+   "msa": "عِرْق",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "جُثَّتهُ",
+   "norm": "جثته",
+   "count": 17,
+   "pos": "اسم",
+   "gloss": "corpse + his",
+   "msa": "جُثَّة",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "شلك",
+   "norm": "شلك",
+   "count": 17,
+   "pos": "فعل ماضي",
+   "gloss": "Glue",
+   "msa": "شلك",
+   "da": "",
+   "msa_lemma_zero_ratio": 0.941,
+   "class": "content_word"
+  },
+  {
+   "token": "تَدْعَمُونَ",
+   "norm": "تدعمون",
+   "count": 17,
+   "pos": "فعل مضارع",
+   "gloss": "you [masc.pl.] + support/strengthen + [masc.pl.]",
+   "msa": "دَعَم-َ",
+   "da": "",
+   "msa_lemma_zero_ratio": 0.941,
+   "class": "content_word"
+  },
+  {
+   "token": "مُسَوِيه",
+   "norm": "مسويه",
+   "count": 17,
+   "pos": "اسم",
+   "gloss": "doing",
+   "msa": "مُسَوِي",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "شرك",
+   "norm": "شرك",
+   "count": 17,
+   "pos": "اسم",
+   "gloss": "evil;malice",
+   "msa": "شرك",
+   "da": "",
+   "msa_lemma_zero_ratio": 0.941,
+   "class": "content_word"
+  },
+  {
+   "token": "أَتَت",
+   "norm": "اتت",
+   "count": 17,
+   "pos": "فعل ماضي",
+   "gloss": "arrive/come/reach + it/they/she [verb]",
+   "msa": "أَتَى-ِ",
+   "da": "",
+   "msa_lemma_zero_ratio": 0.941,
+   "class": "content_word"
+  },
+  {
+   "token": "مَمْحُونة",
+   "norm": "ممحونه",
+   "count": 17,
+   "pos": "صفة",
+   "gloss": "ordeal/test/trial + [fem.sg.]",
+   "msa": "ممحونة",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "فَلَكِيَّة",
+   "norm": "فلكيه",
+   "count": 16,
+   "pos": "صفة",
+   "gloss": "astronomic/sidereal + [fem.sg.]",
+   "msa": "فَلَكِيّ",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "سَيِّدنا",
+   "norm": "سيدنا",
+   "count": 16,
+   "pos": "اسم",
+   "gloss": "master + our",
+   "msa": "سَيِّد",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "زيه",
+   "norm": "زيه",
+   "count": 16,
+   "pos": "اسم",
+   "gloss": "like",
+   "msa": "زيه",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "رِزْق",
+   "norm": "رزق",
+   "count": 16,
+   "pos": "اسم",
+   "gloss": "Rizq",
+   "msa": "رِزْق",
+   "da": "",
+   "msa_lemma_zero_ratio": 0.938,
+   "class": "content_word"
+  },
+  {
+   "token": "كاراسوما",
+   "norm": "كاراسوما",
+   "count": 16,
+   "pos": "اسم",
+   "gloss": "Karasuma",
+   "msa": "كاراسوما",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "الاِقْتِصادِيَّة",
+   "norm": "الاقتصاديه",
+   "count": 16,
+   "pos": "اسم",
+   "gloss": "the + economist + [fem.sg.]",
+   "msa": "ٱِقْتِصادِيّ",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "بَدَأُوا",
+   "norm": "بداوا",
+   "count": 16,
+   "pos": "فعل ماضي",
+   "gloss": "start/begin + they [verb]",
+   "msa": "بَدَأ-َ",
+   "da": "",
+   "msa_lemma_zero_ratio": 0.938,
+   "class": "content_word"
+  },
+  {
+   "token": "بِالرُّوح",
+   "norm": "بالروح",
+   "count": 16,
+   "pos": "اسم",
+   "gloss": "[part.] + the + spirit/soul",
+   "msa": "رُوح",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "العفاشيين",
+   "norm": "العفاشيين",
+   "count": 16,
+   "pos": "اسم",
+   "gloss": "Affashi",
+   "msa": "عفاشي",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "الأَبْيات",
+   "norm": "الابيات",
+   "count": 16,
+   "pos": "اسم",
+   "gloss": "the + verses",
+   "msa": "بَيْت",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "ساحِل",
+   "norm": "ساحل",
+   "count": 16,
+   "pos": "اسم",
+   "gloss": "coast",
+   "msa": "ساحِل",
+   "da": "",
+   "msa_lemma_zero_ratio": 0.938,
+   "class": "content_word"
+  },
+  {
+   "token": "التعزي",
+   "norm": "التعزي",
+   "count": 16,
+   "pos": "اسم",
+   "gloss": "the Taizi",
+   "msa": "تعزي",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "وقبلها",
+   "norm": "وقبلها",
+   "count": 16,
+   "pos": "اسم",
+   "gloss": "and before it",
+   "msa": "قبل",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "عاملة",
+   "norm": "عامله",
+   "count": 16,
+   "pos": "اسم",
+   "gloss": "doing",
+   "msa": "عامل",
+   "da": "",
+   "msa_lemma_zero_ratio": 0.938,
+   "class": "content_word"
+  },
+  {
+   "token": "بيقدر",
+   "norm": "بيقدر",
+   "count": 16,
+   "pos": "فعل مضارع",
+   "gloss": "be able to/be capable of",
+   "msa": "قدَرَ على",
+   "da": "",
+   "msa_lemma_zero_ratio": 0.938,
+   "class": "content_word"
+  },
+  {
+   "token": "مُسَلَّحَة",
+   "norm": "مسلحه",
+   "count": 16,
+   "pos": "صفة",
+   "gloss": "armored/reinforced",
+   "msa": "مُسَلَّح",
+   "da": "",
+   "msa_lemma_zero_ratio": 0.938,
+   "class": "content_word"
+  },
+  {
+   "token": "وَدَعَسَ",
+   "norm": "ودعس",
+   "count": 16,
+   "pos": "فعل ماضي",
+   "gloss": "[part.] + step on/trample/run over + he/it [verb]",
+   "msa": "دَعَس-َ",
+   "da": "",
+   "msa_lemma_zero_ratio": 0.938,
+   "class": "content_word"
+  },
+  {
+   "token": "وَيَعْمَل",
+   "norm": "ويعمل",
+   "count": 16,
+   "pos": "فعل مضارع",
+   "gloss": "and + he + works",
+   "msa": "يَعْمَل",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "يَحكُموا",
+   "norm": "يحكموا",
+   "count": 16,
+   "pos": "فعل مضارع",
+   "gloss": "govern/rule+ they [verb]",
+   "msa": "حَكَمَ",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "نفسنا",
+   "norm": "نفسنا",
+   "count": 16,
+   "pos": "اسم",
+   "gloss": "our + selves",
+   "msa": "نفس",
+   "da": "",
+   "msa_lemma_zero_ratio": 0.938,
+   "class": "content_word"
+  },
+  {
+   "token": "سَيَأْتِي",
+   "norm": "سياتي",
+   "count": 16,
+   "pos": "فعل مضارع",
+   "gloss": "will + he/it + arrive/come/reach + [ind.]",
+   "msa": "أَتَى-ِ",
+   "da": "",
+   "msa_lemma_zero_ratio": 0.938,
+   "class": "content_word"
+  },
+  {
+   "token": "التَّصْرِيحات",
+   "norm": "التصريحات",
+   "count": 16,
+   "pos": "اسم",
+   "gloss": "the + declarations/statements + [fem.pl.]",
+   "msa": "تَصْرِيح",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "بَخَس",
+   "norm": "بخس",
+   "count": 16,
+   "pos": "صفة",
+   "gloss": "Cheaply",
+   "msa": "بَخَس",
+   "da": "",
+   "msa_lemma_zero_ratio": 0.938,
+   "class": "content_word"
+  },
+  {
+   "token": "قَتَلْتُم",
+   "norm": "قتلتم",
+   "count": 16,
+   "pos": "فعل ماضي",
+   "gloss": "kill + you [masc.pl.] [verb]",
+   "msa": "قَتَل-ُ",
+   "da": "",
+   "msa_lemma_zero_ratio": 0.938,
+   "class": "content_word"
+  },
+  {
+   "token": "يَشْكُلُ",
+   "norm": "يشكل",
+   "count": 16,
+   "pos": "فعل مضارع",
+   "gloss": "he/it + shape, constitute, fashion, model, frame, comprise [ind.]",
+   "msa": "شَكَل-ُ",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "أَفْعالُهُم",
+   "norm": "افعالهم",
+   "count": 16,
+   "pos": "اسم",
+   "gloss": "acts/actions/deeds + [def.nom] + their",
+   "msa": "فِعْل",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "يَخْزُنُونَ",
+   "norm": "يخزنون",
+   "count": 16,
+   "pos": "فعل مضارع",
+   "gloss": "they (people) + chew qat+ [masc.pl.]",
+   "msa": "خَزَن-ُ",
+   "da": "",
+   "msa_lemma_zero_ratio": 0.938,
+   "class": "content_word"
+  },
+  {
+   "token": "الرِّزْق",
+   "norm": "الرزق",
+   "count": 16,
+   "pos": "اسم",
+   "gloss": "the + livelihood/sustenance",
+   "msa": "رِزْق",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "الهواشم",
+   "norm": "الهواشم",
+   "count": 16,
+   "pos": "اسم",
+   "gloss": "the+Hashems",
+   "msa": "هاشمي",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "لُغْم",
+   "norm": "لغم",
+   "count": 16,
+   "pos": "اسم",
+   "gloss": "mine",
+   "msa": "لُغْم",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "زَيدِية",
+   "norm": "زيديه",
+   "count": 16,
+   "pos": "اسم",
+   "gloss": "Zaidi",
+   "msa": "زَيدِي",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "نَمْسَحُ",
+   "norm": "نمسح",
+   "count": 16,
+   "pos": "فعل مضارع",
+   "gloss": "we + wipe off + [ind.]",
+   "msa": "مَسَح-َ",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "مَركُوز",
+   "norm": "مركوز",
+   "count": 16,
+   "pos": "صفة",
+   "gloss": "standing",
+   "msa": "مَركُوز",
+   "da": "",
+   "msa_lemma_zero_ratio": 0.938,
+   "class": "content_word"
+  },
+  {
+   "token": "وَفِعْلًا",
+   "norm": "وفعلا",
+   "count": 16,
+   "pos": "اسم",
+   "gloss": "actually/really + [acc.indef.]",
+   "msa": "فِعْل",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "يَحْكُمُونَ",
+   "norm": "يحكمون",
+   "count": 16,
+   "pos": "فعل مضارع",
+   "gloss": "they (people) + judge/sentence + [masc.pl.]",
+   "msa": "حَكَم-ُ",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "حسيت",
+   "norm": "حسيت",
+   "count": 16,
+   "pos": "فعل ماضي",
+   "gloss": "feel;sense",
+   "msa": "حسيت",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "دَيِّنَك",
+   "norm": "دينك",
+   "count": 16,
+   "pos": "اسم",
+   "gloss": "religious",
+   "msa": "دَيِّن",
+   "da": "",
+   "msa_lemma_zero_ratio": 0.938,
+   "class": "content_word"
+  },
+  {
+   "token": "الاِنْتِصارات",
+   "norm": "الانتصارات",
+   "count": 16,
+   "pos": "اسم",
+   "gloss": "the + victory + [fem.pl.]",
+   "msa": "ٱِنْتِصار",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "ضفعه",
+   "norm": "ضفعه",
+   "count": 16,
+   "pos": "اسم",
+   "gloss": "Shit",
+   "msa": "ضفعه",
+   "da": "",
+   "msa_lemma_zero_ratio": 0.938,
+   "class": "content_word"
+  },
+  {
+   "token": "مُؤَخَّرَتُهُ",
+   "norm": "مؤخرته",
+   "count": 16,
+   "pos": "اسم",
+   "gloss": "rear/back + [fem.sg.] + [def.nom] + his/its",
+   "msa": "مُؤَخَّر",
+   "da": "",
+   "msa_lemma_zero_ratio": 0.938,
+   "class": "content_word"
+  },
+  {
+   "token": "عمال",
+   "norm": "عمال",
+   "count": 16,
+   "pos": "اسم",
+   "gloss": "continue",
+   "msa": "عمال",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "جَدَّتِي",
+   "norm": "جدتي",
+   "count": 16,
+   "pos": "اسم",
+   "gloss": "grandmother + [fem.sg.] + my",
+   "msa": "جَدَّة",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "يَكْرَهُونَ",
+   "norm": "يكرهون",
+   "count": 16,
+   "pos": "فعل مضارع",
+   "gloss": "they (people) + hate/loathe/dislike + [masc.pl.]",
+   "msa": "كَرِه-َ",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "يَسْهُلُ",
+   "norm": "يسهل",
+   "count": 16,
+   "pos": "فعل مضارع",
+   "gloss": "he/it + be easy/be convenient + [ind.]",
+   "msa": "سَهُل-ُ",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "وتَعالْ",
+   "norm": "وتعال",
+   "count": 16,
+   "pos": "فعل أمر",
+   "gloss": "and + come + you [verb]",
+   "msa": "تَعال",
+   "da": "",
+   "msa_lemma_zero_ratio": 0.938,
+   "class": "content_word"
+  },
+  {
+   "token": "كونه",
+   "norm": "كونه",
+   "count": 16,
+   "pos": "اسم",
+   "gloss": "being",
+   "msa": "كَوْن",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "وَسَيِّدُكَ",
+   "norm": "وسيدك",
+   "count": 16,
+   "pos": "اسم",
+   "gloss": "[part.] + Sir/Mr./Mister + your [masc.sg.]",
+   "msa": "سَيِّد",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "وَضْعُكُم",
+   "norm": "وضعكم",
+   "count": 16,
+   "pos": "اسم",
+   "gloss": "situation/status/condition + [def.nom] + your [masc.pl.]",
+   "msa": "وَضْع",
+   "da": "",
+   "msa_lemma_zero_ratio": 0.938,
+   "class": "content_word"
+  },
+  {
+   "token": "ماـتَقُولُ",
+   "norm": "ماتقول",
+   "count": 16,
+   "pos": "فعل مضارع",
+   "gloss": "not + it/they/he + say .]",
+   "msa": "قال-ُ",
+   "da": "",
+   "msa_lemma_zero_ratio": 0.938,
+   "class": "content_word"
+  },
+  {
+   "token": "ملـقَبْل",
+   "norm": "ملقبل",
+   "count": 16,
+   "pos": "اسم",
+   "gloss": "before",
+   "msa": "ماـقَبْل",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "نَهَبَها",
+   "norm": "نهبها",
+   "count": 16,
+   "pos": "فعل ماضي",
+   "gloss": "plunder/loot + he/it [verb] + it/them/her",
+   "msa": "نَهَب",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "المُشِير",
+   "norm": "المشير",
+   "count": 15,
+   "pos": "اسم",
+   "gloss": "the + marshal/ adviser",
+   "msa": "مُشِير",
+   "da": "",
+   "msa_lemma_zero_ratio": 0.933,
+   "class": "content_word"
+  },
+  {
+   "token": "بأعطيك",
+   "norm": "باعطيك",
+   "count": 15,
+   "pos": "فعل مضارع",
+   "gloss": "give;provide",
+   "msa": "بأعطيك",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "وَنَشْجُب",
+   "norm": "ونشجب",
+   "count": 15,
+   "pos": "فعل مضارع",
+   "gloss": "afflict/condemn/censure",
+   "msa": "شَجَب-ُ",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "مَشْرُوعُهُم",
+   "norm": "مشروعهم",
+   "count": 15,
+   "pos": "اسم",
+   "gloss": "project/enterprise + [def.nom] + their",
+   "msa": "مَشْرُوع",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "بد",
+   "norm": "بد",
+   "count": 15,
+   "pos": "اسم",
+   "gloss": "must;Unavoidable",
+   "msa": "بد",
+   "da": "",
+   "msa_lemma_zero_ratio": 0.933,
+   "class": "content_word"
+  },
+  {
+   "token": "الزامل",
+   "norm": "الزامل",
+   "count": 15,
+   "pos": "اسم",
+   "gloss": "songs/melodies | song/melody",
+   "msa": "أُغنيَة",
+   "da": "",
+   "msa_lemma_zero_ratio": 0.933,
+   "class": "content_word"
+  },
+  {
+   "token": "حِساباتُهُم",
+   "norm": "حساباتهم",
+   "count": 15,
+   "pos": "اسم",
+   "gloss": "invoice/expense/account + [fem.pl.] + their",
+   "msa": "حِساب",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "سَلامات",
+   "norm": "سلامات",
+   "count": 15,
+   "pos": "اسم",
+   "gloss": "greetings/salutations/Salamat",
+   "msa": "سَلام",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "لِلحَقّ",
+   "norm": "للحق",
+   "count": 15,
+   "pos": "اسم",
+   "gloss": "to/for + the + truth/right",
+   "msa": "حَقّ",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "التَّصْرِيح",
+   "norm": "التصريح",
+   "count": 15,
+   "pos": "اسم",
+   "gloss": "the + declaration/statement",
+   "msa": "تَصْرِيح",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "ردَّك",
+   "norm": "ردك",
+   "count": 15,
+   "pos": "اسم",
+   "gloss": "reply;response",
+   "msa": "ردَّك",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "المُنَوَّرَة",
+   "norm": "المنوره",
+   "count": 15,
+   "pos": "صفة",
+   "gloss": "the + shining/bright {almunawara}",
+   "msa": "مُنَوَّرة",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "حَكَمْتُ",
+   "norm": "حكمت",
+   "count": 15,
+   "pos": "فعل ماضي",
+   "gloss": "rule/govern + I [verb]",
+   "msa": "حَكَمت",
+   "da": "",
+   "msa_lemma_zero_ratio": 0.933,
+   "class": "content_word"
+  },
+  {
+   "token": "بِأَنْفُسِهِم",
+   "norm": "بانفسهم",
+   "count": 15,
+   "pos": "اسم",
+   "gloss": "[part.] + selves + [def.gen.] + their",
+   "msa": "نَفْس",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "وَلِلعِلْم",
+   "norm": "وللعلم",
+   "count": 15,
+   "pos": "اسم",
+   "gloss": "[part.] + to/for + the + knowledge/knowing",
+   "msa": "عِلْم",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "لِلدِّيْن",
+   "norm": "للدين",
+   "count": 15,
+   "pos": "اسم",
+   "gloss": "to/for + the +religion",
+   "msa": "دِيْن",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "يَخافُونَ",
+   "norm": "يخافون",
+   "count": 15,
+   "pos": "فعل مضارع",
+   "gloss": "they (people) + fear/be afraid (of) + [masc.pl.]",
+   "msa": "خاف-َ",
+   "da": "",
+   "msa_lemma_zero_ratio": 0.933,
+   "class": "content_word"
+  },
+  {
+   "token": "يَقْهَرَ",
+   "norm": "يقهر",
+   "count": 15,
+   "pos": "فعل مضارع",
+   "gloss": "defeat/overpower",
+   "msa": "يَقْهَرَ",
+   "da": "",
+   "msa_lemma_zero_ratio": 0.933,
+   "class": "content_word"
+  },
+  {
+   "token": "دِحبَاشِية",
+   "norm": "دحباشيه",
+   "count": 15,
+   "pos": "صفة",
+   "gloss": "Dehbashi",
+   "msa": "دِحبَاشِي",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "الدَوَاعِش",
+   "norm": "الدواعش",
+   "count": 15,
+   "pos": "اسم",
+   "gloss": "(ISIL (forces",
+   "msa": "دَاعِشِيّ",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "اموت",
+   "norm": "اموت",
+   "count": 15,
+   "pos": "فعل مضارع",
+   "gloss": "die;pass_away",
+   "msa": "اموت",
+   "da": "",
+   "msa_lemma_zero_ratio": 0.933,
+   "class": "content_word"
+  },
+  {
+   "token": "التَراوِيح",
+   "norm": "التراويح",
+   "count": 15,
+   "pos": "اسم",
+   "gloss": "(the + Taraweeh/evening prayers (during Ramadan",
+   "msa": "تَراوِيح",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "سلتوحْ",
+   "norm": "سلتوح",
+   "count": 15,
+   "pos": "اسم",
+   "gloss": "Slotuh",
+   "msa": "سلتوحْ",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "هاشتاج",
+   "norm": "هاشتاج",
+   "count": 15,
+   "pos": "اسم",
+   "gloss": "hashtag",
+   "msa": "هاشتاج",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "دَعَسَهُم",
+   "norm": "دعسهم",
+   "count": 15,
+   "pos": "فعل ماضي",
+   "gloss": "stepping on/trampling/running over + them",
+   "msa": "دَعَس-َ",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "لِلوَفاء",
+   "norm": "للوفاء",
+   "count": 15,
+   "pos": "اسم",
+   "gloss": "to/for + the + fulfillment/completion",
+   "msa": "وَفاء",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "سَيِّدُكُم",
+   "norm": "سيدكم",
+   "count": 15,
+   "pos": "اسم",
+   "gloss": "Sir/Mr./Mister + [def.nom] + your [masc.pl.]",
+   "msa": "سَيِّد",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "حَدِيثُهُ",
+   "norm": "حديثه",
+   "count": 15,
+   "pos": "صفة",
+   "gloss": "discussion/talk/interview + [def.nom] + its/his",
+   "msa": "حَدِيث",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "وَأَنْصارُهُ",
+   "norm": "وانصاره",
+   "count": 15,
+   "pos": "اسم",
+   "gloss": "[part.] + partisans/followers + [def.nom] + its/his",
+   "msa": "أَنْصار",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "النّاجِحَة",
+   "norm": "الناجحه",
+   "count": 15,
+   "pos": "اسم",
+   "gloss": "the + winner/successful + [fem.sg.]",
+   "msa": "ناجِح",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "وعَشَان",
+   "norm": "وعشان",
+   "count": 15,
+   "pos": "اسم",
+   "gloss": "and+ for/for sake of",
+   "msa": "عَشَان",
+   "da": "",
+   "msa_lemma_zero_ratio": 0.933,
+   "class": "content_word"
+  },
+  {
+   "token": "بِعفّاش",
+   "norm": "بعفاش",
+   "count": 15,
+   "pos": "اسم",
+   "gloss": "Affash",
+   "msa": "عفّاش",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "داعشي",
+   "norm": "داعشي",
+   "count": 15,
+   "pos": "اسم",
+   "gloss": "daeishi+ISIS",
+   "msa": "داعشي",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "وَالنّار",
+   "norm": "والنار",
+   "count": 15,
+   "pos": "اسم",
+   "gloss": "[part.] + the + fire/burning",
+   "msa": "نار",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "يَقْعُدَ",
+   "norm": "يقعد",
+   "count": 15,
+   "pos": "فعل مضارع",
+   "gloss": "sit down/be seated/remain",
+   "msa": "قْعدَ",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "ترند",
+   "norm": "ترند",
+   "count": 15,
+   "pos": "اسم",
+   "gloss": "Trend",
+   "msa": "ترند",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "الجعربي",
+   "norm": "الجعربي",
+   "count": 15,
+   "pos": "اسم",
+   "gloss": "Al-jaerabi",
+   "msa": "الجعربي",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "يَوْمُهُ",
+   "norm": "يومه",
+   "count": 15,
+   "pos": "اسم",
+   "gloss": "day + its/his",
+   "msa": "يَوْم",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "الخُطُوط",
+   "norm": "الخطوط",
+   "count": 15,
+   "pos": "اسم",
+   "gloss": "the + lines",
+   "msa": "خَطّ",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "تُصَدِّقُونَ",
+   "norm": "تصدقون",
+   "count": 15,
+   "pos": "فعل مضارع",
+   "gloss": "ratify/adopt",
+   "msa": "صَدَّق",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "وَبِالذّات",
+   "norm": "وبالذات",
+   "count": 15,
+   "pos": "اسم",
+   "gloss": "exactly; precisely; especially",
+   "msa": "ذات",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "هَدَفُهُ",
+   "norm": "هدفه",
+   "count": 15,
+   "pos": "اسم",
+   "gloss": "target + [def.nom] + its/his",
+   "msa": "هَدَف",
+   "da": "",
+   "msa_lemma_zero_ratio": 0.933,
+   "class": "content_word"
+  },
+  {
+   "token": "رقبته",
+   "norm": "رقبته",
+   "count": 15,
+   "pos": "اسم",
+   "gloss": "neck;necks;slaves",
+   "msa": "رقبته",
+   "da": "",
+   "msa_lemma_zero_ratio": 0.933,
+   "class": "content_word"
+  },
+  {
+   "token": "النّازِحَيْنِ",
+   "norm": "النازحين",
+   "count": 15,
+   "pos": "اسم",
+   "gloss": "the + emigrant + displaced .]",
+   "msa": "نازِح",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "اهلا",
+   "norm": "اهلا",
+   "count": 15,
+   "pos": "اسم",
+   "gloss": "welcome!",
+   "msa": "اهلا",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "لَعَنَكُم",
+   "norm": "لعنكم",
+   "count": 15,
+   "pos": "فعل ماضي",
+   "gloss": "curse/damn + you",
+   "msa": "لَعَن-َ",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "قطرائيل",
+   "norm": "قطرائيل",
+   "count": 15,
+   "pos": "اسم",
+   "gloss": "Qatar+Israel",
+   "msa": "قطرائيل",
+   "da": "",
+   "msa_lemma_zero_ratio": 0.933,
+   "class": "content_word"
+  },
+  {
+   "token": "وَالرَّدّ",
+   "norm": "والرد",
+   "count": 15,
+   "pos": "اسم",
+   "gloss": "[part.] + the + reply/response",
+   "msa": "رَدّ",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "ورجعوا",
+   "norm": "ورجعوا",
+   "count": 15,
+   "pos": "فعل ماضي",
+   "gloss": "go_back;return;came_back",
+   "msa": "رجعوا",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "الرُّوح",
+   "norm": "الروح",
+   "count": 14,
+   "pos": "اسم",
+   "gloss": "the + spirit/soul",
+   "msa": "رُوح",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "مَصِيرُكَ",
+   "norm": "مصيرك",
+   "count": 14,
+   "pos": "اسم",
+   "gloss": "path/destiny/fate + [def.nom] + your [masc.sg.]",
+   "msa": "مَصِير",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "يحلب",
+   "norm": "يحلب",
+   "count": 14,
+   "pos": "فعل مضارع",
+   "gloss": "milk",
+   "msa": "حَلَبَ",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "راه",
+   "norm": "راه",
+   "count": 14,
+   "pos": "اسم",
+   "gloss": "that + it/he",
+   "msa": "أنه",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "الهاشتاج",
+   "norm": "الهاشتاج",
+   "count": 14,
+   "pos": "اسم",
+   "gloss": "hashtag",
+   "msa": "هاشتاج",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
+   "class": "content_word"
+  },
+  {
+   "token": "وَالرَّأْس",
+   "norm": "والراس",
+   "count": 14,
+   "pos": "اسم",
+   "gloss": "[part.] + the + head",
+   "msa": "رَأْس",
+   "da": "",
+   "msa_lemma_zero_ratio": 1.0,
    "class": "content_word"
   }
  ]

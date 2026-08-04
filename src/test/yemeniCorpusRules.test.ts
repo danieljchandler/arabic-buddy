@@ -48,8 +48,8 @@ describe("Yemeni corpus rule drafts", () => {
     );
   });
 
-  // Nothing reaches a generator until an admin approves it: fetchRules in
-  // dialectHelpers selects status='approved' only.
+  // Approval is a separate, deliberate step. The seed stays draft-only so the
+  // history shows a human decided; 20260804150000 is that decision.
   it("seeds only drafts, attributed to the corpus", async () => {
     const { sql } = await loadRules();
     const statuses = [...sql.matchAll(/'(draft|approved|retired)',\s*'(\w+)'/g)];
@@ -58,5 +58,39 @@ describe("Yemeni corpus rule drafts", () => {
       expect(status).toBe("draft");
       expect(source).toBe("corpus_mined");
     }
+  });
+});
+
+// These rules are live now, so the approval must not be broader than intended:
+// a future mine-dialect-corpus run's drafts would otherwise be swept into
+// production by a migration that has nothing to do with them.
+describe("Yemeni corpus rule approval", () => {
+  const APPROVAL = "supabase/migrations/20260804150000_approve_yemeni_corpus_rules.sql";
+
+  const loadApproval = async () => {
+    const { readFile } = await import("node:fs/promises");
+    const { resolve } = await import("node:path");
+    return readFile(resolve(APPROVAL), "utf8");
+  };
+
+  it("approves only this corpus's Yemeni drafts", async () => {
+    const sql = await loadApproval();
+    expect(sql).toMatch(/dialect\s*=\s*'Yemeni'/);
+    expect(sql).toMatch(/source\s*=\s*'corpus_mined'/);
+    expect(sql).toMatch(/notes LIKE 'Lisan%'/);
+    // Idempotent, and cannot resurrect anything an admin has since retired.
+    expect(sql).toMatch(/status\s*=\s*'draft'/);
+  });
+
+  it("touches dialect_rules and nothing else", async () => {
+    const sql = await loadApproval();
+    // Strip comments before splitting: prose is allowed to contain semicolons.
+    const statements = sql
+      .replace(/--[^\n]*/g, "")
+      .split(";")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    expect(statements).toHaveLength(1);
+    expect(statements[0]).toMatch(/^UPDATE public\.dialect_rules/);
   });
 });

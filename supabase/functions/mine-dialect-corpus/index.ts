@@ -10,6 +10,11 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { askBrain } from "../_shared/aiBrain.ts";
 import type { Dialect } from "../_shared/dialectHelpers.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import {
+  guardExamples,
+  isProposalUsable,
+  MAX_EXAMPLE_WORDS,
+} from "../_shared/corpusExampleGuard.ts";
 
 
 const ALLOWED_DIALECTS: Dialect[] = ["Gulf", "Egyptian", "Yemeni"];
@@ -51,12 +56,14 @@ const RULE_TOOL = {
                 good: {
                   type: "array",
                   items: { type: "string" },
-                  description: "Arabic forms that appear in the corpus (1-4).",
+                  description:
+                    `Arabic forms that appear in the corpus (1-4). Each MUST be a single word or a short pattern of at most ${MAX_EXAMPLE_WORDS} words — e.g. "ما عاد", not a whole sentence. Quote the pattern, not the line you found it on. Never cite political, factional or abusive wording; if the only occurrence you found is inside such a line, cite the bare pattern or omit the rule.`,
                 },
                 bad: {
                   type: "array",
                   items: { type: "string" },
-                  description: "MSA / wrong-dialect forms the rule forbids (1-4).",
+                  description:
+                    `MSA / wrong-dialect forms the rule forbids (1-4). Single words or short patterns, at most ${MAX_EXAMPLE_WORDS} words.`,
                 },
               },
             },
@@ -289,6 +296,16 @@ serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  // Defined here rather than at module scope: corsHeaders is per-request, and
+  // a module-scope helper closing over a name that only exists inside this
+  // callback threw ReferenceError on every response — including the catch that
+  // was meant to report it, so the function could not return at all.
+  const json = (status: number, body: unknown): Response =>
+    new Response(JSON.stringify(body), {
+      status,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) return json(401, { error: "Missing Authorization header" });
@@ -371,22 +388,47 @@ serve(async (req) => {
       });
     }
 
-    const rows = proposals
-      .filter((p) => p && typeof p.rule === "string" && p.rule.trim().length > 0)
-      .map((p) => ({
+    // Screen every quoted example before it can reach the table. Rule examples
+    // are folded into every generator prompt by dialectHelpers, so this is the
+    // boundary between raw source text and learner-facing content — see
+    // _shared/corpusExampleGuard.ts for why it guards output rather than input.
+    const screened: Array<{ rule: string; dropped: string[] }> = [];
+    const rows: Array<Record<string, unknown>> = [];
+
+    for (const p of proposals) {
+      if (!p || typeof p.rule !== "string" || !p.rule.trim()) continue;
+      const guarded = guardExamples(p.examples);
+      if (guarded.dropped.length) {
+        screened.push({
+          rule: p.rule.trim().slice(0, 120),
+          dropped: guarded.dropped.map((d) => `${d.text} (${d.reason})`),
+        });
+      }
+      // A proposal with no surviving good example is no longer grounded in the
+      // corpus, which was the whole point of citing one.
+      if (!isProposalUsable(guarded)) continue;
+      rows.push({
         dialect,
         category: (p.category || category || "general").trim().slice(0, 64),
         rule: p.rule.trim().slice(0, 2000),
-        examples: {
-          good: Array.isArray(p.examples?.good) ? p.examples.good.slice(0, 6) : [],
-          bad: Array.isArray(p.examples?.bad) ? p.examples.bad.slice(0, 6) : [],
-        },
+        examples: { good: guarded.good.slice(0, 6), bad: guarded.bad.slice(0, 6) },
         priority: Math.max(1, Math.min(5, Math.round(Number(p.priority) || 3))),
         status: "draft",
         source: "corpus_mined",
         notes: [p.evidence, p.notes].filter(Boolean).join(" — ").slice(0, 1000) || null,
         created_by: userId,
-      }));
+      });
+    }
+
+    if (rows.length === 0) {
+      return json(422, {
+        error:
+          "Every proposal was rejected by the example guard. Check `screened` — the council is likely quoting whole lines instead of short patterns.",
+        proposed: proposals.length,
+        max_example_words: MAX_EXAMPLE_WORDS,
+        screened,
+      });
+    }
 
     const { data: inserted, error: insertErr } = await admin
       .from("dialect_rules")
@@ -402,6 +444,10 @@ serve(async (req) => {
       proposed: proposals.length,
       inserted: inserted?.length ?? 0,
       drafts: inserted,
+      // Surfaced rather than swallowed: a run that keeps dropping examples is
+      // telling you the corpus sample or the prompt needs attention.
+      screened_examples: screened.length ? screened : undefined,
+      rejected_proposals: proposals.length - rows.length || undefined,
       brain: {
         models: brainResult.models,
         agreementScore: brainResult.agreementScore,
@@ -414,10 +460,3 @@ serve(async (req) => {
     return json(status, { error: (err as Error)?.message ?? "Unknown error" });
   }
 });
-
-function json(status: number, body: unknown): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
-}

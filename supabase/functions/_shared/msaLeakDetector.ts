@@ -75,7 +75,7 @@ export const ALWAYS_ALLOWED: Record<string, Set<string>> = {
     // and paid for a rewrite pass that could never clear them — the model kept
     // writing the same words because they were never wrong. Confirmed as
     // acceptable Gulf 2026-08. Egyptian keeps them flagged (ده/دي is the norm
-    // there); Yemeni is untouched pending the same review.
+    // there); Yemeni got the same review 2026-08 — see below.
     'هذا', 'هذه', 'عندما',
   ].map(normalizeArabic)),
   Egyptian: new Set([
@@ -98,6 +98,27 @@ export const ALWAYS_ALLOWED: Record<string, Set<string>> = {
     'بغيت', 'يبغى', 'ابغى', 'ابي', 'اشتي', 'اشرب',
     'شلون', 'شلونك', 'شفيك', 'وش', 'زين', 'هني', 'مره',
     'قات', 'سلته', 'مفرج', 'جنبيه', 'شو', 'مرحبا', 'يلا',
+    // Audited 2026-08 against the Lisan Yemeni corpus (docs/yemeni/), the same
+    // review Gulf got. Counts below are from lexicon-full.json, ~801k tokens.
+    //
+    // Whitelisted: هذا (3,615 vs ذا 218) and هذه (1,625 vs ذي 209) — the MSA
+    // form outnumbers the dialectal one 17:1 and 8:1, so flagging them bought
+    // the same unclearable rewrite pass Gulf was paying. عندما (430) follows
+    // Gulf's precedent; لما (713) is commoner but both are in real use, and a
+    // rewrite is poor value for that.
+    //
+    // Deliberately NOT whitelisted, because the dialectal form genuinely wins
+    // and the detector steering toward it is the behaviour we want:
+    //   الذي 2,259 / التي 1,058  vs  اللي 4,406
+    //   ماذا 258                 vs  ايش 1,067، وش 299
+    //   ليس 732                  vs  مش 1,326، مو 665
+    //   لماذا 364                vs  ليش 775
+    //   الآن 1,241               vs  الحين 418، ذلحين 58
+    'هذا', 'هذه', 'عندما',
+    // Attested Yemeni forms, added so a rulebook bad-example can never harvest
+    // them into the forbidden list (see harvestForbiddenTokens).
+    'بس', 'اللي', 'مش', 'مو', 'عشان', 'ايش', 'حق',
+    'شوي', 'لما', 'زي', 'طيب', 'عاد', 'ذا', 'ذي',
   ].map(normalizeArabic)),
 };
 

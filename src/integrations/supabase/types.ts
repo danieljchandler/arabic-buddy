@@ -1036,6 +1036,51 @@ export type Database = {
         }
         Relationships: []
       }
+      dialect_corpus_sentences: {
+        Row: {
+          created_at: string
+          dialect: string
+          id: string
+          keyword_flagged: boolean
+          license: string
+          sort_key: number
+          source: string
+          text: string
+          token_count: number | null
+          vet_reason: string | null
+          vetted: boolean | null
+          vetted_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          dialect: string
+          id?: string
+          keyword_flagged?: boolean
+          license?: string
+          sort_key?: number
+          source?: string
+          text: string
+          token_count?: number | null
+          vet_reason?: string | null
+          vetted?: boolean | null
+          vetted_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          dialect?: string
+          id?: string
+          keyword_flagged?: boolean
+          license?: string
+          sort_key?: number
+          source?: string
+          text?: string
+          token_count?: number | null
+          vet_reason?: string | null
+          vetted?: boolean | null
+          vetted_at?: string | null
+        }
+        Relationships: []
+      }
       dialect_native_reviews: {
         Row: {
           content_id: string | null

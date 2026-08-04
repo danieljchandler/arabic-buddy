@@ -12,19 +12,23 @@ import { LITERAL_GLOSS_RULE, literalSchema } from "../_shared/literalGloss.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { learnerPromptBlock } from "../_shared/learnerProfile.ts";
 import { readingPassageGate } from "../_shared/passageQualityCore.ts";
+import { MODEL_IDS, MODEL_LINEUPS } from "../_shared/modelRegistry.ts";
 
 /**
  * Wall-clock ceiling for the generation, kept under the client's own timeout so
  * a slow run surfaces as a real error with a retry rather than an unbounded
- * spinner. Must stay in sync with PASSAGE_TIMEOUT_MS in
- * src/pages/ReadingPractice.tsx.
+ * spinner. Deliberately BELOW PASSAGE_TIMEOUT_MS in
+ * src/pages/ReadingPractice.tsx: when the two matched, a run that finished just
+ * under the ceiling could still be cut off by the browser, and the reserve also
+ * leaves room for the MSA repair pass (which was being skipped as "budget
+ * spent" on Yemeni runs, letting leaks like أين/ماذا survive).
  *
  * This is a ceiling, not a target: the typical request finishes in one drafting
  * pass plus a short authenticity check, well inside it. It is sized to still fit
  * a draft *plus* the check *plus* a full rewrite when either gate demands one,
  * so bounding the pathological case never costs a passage that needed fixing.
  */
-const GENERATION_BUDGET_MS = 95_000;
+const GENERATION_BUDGET_MS = 78_000;
 
 /**
  * How long a passage should be, per difficulty.
@@ -157,6 +161,11 @@ Put one sentence per entry in the "lines" array, each with its Arabic text, tran
         purpose: "reading_passage",
         dialect: dialect as Dialect,
         strategy: "draft_critic",
+        // Draft with the stable fast Gemini build rather than the lineup default
+        // preview build: the preview model would not emit this large tool schema
+        // for Yemeni requests, and discovering that cost the whole latency
+        // budget in retries before any model had written a line.
+        models: [MODEL_IDS.GEMINI_FAST, MODEL_LINEUPS.CONTENT.judge],
         systemPromptExtra: systemExtra,
         userPrompt,
         maxTokens: 3072,

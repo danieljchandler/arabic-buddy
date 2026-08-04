@@ -470,9 +470,9 @@ const STABLE_FALLBACKS = ['google/gemini-2.5-flash', 'google/gemini-2.5-pro', 'g
 
 /**
  * Calls the requested (best) model. If it returns an empty/unparseable response
- * — common with preview tool-calling — retries the SAME model up to 2 more
- * times with small perturbations (lower temp, then nudged prompt) before
- * grudgingly falling back to a stable Gemini build as a last resort.
+ * — common with preview tool-calling — retries the SAME model ONCE with both
+ * perturbations applied (lower temp + nudged prompt) before falling back to a
+ * stable Gemini build.
  *
  * Every attempt is clipped to what remains of the task deadline, and the ladder
  * stops as soon as there isn't time for another full generation. A timeout is

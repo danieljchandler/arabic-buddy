@@ -161,7 +161,7 @@ Split the passage into individual sentences in the "lines" array (each line = on
                     english: { type: "string" },
                     literal: literalSchema("sentence"),
                   },
-                  required: ["arabic", "transliteration", "english"],
+                  required: ["arabic", "transliteration", "english", "literal"],
                 },
               },
               difficulty: { type: "string" },
@@ -189,7 +189,7 @@ Split the passage into individual sentences in the "lines" array (each line = on
                       },
                     },
                   },
-                  required: ["question", "options"],
+                  required: ["question", "questionEnglish", "options"],
                 },
               },
             },
@@ -198,10 +198,12 @@ Split the passage into individual sentences in the "lines" array (each line = on
         },
       });
       passage = brain.output;
+      timing.generate_ms = Date.now() - tGen;
       if (brain.msaLeaks.leaks.length > 0) {
         console.warn("reading-passage MSA leaks after repair:", brain.msaLeaks.leaks, "repairs:", brain.msaRepairs);
       }
     } catch (e: any) {
+      timing.generate_ms = Date.now() - tGen;
       console.error("reading-passage brain error:", e?.status, e?.message);
       if (e?.status === 402) {
         return new Response(JSON.stringify({ error: "Not enough AI credits." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -232,7 +234,10 @@ Split the passage into individual sentences in the "lines" array (each line = on
       };
     }
 
-    return new Response(JSON.stringify({ passage }), {
+    timing.total_ms = Date.now() - tStart;
+    console.log("[reading-passage] timings", timing);
+
+    return new Response(JSON.stringify({ passage, _timing: timing }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {

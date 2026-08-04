@@ -118,6 +118,20 @@ export interface BrainTask {
    * old unconditional two-generation behaviour.
    */
   alwaysCritique?: boolean;
+  /**
+   * Judge the draft's dialect authenticity with the native-speaker validator,
+   * and rewrite it when the validator asks for one.
+   *
+   * The MSA leak detector cannot do this job. It is a token blacklist: it
+   * catches known-wrong *words*, and is blind to text that is MSA in grammar
+   * and register while using dialect vocabulary — case endings, MSA verb
+   * morphology, fusha lexis that nobody put on a list. Any caller whose output
+   * a learner will read as a model of the dialect wants this on.
+   *
+   * Costs one short classification call (a few hundred tokens out), not a
+   * generation; the expensive rewrite only follows a failed verdict.
+   */
+  enforceDialect?: boolean;
 }
 
 export interface BrainResult<T = unknown> {
@@ -213,7 +227,10 @@ export async function askBrain<T = unknown>(task: BrainTask): Promise<BrainResul
   }
 
   // Optional native-validator pass (strict native-speaker reviewer).
-  if (task.validateDialect) {
+  // Skipped when enforceDialect already ran one inside the strategy — that
+  // verdict is the same judgment on the same text, and re-asking costs a second
+  // call to learn nothing.
+  if (task.validateDialect && !result.validator) {
     try {
       const scanText = extractScanText(task, result.output, result.raw);
       const v = await validateDialect(scanText, task.dialect, { apiKey });
@@ -239,7 +256,8 @@ export async function askBrain<T = unknown>(task: BrainTask): Promise<BrainResul
   console.log(
     `[aiBrain] ${task.purpose} ${result.strategy} ${result.totalLatencyMs}ms ` +
       `[${(result.passes ?? []).map((p) => `${p.pass}=${p.ms}ms`).join(' ')}]` +
-      ` leaks=${result.msaLeaks?.leaks?.length ?? 0} repairs=${result.msaRepairs}`,
+      ` leaks=${result.msaLeaks?.leaks?.length ?? 0} repairs=${result.msaRepairs}` +
+      `${result.validator?.ok ? ` dialect=${result.validator.score}/5` : ''}`,
   );
 
   if (result.msaLeaks?.leaks?.length) {
@@ -636,6 +654,9 @@ async function runDraftCritic<T>(task: BrainTask, apiKey: string, deadline: Dead
 
   const draftText = extractScanText(task, draft.parsed, draft.raw);
   const draftLeaks = scanLeaks(draftText, task.dialect);
+  // `validator` is assigned below, before any call site of shipDraft that can
+  // observe it; declared here so the shipped draft always carries the verdict.
+  let validator: ValidatorResult | undefined;
   const shipDraft = (stalled = false): BrainResult<T> => ({
     output: draft.parsed as T,
     raw: draft.raw,
@@ -646,6 +667,7 @@ async function runDraftCritic<T>(task: BrainTask, apiKey: string, deadline: Dead
     msaRepairs: 0,
     totalLatencyMs: 0,
     leakRewriteStalled: stalled,
+    validator,
     passes,
   });
 
@@ -664,16 +686,54 @@ async function runDraftCritic<T>(task: BrainTask, apiKey: string, deadline: Dead
   // demonstratives like هذا/هذه that ordinary dialect prose uses freely, so
   // "leaks > 0" was true almost always and neither pass could ever clear them.
   const gateReason = task.qualityGate ? safeGate(task.qualityGate, draft.parsed, draftText) : null;
-  const needsCritic = task.alwaysCritique === true || gateReason !== null;
+
+  // Dialect authenticity, judged by the native-speaker validator rather than by
+  // the token detector. The detector only knows words on a list; it happily
+  // passes text that is fusha in grammar and register — case endings, MSA verb
+  // forms, classical lexis — as long as none of the blacklisted tokens appear.
+  // That is precisely the failure mode a learner notices, so it needs a reader,
+  // not a regex. One short classification call, and only a failed verdict costs
+  // a rewrite.
+  if (task.enforceDialect && remainingMs(deadline) > MIN_PASS_BUDGET_MS) {
+    const vStart = Date.now();
+    try {
+      validator = await validateDialect(draftText, task.dialect, {
+        apiKey,
+        signal: AbortSignal.timeout(Math.min(20_000, callBudget(deadline))),
+      });
+    } catch (err) {
+      console.warn('[aiBrain] dialect validator failed; treating draft as acceptable', err);
+    }
+    passes.push({ pass: 'validate', model: 'dialect-validator', ms: Date.now() - vStart });
+  }
+  const drift = validator?.ok === true && validator.verdict === 'rewrite' ? validator : null;
+
+  const needsCritic = task.alwaysCritique === true || gateReason !== null || drift !== null;
 
   if (!needsCritic) return shipDraft();
   if (remainingMs(deadline) < MIN_PASS_BUDGET_MS) {
     console.warn('[aiBrain] draft needs critic but latency budget is spent; shipping draft');
     return shipDraft();
   }
-  console.warn(`[aiBrain] running critic on ${task.purpose} draft: gate=${gateReason ?? 'forced'}`);
+  console.warn(
+    `[aiBrain] running critic on ${task.purpose} draft: gate=${gateReason ?? 'ok'}` +
+      `${drift ? ` dialect=${drift.score}/5` : ''}`,
+  );
 
-  const criticSys = `${sys}\n\nYou are reviewing a draft. If anything drifts to MSA or another dialect, REWRITE it in authentic ${getDialectLabel(task.dialect)}. Return ONLY the corrected output in the same format as the draft (no commentary).`;
+  // Hand the critic the reviewer's specific findings. "Rewrite it if it drifts"
+  // is a much weaker instruction than a list of words and their replacements.
+  const driftNote = drift
+    ? `\n\nA strict native ${getDialectLabel(task.dialect)} speaker reviewed this draft, scored it ${drift.score}/5 for authenticity and asked for a rewrite. It reads as MSA/fusha rather than natural dialect.` +
+      (drift.leaks.length
+        ? ` Replace these specifically: ${drift.leaks
+            .map((l) => (l.suggestion ? `${l.token} → ${l.suggestion}` : l.token))
+            .join('; ')}.`
+        : '') +
+      (drift.notes ? ` Reviewer notes: ${drift.notes}` : '') +
+      ` Keep the story, the structure and every field; change only the Arabic register.`
+    : '';
+
+  const criticSys = `${sys}\n\nYou are reviewing a draft. If anything drifts to MSA or another dialect, REWRITE it in authentic ${getDialectLabel(task.dialect)}. Return ONLY the corrected output in the same format as the draft (no commentary).${driftNote}`;
   const criticUser = `Original request:\n${stringifyUserPrompt(task.userPrompt)}\n\nDraft to review:\n${draft.raw}`;
   let critiqued: { raw: string; parsed: unknown; model: string };
   try {
@@ -729,6 +789,9 @@ async function runDraftCritic<T>(task: BrainTask, apiKey: string, deadline: Dead
     msaRepairs: 0,
     totalLatencyMs: 0,
     leakRewriteStalled: stalled,
+    // The verdict describes the draft, which the rewrite has now superseded.
+    // Keeping it would make askBrain's logging report a stale score.
+    validator: undefined,
     passes,
   };
 }

@@ -47,6 +47,25 @@ import {
 type Difficulty = "beginner" | "intermediate" | "advanced";
 type Mode = "select" | "passage" | "qa";
 
+/** Thrown by withTimeout when the wrapped promise doesn't settle in time. */
+class TimeoutError extends Error {
+  constructor(ms: number) {
+    super(`Timed out after ${ms}ms`);
+    this.name = "TimeoutError";
+  }
+}
+
+/** Races a promise against a timer so a hung request can't spin forever. */
+function withTimeout<T>(promise: PromiseLike<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new TimeoutError(ms)), ms);
+    Promise.resolve(promise).then(
+      (v) => { clearTimeout(timer); resolve(v); },
+      (e) => { clearTimeout(timer); reject(e); },
+    );
+  });
+}
+
 interface VocabItem {
   arabic: string;
   english: string;
@@ -297,6 +316,9 @@ const ReadingPractice = () => {
   const [difficulty, setDifficulty] = useState<Difficulty | null>(savedSession?.difficulty ?? null);
   const [passage, setPassage] = useState<Passage | null>(savedSession?.passage ?? null);
   const [loading, setLoading] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
+  // Incrementing id so a cancelled request's late response can't overwrite the screen.
+  const requestIdRef = useRef(0);
   const [customTopic, setCustomTopic] = useState("");
   const [revealedLines, setRevealedLines] = useState<Set<number>>(new Set());
   const [currentQuestion, setCurrentQuestion] = useState(savedSession?.currentQuestion ?? 0);
@@ -362,9 +384,13 @@ const ReadingPractice = () => {
   };
 
   const loadPassage = async (selectedDifficulty: Difficulty) => {
+    const requestId = ++requestIdRef.current;
+    const isStale = () => requestIdRef.current !== requestId;
+
     setDifficulty(selectedDifficulty);
     setMode("passage");
     setLoading(true);
+    setElapsed(0);
     setPassage(null);
     setQuizStarted(false);
     setCurrentQuestion(0);
@@ -374,13 +400,25 @@ const ReadingPractice = () => {
     setWordTranslations({});
 
     try {
-      const { data: approved } = await supabase
-        .from("reading_passages" as any)
-        .select("*")
-        .eq("status", "published")
-        .eq("difficulty", selectedDifficulty)
-        .eq("dialect", activeDialect)
-        .limit(10);
+      // Published-passage shortcut. If it's slow we just skip it and generate.
+      let approved: any[] | null = null;
+      try {
+        const res = await withTimeout(
+          supabase
+            .from("reading_passages" as any)
+            .select("*")
+            .eq("status", "published")
+            .eq("difficulty", selectedDifficulty)
+            .eq("dialect", activeDialect)
+            .limit(10),
+          10_000,
+        );
+        approved = (res as any)?.data ?? null;
+      } catch {
+        approved = null;
+      }
+
+      if (isStale()) return;
 
       if (approved && approved.length > 0) {
         const picked = (approved as any[])[Math.floor(Math.random() * approved.length)];
@@ -404,14 +442,18 @@ const ReadingPractice = () => {
       // state. What used to be sent here was `useAllWords` — the entire
       // curriculum vocabulary, shuffled — described to the model as "words the
       // student knows", which is exactly what it wasn't.
-      const { data, error } = await supabase.functions.invoke("reading-passage", {
-        body: {
-          difficulty: selectedDifficulty,
-          topic: customTopic.trim() || undefined,
-          dialect: activeDialect,
-        },
-      });
+      const { data, error } = await withTimeout(
+        supabase.functions.invoke("reading-passage", {
+          body: {
+            difficulty: selectedDifficulty,
+            topic: customTopic.trim() || undefined,
+            dialect: activeDialect,
+          },
+        }),
+        95_000,
+      );
 
+      if (isStale()) return;
       if (error) throw error;
 
       if (data.passage) {
@@ -422,14 +464,36 @@ const ReadingPractice = () => {
         throw new Error("No passage generated");
       }
     } catch (e) {
+      if (isStale()) return;
       console.error("Failed to load passage:", e);
-      toast.error("Failed to load passage. Please try again.");
+      toast.error(
+        e instanceof TimeoutError
+          ? "That took too long to generate. Please try again."
+          : "Failed to load passage. Please try again.",
+      );
       setDifficulty(null);
       setMode("select");
     } finally {
-      setLoading(false);
+      if (!isStale()) setLoading(false);
     }
   };
+
+  // Elapsed-seconds ticker for the loading screen.
+  useEffect(() => {
+    if (!loading) return;
+    const t = setInterval(() => setElapsed((s) => s + 1), 1000);
+    return () => clearInterval(t);
+  }, [loading]);
+
+
+  const cancelLoading = () => {
+    requestIdRef.current++;
+    setLoading(false);
+    setPassage(null);
+    setDifficulty(null);
+    setMode("select");
+  };
+
 
   const toggleLineTranslation = (index: number) => {
     setRevealedLines((prev) => {
@@ -900,10 +964,17 @@ const ReadingPractice = () => {
         <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
           <p className="text-muted-foreground">Generating passage...</p>
+          {elapsed >= 5 && (
+            <p className="text-sm text-muted-foreground">{elapsed}s elapsed</p>
+          )}
+          <Button variant="outline" size="sm" onClick={cancelLoading}>
+            Cancel
+          </Button>
         </div>
       </AppShell>
     );
   }
+
 
   // ── Results ──
   if (showResults) {

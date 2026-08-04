@@ -29,10 +29,14 @@ export type CapResult = CapAllowed | CapBlocked;
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
+let _admin: ReturnType<typeof createClient> | null = null;
 function admin() {
-  return createClient(SUPABASE_URL, SERVICE_ROLE, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
+  if (!_admin) {
+    _admin = createClient(SUPABASE_URL, SERVICE_ROLE, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+  }
+  return _admin;
 }
 
 async function getUserId(req: Request): Promise<string | null> {
@@ -97,7 +101,12 @@ export async function enforceDailyCap(
     };
   }
 
-  if (await hasActiveSubscription(userId) || await isAdminUser(userId)) {
+  // Independent lookups — run them in parallel, they're on the critical path.
+  const [subscribed, isAdmin] = await Promise.all([
+    hasActiveSubscription(userId),
+    isAdminUser(userId),
+  ]);
+  if (subscribed || isAdmin) {
     return { limited: false, userId, count: 0, limit: Number.POSITIVE_INFINITY };
   }
 

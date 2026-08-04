@@ -53,6 +53,16 @@ export interface BrainTask {
   skipRepair?: boolean;
   /** When true, run a strict native-speaker validator after the repair pass. */
   validateDialect?: boolean;
+  /**
+   * Structural quality gate. Return a short reason string when the draft is
+   * incomplete (a critic/rewrite pass is then worth spending), or null when the
+   * draft is finished. When omitted, draft_critic always runs the critic.
+   */
+  qualityGate?: (parsed: unknown) => string | null;
+  /** Overall wall-clock budget for the whole task in ms (default 90s). */
+  budgetMs?: number;
+  /** Internal: absolute deadline timestamp, set by askBrain. */
+  deadlineAt?: number;
 }
 
 export interface BrainResult<T = unknown> {
@@ -66,6 +76,8 @@ export interface BrainResult<T = unknown> {
   totalLatencyMs: number;
   /** Set when validateDialect was requested and the validator returned a result. */
   validator?: ValidatorResult;
+  /** Leak tokens a rewrite pass already targeted (used to avoid a duplicate repair). */
+  rewrittenAgainstLeaks?: string[];
 }
 
 const GATEWAY_URL = 'https://ai.gateway.lovable.dev/v1/chat/completions';
@@ -90,12 +102,21 @@ export async function askBrain<T = unknown>(task: BrainTask): Promise<BrainResul
   const apiKey = Deno.env.get('LOVABLE_API_KEY');
   if (!apiKey) throw new BrainHttpError(500, 'LOVABLE_API_KEY not configured');
 
+  const start = Date.now();
+  const timings: Array<{ pass: string; models?: string[]; ms: number; note?: string }> = [];
+
+  // Overall wall-clock deadline for the whole task; the retry ladder checks it
+  // before each attempt so we can't stack six full generations back to back.
+  task.deadlineAt = Date.now() + (task.budgetMs ?? 90_000);
+
+  const tPrime = Date.now();
   await primeDialectPrompt(task.dialect);
+  timings.push({ pass: 'prime_dialect', ms: Date.now() - tPrime });
 
   const strategy: Strategy = task.strategy ?? pickStrategy(task.purpose);
-  const start = Date.now();
 
   let result: BrainResult<T>;
+  const tGen = Date.now();
   switch (strategy) {
     case 'solo':
       result = await runSolo<T>(task, apiKey);
@@ -110,20 +131,33 @@ export async function askBrain<T = unknown>(task: BrainTask): Promise<BrainResul
       result = await runCouncil<T>(task, apiKey);
       break;
   }
+  timings.push({ pass: strategy, models: result.models, ms: Date.now() - tGen });
 
   // MSA-guard + one repair pass when leaks are detected (all strategies).
   // Callers may opt out with skipRepair for truly low-stakes internal calls.
-  if (!task.skipRepair && result.msaLeaks.leaks.length > 0) {
+  // Skip when a rewrite already ran against exactly these tokens and they came
+  // back unchanged — another pass would produce identical text.
+  const sameTokens = (a: string[] = [], b: string[] = []) =>
+    a.length === b.length && [...a].sort().join('|') === [...b].sort().join('|');
+  const alreadyRewritten = sameTokens(result.rewrittenAgainstLeaks, result.msaLeaks.leaks);
+
+  if (!task.skipRepair && result.msaLeaks.leaks.length > 0 && !alreadyRewritten) {
+    const tRepair = Date.now();
     try {
       const repaired = await runRepair<T>(task, result, apiKey);
       result = { ...repaired, msaRepairs: result.msaRepairs + 1 };
+      timings.push({ pass: 'msa_repair', models: [DEFAULT_JUDGE], ms: Date.now() - tRepair });
     } catch (err) {
       console.warn('[aiBrain] repair pass failed, returning original', err);
+      timings.push({ pass: 'msa_repair', ms: Date.now() - tRepair, note: 'failed' });
     }
+  } else if (alreadyRewritten && result.msaLeaks.leaks.length > 0) {
+    timings.push({ pass: 'msa_repair', ms: 0, note: 'skipped: rewrite already attempted same tokens' });
   }
 
   // Optional native-validator pass (strict native-speaker reviewer).
   if (task.validateDialect) {
+    const tVal = Date.now();
     try {
       const scanText = extractScanText(task, result.output, result.raw);
       const v = await validateDialect(scanText, task.dialect, { apiKey });
@@ -140,9 +174,16 @@ export async function askBrain<T = unknown>(task: BrainTask): Promise<BrainResul
     } catch (err) {
       console.warn('[aiBrain] validator pass failed', err);
     }
+    timings.push({ pass: 'validator', ms: Date.now() - tVal });
   }
 
   result.totalLatencyMs = Date.now() - start;
+
+  console.log(
+    `[aiBrain] ${task.purpose} (${task.dialect}) total=${result.totalLatencyMs}ms passes=` +
+      timings.map((t) => `${t.pass}:${t.ms}ms${t.models ? `(${t.models.join(',')})` : ''}${t.note ? `[${t.note}]` : ''}`).join(' '),
+  );
+
 
   if (result.msaLeaks?.leaks?.length) {
     logMsaViolations({
@@ -228,7 +269,12 @@ interface CallOptions {
   maxTokens?: number;
   temperature?: number;
   apiKey: string;
+  /** Absolute wall-clock deadline for the whole task (ms epoch). */
+  deadlineAt?: number;
 }
+
+/** Per-request fetch timeout — Deno's fetch never times out on its own. */
+const FETCH_TIMEOUT_MS = 45_000;
 
 async function callModel(opts: CallOptions): Promise<{ raw: string; parsed: unknown }> {
   const isGpt5 = /^openai\/gpt-5/.test(opts.model);
@@ -273,14 +319,24 @@ async function callModel(opts: CallOptions): Promise<{ raw: string; parsed: unkn
     authKey = opts.apiKey;
   }
 
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${authKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(body),
-  });
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${authKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    });
+  } catch (err) {
+    const name = (err as Error)?.name ?? '';
+    if (name === 'TimeoutError' || name === 'AbortError') {
+      throw new BrainHttpError(504, `${route} ${opts.model} timed out after ${FETCH_TIMEOUT_MS}ms`);
+    }
+    throw new BrainHttpError(502, `${route} ${opts.model} fetch failed: ${(err as Error)?.message ?? String(err)}`);
+  }
 
   if (!res.ok) {
     const text = await res.text().catch(() => '');
@@ -337,6 +393,9 @@ const STABLE_FALLBACKS = ['google/gemini-2.5-pro', 'google/gemini-2.5-flash', 'g
 async function callModelWithFallback(opts: CallOptions): Promise<{ raw: string; parsed: unknown; model: string }> {
   const recoverable = (msg: string) => /no tool call|invalid JSON|no parsable JSON|5\d\d/.test(msg);
   let lastErr: unknown;
+  // Reserve enough headroom that we don't start an attempt we can't finish.
+  const outOfTime = () =>
+    typeof opts.deadlineAt === 'number' && Date.now() > opts.deadlineAt - 5_000;
 
   // Attempt 1: as requested.
   try {
@@ -348,6 +407,7 @@ async function callModelWithFallback(opts: CallOptions): Promise<{ raw: string; 
   }
 
   // Attempt 2: same model, lower temperature (more deterministic tool calls).
+  if (outOfTime()) throw lastErr;
   try {
     console.warn(`[aiBrain] ${opts.model} retry #1 (lower temp)`);
     const r = await callModel({ ...opts, temperature: 0.2 });
@@ -358,7 +418,7 @@ async function callModelWithFallback(opts: CallOptions): Promise<{ raw: string; 
   }
 
   // Attempt 3: same model, nudge the system prompt to remind it to use the tool.
-  if (opts.tool) {
+  if (opts.tool && !outOfTime()) {
     try {
       console.warn(`[aiBrain] ${opts.model} retry #2 (tool nudge)`);
       const nudged = `${opts.system}\n\nIMPORTANT: You MUST respond by calling the function "${opts.tool.name}". Do not write any prose. Return only the function call.`;
@@ -373,6 +433,10 @@ async function callModelWithFallback(opts: CallOptions): Promise<{ raw: string; 
   // Last resort: stable fallback chain.
   for (const fb of STABLE_FALLBACKS) {
     if (fb === opts.model) continue;
+    if (outOfTime()) {
+      console.warn('[aiBrain] budget exhausted, stopping fallback chain');
+      break;
+    }
     try {
       console.warn(`[aiBrain] ${opts.model} exhausted retries, falling back to ${fb}`);
       const r = await callModel({ ...opts, model: fb });
@@ -393,6 +457,7 @@ async function runSolo<T>(task: BrainTask, apiKey: string): Promise<BrainResult<
     maxTokens: task.maxTokens,
     temperature: task.temperature,
     apiKey,
+    deadlineAt: task.deadlineAt,
   });
   const text = extractScanText(task, parsed, raw);
   return {
@@ -421,6 +486,7 @@ async function runEnsemble<T>(task: BrainTask, apiKey: string): Promise<BrainRes
         maxTokens: task.maxTokens,
         temperature: task.temperature,
         apiKey,
+        deadlineAt: task.deadlineAt,
       }),
     ),
   );
@@ -481,20 +547,58 @@ async function runDraftCritic<T>(task: BrainTask, apiKey: string): Promise<Brain
     maxTokens: task.maxTokens,
     temperature: task.temperature,
     apiKey,
+    deadlineAt: task.deadlineAt,
   });
 
-  const criticSys = `${sys}\n\nYou are reviewing a draft. If anything drifts to MSA or another dialect, REWRITE it in authentic ${getDialectLabel(task.dialect)}. Return ONLY the corrected output in the same format as the draft (no commentary).`;
+  const draftText = extractScanText(task, draft.parsed, draft.raw);
+  const draftLeaks = scanLeaks(draftText, task.dialect);
+
+  // The critic re-generates the whole payload, so only pay for it when the
+  // draft is structurally incomplete. MSA leaks are handled by the dedicated
+  // repair pass in askBrain, which is given the offending tokens by name.
+  const gateReason = task.qualityGate ? task.qualityGate(draft.parsed) : 'no quality gate provided';
+  if (!gateReason) {
+    return {
+      output: draft.parsed as T,
+      raw: draft.raw,
+      strategy: 'draft_critic',
+      models: [draft.model],
+      agreementScore: 1,
+      msaLeaks: draftLeaks,
+      msaRepairs: 0,
+      totalLatencyMs: 0,
+    };
+  }
+
+  console.log(`[aiBrain] draft_critic running critic pass — gate: ${gateReason}`);
+  const criticSys = `${sys}\n\nYou are reviewing a draft that is incomplete: ${gateReason}. Fix that, and if anything drifts to MSA or another dialect, REWRITE it in authentic ${getDialectLabel(task.dialect)}. Return ONLY the corrected output in the same format as the draft (no commentary).`;
   const criticUser = `Original request:\n${stringifyUserPrompt(task.userPrompt)}\n\nDraft to review:\n${draft.raw}`;
-  const critiqued = await callModelWithFallback({
-    model: critic,
-    system: criticSys,
-    user: criticUser,
-    tool: task.tool,
-    maxTokens: task.maxTokens,
-    temperature: 0.3,
-    apiKey,
-  });
 
+  let critiqued: { raw: string; parsed: unknown; model: string };
+  try {
+    critiqued = await callModelWithFallback({
+      model: critic,
+      system: criticSys,
+      user: criticUser,
+      tool: task.tool,
+      maxTokens: task.maxTokens,
+      temperature: 0.3,
+      apiKey,
+      deadlineAt: task.deadlineAt,
+    });
+  } catch (err) {
+    console.warn('[aiBrain] critic pass failed, returning draft', (err as Error)?.message);
+    return {
+      output: draft.parsed as T,
+      raw: draft.raw,
+      strategy: 'draft_critic',
+      models: [draft.model],
+      agreementScore: 1,
+      msaLeaks: draftLeaks,
+      msaRepairs: 0,
+      totalLatencyMs: 0,
+    };
+  }
 
   const text = extractScanText(task, critiqued.parsed, critiqued.raw);
   return {
@@ -506,6 +610,9 @@ async function runDraftCritic<T>(task: BrainTask, apiKey: string): Promise<Brain
     msaLeaks: scanLeaks(text, task.dialect),
     msaRepairs: 0,
     totalLatencyMs: 0,
+    // The critic already rewrote against these tokens; if they survive,
+    // another repair pass would produce identical text.
+    rewrittenAgainstLeaks: draftLeaks.leaks,
   };
 }
 
@@ -524,6 +631,7 @@ async function runCouncil<T>(task: BrainTask, apiKey: string): Promise<BrainResu
         maxTokens: task.maxTokens,
         temperature: task.temperature ?? 0.7,
         apiKey,
+        deadlineAt: task.deadlineAt,
       }),
     ),
   );
@@ -554,6 +662,7 @@ async function runCouncil<T>(task: BrainTask, apiKey: string): Promise<BrainResu
       maxTokens: task.maxTokens,
       temperature: 0.3,
       apiKey,
+      deadlineAt: task.deadlineAt,
     });
   } catch (e) {
     console.warn(`[council] judge ${judge} failed, falling back to first successful draft:`, (e as Error)?.message);
@@ -585,6 +694,7 @@ async function runRepair<T>(task: BrainTask, prior: BrainResult<T>, apiKey: stri
     maxTokens: task.maxTokens,
     temperature: 0.2,
     apiKey,
+    deadlineAt: task.deadlineAt,
   });
   const text = extractScanText(task, parsed, raw);
   return {

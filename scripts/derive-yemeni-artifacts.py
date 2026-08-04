@@ -189,16 +189,15 @@ POLITICAL = [norm(w) for w in ['حوثي', 'عفاش', 'مليشيا', 'حرب',
                                'رئيس', 'وزير', 'حكومة']]
 URLS = re.compile(r'https?://\S+|www\.\S+')
 HANDLES = re.compile(r'[@#][^\s،.:؛!؟]+')
-sample = []
+eligible = []
 seen = set()
-lens = []
 with open(SENT, encoding='utf-8-sig', newline='') as f:
     for r in csv.DictReader(f):
         text = (r.get('sentence') or '').strip()
         if not text:
             continue
         clean = HANDLES.sub(' ', URLS.sub(' ', text))
-        clean = re.sub(r'\s+', ' ', clean).strip(' :"\'،.')
+        clean = re.sub(r'\s+', ' ', clean).strip(' :"\'\u060c.')
         tc = len(clean.split())
         if tc < 5 or tc > 25:
             continue
@@ -206,12 +205,15 @@ with open(SENT, encoding='utf-8-sig', newline='') as f:
         if not key or key in seen:
             continue
         seen.add(key)
-        political = any(w in key for w in POLITICAL)
-        sample.append({'id': int((r.get('Sentence_id') or '0').strip() or 0), 'text': text,
-                       'text_clean': clean, 'token_count': tc, 'political': political})
-        lens.append(tc)
-        if len(sample) >= 5000:
-            break
+        eligible.append({'id': int((r.get('Sentence_id') or '0').strip() or 0), 'text': text,
+                         'text_clean': clean, 'token_count': tc,
+                         'political': any(w in key for w in POLITICAL)})
+# Even stride over the whole file, not the first N rows: the corpus is ordered by
+# sentence id and the head is dominated by political threads, which would bias
+# the sample badly.
+stride = max(1, len(eligible) // 5000)
+sample = eligible[::stride][:5000]
+lens = [s['token_count'] for s in sample]
 pol_share = round(sum(1 for s in sample if s['political']) / max(len(sample), 1), 3)
 chk('sentences_sample_shape', 4000 <= len(sample) <= 5000 and min(lens) >= 5 and max(lens) <= 25,
     f'{len(sample)} lines, token range {min(lens)}-{max(lens)}')

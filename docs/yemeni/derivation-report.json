@@ -13,7 +13,7 @@
   "suffixes": 600,
   "circumfixes": 870,
   "sentences": 5000,
-  "political_share": 0.573,
+  "political_share": 0.572,
   "flagship_probe": {
    "ذحين": 9,
    "هني": 8
@@ -63,7 +63,7 @@
   {
    "check": "sentences_political_share_reported",
    "pass": true,
-   "detail": "political share = 0.573"
+   "detail": "political share = 0.572"
   }
  ]
 }

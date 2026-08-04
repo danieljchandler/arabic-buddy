@@ -47,6 +47,25 @@ import {
 type Difficulty = "beginner" | "intermediate" | "advanced";
 type Mode = "select" | "passage" | "qa";
 
+/** Thrown by withTimeout when the wrapped promise doesn't settle in time. */
+class TimeoutError extends Error {
+  constructor(ms: number) {
+    super(`Timed out after ${ms}ms`);
+    this.name = "TimeoutError";
+  }
+}
+
+/** Races a promise against a timer so a hung request can't spin forever. */
+function withTimeout<T>(promise: PromiseLike<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new TimeoutError(ms)), ms);
+    Promise.resolve(promise).then(
+      (v) => { clearTimeout(timer); resolve(v); },
+      (e) => { clearTimeout(timer); reject(e); },
+    );
+  });
+}
+
 interface VocabItem {
   arabic: string;
   english: string;

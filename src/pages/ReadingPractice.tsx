@@ -297,6 +297,9 @@ const ReadingPractice = () => {
   const [difficulty, setDifficulty] = useState<Difficulty | null>(savedSession?.difficulty ?? null);
   const [passage, setPassage] = useState<Passage | null>(savedSession?.passage ?? null);
   const [loading, setLoading] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
+  // Incrementing id so a cancelled request's late response can't overwrite the screen.
+  const requestIdRef = useRef(0);
   const [customTopic, setCustomTopic] = useState("");
   const [revealedLines, setRevealedLines] = useState<Set<number>>(new Set());
   const [currentQuestion, setCurrentQuestion] = useState(savedSession?.currentQuestion ?? 0);

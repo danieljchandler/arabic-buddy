@@ -393,6 +393,9 @@ const STABLE_FALLBACKS = ['google/gemini-2.5-pro', 'google/gemini-2.5-flash', 'g
 async function callModelWithFallback(opts: CallOptions): Promise<{ raw: string; parsed: unknown; model: string }> {
   const recoverable = (msg: string) => /no tool call|invalid JSON|no parsable JSON|5\d\d/.test(msg);
   let lastErr: unknown;
+  // Reserve enough headroom that we don't start an attempt we can't finish.
+  const outOfTime = () =>
+    typeof opts.deadlineAt === 'number' && Date.now() > opts.deadlineAt - 5_000;
 
   // Attempt 1: as requested.
   try {
@@ -404,6 +407,7 @@ async function callModelWithFallback(opts: CallOptions): Promise<{ raw: string; 
   }
 
   // Attempt 2: same model, lower temperature (more deterministic tool calls).
+  if (outOfTime()) throw lastErr;
   try {
     console.warn(`[aiBrain] ${opts.model} retry #1 (lower temp)`);
     const r = await callModel({ ...opts, temperature: 0.2 });
@@ -414,7 +418,7 @@ async function callModelWithFallback(opts: CallOptions): Promise<{ raw: string; 
   }
 
   // Attempt 3: same model, nudge the system prompt to remind it to use the tool.
-  if (opts.tool) {
+  if (opts.tool && !outOfTime()) {
     try {
       console.warn(`[aiBrain] ${opts.model} retry #2 (tool nudge)`);
       const nudged = `${opts.system}\n\nIMPORTANT: You MUST respond by calling the function "${opts.tool.name}". Do not write any prose. Return only the function call.`;
@@ -429,6 +433,10 @@ async function callModelWithFallback(opts: CallOptions): Promise<{ raw: string; 
   // Last resort: stable fallback chain.
   for (const fb of STABLE_FALLBACKS) {
     if (fb === opts.model) continue;
+    if (outOfTime()) {
+      console.warn('[aiBrain] budget exhausted, stopping fallback chain');
+      break;
+    }
     try {
       console.warn(`[aiBrain] ${opts.model} exhausted retries, falling back to ${fb}`);
       const r = await callModel({ ...opts, model: fb });

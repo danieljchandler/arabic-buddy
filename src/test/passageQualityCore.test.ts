@@ -59,6 +59,22 @@ describe("readingPassageGate", () => {
     expect(readingPassageGate(passage())).toBeNull();
   });
 
+  // The regression this guards: an "intermediate" passage came back with two
+  // sentences. The gate only rejected an empty lines array, so it shipped.
+  it("rejects a passage shorter than its difficulty requires", () => {
+    const draft = passage({ lines: [line(), line()] });
+    expect(readingPassageGate(draft, { minLines: 5 })).toBe("too short: 2 lines, need 5");
+  });
+
+  it("accepts a passage that meets the length requirement", () => {
+    const draft = passage({ lines: [line(), line(), line(), line(), line()] });
+    expect(readingPassageGate(draft, { minLines: 5 })).toBeNull();
+  });
+
+  it("defaults to requiring only one line when no minimum is given", () => {
+    expect(readingPassageGate(passage({ lines: [line()] }))).toBeNull();
+  });
+
   // Each of these is a reason the expensive rewrite still has to run — the
   // learner is promised all of them, so none may be silently shipped missing.
   it.each([

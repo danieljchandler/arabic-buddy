@@ -26,11 +26,48 @@ import { readingPassageGate } from "../_shared/passageQualityCore.ts";
  */
 const GENERATION_BUDGET_MS = 80_000;
 
+/**
+ * How long a passage should be, per difficulty.
+ *
+ * `minLines` is enforced three ways — stated in the prompt, set as `minItems`
+ * on the tool schema, and checked by the quality gate so a short draft is sent
+ * back for a rewrite rather than shipped. It needs all three: when the sentence
+ * count lived only in a parenthetical aside in the prompt, the drafting model
+ * happily returned two sentences for an intermediate passage. Nothing caught it
+ * because the gate only rejected an *empty* lines array.
+ */
+const PASSAGE_SHAPE: Record<
+  string,
+  { minLines: number; maxLines: number; style: (label: string) => string }
+> = {
+  beginner: {
+    minLines: 3,
+    maxLines: 4,
+    style: (label) => `short sentences, simple ${label} vocabulary, common everyday phrases`,
+  },
+  intermediate: {
+    minLines: 5,
+    maxLines: 6,
+    style: (label) => `varied ${label} vocabulary, colloquial expressions and cultural references`,
+  },
+  advanced: {
+    minLines: 7,
+    maxLines: 9,
+    style: (label) => `complex structures, idiomatic ${label} expressions`,
+  },
+};
+
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+
+  // Stage timings, logged on every request and returned to the caller. "It's
+  // slow" is not diagnosable without knowing which stage ate the wall clock.
+  const t0 = Date.now();
+  const timing: Record<string, number> = {};
+  const mark = (stage: string, from: number) => { timing[stage] = Date.now() - from; };
 
   try {
     const { difficulty = "beginner", topic, dialect = "Gulf" } = await req.json();
@@ -41,7 +78,9 @@ serve(async (req) => {
     const priming = primeDialectPrompt(dialect as Dialect);
 
     // Free-tier daily cap
+    const capStart = Date.now();
     const cap = await enforceDailyCap(req, "reading-passage", 15, corsHeaders);
+    mark("cap", capStart);
     if (cap.limited) return cap.response;
 
     const dialectLabel = getDialectLabel(dialect);
@@ -52,10 +91,12 @@ serve(async (req) => {
     // labelled "words the student knows" — so passages were being built around
     // words the learner had often never seen. Callers may still send `userVocab`;
     // it is deliberately ignored.
+    const profileStart = Date.now();
     const [learnerBlock] = await Promise.all([
       learnerPromptBlock({ userId: cap.userId, dialect }),
       priming,
     ]);
+    mark("profile+rules", profileStart);
 
     const culturalContext = dialect === "Egyptian"
       ? "daily life, culture, or social situations in Egypt (Cairo, Alexandria, etc.)"
@@ -65,11 +106,8 @@ serve(async (req) => {
 
     const topicContext = topic ? `Topic: ${topic}` : `Topic: ${culturalContext}`;
 
-    const difficultyGuide: Record<string, string> = {
-      beginner: `2-3 short sentences, simple ${dialectLabel} vocabulary, common everyday phrases`,
-      intermediate: `4-5 sentences, varied ${dialectLabel} vocabulary, colloquial expressions and cultural references`,
-      advanced: `6-8 sentences, complex structures, idiomatic ${dialectLabel} expressions`,
-    };
+    const shape = PASSAGE_SHAPE[difficulty] ?? PASSAGE_SHAPE.beginner;
+    const difficultyGuide = `${shape.minLines}-${shape.maxLines} sentences, ${shape.style(dialectLabel)}`;
 
     const systemExtra = `You are a ${dialectLabel} language instructor creating reading comprehension exercises.
 - Set passages in culturally authentic contexts.
@@ -89,14 +127,18 @@ ${LITERAL_GLOSS_RULE}
 
 ${learnerBlock}`;
 
-    const userPrompt = `Generate a reading comprehension exercise.
+    const userPrompt = `Write a short STORY for a ${difficulty} learner to read.
 
-Difficulty: ${difficulty} (${difficultyGuide[difficulty] || difficultyGuide.beginner})
+LENGTH (hard requirement): the "lines" array MUST contain at least ${shape.minLines} sentences, ideally ${shape.minLines}-${shape.maxLines}. A response with fewer than ${shape.minLines} will be rejected.
+
+It must read as a story, not a couple of stray facts: something happens, in order — a setting, then events, then how it ends. ${difficultyGuide}.
 ${topicContext}
 
-Split the passage into individual sentences in the "lines" array (each line = one sentence with its Arabic text, natural English translation, and literal word-for-word gloss). Generate 3-4 vocabulary items and 2-3 comprehension questions.`;
+Put one sentence per entry in the "lines" array, each with its Arabic text, transliteration, natural English translation, and literal word-for-word gloss. Also generate 3-4 vocabulary items and 2-3 comprehension questions about the story.`;
 
     let passage: any;
+    let brainPasses: unknown[] = [];
+    const brainStart = Date.now();
     try {
       const brain = await askBrain<any>({
         purpose: "reading_passage",
@@ -114,7 +156,7 @@ Split the passage into individual sentences in the "lines" array (each line = on
         // finished, and re-generating it through the critic only costs the
         // learner another 30-60s of spinner. Anything missing still triggers
         // the full rewrite. See _shared/passageQualityCore.ts.
-        qualityGate: readingPassageGate,
+        qualityGate: (parsed: unknown) => readingPassageGate(parsed, { minLines: shape.minLines }),
         arabicTextPath: (p: any) => {
           const parts: string[] = [];
           if (typeof p?.title === "string") parts.push(p.title);
@@ -132,6 +174,10 @@ Split the passage into individual sentences in the "lines" array (each line = on
               titleEnglish: { type: "string" },
               lines: {
                 type: "array",
+                // Stated in the schema as well as the prompt: a bare prose
+                // instruction was being ignored, and a two-sentence
+                // "intermediate" passage is not a story.
+                minItems: shape.minLines,
                 items: {
                   type: "object",
                   properties: {
@@ -180,10 +226,13 @@ Split the passage into individual sentences in the "lines" array (each line = on
         },
       });
       passage = brain.output;
+      brainPasses = brain.passes ?? [];
+      mark("generate", brainStart);
       if (brain.msaLeaks.leaks.length > 0) {
         console.warn("reading-passage MSA leaks after repair:", brain.msaLeaks.leaks, "repairs:", brain.msaRepairs);
       }
     } catch (e: any) {
+      mark("generate", brainStart);
       console.error("reading-passage brain error:", e?.status, e?.message);
       if (e?.status === 402) {
         return new Response(JSON.stringify({ error: "Not enough AI credits." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -191,30 +240,31 @@ Split the passage into individual sentences in the "lines" array (each line = on
       if (e?.status === 429) {
         return new Response(JSON.stringify({ error: "Rate limit exceeded." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
-      passage = {
-        title: "في السوق",
-        titleEnglish: "At the Market",
-        lines: [
-          { arabic: "رحت السوق اليوم.", english: "I went to the market today." },
-          { arabic: "شريت خضار وفواكه طازجة.", english: "I bought fresh vegetables and fruits." },
-        ],
-        difficulty,
-        vocabulary: [{ arabic: "السوق", english: "the market", inContext: "place of shopping" }],
-        questions: [
-          {
-            question: "وين راح الكاتب؟",
-            questionEnglish: "Where did the writer go?",
-            options: [
-              { text: "السوق", textEnglish: "The market", correct: true },
-              { text: "المدرسة", textEnglish: "School", correct: false },
-              { text: "البيت", textEnglish: "Home", correct: false },
-            ],
-          },
-        ],
-      };
+      // No stub passage. There used to be a hardcoded two-sentence market story
+      // here, served with a 200 as though it were real content — no
+      // transliteration, no literal gloss, the same text every time, and
+      // indistinguishable to the learner from a genuine generation. Now that
+      // generation carries a deadline this path is reachable on a slow run, and
+      // a silent two-line passage is exactly the failure it would look like.
+      // The client already handles an error by offering a retry, which is the
+      // honest outcome.
+      return new Response(
+        JSON.stringify({ error: "Could not generate a passage right now. Please try again." }),
+        { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     }
 
-    return new Response(JSON.stringify({ passage }), {
+    timing.total = Date.now() - t0;
+    console.log(
+      `[reading-passage] ${difficulty}/${dialect} total=${timing.total}ms`,
+      timing,
+      brainPasses,
+    );
+
+    // `_timing` is diagnostic only — the client reads `passage`. It is here so a
+    // slow generation can be attributed from the browser's network tab without
+    // needing access to the function logs.
+    return new Response(JSON.stringify({ passage, _timing: { ...timing, passes: brainPasses } }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {

@@ -10,7 +10,7 @@
 // guards against admins pasting full MSA sentences as bad examples and
 // poisoning the detector with neutral words.
 
-import type { Dialect } from './dialectHelpers.ts';
+import type { Dialect } from './dialectTypes.ts';
 
 // ---------- Arabic normalization ----------
 
@@ -70,6 +70,13 @@ export const ALWAYS_ALLOWED: Record<string, Set<string>> = {
     'السوق', 'القهوه', 'صديقي', 'حالك', 'حاله', 'كبير', 'صغير',
     'كيف', 'كيفك', 'وين', 'ليش', 'شلون', 'شلونك', 'شو', 'هالحين',
     'بغيت', 'ابي', 'يبي', 'زين', 'كويس', 'مرحبا', 'يلا', 'يالله',
+    // Demonstratives and 'when'. These sit on UNIVERSAL_MSA_LEAKS, but Gulf
+    // speakers use them freely, so every generated passage tripped the detector
+    // and paid for a rewrite pass that could never clear them — the model kept
+    // writing the same words because they were never wrong. Confirmed as
+    // acceptable Gulf 2026-08. Egyptian keeps them flagged (ده/دي is the norm
+    // there); Yemeni is untouched pending the same review.
+    'هذا', 'هذه', 'عندما',
   ].map(normalizeArabic)),
   Egyptian: new Set([
     'انا', 'انت', 'انتي', 'انتو', 'احنا', 'هو', 'هي', 'هم',

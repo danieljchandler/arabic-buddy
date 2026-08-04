@@ -93,6 +93,9 @@ interface QAMessage {
  */
 const PASSAGE_TIMEOUT_MS = 95_000;
 
+/** The pre-check for a hand-published passage is a plain indexed select. */
+const LIBRARY_QUERY_TIMEOUT_MS = 10_000;
+
 class PassageTimeoutError extends Error {
   constructor() {
     super("Passage generation timed out");
@@ -101,7 +104,7 @@ class PassageTimeoutError extends Error {
 }
 
 /** Reject with PassageTimeoutError if `promise` hasn't settled in `ms`. */
-const withTimeout = <T,>(promise: Promise<T>, ms: number): Promise<T> => {
+const withTimeout = <T,>(promise: PromiseLike<T>, ms: number): Promise<T> => {
   let timer: ReturnType<typeof setTimeout>;
   const timeout = new Promise<never>((_, reject) => {
     timer = setTimeout(() => reject(new PassageTimeoutError()), ms);
@@ -432,13 +435,26 @@ const ReadingPractice = () => {
     setWordTranslations({});
 
     try {
-      const { data: approved } = await supabase
-        .from("reading_passages" as any)
-        .select("*")
-        .eq("status", "published")
-        .eq("difficulty", selectedDifficulty)
-        .eq("dialect", activeDialect)
-        .limit(10);
+      // Bounded too: this runs before the edge function, so a stalled query here
+      // hung the spinner just as effectively as a stalled generation did. It is
+      // only a shortcut to a hand-published passage though, so if it stalls we
+      // fall through and generate rather than failing the whole load.
+      let approved: unknown[] | null = null;
+      try {
+        const res = await withTimeout(
+          supabase
+            .from("reading_passages" as any)
+            .select("*")
+            .eq("status", "published")
+            .eq("difficulty", selectedDifficulty)
+            .eq("dialect", activeDialect)
+            .limit(10),
+          LIBRARY_QUERY_TIMEOUT_MS,
+        );
+        approved = res.data as unknown[] | null;
+      } catch (e) {
+        console.warn("Published-passage lookup failed; generating instead", e);
+      }
 
       if (isStale()) return;
 

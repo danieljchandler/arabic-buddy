@@ -83,12 +83,20 @@ const nonEmpty = (v: unknown): v is string => typeof v === "string" && v.trim().
  * transliteration, a natural translation and a literal gloss; plus vocabulary
  * and an answerable comprehension quiz.
  */
-export function readingPassageGate(parsed: unknown): string | null {
+export function readingPassageGate(
+  parsed: unknown,
+  opts: { minLines?: number } = {},
+): string | null {
+  const minLines = Math.max(1, opts.minLines ?? 1);
   const p = (parsed ?? {}) as DraftPassage;
   if (!nonEmpty(p.title)) return "missing title";
 
   const lines = Array.isArray(p.lines) ? (p.lines as DraftLine[]) : [];
   if (lines.length === 0) return "no lines";
+  // A passage short of its difficulty's length isn't a story. This has to be a
+  // gate failure rather than a warning: it is the only thing that sends a
+  // two-sentence "intermediate" draft back for a rewrite.
+  if (lines.length < minLines) return `too short: ${lines.length} lines, need ${minLines}`;
   for (const l of lines) {
     if (!nonEmpty(l?.arabic)) return "line missing arabic";
     if (!nonEmpty(l?.english)) return "line missing translation";

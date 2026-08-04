@@ -956,10 +956,17 @@ const ReadingPractice = () => {
         <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
           <p className="text-muted-foreground">Generating passage...</p>
+          {elapsed >= 5 && (
+            <p className="text-sm text-muted-foreground">{elapsed}s elapsed</p>
+          )}
+          <Button variant="outline" size="sm" onClick={cancelLoading}>
+            Cancel
+          </Button>
         </div>
       </AppShell>
     );
   }
+
 
   // ── Results ──
   if (showResults) {

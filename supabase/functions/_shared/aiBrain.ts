@@ -550,19 +550,55 @@ async function runDraftCritic<T>(task: BrainTask, apiKey: string): Promise<Brain
     deadlineAt: task.deadlineAt,
   });
 
-  const criticSys = `${sys}\n\nYou are reviewing a draft. If anything drifts to MSA or another dialect, REWRITE it in authentic ${getDialectLabel(task.dialect)}. Return ONLY the corrected output in the same format as the draft (no commentary).`;
-  const criticUser = `Original request:\n${stringifyUserPrompt(task.userPrompt)}\n\nDraft to review:\n${draft.raw}`;
-  const critiqued = await callModelWithFallback({
-    model: critic,
-    system: criticSys,
-    user: criticUser,
-    tool: task.tool,
-    maxTokens: task.maxTokens,
-    temperature: 0.3,
-    apiKey,
-    deadlineAt: task.deadlineAt,
-  });
+  const draftText = extractScanText(task, draft.parsed, draft.raw);
+  const draftLeaks = scanLeaks(draftText, task.dialect);
 
+  // The critic re-generates the whole payload, so only pay for it when the
+  // draft is structurally incomplete. MSA leaks are handled by the dedicated
+  // repair pass in askBrain, which is given the offending tokens by name.
+  const gateReason = task.qualityGate ? task.qualityGate(draft.parsed) : 'no quality gate provided';
+  if (!gateReason) {
+    return {
+      output: draft.parsed as T,
+      raw: draft.raw,
+      strategy: 'draft_critic',
+      models: [draft.model],
+      agreementScore: 1,
+      msaLeaks: draftLeaks,
+      msaRepairs: 0,
+      totalLatencyMs: 0,
+    };
+  }
+
+  console.log(`[aiBrain] draft_critic running critic pass — gate: ${gateReason}`);
+  const criticSys = `${sys}\n\nYou are reviewing a draft that is incomplete: ${gateReason}. Fix that, and if anything drifts to MSA or another dialect, REWRITE it in authentic ${getDialectLabel(task.dialect)}. Return ONLY the corrected output in the same format as the draft (no commentary).`;
+  const criticUser = `Original request:\n${stringifyUserPrompt(task.userPrompt)}\n\nDraft to review:\n${draft.raw}`;
+
+  let critiqued: { raw: string; parsed: unknown; model: string };
+  try {
+    critiqued = await callModelWithFallback({
+      model: critic,
+      system: criticSys,
+      user: criticUser,
+      tool: task.tool,
+      maxTokens: task.maxTokens,
+      temperature: 0.3,
+      apiKey,
+      deadlineAt: task.deadlineAt,
+    });
+  } catch (err) {
+    console.warn('[aiBrain] critic pass failed, returning draft', (err as Error)?.message);
+    return {
+      output: draft.parsed as T,
+      raw: draft.raw,
+      strategy: 'draft_critic',
+      models: [draft.model],
+      agreementScore: 1,
+      msaLeaks: draftLeaks,
+      msaRepairs: 0,
+      totalLatencyMs: 0,
+    };
+  }
 
   const text = extractScanText(task, critiqued.parsed, critiqued.raw);
   return {
@@ -574,6 +610,9 @@ async function runDraftCritic<T>(task: BrainTask, apiKey: string): Promise<Brain
     msaLeaks: scanLeaks(text, task.dialect),
     msaRepairs: 0,
     totalLatencyMs: 0,
+    // The critic already rewrote against these tokens; if they survive,
+    // another repair pass would produce identical text.
+    rewrittenAgainstLeaks: draftLeaks.leaks,
   };
 }
 

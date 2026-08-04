@@ -35,9 +35,20 @@ self-check results.
 | `sentences-sample.jsonl` | 5,000 deduped sentences, 5–25 tokens, one JSON object per line: `id`, `text`, `text_clean` (URLs/@mentions/#hashtags stripped), `token_count`, `political`. |
 | `derivation-report.json` | Stats + all self-check results for the committed cut. |
 
-Superseded and removed: `lisan-yemeni-lexicon.json`, `lisan-yemeni-dialect-specific.json`.
-Still present because downstream work references them: `lisan-yemeni-msa-pairs.json`,
+Superseded and removed: `lisan-yemeni-lexicon.json`,
+`lisan-yemeni-dialect-specific.json`, `lisan-yemeni-msa-pairs.json`,
 `lisan-yemeni-allowlist.json`.
+
+The last two were removed rather than kept for reference. `…-allowlist.json`
+was "every form attested in the corpus", which is not the same thing as "every
+form acceptable in Yemeni learner content" — it contained 17 of the 18
+`UNIVERSAL_MSA_LEAKS` (`الذي`, `سوف`, `ليس`, `لماذا`…) plus `دلوقتي`, `كده` and
+`هالحين`, because Yemeni Twitter code-switches into MSA and borrows from
+Egyptian media. Feeding it into `ALWAYS_ALLOWED.Yemeni` as the old step 5 here
+advised would have switched the MSA-leak detector off for Yemeni almost
+entirely. `…-msa-pairs.json` labelled hollow-verb conjugation (`يقول ⟵ قال`,
+`يكون ⟵ كان`) as lexical substitution, which would have seeded tense changes
+into the rulebook as dialect rules.
 
 ## Normalization
 
@@ -99,15 +110,25 @@ vocabulary into lessons.
    ✅/❌ examples. Skip political tokens.
 2. Derive MSA→Yemeni substitution candidates from `lexicon-full.json` by
    clitic-stripped stem divergence (`بس⟵لكن`, `ليش⟵لماذا`, `ايش⟵ماذا`,
-   `احنا⟵نحن`, `خل⟵دع`, `عشان⟵أجل`); `lisan-yemeni-msa-pairs.json` holds an
-   earlier cut of these.
+   `احنا⟵نحن`, `خل⟵دع`, `عشان⟵أجل`). Triage before seeding: Arabic hollow and
+   weak verbs shift their surface consonants (`قال → يقول`, `كان → يكون`,
+   `شاف → نشوف`), so stem comparison alone reads verb conjugation as lexical
+   substitution and would seed "use يقول instead of قال" — a tense change, not
+   a dialect rule.
 3. Use `affix-inventory.json` for grammar rules: `ما...ش` negation, the `لـ`
    imperative negation the paper singles out for Yemeni (`لتخافون` for MSA
    `لا تخافوا`), possessive `حق`.
 4. Feed `sentences-sample.jsonl` into `mine-dialect-corpus` for attested
    sentence-level generalization.
-5. Feed `lisan-yemeni-allowlist.json` into `ALWAYS_ALLOWED.Yemeni` in
-   `supabase/functions/_shared/msaLeakDetector.ts`.
+5. For `ALWAYS_ALLOWED.Yemeni` in
+   `supabase/functions/_shared/msaLeakDetector.ts`, never whitelist a form just
+   because the corpus attests it. The test applied in the 2026-08 audit: compare
+   the MSA form against its dialectal alternative and whitelist only where the
+   MSA form genuinely dominates (`هذا` 3,615 vs `ذا` 218 → whitelist;
+   `الذي` 2,259 vs `اللي` 4,406 → keep flagged, steering the model toward `اللي`
+   is the detector working). Mirror any change into `ADMIN_ALWAYS_ALLOWED` in
+   `src/pages/admin/AdminDialectRules.tsx` — `src/test/msaLeakDetector.test.ts`
+   fails if the two drift.
 
 ## Regenerating
 

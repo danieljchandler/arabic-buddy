@@ -289,6 +289,16 @@ serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
+  // Defined here rather than at module scope: corsHeaders is per-request, and
+  // a module-scope helper closing over a name that only exists inside this
+  // callback threw ReferenceError on every response — including the catch that
+  // was meant to report it, so the function could not return at all.
+  const json = (status: number, body: unknown): Response =>
+    new Response(JSON.stringify(body), {
+      status,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) return json(401, { error: "Missing Authorization header" });
@@ -414,10 +424,3 @@ serve(async (req) => {
     return json(status, { error: (err as Error)?.message ?? "Unknown error" });
   }
 });
-
-function json(status: number, body: unknown): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
-}

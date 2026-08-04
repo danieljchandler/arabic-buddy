@@ -101,7 +101,12 @@ export async function enforceDailyCap(
     };
   }
 
-  if (await hasActiveSubscription(userId) || await isAdminUser(userId)) {
+  // Independent lookups — run them in parallel, they're on the critical path.
+  const [subscribed, isAdmin] = await Promise.all([
+    hasActiveSubscription(userId),
+    isAdminUser(userId),
+  ]);
+  if (subscribed || isAdmin) {
     return { limited: false, userId, count: 0, limit: Number.POSITIVE_INFINITY };
   }
 

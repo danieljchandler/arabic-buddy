@@ -19,12 +19,12 @@ import { readingPassageGate } from "../_shared/passageQualityCore.ts";
  * spinner. Must stay in sync with PASSAGE_TIMEOUT_MS in
  * src/pages/ReadingPractice.tsx.
  *
- * This is a ceiling, not a target: the typical request now finishes in one
- * drafting pass well inside it. It is sized to still fit a draft *plus* a full
- * critic rewrite when the quality gate demands one, so bounding the pathological
- * case never costs a passage that needed fixing.
+ * This is a ceiling, not a target: the typical request finishes in one drafting
+ * pass plus a short authenticity check, well inside it. It is sized to still fit
+ * a draft *plus* the check *plus* a full rewrite when either gate demands one,
+ * so bounding the pathological case never costs a passage that needed fixing.
  */
-const GENERATION_BUDGET_MS = 80_000;
+const GENERATION_BUDGET_MS = 95_000;
 
 /**
  * How long a passage should be, per difficulty.
@@ -116,6 +116,19 @@ serve(async (req) => {
 
 ${getTashkeelMandate()}
 - title and every line's "arabic" field must be fully vocalized.
+- Vocalize for how the sentence is SPOKEN in ${dialectLabel}, never for MSA case.
+  No إعراب: no damma/fatha/kasra as a case ending on a noun, and NEVER tanween
+  (قَاتًا is wrong; قَات is right). Final consonants take sukuun.
+
+NO FUSHA (this is the single most common failure — read it back and check):
+- The passage must sound like someone TALKING, not like a news bulletin or a
+  storybook in Classical Arabic. Dialect vocabulary alone is not enough: fusha
+  grammar with a few dialect words sprinkled in is still fusha.
+- Use the dialect's own verbs and function words rather than their MSA
+  equivalents — e.g. prefer قعد over جَلَسَ, راح over ذَهَبَ, شاف over رَأَى,
+  ربعه/أصحابه over رِفَاقِهِ, بس over لَكِنْ, عشان/علشان over لِأَنَّ.
+- Use the dialect's present-tense verb prefixes and negation, not MSA's.
+- Word order and phrasing should be conversational.
 
 ${getDialectTransliterationRules(dialect as Dialect)}
 - Provide a transliteration for every line.
@@ -149,6 +162,12 @@ Put one sentence per entry in the "lines" array, each with its Arabic text, tran
         maxTokens: 3072,
         temperature: 0.8,
         budgetMs: GENERATION_BUDGET_MS,
+        // Have a native-speaker reviewer read the draft and send it back if it
+        // comes out as fusha. The MSA token detector cannot catch this: text can
+        // be MSA in grammar, register and case-marking while containing none of
+        // the blacklisted words, which is exactly what a learner notices. Costs
+        // one short classification call; only a failed verdict costs a rewrite.
+        enforceDialect: true,
         // What the critic pass is actually there to guarantee, stated as a
         // check we can run locally in microseconds. A draft that already has
         // full tashkeel, a transliteration, a natural translation and a literal

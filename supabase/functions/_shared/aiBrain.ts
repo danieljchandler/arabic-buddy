@@ -269,7 +269,12 @@ interface CallOptions {
   maxTokens?: number;
   temperature?: number;
   apiKey: string;
+  /** Absolute wall-clock deadline for the whole task (ms epoch). */
+  deadlineAt?: number;
 }
+
+/** Per-request fetch timeout — Deno's fetch never times out on its own. */
+const FETCH_TIMEOUT_MS = 45_000;
 
 async function callModel(opts: CallOptions): Promise<{ raw: string; parsed: unknown }> {
   const isGpt5 = /^openai\/gpt-5/.test(opts.model);

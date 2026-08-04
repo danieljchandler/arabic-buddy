@@ -76,6 +76,8 @@ export interface BrainResult<T = unknown> {
   totalLatencyMs: number;
   /** Set when validateDialect was requested and the validator returned a result. */
   validator?: ValidatorResult;
+  /** Leak tokens a rewrite pass already targeted (used to avoid a duplicate repair). */
+  rewrittenAgainstLeaks?: string[];
 }
 
 const GATEWAY_URL = 'https://ai.gateway.lovable.dev/v1/chat/completions';

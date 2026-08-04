@@ -457,6 +457,7 @@ async function runSolo<T>(task: BrainTask, apiKey: string): Promise<BrainResult<
     maxTokens: task.maxTokens,
     temperature: task.temperature,
     apiKey,
+    deadlineAt: task.deadlineAt,
   });
   const text = extractScanText(task, parsed, raw);
   return {
@@ -485,6 +486,7 @@ async function runEnsemble<T>(task: BrainTask, apiKey: string): Promise<BrainRes
         maxTokens: task.maxTokens,
         temperature: task.temperature,
         apiKey,
+        deadlineAt: task.deadlineAt,
       }),
     ),
   );
@@ -545,6 +547,7 @@ async function runDraftCritic<T>(task: BrainTask, apiKey: string): Promise<Brain
     maxTokens: task.maxTokens,
     temperature: task.temperature,
     apiKey,
+    deadlineAt: task.deadlineAt,
   });
 
   const criticSys = `${sys}\n\nYou are reviewing a draft. If anything drifts to MSA or another dialect, REWRITE it in authentic ${getDialectLabel(task.dialect)}. Return ONLY the corrected output in the same format as the draft (no commentary).`;
@@ -557,6 +560,7 @@ async function runDraftCritic<T>(task: BrainTask, apiKey: string): Promise<Brain
     maxTokens: task.maxTokens,
     temperature: 0.3,
     apiKey,
+    deadlineAt: task.deadlineAt,
   });
 
 
@@ -588,6 +592,7 @@ async function runCouncil<T>(task: BrainTask, apiKey: string): Promise<BrainResu
         maxTokens: task.maxTokens,
         temperature: task.temperature ?? 0.7,
         apiKey,
+        deadlineAt: task.deadlineAt,
       }),
     ),
   );
@@ -618,6 +623,7 @@ async function runCouncil<T>(task: BrainTask, apiKey: string): Promise<BrainResu
       maxTokens: task.maxTokens,
       temperature: 0.3,
       apiKey,
+      deadlineAt: task.deadlineAt,
     });
   } catch (e) {
     console.warn(`[council] judge ${judge} failed, falling back to first successful draft:`, (e as Error)?.message);
@@ -649,6 +655,7 @@ async function runRepair<T>(task: BrainTask, prior: BrainResult<T>, apiKey: stri
     maxTokens: task.maxTokens,
     temperature: 0.2,
     apiKey,
+    deadlineAt: task.deadlineAt,
   });
   const text = extractScanText(task, parsed, raw);
   return {

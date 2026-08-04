@@ -87,11 +87,11 @@ interface QAMessage {
 
 /**
  * Hard ceiling on a passage generation. The edge function budgets itself
- * GENERATION_BUDGET_MS (80s) and returns a real error past that; this is that
+ * GENERATION_BUDGET_MS (95s) and returns a real error past that; this is that
  * plus network slack. Without it a slow or wedged request left the learner on
  * an indefinite "Generating passage..." spinner with no way back.
  */
-const PASSAGE_TIMEOUT_MS = 95_000;
+const PASSAGE_TIMEOUT_MS = 110_000;
 
 /** The pre-check for a hand-published passage is a plain indexed select. */
 const LIBRARY_QUERY_TIMEOUT_MS = 10_000;

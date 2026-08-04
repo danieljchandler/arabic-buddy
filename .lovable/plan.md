@@ -1,57 +1,38 @@
-## Sentence Practice on Flashcards
+# Fix: Yemeni reading-passage generation fails
 
-Add a "Make a sentence" action to every flashcard. User records themselves saying a sentence that uses the target word. Munsit transcribes it, then an AI coach (lenient with non-native pronunciation) returns structured feedback in the current dialect.
+## What actually happened
 
-### UX flow
+The error came from Reading Practice → generate a passage, in Yemeni. The backend logs for the failing runs show the whole story:
 
-1. On any flashcard (My Words review, My Phrases review, and the Flashcard component used elsewhere), add a subtle **"Practice a sentence with this word"** button below the card body.
-2. Tapping opens a bottom-sheet / dialog:
-   - Big mic button → tap to start, tap to stop (with waveform/level meter, reuse `LevelMeter`).
-   - Shows the target word + English gloss at the top as a reminder.
-3. On stop:
-   - Upload audio → Munsit ASR (via new edge function).
-   - Send transcript + target word + dialect to AI coach.
-   - Show a loading state ("Listening…" → "Coaching…").
-4. Feedback card displays:
-   - **What we heard** — the raw transcript (tappable via `TappableArabicText`).
-   - **Did you use the word?** — green check / soft warning (lenient: accepts root + morphology matches, not just exact form).
-   - **Correctness** — 1-line verdict ("Makes sense" / "Almost — meaning is unclear").
-   - **More natural in [Dialect]** — rewritten sentence in the active dialect (tappable, with play button using existing TTS route for that dialect).
-   - **Why it changed** — 1-2 short bullets explaining the swap (grammar/word choice/naturalness).
-   - **Other ways to say it** — 1–2 alternative phrasings (tappable + play).
-   - **Pronunciation** — overall score + 1–2 tips (reuses `pronunciation-feedback` style; scored against the user's own transcript so non-natives aren't penalized for accent, only for intelligibility).
-5. Buttons: **Try again**, **Save sentence to My Phrases** (optional), **Done**.
+```text
+[aiBrain] google/gemini-3.5-flash retry #1 (lower temp)
+[aiBrain] google/gemini-3.5-flash retry #2 (tool nudge)
+[aiBrain] google/gemini-3.5-flash exhausted retries, falling back to google/gemini-2.5-flash
+[reading-passage] intermediate/Yemeni total=85081ms  (draft 76984ms, validate 7595ms)
+[aiBrain] skipping repair pass, latency budget spent
+[aiBrain] out of latency budget, not trying fallback google/gemini-2.5-pro
+reading-passage brain error: 504 lovable google/gemini-2.5-flash timed out after 29045ms
+```
 
-### Leniency rules (baked into prompts)
+Two compounding causes:
 
-- Target-word check: normalize both sides (strip tashkeel, alef/ya/ta-marbuta variants) and accept any inflected form sharing the root. Don't fail on missing diacritics or minor spelling.
-- Pronunciation score: grade *intelligibility*, not native-likeness. Instruct the coach to be encouraging, mention 1 concrete sound to work on, and never say "wrong."
-- If ASR returns empty/very short text → friendly "we couldn't hear that clearly, try again in a quieter spot" instead of an error.
+1. **The primary drafter never produces a usable tool call for this request.** Every Yemeni run spends three full attempts on `gemini-3.5-flash` (initial, lower temperature, tool nudge) before it gives up. Those three attempts burn most of the 95s wall-clock budget before any model has written a word.
+2. **The fallback then has no time left.** `gemini-2.5-flash` needs ~77s for this passage schema on its own. Started late, it either finishes right at the ceiling (85s total, no time for the MSA repair pass — which is why leaks like أين / ماذا survived) or is cut off with a 504. The function then correctly returns 503, and the page shows the generic "Could not generate a passage right now" error.
 
-### Files to add
+So it is not Yemeni-specific content that breaks — it's that Yemeni runs are the heaviest (largest dialect rulebook + strictest prompt), so they are the first to fall off the latency cliff created by the wasted retries.
 
-- `src/components/practice/SentencePracticeSheet.tsx` — the dialog UI, recorder, feedback rendering.
-- `src/hooks/useSentencePractice.ts` — orchestrates record → transcribe → coach; returns `{ status, transcript, feedback, start, stop, retry }`.
-- `supabase/functions/practice-sentence-coach/index.ts` — accepts `{ audioBase64, mimeType, targetWord, targetWordEnglish, dialect }`, calls Munsit for ASR, then Lovable AI Gateway (TRANSLATION lineup via `_shared/modelRegistry.ts`) for structured coaching output (JSON tool call with `usedTarget`, `correctness`, `natural`, `naturalChanges[]`, `alternatives[]`, `pronunciationTip`, `overallScore`).
+## The fix
 
-### Files to modify
+1. **Fail fast on tool-call failures.** In the shared AI brain's fallback ladder, a "no tool call / unparseable" failure should cost at most one same-model retry, not two. If a model fails to emit the tool call twice, further perturbations of the same model don't help — move to the stable chain immediately. Timeouts already skip straight to fallback; keep that.
+2. **Draft reading passages with a tool-reliable model first.** For the `reading_passage` purpose, order the drafters so the model that reliably emits this large tool schema leads, instead of discovering that only after three failures.
+3. **Give the run honest headroom.** The server budget (95s) currently equals the client timeout (95s), so a slow-but-successful run can be killed by the browser mid-flight. Lower the server generation budget so it always returns a real answer or a real error before the client gives up, and reserve enough of that budget for the MSA repair pass so leaks are still cleaned up.
+4. **Make the failure recoverable in the UI.** When the passage call fails, retry once automatically before surfacing the error, and show a specific message ("the writer took too long — try again") with the existing retry button rather than a generic failure.
 
-- `src/pages/MyWordsReview.tsx` — add the Practice button on the answer side of the card.
-- `src/pages/MyPhrasesReview.tsx` — same, targeting the phrase.
-- `src/components/Flashcard.tsx` — expose Practice button when a `targetWord` is present so any other flashcard surface picks it up automatically.
+## Technical notes
 
-### Technical details
+- `supabase/functions/_shared/aiBrain.ts` — `callModelWithFallback`: collapse attempts 2 and 3 into a single same-model retry; enter `STABLE_FALLBACKS` sooner so the fallback runs with a usable share of the deadline.
+- `supabase/functions/_shared/modelRegistry.ts` / `aiBrain` purpose→lineup mapping: put the stable fast Gemini build ahead of the preview build for `reading_passage` drafting.
+- `supabase/functions/reading-passage/index.ts` — `GENERATION_BUDGET_MS`: reduce below the client timeout and keep a repair-pass reserve.
+- `src/pages/ReadingPractice.tsx` — one silent retry on 503/timeout, plus a clearer error message; no change to the existing Cancel behaviour.
 
-- ASR: reuse Munsit call pattern from `supabase/functions/score-set-phrase-voice/index.ts` (multipart, `x-api-key`, 25s timeout).
-- Model: `MODEL_LINEUPS.TRANSLATION` (Claude Sonnet 4.5 + Gemini 3.5 Flash ensemble) via `aiBrain`, purpose `translation` (already dialect-aware and MSA-leak-guarded per project rules).
-- Dialect voice for the "natural" sentence playback: reuse existing dialect TTS routing (`useAzureTTS` + Munsit Khaleeji for Gulf/Yemeni).
-- Structured output via tool-calling JSON schema (no `.min/.max` bounds per `ai-sdk-agent-patterns`).
-- CORS: reuse `_shared/cors.ts`.
-- No new tables; the feature is transient. Optional "save to My Phrases" reuses existing `user_phrases` insert path.
-
-### Verification
-
-- Record a clearly-in-Arabic sentence with the target word → transcript matches, `usedTarget: true`, natural rewrite differs subtly.
-- Record without the target word → warning row shown but still gives a rewrite.
-- Record silence → friendly retry prompt, no crash.
-- Switch dialect (Gulf → Egyptian) → natural rewrite and playback voice both change.
+No schema, prompt-content, or other feature changes.

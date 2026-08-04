@@ -478,6 +478,14 @@ const ReadingPractice = () => {
     }
   };
 
+  // Elapsed-seconds ticker for the loading screen.
+  useEffect(() => {
+    if (!loading) return;
+    const t = setInterval(() => setElapsed((s) => s + 1), 1000);
+    return () => clearInterval(t);
+  }, [loading]);
+
+
   const cancelLoading = () => {
     requestIdRef.current++;
     setLoading(false);

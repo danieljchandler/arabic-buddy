@@ -51,6 +51,11 @@
    "detail": "1500 pairs"
   },
   {
+   "check": "msa_pairs_have_lexical_rows",
+   "pass": true,
+   "detail": "330 lexical pairs"
+  },
+  {
    "check": "msa_pairs_not_clitic_only",
    "pass": true,
    "detail": "0 clitic-only pairs"

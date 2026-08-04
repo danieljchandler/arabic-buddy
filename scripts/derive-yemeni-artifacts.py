@@ -86,8 +86,13 @@ def clitic_variant(msa,yem):
             stem=core[:len(core)-len(suf)] if suf else core
             if stem==msa: return True
     return False
-msa_pairs=[{'msa':a,'yemeni':b,'count':c} for (a,b),c in pairs.most_common()
-           if c>=3 and not clitic_variant(a,b)][:1500]
+import difflib
+def likely_inflection(a,b):
+    # Same stem, different inflection (كان/كنت) is morphology, not a lexical
+    # MSA->Yemeni substitution. Flag it so consumers can require review.
+    return difflib.SequenceMatcher(None,a,b).ratio()>=0.6
+msa_pairs=[{'msa':a,'yemeni':b,'count':c,'likely_inflection':likely_inflection(a,b)}
+           for (a,b),c in pairs.most_common() if c>=3 and not clitic_variant(a,b)][:1500]
 allow=sorted({e['norm'] for e in dialect_specific} | {t['norm'] for t in tokens})
 
 checks=[]
@@ -108,6 +113,8 @@ chk('content_words_low_overlap_with_top200_frequency', ov<=40, f'{ov}/200 overla
 chk('dialect_specific_size', 300<=len(dialect_specific)<=1200, str(len(dialect_specific)))
 chk('function_word_evidence_present', len(func)>=50, f'{len(func)} function words')
 chk('msa_pairs_differ', all(p['msa']!=p['yemeni'] for p in msa_pairs), f'{len(msa_pairs)} pairs')
+chk('msa_pairs_have_lexical_rows', sum(1 for p in msa_pairs if not p['likely_inflection'])>=300,
+    f"{sum(1 for p in msa_pairs if not p['likely_inflection'])} lexical pairs")
 chk('msa_pairs_not_clitic_only', not any(clitic_variant(p['msa'],p['yemeni']) for p in msa_pairs),
     f'{sum(1 for p in msa_pairs if clitic_variant(p["msa"],p["yemeni"]))} clitic-only pairs')
 chk('tokens_2000', len(tokens)==2000, str(len(tokens)))
@@ -124,7 +131,7 @@ print('SAMPLE content:',[e['norm'] for e in content[:25]])
 def dump(name,obj): json.dump(obj,open(OUT+name,'w'),ensure_ascii=False,indent=1)
 dump('lisan-yemeni-lexicon.json',{'source':report['source'],'description':'Top 2000 normalized tokens by corpus frequency (SPELL/SPLIT rows excluded).','stats':stats,'tokens':tokens})
 dump('lisan-yemeni-dialect-specific.json',{'description':'Yemeni dialect markers. class=function_word: closed-class POS, count>=5, not in the MSA closed-class stoplist. class=content_word: open-class POS, count>=3, MSALemmaID==0 in >=90% of occurrences, proper nouns excluded.','stats':stats,'dialect_specific':dialect_specific})
-dump('lisan-yemeni-msa-pairs.json',{'description':'MSA lemma -> attested Yemeni surface form (count>=3). Source for MSA->Yemeni bridge rules and msa_form fields.','count':len(msa_pairs),'pairs':msa_pairs})
+dump('lisan-yemeni-msa-pairs.json',{'description':'MSA lemma -> attested Yemeni surface form (count>=3), clitic-only variants removed. likely_inflection=true means the two forms share a stem (morphology, not a lexical substitution) - prefer likely_inflection=false rows when authoring bridge rules.','count':len(msa_pairs),'pairs':msa_pairs})
 dump('lisan-yemeni-allowlist.json',{'description':'Normalized forms attested in Yemeni corpus; use to stop msaLeakDetector flagging real Yemeni forms.','count':len(allow),'allow':allow})
 dump('derivation-report.json',report)
 sys.exit(0 if all(c['pass'] for c in checks) else 1)

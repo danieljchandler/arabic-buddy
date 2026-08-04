@@ -1,7506 +1,9006 @@
 {
- "description": "MSA lemma -> attested Yemeni surface form (count>=3). Source for MSA->Yemeni bridge rules and msa_form fields.",
+ "description": "MSA lemma -> attested Yemeni surface form (count>=3), clitic-only variants removed. likely_inflection=true means the two forms share a stem (morphology, not a lexical substitution) - prefer likely_inflection=false rows when authoring bridge rules.",
  "count": 1500,
  "pairs": [
   {
    "msa": "اماره",
    "yemeni": "الامارات",
-   "count": 1032
+   "count": 1032,
+   "likely_inflection": true
   },
   {
    "msa": "رجل",
    "yemeni": "رجال",
-   "count": 830
+   "count": 830,
+   "likely_inflection": true
   },
   {
    "msa": "لماذا",
    "yemeni": "ليش",
-   "count": 786
+   "count": 786,
+   "likely_inflection": false
   },
   {
    "msa": "ماذا",
    "yemeni": "ايش",
-   "count": 619
+   "count": 619,
+   "likely_inflection": false
   },
   {
    "msa": "سنه",
    "yemeni": "سنوات",
-   "count": 586
+   "count": 586,
+   "likely_inflection": false
   },
   {
    "msa": "اب",
    "yemeni": "ابو",
-   "count": 553
+   "count": 553,
+   "likely_inflection": true
   },
   {
    "msa": "عني",
    "yemeni": "يعني",
-   "count": 544
+   "count": 544,
+   "likely_inflection": true
   },
   {
    "msa": "سعوديه",
    "yemeni": "السعودي",
-   "count": 520
+   "count": 520,
+   "likely_inflection": true
   },
   {
    "msa": "كان",
    "yemeni": "كنت",
-   "count": 508
+   "count": 508,
+   "likely_inflection": true
   },
   {
    "msa": "كان",
    "yemeni": "يكون",
-   "count": 455
+   "count": 455,
+   "likely_inflection": false
   },
   {
    "msa": "الذي",
    "yemeni": "التي",
-   "count": 439
+   "count": 439,
+   "likely_inflection": true
   },
   {
    "msa": "قال",
    "yemeni": "تقول",
-   "count": 421
+   "count": 421,
+   "likely_inflection": false
   },
   {
    "msa": "دوله",
    "yemeni": "دول",
-   "count": 402
+   "count": 402,
+   "likely_inflection": true
   },
   {
    "msa": "شرع",
    "yemeni": "الشرعيه",
-   "count": 399
+   "count": 399,
+   "likely_inflection": true
   },
   {
    "msa": "انتقاليه",
    "yemeni": "الانتقالي",
-   "count": 397
+   "count": 397,
+   "likely_inflection": true
   },
   {
    "msa": "اخ",
    "yemeni": "الاخوان",
-   "count": 390
+   "count": 390,
+   "likely_inflection": false
   },
   {
    "msa": "نحن",
    "yemeni": "احنا",
-   "count": 388
+   "count": 388,
+   "likely_inflection": false
   },
   {
    "msa": "فانوس",
    "yemeni": "الفوانيس",
-   "count": 365
+   "count": 365,
+   "likely_inflection": true
   },
   {
    "msa": "قال",
    "yemeni": "يقول",
-   "count": 344
+   "count": 344,
+   "likely_inflection": false
   },
   {
    "msa": "رجل",
    "yemeni": "الرجال",
-   "count": 343
+   "count": 343,
+   "likely_inflection": true
   },
   {
    "msa": "دوله",
    "yemeni": "الدول",
-   "count": 319
+   "count": 319,
+   "likely_inflection": true
   },
   {
    "msa": "طفل",
    "yemeni": "اطفال",
-   "count": 314
+   "count": 314,
+   "likely_inflection": true
   },
   {
    "msa": "صاروخ",
    "yemeni": "صواريخ",
-   "count": 302
+   "count": 302,
+   "likely_inflection": true
   },
   {
    "msa": "عيل",
    "yemeni": "عيال",
-   "count": 297
+   "count": 297,
+   "likely_inflection": true
   },
   {
    "msa": "قصف",
    "yemeni": "تقصف",
-   "count": 295
+   "count": 295,
+   "likely_inflection": true
   },
   {
    "msa": "ذنب",
    "yemeni": "اذناب",
-   "count": 277
+   "count": 277,
+   "likely_inflection": true
   },
   {
    "msa": "سعوديه",
    "yemeni": "سعودي",
-   "count": 244
+   "count": 244,
+   "likely_inflection": true
   },
   {
    "msa": "امه",
    "yemeni": "الامم",
-   "count": 244
+   "count": 244,
+   "likely_inflection": false
   },
   {
    "msa": "تكلم",
    "yemeni": "تتكلم",
-   "count": 243
+   "count": 243,
+   "likely_inflection": true
   },
   {
    "msa": "خائن",
    "yemeni": "خونه",
-   "count": 238
+   "count": 238,
+   "likely_inflection": false
   },
   {
    "msa": "سنه",
    "yemeni": "سنين",
-   "count": 237
+   "count": 237,
+   "likely_inflection": false
   },
   {
    "msa": "حلف",
    "yemeni": "التحالف",
-   "count": 231
+   "count": 231,
+   "likely_inflection": true
   },
   {
    "msa": "تاهل",
    "yemeni": "نتاهل",
-   "count": 229
+   "count": 229,
+   "likely_inflection": true
   },
   {
    "msa": "عرف",
    "yemeni": "تعرف",
-   "count": 228
+   "count": 228,
+   "likely_inflection": true
   },
   {
    "msa": "بلد",
    "yemeni": "البلاد",
-   "count": 228
+   "count": 228,
+   "likely_inflection": true
   },
   {
    "msa": "ميليشيا",
    "yemeni": "مليشيات",
-   "count": 226
+   "count": 226,
+   "likely_inflection": true
   },
   {
    "msa": "قال",
    "yemeni": "قلت",
-   "count": 221
+   "count": 221,
+   "likely_inflection": true
   },
   {
    "msa": "جبهه",
    "yemeni": "الجبهات",
-   "count": 212
+   "count": 212,
+   "likely_inflection": false
   },
   {
    "msa": "اصل",
    "yemeni": "اصلا",
-   "count": 211
+   "count": 211,
+   "likely_inflection": true
   },
   {
    "msa": "دعم",
    "yemeni": "تدعم",
-   "count": 211
+   "count": 211,
+   "likely_inflection": true
   },
   {
    "msa": "تمني",
    "yemeni": "اتمني",
-   "count": 207
+   "count": 207,
+   "likely_inflection": true
   },
   {
    "msa": "طفل",
    "yemeni": "الاطفال",
-   "count": 205
+   "count": 205,
+   "likely_inflection": true
   },
   {
    "msa": "قال",
    "yemeni": "نقول",
-   "count": 204
+   "count": 204,
+   "likely_inflection": false
   },
   {
    "msa": "تم",
    "yemeni": "يتم",
-   "count": 203
+   "count": 203,
+   "likely_inflection": true
   },
   {
    "msa": "بريء",
    "yemeni": "الابرياء",
-   "count": 202
+   "count": 202,
+   "likely_inflection": true
   },
   {
    "msa": "اماره",
    "yemeni": "والامارات",
-   "count": 201
+   "count": 201,
+   "likely_inflection": false
   },
   {
    "msa": "اربعه",
    "yemeni": "اربع",
-   "count": 201
+   "count": 201,
+   "likely_inflection": true
   },
   {
    "msa": "بلد",
    "yemeni": "بلاد",
-   "count": 199
+   "count": 199,
+   "likely_inflection": true
   },
   {
    "msa": "كلب",
    "yemeni": "كلاب",
-   "count": 195
+   "count": 195,
+   "likely_inflection": true
   },
   {
    "msa": "زنبيل",
    "yemeni": "الزنابيل",
-   "count": 194
+   "count": 194,
+   "likely_inflection": true
   },
   {
    "msa": "تكلم",
    "yemeni": "يتكلم",
-   "count": 193
+   "count": 193,
+   "likely_inflection": true
   },
   {
    "msa": "شاف",
    "yemeni": "شوف",
-   "count": 190
+   "count": 190,
+   "likely_inflection": true
   },
   {
    "msa": "خائن",
    "yemeni": "الخونه",
-   "count": 186
+   "count": 186,
+   "likely_inflection": false
   },
   {
    "msa": "عرف",
    "yemeni": "اعرف",
-   "count": 186
+   "count": 186,
+   "likely_inflection": true
   },
   {
    "msa": "اليمن",
    "yemeni": "يمن",
-   "count": 185
+   "count": 185,
+   "likely_inflection": true
   },
   {
    "msa": "مجموع",
    "yemeni": "مجموعتنا",
-   "count": 180
+   "count": 180,
+   "likely_inflection": true
   },
   {
    "msa": "عرف",
    "yemeni": "يعرف",
-   "count": 177
+   "count": 177,
+   "likely_inflection": true
   },
   {
    "msa": "صاروخ",
    "yemeni": "الصواريخ",
-   "count": 173
+   "count": 173,
+   "likely_inflection": true
   },
   {
    "msa": "اراد",
    "yemeni": "يريد",
-   "count": 172
+   "count": 172,
+   "likely_inflection": false
   },
   {
    "msa": "اراد",
    "yemeni": "تريد",
-   "count": 169
+   "count": 169,
+   "likely_inflection": false
   },
   {
    "msa": "قال",
    "yemeni": "اقول",
-   "count": 167
+   "count": 167,
+   "likely_inflection": false
   },
   {
    "msa": "شكر",
    "yemeni": "شكرا",
-   "count": 167
+   "count": 167,
+   "likely_inflection": true
   },
   {
    "msa": "شاء",
    "yemeni": "اشتي",
-   "count": 164
+   "count": 164,
+   "likely_inflection": false
   },
   {
    "msa": "قبيله",
    "yemeni": "قبائل",
-   "count": 155
+   "count": 155,
+   "likely_inflection": true
   },
   {
    "msa": "نحن",
    "yemeni": "نحنا",
-   "count": 152
+   "count": 152,
+   "likely_inflection": true
   },
   {
    "msa": "منطقه",
    "yemeni": "مناطق",
-   "count": 150
+   "count": 150,
+   "likely_inflection": true
   },
   {
    "msa": "فندق",
    "yemeni": "الفنادق",
-   "count": 143
+   "count": 143,
+   "likely_inflection": true
   },
   {
    "msa": "كان",
    "yemeni": "تكون",
-   "count": 142
+   "count": 142,
+   "likely_inflection": false
   },
   {
    "msa": "سعوديه",
    "yemeni": "السعوديين",
-   "count": 141
+   "count": 141,
+   "likely_inflection": true
   },
   {
    "msa": "كان",
    "yemeni": "كنا",
-   "count": 138
+   "count": 138,
+   "likely_inflection": true
   },
   {
    "msa": "قال",
    "yemeni": "قل",
-   "count": 137
+   "count": 137,
+   "likely_inflection": true
   },
   {
    "msa": "ثلاثه",
    "yemeni": "ثلاث",
-   "count": 135
+   "count": 135,
+   "likely_inflection": true
   },
   {
    "msa": "بلد",
    "yemeni": "بلادنا",
-   "count": 135
+   "count": 135,
+   "likely_inflection": true
   },
   {
    "msa": "خبر",
    "yemeni": "اخبار",
-   "count": 134
+   "count": 134,
+   "likely_inflection": true
   },
   {
    "msa": "كلب",
    "yemeni": "الكلاب",
-   "count": 134
+   "count": 134,
+   "likely_inflection": true
   },
   {
    "msa": "اخ",
    "yemeni": "اخوان",
-   "count": 134
+   "count": 134,
+   "likely_inflection": false
   },
   {
    "msa": "بدا",
    "yemeni": "يبدا",
-   "count": 129
+   "count": 129,
+   "likely_inflection": true
   },
   {
    "msa": "حرب",
    "yemeni": "الحروب",
-   "count": 125
+   "count": 125,
+   "likely_inflection": true
   },
   {
    "msa": "رحم",
    "yemeni": "يرحمه",
-   "count": 125
+   "count": 125,
+   "likely_inflection": true
   },
   {
    "msa": "دافع",
    "yemeni": "يدافع",
-   "count": 124
+   "count": 124,
+   "likely_inflection": true
   },
   {
    "msa": "قاتل",
    "yemeni": "يقاتل",
-   "count": 123
+   "count": 123,
+   "likely_inflection": true
   },
   {
    "msa": "ابد",
    "yemeni": "ابدا",
-   "count": 119
+   "count": 119,
+   "likely_inflection": true
   },
   {
    "msa": "اراد",
    "yemeni": "نريد",
-   "count": 117
+   "count": 117,
+   "likely_inflection": false
   },
   {
    "msa": "عرف",
    "yemeni": "نعرف",
-   "count": 116
+   "count": 116,
+   "likely_inflection": true
   },
   {
    "msa": "مثل",
    "yemeni": "امثالك",
-   "count": 115
+   "count": 115,
+   "likely_inflection": true
   },
   {
    "msa": "شعب",
    "yemeni": "الشعوب",
-   "count": 115
+   "count": 115,
+   "likely_inflection": true
   },
   {
    "msa": "شاف",
    "yemeni": "نشوف",
-   "count": 112
+   "count": 112,
+   "likely_inflection": false
   },
   {
    "msa": "هم",
    "yemeni": "منهم",
-   "count": 112
+   "count": 112,
+   "likely_inflection": true
   },
   {
    "msa": "فندق",
    "yemeni": "فنادق",
-   "count": 112
+   "count": 112,
+   "likely_inflection": true
   },
   {
    "msa": "حارس",
    "yemeni": "الحرس",
-   "count": 110
+   "count": 110,
+   "likely_inflection": true
   },
   {
    "msa": "يهودي",
    "yemeni": "اليهود",
-   "count": 109
+   "count": 109,
+   "likely_inflection": true
   },
   {
    "msa": "صار",
    "yemeni": "يصير",
-   "count": 108
+   "count": 108,
+   "likely_inflection": false
   },
   {
    "msa": "قبيله",
    "yemeni": "القبائل",
-   "count": 106
+   "count": 106,
+   "likely_inflection": false
   },
   {
    "msa": "توقع",
    "yemeni": "اتوقع",
-   "count": 105
+   "count": 105,
+   "likely_inflection": true
   },
   {
    "msa": "ميليشيا",
    "yemeni": "المليشيات",
-   "count": 104
+   "count": 104,
+   "likely_inflection": true
   },
   {
    "msa": "فلس",
    "yemeni": "فلوس",
-   "count": 104
+   "count": 104,
+   "likely_inflection": true
   },
   {
    "msa": "جندي",
    "yemeni": "جنودنا",
-   "count": 103
+   "count": 103,
+   "likely_inflection": true
   },
   {
    "msa": "شاف",
    "yemeni": "شفت",
-   "count": 103
+   "count": 103,
+   "likely_inflection": true
   },
   {
    "msa": "حرب",
    "yemeni": "حروب",
-   "count": 102
+   "count": 102,
+   "likely_inflection": true
   },
   {
    "msa": "بقيه",
    "yemeni": "بقايا",
-   "count": 102
+   "count": 102,
+   "likely_inflection": true
   },
   {
    "msa": "بطل",
    "yemeni": "ابطال",
-   "count": 101
+   "count": 101,
+   "likely_inflection": true
   },
   {
    "msa": "واحد",
    "yemeni": "وحد",
-   "count": 101
+   "count": 101,
+   "likely_inflection": true
   },
   {
    "msa": "انتم",
    "yemeni": "انتو",
-   "count": 99
+   "count": 99,
+   "likely_inflection": true
   },
   {
    "msa": "مرتزقه",
    "yemeni": "مرتزق",
-   "count": 98
+   "count": 98,
+   "likely_inflection": true
   },
   {
    "msa": "قال",
    "yemeni": "قلنا",
-   "count": 98
+   "count": 98,
+   "likely_inflection": false
   },
   {
    "msa": "مال",
    "yemeni": "اموال",
-   "count": 98
+   "count": 98,
+   "likely_inflection": true
   },
   {
    "msa": "زينب",
    "yemeni": "الزينبيات",
-   "count": 98
+   "count": 98,
+   "likely_inflection": true
   },
   {
    "msa": "مركزيه",
    "yemeni": "المركزي",
-   "count": 97
+   "count": 97,
+   "likely_inflection": true
   },
   {
    "msa": "منطقه",
    "yemeni": "المناطق",
-   "count": 97
+   "count": 97,
+   "likely_inflection": true
   },
   {
    "msa": "حرف",
    "yemeni": "الحروف",
-   "count": 96
+   "count": 96,
+   "likely_inflection": true
   },
   {
    "msa": "اعظم",
    "yemeni": "العظمي",
-   "count": 96
+   "count": 96,
+   "likely_inflection": true
   },
   {
    "msa": "دم",
    "yemeni": "دماء",
-   "count": 96
+   "count": 96,
+   "likely_inflection": true
   },
   {
    "msa": "جبهه",
    "yemeni": "جبهات",
-   "count": 94
+   "count": 94,
+   "likely_inflection": true
   },
   {
    "msa": "موقع",
    "yemeni": "مواقع",
-   "count": 94
+   "count": 94,
+   "likely_inflection": true
   },
   {
    "msa": "بنت",
    "yemeni": "بنات",
-   "count": 94
+   "count": 94,
+   "likely_inflection": true
   },
   {
    "msa": "حارب",
    "yemeni": "يحارب",
-   "count": 93
+   "count": 93,
+   "likely_inflection": true
   },
   {
    "msa": "قطريه",
    "yemeni": "القطري",
-   "count": 91
+   "count": 91,
+   "likely_inflection": true
   },
   {
    "msa": "اماره",
    "yemeni": "امارات",
-   "count": 90
+   "count": 90,
+   "likely_inflection": true
   },
   {
    "msa": "جندي",
    "yemeni": "جنود",
-   "count": 89
+   "count": 89,
+   "likely_inflection": true
   },
   {
    "msa": "حارب",
    "yemeni": "تحارب",
-   "count": 88
+   "count": 88,
+   "likely_inflection": true
   },
   {
    "msa": "حلف",
    "yemeni": "تحالف",
-   "count": 87
+   "count": 87,
+   "likely_inflection": true
   },
   {
    "msa": "ثان",
    "yemeni": "ثانيا",
-   "count": 86
+   "count": 86,
+   "likely_inflection": true
   },
   {
    "msa": "دخل",
    "yemeni": "يدخل",
-   "count": 86
+   "count": 86,
+   "likely_inflection": true
   },
   {
    "msa": "عميل",
    "yemeni": "عملاء",
-   "count": 86
+   "count": 86,
+   "likely_inflection": true
   },
   {
    "msa": "ثروه",
    "yemeni": "ثروات",
-   "count": 86
+   "count": 86,
+   "likely_inflection": true
   },
   {
    "msa": "انتصر",
    "yemeni": "تنتصر",
-   "count": 86
+   "count": 86,
+   "likely_inflection": true
   },
   {
    "msa": "الف",
    "yemeni": "الاف",
-   "count": 85
+   "count": 85,
+   "likely_inflection": true
   },
   {
    "msa": "اب",
    "yemeni": "ابوك",
-   "count": 85
+   "count": 85,
+   "likely_inflection": true
   },
   {
    "msa": "زلطه",
    "yemeni": "زلط",
-   "count": 85
+   "count": 85,
+   "likely_inflection": true
   },
   {
    "msa": "حر",
    "yemeni": "الاحرار",
-   "count": 84
+   "count": 84,
+   "likely_inflection": false
   },
   {
    "msa": "اراد",
    "yemeni": "يريدون",
-   "count": 83
+   "count": 83,
+   "likely_inflection": false
   },
   {
    "msa": "دخل",
    "yemeni": "تدخل",
-   "count": 83
+   "count": 83,
+   "likely_inflection": true
   },
   {
    "msa": "بطل",
    "yemeni": "الابطال",
-   "count": 83
+   "count": 83,
+   "likely_inflection": true
   },
   {
    "msa": "قمه",
    "yemeni": "قمم",
-   "count": 81
+   "count": 81,
+   "likely_inflection": true
   },
   {
    "msa": "شاف",
    "yemeni": "تشوف",
-   "count": 81
+   "count": 81,
+   "likely_inflection": false
   },
   {
    "msa": "تحدث",
    "yemeni": "تتحدث",
-   "count": 80
+   "count": 80,
+   "likely_inflection": true
   },
   {
    "msa": "نحن",
    "yemeni": "واحنا",
-   "count": 80
+   "count": 80,
+   "likely_inflection": false
   },
   {
    "msa": "طلع",
    "yemeni": "يطلع",
-   "count": 80
+   "count": 80,
+   "likely_inflection": true
   },
   {
    "msa": "حمار",
    "yemeni": "حمير",
-   "count": 80
+   "count": 80,
+   "likely_inflection": true
   },
   {
    "msa": "جاء",
    "yemeni": "يجي",
-   "count": 80
+   "count": 80,
+   "likely_inflection": false
   },
   {
    "msa": "استطاع",
    "yemeni": "يستطيع",
-   "count": 79
+   "count": 79,
+   "likely_inflection": true
   },
   {
    "msa": "اخ",
    "yemeni": "اخواننا",
-   "count": 79
+   "count": 79,
+   "likely_inflection": false
   },
   {
    "msa": "دعم",
    "yemeni": "يدعم",
-   "count": 79
+   "count": 79,
+   "likely_inflection": true
   },
   {
    "msa": "شاف",
    "yemeni": "اشوف",
-   "count": 77
+   "count": 77,
+   "likely_inflection": false
   },
   {
    "msa": "مال",
    "yemeni": "الاموال",
-   "count": 77
+   "count": 77,
+   "likely_inflection": false
   },
   {
    "msa": "عمل",
    "yemeni": "يعمل",
-   "count": 77
+   "count": 77,
+   "likely_inflection": true
   },
   {
    "msa": "قيل",
    "yemeni": "الاقيال",
-   "count": 77
+   "count": 77,
+   "likely_inflection": true
   },
   {
    "msa": "نعم",
    "yemeni": "ايوه",
-   "count": 76
+   "count": 76,
+   "likely_inflection": false
   },
   {
    "msa": "مجموعه",
    "yemeni": "مجموعتنا",
-   "count": 76
+   "count": 76,
+   "likely_inflection": true
   },
   {
    "msa": "كلم",
    "yemeni": "الكلام",
-   "count": 76
+   "count": 76,
+   "likely_inflection": true
   },
   {
    "msa": "ليس",
    "yemeni": "مش",
-   "count": 75
+   "count": 75,
+   "likely_inflection": false
   },
   {
    "msa": "بطوله",
    "yemeni": "بطولات",
-   "count": 75
+   "count": 75,
+   "likely_inflection": true
   },
   {
    "msa": "اب",
    "yemeni": "ابوه",
-   "count": 75
+   "count": 75,
+   "likely_inflection": true
   },
   {
    "msa": "كذب",
    "yemeni": "تكذب",
-   "count": 74
+   "count": 74,
+   "likely_inflection": true
   },
   {
    "msa": "ما",
    "yemeni": "ماهو",
-   "count": 73
+   "count": 73,
+   "likely_inflection": true
   },
   {
    "msa": "قال",
    "yemeni": "ويقول",
-   "count": 73
+   "count": 73,
+   "likely_inflection": false
   },
   {
    "msa": "لماذا",
    "yemeni": "وليش",
-   "count": 73
+   "count": 73,
+   "likely_inflection": false
   },
   {
    "msa": "بريء",
    "yemeni": "ابرياء",
-   "count": 73
+   "count": 73,
+   "likely_inflection": true
   },
   {
    "msa": "انتم",
    "yemeni": "وانتو",
-   "count": 72
+   "count": 72,
+   "likely_inflection": true
   },
   {
    "msa": "انتهي",
    "yemeni": "انتهت",
-   "count": 72
+   "count": 72,
+   "likely_inflection": true
   },
   {
    "msa": "عدو",
    "yemeni": "اعداء",
-   "count": 72
+   "count": 72,
+   "likely_inflection": false
   },
   {
    "msa": "عصابه",
    "yemeni": "عصابات",
-   "count": 71
+   "count": 71,
+   "likely_inflection": true
   },
   {
    "msa": "لص",
    "yemeni": "لصوص",
-   "count": 71
+   "count": 71,
+   "likely_inflection": true
   },
   {
    "msa": "بقي",
    "yemeni": "يبقي",
-   "count": 71
+   "count": 71,
+   "likely_inflection": true
   },
   {
    "msa": "شاف",
    "yemeni": "شوفوا",
-   "count": 71
+   "count": 71,
+   "likely_inflection": false
   },
   {
    "msa": "اخ",
    "yemeni": "والاخوان",
-   "count": 71
+   "count": 71,
+   "likely_inflection": false
   },
   {
    "msa": "الذي",
    "yemeni": "اللي",
-   "count": 70
+   "count": 70,
+   "likely_inflection": true
   },
   {
    "msa": "شيء",
    "yemeni": "شئ",
-   "count": 70
+   "count": 70,
+   "likely_inflection": false
   },
   {
    "msa": "ضرب",
    "yemeni": "يضرب",
-   "count": 70
+   "count": 70,
+   "likely_inflection": true
   },
   {
    "msa": "ارض",
    "yemeni": "الاراضي",
-   "count": 70
+   "count": 70,
+   "likely_inflection": true
   },
   {
    "msa": "كفي",
    "yemeni": "يكفي",
-   "count": 69
+   "count": 69,
+   "likely_inflection": true
   },
   {
    "msa": "قصف",
    "yemeni": "يقصف",
-   "count": 69
+   "count": 69,
+   "likely_inflection": true
   },
   {
    "msa": "نقطه",
    "yemeni": "النقاط",
-   "count": 69
+   "count": 69,
+   "likely_inflection": true
   },
   {
    "msa": "ليس",
    "yemeni": "اليس",
-   "count": 69
+   "count": 69,
+   "likely_inflection": true
   },
   {
    "msa": "خلق",
    "yemeni": "اخلاق",
-   "count": 69
+   "count": 69,
+   "likely_inflection": true
   },
   {
    "msa": "جريمه",
    "yemeni": "جرائم",
-   "count": 69
+   "count": 69,
+   "likely_inflection": true
   },
   {
    "msa": "الذي",
    "yemeni": "الي",
-   "count": 69
+   "count": 69,
+   "likely_inflection": true
   },
   {
    "msa": "لعن",
    "yemeni": "يلعن",
-   "count": 68
+   "count": 68,
+   "likely_inflection": true
   },
   {
    "msa": "بسيطه",
    "yemeni": "بسيط",
-   "count": 67
+   "count": 67,
+   "likely_inflection": true
   },
   {
    "msa": "قليل",
    "yemeni": "شوي",
-   "count": 66
+   "count": 66,
+   "likely_inflection": false
   },
   {
    "msa": "اخ",
    "yemeni": "الاخونج",
-   "count": 66
+   "count": 66,
+   "likely_inflection": false
   },
   {
    "msa": "سبب",
    "yemeni": "اسباب",
-   "count": 66
+   "count": 66,
+   "likely_inflection": true
   },
   {
    "msa": "بلد",
    "yemeni": "بلاده",
-   "count": 66
+   "count": 66,
+   "likely_inflection": true
   },
   {
    "msa": "حر",
    "yemeni": "احرار",
-   "count": 66
+   "count": 66,
+   "likely_inflection": false
   },
   {
    "msa": "قاتل",
    "yemeni": "يقاتلون",
-   "count": 65
+   "count": 65,
+   "likely_inflection": true
   },
   {
    "msa": "علم",
    "yemeni": "يعلم",
-   "count": 65
+   "count": 65,
+   "likely_inflection": true
   },
   {
    "msa": "سال",
    "yemeni": "اسال",
-   "count": 65
+   "count": 65,
+   "likely_inflection": true
   },
   {
    "msa": "اخ",
    "yemeni": "اخوه",
-   "count": 65
+   "count": 65,
+   "likely_inflection": true
   },
   {
    "msa": "جبان",
    "yemeni": "جبناء",
-   "count": 65
+   "count": 65,
+   "likely_inflection": true
   },
   {
    "msa": "تمني",
    "yemeni": "نتمني",
-   "count": 64
+   "count": 64,
+   "likely_inflection": true
   },
   {
    "msa": "جاء",
    "yemeni": "تجي",
-   "count": 64
+   "count": 64,
+   "likely_inflection": false
   },
   {
    "msa": "طفل",
    "yemeni": "والاطفال",
-   "count": 64
+   "count": 64,
+   "likely_inflection": false
   },
   {
    "msa": "اصلاحيه",
    "yemeni": "الاصلاحيين",
-   "count": 64
+   "count": 64,
+   "likely_inflection": true
   },
   {
    "msa": "تبع",
    "yemeni": "اتباع",
-   "count": 63
+   "count": 63,
+   "likely_inflection": true
   },
   {
    "msa": "الذي",
    "yemeni": "واللي",
-   "count": 63
+   "count": 63,
+   "likely_inflection": true
   },
   {
    "msa": "سمع",
    "yemeni": "اسمع",
-   "count": 63
+   "count": 63,
+   "likely_inflection": true
   },
   {
    "msa": "دافع",
    "yemeni": "تدافع",
-   "count": 63
+   "count": 63,
+   "likely_inflection": true
   },
   {
    "msa": "ولد",
    "yemeni": "اولاد",
-   "count": 63
+   "count": 63,
+   "likely_inflection": true
   },
   {
    "msa": "شاء",
    "yemeni": "تشتي",
-   "count": 63
+   "count": 63,
+   "likely_inflection": false
   },
   {
    "msa": "احتاج",
    "yemeni": "تحتاج",
-   "count": 62
+   "count": 62,
+   "likely_inflection": true
   },
   {
    "msa": "رجل",
    "yemeni": "ورجال",
-   "count": 62
+   "count": 62,
+   "likely_inflection": true
   },
   {
    "msa": "شاء",
    "yemeni": "تشتوا",
-   "count": 62
+   "count": 62,
+   "likely_inflection": false
   },
   {
    "msa": "قتل",
    "yemeni": "يقتل",
-   "count": 61
+   "count": 61,
+   "likely_inflection": true
   },
   {
    "msa": "زعم",
    "yemeni": "الزعيم",
-   "count": 61
+   "count": 61,
+   "likely_inflection": true
   },
   {
    "msa": "قال",
    "yemeni": "تقولوا",
-   "count": 61
+   "count": 61,
+   "likely_inflection": false
   },
   {
    "msa": "مليون",
    "yemeni": "ملايين",
-   "count": 61
+   "count": 61,
+   "likely_inflection": true
   },
   {
    "msa": "جاء",
    "yemeni": "يجيء",
-   "count": 60
+   "count": 60,
+   "likely_inflection": false
   },
   {
    "msa": "استطاع",
    "yemeni": "تستطيع",
-   "count": 60
+   "count": 60,
+   "likely_inflection": true
   },
   {
    "msa": "شاف",
    "yemeni": "يشوف",
-   "count": 60
+   "count": 60,
+   "likely_inflection": false
   },
   {
    "msa": "شاء",
    "yemeni": "يشتوا",
-   "count": 60
+   "count": 60,
+   "likely_inflection": false
   },
   {
    "msa": "ليس",
    "yemeni": "ماهو",
-   "count": 60
+   "count": 60,
+   "likely_inflection": false
   },
   {
    "msa": "صاروخ",
    "yemeni": "بالصواريخ",
-   "count": 59
+   "count": 59,
+   "likely_inflection": false
   },
   {
    "msa": "الحالي",
    "yemeni": "حاليا",
-   "count": 59
+   "count": 59,
+   "likely_inflection": true
   },
   {
    "msa": "احتاج",
    "yemeni": "يحتاج",
-   "count": 58
+   "count": 58,
+   "likely_inflection": true
   },
   {
    "msa": "شاء",
    "yemeni": "نشتي",
-   "count": 58
+   "count": 58,
+   "likely_inflection": false
   },
   {
    "msa": "فلس",
    "yemeni": "الفلوس",
-   "count": 58
+   "count": 58,
+   "likely_inflection": true
   },
   {
    "msa": "اصلاحيه",
    "yemeni": "اصلاحي",
-   "count": 57
+   "count": 57,
+   "likely_inflection": true
   },
   {
    "msa": "كان",
    "yemeni": "كنتم",
-   "count": 57
+   "count": 57,
+   "likely_inflection": false
   },
   {
    "msa": "تبع",
    "yemeni": "يتبع",
-   "count": 56
+   "count": 56,
+   "likely_inflection": true
   },
   {
    "msa": "تمام",
    "yemeni": "تماما",
-   "count": 56
+   "count": 56,
+   "likely_inflection": true
   },
   {
    "msa": "دري",
    "yemeni": "تدري",
-   "count": 56
+   "count": 56,
+   "likely_inflection": true
   },
   {
    "msa": "تحدث",
    "yemeni": "يتحدث",
-   "count": 56
+   "count": 56,
+   "likely_inflection": true
   },
   {
    "msa": "مشكله",
    "yemeni": "مشاكل",
-   "count": 56
+   "count": 56,
+   "likely_inflection": true
   },
   {
    "msa": "اعظم",
    "yemeni": "عظمي",
-   "count": 55
+   "count": 55,
+   "likely_inflection": true
   },
   {
    "msa": "اجل",
    "yemeni": "عشان",
-   "count": 55
+   "count": 55,
+   "likely_inflection": false
   },
   {
    "msa": "اراد",
    "yemeni": "تريدون",
-   "count": 55
+   "count": 55,
+   "likely_inflection": false
   },
   {
    "msa": "بلد",
    "yemeni": "بلادهم",
-   "count": 55
+   "count": 55,
+   "likely_inflection": true
   },
   {
    "msa": "استهدف",
    "yemeni": "يستهدف",
-   "count": 55
+   "count": 55,
+   "likely_inflection": true
   },
   {
    "msa": "تحيه",
    "yemeni": "تحياتي",
-   "count": 55
+   "count": 55,
+   "likely_inflection": true
   },
   {
    "msa": "عن",
    "yemeni": "عنا",
-   "count": 55
+   "count": 55,
+   "likely_inflection": true
   },
   {
    "msa": "انتهي",
    "yemeni": "تنتهي",
-   "count": 54
+   "count": 54,
+   "likely_inflection": true
   },
   {
    "msa": "اماره",
    "yemeni": "للامارات",
-   "count": 54
+   "count": 54,
+   "likely_inflection": true
   },
   {
    "msa": "جندي",
    "yemeni": "الجنود",
-   "count": 54
+   "count": 54,
+   "likely_inflection": true
   },
   {
    "msa": "حارب",
    "yemeni": "نحارب",
-   "count": 54
+   "count": 54,
+   "likely_inflection": true
   },
   {
    "msa": "حكومه",
    "yemeni": "وحكومته",
-   "count": 54
+   "count": 54,
+   "likely_inflection": true
   },
   {
    "msa": "مسكين",
    "yemeni": "مساكين",
-   "count": 54
+   "count": 54,
+   "likely_inflection": true
   },
   {
    "msa": "حاول",
    "yemeni": "يحاول",
-   "count": 53
+   "count": 53,
+   "likely_inflection": true
   },
   {
    "msa": "جنب",
    "yemeni": "الجنوب",
-   "count": 53
+   "count": 53,
+   "likely_inflection": true
   },
   {
    "msa": "سنه",
    "yemeni": "السنين",
-   "count": 53
+   "count": 53,
+   "likely_inflection": false
   },
   {
    "msa": "بلد",
    "yemeni": "بلادك",
-   "count": 53
+   "count": 53,
+   "likely_inflection": true
   },
   {
    "msa": "مثل",
    "yemeni": "زي",
-   "count": 53
+   "count": 53,
+   "likely_inflection": false
   },
   {
    "msa": "صاروخ",
    "yemeni": "وصواريخ",
-   "count": 52
+   "count": 52,
+   "likely_inflection": true
   },
   {
    "msa": "كتب",
    "yemeni": "يكتب",
-   "count": 52
+   "count": 52,
+   "likely_inflection": true
   },
   {
    "msa": "جمهور",
    "yemeni": "جماهير",
-   "count": 52
+   "count": 52,
+   "likely_inflection": true
   },
   {
    "msa": "راح",
    "yemeni": "تروح",
-   "count": 52
+   "count": 52,
+   "likely_inflection": false
   },
   {
    "msa": "عام",
    "yemeni": "عاما",
-   "count": 52
+   "count": 52,
+   "likely_inflection": true
   },
   {
    "msa": "بطوله",
    "yemeni": "البطولات",
-   "count": 52
+   "count": 52,
+   "likely_inflection": true
   },
   {
    "msa": "خبر",
    "yemeni": "الاخبار",
-   "count": 52
+   "count": 52,
+   "likely_inflection": true
   },
   {
    "msa": "موقع",
    "yemeni": "المواقع",
-   "count": 51
+   "count": 51,
+   "likely_inflection": true
   },
   {
    "msa": "كلمه",
    "yemeni": "كلمات",
-   "count": 51
+   "count": 51,
+   "likely_inflection": true
   },
   {
    "msa": "اخذ",
    "yemeni": "ياخذ",
-   "count": 51
+   "count": 51,
+   "likely_inflection": true
   },
   {
    "msa": "راح",
    "yemeni": "يروح",
-   "count": 51
+   "count": 51,
+   "likely_inflection": false
   },
   {
    "msa": "مع",
    "yemeni": "معاهم",
-   "count": 51
+   "count": 51,
+   "likely_inflection": false
   },
   {
    "msa": "كان",
    "yemeni": "تكن",
-   "count": 51
+   "count": 51,
+   "likely_inflection": true
   },
   {
    "msa": "تكلم",
    "yemeni": "اتكلم",
-   "count": 50
+   "count": 50,
+   "likely_inflection": true
   },
   {
    "msa": "مثل",
    "yemeni": "امثال",
-   "count": 50
+   "count": 50,
+   "likely_inflection": true
   },
   {
    "msa": "طفل",
    "yemeni": "واطفال",
-   "count": 50
+   "count": 50,
+   "likely_inflection": true
   },
   {
    "msa": "عشرون",
    "yemeni": "عشرين",
-   "count": 50
+   "count": 50,
+   "likely_inflection": true
   },
   {
    "msa": "مسئول",
    "yemeni": "مسؤول",
-   "count": 50
+   "count": 50,
+   "likely_inflection": true
   },
   {
    "msa": "رمز",
    "yemeni": "رموز",
-   "count": 49
+   "count": 49,
+   "likely_inflection": true
   },
   {
    "msa": "اعتبر",
    "yemeni": "يعتبر",
-   "count": 49
+   "count": 49,
+   "likely_inflection": true
   },
   {
    "msa": "اراد",
    "yemeni": "نبي",
-   "count": 49
+   "count": 49,
+   "likely_inflection": false
   },
   {
    "msa": "قال",
    "yemeni": "يقولون",
-   "count": 49
+   "count": 49,
+   "likely_inflection": false
   },
   {
    "msa": "دوله",
    "yemeni": "دولتنا",
-   "count": 49
+   "count": 49,
+   "likely_inflection": true
   },
   {
    "msa": "اكل",
    "yemeni": "ياكل",
-   "count": 49
+   "count": 49,
+   "likely_inflection": true
   },
   {
    "msa": "حارب",
    "yemeni": "يحاربون",
-   "count": 49
+   "count": 49,
+   "likely_inflection": true
   },
   {
    "msa": "حمار",
    "yemeni": "الحمير",
-   "count": 49
+   "count": 49,
+   "likely_inflection": true
   },
   {
    "msa": "باع",
    "yemeni": "يبيع",
-   "count": 49
+   "count": 49,
+   "likely_inflection": false
   },
   {
    "msa": "توقع",
    "yemeni": "تتوقع",
-   "count": 49
+   "count": 49,
+   "likely_inflection": true
   },
   {
    "msa": "يومي",
    "yemeni": "يوميا",
-   "count": 49
+   "count": 49,
+   "likely_inflection": true
   },
   {
    "msa": "شاء",
    "yemeni": "يشتي",
-   "count": 49
+   "count": 49,
+   "likely_inflection": false
   },
   {
    "msa": "عشره",
    "yemeni": "عشر",
-   "count": 48
+   "count": 48,
+   "likely_inflection": true
   },
   {
    "msa": "كان",
    "yemeni": "سيكون",
-   "count": 48
+   "count": 48,
+   "likely_inflection": false
   },
   {
    "msa": "فتنه",
    "yemeni": "الفتن",
-   "count": 48
+   "count": 48,
+   "likely_inflection": true
   },
   {
    "msa": "شعب",
    "yemeni": "شعوب",
-   "count": 48
+   "count": 48,
+   "likely_inflection": true
   },
   {
    "msa": "انتهي",
    "yemeni": "ينتهي",
-   "count": 48
+   "count": 48,
+   "likely_inflection": true
   },
   {
    "msa": "حفيد",
    "yemeni": "احفاد",
-   "count": 48
+   "count": 48,
+   "likely_inflection": true
   },
   {
    "msa": "شيء",
    "yemeni": "شيئ",
-   "count": 48
+   "count": 48,
+   "likely_inflection": true
   },
   {
    "msa": "مثل",
    "yemeni": "وامثالك",
-   "count": 48
+   "count": 48,
+   "likely_inflection": true
   },
   {
    "msa": "دافع",
    "yemeni": "يدافعون",
-   "count": 47
+   "count": 47,
+   "likely_inflection": true
   },
   {
    "msa": "جريمه",
    "yemeni": "الجرائم",
-   "count": 47
+   "count": 47,
+   "likely_inflection": false
   },
   {
    "msa": "ميليشيا",
    "yemeni": "مليشيا",
-   "count": 47
+   "count": 47,
+   "likely_inflection": true
   },
   {
    "msa": "معركه",
    "yemeni": "المعارك",
-   "count": 47
+   "count": 47,
+   "likely_inflection": true
   },
   {
    "msa": "قمه",
    "yemeni": "القمم",
-   "count": 47
+   "count": 47,
+   "likely_inflection": false
   },
   {
    "msa": "شبه",
    "yemeni": "اشباه",
-   "count": 46
+   "count": 46,
+   "likely_inflection": true
   },
   {
    "msa": "سلاح",
    "yemeni": "اسلحه",
-   "count": 46
+   "count": 46,
+   "likely_inflection": true
   },
   {
    "msa": "سمع",
    "yemeni": "نسمع",
-   "count": 46
+   "count": 46,
+   "likely_inflection": true
   },
   {
    "msa": "اراد",
    "yemeni": "اريد",
-   "count": 46
+   "count": 46,
+   "likely_inflection": true
   },
   {
    "msa": "ارض",
    "yemeni": "اراضي",
-   "count": 46
+   "count": 46,
+   "likely_inflection": true
   },
   {
    "msa": "حقيقه",
    "yemeni": "الحقائق",
-   "count": 45
+   "count": 45,
+   "likely_inflection": false
   },
   {
    "msa": "سمي",
    "yemeni": "يسمي",
-   "count": 45
+   "count": 45,
+   "likely_inflection": true
   },
   {
    "msa": "فهم",
    "yemeni": "تفهم",
-   "count": 45
+   "count": 45,
+   "likely_inflection": true
   },
   {
    "msa": "اول",
    "yemeni": "اولا",
-   "count": 44
+   "count": 44,
+   "likely_inflection": true
   },
   {
    "msa": "جيش",
    "yemeni": "جيوش",
-   "count": 44
+   "count": 44,
+   "likely_inflection": true
   },
   {
    "msa": "قاتل",
    "yemeni": "يقاتلوا",
-   "count": 44
+   "count": 44,
+   "likely_inflection": true
   },
   {
    "msa": "اعتبر",
    "yemeni": "تعتبر",
-   "count": 44
+   "count": 44,
+   "likely_inflection": true
   },
   {
    "msa": "مساعده",
    "yemeni": "المساعدات",
-   "count": 44
+   "count": 44,
+   "likely_inflection": true
   },
   {
    "msa": "طلع",
    "yemeni": "تطلع",
-   "count": 44
+   "count": 44,
+   "likely_inflection": true
   },
   {
    "msa": "سقط",
    "yemeni": "تسقط",
-   "count": 44
+   "count": 44,
+   "likely_inflection": true
   },
   {
    "msa": "دم",
    "yemeni": "الدماء",
-   "count": 44
+   "count": 44,
+   "likely_inflection": false
   },
   {
    "msa": "قال",
    "yemeni": "تقولي",
-   "count": 44
+   "count": 44,
+   "likely_inflection": false
   },
   {
    "msa": "قطريه",
    "yemeni": "قطري",
-   "count": 43
+   "count": 43,
+   "likely_inflection": true
   },
   {
    "msa": "طالب",
    "yemeni": "نطالب",
-   "count": 43
+   "count": 43,
+   "likely_inflection": true
   },
   {
    "msa": "عصابه",
    "yemeni": "العصابات",
-   "count": 43
+   "count": 43,
+   "likely_inflection": true
   },
   {
    "msa": "ذكر",
    "yemeni": "اذكر",
-   "count": 43
+   "count": 43,
+   "likely_inflection": true
   },
   {
    "msa": "قال",
    "yemeni": "ونقول",
-   "count": 43
+   "count": 43,
+   "likely_inflection": false
   },
   {
    "msa": "اخ",
    "yemeni": "اخوك",
-   "count": 43
+   "count": 43,
+   "likely_inflection": true
   },
   {
    "msa": "شاف",
    "yemeni": "شفنا",
-   "count": 43
+   "count": 43,
+   "likely_inflection": false
   },
   {
    "msa": "كان",
    "yemeni": "ستكون",
-   "count": 43
+   "count": 43,
+   "likely_inflection": false
   },
   {
    "msa": "اعترف",
    "yemeni": "يعترف",
-   "count": 43
+   "count": 43,
+   "likely_inflection": true
   },
   {
    "msa": "بلد",
    "yemeni": "بلادي",
-   "count": 43
+   "count": 43,
+   "likely_inflection": true
   },
   {
    "msa": "كتب",
    "yemeni": "تكتب",
-   "count": 43
+   "count": 43,
+   "likely_inflection": true
   },
   {
    "msa": "مهمه",
    "yemeni": "مهم",
-   "count": 42
+   "count": 42,
+   "likely_inflection": true
   },
   {
    "msa": "ضرب",
    "yemeni": "تضرب",
-   "count": 42
+   "count": 42,
+   "likely_inflection": true
   },
   {
    "msa": "نوع",
    "yemeni": "انواع",
-   "count": 42
+   "count": 42,
+   "likely_inflection": true
   },
   {
    "msa": "ارسل",
    "yemeni": "يرسل",
-   "count": 42
+   "count": 42,
+   "likely_inflection": true
   },
   {
    "msa": "صهيوني",
    "yemeni": "الصهاينه",
-   "count": 42
+   "count": 42,
+   "likely_inflection": false
   },
   {
    "msa": "دري",
    "yemeni": "يدري",
-   "count": 42
+   "count": 42,
+   "likely_inflection": true
   },
   {
    "msa": "نبح",
    "yemeni": "تنبح",
-   "count": 42
+   "count": 42,
+   "likely_inflection": true
   },
   {
    "msa": "جيد",
    "yemeni": "جيدا",
-   "count": 42
+   "count": 42,
+   "likely_inflection": true
   },
   {
    "msa": "اخ",
    "yemeni": "اخواني",
-   "count": 42
+   "count": 42,
+   "likely_inflection": false
   },
   {
    "msa": "عاش",
    "yemeni": "نعيش",
-   "count": 42
+   "count": 42,
+   "likely_inflection": false
   },
   {
    "msa": "دوله",
    "yemeni": "ودول",
-   "count": 42
+   "count": 42,
+   "likely_inflection": true
   },
   {
    "msa": "غبي",
    "yemeni": "اغبياء",
-   "count": 42
+   "count": 42,
+   "likely_inflection": true
   },
   {
    "msa": "اعلن",
    "yemeni": "يعلن",
-   "count": 42
+   "count": 42,
+   "likely_inflection": true
   },
   {
    "msa": "شيء",
    "yemeni": "اشياء",
-   "count": 41
+   "count": 41,
+   "likely_inflection": true
   },
   {
    "msa": "اراد",
    "yemeni": "يريدوا",
-   "count": 41
+   "count": 41,
+   "likely_inflection": false
   },
   {
    "msa": "اخذ",
    "yemeni": "تاخذ",
-   "count": 41
+   "count": 41,
+   "likely_inflection": true
   },
   {
    "msa": "تبع",
    "yemeni": "تتبع",
-   "count": 41
+   "count": 41,
+   "likely_inflection": true
   },
   {
    "msa": "عاش",
    "yemeni": "يعيش",
-   "count": 41
+   "count": 41,
+   "likely_inflection": false
   },
   {
    "msa": "امريكي",
    "yemeni": "الامريكان",
-   "count": 41
+   "count": 41,
+   "likely_inflection": true
   },
   {
    "msa": "بلد",
    "yemeni": "بلادكم",
-   "count": 41
+   "count": 41,
+   "likely_inflection": true
   },
   {
    "msa": "اداه",
    "yemeni": "ادوات",
-   "count": 40
+   "count": 40,
+   "likely_inflection": true
   },
   {
    "msa": "دوله",
    "yemeni": "دولتك",
-   "count": 40
+   "count": 40,
+   "likely_inflection": true
   },
   {
    "msa": "شاب",
    "yemeni": "شباب",
-   "count": 40
+   "count": 40,
+   "likely_inflection": true
   },
   {
    "msa": "مئه",
    "yemeni": "مئات",
-   "count": 40
+   "count": 40,
+   "likely_inflection": false
   },
   {
    "msa": "صاروخ",
    "yemeni": "بصواريخ",
-   "count": 40
+   "count": 40,
+   "likely_inflection": true
   },
   {
    "msa": "تكلم",
    "yemeni": "يتكلمون",
-   "count": 40
+   "count": 40,
+   "likely_inflection": true
   },
   {
    "msa": "نحن",
    "yemeni": "ونحنا",
-   "count": 40
+   "count": 40,
+   "likely_inflection": true
   },
   {
    "msa": "ثوريه",
    "yemeni": "الثوري",
-   "count": 40
+   "count": 40,
+   "likely_inflection": true
   },
   {
    "msa": "اعطي",
    "yemeni": "يعطي",
-   "count": 39
+   "count": 39,
+   "likely_inflection": true
   },
   {
    "msa": "ضحيه",
    "yemeni": "ضحايا",
-   "count": 39
+   "count": 39,
+   "likely_inflection": true
   },
   {
    "msa": "اتي",
    "yemeni": "ياتي",
-   "count": 39
+   "count": 39,
+   "likely_inflection": true
   },
   {
    "msa": "عاد",
    "yemeni": "يعود",
-   "count": 39
+   "count": 39,
+   "likely_inflection": false
   },
   {
    "msa": "صاروخ",
    "yemeni": "والصواريخ",
-   "count": 39
+   "count": 39,
+   "likely_inflection": false
   },
   {
    "msa": "خدمه",
    "yemeni": "الخدمات",
-   "count": 39
+   "count": 39,
+   "likely_inflection": false
   },
   {
    "msa": "عشره",
    "yemeni": "عشرات",
-   "count": 39
+   "count": 39,
+   "likely_inflection": true
   },
   {
    "msa": "حفظ",
    "yemeni": "يحفظ",
-   "count": 38
+   "count": 38,
+   "likely_inflection": true
   },
   {
    "msa": "حدث",
    "yemeni": "يحدث",
-   "count": 38
+   "count": 38,
+   "likely_inflection": true
   },
   {
    "msa": "انتقاليه",
    "yemeni": "والانتقالي",
-   "count": 38
+   "count": 38,
+   "likely_inflection": true
   },
   {
    "msa": "استمر",
    "yemeni": "تستمر",
-   "count": 38
+   "count": 38,
+   "likely_inflection": true
   },
   {
    "msa": "تحدي",
    "yemeni": "اتحدي",
-   "count": 38
+   "count": 38,
+   "likely_inflection": true
   },
   {
    "msa": "يهودي",
    "yemeni": "يهود",
-   "count": 38
+   "count": 38,
+   "likely_inflection": true
   },
   {
    "msa": "شاف",
    "yemeni": "وشوف",
-   "count": 38
+   "count": 38,
+   "likely_inflection": false
   },
   {
    "msa": "حارب",
    "yemeni": "يحاربوا",
-   "count": 38
+   "count": 38,
+   "likely_inflection": true
   },
   {
    "msa": "حربيه",
    "yemeni": "الحربي",
-   "count": 38
+   "count": 38,
+   "likely_inflection": true
   },
   {
    "msa": "انتظر",
    "yemeni": "ننتظر",
-   "count": 37
+   "count": 37,
+   "likely_inflection": true
   },
   {
    "msa": "احتاج",
    "yemeni": "نحتاج",
-   "count": 37
+   "count": 37,
+   "likely_inflection": true
   },
   {
    "msa": "اسم",
    "yemeni": "اسماء",
-   "count": 37
+   "count": 37,
+   "likely_inflection": true
   },
   {
    "msa": "خرج",
    "yemeni": "يخرج",
-   "count": 37
+   "count": 37,
+   "likely_inflection": true
   },
   {
    "msa": "حارس",
    "yemeni": "والحرس",
-   "count": 37
+   "count": 37,
+   "likely_inflection": true
   },
   {
    "msa": "لص",
    "yemeni": "اللصوص",
-   "count": 37
+   "count": 37,
+   "likely_inflection": false
   },
   {
    "msa": "حكومه",
    "yemeni": "حكومتنا",
-   "count": 37
+   "count": 37,
+   "likely_inflection": true
   },
   {
    "msa": "مغتربه",
    "yemeni": "المغتربين",
-   "count": 37
+   "count": 37,
+   "likely_inflection": true
   },
   {
    "msa": "كان",
    "yemeni": "نكون",
-   "count": 37
+   "count": 37,
+   "likely_inflection": false
   },
   {
    "msa": "سلاح",
    "yemeni": "الاسلحه",
-   "count": 36
+   "count": 36,
+   "likely_inflection": false
   },
   {
    "msa": "فهم",
    "yemeni": "يفهم",
-   "count": 36
+   "count": 36,
+   "likely_inflection": true
   },
   {
    "msa": "تركي",
    "yemeni": "الاتراك",
-   "count": 36
+   "count": 36,
+   "likely_inflection": false
   },
   {
    "msa": "ثان",
    "yemeni": "الثانيه",
-   "count": 36
+   "count": 36,
+   "likely_inflection": true
   },
   {
    "msa": "عسكري",
    "yemeni": "عسكريا",
-   "count": 36
+   "count": 36,
+   "likely_inflection": true
   },
   {
    "msa": "سكت",
    "yemeni": "اسكت",
-   "count": 36
+   "count": 36,
+   "likely_inflection": true
   },
   {
    "msa": "اخ",
    "yemeni": "الاخوه",
-   "count": 36
+   "count": 36,
+   "likely_inflection": false
   },
   {
    "msa": "كثير",
    "yemeni": "كثيرا",
-   "count": 35
+   "count": 35,
+   "likely_inflection": true
   },
   {
    "msa": "اراد",
    "yemeni": "يبي",
-   "count": 35
+   "count": 35,
+   "likely_inflection": false
   },
   {
    "msa": "امتلك",
    "yemeni": "يمتلك",
-   "count": 35
+   "count": 35,
+   "likely_inflection": true
   },
   {
    "msa": "لعب",
    "yemeni": "تلعب",
-   "count": 35
+   "count": 35,
+   "likely_inflection": true
   },
   {
    "msa": "رد",
    "yemeni": "يرد",
-   "count": 35
+   "count": 35,
+   "likely_inflection": true
   },
   {
    "msa": "اراد",
    "yemeni": "تبي",
-   "count": 35
+   "count": 35,
+   "likely_inflection": false
   },
   {
    "msa": "ادان",
    "yemeni": "تدين",
-   "count": 35
+   "count": 35,
+   "likely_inflection": false
   },
   {
    "msa": "وضح",
    "yemeni": "واضح",
-   "count": 35
+   "count": 35,
+   "likely_inflection": true
   },
   {
    "msa": "كلم",
    "yemeni": "تكلم",
-   "count": 35
+   "count": 35,
+   "likely_inflection": true
   },
   {
    "msa": "ناد",
    "yemeni": "الانديه",
-   "count": 35
+   "count": 35,
+   "likely_inflection": false
   },
   {
    "msa": "مثل",
    "yemeni": "امثالكم",
-   "count": 35
+   "count": 35,
+   "likely_inflection": true
   },
   {
    "msa": "اشتغل",
    "yemeni": "يشتغل",
-   "count": 35
+   "count": 35,
+   "likely_inflection": true
   },
   {
    "msa": "تقريب",
    "yemeni": "تقريبا",
-   "count": 35
+   "count": 35,
+   "likely_inflection": true
   },
   {
    "msa": "قال",
    "yemeni": "يقولوا",
-   "count": 35
+   "count": 35,
+   "likely_inflection": false
   },
   {
    "msa": "دوله",
    "yemeni": "دولتهم",
-   "count": 35
+   "count": 35,
+   "likely_inflection": true
   },
   {
    "msa": "كتيبه",
    "yemeni": "كتائب",
-   "count": 34
+   "count": 34,
+   "likely_inflection": true
   },
   {
    "msa": "جبان",
    "yemeni": "الجبناء",
-   "count": 34
+   "count": 34,
+   "likely_inflection": false
   },
   {
    "msa": "مدرسه",
    "yemeni": "المدارس",
-   "count": 34
+   "count": 34,
+   "likely_inflection": true
   },
   {
    "msa": "ميليشيا",
    "yemeni": "ومليشيات",
-   "count": 34
+   "count": 34,
+   "likely_inflection": true
   },
   {
    "msa": "صف",
    "yemeni": "الصفوف",
-   "count": 34
+   "count": 34,
+   "likely_inflection": false
   },
   {
    "msa": "عدو",
    "yemeni": "الاعداء",
-   "count": 34
+   "count": 34,
+   "likely_inflection": false
   },
   {
    "msa": "نبي",
    "yemeni": "الانبياء",
-   "count": 34
+   "count": 34,
+   "likely_inflection": false
   },
   {
    "msa": "طريق",
    "yemeni": "الطرق",
-   "count": 34
+   "count": 34,
+   "likely_inflection": true
   },
   {
    "msa": "فكر",
    "yemeni": "يفكر",
-   "count": 34
+   "count": 34,
+   "likely_inflection": true
   },
   {
    "msa": "مغتربه",
    "yemeni": "مغترب",
-   "count": 34
+   "count": 34,
+   "likely_inflection": true
   },
   {
    "msa": "ادعي",
    "yemeni": "يدعي",
-   "count": 34
+   "count": 34,
+   "likely_inflection": true
   },
   {
    "msa": "وسخ",
    "yemeni": "الاوساخ",
-   "count": 34
+   "count": 34,
+   "likely_inflection": true
   },
   {
    "msa": "دافع",
    "yemeni": "ندافع",
-   "count": 34
+   "count": 34,
+   "likely_inflection": true
   },
   {
    "msa": "قال",
    "yemeni": "وتقول",
-   "count": 34
+   "count": 34,
+   "likely_inflection": false
   },
   {
    "msa": "عام",
    "yemeni": "اعوام",
-   "count": 33
+   "count": 33,
+   "likely_inflection": true
   },
   {
    "msa": "جيش",
    "yemeni": "الجيوش",
-   "count": 33
+   "count": 33,
+   "likely_inflection": true
   },
   {
    "msa": "تاجر",
    "yemeni": "تجار",
-   "count": 33
+   "count": 33,
+   "likely_inflection": true
   },
   {
    "msa": "استمر",
    "yemeni": "يستمر",
-   "count": 33
+   "count": 33,
+   "likely_inflection": true
   },
   {
    "msa": "قتل",
    "yemeni": "تقتل",
-   "count": 33
+   "count": 33,
+   "likely_inflection": true
   },
   {
    "msa": "طائره",
    "yemeni": "طائرات",
-   "count": 33
+   "count": 33,
+   "likely_inflection": true
   },
   {
    "msa": "جاء",
    "yemeni": "تجيء",
-   "count": 33
+   "count": 33,
+   "likely_inflection": false
   },
   {
    "msa": "حثاله",
    "yemeni": "حثالات",
-   "count": 33
+   "count": 33,
+   "likely_inflection": true
   },
   {
    "msa": "حركه",
    "yemeni": "حركات",
-   "count": 33
+   "count": 33,
+   "likely_inflection": true
   },
   {
    "msa": "لعب",
    "yemeni": "يلعب",
-   "count": 33
+   "count": 33,
+   "likely_inflection": true
   },
   {
    "msa": "شريف",
    "yemeni": "شرفاء",
-   "count": 33
+   "count": 33,
+   "likely_inflection": true
   },
   {
    "msa": "عمل",
    "yemeni": "تعمل",
-   "count": 33
+   "count": 33,
+   "likely_inflection": true
   },
   {
    "msa": "دخل",
    "yemeni": "ادخل",
-   "count": 33
+   "count": 33,
+   "likely_inflection": true
   },
   {
    "msa": "عجب",
    "yemeni": "يعجبك",
-   "count": 33
+   "count": 33,
+   "likely_inflection": true
   },
   {
    "msa": "معركه",
    "yemeni": "معركتنا",
-   "count": 33
+   "count": 33,
+   "likely_inflection": true
   },
   {
    "msa": "توا",
    "yemeni": "توك",
-   "count": 32
+   "count": 32,
+   "likely_inflection": true
   },
   {
    "msa": "مرتزقه",
    "yemeni": "المرتزق",
-   "count": 32
+   "count": 32,
+   "likely_inflection": true
   },
   {
    "msa": "يوم",
    "yemeni": "الايام",
-   "count": 32
+   "count": 32,
+   "likely_inflection": false
   },
   {
    "msa": "انتقاليه",
    "yemeni": "انتقالي",
-   "count": 32
+   "count": 32,
+   "likely_inflection": true
   },
   {
    "msa": "مطر",
    "yemeni": "امطار",
-   "count": 32
+   "count": 32,
+   "likely_inflection": true
   },
   {
    "msa": "نفع",
    "yemeni": "ينفع",
-   "count": 32
+   "count": 32,
+   "likely_inflection": true
   },
   {
    "msa": "اب",
    "yemeni": "ابوهم",
-   "count": 32
+   "count": 32,
+   "likely_inflection": false
   },
   {
    "msa": "خزن",
    "yemeni": "يخزن",
-   "count": 32
+   "count": 32,
+   "likely_inflection": true
   },
   {
    "msa": "عاوز",
    "yemeni": "عايز",
-   "count": 32
+   "count": 32,
+   "likely_inflection": true
   },
   {
    "msa": "زعم",
    "yemeni": "زعيم",
-   "count": 32
+   "count": 32,
+   "likely_inflection": true
   },
   {
    "msa": "كان",
    "yemeni": "كنتوا",
-   "count": 32
+   "count": 32,
+   "likely_inflection": false
   },
   {
    "msa": "اكل",
    "yemeni": "تاكل",
-   "count": 32
+   "count": 32,
+   "likely_inflection": true
   },
   {
    "msa": "خلق",
    "yemeni": "الاخلاق",
-   "count": 32
+   "count": 32,
+   "likely_inflection": true
   },
   {
    "msa": "مصدر",
    "yemeni": "مصادر",
-   "count": 32
+   "count": 32,
+   "likely_inflection": true
   },
   {
    "msa": "الله",
    "yemeni": "لله",
-   "count": 31
+   "count": 31,
+   "likely_inflection": true
   },
   {
    "msa": "رجل",
    "yemeni": "رجالها",
-   "count": 31
+   "count": 31,
+   "likely_inflection": true
   },
   {
    "msa": "بقيه",
    "yemeni": "وبقايا",
-   "count": 31
+   "count": 31,
+   "likely_inflection": true
   },
   {
    "msa": "انتقد",
    "yemeni": "ينتقد",
-   "count": 31
+   "count": 31,
+   "likely_inflection": true
   },
   {
    "msa": "عاده",
    "yemeni": "عادي",
-   "count": 31
+   "count": 31,
+   "likely_inflection": true
   },
   {
    "msa": "محتله",
    "yemeni": "محتل",
-   "count": 31
+   "count": 31,
+   "likely_inflection": true
   },
   {
    "msa": "خساره",
    "yemeni": "خسائر",
-   "count": 31
+   "count": 31,
+   "likely_inflection": true
   },
   {
    "msa": "مشكله",
    "yemeni": "المشاكل",
-   "count": 30
+   "count": 30,
+   "likely_inflection": true
   },
   {
    "msa": "خلي",
    "yemeni": "خلوكم",
-   "count": 30
+   "count": 30,
+   "likely_inflection": false
   },
   {
    "msa": "امراه",
    "yemeni": "النساء",
-   "count": 30
+   "count": 30,
+   "likely_inflection": false
   },
   {
    "msa": "ثلاثه",
    "yemeni": "الثلاث",
-   "count": 30
+   "count": 30,
+   "likely_inflection": true
   },
   {
    "msa": "تحدي",
    "yemeni": "اتحداك",
-   "count": 30
+   "count": 30,
+   "likely_inflection": true
   },
   {
    "msa": "اثنان",
    "yemeni": "اثنين",
-   "count": 30
+   "count": 30,
+   "likely_inflection": true
   },
   {
    "msa": "كان",
    "yemeni": "ويكون",
-   "count": 30
+   "count": 30,
+   "likely_inflection": false
   },
   {
    "msa": "نادي",
    "yemeni": "تنادي",
-   "count": 30
+   "count": 30,
+   "likely_inflection": true
   },
   {
    "msa": "عاد",
    "yemeni": "يعد",
-   "count": 30
+   "count": 30,
+   "likely_inflection": true
   },
   {
    "msa": "هم",
    "yemeni": "عليهم",
-   "count": 30
+   "count": 30,
+   "likely_inflection": false
   },
   {
    "msa": "عاش",
    "yemeni": "يعيشون",
-   "count": 30
+   "count": 30,
+   "likely_inflection": false
   },
   {
    "msa": "عرف",
    "yemeni": "يعرفون",
-   "count": 30
+   "count": 30,
+   "likely_inflection": true
   },
   {
    "msa": "مطار",
    "yemeni": "مطاراتكم",
-   "count": 30
+   "count": 30,
+   "likely_inflection": true
   },
   {
    "msa": "استطاع",
    "yemeni": "يستطيعوا",
-   "count": 30
+   "count": 30,
+   "likely_inflection": false
   },
   {
    "msa": "شيء",
    "yemeni": "شيئا",
-   "count": 30
+   "count": 30,
+   "likely_inflection": false
   },
   {
    "msa": "شريك",
    "yemeni": "شركاء",
-   "count": 30
+   "count": 30,
+   "likely_inflection": true
   },
   {
    "msa": "مغتربه",
    "yemeni": "المغترب",
-   "count": 30
+   "count": 30,
+   "likely_inflection": true
   },
   {
    "msa": "تحرك",
    "yemeni": "تتحرك",
-   "count": 30
+   "count": 30,
+   "likely_inflection": true
   },
   {
    "msa": "عرف",
    "yemeni": "تعرفوا",
-   "count": 30
+   "count": 30,
+   "likely_inflection": true
   },
   {
    "msa": "انتم",
    "yemeni": "وانتوا",
-   "count": 30
+   "count": 30,
+   "likely_inflection": true
   },
   {
    "msa": "ثان",
    "yemeni": "ثانيه",
-   "count": 30
+   "count": 30,
+   "likely_inflection": true
   },
   {
    "msa": "ثلاثون",
    "yemeni": "ثلاثين",
-   "count": 29
+   "count": 29,
+   "likely_inflection": true
   },
   {
    "msa": "خائن",
    "yemeni": "والخونه",
-   "count": 29
+   "count": 29,
+   "likely_inflection": false
   },
   {
    "msa": "يد",
    "yemeni": "ايدي",
-   "count": 29
+   "count": 29,
+   "likely_inflection": true
   },
   {
    "msa": "خطا",
    "yemeni": "اخطاء",
-   "count": 29
+   "count": 29,
+   "likely_inflection": true
   },
   {
    "msa": "عال",
    "yemeni": "عاليه",
-   "count": 29
+   "count": 29,
+   "likely_inflection": true
   },
   {
    "msa": "عربي",
    "yemeni": "العرب",
-   "count": 29
+   "count": 29,
+   "likely_inflection": true
   },
   {
    "msa": "كهف",
    "yemeni": "الكهوف",
-   "count": 29
+   "count": 29,
+   "likely_inflection": true
   },
   {
    "msa": "مثل",
    "yemeni": "مثلما",
-   "count": 29
+   "count": 29,
+   "likely_inflection": true
   },
   {
    "msa": "جاء",
    "yemeni": "بيجي",
-   "count": 29
+   "count": 29,
+   "likely_inflection": false
   },
   {
    "msa": "قال",
    "yemeni": "قلتوا",
-   "count": 29
+   "count": 29,
+   "likely_inflection": false
   },
   {
    "msa": "صاروخ",
    "yemeni": "صواريخه",
-   "count": 29
+   "count": 29,
+   "likely_inflection": true
   },
   {
    "msa": "تحرر",
    "yemeni": "تتحرر",
-   "count": 29
+   "count": 29,
+   "likely_inflection": true
   },
   {
    "msa": "معركه",
    "yemeni": "معارك",
-   "count": 29
+   "count": 29,
+   "likely_inflection": true
   },
   {
    "msa": "راض",
    "yemeni": "راضيين",
-   "count": 29
+   "count": 29,
+   "likely_inflection": true
   },
   {
    "msa": "خصوص",
    "yemeni": "خصوصا",
-   "count": 29
+   "count": 29,
+   "likely_inflection": true
   },
   {
    "msa": "نصر",
    "yemeni": "ينصر",
-   "count": 29
+   "count": 29,
+   "likely_inflection": true
   },
   {
    "msa": "استهدف",
    "yemeni": "تستهدف",
-   "count": 29
+   "count": 29,
+   "likely_inflection": true
   },
   {
    "msa": "كبير",
    "yemeni": "كبار",
-   "count": 29
+   "count": 29,
+   "likely_inflection": true
   },
   {
    "msa": "مكان",
    "yemeni": "اماكن",
-   "count": 29
+   "count": 29,
+   "likely_inflection": true
   },
   {
    "msa": "دوله",
    "yemeni": "دولتكم",
-   "count": 29
+   "count": 29,
+   "likely_inflection": true
   },
   {
    "msa": "انا",
    "yemeni": "اني",
-   "count": 28
+   "count": 28,
+   "likely_inflection": true
   },
   {
    "msa": "ليس",
    "yemeni": "مو",
-   "count": 28
+   "count": 28,
+   "likely_inflection": false
   },
   {
    "msa": "اين",
    "yemeni": "فين",
-   "count": 28
+   "count": 28,
+   "likely_inflection": true
   },
   {
    "msa": "طفل",
    "yemeni": "لاطفال",
-   "count": 28
+   "count": 28,
+   "likely_inflection": true
   },
   {
    "msa": "هدد",
    "yemeni": "يهدد",
-   "count": 28
+   "count": 28,
+   "likely_inflection": true
   },
   {
    "msa": "جلس",
    "yemeni": "يجلس",
-   "count": 28
+   "count": 28,
+   "likely_inflection": true
   },
   {
    "msa": "نعل",
    "yemeni": "نعال",
-   "count": 28
+   "count": 28,
+   "likely_inflection": true
   },
   {
    "msa": "سعوديه",
    "yemeni": "سعوديين",
-   "count": 28
+   "count": 28,
+   "likely_inflection": true
   },
   {
    "msa": "قاتل",
    "yemeni": "تقاتل",
-   "count": 28
+   "count": 28,
+   "likely_inflection": true
   },
   {
    "msa": "فاض",
    "yemeni": "فاضيه",
-   "count": 28
+   "count": 28,
+   "likely_inflection": true
   },
   {
    "msa": "مثل",
    "yemeni": "يمثل",
-   "count": 28
+   "count": 28,
+   "likely_inflection": true
   },
   {
    "msa": "اعلن",
    "yemeni": "تعلن",
-   "count": 28
+   "count": 28,
+   "likely_inflection": true
   },
   {
    "msa": "متابعه",
    "yemeni": "متابعين",
-   "count": 28
+   "count": 28,
+   "likely_inflection": true
   },
   {
    "msa": "نهايه",
    "yemeni": "نهايته",
-   "count": 28
+   "count": 28,
+   "likely_inflection": true
   },
   {
    "msa": "حاول",
    "yemeni": "تحاول",
-   "count": 28
+   "count": 28,
+   "likely_inflection": true
   },
   {
    "msa": "شرعي",
    "yemeni": "وشرعيته",
-   "count": 28
+   "count": 28,
+   "likely_inflection": true
   },
   {
    "msa": "نجس",
    "yemeni": "الانجاس",
-   "count": 28
+   "count": 28,
+   "likely_inflection": true
   },
   {
    "msa": "تكلم",
    "yemeni": "نتكلم",
-   "count": 28
+   "count": 28,
+   "likely_inflection": true
   },
   {
    "msa": "سجن",
    "yemeni": "سجون",
-   "count": 28
+   "count": 28,
+   "likely_inflection": true
   },
   {
    "msa": "قصد",
    "yemeni": "تقصد",
-   "count": 28
+   "count": 28,
+   "likely_inflection": true
   },
   {
    "msa": "شان",
    "yemeni": "شؤون",
-   "count": 28
+   "count": 28,
+   "likely_inflection": false
   },
   {
    "msa": "شاف",
    "yemeni": "شف",
-   "count": 28
+   "count": 28,
+   "likely_inflection": true
   },
   {
    "msa": "جثه",
    "yemeni": "جثث",
-   "count": 27
+   "count": 27,
+   "likely_inflection": true
   },
   {
    "msa": "القاهره",
    "yemeni": "قاهر",
-   "count": 27
+   "count": 27,
+   "likely_inflection": true
   },
   {
    "msa": "وال",
    "yemeni": "ولاه",
-   "count": 27
+   "count": 27,
+   "likely_inflection": false
   },
   {
    "msa": "اراد",
    "yemeni": "ابي",
-   "count": 27
+   "count": 27,
+   "likely_inflection": false
   },
   {
    "msa": "سنه",
    "yemeni": "سنتين",
-   "count": 27
+   "count": 27,
+   "likely_inflection": false
   },
   {
    "msa": "علم",
    "yemeni": "تعلم",
-   "count": 27
+   "count": 27,
+   "likely_inflection": true
   },
   {
    "msa": "عرف",
    "yemeni": "تعرفون",
-   "count": 27
+   "count": 27,
+   "likely_inflection": true
   },
   {
    "msa": "اطلق",
    "yemeni": "تطلق",
-   "count": 27
+   "count": 27,
+   "likely_inflection": true
   },
   {
    "msa": "شكل",
    "yemeni": "الاشكال",
-   "count": 27
+   "count": 27,
+   "likely_inflection": true
   },
   {
    "msa": "خائن",
    "yemeni": "للخونه",
-   "count": 27
+   "count": 27,
+   "likely_inflection": false
   },
   {
    "msa": "مقطع",
    "yemeni": "مقاطع",
-   "count": 27
+   "count": 27,
+   "likely_inflection": true
   },
   {
    "msa": "حضرمي",
    "yemeni": "الحضارم",
-   "count": 27
+   "count": 27,
+   "likely_inflection": true
   },
   {
    "msa": "دم",
    "yemeni": "بدماء",
-   "count": 27
+   "count": 27,
+   "likely_inflection": false
   },
   {
    "msa": "رجل",
    "yemeni": "والرجال",
-   "count": 27
+   "count": 27,
+   "likely_inflection": true
   },
   {
    "msa": "اذن",
    "yemeni": "وباذن",
-   "count": 27
+   "count": 27,
+   "likely_inflection": true
   },
   {
    "msa": "نصر",
    "yemeni": "انصر",
-   "count": 27
+   "count": 27,
+   "likely_inflection": true
   },
   {
    "msa": "تعرض",
    "yemeni": "يتعرض",
-   "count": 27
+   "count": 27,
+   "likely_inflection": true
   },
   {
    "msa": "علي",
    "yemeni": "ماعليك",
-   "count": 27
+   "count": 27,
+   "likely_inflection": true
   },
   {
    "msa": "سمع",
    "yemeni": "تسمع",
-   "count": 27
+   "count": 27,
+   "likely_inflection": true
   },
   {
    "msa": "صار",
    "yemeni": "تصير",
-   "count": 27
+   "count": 27,
+   "likely_inflection": false
   },
   {
    "msa": "خفي",
    "yemeni": "تخفاك",
-   "count": 27
+   "count": 27,
+   "likely_inflection": false
   },
   {
    "msa": "سبعون",
    "yemeni": "السبعين",
-   "count": 27
+   "count": 27,
+   "likely_inflection": true
   },
   {
    "msa": "قال",
    "yemeni": "ويقولون",
-   "count": 27
+   "count": 27,
+   "likely_inflection": false
   },
   {
    "msa": "شخص",
    "yemeni": "الاشخاص",
-   "count": 26
+   "count": 26,
+   "likely_inflection": true
   },
   {
    "msa": "وقف",
    "yemeni": "يوقف",
-   "count": 26
+   "count": 26,
+   "likely_inflection": true
   },
   {
    "msa": "حكومه",
    "yemeni": "حكومتك",
-   "count": 26
+   "count": 26,
+   "likely_inflection": true
   },
   {
    "msa": "شهر",
    "yemeni": "شهور",
-   "count": 26
+   "count": 26,
+   "likely_inflection": true
   },
   {
    "msa": "هاجم",
    "yemeni": "يهاجمون",
-   "count": 26
+   "count": 26,
+   "likely_inflection": true
   },
   {
    "msa": "وفي",
    "yemeni": "الاوفياء",
-   "count": 26
+   "count": 26,
+   "likely_inflection": false
   },
   {
    "msa": "راح",
    "yemeni": "رح",
-   "count": 26
+   "count": 26,
+   "likely_inflection": true
   },
   {
    "msa": "اخ",
    "yemeni": "يااخي",
-   "count": 26
+   "count": 26,
+   "likely_inflection": false
   },
   {
    "msa": "قبيله",
    "yemeni": "وقبائل",
-   "count": 26
+   "count": 26,
+   "likely_inflection": false
   },
   {
    "msa": "اعلامي",
    "yemeni": "اعلاميا",
-   "count": 26
+   "count": 26,
+   "likely_inflection": true
   },
   {
    "msa": "قانون",
    "yemeni": "القوانين",
-   "count": 26
+   "count": 26,
+   "likely_inflection": true
   },
   {
    "msa": "طائره",
    "yemeni": "الطائرات",
-   "count": 26
+   "count": 26,
+   "likely_inflection": true
   },
   {
    "msa": "اثر",
    "yemeni": "اثار",
-   "count": 26
+   "count": 26,
+   "likely_inflection": true
   },
   {
    "msa": "شخصي",
    "yemeni": "شخصيا",
-   "count": 26
+   "count": 26,
+   "likely_inflection": true
   },
   {
    "msa": "عمل",
    "yemeni": "وتعمل",
-   "count": 26
+   "count": 26,
+   "likely_inflection": true
   },
   {
    "msa": "وقف",
    "yemeni": "توقف",
-   "count": 26
+   "count": 26,
+   "likely_inflection": true
   },
   {
    "msa": "كان",
    "yemeni": "يكن",
-   "count": 26
+   "count": 26,
+   "likely_inflection": true
   },
   {
    "msa": "شخص",
    "yemeni": "اشخاص",
-   "count": 26
+   "count": 26,
+   "likely_inflection": true
   },
   {
    "msa": "اساس",
    "yemeni": "اساسا",
-   "count": 26
+   "count": 26,
+   "likely_inflection": true
   },
   {
    "msa": "رافضه",
    "yemeni": "الروافض",
-   "count": 26
+   "count": 26,
+   "likely_inflection": true
   },
   {
    "msa": "حذاء",
    "yemeni": "احذيه",
-   "count": 26
+   "count": 26,
+   "likely_inflection": false
   },
   {
    "msa": "قال",
    "yemeni": "قول",
-   "count": 26
+   "count": 26,
+   "likely_inflection": true
   },
   {
    "msa": "بقره",
    "yemeni": "البقر",
-   "count": 26
+   "count": 26,
+   "likely_inflection": true
   },
   {
    "msa": "تعالي",
    "yemeni": "تعال",
-   "count": 26
+   "count": 26,
+   "likely_inflection": true
   },
   {
    "msa": "رجل",
    "yemeni": "برجال",
-   "count": 25
+   "count": 25,
+   "likely_inflection": true
   },
   {
    "msa": "شفي",
    "yemeni": "يشفي",
-   "count": 25
+   "count": 25,
+   "likely_inflection": true
   },
   {
    "msa": "خطا",
    "yemeni": "الاخطاء",
-   "count": 25
+   "count": 25,
+   "likely_inflection": true
   },
   {
    "msa": "اب",
    "yemeni": "ابوكم",
-   "count": 25
+   "count": 25,
+   "likely_inflection": false
   },
   {
    "msa": "ذكر",
    "yemeni": "تذكر",
-   "count": 25
+   "count": 25,
+   "likely_inflection": true
   },
   {
    "msa": "انتمي",
    "yemeni": "ينتمي",
-   "count": 25
+   "count": 25,
+   "likely_inflection": true
   },
   {
    "msa": "هذا",
    "yemeni": "ذا",
-   "count": 25
+   "count": 25,
+   "likely_inflection": true
   },
   {
    "msa": "اعطي",
    "yemeni": "تعطي",
-   "count": 25
+   "count": 25,
+   "likely_inflection": true
   },
   {
    "msa": "ترك",
    "yemeni": "اترك",
-   "count": 25
+   "count": 25,
+   "likely_inflection": true
   },
   {
    "msa": "مسكين",
    "yemeni": "المساكين",
-   "count": 25
+   "count": 25,
+   "likely_inflection": true
   },
   {
    "msa": "دافع",
    "yemeni": "يدافعوا",
-   "count": 25
+   "count": 25,
+   "likely_inflection": true
   },
   {
    "msa": "بدل",
    "yemeni": "بدال",
-   "count": 25
+   "count": 25,
+   "likely_inflection": true
   },
   {
    "msa": "جبهه",
    "yemeni": "جبهاتنا",
-   "count": 25
+   "count": 25,
+   "likely_inflection": false
   },
   {
    "msa": "خدمه",
    "yemeni": "خدمات",
-   "count": 25
+   "count": 25,
+   "likely_inflection": true
   },
   {
    "msa": "اتقي",
    "yemeni": "اتقوا",
-   "count": 25
+   "count": 25,
+   "likely_inflection": true
   },
   {
    "msa": "نتيجه",
    "yemeni": "نتائج",
-   "count": 25
+   "count": 25,
+   "likely_inflection": true
   },
   {
    "msa": "اراد",
    "yemeni": "يشتي",
-   "count": 25
+   "count": 25,
+   "likely_inflection": false
   },
   {
    "msa": "ولد",
    "yemeni": "اولادنا",
-   "count": 25
+   "count": 25,
+   "likely_inflection": true
   },
   {
    "msa": "قال",
    "yemeni": "يقال",
-   "count": 25
+   "count": 25,
+   "likely_inflection": true
   },
   {
    "msa": "ضربه",
    "yemeni": "ضربات",
-   "count": 25
+   "count": 25,
+   "likely_inflection": true
   },
   {
    "msa": "اب",
    "yemeni": "ابوها",
-   "count": 25
+   "count": 25,
+   "likely_inflection": false
   },
   {
    "msa": "عاش",
    "yemeni": "اعيش",
-   "count": 25
+   "count": 25,
+   "likely_inflection": false
   },
   {
    "msa": "نظر",
    "yemeni": "انظر",
-   "count": 25
+   "count": 25,
+   "likely_inflection": true
   },
   {
    "msa": "قسم",
    "yemeni": "اقسم",
-   "count": 25
+   "count": 25,
+   "likely_inflection": true
   },
   {
    "msa": "انتظر",
    "yemeni": "تنتظر",
-   "count": 25
+   "count": 25,
+   "likely_inflection": true
   },
   {
    "msa": "اخ",
    "yemeni": "اخوانهم",
-   "count": 25
+   "count": 25,
+   "likely_inflection": false
   },
   {
    "msa": "اعطي",
    "yemeni": "يعطيك",
-   "count": 25
+   "count": 25,
+   "likely_inflection": true
   },
   {
    "msa": "فدي",
    "yemeni": "يفداك",
-   "count": 25
+   "count": 25,
+   "likely_inflection": false
   },
   {
    "msa": "شوق",
    "yemeni": "الاشواق",
-   "count": 25
+   "count": 25,
+   "likely_inflection": true
   },
   {
    "msa": "جلس",
    "yemeni": "جالس",
-   "count": 25
+   "count": 25,
+   "likely_inflection": true
   },
   {
    "msa": "غرد",
    "yemeni": "تغرد",
-   "count": 25
+   "count": 25,
+   "likely_inflection": true
   },
   {
    "msa": "اخذ",
    "yemeni": "خذ",
-   "count": 25
+   "count": 25,
+   "likely_inflection": true
   },
   {
    "msa": "دفع",
    "yemeni": "يدفع",
-   "count": 25
+   "count": 25,
+   "likely_inflection": true
   },
   {
    "msa": "ابيض",
    "yemeni": "البيض",
-   "count": 25
+   "count": 25,
+   "likely_inflection": true
   },
   {
    "msa": "ارسل",
    "yemeni": "ترسل",
-   "count": 24
+   "count": 24,
+   "likely_inflection": true
   },
   {
    "msa": "رجل",
    "yemeni": "رجالنا",
-   "count": 24
+   "count": 24,
+   "likely_inflection": true
   },
   {
    "msa": "استلم",
    "yemeni": "يستلم",
-   "count": 24
+   "count": 24,
+   "likely_inflection": true
   },
   {
    "msa": "مكن",
    "yemeni": "يمكن",
-   "count": 24
+   "count": 24,
+   "likely_inflection": true
   },
   {
    "msa": "ادان",
    "yemeni": "ندين",
-   "count": 24
+   "count": 24,
+   "likely_inflection": false
   },
   {
    "msa": "الذي",
    "yemeni": "للي",
-   "count": 24
+   "count": 24,
+   "likely_inflection": false
   },
   {
    "msa": "ميليشيا",
    "yemeni": "لمليشيات",
-   "count": 24
+   "count": 24,
+   "likely_inflection": true
   },
   {
    "msa": "مليون",
    "yemeni": "بالملايين",
-   "count": 24
+   "count": 24,
+   "likely_inflection": false
   },
   {
    "msa": "حدث",
    "yemeni": "الاحداث",
-   "count": 24
+   "count": 24,
+   "likely_inflection": true
   },
   {
    "msa": "زعيم",
    "yemeni": "الزعماء",
-   "count": 24
+   "count": 24,
+   "likely_inflection": false
   },
   {
    "msa": "يد",
    "yemeni": "ايديكم",
-   "count": 24
+   "count": 24,
+   "likely_inflection": false
   },
   {
    "msa": "امكن",
    "yemeni": "يمكن",
-   "count": 24
+   "count": 24,
+   "likely_inflection": true
   },
   {
    "msa": "فيلم",
    "yemeni": "افلام",
-   "count": 24
+   "count": 24,
+   "likely_inflection": true
   },
   {
    "msa": "اغنيه",
    "yemeni": "اغاني",
-   "count": 24
+   "count": 24,
+   "likely_inflection": true
   },
   {
    "msa": "تمني",
    "yemeni": "واتمني",
-   "count": 24
+   "count": 24,
+   "likely_inflection": true
   },
   {
    "msa": "عاد",
    "yemeni": "تعود",
-   "count": 24
+   "count": 24,
+   "likely_inflection": false
   },
   {
    "msa": "شيء",
    "yemeni": "الاشياء",
-   "count": 24
+   "count": 24,
+   "likely_inflection": true
   },
   {
    "msa": "اشتغل",
    "yemeni": "يشتغلون",
-   "count": 24
+   "count": 24,
+   "likely_inflection": true
   },
   {
    "msa": "دجاجه",
    "yemeni": "الدجاج",
-   "count": 24
+   "count": 24,
+   "likely_inflection": true
   },
   {
    "msa": "شيله",
    "yemeni": "الشيلات",
-   "count": 24
+   "count": 24,
+   "likely_inflection": false
   },
   {
    "msa": "درع",
    "yemeni": "دروع",
-   "count": 24
+   "count": 24,
+   "likely_inflection": true
   },
   {
    "msa": "معلومات",
    "yemeni": "معلومه",
-   "count": 24
+   "count": 24,
+   "likely_inflection": true
   },
   {
    "msa": "سلطه",
    "yemeni": "السلطات",
-   "count": 24
+   "count": 24,
+   "likely_inflection": false
   },
   {
    "msa": "جعل",
    "yemeni": "يجعل",
-   "count": 24
+   "count": 24,
+   "likely_inflection": true
   },
   {
    "msa": "مصيبه",
    "yemeni": "المصائب",
-   "count": 24
+   "count": 24,
+   "likely_inflection": false
   },
   {
    "msa": "بعير",
    "yemeni": "البعران",
-   "count": 24
+   "count": 24,
+   "likely_inflection": false
   },
   {
    "msa": "تحرك",
    "yemeni": "يتحرك",
-   "count": 24
+   "count": 24,
+   "likely_inflection": true
   },
   {
    "msa": "اعتقد",
    "yemeni": "تعتقد",
-   "count": 24
+   "count": 24,
+   "likely_inflection": true
   },
   {
    "msa": "مجزره",
    "yemeni": "مجازر",
-   "count": 24
+   "count": 24,
+   "likely_inflection": true
   },
   {
    "msa": "خمسون",
    "yemeni": "خمسين",
-   "count": 24
+   "count": 24,
+   "likely_inflection": true
   },
   {
    "msa": "عميل",
    "yemeni": "العملاء",
-   "count": 24
+   "count": 24,
+   "likely_inflection": false
   },
   {
    "msa": "مشي",
    "yemeni": "تمشي",
-   "count": 24
+   "count": 24,
+   "likely_inflection": true
   },
   {
    "msa": "كبير",
    "yemeni": "الكبار",
-   "count": 24
+   "count": 24,
+   "likely_inflection": true
   },
   {
    "msa": "كلب",
    "yemeni": "وكلاب",
-   "count": 24
+   "count": 24,
+   "likely_inflection": true
   },
   {
    "msa": "نذل",
    "yemeni": "انذال",
-   "count": 24
+   "count": 24,
+   "likely_inflection": true
   },
   {
    "msa": "دري",
    "yemeni": "ادري",
-   "count": 24
+   "count": 24,
+   "likely_inflection": true
   },
   {
    "msa": "الذي",
    "yemeni": "ذي",
-   "count": 23
+   "count": 23,
+   "likely_inflection": true
   },
   {
    "msa": "مطيه",
    "yemeni": "مطايا",
-   "count": 23
+   "count": 23,
+   "likely_inflection": true
   },
   {
    "msa": "اخير",
    "yemeni": "اخيرا",
-   "count": 23
+   "count": 23,
+   "likely_inflection": true
   },
   {
    "msa": "اعاد",
    "yemeni": "يعيد",
-   "count": 23
+   "count": 23,
+   "likely_inflection": false
   },
   {
    "msa": "دوله",
    "yemeni": "دولته",
-   "count": 23
+   "count": 23,
+   "likely_inflection": true
   },
   {
    "msa": "عيد",
    "yemeni": "اعيادنا",
-   "count": 23
+   "count": 23,
+   "likely_inflection": true
   },
   {
    "msa": "ليس",
    "yemeni": "لست",
-   "count": 23
+   "count": 23,
+   "likely_inflection": true
   },
   {
    "msa": "شركه",
    "yemeni": "شركات",
-   "count": 23
+   "count": 23,
+   "likely_inflection": true
   },
   {
    "msa": "اطلق",
    "yemeni": "يطلق",
-   "count": 23
+   "count": 23,
+   "likely_inflection": true
   },
   {
    "msa": "اراد",
    "yemeni": "تريدوا",
-   "count": 23
+   "count": 23,
+   "likely_inflection": false
   },
   {
    "msa": "حرك",
    "yemeni": "يحرك",
-   "count": 23
+   "count": 23,
+   "likely_inflection": true
   },
   {
    "msa": "اسف",
    "yemeni": "وللاسف",
-   "count": 23
+   "count": 23,
+   "likely_inflection": true
   },
   {
    "msa": "مطار",
    "yemeni": "مطاراتنا",
-   "count": 23
+   "count": 23,
+   "likely_inflection": true
   },
   {
    "msa": "اعترف",
    "yemeni": "تعترف",
-   "count": 23
+   "count": 23,
+   "likely_inflection": true
   },
   {
    "msa": "شمعه",
    "yemeni": "والشموع",
-   "count": 23
+   "count": 23,
+   "likely_inflection": false
   },
   {
    "msa": "شكل",
    "yemeni": "واشكالك",
-   "count": 23
+   "count": 23,
+   "likely_inflection": true
   },
   {
    "msa": "سقط",
    "yemeni": "يسقط",
-   "count": 23
+   "count": 23,
+   "likely_inflection": true
   },
   {
    "msa": "اشتغل",
    "yemeni": "تشتغل",
-   "count": 23
+   "count": 23,
+   "likely_inflection": true
   },
   {
    "msa": "حقيقه",
    "yemeni": "حقائق",
-   "count": 23
+   "count": 23,
+   "likely_inflection": true
   },
   {
    "msa": "غياب",
    "yemeni": "غيبتك",
-   "count": 23
+   "count": 23,
+   "likely_inflection": true
   },
   {
    "msa": "مظاهره",
    "yemeni": "مظاهرات",
-   "count": 23
+   "count": 23,
+   "likely_inflection": true
   },
   {
    "msa": "عيل",
    "yemeni": "وعيال",
-   "count": 23
+   "count": 23,
+   "likely_inflection": true
   },
   {
    "msa": "تكلم",
    "yemeni": "ويتكلم",
-   "count": 23
+   "count": 23,
+   "likely_inflection": true
   },
   {
    "msa": "دوله",
    "yemeni": "والدول",
-   "count": 23
+   "count": 23,
+   "likely_inflection": true
   },
   {
    "msa": "مليء",
    "yemeni": "مليان",
-   "count": 22
+   "count": 22,
+   "likely_inflection": true
   },
   {
    "msa": "قال",
    "yemeni": "بتقول",
-   "count": 22
+   "count": 22,
+   "likely_inflection": false
   },
   {
    "msa": "صف",
    "yemeni": "صفوف",
-   "count": 22
+   "count": 22,
+   "likely_inflection": true
   },
   {
    "msa": "اب",
    "yemeni": "لابو",
-   "count": 22
+   "count": 22,
+   "likely_inflection": true
   },
   {
    "msa": "ليس",
    "yemeni": "ومش",
-   "count": 22
+   "count": 22,
+   "likely_inflection": false
   },
   {
    "msa": "سابق",
    "yemeni": "سابقا",
-   "count": 22
+   "count": 22,
+   "likely_inflection": true
   },
   {
    "msa": "شاهد",
    "yemeni": "نشاهد",
-   "count": 22
+   "count": 22,
+   "likely_inflection": true
   },
   {
    "msa": "يد",
    "yemeni": "ايديهم",
-   "count": 22
+   "count": 22,
+   "likely_inflection": false
   },
   {
    "msa": "الف",
    "yemeni": "الالاف",
-   "count": 22
+   "count": 22,
+   "likely_inflection": true
   },
   {
    "msa": "مبدا",
    "yemeni": "مبادئ",
-   "count": 22
+   "count": 22,
+   "likely_inflection": true
   },
   {
    "msa": "قذر",
    "yemeni": "اقذر",
-   "count": 22
+   "count": 22,
+   "likely_inflection": true
   },
   {
    "msa": "استطاع",
    "yemeni": "نستطيع",
-   "count": 22
+   "count": 22,
+   "likely_inflection": true
   },
   {
    "msa": "جندي",
    "yemeni": "وجنودنا",
-   "count": 22
+   "count": 22,
+   "likely_inflection": false
   },
   {
    "msa": "حفله",
    "yemeni": "حفلات",
-   "count": 22
+   "count": 22,
+   "likely_inflection": true
   },
   {
    "msa": "حرب",
    "yemeni": "والحروب",
-   "count": 22
+   "count": 22,
+   "likely_inflection": true
   },
   {
    "msa": "اختلف",
    "yemeni": "تختلف",
-   "count": 22
+   "count": 22,
+   "likely_inflection": true
   },
   {
    "msa": "حاول",
    "yemeni": "يحاولون",
-   "count": 22
+   "count": 22,
+   "likely_inflection": true
   },
   {
    "msa": "ادار",
    "yemeni": "يدير",
-   "count": 22
+   "count": 22,
+   "likely_inflection": false
   },
   {
    "msa": "عرف",
    "yemeni": "اعرفه",
-   "count": 22
+   "count": 22,
+   "likely_inflection": true
   },
   {
    "msa": "سنه",
    "yemeni": "السنوات",
-   "count": 22
+   "count": 22,
+   "likely_inflection": false
   },
   {
    "msa": "خائن",
    "yemeni": "وخونه",
-   "count": 22
+   "count": 22,
+   "likely_inflection": false
   },
   {
    "msa": "اشتري",
    "yemeni": "يشتري",
-   "count": 22
+   "count": 22,
+   "likely_inflection": true
   },
   {
    "msa": "دوله",
    "yemeni": "لدول",
-   "count": 22
+   "count": 22,
+   "likely_inflection": true
   },
   {
    "msa": "اخ",
    "yemeni": "يااخ",
-   "count": 22
+   "count": 22,
+   "likely_inflection": true
   },
   {
    "msa": "فلسطينيه",
    "yemeni": "الفلسطينيين",
-   "count": 22
+   "count": 22,
+   "likely_inflection": true
   },
   {
    "msa": "طرف",
    "yemeni": "اطراف",
-   "count": 22
+   "count": 22,
+   "likely_inflection": true
   },
   {
    "msa": "ناضل",
    "yemeni": "نناضل",
-   "count": 22
+   "count": 22,
+   "likely_inflection": true
   },
   {
    "msa": "دفع",
    "yemeni": "تدفع",
-   "count": 22
+   "count": 22,
+   "likely_inflection": true
   },
   {
    "msa": "سجن",
    "yemeni": "السجون",
-   "count": 22
+   "count": 22,
+   "likely_inflection": true
   },
   {
    "msa": "عند",
    "yemeni": "ماعندك",
-   "count": 22
+   "count": 22,
+   "likely_inflection": true
   },
   {
    "msa": "حضن",
    "yemeni": "احضان",
-   "count": 22
+   "count": 22,
+   "likely_inflection": true
   },
   {
    "msa": "بار",
    "yemeni": "الابرار",
-   "count": 22
+   "count": 22,
+   "likely_inflection": true
   },
   {
    "msa": "هاجم",
    "yemeni": "يهاجموا",
-   "count": 22
+   "count": 22,
+   "likely_inflection": true
   },
   {
    "msa": "اختلف",
    "yemeni": "يختلف",
-   "count": 22
+   "count": 22,
+   "likely_inflection": true
   },
   {
    "msa": "ساعد",
    "yemeni": "تساعد",
-   "count": 22
+   "count": 22,
+   "likely_inflection": true
   },
   {
    "msa": "جندي",
    "yemeni": "جنودكم",
-   "count": 22
+   "count": 22,
+   "likely_inflection": true
   },
   {
    "msa": "رفع",
    "yemeni": "يرفع",
-   "count": 21
+   "count": 21,
+   "likely_inflection": true
   },
   {
    "msa": "زنبيل",
    "yemeni": "زنابيل",
-   "count": 21
+   "count": 21,
+   "likely_inflection": true
   },
   {
    "msa": "امتلك",
    "yemeni": "تمتلك",
-   "count": 21
+   "count": 21,
+   "likely_inflection": true
   },
   {
    "msa": "جريح",
    "yemeni": "الجرحي",
-   "count": 21
+   "count": 21,
+   "likely_inflection": true
   },
   {
    "msa": "دافع",
    "yemeni": "ادافع",
-   "count": 21
+   "count": 21,
+   "likely_inflection": true
   },
   {
    "msa": "الذي",
    "yemeni": "والتي",
-   "count": 21
+   "count": 21,
+   "likely_inflection": true
   },
   {
    "msa": "اسم",
    "yemeni": "باسماء",
-   "count": 21
+   "count": 21,
+   "likely_inflection": true
   },
   {
    "msa": "يد",
    "yemeni": "ايادي",
-   "count": 21
+   "count": 21,
+   "likely_inflection": false
   },
   {
    "msa": "منع",
    "yemeni": "يمنع",
-   "count": 21
+   "count": 21,
+   "likely_inflection": true
   },
   {
    "msa": "همك",
    "yemeni": "يهمك",
-   "count": 21
+   "count": 21,
+   "likely_inflection": true
   },
   {
    "msa": "عدو",
    "yemeni": "اعدائنا",
-   "count": 21
+   "count": 21,
+   "likely_inflection": false
   },
   {
    "msa": "قال",
    "yemeni": "اقولك",
-   "count": 21
+   "count": 21,
+   "likely_inflection": false
   },
   {
    "msa": "مخططه",
    "yemeni": "مخطط",
-   "count": 21
+   "count": 21,
+   "likely_inflection": true
   },
   {
    "msa": "ثروه",
    "yemeni": "الثروات",
-   "count": 21
+   "count": 21,
+   "likely_inflection": false
   },
   {
    "msa": "مع",
    "yemeni": "معاه",
-   "count": 21
+   "count": 21,
+   "likely_inflection": true
   },
   {
    "msa": "كلمه",
    "yemeni": "كلمتين",
-   "count": 21
+   "count": 21,
+   "likely_inflection": true
   },
   {
    "msa": "دام",
    "yemeni": "مادام",
-   "count": 21
+   "count": 21,
+   "likely_inflection": true
   },
   {
    "msa": "شاف",
    "yemeni": "اشوفه",
-   "count": 21
+   "count": 21,
+   "likely_inflection": false
   },
   {
    "msa": "دمر",
    "yemeni": "دمرتم",
-   "count": 21
+   "count": 21,
+   "likely_inflection": true
   },
   {
    "msa": "عرف",
    "yemeni": "واعرف",
-   "count": 21
+   "count": 21,
+   "likely_inflection": true
   },
   {
    "msa": "موقف",
    "yemeni": "المواقف",
-   "count": 21
+   "count": 21,
+   "likely_inflection": true
   },
   {
    "msa": "صرف",
    "yemeni": "يصرف",
-   "count": 21
+   "count": 21,
+   "likely_inflection": true
   },
   {
    "msa": "اخ",
    "yemeni": "اخو",
-   "count": 21
+   "count": 21,
+   "likely_inflection": true
   },
   {
    "msa": "ميناء",
    "yemeni": "والموانئ",
-   "count": 21
+   "count": 21,
+   "likely_inflection": false
   },
   {
    "msa": "تمني",
    "yemeni": "يتمني",
-   "count": 21
+   "count": 21,
+   "likely_inflection": true
   },
   {
    "msa": "مرحب",
    "yemeni": "مرحبا",
-   "count": 21
+   "count": 21,
+   "likely_inflection": true
   },
   {
    "msa": "متابعه",
    "yemeni": "متابع",
-   "count": 21
+   "count": 21,
+   "likely_inflection": true
   },
   {
    "msa": "مرقص",
    "yemeni": "المراقص",
-   "count": 21
+   "count": 21,
+   "likely_inflection": true
   },
   {
    "msa": "مؤيده",
    "yemeni": "مؤيد",
-   "count": 21
+   "count": 21,
+   "likely_inflection": true
   },
   {
    "msa": "موقف",
    "yemeni": "مواقف",
-   "count": 21
+   "count": 21,
+   "likely_inflection": true
   },
   {
    "msa": "رئيس",
    "yemeni": "رئيسا",
-   "count": 21
+   "count": 21,
+   "likely_inflection": true
   },
   {
    "msa": "وقع",
    "yemeni": "بيوقع",
-   "count": 21
+   "count": 21,
+   "likely_inflection": true
   },
   {
    "msa": "خلي",
    "yemeni": "خلهم",
-   "count": 21
+   "count": 21,
+   "likely_inflection": false
   },
   {
    "msa": "اكد",
    "yemeni": "يؤكد",
-   "count": 21
+   "count": 21,
+   "likely_inflection": false
   },
   {
    "msa": "صغير",
    "yemeni": "صغار",
-   "count": 21
+   "count": 21,
+   "likely_inflection": true
   },
   {
    "msa": "انتصر",
    "yemeni": "ينتصر",
-   "count": 21
+   "count": 21,
+   "likely_inflection": true
   },
   {
    "msa": "ساوم",
    "yemeni": "نساوم",
-   "count": 21
+   "count": 21,
+   "likely_inflection": true
   },
   {
    "msa": "اراد",
    "yemeni": "يبون",
-   "count": 21
+   "count": 21,
+   "likely_inflection": false
   },
   {
    "msa": "مسئوليه",
    "yemeni": "المسؤوليه",
-   "count": 21
+   "count": 21,
+   "likely_inflection": true
   },
   {
    "msa": "انتهك",
    "yemeni": "ينتهك",
-   "count": 21
+   "count": 21,
+   "likely_inflection": true
   },
   {
    "msa": "لجنه",
    "yemeni": "واللجان",
-   "count": 21
+   "count": 21,
+   "likely_inflection": false
   },
   {
    "msa": "مليون",
    "yemeni": "الملايين",
-   "count": 21
+   "count": 21,
+   "likely_inflection": true
   },
   {
    "msa": "بقره",
    "yemeni": "بقر",
-   "count": 21
+   "count": 21,
+   "likely_inflection": true
   },
   {
    "msa": "ذنب",
    "yemeni": "واذناب",
-   "count": 21
+   "count": 21,
+   "likely_inflection": true
   },
   {
    "msa": "اراد",
    "yemeni": "بده",
-   "count": 21
+   "count": 21,
+   "likely_inflection": false
   },
   {
    "msa": "سوي",
    "yemeni": "يسوي",
-   "count": 21
+   "count": 21,
+   "likely_inflection": true
   },
   {
    "msa": "حكومه",
    "yemeni": "حكومتكم",
-   "count": 21
+   "count": 21,
+   "likely_inflection": true
   },
   {
    "msa": "صام",
    "yemeni": "نصوم",
-   "count": 21
+   "count": 21,
+   "likely_inflection": false
   },
   {
    "msa": "عند",
    "yemeni": "عندما",
-   "count": 21
+   "count": 21,
+   "likely_inflection": true
   },
   {
    "msa": "علم",
    "yemeni": "اعلم",
-   "count": 21
+   "count": 21,
+   "likely_inflection": true
   },
   {
    "msa": "حوج",
    "yemeni": "حاجه",
-   "count": 21
+   "count": 21,
+   "likely_inflection": false
   },
   {
    "msa": "طالب",
    "yemeni": "يطالب",
-   "count": 21
+   "count": 21,
+   "likely_inflection": true
   },
   {
    "msa": "رحم",
    "yemeni": "يرحم",
-   "count": 21
+   "count": 21,
+   "likely_inflection": true
   },
   {
    "msa": "كان",
    "yemeni": "بيكون",
-   "count": 21
+   "count": 21,
+   "likely_inflection": false
   },
   {
    "msa": "اعطي",
    "yemeni": "يعطيه",
-   "count": 21
+   "count": 21,
+   "likely_inflection": true
   },
   {
    "msa": "عبايه",
    "yemeni": "العبايات",
-   "count": 21
+   "count": 21,
+   "likely_inflection": true
   },
   {
    "msa": "مكن",
    "yemeni": "ويمكن",
-   "count": 21
+   "count": 21,
+   "likely_inflection": true
   },
   {
    "msa": "اخ",
    "yemeni": "للاخوان",
-   "count": 21
+   "count": 21,
+   "likely_inflection": false
   },
   {
    "msa": "خسئ",
    "yemeni": "تخسي",
-   "count": 21
+   "count": 21,
+   "likely_inflection": false
   },
   {
    "msa": "شك",
    "yemeni": "اشك",
-   "count": 20
+   "count": 20,
+   "likely_inflection": true
   },
   {
    "msa": "دم",
    "yemeni": "لدماء",
-   "count": 20
+   "count": 20,
+   "likely_inflection": false
   },
   {
    "msa": "قال",
    "yemeni": "وقلت",
-   "count": 20
+   "count": 20,
+   "likely_inflection": false
   },
   {
    "msa": "جاء",
    "yemeni": "ويجي",
-   "count": 20
+   "count": 20,
+   "likely_inflection": false
   },
   {
    "msa": "شاب",
    "yemeni": "الشباب",
-   "count": 20
+   "count": 20,
+   "likely_inflection": true
   },
   {
    "msa": "سوي",
    "yemeni": "يسوون",
-   "count": 20
+   "count": 20,
+   "likely_inflection": false
   },
   {
    "msa": "قدم",
    "yemeni": "تقدم",
-   "count": 20
+   "count": 20,
+   "likely_inflection": true
   },
   {
    "msa": "عاشق",
    "yemeni": "عشاق",
-   "count": 20
+   "count": 20,
+   "likely_inflection": true
   },
   {
    "msa": "ضحيه",
    "yemeni": "الضحايا",
-   "count": 20
+   "count": 20,
+   "likely_inflection": false
   },
   {
    "msa": "حاكم",
    "yemeni": "يحاكم",
-   "count": 20
+   "count": 20,
+   "likely_inflection": true
   },
   {
    "msa": "مشي",
    "yemeni": "يمشي",
-   "count": 20
+   "count": 20,
+   "likely_inflection": true
   },
   {
    "msa": "نتيجه",
    "yemeni": "النتائج",
-   "count": 20
+   "count": 20,
+   "likely_inflection": false
   },
   {
    "msa": "ثقيل",
    "yemeni": "وثقالا",
-   "count": 20
+   "count": 20,
+   "likely_inflection": true
   },
   {
    "msa": "ايد",
    "yemeni": "يؤيد",
-   "count": 20
+   "count": 20,
+   "likely_inflection": false
   },
   {
    "msa": "لعب",
    "yemeni": "العاب",
-   "count": 20
+   "count": 20,
+   "likely_inflection": true
   },
   {
    "msa": "تبع",
    "yemeni": "اتباعه",
-   "count": 20
+   "count": 20,
+   "likely_inflection": true
   },
   {
    "msa": "جماعه",
    "yemeni": "وجماعته",
-   "count": 20
+   "count": 20,
+   "likely_inflection": true
   },
   {
    "msa": "وقف",
    "yemeni": "نوقف",
-   "count": 20
+   "count": 20,
+   "likely_inflection": true
   },
   {
    "msa": "ملبس",
    "yemeni": "ملابس",
-   "count": 20
+   "count": 20,
+   "likely_inflection": true
   },
   {
    "msa": "مرتزقه",
    "yemeni": "ومرتزقته",
-   "count": 20
+   "count": 20,
+   "likely_inflection": true
   },
   {
    "msa": "صار",
    "yemeni": "صرت",
-   "count": 20
+   "count": 20,
+   "likely_inflection": true
   },
   {
    "msa": "نهايه",
    "yemeni": "نهايتكم",
-   "count": 20
+   "count": 20,
+   "likely_inflection": true
   },
   {
    "msa": "اعطي",
    "yemeni": "ادي",
-   "count": 20
+   "count": 20,
+   "likely_inflection": false
   },
   {
    "msa": "هدف",
    "yemeni": "اهداف",
-   "count": 20
+   "count": 20,
+   "likely_inflection": true
   },
   {
    "msa": "جار",
    "yemeni": "الجيران",
-   "count": 20
+   "count": 20,
+   "likely_inflection": false
   },
   {
    "msa": "اخ",
    "yemeni": "اخوانكم",
-   "count": 20
+   "count": 20,
+   "likely_inflection": false
   },
   {
    "msa": "سلم",
    "yemeni": "يسلم",
-   "count": 20
+   "count": 20,
+   "likely_inflection": true
   },
   {
    "msa": "جنه",
    "yemeni": "جنات",
-   "count": 20
+   "count": 20,
+   "likely_inflection": false
   },
   {
    "msa": "حارب",
    "yemeni": "تحاربون",
-   "count": 20
+   "count": 20,
+   "likely_inflection": true
   },
   {
    "msa": "انجليزي",
    "yemeni": "الانجليز",
-   "count": 20
+   "count": 20,
+   "likely_inflection": true
   },
   {
    "msa": "احتاج",
    "yemeni": "مايحتاج",
-   "count": 20
+   "count": 20,
+   "likely_inflection": true
   },
   {
    "msa": "مشته",
    "yemeni": "مشتهيه",
-   "count": 20
+   "count": 20,
+   "likely_inflection": true
   },
   {
    "msa": "سكن",
    "yemeni": "ويسكنه",
-   "count": 20
+   "count": 20,
+   "likely_inflection": true
   },
   {
    "msa": "صغير",
    "yemeni": "الصغار",
-   "count": 20
+   "count": 20,
+   "likely_inflection": true
   },
   {
    "msa": "دجاجه",
    "yemeni": "دجاج",
-   "count": 20
+   "count": 20,
+   "likely_inflection": true
   },
   {
    "msa": "بهيمه",
    "yemeni": "البهائم",
-   "count": 20
+   "count": 20,
+   "likely_inflection": false
   },
   {
    "msa": "مساعده",
    "yemeni": "مساعدات",
-   "count": 20
+   "count": 20,
+   "likely_inflection": true
   },
   {
    "msa": "تضحيه",
    "yemeni": "تضحيات",
-   "count": 20
+   "count": 20,
+   "likely_inflection": true
   },
   {
    "msa": "خمر",
    "yemeni": "الخمور",
-   "count": 20
+   "count": 20,
+   "likely_inflection": true
   },
   {
    "msa": "اراد",
    "yemeni": "اردتم",
-   "count": 20
+   "count": 20,
+   "likely_inflection": true
   },
   {
    "msa": "مدرسه",
    "yemeni": "مدارس",
-   "count": 20
+   "count": 20,
+   "likely_inflection": true
   },
   {
    "msa": "دم",
    "yemeni": "دمائهم",
-   "count": 20
+   "count": 20,
+   "likely_inflection": false
   },
   {
    "msa": "تذكر",
    "yemeni": "اتذكر",
-   "count": 20
+   "count": 20,
+   "likely_inflection": true
   },
   {
    "msa": "خلي",
    "yemeni": "خلك",
-   "count": 20
+   "count": 20,
+   "likely_inflection": true
   },
   {
    "msa": "واجه",
    "yemeni": "يواجه",
-   "count": 20
+   "count": 20,
+   "likely_inflection": true
   },
   {
    "msa": "ارض",
    "yemeni": "اراضينا",
-   "count": 19
+   "count": 19,
+   "likely_inflection": true
   },
   {
    "msa": "بشر",
    "yemeni": "ابشرك",
-   "count": 19
+   "count": 19,
+   "likely_inflection": true
   },
   {
    "msa": "حل",
    "yemeni": "حلول",
-   "count": 19
+   "count": 19,
+   "likely_inflection": true
   },
   {
    "msa": "بعيد",
    "yemeni": "بعيدا",
-   "count": 19
+   "count": 19,
+   "likely_inflection": true
   },
   {
    "msa": "نصر",
    "yemeni": "ينصرنا",
-   "count": 19
+   "count": 19,
+   "likely_inflection": true
   },
   {
    "msa": "ترك",
    "yemeni": "تترك",
-   "count": 19
+   "count": 19,
+   "likely_inflection": true
   },
   {
    "msa": "صاحب",
    "yemeni": "اصحاب",
-   "count": 19
+   "count": 19,
+   "likely_inflection": true
   },
   {
    "msa": "رجل",
    "yemeni": "رجاله",
-   "count": 19
+   "count": 19,
+   "likely_inflection": true
   },
   {
    "msa": "وسيله",
    "yemeni": "وسائل",
-   "count": 19
+   "count": 19,
+   "likely_inflection": true
   },
   {
    "msa": "بنت",
    "yemeni": "البنات",
-   "count": 19
+   "count": 19,
+   "likely_inflection": true
   },
   {
    "msa": "وزر",
    "yemeni": "وزير",
-   "count": 19
+   "count": 19,
+   "likely_inflection": true
   },
   {
    "msa": "اسعد",
    "yemeni": "يسعدك",
-   "count": 19
+   "count": 19,
+   "likely_inflection": true
   },
   {
    "msa": "حضر",
    "yemeni": "يحضر",
-   "count": 19
+   "count": 19,
+   "likely_inflection": true
   },
   {
    "msa": "سمي",
    "yemeni": "تسمي",
-   "count": 19
+   "count": 19,
+   "likely_inflection": true
   },
   {
    "msa": "ويله",
    "yemeni": "الويلات",
-   "count": 19
+   "count": 19,
+   "likely_inflection": false
   },
   {
    "msa": "جاء",
    "yemeni": "وتجي",
-   "count": 19
+   "count": 19,
+   "likely_inflection": false
   },
   {
    "msa": "احترم",
    "yemeni": "يحترم",
-   "count": 19
+   "count": 19,
+   "likely_inflection": true
   },
   {
    "msa": "لقب",
    "yemeni": "الالقاب",
-   "count": 19
+   "count": 19,
+   "likely_inflection": true
   },
   {
    "msa": "طرف",
    "yemeni": "الاطراف",
-   "count": 19
+   "count": 19,
+   "likely_inflection": true
   },
   {
    "msa": "احتل",
    "yemeni": "يحتل",
-   "count": 19
+   "count": 19,
+   "likely_inflection": true
   },
   {
    "msa": "ثروه",
    "yemeni": "ثرواتها",
-   "count": 19
+   "count": 19,
+   "likely_inflection": true
   },
   {
    "msa": "مشكله",
    "yemeni": "مشكلتنا",
-   "count": 19
+   "count": 19,
+   "likely_inflection": true
   },
   {
    "msa": "علم",
    "yemeni": "نعلم",
-   "count": 19
+   "count": 19,
+   "likely_inflection": true
   },
   {
    "msa": "تفلسف",
    "yemeni": "تتفلسف",
-   "count": 19
+   "count": 19,
+   "likely_inflection": true
   },
   {
    "msa": "اعان",
    "yemeni": "يعين",
-   "count": 19
+   "count": 19,
+   "likely_inflection": false
   },
   {
    "msa": "اراد",
    "yemeni": "وتريد",
-   "count": 19
+   "count": 19,
+   "likely_inflection": false
   },
   {
    "msa": "تهنئه",
    "yemeni": "التهاني",
-   "count": 19
+   "count": 19,
+   "likely_inflection": false
   },
   {
    "msa": "دينيه",
    "yemeni": "ديني",
-   "count": 19
+   "count": 19,
+   "likely_inflection": true
   },
   {
    "msa": "الذي",
    "yemeni": "والذين",
-   "count": 19
+   "count": 19,
+   "likely_inflection": true
   },
   {
    "msa": "قتل",
    "yemeni": "يقتلون",
-   "count": 19
+   "count": 19,
+   "likely_inflection": true
   },
   {
    "msa": "امه",
    "yemeni": "والامم",
-   "count": 19
+   "count": 19,
+   "likely_inflection": false
   },
   {
    "msa": "حليف",
    "yemeni": "حلفاء",
-   "count": 19
+   "count": 19,
+   "likely_inflection": true
   },
   {
    "msa": "هاجم",
    "yemeni": "يهاجم",
-   "count": 19
+   "count": 19,
+   "likely_inflection": true
   },
   {
    "msa": "نقطه",
    "yemeni": "نقاط",
-   "count": 19
+   "count": 19,
+   "likely_inflection": true
   },
   {
    "msa": "تجرا",
    "yemeni": "يتجرا",
-   "count": 19
+   "count": 19,
+   "likely_inflection": true
   },
   {
    "msa": "حدث",
    "yemeni": "احداث",
-   "count": 19
+   "count": 19,
+   "likely_inflection": true
   },
   {
    "msa": "نعجه",
    "yemeni": "نعاج",
-   "count": 19
+   "count": 19,
+   "likely_inflection": true
   },
   {
    "msa": "ليل",
    "yemeni": "ليلا",
-   "count": 19
+   "count": 19,
+   "likely_inflection": true
   },
   {
    "msa": "تكلم",
    "yemeni": "تتكلموا",
-   "count": 19
+   "count": 19,
+   "likely_inflection": true
   },
   {
    "msa": "انطبق",
    "yemeni": "ينطبق",
-   "count": 19
+   "count": 19,
+   "likely_inflection": true
   },
   {
    "msa": "قال",
    "yemeni": "وقل",
-   "count": 19
+   "count": 19,
+   "likely_inflection": true
   },
   {
    "msa": "رسمي",
    "yemeni": "رسميا",
-   "count": 19
+   "count": 19,
+   "likely_inflection": true
   },
   {
    "msa": "خرج",
    "yemeni": "اخرجوا",
-   "count": 19
+   "count": 19,
+   "likely_inflection": true
   },
   {
    "msa": "نذل",
    "yemeni": "الانذال",
-   "count": 19
+   "count": 19,
+   "likely_inflection": true
   },
   {
    "msa": "عرف",
    "yemeni": "عارف",
-   "count": 19
+   "count": 19,
+   "likely_inflection": true
   },
   {
    "msa": "ميت",
    "yemeni": "وميتا",
-   "count": 19
+   "count": 19,
+   "likely_inflection": true
   },
   {
    "msa": "منصب",
    "yemeni": "المناصب",
-   "count": 19
+   "count": 19,
+   "likely_inflection": true
   },
   {
    "msa": "اولاء",
    "yemeni": "هذولا",
-   "count": 19
+   "count": 19,
+   "likely_inflection": true
   },
   {
    "msa": "كذب",
    "yemeni": "تكذبون",
-   "count": 19
+   "count": 19,
+   "likely_inflection": true
   },
   {
    "msa": "معترفه",
    "yemeni": "معترف",
-   "count": 19
+   "count": 19,
+   "likely_inflection": true
   },
   {
    "msa": "قال",
    "yemeni": "ماقلت",
-   "count": 19
+   "count": 19,
+   "likely_inflection": false
   },
   {
    "msa": "جنوب",
    "yemeni": "الجنوبيين",
-   "count": 19
+   "count": 19,
+   "likely_inflection": true
   },
   {
    "msa": "تكلم",
    "yemeni": "تتكلمون",
-   "count": 18
+   "count": 18,
+   "likely_inflection": true
   },
   {
    "msa": "انت",
    "yemeni": "ماانت",
-   "count": 18
+   "count": 18,
+   "likely_inflection": true
   },
   {
    "msa": "كهف",
    "yemeni": "كهوف",
-   "count": 18
+   "count": 18,
+   "likely_inflection": true
   },
   {
    "msa": "اين",
    "yemeni": "وين",
-   "count": 18
+   "count": 18,
+   "likely_inflection": true
   },
   {
    "msa": "شاف",
    "yemeni": "اشوفك",
-   "count": 18
+   "count": 18,
+   "likely_inflection": false
   },
   {
    "msa": "نصر",
    "yemeni": "ينصركم",
-   "count": 18
+   "count": 18,
+   "likely_inflection": true
   },
   {
    "msa": "حسب",
    "yemeni": "يحسب",
-   "count": 18
+   "count": 18,
+   "likely_inflection": true
   },
   {
    "msa": "هوي",
    "yemeni": "هواه",
-   "count": 18
+   "count": 18,
+   "likely_inflection": false
   },
   {
    "msa": "صاحب",
    "yemeni": "واصحاب",
-   "count": 18
+   "count": 18,
+   "likely_inflection": true
   },
   {
    "msa": "اتفق",
    "yemeni": "نتفق",
-   "count": 18
+   "count": 18,
+   "likely_inflection": true
   },
   {
    "msa": "تحمل",
    "yemeni": "يتحمل",
-   "count": 18
+   "count": 18,
+   "likely_inflection": true
   },
   {
    "msa": "رحل",
    "yemeni": "ارحل",
-   "count": 18
+   "count": 18,
+   "likely_inflection": true
   },
   {
    "msa": "بحث",
    "yemeni": "ابحث",
-   "count": 18
+   "count": 18,
+   "likely_inflection": true
   },
   {
    "msa": "حرب",
    "yemeni": "وحروب",
-   "count": 18
+   "count": 18,
+   "likely_inflection": true
   },
   {
    "msa": "طريق",
    "yemeni": "طرق",
-   "count": 18
+   "count": 18,
+   "likely_inflection": true
   },
   {
    "msa": "مخابره",
    "yemeni": "المخابرات",
-   "count": 18
+   "count": 18,
+   "likely_inflection": true
   },
   {
    "msa": "دخل",
    "yemeni": "يدخلوا",
-   "count": 18
+   "count": 18,
+   "likely_inflection": true
   },
   {
    "msa": "ترك",
    "yemeni": "واترك",
-   "count": 18
+   "count": 18,
+   "likely_inflection": true
   },
   {
    "msa": "اراد",
    "yemeni": "تبون",
-   "count": 18
+   "count": 18,
+   "likely_inflection": false
   },
   {
    "msa": "جاء",
    "yemeni": "يجون",
-   "count": 18
+   "count": 18,
+   "likely_inflection": false
   },
   {
    "msa": "مؤسسه",
    "yemeni": "مؤسسات",
-   "count": 18
+   "count": 18,
+   "likely_inflection": true
   },
   {
    "msa": "جماعه",
    "yemeni": "جماعتك",
-   "count": 18
+   "count": 18,
+   "likely_inflection": true
   },
   {
    "msa": "فيديو",
    "yemeni": "فيديوهات",
-   "count": 18
+   "count": 18,
+   "likely_inflection": true
   },
   {
    "msa": "اعتقد",
    "yemeni": "يعتقد",
-   "count": 18
+   "count": 18,
+   "likely_inflection": true
   },
   {
    "msa": "ميناء",
    "yemeni": "الموانئ",
-   "count": 18
+   "count": 18,
+   "likely_inflection": false
   },
   {
    "msa": "قدم",
    "yemeni": "يقدم",
-   "count": 18
+   "count": 18,
+   "likely_inflection": true
   },
   {
    "msa": "اعاد",
    "yemeni": "تعيد",
-   "count": 18
+   "count": 18,
+   "likely_inflection": false
   },
   {
    "msa": "عقوبه",
    "yemeni": "العقوبات",
-   "count": 18
+   "count": 18,
+   "likely_inflection": true
   },
   {
    "msa": "حكومه",
    "yemeni": "حكومات",
-   "count": 18
+   "count": 18,
+   "likely_inflection": true
   },
   {
    "msa": "معلومات",
    "yemeni": "المعلومه",
-   "count": 18
+   "count": 18,
+   "likely_inflection": true
   },
   {
    "msa": "كان",
    "yemeni": "تكونوا",
-   "count": 18
+   "count": 18,
+   "likely_inflection": false
   },
   {
    "msa": "سال",
    "yemeni": "اسالك",
-   "count": 18
+   "count": 18,
+   "likely_inflection": true
   },
   {
    "msa": "حال",
    "yemeni": "الاحوال",
-   "count": 18
+   "count": 18,
+   "likely_inflection": false
   },
   {
    "msa": "خوال",
    "yemeni": "خالي",
-   "count": 18
+   "count": 18,
+   "likely_inflection": true
   },
   {
    "msa": "حارس",
    "yemeni": "حرس",
-   "count": 18
+   "count": 18,
+   "likely_inflection": true
   },
   {
    "msa": "حكم",
    "yemeni": "تحكم",
-   "count": 18
+   "count": 18,
+   "likely_inflection": true
   },
   {
    "msa": "قدم",
    "yemeni": "اقدام",
-   "count": 18
+   "count": 18,
+   "likely_inflection": true
   },
   {
    "msa": "زعيم",
    "yemeni": "يازعيم",
-   "count": 18
+   "count": 18,
+   "likely_inflection": true
   },
   {
    "msa": "اب",
    "yemeni": "وابوك",
-   "count": 18
+   "count": 18,
+   "likely_inflection": false
   },
   {
    "msa": "استقاله",
    "yemeni": "استقالته",
-   "count": 18
+   "count": 18,
+   "likely_inflection": true
   },
   {
    "msa": "طلب",
    "yemeni": "يطلب",
-   "count": 18
+   "count": 18,
+   "likely_inflection": true
   },
   {
    "msa": "اشتكي",
    "yemeni": "يشتكي",
-   "count": 18
+   "count": 18,
+   "likely_inflection": true
   },
   {
    "msa": "فيلم",
    "yemeni": "فلم",
-   "count": 18
+   "count": 18,
+   "likely_inflection": true
   },
   {
    "msa": "اصلاحيه",
    "yemeni": "الاصلاحي",
-   "count": 18
+   "count": 18,
+   "likely_inflection": true
   },
   {
    "msa": "سفيه",
    "yemeni": "سفهاء",
-   "count": 18
+   "count": 18,
+   "likely_inflection": true
   },
   {
    "msa": "ماء",
    "yemeni": "مياه",
-   "count": 18
+   "count": 18,
+   "likely_inflection": false
   },
   {
    "msa": "سمع",
    "yemeni": "يسمع",
-   "count": 18
+   "count": 18,
+   "likely_inflection": true
   },
   {
    "msa": "اماره",
    "yemeni": "بالامارات",
-   "count": 18
+   "count": 18,
+   "likely_inflection": false
   },
   {
    "msa": "قانون",
    "yemeni": "قوانين",
-   "count": 18
+   "count": 18,
+   "likely_inflection": true
   },
   {
    "msa": "تحدي",
    "yemeni": "اتحداكم",
-   "count": 18
+   "count": 18,
+   "likely_inflection": false
   },
   {
    "msa": "احب",
    "yemeni": "يحبون",
-   "count": 18
+   "count": 18,
+   "likely_inflection": false
   },
   {
    "msa": "موطن",
    "yemeni": "والمواطن",
-   "count": 18
+   "count": 18,
+   "likely_inflection": true
   },
   {
    "msa": "قال",
    "yemeni": "قلتم",
-   "count": 18
+   "count": 18,
+   "likely_inflection": false
   },
   {
    "msa": "كان",
    "yemeni": "وكنت",
-   "count": 18
+   "count": 18,
+   "likely_inflection": false
   },
   {
    "msa": "سته",
    "yemeni": "ست",
-   "count": 18
+   "count": 18,
+   "likely_inflection": true
   },
   {
    "msa": "مارس",
    "yemeni": "يمارس",
-   "count": 18
+   "count": 18,
+   "likely_inflection": true
   },
   {
    "msa": "انف",
    "yemeni": "انوفكم",
-   "count": 18
+   "count": 18,
+   "likely_inflection": true
   },
   {
    "msa": "صلح",
    "yemeni": "يصلح",
-   "count": 18
+   "count": 18,
+   "likely_inflection": true
   },
   {
    "msa": "شيله",
    "yemeni": "شيلات",
-   "count": 18
+   "count": 18,
+   "likely_inflection": true
   },
   {
    "msa": "تحدي",
    "yemeni": "واتحداك",
-   "count": 18
+   "count": 18,
+   "likely_inflection": false
   },
   {
    "msa": "جهه",
    "yemeni": "الجهات",
-   "count": 18
+   "count": 18,
+   "likely_inflection": false
   },
   {
    "msa": "عائش",
    "yemeni": "عايشين",
-   "count": 18
+   "count": 18,
+   "likely_inflection": true
   },
   {
    "msa": "حدوديه",
    "yemeni": "الحد",
-   "count": 17
+   "count": 17,
+   "likely_inflection": false
   },
   {
    "msa": "ادام",
    "yemeni": "يديم",
-   "count": 17
+   "count": 17,
+   "likely_inflection": false
   },
   {
    "msa": "طفل",
    "yemeni": "عيال",
-   "count": 17
+   "count": 17,
+   "likely_inflection": false
   },
   {
    "msa": "مهمه",
    "yemeni": "المهم",
-   "count": 17
+   "count": 17,
+   "likely_inflection": true
   },
   {
    "msa": "دري",
    "yemeni": "ماادري",
-   "count": 17
+   "count": 17,
+   "likely_inflection": true
   },
   {
    "msa": "نسي",
    "yemeni": "تنسي",
-   "count": 17
+   "count": 17,
+   "likely_inflection": true
   },
   {
    "msa": "خلق",
    "yemeni": "اخلاقكم",
-   "count": 17
+   "count": 17,
+   "likely_inflection": true
   },
   {
    "msa": "احتل",
    "yemeni": "يحتلون",
-   "count": 17
+   "count": 17,
+   "likely_inflection": true
   },
   {
    "msa": "ناس",
    "yemeni": "ياناس",
-   "count": 17
+   "count": 17,
+   "likely_inflection": true
   },
   {
    "msa": "صرح",
    "yemeni": "يصرح",
-   "count": 17
+   "count": 17,
+   "likely_inflection": true
   },
   {
    "msa": "تواجد",
    "yemeni": "يتواجد",
-   "count": 17
+   "count": 17,
+   "likely_inflection": true
   },
   {
    "msa": "قليل",
    "yemeni": "قله",
-   "count": 17
+   "count": 17,
+   "likely_inflection": false
   },
   {
    "msa": "رحل",
    "yemeni": "يرحل",
-   "count": 17
+   "count": 17,
+   "likely_inflection": true
   },
   {
    "msa": "دعم",
    "yemeni": "وبدعم",
-   "count": 17
+   "count": 17,
+   "likely_inflection": true
   },
   {
    "msa": "شاف",
    "yemeni": "نشوفه",
-   "count": 17
+   "count": 17,
+   "likely_inflection": false
   },
   {
    "msa": "جاده",
    "yemeni": "جاد",
-   "count": 17
+   "count": 17,
+   "likely_inflection": true
   },
   {
    "msa": "قال",
    "yemeni": "ويقولوا",
-   "count": 17
+   "count": 17,
+   "likely_inflection": false
   },
   {
    "msa": "خرج",
    "yemeni": "تخرج",
-   "count": 17
+   "count": 17,
+   "likely_inflection": true
   },
   {
    "msa": "شهر",
    "yemeni": "اشهر",
-   "count": 17
+   "count": 17,
+   "likely_inflection": true
   },
   {
    "msa": "قريه",
    "yemeni": "القري",
-   "count": 17
+   "count": 17,
+   "likely_inflection": true
   },
   {
    "msa": "فعل",
    "yemeni": "يفعل",
-   "count": 17
+   "count": 17,
+   "likely_inflection": true
   },
   {
    "msa": "عاني",
    "yemeni": "يعانون",
-   "count": 17
+   "count": 17,
+   "likely_inflection": true
   },
   {
    "msa": "محمد",
    "yemeni": "يامحمد",
-   "count": 17
+   "count": 17,
+   "likely_inflection": true
   },
   {
    "msa": "ابو",
    "yemeni": "بو",
-   "count": 17
+   "count": 17,
+   "likely_inflection": true
   },
   {
    "msa": "صعلوك",
    "yemeni": "صعاليك",
-   "count": 17
+   "count": 17,
+   "likely_inflection": true
   },
   {
    "msa": "مصيبه",
    "yemeni": "مصائب",
-   "count": 17
+   "count": 17,
+   "likely_inflection": true
   },
   {
    "msa": "احضر",
    "yemeni": "جابوا",
-   "count": 17
+   "count": 17,
+   "likely_inflection": false
   },
   {
    "msa": "متحدثه",
    "yemeni": "المتحدث",
-   "count": 17
+   "count": 17,
+   "likely_inflection": true
   },
   {
    "msa": "كان",
    "yemeni": "يكونوا",
-   "count": 17
+   "count": 17,
+   "likely_inflection": false
   },
   {
    "msa": "سارق",
    "yemeni": "السرق",
-   "count": 17
+   "count": 17,
+   "likely_inflection": true
   },
   {
    "msa": "مليون",
    "yemeni": "مليونيه",
-   "count": 17
+   "count": 17,
+   "likely_inflection": true
   },
   {
    "msa": "صديق",
    "yemeni": "اصدقاء",
-   "count": 17
+   "count": 17,
+   "likely_inflection": true
   },
   {
    "msa": "اصبح",
    "yemeni": "اصبحتم",
-   "count": 17
+   "count": 17,
+   "likely_inflection": true
   },
   {
    "msa": "انتم",
    "yemeni": "انتوا",
-   "count": 17
+   "count": 17,
+   "likely_inflection": true
   },
   {
    "msa": "صدق",
    "yemeni": "تصدق",
-   "count": 17
+   "count": 17,
+   "likely_inflection": true
   },
   {
    "msa": "جبهه",
    "yemeni": "بالجبهات",
-   "count": 17
+   "count": 17,
+   "likely_inflection": false
   },
   {
    "msa": "رقبه",
    "yemeni": "رقابكم",
-   "count": 17
+   "count": 17,
+   "likely_inflection": true
   },
   {
    "msa": "كان",
    "yemeni": "وتكون",
-   "count": 17
+   "count": 17,
+   "likely_inflection": false
   },
   {
    "msa": "طفل",
    "yemeni": "اطفالنا",
-   "count": 17
+   "count": 17,
+   "likely_inflection": true
   },
   {
    "msa": "مال",
    "yemeni": "باموال",
-   "count": 17
+   "count": 17,
+   "likely_inflection": true
   },
   {
    "msa": "محافظه",
    "yemeni": "المحافظات",
-   "count": 17
+   "count": 17,
+   "likely_inflection": true
   },
   {
    "msa": "جاز",
    "yemeni": "يجوز",
-   "count": 17
+   "count": 17,
+   "likely_inflection": false
   },
   {
    "msa": "جاء",
    "yemeni": "ويجيك",
-   "count": 17
+   "count": 17,
+   "likely_inflection": false
   },
   {
    "msa": "منصب",
    "yemeni": "مناصب",
-   "count": 17
+   "count": 17,
+   "likely_inflection": true
   },
   {
    "msa": "شمعه",
    "yemeni": "الشموع",
-   "count": 17
+   "count": 17,
+   "likely_inflection": true
   },
   {
    "msa": "جعل",
    "yemeni": "اجعل",
-   "count": 17
+   "count": 17,
+   "likely_inflection": true
   },
   {
    "msa": "تحكم",
    "yemeni": "يتحكم",
-   "count": 17
+   "count": 17,
+   "likely_inflection": true
   },
   {
    "msa": "اربعون",
    "yemeni": "اربعين",
-   "count": 17
+   "count": 17,
+   "likely_inflection": true
   },
   {
    "msa": "صفحه",
    "yemeni": "صفحات",
-   "count": 17
+   "count": 17,
+   "likely_inflection": true
   },
   {
    "msa": "تحدث",
    "yemeni": "اتحدث",
-   "count": 17
+   "count": 17,
+   "likely_inflection": true
   },
   {
    "msa": "تبع",
    "yemeni": "واتباع",
-   "count": 17
+   "count": 17,
+   "likely_inflection": true
   },
   {
    "msa": "رحم",
    "yemeni": "يرحمك",
-   "count": 17
+   "count": 17,
+   "likely_inflection": true
   },
   {
    "msa": "عاش",
    "yemeni": "تعيش",
-   "count": 17
+   "count": 17,
+   "likely_inflection": false
   },
   {
    "msa": "بارك",
    "yemeni": "يبارك",
-   "count": 17
+   "count": 17,
+   "likely_inflection": true
   },
   {
    "msa": "قال",
    "yemeni": "بيقول",
-   "count": 17
+   "count": 17,
+   "likely_inflection": false
   },
   {
    "msa": "ساميه",
    "yemeni": "سامي",
-   "count": 17
+   "count": 17,
+   "likely_inflection": true
   },
   {
    "msa": "تال",
    "yemeni": "وبالتالي",
-   "count": 17
+   "count": 17,
+   "likely_inflection": false
   },
   {
    "msa": "غبي",
    "yemeni": "الاغبياء",
-   "count": 17
+   "count": 17,
+   "likely_inflection": false
   },
   {
    "msa": "تبع",
    "yemeni": "واتباعه",
-   "count": 17
+   "count": 17,
+   "likely_inflection": true
   },
   {
    "msa": "باع",
    "yemeni": "بعتوا",
-   "count": 17
+   "count": 17,
+   "likely_inflection": false
   },
   {
    "msa": "فيسبوك",
    "yemeni": "فيس",
-   "count": 17
+   "count": 17,
+   "likely_inflection": true
   },
   {
    "msa": "عاش",
    "yemeni": "عشت",
-   "count": 17
+   "count": 17,
+   "likely_inflection": true
   },
   {
    "msa": "انف",
    "yemeni": "خشومكم",
-   "count": 17
+   "count": 17,
+   "likely_inflection": false
   },
   {
    "msa": "نسي",
    "yemeni": "ننسي",
-   "count": 17
+   "count": 17,
+   "likely_inflection": true
   },
   {
    "msa": "نبح",
    "yemeni": "ينبح",
-   "count": 17
+   "count": 17,
+   "likely_inflection": true
   },
   {
    "msa": "جاهل",
    "yemeni": "جهله",
-   "count": 17
+   "count": 17,
+   "likely_inflection": true
   },
   {
    "msa": "احترم",
    "yemeni": "تحترم",
-   "count": 17
+   "count": 17,
+   "likely_inflection": true
   },
   {
    "msa": "الحالي",
    "yemeni": "وحاليا",
-   "count": 17
+   "count": 17,
+   "likely_inflection": true
   },
   {
    "msa": "اختلف",
    "yemeni": "نختلف",
-   "count": 17
+   "count": 17,
+   "likely_inflection": true
   },
   {
    "msa": "وجع",
    "yemeni": "توجع",
-   "count": 17
+   "count": 17,
+   "likely_inflection": true
   },
   {
    "msa": "فلس",
    "yemeni": "بفلوس",
-   "count": 17
+   "count": 17,
+   "likely_inflection": true
   },
   {
    "msa": "شيطان",
    "yemeni": "شياطين",
-   "count": 17
+   "count": 17,
+   "likely_inflection": true
   },
   {
    "msa": "اشتري",
    "yemeni": "تشتري",
-   "count": 17
+   "count": 17,
+   "likely_inflection": true
   },
   {
    "msa": "خائن",
    "yemeni": "ياخونه",
-   "count": 17
+   "count": 17,
+   "likely_inflection": false
   },
   {
    "msa": "امثل",
    "yemeni": "مثلا",
-   "count": 17
+   "count": 17,
+   "likely_inflection": true
   },
   {
    "msa": "استخدم",
    "yemeni": "تستخدم",
-   "count": 17
+   "count": 17,
+   "likely_inflection": true
   },
   {
    "msa": "شتي",
    "yemeni": "يشتي",
-   "count": 17
+   "count": 17,
+   "likely_inflection": true
   },
   {
    "msa": "شاف",
    "yemeni": "تشوفون",
-   "count": 17
+   "count": 17,
+   "likely_inflection": false
   },
   {
    "msa": "حلم",
    "yemeni": "احلام",
-   "count": 16
+   "count": 16,
+   "likely_inflection": true
   },
   {
    "msa": "تمني",
    "yemeni": "ونتمني",
-   "count": 16
+   "count": 16,
+   "likely_inflection": true
   },
   {
    "msa": "دولي",
    "yemeni": "دوليا",
-   "count": 16
+   "count": 16,
+   "likely_inflection": true
   },
   {
    "msa": "سعر",
    "yemeni": "الاسعار",
-   "count": 16
+   "count": 16,
+   "likely_inflection": true
   },
   {
    "msa": "اخ",
    "yemeni": "اخوي",
-   "count": 16
+   "count": 16,
+   "likely_inflection": true
   },
   {
    "msa": "تكلم",
    "yemeni": "بتتكلم",
-   "count": 16
+   "count": 16,
+   "likely_inflection": true
   },
   {
    "msa": "حفظ",
    "yemeni": "احفظ",
-   "count": 16
+   "count": 16,
+   "likely_inflection": true
   },
   {
    "msa": "قصف",
    "yemeni": "اقصفوا",
-   "count": 16
+   "count": 16,
+   "likely_inflection": true
   },
   {
    "msa": "ترك",
    "yemeni": "نترك",
-   "count": 16
+   "count": 16,
+   "likely_inflection": true
   },
   {
    "msa": "غريد",
    "yemeni": "تغريدتك",
-   "count": 16
+   "count": 16,
+   "likely_inflection": true
   },
   {
    "msa": "استطاع",
    "yemeni": "يستطيعون",
-   "count": 16
+   "count": 16,
+   "likely_inflection": false
   },
   {
    "msa": "اسم",
    "yemeni": "الاسماء",
-   "count": 16
+   "count": 16,
+   "likely_inflection": true
   },
   {
    "msa": "اخير",
    "yemeni": "واخيرا",
-   "count": 16
+   "count": 16,
+   "likely_inflection": true
   },
   {
    "msa": "عاده",
    "yemeni": "عادات",
-   "count": 16
+   "count": 16,
+   "likely_inflection": true
   },
   {
    "msa": "وفق",
    "yemeni": "يوفقكم",
-   "count": 16
+   "count": 16,
+   "likely_inflection": true
   },
   {
    "msa": "خروف",
    "yemeni": "خرفان",
-   "count": 16
+   "count": 16,
+   "likely_inflection": true
   },
   {
    "msa": "ذنب",
    "yemeni": "واذنابها",
-   "count": 16
+   "count": 16,
+   "likely_inflection": false
   },
   {
    "msa": "نساء",
    "yemeni": "الحريم",
-   "count": 16
+   "count": 16,
+   "likely_inflection": false
   },
   {
    "msa": "مر",
    "yemeni": "يمر",
-   "count": 16
+   "count": 16,
+   "likely_inflection": true
   },
   {
    "msa": "حقيقه",
    "yemeni": "حقيقتكم",
-   "count": 16
+   "count": 16,
+   "likely_inflection": true
   },
   {
    "msa": "دوله",
    "yemeni": "دولتين",
-   "count": 16
+   "count": 16,
+   "likely_inflection": true
   },
   {
    "msa": "تكلم",
    "yemeni": "وتتكلم",
-   "count": 16
+   "count": 16,
+   "likely_inflection": true
   },
   {
    "msa": "فلسطينيه",
    "yemeni": "فلسطيني",
-   "count": 16
+   "count": 16,
+   "likely_inflection": true
   },
   {
    "msa": "تكلم",
    "yemeni": "يتكلموا",
-   "count": 16
+   "count": 16,
+   "likely_inflection": true
   },
   {
    "msa": "دري",
    "yemeni": "ندري",
-   "count": 16
+   "count": 16,
+   "likely_inflection": true
   },
   {
    "msa": "قالب",
    "yemeni": "وقالبا",
-   "count": 16
+   "count": 16,
+   "likely_inflection": true
   },
   {
    "msa": "اخر",
    "yemeni": "واخرتها",
-   "count": 16
+   "count": 16,
+   "likely_inflection": true
   },
   {
    "msa": "اعان",
    "yemeni": "يعينكم",
-   "count": 16
+   "count": 16,
+   "likely_inflection": false
   },
   {
    "msa": "تباهي",
    "yemeni": "تهايط",
-   "count": 16
+   "count": 16,
+   "likely_inflection": true
   },
   {
    "msa": "استقبل",
    "yemeni": "واستقبلته",
-   "count": 16
+   "count": 16,
+   "likely_inflection": true
   },
   {
    "msa": "ناد",
    "yemeni": "ناديك",
-   "count": 16
+   "count": 16,
+   "likely_inflection": true
   },
   {
    "msa": "شاف",
    "yemeni": "واشوف",
-   "count": 16
+   "count": 16,
+   "likely_inflection": false
   },
   {
    "msa": "اخ",
    "yemeni": "اخوانج",
-   "count": 16
+   "count": 16,
+   "likely_inflection": false
   },
   {
    "msa": "نساء",
    "yemeni": "نسائهم",
-   "count": 16
+   "count": 16,
+   "likely_inflection": true
   },
   {
    "msa": "خنزير",
    "yemeni": "خنازير",
-   "count": 16
+   "count": 16,
+   "likely_inflection": true
   },
   {
    "msa": "خارج",
    "yemeni": "برا",
-   "count": 16
+   "count": 16,
+   "likely_inflection": false
   },
   {
    "msa": "جنوب",
    "yemeni": "الجنوبيه",
-   "count": 16
+   "count": 16,
+   "likely_inflection": true
   },
   {
    "msa": "سلم",
    "yemeni": "تسلم",
-   "count": 16
+   "count": 16,
+   "likely_inflection": true
   },
   {
    "msa": "عاني",
    "yemeni": "يعاني",
-   "count": 16
+   "count": 16,
+   "likely_inflection": true
   },
   {
    "msa": "بنك",
    "yemeni": "البنوك",
-   "count": 16
+   "count": 16,
+   "likely_inflection": true
   },
   {
    "msa": "اعان",
    "yemeni": "يعينك",
-   "count": 16
+   "count": 16,
+   "likely_inflection": false
   },
   {
    "msa": "ايضا",
    "yemeni": "برضه",
-   "count": 16
+   "count": 16,
+   "likely_inflection": false
   },
   {
    "msa": "ولد",
    "yemeni": "اولاده",
-   "count": 16
+   "count": 16,
+   "likely_inflection": true
   },
   {
    "msa": "حكي",
    "yemeni": "تحكي",
-   "count": 16
+   "count": 16,
+   "likely_inflection": true
   },
   {
    "msa": "اغنيه",
    "yemeni": "الاغاني",
-   "count": 16
+   "count": 16,
+   "likely_inflection": true
   },
   {
    "msa": "ميليشيا",
    "yemeni": "والمليشيات",
-   "count": 16
+   "count": 16,
+   "likely_inflection": true
   },
   {
    "msa": "خفيف",
    "yemeni": "خفافا",
-   "count": 16
+   "count": 16,
+   "likely_inflection": true
   },
   {
    "msa": "مستفيده",
    "yemeni": "المستفيد",
-   "count": 16
+   "count": 16,
+   "likely_inflection": true
   },
   {
    "msa": "لص",
    "yemeni": "واللصوص",
-   "count": 16
+   "count": 16,
+   "likely_inflection": false
   },
   {
    "msa": "خلي",
    "yemeni": "خلاهم",
-   "count": 16
+   "count": 16,
+   "likely_inflection": false
   },
   {
    "msa": "صيحه",
    "yemeni": "صياحكم",
-   "count": 16
+   "count": 16,
+   "likely_inflection": true
   },
   {
    "msa": "قال",
    "yemeni": "بيقولوا",
-   "count": 16
+   "count": 16,
+   "likely_inflection": false
   },
   {
    "msa": "حرك",
    "yemeni": "تحرك",
-   "count": 16
+   "count": 16,
+   "likely_inflection": true
   },
   {
    "msa": "غصب",
    "yemeni": "غصبا",
-   "count": 16
+   "count": 16,
+   "likely_inflection": true
   },
   {
    "msa": "اخ",
    "yemeni": "واخوه",
-   "count": 16
+   "count": 16,
+   "likely_inflection": false
   },
   {
    "msa": "خزن",
    "yemeni": "تخزن",
-   "count": 16
+   "count": 16,
+   "likely_inflection": true
   },
   {
    "msa": "حميده",
    "yemeni": "حميدتي",
-   "count": 16
+   "count": 16,
+   "likely_inflection": true
   },
   {
    "msa": "رضي",
    "yemeni": "يرضي",
-   "count": 16
+   "count": 16,
+   "likely_inflection": true
   },
   {
    "msa": "جاهل",
    "yemeni": "ياجاهل",
-   "count": 16
+   "count": 16,
+   "likely_inflection": true
   },
   {
    "msa": "صيحه",
    "yemeni": "الصياح",
-   "count": 16
+   "count": 16,
+   "likely_inflection": true
   },
   {
    "msa": "اختار",
    "yemeni": "يختار",
-   "count": 16
+   "count": 16,
+   "likely_inflection": true
   },
   {
    "msa": "صنع",
    "yemeni": "يصنع",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "عمل",
    "yemeni": "يعملوا",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "مرقص",
    "yemeni": "مراقص",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "اقليم",
    "yemeni": "اقاليم",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "زبانيه",
    "yemeni": "وزبانيته",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "تابع",
    "yemeni": "تتابع",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "هاجم",
    "yemeni": "تهاجم",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "طبل",
    "yemeni": "يطبل",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "فهم",
    "yemeni": "افهم",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "بلد",
    "yemeni": "والبلاد",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "كذب",
    "yemeni": "يكذب",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "راح",
    "yemeni": "يروحون",
-   "count": 15
+   "count": 15,
+   "likely_inflection": false
   },
   {
    "msa": "رقم",
    "yemeni": "الارقام",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "هجمه",
    "yemeni": "هجمات",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "جندي",
    "yemeni": "وجنوده",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "جاء",
    "yemeni": "يجوا",
-   "count": 15
+   "count": 15,
+   "likely_inflection": false
   },
   {
    "msa": "اسير",
    "yemeni": "الاسري",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "سني",
    "yemeni": "سنه",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "نام",
    "yemeni": "ينام",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "عمل",
    "yemeni": "نعمل",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "اكل",
    "yemeni": "كل",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "رجل",
    "yemeni": "لرجال",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "قال",
    "yemeni": "يقولك",
-   "count": 15
+   "count": 15,
+   "likely_inflection": false
   },
   {
    "msa": "يد",
    "yemeni": "بايدي",
-   "count": 15
+   "count": 15,
+   "likely_inflection": false
   },
   {
    "msa": "مجان",
    "yemeni": "مجانا",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "مشئوم",
    "yemeni": "المشؤومه",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "حاشيه",
    "yemeni": "وحاشيته",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "قضي",
    "yemeni": "نقضي",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "نوي",
    "yemeni": "ناوي",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "دعم",
    "yemeni": "وتدعم",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "استهدف",
    "yemeni": "يستهدفون",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "ادان",
    "yemeni": "يدين",
-   "count": 15
+   "count": 15,
+   "likely_inflection": false
   },
   {
    "msa": "صيحه",
    "yemeni": "صياح",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "عجيبه",
    "yemeni": "عجائب",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "قاتل",
    "yemeni": "ويقاتلون",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "سال",
    "yemeni": "نسال",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "منطقه",
    "yemeni": "والمناطق",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "حقيقه",
    "yemeni": "حقيقتهم",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "شان",
    "yemeni": "عشان",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "جثه",
    "yemeni": "جثثهم",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "رجل",
    "yemeni": "ورجالها",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "حرف",
    "yemeni": "حروف",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "قاتل",
    "yemeni": "نقاتل",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "ذهب",
    "yemeni": "روحوا",
-   "count": 15
+   "count": 15,
+   "likely_inflection": false
   },
   {
    "msa": "انتظر",
    "yemeni": "ينتظرون",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "خلق",
    "yemeni": "والاخلاق",
-   "count": 15
+   "count": 15,
+   "likely_inflection": false
   },
   {
    "msa": "سوف",
    "yemeni": "وراح",
-   "count": 15
+   "count": 15,
+   "likely_inflection": false
   },
   {
    "msa": "قتيل",
    "yemeni": "القتلي",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "سافل",
    "yemeni": "سفله",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "حدث",
    "yemeni": "تحدث",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "خوال",
    "yemeni": "خاليه",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "تابع",
    "yemeni": "يتابع",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "عرف",
    "yemeni": "ماتعرف",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "مميزه",
    "yemeni": "مميز",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "يد",
    "yemeni": "يداي",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "طالب",
    "yemeni": "يطالبون",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "نام",
    "yemeni": "تنام",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "ارسل",
    "yemeni": "يرسلون",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "شرط",
    "yemeni": "شروط",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "مجزره",
    "yemeni": "المجازر",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "قتيل",
    "yemeni": "قتلي",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "بهيمه",
    "yemeni": "بهائم",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "جاء",
    "yemeni": "جاكم",
-   "count": 15
+   "count": 15,
+   "likely_inflection": false
   },
   {
    "msa": "صفقه",
    "yemeni": "صفقات",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "انتقاليه",
    "yemeni": "للانتقالي",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "علاقه",
    "yemeni": "علاقات",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "مشكله",
    "yemeni": "مشكلتك",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "معمره",
    "yemeni": "معمر",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "بحث",
    "yemeni": "تبحث",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "عرس",
    "yemeni": "الاعراس",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "فكر",
    "yemeni": "يفكرون",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "تباكي",
    "yemeni": "تتباكون",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "اصلاحيه",
    "yemeni": "والاصلاحيين",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "ظن",
    "yemeni": "اظن",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "خلي",
    "yemeni": "خلاكم",
-   "count": 15
+   "count": 15,
+   "likely_inflection": false
   },
   {
    "msa": "اصل",
    "yemeni": "اصول",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "عائله",
    "yemeni": "وعائلته",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "تداعي",
    "yemeni": "تدعي",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "حمار",
    "yemeni": "ياحمار",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "سب",
    "yemeni": "تسب",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "اخير",
    "yemeni": "وبالاخير",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "جاء",
    "yemeni": "وجاي",
-   "count": 15
+   "count": 15,
+   "likely_inflection": false
   },
   {
    "msa": "رجل",
    "yemeni": "رجالكم",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "جاء",
    "yemeni": "وتجيء",
-   "count": 15
+   "count": 15,
+   "likely_inflection": false
   },
   {
    "msa": "حركه",
    "yemeni": "الحركات",
-   "count": 15
+   "count": 15,
+   "likely_inflection": false
   },
   {
    "msa": "قعد",
    "yemeni": "قاعد",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "دانق",
    "yemeni": "الدنق",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "قطريه",
    "yemeni": "القطريين",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "بلاده",
    "yemeni": "البلاد",
-   "count": 15
+   "count": 15,
+   "likely_inflection": true
   },
   {
    "msa": "امه",
    "yemeni": "للامم",
-   "count": 14
+   "count": 14,
+   "likely_inflection": false
   },
   {
    "msa": "وجه",
    "yemeni": "يوجه",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "مسئوليه",
    "yemeni": "مسؤوليه",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "حقد",
    "yemeni": "الاحقاد",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "وطن",
    "yemeni": "الاوطان",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "اكد",
    "yemeni": "ونؤكد",
-   "count": 14
+   "count": 14,
+   "likely_inflection": false
   },
   {
    "msa": "ذو",
    "yemeni": "ذي",
-   "count": 14
+   "count": 14,
+   "likely_inflection": false
   },
   {
    "msa": "يوم",
    "yemeni": "ايام",
-   "count": 14
+   "count": 14,
+   "likely_inflection": false
   },
   {
    "msa": "هجمه",
    "yemeni": "الهجمات",
-   "count": 14
+   "count": 14,
+   "likely_inflection": false
   },
   {
    "msa": "مصالحه",
    "yemeni": "مصالح",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "يهودي",
    "yemeni": "واليهود",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "عالمي",
    "yemeni": "عالميا",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "سوف",
    "yemeni": "با",
-   "count": 14
+   "count": 14,
+   "likely_inflection": false
   },
   {
    "msa": "مولود",
    "yemeni": "مواليد",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "كذب",
    "yemeni": "تكذبوا",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "رقد",
    "yemeni": "وارقدي",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "ترك",
    "yemeni": "يترك",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "اه",
    "yemeni": "اخ",
-   "count": 14
+   "count": 14,
+   "likely_inflection": false
   },
   {
    "msa": "صدق",
    "yemeni": "يصدق",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "بهيمه",
    "yemeni": "بهايم",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "حمله",
    "yemeni": "حملات",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "رمي",
    "yemeni": "ترمي",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "مدح",
    "yemeni": "تمدح",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "علاقه",
    "yemeni": "العلاقات",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "عندما",
    "yemeni": "يوم",
-   "count": 14
+   "count": 14,
+   "likely_inflection": false
   },
   {
    "msa": "فرح",
    "yemeni": "تفرح",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "بصق",
    "yemeni": "تف",
-   "count": 14
+   "count": 14,
+   "likely_inflection": false
   },
   {
    "msa": "لعن",
    "yemeni": "يلعنكم",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "شكل",
    "yemeni": "اشكال",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "خدم",
    "yemeni": "تخدم",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "شاف",
    "yemeni": "يشوفون",
-   "count": 14
+   "count": 14,
+   "likely_inflection": false
   },
   {
    "msa": "ذنب",
    "yemeni": "واذنابه",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "ستون",
    "yemeni": "ستين",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "انتصر",
    "yemeni": "ننتصر",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "اخ",
    "yemeni": "واخوك",
-   "count": 14
+   "count": 14,
+   "likely_inflection": false
   },
   {
    "msa": "عصابه",
    "yemeni": "وعصابته",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "فاض",
    "yemeni": "فاضيين",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "دعم",
    "yemeni": "تدعمه",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "عقل",
    "yemeni": "يعقل",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "مطلب",
    "yemeni": "مطالب",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "خنزير",
    "yemeni": "الخنازير",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "كفي",
    "yemeni": "تكفون",
-   "count": 14
+   "count": 14,
+   "likely_inflection": false
   },
   {
    "msa": "ذنب",
    "yemeni": "ياذنب",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "تاجر",
    "yemeni": "التجار",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "فانوس",
    "yemeni": "والفوانيس",
-   "count": 14
+   "count": 14,
+   "likely_inflection": false
   },
   {
    "msa": "دمر",
    "yemeni": "دمرتوا",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "حكومه",
    "yemeni": "حكومته",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "ضربه",
    "yemeni": "الضربات",
-   "count": 14
+   "count": 14,
+   "likely_inflection": false
   },
   {
    "msa": "فلس",
    "yemeni": "وفلوس",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "زعل",
    "yemeni": "تزعل",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "خادم",
    "yemeni": "خدم",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "مثل",
    "yemeni": "وامثاله",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "جنه",
    "yemeni": "جناته",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "مرض",
    "yemeni": "الامراض",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "جماعه",
    "yemeni": "ياجماعه",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "اعطي",
    "yemeni": "اعطاه",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "ماء",
    "yemeni": "المياه",
-   "count": 14
+   "count": 14,
+   "likely_inflection": false
   },
   {
    "msa": "اب",
    "yemeni": "وابو",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "صرخ",
    "yemeni": "تصرخ",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "بشريه",
    "yemeni": "بشري",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "بقي",
    "yemeni": "تبقي",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "اصاب",
    "yemeni": "اصيبت",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "سفير",
    "yemeni": "السفراء",
-   "count": 14
+   "count": 14,
+   "likely_inflection": false
   },
   {
    "msa": "مشتركه",
    "yemeni": "مشترك",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "صديق",
    "yemeni": "الاصدقاء",
-   "count": 14
+   "count": 14,
+   "likely_inflection": false
   },
   {
    "msa": "تمني",
    "yemeni": "يتمنون",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "دمر",
    "yemeni": "تدمر",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "تلميذ",
    "yemeni": "تلاميذ",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "تهمه",
    "yemeni": "التهم",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "شيطان",
    "yemeni": "الشياطين",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "كارثه",
    "yemeni": "الكوارث",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "فتح",
    "yemeni": "يفتح",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "صرف",
    "yemeni": "تصرف",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "زعيم",
    "yemeni": "زعماء",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "استخدم",
    "yemeni": "يستخدم",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "كبير",
    "yemeni": "وكبار",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "سرق",
    "yemeni": "يسرق",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "طفل",
    "yemeni": "اطفالهم",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "شارك",
    "yemeni": "يشارك",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "قارب",
    "yemeni": "يقارب",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "تعلم",
    "yemeni": "يتعلم",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "افترض",
    "yemeni": "يفترض",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "متحدثه",
    "yemeni": "متحدث",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "اهتم",
    "yemeni": "يهتم",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "رفع",
    "yemeni": "ترفع",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "عرف",
    "yemeni": "تدرون",
-   "count": 14
+   "count": 14,
+   "likely_inflection": false
   },
   {
    "msa": "جو",
    "yemeni": "اجواء",
-   "count": 14
+   "count": 14,
+   "likely_inflection": false
   },
   {
    "msa": "خيانه",
    "yemeni": "خيانات",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "ساوي",
    "yemeni": "يساوي",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "عندما",
    "yemeni": "لمن",
-   "count": 14
+   "count": 14,
+   "likely_inflection": false
   },
   {
    "msa": "استطاع",
    "yemeni": "تستطيعوا",
-   "count": 14
+   "count": 14,
+   "likely_inflection": false
   },
   {
    "msa": "باع",
    "yemeni": "بعت",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "جلس",
    "yemeni": "اجلس",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "جمع",
    "yemeni": "يجمع",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "قال",
    "yemeni": "قلك",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "محاصره",
    "yemeni": "محاصر",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "يهودي",
    "yemeni": "لليهود",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "تعاطف",
    "yemeni": "يتعاطف",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "قاتل",
    "yemeni": "تقاتلون",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "حشره",
    "yemeni": "حشرات",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "دم",
    "yemeni": "ودماء",
-   "count": 14
+   "count": 14,
+   "likely_inflection": false
   },
   {
    "msa": "راح",
    "yemeni": "رحت",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "فعل",
    "yemeni": "تفعل",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "ظن",
    "yemeni": "تظن",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "شيء",
    "yemeni": "هالشيء",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "انهي",
    "yemeni": "ننهي",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "اجنبي",
    "yemeni": "اجانب",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "خرج",
    "yemeni": "اخرج",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "انتظر",
    "yemeni": "ينتظر",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "معني",
    "yemeni": "معناها",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "اعطي",
    "yemeni": "اعطاهم",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "كفي",
    "yemeni": "يكفينا",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "شافع",
    "yemeni": "الشوافع",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "ولي",
    "yemeni": "اولياء",
-   "count": 14
+   "count": 14,
+   "likely_inflection": true
   },
   {
    "msa": "صاح",
    "yemeni": "تصيح",
-   "count": 14
+   "count": 14,
+   "likely_inflection": false
   },
   {
    "msa": "لغم",
    "yemeni": "الالغام",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "عميل",
    "yemeni": "والعملاء",
-   "count": 13
+   "count": 13,
+   "likely_inflection": false
   },
   {
    "msa": "استلم",
    "yemeni": "يستلمون",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "ارض",
    "yemeni": "اراضيهم",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "ايضا",
    "yemeni": "كمان",
-   "count": 13
+   "count": 13,
+   "likely_inflection": false
   },
   {
    "msa": "وقع",
    "yemeni": "يوقع",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "فدي",
    "yemeni": "نفديك",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "ستون",
    "yemeni": "الستين",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "كارثه",
    "yemeni": "كوارث",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "خيانه",
    "yemeni": "الخيانات",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "ملك",
    "yemeni": "املاك",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "وظيفه",
    "yemeni": "الوظائف",
-   "count": 13
+   "count": 13,
+   "likely_inflection": false
   },
   {
    "msa": "تفرج",
    "yemeni": "يتفرج",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "مشاركه",
    "yemeni": "مشاركتكم",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "اتهم",
    "yemeni": "تتهم",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "هيا",
    "yemeni": "يلا",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "مدرسه",
    "yemeni": "والمدارس",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "مترس",
    "yemeni": "المتارس",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "تعرض",
    "yemeni": "تتعرض",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "عرف",
    "yemeni": "مايعرف",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "جاسوس",
    "yemeni": "جواسيس",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "اقليم",
    "yemeni": "الاقاليم",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "نبح",
    "yemeni": "تنابح",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "سبعه",
    "yemeni": "سبع",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "تذكر",
    "yemeni": "نتذكر",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "تحدي",
    "yemeni": "واتحدي",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "صاروخ",
    "yemeni": "صواريخهم",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "استطاع",
    "yemeni": "يستطع",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "مطعم",
    "yemeni": "المطاعم",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "استخدم",
    "yemeni": "يستخدمه",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "جبهه",
    "yemeni": "للجبهات",
-   "count": 13
+   "count": 13,
+   "likely_inflection": false
   },
   {
    "msa": "ذيل",
    "yemeni": "ذيول",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "عمل",
    "yemeni": "سوا",
-   "count": 13
+   "count": 13,
+   "likely_inflection": false
   },
   {
    "msa": "حاله",
    "yemeni": "حالات",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "منظمه",
    "yemeni": "المنظمات",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "مكان",
    "yemeni": "الاماكن",
-   "count": 13
+   "count": 13,
+   "likely_inflection": false
   },
   {
    "msa": "يوم",
    "yemeni": "والايام",
-   "count": 13
+   "count": 13,
+   "likely_inflection": false
   },
   {
    "msa": "جزمه",
    "yemeni": "جزمات",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "عائش",
    "yemeni": "وعايشين",
-   "count": 13
+   "count": 13,
+   "likely_inflection": false
   },
   {
    "msa": "حرب",
    "yemeni": "حربا",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "قصد",
    "yemeni": "اقصد",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "عصابه",
    "yemeni": "وعصابات",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "ارض",
    "yemeni": "اراضيها",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "دعم",
    "yemeni": "يدعمه",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "كتاب",
    "yemeni": "كتب",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "ليت",
    "yemeni": "ياليت",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "تحالف",
    "yemeni": "يتحالف",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "وزير",
    "yemeni": "الوزراء",
-   "count": 13
+   "count": 13,
+   "likely_inflection": false
   },
   {
    "msa": "ولد",
    "yemeni": "واولاده",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "توقع",
    "yemeni": "نتوقع",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "مرابطه",
    "yemeni": "مرابط",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "طمع",
    "yemeni": "اطماع",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "صلح",
    "yemeni": "تصلح",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "قال",
    "yemeni": "يقولها",
-   "count": 13
+   "count": 13,
+   "likely_inflection": false
   },
   {
    "msa": "ارتاح",
    "yemeni": "نرتاح",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "استقبل",
    "yemeni": "يستقبل",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "اوسط",
    "yemeni": "الوسطي",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "اتهم",
    "yemeni": "يتهم",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "ضرب",
    "yemeni": "يضربوا",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "مليء",
    "yemeni": "مليئه",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "ظن",
    "yemeni": "يظن",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "شعب",
    "yemeni": "ياشعب",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "صهيوني",
    "yemeni": "صهاينه",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "جزمه",
    "yemeni": "جزم",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "مستفيده",
    "yemeni": "مستفيدين",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "يد",
    "yemeni": "بايديهم",
-   "count": 13
+   "count": 13,
+   "likely_inflection": false
   },
   {
    "msa": "طول",
    "yemeni": "تطول",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "اشتري",
    "yemeni": "اشتراه",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "فعاليه",
    "yemeni": "فعاليات",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "كان",
    "yemeni": "بتكون",
-   "count": 13
+   "count": 13,
+   "likely_inflection": false
   },
   {
    "msa": "ضرب",
    "yemeni": "اضرب",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "فدي",
    "yemeni": "فدا",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "الذي",
    "yemeni": "لي",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "رحم",
    "yemeni": "يرحمها",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "اراد",
    "yemeni": "لانريد",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "انف",
    "yemeni": "خشومهم",
-   "count": 13
+   "count": 13,
+   "likely_inflection": false
   },
   {
    "msa": "قال",
    "yemeni": "قولوا",
-   "count": 13
+   "count": 13,
+   "likely_inflection": false
   },
   {
    "msa": "عاني",
    "yemeni": "نعاني",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "حين",
    "yemeni": "احيانا",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "مسئول",
    "yemeni": "المسؤول",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "اب",
    "yemeni": "ابا",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "نجس",
    "yemeni": "انجاس",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "عند",
    "yemeni": "ماعندهم",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "تبع",
    "yemeni": "واتباعهم",
-   "count": 13
+   "count": 13,
+   "likely_inflection": false
   },
   {
    "msa": "مع",
    "yemeni": "معاكم",
-   "count": 13
+   "count": 13,
+   "likely_inflection": false
   },
   {
    "msa": "نهايه",
    "yemeni": "نهايتهم",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "بلد",
    "yemeni": "لبلاد",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "موقع",
    "yemeni": "مواقعهم",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "محروقات",
    "yemeni": "محروق",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "ثعبان",
    "yemeni": "الثعابين",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "حقير",
    "yemeni": "ياحقير",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "عرض",
    "yemeni": "الاعراض",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "شخصيه",
    "yemeni": "الشخصيات",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "رمه",
    "yemeni": "الرمم",
-   "count": 13
+   "count": 13,
+   "likely_inflection": false
   },
   {
    "msa": "سلط",
    "yemeni": "يسلط",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "فرج",
    "yemeni": "يفرجها",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "ضرب",
    "yemeni": "يضربون",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "شاف",
    "yemeni": "يشوفوا",
-   "count": 13
+   "count": 13,
+   "likely_inflection": false
   },
   {
    "msa": "كلاميه",
    "yemeni": "كلامي",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "مال",
    "yemeni": "اموالكم",
-   "count": 13
+   "count": 13,
+   "likely_inflection": true
   },
   {
    "msa": "اعتقد",
    "yemeni": "يعتقدون",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "سياره",
    "yemeni": "سيارات",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "مرتزقه",
    "yemeni": "ومرتزق",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "لعنه",
    "yemeni": "لعنتي",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "دقيقه",
    "yemeni": "دقائق",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "اخ",
    "yemeni": "اخوتنا",
-   "count": 12
+   "count": 12,
+   "likely_inflection": false
   },
   {
    "msa": "ركن",
    "yemeni": "اركان",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "عرف",
    "yemeni": "يعرفه",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "بقي",
    "yemeni": "مابقي",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "انتهي",
    "yemeni": "انتهوا",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "سجل",
    "yemeni": "يسجل",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "جيل",
    "yemeni": "الاجيال",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "مسيره",
    "yemeni": "مسير",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "جبل",
    "yemeni": "جبال",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "نصراني",
    "yemeni": "والنصاري",
-   "count": 12
+   "count": 12,
+   "likely_inflection": false
   },
   {
    "msa": "كفي",
    "yemeni": "تكفي",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "قرد",
    "yemeni": "قرود",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "سته",
    "yemeni": "الست",
-   "count": 12
+   "count": 12,
+   "likely_inflection": false
   },
   {
    "msa": "ثالث",
    "yemeni": "ثالثا",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "دافع",
    "yemeni": "تدافعون",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "جبل",
    "yemeni": "الجبال",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "مؤسسه",
    "yemeni": "المؤسسات",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "خرج",
    "yemeni": "تخرجوا",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "قال",
    "yemeni": "اقلك",
-   "count": 12
+   "count": 12,
+   "likely_inflection": false
   },
   {
    "msa": "عاد",
    "yemeni": "ماعاد",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "خروف",
    "yemeni": "طلي",
-   "count": 12
+   "count": 12,
+   "likely_inflection": false
   },
   {
    "msa": "شاء",
    "yemeni": "ماشاء",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "عبايه",
    "yemeni": "عبايات",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "ادان",
    "yemeni": "تدان",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "نصح",
    "yemeni": "انصحك",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "قال",
    "yemeni": "قلتها",
-   "count": 12
+   "count": 12,
+   "likely_inflection": false
   },
   {
    "msa": "قتل",
    "yemeni": "تقاتل",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "مخططه",
    "yemeni": "مخططات",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "ميليشيا",
    "yemeni": "للمليشيات",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "طالب",
    "yemeni": "يطالبوا",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "فضيحه",
    "yemeni": "الفضائح",
-   "count": 12
+   "count": 12,
+   "likely_inflection": false
   },
   {
    "msa": "قال",
    "yemeni": "وقلنا",
-   "count": 12
+   "count": 12,
+   "likely_inflection": false
   },
   {
    "msa": "مؤيده",
    "yemeni": "مؤيدين",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "جندي",
    "yemeni": "جنودك",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "احضر",
    "yemeni": "تجيب",
-   "count": 12
+   "count": 12,
+   "likely_inflection": false
   },
   {
    "msa": "طفل",
    "yemeni": "للاطفال",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "غطي",
    "yemeni": "تغطي",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "ضرب",
    "yemeni": "بيضرب",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "قدم",
    "yemeni": "اقدامهم",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "عني",
    "yemeni": "تعني",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "ادعي",
    "yemeni": "تدعي",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "زمره",
    "yemeni": "وزمرته",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "صيحه",
    "yemeni": "صياحك",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "فكر",
    "yemeni": "افكار",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "ثوب",
    "yemeni": "ثياب",
-   "count": 12
+   "count": 12,
+   "likely_inflection": false
   },
   {
    "msa": "نصر",
    "yemeni": "ينصرهم",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "توقع",
    "yemeni": "تتوقعون",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "رجل",
    "yemeni": "رجاجيل",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "غني",
    "yemeni": "يغني",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "مجمده",
    "yemeni": "المجمد",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "ذنب",
    "yemeni": "واذنابهم",
-   "count": 12
+   "count": 12,
+   "likely_inflection": false
   },
   {
    "msa": "انتهي",
    "yemeni": "وانتهت",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "ضرب",
    "yemeni": "نضرب",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "رغم",
    "yemeni": "رغما",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "انقلب",
    "yemeni": "تنقلب",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "تاجر",
    "yemeni": "وتجار",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "برقع",
    "yemeni": "البراقع",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "حرر",
    "yemeni": "يحرروا",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "اكد",
    "yemeni": "تاكد",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "ايد",
    "yemeni": "تؤيد",
-   "count": 12
+   "count": 12,
+   "likely_inflection": false
   },
   {
    "msa": "مجري",
    "yemeni": "المجاري",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "شبق",
    "yemeni": "الشبك",
-   "count": 12
+   "count": 12,
+   "likely_inflection": false
   },
   {
    "msa": "الله",
    "yemeni": "يالله",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "استخدم",
    "yemeni": "يستخدمون",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "نسي",
    "yemeni": "لاتنسي",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "فكر",
    "yemeni": "تفكرون",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "رجل",
    "yemeni": "للرجال",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "نادي",
    "yemeni": "وتنادي",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "مئه",
    "yemeni": "المئات",
-   "count": 12
+   "count": 12,
+   "likely_inflection": false
   },
   {
    "msa": "اخذ",
    "yemeni": "خذوا",
-   "count": 12
+   "count": 12,
+   "likely_inflection": false
   },
   {
    "msa": "عاصمه",
    "yemeni": "عواصم",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "غريد",
    "yemeni": "تغريده",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "ولد",
    "yemeni": "اولادهم",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "جريح",
    "yemeni": "والجرحي",
-   "count": 12
+   "count": 12,
+   "likely_inflection": false
   },
   {
    "msa": "جندي",
    "yemeni": "والجنود",
-   "count": 12
+   "count": 12,
+   "likely_inflection": false
   },
   {
    "msa": "عيد",
    "yemeni": "يعيدوا",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "لعبه",
    "yemeni": "اللعب",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "سال",
    "yemeni": "اسالكم",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "قائد",
    "yemeni": "القاده",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "زاد",
    "yemeni": "زد",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "وفق",
    "yemeni": "يوفق",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "يد",
    "yemeni": "يديه",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "اسير",
    "yemeni": "اسري",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "متابعه",
    "yemeni": "المتابعين",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "قصف",
    "yemeni": "يقصفوا",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "فكر",
    "yemeni": "افكر",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "قتل",
    "yemeni": "ويقتل",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "تحديد",
    "yemeni": "تحديدا",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "تعامل",
    "yemeni": "يتعامل",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "تركي",
    "yemeni": "والاتراك",
-   "count": 12
+   "count": 12,
+   "likely_inflection": false
   },
   {
    "msa": "شاشه",
    "yemeni": "الشاشات",
-   "count": 12
+   "count": 12,
+   "likely_inflection": false
   },
   {
    "msa": "دوله",
    "yemeni": "الدولتين",
-   "count": 12
+   "count": 12,
+   "likely_inflection": false
   },
   {
    "msa": "روح",
    "yemeni": "ارواح",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "بند",
    "yemeni": "بنود",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "مشكله",
    "yemeni": "ومشاكل",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "غاره",
    "yemeni": "الغارات",
-   "count": 12
+   "count": 12,
+   "likely_inflection": false
   },
   {
    "msa": "يتيم",
    "yemeni": "ايتام",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "دعم",
    "yemeni": "يدعمهم",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "ارسل",
    "yemeni": "ويرسل",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "تطاول",
    "yemeni": "يتطاول",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "ذكر",
    "yemeni": "يذكر",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "اسره",
    "yemeni": "واسرته",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "نذل",
    "yemeni": "والانذال",
-   "count": 12
+   "count": 12,
+   "likely_inflection": false
   },
   {
    "msa": "قصف",
    "yemeni": "تقصفوا",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "خلق",
    "yemeni": "اخلاقنا",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "انتهي",
    "yemeni": "ستنتهي",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "حاول",
    "yemeni": "نحاول",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "خير",
    "yemeni": "خيراتها",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "حكم",
    "yemeni": "يحكم",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "جريح",
    "yemeni": "جرحي",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "تغير",
    "yemeni": "يتغير",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "انتقد",
    "yemeni": "تنتقد",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "ارض",
    "yemeni": "اراضيكم",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "استغل",
    "yemeni": "يستغل",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "قائد",
    "yemeni": "وقاده",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "وفق",
    "yemeni": "يوفقك",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "دار",
    "yemeni": "يدور",
-   "count": 12
+   "count": 12,
+   "likely_inflection": false
   },
   {
    "msa": "اصبح",
    "yemeni": "قدها",
-   "count": 12
+   "count": 12,
+   "likely_inflection": false
   },
   {
    "msa": "عرف",
    "yemeni": "تعرفي",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "راح",
    "yemeni": "اروح",
-   "count": 12
+   "count": 12,
+   "likely_inflection": false
   },
   {
    "msa": "لم",
    "yemeni": "مالم",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "قدره",
    "yemeni": "قدرات",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "قال",
    "yemeni": "قلته",
-   "count": 12
+   "count": 12,
+   "likely_inflection": false
   },
   {
    "msa": "دفع",
    "yemeni": "ادفع",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "دخل",
    "yemeni": "دخلتوا",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "عرف",
    "yemeni": "ونعرف",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "جاء",
    "yemeni": "يجيكم",
-   "count": 12
+   "count": 12,
+   "likely_inflection": false
   },
   {
    "msa": "راح",
    "yemeni": "روحوا",
-   "count": 12
+   "count": 12,
+   "likely_inflection": false
   },
   {
    "msa": "استفاد",
    "yemeni": "يستفيد",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "صار",
    "yemeni": "ويصير",
-   "count": 12
+   "count": 12,
+   "likely_inflection": false
   },
   {
    "msa": "ولد",
    "yemeni": "واولاد",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "معي",
    "yemeni": "معاهم",
-   "count": 12
+   "count": 12,
+   "likely_inflection": false
   },
   {
    "msa": "فلس",
    "yemeni": "فلوسكم",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "بلد",
    "yemeni": "وبلاد",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "ولاء",
    "yemeni": "ولائهم",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "فلس",
    "yemeni": "بالفلوس",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "نهايه",
    "yemeni": "نهايتك",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "قال",
    "yemeni": "قله",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "اهان",
    "yemeni": "يهين",
-   "count": 12
+   "count": 12,
+   "likely_inflection": false
   },
   {
    "msa": "عائش",
    "yemeni": "عايشه",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "عاوز",
    "yemeni": "عايزه",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "ابو",
    "yemeni": "يابو",
-   "count": 12
+   "count": 12,
+   "likely_inflection": true
   },
   {
    "msa": "رجل",
    "yemeni": "راجل",
-   "count": 11
+   "count": 11,
+   "likely_inflection": true
   },
   {
    "msa": "اعطي",
    "yemeni": "عطني",
-   "count": 11
+   "count": 11,
+   "likely_inflection": true
   },
   {
    "msa": "انطبق",
    "yemeni": "تنطبق",
-   "count": 11
+   "count": 11,
+   "likely_inflection": true
   },
   {
    "msa": "صاروخ",
    "yemeni": "الصورايخ",
-   "count": 11
+   "count": 11,
+   "likely_inflection": false
   },
   {
    "msa": "اعطي",
    "yemeni": "يعطيهم",
-   "count": 11
+   "count": 11,
+   "likely_inflection": true
   },
   {
    "msa": "حفظ",
    "yemeni": "ويحفظ",
-   "count": 11
+   "count": 11,
+   "likely_inflection": true
   },
   {
    "msa": "صنع",
    "yemeni": "تصنع",
-   "count": 11
+   "count": 11,
+   "likely_inflection": true
   },
   {
    "msa": "اثر",
    "yemeni": "الاثار",
-   "count": 11
+   "count": 11,
+   "likely_inflection": true
   },
   {
    "msa": "انتم",
    "yemeni": "ماانتم",
-   "count": 11
+   "count": 11,
+   "likely_inflection": true
   },
   {
    "msa": "قارن",
    "yemeni": "يقارن",
-   "count": 11
+   "count": 11,
+   "likely_inflection": true
   },
   {
    "msa": "مستفيده",
    "yemeni": "المستفيدين",
-   "count": 11
+   "count": 11,
+   "likely_inflection": true
   },
   {
    "msa": "عرس",
    "yemeni": "اعراس",
-   "count": 11
+   "count": 11,
+   "likely_inflection": true
   },
   {
    "msa": "صاروخ",
    "yemeni": "صواريخنا",
-   "count": 11
+   "count": 11,
+   "likely_inflection": true
   },
   {
    "msa": "تاريخي",
    "yemeni": "تاريخيا",
-   "count": 11
+   "count": 11,
+   "likely_inflection": true
   },
   {
    "msa": "جريمه",
    "yemeni": "جرائمهم",
-   "count": 11
+   "count": 11,
+   "likely_inflection": true
   }
  ]
 }

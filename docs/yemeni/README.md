@@ -108,13 +108,18 @@ vocabulary into lessons.
 1. Mine `dialect-markers.json` for negation, demonstrative, interrogative and
    vocabulary rules; add them to `dialect_rules` (`dialect = 'Yemeni'`) with
    ✅/❌ examples. Skip political tokens.
-2. Derive MSA→Yemeni substitution candidates from `lexicon-full.json` by
-   clitic-stripped stem divergence (`بس⟵لكن`, `ليش⟵لماذا`, `ايش⟵ماذا`,
-   `احنا⟵نحن`, `خل⟵دع`, `عشان⟵أجل`). Triage before seeding: Arabic hollow and
-   weak verbs shift their surface consonants (`قال → يقول`, `كان → يكون`,
-   `شاف → نشوف`), so stem comparison alone reads verb conjugation as lexical
-   substitution and would seed "use يقول instead of قال" — a tense change, not
-   a dialect rule.
+2. Derive MSA→Yemeni substitution candidates with
+   `scripts/derive-yemeni-rule-candidates.py`, which writes
+   `rule-candidates.json`. It is closed-class only, never proposes a form that
+   is itself MSA, and flags Egyptian code-switches rather than proposing them —
+   see the module docstring for why each of those exists. The curated result is
+   seeded by `supabase/migrations/20260804120000_yemeni_corpus_rule_drafts.sql`.
+
+   If you widen it to content words, triage before seeding: Arabic broken
+   plurals change the internal vowel pattern (`فانوس → الفوانيس`) and hollow
+   verbs shift their surface consonants (`قال → يقول`, `كان → يكون`), so stem
+   comparison reads both as lexical substitution and would seed "use يقول
+   instead of قال" — a tense change, not a dialect rule.
 3. Use `affix-inventory.json` for grammar rules: `ما...ش` negation, the `لـ`
    imperative negation the paper singles out for Yemeni (`لتخافون` for MSA
    `لا تخافوا`), possessive `حق`.

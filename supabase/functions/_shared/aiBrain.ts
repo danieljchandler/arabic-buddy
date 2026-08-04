@@ -319,14 +319,24 @@ async function callModel(opts: CallOptions): Promise<{ raw: string; parsed: unkn
     authKey = opts.apiKey;
   }
 
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${authKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(body),
-  });
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${authKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    });
+  } catch (err) {
+    const name = (err as Error)?.name ?? '';
+    if (name === 'TimeoutError' || name === 'AbortError') {
+      throw new BrainHttpError(504, `${route} ${opts.model} timed out after ${FETCH_TIMEOUT_MS}ms`);
+    }
+    throw new BrainHttpError(502, `${route} ${opts.model} fetch failed: ${(err as Error)?.message ?? String(err)}`);
+  }
 
   if (!res.ok) {
     const text = await res.text().catch(() => '');

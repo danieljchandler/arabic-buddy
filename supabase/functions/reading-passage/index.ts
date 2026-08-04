@@ -123,6 +123,7 @@ ${topicContext}
 Split the passage into individual sentences in the "lines" array (each line = one sentence with its Arabic text, natural English translation, and literal word-for-word gloss). Generate 3-4 vocabulary items and 2-3 comprehension questions.`;
 
     let passage: any;
+    const tGen = Date.now();
     try {
       const brain = await askBrain<any>({
         purpose: "reading_passage",
@@ -132,6 +133,9 @@ Split the passage into individual sentences in the "lines" array (each line = on
         userPrompt,
         maxTokens: 3072,
         temperature: 0.8,
+        budgetMs: 80_000,
+        qualityGate: passageQualityGate,
+
         arabicTextPath: (p: any) => {
           const parts: string[] = [];
           if (typeof p?.title === "string") parts.push(p.title);

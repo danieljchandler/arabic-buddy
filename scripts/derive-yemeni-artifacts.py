@@ -72,7 +72,22 @@ content=[entry(n,{'class':'content_word'}) for n in tot
 content.sort(key=lambda e:-e['count'])
 dialect_specific=func+content[:1200-len(func)] if len(func)<1200 else func[:1200]
 
-msa_pairs=[{'msa':a,'yemeni':b,'count':c} for (a,b),c in pairs.most_common(4000) if c>=3][:1500]
+# Drop pairs that differ only by clitics/affixes: those are morphology, not
+# MSA->Yemeni lexical substitutions, and they crowd out the useful pairs.
+PROCLITIC=['وال','فال','بال','كال','لل','ال','و','ف','ب','ل','ك','س']
+ENCLITIC=['ها','هم','هن','هما','ني','نا','كم','كن','ك','ه','ي','ات','ون','ين','ان','وا','ت','ه']
+def clitic_variant(msa,yem):
+    if yem==msa: return True
+    for pre in ['']+PROCLITIC:
+        if not yem.startswith(pre): continue
+        core=yem[len(pre):]
+        for suf in ['']+ENCLITIC:
+            if suf and not core.endswith(suf): continue
+            stem=core[:len(core)-len(suf)] if suf else core
+            if stem==msa: return True
+    return False
+msa_pairs=[{'msa':a,'yemeni':b,'count':c} for (a,b),c in pairs.most_common()
+           if c>=3 and not clitic_variant(a,b)][:1500]
 allow=sorted({e['norm'] for e in dialect_specific} | {t['norm'] for t in tokens})
 
 checks=[]
@@ -93,6 +108,8 @@ chk('content_words_low_overlap_with_top200_frequency', ov<=40, f'{ov}/200 overla
 chk('dialect_specific_size', 300<=len(dialect_specific)<=1200, str(len(dialect_specific)))
 chk('function_word_evidence_present', len(func)>=50, f'{len(func)} function words')
 chk('msa_pairs_differ', all(p['msa']!=p['yemeni'] for p in msa_pairs), f'{len(msa_pairs)} pairs')
+chk('msa_pairs_not_clitic_only', not any(clitic_variant(p['msa'],p['yemeni']) for p in msa_pairs),
+    f'{sum(1 for p in msa_pairs if clitic_variant(p["msa"],p["yemeni"]))} clitic-only pairs')
 chk('tokens_2000', len(tokens)==2000, str(len(tokens)))
 chk('all_arabic', all(AR.match(t['norm']) for t in tokens+dialect_specific), 'ok')
 

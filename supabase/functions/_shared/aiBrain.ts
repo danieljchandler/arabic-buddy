@@ -506,21 +506,19 @@ async function callModelWithFallback(
     classify(err);
   }
 
-  // Attempt 2: same model, lower temperature (more deterministic tool calls).
+  // Attempt 2: ONE same-model retry that applies both perturbations at once —
+  // lower temperature and an explicit reminder to call the tool. These used to
+  // be two separate attempts, which meant a model that simply won't emit this
+  // tool schema burned three full-length generations before the stable chain
+  // was even tried, leaving the fallback with no deadline left (the Yemeni
+  // reading-passage 504s). One re-roll catches the flaky case; a second never
+  // did.
   if (!timedOut && remainingMs(deadline) > MIN_PASS_BUDGET_MS) {
     try {
-      console.warn(`[aiBrain] ${opts.model} retry #1 (lower temp)`);
-      return await attempt({ ...opts, temperature: 0.2 }, opts.model);
-    } catch (err) {
-      classify(err);
-    }
-  }
-
-  // Attempt 3: same model, nudge the system prompt to remind it to use the tool.
-  if (opts.tool && !timedOut && remainingMs(deadline) > MIN_PASS_BUDGET_MS) {
-    try {
-      console.warn(`[aiBrain] ${opts.model} retry #2 (tool nudge)`);
-      const nudged = `${opts.system}\n\nIMPORTANT: You MUST respond by calling the function "${opts.tool.name}". Do not write any prose. Return only the function call.`;
+      console.warn(`[aiBrain] ${opts.model} retry #1 (lower temp + tool nudge)`);
+      const nudged = opts.tool
+        ? `${opts.system}\n\nIMPORTANT: You MUST respond by calling the function "${opts.tool.name}". Do not write any prose. Return only the function call.`
+        : opts.system;
       return await attempt({ ...opts, system: nudged, temperature: 0.2 }, opts.model);
     } catch (err) {
       classify(err);

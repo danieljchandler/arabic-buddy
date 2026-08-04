@@ -1,44 +1,62 @@
 {
+ "source": "Lisan-Yemeni annotated corpus",
  "stats": {
   "rows_read": 994413,
-  "rows_skipped_non_arabic": 32872,
-  "unique_norm_tokens": 98114,
-  "unique_dialect_only_tokens": 42536,
-  "msa_pair_types": 63326
+  "rows_skipped": 41586,
+  "unique_norm_tokens": 98089,
+  "dialect_function_words": 561,
+  "dialect_content_words": 639,
+  "msa_pair_types": 63321,
+  "allowlist_size": 2796
  },
  "checks": [
   {
-   "check": "dialect_specific_all_msa_lemma_id_zero",
+   "check": "no_msa_function_words_in_dialect_specific",
    "pass": true,
-   "detail": "0 entries with nonzero MSALemmaID"
+   "detail": "stoplist members found: []"
   },
   {
-   "check": "dialect_specific_overlap_with_top_frequency_under_50pct",
-   "pass": false,
-   "detail": "704/1200 = 59%"
-  },
-  {
-   "check": "dialect_specific_top10_not_generic_stopwords",
-   "pass": false,
-   "detail": "top10=['من', 'بس', 'الحوثي', 'عفاش', 'الله', 'في', 'اليمن', 'ما', 'لا', 'اللي']"
-  },
-  {
-   "check": "dialect_specific_min_size",
+   "check": "no_proper_nouns_in_dialect_specific",
    "pass": true,
-   "detail": "1200 entries"
+   "detail": "0 proper nouns: []"
   },
   {
-   "check": "msa_pairs_msa_differs_from_yemeni",
+   "check": "content_words_have_no_msa_lemma",
+   "pass": true,
+   "detail": "0 violations"
+  },
+  {
+   "check": "top10_not_generic",
+   "pass": true,
+   "detail": "top10=['بس', 'اللي', 'ولا', 'هه', 'له', 'ومن', 'مش', 'عليه', 'لك', 'لهم']"
+  },
+  {
+   "check": "low_overlap_with_top200_frequency",
+   "pass": false,
+   "detail": "58/200 overlap"
+  },
+  {
+   "check": "dialect_specific_size",
+   "pass": true,
+   "detail": "1200"
+  },
+  {
+   "check": "function_word_evidence_present",
+   "pass": true,
+   "detail": "561 function words"
+  },
+  {
+   "check": "msa_pairs_differ",
    "pass": true,
    "detail": "1500 pairs"
   },
   {
-   "check": "tokens_size",
+   "check": "tokens_2000",
    "pass": true,
    "detail": "2000"
   },
   {
-   "check": "all_tokens_arabic_only",
+   "check": "all_arabic",
    "pass": true,
    "detail": "ok"
   }

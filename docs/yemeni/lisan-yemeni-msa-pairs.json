@@ -1,5 +1,6 @@
 {
- "description": "MSA lemma -> attested Yemeni surface form pairs (count>=3). For MSA->Yemeni bridge rules and msa_form fields.",
+ "description": "MSA lemma -> attested Yemeni surface form (count>=3). Source for MSA->Yemeni bridge rules and msa_form fields.",
+ "count": 1500,
  "pairs": [
   {
    "msa": "سعوديه",

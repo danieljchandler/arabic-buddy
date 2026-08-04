@@ -53,6 +53,16 @@ export interface BrainTask {
   skipRepair?: boolean;
   /** When true, run a strict native-speaker validator after the repair pass. */
   validateDialect?: boolean;
+  /**
+   * Structural quality gate. Return a short reason string when the draft is
+   * incomplete (a critic/rewrite pass is then worth spending), or null when the
+   * draft is finished. When omitted, draft_critic always runs the critic.
+   */
+  qualityGate?: (parsed: unknown) => string | null;
+  /** Overall wall-clock budget for the whole task in ms (default 90s). */
+  budgetMs?: number;
+  /** Internal: absolute deadline timestamp, set by askBrain. */
+  deadlineAt?: number;
 }
 
 export interface BrainResult<T = unknown> {

@@ -1,117 +1,119 @@
 # Yemeni dialect corpus (Lisan-Yemeni)
 
-Source: user-uploaded `Shared.zip → Yemeni.zip` (Lisan Yemeni annotated corpus).
-See `license.pdf` and `ReadMe.pdf` in the full corpus folder before redistributing.
+Source: Lisan-Yemeni annotated corpus, **CC BY 4.0** (commercial use permitted,
+attribution required). See `license.pdf` / `ReadMe.pdf` in the corpus folder.
+Only derived aggregates and a bounded sentence sample are committed — never the
+full CSVs.
 
-## Where the files live
+## Where the raw corpus lives
 
-The raw corpus is ~142 MB and is intentionally **not** committed to the repo.
-It lives in Lovable's persistent artifact storage:
+~142 MB, intentionally **not** committed:
 
 ```
 /mnt/documents/yemeni-corpus/
   Lisan-Yemeni-dataset.csv            # 994,413 annotated tokens
   Lisan-Yemeni RowText_sentences.csv  # 38,822 raw sentences
-  tagset_translation.xlsx             # POS / affix tagset glossary
-  ReadMe.pdf, license.pdf
+  tagset_translation.xlsx, ReadMe.pdf, license.pdf
 ```
 
-**Important:** that path exists only in Lovable agent sessions. Claude Code (and
-any CI job) clones the git repo alone and cannot see it. Everything an external
-agent needs must be a committed artifact in this folder. If a new cut of the
-data is required, ask Lovable to re-run `scripts/derive-yemeni-artifacts.py`.
+That path exists **only in Lovable agent sessions**. Claude Code and CI clone the
+git repo alone, so anything an external agent needs must be a committed artifact
+in this folder.
 
-## Committed derived artifacts
+## Committed artifacts (spec: `derivation-spec.md`)
 
-All four are small, deterministic, and safe to read into prompts. They are
-produced in one pass by `scripts/derive-yemeni-artifacts.py`, which fails
-(non-zero exit) if any self-check regresses.
+All produced in one deterministic pass by `scripts/derive-yemeni-artifacts.py`,
+which exits non-zero if any self-check regresses. Every file carries `_meta`
+with source, rows read, types emitted, cutoff, generation date and its
+self-check results.
 
 | File | Contents |
 | --- | --- |
-| `lisan-yemeni-lexicon.json` | Top 2,000 normalized tokens by frequency: `token`, `norm`, `count`, `pos`, `gloss`, `msa`, `da`, `msa_lemma_zero_ratio`. `SPELL`/`SPLIT` annotation rows excluded. |
-| `lisan-yemeni-dialect-specific.json` | 1,200 **dialect markers** in two evidence classes (see below). Highest-signal list for authoring Yemeni `dialect_rules`. |
-| `lisan-yemeni-msa-pairs.json` | 1,500 MSA-lemma → attested Yemeni surface-form pairs for MSA→Yemeni bridge rules and `msa_form` fields. |
-| `lisan-yemeni-allowlist.json` | 2,875 normalized forms attested in the corpus, for the `msaLeakDetector` allow-list. |
-| `derivation-report.json` | Stats + the self-check results for the committed cut. |
+| `dialect-markers.json` | 5,069 Yemeni dialect markers. Filter: `MSALemmaID` zero/empty in ≥90% of occurrences **and** `count >= 3`, minus the MSA closed-class stoplist and proper nouns. Fields: `token`, `token_normalized`, `count`, `pos`, `gloss`, `da_lemma`, `msa_lemma_id_zero_ratio`. |
+| `lexicon-full.json` | 20,035 types with `count >= 5` (not truncated to 2k). Fields: `token`, `token_normalized`, `count`, `pos`, `msa_lemma` (verbatim, sense noise kept), `msa_lemma_id`, `gloss`. `sum(count)` = 801,443. |
+| `affix-inventory.json` | `prefixes` (254), `suffixes` (600) and `circumfixes` (870) at `count >= 10`, each with pattern, POS label, count and up to 5 example tokens. The only route to syntactic rules. |
+| `sentences-sample.jsonl` | 5,000 deduped sentences, 5–25 tokens, one JSON object per line: `id`, `text`, `text_clean` (URLs/@mentions/#hashtags stripped), `token_count`, `political`. |
+| `derivation-report.json` | Stats + all self-check results for the committed cut. |
 
-## How dialect markers are defined (and why the old list was wrong)
+Superseded and removed: `lisan-yemeni-lexicon.json`, `lisan-yemeni-dialect-specific.json`.
+Still present because downstream work references them: `lisan-yemeni-msa-pairs.json`,
+`lisan-yemeni-allowlist.json`.
 
-The first cut documented `dialect_specific` as "tokens with no MSA lemma id".
-That definition does not work: the annotators only assign `MSALemmaID` to
-**open-class** words, so every function word — including plain MSA `من`, `في`,
-`ما` — carries `MSALemmaID = 0`. The old list was therefore mostly a frequency
-list with `من` at the top.
+## Normalization
 
-The corrected derivation uses two separate, explicit evidence classes, each row
-tagged with `class`:
+`token_normalized` matches `normalizeArabic` in
+`supabase/functions/_shared/msaLeakDetector.ts`: NFC, strip tashkeel
+`[\u064B-\u0652\u0670\u0640]`, `[إأآٱ] → ا`, `ى → ي`, `ة → ه`. App data is
+unvocalised, so nothing joins without it. Grouping is always on `Token`
+(normalised + vocalised), never `rawToken`.
 
-- `function_word` — POS is closed-class (pronoun, negation, demonstrative,
-  relative, interrogative, particle, adverb…), `count >= 5`, and the normalized
-  form is **not** in an explicit MSA closed-class stoplist. The stoplist is
-  expanded automatically with `و`/`ف`-prefixed variants and
-  preposition+pronoun clitics (`له`, `عليه`, `فيها`…), which are shared with MSA.
-  Top of the list: `بس، اللي، مش، ايش، ده، احنا، مالك، مو، كذا، فين، الحين، وين، ليه`.
-- `content_word` — POS is open-class, `count >= 3`, `MSALemmaID == 0` in **≥90%**
-  of the token's occurrences, proper nouns excluded (top POS not `اسم علم`, and
-  fewer than 20% of occurrences tagged `اسم علم`).
+Near-identical tweets are deduped on the whole normalized token sequence before
+counting (1,099 duplicate sentences dropped, 924,315 of 994,413 rows counted;
+the rest are non-Arabic / single-char / `SPELL`+`SPLIT` annotation rows).
 
-`msa_lemma_zero_ratio` is kept on every row so a consumer can re-check the claim
-rather than trusting the label.
+## Why the old `dialect_specific` list was wrong
 
-## Self-checks (enforced by the script)
+It was documented as "tokens with no MSA lemma id" and was in practice a
+frequency list topped by `مِن`. The zero filter *did* apply — it is the wrong
+filter on its own: annotators assign `MSALemmaID` only to **open-class** words,
+so every function word, including plain MSA `من`, `في`, `ما`, scores 0. The
+current derivation keeps the zero-ratio filter **and** subtracts an explicit MSA
+closed-class stoplist (auto-expanded with `و`/`ف` variants and
+preposition+pronoun clitics) plus proper nouns. `msa_lemma_id_zero_ratio` stays
+on every row so a consumer can re-check the claim.
 
-The script exits non-zero unless all of these pass; `derivation-report.json`
-records them:
+## Self-check results for this cut
 
-1. No stoplist (plain MSA) member appears in `dialect_specific`.
-2. No proper nouns in `dialect_specific`.
-3. Every `content_word` really has `msa_lemma_zero_ratio >= 0.9`.
-4. The top 10 markers contain none of `من في علي الي الله ما لا و هو هي` — this
-   is the check that would have caught the original bug.
-5. `content_word` overlap with the top-200 frequency list is ≤ 40 (a dialect
-   list that is 80% the frequency list is a broken filter).
-6. `dialect_specific` is 300–1,200 rows and contains ≥50 function words.
-7. MSA pairs: source ≠ target, no clitic-only variants, ≥300 genuinely lexical
-   rows.
-8. All emitted tokens are Arabic-script only, ≥2 characters.
+All pass; see `derivation-report.json`.
 
-## Annotated CSV schema
+- `مِن`, `فِي`, `عَلَى`, `اللّٰه` absent from `dialect-markers.json`
+- 5,069/5,069 marker rows at zero-ratio ≥ 0.9; no proper nouns
+- Lexicon: 20,035 types, `sum(count)` 801,443
+- Flagship probe: `ذحين` = 9, `هني` = 8 — both **genuinely rare** in the corpus,
+  not truncated out. They are asserted as flagship Yemeni forms in
+  `YEMENI_IDENTITY` (`dialectHelpers.ts`), the seeded rulebook and
+  `ALWAYS_ALLOWED.Yemeni`; the corpus barely supports that weighting.
+- Prefixes contain both `ما` and `لـ`
+- `ما...ش` circumfix: found, 2 patterns / 122 tokens (`مافيش`, `ماكانش`, `ماـهوش`)
+- Sentence sample: 5,000 lines, token range 5–25
 
-`Lisan-Yemeni-dataset.csv`:
-`sentenceId, wordPosition, rawToken, Token, POS, Prefixes, Stem, Suffixes,
-MSALemma, MSALemmaID, DALemma, DALemmaID, Person, Gender, Number, Gloss`
+## Political content
 
-- `rawToken` = as written online (noisy), `Token` = normalized + vocalized.
-- `MSALemmaID = 0` on an **open-class** token is a dialect signal; on a function
-  word it is meaningless (see above).
-- `DALemmaID` is populated on only 1.8% of rows and is unreliable — do not use
-  it as the dialect flag.
-- `Gloss` is English, `|` separates senses, `;` separates near-synonyms.
+`political` is a **flag, not a filter** — the threshold stays tunable. Share in
+the sample: **57%**, far above the 10–15% the spec expected. The corpus is
+scraped political social media (`الحوثي`, `دحباشي`, `الشمال` rank inside the top
+20 markers). The sample is taken with an even stride across the whole file, not
+the head, so this is the corpus rate rather than an ordering artifact. Filter
+hard before showing anything to learners, and never ship the political
+vocabulary into lessons.
+
+## Top 20 markers (eyeball check)
+
+`بس، الحوثي، اللي، هه، مش، دحباشي، حوثي، عشان، ده، اكثر، اهل، العرب، احد، حق،
+العالم، شوي، لما، الشمال، مالك، مو`
 
 ## How to use the artifacts
 
-1. Mine `lisan-yemeni-dialect-specific.json` (`class=function_word` first) for
-   negation, demonstrative, interrogative and vocabulary rules; add them to the
-   `dialect_rules` table (`dialect = 'Yemeni'`) with ✅/❌ examples.
-2. Use `lisan-yemeni-msa-pairs.json` rows where `likely_inflection = false` as
-   MSA→Yemeni transformation rules and `msa_form` values for the Bridge track.
-   Rows with `likely_inflection = true` share a stem (`كان`/`كنت`) and are
-   morphology, not lexical substitutions — review before using.
-3. Feed `lisan-yemeni-allowlist.json` into the Yemeni `ALWAYS_ALLOWED` set in
-   `supabase/functions/_shared/msaLeakDetector.ts` so attested Yemeni forms are
-   not flagged as MSA leaks.
-4. Raw sentences are usable as authentic reading/listening seed material, but
-   the corpus is scraped social media: political and profane content is common
-   (`الحوثي`, `عفاش`, `دحباشي` are among the most frequent content words).
-   Filter before showing anything to learners, and do not ship the political
-   vocabulary into lessons.
+1. Mine `dialect-markers.json` for negation, demonstrative, interrogative and
+   vocabulary rules; add them to `dialect_rules` (`dialect = 'Yemeni'`) with
+   ✅/❌ examples. Skip political tokens.
+2. Derive MSA→Yemeni substitution candidates from `lexicon-full.json` by
+   clitic-stripped stem divergence (`بس⟵لكن`, `ليش⟵لماذا`, `ايش⟵ماذا`,
+   `احنا⟵نحن`, `خل⟵دع`, `عشان⟵أجل`); `lisan-yemeni-msa-pairs.json` holds an
+   earlier cut of these.
+3. Use `affix-inventory.json` for grammar rules: `ما...ش` negation, the `لـ`
+   imperative negation the paper singles out for Yemeni (`لتخافون` for MSA
+   `لا تخافوا`), possessive `حق`.
+4. Feed `sentences-sample.jsonl` into `mine-dialect-corpus` for attested
+   sentence-level generalization.
+5. Feed `lisan-yemeni-allowlist.json` into `ALWAYS_ALLOWED.Yemeni` in
+   `supabase/functions/_shared/msaLeakDetector.ts`.
 
 ## Regenerating
 
 ```
-python3 scripts/derive-yemeni-artifacts.py   # run from the repo root, Lovable session only
+python3 scripts/derive-yemeni-artifacts.py   # repo root, Lovable session only
 ```
 
-Deterministic: same CSV in, same JSON out. Non-zero exit means a self-check
+Deterministic: same CSVs in, same JSON out. Non-zero exit means a self-check
 failed — fix the derivation, never commit a failing cut.

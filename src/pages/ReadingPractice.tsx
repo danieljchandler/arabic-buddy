@@ -480,16 +480,26 @@ const ReadingPractice = () => {
       // state. What used to be sent here was `useAllWords` — the entire
       // curriculum vocabulary, shuffled — described to the model as "words the
       // student knows", which is exactly what it wasn't.
-      const { data, error } = await withTimeout(
-        supabase.functions.invoke("reading-passage", {
-          body: {
-            difficulty: selectedDifficulty,
-            topic: customTopic.trim() || undefined,
-            dialect: activeDialect,
-          },
-        }),
-        PASSAGE_TIMEOUT_MS,
-      );
+      // One silent re-attempt: the server now returns an honest 503 the moment
+      // its own generation budget is spent, and a second try usually lands
+      // because the slow/flaky drafting model is skipped on the retry path.
+      const invokePassage = () =>
+        withTimeout(
+          supabase.functions.invoke("reading-passage", {
+            body: {
+              difficulty: selectedDifficulty,
+              topic: customTopic.trim() || undefined,
+              dialect: activeDialect,
+            },
+          }),
+          PASSAGE_TIMEOUT_MS,
+        );
+
+      let { data, error } = await invokePassage();
+      if (!isStale() && (error || !data?.passage)) {
+        console.warn("Passage generation failed; retrying once", error);
+        ({ data, error } = await invokePassage());
+      }
 
       if (isStale()) return;
       if (error) throw error;
@@ -506,8 +516,8 @@ const ReadingPractice = () => {
       console.error("Failed to load passage:", e);
       toast.error(
         e instanceof PassageTimeoutError
-          ? "That took too long to generate. Please try again."
-          : "Failed to load passage. Please try again.",
+          ? "The writer took too long. Please try again."
+          : "Couldn't write a passage just now. Please try again.",
       );
       setDifficulty(null);
       setMode("select");

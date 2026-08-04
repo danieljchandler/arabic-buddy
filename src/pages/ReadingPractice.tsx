@@ -362,9 +362,13 @@ const ReadingPractice = () => {
   };
 
   const loadPassage = async (selectedDifficulty: Difficulty) => {
+    const requestId = ++requestIdRef.current;
+    const isStale = () => requestIdRef.current !== requestId;
+
     setDifficulty(selectedDifficulty);
     setMode("passage");
     setLoading(true);
+    setElapsed(0);
     setPassage(null);
     setQuizStarted(false);
     setCurrentQuestion(0);
@@ -374,13 +378,25 @@ const ReadingPractice = () => {
     setWordTranslations({});
 
     try {
-      const { data: approved } = await supabase
-        .from("reading_passages" as any)
-        .select("*")
-        .eq("status", "published")
-        .eq("difficulty", selectedDifficulty)
-        .eq("dialect", activeDialect)
-        .limit(10);
+      // Published-passage shortcut. If it's slow we just skip it and generate.
+      let approved: any[] | null = null;
+      try {
+        const res = await withTimeout(
+          supabase
+            .from("reading_passages" as any)
+            .select("*")
+            .eq("status", "published")
+            .eq("difficulty", selectedDifficulty)
+            .eq("dialect", activeDialect)
+            .limit(10),
+          10_000,
+        );
+        approved = (res as any)?.data ?? null;
+      } catch {
+        approved = null;
+      }
+
+      if (isStale()) return;
 
       if (approved && approved.length > 0) {
         const picked = (approved as any[])[Math.floor(Math.random() * approved.length)];
@@ -404,14 +420,18 @@ const ReadingPractice = () => {
       // state. What used to be sent here was `useAllWords` — the entire
       // curriculum vocabulary, shuffled — described to the model as "words the
       // student knows", which is exactly what it wasn't.
-      const { data, error } = await supabase.functions.invoke("reading-passage", {
-        body: {
-          difficulty: selectedDifficulty,
-          topic: customTopic.trim() || undefined,
-          dialect: activeDialect,
-        },
-      });
+      const { data, error } = await withTimeout(
+        supabase.functions.invoke("reading-passage", {
+          body: {
+            difficulty: selectedDifficulty,
+            topic: customTopic.trim() || undefined,
+            dialect: activeDialect,
+          },
+        }),
+        95_000,
+      );
 
+      if (isStale()) return;
       if (error) throw error;
 
       if (data.passage) {
@@ -422,14 +442,28 @@ const ReadingPractice = () => {
         throw new Error("No passage generated");
       }
     } catch (e) {
+      if (isStale()) return;
       console.error("Failed to load passage:", e);
-      toast.error("Failed to load passage. Please try again.");
+      toast.error(
+        e instanceof TimeoutError
+          ? "That took too long to generate. Please try again."
+          : "Failed to load passage. Please try again.",
+      );
       setDifficulty(null);
       setMode("select");
     } finally {
-      setLoading(false);
+      if (!isStale()) setLoading(false);
     }
   };
+
+  const cancelLoading = () => {
+    requestIdRef.current++;
+    setLoading(false);
+    setPassage(null);
+    setDifficulty(null);
+    setMode("select");
+  };
+
 
   const toggleLineTranslation = (index: number) => {
     setRevealedLines((prev) => {

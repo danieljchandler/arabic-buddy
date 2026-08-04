@@ -1,0 +1,46 @@
+{
+ "stats": {
+  "rows_read": 994413,
+  "rows_skipped_non_arabic": 32872,
+  "unique_norm_tokens": 98114,
+  "unique_dialect_only_tokens": 42536,
+  "msa_pair_types": 63326
+ },
+ "checks": [
+  {
+   "check": "dialect_specific_all_msa_lemma_id_zero",
+   "pass": true,
+   "detail": "0 entries with nonzero MSALemmaID"
+  },
+  {
+   "check": "dialect_specific_overlap_with_top_frequency_under_50pct",
+   "pass": false,
+   "detail": "704/1200 = 59%"
+  },
+  {
+   "check": "dialect_specific_top10_not_generic_stopwords",
+   "pass": false,
+   "detail": "top10=['من', 'بس', 'الحوثي', 'عفاش', 'الله', 'في', 'اليمن', 'ما', 'لا', 'اللي']"
+  },
+  {
+   "check": "dialect_specific_min_size",
+   "pass": true,
+   "detail": "1200 entries"
+  },
+  {
+   "check": "msa_pairs_msa_differs_from_yemeni",
+   "pass": true,
+   "detail": "1500 pairs"
+  },
+  {
+   "check": "tokens_size",
+   "pass": true,
+   "detail": "2000"
+  },
+  {
+   "check": "all_tokens_arabic_only",
+   "pass": true,
+   "detail": "ok"
+  }
+ ]
+}

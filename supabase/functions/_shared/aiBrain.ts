@@ -157,6 +157,7 @@ export async function askBrain<T = unknown>(task: BrainTask): Promise<BrainResul
 
   // Optional native-validator pass (strict native-speaker reviewer).
   if (task.validateDialect) {
+    const tVal = Date.now();
     try {
       const scanText = extractScanText(task, result.output, result.raw);
       const v = await validateDialect(scanText, task.dialect, { apiKey });
@@ -173,9 +174,16 @@ export async function askBrain<T = unknown>(task: BrainTask): Promise<BrainResul
     } catch (err) {
       console.warn('[aiBrain] validator pass failed', err);
     }
+    timings.push({ pass: 'validator', ms: Date.now() - tVal });
   }
 
   result.totalLatencyMs = Date.now() - start;
+
+  console.log(
+    `[aiBrain] ${task.purpose} (${task.dialect}) total=${result.totalLatencyMs}ms passes=` +
+      timings.map((t) => `${t.pass}:${t.ms}ms${t.models ? `(${t.models.join(',')})` : ''}${t.note ? `[${t.note}]` : ''}`).join(' '),
+  );
+
 
   if (result.msaLeaks?.leaks?.length) {
     logMsaViolations({

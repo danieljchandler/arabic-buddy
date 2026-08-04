@@ -45,11 +45,9 @@ Deno.serve(async (req) => {
       license: "CC BY 4.0",
       keyword_flagged: r.f,
     }));
-    const { error, count } = await admin
-      .from("dialect_corpus_sentences")
-      .upsert(batch, { onConflict: "dialect,text", ignoreDuplicates: true, count: "exact" });
+    const { error } = await admin.from("dialect_corpus_sentences").insert(batch);
     if (error) errors.push(error.message);
-    else inserted += count ?? batch.length;
+    else inserted += batch.length;
   }
 
   const { count: total } = await admin

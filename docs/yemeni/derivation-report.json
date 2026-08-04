@@ -1,0 +1,74 @@
+{
+ "source": "Lisan-Yemeni annotated corpus",
+ "stats": {
+  "rows_read": 994413,
+  "rows_skipped": 41586,
+  "unique_norm_tokens": 98089,
+  "dialect_function_words": 396,
+  "dialect_content_words": 804,
+  "msa_pair_types": 63321,
+  "allowlist_size": 2875
+ },
+ "checks": [
+  {
+   "check": "no_msa_function_words_in_dialect_specific",
+   "pass": true,
+   "detail": "stoplist members found: []"
+  },
+  {
+   "check": "no_proper_nouns_in_dialect_specific",
+   "pass": true,
+   "detail": "0 proper nouns: []"
+  },
+  {
+   "check": "content_words_have_no_msa_lemma",
+   "pass": true,
+   "detail": "0 violations"
+  },
+  {
+   "check": "top10_not_generic",
+   "pass": true,
+   "detail": "top10=['بس', 'اللي', 'هه', 'مش', 'ايش', 'ده', 'اكثر', 'احنا', 'لما', 'مالك']"
+  },
+  {
+   "check": "content_words_low_overlap_with_top200_frequency",
+   "pass": true,
+   "detail": "21/200 overlap"
+  },
+  {
+   "check": "dialect_specific_size",
+   "pass": true,
+   "detail": "1200"
+  },
+  {
+   "check": "function_word_evidence_present",
+   "pass": true,
+   "detail": "396 function words"
+  },
+  {
+   "check": "msa_pairs_differ",
+   "pass": true,
+   "detail": "1500 pairs"
+  },
+  {
+   "check": "msa_pairs_have_lexical_rows",
+   "pass": true,
+   "detail": "330 lexical pairs"
+  },
+  {
+   "check": "msa_pairs_not_clitic_only",
+   "pass": true,
+   "detail": "0 clitic-only pairs"
+  },
+  {
+   "check": "tokens_2000",
+   "pass": true,
+   "detail": "2000"
+  },
+  {
+   "check": "all_arabic",
+   "pass": true,
+   "detail": "ok"
+  }
+ ]
+}

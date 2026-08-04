@@ -26,6 +26,37 @@ import { readingPassageGate } from "../_shared/passageQualityCore.ts";
  */
 const GENERATION_BUDGET_MS = 80_000;
 
+/**
+ * How long a passage should be, per difficulty.
+ *
+ * `minLines` is enforced three ways — stated in the prompt, set as `minItems`
+ * on the tool schema, and checked by the quality gate so a short draft is sent
+ * back for a rewrite rather than shipped. It needs all three: when the sentence
+ * count lived only in a parenthetical aside in the prompt, the drafting model
+ * happily returned two sentences for an intermediate passage. Nothing caught it
+ * because the gate only rejected an *empty* lines array.
+ */
+const PASSAGE_SHAPE: Record<
+  string,
+  { minLines: number; maxLines: number; style: (label: string) => string }
+> = {
+  beginner: {
+    minLines: 3,
+    maxLines: 4,
+    style: (label) => `short sentences, simple ${label} vocabulary, common everyday phrases`,
+  },
+  intermediate: {
+    minLines: 5,
+    maxLines: 6,
+    style: (label) => `varied ${label} vocabulary, colloquial expressions and cultural references`,
+  },
+  advanced: {
+    minLines: 7,
+    maxLines: 9,
+    style: (label) => `complex structures, idiomatic ${label} expressions`,
+  },
+};
+
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") {
@@ -75,11 +106,8 @@ serve(async (req) => {
 
     const topicContext = topic ? `Topic: ${topic}` : `Topic: ${culturalContext}`;
 
-    const difficultyGuide: Record<string, string> = {
-      beginner: `2-3 short sentences, simple ${dialectLabel} vocabulary, common everyday phrases`,
-      intermediate: `4-5 sentences, varied ${dialectLabel} vocabulary, colloquial expressions and cultural references`,
-      advanced: `6-8 sentences, complex structures, idiomatic ${dialectLabel} expressions`,
-    };
+    const shape = PASSAGE_SHAPE[difficulty] ?? PASSAGE_SHAPE.beginner;
+    const difficultyGuide = `${shape.minLines}-${shape.maxLines} sentences, ${shape.style(dialectLabel)}`;
 
     const systemExtra = `You are a ${dialectLabel} language instructor creating reading comprehension exercises.
 - Set passages in culturally authentic contexts.
@@ -99,12 +127,14 @@ ${LITERAL_GLOSS_RULE}
 
 ${learnerBlock}`;
 
-    const userPrompt = `Generate a reading comprehension exercise.
+    const userPrompt = `Write a short STORY for a ${difficulty} learner to read.
 
-Difficulty: ${difficulty} (${difficultyGuide[difficulty] || difficultyGuide.beginner})
+LENGTH (hard requirement): the "lines" array MUST contain at least ${shape.minLines} sentences, ideally ${shape.minLines}-${shape.maxLines}. A response with fewer than ${shape.minLines} will be rejected.
+
+It must read as a story, not a couple of stray facts: something happens, in order — a setting, then events, then how it ends. ${difficultyGuide}.
 ${topicContext}
 
-Split the passage into individual sentences in the "lines" array (each line = one sentence with its Arabic text, natural English translation, and literal word-for-word gloss). Generate 3-4 vocabulary items and 2-3 comprehension questions.`;
+Put one sentence per entry in the "lines" array, each with its Arabic text, transliteration, natural English translation, and literal word-for-word gloss. Also generate 3-4 vocabulary items and 2-3 comprehension questions about the story.`;
 
     let passage: any;
     let brainPasses: unknown[] = [];
@@ -126,7 +156,7 @@ Split the passage into individual sentences in the "lines" array (each line = on
         // finished, and re-generating it through the critic only costs the
         // learner another 30-60s of spinner. Anything missing still triggers
         // the full rewrite. See _shared/passageQualityCore.ts.
-        qualityGate: readingPassageGate,
+        qualityGate: (parsed: unknown) => readingPassageGate(parsed, { minLines: shape.minLines }),
         arabicTextPath: (p: any) => {
           const parts: string[] = [];
           if (typeof p?.title === "string") parts.push(p.title);
@@ -144,6 +174,10 @@ Split the passage into individual sentences in the "lines" array (each line = on
               titleEnglish: { type: "string" },
               lines: {
                 type: "array",
+                // Stated in the schema as well as the prompt: a bare prose
+                // instruction was being ignored, and a two-sentence
+                // "intermediate" passage is not a story.
+                minItems: shape.minLines,
                 items: {
                   type: "object",
                   properties: {
@@ -206,27 +240,18 @@ Split the passage into individual sentences in the "lines" array (each line = on
       if (e?.status === 429) {
         return new Response(JSON.stringify({ error: "Rate limit exceeded." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
-      passage = {
-        title: "في السوق",
-        titleEnglish: "At the Market",
-        lines: [
-          { arabic: "رحت السوق اليوم.", english: "I went to the market today." },
-          { arabic: "شريت خضار وفواكه طازجة.", english: "I bought fresh vegetables and fruits." },
-        ],
-        difficulty,
-        vocabulary: [{ arabic: "السوق", english: "the market", inContext: "place of shopping" }],
-        questions: [
-          {
-            question: "وين راح الكاتب؟",
-            questionEnglish: "Where did the writer go?",
-            options: [
-              { text: "السوق", textEnglish: "The market", correct: true },
-              { text: "المدرسة", textEnglish: "School", correct: false },
-              { text: "البيت", textEnglish: "Home", correct: false },
-            ],
-          },
-        ],
-      };
+      // No stub passage. There used to be a hardcoded two-sentence market story
+      // here, served with a 200 as though it were real content — no
+      // transliteration, no literal gloss, the same text every time, and
+      // indistinguishable to the learner from a genuine generation. Now that
+      // generation carries a deadline this path is reachable on a slow run, and
+      // a silent two-line passage is exactly the failure it would look like.
+      // The client already handles an error by offering a retry, which is the
+      // honest outcome.
+      return new Response(
+        JSON.stringify({ error: "Could not generate a passage right now. Please try again." }),
+        { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     }
 
     timing.total = Date.now() - t0;

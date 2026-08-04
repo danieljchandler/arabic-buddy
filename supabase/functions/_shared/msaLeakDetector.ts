@@ -70,6 +70,8 @@ export const ALWAYS_ALLOWED: Record<string, Set<string>> = {
     'السوق', 'القهوه', 'صديقي', 'حالك', 'حاله', 'كبير', 'صغير',
     'كيف', 'كيفك', 'وين', 'ليش', 'شلون', 'شلونك', 'شو', 'هالحين',
     'بغيت', 'ابي', 'يبي', 'زين', 'كويس', 'مرحبا', 'يلا', 'يالله',
+    // Ordinary Gulf usage — must never be flagged as MSA leaks.
+    'هذا', 'هذه', 'عندما',
   ].map(normalizeArabic)),
   Egyptian: new Set([
     'انا', 'انت', 'انتي', 'انتو', 'احنا', 'هو', 'هي', 'هم',

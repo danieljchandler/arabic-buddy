@@ -226,20 +226,51 @@ curation problem as Phase 4. And there is a cautionary precedent in-repo:
 land in `dialect_rules`, generators already get the benefit through the existing
 rulebook path — which is the cheaper route to the same outcome.
 
-## Recommended order
+## Status
 
-| # | Work | Blocked by | Effort |
-| --- | --- | --- | --- |
-| 1 | Yemeni MSA-leak whitelist + tests | — | Hours |
-| 2 | Fix `mine-dialect-corpus` cors bug | — | <1 hour |
-| 3 | Substitution pairs → `dialect_rules` drafts | — | ~1 day |
-| 4 | Re-derive `dialect_specific` correctly | B1 | Hours, where mounted |
-| 5 | Lexicon/sentences as miner source | B1, B3 | ~1 day |
-| 6 | Vocabulary seeding | B1, curation, TTS | Days |
-| 7 | Generator lexicon injection | Revisit after 5 | — |
+| # | Work | State |
+| --- | --- | --- |
+| 1 | Yemeni MSA-leak whitelist + tests | **Done** |
+| 2 | Fix `mine-dialect-corpus` cors bug | **Done** |
+| 3 | Substitution pairs → `dialect_rules` drafts | **Done** — 7 rows, all `status='draft'` |
+| 4 | Re-derive artifacts correctly | **Done** — all four, self-checks passing |
+| 5 | Sentences as a miner source | **Held** — see below |
+| 6 | Vocabulary seeding | Not started — needs curation + TTS |
+| 7 | Generator lexicon injection | Revisit after 5 |
 
-Items 1–3 are executable now, from the committed lexicon, with no further
-uploads.
+### Why 5 is held
+
+The sample cannot be cleaned by keyword filtering, and mined rules quote the
+corpus *verbatim* into `dialect_rules.examples`, which `dialectHelpers` folds
+into every generator prompt.
+
+| Filter | Sentences |
+| --- | --- |
+| Total | 5,000 |
+| `political: false` (the shipped 18-term stop-list) | 2,139 |
+| …of those, hitting an extended slur/faction list | **822 (38%)** |
+| …after also dropping `?`-artifacts and Latin runs | 1,039 |
+
+Hand-reading ten of those 1,039 survivors still turns up the factional slur
+`العفافيش` — missed because the stop-list carries `عفاش`, which is not a
+substring of it — plus sectarian terms, obscenity and a drug reference. Each
+round of stop-list widening returns less against a corpus that is ~57%
+political by the derivation's own measure.
+
+What shipped instead is the **output** guard: `_shared/corpusExampleGuard.ts`
+caps what any mined rule may quote (short patterns, never sentences) and
+screens the citations. That was worth doing on its own merits — the miner could
+always quote an arbitrary span of any of its six existing sources into a rule
+reaching every generator prompt, for all three dialects. The corpus work only
+exposed it.
+
+The unlock for 5 is a cleaner pool, which needs an LLM classification pass over
+the 5,000 sentences rather than more stop-list terms — best run where the raw
+corpus is mounted. The guard is already in place to backstop it when it lands.
+
+Note also that the highest-value syntactic result so far — the 39:1 `ما` vs
+`ما...ش` ratio — came from `affix-inventory.json`, a derived aggregate with no
+verbatim-text risk at all. Aggregates may simply be the better route.
 
 ## Verification
 

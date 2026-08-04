@@ -1,11 +1,49 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { getDialectLabel, getTashkeelMandate, getDialectTransliterationRules, type Dialect } from "../_shared/dialectHelpers.ts";
+import { getDialectLabel, getTashkeelMandate, getDialectTransliterationRules, primeDialectPrompt, measureTashkeelCoverage, type Dialect } from "../_shared/dialectHelpers.ts";
 import { askBrain } from "../_shared/aiBrain.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
 import { LITERAL_GLOSS_RULE, literalSchema } from "../_shared/literalGloss.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { learnerPromptBlock } from "../_shared/learnerProfile.ts";
 
+/**
+ * Structural quality gate: returns null when the draft is finished (so the
+ * expensive critic rewrite pass is skipped), or a short reason otherwise.
+ */
+function passageQualityGate(parsed: unknown): string | null {
+  const p = parsed as any;
+  if (!p || typeof p !== "object") return "draft is not an object";
+  if (!p.title || typeof p.title !== "string" || !p.title.trim()) return "missing title";
+
+  const lines = Array.isArray(p.lines) ? p.lines : [];
+  if (lines.length === 0) return "no lines";
+  const nonEmpty = (v: unknown) => typeof v === "string" && v.trim().length > 0;
+  for (const [i, l] of lines.entries()) {
+    if (!nonEmpty(l?.arabic)) return `line ${i + 1} missing arabic`;
+    if (!nonEmpty(l?.transliteration)) return `line ${i + 1} missing transliteration`;
+    if (!nonEmpty(l?.english)) return `line ${i + 1} missing english`;
+    const lit = l?.literal;
+    const litOk = nonEmpty(lit) || (Array.isArray(lit) && lit.length > 0) || (lit && typeof lit === "object" && Object.keys(lit).length > 0);
+    if (!litOk) return `line ${i + 1} missing literal gloss`;
+  }
+
+  if (!Array.isArray(p.vocabulary) || p.vocabulary.length === 0) return "no vocabulary items";
+
+  const questions = Array.isArray(p.questions) ? p.questions : [];
+  const goodQuestion = questions.some((q: any) =>
+    nonEmpty(q?.question) &&
+    Array.isArray(q?.options) &&
+    q.options.length >= 2 &&
+    q.options.some((o: any) => o?.correct === true)
+  );
+  if (!goodQuestion) return "no usable comprehension question";
+
+  const arabicText = [p.title, ...lines.map((l: any) => l?.arabic ?? "")].join("\n");
+  const coverage = measureTashkeelCoverage(arabicText);
+  if (coverage <= 0.45) return `tashkeel coverage too low (${coverage.toFixed(2)})`;
+
+  return null;
+}
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -13,12 +51,21 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Free-tier daily cap
-  const cap = await enforceDailyCap(req, "reading-passage", 15, corsHeaders);
-  if (cap.limited) return cap.response;
+  const tStart = Date.now();
+  const timing: Record<string, number> = {};
 
   try {
     const { difficulty = "beginner", topic, dialect = "Gulf" } = await req.json();
+
+    // Rulebook priming depends on nothing else — start it immediately so it
+    // overlaps the cap check and the learner-profile lookup.
+    const rulesPromise = primeDialectPrompt(dialect as Dialect).catch(() => {});
+
+    // Free-tier daily cap
+    const tCap = Date.now();
+    const cap = await enforceDailyCap(req, "reading-passage", 15, corsHeaders);
+    timing.cap_ms = Date.now() - tCap;
+    if (cap.limited) return cap.response;
 
     const dialectLabel = getDialectLabel(dialect);
 
@@ -28,7 +75,12 @@ serve(async (req) => {
     // labelled "words the student knows" — so passages were being built around
     // words the learner had often never seen. Callers may still send `userVocab`;
     // it is deliberately ignored.
-    const learnerBlock = await learnerPromptBlock({ userId: cap.userId, dialect });
+    const tProfile = Date.now();
+    const [learnerBlock] = await Promise.all([
+      learnerPromptBlock({ userId: cap.userId, dialect }),
+      rulesPromise,
+    ]);
+    timing.profile_rules_ms = Date.now() - tProfile;
 
     const culturalContext = dialect === "Egyptian"
       ? "daily life, culture, or social situations in Egypt (Cairo, Alexandria, etc.)"
@@ -37,6 +89,7 @@ serve(async (req) => {
       : "daily life, culture, or social situations in the Gulf";
 
     const topicContext = topic ? `Topic: ${topic}` : `Topic: ${culturalContext}`;
+
 
     const difficultyGuide: Record<string, string> = {
       beginner: `2-3 short sentences, simple ${dialectLabel} vocabulary, common everyday phrases`,

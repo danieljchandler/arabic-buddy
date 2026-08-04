@@ -100,12 +100,21 @@ export async function askBrain<T = unknown>(task: BrainTask): Promise<BrainResul
   const apiKey = Deno.env.get('LOVABLE_API_KEY');
   if (!apiKey) throw new BrainHttpError(500, 'LOVABLE_API_KEY not configured');
 
+  const start = Date.now();
+  const timings: Array<{ pass: string; models?: string[]; ms: number; note?: string }> = [];
+
+  // Overall wall-clock deadline for the whole task; the retry ladder checks it
+  // before each attempt so we can't stack six full generations back to back.
+  task.deadlineAt = Date.now() + (task.budgetMs ?? 90_000);
+
+  const tPrime = Date.now();
   await primeDialectPrompt(task.dialect);
+  timings.push({ pass: 'prime_dialect', ms: Date.now() - tPrime });
 
   const strategy: Strategy = task.strategy ?? pickStrategy(task.purpose);
-  const start = Date.now();
 
   let result: BrainResult<T>;
+  const tGen = Date.now();
   switch (strategy) {
     case 'solo':
       result = await runSolo<T>(task, apiKey);
@@ -120,16 +129,28 @@ export async function askBrain<T = unknown>(task: BrainTask): Promise<BrainResul
       result = await runCouncil<T>(task, apiKey);
       break;
   }
+  timings.push({ pass: strategy, models: result.models, ms: Date.now() - tGen });
 
   // MSA-guard + one repair pass when leaks are detected (all strategies).
   // Callers may opt out with skipRepair for truly low-stakes internal calls.
-  if (!task.skipRepair && result.msaLeaks.leaks.length > 0) {
+  // Skip when a rewrite already ran against exactly these tokens and they came
+  // back unchanged — another pass would produce identical text.
+  const sameTokens = (a: string[] = [], b: string[] = []) =>
+    a.length === b.length && [...a].sort().join('|') === [...b].sort().join('|');
+  const alreadyRewritten = sameTokens(result.rewrittenAgainstLeaks, result.msaLeaks.leaks);
+
+  if (!task.skipRepair && result.msaLeaks.leaks.length > 0 && !alreadyRewritten) {
+    const tRepair = Date.now();
     try {
       const repaired = await runRepair<T>(task, result, apiKey);
       result = { ...repaired, msaRepairs: result.msaRepairs + 1 };
+      timings.push({ pass: 'msa_repair', models: [DEFAULT_JUDGE], ms: Date.now() - tRepair });
     } catch (err) {
       console.warn('[aiBrain] repair pass failed, returning original', err);
+      timings.push({ pass: 'msa_repair', ms: Date.now() - tRepair, note: 'failed' });
     }
+  } else if (alreadyRewritten && result.msaLeaks.leaks.length > 0) {
+    timings.push({ pass: 'msa_repair', ms: 0, note: 'skipped: rewrite already attempted same tokens' });
   }
 
   // Optional native-validator pass (strict native-speaker reviewer).

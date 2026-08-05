@@ -6,6 +6,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { MODEL_IDS } from "../_shared/modelRegistry.ts";
 
 
 type Cefr = "A1" | "A2" | "B1" | "B2" | "C1" | "C2";
@@ -128,7 +129,7 @@ Return ONLY JSON of the form:
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${lovableKey}` },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: MODEL_IDS.GEMINI_FAST,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },

@@ -4,14 +4,12 @@
 // - Yemeni episodes → Azure Neural TTS using real ar-YE-* Yemeni voices (MP3).
 
 const MUNSIT_BASE = "https://api.munsit.com/api/v1";
-const GEMINI_TTS_MODEL = "gemini-2.5-flash-preview-tts";
-const GEMINI_TTS_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 const GULF_DIALECTS = new Set([
   "najdi", "emirati", "khaleeji", "gulf",
   "saudi", "kuwaiti", "qatari", "bahraini", "omani",
 ]);
 
-export type Provider = "munsit" | "azure" | "gemini" | "elevenlabs";
+export type Provider = "munsit" | "azure" | "elevenlabs";
 
 export interface ProviderPlan {
   provider: Provider;
@@ -22,9 +20,6 @@ export interface ProviderPlan {
   munsitModelId?: string;
   // For Azure: full neural voice list.
   azureVoices?: string[];
-  // For Gemini: prebuilt voice names + style prefix injected into each prompt.
-  geminiVoices?: string[];
-  geminiStylePrefix?: string;
   // For ElevenLabs: ordered list of voice IDs (alternated by speaker slot).
   elevenLabsVoices?: string[];
   elevenLabsModelId?: string;
@@ -36,16 +31,6 @@ const ELEVENLABS_EGYPTIAN_VOICES = [
   "rMheqEfwsIJckq2yCdb5", // Ahmed Yahia (male, ar-EG)
   "ckGEQg6YnSVooU5uDRsF", // Tarek — Pleasant and Professional (male, ar-EG)
 ];
-
-// Munsit Fusha (MSA) voices — used as a temporary Egyptian fallback since
-// Munsit doesn't yet offer Egyptian dialect voices. Alternated F/M/F/M.
-const MUNSIT_FUSHA_VOICES = [
-  "OUOdy43qiHKwzVLRScXFnUe8", // Arwa (female)
-  "yRRuMDhFftPmzIAA6odGikIC", // Fares (male)
-  "lQhCsHldPPHNMpcZBfvtqLHF", // Ruba (female)
-  "tmip9TnndVNGlYHsC6c4sht8", // Moataz (male)
-];
-
 
 const AZURE_VOICE_MAP: Record<string, string[]> = {
   Egyptian: ["ar-EG-ShakirNeural", "ar-EG-SalmaNeural"],
@@ -132,7 +117,7 @@ export async function planProvider(dialect: string): Promise<ProviderPlan> {
       ext: "mp3",
       contentType: "audio/mpeg",
       elevenLabsVoices: ELEVENLABS_EGYPTIAN_VOICES,
-      elevenLabsModelId: "eleven_multilingual_v2",
+      elevenLabsModelId: elevenLabsModel(),
     };
   }
 
@@ -217,84 +202,26 @@ export async function synthesizeMunsit(
   return new Uint8Array(await resp.arrayBuffer());
 }
 
-// Wrap raw PCM (signed 16-bit LE mono) in a minimal WAV container.
-function pcmToWav(pcm: Uint8Array, sampleRate: number): Uint8Array {
-  const numChannels = 1;
-  const bitsPerSample = 16;
-  const byteRate = sampleRate * numChannels * bitsPerSample / 8;
-  const blockAlign = numChannels * bitsPerSample / 8;
-  const dataSize = pcm.length;
-  const buffer = new Uint8Array(44 + dataSize);
-  const view = new DataView(buffer.buffer);
-  const writeStr = (off: number, s: string) => {
-    for (let i = 0; i < s.length; i++) buffer[off + i] = s.charCodeAt(i);
-  };
-  writeStr(0, "RIFF");
-  view.setUint32(4, 36 + dataSize, true);
-  writeStr(8, "WAVE");
-  writeStr(12, "fmt ");
-  view.setUint32(16, 16, true);            // PCM chunk size
-  view.setUint16(20, 1, true);             // format = PCM
-  view.setUint16(22, numChannels, true);
-  view.setUint32(24, sampleRate, true);
-  view.setUint32(28, byteRate, true);
-  view.setUint16(32, blockAlign, true);
-  view.setUint16(34, bitsPerSample, true);
-  writeStr(36, "data");
-  view.setUint32(40, dataSize, true);
-  buffer.set(pcm, 44);
-  return buffer;
+// Model override knob for A/B-ing eleven_v3 (better dialect handling incl.
+// Egyptian) against the current default without a redeploy.
+export function elevenLabsModel(): string {
+  return Deno.env.get("ELEVENLABS_TTS_MODEL")?.trim() || "eleven_multilingual_v2";
 }
 
-function b64ToBytes(b64: string): Uint8Array {
-  const bin = atob(b64);
-  const out = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-  return out;
-}
-
-export async function synthesizeGemini(
-  text: string,
-  voiceName: string,
-  stylePrefix: string,
-): Promise<Uint8Array> {
-  const key = Deno.env.get("GEMINI_API_KEY");
-  if (!key) throw new Error("GEMINI_API_KEY missing");
-  const prompt = `${stylePrefix}${text}`;
-  const url = `${GEMINI_TTS_BASE}/${GEMINI_TTS_MODEL}:generateContent?key=${encodeURIComponent(key)}`;
-  const resp = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: {
-        responseModalities: ["AUDIO"],
-        speechConfig: {
-          voiceConfig: { prebuiltVoiceConfig: { voiceName } },
-        },
-      },
-    }),
-    signal: AbortSignal.timeout(60_000),
-  });
-  if (!resp.ok) {
-    const err = await resp.text();
-    throw new Error(`Gemini TTS ${resp.status}: ${err.slice(0, 200)}`);
-  }
-  const json = await resp.json();
-  const part = json?.candidates?.[0]?.content?.parts?.[0]?.inlineData;
-  const data = part?.data;
-  if (!data) throw new Error("Gemini TTS: no inline audio data in response");
-  const mime: string = part.mimeType ?? "audio/L16;rate=24000";
-  const rateMatch = /rate=(\d+)/i.exec(mime);
-  const sampleRate = rateMatch ? parseInt(rateMatch[1], 10) : 24000;
-  const pcm = b64ToBytes(data);
-  return pcmToWav(pcm, sampleRate);
+export interface ElevenLabsOpts {
+  stability?: number;
+  style?: number;
+  // Prosody conditioning: pass the surrounding lines so multi-line narration
+  // flows naturally across line boundaries instead of restarting intonation.
+  previousText?: string;
+  nextText?: string;
 }
 
 export async function synthesizeElevenLabs(
   text: string,
   voiceId: string,
   modelId: string,
+  opts: ElevenLabsOpts = {},
 ): Promise<Uint8Array> {
   const key = Deno.env.get("ELEVENLABS_API_KEY");
   if (!key) throw new Error("ELEVENLABS_API_KEY missing");
@@ -306,10 +233,12 @@ export async function synthesizeElevenLabs(
       body: JSON.stringify({
         text,
         model_id: modelId,
+        ...(opts.previousText ? { previous_text: opts.previousText.slice(-600) } : {}),
+        ...(opts.nextText ? { next_text: opts.nextText.slice(0, 600) } : {}),
         voice_settings: {
-          stability: 0.4,
+          stability: opts.stability ?? 0.4,
           similarity_boost: 0.8,
-          style: 0.5,
+          style: opts.style ?? 0.5,
           use_speaker_boost: true,
         },
       }),
@@ -328,6 +257,9 @@ export async function synthesizeLine(
   role: string,
   index: number,
   plan: ProviderPlan,
+  // Optional prosody conditioning (ElevenLabs only): surrounding lines of the
+  // same narration so intonation carries across line boundaries.
+  neighbors: { previousText?: string; nextText?: string } = {},
 ): Promise<Uint8Array> {
   if (plan.provider === "munsit") {
     const voices = plan.munsitVoices!;
@@ -336,15 +268,10 @@ export async function synthesizeLine(
     const stability = (role || "").toLowerCase() === "narrator" ? 0.8 : 0.6;
     return synthesizeMunsit(text, voices[slot], plan.munsitModelId!, { stability });
   }
-  if (plan.provider === "gemini") {
-    const voices = plan.geminiVoices!;
-    const slot = pickVoiceSlot(role, index) % voices.length;
-    return synthesizeGemini(text, voices[slot], plan.geminiStylePrefix ?? "");
-  }
   if (plan.provider === "elevenlabs") {
     const voices = plan.elevenLabsVoices!;
     const slot = pickVoiceSlot(role, index) % voices.length;
-    return synthesizeElevenLabs(text, voices[slot], plan.elevenLabsModelId ?? "eleven_multilingual_v2");
+    return synthesizeElevenLabs(text, voices[slot], plan.elevenLabsModelId ?? elevenLabsModel(), neighbors);
   }
   const voices = plan.azureVoices!;
   const slot = pickVoiceSlot(role, index) % voices.length;
@@ -447,10 +374,6 @@ export function estimateSeconds(bytes: number, plan: ProviderPlan): number {
   if (plan.provider === "munsit") {
     // Munsit typically returns 22.05 kHz mono 16-bit PCM ≈ 44100 B/s.
     return Math.max(0, Math.round((bytes - 44) / 44100));
-  }
-  if (plan.provider === "gemini") {
-    // Gemini TTS returns 24 kHz mono 16-bit PCM = 48000 B/s.
-    return Math.max(0, Math.round((bytes - 44) / 48000));
   }
   if (plan.provider === "elevenlabs") {
     // ElevenLabs MP3 at 128 kbps CBR.

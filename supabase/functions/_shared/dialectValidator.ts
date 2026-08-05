@@ -12,7 +12,12 @@ import {
 } from './dialectHelpers.ts';
 
 const GATEWAY_URL = 'https://ai.gateway.lovable.dev/v1/chat/completions';
+const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const VALIDATOR_MODEL = 'google/gemini-2.5-pro';
+// Arabic-native second opinion. Mistral Saba is a 24B Arabic-focused model on
+// the OpenRouter key the app already uses — roughly an order of magnitude
+// cheaper than Gemini 2.5 Pro on this single-snippet task.
+const ARABIC_VALIDATOR_MODEL = 'mistralai/mistral-saba';
 
 export interface ValidatorLeak {
   token: string;
@@ -28,6 +33,10 @@ export interface ValidatorResult {
   notes?: string;
   latencyMs: number;
   ok: boolean;             // false if the validator itself errored — caller should ignore result
+  /** Which model produced this judgment. */
+  model?: string;
+  /** Present on cross-checked results: how the two validators related. */
+  agreement?: 'agree' | 'disagree' | 'single';
 }
 
 export interface ValidateOptions {
@@ -35,6 +44,8 @@ export interface ValidateOptions {
   passThreshold?: number; // default 4
   maxChars?: number;      // truncate text for cost control; default 4000
   signal?: AbortSignal;
+  /** Override the judging model. Defaults to Gemini 2.5 Pro via the Lovable gateway. */
+  model?: string;
 }
 
 export async function validateDialect(
@@ -43,9 +54,15 @@ export async function validateDialect(
   opts: ValidateOptions = {},
 ): Promise<ValidatorResult> {
   const start = Date.now();
-  const apiKey = opts.apiKey ?? Deno.env.get('LOVABLE_API_KEY');
+  const model = opts.model ?? VALIDATOR_MODEL;
+  // OpenRouter-only models (Saba) need their own key + endpoint; everything
+  // else goes through the Lovable gateway. Mirrors routeForModel in aiBrain.
+  const viaOpenRouter = /^(mistralai|anthropic|qwen|meta-llama|deepseek|x-ai)\//.test(model);
+  const apiKey = viaOpenRouter
+    ? Deno.env.get('OPENROUTER_API_KEY')
+    : (opts.apiKey ?? Deno.env.get('LOVABLE_API_KEY'));
   if (!apiKey || !text || !text.trim()) {
-    return { score: 0, verdict: 'unknown', leaks: [], latencyMs: 0, ok: false };
+    return { score: 0, verdict: 'unknown', leaks: [], latencyMs: 0, ok: false, model };
   }
 
   const passThreshold = opts.passThreshold ?? 4;
@@ -94,7 +111,7 @@ Be harsh. When in doubt between 4 and 3, choose 3.`;
   };
 
   try {
-    const res = await fetch(GATEWAY_URL, {
+    const res = await fetch(viaOpenRouter ? OPENROUTER_URL : GATEWAY_URL, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${apiKey}`,
@@ -102,7 +119,7 @@ Be harsh. When in doubt between 4 and 3, choose 3.`;
       },
       signal: opts.signal,
       body: JSON.stringify({
-        model: VALIDATOR_MODEL,
+        model,
         temperature: 0.2,
         max_tokens: 600,
         messages: [
@@ -115,15 +132,15 @@ Be harsh. When in doubt between 4 and 3, choose 3.`;
     });
     if (!res.ok) {
       const msg = await res.text().catch(() => '');
-      console.warn('[dialectValidator] gateway error', res.status, msg.slice(0, 200));
-      return { score: 0, verdict: 'unknown', leaks: [], latencyMs: Date.now() - start, ok: false };
+      console.warn('[dialectValidator] gateway error', model, res.status, msg.slice(0, 200));
+      return { score: 0, verdict: 'unknown', leaks: [], latencyMs: Date.now() - start, ok: false, model };
     }
     const data = await res.json();
     const args = data?.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
-    if (!args) return { score: 0, verdict: 'unknown', leaks: [], latencyMs: Date.now() - start, ok: false };
+    if (!args) return { score: 0, verdict: 'unknown', leaks: [], latencyMs: Date.now() - start, ok: false, model };
     let parsed: { score?: number; verdict?: string; leaks?: ValidatorLeak[]; notes?: string };
     try { parsed = JSON.parse(args); } catch {
-      return { score: 0, verdict: 'unknown', leaks: [], latencyMs: Date.now() - start, ok: false };
+      return { score: 0, verdict: 'unknown', leaks: [], latencyMs: Date.now() - start, ok: false, model };
     }
     const score = Math.max(1, Math.min(5, Math.round(Number(parsed.score) || 5)));
     const verdict: 'pass' | 'rewrite' =
@@ -136,9 +153,75 @@ Be harsh. When in doubt between 4 and 3, choose 3.`;
       notes: typeof parsed.notes === 'string' ? parsed.notes : undefined,
       latencyMs: Date.now() - start,
       ok: true,
+      model,
     };
   } catch (err) {
-    console.warn('[dialectValidator] failed', err);
-    return { score: 0, verdict: 'unknown', leaks: [], latencyMs: Date.now() - start, ok: false };
+    console.warn('[dialectValidator] failed', model, err);
+    return { score: 0, verdict: 'unknown', leaks: [], latencyMs: Date.now() - start, ok: false, model };
   }
+}
+
+/**
+ * Two-model dialect judgment, gated on disagreement.
+ *
+ * Runs the cheap Arabic-native validator (Mistral Saba) first. Only when its
+ * verdict is uncertain — it errored, or it wants a rewrite on a borderline
+ * score — does it pay for the strong generalist (Gemini 2.5 Pro). A confident
+ * `pass` from Saba costs one cheap call instead of one expensive one; a
+ * genuine disagreement escalates and the harsher verdict wins, so this never
+ * weakens the gate it replaces.
+ *
+ * Set DIALECT_VALIDATOR_CROSSCHECK=off to fall back to Gemini Pro alone.
+ */
+export async function validateDialectCrossChecked(
+  text: string,
+  dialect: Dialect,
+  opts: ValidateOptions = {},
+): Promise<ValidatorResult> {
+  if (Deno.env.get('DIALECT_VALIDATOR_CROSSCHECK')?.trim() === 'off') {
+    return validateDialect(text, dialect, opts);
+  }
+
+  const arabic = await validateDialect(text, dialect, { ...opts, model: ARABIC_VALIDATOR_MODEL });
+
+  // Confident pass from the Arabic-native model — accept and stop here.
+  if (arabic.ok && arabic.verdict === 'pass' && arabic.score >= 5) {
+    return { ...arabic, agreement: 'single' };
+  }
+
+  const strong = await validateDialect(text, dialect, { ...opts, model: VALIDATOR_MODEL });
+
+  // If either side failed, trust whichever one worked.
+  if (!strong.ok) return arabic.ok ? { ...arabic, agreement: 'single' } : strong;
+  if (!arabic.ok) return { ...strong, agreement: 'single' };
+
+  const agreement = arabic.verdict === strong.verdict ? 'agree' : 'disagree';
+  // Harsher verdict wins: a rewrite call from either model stands, and the
+  // reported score is the lower of the two.
+  const verdict: 'pass' | 'rewrite' =
+    arabic.verdict === 'rewrite' || strong.verdict === 'rewrite' ? 'rewrite' : 'pass';
+  // Merge leak lists, deduplicated by token.
+  const seen = new Set<string>();
+  const leaks = [...strong.leaks, ...arabic.leaks].filter((l) => {
+    if (seen.has(l.token)) return false;
+    seen.add(l.token);
+    return true;
+  }).slice(0, 10);
+
+  console.log(
+    `[dialectValidator] cross-check ${agreement}: ` +
+      `${ARABIC_VALIDATOR_MODEL}=${arabic.score}/${arabic.verdict} ` +
+      `${VALIDATOR_MODEL}=${strong.score}/${strong.verdict} → ${verdict}`,
+  );
+
+  return {
+    score: Math.min(arabic.score, strong.score),
+    verdict,
+    leaks,
+    notes: strong.notes ?? arabic.notes,
+    latencyMs: arabic.latencyMs + strong.latencyMs,
+    ok: true,
+    model: `${ARABIC_VALIDATOR_MODEL}+${VALIDATOR_MODEL}`,
+    agreement,
+  };
 }

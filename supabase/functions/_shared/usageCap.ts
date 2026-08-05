@@ -64,7 +64,10 @@ async function hasActiveSubscription(userId: string): Promise<boolean> {
       .eq("user_id", userId)
       .maybeSingle();
     if (!data || data.subscribed !== true) return false;
-    if (data.subscription_end && new Date(data.subscription_end) < new Date()) return false;
+    // The client is untyped here, so subscription_end widens to `{}` — narrow
+    // it before constructing a Date.
+    const endsAt = data.subscription_end as string | null | undefined;
+    if (endsAt && new Date(endsAt) < new Date()) return false;
     return true;
   } catch {
     return false; // fail closed — treat as free-tier

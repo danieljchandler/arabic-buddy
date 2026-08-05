@@ -88,7 +88,14 @@ Deno.serve(async (req) => {
       }
 
       try {
-        const bytes = await synthesizeLine(textToSpeak, "narrator", i, plan);
+        // Neighboring lines condition ElevenLabs prosody so narration flows
+        // across line boundaries (no-op for other providers).
+        const prevLine = lines[i - 1];
+        const nextLine = lines[i + 1];
+        const bytes = await synthesizeLine(textToSpeak, "narrator", i, plan, {
+          previousText: prevLine ? (prevLine.dialect_vocalized || prevLine.arabic_vocalized || prevLine.dialect || prevLine.arabic || undefined) : undefined,
+          nextText: nextLine ? (nextLine.dialect_vocalized || nextLine.arabic_vocalized || nextLine.dialect || nextLine.arabic || undefined) : undefined,
+        });
         const path = `authentic-stories/${story_id}/line-${i}.${plan.ext}`;
 
         const { error: upErr } = await admin.storage

@@ -67,7 +67,10 @@ function getSttEndpoint(): string {
   return `https://${AZURE_SPEECH_REGION}.stt.speech.microsoft.com/speech/recognition/conversation/cognitiveservices/v1`;
 }
 
-const SUPPORTED_LOCALES = ['ar-SA', 'ar-QA', 'ar-KW', 'ar-BH', 'ar-AE', 'ar-OM', 'ar-EG'];
+// ar-YE included: localeToDialect below already maps it to 'Yemeni' — its
+// omission here meant Yemeni learners got a hard 400 from a branch that was
+// clearly meant to work.
+const SUPPORTED_LOCALES = ['ar-SA', 'ar-QA', 'ar-KW', 'ar-BH', 'ar-AE', 'ar-OM', 'ar-EG', 'ar-YE'];
 
 /**
  * Map an Azure locale back to the app's dialect module, so recorded errors land
@@ -86,11 +89,30 @@ interface PronunciationConfig {
   GradingSystem: 'HundredMark';
   Granularity: 'Phoneme';
   EnableMiscue: boolean;
+  /** IPA gives learner-readable symbols; the default (SAPI) renders as raw engine phoneme strings. */
+  PhonemeAlphabet: 'IPA';
+  /** Return the top-N phoneme candidates so the UI can show what was said instead of the target. */
+  NBestPhonemeCount: number;
+  EnableProsodyAssessment: boolean;
 }
 
 interface PhonemeResult {
   phoneme: string;
   accuracy: number;
+  /** Top alternative phonemes Azure heard (IPA) — shows the learner what they said instead. */
+  nbest?: Array<{ phoneme: string; accuracy: number }>;
+}
+
+/** Raw phoneme/syllable entry as Azure returns it. Azure nests scores under
+ *  PronunciationAssessment in some responses and inlines them in others. */
+interface AzurePhoneme {
+  Phoneme?: string;
+  Syllable?: string;
+  AccuracyScore?: number;
+  PronunciationAssessment?: {
+    AccuracyScore?: number;
+    NBestPhonemes?: Array<{ Phoneme?: string; Score?: number; AccuracyScore?: number }>;
+  };
 }
 
 interface WordResult {
@@ -105,6 +127,8 @@ interface PronunciationResult {
   accuracy: number;
   fluency: number;
   completeness: number;
+  /** Prosody (stress/intonation/rhythm) — present when Azure returns it. */
+  prosody?: number;
   words: WordResult[];
   recognizedText: string;
   locale: string;
@@ -126,11 +150,21 @@ function parseAzureResponse(nbest: any, locale: string): PronunciationResult {
         accuracy: wpa.AccuracyScore ?? w.AccuracyScore ?? 0,
         errorType: wpa.ErrorType ?? w.ErrorType ?? 'None',
         phonemes: (w.Phonemes ?? w.Syllables ?? []).map(
-          // deno-lint-ignore no-explicit-any
-          (p: any): PhonemeResult => ({
-            phoneme: p.Phoneme ?? p.Syllable ?? '',
-            accuracy: p.PronunciationAssessment?.AccuracyScore ?? p.AccuracyScore ?? 0,
-          })
+          (p: AzurePhoneme): PhonemeResult => {
+            const nbestRaw = p.PronunciationAssessment?.NBestPhonemes;
+            return {
+              phoneme: p.Phoneme ?? p.Syllable ?? '',
+              accuracy: p.PronunciationAssessment?.AccuracyScore ?? p.AccuracyScore ?? 0,
+              ...(Array.isArray(nbestRaw) && nbestRaw.length > 0
+                ? {
+                    nbest: nbestRaw.map((n) => ({
+                      phoneme: n.Phoneme ?? '',
+                      accuracy: n.Score ?? n.AccuracyScore ?? 0,
+                    })),
+                  }
+                : {}),
+            };
+          }
         ),
       };
     }
@@ -141,12 +175,14 @@ function parseAzureResponse(nbest: any, locale: string): PronunciationResult {
   const accuracy = pa.AccuracyScore ?? nbest.AccuracyScore ?? 0;
   const fluency = pa.FluencyScore ?? nbest.FluencyScore ?? 0;
   const completeness = pa.CompletenessScore ?? nbest.CompletenessScore ?? 0;
+  const prosody = pa.ProsodyScore ?? nbest.ProsodyScore;
 
   return {
     overall: overall,
     accuracy,
     fluency,
     completeness,
+    ...(typeof prosody === 'number' ? { prosody } : {}),
     words,
     recognizedText: nbest.Lexical ?? nbest.Display ?? '',
     locale,
@@ -209,6 +245,9 @@ Deno.serve(async (req: Request) => {
       GradingSystem: 'HundredMark',
       Granularity: 'Phoneme',
       EnableMiscue: true,
+      PhonemeAlphabet: 'IPA',
+      NBestPhonemeCount: 3,
+      EnableProsodyAssessment: true,
     };
     // btoa() only handles Latin1 — encode the JSON as UTF-8 bytes, then base64
     const configUtf8 = new TextEncoder().encode(JSON.stringify(pronunciationConfig));

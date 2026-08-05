@@ -5,7 +5,13 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 
 
 const FANAR_STT_TIMEOUT_MS = 2 * 60 * 1000;
-const STT_DAILY_LIMIT = 18; // leave 2 buffer from the 20 API limit
+// Fanar quotas: Fanar-Aura-STT-1 20/day, Fanar-Aura-STT-LF-1 10/day.
+// Each is metered separately in fanar_usage with headroom under the API caps.
+const STT_DAILY_LIMIT = 18;
+const STT_LF_DAILY_LIMIT = 8;
+// STT-1 is documented for clips up to ~20-30s; route bigger uploads (~0.5 MB
+// ≈ 30s of 128 kbps MP3) to the long-form model.
+const LONG_FORM_BYTES = 0.5 * 1024 * 1024;
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -47,33 +53,10 @@ serve(async (req) => {
       );
     }
 
-    // Check daily budget
     const supabaseService = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
     );
-
-    const today = new Date().toISOString().slice(0, 10);
-    const { count, error: countError } = await supabaseService
-      .from('fanar_usage')
-      .select('*', { count: 'exact', head: true })
-      .eq('endpoint', 'stt')
-      .gte('created_at', `${today}T00:00:00Z`);
-
-    if (countError) {
-      console.warn("Failed to check fanar_usage budget:", countError.message);
-    }
-
-    const usedToday = count ?? 0;
-    const budgetRemaining = Math.max(0, STT_DAILY_LIMIT - usedToday);
-
-    if (usedToday >= STT_DAILY_LIMIT) {
-      console.log(`fanar-transcribe: daily STT budget exhausted (${usedToday}/${STT_DAILY_LIMIT})`);
-      return new Response(
-        JSON.stringify({ text: null, fanarUsed: false, fanarAvailable: false, reason: "daily_limit_reached", budgetRemaining: 0 }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
 
     // Get audio file from request
     let audioFile: File | null = null;
@@ -122,12 +105,41 @@ serve(async (req) => {
     }
 
     const fileSizeMB = (audioFile.size / (1024 * 1024)).toFixed(2);
-    console.log(`fanar-transcribe: processing ${audioFile.name}, size: ${fileSizeMB} MB, type: ${audioFile.type}`);
+
+    // Route to the model matching the clip length, then check that model's
+    // separate daily budget.
+    const isLongForm = audioFile.size > LONG_FORM_BYTES;
+    const sttModel = isLongForm ? "Fanar-Aura-STT-LF-1" : "Fanar-Aura-STT-1";
+    const usageEndpoint = isLongForm ? "stt-lf" : "stt";
+    const dailyLimit = isLongForm ? STT_LF_DAILY_LIMIT : STT_DAILY_LIMIT;
+    console.log(`fanar-transcribe: processing ${audioFile.name}, size: ${fileSizeMB} MB, type: ${audioFile.type}, model: ${sttModel}`);
+
+    const today = new Date().toISOString().slice(0, 10);
+    const { count, error: countError } = await supabaseService
+      .from('fanar_usage')
+      .select('*', { count: 'exact', head: true })
+      .eq('endpoint', usageEndpoint)
+      .gte('created_at', `${today}T00:00:00Z`);
+
+    if (countError) {
+      console.warn("Failed to check fanar_usage budget:", countError.message);
+    }
+
+    const usedToday = count ?? 0;
+    const budgetRemaining = Math.max(0, dailyLimit - usedToday);
+
+    if (usedToday >= dailyLimit) {
+      console.log(`fanar-transcribe: daily ${usageEndpoint} budget exhausted (${usedToday}/${dailyLimit})`);
+      return new Response(
+        JSON.stringify({ text: null, fanarUsed: false, fanarAvailable: false, reason: "daily_limit_reached", budgetRemaining: 0 }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     // Call Fanar STT API
     const apiFormData = new FormData();
     apiFormData.append("file", audioFile);
-    apiFormData.append("model", "Fanar-Aura-STT-1");
+    apiFormData.append("model", sttModel);
     apiFormData.append("response_format", "json");
     apiFormData.append("language", "ar");
 
@@ -164,7 +176,7 @@ serve(async (req) => {
     // Log usage to fanar_usage table
     try {
       await supabaseService.from('fanar_usage').insert({
-        endpoint: 'stt',
+        endpoint: usageEndpoint,
         user_id: user.id,
       });
     } catch (logErr) {

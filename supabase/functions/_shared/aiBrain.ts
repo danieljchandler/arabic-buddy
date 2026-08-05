@@ -13,12 +13,13 @@ import {
 } from './dialectHelpers.ts';
 import { detectMsaLeaks, type MsaLeakResult } from './msaLeakDetector.ts';
 import { logMsaViolations, logValidatorResult } from './msaViolationLogger.ts';
-import { validateDialect, type ValidatorResult } from './dialectValidator.ts';
+import { validateDialectCrossChecked, type ValidatorResult } from './dialectValidator.ts';
 import { emitMetric } from './featureMetrics.ts';
 import {
   DEFAULT_FAST,
   DEFAULT_JUDGE,
   DEFAULT_DRAFTERS,
+  MODEL_IDS,
   MODEL_LINEUPS,
   getModelWeight,
 } from './modelRegistry.ts';
@@ -233,7 +234,7 @@ export async function askBrain<T = unknown>(task: BrainTask): Promise<BrainResul
   if (task.validateDialect && !result.validator) {
     try {
       const scanText = extractScanText(task, result.output, result.raw);
-      const v = await validateDialect(scanText, task.dialect, { apiKey });
+      const v = await validateDialectCrossChecked(scanText, task.dialect, { apiKey });
       result.validator = v;
       if (v.ok && (v.verdict === 'rewrite' || v.leaks.length > 0)) {
         logValidatorResult({
@@ -695,7 +696,7 @@ async function runDraftCritic<T>(task: BrainTask, apiKey: string, deadline: Dead
   if (task.enforceDialect && remainingMs(deadline) > MIN_PASS_BUDGET_MS) {
     const vStart = Date.now();
     try {
-      validator = await validateDialect(draftText, task.dialect, {
+      validator = await validateDialectCrossChecked(draftText, task.dialect, {
         apiKey,
         signal: AbortSignal.timeout(Math.min(20_000, callBudget(deadline))),
       });
@@ -965,7 +966,7 @@ export async function streamBrain(task: StreamBrainTask): Promise<Response> {
 
   await primeDialectPrompt(task.dialect);
 
-  const model = task.model ?? 'google/gemini-3.1-pro-preview';
+  const model = task.model ?? DEFAULT_DRAFTERS[1] ?? MODEL_IDS.GEMINI_FLASH;
   const isGpt5 = /^openai\/gpt-5/.test(model);
 
   const system = buildSystem({
@@ -1041,7 +1042,7 @@ export async function streamBrain(task: StreamBrainTask): Promise<Response> {
               leaks,
               offendingText: full,
               sourceFunction: task.purpose,
-              metadata: { streaming: true, model: task.model ?? 'google/gemini-3.1-pro-preview' },
+              metadata: { streaming: true, model },
             });
             // Fire-and-forget a repair call so callers with onComplete can get
             // the corrected text (e.g., conversation-practice buffers the stream).

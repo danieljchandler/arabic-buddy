@@ -28,7 +28,7 @@ export const PronunciationButton = ({
   locale: localeProp,
 }: PronunciationButtonProps) => {
   const { activeDialect } = useDialect();
-  const locale = localeProp ?? (activeDialect === 'Egyptian' ? 'ar-EG' : 'ar-SA');
+  const locale = localeProp ?? (activeDialect === 'Egyptian' ? 'ar-EG' : activeDialect === 'Yemeni' ? 'ar-YE' : 'ar-SA');
   const { assess, result, isLoading, error, reset } = useAzurePronunciation();
   const [isRecording, setIsRecording] = useState(false);
   const recorderRef = useRef<MediaRecorder | null>(null);

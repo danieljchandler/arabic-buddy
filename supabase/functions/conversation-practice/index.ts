@@ -8,6 +8,7 @@ import { detectMsaLeaks } from "../_shared/msaLeakDetector.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { learnerPromptBlock } from "../_shared/learnerProfile.ts";
+import { MODEL_IDS } from "../_shared/modelRegistry.ts";
 
 
 function difficultyExtras(difficulty: string): string {
@@ -101,7 +102,7 @@ serve(async (req) => {
         dialect: effectiveDialect,
         systemPromptExtra: difficultyExtras(difficulty) + driftNudge + learnerNudge,
         messages,
-        model: "google/gemini-3-flash-preview",
+        model: MODEL_IDS.GEMINI_FAST,
         temperature: 0.8,
         maxTokens: 500,
         signal: controller.signal,

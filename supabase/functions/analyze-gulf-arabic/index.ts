@@ -23,6 +23,8 @@ function generateId(): string {
    literal?: string;
    tokens: WordToken[];
    needs_review?: boolean;
+   /** Fanar-Shaheen-MT alternative rendering, present only on disputed lines. */
+   altTranslation?: string;
  }
  
  interface VocabItem {
@@ -233,7 +235,7 @@ No additional text outside JSON.`;
 
 const getMetaSystemPrompt = (isRetry: boolean = false) => {
   const strictPrefix = strictJsonPrefix(isRetry);
-  return `${strictPrefix}You are processing Gulf Arabic transcript text for language learners.
+  return `${strictPrefix}You are processing ${dialectShortLabel()} transcript text for language learners.
 
 Output ONLY valid JSON matching this schema:
 {
@@ -312,15 +314,25 @@ Rules:
 
 // ─── FANAR DIALECT VALIDATION PROMPT ────────────────────────────────────────
 // Sent to Fanar-C-2-27B after merge, in parallel with translation.
-// Read-only: result is stored for review, never used to modify transcript.
-const getFanarValidationSystemPrompt = () =>
-  `أنت خبير في اللهجة الخليجية. راجع هذا النص المنقول وحدد أي مشاكل في:
-- كلمات تبدو مُحوَّلة إلى الفصحى بدلاً من اللهجة الخليجية المحكية
+// Templated by DIALECT_MODULE: Egyptian and Yemeni transcripts must be judged
+// against their own dialect norms, not Gulf ones. The result is persisted in
+// engines_used.dialect_signals for the admin review flow.
+const getFanarValidationSystemPrompt = () => {
+  const { arabicName, contextName } =
+    DIALECT_MODULE === 'Egyptian'
+      ? { arabicName: 'اللهجة المصرية', contextName: 'المصري' }
+      : DIALECT_MODULE === 'Yemeni'
+        ? { arabicName: 'اللهجة اليمنية', contextName: 'اليمني' }
+        : { arabicName: 'اللهجة الخليجية', contextName: 'الخليجي' };
+  return `أنت خبير في ${arabicName}. راجع هذا النص المنقول وحدد أي مشاكل في:
+- كلمات تبدو مُحوَّلة إلى الفصحى بدلاً من ${arabicName} المحكية
 - كلمات أو عبارات تبدو مكتوبة بشكل غير صحيح أو مُحرَّفة
-- محتوى لا يتوافق ثقافياً مع السياق الخليجي
+- كلمات من لهجة عربية أخرى لا تنتمي إلى ${arabicName}
+- محتوى لا يتوافق ثقافياً مع السياق ${contextName}
 
 اذكر رقم السطر والكلمة والمشكلة بإيجاز. إذا لم تجد مشاكل، قل ذلك بجملة واحدة.
 يمكنك الإجابة بالعربية أو الإنجليزية.`;
+};
 
 // ─── GLOSS ENRICHMENT PROMPT ─────────────────────────────────────────────────
 // Generates per-word English translations for EVERY unique Arabic token.
@@ -716,7 +728,7 @@ type CallFanarArgs = {
   systemPrompt: string;
   userContent: string;
   apiKey: string;
-  model?: string; // 'Fanar' | 'Fanar-C-2-27B' | 'Fanar-Sadiq'
+  model?: string; // e.g. 'Fanar-C-2-27B' (default). Do NOT use 'Fanar-Sadiq' — Islamic RAG model.
   maxTokens?: number;
   temperature?: number;
 };
@@ -725,7 +737,10 @@ async function callFanar({
   systemPrompt,
   userContent,
   apiKey,
-  model = 'Fanar',
+  // Pin the concrete generation instead of the bare 'Fanar' alias: the alias
+  // silently tracks whatever QCRI points it at (today Fanar-C-1-8.7B, 4k ctx).
+  // Fanar-C-2-27B gives 32k context — required for whole-transcript merges.
+  model = 'Fanar-C-2-27B',
   maxTokens = 4096,
   temperature = 0.2,
 }: CallFanarArgs): Promise<{ content: string | null; error?: string; status?: number }> {
@@ -802,7 +817,86 @@ async function callFanar({
   return { content };
 }
 
+// ─── FANAR SHAHEEN-MT — dedicated AR→EN translation model ───────────────────
+// Used only as a tiebreak on lines where the 3-way LLM ensemble disagreed or
+// came back empty. One batched call per transcript (quota is 20/day), metered
+// through the fanar_usage table under endpoint 'mt'.
+const SHAHEEN_MT_DAILY_LIMIT = 16; // leave headroom under the 20/day API limit
 
+async function callShaheenTranslate(
+  lines: string[],
+  apiKey: string,
+): Promise<string[] | null> {
+  if (lines.length === 0) return null;
+
+  // Budget check + usage log via the fanar_usage table (endpoint 'mt').
+  // Metering failures are non-fatal — worst case we drift toward the API's
+  // own 20/day limit, which just makes this call 429 and get skipped.
+  let svc: ReturnType<typeof createClient> | null = null;
+  try {
+    svc = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    );
+    const today = new Date().toISOString().slice(0, 10);
+    const { count } = await svc
+      .from('fanar_usage')
+      .select('*', { count: 'exact', head: true })
+      .eq('endpoint', 'mt')
+      .gte('created_at', `${today}T00:00:00Z`);
+    if ((count ?? 0) >= SHAHEEN_MT_DAILY_LIMIT) {
+      console.log(`Shaheen-MT: daily budget exhausted (${count}/${SHAHEEN_MT_DAILY_LIMIT}) — skipping`);
+      return null;
+    }
+  } catch (e) {
+    console.warn('Shaheen-MT: budget check failed (continuing):', e instanceof Error ? e.message : String(e));
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30_000);
+  try {
+    const response = await fetch('https://api.fanar.qa/v1/translations', {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'Fanar-Shaheen-MT-1',
+        text: lines.join('\n'),
+        langpair: 'ar-en',
+        preprocessing: 'preserve_whitespace',
+      }),
+    });
+    if (!response.ok) {
+      const errText = await response.text();
+      console.warn(`Shaheen-MT error ${response.status}:`, errText.slice(0, 300));
+      return null;
+    }
+    const data = await response.json();
+    // The client carries no schema types here, so the insert row would infer
+    // as `never` — narrow the table handle to just the insert we need.
+    const usageTable = svc?.from('fanar_usage') as unknown as
+      { insert: (row: Record<string, unknown>) => PromiseLike<unknown> } | undefined;
+    usageTable?.insert({ endpoint: 'mt' }).then(
+      () => {},
+      (e: unknown) => console.warn('Shaheen-MT: usage log failed:', String(e)),
+    );
+    const out = String(data.text ?? '').split('\n').map((s: string) => s.trim());
+    if (out.length !== lines.length) {
+      console.warn(`Shaheen-MT: line count mismatch (sent ${lines.length}, got ${out.length}) — discarding`);
+      return null;
+    }
+    return out;
+  } catch (e) {
+    const isAbort = e instanceof DOMException && e.name === 'AbortError';
+    console.warn('Shaheen-MT fetch failed:', isAbort ? 'timeout after 30s' : String(e));
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
 
 function extractJsonObject(text: string): string {
   const cleaned = text
@@ -1457,7 +1551,7 @@ serve(async (req) => {
       }
     }
     const body = await req.json();
-    const { transcript, munsitTranscript, fanarTranscript, sonioxTranscript, azureTranscript, sonioxTranslation, visualContext, originalUrl, videoId: pipelineVideoId, dialectModule, isMeme, onScreenTextSegments } = body;
+    const { transcript, munsitTranscript, fanarTranscript, sonioxTranscript, azureTranscript, scribeTranscript, cohereTranscript, sonioxTranslation, visualContext, originalUrl, videoId: pipelineVideoId, dialectModule, isMeme, onScreenTextSegments } = body;
     DIALECT_MODULE = (dialectModule === 'Egyptian' || dialectModule === 'Yemeni') ? dialectModule : 'Gulf';
     console.log('Dialect module for this request:', DIALECT_MODULE);
 
@@ -1510,14 +1604,18 @@ serve(async (req) => {
     const hasFanar = Boolean(fanarTranscript && typeof fanarTranscript === 'string' && fanarTranscript.trim().length > 0);
     const hasSoniox = Boolean(sonioxTranscript && typeof sonioxTranscript === 'string' && sonioxTranscript.trim().length > 0);
     const hasAzure = Boolean(azureTranscript && typeof azureTranscript === 'string' && azureTranscript.trim().length > 0);
+    const hasScribe = Boolean(scribeTranscript && typeof scribeTranscript === 'string' && scribeTranscript.trim().length > 0);
+    const hasCohere = Boolean(cohereTranscript && typeof cohereTranscript === 'string' && cohereTranscript.trim().length > 0);
     const hasTriple = hasDual && hasFanar;
-    const asrCount = 1 + (hasDual ? 1 : 0) + (hasFanar ? 1 : 0) + (hasSoniox ? 1 : 0) + (hasAzure ? 1 : 0);
+    const asrCount = 1 + (hasDual ? 1 : 0) + (hasFanar ? 1 : 0) + (hasSoniox ? 1 : 0) + (hasAzure ? 1 : 0) + (hasScribe ? 1 : 0) + (hasCohere ? 1 : 0);
     console.log('Analyzing transcript (lines + meta)...');
     console.log('Deepgram transcript length:', transcript.length);
     if (hasDual) console.log('Munsit transcript length:', munsitTranscript.length);
     if (hasFanar) console.log('Fanar transcript length:', fanarTranscript.length);
     if (hasSoniox) console.log('Soniox transcript length:', sonioxTranscript.length);
     if (hasAzure) console.log('Azure transcript length:', azureTranscript.length);
+    if (hasScribe) console.log('Scribe transcript length:', scribeTranscript.length);
+    if (hasCohere) console.log('Cohere transcript length:', cohereTranscript.length);
 
     const FANAR_API_KEY = Deno.env.get('FANAR_API_KEY')?.trim();
     const fanarLlmAvailable = Boolean(FANAR_API_KEY);
@@ -1534,6 +1632,8 @@ serve(async (req) => {
      if (hasDual) transcriptParts.push(`Transcription (Munsit — Arabic-native dialect specialist, PREFER wording for dialectal phrases):\n${munsitTranscript}`);
      if (hasSoniox) transcriptParts.push(`Transcription (Soniox — lowest-WER engine, use when Munsit is missing):\n${sonioxTranscript}`);
      if (hasFanar) transcriptParts.push(`Transcription (Fanar — Arabic-native, tie-breaker):\n${fanarTranscript}`);
+     if (hasScribe) transcriptParts.push(`Transcription (ElevenLabs Scribe — strongest on Arabic-English code-switching, PREFER for English words and mixed phrases):\n${scribeTranscript}`);
+     if (hasCohere) transcriptParts.push(`Transcription (Cohere Transcribe Arabic — lowest average WER across Arabic dialects):\n${cohereTranscript}`);
      if (hasAzure) transcriptParts.push(`Transcription (Azure — locale-tuned for this dialect):\n${azureTranscript}`);
      transcriptParts.push(`Transcription (Deepgram — best for word boundaries; do NOT prefer its wording):\n${transcript}`);
 
@@ -1742,13 +1842,16 @@ serve(async (req) => {
          isRetry: false,
          maxTokens: 8192,
        }),
-       // Fanar-Sadiq meta enrichment
+       // Fanar meta enrichment (vocab/grammar/culture). Uses the general
+       // Fanar-C-2-27B model — NOT Fanar-Sadiq, which is the Islamic-content
+       // RAG model and was contaminating secular transcripts with
+       // religious-context framing.
        fanarLlmAvailable
          ? callFanar({
              systemPrompt: getMetaSystemPrompt(true),
              userContent: mergedTranscriptText,
              apiKey: FANAR_API_KEY!,
-             model: 'Fanar-Sadiq',
+             model: 'Fanar-C-2-27B',
              maxTokens: 2048,
            })
          : Promise.resolve({ content: null } as { content: string | null }),
@@ -1821,12 +1924,46 @@ serve(async (req) => {
       const dedicatedLiterals: string[] = ensembleMerge.lines.map((l) => l.literal);
       const ensembleNeedsReview: boolean[] = ensembleMerge.lines.map((l) => l.needs_review);
 
+      // ── SHAHEEN-MT TIEBREAK ──────────────────────────────────────────────
+      // Only for lines the ensemble couldn't settle (needs_review) or left
+      // empty: get a reference translation from Fanar-Shaheen-MT-1, the only
+      // Arabic-native dedicated MT model in the stack. Empty translations are
+      // filled from it; disputed-but-filled lines keep the ensemble's text and
+      // carry Shaheen's as `altTranslation` for the admin review UI.
+      const shaheenByLine: (string | null)[] = new Array(mergedLines.length).fill(null);
+      const disputedIdx = ensembleMerge.lines
+        .map((l, i) => (l.needs_review || !l.translation) ? i : -1)
+        .filter((i) => i >= 0);
+      let shaheenProvenance: { called: boolean; disputed_lines: number; filled: number } = {
+        called: false, disputed_lines: disputedIdx.length, filled: 0,
+      };
+      if (fanarLlmAvailable && disputedIdx.length > 0) {
+        const shaheenOut = await callShaheenTranslate(
+          disputedIdx.map((i) => mergedLines[i].arabic),
+          FANAR_API_KEY!,
+        );
+        if (shaheenOut) {
+          shaheenProvenance.called = true;
+          disputedIdx.forEach((lineIdx, k) => {
+            if (shaheenOut[k]) shaheenByLine[lineIdx] = shaheenOut[k];
+          });
+          shaheenProvenance.filled = disputedIdx.filter(
+            (i) => !dedicatedTranslations[i] && shaheenByLine[i],
+          ).length;
+          console.log(
+            `Shaheen-MT tiebreak: ${disputedIdx.length} disputed lines, ` +
+              `${shaheenProvenance.filled} empty translations filled`,
+          );
+        }
+      }
+
       // Structured provenance for engines_used.translation
       const translationProvenance = {
         strategy: 'weighted_ensemble',
         degraded: okCount < 3,
         active_models: okCount,
         agreements: ensembleMerge.agreements,
+        shaheen: shaheenProvenance,
         tiers: translationCandidates.map((c) => ({
           name: c.name,
           via: c.via,
@@ -1899,12 +2036,21 @@ serve(async (req) => {
       console.log(
         `Diacritization overlay: ${diacritizedLineCount}/${mergedLines.length} lines updated with tashkeel`,
       );
-      const finalLines = mergedLines.map((mergedLine, i) => ({
-        arabic: diacritizedPerLine[i] || mergedLine.arabic,
-        translation: dedicatedTranslations[i] || call2Lines[i]?.translation || '',
-        literal: dedicatedLiterals[i] || '',
-        needs_review: ensembleNeedsReview[i] ?? false,
-      }));
+      const finalLines = mergedLines.map((mergedLine, i) => {
+        const ensembleTranslation = dedicatedTranslations[i] || call2Lines[i]?.translation || '';
+        return {
+          arabic: diacritizedPerLine[i] || mergedLine.arabic,
+          // Shaheen fills only when the ensemble + Call 2 both came back empty.
+          translation: ensembleTranslation || shaheenByLine[i] || '',
+          literal: dedicatedLiterals[i] || '',
+          needs_review: ensembleNeedsReview[i] ?? false,
+          // Disputed lines that already have a translation carry Shaheen's
+          // Arabic-native rendering as an alternative for the review UI.
+          ...(ensembleTranslation && ensembleNeedsReview[i] && shaheenByLine[i]
+            ? { altTranslation: shaheenByLine[i]! }
+            : {}),
+        };
+      });
 
       if (dedicatedTranslations.length > 0) {
         console.log(
@@ -1915,18 +2061,18 @@ serve(async (req) => {
       }
 
 
-     // Merge Fanar-Sadiq meta results if available
+     // Merge Fanar meta results if available
      if (fanarMetaResp.content) {
        const fanarMetaAi = safeJsonParse<MetaAI>(fanarMetaResp.content);
        if (fanarMetaAi) {
-         console.log('Merging Fanar-Sadiq meta results...');
+         console.log('Merging Fanar meta results...');
          // Union vocabularies (deduplicate by Arabic text)
          if (Array.isArray(fanarMetaAi.vocabulary)) {
            const existingArabic = new Set(vocab.map(v => v.arabic));
            const newVocab = fanarMetaAi.vocabulary.filter(v => v.arabic && !existingArabic.has(v.arabic));
            if (newVocab.length > 0) {
              vocab = [...vocab, ...newVocab];
-             console.log(`Added ${newVocab.length} vocab items from Fanar-Sadiq`);
+             console.log(`Added ${newVocab.length} vocab items from Fanar meta`);
            }
          }
          // Union grammar points (deduplicate by title)
@@ -1935,13 +2081,13 @@ serve(async (req) => {
            const newGrammar = fanarMetaAi.grammarPoints.filter(g => g.title && !existingTitles.has(g.title.toLowerCase()));
            if (newGrammar.length > 0) {
              grammarPoints = [...grammarPoints, ...newGrammar];
-             console.log(`Added ${newGrammar.length} grammar points from Fanar-Sadiq`);
+             console.log(`Added ${newGrammar.length} grammar points from Fanar meta`);
            }
          }
-         // Prefer Fanar-Sadiq cultural context if richer (longer)
+         // Prefer Fanar cultural context if richer (longer)
          if (fanarMetaAi.culturalContext && (!culturalContext || fanarMetaAi.culturalContext.length > culturalContext.length)) {
            culturalContext = fanarMetaAi.culturalContext;
-           console.log('Using Fanar-Sadiq cultural context (richer)');
+           console.log('Using Fanar cultural context (richer)');
          }
        }
      }
@@ -2038,6 +2184,7 @@ serve(async (req) => {
           translation: String(l.translation ?? '').trim(),
           literal: String(l.literal ?? '').trim(),
           needs_review: Boolean(l.needs_review),
+          ...(l.altTranslation ? { altTranslation: String(l.altTranslation).trim() } : {}),
           tokens: toWordTokens(String(l.arabic ?? '').trim(), vocab, allWordGlosses),
         })),
        vocabulary: vocab,
@@ -2142,9 +2289,29 @@ serve(async (req) => {
                   .map((w: string, wi: number) => ({ id: `tok-${line.id ?? wi}-${wi}`, surface: w })),
           }));
 
+          // Dialect signals: Fanar validation + CAMeL BERT dialect ID were
+          // previously computed, logged, and thrown away. Persist them so the
+          // admin review flow can act on them. `flagged` is a cheap composite:
+          // CAMeL disagrees with the LLM-detected dialect family, or Fanar's
+          // review is materially long (a clean pass is a single sentence).
+          const camelAgrees = camelDialectResult
+            ? camelDialectResult.dialect === detectedDialect ||
+              (DIALECT_MODULE === 'Gulf' && camelDialectResult.isGulf)
+            : null;
+          const dialectSignals = {
+            llm_dialect: detectedDialect,
+            fanar_validation: dialectValidation,
+            camel: camelDialectResult ?? null,
+            camel_agrees: camelAgrees,
+            flagged: camelAgrees === false || (dialectValidation?.content?.length ?? 0) > 300,
+          };
+
           // Read-then-merge engines_used so we don't clobber ASR provenance written
-          // by process-approved-video. Translation ensemble is additive.
-          let mergedEnginesUsed: Record<string, unknown> = { translation: translationProvenance };
+          // by process-approved-video. Translation ensemble + dialect signals are additive.
+          let mergedEnginesUsed: Record<string, unknown> = {
+            translation: translationProvenance,
+            dialect_signals: dialectSignals,
+          };
           try {
             const { data: existingRow } = await svc
               .from('discover_videos')
@@ -2154,7 +2321,7 @@ serve(async (req) => {
             const existing = (existingRow?.engines_used && typeof existingRow.engines_used === 'object')
               ? existingRow.engines_used as Record<string, unknown>
               : {};
-            mergedEnginesUsed = { ...existing, translation: translationProvenance };
+            mergedEnginesUsed = { ...existing, translation: translationProvenance, dialect_signals: dialectSignals };
           } catch (_) {
             // non-fatal — fall back to translation-only
           }

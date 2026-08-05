@@ -4,6 +4,7 @@ import { enforceDailyCap } from "../_shared/usageCap.ts";
 import { askBrain, BrainHttpError } from "../_shared/aiBrain.ts";
 import { getDialectIdentity, getDialectVocabRules, getDialectLabel, type Dialect } from "../_shared/dialectHelpers.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { MODEL_IDS } from "../_shared/modelRegistry.ts";
 
 
 function generateId(): string {
@@ -165,7 +166,7 @@ async function callAI(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-3-flash-preview',
+        model: MODEL_IDS.GEMINI_FAST,
         messages,
         max_tokens: maxTokens,
         temperature: 0.3,

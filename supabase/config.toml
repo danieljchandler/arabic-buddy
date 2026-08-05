@@ -13,8 +13,8 @@ verify_jwt = true
 
 # Admin / pipeline functions — MUST verify JWT.
 # Called from authed admin flows (user JWT) and server-to-server from
-# receive-audio / extract-visual-context (service-role key — a valid JWT), so
-# requiring a valid JWT here does not break the pipeline.
+# extract-visual-context (service-role key — a valid JWT), so requiring a
+# valid JWT here does not break the pipeline.
 [functions.process-approved-video]
 verify_jwt = true
 
@@ -27,16 +27,6 @@ verify_jwt = true
 
 [functions.generate-story]
 verify_jwt = true
-
-# ─── Functions that use callback-secret auth (not JWT) ────────────────────────
-# receive-audio uses RunPod callback secret in the Authorization header,
-# so JWT verification is disabled — the function validates the secret itself.
-[functions.receive-audio]
-verify_jwt = false
-
-# trigger-download is called server-to-server
-[functions.trigger-download]
-verify_jwt = false
 
 # ─── Public learning content functions ────────────────────────────────────────
 # These serve public learning content or lightweight AI helpers.

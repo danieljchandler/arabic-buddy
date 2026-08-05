@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { SONIOX_MODEL, buildSonioxContext, type DialectModule } from "../_shared/asrConfig.ts";
 
 
 const SONIOX_BASE = "https://api.soniox.com/v1";
@@ -61,11 +62,16 @@ serve(async (req) => {
     let fileId: string | null = null;
     let audioUrl: string | null = null;
     let includeTranslation = false;
+    let dialect: DialectModule = "Gulf";
+
+    const parseDialect = (raw: unknown): DialectModule =>
+      raw === "Egyptian" || raw === "Yemeni" ? raw : "Gulf";
 
     if (contentType.includes("application/json")) {
       const body = await req.json();
       audioUrl = body.audioUrl || null;
       includeTranslation = body.includeTranslation === true;
+      dialect = parseDialect(body.dialect);
 
       if (!audioUrl) {
         return new Response(
@@ -78,6 +84,7 @@ serve(async (req) => {
       const formData = await req.formData();
       const audioFile = (formData.get("audio") || formData.get("file")) as File;
       includeTranslation = formData.get("includeTranslation") === "true";
+      dialect = parseDialect(formData.get("dialect"));
 
       if (!audioFile) {
         return new Response(
@@ -112,12 +119,17 @@ serve(async (req) => {
       console.log(`soniox-transcribe: file uploaded, id=${fileId}`);
     }
 
-    // Helper: create transcription and poll to completion
-    async function createAndPoll(withTranslation: boolean): Promise<{ ok: boolean; transcriptionId?: string; error?: string }> {
+    // Helper: create transcription and poll to completion.
+    // Model pinned to v5 (v4 retired 2026-06-30). language_hints includes "en"
+    // because this corpus is heavily Arabic-English code-switched — the old
+    // ["ar"] + strict combination suppressed English tokens. context biases
+    // recognition toward the dialect's vocabulary.
+    async function createAndPoll(withTranslation: boolean, withContext = true): Promise<{ ok: boolean; transcriptionId?: string; error?: string }> {
       const body: Record<string, unknown> = {
-        model: "stt-async-v4",
-        language_hints: ["ar"],
-        language_hints_strict: true,
+        model: SONIOX_MODEL,
+        language_hints: ["ar", "en"],
+        enable_speaker_diarization: true,
+        ...(withContext ? { context: buildSonioxContext(dialect) } : {}),
       };
 
       if (fileId) body.file_id = fileId;
@@ -176,12 +188,18 @@ serve(async (req) => {
 
     const startTime = Date.now();
 
-    // Attempt with translation if requested; retry without on failure
+    // Attempt with translation if requested; retry without on failure, then
+    // once more without the context/diarization extras so a schema rejection
+    // can never take the whole leg down.
     let result = await createAndPoll(includeTranslation);
 
     if (!result.ok && includeTranslation) {
       console.warn(`soniox-transcribe: failed with translation enabled, retrying without translation. Error: ${result.error}`);
       result = await createAndPoll(false);
+    }
+    if (!result.ok) {
+      console.warn(`soniox-transcribe: retrying with minimal request body. Error: ${result.error}`);
+      result = await createAndPoll(false, false);
     }
 
     if (!result.ok) {
@@ -236,19 +254,22 @@ serve(async (req) => {
       if (tokenText.startsWith(" ") || !currentWord) {
         // New word
         if (currentWord) {
-          words.push({ text: currentWord, start: wordStart / 1000, end: wordEnd / 1000 });
+          words.push({ text: currentWord, start: wordStart / 1000, end: Math.max(wordEnd, wordStart) / 1000 });
         }
         currentWord = tokenText.trimStart();
         wordStart = token.start_ms ?? 0;
-        wordEnd = token.end_ms ?? 0;
+        // Some Soniox tokens omit end_ms on the first sub-word of a phrase.
+        // Falling through to 0 collapses word timing — keep the token's own
+        // start_ms as a safe lower bound (same fix as the pipeline copy).
+        wordEnd = token.end_ms ?? token.start_ms ?? 0;
       } else {
         // Continuation of current word
         currentWord += tokenText;
-        wordEnd = token.end_ms ?? wordEnd;
+        wordEnd = token.end_ms ?? token.start_ms ?? wordEnd;
       }
     }
     if (currentWord) {
-      words.push({ text: currentWord, start: wordStart / 1000, end: wordEnd / 1000 });
+      words.push({ text: currentWord, start: wordStart / 1000, end: Math.max(wordEnd, wordStart) / 1000 });
     }
 
     console.log(`soniox-transcribe: ${text.length} chars, ${words.length} words`);

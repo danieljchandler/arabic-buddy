@@ -10,6 +10,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { MODEL_IDS } from "../_shared/modelRegistry.ts";
 
 
 const DIALECT_RULES: Record<string, string> = {
@@ -35,7 +36,7 @@ Rules:
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: "google/gemini-3-flash-preview",
+      model: MODEL_IDS.GEMINI_FAST,
       messages: [
         { role: "system", content: sys },
         { role: "user", content: `Occasion: ${occasionName}\nDialect: ${dialect}\nGenerate 10 phrases.` },

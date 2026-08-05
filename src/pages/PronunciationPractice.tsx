@@ -17,6 +17,7 @@ import { PAGE_HINTS } from "@/lib/pageHints";
 import { useRef } from "react";
 import { ShadowPlayer } from "@/components/pronunciation/ShadowPlayer";
 import { useShadowQueue } from "@/hooks/useShadowQueue";
+import { useDialect } from "@/contexts/DialectContext";
 
 const MAX_DURATION_MS = 5000;
 
@@ -28,6 +29,7 @@ const DIALECT_MAP: Record<string, string> = {
   Qatari: "ar-QA",
   Omani: "ar-OM",
   Egyptian: "ar-EG",
+  Yemeni: "ar-YE",
   Levantine: "ar-JO",
   Gulf: "ar-SA",
   MSA: "ar-SA",
@@ -46,6 +48,10 @@ const PronunciationPractice = () => {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const { assess, result, isLoading, error, reset } = useAzurePronunciation();
+  const { activeDialect } = useDialect();
+  // Assess against the learner's active dialect locale — previously hardcoded
+  // to ar-SA, so Egyptian/Yemeni learners were scored against Saudi norms.
+  const assessLocale = DIALECT_MAP[activeDialect] ?? "ar-SA";
 
   const [words, setWords] = useState<VocabWord[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -112,7 +118,7 @@ const PronunciationPractice = () => {
         stream.getTracks().forEach((t) => t.stop());
         const blob = new Blob(chunksRef.current, { type: mimeType });
         if (blob.size > 0) {
-          const res = await assess(blob, referenceText, "ar-SA");
+          const res = await assess(blob, referenceText, assessLocale);
           if (res) {
             setSessionScores((prev) => [...prev, res.overall]);
           }
@@ -131,7 +137,7 @@ const PronunciationPractice = () => {
     } catch {
       console.error("Microphone access denied");
     }
-  }, [referenceText, assess, reset]);
+  }, [referenceText, assess, reset, assessLocale]);
 
   const goToNext = () => {
     reset();

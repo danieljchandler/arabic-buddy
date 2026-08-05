@@ -17,17 +17,6 @@
 // governed by this registry — they have their own provider-specific configs.
 // =============================================================================
 
-export type ModelTier = 'fast' | 'balanced' | 'strong';
-export type ModelTag = 'dialect' | 'reasoning' | 'multimodal' | 'cheap' | 'judge';
-
-export interface ModelSpec {
-  id: string;
-  tier: ModelTier;
-  tags: ModelTag[];
-  approxLatencyMs?: number;
-  notes?: string;
-}
-
 // ---- Canonical model IDs ----------------------------------------------------
 // Bump these when upgrading; everything downstream picks it up automatically.
 export const MODEL_IDS = {
@@ -36,8 +25,12 @@ export const MODEL_IDS = {
   GEMINI_PRO: 'google/gemini-2.5-pro',             // heavy reasoning fallback
   GEMINI_FAST: 'google/gemini-3-flash-preview',    // cheapest utility default
   QWEN: 'qwen/qwen3-max',                          // third-leg verifier
-  FANAR_SADIQ: 'Fanar-Sadiq',                      // cultural enrichment (Fanar API)
-  FANAR_VALID: 'Fanar-C-2-27B',                    // dialect validation (Fanar API)
+  SABA: 'mistralai/mistral-saba',                  // Arabic-native 24B, via OpenRouter
+  // All general Fanar work (merge fallback, meta enrichment, dialect
+  // validation, curriculum chat) uses the pinned gen-2 model. Never use the
+  // bare 'Fanar' alias (silently tracks gen 1, 4k ctx) and never use
+  // 'Fanar-Sadiq' for non-religious content — it is the Islamic-RAG model.
+  FANAR: 'Fanar-C-2-27B',
 } as const;
 
 // ---- Named lineups (preferred entry point) ---------------------------------
@@ -84,28 +77,6 @@ export function getLineup(name: LineupName): Lineup {
   return MODEL_LINEUPS[name];
 }
 
-// ---- Legacy catalog (kept for tag-based pickModels callers) ----------------
-export const MODELS: ModelSpec[] = [
-  { id: MODEL_IDS.GEMINI_FAST,  tier: 'fast',     tags: ['cheap', 'dialect'],                       approxLatencyMs: 1200 },
-  { id: 'google/gemini-2.5-flash', tier: 'fast',  tags: ['dialect', 'cheap'],                       approxLatencyMs: 1400 },
-  { id: MODEL_IDS.GEMINI_FLASH, tier: 'balanced', tags: ['dialect', 'reasoning'],                   approxLatencyMs: 1600, notes: 'Default Gemini drafter (3.5 Flash).' },
-  { id: MODEL_IDS.GEMINI_PRO,   tier: 'strong',   tags: ['dialect', 'reasoning', 'multimodal'],     approxLatencyMs: 3500 },
-  { id: MODEL_IDS.CLAUDE,       tier: 'strong',   tags: ['dialect', 'reasoning', 'judge'],          approxLatencyMs: 3500, notes: 'Default tandem partner; cheaper than Opus.' },
-  { id: 'anthropic/claude-opus-4.1', tier: 'strong', tags: ['dialect', 'reasoning', 'judge'],       approxLatencyMs: 4500, notes: 'Legacy — use Sonnet 4.5 instead.' },
-  { id: MODEL_IDS.QWEN,         tier: 'strong',   tags: ['dialect', 'reasoning'],                   approxLatencyMs: 4000, notes: 'Lower-weight third verifier.' },
-];
-
-export function pickModels(tags: ModelTag[], count: number): string[] {
-  const scored = MODELS.map((m) => ({
-    id: m.id,
-    score: tags.reduce((acc, t) => acc + (m.tags.includes(t) ? 1 : 0), 0),
-    latency: m.approxLatencyMs ?? 9999,
-  }))
-    .filter((m) => m.score > 0)
-    .sort((a, b) => b.score - a.score || a.latency - b.latency);
-  return scored.slice(0, count).map((m) => m.id);
-}
-
 // ---- Aliases consumed by aiBrain.ts ----------------------------------------
 // These intentionally point at the CONTENT lineup so changing the tandem in
 // one place propagates to every brain caller that doesn't pass models[].
@@ -120,11 +91,10 @@ export const MODEL_WEIGHTS: Record<string, number> = {
   [MODEL_IDS.CLAUDE]: 1.0,
   [MODEL_IDS.GEMINI_FLASH]: 1.0,
   [MODEL_IDS.GEMINI_PRO]: 0.9,
-  'google/gemini-3.1-pro-preview': 0.9,
-  'anthropic/claude-opus-4.1': 0.95,
+  [MODEL_IDS.GEMINI_FAST]: 0.7,
   [MODEL_IDS.QWEN]: 0.6,
-  'openai/gpt-5': 0.8,
-  'openai/gpt-5-mini': 0.6,
+  [MODEL_IDS.SABA]: 0.7,
+  'openai/gpt-5-mini': 0.6,   // second drafter in generate-story
 };
 
 export function getModelWeight(id: string): number {

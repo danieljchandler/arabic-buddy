@@ -620,13 +620,16 @@ const Transcribe = () => {
       formData.append("audio", file);
 
       const munsitFormData = new FormData();
-      munsitFormData.append("audio", fileClone);
+      // munsit-transcribe expects the file under "file" (not "audio")
+      munsitFormData.append("file", fileClone);
 
       const fanarFormData = new FormData();
       fanarFormData.append("audio", fileClone2);
 
       const sonioxFormData = new FormData();
       sonioxFormData.append("audio", fileClone3);
+      // Dialect module steers Soniox's context biasing (vocab terms + domain)
+      sonioxFormData.append("dialect", activeDialect);
 
       setDebugTrace({ phase: "request:transcribe", at: new Date().toISOString(), details: { name: file.name, size: file.size, type: file.type } });
       
@@ -666,12 +669,36 @@ const Transcribe = () => {
         }
       })();
 
+      // Munsit re-enabled: the Mar 2026 disable referenced api.cntxt.tools DNS,
+      // but the edge function has been calling api.munsit.com successfully ever
+      // since — the page was running without its best Arabic engine for an
+      // obsolete reason.
       const munsitPromise = (async () => {
-        // Munsit ASR disabled — api.cntxt.tools DNS is not resolving (as of Mar 2026).
-        // Return null immediately so the parallel pipeline doesn't waste time on it.
-        // Re-enable when CNTXT restores their DNS / publishes a new endpoint.
-        console.log("Munsit ASR: disabled (api.cntxt.tools DNS dead)");
-        return { text: undefined } as { text?: string };
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 5 * 60 * 1000);
+        try {
+          const resp = await fetch(`${supabaseUrl}/functions/v1/munsit-transcribe`, {
+            method: "POST",
+            headers: {
+              "apikey": supabaseKey,
+              "Authorization": `Bearer ${authToken}`,
+            },
+            body: munsitFormData,
+            signal: controller.signal,
+          });
+          clearTimeout(timeout);
+          if (!resp.ok) {
+            const errBody = await resp.text();
+            throw new Error(errBody || `Munsit failed (${resp.status})`);
+          }
+          return await resp.json() as { text?: string | null; error?: string };
+        } catch (e) {
+          clearTimeout(timeout);
+          if (e instanceof DOMException && e.name === "AbortError") {
+            throw new Error("Munsit timed out – try a shorter clip.");
+          }
+          throw e;
+        }
       })();
 
       // Fanar ASR (budget-gated — the edge function handles budget checks)
@@ -927,7 +954,7 @@ const Transcribe = () => {
         dialect: activeDialect,
         engines_used: {
           asr: enginesUsedRef.current,
-          translation: ['gemini-3.1-pro-preview → claude-opus-4.1 → qwen3-max (3-tier cascade)'],
+          translation: ['claude-sonnet-4.5 + gemini-3.5-flash + qwen3-max (weighted ensemble)'],
           analysis: 'analyze-gulf-arabic (AI Gateway ensemble)',
         },
       } as never);

@@ -660,77 +660,22 @@ const AdminVideoForm = () => {
     return targetVideoId;
   };
 
-  const triggerRunPodFallback = async (options?: { createPendingRecord?: boolean }) => {
-    const trimmedUrl = sourceUrl.trim();
-    const parsed = parseVideoUrl(trimmedUrl);
-    const extractedVideoId =
-      parsed?.videoId ||
-      trimmedUrl.match(/(?:youtube\.com\/(?:watch\?v=|shorts\/|live\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/)?.[1];
-
-    if (!extractedVideoId || (parsed && parsed.platform !== "youtube")) return false;
-
-    let targetVideoId: string | null = videoId ?? null;
-
-    try {
-      if (options?.createPendingRecord) {
-        targetVideoId = (await ensurePendingVideoRecord()) ?? null;
-        if (!targetVideoId) {
-          toast.error("Please sign in to queue processing");
-          return false;
-        }
-      }
-
-      toast.info("Queuing audio extraction via RunPod…");
-      const { data: rpData, error: rpError } = await supabase.functions.invoke("trigger-download", {
-        body: {
-          youtube_url: trimmedUrl,
-          video_id: extractedVideoId,
-          discover_video_id: targetVideoId,
-        },
-      });
-
-      if (rpError) {
-        const message = await extractFunctionErrorMessage(rpError);
-        toast.error("Could not queue RunPod job", { description: message });
-        return false;
-      }
-
-      if (options?.createPendingRecord && targetVideoId && !videoId) {
-        navigate(`/admin/videos/${targetVideoId}/edit`);
-      }
-
-      setIsProcessing(true);
-      queryClient.invalidateQueries({ queryKey: ["admin-discover-videos"] });
-      toast.success(`RunPod job queued (${rpData?.job_id}). Transcription will continue automatically when audio arrives.`);
-      return true;
-    } catch (rpErr) {
-      console.warn("RunPod queue error:", rpErr);
-      return false;
-    }
-  };
-
   const handleDownloadAndProcess = async () => {
     if (!sourceUrl) return;
     await ensureUrlParsed();
     setIsDownloading(true);
 
     const parsed = parseVideoUrl(sourceUrl.trim());
-    if (parsed?.platform === "youtube") {
-      if (isMeme) {
-        setIsDownloading(false);
-        toast.error("Upload the meme video file", {
-          description: "YouTube extraction only returns audio, so it cannot read captions or text on screen.",
-          duration: 8000,
-        });
-        return;
-      }
-      const queued = await triggerRunPodFallback({ createPendingRecord: true });
+    // YouTube used to route through a RunPod extraction worker here. That
+    // worker no longer works and has been removed — download-media handles
+    // YouTube directly (Cobalt, then RapidAPI MP3 fallbacks), same as every
+    // other source, so there is no longer a separate YouTube path.
+    if (parsed?.platform === "youtube" && isMeme) {
       setIsDownloading(false);
-      if (!queued) {
-        toast.error("Could not queue RunPod extraction", {
-          description: "Please retry or upload an audio file manually.",
-        });
-      }
+      toast.error("Upload the meme video file", {
+        description: "YouTube extraction only returns audio, so it cannot read captions or text on screen.",
+        duration: 8000,
+      });
       return;
     }
 
@@ -774,7 +719,7 @@ const AdminVideoForm = () => {
 
   /**
    * Used by the "Load Audio" button in the transcript section.
-   * Fetches existing audio for playback only — never triggers RunPod or the
+   * Fetches existing audio for playback only — never triggers the
    * transcription pipeline.
    */
   const handleLoadAudioForPlayback = async () => {
@@ -817,7 +762,7 @@ const AdminVideoForm = () => {
             return;
           }
         }
-        // No cached audio found — don't trigger RunPod/pipeline from here
+        // No cached audio found — don't trigger the pipeline from here
         toast.error("Audio not yet available", {
           description: "Use 'Upload File' to load audio, or re-transcribe the video first.",
         });
@@ -856,22 +801,12 @@ const AdminVideoForm = () => {
     setIsDownloading(true);
 
     const parsed = parseVideoUrl(sourceUrl.trim());
-    if (parsed?.platform === "youtube") {
-      if (isMeme) {
-        setIsDownloading(false);
-        toast.error("Upload the meme video file", {
-          description: "Audio-only extraction cannot read captions or text on screen.",
-          duration: 8000,
-        });
-        return;
-      }
-      const queued = await triggerRunPodFallback();
+    if (parsed?.platform === "youtube" && isMeme) {
       setIsDownloading(false);
-      if (!queued) {
-        toast.error("Could not queue RunPod extraction", {
-          description: "Please retry or upload an audio file manually.",
-        });
-      }
+      toast.error("Upload the meme video file", {
+        description: "Audio-only extraction cannot read captions or text on screen.",
+        duration: 8000,
+      });
       return;
     }
 
@@ -1309,6 +1244,47 @@ const AdminVideoForm = () => {
               <CardTitle className="text-lg">Transcript</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+              {(() => {
+                // Dialect signals persisted by analyze-gulf-arabic:
+                // Fanar-C-2-27B validation + CAMeL BERT dialect ID.
+                type DialectSignals = {
+                  flagged?: boolean;
+                  camel_agrees?: boolean | null;
+                  camel?: { dialect?: string; code?: string; confidence?: number } | null;
+                  fanar_validation?: { content?: string } | null;
+                };
+                const enginesUsed = existingVideo?.engines_used as
+                  { dialect_signals?: DialectSignals } | null | undefined;
+                const signals = enginesUsed?.dialect_signals;
+                if (!signals) return null;
+                const camel = signals.camel;
+                return (
+                  <div
+                    className={`p-3 rounded-lg border text-sm space-y-1 ${
+                      signals.flagged
+                        ? "bg-destructive/10 border-destructive/40"
+                        : "bg-muted/50 border-border"
+                    }`}
+                  >
+                    <p className="font-medium">
+                      Dialect signals {signals.flagged ? "— flagged for review" : "— no issues detected"}
+                    </p>
+                    {camel && (
+                      <p className="text-muted-foreground">
+                        CAMeL BERT: {camel.dialect ?? "?"} ({camel.code ?? "?"}, conf{" "}
+                        {typeof camel.confidence === "number" ? camel.confidence.toFixed(2) : "?"})
+                        {" — "}
+                        {signals.camel_agrees === false ? "disagrees with detected dialect" : "agrees"}
+                      </p>
+                    )}
+                    {signals.fanar_validation?.content && (
+                      <p className="text-muted-foreground whitespace-pre-wrap" dir="auto">
+                        Fanar review: {String(signals.fanar_validation.content).slice(0, 500)}
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
               {!stableAudioUrl && (
                 <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 border border-border">
                   <p className="text-sm text-muted-foreground flex-1">

@@ -2,6 +2,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { SONIOX_MODEL, buildSonioxContext, type AsrWord, type AsrLegResult } from "../_shared/asrConfig.ts";
 
 
 const ASR_TIMEOUT_MS = 5 * 60 * 1000;
@@ -234,15 +235,6 @@ function extractYouTubeVideoId(url: string): string | null {
   }
 }
 
-function isYouTubeUrl(url: string): boolean {
-  try {
-    const host = new URL(url).hostname.replace(/^www\./, "").replace(/^m\./, "");
-    return host === "youtube.com" || host === "youtu.be";
-  } catch {
-    return false;
-  }
-}
-
 // ── Background pipeline ────────────────────────────────────────────────────
 // Runs entirely decoupled from the HTTP request lifecycle so that req.signal
 // (fired by the platform when the request connection closes) cannot abort it.
@@ -327,39 +319,10 @@ async function runPipeline(
       }
     }
 
-    // Fallback 2: queue RunPod for YouTube URLs (runpod-only ingestion)
-    if (!audioBytes && isYouTubeUrl(video.source_url || "")) {
-      const extractedVideoId = extractYouTubeVideoId(video.source_url || "");
-      if (!extractedVideoId) {
-        throw new Error("Could not extract YouTube video ID for RunPod ingestion");
-      }
-
-      console.log("[pipeline] No audio found, queuing RunPod extraction...");
-      const queueResp = await fetch(`${projectUrl}/functions/v1/trigger-download`, {
-        method: "POST",
-        headers: { Authorization: authHeader, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          youtube_url: video.source_url,
-          video_id: extractedVideoId,
-          discover_video_id: videoId,
-        }),
-      });
-
-      if (!queueResp.ok) {
-        const errBody = await queueResp.text();
-        throw new Error(`RunPod queue failed (${queueResp.status}): ${errBody}`);
-      }
-
-      await supabase.from("discover_videos").update({
-        transcription_status: "pending",
-        transcription_error: null,
-      }).eq("id", videoId);
-
-      console.log("[pipeline] RunPod extraction queued, pipeline will resume via receive-audio callback");
-      return;
-    }
-
-    // Fallback 3: non-YouTube sources still use download-media
+    // Fallback 2: download-media handles every source, YouTube included.
+    // (A RunPod extraction worker used to sit in front of this for YouTube; it
+    // no longer works and has been removed. download-media is now the only
+    // acquisition path after the storage-cache lookup above.)
     if (!audioBytes) {
       console.log("[pipeline] No storage audio found, downloading from URL...");
       const downloadResp = await fetch(`${projectUrl}/functions/v1/download-media`, {
@@ -428,49 +391,121 @@ async function runPipeline(
     // native word/token timings from Soniox + Munsit so alignment doesn't
     // depend on Deepgram's English-tuned Arabic word boundaries.
 
-    // --- Deepgram ---
-    const deepgramPromise = (async () => {
-      const DEEPGRAM_API_KEY = Deno.env.get("DEEPGRAM_API_KEY");
-      if (!DEEPGRAM_API_KEY) { console.warn("[pipeline] Deepgram: no API key"); return null; }
-
-      const params = new URLSearchParams({
-        model: "nova-3", language: "ar", diarize: "true", punctuate: "true", smart_format: "true",
-      });
-
-      const t0 = Date.now();
-      try {
-        const resp = await fetch(`https://api.deepgram.com/v1/listen?${params}`, {
-          method: "POST",
-          headers: { Authorization: `Token ${DEEPGRAM_API_KEY}`, "Content-Type": audioContentType },
-          body: audioBytes,
-          signal: AbortSignal.timeout(ASR_TIMEOUT_MS),
-        });
-        if (!resp.ok) { const t = await resp.text(); throw new Error(`HTTP ${resp.status}: ${t}`); }
-        const data = await resp.json();
-        const alt = data?.results?.channels?.[0]?.alternatives?.[0];
-        const text = alt?.transcript ?? "";
-        const words = (alt?.words ?? []).map((w: any) => ({
-          text: w.punctuated_word ?? w.word ?? "", start: w.start, end: w.end,
-        }));
-        const latencyMs = Date.now() - t0;
-        console.log(`[pipeline] Deepgram: ${text.length} chars, ${words.length} words, ${latencyMs}ms`);
-        return { text, words, latencyMs };
-      } catch (e) {
-        console.warn("[pipeline] Deepgram failed:", e);
-        return { text: "", words: [], latencyMs: Date.now() - t0, error: String(e) };
-      }
-    })();
-
-    // --- Fanar (text-only, no word timestamps) ---
-    const fanarPromise = (async () => {
-      const FANAR_API_KEY = Deno.env.get("FANAR_API_KEY")?.trim();
-      if (!FANAR_API_KEY) { console.warn("[pipeline] Fanar: no API key"); return { text: null, latencyMs: 0 }; }
+    // --- ElevenLabs Scribe v2 ---
+    // Replaces the Deepgram nova-3 leg. Deepgram is a generalist that was being
+    // called with language=ar (which disables its code-switch path) and whose
+    // Arabic word boundaries were never trusted for alignment anyway. Scribe v2
+    // leads the Artificial Analysis WER leaderboard and benchmarks best on
+    // Egyptian/Saudi Arabic-English code-switching — the exact shape of this
+    // corpus — and runs on the ElevenLabs key the app already holds for TTS.
+    const scribePromise: Promise<AsrLegResult> = (async () => {
+      const ELEVENLABS_API_KEY = Deno.env.get("ELEVENLABS_API_KEY")?.trim();
+      if (!ELEVENLABS_API_KEY) { console.warn("[pipeline] Scribe: no API key"); return null; }
 
       const t0 = Date.now();
       try {
         const fd = new FormData();
         fd.append("file", new File([audioBytes!], "audio.mp3", { type: audioContentType }));
-        fd.append("model", "Fanar-Aura-STT-1");
+        fd.append("model_id", Deno.env.get("ELEVENLABS_STT_MODEL")?.trim() || "scribe_v2");
+        fd.append("language_code", "ar");
+        fd.append("diarize", "true");
+        fd.append("timestamps_granularity", "word");
+
+        const resp = await fetch("https://api.elevenlabs.io/v1/speech-to-text", {
+          method: "POST",
+          headers: { "xi-api-key": ELEVENLABS_API_KEY },
+          body: fd,
+          signal: AbortSignal.timeout(ASR_TIMEOUT_MS),
+        });
+        if (!resp.ok) { const t = await resp.text(); throw new Error(`HTTP ${resp.status}: ${t.slice(0, 300)}`); }
+        const data = await resp.json();
+        const text: string = data?.text ?? "";
+        // Scribe emits spacing/audio-event entries alongside words — keep words only.
+        const words = (data?.words ?? [])
+          .filter((w: any) => (w.type ?? "word") === "word" && (w.text ?? "").trim())
+          .map((w: any) => ({
+            text: w.text, start: w.start, end: w.end,
+            ...(w.speaker_id ? { speaker: String(w.speaker_id) } : {}),
+          }));
+        const latencyMs = Date.now() - t0;
+        console.log(`[pipeline] Scribe: ${text.length} chars, ${words.length} words, ${latencyMs}ms`);
+        return { text, words, latencyMs };
+      } catch (e) {
+        console.warn("[pipeline] Scribe failed:", e);
+        return { text: "", words: [], latencyMs: Date.now() - t0, error: String(e) };
+      }
+    })();
+
+    // --- Cohere Transcribe Arabic (pilot; text-only, no word timestamps) ---
+    // Frontier open Arabic ASR released 2026-07: lowest average WER across
+    // MSA/Egyptian/Gulf/Levantine/Maghrebi of the open models, built for
+    // Arabic-English code-switching. Runs only when COHERE_API_KEY is set, so
+    // it can be piloted against the existing Azure leg before any cutover.
+    const coherePromise: Promise<AsrLegResult> = (async () => {
+      const COHERE_API_KEY = Deno.env.get("COHERE_API_KEY")?.trim();
+      if (!COHERE_API_KEY) return { text: null, latencyMs: 0 };
+
+      const t0 = Date.now();
+      try {
+        const fd = new FormData();
+        fd.append("file", new File([audioBytes!], "audio.mp3", { type: audioContentType }));
+        fd.append("model", Deno.env.get("COHERE_STT_MODEL")?.trim() || "cohere-transcribe-arabic-07-2026");
+        fd.append("language", "ar");
+
+        const resp = await fetch("https://api.cohere.com/v2/audio/transcriptions", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${COHERE_API_KEY}` },
+          body: fd,
+          signal: AbortSignal.timeout(ASR_TIMEOUT_MS),
+        });
+        if (!resp.ok) { const t = await resp.text(); throw new Error(`HTTP ${resp.status}: ${t.slice(0, 300)}`); }
+        const data = await resp.json();
+        const latencyMs = Date.now() - t0;
+        console.log(`[pipeline] Cohere: ${data.text?.length || 0} chars, ${latencyMs}ms`);
+        return { text: data.text || null, latencyMs };
+      } catch (e) {
+        console.warn("[pipeline] Cohere failed:", e);
+        return { text: null, latencyMs: Date.now() - t0, error: String(e) };
+      }
+    })();
+
+    // --- Fanar (text-only, no word timestamps) ---
+    const fanarPromise: Promise<AsrLegResult> = (async () => {
+      const FANAR_API_KEY = Deno.env.get("FANAR_API_KEY")?.trim();
+      if (!FANAR_API_KEY) { console.warn("[pipeline] Fanar: no API key"); return { text: null, latencyMs: 0 }; }
+
+      // Fanar-Aura-STT-1 is documented for clips up to ~20-30s only; video
+      // audio virtually always exceeds that, so route anything bigger than
+      // ~30s worth of MP3 (~0.5 MB at 128 kbps) to the long-form model.
+      // Quotas differ (STT-1: 20/day, STT-LF-1: 10/day), so each is metered
+      // separately in fanar_usage — previously this inline call bypassed the
+      // budget entirely, silently draining the quota the Transcribe page
+      // depends on.
+      const isLongForm = audioBytes!.byteLength > 0.5 * 1024 * 1024;
+      const sttModel = isLongForm ? "Fanar-Aura-STT-LF-1" : "Fanar-Aura-STT-1";
+      const usageEndpoint = isLongForm ? "stt-lf" : "stt";
+      const dailyLimit = isLongForm ? 8 : 18; // headroom under 10/20 API limits
+
+      try {
+        const today = new Date().toISOString().slice(0, 10);
+        const { count } = await supabase
+          .from("fanar_usage")
+          .select("*", { count: "exact", head: true })
+          .eq("endpoint", usageEndpoint)
+          .gte("created_at", `${today}T00:00:00Z`);
+        if ((count ?? 0) >= dailyLimit) {
+          console.warn(`[pipeline] Fanar: daily ${usageEndpoint} budget exhausted (${count}/${dailyLimit}) — skipping`);
+          return { text: null, latencyMs: 0, error: "daily_budget_exhausted" };
+        }
+      } catch (e) {
+        console.warn("[pipeline] Fanar: budget check failed (continuing):", e instanceof Error ? e.message : String(e));
+      }
+
+      const t0 = Date.now();
+      try {
+        const fd = new FormData();
+        fd.append("file", new File([audioBytes!], "audio.mp3", { type: audioContentType }));
+        fd.append("model", sttModel);
         fd.append("response_format", "json");
         fd.append("language", "ar");
 
@@ -482,8 +517,12 @@ async function runPipeline(
         });
         if (!resp.ok) { const t = await resp.text(); throw new Error(`HTTP ${resp.status}: ${t}`); }
         const data = await resp.json();
+        supabase.from("fanar_usage").insert({ endpoint: usageEndpoint }).then(
+          () => {},
+          (e: unknown) => console.warn("[pipeline] Fanar: usage log failed:", String(e)),
+        );
         const latencyMs = Date.now() - t0;
-        console.log(`[pipeline] Fanar: ${data.text?.length || 0} chars, ${latencyMs}ms`);
+        console.log(`[pipeline] Fanar (${sttModel}): ${data.text?.length || 0} chars, ${latencyMs}ms`);
         return { text: data.text || null, latencyMs };
       } catch (e) {
         console.warn("[pipeline] Fanar failed:", e);
@@ -492,7 +531,7 @@ async function runPipeline(
     })();
 
     // --- Soniox: capture sub-word tokens, merge into word-level array ---
-    const sonioxPromise = (async () => {
+    const sonioxPromise: Promise<AsrLegResult> = (async () => {
       const SONIOX_API_KEY = Deno.env.get("SONIOX_API_KEY");
       if (!SONIOX_API_KEY) { console.warn("[pipeline] Soniox: no API key"); return { text: null, sonioxUsed: false, words: [], latencyMs: 0 }; }
 
@@ -508,9 +547,15 @@ async function runPipeline(
         if (!uploadResp.ok) { const t = await uploadResp.text(); throw new Error(`Upload ${uploadResp.status}: ${t}`); }
         const { id: fileId } = await uploadResp.json();
 
-        // Create transcription with translation
+        // Create transcription with translation.
+        // - Model pinned to v5 (v4 retired 2026-06-30, was silently rerouting).
+        // - language_hints includes "en": this corpus is heavily code-switched,
+        //   and the old ["ar"] + strict combination suppressed English tokens.
+        // - context biases recognition toward dialect vocabulary + video topic.
         const createBody: Record<string, unknown> = {
-          model: "stt-async-v4", file_id: fileId, language_hints: ["ar"], language_hints_strict: true,
+          model: SONIOX_MODEL, file_id: fileId, language_hints: ["ar", "en"],
+          enable_speaker_diarization: true,
+          context: buildSonioxContext(dialectModule, video.title),
           translation: { type: "one_way", target_language: "en" },
         };
         let createResp = await fetch(`${SONIOX_BASE}/transcriptions`, {
@@ -520,6 +565,16 @@ async function runPipeline(
         if (!createResp.ok) {
           await createResp.text();
           delete createBody.translation;
+          createResp = await fetch(`${SONIOX_BASE}/transcriptions`, {
+            method: "POST", headers: { ...sHeaders, "Content-Type": "application/json" }, body: JSON.stringify(createBody),
+          });
+        }
+        // Last resort: strip the v5 extras (context/diarization) so a schema
+        // rejection can never take the whole Soniox leg down.
+        if (!createResp.ok) {
+          await createResp.text();
+          delete createBody.context;
+          delete createBody.enable_speaker_diarization;
           createResp = await fetch(`${SONIOX_BASE}/transcriptions`, {
             method: "POST", headers: { ...sHeaders, "Content-Type": "application/json" }, body: JSON.stringify(createBody),
           });
@@ -548,36 +603,53 @@ async function runPipeline(
         // Cleanup
         fetch(`${SONIOX_BASE}/files/${fileId}`, { method: "DELETE", headers: sHeaders }).catch(() => {});
 
-        // Merge sub-word tokens into word-level array compatible with Deepgram shape.
+        // Merge sub-word tokens into word-level array compatible with Deepgram
+        // shape (+ speaker when diarization returned one). Also average token
+        // confidence — the merge step downstream can weight engines by it
+        // instead of the char-length heuristic alone.
         const tokens: any[] = Array.isArray(tData.tokens) ? tData.tokens : [];
-        const words: Array<{ text: string; start: number; end: number }> = [];
+        const words: AsrWord[] = [];
         let curr = "";
         let wStart = 0;
         let wEnd = 0;
+        let wSpeaker: string | undefined;
+        let confSum = 0;
+        let confCount = 0;
+        const pushCurr = () => {
+          if (!curr) return;
+          words.push({
+            text: curr, start: wStart / 1000, end: Math.max(wEnd, wStart) / 1000,
+            ...(wSpeaker !== undefined ? { speaker: wSpeaker } : {}),
+          });
+          curr = "";
+        };
         for (const tk of tokens) {
+          if (typeof tk.confidence === "number") { confSum += tk.confidence; confCount++; }
           const txt: string = tk.text ?? "";
-          if (txt === "" || txt === " ") {
-            if (curr) { words.push({ text: curr, start: wStart / 1000, end: wEnd / 1000 }); curr = ""; }
-            continue;
-          }
+          if (txt === "" || txt === " ") { pushCurr(); continue; }
           if (txt.startsWith(" ") || !curr) {
-            if (curr) words.push({ text: curr, start: wStart / 1000, end: Math.max(wEnd, wStart) / 1000 });
+            pushCurr();
             curr = txt.trimStart();
             wStart = tk.start_ms ?? 0;
             // Some Soniox tokens omit end_ms on the first sub-word of a phrase.
             // Falling through to 0 here collapsed word timing — keep the
             // token's own start_ms as a safe lower bound.
             wEnd = tk.end_ms ?? tk.start_ms ?? 0;
+            wSpeaker = tk.speaker !== undefined && tk.speaker !== null ? String(tk.speaker) : undefined;
           } else {
             curr += txt;
             wEnd = tk.end_ms ?? tk.start_ms ?? wEnd;
           }
         }
-        if (curr) words.push({ text: curr, start: wStart / 1000, end: Math.max(wEnd, wStart) / 1000 });
+        pushCurr();
+        const avgConfidence = confCount > 0 ? confSum / confCount : null;
 
         const latencyMs = Date.now() - t0;
-        console.log(`[pipeline] Soniox: ${tData.text?.length || 0} chars, ${words.length} words, ${latencyMs}ms`);
-        return { text: tData.text || null, sonioxUsed: true, translationText: tData.translation_text || null, words, latencyMs };
+        console.log(
+          `[pipeline] Soniox: ${tData.text?.length || 0} chars, ${words.length} words, ` +
+            `avg_conf=${avgConfidence?.toFixed(3) ?? "n/a"}, ${latencyMs}ms`,
+        );
+        return { text: tData.text || null, sonioxUsed: true, translationText: tData.translation_text || null, words, avgConfidence, latencyMs };
       } catch (e) {
         console.warn("[pipeline] Soniox failed:", e);
         return { text: null, sonioxUsed: false, words: [], latencyMs: Date.now() - t0, error: String(e) };
@@ -585,7 +657,11 @@ async function runPipeline(
     })();
 
     // --- Munsit (Arabic-native; sync endpoint only — chunk MP3s for long audio) ---
-    const munsitPromise = (async () => {
+    // MUNSIT_ASR_MODEL lets us trial `munsit-en-ar` (the code-switch model,
+    // better for Arabic-English mixed speech) without a redeploy. Default stays
+    // the standard Arabic model.
+    const munsitModel = Deno.env.get("MUNSIT_ASR_MODEL")?.trim() || "munsit";
+    const munsitPromise: Promise<AsrLegResult> = (async () => {
       const MUNSIT_API_KEY = Deno.env.get("MUNSIT_API_KEY")?.trim();
       if (!MUNSIT_API_KEY) { console.warn("[pipeline] Munsit: no API key"); return { text: null, words: [], latencyMs: 0 }; }
 
@@ -600,10 +676,10 @@ async function runPipeline(
       const callOnce = async (
         payload: Uint8Array,
         label: string,
-      ): Promise<{ text: string; words: Array<{ text: string; start: number; end: number }> }> => {
+      ): Promise<{ text: string; words: AsrWord[] }> => {
         const fd = new FormData();
         fd.append("file", new File([payload], "audio.mp3", { type: audioContentType }));
-        fd.append("model", "munsit");
+        fd.append("model", munsitModel);
         const resp = await fetch("https://api.munsit.com/api/v1/audio/transcribe", {
           method: "POST",
           headers: { "x-api-key": MUNSIT_API_KEY },
@@ -617,7 +693,7 @@ async function runPipeline(
         const body = raw?.data ?? raw ?? {};
         const attrs = body?.attributes ?? {};
         const text = ((body.transcription ?? body.text ?? raw.transcription ?? raw.text) as string | undefined) || "";
-        const words: Array<{ text: string; start: number; end: number }> = [];
+        const words: AsrWord[] = [];
         const pushWord = (w: any) => {
           if (!w) return;
           const txt = (w.word ?? w.text ?? "").toString();
@@ -691,7 +767,7 @@ async function runPipeline(
 
 
     // --- Azure Speech (locale-routed by dialect module) ---
-    const azurePromise = (async () => {
+    const azurePromise: Promise<AsrLegResult> = (async () => {
       const AZURE_SPEECH_KEY = Deno.env.get("AZURE_SPEECH_KEY");
       const AZURE_SPEECH_REGION = Deno.env.get("AZURE_SPEECH_REGION");
       if (!AZURE_SPEECH_KEY || !AZURE_SPEECH_REGION) {
@@ -728,22 +804,24 @@ async function runPipeline(
       }
     })();
 
-    const [deepgramResult, fanarResult, sonioxResult, munsitResult, azureResult] = await Promise.all([
-      deepgramPromise, fanarPromise, sonioxPromise, munsitPromise, azurePromise,
+    const [scribeResult, fanarResult, sonioxResult, munsitResult, azureResult, cohereResult] = await Promise.all([
+      scribePromise, fanarPromise, sonioxPromise, munsitPromise, azurePromise, coherePromise,
     ]);
 
-    const deepgramText = deepgramResult?.text || "";
+    const scribeText = scribeResult?.text || "";
     const fanarText = fanarResult?.text || "";
     const sonioxText = sonioxResult?.sonioxUsed ? (sonioxResult.text || "") : "";
     const munsitText = munsitResult?.text || "";
     const azureText = azureResult?.text || "";
+    const cohereText = cohereResult?.text || "";
 
     const engines: string[] = [];
-    if (deepgramText) engines.push("Deepgram");
+    if (scribeText) engines.push("Scribe");
     if (fanarText) engines.push("Fanar");
     if (sonioxText) engines.push("Soniox");
     if (munsitText) engines.push("Munsit");
     if (azureText) engines.push("Azure");
+    if (cohereText) engines.push("Cohere");
 
     if (engines.length === 0) throw new Error("All transcription engines failed");
 
@@ -755,21 +833,23 @@ async function runPipeline(
     // Instead: of the Arabic-aware engines (Munsit/Soniox/Fanar), compute
     // the median char length, drop anything < 50% of median, then take the
     // longest of the survivors. Engine priority is the tie-breaker.
-    type EngineName = "Munsit" | "Soniox" | "Fanar" | "Azure" | "Deepgram";
+    // Scribe joins the Arabic-aware candidate set: unlike Deepgram (a generalist
+    // whose Arabic word boundaries were never trusted for alignment) it is a
+    // top-ranked Arabic/code-switching engine with usable word timings.
+    type EngineName = "Munsit" | "Soniox" | "Scribe" | "Cohere" | "Fanar" | "Azure";
     const arabicCandidates: Array<{ name: EngineName; text: string; words: any[] }> = [
-      { name: "Munsit", text: munsitText, words: (munsitResult as any)?.words ?? [] },
-      { name: "Soniox", text: sonioxText, words: (sonioxResult as any)?.words ?? [] },
+      { name: "Munsit", text: munsitText, words: munsitResult?.words ?? [] },
+      { name: "Soniox", text: sonioxText, words: sonioxResult?.words ?? [] },
+      { name: "Scribe", text: scribeText, words: scribeResult?.words ?? [] },
+      { name: "Cohere", text: cohereText, words: [] }, // Cohere returns text only
       { name: "Fanar",  text: fanarText,  words: [] }, // Fanar has no word timings
     ].filter(c => (c.text || "").trim().length > 0);
 
-    const PRIORITY: EngineName[] = ["Munsit", "Soniox", "Fanar", "Azure", "Deepgram"];
+    const PRIORITY: EngineName[] = ["Munsit", "Soniox", "Scribe", "Cohere", "Fanar", "Azure"];
     function pickPrimary(): { name: EngineName; text: string; words: any[] } {
       if (arabicCandidates.length === 0) {
-        // Fall back to whatever is non-empty, priority order
-        const fallback =
-          (azureText && { name: "Azure" as EngineName, text: azureText, words: [] }) ||
-          (deepgramText && { name: "Deepgram" as EngineName, text: deepgramText, words: deepgramResult?.words ?? [] });
-        return fallback || { name: "Deepgram", text: deepgramText, words: deepgramResult?.words ?? [] };
+        // Nothing Arabic-aware produced text — Azure is all that's left.
+        return { name: "Azure", text: azureText, words: [] };
       }
       const lens = arabicCandidates.map(c => c.text.length).sort((a, b) => a - b);
       const median = lens[Math.floor(lens.length / 2)];
@@ -788,18 +868,74 @@ async function runPipeline(
     console.log(`[pipeline] Primary text: ${primaryEngine} (${primaryText.length} chars). Arabic candidates: ${arabicCandidates.map(c => `${c.name}=${c.text.length}`).join(", ")}`);
 
     // Pick alignment word source: primary engine's own words if available,
-    // else Munsit/Soniox words, else Deepgram, else empty (proportional fallback).
+    // else Munsit/Soniox words, else Scribe, else empty (proportional fallback).
     const alignmentWords =
       primary.words.length > 0 ? primary.words :
-      ((sonioxResult as any)?.words?.length ? (sonioxResult as any).words :
-       ((munsitResult as any)?.words?.length ? (munsitResult as any).words :
-        (deepgramResult?.words ?? [])));
+      (sonioxResult?.words?.length ? sonioxResult.words :
+       ((munsitResult?.words?.length ? munsitResult.words :
+        (scribeResult?.words ?? [])));
     const alignmentSource: EngineName =
       primary.words.length > 0 ? primaryEngine :
-      ((sonioxResult as any)?.words?.length ? "Soniox" :
-       ((munsitResult as any)?.words?.length ? "Munsit" : "Deepgram"));
+      (sonioxResult?.words?.length ? "Soniox" :
+       ((munsitResult?.words?.length ? "Munsit" : "Scribe"));
     console.log(`[pipeline] Alignment words: ${alignmentSource} (${alignmentWords.length} words)`);
     const relativeWords = alignmentWords;
+
+    // ── Persist ASR provenance ──────────────────────────────────────────
+    // engines_used.asr: per-engine outcome (chars/latency/model/errors) so
+    // engine failures — like Munsit's oversize-non-MP3 skip — are visible in
+    // the DB instead of only in function logs, and so future engine swaps can
+    // be A/B'd against stored history. analyze-gulf-arabic merges its
+    // translation + dialect_signals keys into the same JSONB via read-merge.
+    try {
+      const trimErr = (e: unknown) => ({ error: String(e).slice(0, 200) });
+      const asrProvenance = {
+        munsit: {
+          ok: !!munsitText, chars: munsitText.length, model: munsitModel,
+          latency_ms: munsitResult?.latencyMs ?? 0,
+          ...(munsitResult?.error ? trimErr(munsitResult.error) : {}),
+        },
+        soniox: {
+          ok: !!sonioxText, chars: sonioxText.length, model: SONIOX_MODEL,
+          latency_ms: sonioxResult?.latencyMs ?? 0,
+          ...(typeof sonioxResult?.avgConfidence === "number"
+            ? { avg_confidence: Number(sonioxResult.avgConfidence.toFixed(3)) }
+            : {}),
+          ...(sonioxResult?.error ? trimErr(sonioxResult.error) : {}),
+        },
+        fanar: {
+          ok: !!fanarText, chars: fanarText.length,
+          latency_ms: fanarResult?.latencyMs ?? 0,
+          ...(fanarResult?.error ? trimErr(fanarResult.error) : {}),
+        },
+        scribe: {
+          ok: !!scribeText, chars: scribeText.length,
+          latency_ms: scribeResult?.latencyMs ?? 0,
+          ...(scribeResult?.error ? trimErr(scribeResult.error) : {}),
+        },
+        azure: {
+          ok: !!azureText, chars: azureText.length,
+          ...(azureResult?.locale ? { locale: azureResult.locale } : {}),
+        },
+        cohere: {
+          ok: !!cohereText, chars: cohereText.length,
+          latency_ms: cohereResult?.latencyMs ?? 0,
+          ...(cohereResult?.error ? trimErr(cohereResult.error) : {}),
+        },
+        primary: primaryEngine,
+        alignment_source: alignmentSource,
+      };
+      const { data: exRow } = await supabase
+        .from("discover_videos").select("engines_used").eq("id", videoId).single();
+      const existing = (exRow?.engines_used && typeof exRow.engines_used === "object")
+        ? exRow.engines_used as Record<string, unknown>
+        : {};
+      await supabase.from("discover_videos")
+        .update({ engines_used: { ...existing, asr: asrProvenance } })
+        .eq("id", videoId);
+    } catch (e) {
+      console.warn("[pipeline] Failed to persist ASR provenance (non-fatal):", e instanceof Error ? e.message : String(e));
+    }
 
 
     // ── Step 3: Analyze via analyze-gulf-arabic ──────────────────
@@ -874,7 +1010,8 @@ async function runPipeline(
     if (sonioxText) analyzeBody.sonioxTranscript = sonioxText;
     if (munsitText) analyzeBody.munsitTranscript = munsitText;
     if (azureText) analyzeBody.azureTranscript = azureText;
-    if (deepgramText && primaryEngine !== "Deepgram") analyzeBody.deepgramTranscript = deepgramText;
+    if (scribeText) analyzeBody.scribeTranscript = scribeText;
+    if (cohereText) analyzeBody.cohereTranscript = cohereText;
     const sonioxTranslation = sonioxResult?.translationText;
     if (sonioxTranslation) analyzeBody.sonioxTranslation = sonioxTranslation;
 

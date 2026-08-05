@@ -59,7 +59,6 @@ const Privacy = () => {
           <li><strong>Stripe</strong> — payments and subscriptions</li>
           <li><strong>Google (Gemini), OpenAI, Anthropic</strong> via the Lovable AI gateway — translations, explanations, image generation</li>
           <li><strong>ElevenLabs, Microsoft Azure Speech, Munsit</strong> — text-to-speech and speech-to-text</li>
-          <li><strong>RunPod</strong> — audio extraction for media you import</li>
           <li><strong>Bright Data, Firecrawl</strong> — fetching publicly available articles and posts you ask us to import</li>
         </ul>
 

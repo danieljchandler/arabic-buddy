@@ -213,26 +213,15 @@ const TrendingVideos = () => {
         .eq('id', candidate.id);
       if (updateErr) throw updateErr;
 
-      // 3. Queue ingestion/transcription pipeline
-      const youtubeVideoId = parsed?.platform === 'youtube' ? parsed.videoId : null;
-
-      if (youtubeVideoId) {
-        const { error: queueErr } = await supabase.functions.invoke('trigger-download', {
-          body: {
-            youtube_url: candidate.url,
-            video_id: youtubeVideoId,
-            discover_video_id: newVideo.id,
-          },
-        });
-
-        if (queueErr) throw queueErr;
-      } else {
-        supabase.functions.invoke('process-approved-video', {
-          body: { videoId: newVideo.id },
-        }).catch((err) => {
-          console.error('Failed to trigger processing pipeline:', err);
-        });
-      }
+      // 3. Queue ingestion/transcription pipeline.
+      // YouTube used to be queued through a RunPod extraction worker; that
+      // worker has been removed and process-approved-video now acquires audio
+      // for every platform via download-media.
+      supabase.functions.invoke('process-approved-video', {
+        body: { videoId: newVideo.id },
+      }).catch((err) => {
+        console.error('Failed to trigger processing pipeline:', err);
+      });
 
       return { videoId: newVideo.id, title: candidate.title };
     },

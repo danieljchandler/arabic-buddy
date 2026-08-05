@@ -16,6 +16,7 @@ import { ALWAYS_ALLOWED, normalizeArabic } from './msaLeakDetector.ts';
 
 // Defined in dialectTypes.ts (import-free) and re-exported here so every
 // existing `from './dialectHelpers.ts'` import keeps working unchanged.
+import type { Dialect } from './dialectTypes.ts';
 export type { Dialect } from './dialectTypes.ts';
 
 // =================== Hard-coded fallback (parity with seed) ===================

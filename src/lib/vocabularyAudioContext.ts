@@ -208,7 +208,7 @@ export async function resolveDiscoverVideoAudioUrl(video: {
     const extensions = [".mp4", ".opus", ".m4a", ".webm", ".mp3"];
 
     // Strategy 1: private `video-audio` bucket keyed by discover_videos.id
-    // (this is the path used by `receive-audio` and the admin uploader)
+    // (this is the path used by the admin uploader)
     if (video.id) {
       for (const ext of extensions) {
         const { data } = await supabase.storage

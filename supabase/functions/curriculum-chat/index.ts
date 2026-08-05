@@ -6,53 +6,44 @@ import { askBrain, BrainHttpError } from "../_shared/aiBrain.ts";
 import { detectMsaLeaks } from "../_shared/msaLeakDetector.ts";
 import type { Dialect } from "../_shared/dialectHelpers.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { MODEL_IDS } from "../_shared/modelRegistry.ts";
 
 
 const LOVABLE_GATEWAY = "https://ai.gateway.lovable.dev/v1/chat/completions";
 const OPENROUTER_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
+const FANAR_ENDPOINT = "https://api.fanar.qa/v1/chat/completions";
 
 interface ModelConfig {
   endpoint: string;
   model: string;
   keyEnv: string;
-  isFanar?: boolean;
-  native?: boolean; // true = native RunPod /runsync API
 }
 
+// Model IDs come from _shared/modelRegistry.ts so a registry bump propagates
+// here instead of leaving this admin tool pinned to a stale generation. Keys
+// are what the ModelSelector sends; the `model` field is what goes over the
+// wire. Keep this in sync with MODEL_OPTIONS in
+// src/components/admin/curriculum-builder/ModelSelector.tsx — an option the
+// selector offers but this map lacks fails with "Unknown model".
+const openRouter = (model: string): ModelConfig =>
+  ({ endpoint: OPENROUTER_ENDPOINT, model, keyEnv: "OPENROUTER_API_KEY" });
+const lovable = (model: string): ModelConfig =>
+  ({ endpoint: LOVABLE_GATEWAY, model, keyEnv: "LOVABLE_API_KEY" });
+
 const MODEL_REGISTRY: Record<string, ModelConfig> = {
-  "google/gemini-3-flash-preview": {
-    endpoint: LOVABLE_GATEWAY,
-    model: "google/gemini-3-flash-preview",
-    keyEnv: "LOVABLE_API_KEY",
-  },
-  "google/gemini-2.5-flash": {
-    endpoint: LOVABLE_GATEWAY,
-    model: "google/gemini-2.5-flash",
-    keyEnv: "LOVABLE_API_KEY",
-  },
-  "anthropic/claude-sonnet-4-5": {
-    endpoint: OPENROUTER_ENDPOINT,
-    // Registry key stays hyphenated (the ModelSelector sends that), but OpenRouter
-    // resolves the dotted ID — the hyphen form 404s on this route.
-    model: "anthropic/claude-sonnet-4.5",
-    keyEnv: "OPENROUTER_API_KEY",
-  },
-  "qwen/qwen3-235b-a22b": {
-    endpoint: OPENROUTER_ENDPOINT,
-    model: "qwen/qwen3-235b-a22b",
-    keyEnv: "OPENROUTER_API_KEY",
-  },
-  "google/gemma-3-12b-it": {
-    endpoint: OPENROUTER_ENDPOINT,
-    model: "google/gemma-3-12b-it",
-    keyEnv: "OPENROUTER_API_KEY",
-  },
-  fanar: {
-    endpoint: "https://api.fanar.qa/v1/chat/completions",
-    model: "Fanar",
-    keyEnv: "FANAR_API_KEY",
-    isFanar: true,
-  },
+  [MODEL_IDS.GEMINI_FAST]: lovable(MODEL_IDS.GEMINI_FAST),
+  [MODEL_IDS.GEMINI_FLASH]: lovable(MODEL_IDS.GEMINI_FLASH),
+  [MODEL_IDS.GEMINI_PRO]: lovable(MODEL_IDS.GEMINI_PRO),
+  "google/gemini-2.5-flash": lovable("google/gemini-2.5-flash"),
+  // Selector sends the hyphenated id; OpenRouter resolves the dotted one —
+  // the hyphen form 404s on that route.
+  "anthropic/claude-sonnet-4-5": openRouter(MODEL_IDS.CLAUDE),
+  [MODEL_IDS.CLAUDE]: openRouter(MODEL_IDS.CLAUDE),
+  [MODEL_IDS.QWEN]: openRouter(MODEL_IDS.QWEN),
+  "qwen/qwen3-235b-a22b": openRouter("qwen/qwen3-235b-a22b"),
+  [MODEL_IDS.SABA]: openRouter(MODEL_IDS.SABA),
+  "google/gemma-3-12b-it": openRouter("google/gemma-3-12b-it"),
+  fanar: { endpoint: FANAR_ENDPOINT, model: MODEL_IDS.FANAR, keyEnv: "FANAR_API_KEY" },
 };
 
 const DIALECT_CONTEXT: Record<string, string> = {
@@ -363,25 +354,12 @@ async function callLLM(
   const timeout = setTimeout(() => controller.abort(), 120_000);
 
   try {
-    let body: string;
-    if (config.native) {
-      // Native RunPod /runsync API — format messages into a single prompt
-      const systemMsg = messages.find(m => m.role === 'system')?.content || '';
-      const userMsgs = messages.filter(m => m.role !== 'system').map(m => `${m.role}: ${m.content}`).join('\n');
-      body = JSON.stringify({
-        input: {
-          prompt: `### Instruction: ${systemMsg}\n\n### Input: ${userMsgs}\n\n### Response:`,
-        },
-      });
-    } else {
-      const payload: Record<string, unknown> = {
-        model: config.model,
-        messages,
-        max_tokens: maxTokens,
-        temperature: 0.4,
-      };
-      body = JSON.stringify(payload);
-    }
+    const body = JSON.stringify({
+      model: config.model,
+      messages,
+      max_tokens: maxTokens,
+      temperature: 0.4,
+    });
 
     const response = await fetch(config.endpoint, {
       method: "POST",
@@ -405,12 +383,7 @@ async function callLLM(
     }
 
     const data = await response.json();
-    let content: string | undefined;
-    if (config.native) {
-      content = typeof data.output === 'string' ? data.output : data.output?.text ?? data.output?.choices?.[0]?.message?.content;
-    } else {
-      content = data.choices?.[0]?.message?.content;
-    }
+    const content: string | undefined = data.choices?.[0]?.message?.content;
     if (!content) {
       throw new Error(`LLM ${config.model} returned empty response`);
     }
@@ -609,7 +582,7 @@ serve(async (req) => {
       const leakResult = detectMsaLeaks(responseContent, dialect as Dialect);
       if (leakResult.leaks.length > 0) {
         console.warn(
-          `curriculum-chat MSA leaks detected (non-brain path): dialect=${dialect} leaks=${leakResult.leaks.join(",")} score=${leakResult.score}`,
+          `curriculum-chat MSA leaks detected (non-brain path): dialect=${dialect} leaks=${leakResult.leaks.join(",")} severity=${leakResult.severity}`,
         );
         try {
           const repairKey = Deno.env.get("LOVABLE_API_KEY")?.trim();

@@ -61,6 +61,19 @@ describe("LoadingPanel", () => {
     expect(srcs[0]).toMatch(/\.mp4$/);
     expect(srcs[1]).toMatch(/\.webm$/);
     expect(video.closest("[aria-hidden='true']")).toBeTruthy();
+    // The white matte is turned into real transparency by the filter, not by a
+    // blend mode — see the note in LoadingEmblem.
+    expect(video.style.filter).toBe("url(#hakiya-emblem-alpha)");
+  });
+
+  it("carries no plate behind the artwork", () => {
+    // Regression guard: the emblem overlays the page, so nothing in its wrapper
+    // may reintroduce a background.
+    const { container } = render(
+      <LoadingPanel task="passage" showAfterMs={0} />,
+    );
+    const wrapper = container.querySelector("video")!.parentElement!;
+    expect(wrapper.className).not.toMatch(/\bbg-|\bring-|\bshadow-/);
   });
 
   it("holds a still frame when the user prefers reduced motion", () => {
@@ -69,7 +82,10 @@ describe("LoadingPanel", () => {
       <LoadingPanel task="passage" showAfterMs={0} />,
     );
     expect(container.querySelector("video")).toBeNull();
-    expect(container.querySelector("img")).toBeTruthy();
+    const still = container.querySelector("img")!;
+    expect(still).toBeTruthy();
+    // The still needs the same treatment or it renders as a white box.
+    expect((still as HTMLElement).style.filter).toBe("url(#hakiya-emblem-alpha)");
     // The copy still rotates — changing text isn't motion.
     expect(screen.getByText(LOADING_DECKS.passage[0].en)).toBeInTheDocument();
   });

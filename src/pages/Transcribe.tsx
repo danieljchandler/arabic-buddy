@@ -954,7 +954,7 @@ const Transcribe = () => {
         dialect: activeDialect,
         engines_used: {
           asr: enginesUsedRef.current,
-          translation: ['gemini-3.1-pro-preview → claude-opus-4.1 → qwen3-max (3-tier cascade)'],
+          translation: ['claude-sonnet-4.5 + gemini-3.5-flash + qwen3-max (weighted ensemble)'],
           analysis: 'analyze-gulf-arabic (AI Gateway ensemble)',
         },
       } as never);

@@ -22,7 +22,7 @@ import { execFileSync } from "node:child_process";
  * Maximum tolerated ESLint errors. Only ever goes down.
  * Last lowered: 596 (follow-up to #218).
  */
-const BASELINE = 596;
+const BASELINE = 552;
 
 function runEslint() {
   try {

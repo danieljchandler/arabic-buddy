@@ -1,6 +1,7 @@
 import { getDialectIdentity, getDialectVocabRules, getTashkeelMandate, getDialectTransliterationRules, type Dialect } from "../_shared/dialectHelpers.ts";
 import { emitMetric } from "../_shared/featureMetrics.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { MODEL_IDS } from "../_shared/modelRegistry.ts";
 
 const FEATURE = "souq-news";
 
@@ -179,7 +180,7 @@ Return ONLY the JSON object, no markdown fencing. CRITICAL: use ONLY ASCII punct
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              model: "google/gemini-3-flash-preview",
+              model: MODEL_IDS.GEMINI_FAST,
               response_format: { type: "json_object" },
               messages: [
                 { role: "system", content: systemPrompt },

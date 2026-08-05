@@ -103,6 +103,18 @@ interface PhonemeResult {
   nbest?: Array<{ phoneme: string; accuracy: number }>;
 }
 
+/** Raw phoneme/syllable entry as Azure returns it. Azure nests scores under
+ *  PronunciationAssessment in some responses and inlines them in others. */
+interface AzurePhoneme {
+  Phoneme?: string;
+  Syllable?: string;
+  AccuracyScore?: number;
+  PronunciationAssessment?: {
+    AccuracyScore?: number;
+    NBestPhonemes?: Array<{ Phoneme?: string; Score?: number; AccuracyScore?: number }>;
+  };
+}
+
 interface WordResult {
   word: string;
   accuracy: number;
@@ -138,15 +150,14 @@ function parseAzureResponse(nbest: any, locale: string): PronunciationResult {
         accuracy: wpa.AccuracyScore ?? w.AccuracyScore ?? 0,
         errorType: wpa.ErrorType ?? w.ErrorType ?? 'None',
         phonemes: (w.Phonemes ?? w.Syllables ?? []).map(
-          // deno-lint-ignore no-explicit-any
-          (p: any): PhonemeResult => {
+          (p: AzurePhoneme): PhonemeResult => {
             const nbestRaw = p.PronunciationAssessment?.NBestPhonemes;
             return {
               phoneme: p.Phoneme ?? p.Syllable ?? '',
               accuracy: p.PronunciationAssessment?.AccuracyScore ?? p.AccuracyScore ?? 0,
               ...(Array.isArray(nbestRaw) && nbestRaw.length > 0
                 ? {
-                    nbest: nbestRaw.map((n: any) => ({
+                    nbest: nbestRaw.map((n) => ({
                       phoneme: n.Phoneme ?? '',
                       accuracy: n.Score ?? n.AccuracyScore ?? 0,
                     })),

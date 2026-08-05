@@ -7,6 +7,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { estimateSeconds, planProvider, synthesizeLine } from "../_shared/listenTts.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { MODEL_IDS } from "../_shared/modelRegistry.ts";
 
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -110,7 +111,7 @@ ${fullEnglish ? `ENGLISH REFERENCE TRANSLATION (context only, do NOT use English
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      model: "google/gemini-3-flash-preview",
+      model: MODEL_IDS.GEMINI_FAST,
       messages: [
         { role: "system", content: system },
         { role: "user", content: user },

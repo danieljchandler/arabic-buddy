@@ -9,6 +9,34 @@
 // contract (context biasing, diarization, per-token language) on purpose.
 export const SONIOX_MODEL = "stt-async-v5";
 
+/** Word-level timing, in seconds. Shared shape across every ASR engine. */
+export interface AsrWord {
+  text: string;
+  start: number;
+  end: number;
+  speaker?: string;
+}
+
+/**
+ * What one ASR leg of the parallel fan-out returns. Every leg resolves rather
+ * than rejects — a failed engine reports `error` and the pipeline continues on
+ * the others. Engine-specific extras are optional so all legs share one type.
+ */
+export interface AsrLegResult {
+  text: string | null;
+  words?: AsrWord[];
+  latencyMs?: number;
+  error?: string;
+  /** Soniox: whether the leg actually produced a usable transcription. */
+  sonioxUsed?: boolean;
+  /** Soniox: free AR→EN baseline translation. */
+  translationText?: string | null;
+  /** Soniox: mean per-token confidence over the transcript. */
+  avgConfidence?: number | null;
+  /** Azure: the locale the request was routed to. */
+  locale?: string;
+}
+
 export type DialectModule = "Gulf" | "Egyptian" | "Yemeni";
 
 // Characteristic dialect function words / markers. Fed to Soniox `context.terms`

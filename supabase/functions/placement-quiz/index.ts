@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { MODEL_IDS } from "../_shared/modelRegistry.ts";
 
 
 const CEFR_LEVELS = ["A1", "A2", "B1", "B2", "C1", "C2"];
@@ -132,7 +133,7 @@ Return a JSON object with this exact structure:
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: MODEL_IDS.GEMINI_FAST,
         messages: [
           { role: "system", content: "You are a precise Arabic language assessment tool. Always respond with valid JSON only, no markdown fences." },
           { role: "user", content: prompt },

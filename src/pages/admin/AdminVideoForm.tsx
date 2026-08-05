@@ -1247,9 +1247,17 @@ const AdminVideoForm = () => {
               {(() => {
                 // Dialect signals persisted by analyze-gulf-arabic:
                 // Fanar-C-2-27B validation + CAMeL BERT dialect ID.
-                const signals = (existingVideo as any)?.engines_used?.dialect_signals;
+                type DialectSignals = {
+                  flagged?: boolean;
+                  camel_agrees?: boolean | null;
+                  camel?: { dialect?: string; code?: string; confidence?: number } | null;
+                  fanar_validation?: { content?: string } | null;
+                };
+                const enginesUsed = existingVideo?.engines_used as
+                  { dialect_signals?: DialectSignals } | null | undefined;
+                const signals = enginesUsed?.dialect_signals;
                 if (!signals) return null;
-                const camel = signals.camel as { dialect?: string; code?: string; confidence?: number } | null;
+                const camel = signals.camel;
                 return (
                   <div
                     className={`p-3 rounded-lg border text-sm space-y-1 ${

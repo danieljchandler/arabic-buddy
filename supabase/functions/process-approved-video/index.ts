@@ -2,7 +2,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { SONIOX_MODEL, buildSonioxContext } from "../_shared/asrConfig.ts";
+import { SONIOX_MODEL, buildSonioxContext, type AsrWord, type AsrLegResult } from "../_shared/asrConfig.ts";
 
 
 const ASR_TIMEOUT_MS = 5 * 60 * 1000;
@@ -398,7 +398,7 @@ async function runPipeline(
     // leads the Artificial Analysis WER leaderboard and benchmarks best on
     // Egyptian/Saudi Arabic-English code-switching — the exact shape of this
     // corpus — and runs on the ElevenLabs key the app already holds for TTS.
-    const scribePromise = (async () => {
+    const scribePromise: Promise<AsrLegResult> = (async () => {
       const ELEVENLABS_API_KEY = Deno.env.get("ELEVENLABS_API_KEY")?.trim();
       if (!ELEVENLABS_API_KEY) { console.warn("[pipeline] Scribe: no API key"); return null; }
 
@@ -441,7 +441,7 @@ async function runPipeline(
     // MSA/Egyptian/Gulf/Levantine/Maghrebi of the open models, built for
     // Arabic-English code-switching. Runs only when COHERE_API_KEY is set, so
     // it can be piloted against the existing Azure leg before any cutover.
-    const coherePromise = (async () => {
+    const coherePromise: Promise<AsrLegResult> = (async () => {
       const COHERE_API_KEY = Deno.env.get("COHERE_API_KEY")?.trim();
       if (!COHERE_API_KEY) return { text: null, latencyMs: 0 };
 
@@ -470,7 +470,7 @@ async function runPipeline(
     })();
 
     // --- Fanar (text-only, no word timestamps) ---
-    const fanarPromise = (async () => {
+    const fanarPromise: Promise<AsrLegResult> = (async () => {
       const FANAR_API_KEY = Deno.env.get("FANAR_API_KEY")?.trim();
       if (!FANAR_API_KEY) { console.warn("[pipeline] Fanar: no API key"); return { text: null, latencyMs: 0 }; }
 
@@ -531,7 +531,7 @@ async function runPipeline(
     })();
 
     // --- Soniox: capture sub-word tokens, merge into word-level array ---
-    const sonioxPromise = (async () => {
+    const sonioxPromise: Promise<AsrLegResult> = (async () => {
       const SONIOX_API_KEY = Deno.env.get("SONIOX_API_KEY");
       if (!SONIOX_API_KEY) { console.warn("[pipeline] Soniox: no API key"); return { text: null, sonioxUsed: false, words: [], latencyMs: 0 }; }
 
@@ -608,7 +608,7 @@ async function runPipeline(
         // confidence — the merge step downstream can weight engines by it
         // instead of the char-length heuristic alone.
         const tokens: any[] = Array.isArray(tData.tokens) ? tData.tokens : [];
-        const words: Array<{ text: string; start: number; end: number; speaker?: string }> = [];
+        const words: AsrWord[] = [];
         let curr = "";
         let wStart = 0;
         let wEnd = 0;
@@ -661,7 +661,7 @@ async function runPipeline(
     // better for Arabic-English mixed speech) without a redeploy. Default stays
     // the standard Arabic model.
     const munsitModel = Deno.env.get("MUNSIT_ASR_MODEL")?.trim() || "munsit";
-    const munsitPromise = (async () => {
+    const munsitPromise: Promise<AsrLegResult> = (async () => {
       const MUNSIT_API_KEY = Deno.env.get("MUNSIT_API_KEY")?.trim();
       if (!MUNSIT_API_KEY) { console.warn("[pipeline] Munsit: no API key"); return { text: null, words: [], latencyMs: 0 }; }
 
@@ -676,7 +676,7 @@ async function runPipeline(
       const callOnce = async (
         payload: Uint8Array,
         label: string,
-      ): Promise<{ text: string; words: Array<{ text: string; start: number; end: number }> }> => {
+      ): Promise<{ text: string; words: AsrWord[] }> => {
         const fd = new FormData();
         fd.append("file", new File([payload], "audio.mp3", { type: audioContentType }));
         fd.append("model", munsitModel);
@@ -693,7 +693,7 @@ async function runPipeline(
         const body = raw?.data ?? raw ?? {};
         const attrs = body?.attributes ?? {};
         const text = ((body.transcription ?? body.text ?? raw.transcription ?? raw.text) as string | undefined) || "";
-        const words: Array<{ text: string; start: number; end: number }> = [];
+        const words: AsrWord[] = [];
         const pushWord = (w: any) => {
           if (!w) return;
           const txt = (w.word ?? w.text ?? "").toString();
@@ -767,7 +767,7 @@ async function runPipeline(
 
 
     // --- Azure Speech (locale-routed by dialect module) ---
-    const azurePromise = (async () => {
+    const azurePromise: Promise<AsrLegResult> = (async () => {
       const AZURE_SPEECH_KEY = Deno.env.get("AZURE_SPEECH_KEY");
       const AZURE_SPEECH_REGION = Deno.env.get("AZURE_SPEECH_REGION");
       if (!AZURE_SPEECH_KEY || !AZURE_SPEECH_REGION) {
@@ -838,9 +838,9 @@ async function runPipeline(
     // top-ranked Arabic/code-switching engine with usable word timings.
     type EngineName = "Munsit" | "Soniox" | "Scribe" | "Cohere" | "Fanar" | "Azure";
     const arabicCandidates: Array<{ name: EngineName; text: string; words: any[] }> = [
-      { name: "Munsit", text: munsitText, words: (munsitResult as any)?.words ?? [] },
-      { name: "Soniox", text: sonioxText, words: (sonioxResult as any)?.words ?? [] },
-      { name: "Scribe", text: scribeText, words: (scribeResult as any)?.words ?? [] },
+      { name: "Munsit", text: munsitText, words: munsitResult?.words ?? [] },
+      { name: "Soniox", text: sonioxText, words: sonioxResult?.words ?? [] },
+      { name: "Scribe", text: scribeText, words: scribeResult?.words ?? [] },
       { name: "Cohere", text: cohereText, words: [] }, // Cohere returns text only
       { name: "Fanar",  text: fanarText,  words: [] }, // Fanar has no word timings
     ].filter(c => (c.text || "").trim().length > 0);
@@ -871,13 +871,13 @@ async function runPipeline(
     // else Munsit/Soniox words, else Scribe, else empty (proportional fallback).
     const alignmentWords =
       primary.words.length > 0 ? primary.words :
-      ((sonioxResult as any)?.words?.length ? (sonioxResult as any).words :
-       ((munsitResult as any)?.words?.length ? (munsitResult as any).words :
-        ((scribeResult as any)?.words ?? [])));
+      (sonioxResult?.words?.length ? sonioxResult.words :
+       ((munsitResult?.words?.length ? munsitResult.words :
+        (scribeResult?.words ?? [])));
     const alignmentSource: EngineName =
       primary.words.length > 0 ? primaryEngine :
-      ((sonioxResult as any)?.words?.length ? "Soniox" :
-       ((munsitResult as any)?.words?.length ? "Munsit" : "Scribe"));
+      (sonioxResult?.words?.length ? "Soniox" :
+       ((munsitResult?.words?.length ? "Munsit" : "Scribe"));
     console.log(`[pipeline] Alignment words: ${alignmentSource} (${alignmentWords.length} words)`);
     const relativeWords = alignmentWords;
 
@@ -892,35 +892,35 @@ async function runPipeline(
       const asrProvenance = {
         munsit: {
           ok: !!munsitText, chars: munsitText.length, model: munsitModel,
-          latency_ms: (munsitResult as any)?.latencyMs ?? 0,
-          ...((munsitResult as any)?.error ? trimErr((munsitResult as any).error) : {}),
+          latency_ms: munsitResult?.latencyMs ?? 0,
+          ...(munsitResult?.error ? trimErr(munsitResult.error) : {}),
         },
         soniox: {
           ok: !!sonioxText, chars: sonioxText.length, model: SONIOX_MODEL,
-          latency_ms: (sonioxResult as any)?.latencyMs ?? 0,
-          ...(typeof (sonioxResult as any)?.avgConfidence === "number"
-            ? { avg_confidence: Number((sonioxResult as any).avgConfidence.toFixed(3)) }
+          latency_ms: sonioxResult?.latencyMs ?? 0,
+          ...(typeof sonioxResult?.avgConfidence === "number"
+            ? { avg_confidence: Number(sonioxResult.avgConfidence.toFixed(3)) }
             : {}),
-          ...((sonioxResult as any)?.error ? trimErr((sonioxResult as any).error) : {}),
+          ...(sonioxResult?.error ? trimErr(sonioxResult.error) : {}),
         },
         fanar: {
           ok: !!fanarText, chars: fanarText.length,
-          latency_ms: (fanarResult as any)?.latencyMs ?? 0,
-          ...((fanarResult as any)?.error ? trimErr((fanarResult as any).error) : {}),
+          latency_ms: fanarResult?.latencyMs ?? 0,
+          ...(fanarResult?.error ? trimErr(fanarResult.error) : {}),
         },
         scribe: {
           ok: !!scribeText, chars: scribeText.length,
           latency_ms: scribeResult?.latencyMs ?? 0,
-          ...((scribeResult as any)?.error ? trimErr((scribeResult as any).error) : {}),
+          ...(scribeResult?.error ? trimErr(scribeResult.error) : {}),
         },
         azure: {
           ok: !!azureText, chars: azureText.length,
-          ...((azureResult as any)?.locale ? { locale: (azureResult as any).locale } : {}),
+          ...(azureResult?.locale ? { locale: azureResult.locale } : {}),
         },
         cohere: {
           ok: !!cohereText, chars: cohereText.length,
           latency_ms: cohereResult?.latencyMs ?? 0,
-          ...((cohereResult as any)?.error ? trimErr((cohereResult as any).error) : {}),
+          ...(cohereResult?.error ? trimErr(cohereResult.error) : {}),
         },
         primary: primaryEngine,
         alignment_source: alignmentSource,

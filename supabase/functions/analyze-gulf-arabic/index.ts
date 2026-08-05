@@ -832,8 +832,7 @@ async function callShaheenTranslate(
   // Budget check + usage log via the fanar_usage table (endpoint 'mt').
   // Metering failures are non-fatal — worst case we drift toward the API's
   // own 20/day limit, which just makes this call 429 and get skipped.
-  // deno-lint-ignore no-explicit-any — untyped client; schema generics make .insert() infer `never`
-  let svc: any = null;
+  let svc: ReturnType<typeof createClient> | null = null;
   try {
     svc = createClient(
       Deno.env.get('SUPABASE_URL')!,
@@ -876,7 +875,11 @@ async function callShaheenTranslate(
       return null;
     }
     const data = await response.json();
-    svc?.from('fanar_usage').insert({ endpoint: 'mt' }).then(
+    // The client carries no schema types here, so the insert row would infer
+    // as `never` — narrow the table handle to just the insert we need.
+    const usageTable = svc?.from('fanar_usage') as unknown as
+      { insert: (row: Record<string, unknown>) => PromiseLike<unknown> } | undefined;
+    usageTable?.insert({ endpoint: 'mt' }).then(
       () => {},
       (e: unknown) => console.warn('Shaheen-MT: usage log failed:', String(e)),
     );

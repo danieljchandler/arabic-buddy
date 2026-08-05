@@ -3,6 +3,7 @@ import { getDialectVocabRules, getDialectLabel, getDialectExamples } from "../_s
 import { enforceDailyCap } from "../_shared/usageCap.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { buildLearnerProfile } from "../_shared/learnerProfile.ts";
+import { MODEL_IDS } from "../_shared/modelRegistry.ts";
 
 
 serve(async (req) => {
@@ -112,7 +113,7 @@ Return JSON: { "type": "translate", "title": "Speed Round", "titleArabic": "جو
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: MODEL_IDS.GEMINI_FAST,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: prompts[todayType] || prompts.translate },

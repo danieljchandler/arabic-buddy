@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { logEdgeError } from "../_shared/logError.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
+import { MODEL_IDS } from "../_shared/modelRegistry.ts";
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -114,7 +115,7 @@ Give exactly 2-3 short, actionable tips (one sentence each) to improve their pro
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: MODEL_IDS.GEMINI_FAST,
         messages: [
           { role: "system", content: "You are a concise Arabic pronunciation coach. Return ONLY a JSON array of tip strings, no markdown, no explanation." },
           { role: "user", content: prompt },

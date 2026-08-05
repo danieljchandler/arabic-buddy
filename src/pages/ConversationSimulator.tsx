@@ -306,9 +306,22 @@ export default function ConversationSimulator() {
       setPlayingIdx(idx);
 
       try {
-        let url = ttsCache.current.get(trimmed);
+        // Cache key includes dialect — the same phrase can exist in multiple
+        // dialect sessions and must not reuse another dialect's audio.
+        const cacheKey = `${activeDialect}:${trimmed}`;
+        let url = ttsCache.current.get(cacheKey);
         if (!url) {
-          const fnName = activeDialect === "Gulf" ? "munsit-tts" : "elevenlabs-tts";
+          // Route by dialect: Gulf → Munsit Gulf voices, Egyptian → ElevenLabs
+          // native ar-EG voices, Yemeni → Azure's real ar-YE neural voices
+          // (previously Yemeni went to ElevenLabs, which has no Yemeni voice).
+          const fnName =
+            activeDialect === "Gulf" ? "munsit-tts" :
+            activeDialect === "Yemeni" ? "azure-tts" :
+            "elevenlabs-tts";
+          const body =
+            fnName === "azure-tts"
+              ? { text: trimmed, voice: "ar-YE-SalehNeural" }
+              : { text: trimmed };
           const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
           const ANON = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
           const { data: { session } } = await supabase.auth.getSession();
@@ -320,12 +333,12 @@ export default function ConversationSimulator() {
               Authorization: `Bearer ${token}`,
               apikey: ANON,
             },
-            body: JSON.stringify({ text: trimmed }),
+            body: JSON.stringify(body),
           });
           if (!res.ok) throw new Error(`${fnName} ${res.status}`);
           const blob = await res.blob();
           url = URL.createObjectURL(blob);
-          ttsCache.current.set(trimmed, url);
+          ttsCache.current.set(cacheKey, url);
         }
         audio.src = url;
         await audio.play();

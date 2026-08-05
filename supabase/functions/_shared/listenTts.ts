@@ -132,7 +132,7 @@ export async function planProvider(dialect: string): Promise<ProviderPlan> {
       ext: "mp3",
       contentType: "audio/mpeg",
       elevenLabsVoices: ELEVENLABS_EGYPTIAN_VOICES,
-      elevenLabsModelId: "eleven_multilingual_v2",
+      elevenLabsModelId: elevenLabsModel(),
     };
   }
 
@@ -291,10 +291,26 @@ export async function synthesizeGemini(
   return pcmToWav(pcm, sampleRate);
 }
 
+// Model override knob for A/B-ing eleven_v3 (better dialect handling incl.
+// Egyptian) against the current default without a redeploy.
+export function elevenLabsModel(): string {
+  return Deno.env.get("ELEVENLABS_TTS_MODEL")?.trim() || "eleven_multilingual_v2";
+}
+
+export interface ElevenLabsOpts {
+  stability?: number;
+  style?: number;
+  // Prosody conditioning: pass the surrounding lines so multi-line narration
+  // flows naturally across line boundaries instead of restarting intonation.
+  previousText?: string;
+  nextText?: string;
+}
+
 export async function synthesizeElevenLabs(
   text: string,
   voiceId: string,
   modelId: string,
+  opts: ElevenLabsOpts = {},
 ): Promise<Uint8Array> {
   const key = Deno.env.get("ELEVENLABS_API_KEY");
   if (!key) throw new Error("ELEVENLABS_API_KEY missing");
@@ -306,10 +322,12 @@ export async function synthesizeElevenLabs(
       body: JSON.stringify({
         text,
         model_id: modelId,
+        ...(opts.previousText ? { previous_text: opts.previousText.slice(-600) } : {}),
+        ...(opts.nextText ? { next_text: opts.nextText.slice(0, 600) } : {}),
         voice_settings: {
-          stability: 0.4,
+          stability: opts.stability ?? 0.4,
           similarity_boost: 0.8,
-          style: 0.5,
+          style: opts.style ?? 0.5,
           use_speaker_boost: true,
         },
       }),
@@ -328,6 +346,9 @@ export async function synthesizeLine(
   role: string,
   index: number,
   plan: ProviderPlan,
+  // Optional prosody conditioning (ElevenLabs only): surrounding lines of the
+  // same narration so intonation carries across line boundaries.
+  neighbors: { previousText?: string; nextText?: string } = {},
 ): Promise<Uint8Array> {
   if (plan.provider === "munsit") {
     const voices = plan.munsitVoices!;
@@ -344,7 +365,7 @@ export async function synthesizeLine(
   if (plan.provider === "elevenlabs") {
     const voices = plan.elevenLabsVoices!;
     const slot = pickVoiceSlot(role, index) % voices.length;
-    return synthesizeElevenLabs(text, voices[slot], plan.elevenLabsModelId ?? "eleven_multilingual_v2");
+    return synthesizeElevenLabs(text, voices[slot], plan.elevenLabsModelId ?? elevenLabsModel(), neighbors);
   }
   const voices = plan.azureVoices!;
   const slot = pickVoiceSlot(role, index) % voices.length;

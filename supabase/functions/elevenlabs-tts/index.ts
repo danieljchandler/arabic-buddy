@@ -5,8 +5,21 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 // Voices this function is allowed to synthesize. Callers can only pick from
 // this set; anything else falls back to the default, so an attacker can't
 // select arbitrary/premium ElevenLabs voices by injecting a voiceId.
-const DEFAULT_VOICE_ID = "JBFqnCBsd6RMkjVDRZzb";
-const ALLOWED_VOICE_IDS = new Set<string>([DEFAULT_VOICE_ID]);
+//
+// Native Egyptian Arabic voices (same set _shared/listenTts.ts curates for
+// Listen episodes). Previously this function only allowed a generic English
+// premade voice, so the conversation simulator spoke Egyptian through an
+// English voice.
+const EGYPTIAN_VOICE_IDS = [
+  "6aXW46RTUz6Y2lkBGQ1a", // Farida — Lively and Radiant (female, ar-EG)
+  "rMheqEfwsIJckq2yCdb5", // Ahmed Yahia (male, ar-EG)
+  "ckGEQg6YnSVooU5uDRsF", // Tarek — Pleasant and Professional (male, ar-EG)
+];
+const GENERIC_VOICE_ID = "JBFqnCBsd6RMkjVDRZzb"; // George (English premade)
+const DEFAULT_VOICE_ID = EGYPTIAN_VOICE_IDS[1]; // Ahmed Yahia — native ar-EG
+const ALLOWED_VOICE_IDS = new Set<string>([...EGYPTIAN_VOICE_IDS, GENERIC_VOICE_ID]);
+// A/B knob shared with listenTts: ELEVENLABS_TTS_MODEL (e.g. eleven_v3).
+const MODEL_ID = Deno.env.get("ELEVENLABS_TTS_MODEL")?.trim() || "eleven_multilingual_v2";
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -53,7 +66,7 @@ serve(async (req) => {
         },
         body: JSON.stringify({
           text,
-          model_id: "eleven_multilingual_v2",
+          model_id: MODEL_ID,
           voice_settings: {
             stability: 0.3,        // Lower for natural Arabic prosody/tonal variation
             similarity_boost: 0.8, // High for voice clarity

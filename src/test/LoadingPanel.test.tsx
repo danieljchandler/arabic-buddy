@@ -64,6 +64,9 @@ describe("LoadingPanel", () => {
     // The white matte is turned into real transparency by the filter, not by a
     // blend mode — see the note in LoadingEmblem.
     expect(video.style.filter).toBe("url(#hakiya-emblem-alpha)");
+    // The source clip is cropped at top and bottom; the mask feathers those
+    // edges so the artwork doesn't end in a hard slice.
+    expect(video.style.maskImage).toContain("linear-gradient");
   });
 
   it("carries no plate behind the artwork", () => {

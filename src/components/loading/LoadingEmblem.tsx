@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { cn } from "@/lib/utils";
 import { useReducedMotion } from "@/lib/uiPrefs";
 
@@ -32,8 +32,25 @@ const SIZES = {
   lg: "w-[260px]",
 } as const;
 
-/** Defined in index.html; see the note there on why the region is pinned. */
-const ALPHA_FILTER = { filter: "url(#hakiya-emblem-alpha)" } as const;
+/**
+ * The source clip runs off the top and bottom of its own frame in every frame —
+ * the pot's lid during the pour, the cup's base throughout — so the artwork
+ * would otherwise end in a hard horizontal slice. Feathering those two edges
+ * turns an accidental-looking crop into a vignette.
+ *
+ * This hides the seam, it does not repair it: those pixels were never recorded.
+ * A source clip with the whole dallah inside the frame is the only real fix, and
+ * this constant should come out when one arrives.
+ */
+const EDGE_FADE =
+  "linear-gradient(to bottom, transparent 0%, #000 8%, #000 92%, transparent 100%)";
+
+/** Filter is defined in index.html; see the note there on why the region is pinned. */
+const EMBLEM_STYLE: CSSProperties = {
+  filter: "url(#hakiya-emblem-alpha)",
+  maskImage: EDGE_FADE,
+  WebkitMaskImage: EDGE_FADE,
+};
 
 export interface LoadingEmblemProps {
   size?: keyof typeof SIZES;
@@ -77,7 +94,7 @@ export function LoadingEmblem({ size = "md", className }: LoadingEmblemProps) {
           src={EMBLEM_POSTER}
           alt=""
           className="block w-full"
-          style={ALPHA_FILTER}
+          style={EMBLEM_STYLE}
         />
       ) : (
         <video
@@ -91,7 +108,7 @@ export function LoadingEmblem({ size = "md", className }: LoadingEmblemProps) {
           disablePictureInPicture
           tabIndex={-1}
           className="block w-full"
-          style={ALPHA_FILTER}
+          style={EMBLEM_STYLE}
         >
           {/*
             H.264 first: every mainstream browser plays it, so almost nobody

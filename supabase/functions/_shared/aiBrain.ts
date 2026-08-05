@@ -698,7 +698,9 @@ async function runDraftCritic<T>(task: BrainTask, apiKey: string, deadline: Dead
     try {
       validator = await validateDialectCrossChecked(draftText, task.dialect, {
         apiKey,
-        signal: AbortSignal.timeout(Math.min(20_000, callBudget(deadline))),
+        // timeoutMs, not a shared signal: the cross-check runs two calls at once
+        // and one AbortSignal between them let a slow leg abort the other.
+        timeoutMs: Math.min(20_000, callBudget(deadline)),
       });
     } catch (err) {
       console.warn('[aiBrain] dialect validator failed; treating draft as acceptable', err);

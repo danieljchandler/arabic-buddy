@@ -44,6 +44,13 @@ export interface ValidateOptions {
   passThreshold?: number; // default 4
   maxChars?: number;      // truncate text for cost control; default 4000
   signal?: AbortSignal;
+  /**
+   * Per-call ceiling. Preferred over `signal` for the cross-checked path: one
+   * shared AbortSignal across two concurrent calls means a slow leg eats the
+   * other leg's clock, so each call mints its own timer from this instead.
+   * Ignored when `signal` is supplied.
+   */
+  timeoutMs?: number;
   /** Override the judging model. Defaults to Gemini 2.5 Pro via the Lovable gateway. */
   model?: string;
 }
@@ -117,7 +124,7 @@ Be harsh. When in doubt between 4 and 3, choose 3.`;
         Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
-      signal: opts.signal,
+      signal: opts.signal ?? (opts.timeoutMs ? AbortSignal.timeout(opts.timeoutMs) : undefined),
       body: JSON.stringify({
         model,
         temperature: 0.2,
@@ -162,14 +169,24 @@ Be harsh. When in doubt between 4 and 3, choose 3.`;
 }
 
 /**
- * Two-model dialect judgment, gated on disagreement.
+ * Two-model dialect judgment: both models read the text, the harsher verdict wins.
  *
- * Runs the cheap Arabic-native validator (Mistral Saba) first. Only when its
- * verdict is uncertain — it errored, or it wants a rewrite on a borderline
- * score — does it pay for the strong generalist (Gemini 2.5 Pro). A confident
- * `pass` from Saba costs one cheap call instead of one expensive one; a
- * genuine disagreement escalates and the harsher verdict wins, so this never
- * weakens the gate it replaces.
+ * The two run CONCURRENTLY and both always run. An earlier version asked the
+ * cheap Arabic-native validator (Mistral Saba) first and returned its answer
+ * without paying for the strong generalist (Gemini 2.5 Pro) whenever Saba said
+ * `pass` at 5/5. That is the one shortcut this gate cannot afford: Saba is a
+ * general Arabic model, so on Yemeni it reads fusha-inflected prose as fine and
+ * scores it 5, and the strict reviewer that would have caught it never ran.
+ * "Fusha grammar with dialect words sprinkled in" is exactly the failure this
+ * validator exists to catch, and it was being waved through.
+ *
+ * Running them in parallel also costs less wall clock than the old sequential
+ * escalation (max, not sum), which matters because the caller skips the rewrite
+ * pass entirely once its latency budget is spent — the previous shape could
+ * spend the budget *and* return the lenient verdict. For the same reason each
+ * call now gets its own timeout: they shared one AbortSignal, so a slow Saba
+ * left the strong validator with a few seconds and it aborted into `unknown`,
+ * silently degrading the cross-check to Saba alone.
  *
  * Set DIALECT_VALIDATOR_CROSSCHECK=off to fall back to Gemini Pro alone.
  */
@@ -182,14 +199,10 @@ export async function validateDialectCrossChecked(
     return validateDialect(text, dialect, opts);
   }
 
-  const arabic = await validateDialect(text, dialect, { ...opts, model: ARABIC_VALIDATOR_MODEL });
-
-  // Confident pass from the Arabic-native model — accept and stop here.
-  if (arabic.ok && arabic.verdict === 'pass' && arabic.score >= 5) {
-    return { ...arabic, agreement: 'single' };
-  }
-
-  const strong = await validateDialect(text, dialect, { ...opts, model: VALIDATOR_MODEL });
+  const [arabic, strong] = await Promise.all([
+    validateDialect(text, dialect, { ...opts, model: ARABIC_VALIDATOR_MODEL }),
+    validateDialect(text, dialect, { ...opts, model: VALIDATOR_MODEL }),
+  ]);
 
   // If either side failed, trust whichever one worked.
   if (!strong.ok) return arabic.ok ? { ...arabic, agreement: 'single' } : strong;
@@ -219,7 +232,8 @@ export async function validateDialectCrossChecked(
     verdict,
     leaks,
     notes: strong.notes ?? arabic.notes,
-    latencyMs: arabic.latencyMs + strong.latencyMs,
+    // Parallel, so the cost to the caller's budget is the slower leg, not the sum.
+    latencyMs: Math.max(arabic.latencyMs, strong.latencyMs),
     ok: true,
     model: `${ARABIC_VALIDATOR_MODEL}+${VALIDATOR_MODEL}`,
     agreement,

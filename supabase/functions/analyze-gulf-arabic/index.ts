@@ -1548,7 +1548,7 @@ serve(async (req) => {
       }
     }
     const body = await req.json();
-    const { transcript, munsitTranscript, fanarTranscript, sonioxTranscript, azureTranscript, sonioxTranslation, visualContext, originalUrl, videoId: pipelineVideoId, dialectModule, isMeme, onScreenTextSegments } = body;
+    const { transcript, munsitTranscript, fanarTranscript, sonioxTranscript, azureTranscript, scribeTranscript, sonioxTranslation, visualContext, originalUrl, videoId: pipelineVideoId, dialectModule, isMeme, onScreenTextSegments } = body;
     DIALECT_MODULE = (dialectModule === 'Egyptian' || dialectModule === 'Yemeni') ? dialectModule : 'Gulf';
     console.log('Dialect module for this request:', DIALECT_MODULE);
 
@@ -1601,14 +1601,16 @@ serve(async (req) => {
     const hasFanar = Boolean(fanarTranscript && typeof fanarTranscript === 'string' && fanarTranscript.trim().length > 0);
     const hasSoniox = Boolean(sonioxTranscript && typeof sonioxTranscript === 'string' && sonioxTranscript.trim().length > 0);
     const hasAzure = Boolean(azureTranscript && typeof azureTranscript === 'string' && azureTranscript.trim().length > 0);
+    const hasScribe = Boolean(scribeTranscript && typeof scribeTranscript === 'string' && scribeTranscript.trim().length > 0);
     const hasTriple = hasDual && hasFanar;
-    const asrCount = 1 + (hasDual ? 1 : 0) + (hasFanar ? 1 : 0) + (hasSoniox ? 1 : 0) + (hasAzure ? 1 : 0);
+    const asrCount = 1 + (hasDual ? 1 : 0) + (hasFanar ? 1 : 0) + (hasSoniox ? 1 : 0) + (hasAzure ? 1 : 0) + (hasScribe ? 1 : 0);
     console.log('Analyzing transcript (lines + meta)...');
     console.log('Deepgram transcript length:', transcript.length);
     if (hasDual) console.log('Munsit transcript length:', munsitTranscript.length);
     if (hasFanar) console.log('Fanar transcript length:', fanarTranscript.length);
     if (hasSoniox) console.log('Soniox transcript length:', sonioxTranscript.length);
     if (hasAzure) console.log('Azure transcript length:', azureTranscript.length);
+    if (hasScribe) console.log('Scribe transcript length:', scribeTranscript.length);
 
     const FANAR_API_KEY = Deno.env.get('FANAR_API_KEY')?.trim();
     const fanarLlmAvailable = Boolean(FANAR_API_KEY);
@@ -1625,6 +1627,7 @@ serve(async (req) => {
      if (hasDual) transcriptParts.push(`Transcription (Munsit — Arabic-native dialect specialist, PREFER wording for dialectal phrases):\n${munsitTranscript}`);
      if (hasSoniox) transcriptParts.push(`Transcription (Soniox — lowest-WER engine, use when Munsit is missing):\n${sonioxTranscript}`);
      if (hasFanar) transcriptParts.push(`Transcription (Fanar — Arabic-native, tie-breaker):\n${fanarTranscript}`);
+     if (hasScribe) transcriptParts.push(`Transcription (ElevenLabs Scribe — strongest on Arabic-English code-switching, PREFER for English words and mixed phrases):\n${scribeTranscript}`);
      if (hasAzure) transcriptParts.push(`Transcription (Azure — locale-tuned for this dialect):\n${azureTranscript}`);
      transcriptParts.push(`Transcription (Deepgram — best for word boundaries; do NOT prefer its wording):\n${transcript}`);
 

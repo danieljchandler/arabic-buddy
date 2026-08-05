@@ -36,6 +36,7 @@ export const MODEL_IDS = {
   GEMINI_PRO: 'google/gemini-2.5-pro',             // heavy reasoning fallback
   GEMINI_FAST: 'google/gemini-3-flash-preview',    // cheapest utility default
   QWEN: 'qwen/qwen3-max',                          // third-leg verifier
+  SABA: 'mistralai/mistral-saba',                  // Arabic-native 24B, via OpenRouter
   // All general Fanar work (merge fallback, meta enrichment, dialect
   // validation, curriculum chat) uses the pinned gen-2 model. Never use the
   // bare 'Fanar' alias (silently tracks gen 1, 4k ctx) and never use
@@ -126,6 +127,7 @@ export const MODEL_WEIGHTS: Record<string, number> = {
   'google/gemini-3.1-pro-preview': 0.9,
   'anthropic/claude-opus-4.1': 0.95,
   [MODEL_IDS.QWEN]: 0.6,
+  [MODEL_IDS.SABA]: 0.7,
   'openai/gpt-5': 0.8,
   'openai/gpt-5-mini': 0.6,
 };

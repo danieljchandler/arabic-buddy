@@ -13,7 +13,7 @@ import {
 } from './dialectHelpers.ts';
 import { detectMsaLeaks, type MsaLeakResult } from './msaLeakDetector.ts';
 import { logMsaViolations, logValidatorResult } from './msaViolationLogger.ts';
-import { validateDialect, type ValidatorResult } from './dialectValidator.ts';
+import { validateDialectCrossChecked, type ValidatorResult } from './dialectValidator.ts';
 import { emitMetric } from './featureMetrics.ts';
 import {
   DEFAULT_FAST,
@@ -233,7 +233,7 @@ export async function askBrain<T = unknown>(task: BrainTask): Promise<BrainResul
   if (task.validateDialect && !result.validator) {
     try {
       const scanText = extractScanText(task, result.output, result.raw);
-      const v = await validateDialect(scanText, task.dialect, { apiKey });
+      const v = await validateDialectCrossChecked(scanText, task.dialect, { apiKey });
       result.validator = v;
       if (v.ok && (v.verdict === 'rewrite' || v.leaks.length > 0)) {
         logValidatorResult({
@@ -695,7 +695,7 @@ async function runDraftCritic<T>(task: BrainTask, apiKey: string, deadline: Dead
   if (task.enforceDialect && remainingMs(deadline) > MIN_PASS_BUDGET_MS) {
     const vStart = Date.now();
     try {
-      validator = await validateDialect(draftText, task.dialect, {
+      validator = await validateDialectCrossChecked(draftText, task.dialect, {
         apiKey,
         signal: AbortSignal.timeout(Math.min(20_000, callBudget(deadline))),
       });

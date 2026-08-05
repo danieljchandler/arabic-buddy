@@ -429,35 +429,47 @@ async function runPipeline(
     // native word/token timings from Soniox + Munsit so alignment doesn't
     // depend on Deepgram's English-tuned Arabic word boundaries.
 
-    // --- Deepgram ---
-    const deepgramPromise = (async () => {
-      const DEEPGRAM_API_KEY = Deno.env.get("DEEPGRAM_API_KEY");
-      if (!DEEPGRAM_API_KEY) { console.warn("[pipeline] Deepgram: no API key"); return null; }
-
-      const params = new URLSearchParams({
-        model: "nova-3", language: "ar", diarize: "true", punctuate: "true", smart_format: "true",
-      });
+    // --- ElevenLabs Scribe v2 ---
+    // Replaces the Deepgram nova-3 leg. Deepgram is a generalist that was being
+    // called with language=ar (which disables its code-switch path) and whose
+    // Arabic word boundaries were never trusted for alignment anyway. Scribe v2
+    // leads the Artificial Analysis WER leaderboard and benchmarks best on
+    // Egyptian/Saudi Arabic-English code-switching — the exact shape of this
+    // corpus — and runs on the ElevenLabs key the app already holds for TTS.
+    const scribePromise = (async () => {
+      const ELEVENLABS_API_KEY = Deno.env.get("ELEVENLABS_API_KEY")?.trim();
+      if (!ELEVENLABS_API_KEY) { console.warn("[pipeline] Scribe: no API key"); return null; }
 
       const t0 = Date.now();
       try {
-        const resp = await fetch(`https://api.deepgram.com/v1/listen?${params}`, {
+        const fd = new FormData();
+        fd.append("file", new File([audioBytes!], "audio.mp3", { type: audioContentType }));
+        fd.append("model_id", Deno.env.get("ELEVENLABS_STT_MODEL")?.trim() || "scribe_v2");
+        fd.append("language_code", "ar");
+        fd.append("diarize", "true");
+        fd.append("timestamps_granularity", "word");
+
+        const resp = await fetch("https://api.elevenlabs.io/v1/speech-to-text", {
           method: "POST",
-          headers: { Authorization: `Token ${DEEPGRAM_API_KEY}`, "Content-Type": audioContentType },
-          body: audioBytes,
+          headers: { "xi-api-key": ELEVENLABS_API_KEY },
+          body: fd,
           signal: AbortSignal.timeout(ASR_TIMEOUT_MS),
         });
-        if (!resp.ok) { const t = await resp.text(); throw new Error(`HTTP ${resp.status}: ${t}`); }
+        if (!resp.ok) { const t = await resp.text(); throw new Error(`HTTP ${resp.status}: ${t.slice(0, 300)}`); }
         const data = await resp.json();
-        const alt = data?.results?.channels?.[0]?.alternatives?.[0];
-        const text = alt?.transcript ?? "";
-        const words = (alt?.words ?? []).map((w: any) => ({
-          text: w.punctuated_word ?? w.word ?? "", start: w.start, end: w.end,
-        }));
+        const text: string = data?.text ?? "";
+        // Scribe emits spacing/audio-event entries alongside words — keep words only.
+        const words = (data?.words ?? [])
+          .filter((w: any) => (w.type ?? "word") === "word" && (w.text ?? "").trim())
+          .map((w: any) => ({
+            text: w.text, start: w.start, end: w.end,
+            ...(w.speaker_id ? { speaker: String(w.speaker_id) } : {}),
+          }));
         const latencyMs = Date.now() - t0;
-        console.log(`[pipeline] Deepgram: ${text.length} chars, ${words.length} words, ${latencyMs}ms`);
+        console.log(`[pipeline] Scribe: ${text.length} chars, ${words.length} words, ${latencyMs}ms`);
         return { text, words, latencyMs };
       } catch (e) {
-        console.warn("[pipeline] Deepgram failed:", e);
+        console.warn("[pipeline] Scribe failed:", e);
         return { text: "", words: [], latencyMs: Date.now() - t0, error: String(e) };
       }
     })();
@@ -797,18 +809,18 @@ async function runPipeline(
       }
     })();
 
-    const [deepgramResult, fanarResult, sonioxResult, munsitResult, azureResult] = await Promise.all([
-      deepgramPromise, fanarPromise, sonioxPromise, munsitPromise, azurePromise,
+    const [scribeResult, fanarResult, sonioxResult, munsitResult, azureResult] = await Promise.all([
+      scribePromise, fanarPromise, sonioxPromise, munsitPromise, azurePromise,
     ]);
 
-    const deepgramText = deepgramResult?.text || "";
+    const scribeText = scribeResult?.text || "";
     const fanarText = fanarResult?.text || "";
     const sonioxText = sonioxResult?.sonioxUsed ? (sonioxResult.text || "") : "";
     const munsitText = munsitResult?.text || "";
     const azureText = azureResult?.text || "";
 
     const engines: string[] = [];
-    if (deepgramText) engines.push("Deepgram");
+    if (scribeText) engines.push("Scribe");
     if (fanarText) engines.push("Fanar");
     if (sonioxText) engines.push("Soniox");
     if (munsitText) engines.push("Munsit");
@@ -824,21 +836,22 @@ async function runPipeline(
     // Instead: of the Arabic-aware engines (Munsit/Soniox/Fanar), compute
     // the median char length, drop anything < 50% of median, then take the
     // longest of the survivors. Engine priority is the tie-breaker.
-    type EngineName = "Munsit" | "Soniox" | "Fanar" | "Azure" | "Deepgram";
+    // Scribe joins the Arabic-aware candidate set: unlike Deepgram (a generalist
+    // whose Arabic word boundaries were never trusted for alignment) it is a
+    // top-ranked Arabic/code-switching engine with usable word timings.
+    type EngineName = "Munsit" | "Soniox" | "Scribe" | "Fanar" | "Azure";
     const arabicCandidates: Array<{ name: EngineName; text: string; words: any[] }> = [
       { name: "Munsit", text: munsitText, words: (munsitResult as any)?.words ?? [] },
       { name: "Soniox", text: sonioxText, words: (sonioxResult as any)?.words ?? [] },
+      { name: "Scribe", text: scribeText, words: (scribeResult as any)?.words ?? [] },
       { name: "Fanar",  text: fanarText,  words: [] }, // Fanar has no word timings
     ].filter(c => (c.text || "").trim().length > 0);
 
-    const PRIORITY: EngineName[] = ["Munsit", "Soniox", "Fanar", "Azure", "Deepgram"];
+    const PRIORITY: EngineName[] = ["Munsit", "Soniox", "Scribe", "Fanar", "Azure"];
     function pickPrimary(): { name: EngineName; text: string; words: any[] } {
       if (arabicCandidates.length === 0) {
-        // Fall back to whatever is non-empty, priority order
-        const fallback =
-          (azureText && { name: "Azure" as EngineName, text: azureText, words: [] }) ||
-          (deepgramText && { name: "Deepgram" as EngineName, text: deepgramText, words: deepgramResult?.words ?? [] });
-        return fallback || { name: "Deepgram", text: deepgramText, words: deepgramResult?.words ?? [] };
+        // Nothing Arabic-aware produced text — Azure is all that's left.
+        return { name: "Azure", text: azureText, words: [] };
       }
       const lens = arabicCandidates.map(c => c.text.length).sort((a, b) => a - b);
       const median = lens[Math.floor(lens.length / 2)];
@@ -857,16 +870,16 @@ async function runPipeline(
     console.log(`[pipeline] Primary text: ${primaryEngine} (${primaryText.length} chars). Arabic candidates: ${arabicCandidates.map(c => `${c.name}=${c.text.length}`).join(", ")}`);
 
     // Pick alignment word source: primary engine's own words if available,
-    // else Munsit/Soniox words, else Deepgram, else empty (proportional fallback).
+    // else Munsit/Soniox words, else Scribe, else empty (proportional fallback).
     const alignmentWords =
       primary.words.length > 0 ? primary.words :
       ((sonioxResult as any)?.words?.length ? (sonioxResult as any).words :
        ((munsitResult as any)?.words?.length ? (munsitResult as any).words :
-        (deepgramResult?.words ?? [])));
+        ((scribeResult as any)?.words ?? [])));
     const alignmentSource: EngineName =
       primary.words.length > 0 ? primaryEngine :
       ((sonioxResult as any)?.words?.length ? "Soniox" :
-       ((munsitResult as any)?.words?.length ? "Munsit" : "Deepgram"));
+       ((munsitResult as any)?.words?.length ? "Munsit" : "Scribe"));
     console.log(`[pipeline] Alignment words: ${alignmentSource} (${alignmentWords.length} words)`);
     const relativeWords = alignmentWords;
 
@@ -897,10 +910,10 @@ async function runPipeline(
           latency_ms: (fanarResult as any)?.latencyMs ?? 0,
           ...((fanarResult as any)?.error ? trimErr((fanarResult as any).error) : {}),
         },
-        deepgram: {
-          ok: !!deepgramText, chars: deepgramText.length,
-          latency_ms: deepgramResult?.latencyMs ?? 0,
-          ...((deepgramResult as any)?.error ? trimErr((deepgramResult as any).error) : {}),
+        scribe: {
+          ok: !!scribeText, chars: scribeText.length,
+          latency_ms: scribeResult?.latencyMs ?? 0,
+          ...((scribeResult as any)?.error ? trimErr((scribeResult as any).error) : {}),
         },
         azure: {
           ok: !!azureText, chars: azureText.length,
@@ -994,7 +1007,7 @@ async function runPipeline(
     if (sonioxText) analyzeBody.sonioxTranscript = sonioxText;
     if (munsitText) analyzeBody.munsitTranscript = munsitText;
     if (azureText) analyzeBody.azureTranscript = azureText;
-    if (deepgramText && primaryEngine !== "Deepgram") analyzeBody.deepgramTranscript = deepgramText;
+    if (scribeText) analyzeBody.scribeTranscript = scribeText;
     const sonioxTranslation = sonioxResult?.translationText;
     if (sonioxTranslation) analyzeBody.sonioxTranslation = sonioxTranslation;
 

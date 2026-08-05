@@ -2,6 +2,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { SONIOX_MODEL, buildSonioxContext } from "../_shared/asrConfig.ts";
 
 
 const ASR_TIMEOUT_MS = 5 * 60 * 1000;
@@ -539,9 +540,15 @@ async function runPipeline(
         if (!uploadResp.ok) { const t = await uploadResp.text(); throw new Error(`Upload ${uploadResp.status}: ${t}`); }
         const { id: fileId } = await uploadResp.json();
 
-        // Create transcription with translation
+        // Create transcription with translation.
+        // - Model pinned to v5 (v4 retired 2026-06-30, was silently rerouting).
+        // - language_hints includes "en": this corpus is heavily code-switched,
+        //   and the old ["ar"] + strict combination suppressed English tokens.
+        // - context biases recognition toward dialect vocabulary + video topic.
         const createBody: Record<string, unknown> = {
-          model: "stt-async-v4", file_id: fileId, language_hints: ["ar"], language_hints_strict: true,
+          model: SONIOX_MODEL, file_id: fileId, language_hints: ["ar", "en"],
+          enable_speaker_diarization: true,
+          context: buildSonioxContext(dialectModule, video.title),
           translation: { type: "one_way", target_language: "en" },
         };
         let createResp = await fetch(`${SONIOX_BASE}/transcriptions`, {
@@ -551,6 +558,16 @@ async function runPipeline(
         if (!createResp.ok) {
           await createResp.text();
           delete createBody.translation;
+          createResp = await fetch(`${SONIOX_BASE}/transcriptions`, {
+            method: "POST", headers: { ...sHeaders, "Content-Type": "application/json" }, body: JSON.stringify(createBody),
+          });
+        }
+        // Last resort: strip the v5 extras (context/diarization) so a schema
+        // rejection can never take the whole Soniox leg down.
+        if (!createResp.ok) {
+          await createResp.text();
+          delete createBody.context;
+          delete createBody.enable_speaker_diarization;
           createResp = await fetch(`${SONIOX_BASE}/transcriptions`, {
             method: "POST", headers: { ...sHeaders, "Content-Type": "application/json" }, body: JSON.stringify(createBody),
           });
@@ -579,36 +596,53 @@ async function runPipeline(
         // Cleanup
         fetch(`${SONIOX_BASE}/files/${fileId}`, { method: "DELETE", headers: sHeaders }).catch(() => {});
 
-        // Merge sub-word tokens into word-level array compatible with Deepgram shape.
+        // Merge sub-word tokens into word-level array compatible with Deepgram
+        // shape (+ speaker when diarization returned one). Also average token
+        // confidence — the merge step downstream can weight engines by it
+        // instead of the char-length heuristic alone.
         const tokens: any[] = Array.isArray(tData.tokens) ? tData.tokens : [];
-        const words: Array<{ text: string; start: number; end: number }> = [];
+        const words: Array<{ text: string; start: number; end: number; speaker?: string }> = [];
         let curr = "";
         let wStart = 0;
         let wEnd = 0;
+        let wSpeaker: string | undefined;
+        let confSum = 0;
+        let confCount = 0;
+        const pushCurr = () => {
+          if (!curr) return;
+          words.push({
+            text: curr, start: wStart / 1000, end: Math.max(wEnd, wStart) / 1000,
+            ...(wSpeaker !== undefined ? { speaker: wSpeaker } : {}),
+          });
+          curr = "";
+        };
         for (const tk of tokens) {
+          if (typeof tk.confidence === "number") { confSum += tk.confidence; confCount++; }
           const txt: string = tk.text ?? "";
-          if (txt === "" || txt === " ") {
-            if (curr) { words.push({ text: curr, start: wStart / 1000, end: wEnd / 1000 }); curr = ""; }
-            continue;
-          }
+          if (txt === "" || txt === " ") { pushCurr(); continue; }
           if (txt.startsWith(" ") || !curr) {
-            if (curr) words.push({ text: curr, start: wStart / 1000, end: Math.max(wEnd, wStart) / 1000 });
+            pushCurr();
             curr = txt.trimStart();
             wStart = tk.start_ms ?? 0;
             // Some Soniox tokens omit end_ms on the first sub-word of a phrase.
             // Falling through to 0 here collapsed word timing — keep the
             // token's own start_ms as a safe lower bound.
             wEnd = tk.end_ms ?? tk.start_ms ?? 0;
+            wSpeaker = tk.speaker !== undefined && tk.speaker !== null ? String(tk.speaker) : undefined;
           } else {
             curr += txt;
             wEnd = tk.end_ms ?? tk.start_ms ?? wEnd;
           }
         }
-        if (curr) words.push({ text: curr, start: wStart / 1000, end: Math.max(wEnd, wStart) / 1000 });
+        pushCurr();
+        const avgConfidence = confCount > 0 ? confSum / confCount : null;
 
         const latencyMs = Date.now() - t0;
-        console.log(`[pipeline] Soniox: ${tData.text?.length || 0} chars, ${words.length} words, ${latencyMs}ms`);
-        return { text: tData.text || null, sonioxUsed: true, translationText: tData.translation_text || null, words, latencyMs };
+        console.log(
+          `[pipeline] Soniox: ${tData.text?.length || 0} chars, ${words.length} words, ` +
+            `avg_conf=${avgConfidence?.toFixed(3) ?? "n/a"}, ${latencyMs}ms`,
+        );
+        return { text: tData.text || null, sonioxUsed: true, translationText: tData.translation_text || null, words, avgConfidence, latencyMs };
       } catch (e) {
         console.warn("[pipeline] Soniox failed:", e);
         return { text: null, sonioxUsed: false, words: [], latencyMs: Date.now() - t0, error: String(e) };
@@ -616,6 +650,10 @@ async function runPipeline(
     })();
 
     // --- Munsit (Arabic-native; sync endpoint only — chunk MP3s for long audio) ---
+    // MUNSIT_ASR_MODEL lets us trial `munsit-en-ar` (the code-switch model,
+    // better for Arabic-English mixed speech) without a redeploy. Default stays
+    // the standard Arabic model.
+    const munsitModel = Deno.env.get("MUNSIT_ASR_MODEL")?.trim() || "munsit";
     const munsitPromise = (async () => {
       const MUNSIT_API_KEY = Deno.env.get("MUNSIT_API_KEY")?.trim();
       if (!MUNSIT_API_KEY) { console.warn("[pipeline] Munsit: no API key"); return { text: null, words: [], latencyMs: 0 }; }
@@ -634,7 +672,7 @@ async function runPipeline(
       ): Promise<{ text: string; words: Array<{ text: string; start: number; end: number }> }> => {
         const fd = new FormData();
         fd.append("file", new File([payload], "audio.mp3", { type: audioContentType }));
-        fd.append("model", "munsit");
+        fd.append("model", munsitModel);
         const resp = await fetch("https://api.munsit.com/api/v1/audio/transcribe", {
           method: "POST",
           headers: { "x-api-key": MUNSIT_API_KEY },
@@ -831,6 +869,57 @@ async function runPipeline(
        ((munsitResult as any)?.words?.length ? "Munsit" : "Deepgram"));
     console.log(`[pipeline] Alignment words: ${alignmentSource} (${alignmentWords.length} words)`);
     const relativeWords = alignmentWords;
+
+    // ── Persist ASR provenance ──────────────────────────────────────────
+    // engines_used.asr: per-engine outcome (chars/latency/model/errors) so
+    // engine failures — like Munsit's oversize-non-MP3 skip — are visible in
+    // the DB instead of only in function logs, and so future engine swaps can
+    // be A/B'd against stored history. analyze-gulf-arabic merges its
+    // translation + dialect_signals keys into the same JSONB via read-merge.
+    try {
+      const trimErr = (e: unknown) => ({ error: String(e).slice(0, 200) });
+      const asrProvenance = {
+        munsit: {
+          ok: !!munsitText, chars: munsitText.length, model: munsitModel,
+          latency_ms: (munsitResult as any)?.latencyMs ?? 0,
+          ...((munsitResult as any)?.error ? trimErr((munsitResult as any).error) : {}),
+        },
+        soniox: {
+          ok: !!sonioxText, chars: sonioxText.length, model: SONIOX_MODEL,
+          latency_ms: (sonioxResult as any)?.latencyMs ?? 0,
+          ...(typeof (sonioxResult as any)?.avgConfidence === "number"
+            ? { avg_confidence: Number((sonioxResult as any).avgConfidence.toFixed(3)) }
+            : {}),
+          ...((sonioxResult as any)?.error ? trimErr((sonioxResult as any).error) : {}),
+        },
+        fanar: {
+          ok: !!fanarText, chars: fanarText.length,
+          latency_ms: (fanarResult as any)?.latencyMs ?? 0,
+          ...((fanarResult as any)?.error ? trimErr((fanarResult as any).error) : {}),
+        },
+        deepgram: {
+          ok: !!deepgramText, chars: deepgramText.length,
+          latency_ms: deepgramResult?.latencyMs ?? 0,
+          ...((deepgramResult as any)?.error ? trimErr((deepgramResult as any).error) : {}),
+        },
+        azure: {
+          ok: !!azureText, chars: azureText.length,
+          ...((azureResult as any)?.locale ? { locale: (azureResult as any).locale } : {}),
+        },
+        primary: primaryEngine,
+        alignment_source: alignmentSource,
+      };
+      const { data: exRow } = await supabase
+        .from("discover_videos").select("engines_used").eq("id", videoId).single();
+      const existing = (exRow?.engines_used && typeof exRow.engines_used === "object")
+        ? exRow.engines_used as Record<string, unknown>
+        : {};
+      await supabase.from("discover_videos")
+        .update({ engines_used: { ...existing, asr: asrProvenance } })
+        .eq("id", videoId);
+    } catch (e) {
+      console.warn("[pipeline] Failed to persist ASR provenance (non-fatal):", e instanceof Error ? e.message : String(e));
+    }
 
 
     // ── Step 3: Analyze via analyze-gulf-arabic ──────────────────

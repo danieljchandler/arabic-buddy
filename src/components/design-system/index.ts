@@ -17,6 +17,11 @@ export { SaduBanner } from './SaduBanner';
 // Typography
 export { SectionHeader } from './SectionHeader';
 
+// Loading — the shared affordance for long AI waits. Reach for this instead of
+// hand-rolling another centred Loader2.
+export { LoadingPanel, type LoadingPanelProps } from '@/components/loading/LoadingPanel';
+export { LoadingEmblem, type LoadingEmblemProps } from '@/components/loading/LoadingEmblem';
+
 // Re-export shadcn primitives with enforced styles
 export { Button, buttonVariants } from '@/components/ui/button';
 export { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';

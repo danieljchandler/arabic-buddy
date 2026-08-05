@@ -26,6 +26,7 @@ import { MarkUnknownsProvider, useMarkUnknowns } from "@/contexts/MarkUnknownsCo
 import { MarkUnknownsToggle } from "@/components/shared/MarkUnknownsToggle";
 import { SaveUnknownsBar } from "@/components/shared/SaveUnknownsBar";
 import { AskAISentence } from "@/components/shared/AskAISentence";
+import { LoadingPanel } from "@/components/loading/LoadingPanel";
 import { TranslationPair } from "@/components/shared/TranslationPair";
 import {
   BookOpen,
@@ -331,8 +332,6 @@ const ReadingPractice = () => {
   const [difficulty, setDifficulty] = useState<Difficulty | null>(savedSession?.difficulty ?? null);
   const [passage, setPassage] = useState<Passage | null>(savedSession?.passage ?? null);
   const [loading, setLoading] = useState(false);
-  const [loadStartedAt, setLoadStartedAt] = useState<number | null>(null);
-  const [loadElapsed, setLoadElapsed] = useState(0);
   const [customTopic, setCustomTopic] = useState("");
   const [revealedLines, setRevealedLines] = useState<Set<number>>(new Set());
   const [currentQuestion, setCurrentQuestion] = useState(savedSession?.currentQuestion ?? 0);
@@ -378,20 +377,6 @@ const ReadingPractice = () => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [qaMessages, qaLoading]);
 
-  // Tick the generation timer so a long wait reads as progress rather than a
-  // hang, and the learner can judge whether to keep waiting.
-  useEffect(() => {
-    if (loadStartedAt === null) {
-      setLoadElapsed(0);
-      return;
-    }
-    setLoadElapsed(0);
-    const id = setInterval(() => {
-      setLoadElapsed(Math.floor((Date.now() - loadStartedAt) / 1000));
-    }, 1000);
-    return () => clearInterval(id);
-  }, [loadStartedAt]);
-
   /** Normalize passage data */
   const normalizePassage = (raw: any): Passage => {
     let lines: PassageLine[] = raw.lines || [];
@@ -425,7 +410,6 @@ const ReadingPractice = () => {
     setDifficulty(selectedDifficulty);
     setMode("passage");
     setLoading(true);
-    setLoadStartedAt(Date.now());
     setPassage(null);
     setQuizStarted(false);
     setCurrentQuestion(0);
@@ -524,7 +508,6 @@ const ReadingPractice = () => {
     } finally {
       if (!isStale()) {
         setLoading(false);
-        setLoadStartedAt(null);
       }
     }
   };
@@ -631,7 +614,6 @@ const ReadingPractice = () => {
     // back onto a passage they already walked away from.
     loadRequestRef.current++;
     setLoading(false);
-    setLoadStartedAt(null);
     setMode("select");
     setDifficulty(null);
     setPassage(null);
@@ -1000,23 +982,17 @@ const ReadingPractice = () => {
   if (loading || !passage) {
     return (
       <AppShell>
-        <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 text-center px-6">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <div className="space-y-1">
-            <p className="text-muted-foreground">
-              {loadElapsed >= 25
-                ? "Still writing — adding vowels and translations..."
-                : "Generating passage..."}
-            </p>
-            {loadElapsed >= 5 && (
-              <p className="text-xs text-muted-foreground/70">{loadElapsed}s</p>
-            )}
-          </div>
+        {/*
+          The longest wait in the app (PASSAGE_TIMEOUT_MS = 110s), so the deck
+          gets a slower dwell — seven messages at 6s land the last one around
+          36s and hold it from there.
+        */}
+        <LoadingPanel task="passage" variant="page" size="lg" intervalMs={6000}>
           <Button variant="ghost" size="sm" onClick={resetSession}>
             <X className="h-4 w-4 mr-1" />
             Cancel
           </Button>
-        </div>
+        </LoadingPanel>
       </AppShell>
     );
   }

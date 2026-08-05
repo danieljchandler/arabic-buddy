@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { LoadingPanel } from "@/components/loading/LoadingPanel";
 import { HomeButton } from "@/components/HomeButton";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { supabase } from "@/integrations/supabase/client";
@@ -241,10 +242,7 @@ const LearnFromX = () => {
             )}
             {isAnalyzing && extractedText && (
               <div className="mt-3 space-y-2">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  Analyzing Arabic content…
-                </div>
+                <LoadingPanel task="analyze" variant="inline" size="sm" />
                 <div className="p-3 rounded-lg bg-muted/50 border border-border">
                   <p className="text-sm text-foreground leading-relaxed" dir="rtl" style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}>
                     {extractedText}

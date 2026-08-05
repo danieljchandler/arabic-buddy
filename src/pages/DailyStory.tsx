@@ -12,6 +12,7 @@ import { useDailyStory, useGenerateDailyStory } from "@/hooks/useDailyStory";
 import { useDisplayPrefs } from "@/hooks/useDisplayPrefs";
 import { markTaskCompletedToday, isTaskCompletedToday } from "@/lib/todayCompletion";
 import { toast } from "sonner";
+import { LoadingPanel } from "@/components/loading/LoadingPanel";
 
 const DailyStoryPage = () => {
   const navigate = useNavigate();
@@ -76,10 +77,15 @@ const DailyStoryPage = () => {
 
         {(isLoading || generate.isPending) && !story && (
           <div className="rounded-xl border border-border bg-card p-8 text-center space-y-3">
-            <Loader2 className="h-8 w-8 mx-auto animate-spin text-primary" />
-            <p className="text-sm text-muted-foreground">
-              {generate.isPending ? "Writing your story…" : "Loading…"}
-            </p>
+            {/* Only the generation is a long AI wait; the plain fetch keeps a spinner. */}
+            {generate.isPending ? (
+              <LoadingPanel task="story" variant="inline" />
+            ) : (
+              <>
+                <Loader2 className="h-8 w-8 mx-auto animate-spin text-primary" />
+                <p className="text-sm text-muted-foreground">Loading…</p>
+              </>
+            )}
           </div>
         )}
 

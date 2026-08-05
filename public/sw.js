@@ -140,6 +140,11 @@ self.addEventListener('fetch', (event) => {
   if (url.protocol !== 'http:' && url.protocol !== 'https:') return;
   if (isBypassed(url)) return;
 
+  // Video is never served from Cache Storage. <video> playback relies on byte-
+  // range requests and cache.match() answers with the whole file as a 200,
+  // which Safari refuses to play. Let the HTTP cache handle it instead.
+  if (request.destination === 'video' || /\.(mp4|webm|mov)(\?|$)/i.test(url.pathname)) return;
+
   if (request.mode === 'navigate') {
     event.respondWith(networkFirstNavigation(request));
     return;

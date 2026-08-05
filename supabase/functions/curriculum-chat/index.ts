@@ -15,8 +15,6 @@ interface ModelConfig {
   endpoint: string;
   model: string;
   keyEnv: string;
-  isFanar?: boolean;
-  native?: boolean; // true = native RunPod /runsync API
 }
 
 const MODEL_REGISTRY: Record<string, ModelConfig> = {
@@ -53,7 +51,6 @@ const MODEL_REGISTRY: Record<string, ModelConfig> = {
     // silently tracks whatever QCRI points it at (today the 4k-ctx gen 1).
     model: "Fanar-C-2-27B",
     keyEnv: "FANAR_API_KEY",
-    isFanar: true,
   },
 };
 
@@ -365,25 +362,12 @@ async function callLLM(
   const timeout = setTimeout(() => controller.abort(), 120_000);
 
   try {
-    let body: string;
-    if (config.native) {
-      // Native RunPod /runsync API — format messages into a single prompt
-      const systemMsg = messages.find(m => m.role === 'system')?.content || '';
-      const userMsgs = messages.filter(m => m.role !== 'system').map(m => `${m.role}: ${m.content}`).join('\n');
-      body = JSON.stringify({
-        input: {
-          prompt: `### Instruction: ${systemMsg}\n\n### Input: ${userMsgs}\n\n### Response:`,
-        },
-      });
-    } else {
-      const payload: Record<string, unknown> = {
-        model: config.model,
-        messages,
-        max_tokens: maxTokens,
-        temperature: 0.4,
-      };
-      body = JSON.stringify(payload);
-    }
+    const body = JSON.stringify({
+      model: config.model,
+      messages,
+      max_tokens: maxTokens,
+      temperature: 0.4,
+    });
 
     const response = await fetch(config.endpoint, {
       method: "POST",
@@ -407,12 +391,7 @@ async function callLLM(
     }
 
     const data = await response.json();
-    let content: string | undefined;
-    if (config.native) {
-      content = typeof data.output === 'string' ? data.output : data.output?.text ?? data.output?.choices?.[0]?.message?.content;
-    } else {
-      content = data.choices?.[0]?.message?.content;
-    }
+    const content: string | undefined = data.choices?.[0]?.message?.content;
     if (!content) {
       throw new Error(`LLM ${config.model} returned empty response`);
     }

@@ -536,10 +536,12 @@ Repo lint errors: 596 → 552. All 362 tests pass.
 
 ### Still open
 
-1. **Verify the Cohere model string.** `cohere-transcribe-arabic-07-2026` is the documented
-   Arabic release; Cohere's API reference lists the general `cohere-transcribe-03-2026`.
-   The leg is env-gated and fails soft, so a wrong string just skips it — but confirm
-   before relying on it. Override with `COHERE_STT_MODEL`.
+1. ~~Verify the Cohere model string.~~ **Resolved.** Cohere's audio-transcription
+   quickstart lists both verbatim: `cohere-transcribe-03-2026` (general) and
+   `cohere-transcribe-arabic-07-2026` (Arabic). The code already uses the Arabic one
+   against `POST https://api.cohere.com/v2/audio/transcriptions` with `Bearer` auth and
+   `file` / `model` / `language=ar` form fields — matching the documented contract.
+   Set `COHERE_API_KEY` to activate the leg; `COHERE_STT_MODEL` overrides the model.
 2. **Pilot Cohere against Azure** on ~10 videos per dialect before deciding whether Azure's
    ASR leg is still earning its slot. Azure's pronunciation assessment is a separate
    concern and stays regardless.

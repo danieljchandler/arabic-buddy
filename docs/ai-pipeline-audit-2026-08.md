@@ -4,7 +4,10 @@
 was this app's previous brand name; `src/lib/brandMigration.ts` migrates `lahja_*`
 localStorage keys to `hakiya_*`. Everything below is one pipeline.
 
-**Date:** 2026-08-04 · **Status:** audit + proposal only, nothing implemented.
+**Date:** 2026-08-04 · **Status:** Parts 1–3 are the original audit and proposal, kept as
+the record of what the pipeline looked like before any changes. **The ALLaM proposal in
+Part 3 was not built** — see [the 2026-08-05 update](#update--2026-08-05-what-was-actually-built)
+at the end for what shipped instead and why.
 
 ---
 
@@ -436,84 +439,116 @@ four dialect signals add up to something.
 
 ---
 
-## CRITICAL UPDATE — 2026-08-05: ALLaM Availability Change
+## UPDATE — 2026-08-05: what was actually built
 
-**Status:** ALLaM-2-7B is no longer available on Groq.
+The proposal above is superseded in two ways: **ALLaM was dropped** (it left Groq, and no
+platform hosts it pay-per-token — DeepInfra, Fireworks, Together and OpenRouter were all
+checked directly), and the scope widened from "add ALLaM" to "use every tool in the stack
+properly." A second audit pass looked at how each already-integrated vendor is configured
+versus what it can do, and a market scan looked for newer plug-and-play options.
 
-This invalidates Phase 1 as originally proposed (which assumed Groq hosting). **Phase 0
-remains fully valid and recommended** — it costs nothing and gains significant quality.
-Phases 1–2 need re-evaluation.
+Everything below is **implemented and merged** on `claude/ai-pipeline-audit-allam-fanar-gvacwj`.
 
-### Current ALLaM options
+### What replaced ALLaM
 
-**Azure AI Foundry** — ALLaM-2-7b-instruct is available via Azure's model catalog.
-- Hosting: Azure OpenAI-compatible endpoint
-- Pricing: Typically $0.4/1M input tokens, $1.2/1M output on standard compute
-- Context: 4,096 tokens (unchanged)
-- Tool calling: TBD; needs spike before committing to structured-output tasks
-- Integration cost: New `azure/` branch in `routeForModel()`, plus Azure SDK setup
-- Risk: Azure requires different auth model than Groq; another vendor platform
+**Mistral Saba** (`mistralai/mistral-saba`) fills the Arabic-native per-item role ALLaM was
+slated for. It is a 24B Arabic-focused model with 32k context at $0.20/$0.60 per 1M tokens,
+reachable on the **existing OpenRouter key** — no new vendor, no 4k context guard, and
+`routeForModel()` already routes `mistralai/` correctly.
 
-**HuggingFace Inference API** (ALLaM-2-7b-Instruct)
-- Endpoint: `api-inference.huggingface.co` with user token auth
-- Pricing: Generally cheaper ($0.15–0.30 per 1M tokens at scale)
-- Context: 4,096 tokens
-- Tool calling: Likely no (HF Inference API doesn't expose tool_choice)
-- Integration cost: Custom JSON-in-prompt handler (no tool_choice support means that one
-  integration risk remains)
-- Advantage: Single auth point (you already have `HUGGINGFACE_API_KEY` for CAMeL-Lab BERT)
+`validateDialectCrossChecked()` in `_shared/dialectValidator.ts` asks Saba first and stops
+on a confident pass; only an uncertain verdict escalates to Gemini 2.5 Pro, and the harsher
+of the two verdicts wins with merged leak lists. A confident pass now costs one cheap call
+instead of one Gemini Pro call, and the gate is never weaker than before.
+`DIALECT_VALIDATOR_CROSSCHECK=off` reverts to Gemini alone.
 
-**No other major platform hosts ALLaM-2-7B at this time** (verified on DeepInfra,
-Fireworks, Together in earlier audit).
+### Fanar, used properly
 
-### Revised recommendation
+| Change | Effect |
+|---|---|
+| `Fanar-Sadiq` → `Fanar-C-2-27B` for meta enrichment | Stops the Islamic-RAG model framing secular vocab/grammar/cultural output |
+| Bare `Fanar` alias → `Fanar-C-2-27B` everywhere | Removes silent version drift; merge fallback gains 4k → 32k context |
+| Validation prompt templated per dialect | Egyptian and Yemeni transcripts are no longer judged against Gulf norms |
+| Validation + CAMeL output persisted to `engines_used.dialect_signals` | Two paid per-video calls that ended in `console.log` now drive an admin review banner with a composite `flagged` bit |
+| **`Fanar-Shaheen-MT-1`** added as a translation tiebreak | Previously unused. One batched AR→EN call on lines the 3-way ensemble disputed or left empty; fills gaps, attaches `altTranslation` for review, metered under `fanar_usage` endpoint `mt` |
+| **`Fanar-Aura-STT-LF-1`** routing | Audio over ~30s now uses the long-form model; `Fanar-Aura-STT-1` is documented for 20–30s clips only. Each is metered under its own quota |
+| Inline pipeline STT metered | It bypassed `fanar_usage` entirely, so the budget was only enforced on the low-traffic Transcribe page |
 
-**Priority 1: Do Phase 0 only.** It's five strings + deletions, costs nothing, and delivers
-all the quality wins that don't depend on ALLaM. Deploying Phase 0 alone is better than
-blocking on Phase 1 uncertainty.
+### ASR: same number of engines, stronger lineup
 
-```
-Phase 0 gain (no ALLaM needed): 0.1 + 0.3 >> Phase 1 integration cost
-```
+| Slot | Was | Now |
+|---|---|---|
+| 1 | Munsit | Munsit — oversize-skip now visible, `MUNSIT_ASR_MODEL` knob for the `munsit-en-ar` code-switch model, re-enabled on the Transcribe page (it had been disabled since Mar 2026 for a DNS outage on a domain the server no longer calls) |
+| 2 | Soniox `stt-async-v4`, `language_hints: ["ar"]` strict, no context | Soniox **`stt-async-v5`** (v4 was retired 2026-06-30 and silently rerouting), **context biasing** from dialect vocab + video title, `["ar","en"]` hints so code-switched English is no longer suppressed, diarization on, per-token confidence captured |
+| 3 | Fanar STT | Fanar STT / STT-LF by duration |
+| 4 | Deepgram `nova-3` | **ElevenLabs Scribe v2** — top of the Artificial Analysis WER leaderboard, best-in-class on Egyptian/Saudi Arabic-English code-switching, on the ElevenLabs key already held for TTS |
+| 5 | Azure | Azure, plus **Cohere Transcribe Arabic** as an env-gated pilot (`COHERE_API_KEY`) — lowest average WER across MSA/Egyptian/Gulf/Levantine/Maghrebi of the open models |
 
-**Priority 2: Spike ALLaM before committing to Phase 1.** Before picking a platform:
-1. Confirm forced tool calling support (Azure vs HF Inference API)
-2. Compare Azure cold-start latency vs cost vs HF Inference (HF is cheaper but may be slower)
-3. Prototype the 4k context guard — it's the real integration risk, not the routing
+Deepgram was a generalist called with `language=ar` (which disables its code-switch path)
+whose Arabic word boundaries were never trusted for alignment. Its transcript was also
+being sent to `analyze-gulf-arabic` as `deepgramTranscript` and **never read there** —
+Scribe's and Cohere's are now actually consumed. Per-engine outcomes are persisted to
+`engines_used.asr`, so engine failures are visible in the database rather than only in
+function logs.
 
-**Priority 3: Interim dialect validation** (if you don't want to wait for Phase 1):
-- Upgrade today: Fanar-C-2-27B already in §0.2 of Phase 0
-- Keep Gemini 2.5 Pro as tiebreak in `dialectValidator.ts` (no ALLaM needed)
-- This alone gives you dialect-aware prompting (§0.3) + consumed validation output (§0.4)
+### Learner-facing fixes
 
-**Priority 4: Phase 2.1 without ALLaM:**
-- Fanar + Gemini 2.5 Pro dialect cross-check (Fanar primary, Gemini tiebreak)
-- Disagreement-gated escalation
-- No ALLaM needed; can be retrofit later if/when ALLaM is confirmed reliable
+- **The conversation simulator was speaking Egyptian in a generic English voice.**
+  `elevenlabs-tts` allowed exactly one premade English voice while `listenTts` had three
+  native `ar-EG` voices curated two files away. Fixed; Yemeni now routes to Azure's real
+  `ar-YE` neural voices (ElevenLabs has none), and the TTS cache is keyed by dialect.
+- **Pronunciation assessment returned a score, not feedback.** Added `PhonemeAlphabet:
+  "IPA"` (the UI had been rendering raw SAPI symbols), `NBestPhonemeCount` (shows the
+  learner what they said instead of the target) and prosody scoring — three fields in one
+  object literal.
+- **Yemeni learners got a hard 400** from pronunciation assessment: `ar-YE` was missing
+  from `SUPPORTED_LOCALES` even though the dialect map already handled it. The assessment
+  locale also followed a hardcoded `ar-SA` regardless of the learner's dialect.
+- Story narration passes previous/next lines to ElevenLabs for prosody across line
+  boundaries. `ELEVENLABS_TTS_MODEL` allows A/B-ing `eleven_v3` without a redeploy.
 
-### If you decide to use Azure ALLaM
+### Removed
 
-Cost comparison (approximate, per 1M input tokens):
+- **RunPod, entirely** — the setup does not work. `trigger-download` and `receive-audio`
+  (which existed only as RunPod's callback target) are deleted along with their config,
+  the frontend fallbacks, and the dead `native` `/runsync` branch in curriculum-chat.
+  `download-media` already handled YouTube via Cobalt plus three RapidAPI MP3 fallbacks
+  and is now the single acquisition path — and it returns MP3, which keeps Munsit's
+  chunker eligible.
+- Unreachable Gemini TTS provider in `listenTts` (`planProvider` could never return it),
+  `pickModels()` and its tag catalog (zero callers), `MUNSIT_FUSHA_VOICES`, and
+  `MODEL_WEIGHTS` entries for models used nowhere.
+- **Kept deliberately:** `notify-due-reviews` (no in-repo callers but may be externally
+  scheduled) and `hf-chat` (misnamed — it calls the Lovable gateway, not HuggingFace — but
+  reachable via `src/lib/huggingface.ts`).
 
-| Provider | Input cost | Context | Tool calling | Auth complexity | Cold start |
-|----------|-----------|---------|--------------|-----------------|------------|
-| Azure | $0.40 | 4k | TBD | 2 keys (endpoint + key) | ~500ms |
-| HF Inference | $0.15 | 4k | No (use JSON-in-prompt) | 1 key (inherit HUGGINGFACE_API_KEY) | ~1000ms |
+### Registry consolidation
 
-**If Azure:** integration is ~40 lines (new `aiBrain.ts` branch + env setup). Worth a 2-hour spike.
-**If HF Inference:** integration is ~20 lines, but loses automatic function calling — means every
-ALLaM call goes through a JSON-in-prompt handler, and no structured retry on parsing failures.
-That's acceptable for Phase 1.3 (vocab enrichment, which has a Claude fallback) but risky for
-1.1 (dialect validation, where you need a strong signal).
+The rule that model bumps land in one place was being bypassed in three ways, all fixed:
+16 functions hardcoded `google/gemini-3-flash-preview` inline; curriculum-chat kept its own
+registry; and the admin ModelSelector offered four models the backend rejected with
+"Unknown model" (`gemini-3.1-pro-preview`, `claude-opus-4.1`, `gemini-2.5-pro`,
+`qwen3-max`). Also fixed three latent type bugs that were breaking `deno check` across ~30
+functions, including `usageCap`'s `subscription_end` and curriculum-chat logging a
+`MsaLeakResult.score` field that has never existed.
 
-### What to do now
+Repo lint errors: 596 → 552. All 362 tests pass.
 
-**Immediate (no code):**
-1. Decide: Phase 0 only, or Phase 0 + spike ALLaM availability?
-2. If spiking ALLaM: pick Azure (more reliable) vs HF Inference (cheaper, simpler auth), then
-   test tool calling support with a single request.
+### Still open
 
-**Commit Phase 0 regardless.** It's orthogonal and gains quality.
+1. **Verify the Cohere model string.** `cohere-transcribe-arabic-07-2026` is the documented
+   Arabic release; Cohere's API reference lists the general `cohere-transcribe-03-2026`.
+   The leg is env-gated and fails soft, so a wrong string just skips it — but confirm
+   before relying on it. Override with `COHERE_STT_MODEL`.
+2. **Pilot Cohere against Azure** on ~10 videos per dialect before deciding whether Azure's
+   ASR leg is still earning its slot. Azure's pronunciation assessment is a separate
+   concern and stays regardless.
+3. **A/B `eleven_v3`** against `eleven_multilingual_v2` for Egyptian narration.
+4. **Trial `munsit-en-ar`** on code-switched content via `MUNSIT_ASR_MODEL`.
+5. **Should Fanar's dialect validation gate publication**, or stay advisory? It is now
+   surfaced in admin review with a `flagged` bit but does not block anything.
+6. **Is `notify-due-reviews` externally scheduled?** If not, it can go.
+7. **Request `enable_thinking` access from QCRI** — still a lead-time item.
 
 ---
 

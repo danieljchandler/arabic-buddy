@@ -50,6 +50,26 @@
   </head>
 
   <body>
+    <!--
+      Alpha matte for the loading emblem (see src/components/loading/LoadingEmblem.tsx).
+      The clip is dark line art on a white matte; this turns luminance into alpha
+      (alpha = 1 - luminance) so the artwork composites onto whatever is behind it.
+      A blend mode can't do this job: AppShell's content wrapper is an isolated
+      stacking context with no background, so mix-blend-mode has nothing to blend
+      against there and the white box shows through.
+      The region must be pinned to the element box — the default filter region
+      includes transparent-black pixels, which this matrix turns opaque black.
+      Defined once here rather than in the component so the id is never duplicated.
+    -->
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+      <filter id="hakiya-emblem-alpha" x="0" y="0" width="100%" height="100%"
+              color-interpolation-filters="sRGB">
+        <feColorMatrix type="matrix" values="1 0 0 0 0
+                                             0 1 0 0 0
+                                             0 0 1 0 0
+                                             -0.2126 -0.7152 -0.0722 0 1" />
+      </filter>
+    </svg>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

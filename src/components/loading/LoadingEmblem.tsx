@@ -5,13 +5,18 @@ import { useReducedMotion } from "@/lib/uiPrefs";
 /**
  * LoadingEmblem — the looping dallah-and-finjan mark shown during long waits.
  *
- * The source clip is a dark-red line illustration whose background is a flat
- * cream matching `--card-cream`, baked in at encode time. That's deliberate:
- * H.264 can't carry alpha, and no CSS blend mode can isolate a mid-tone
- * background, so the emblem sits on a cream plate and the seam disappears. The
- * plate stays cream in dark mode too (`--card-cream` is not redefined there) —
- * it reads as a lit page, which suits the motif, and is dimmed slightly so it
- * doesn't glare.
+ * The artwork composites onto whatever is behind it: no plate, no background.
+ * H.264 can't carry alpha and an actual alpha channel doesn't compress for line
+ * art of this kind (VP9-alpha came out at 2.4MB against 364KB here, animated
+ * WebP at 6.4MB), so the clip ships as dark line art on a **white** matte and
+ * `#hakiya-emblem-alpha` in index.html turns luminance into alpha.
+ *
+ * A blend mode would be the obvious alternative and it does not work: AppShell's
+ * content wrapper carries `animate-fade-up`, whose `both` fill-mode leaves a
+ * persistent transform — a stacking context, so an isolation boundary — and that
+ * wrapper has no background. Inside a card `mix-blend-mode: multiply` is flawless;
+ * directly in the wrapper, as on the ReadingPractice loading screen, it has
+ * nothing to blend against and the white rectangle shows through.
  *
  * Decorative only: `aria-hidden`. LoadingPanel carries the announced text.
  */
@@ -20,11 +25,15 @@ const EMBLEM_MP4 = "/assets/loading-emblem.mp4";
 const EMBLEM_WEBM = "/assets/loading-emblem.webm";
 const EMBLEM_POSTER = "/assets/loading-emblem-poster.webp";
 
+/** The clip is 5:4, so these are ~0.8x as tall as they are wide. */
 const SIZES = {
-  sm: "w-[180px]",
-  md: "w-[260px]",
-  lg: "w-[320px]",
+  sm: "w-[150px]",
+  md: "w-[210px]",
+  lg: "w-[260px]",
 } as const;
+
+/** Defined in index.html; see the note there on why the region is pinned. */
+const ALPHA_FILTER = { filter: "url(#hakiya-emblem-alpha)" } as const;
 
 export interface LoadingEmblemProps {
   size?: keyof typeof SIZES;
@@ -62,16 +71,14 @@ export function LoadingEmblem({ size = "md", className }: LoadingEmblemProps) {
   }, [still]);
 
   return (
-    <div
-      aria-hidden="true"
-      className={cn(
-        "overflow-hidden rounded-2xl bg-card-cream ring-1 ring-border shadow-soft dark:opacity-90",
-        SIZES[size],
-        className,
-      )}
-    >
+    <div aria-hidden="true" className={cn(SIZES[size], className)}>
       {still ? (
-        <img src={EMBLEM_POSTER} alt="" className="block w-full" />
+        <img
+          src={EMBLEM_POSTER}
+          alt=""
+          className="block w-full"
+          style={ALPHA_FILTER}
+        />
       ) : (
         <video
           ref={videoRef}
@@ -84,6 +91,7 @@ export function LoadingEmblem({ size = "md", className }: LoadingEmblemProps) {
           disablePictureInPicture
           tabIndex={-1}
           className="block w-full"
+          style={ALPHA_FILTER}
         >
           {/*
             H.264 first: every mainstream browser plays it, so almost nobody

@@ -872,12 +872,12 @@ async function runPipeline(
     const alignmentWords =
       primary.words.length > 0 ? primary.words :
       (sonioxResult?.words?.length ? sonioxResult.words :
-       ((munsitResult?.words?.length ? munsitResult.words :
+       (munsitResult?.words?.length ? munsitResult.words :
         (scribeResult?.words ?? [])));
     const alignmentSource: EngineName =
       primary.words.length > 0 ? primaryEngine :
       (sonioxResult?.words?.length ? "Soniox" :
-       ((munsitResult?.words?.length ? "Munsit" : "Scribe"));
+       (munsitResult?.words?.length ? "Munsit" : "Scribe"));
     console.log(`[pipeline] Alignment words: ${alignmentSource} (${alignmentWords.length} words)`);
     const relativeWords = alignmentWords;
 

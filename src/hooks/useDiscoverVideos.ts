@@ -50,6 +50,7 @@ export interface DiscoverVideo {
   transcription_error?: string | null;
   trending_candidate_id?: string | null;
   is_meme?: boolean;
+  engines_used?: Json | null;
 }
 
 export function useDiscoverVideos(filters?: { dialect?: string; difficulty?: string | string[]; search?: string }) {

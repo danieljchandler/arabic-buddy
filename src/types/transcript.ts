@@ -15,6 +15,8 @@
    startMs?: number;        // for future audio sync
    endMs?: number;
   segmentType?: 'audio' | 'text_overlay';
+  /** Fanar-Shaheen-MT alternative rendering — present only on lines the translation ensemble disputed. */
+  altTranslation?: string;
  };
  
 export type VocabItem = {

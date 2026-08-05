@@ -466,11 +466,38 @@ async function runPipeline(
       const FANAR_API_KEY = Deno.env.get("FANAR_API_KEY")?.trim();
       if (!FANAR_API_KEY) { console.warn("[pipeline] Fanar: no API key"); return { text: null, latencyMs: 0 }; }
 
+      // Fanar-Aura-STT-1 is documented for clips up to ~20-30s only; video
+      // audio virtually always exceeds that, so route anything bigger than
+      // ~30s worth of MP3 (~0.5 MB at 128 kbps) to the long-form model.
+      // Quotas differ (STT-1: 20/day, STT-LF-1: 10/day), so each is metered
+      // separately in fanar_usage — previously this inline call bypassed the
+      // budget entirely, silently draining the quota the Transcribe page
+      // depends on.
+      const isLongForm = audioBytes!.byteLength > 0.5 * 1024 * 1024;
+      const sttModel = isLongForm ? "Fanar-Aura-STT-LF-1" : "Fanar-Aura-STT-1";
+      const usageEndpoint = isLongForm ? "stt-lf" : "stt";
+      const dailyLimit = isLongForm ? 8 : 18; // headroom under 10/20 API limits
+
+      try {
+        const today = new Date().toISOString().slice(0, 10);
+        const { count } = await supabase
+          .from("fanar_usage")
+          .select("*", { count: "exact", head: true })
+          .eq("endpoint", usageEndpoint)
+          .gte("created_at", `${today}T00:00:00Z`);
+        if ((count ?? 0) >= dailyLimit) {
+          console.warn(`[pipeline] Fanar: daily ${usageEndpoint} budget exhausted (${count}/${dailyLimit}) — skipping`);
+          return { text: null, latencyMs: 0, error: "daily_budget_exhausted" };
+        }
+      } catch (e) {
+        console.warn("[pipeline] Fanar: budget check failed (continuing):", e instanceof Error ? e.message : String(e));
+      }
+
       const t0 = Date.now();
       try {
         const fd = new FormData();
         fd.append("file", new File([audioBytes!], "audio.mp3", { type: audioContentType }));
-        fd.append("model", "Fanar-Aura-STT-1");
+        fd.append("model", sttModel);
         fd.append("response_format", "json");
         fd.append("language", "ar");
 
@@ -482,8 +509,12 @@ async function runPipeline(
         });
         if (!resp.ok) { const t = await resp.text(); throw new Error(`HTTP ${resp.status}: ${t}`); }
         const data = await resp.json();
+        supabase.from("fanar_usage").insert({ endpoint: usageEndpoint }).then(
+          () => {},
+          (e: unknown) => console.warn("[pipeline] Fanar: usage log failed:", String(e)),
+        );
         const latencyMs = Date.now() - t0;
-        console.log(`[pipeline] Fanar: ${data.text?.length || 0} chars, ${latencyMs}ms`);
+        console.log(`[pipeline] Fanar (${sttModel}): ${data.text?.length || 0} chars, ${latencyMs}ms`);
         return { text: data.text || null, latencyMs };
       } catch (e) {
         console.warn("[pipeline] Fanar failed:", e);

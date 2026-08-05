@@ -36,8 +36,11 @@ export const MODEL_IDS = {
   GEMINI_PRO: 'google/gemini-2.5-pro',             // heavy reasoning fallback
   GEMINI_FAST: 'google/gemini-3-flash-preview',    // cheapest utility default
   QWEN: 'qwen/qwen3-max',                          // third-leg verifier
-  FANAR_SADIQ: 'Fanar-Sadiq',                      // cultural enrichment (Fanar API)
-  FANAR_VALID: 'Fanar-C-2-27B',                    // dialect validation (Fanar API)
+  // All general Fanar work (merge fallback, meta enrichment, dialect
+  // validation, curriculum chat) uses the pinned gen-2 model. Never use the
+  // bare 'Fanar' alias (silently tracks gen 1, 4k ctx) and never use
+  // 'Fanar-Sadiq' for non-religious content — it is the Islamic-RAG model.
+  FANAR: 'Fanar-C-2-27B',
 } as const;
 
 // ---- Named lineups (preferred entry point) ---------------------------------

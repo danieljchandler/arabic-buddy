@@ -49,7 +49,9 @@ const MODEL_REGISTRY: Record<string, ModelConfig> = {
   },
   fanar: {
     endpoint: "https://api.fanar.qa/v1/chat/completions",
-    model: "Fanar",
+    // Pinned to the concrete gen-2 model (32k ctx) — the bare 'Fanar' alias
+    // silently tracks whatever QCRI points it at (today the 4k-ctx gen 1).
+    model: "Fanar-C-2-27B",
     keyEnv: "FANAR_API_KEY",
     isFanar: true,
   },

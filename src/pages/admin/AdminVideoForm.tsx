@@ -1309,6 +1309,39 @@ const AdminVideoForm = () => {
               <CardTitle className="text-lg">Transcript</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+              {(() => {
+                // Dialect signals persisted by analyze-gulf-arabic:
+                // Fanar-C-2-27B validation + CAMeL BERT dialect ID.
+                const signals = (existingVideo as any)?.engines_used?.dialect_signals;
+                if (!signals) return null;
+                const camel = signals.camel as { dialect?: string; code?: string; confidence?: number } | null;
+                return (
+                  <div
+                    className={`p-3 rounded-lg border text-sm space-y-1 ${
+                      signals.flagged
+                        ? "bg-destructive/10 border-destructive/40"
+                        : "bg-muted/50 border-border"
+                    }`}
+                  >
+                    <p className="font-medium">
+                      Dialect signals {signals.flagged ? "— flagged for review" : "— no issues detected"}
+                    </p>
+                    {camel && (
+                      <p className="text-muted-foreground">
+                        CAMeL BERT: {camel.dialect ?? "?"} ({camel.code ?? "?"}, conf{" "}
+                        {typeof camel.confidence === "number" ? camel.confidence.toFixed(2) : "?"})
+                        {" — "}
+                        {signals.camel_agrees === false ? "disagrees with detected dialect" : "agrees"}
+                      </p>
+                    )}
+                    {signals.fanar_validation?.content && (
+                      <p className="text-muted-foreground whitespace-pre-wrap" dir="auto">
+                        Fanar review: {String(signals.fanar_validation.content).slice(0, 500)}
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
               {!stableAudioUrl && (
                 <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 border border-border">
                   <p className="text-sm text-muted-foreground flex-1">

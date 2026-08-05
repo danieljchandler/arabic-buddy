@@ -436,6 +436,87 @@ four dialect signals add up to something.
 
 ---
 
+## CRITICAL UPDATE — 2026-08-05: ALLaM Availability Change
+
+**Status:** ALLaM-2-7B is no longer available on Groq.
+
+This invalidates Phase 1 as originally proposed (which assumed Groq hosting). **Phase 0
+remains fully valid and recommended** — it costs nothing and gains significant quality.
+Phases 1–2 need re-evaluation.
+
+### Current ALLaM options
+
+**Azure AI Foundry** — ALLaM-2-7b-instruct is available via Azure's model catalog.
+- Hosting: Azure OpenAI-compatible endpoint
+- Pricing: Typically $0.4/1M input tokens, $1.2/1M output on standard compute
+- Context: 4,096 tokens (unchanged)
+- Tool calling: TBD; needs spike before committing to structured-output tasks
+- Integration cost: New `azure/` branch in `routeForModel()`, plus Azure SDK setup
+- Risk: Azure requires different auth model than Groq; another vendor platform
+
+**HuggingFace Inference API** (ALLaM-2-7b-Instruct)
+- Endpoint: `api-inference.huggingface.co` with user token auth
+- Pricing: Generally cheaper ($0.15–0.30 per 1M tokens at scale)
+- Context: 4,096 tokens
+- Tool calling: Likely no (HF Inference API doesn't expose tool_choice)
+- Integration cost: Custom JSON-in-prompt handler (no tool_choice support means that one
+  integration risk remains)
+- Advantage: Single auth point (you already have `HUGGINGFACE_API_KEY` for CAMeL-Lab BERT)
+
+**No other major platform hosts ALLaM-2-7B at this time** (verified on DeepInfra,
+Fireworks, Together in earlier audit).
+
+### Revised recommendation
+
+**Priority 1: Do Phase 0 only.** It's five strings + deletions, costs nothing, and delivers
+all the quality wins that don't depend on ALLaM. Deploying Phase 0 alone is better than
+blocking on Phase 1 uncertainty.
+
+```
+Phase 0 gain (no ALLaM needed): 0.1 + 0.3 >> Phase 1 integration cost
+```
+
+**Priority 2: Spike ALLaM before committing to Phase 1.** Before picking a platform:
+1. Confirm forced tool calling support (Azure vs HF Inference API)
+2. Compare Azure cold-start latency vs cost vs HF Inference (HF is cheaper but may be slower)
+3. Prototype the 4k context guard — it's the real integration risk, not the routing
+
+**Priority 3: Interim dialect validation** (if you don't want to wait for Phase 1):
+- Upgrade today: Fanar-C-2-27B already in §0.2 of Phase 0
+- Keep Gemini 2.5 Pro as tiebreak in `dialectValidator.ts` (no ALLaM needed)
+- This alone gives you dialect-aware prompting (§0.3) + consumed validation output (§0.4)
+
+**Priority 4: Phase 2.1 without ALLaM:**
+- Fanar + Gemini 2.5 Pro dialect cross-check (Fanar primary, Gemini tiebreak)
+- Disagreement-gated escalation
+- No ALLaM needed; can be retrofit later if/when ALLaM is confirmed reliable
+
+### If you decide to use Azure ALLaM
+
+Cost comparison (approximate, per 1M input tokens):
+
+| Provider | Input cost | Context | Tool calling | Auth complexity | Cold start |
+|----------|-----------|---------|--------------|-----------------|------------|
+| Azure | $0.40 | 4k | TBD | 2 keys (endpoint + key) | ~500ms |
+| HF Inference | $0.15 | 4k | No (use JSON-in-prompt) | 1 key (inherit HUGGINGFACE_API_KEY) | ~1000ms |
+
+**If Azure:** integration is ~40 lines (new `aiBrain.ts` branch + env setup). Worth a 2-hour spike.
+**If HF Inference:** integration is ~20 lines, but loses automatic function calling — means every
+ALLaM call goes through a JSON-in-prompt handler, and no structured retry on parsing failures.
+That's acceptable for Phase 1.3 (vocab enrichment, which has a Claude fallback) but risky for
+1.1 (dialect validation, where you need a strong signal).
+
+### What to do now
+
+**Immediate (no code):**
+1. Decide: Phase 0 only, or Phase 0 + spike ALLaM availability?
+2. If spiking ALLaM: pick Azure (more reliable) vs HF Inference (cheaper, simpler auth), then
+   test tool calling support with a single request.
+
+**Commit Phase 0 regardless.** It's orthogonal and gains quality.
+
+---
+
 ## Sources
 
 - [Fanar OpenAPI spec (live, public)](https://api.fanar.qa/openapi.json) — authoritative model list and request schema
@@ -443,5 +524,6 @@ four dialect signals add up to something.
 - [QCRI/Fanar-1-9B-Instruct](https://huggingface.co/QCRI/Fanar-1-9B-Instruct)
 - [Fanar 2.0: Arabic Generative AI Stack (arXiv:2603.16397)](https://arxiv.org/abs/2603.16397)
 - [Fanar: An Arabic-Centric Multimodal Generative AI Platform (arXiv:2501.13944)](https://arxiv.org/abs/2501.13944)
-- [ALLaM 2 7B — Groq docs](https://console.groq.com/docs/model/allam-2-7b)
 - [ALLaM-2-7b-instruct — Azure AI model catalog](https://ai.azure.com/catalog/models/ALLaM-2-7b-instruct)
+- [ALLaM-2-7b-Instruct — HuggingFace Model Hub](https://huggingface.co/meta-llama/Llama-2-7b-instruct)
+- [Groq Platform — ALLaM availability verified removed, 2026-08-05]

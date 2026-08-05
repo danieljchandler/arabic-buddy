@@ -12,23 +12,28 @@ import { LITERAL_GLOSS_RULE, literalSchema } from "../_shared/literalGloss.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { learnerPromptBlock } from "../_shared/learnerProfile.ts";
 import { readingPassageGate } from "../_shared/passageQualityCore.ts";
-import { MODEL_IDS, MODEL_LINEUPS } from "../_shared/modelRegistry.ts";
 
 /**
  * Wall-clock ceiling for the generation, kept under the client's own timeout so
  * a slow run surfaces as a real error with a retry rather than an unbounded
- * spinner. Deliberately BELOW PASSAGE_TIMEOUT_MS in
- * src/pages/ReadingPractice.tsx: when the two matched, a run that finished just
- * under the ceiling could still be cut off by the browser, and the reserve also
- * leaves room for the MSA repair pass (which was being skipped as "budget
- * spent" on Yemeni runs, letting leaks like أين/ماذا survive).
+ * spinner. Deliberately below PASSAGE_TIMEOUT_MS (110s) in
+ * src/pages/ReadingPractice.tsx, so a run that finishes just under the ceiling
+ * isn't cut off by the browser anyway.
  *
  * This is a ceiling, not a target: the typical request finishes in one drafting
  * pass plus a short authenticity check, well inside it. It is sized to still fit
  * a draft *plus* the check *plus* a full rewrite when either gate demands one,
  * so bounding the pathological case never costs a passage that needed fixing.
+ *
+ * It was cut to 78s to "leave room for the MSA repair pass", which is backwards
+ * — the repair pass runs *inside* this budget, and aiBrain skips both it and the
+ * critic rewrite once fewer than MIN_PASS_BUDGET_MS (12s) remain. At 78s a draft
+ * (up to 45s) plus the authenticity check (up to 20s) left barely 13s, so on
+ * Yemeni the rewrite that was supposed to fix a fusha draft was routinely
+ * skipped as "budget spent" and the draft shipped as-is. The reserve under the
+ * client's timeout belongs here, not inside the pass accounting.
  */
-const GENERATION_BUDGET_MS = 78_000;
+const GENERATION_BUDGET_MS = 95_000;
 
 /**
  * How long a passage should be, per difficulty.
@@ -161,11 +166,20 @@ Put one sentence per entry in the "lines" array, each with its Arabic text, tran
         purpose: "reading_passage",
         dialect: dialect as Dialect,
         strategy: "draft_critic",
-        // Draft with the stable fast Gemini build rather than the lineup default
-        // preview build: the preview model would not emit this large tool schema
-        // for Yemeni requests, and discovering that cost the whole latency
-        // budget in retries before any model had written a line.
-        models: [MODEL_IDS.GEMINI_FAST, MODEL_LINEUPS.CONTENT.judge],
+        // No models[] override: this takes MODEL_LINEUPS.CONTENT, the same
+        // Gemini 3.5 Flash + Claude tandem generate-daily-story uses.
+        //
+        // It briefly drafted on MODEL_IDS.GEMINI_FAST, added with a comment
+        // calling it "the stable fast Gemini build rather than the lineup
+        // default preview build". That has it backwards: GEMINI_FAST *is* the
+        // preview build (google/gemini-3-flash-preview, the registry's
+        // "cheapest utility default", weight 0.7) and the lineup default it
+        // replaced is the stable google/gemini-3.5-flash at weight 1.0. So the
+        // override swapped an authoritative drafter for the cheap utility model
+        // — which every other caller uses for classification and scoring, not
+        // for prose a learner reads as a model of the dialect. On Yemeni it
+        // drafts fusha with dialect words dropped in, which is precisely the
+        // register failure the prompt below spends a paragraph warning against.
         systemPromptExtra: systemExtra,
         userPrompt,
         maxTokens: 3072,

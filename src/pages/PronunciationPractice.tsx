@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 
 import { useAzurePronunciation, scoreBand, type PronunciationResult, type WordResult } from "@/hooks/useAzurePronunciation";
 import { AppShell } from "@/components/layout/AppShell";
+import { LoadingPanel } from "@/components/loading/LoadingPanel";
 import { HomeButton } from "@/components/HomeButton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -344,10 +345,7 @@ const PronunciationPractice = () => {
           )}
 
           {isLoading && (
-            <div className="flex flex-col items-center gap-2">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              <p className="text-sm text-muted-foreground">Analyzing pronunciation…</p>
-            </div>
+            <LoadingPanel task="pronunciation" variant="inline" size="sm" />
           )}
 
           {error && (

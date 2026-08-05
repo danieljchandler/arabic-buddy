@@ -4,6 +4,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { HomeButton } from "@/components/HomeButton";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { LoadingPanel } from "@/components/loading/LoadingPanel";
 import { Card, CardContent } from "@/components/ui/card";
 import { Upload, FileAudio, X, Check, Loader2, BookOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -131,10 +132,17 @@ const TutorUpload = () => {
             <Progress value={progress} />
           </div>
 
-          <div className="flex items-center justify-center gap-2 text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            <span className="text-sm">This may take a minute…</span>
-          </div>
+          {/*
+            statusOverride keeps the real stage label from useTutorUpload as the
+            primary line — it's honest, per-stage progress and much better than
+            a rotating deck. The Arabic companion is matched to it by prefix.
+          */}
+          <LoadingPanel
+            variant="inline"
+            size="sm"
+            statusOverride={progressLabel}
+            showElapsedAfterSeconds={0}
+          />
         </div>
       )}
 

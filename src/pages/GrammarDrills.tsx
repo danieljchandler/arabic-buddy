@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { useDialect } from "@/contexts/DialectContext";
 import { useNavigate } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
+import { LoadingPanel } from "@/components/loading/LoadingPanel";
 import { HomeButton } from "@/components/HomeButton";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
@@ -19,7 +20,6 @@ import {
   Check,
   ChevronRight,
   Languages,
-  Loader2,
   RotateCcw,
   Sparkles,
   X,
@@ -410,10 +410,7 @@ const GrammarDrills = () => {
 
         {/* Category grid */}
         {isLoading ? (
-          <div className="flex flex-col items-center gap-3 py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <p className="text-sm text-muted-foreground">Generating grammar drill...</p>
-          </div>
+          <LoadingPanel task="grammarDrill" variant="inline" />
         ) : (
           <div className="grid grid-cols-2 gap-3">
             {categories.map((cat) => (

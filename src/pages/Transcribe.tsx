@@ -4,6 +4,7 @@ import { Progress } from "@/components/ui/progress";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Upload, FileAudio, Download, Loader2, X, BookOpen, Languages, Sparkles, Save, Check, Plus, Link2, Type } from "lucide-react";
 import { toast } from "sonner";
+import { LoadingPanel } from "@/components/loading/LoadingPanel";
 import { HomeButton } from "@/components/HomeButton";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { supabase } from "@/integrations/supabase/client";
@@ -1392,10 +1393,7 @@ const Transcribe = () => {
         {isAnalyzing && (
           <Card>
             <CardContent className="py-8">
-              <div className="flex flex-col items-center gap-4">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <p className="text-muted-foreground">Analyzing vocabulary and grammar...</p>
-              </div>
+              <LoadingPanel task="transcribeAnalysis" variant="inline" />
             </CardContent>
           </Card>
         )}

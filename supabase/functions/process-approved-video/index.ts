@@ -436,6 +436,39 @@ async function runPipeline(
       }
     })();
 
+    // --- Cohere Transcribe Arabic (pilot; text-only, no word timestamps) ---
+    // Frontier open Arabic ASR released 2026-07: lowest average WER across
+    // MSA/Egyptian/Gulf/Levantine/Maghrebi of the open models, built for
+    // Arabic-English code-switching. Runs only when COHERE_API_KEY is set, so
+    // it can be piloted against the existing Azure leg before any cutover.
+    const coherePromise = (async () => {
+      const COHERE_API_KEY = Deno.env.get("COHERE_API_KEY")?.trim();
+      if (!COHERE_API_KEY) return { text: null, latencyMs: 0 };
+
+      const t0 = Date.now();
+      try {
+        const fd = new FormData();
+        fd.append("file", new File([audioBytes!], "audio.mp3", { type: audioContentType }));
+        fd.append("model", Deno.env.get("COHERE_STT_MODEL")?.trim() || "cohere-transcribe-arabic-07-2026");
+        fd.append("language", "ar");
+
+        const resp = await fetch("https://api.cohere.com/v2/audio/transcriptions", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${COHERE_API_KEY}` },
+          body: fd,
+          signal: AbortSignal.timeout(ASR_TIMEOUT_MS),
+        });
+        if (!resp.ok) { const t = await resp.text(); throw new Error(`HTTP ${resp.status}: ${t.slice(0, 300)}`); }
+        const data = await resp.json();
+        const latencyMs = Date.now() - t0;
+        console.log(`[pipeline] Cohere: ${data.text?.length || 0} chars, ${latencyMs}ms`);
+        return { text: data.text || null, latencyMs };
+      } catch (e) {
+        console.warn("[pipeline] Cohere failed:", e);
+        return { text: null, latencyMs: Date.now() - t0, error: String(e) };
+      }
+    })();
+
     // --- Fanar (text-only, no word timestamps) ---
     const fanarPromise = (async () => {
       const FANAR_API_KEY = Deno.env.get("FANAR_API_KEY")?.trim();
@@ -771,8 +804,8 @@ async function runPipeline(
       }
     })();
 
-    const [scribeResult, fanarResult, sonioxResult, munsitResult, azureResult] = await Promise.all([
-      scribePromise, fanarPromise, sonioxPromise, munsitPromise, azurePromise,
+    const [scribeResult, fanarResult, sonioxResult, munsitResult, azureResult, cohereResult] = await Promise.all([
+      scribePromise, fanarPromise, sonioxPromise, munsitPromise, azurePromise, coherePromise,
     ]);
 
     const scribeText = scribeResult?.text || "";
@@ -780,6 +813,7 @@ async function runPipeline(
     const sonioxText = sonioxResult?.sonioxUsed ? (sonioxResult.text || "") : "";
     const munsitText = munsitResult?.text || "";
     const azureText = azureResult?.text || "";
+    const cohereText = cohereResult?.text || "";
 
     const engines: string[] = [];
     if (scribeText) engines.push("Scribe");
@@ -787,6 +821,7 @@ async function runPipeline(
     if (sonioxText) engines.push("Soniox");
     if (munsitText) engines.push("Munsit");
     if (azureText) engines.push("Azure");
+    if (cohereText) engines.push("Cohere");
 
     if (engines.length === 0) throw new Error("All transcription engines failed");
 
@@ -801,15 +836,16 @@ async function runPipeline(
     // Scribe joins the Arabic-aware candidate set: unlike Deepgram (a generalist
     // whose Arabic word boundaries were never trusted for alignment) it is a
     // top-ranked Arabic/code-switching engine with usable word timings.
-    type EngineName = "Munsit" | "Soniox" | "Scribe" | "Fanar" | "Azure";
+    type EngineName = "Munsit" | "Soniox" | "Scribe" | "Cohere" | "Fanar" | "Azure";
     const arabicCandidates: Array<{ name: EngineName; text: string; words: any[] }> = [
       { name: "Munsit", text: munsitText, words: (munsitResult as any)?.words ?? [] },
       { name: "Soniox", text: sonioxText, words: (sonioxResult as any)?.words ?? [] },
       { name: "Scribe", text: scribeText, words: (scribeResult as any)?.words ?? [] },
+      { name: "Cohere", text: cohereText, words: [] }, // Cohere returns text only
       { name: "Fanar",  text: fanarText,  words: [] }, // Fanar has no word timings
     ].filter(c => (c.text || "").trim().length > 0);
 
-    const PRIORITY: EngineName[] = ["Munsit", "Soniox", "Scribe", "Fanar", "Azure"];
+    const PRIORITY: EngineName[] = ["Munsit", "Soniox", "Scribe", "Cohere", "Fanar", "Azure"];
     function pickPrimary(): { name: EngineName; text: string; words: any[] } {
       if (arabicCandidates.length === 0) {
         // Nothing Arabic-aware produced text — Azure is all that's left.
@@ -880,6 +916,11 @@ async function runPipeline(
         azure: {
           ok: !!azureText, chars: azureText.length,
           ...((azureResult as any)?.locale ? { locale: (azureResult as any).locale } : {}),
+        },
+        cohere: {
+          ok: !!cohereText, chars: cohereText.length,
+          latency_ms: cohereResult?.latencyMs ?? 0,
+          ...((cohereResult as any)?.error ? trimErr((cohereResult as any).error) : {}),
         },
         primary: primaryEngine,
         alignment_source: alignmentSource,
@@ -970,6 +1011,7 @@ async function runPipeline(
     if (munsitText) analyzeBody.munsitTranscript = munsitText;
     if (azureText) analyzeBody.azureTranscript = azureText;
     if (scribeText) analyzeBody.scribeTranscript = scribeText;
+    if (cohereText) analyzeBody.cohereTranscript = cohereText;
     const sonioxTranslation = sonioxResult?.translationText;
     if (sonioxTranslation) analyzeBody.sonioxTranslation = sonioxTranslation;
 

@@ -3,86 +3,16 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { SONIOX_MODEL, buildSonioxContext, type AsrWord, type AsrLegResult } from "../_shared/asrConfig.ts";
+import { planAsrPayloads } from "../_shared/audioChunk.ts";
 
 
 const ASR_TIMEOUT_MS = 5 * 60 * 1000;
 
-// ── MP3 frame chunker ────────────────────────────────────────────────────
-// Used for Munsit which has no async/polling endpoint and silently returns
-// an empty transcript for files above ~10 MB. We split the MP3 on real frame
-// boundaries (~60s per chunk), call /audio/transcribe in parallel for each
-// chunk, then stitch transcripts and shift word timestamps by chunk offset.
-// Non-MP3 inputs (mp4/m4a/webm/opus) are NOT chunked here — Munsit is just
-// skipped for those when oversized, since splitting those containers safely
-// requires a real demuxer.
-
-function isLikelyMp3(bytes: Uint8Array, contentType?: string): boolean {
-  if (contentType && /mpeg|mp3/i.test(contentType)) return true;
-  if (bytes.length < 3) return false;
-  // ID3v2 tag
-  if (bytes[0] === 0x49 && bytes[1] === 0x44 && bytes[2] === 0x33) return true;
-  // MPEG audio frame sync (0xFFE...)
-  if (bytes[0] === 0xFF && (bytes[1] & 0xE0) === 0xE0) return true;
-  return false;
-}
-
-function* iterMp3Frames(buf: Uint8Array): Generator<{ offset: number; size: number; durMs: number }> {
-  let i = 0;
-  // Skip ID3v2 header if present (10-byte header + synchsafe size)
-  if (buf[0] === 0x49 && buf[1] === 0x44 && buf[2] === 0x33 && buf.length > 10) {
-    const size = ((buf[6] & 0x7f) << 21) | ((buf[7] & 0x7f) << 14) | ((buf[8] & 0x7f) << 7) | (buf[9] & 0x7f);
-    i = 10 + size;
-  }
-  const BR_V1L3 = [0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 0];
-  const BR_V2L3 = [0, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160, 0];
-  const SR_V1 = [44100, 48000, 32000, 0];
-  const SR_V2 = [22050, 24000, 16000, 0];
-  const SR_V25 = [11025, 12000, 8000, 0];
-  while (i + 4 <= buf.length) {
-    if (buf[i] !== 0xFF || (buf[i + 1] & 0xE0) !== 0xE0) { i++; continue; }
-    const verBits = (buf[i + 1] >> 3) & 0x03;   // 0=2.5, 1=reserved, 2=2, 3=1
-    const layerBits = (buf[i + 1] >> 1) & 0x03; // 1=Layer III
-    if (verBits === 1 || layerBits !== 1) { i++; continue; }
-    const brIdx = (buf[i + 2] >> 4) & 0x0F;
-    const srIdx = (buf[i + 2] >> 2) & 0x03;
-    const pad = (buf[i + 2] >> 1) & 0x01;
-    if (brIdx === 0 || brIdx === 15 || srIdx === 3) { i++; continue; }
-    const isV1 = verBits === 3;
-    const br = (isV1 ? BR_V1L3 : BR_V2L3)[brIdx] * 1000;
-    const sr = (verBits === 3 ? SR_V1 : verBits === 2 ? SR_V2 : SR_V25)[srIdx];
-    const samples = isV1 ? 1152 : 576;
-    const size = Math.floor((samples / 8) * br / sr) + pad;
-    if (size < 4 || i + size > buf.length) { i++; continue; }
-    yield { offset: i, size, durMs: (samples / sr) * 1000 };
-    i += size;
-  }
-}
-
-function chunkMp3ByDuration(
-  bytes: Uint8Array,
-  targetSec: number,
-): Array<{ bytes: Uint8Array; offsetSec: number; durSec: number }> {
-  const chunks: Array<{ bytes: Uint8Array; offsetSec: number; durSec: number }> = [];
-  let chunkStart = -1;
-  let chunkDurMs = 0;
-  let cumMs = 0;
-  let lastEnd = 0;
-  for (const f of iterMp3Frames(bytes)) {
-    if (chunkStart < 0) chunkStart = f.offset;
-    chunkDurMs += f.durMs;
-    lastEnd = f.offset + f.size;
-    if (chunkDurMs >= targetSec * 1000) {
-      chunks.push({ bytes: bytes.slice(chunkStart, lastEnd), offsetSec: cumMs / 1000, durSec: chunkDurMs / 1000 });
-      cumMs += chunkDurMs;
-      chunkStart = -1;
-      chunkDurMs = 0;
-    }
-  }
-  if (chunkStart >= 0 && chunkDurMs > 0) {
-    chunks.push({ bytes: bytes.slice(chunkStart, lastEnd), offsetSec: cumMs / 1000, durSec: chunkDurMs / 1000 });
-  }
-  return chunks;
-}
+// Munsit's sync /audio/transcribe has no async/polling counterpart and silently
+// returns an empty transcript above ~10 MB, so anything larger has to be split
+// on real frame boundaries and stitched back together. 9 MB leaves margin.
+// Container handling lives in _shared/audioChunk.ts — see planAsrPayloads.
+const MUNSIT_MAX_BYTES = 9 * 1024 * 1024;
 
 function generateId(): string {
   return crypto.randomUUID().slice(0, 8);
@@ -245,8 +175,12 @@ async function runPipeline(
   authHeader: string,
   projectUrl: string,
 ): Promise<void> {
+  // `.wav` first: the admin upload form extracts the audio track client-side and
+  // stages it as WAV, so when both exist the extracted audio is the better input
+  // (smaller, already 16 kHz mono). The other extensions cover URL-sourced
+  // downloads and uploads whose container the browser couldn't decode.
   const storagePaths = [
-    `${videoId}.mp4`, `${videoId}.m4a`, `${videoId}.webm`,
+    `${videoId}.wav`, `${videoId}.mp4`, `${videoId}.m4a`, `${videoId}.webm`,
     `${videoId}.mp3`, `${videoId}.opus`,
   ];
 
@@ -268,7 +202,10 @@ async function runPipeline(
       if (!fileErr && fileData) {
         console.log(`[pipeline] Found audio in storage: video-audio/${path}`);
         audioBytes = await fileData.arrayBuffer();
-        audioContentType = fileData.type || (path.endsWith(".mp3") ? "audio/mpeg" : "audio/mp4");
+        audioContentType = fileData.type ||
+          (path.endsWith(".mp3") ? "audio/mpeg"
+            : path.endsWith(".wav") ? "audio/wav"
+            : "audio/mp4");
         break;
       }
     }
@@ -447,10 +384,16 @@ async function runPipeline(
 
       const t0 = Date.now();
       try {
+        // FIELD ORDER IS LOAD-BEARING. FormData serialises parts in insertion
+        // order, and Cohere streams the multipart body — it rejects the request
+        // with HTTP 400 ("all form fields (model, language) must appear before
+        // the file part") if the audio arrives before the config it needs to
+        // decode with. Keep `file` last. The other ASR legs are not affected;
+        // they buffer the whole body and accept any order.
         const fd = new FormData();
-        fd.append("file", new File([audioBytes!], "audio.mp3", { type: audioContentType }));
         fd.append("model", Deno.env.get("COHERE_STT_MODEL")?.trim() || "cohere-transcribe-arabic-07-2026");
         fd.append("language", "ar");
+        fd.append("file", new File([audioBytes!], "audio.mp3", { type: audioContentType }));
 
         const resp = await fetch("https://api.cohere.com/v2/audio/transcriptions", {
           method: "POST",
@@ -666,11 +609,7 @@ async function runPipeline(
       if (!MUNSIT_API_KEY) { console.warn("[pipeline] Munsit: no API key"); return { text: null, words: [], latencyMs: 0 }; }
 
       const audioU8 = new Uint8Array(audioBytes!);
-      const isMp3 = isLikelyMp3(audioU8, audioContentType);
       const sizeMB = audioU8.byteLength / (1024 * 1024);
-      // Munsit's sync /audio/transcribe silently returns "" above ~10 MB.
-      // For MP3 we split on frame boundaries and run chunks in parallel.
-      const NEEDS_CHUNK = sizeMB > 9;
       const t0 = Date.now();
 
       const callOnce = async (
@@ -728,36 +667,42 @@ async function runPipeline(
       };
 
       try {
-        if (NEEDS_CHUNK && isMp3) {
-          const chunks = chunkMp3ByDuration(audioU8, 60);
-          if (chunks.length === 0) throw new Error("MP3 chunker yielded 0 frames");
-          console.log(`[pipeline] Munsit: ${sizeMB.toFixed(2)} MB MP3 → ${chunks.length} chunks (~60s each)`);
-          const parts = await mapWithConcurrency(chunks, 3, async (c, i) => {
-            try {
-              const r = await callOnce(c.bytes, `chunk ${i + 1}/${chunks.length} (@${c.offsetSec.toFixed(1)}s, ${(c.bytes.byteLength / 1024).toFixed(0)} KB)`);
-              return { ...r, offsetSec: c.offsetSec };
-            } catch (e) {
-              console.warn(`[pipeline] Munsit chunk ${i + 1} failed:`, e);
-              return { text: "", words: [], offsetSec: c.offsetSec };
-            }
-          });
-          const text = parts.map(p => p.text.trim()).filter(Boolean).join(" ");
-          const words = parts.flatMap(p =>
-            p.words.map(w => ({ text: w.text, start: w.start + p.offsetSec, end: w.end + p.offsetSec })),
+        const plan = planAsrPayloads(audioU8, audioContentType, MUNSIT_MAX_BYTES, 60);
+        if (plan.skipReason) {
+          console.warn(
+            `[pipeline] Munsit: skipping — ${sizeMB.toFixed(2)} MB ${audioContentType} ` +
+            `(${plan.strategy}): ${plan.skipReason}`,
           );
+          return { text: null, words: [], latencyMs: Date.now() - t0, error: plan.skipReason };
+        }
+
+        if (plan.strategy === "single") {
+          const { text, words } = await callOnce(audioU8, "single");
           const latencyMs = Date.now() - t0;
-          console.log(`[pipeline] Munsit (chunked): ${text.length} chars, ${words.length} words, ${chunks.length} chunks, ${latencyMs}ms`);
+          console.log(`[pipeline] Munsit: ${text.length} chars, ${words.length} words, ${latencyMs}ms`);
           return { text: text || null, words, latencyMs };
         }
 
-        if (NEEDS_CHUNK && !isMp3) {
-          console.warn(`[pipeline] Munsit: skipping — ${sizeMB.toFixed(2)} MB non-MP3 (${audioContentType}) exceeds sync endpoint`);
-          return { text: null, words: [], latencyMs: Date.now() - t0, error: "oversize-non-mp3" };
-        }
-
-        const { text, words } = await callOnce(audioU8, "single");
+        const chunks = plan.chunks;
+        console.log(
+          `[pipeline] Munsit: ${sizeMB.toFixed(2)} MB ${audioContentType} → ` +
+          `${chunks.length} chunks via ${plan.strategy} (~60s each)`,
+        );
+        const parts = await mapWithConcurrency(chunks, 3, async (c, i) => {
+          try {
+            const r = await callOnce(c.bytes, `chunk ${i + 1}/${chunks.length} (@${c.offsetSec.toFixed(1)}s, ${(c.bytes.byteLength / 1024).toFixed(0)} KB)`);
+            return { ...r, offsetSec: c.offsetSec };
+          } catch (e) {
+            console.warn(`[pipeline] Munsit chunk ${i + 1} failed:`, e);
+            return { text: "", words: [], offsetSec: c.offsetSec };
+          }
+        });
+        const text = parts.map(p => p.text.trim()).filter(Boolean).join(" ");
+        const words = parts.flatMap(p =>
+          p.words.map(w => ({ text: w.text, start: w.start + p.offsetSec, end: w.end + p.offsetSec })),
+        );
         const latencyMs = Date.now() - t0;
-        console.log(`[pipeline] Munsit: ${text.length} chars, ${words.length} words, ${latencyMs}ms`);
+        console.log(`[pipeline] Munsit (chunked): ${text.length} chars, ${words.length} words, ${chunks.length} chunks, ${latencyMs}ms`);
         return { text: text || null, words, latencyMs };
       } catch (e) {
         console.warn("[pipeline] Munsit failed:", e);
@@ -767,23 +712,40 @@ async function runPipeline(
 
 
     // --- Azure Speech (locale-routed by dialect module) ---
+    // Every return path carries `error` and `latencyMs`. This leg used to drop
+    // its exception on the floor (bare `{ text: null }`), which is the one way
+    // an engine can fail without the reason reaching `engines_used.asr` — the
+    // row showed `ok:false, chars:0` and nothing else. `_shared/asrConfig.ts`
+    // documents `error` as the contract every leg reports failure through.
     const azurePromise: Promise<AsrLegResult> = (async () => {
-      const AZURE_SPEECH_KEY = Deno.env.get("AZURE_SPEECH_KEY");
-      const AZURE_SPEECH_REGION = Deno.env.get("AZURE_SPEECH_REGION");
-      if (!AZURE_SPEECH_KEY || !AZURE_SPEECH_REGION) {
-        console.warn("[pipeline] Azure: not configured");
-        return { text: null };
-      }
+      const AZURE_SPEECH_KEY = Deno.env.get("AZURE_SPEECH_KEY")?.trim();
+      // Prefer an explicitly configured endpoint, matching azure-pronunciation's
+      // getSttEndpoint() and azure-tts. A deployment on an Azure AI multi-service
+      // resource sets AZURE_SPEECH_ENDPOINT and may leave the region unset, in
+      // which case building the URL from the region alone fails or 404s.
+      const AZURE_SPEECH_ENDPOINT = Deno.env.get("AZURE_SPEECH_ENDPOINT")?.trim();
+      const AZURE_SPEECH_REGION = Deno.env.get("AZURE_SPEECH_REGION")?.trim();
       const locale =
         dialectModule === "Egyptian" ? "ar-EG" :
         dialectModule === "Yemeni" ? "ar-YE" :
         "ar-SA";
+
+      if (!AZURE_SPEECH_KEY || (!AZURE_SPEECH_ENDPOINT && !AZURE_SPEECH_REGION)) {
+        console.warn("[pipeline] Azure: not configured (need AZURE_SPEECH_KEY + endpoint or region)");
+        return { text: null, latencyMs: 0, locale, error: "not_configured" };
+      }
+
+      const base = AZURE_SPEECH_ENDPOINT
+        ? AZURE_SPEECH_ENDPOINT.replace(/\/$/, "")
+        : `https://${AZURE_SPEECH_REGION}.api.cognitive.microsoft.com`;
+
+      const t0 = Date.now();
       try {
         const definition = { locales: [locale], profanityFilterMode: "None" };
         const fd = new FormData();
         fd.append("audio", new Blob([audioBytes!], { type: audioContentType }), "audio");
         fd.append("definition", JSON.stringify(definition));
-        const url = `https://${AZURE_SPEECH_REGION}.api.cognitive.microsoft.com/speechtotext/transcriptions:transcribe?api-version=2024-11-15`;
+        const url = `${base}/speechtotext/transcriptions:transcribe?api-version=2024-11-15`;
         const resp = await fetch(url, {
           method: "POST",
           headers: { "Ocp-Apim-Subscription-Key": AZURE_SPEECH_KEY },
@@ -796,11 +758,16 @@ async function runPipeline(
           (data.combinedPhrases?.[0]?.text as string | undefined) ??
           ((data.phrases ?? []).map((p: any) => p.text).filter(Boolean).join(" ") as string) ??
           "";
-        console.log(`[pipeline] Azure (${locale}): ${text.length} chars`);
-        return { text: text || null, locale };
+        const latencyMs = Date.now() - t0;
+        console.log(`[pipeline] Azure (${locale}): ${text.length} chars, ${latencyMs}ms`);
+        // A 200 with no speech is a different problem from a failed request —
+        // say so, rather than letting it look identical to a network error.
+        return text
+          ? { text, latencyMs, locale }
+          : { text: null, latencyMs, locale, error: "empty_transcript" };
       } catch (e) {
         console.warn("[pipeline] Azure failed:", e);
-        return { text: null };
+        return { text: null, latencyMs: Date.now() - t0, locale, error: String(e) };
       }
     })();
 
@@ -915,7 +882,9 @@ async function runPipeline(
         },
         azure: {
           ok: !!azureText, chars: azureText.length,
+          latency_ms: azureResult?.latencyMs ?? 0,
           ...(azureResult?.locale ? { locale: azureResult.locale } : {}),
+          ...(azureResult?.error ? trimErr(azureResult.error) : {}),
         },
         cohere: {
           ok: !!cohereText, chars: cohereText.length,

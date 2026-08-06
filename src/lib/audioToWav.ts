@@ -1,4 +1,33 @@
 /**
+ * Pull the audio track out of an uploaded media file as a 16 kHz mono WAV,
+ * ready for the ASR pipeline.
+ *
+ * The video pipeline treats whatever is staged in the `video-audio` bucket as
+ * its audio input. Uploading the raw video meant handing every ASR engine tens
+ * of megabytes that are almost entirely video track — and it put Munsit, the
+ * most-trusted Arabic engine, permanently over its 9 MB sync-endpoint limit in
+ * a container its MP3 chunker can't split, so it was skipped on every upload.
+ *
+ * 16 kHz mono is every ASR model's native sample rate, so nothing is lost that
+ * the providers wouldn't have discarded on their own. A 90-second clip goes
+ * from roughly 10 MB of mp4 to under 3 MB of WAV.
+ *
+ * Returns `null` if the browser can't decode the container, so callers can fall
+ * back to uploading the original file rather than failing the upload.
+ */
+export async function extractAudioForAsr(file: Blob): Promise<Blob | null> {
+  try {
+    const wav = await blobToWav(file);
+    // A decode that yields only a WAV header means no audio track was found.
+    // Treat it as a failure rather than staging a silent file.
+    return wav.size > 44 ? wav : null;
+  } catch (e) {
+    console.warn("Audio extraction failed, will upload the original file:", e);
+    return null;
+  }
+}
+
+/**
  * Convert any audio Blob (e.g. WebM/Opus from MediaRecorder) to a 16-bit
  * PCM WAV at 16 kHz mono — the format Azure Speech Services handles best
  * for pronunciation assessment.

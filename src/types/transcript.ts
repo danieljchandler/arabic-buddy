@@ -15,6 +15,16 @@
    startMs?: number;        // for future audio sync
    endMs?: number;
   segmentType?: 'audio' | 'text_overlay';
+  /** Set by the translation ensemble when the line couldn't be settled confidently. */
+  needs_review?: boolean;
+  /**
+   * Why the line needs review — set whenever `needs_review` is true.
+   * `ensemble_disagreement` means the three models genuinely disagreed;
+   * `call2_fallback` means the ensemble returned nothing and the Qwen analysis
+   * pass filled it (unverified, but not disputed); `empty` means no model
+   * produced a translation. These want different attention in review.
+   */
+  review_reason?: 'ensemble_disagreement' | 'call2_fallback' | 'empty';
   /** Fanar-Shaheen-MT alternative rendering — present only on lines the translation ensemble disputed. */
   altTranslation?: string;
  };

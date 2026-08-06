@@ -19,6 +19,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { TranscriptLine } from "@/types/transcript";
 import { TimeRangeSelector } from "@/components/transcript/TimeRangeSelector";
 import { extractFramesWithTimestamps } from "@/lib/videoFrameExtractor";
+import { extractAudioForAsr } from "@/lib/audioToWav";
 
 const DIALECTS = ["Saudi", "Kuwaiti", "UAE", "Bahraini", "Qatari", "Omani", "Gulf", "MSA", "Egyptian", "Yemeni", "Levantine", "Maghrebi"];
 const DIFFICULTIES = ["Beginner", "Intermediate", "Advanced", "Expert"];
@@ -468,12 +469,26 @@ const AdminVideoForm = () => {
           .eq("id", targetVideoId);
       }
 
-      // Upload audio to storage
-      const ext = file.name.split(".").pop() || "mp4";
+      // Upload audio to storage.
+      //
+      // Stage the audio track, not the video. The pipeline reads whatever is
+      // here as its ASR input, so uploading the raw file sent every engine a
+      // mostly-video payload — and kept Munsit permanently over its 9 MB
+      // sync-endpoint limit in a container it can't chunk, so it was skipped on
+      // every upload. Extraction is best-effort: if the browser can't decode
+      // the container we upload the original exactly as before.
+      const extracted = await extractAudioForAsr(file);
+      const ext = extracted ? "wav" : (file.name.split(".").pop() || "mp4");
       const storagePath = `${targetVideoId}.${ext}`;
+      if (extracted) {
+        console.log(
+          `[upload] Extracted audio: ${(file.size / 1048576).toFixed(1)} MB ${file.type || "media"} ` +
+          `→ ${(extracted.size / 1048576).toFixed(1)} MB wav`,
+        );
+      }
       const { error: uploadErr } = await supabase.storage
         .from("video-audio")
-        .upload(storagePath, file, { upsert: true });
+        .upload(storagePath, extracted ?? file, { upsert: true });
       if (uploadErr) {
         console.error("Storage upload error:", uploadErr);
         // Non-fatal — edge function will try download-media as fallback
@@ -1247,17 +1262,26 @@ const AdminVideoForm = () => {
               {(() => {
                 // Dialect signals persisted by analyze-gulf-arabic:
                 // Fanar-C-2-27B validation + CAMeL BERT dialect ID.
+                type DialectIssue = {
+                  line?: number;
+                  word?: string;
+                  kind?: string;
+                  severity?: "low" | "high";
+                  note?: string;
+                };
                 type DialectSignals = {
                   flagged?: boolean;
                   camel_agrees?: boolean | null;
+                  camel_error?: string;
                   camel?: { dialect?: string; code?: string; confidence?: number } | null;
-                  fanar_validation?: { content?: string } | null;
+                  fanar_validation?: { content?: string; issues?: DialectIssue[] } | null;
                 };
                 const enginesUsed = existingVideo?.engines_used as
                   { dialect_signals?: DialectSignals } | null | undefined;
                 const signals = enginesUsed?.dialect_signals;
                 if (!signals) return null;
                 const camel = signals.camel;
+                const issues = signals.fanar_validation?.issues;
                 return (
                   <div
                     className={`p-3 rounded-lg border text-sm space-y-1 ${
@@ -1269,15 +1293,48 @@ const AdminVideoForm = () => {
                     <p className="font-medium">
                       Dialect signals {signals.flagged ? "— flagged for review" : "— no issues detected"}
                     </p>
-                    {camel && (
+                    {camel ? (
                       <p className="text-muted-foreground">
                         CAMeL BERT: {camel.dialect ?? "?"} ({camel.code ?? "?"}, conf{" "}
                         {typeof camel.confidence === "number" ? camel.confidence.toFixed(2) : "?"})
                         {" — "}
-                        {signals.camel_agrees === false ? "disagrees with detected dialect" : "agrees"}
+                        {/* Tri-state: null means CAMeL predicted a dialect outside the
+                            taught modules (or MSA), which is not evidence either way. */}
+                        {signals.camel_agrees === false
+                          ? "disagrees with detected dialect"
+                          : signals.camel_agrees === true
+                            ? "agrees"
+                            : "no bearing on the detected dialect"}
+                      </p>
+                    ) : (
+                      <p className="text-muted-foreground">
+                        CAMeL BERT: unavailable{signals.camel_error ? ` (${signals.camel_error})` : ""}
                       </p>
                     )}
-                    {signals.fanar_validation?.content && (
+                    {issues && issues.length > 0 && (
+                      <ul className="text-muted-foreground list-disc pl-5 space-y-0.5" dir="auto">
+                        {issues.slice(0, 25).map((issue, i) => (
+                          <li key={i}>
+                            {issue.line != null && <span className="tabular-nums">L{issue.line} </span>}
+                            {issue.word && <span className="font-medium">{issue.word}</span>}
+                            {issue.kind && <span> [{issue.kind}]</span>}
+                            {issue.severity === "high" && (
+                              <span className="text-destructive"> (high)</span>
+                            )}
+                            {issue.note && <span> — {issue.note}</span>}
+                          </li>
+                        ))}
+                        {issues.length > 25 && (
+                          <li className="list-none italic">+{issues.length - 25} more</li>
+                        )}
+                      </ul>
+                    )}
+                    {issues && issues.length === 0 && (
+                      <p className="text-muted-foreground">Fanar review: no issues found.</p>
+                    )}
+                    {/* Fanar answered in prose rather than the JSON it was asked for —
+                        show the raw text so the signal isn't lost. */}
+                    {!issues && signals.fanar_validation?.content && (
                       <p className="text-muted-foreground whitespace-pre-wrap" dir="auto">
                         Fanar review: {String(signals.fanar_validation.content).slice(0, 500)}
                       </p>

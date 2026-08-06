@@ -2,7 +2,13 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { SONIOX_MODEL, buildSonioxContext, type AsrWord, type AsrLegResult } from "../_shared/asrConfig.ts";
+import {
+  SONIOX_MODEL,
+  buildSonioxContext,
+  looksTruncated,
+  type AsrWord,
+  type AsrLegResult,
+} from "../_shared/asrConfig.ts";
 import {
   asrUpload,
   containerLabel,
@@ -801,82 +807,117 @@ async function runPipeline(
         return { text, words };
       };
 
-      // Munsit answers an undecodable payload with 200 + an empty transcription
-      // rather than an error, so an empty result is worth one retry in a second
-      // container before believing it. Demuxing the AAC track out of an MP4 into
-      // a raw ADTS stream is the one re-encode-free conversion available here.
-      const retryAsAdts = async (
+      /** Run the whole plan-then-send sequence over one payload. */
+      const transcribe = async (
         payload: Uint8Array<ArrayBuffer>,
-      ): Promise<{ text: string; words: AsrWord[] } | null> => {
-        if (containerLabel(payload, audioContentType) !== "mp4") return null;
-        const track = extractAacFromMp4(payload);
-        if (!track) {
-          console.warn("[pipeline] Munsit: empty result and no AAC track to retry with");
-          return null;
-        }
-        console.log(
-          `[pipeline] Munsit: empty result — retrying as raw ADTS ` +
-          `(${track.frames.length} frames, ${track.sampleRate} Hz)`,
-        );
-        return await callOnce(joinAdtsFrames(track), "adts-retry");
-      };
-
-      try {
-        const plan = planAsrPayloads(audioU8, audioContentType, MUNSIT_MAX_BYTES, 60);
+        contentType: string,
+        source: string,
+      ): Promise<{ text: string; words: AsrWord[]; skipReason?: string }> => {
+        const plan = planAsrPayloads(payload, contentType, MUNSIT_MAX_BYTES, 60);
         if (plan.skipReason) {
           console.warn(
-            `[pipeline] Munsit: skipping — ${sizeMB.toFixed(2)} MB ${audioContentType} ` +
-            `(${plan.strategy}): ${plan.skipReason}`,
+            `[pipeline] Munsit: skipping ${source} — ${(payload.byteLength / (1024 * 1024)).toFixed(2)} MB ` +
+            `${contentType} (${plan.strategy}): ${plan.skipReason}`,
           );
-          return { text: null, words: [], latencyMs: Date.now() - t0, error: plan.skipReason };
+          return { text: "", words: [], skipReason: plan.skipReason };
         }
 
         if (plan.strategy === "single") {
-          let { text, words } = await callOnce(audioU8, "single");
-          if (!text) {
-            const retry = await retryAsAdts(audioU8);
-            if (retry) ({ text, words } = retry);
-          }
-          const latencyMs = Date.now() - t0;
-          console.log(`[pipeline] Munsit: ${text.length} chars, ${words.length} words, ${latencyMs}ms`);
-          // An empty transcript is a failure with a cause, not an absence.
-          // Reported bare, it lands in engines_used.asr as `ok:false, chars:0`
-          // with no error — the same row a missing API key produces.
-          return text
-            ? { text, words, latencyMs }
-            : {
-                text: null, words: [], latencyMs,
-                error: `empty-transcription (container=${containerLabel(audioU8, audioContentType)})`,
-              };
+          return await callOnce(payload, source);
         }
 
         const chunks = plan.chunks;
         console.log(
-          `[pipeline] Munsit: ${sizeMB.toFixed(2)} MB ${audioContentType} → ` +
-          `${chunks.length} chunks via ${plan.strategy} (~60s each)`,
+          `[pipeline] Munsit: ${source} → ${chunks.length} chunks via ${plan.strategy} (~60s each)`,
         );
         const parts = await mapWithConcurrency(chunks, 3, async (c, i) => {
           try {
-            const r = await callOnce(c.bytes, `chunk ${i + 1}/${chunks.length} (@${c.offsetSec.toFixed(1)}s, ${(c.bytes.byteLength / 1024).toFixed(0)} KB)`);
+            const r = await callOnce(
+              c.bytes,
+              `${source} chunk ${i + 1}/${chunks.length} (@${c.offsetSec.toFixed(1)}s, ${(c.bytes.byteLength / 1024).toFixed(0)} KB)`,
+            );
             return { ...r, offsetSec: c.offsetSec };
           } catch (e) {
             console.warn(`[pipeline] Munsit chunk ${i + 1} failed:`, e);
             return { text: "", words: [], offsetSec: c.offsetSec };
           }
         });
-        const text = parts.map(p => p.text.trim()).filter(Boolean).join(" ");
-        const words = parts.flatMap(p =>
-          p.words.map(w => ({ text: w.text, start: w.start + p.offsetSec, end: w.end + p.offsetSec })),
-        );
+        return {
+          text: parts.map(p => p.text.trim()).filter(Boolean).join(" "),
+          words: parts.flatMap(p =>
+            p.words.map(w => ({ text: w.text, start: w.start + p.offsetSec, end: w.end + p.offsetSec })),
+          ),
+        };
+      };
+
+      try {
+        // Send the audio track on its own whenever we can isolate it.
+        //
+        // download-media hands back the source MP4 whole, video track included.
+        // Every other engine in the fan-out demuxes that happily; Munsit does
+        // not, and answers 200 with a near-empty transcription instead of an
+        // error — 0 chars before the upload was named for its real container,
+        // 7 chars after, on a clip where five other engines got 200-440. So the
+        // demux is the primary path now rather than a retry: an audio-only ADTS
+        // stream is what an audio endpoint should have been receiving all along,
+        // and it costs one in-memory pass with no re-encode.
+        const aacTrack = containerLabel(audioU8, audioContentType) === "mp4"
+          ? extractAacFromMp4(audioU8)
+          : null;
+        const audioOnly = aacTrack
+          ? {
+              bytes: joinAdtsFrames(aacTrack),
+              durationSec: aacTrack.durations.reduce((a, b) => a + b, 0),
+            }
+          : null;
+        if (aacTrack && !audioOnly) {
+          console.warn("[pipeline] Munsit: MP4 has no demuxable AAC track — sending the container as-is");
+        }
+
+        const durationSec = audioOnly?.durationSec ?? downloadDuration ?? 0;
+        const primary = audioOnly
+          ? { bytes: audioOnly.bytes, contentType: "audio/aac", source: "audio-only" }
+          : { bytes: audioU8, contentType: audioContentType, source: "container" };
+
+        let out = await transcribe(primary.bytes, primary.contentType, primary.source);
+
+        // A short answer from an engine that accepted the payload is the shape
+        // this failure has always taken, so fall back to the other container
+        // rather than trusting it.
+        if (audioOnly && looksTruncated(out.text, durationSec)) {
+          console.warn(
+            `[pipeline] Munsit: ${out.text.length} chars for ${durationSec.toFixed(1)}s of audio ` +
+            `looks truncated — retrying with the original container`,
+          );
+          const alt = await transcribe(audioU8, audioContentType, "container-retry");
+          if (alt.text.length > out.text.length) out = alt;
+        }
+
         const latencyMs = Date.now() - t0;
-        const emptyChunks = parts.filter((p) => !p.text.trim()).length;
-        console.log(`[pipeline] Munsit (chunked): ${text.length} chars, ${words.length} words, ${chunks.length} chunks, ${latencyMs}ms`);
-        return text
-          ? { text, words, latencyMs }
-          : {
-              text: null, words: [], latencyMs,
-              error: `empty-transcription (${emptyChunks}/${chunks.length} chunks empty, strategy=${plan.strategy})`,
-            };
+        const { text, words } = out;
+        console.log(
+          `[pipeline] Munsit: ${text.length} chars, ${words.length} words, ${latencyMs}ms ` +
+          `(sent ${primary.source}, ${durationSec ? `${durationSec.toFixed(1)}s` : "duration unknown"})`,
+        );
+
+        // An empty or truncated transcript is a failure with a cause, not an
+        // absence. Reported bare it lands in engines_used.asr as `chars: 7` with
+        // no error — a quiet success no audit can distinguish from a real one.
+        if (!text) {
+          return {
+            text: null, words: [], latencyMs,
+            error: `empty-transcription (sent ${primary.source}, container=${containerLabel(audioU8, audioContentType)}${out.skipReason ? `, ${out.skipReason}` : ""})`,
+          };
+        }
+        if (looksTruncated(text, durationSec)) {
+          // Keep the text — it is still the engine's best answer and the merge
+          // step weights by length — but do not let it pass as healthy.
+          return {
+            text, words, latencyMs,
+            error: `short-transcription (${text.length} chars for ${durationSec.toFixed(1)}s, sent ${primary.source})`,
+          };
+        }
+        return { text, words, latencyMs };
       } catch (e) {
         console.warn("[pipeline] Munsit failed:", e);
         return { text: null, words: [], latencyMs: Date.now() - t0, error: String(e) };
@@ -1417,27 +1458,37 @@ async function runPipeline(
     // broke automatic sync for completed videos.
 
     // Auto-tag difficulty (CEFR + WPM + rare-word ratio) once transcript is ready.
-    // Fire-and-forget so a rating failure never breaks the main pipeline.
+    //
+    // Awaited, not fire-and-forget. This is the last step of a pipeline that is
+    // itself running inside the outer `waitUntil`, and registering a *second*
+    // waitUntil from a task that is about to settle does not reliably extend the
+    // isolate's life — rate-video-cefr was observed booting and shutting down
+    // with no log output of its own, which is what a mid-flight teardown looks
+    // like. Awaiting keeps it inside the window that is already being held open.
+    //
+    // Authorization uses the service-role key for the same reason the analyze
+    // call does: `authHeader` is whatever the original caller sent, which may be
+    // an anon key with no rights to this function.
     try {
-      const ratePromise = fetch(`${projectUrl}/functions/v1/rate-video-cefr`, {
+      const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+      const rateResp = await fetch(`${projectUrl}/functions/v1/rate-video-cefr`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: authHeader,
+          Authorization: serviceRoleKey ? `Bearer ${serviceRoleKey}` : authHeader,
         },
         body: JSON.stringify({ videoId }),
-      })
-        .then(async (r) => {
-          if (!r.ok) {
-            console.warn(`[pipeline] auto-rate failed: ${r.status} ${await r.text().catch(() => "")}`);
-          } else {
-            console.log(`[pipeline] auto-rate scheduled for ${videoId}`);
-          }
-        })
-        .catch((e) => console.warn("[pipeline] auto-rate fetch error:", e instanceof Error ? e.message : String(e)));
-      edgeRuntime()?.waitUntil?.(ratePromise);
+        // A hung rating must not hold the pipeline open indefinitely; the
+        // transcript is already persisted by this point either way.
+        signal: AbortSignal.timeout(90_000),
+      });
+      if (!rateResp.ok) {
+        console.warn(`[pipeline] auto-rate failed: ${rateResp.status} ${await rateResp.text().catch(() => "")}`);
+      } else {
+        console.log(`[pipeline] auto-rate completed for ${videoId}`);
+      }
     } catch (e) {
-      console.warn("[pipeline] auto-rate dispatch error (non-fatal):", e);
+      console.warn("[pipeline] auto-rate error (non-fatal):", e instanceof Error ? e.message : String(e));
     }
 
     console.log(`[pipeline] Completed for video ${videoId}`);

@@ -625,6 +625,88 @@ Fanar's 11 low-severity dialect issues (MSA-leaning فضول/بخاخ/الأشي
 
 ---
 
+## UPDATE — 2026-08-06 (second pass): what the previous round got wrong
+
+A run on video `ef23e142…` showed the first round had fixed the Shaheen tiebreak (arbitration
+settled a line at score 0.54) but **not** Munsit, and had surfaced rather than solved the
+diacritization problem.
+
+### Munsit — the container fix was necessary but not sufficient
+
+Naming the upload after its real container moved the result from 0 chars to 7 chars / 2 words.
+Better, still broken. Two things were wrong:
+
+1. **The retry guard was `if (!text)`.** Seven characters is truthy, so the ADTS fallback added
+   last round never ran on the very case it was written for.
+2. **The demux was a fallback when it should have been the default.** `download-media` returns
+   the source MP4 whole, video track included. Every other engine demuxes that happily; Munsit
+   does not. Sending an audio endpoint a video container was the actual defect.
+
+The AAC track is now demuxed up front and sent as an audio-only ADTS stream — one in-memory
+pass, no re-encode. The original container is retried only if the audio-only attempt looks
+truncated.
+
+**"Looks truncated" is now a measurement, not a guess.** `looksTruncated()` compares transcript
+length against known audio duration (from the AAC frame table) at a deliberately low 2 chars/sec
+— real speech runs 8-15 — and returns false whenever duration is unknown or under 5s, so it only
+fires on evidence. A short result is reported as `short-transcription (N chars for Ns)` in
+`engines_used.asr`; the text is still kept, but it can no longer pass as a healthy engine.
+
+### Farasa — the vendor was fine, the overlay was broken
+
+The call succeeded and returned 246 chars of tashkeel. The overlay applied it to 0 of 11 lines.
+Two bugs, and the second is why the number was exactly zero rather than merely low:
+
+1. **Words were compared with exact string equality after stripping tashkeel only.** Farasa
+   normalises orthography — hamza carriers (أ إ آ ٱ) collapse to bare alef, tatweel vanishes,
+   punctuation splits off. A word Call 1 wrote as `أَنَا` and Farasa returned as `انَا` compared
+   unequal and was skipped.
+2. **A miss left the read cursor in place.** One unmatched word desynced the rest of the
+   transcript permanently, so every later word missed too.
+
+`_shared/arabicDiacritics.ts` replaces both copies with normalisation-tolerant matching and a
+cursor that advances past a miss.
+
+**Direction matters too.** Call 1 is required to emit lines "FULLY voweled with tashkeel that
+matches HOW THE SPEAKER ACTUALLY PRONOUNCES IT … NOT the MSA standard". Farasa is an MSA
+diacritizer, so it now *fills gaps* rather than overwriting: an unvoweled word takes its marks,
+a word that already carries dialect tashkeel keeps them. Where spellings differ but letter
+counts match, the marks are transplanted onto our letters so the dialect spelling survives.
+
+Provenance gained `words_matched` / `words_filled` / `strategy`. Matched-but-not-filled means
+Call 1 had already voweled everything; neither means the overlay failed to align, and that case
+is now labelled `warning: farasa_output_did_not_align`.
+
+### Shaheen — the batch call never worked and was pure cost
+
+`POST /v1/translations` takes one blob and returns one translation; `preserve_whitespace` does
+not make newlines act as record separators. Every run logged `line_count_mismatch (sent N, got
+1)`, fell back to per-line, and succeeded there — paying one wasted call and one 30s round-trip
+per video against a 20/day budget. Multi-line requests now go straight to per-line.
+`_shared/shaheenAlign.ts` and its tests are deleted as unreachable.
+
+### rate-video-cefr — booted and shut down with no output
+
+Two causes, both addressed. It was dispatched fire-and-forget with a *second* `waitUntil`
+registered from inside a task that was itself about to settle, which does not reliably extend
+the isolate — "boots, no logs, dies" is what a mid-flight teardown looks like. And it was called
+with `authHeader` (whatever the original caller sent, possibly an anon key) where the analyze
+call deliberately uses the service-role key. It is now awaited inside the window already being
+held open, with the service key and a 90s timeout.
+
+### CAMeL — still configuration only
+
+`no_api_key`, correctly reported. Needs `HUGGINGFACE_API_KEY`. Nothing to fix in code.
+
+### Note on tooling
+
+These edge functions are not covered by `tsconfig.app.json` and had never been typechecked.
+Running `deno check` over them during this round is what caught a wrong `Supabase` client type,
+an unguarded `analyzeData.result` dereference, and a `Uint8Array<ArrayBufferLike>` that is not a
+valid `BlobPart`. Worth adding to CI.
+
+---
+
 ## Sources
 
 - [Fanar OpenAPI spec (live, public)](https://api.fanar.qa/openapi.json) — authoritative model list and request schema

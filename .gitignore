@@ -45,3 +45,6 @@ supabase/.temp/
 
 # TypeScript incremental build cache
 *.tsbuildinfo
+
+# Deno lockfile from local `deno check` runs on supabase/functions/**
+deno.lock

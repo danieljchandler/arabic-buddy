@@ -1,13 +1,16 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { alignShaheenLines } from "../_shared/shaheenAlign.ts";
 import {
   arbitrateDispute,
   jaccard,
   type ArbiterCandidate,
 } from "../_shared/translationArbiter.ts";
 import { callFarasa, type FarasaOutcome } from "../_shared/farasa.ts";
+import {
+  overlayDiacritizedLines,
+  stripDiacritics,
+} from "../_shared/arabicDiacritics.ts";
 import {
   callCamelDialect,
   camelAgreesWithModule,
@@ -898,15 +901,15 @@ const SHAHEEN_MT_DAILY_LIMIT = Math.max(
   1,
   Number(Deno.env.get('SHAHEEN_MT_DAILY_LIMIT')) || 16,
 );
-// Cap on individual retries when a batch response can't be aligned. Each one
-// costs a budget slot, so keep it small.
+// Cap on per-line requests for one video. Each costs a budget slot, so keep it
+// small — the disputed lines are ranked by the ensemble, so the first few are
+// the ones most worth arbitrating.
 const SHAHEEN_MT_MAX_PER_LINE = 4;
 
 type ShaheenSkipReason =
   | 'no_api_key'
   | 'budget_exhausted'
   | 'http_error'
-  | 'line_count_mismatch'
   | 'timeout'
   | 'network_error';
 
@@ -919,8 +922,8 @@ interface ShaheenOutcome {
   httpStatus?: number;
   /** Calls already logged against today's budget when this run started. */
   budgetUsed?: number;
-  /** Set when the batch response couldn't be aligned and we retried per line. */
-  perLineFallback?: boolean;
+  /** How the request was issued. One line goes as itself; several go per line. */
+  strategy?: 'single' | 'per_line';
 }
 
 /** One request to the MT endpoint. Shared by the batch call and the per-line retries. */
@@ -1014,52 +1017,72 @@ async function callShaheenTranslate(
     );
   };
 
-  const batch = await shaheenFetch(lines.join('\n'), apiKey);
-  if (!batch.ok) {
+  // One line is the only case the endpoint handles natively: `POST
+  // /v1/translations` takes one blob of text and returns one translation.
+  if (lines.length === 1) {
+    const single = await shaheenFetch(lines[0], apiKey);
+    if (!single.ok) {
+      return {
+        attempted: true,
+        translations: null,
+        skipReason: single.skipReason,
+        httpStatus: single.httpStatus,
+        budgetUsed,
+      };
+    }
+    meter();
+    budgetUsed += 1;
+    const text = single.text.replace(/\s+/g, ' ').trim();
     return {
       attempted: true,
-      translations: null,
-      skipReason: batch.skipReason,
-      httpStatus: batch.httpStatus,
+      translations: text ? [text] : null,
+      strategy: 'single',
       budgetUsed,
     };
   }
-  meter();
-  budgetUsed += 1;
 
-  const aligned = alignShaheenLines(batch.text, lines.length);
-  if (aligned) return { attempted: true, translations: aligned, budgetUsed };
-
-  // Alignment failed. Rather than discard everything, re-request the first few
-  // lines individually — one line in, one line out, so alignment is trivial.
-  const retries = Math.min(
+  // More than one line goes straight to per-line requests.
+  //
+  // The batch call this replaces sent N newline-separated lines and hoped for N
+  // back. It never once delivered them: `preprocessing: preserve_whitespace`
+  // does not make the endpoint treat newlines as record separators, so every
+  // run logged `line_count_mismatch (sent N, got 1)`, fell back to per-line, and
+  // succeeded there. That cost one wasted call and one 30s round-trip on every
+  // video, against a documented free-tier budget of 20 calls a day.
+  const budget = Math.min(
     lines.length,
     SHAHEEN_MT_MAX_PER_LINE,
     Math.max(0, SHAHEEN_MT_DAILY_LIMIT - budgetUsed),
   );
-  if (retries === 0) {
+  if (budget === 0) {
     return {
-      attempted: true, translations: null,
-      skipReason: 'line_count_mismatch', budgetUsed,
+      attempted: false, translations: null,
+      skipReason: 'budget_exhausted', budgetUsed,
     };
   }
 
   const out: (string | null)[] = new Array(lines.length).fill(null);
-  for (let i = 0; i < retries; i++) {
+  let lastFailure: { skipReason: ShaheenSkipReason; httpStatus?: number } | null = null;
+  for (let i = 0; i < budget; i++) {
     const single = await shaheenFetch(lines[i], apiKey);
-    if (!single.ok) break;
+    if (!single.ok) { lastFailure = single; break; }
     meter();
     budgetUsed += 1;
     const text = single.text.replace(/\s+/g, ' ').trim();
     if (text) out[i] = text;
   }
   const filled = out.filter(Boolean).length;
-  console.log(`Shaheen-MT: per-line fallback recovered ${filled}/${lines.length} lines`);
+  console.log(
+    `Shaheen-MT: per-line translated ${filled}/${lines.length} disputed lines ` +
+    `(budget allowed ${budget})`,
+  );
   return {
     attempted: true,
     translations: filled > 0 ? out : null,
-    skipReason: 'line_count_mismatch',
-    perLineFallback: true,
+    strategy: 'per_line',
+    ...(filled === 0 && lastFailure
+      ? { skipReason: lastFailure.skipReason, httpStatus: lastFailure.httpStatus }
+      : {}),
     budgetUsed,
   };
 }
@@ -1233,74 +1256,6 @@ const COMMON_GLOSSES: Record<string, string> = {
   'قال': 'said',
   'يقول': 'says',
 };
-
-// Strip Arabic diacritics for fuzzy matching
-function stripDiacritics(text: string): string {
-  // Remove Arabic diacritics (tashkeel): fatha, damma, kasra, sukun, shadda, etc.
-  return text.replace(/[\u064B-\u065F\u0670]/g, '');
-}
-
-/**
- * Overlay Farasa-diacritized text onto the original lines, line-by-line.
- * Farasa receives lines joined by '\n' in the same order, so the output
- * should split into the same number of lines. We match by splitting on
- * newlines; if the line counts mismatch we fall back to per-line word
- * matching by stripped form.
- */
-function overlayDiacritizedLines(
-  originalLines: string[],
-  diacritizedTranscript: string | null | undefined,
-): string[] {
-  if (!diacritizedTranscript) return originalLines;
-  const diacLines = diacritizedTranscript.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
-  // Happy path: counts match
-  if (diacLines.length === originalLines.length) {
-    return originalLines.map((orig, i) => {
-      const diac = diacLines[i];
-      // Sanity check: stripped versions should roughly equal
-      if (stripDiacritics(diac).replace(/\s+/g, '') === stripDiacritics(orig).replace(/\s+/g, '')) {
-        return diac;
-      }
-      // Word-level overlay fallback
-      return overlayLineByWord(orig, diac);
-    });
-  }
-  // Counts mismatch: fall back to a single concatenated word stream
-  const allDiacWords = diacLines.join(' ').split(/\s+/).filter(Boolean);
-  let cursor = 0;
-  return originalLines.map((orig) => {
-    const origWords = orig.split(/\s+/).filter(Boolean);
-    const out: string[] = [];
-    for (const ow of origWords) {
-      const stripped = stripDiacritics(ow);
-      // Look ahead up to 3 words for a match
-      let matched: string | null = null;
-      for (let k = 0; k < 3 && cursor + k < allDiacWords.length; k++) {
-        if (stripDiacritics(allDiacWords[cursor + k]) === stripped) {
-          matched = allDiacWords[cursor + k];
-          cursor = cursor + k + 1;
-          break;
-        }
-      }
-      out.push(matched ?? ow);
-    }
-    return out.join(' ');
-  });
-}
-
-function overlayLineByWord(orig: string, diac: string): string {
-  const origWords = orig.split(/\s+/).filter(Boolean);
-  const diacWords = diac.split(/\s+/).filter(Boolean);
-  if (origWords.length !== diacWords.length) {
-    // best-effort: zip while we have pairs, keep original for the rest
-    return origWords
-      .map((ow, i) => (diacWords[i] && stripDiacritics(diacWords[i]) === stripDiacritics(ow) ? diacWords[i] : ow))
-      .join(' ');
-  }
-  return origWords
-    .map((ow, i) => (stripDiacritics(diacWords[i]) === stripDiacritics(ow) ? diacWords[i] : ow))
-    .join(' ');
-}
 
 // Strip punctuation from edges of a word for lookup
 function stripPunctuation(word: string): string {
@@ -2058,7 +2013,7 @@ serve(async (req) => {
         skip_reason?: ShaheenSkipReason;
         http_status?: number;
         budget_used?: number;
-        per_line_fallback?: boolean;
+        strategy?: 'single' | 'per_line';
       } = {
         attempted: false, succeeded: false, called: false,
         disputed_lines: disputedIdx.length, filled: 0, resolved: 0, unresolved: 0,
@@ -2074,7 +2029,7 @@ serve(async (req) => {
         if (shaheenOut.skipReason) shaheenProvenance.skip_reason = shaheenOut.skipReason;
         if (shaheenOut.httpStatus) shaheenProvenance.http_status = shaheenOut.httpStatus;
         if (typeof shaheenOut.budgetUsed === 'number') shaheenProvenance.budget_used = shaheenOut.budgetUsed;
-        if (shaheenOut.perLineFallback) shaheenProvenance.per_line_fallback = true;
+        if (shaheenOut.strategy) shaheenProvenance.strategy = shaheenOut.strategy;
 
         if (shaheenOut.translations) {
           shaheenProvenance.succeeded = true;
@@ -2203,15 +2158,18 @@ serve(async (req) => {
       // Overlay Farasa diacritization onto each line so per-line `arabic`
       // includes tashkeel (pronunciation markings) — not just the top-level
       // `diacritizedTranscript` field.
-      const diacritizedPerLine = overlayDiacritizedLines(
+      const overlay = overlayDiacritizedLines(
         mergedLines.map(l => l.arabic),
         diacritizedTranscript,
       );
+      const diacritizedPerLine = overlay.lines;
       const diacritizedLineCount = diacritizedPerLine.filter(
         (l, i) => l !== mergedLines[i].arabic,
       ).length;
       console.log(
-        `Diacritization overlay: ${diacritizedLineCount}/${mergedLines.length} lines updated with tashkeel` +
+        `Diacritization overlay [${overlay.strategy}]: ` +
+          `${overlay.matched}/${overlay.total} words located, ${overlay.filled} filled, ` +
+          `${diacritizedLineCount}/${mergedLines.length} lines updated` +
           (diacOutcome.ok ? '' : ` (Farasa unavailable: ${diacOutcome.reason})`),
       );
 
@@ -2219,11 +2177,21 @@ serve(async (req) => {
       // tashkeel showed up nowhere in the stored record — the reason existed
       // only in the function logs, which is where the last three audits had to
       // go looking for it.
+      //
+      // `words_matched` is the diagnostic that matters. A successful Farasa call
+      // with lines_diacritized:0 is ambiguous on its own — it could mean the
+      // overlay failed to align (the bug this replaces) or simply that Call 1
+      // had already voweled every word. Matched-but-not-filled is the second;
+      // neither-matched-nor-filled is the first.
       const diacritizationProvenance = {
         provider: 'farasa',
         ok: diacOutcome.ok,
+        strategy: overlay.strategy,
         lines_total: mergedLines.length,
         lines_diacritized: diacritizedLineCount,
+        words_total: overlay.total,
+        words_matched: overlay.matched,
+        words_filled: overlay.filled,
         ...(diacOutcome.ok
           ? { chars: diacOutcome.text.length, endpoint: diacOutcome.url }
           : {
@@ -2233,6 +2201,11 @@ serve(async (req) => {
                 ? { config_hint: 'set FARASA_API_KEY — register at farasa.qcri.org' }
                 : {}),
             }),
+        // A call that succeeded but aligned to nothing is the overlay failing,
+        // not the vendor. Name it so the next audit doesn't have to infer it.
+        ...(diacOutcome.ok && overlay.total > 0 && overlay.matched === 0
+          ? { warning: 'farasa_output_did_not_align' }
+          : {}),
       };
       const finalLines = mergedLines.map((mergedLine, i) => {
         const ensembleTranslation = dedicatedTranslations[i] || call2Lines[i]?.translation || '';

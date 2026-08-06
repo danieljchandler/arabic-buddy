@@ -1,7 +1,15 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
- 
+import { alignShaheenLines } from "../_shared/shaheenAlign.ts";
+import {
+  callCamelDialect,
+  camelAgreesWithModule,
+  type CamelFailureReason,
+  type CamelOutcome,
+  type CamelPrediction,
+} from "../_shared/camelDialect.ts";
+
 // Helper to generate unique IDs
 function generateId(): string {
   return crypto.randomUUID().slice(0, 8);
@@ -23,9 +31,20 @@ function generateId(): string {
    literal?: string;
    tokens: WordToken[];
    needs_review?: boolean;
+   /** Why the line needs review — set whenever needs_review is true. */
+   review_reason?: ReviewReason;
    /** Fanar-Shaheen-MT alternative rendering, present only on disputed lines. */
    altTranslation?: string;
  }
+
+/**
+ * - `ensemble_disagreement` — the three translation models produced clusters
+ *   that never reached a winning weight; the fallback priority picked one.
+ * - `call2_fallback` — the ensemble returned nothing for this line and the
+ *   Qwen analysis pass filled it. Unverified by the ensemble, not disputed.
+ * - `empty` — no model produced a translation at all.
+ */
+type ReviewReason = 'ensemble_disagreement' | 'call2_fallback' | 'empty';
  
  interface VocabItem {
    arabic: string;
@@ -49,13 +68,13 @@ function generateId(): string {
    vocabulary: VocabItem[];
    grammarPoints: GrammarPoint[];
    culturalContext?: string;
-  dialectValidation?: { content: string; timestamp: string } | null;
+  dialectValidation?: { content: string; timestamp: string; issues?: DialectIssue[] } | null;
   dialect?: 'Saudi' | 'Kuwaiti' | 'UAE' | 'Bahraini' | 'Qatari' | 'Omani' | 'Gulf';
   difficulty?: 'Beginner' | 'Intermediate' | 'Advanced' | 'Expert';
   /** Full merged Arabic transcript with tashkeel added by Farasa. Feed to ElevenLabs TTS for accurate pronunciation. */
   diacritizedTranscript?: string | null;
   /** Dialect identification from CAMeL-Lab BERT model (city-level, independent of LLM). */
-  camelDialect?: { code: string; dialect: string; confidence: number; isGulf: boolean } | null;
+  camelDialect?: CamelPrediction | null;
  }
 
 
@@ -325,14 +344,63 @@ const getFanarValidationSystemPrompt = () => {
         ? { arabicName: 'اللهجة اليمنية', contextName: 'اليمني' }
         : { arabicName: 'اللهجة الخليجية', contextName: 'الخليجي' };
   return `أنت خبير في ${arabicName}. راجع هذا النص المنقول وحدد أي مشاكل في:
-- كلمات تبدو مُحوَّلة إلى الفصحى بدلاً من ${arabicName} المحكية
-- كلمات أو عبارات تبدو مكتوبة بشكل غير صحيح أو مُحرَّفة
-- كلمات من لهجة عربية أخرى لا تنتمي إلى ${arabicName}
-- محتوى لا يتوافق ثقافياً مع السياق ${contextName}
+- كلمات تبدو مُحوَّلة إلى الفصحى بدلاً من ${arabicName} المحكية (النوع: msa)
+- كلمات أو عبارات تبدو مكتوبة بشكل غير صحيح أو مُحرَّفة (النوع: spelling)
+- كلمات من لهجة عربية أخرى لا تنتمي إلى ${arabicName} (النوع: foreign_dialect)
+- محتوى لا يتوافق ثقافياً مع السياق ${contextName} (النوع: cultural)
 
-اذكر رقم السطر والكلمة والمشكلة بإيجاز. إذا لم تجد مشاكل، قل ذلك بجملة واحدة.
-يمكنك الإجابة بالعربية أو الإنجليزية.`;
+أخرج JSON صالحاً فقط، بدون أي نص خارج JSON، بهذه الصيغة:
+{
+  "issues": [
+    { "line": 3, "word": "الكلمة", "kind": "msa", "severity": "low", "note": "شرح موجز" }
+  ]
+}
+
+"line" رقم السطر (يبدأ من 1)، و"kind" واحدة من: msa | spelling | foreign_dialect | cultural،
+و"severity" إما "low" أو "high" — استخدم "high" فقط لما يغيّر المعنى أو يجعل النص غير أصيل.
+إذا لم تجد أي مشاكل، أخرج {"issues": []}. يمكن كتابة "note" بالعربية أو الإنجليزية.`;
 };
+
+// ─── FANAR VALIDATION RESPONSE ──────────────────────────────────────────────
+// `flagged` used to be `content.length > 300` — a proxy for "found problems"
+// that mis-fires both ways: a chatty clean pass flags, a terse real complaint
+// doesn't. Asking for JSON lets the bit be driven by an actual issue count and
+// lets the admin banner render a list instead of a truncated wall of text.
+interface DialectIssue {
+  line?: number;
+  word?: string;
+  kind?: string;
+  severity?: 'low' | 'high';
+  note?: string;
+}
+
+/**
+ * Parse Fanar's validation reply into issues. Returns `null` when the reply
+ * isn't the requested JSON — callers fall back to the old length heuristic so
+ * the signal degrades rather than disappearing.
+ */
+function parseDialectIssues(content: string): DialectIssue[] | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(extractJsonObject(content));
+  } catch {
+    return null;
+  }
+  const raw = (parsed as { issues?: unknown })?.issues;
+  if (!Array.isArray(raw)) return null;
+  return raw.flatMap((item): DialectIssue[] => {
+    if (!item || typeof item !== 'object') return [];
+    const o = item as Record<string, unknown>;
+    const severity = o.severity === 'high' ? 'high' : 'low';
+    return [{
+      ...(typeof o.line === 'number' ? { line: o.line } : {}),
+      ...(typeof o.word === 'string' && o.word ? { word: o.word.slice(0, 80) } : {}),
+      ...(typeof o.kind === 'string' && o.kind ? { kind: o.kind.slice(0, 32) } : {}),
+      severity,
+      ...(typeof o.note === 'string' && o.note ? { note: o.note.slice(0, 200) } : {}),
+    }];
+  });
+}
 
 // ─── GLOSS ENRICHMENT PROMPT ─────────────────────────────────────────────────
 // Generates per-word English translations for EVERY unique Arabic token.
@@ -821,37 +889,47 @@ async function callFanar({
 // Used only as a tiebreak on lines where the 3-way LLM ensemble disagreed or
 // came back empty. One batched call per transcript (quota is 20/day), metered
 // through the fanar_usage table under endpoint 'mt'.
-const SHAHEEN_MT_DAILY_LIMIT = 16; // leave headroom under the 20/day API limit
+// Fanar's documented free-tier cap for Fanar-Shaheen-MT-1 is 20/day. Default to
+// 16 for headroom, overridable if the account's quota is higher. Note this is a
+// budget of *calls*, not videos: the per-line fallback below can spend several
+// on one video, and at the default a busy day silently loses the tiebreak.
+const SHAHEEN_MT_DAILY_LIMIT = Math.max(
+  1,
+  Number(Deno.env.get('SHAHEEN_MT_DAILY_LIMIT')) || 16,
+);
+// Cap on individual retries when a batch response can't be aligned. Each one
+// costs a budget slot, so keep it small.
+const SHAHEEN_MT_MAX_PER_LINE = 4;
 
-async function callShaheenTranslate(
-  lines: string[],
+type ShaheenSkipReason =
+  | 'no_api_key'
+  | 'budget_exhausted'
+  | 'http_error'
+  | 'line_count_mismatch'
+  | 'timeout'
+  | 'network_error';
+
+interface ShaheenOutcome {
+  /** True once a request has actually been issued to Fanar. */
+  attempted: boolean;
+  /** Aligned 1:1 with the input lines; individual entries may be null. */
+  translations: (string | null)[] | null;
+  skipReason?: ShaheenSkipReason;
+  httpStatus?: number;
+  /** Calls already logged against today's budget when this run started. */
+  budgetUsed?: number;
+  /** Set when the batch response couldn't be aligned and we retried per line. */
+  perLineFallback?: boolean;
+}
+
+/** One request to the MT endpoint. Shared by the batch call and the per-line retries. */
+async function shaheenFetch(
+  text: string,
   apiKey: string,
-): Promise<string[] | null> {
-  if (lines.length === 0) return null;
-
-  // Budget check + usage log via the fanar_usage table (endpoint 'mt').
-  // Metering failures are non-fatal — worst case we drift toward the API's
-  // own 20/day limit, which just makes this call 429 and get skipped.
-  let svc: ReturnType<typeof createClient> | null = null;
-  try {
-    svc = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-    );
-    const today = new Date().toISOString().slice(0, 10);
-    const { count } = await svc
-      .from('fanar_usage')
-      .select('*', { count: 'exact', head: true })
-      .eq('endpoint', 'mt')
-      .gte('created_at', `${today}T00:00:00Z`);
-    if ((count ?? 0) >= SHAHEEN_MT_DAILY_LIMIT) {
-      console.log(`Shaheen-MT: daily budget exhausted (${count}/${SHAHEEN_MT_DAILY_LIMIT}) — skipping`);
-      return null;
-    }
-  } catch (e) {
-    console.warn('Shaheen-MT: budget check failed (continuing):', e instanceof Error ? e.message : String(e));
-  }
-
+): Promise<
+  | { ok: true; text: string }
+  | { ok: false; skipReason: ShaheenSkipReason; httpStatus?: number }
+> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 30_000);
   try {
@@ -864,7 +942,7 @@ async function callShaheenTranslate(
       },
       body: JSON.stringify({
         model: 'Fanar-Shaheen-MT-1',
-        text: lines.join('\n'),
+        text,
         langpair: 'ar-en',
         preprocessing: 'preserve_whitespace',
       }),
@@ -872,30 +950,117 @@ async function callShaheenTranslate(
     if (!response.ok) {
       const errText = await response.text();
       console.warn(`Shaheen-MT error ${response.status}:`, errText.slice(0, 300));
-      return null;
+      return { ok: false, skipReason: 'http_error', httpStatus: response.status };
     }
     const data = await response.json();
-    // The client carries no schema types here, so the insert row would infer
-    // as `never` — narrow the table handle to just the insert we need.
-    const usageTable = svc?.from('fanar_usage') as unknown as
-      { insert: (row: Record<string, unknown>) => PromiseLike<unknown> } | undefined;
+    return { ok: true, text: String(data.text ?? '') };
+  } catch (e) {
+    const isAbort = e instanceof DOMException && e.name === 'AbortError';
+    console.warn('Shaheen-MT fetch failed:', isAbort ? 'timeout after 30s' : String(e));
+    return { ok: false, skipReason: isAbort ? 'timeout' : 'network_error' };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+/**
+ * Translate disputed lines with Fanar-Shaheen-MT-1.
+ *
+ * Returns an outcome rather than `string[] | null` so the caller can record
+ * *why* nothing came back. Every failure here used to collapse into the same
+ * `called:false` as "never invoked", which made a genuinely-attempted tiebreak
+ * indistinguishable from a missing API key in `engines_used.translation`.
+ */
+async function callShaheenTranslate(
+  lines: string[],
+  apiKey: string,
+): Promise<ShaheenOutcome> {
+  if (lines.length === 0) return { attempted: false, translations: null };
+
+  // Budget check + usage log via the fanar_usage table (endpoint 'mt').
+  // Metering failures are non-fatal — worst case we drift toward the API's
+  // own 20/day limit, which just makes this call 429 and get skipped.
+  let svc: ReturnType<typeof createClient> | null = null;
+  let budgetUsed = 0;
+  try {
+    svc = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    );
+    const today = new Date().toISOString().slice(0, 10);
+    const { count } = await svc
+      .from('fanar_usage')
+      .select('*', { count: 'exact', head: true })
+      .eq('endpoint', 'mt')
+      .gte('created_at', `${today}T00:00:00Z`);
+    budgetUsed = count ?? 0;
+    if (budgetUsed >= SHAHEEN_MT_DAILY_LIMIT) {
+      console.log(`Shaheen-MT: daily budget exhausted (${budgetUsed}/${SHAHEEN_MT_DAILY_LIMIT}) — skipping`);
+      return { attempted: false, translations: null, skipReason: 'budget_exhausted', budgetUsed };
+    }
+  } catch (e) {
+    console.warn('Shaheen-MT: budget check failed (continuing):', e instanceof Error ? e.message : String(e));
+  }
+
+  // The client carries no schema types here, so the insert row would infer
+  // as `never` — narrow the table handle to just the insert we need.
+  const usageTable = svc?.from('fanar_usage') as unknown as
+    { insert: (row: Record<string, unknown>) => PromiseLike<unknown> } | undefined;
+  const meter = () => {
     usageTable?.insert({ endpoint: 'mt' }).then(
       () => {},
       (e: unknown) => console.warn('Shaheen-MT: usage log failed:', String(e)),
     );
-    const out = String(data.text ?? '').split('\n').map((s: string) => s.trim());
-    if (out.length !== lines.length) {
-      console.warn(`Shaheen-MT: line count mismatch (sent ${lines.length}, got ${out.length}) — discarding`);
-      return null;
-    }
-    return out;
-  } catch (e) {
-    const isAbort = e instanceof DOMException && e.name === 'AbortError';
-    console.warn('Shaheen-MT fetch failed:', isAbort ? 'timeout after 30s' : String(e));
-    return null;
-  } finally {
-    clearTimeout(timeout);
+  };
+
+  const batch = await shaheenFetch(lines.join('\n'), apiKey);
+  if (!batch.ok) {
+    return {
+      attempted: true,
+      translations: null,
+      skipReason: batch.skipReason,
+      httpStatus: batch.httpStatus,
+      budgetUsed,
+    };
   }
+  meter();
+  budgetUsed += 1;
+
+  const aligned = alignShaheenLines(batch.text, lines.length);
+  if (aligned) return { attempted: true, translations: aligned, budgetUsed };
+
+  // Alignment failed. Rather than discard everything, re-request the first few
+  // lines individually — one line in, one line out, so alignment is trivial.
+  const retries = Math.min(
+    lines.length,
+    SHAHEEN_MT_MAX_PER_LINE,
+    Math.max(0, SHAHEEN_MT_DAILY_LIMIT - budgetUsed),
+  );
+  if (retries === 0) {
+    return {
+      attempted: true, translations: null,
+      skipReason: 'line_count_mismatch', budgetUsed,
+    };
+  }
+
+  const out: (string | null)[] = new Array(lines.length).fill(null);
+  for (let i = 0; i < retries; i++) {
+    const single = await shaheenFetch(lines[i], apiKey);
+    if (!single.ok) break;
+    meter();
+    budgetUsed += 1;
+    const text = single.text.replace(/\s+/g, ' ').trim();
+    if (text) out[i] = text;
+  }
+  const filled = out.filter(Boolean).length;
+  console.log(`Shaheen-MT: per-line fallback recovered ${filled}/${lines.length} lines`);
+  return {
+    attempted: true,
+    translations: filled > 0 ? out : null,
+    skipReason: 'line_count_mismatch',
+    perLineFallback: true,
+    budgetUsed,
+  };
 }
 
 function extractJsonObject(text: string): string {
@@ -1315,53 +1480,10 @@ type MetaAI = {
 };
 
 // ── CAMeL-Lab dialect identification ─────────────────────────────────────────
-// Model: CAMeL-Lab/bert-base-arabic-camelbert-mix-did-madar-twitter
-// Runs in parallel with Call 2 to validate the LLM-detected dialect.
-// Returns null on any failure so it never blocks the pipeline.
-const CAMEL_CITY_TO_DIALECT: Record<string, string> = {
-  KUW: 'Kuwaiti', DOH: 'Qatari',   RIY: 'Saudi', JED: 'Saudi',
-  ABU: 'UAE',     DUB: 'UAE',      MSC: 'Omani', BAH: 'Bahraini',
-};
-const CAMEL_GULF_CITIES = new Set(Object.keys(CAMEL_CITY_TO_DIALECT));
-
-async function callCamelDialect(
-  text: string,
-  hfApiKey: string,
-): Promise<{ code: string; dialect: string; confidence: number; isGulf: boolean } | null> {
-  // Use only first 512 chars — dialect is detectable from short samples and
-  // shorter input keeps latency low (BERT has a 512-token limit anyway).
-  const sample = text.trim().slice(0, 512);
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 20_000);
-  try {
-    const resp = await fetch(
-      'https://api-inference.huggingface.co/models/CAMeL-Lab/bert-base-arabic-camelbert-mix-did-madar-twitter',
-      {
-        method: 'POST',
-        signal: controller.signal,
-        headers: { 'Authorization': `Bearer ${hfApiKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ inputs: sample }),
-      },
-    );
-    if (!resp.ok) {
-      // 503 = model cold-starting — expected on free HF tier, non-fatal
-      console.warn(`CAMeL dialect model: HTTP ${resp.status} (cold start or unavailable)`);
-      return null;
-    }
-    const predictions: { label: string; score: number }[] = await resp.json();
-    if (!Array.isArray(predictions) || !predictions[0]) return null;
-    const top = predictions[0];
-    const code = top.label.toUpperCase();
-    const dialect = CAMEL_CITY_TO_DIALECT[code] ?? code;
-    const isGulf = CAMEL_GULF_CITIES.has(code);
-    return { code, dialect, confidence: Math.round(top.score * 1000) / 1000, isGulf };
-  } catch (e) {
-    console.warn('CAMeL dialect call failed:', e instanceof Error ? e.message : String(e));
-    return null;
-  } finally {
-    clearTimeout(timeout);
-  }
-}
+// Runs in parallel with Call 2 to validate the LLM-detected dialect. The client,
+// the MADAR label map and the agreement rule all live in _shared/camelDialect.ts
+// so this pipeline and the camel-analyze function can't drift apart again.
+// Never blocks the pipeline — a failure is recorded, not thrown.
 
 // ── Farasa diacritization ─────────────────────────────────────────────────────
 // Adds short vowels (tashkeel) to unvoweled Arabic text via the QCRI Farasa
@@ -1773,7 +1895,7 @@ serve(async (req) => {
      const arabicOnlyText = mergedLines.map(l => l.arabic).join('\n');
      const hfApiKey = Deno.env.get('HUGGINGFACE_API_KEY') ?? '';
 
-      const [translationEnsembleResult, analysisResp, fanarMetaResp, fanarValidResp, camelDialectResult, diacritizedTranscript] = await Promise.all([
+      const [translationEnsembleResult, analysisResp, fanarMetaResp, fanarValidResp, camelOutcome, diacritizedTranscript] = await Promise.all([
         // TRANSLATION ENSEMBLE — Claude Sonnet 4.5 (1.0) + Gemini 3.5 Flash (1.0)
         // as co-equal peers, Qwen3-Max (0.5) as lower-weight verifier. Model
         // IDs are sourced from _shared/modelRegistry.ts (MODEL_LINEUPS.TRANSLATION)
@@ -1868,13 +1990,13 @@ serve(async (req) => {
              return { content: null } as { content: string | null };
            })
          : Promise.resolve({ content: null } as { content: string | null }),
-       // CAMeL-Lab BERT dialect ID
-       hfApiKey
-         ? callCamelDialect(arabicOnlyText, hfApiKey).catch((e) => {
-             console.warn('CAMeL dialect call failed (non-blocking):', e);
-             return null;
-           })
-         : Promise.resolve(null),
+       // CAMeL-Lab BERT dialect ID. A missing key is reported as an outcome
+       // (`no_api_key`) rather than short-circuited to null, so the stored
+       // signal distinguishes "not configured" from "the call failed".
+       callCamelDialect(arabicOnlyText, hfApiKey).catch((e) => {
+         console.warn('CAMeL dialect call failed (non-blocking):', e);
+         return { ok: false, reason: 'network_error' } as CamelOutcome;
+       }),
        // Farasa diacritize
        callFarasaDiacritize(arabicOnlyText).catch((e) => {
          console.warn('Farasa diacritize failed (non-blocking):', e);
@@ -1882,28 +2004,43 @@ serve(async (req) => {
        }),
      ]);
 
+     const camelDialectResult: CamelPrediction | null = camelOutcome.ok ? camelOutcome.result : null;
+     const camelError: CamelFailureReason | null = camelOutcome.ok ? null : camelOutcome.reason;
+
      // --- Log CAMeL dialect result vs LLM-detected dialect ---
      if (camelDialectResult) {
-       const agreement = camelDialectResult.dialect === detectedDialect ? 'agree' : 'disagree';
+       const agrees = camelAgreesWithModule(camelDialectResult, DIALECT_MODULE);
+       const agreement = agrees === null ? 'no bearing' : agrees ? 'agree' : 'disagree';
        console.log(
          `CAMeL dialect: ${camelDialectResult.dialect} (${camelDialectResult.code}, conf=${camelDialectResult.confidence})` +
-         ` — LLM: ${detectedDialect} — ${agreement}`,
+         ` — LLM: ${detectedDialect} — module ${DIALECT_MODULE} — ${agreement}`,
        );
      } else {
-       console.log('CAMeL dialect: unavailable (no HF key or model cold start)');
+       // Naming the reason is the whole point: "unavailable" used to cover a
+       // missing key, a 404 and a cold start alike.
+       console.log(`CAMeL dialect: unavailable (${camelError})`);
      }
      if (diacritizedTranscript) {
        console.log(`Farasa diacritize: ${diacritizedTranscript.length} chars of tashkeel-annotated Arabic`);
      }
 
      // --- Parse Fanar dialect validation — accept JSON or raw text, never throw ---
-     let dialectValidation: { content: string; timestamp: string } | null = null;
+     // The raw text is kept alongside the parsed issues: if Fanar answers in
+     // prose instead of JSON, the admin banner still has something to show and
+     // `flagged` falls back to the old length heuristic.
+     let dialectValidation:
+       { content: string; timestamp: string; issues?: DialectIssue[] } | null = null;
      if (fanarValidResp?.content) {
+       const issues = parseDialectIssues(fanarValidResp.content);
        dialectValidation = {
          content: fanarValidResp.content,
          timestamp: new Date().toISOString(),
+         ...(issues ? { issues } : {}),
        };
-       console.log('Fanar dialect validation received (first 150 chars):', fanarValidResp.content.slice(0, 150));
+       console.log(
+         `Fanar dialect validation: ${issues ? `${issues.length} issue(s) parsed` : 'unparseable, keeping raw text'}` +
+         ` — first 150 chars: ${fanarValidResp.content.slice(0, 150)}`,
+       );
      }
 
       // --- TRANSLATION ENSEMBLE: merge Gemini + Claude + Qwen candidates per line ---
@@ -1934,18 +2071,44 @@ serve(async (req) => {
       const disputedIdx = ensembleMerge.lines
         .map((l, i) => (l.needs_review || !l.translation) ? i : -1)
         .filter((i) => i >= 0);
-      let shaheenProvenance: { called: boolean; disputed_lines: number; filled: number } = {
-        called: false, disputed_lines: disputedIdx.length, filled: 0,
+      // `attempted` vs `succeeded` are deliberately separate: the old single
+      // `called` flag was set only on success, so a budget exhaustion, a 429 and
+      // a missing API key all reported identically to "never ran". `called` is
+      // retained as an alias of `succeeded` for one release so the admin UI and
+      // any stored history keep reading.
+      const shaheenProvenance: {
+        attempted: boolean;
+        succeeded: boolean;
+        called: boolean;
+        disputed_lines: number;
+        filled: number;
+        skip_reason?: ShaheenSkipReason;
+        http_status?: number;
+        budget_used?: number;
+        per_line_fallback?: boolean;
+      } = {
+        attempted: false, succeeded: false, called: false,
+        disputed_lines: disputedIdx.length, filled: 0,
       };
-      if (fanarLlmAvailable && disputedIdx.length > 0) {
+      if (!fanarLlmAvailable) {
+        shaheenProvenance.skip_reason = 'no_api_key';
+      } else if (disputedIdx.length > 0) {
         const shaheenOut = await callShaheenTranslate(
           disputedIdx.map((i) => mergedLines[i].arabic),
           FANAR_API_KEY!,
         );
-        if (shaheenOut) {
+        shaheenProvenance.attempted = shaheenOut.attempted;
+        if (shaheenOut.skipReason) shaheenProvenance.skip_reason = shaheenOut.skipReason;
+        if (shaheenOut.httpStatus) shaheenProvenance.http_status = shaheenOut.httpStatus;
+        if (typeof shaheenOut.budgetUsed === 'number') shaheenProvenance.budget_used = shaheenOut.budgetUsed;
+        if (shaheenOut.perLineFallback) shaheenProvenance.per_line_fallback = true;
+
+        if (shaheenOut.translations) {
+          shaheenProvenance.succeeded = true;
           shaheenProvenance.called = true;
           disputedIdx.forEach((lineIdx, k) => {
-            if (shaheenOut[k]) shaheenByLine[lineIdx] = shaheenOut[k];
+            const t = shaheenOut.translations![k];
+            if (t) shaheenByLine[lineIdx] = t;
           });
           shaheenProvenance.filled = disputedIdx.filter(
             (i) => !dedicatedTranslations[i] && shaheenByLine[i],
@@ -1953,6 +2116,11 @@ serve(async (req) => {
           console.log(
             `Shaheen-MT tiebreak: ${disputedIdx.length} disputed lines, ` +
               `${shaheenProvenance.filled} empty translations filled`,
+          );
+        } else {
+          console.warn(
+            `Shaheen-MT tiebreak produced nothing for ${disputedIdx.length} disputed lines ` +
+              `(attempted=${shaheenOut.attempted}, reason=${shaheenOut.skipReason ?? 'unknown'})`,
           );
         }
       }
@@ -2038,15 +2206,28 @@ serve(async (req) => {
       );
       const finalLines = mergedLines.map((mergedLine, i) => {
         const ensembleTranslation = dedicatedTranslations[i] || call2Lines[i]?.translation || '';
+        const needsReview = ensembleNeedsReview[i] ?? false;
+        // Record *why* a line needs review. Without this, "all three models
+        // disagreed" and "the ensemble produced nothing and Call 2's fallback
+        // quietly filled it" are indistinguishable in the review queue — they
+        // need very different attention.
+        const reviewReason: ReviewReason | undefined = !needsReview
+          ? undefined
+          : !dedicatedTranslations[i] && call2Lines[i]?.translation
+            ? 'call2_fallback'
+            : ensembleTranslation
+              ? 'ensemble_disagreement'
+              : 'empty';
         return {
           arabic: diacritizedPerLine[i] || mergedLine.arabic,
           // Shaheen fills only when the ensemble + Call 2 both came back empty.
           translation: ensembleTranslation || shaheenByLine[i] || '',
           literal: dedicatedLiterals[i] || '',
-          needs_review: ensembleNeedsReview[i] ?? false,
+          needs_review: needsReview,
+          ...(reviewReason ? { review_reason: reviewReason } : {}),
           // Disputed lines that already have a translation carry Shaheen's
           // Arabic-native rendering as an alternative for the review UI.
-          ...(ensembleTranslation && ensembleNeedsReview[i] && shaheenByLine[i]
+          ...(ensembleTranslation && needsReview && shaheenByLine[i]
             ? { altTranslation: shaheenByLine[i]! }
             : {}),
         };
@@ -2184,6 +2365,7 @@ serve(async (req) => {
           translation: String(l.translation ?? '').trim(),
           literal: String(l.literal ?? '').trim(),
           needs_review: Boolean(l.needs_review),
+          ...(l.review_reason ? { review_reason: l.review_reason } : {}),
           ...(l.altTranslation ? { altTranslation: String(l.altTranslation).trim() } : {}),
           tokens: toWordTokens(String(l.arabic ?? '').trim(), vocab, allWordGlosses),
         })),
@@ -2291,19 +2473,34 @@ serve(async (req) => {
 
           // Dialect signals: Fanar validation + CAMeL BERT dialect ID were
           // previously computed, logged, and thrown away. Persist them so the
-          // admin review flow can act on them. `flagged` is a cheap composite:
-          // CAMeL disagrees with the LLM-detected dialect family, or Fanar's
-          // review is materially long (a clean pass is a single sentence).
-          const camelAgrees = camelDialectResult
-            ? camelDialectResult.dialect === detectedDialect ||
-              (DIALECT_MODULE === 'Gulf' && camelDialectResult.isGulf)
-            : null;
+          // admin review flow can act on them.
+          //
+          // `camel_agrees` is deliberately tri-state. It compares taught
+          // modules, and stays null whenever CAMeL has no bearing on the
+          // question — no prediction, an unrecognised label, MSA, or a dialect
+          // outside the three modules. Comparing against a Gulf-only city map
+          // meant a correct Egyptian or Yemeni call scored as disagreement and
+          // raised `flagged` on content the model had got right.
+          const camelAgrees = camelAgreesWithModule(camelDialectResult, DIALECT_MODULE);
+          // Prefer a real issue count. The >300-char rule is only a fallback for
+          // when Fanar answers in prose instead of the JSON it was asked for.
+          const validationIssues = dialectValidation?.issues;
+          const validationFlagged = validationIssues
+            ? validationIssues.length > 0
+            : (dialectValidation?.content?.length ?? 0) > 300;
           const dialectSignals = {
             llm_dialect: detectedDialect,
             fanar_validation: dialectValidation,
             camel: camelDialectResult ?? null,
             camel_agrees: camelAgrees,
-            flagged: camelAgrees === false || (dialectValidation?.content?.length ?? 0) > 300,
+            ...(camelError ? { camel_error: camelError } : {}),
+            ...(validationIssues
+              ? {
+                  validation_issue_count: validationIssues.length,
+                  validation_high_severity: validationIssues.filter((i) => i.severity === 'high').length,
+                }
+              : {}),
+            flagged: camelAgrees === false || validationFlagged,
           };
 
           // Read-then-merge engines_used so we don't clobber ASR provenance written

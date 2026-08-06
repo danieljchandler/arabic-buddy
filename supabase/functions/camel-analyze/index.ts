@@ -18,6 +18,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { callCamelDialect } from "../_shared/camelDialect.ts";
 
 
 // ── Farasa REST API ──────────────────────────────────────────────────────────
@@ -150,113 +151,12 @@ function parseSegOutput(raw: string): MorphSegment[] {
 }
 
 // ── CAMeL-Lab Dialect Identification ─────────────────────────────────────────
+// The MADAR label map, response parsing and HTTP client live in
+// _shared/camelDialect.ts. This function used to carry its own copy while the
+// video pipeline carried a narrower Gulf-only one; they disagreed on which
+// predictions counted, so the same model produced different verdicts depending
+// on which entry point called it.
 
-/**
- * Gulf-relevant MADAR city/country codes used by CAMeL-Lab dialect model.
- * Model: CAMeL-Lab/bert-base-arabic-camelbert-mix-did-madar-twitter
- */
-const GULF_CITY_MAP: Record<string, { country: string; dialect: string; isGulf: boolean }> = {
-  // Gulf
-  KUW: { country: 'Kuwait',       dialect: 'Kuwaiti',  isGulf: true  },
-  DOH: { country: 'Qatar',        dialect: 'Qatari',   isGulf: true  },
-  RIY: { country: 'Saudi Arabia', dialect: 'Saudi',    isGulf: true  },
-  JED: { country: 'Saudi Arabia', dialect: 'Hijazi',   isGulf: true  },
-  ABU: { country: 'UAE',          dialect: 'Emirati',  isGulf: true  },
-  DUB: { country: 'UAE',          dialect: 'Emirati',  isGulf: true  },
-  MSC: { country: 'Oman',         dialect: 'Omani',    isGulf: true  },
-  BAH: { country: 'Bahrain',      dialect: 'Bahraini', isGulf: true  },
-  // Non-Gulf Arabic
-  CAI: { country: 'Egypt',    dialect: 'Egyptian',    isGulf: false },
-  ALE: { country: 'Syria',    dialect: 'Levantine',   isGulf: false },
-  BEI: { country: 'Lebanon',  dialect: 'Lebanese',    isGulf: false },
-  AMM: { country: 'Jordan',   dialect: 'Jordanian',   isGulf: false },
-  TRI: { country: 'Libya',    dialect: 'Libyan',      isGulf: false },
-  TUN: { country: 'Tunisia',  dialect: 'Tunisian',    isGulf: false },
-  ALG: { country: 'Algeria',  dialect: 'Algerian',    isGulf: false },
-  MOR: { country: 'Morocco',  dialect: 'Moroccan',    isGulf: false },
-  // MSA
-  MSA: { country: 'MSA',  dialect: 'Modern Standard Arabic', isGulf: false },
-};
-
-interface DialectResult {
-  /** Top predicted label code (e.g. "KUW") */
-  code: string;
-  /** Human-readable dialect name */
-  dialect: string;
-  /** Country name */
-  country: string;
-  /** Confidence score 0–1 */
-  confidence: number;
-  /** Whether the top prediction is a Gulf dialect */
-  isGulf: boolean;
-  /** Top-5 predictions */
-  topPredictions: { code: string; dialect: string; score: number }[];
-  /** Source of prediction: "camel-hf" or "unavailable" */
-  source: 'camel-hf' | 'unavailable';
-}
-
-async function callCamelDialect(text: string, hfApiKey: string): Promise<DialectResult | null> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 30_000);
-
-  // CAMeL-Lab dialect identification — city-level, MADAR dataset
-  const MODEL = 'CAMeL-Lab/bert-base-arabic-camelbert-mix-did-madar-twitter';
-
-  try {
-    const response = await fetch(
-      `https://api-inference.huggingface.co/models/${MODEL}`,
-      {
-        method: 'POST',
-        signal: controller.signal,
-        headers: {
-          'Authorization': `Bearer ${hfApiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ inputs: text }),
-      }
-    );
-
-    if (!response.ok) {
-      const errText = await response.text();
-      // 503 = model loading (cold start) — expected on free tier
-      if (response.status === 503) {
-        console.warn('CAMeL-Lab dialect model loading (cold start). Retry in ~20s.');
-      } else {
-        console.warn(`CAMeL dialect error ${response.status}:`, errText.slice(0, 200));
-      }
-      return null;
-    }
-
-    // HF returns: [{ label: "KUW", score: 0.87 }, ...]
-    const predictions: { label: string; score: number }[] = await response.json();
-    if (!Array.isArray(predictions) || predictions.length === 0) return null;
-
-    const top = predictions[0];
-    const code = top.label.toUpperCase();
-    const meta = GULF_CITY_MAP[code] ?? { country: 'Unknown', dialect: code, isGulf: false };
-
-    const topPredictions = predictions.slice(0, 5).map(p => ({
-      code: p.label.toUpperCase(),
-      dialect: GULF_CITY_MAP[p.label.toUpperCase()]?.dialect ?? p.label,
-      score: Math.round(p.score * 1000) / 1000,
-    }));
-
-    return {
-      code,
-      dialect: meta.dialect,
-      country: meta.country,
-      confidence: Math.round(top.score * 1000) / 1000,
-      isGulf: meta.isGulf,
-      topPredictions,
-      source: 'camel-hf',
-    };
-  } catch (e) {
-    console.warn('CAMeL dialect call failed:', e instanceof Error ? e.message : String(e));
-    return null;
-  } finally {
-    clearTimeout(timeout);
-  }
-}
 
 // ── Main handler ─────────────────────────────────────────────────────────────
 
@@ -298,7 +198,8 @@ serve(async (req) => {
       wantDiac    ? callFarasa('diac', text)                          : Promise.resolve(null),
       wantSegment ? callFarasa('seg', text)                           : Promise.resolve(null),
       wantPos     ? callFarasa('pos', text)                           : Promise.resolve(null),
-      wantDialect && hfApiKey ? callCamelDialect(text, hfApiKey)      : Promise.resolve(null),
+      wantDialect ? callCamelDialect(text, hfApiKey, { maxChars: 512, timeoutMs: 30_000 })
+                  : Promise.resolve(null),
     ]);
 
     // ── Build response ────────────────────────────────────────────────────────
@@ -328,11 +229,16 @@ serve(async (req) => {
     }
 
     if (wantDialect) {
-      result.dialect = dialectResult;
-      if (!dialectResult && !hfApiKey) {
-        result.dialectError = 'HUGGINGFACE_API_KEY not configured — set this secret in Supabase dashboard';
-      } else if (!dialectResult) {
-        result.dialectError = 'CAMeL-Lab model unavailable (possible cold start — retry in 30s)';
+      // The client reports why it failed, so the caller no longer has to infer
+      // "cold start" from the absence of a result.
+      result.dialect = dialectResult?.ok ? { ...dialectResult.result, source: 'camel-hf' } : null;
+      if (dialectResult && !dialectResult.ok) {
+        result.dialectErrorReason = dialectResult.reason;
+        result.dialectError = dialectResult.reason === 'no_api_key'
+          ? 'HUGGINGFACE_API_KEY not configured — set this secret in Supabase dashboard'
+          : dialectResult.reason === 'http_503'
+            ? 'CAMeL-Lab model is cold-starting — retry in ~30s'
+            : `CAMeL-Lab model unavailable (${dialectResult.reason})`;
       }
     }
 

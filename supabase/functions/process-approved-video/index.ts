@@ -3,7 +3,13 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { SONIOX_MODEL, buildSonioxContext, type AsrWord, type AsrLegResult } from "../_shared/asrConfig.ts";
-import { planAsrPayloads } from "../_shared/audioChunk.ts";
+import {
+  asrUpload,
+  containerLabel,
+  extractAacFromMp4,
+  joinAdtsFrames,
+  planAsrPayloads,
+} from "../_shared/audioChunk.ts";
 
 
 const ASR_TIMEOUT_MS = 5 * 60 * 1000;
@@ -617,7 +623,13 @@ async function runPipeline(
         label: string,
       ): Promise<{ text: string; words: AsrWord[] }> => {
         const fd = new FormData();
-        fd.append("file", new File([payload], "audio.mp3", { type: audioContentType }));
+        // Name the part after the container the bytes actually are. Munsit
+        // dispatches on the file extension, so the old hardcoded `audio.mp3`
+        // handed MP4/AAC audio (what TikTok and YouTube downloads are) to an
+        // MP3 decoder — a 200 response with an empty `data.transcription`,
+        // which reads downstream exactly like a silent clip.
+        const upload = asrUpload(payload, audioContentType);
+        fd.append("file", new File([payload], upload.filename, { type: upload.mimeType }));
         fd.append("model", munsitModel);
         const resp = await fetch("https://api.munsit.com/api/v1/audio/transcribe", {
           method: "POST",
@@ -666,6 +678,26 @@ async function runPipeline(
         return { text, words };
       };
 
+      // Munsit answers an undecodable payload with 200 + an empty transcription
+      // rather than an error, so an empty result is worth one retry in a second
+      // container before believing it. Demuxing the AAC track out of an MP4 into
+      // a raw ADTS stream is the one re-encode-free conversion available here.
+      const retryAsAdts = async (
+        payload: Uint8Array,
+      ): Promise<{ text: string; words: AsrWord[] } | null> => {
+        if (containerLabel(payload, audioContentType) !== "mp4") return null;
+        const track = extractAacFromMp4(payload);
+        if (!track) {
+          console.warn("[pipeline] Munsit: empty result and no AAC track to retry with");
+          return null;
+        }
+        console.log(
+          `[pipeline] Munsit: empty result — retrying as raw ADTS ` +
+          `(${track.frames.length} frames, ${track.sampleRate} Hz)`,
+        );
+        return await callOnce(joinAdtsFrames(track), "adts-retry");
+      };
+
       try {
         const plan = planAsrPayloads(audioU8, audioContentType, MUNSIT_MAX_BYTES, 60);
         if (plan.skipReason) {
@@ -677,10 +709,22 @@ async function runPipeline(
         }
 
         if (plan.strategy === "single") {
-          const { text, words } = await callOnce(audioU8, "single");
+          let { text, words } = await callOnce(audioU8, "single");
+          if (!text) {
+            const retry = await retryAsAdts(audioU8);
+            if (retry) ({ text, words } = retry);
+          }
           const latencyMs = Date.now() - t0;
           console.log(`[pipeline] Munsit: ${text.length} chars, ${words.length} words, ${latencyMs}ms`);
-          return { text: text || null, words, latencyMs };
+          // An empty transcript is a failure with a cause, not an absence.
+          // Reported bare, it lands in engines_used.asr as `ok:false, chars:0`
+          // with no error — the same row a missing API key produces.
+          return text
+            ? { text, words, latencyMs }
+            : {
+                text: null, words: [], latencyMs,
+                error: `empty-transcription (container=${containerLabel(audioU8, audioContentType)})`,
+              };
         }
 
         const chunks = plan.chunks;
@@ -702,8 +746,14 @@ async function runPipeline(
           p.words.map(w => ({ text: w.text, start: w.start + p.offsetSec, end: w.end + p.offsetSec })),
         );
         const latencyMs = Date.now() - t0;
+        const emptyChunks = parts.filter((p) => !p.text.trim()).length;
         console.log(`[pipeline] Munsit (chunked): ${text.length} chars, ${words.length} words, ${chunks.length} chunks, ${latencyMs}ms`);
-        return { text: text || null, words, latencyMs };
+        return text
+          ? { text, words, latencyMs }
+          : {
+              text: null, words: [], latencyMs,
+              error: `empty-transcription (${emptyChunks}/${chunks.length} chunks empty, strategy=${plan.strategy})`,
+            };
       } catch (e) {
         console.warn("[pipeline] Munsit failed:", e);
         return { text: null, words: [], latencyMs: Date.now() - t0, error: String(e) };

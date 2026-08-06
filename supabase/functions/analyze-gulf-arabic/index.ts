@@ -3,6 +3,12 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { alignShaheenLines } from "../_shared/shaheenAlign.ts";
 import {
+  arbitrateDispute,
+  jaccard,
+  type ArbiterCandidate,
+} from "../_shared/translationArbiter.ts";
+import { callFarasa, type FarasaOutcome } from "../_shared/farasa.ts";
+import {
   callCamelDialect,
   camelAgreesWithModule,
   type CamelFailureReason,
@@ -33,8 +39,10 @@ function generateId(): string {
    needs_review?: boolean;
    /** Why the line needs review — set whenever needs_review is true. */
    review_reason?: ReviewReason;
-   /** Fanar-Shaheen-MT alternative rendering, present only on disputed lines. */
+   /** Fanar-Shaheen-MT alternative rendering, on disputed and arbitrated lines. */
    altTranslation?: string;
+   /** Set when the Shaheen-MT tiebreak settled the line, e.g. `shaheen→claude-sonnet-4.5`. */
+   resolved_by?: string;
  }
 
 /**
@@ -494,25 +502,14 @@ type EnsembleLineResult = {
   literal: string;
   needs_review: boolean;
   winner_models: string[];
+  /**
+   * The candidates that actually produced text for this line. Retained so the
+   * Shaheen tiebreak can arbitrate *between* them instead of only filling
+   * blanks — without it, a disputed line's alternatives are gone by the time
+   * the arbiter's rendering arrives.
+   */
+  candidates: ArbiterCandidate[];
 };
-
-function _normalizeForCompare(s: string): string {
-  return (s || '')
-    .toLowerCase()
-    .replace(/[.,!?;:'"()[\]{}…—–\-]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-function _jaccard(a: string, b: string): number {
-  const ta = new Set(_normalizeForCompare(a).split(' ').filter(Boolean));
-  const tb = new Set(_normalizeForCompare(b).split(' ').filter(Boolean));
-  if (ta.size === 0 && tb.size === 0) return 1;
-  if (ta.size === 0 || tb.size === 0) return 0;
-  let inter = 0;
-  for (const t of ta) if (tb.has(t)) inter++;
-  return inter / (ta.size + tb.size - inter);
-}
 
 /**
  * Merge candidate translations for ONE line using weighted clustering.
@@ -523,7 +520,7 @@ function mergeOneLine(
 ): EnsembleLineResult {
   const present = candidates.filter((c) => c.text && c.text.trim().length > 0);
   if (present.length === 0) {
-    return { translation: '', literal: '', needs_review: true, winner_models: [] };
+    return { translation: '', literal: '', needs_review: true, winner_models: [], candidates: [] };
   }
   if (present.length === 1) {
     return {
@@ -531,6 +528,7 @@ function mergeOneLine(
       literal: (present[0].literal ?? '').trim(),
       needs_review: present[0].weight < 1.0, // a single low-weight verifier is uncertain
       winner_models: [present[0].name],
+      candidates: present,
     };
   }
 
@@ -540,7 +538,7 @@ function mergeOneLine(
     let added = false;
     for (const cluster of clusters) {
       const repr = cluster.members[0].text;
-      if (_jaccard(repr, cand.text) >= 0.6) {
+      if (jaccard(repr, cand.text) >= 0.6) {
         cluster.members.push(cand);
         cluster.weight += cand.weight;
         added = true;
@@ -568,6 +566,7 @@ function mergeOneLine(
       literal: (winner.literal ?? '').trim(),
       needs_review: false,
       winner_models: geminiClaudeCluster.members.map((m) => m.name),
+      candidates: present,
     };
   }
 
@@ -579,6 +578,7 @@ function mergeOneLine(
       literal: (winner.literal ?? '').trim(),
       needs_review: false,
       winner_models: top.members.map((m) => m.name),
+      candidates: present,
     };
   }
 
@@ -591,6 +591,7 @@ function mergeOneLine(
     literal: (fallback.literal ?? '').trim(),
     needs_review: true,
     winner_models: [fallback.name],
+    candidates: present,
   };
 }
 
@@ -1489,67 +1490,14 @@ type MetaAI = {
 // Adds short vowels (tashkeel) to unvoweled Arabic text via the QCRI Farasa
 // REST API. The diacritized output is included in the response for downstream
 // ElevenLabs TTS calls, which produce more accurate pronunciation with tashkeel.
-async function callFarasaDiacritize(text: string): Promise<string | null> {
-  // Try multiple Farasa endpoint URL patterns and content-types.
-  // The API has historically moved between paths and accepts both JSON and form-urlencoded.
-  // diacritizeV2 is the newest endpoint and doesn't require an API key.
-  const farasaApiKey = Deno.env.get('FARASA_API_KEY') ?? '';
-
-  // Each entry: [url, contentType]
-  const attempts: [string, 'json' | 'form'][] = [
-    ['https://farasa-api.qcri.org/msa/webapi/diacritizeV2/', 'json'],
-    ['https://farasa.qcri.org/webapi/diacritize/', 'json'],
-    ['https://farasa.qcri.org/webapi/diacritize/', 'form'],
-    ['https://farasa-api.qcri.org/webapi/diacritize/', 'json'],
-    ['https://farasa.qcri.org/webapi/seq2seq_diacritize/', 'json'],
-  ];
-
-  for (const [url, contentType] of attempts) {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15_000);
-    try {
-      let headers: Record<string, string>;
-      let body: string;
-      if (contentType === 'json') {
-        const jsonBody: Record<string, string> = { text };
-        if (farasaApiKey) jsonBody.api_key = farasaApiKey;
-        headers = { 'Content-Type': 'application/json' };
-        body = JSON.stringify(jsonBody);
-      } else {
-        const params: Record<string, string> = { text };
-        if (farasaApiKey) params.api_key = farasaApiKey;
-        headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
-        body = new URLSearchParams(params).toString();
-      }
-      const resp = await fetch(url, {
-        method: 'POST',
-        signal: controller.signal,
-        headers,
-        body,
-      });
-      if (resp.status === 404 || resp.status === 400) {
-        const errText = await resp.text().catch(() => '');
-        console.warn(`Farasa diac: HTTP ${resp.status} at ${url} [${contentType}] — ${errText.slice(0, 100)}`);
-        continue;
-      }
-      if (!resp.ok) {
-        const errText = await resp.text().catch(() => '');
-        console.warn(`Farasa diac: HTTP ${resp.status} at ${url} [${contentType}] — ${errText.slice(0, 100)}`);
-        continue;
-      }
-      const data = await resp.json();
-      console.log(`Farasa diac: success via ${url} [${contentType}]`);
-      return (data.text ?? data.output ?? null) as string | null;
-    } catch (e) {
-      console.warn(`Farasa diacritize failed at ${url} [${contentType}]:`, e instanceof Error ? e.message : String(e));
-      continue;
-    } finally {
-      clearTimeout(timeout);
-    }
-  }
-
-  console.warn('Farasa diacritize: all URLs exhausted');
-  return null;
+//
+// The endpoint cascade and failure classification live in _shared/farasa.ts —
+// this pipeline and the `farasa` edge function used to carry divergent copies
+// of both, and the copy here silently dropped responses that used the `result`
+// field. The outcome is returned whole rather than reduced to `string | null`
+// so `engines_used.diacritization` can say *why* a run has no tashkeel.
+async function callFarasaDiacritize(text: string): Promise<FarasaOutcome> {
+  return await callFarasa('diac', text, { timeoutMs: 15_000 });
 }
 
 // Fallback: use Qwen + Gemini via OpenRouter for translation when needed
@@ -1895,7 +1843,7 @@ serve(async (req) => {
      const arabicOnlyText = mergedLines.map(l => l.arabic).join('\n');
      const hfApiKey = Deno.env.get('HUGGINGFACE_API_KEY') ?? '';
 
-      const [translationEnsembleResult, analysisResp, fanarMetaResp, fanarValidResp, camelOutcome, diacritizedTranscript] = await Promise.all([
+      const [translationEnsembleResult, analysisResp, fanarMetaResp, fanarValidResp, camelOutcome, diacOutcome] = await Promise.all([
         // TRANSLATION ENSEMBLE — Claude Sonnet 4.5 (1.0) + Gemini 3.5 Flash (1.0)
         // as co-equal peers, Qwen3-Max (0.5) as lower-weight verifier. Model
         // IDs are sourced from _shared/modelRegistry.ts (MODEL_LINEUPS.TRANSLATION)
@@ -1997,15 +1945,18 @@ serve(async (req) => {
          console.warn('CAMeL dialect call failed (non-blocking):', e);
          return { ok: false, reason: 'network_error' } as CamelOutcome;
        }),
-       // Farasa diacritize
+       // Farasa diacritize. Like CAMeL, a failure carries its reason instead of
+       // collapsing to null — "no tashkeel this run" needs to name whether the
+       // service was unreachable or the API key was rejected.
        callFarasaDiacritize(arabicOnlyText).catch((e) => {
          console.warn('Farasa diacritize failed (non-blocking):', e);
-         return null;
+         return { ok: false, reason: 'all_endpoints_failed', attempts: [] } as FarasaOutcome;
        }),
      ]);
 
      const camelDialectResult: CamelPrediction | null = camelOutcome.ok ? camelOutcome.result : null;
      const camelError: CamelFailureReason | null = camelOutcome.ok ? null : camelOutcome.reason;
+     const diacritizedTranscript: string | null = diacOutcome.ok ? diacOutcome.text : null;
 
      // --- Log CAMeL dialect result vs LLM-detected dialect ---
      if (camelDialectResult) {
@@ -2022,6 +1973,13 @@ serve(async (req) => {
      }
      if (diacritizedTranscript) {
        console.log(`Farasa diacritize: ${diacritizedTranscript.length} chars of tashkeel-annotated Arabic`);
+     } else if (!diacOutcome.ok) {
+       console.warn(
+         `Farasa diacritize: unavailable (${diacOutcome.reason})` +
+           (diacOutcome.reason === 'invalid_api_key'
+             ? ' — set FARASA_API_KEY (register at farasa.qcri.org); lines keep the LLM-supplied tashkeel only'
+             : ''),
+       );
      }
 
      // --- Parse Fanar dialect validation — accept JSON or raw text, never throw ---
@@ -2064,10 +2022,20 @@ serve(async (req) => {
       // ── SHAHEEN-MT TIEBREAK ──────────────────────────────────────────────
       // Only for lines the ensemble couldn't settle (needs_review) or left
       // empty: get a reference translation from Fanar-Shaheen-MT-1, the only
-      // Arabic-native dedicated MT model in the stack. Empty translations are
-      // filled from it; disputed-but-filled lines keep the ensemble's text and
-      // carry Shaheen's as `altTranslation` for the admin review UI.
+      // Arabic-native dedicated MT model in the stack. It is used two ways:
+      //
+      //   fill     — the line has no translation at all; Shaheen's becomes it.
+      //   arbitrate — the line has competing candidates and no winner; whichever
+      //               candidate Shaheen's rendering clearly backs wins, and the
+      //               line comes off the review queue.
+      //
+      // Arbitration is what makes this a tiebreak. Without it the call was made,
+      // the answer was received, and every disputed line stayed disputed with
+      // Shaheen's text parked in `altTranslation` — which is why audits kept
+      // reporting "tiebreak fired, filled 0".
       const shaheenByLine: (string | null)[] = new Array(mergedLines.length).fill(null);
+      /** Model name Shaheen's arbitration settled each line on, where it did. */
+      const shaheenResolvedBy: (string | null)[] = new Array(mergedLines.length).fill(null);
       const disputedIdx = ensembleMerge.lines
         .map((l, i) => (l.needs_review || !l.translation) ? i : -1)
         .filter((i) => i >= 0);
@@ -2081,14 +2049,19 @@ serve(async (req) => {
         succeeded: boolean;
         called: boolean;
         disputed_lines: number;
+        /** Empty lines that Shaheen supplied a translation for. */
         filled: number;
+        /** Disputed lines Shaheen settled in favour of an ensemble candidate. */
+        resolved: number;
+        /** Disputed lines it saw but could not settle either way. */
+        unresolved: number;
         skip_reason?: ShaheenSkipReason;
         http_status?: number;
         budget_used?: number;
         per_line_fallback?: boolean;
       } = {
         attempted: false, succeeded: false, called: false,
-        disputed_lines: disputedIdx.length, filled: 0,
+        disputed_lines: disputedIdx.length, filled: 0, resolved: 0, unresolved: 0,
       };
       if (!fanarLlmAvailable) {
         shaheenProvenance.skip_reason = 'no_api_key';
@@ -2110,12 +2083,48 @@ serve(async (req) => {
             const t = shaheenOut.translations![k];
             if (t) shaheenByLine[lineIdx] = t;
           });
-          shaheenProvenance.filled = disputedIdx.filter(
-            (i) => !dedicatedTranslations[i] && shaheenByLine[i],
-          ).length;
+
+          for (const i of disputedIdx) {
+            const arbiterText = shaheenByLine[i];
+            if (!arbiterText) continue;
+            if (!dedicatedTranslations[i]) {
+              shaheenProvenance.filled++;
+              continue;
+            }
+            if (!ensembleNeedsReview[i]) continue;
+
+            const verdict = arbitrateDispute(arbiterText, ensembleMerge.lines[i].candidates);
+            if (!verdict.winner) {
+              shaheenProvenance.unresolved++;
+              console.log(
+                `Shaheen-MT arbitration line ${i + 1}: undecided ` +
+                  `(${verdict.reason}, best=${verdict.score.toFixed(2)}, margin=${verdict.margin.toFixed(2)})`,
+              );
+              continue;
+            }
+            // The arbiter backs one candidate — adopt it and clear the flag.
+            // Its own rendering still rides along as `altTranslation` so a
+            // reviewer can see what settled the line.
+            dedicatedTranslations[i] = verdict.winner.text.trim();
+            if (verdict.winner.literal) dedicatedLiterals[i] = verdict.winner.literal.trim();
+            ensembleNeedsReview[i] = false;
+            shaheenResolvedBy[i] = verdict.winner.name;
+            shaheenProvenance.resolved++;
+            console.log(
+              `Shaheen-MT arbitration line ${i + 1}: resolved to ${verdict.winner.name} ` +
+                `(score=${verdict.score.toFixed(2)}, margin=${verdict.margin.toFixed(2)})`,
+            );
+          }
+
+          // The merge's own needs_review tally is pre-arbitration; recount so
+          // engines_used and the review queue can't disagree about how many
+          // lines are actually still open.
+          ensembleMerge.agreements.needs_review = ensembleNeedsReview.filter(Boolean).length;
+
           console.log(
-            `Shaheen-MT tiebreak: ${disputedIdx.length} disputed lines, ` +
-              `${shaheenProvenance.filled} empty translations filled`,
+            `Shaheen-MT tiebreak: ${disputedIdx.length} disputed lines → ` +
+              `${shaheenProvenance.filled} filled, ${shaheenProvenance.resolved} resolved, ` +
+              `${shaheenProvenance.unresolved} still disputed`,
           );
         } else {
           console.warn(
@@ -2202,8 +2211,29 @@ serve(async (req) => {
         (l, i) => l !== mergedLines[i].arabic,
       ).length;
       console.log(
-        `Diacritization overlay: ${diacritizedLineCount}/${mergedLines.length} lines updated with tashkeel`,
+        `Diacritization overlay: ${diacritizedLineCount}/${mergedLines.length} lines updated with tashkeel` +
+          (diacOutcome.ok ? '' : ` (Farasa unavailable: ${diacOutcome.reason})`),
       );
+
+      // Provenance for engines_used.diacritization. Without this, a run with no
+      // tashkeel showed up nowhere in the stored record — the reason existed
+      // only in the function logs, which is where the last three audits had to
+      // go looking for it.
+      const diacritizationProvenance = {
+        provider: 'farasa',
+        ok: diacOutcome.ok,
+        lines_total: mergedLines.length,
+        lines_diacritized: diacritizedLineCount,
+        ...(diacOutcome.ok
+          ? { chars: diacOutcome.text.length, endpoint: diacOutcome.url }
+          : {
+              reason: diacOutcome.reason,
+              endpoints_tried: diacOutcome.attempts.length,
+              ...(diacOutcome.reason === 'invalid_api_key'
+                ? { config_hint: 'set FARASA_API_KEY — register at farasa.qcri.org' }
+                : {}),
+            }),
+      };
       const finalLines = mergedLines.map((mergedLine, i) => {
         const ensembleTranslation = dedicatedTranslations[i] || call2Lines[i]?.translation || '';
         const needsReview = ensembleNeedsReview[i] ?? false;
@@ -2225,11 +2255,13 @@ serve(async (req) => {
           literal: dedicatedLiterals[i] || '',
           needs_review: needsReview,
           ...(reviewReason ? { review_reason: reviewReason } : {}),
-          // Disputed lines that already have a translation carry Shaheen's
-          // Arabic-native rendering as an alternative for the review UI.
-          ...(ensembleTranslation && needsReview && shaheenByLine[i]
+          // Shaheen's own rendering rides along on any line it had an opinion
+          // about — still-disputed ones so a reviewer has an alternative, and
+          // arbitrated ones so they can see what settled it.
+          ...(ensembleTranslation && shaheenByLine[i] && (needsReview || shaheenResolvedBy[i])
             ? { altTranslation: shaheenByLine[i]! }
             : {}),
+          ...(shaheenResolvedBy[i] ? { resolved_by: `shaheen→${shaheenResolvedBy[i]}` } : {}),
         };
       });
 
@@ -2367,6 +2399,7 @@ serve(async (req) => {
           needs_review: Boolean(l.needs_review),
           ...(l.review_reason ? { review_reason: l.review_reason } : {}),
           ...(l.altTranslation ? { altTranslation: String(l.altTranslation).trim() } : {}),
+          ...(l.resolved_by ? { resolved_by: l.resolved_by } : {}),
           tokens: toWordTokens(String(l.arabic ?? '').trim(), vocab, allWordGlosses),
         })),
        vocabulary: vocab,
@@ -2494,6 +2527,11 @@ serve(async (req) => {
             camel: camelDialectResult ?? null,
             camel_agrees: camelAgrees,
             ...(camelError ? { camel_error: camelError } : {}),
+            // An unconfigured engine and a broken one both leave camel null;
+            // only one of them is fixed by setting a secret.
+            ...(camelError === 'no_api_key'
+              ? { camel_config_hint: 'set HUGGINGFACE_API_KEY to enable morphological dialect ID' }
+              : {}),
             ...(validationIssues
               ? {
                   validation_issue_count: validationIssues.length,
@@ -2508,6 +2546,7 @@ serve(async (req) => {
           let mergedEnginesUsed: Record<string, unknown> = {
             translation: translationProvenance,
             dialect_signals: dialectSignals,
+            diacritization: diacritizationProvenance,
           };
           try {
             const { data: existingRow } = await svc
@@ -2518,7 +2557,12 @@ serve(async (req) => {
             const existing = (existingRow?.engines_used && typeof existingRow.engines_used === 'object')
               ? existingRow.engines_used as Record<string, unknown>
               : {};
-            mergedEnginesUsed = { ...existing, translation: translationProvenance, dialect_signals: dialectSignals };
+            mergedEnginesUsed = {
+              ...existing,
+              translation: translationProvenance,
+              dialect_signals: dialectSignals,
+              diacritization: diacritizationProvenance,
+            };
           } catch (_) {
             // non-fatal — fall back to translation-only
           }

@@ -554,6 +554,77 @@ Repo lint errors: 596 → 552. All 362 tests pass.
 
 ---
 
+## UPDATE — 2026-08-06: the four defects the last run's audit surfaced
+
+An audit of one TikTok upload (Omani/Gulf, B2, 11 lines) found five of six ASR engines and
+all three translation models working, with four things still wrong. Three were code, one is
+configuration only.
+
+### 1. Munsit returned an empty transcription — **fixed**
+
+Munsit answered in 1.7s with HTTP 200 and a blank `data.transcription`. Root cause: every
+ASR leg named its multipart part `audio.mp3` with whatever content type storage reported,
+and TikTok/YouTube audio is MP4/AAC. Engines that sniff the bytes shrugged this off; Munsit
+dispatches on the file extension, so it handed an MP4 container to an MP3 decoder and
+returned nothing — indistinguishable downstream from a silent clip.
+
+- `asrUpload()` in `_shared/audioChunk.ts` now names the part after the container the bytes
+  actually are (`.m4a`, `.aac`, `.wav`, `.mp3`, `.webm`, `.ogg`), with a matching MIME type.
+- An empty 200 on the single-payload path is retried once as a raw ADTS stream, demuxed from
+  the MP4 without re-encoding.
+- An empty result is now reported as `error: "empty-transcription (container=…)"` rather
+  than a bare `ok:false, chars:0` — which is the same row a missing API key produces.
+- ADTS is now a first-class container: `isLikelyAdts` distinguishes it from MPEG audio by
+  the layer bits (they share the 11-bit sync word), and `planAsrPayloads` can chunk it.
+
+Only the Munsit leg was re-pointed at `asrUpload()`. The other five engines are working and
+were left alone deliberately.
+
+### 2. Shaheen-MT resolved disputes but filled none — **fixed**
+
+Not a bug in the call: the tiebreak fired, recovered 2/2 lines per-line after a batch
+`line_count_mismatch`, and then did nothing with the answer. `filled` only ever counted
+lines the ensemble had left *empty*; a disputed line that already had text kept the
+ensemble's wording, parked Shaheen's in `altTranslation`, and stayed flagged. A tiebreak
+that cannot break a tie is just an extra API call.
+
+`_shared/translationArbiter.ts` adds `arbitrateDispute()`: when Shaheen's rendering clearly
+backs one of the disputed candidates — token overlap ≥ 0.45 and ≥ 0.1 clear of the
+runner-up — that candidate wins, `needs_review` clears, and the line records
+`resolved_by: "shaheen→<model>"`. Ambiguous lines stay flagged; this narrows the review
+queue, it does not replace it. `engines_used.translation.shaheen` now reports `filled`,
+`resolved` and `unresolved` separately, and the `needs_review` tally is recounted after
+arbitration so the provenance and the queue cannot disagree.
+
+### 3. Farasa diacritization — **key still needed, but the failure is now legible**
+
+All four endpoints answered "invalid api key. please register at farasa.qcri.org", so 0/11
+lines got Farasa tashkeel. **This needs `FARASA_API_KEY` set — no code change can fix it.**
+Two real code problems were fixed alongside it:
+
+- A 200 response whose body used a field name the caller didn't know about returned `null`
+  *and stopped the cascade*, so the remaining endpoints were never tried. There were two
+  divergent copies of the caller, and only one of them read `result`.
+- Every failure collapsed to the same `null`. `_shared/farasa.ts` now classifies:
+  `invalid_api_key`, `all_endpoints_failed`, `timeout`, `empty_input`.
+
+`engines_used.diacritization` is new and records the reason plus a config hint; the admin
+video form shows it. Previously the reason existed only in the edge-function logs, which is
+where the last three audits had to go looking for it.
+
+### 4. CAMeL dialect ID — **configuration only**
+
+`no_api_key` is already reported correctly; the module needs `HUGGINGFACE_API_KEY`. Added a
+`camel_config_hint` to the stored dialect signals and surfaced it in the admin form so the
+distinction between "unconfigured" and "broken" is visible without reading logs.
+
+### Not defects
+
+Fanar's 11 low-severity dialect issues (MSA-leaning فضول/بخاخ/الأشياء/رش, Egyptian/Levantine
+بنطلون, English سيفتي/spray) are the validator doing its job — advisory, nothing blocking.
+
+---
+
 ## Sources
 
 - [Fanar OpenAPI spec (live, public)](https://api.fanar.qa/openapi.json) — authoritative model list and request schema

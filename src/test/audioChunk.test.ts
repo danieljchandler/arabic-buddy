@@ -1,13 +1,17 @@
 import { describe, it, expect } from "vitest";
 import {
+  asrUpload,
   chunkAdtsByDuration,
   chunkMp3ByDuration,
   chunkWavByDuration,
   containerLabel,
   extractAacFromMp4,
+  isLikelyAdts,
   isLikelyMp3,
   isLikelyMp4,
   isLikelyWav,
+  joinAdtsFrames,
+  parseAdtsTrack,
   parseWavHeader,
   planAsrPayloads,
 } from "../../supabase/functions/_shared/audioChunk";
@@ -433,5 +437,105 @@ describe("planAsrPayloads", () => {
 
   it("rejects empty audio", () => {
     expect(planAsrPayloads(new Uint8Array(0), "audio/mpeg", 1024).skipReason).toBe("empty-audio");
+  });
+
+  it("chunks a raw ADTS stream", () => {
+    const plan = planAsrPayloads(makeAdts(64, 256), "audio/aac", 1024, 1);
+    expect(plan.strategy).toBe("adts-chunks");
+    expect(plan.skipReason).toBeUndefined();
+    expect(plan.chunks.length).toBeGreaterThan(1);
+  });
+});
+
+// ── ADTS ─────────────────────────────────────────────────────────────────────
+
+/** AAC-LC, 16 kHz, mono — the same configuration `makeMp4` demuxes to. */
+function makeAdts(frameCount: number, payloadSize = 32): Uint8Array {
+  const frames: Uint8Array[] = [];
+  for (let i = 0; i < frameCount; i++) {
+    const total = 7 + payloadSize;
+    const f = new Uint8Array(total);
+    f[0] = 0xff;
+    f[1] = 0xf1;                                  // MPEG-4, Layer 0, no CRC
+    f[2] = ((2 - 1) << 6) | (8 << 2) | 0;         // AAC-LC, freqIndex 8, channels>>2
+    f[3] = (1 << 6) | ((total >> 11) & 0x03);     // 1 channel
+    f[4] = (total >> 3) & 0xff;
+    f[5] = ((total & 0x07) << 5) | 0x1f;
+    f[6] = 0xfc;
+    for (let k = 7; k < total; k++) f[k] = (i + k) & 0xff;
+    frames.push(f);
+  }
+  return concat(frames);
+}
+
+describe("ADTS detection and parsing", () => {
+  it("tells ADTS apart from MPEG audio by the layer bits", () => {
+    expect(isLikelyAdts(makeAdts(2))).toBe(true);
+    // An MP3 frame shares the 11-bit sync word but sets Layer III.
+    expect(isLikelyAdts(makeMp3(2))).toBe(false);
+    expect(isLikelyAdts(makeWav(10))).toBe(false);
+  });
+
+  it("labels ADTS as itself even when announced as audio/mpeg", () => {
+    // Demuxed AAC used to sniff as MP3 and get handed to the MP3 chunker.
+    expect(containerLabel(makeAdts(4), "audio/mpeg")).toBe("adts");
+  });
+
+  it("walks frames with their durations", () => {
+    const track = parseAdtsTrack(makeAdts(10, 32))!;
+    expect(track.frames).toHaveLength(10);
+    expect(track.sampleRate).toBe(16000);
+    expect(track.channels).toBe(1);
+    for (const d of track.durations) expect(d).toBeCloseTo(1024 / 16000, 6);
+  });
+
+  it("returns null for bytes that are not an ADTS stream", () => {
+    expect(parseAdtsTrack(makeWav(10))).toBeNull();
+    expect(parseAdtsTrack(new Uint8Array(64))).toBeNull();
+  });
+
+  it("round-trips: an MP4's AAC track joins and re-parses to the same frames", () => {
+    const demuxed = extractAacFromMp4(makeMp4(12, 48))!;
+    const reparsed = parseAdtsTrack(joinAdtsFrames(demuxed))!;
+    expect(reparsed.frames).toHaveLength(demuxed.frames.length);
+    expect(reparsed.sampleRate).toBe(demuxed.sampleRate);
+    expect(reparsed.channels).toBe(demuxed.channels);
+  });
+});
+
+// ── Upload naming ────────────────────────────────────────────────────────────
+
+describe("asrUpload", () => {
+  it("names each container after what the bytes actually are", () => {
+    expect(asrUpload(makeMp3(2))).toMatchObject({ filename: "audio.mp3", mimeType: "audio/mpeg" });
+    expect(asrUpload(makeWav(10))).toMatchObject({ filename: "audio.wav", mimeType: "audio/wav" });
+    expect(asrUpload(makeMp4(2))).toMatchObject({ filename: "audio.m4a", mimeType: "audio/mp4" });
+    expect(asrUpload(makeAdts(2))).toMatchObject({ filename: "audio.aac", mimeType: "audio/aac" });
+  });
+
+  it("ignores a content type that contradicts the bytes", () => {
+    // This is the Munsit failure: MP4 audio announced (and named) as MP3, which
+    // Munsit answered with 200 and an empty transcription.
+    const upload = asrUpload(makeMp4(2), "audio/mpeg");
+    expect(upload.filename).toBe("audio.m4a");
+    expect(upload.mimeType).toBe("audio/mp4");
+    expect(upload.container).toBe("mp4");
+  });
+
+  it("falls back to the declared type for containers it cannot identify", () => {
+    const upload = asrUpload(new Uint8Array([1, 2, 3]), "audio/x-weird; codecs=zzz");
+    expect(upload.filename).toBe("audio.bin");
+    expect(upload.mimeType).toBe("audio/x-weird");
+  });
+
+  it("falls back to octet-stream when nothing is declared either", () => {
+    expect(asrUpload(new Uint8Array([1, 2, 3]))).toMatchObject({
+      filename: "audio.bin",
+      mimeType: "application/octet-stream",
+    });
+  });
+
+  it("honours a custom stem", () => {
+    expect(asrUpload(makeMp3(2), undefined, "chunk-3").filename).toBe("chunk-3.mp3");
   });
 });

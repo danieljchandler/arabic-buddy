@@ -25,8 +25,18 @@
    * produced a translation. These want different attention in review.
    */
   review_reason?: 'ensemble_disagreement' | 'call2_fallback' | 'empty';
-  /** Fanar-Shaheen-MT alternative rendering — present only on lines the translation ensemble disputed. */
+  /**
+   * Fanar-Shaheen-MT alternative rendering. Present on lines the ensemble
+   * disputed, and on lines Shaheen's arbitration settled — there it is the
+   * evidence for the choice rather than a competing option.
+   */
   altTranslation?: string;
+  /**
+   * Set when a disputed line was settled by the Shaheen-MT tiebreak rather than
+   * by the ensemble itself, e.g. `shaheen→claude-sonnet-4.5`. Such a line has
+   * `needs_review` false but did not reach a clean ensemble majority.
+   */
+  resolved_by?: string;
  };
  
 export type VocabItem = {

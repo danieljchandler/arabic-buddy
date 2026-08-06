@@ -18,6 +18,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { asrUpload } from "../_shared/audioChunk.ts";
 
 
 const MUNSIT_BASE = "https://api.munsit.com/api/v1";
@@ -71,8 +72,13 @@ serve(async (req) => {
       );
     }
 
+    // Munsit dispatches on the file extension, so the part has to be named for
+    // the container the bytes actually are — a hardcoded `audio.mp3` around
+    // MP4/AAC audio comes back 200 with an empty transcription.
+    const payload = new Uint8Array(await fileBlob.arrayBuffer());
+    const upload = asrUpload(payload, fileBlob.type);
     const fd = new FormData();
-    fd.append("file", new File([fileBlob], "audio.mp3", { type: fileBlob.type || "audio/mpeg" }));
+    fd.append("file", new File([payload], upload.filename, { type: upload.mimeType }));
     fd.append("model", model);
 
     const resp = await fetch(`${MUNSIT_BASE}/audio/transcribe`, {

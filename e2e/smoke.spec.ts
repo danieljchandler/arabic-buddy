@@ -6,7 +6,7 @@ test.describe("signed out", () => {
     await stubSupabase(page);
     await page.goto("/");
 
-    await expect(page.getByRole("heading", { name: /learn real spoken arabic/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /real spoken arabic/i })).toBeVisible();
     await expect(page.getByRole("button", { name: /join the beta/i })).toBeVisible();
   });
 

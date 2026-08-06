@@ -13,6 +13,7 @@ export { VocabularyCard, type VocabularyWord } from './VocabularyCard';
 // Layout
 export { SectionFrame } from './SectionFrame';
 export { SaduBanner } from './SaduBanner';
+export { CaravanMedallion, type CaravanMedallionProps } from '@/components/landing/CaravanMedallion';
 
 // Typography
 export { SectionHeader } from './SectionHeader';

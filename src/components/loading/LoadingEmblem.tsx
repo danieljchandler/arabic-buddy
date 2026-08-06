@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { type CSSProperties } from "react";
 import { cn } from "@/lib/utils";
-import { useReducedMotion } from "@/lib/uiPrefs";
+import { useLoopingVideo } from "@/hooks/useLoopingVideo";
 
 /**
  * LoadingEmblem — the looping dallah-and-finjan mark shown during long waits.
@@ -44,34 +44,7 @@ export interface LoadingEmblemProps {
 }
 
 export function LoadingEmblem({ size = "md", className }: LoadingEmblemProps) {
-  const reduced = useReducedMotion();
-  const [failed, setFailed] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
-
-  // Reduced motion skips the video entirely rather than pausing it — no decode
-  // cost, no download. The poster is the same artwork, held still.
-  const still = reduced || failed;
-
-  useEffect(() => {
-    if (still) return;
-    const el = videoRef.current;
-    if (!el) return;
-
-    // `muted` has to be set as a real DOM property, not just the JSX attribute,
-    // or Safari's autoplay policy rejects the play(). autoPlay alone is also
-    // unreliable when the element mounts inside a conditional subtree.
-    el.muted = true;
-    void el.play()?.catch(() => setFailed(true));
-
-    // Most browsers pause hidden video for us; Android WebView doesn't always,
-    // and an 8s loop decoding behind a background tab is real battery.
-    const onVisibility = () => {
-      if (document.hidden) el.pause();
-      else void el.play()?.catch(() => {});
-    };
-    document.addEventListener("visibilitychange", onVisibility);
-    return () => document.removeEventListener("visibilitychange", onVisibility);
-  }, [still]);
+  const { videoRef, still, onSourceError } = useLoopingVideo();
 
   return (
     <div
@@ -111,15 +84,11 @@ export function LoadingEmblem({ size = "md", className }: LoadingEmblemProps) {
             unsupported source is skipped without downloading it.
           */}
           <source src={EMBLEM_MP4} type='video/mp4; codecs="avc1.4D401E"' />
-          {/*
-            onError sits on the last candidate only — the browser walks the list
-            in order and this is the one that fires when nothing playable is
-            left. (A blocked autoplay is a rejected play(), handled above.)
-          */}
+          {/* onError sits on the last candidate only — see useLoopingVideo. */}
           <source
             src={EMBLEM_WEBM}
             type='video/webm; codecs="vp9"'
-            onError={() => setFailed(true)}
+            onError={onSourceError}
           />
         </video>
       )}

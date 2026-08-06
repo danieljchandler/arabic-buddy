@@ -610,7 +610,11 @@ function looksLikeMedia(url: string, contentType?: string): boolean {
   return /\.(mp3|mp4|m4a|wav|ogg|webm|mov|aac|flac)(\?|$)/i.test(url);
 }
 
-async function downloadAsBase64(url: string, referer?: string): Promise<{ base64: string; contentType: string; size: number } | null> {
+async function downloadAsBase64(
+  url: string,
+  referer?: string,
+  cookie?: string,
+): Promise<{ base64: string; contentType: string; size: number } | null> {
   try {
     console.log(`Downloading: ${url.substring(0, 120)}...`);
     const resp = await fetch(url, {
@@ -620,9 +624,14 @@ async function downloadAsBase64(url: string, referer?: string): Promise<{ base64
         'Accept': '*/*',
         'Accept-Language': 'en-US,en;q=0.9,ar;q=0.8',
         'Referer': referer || new URL(url).origin + '/',
+        // TikTok's CDN rejects requests without a byte range and without the
+        // session cookies handed out by the page request (403 Forbidden).
+        'Range': 'bytes=0-',
+        ...(cookie ? { Cookie: cookie } : {}),
       },
       signal: AbortSignal.timeout(120000),
     });
+
 
     if (!resp.ok) {
       console.error(`Download failed: ${resp.status} ${resp.statusText}`);

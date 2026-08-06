@@ -737,8 +737,13 @@ async function downloadTikTok(url: string): Promise<{ base64: string; contentTyp
     const uniqueUrls = [...new Set(videoUrls)];
     console.log(`Found ${uniqueUrls.length} TikTok video URL candidates`);
 
+    // Cookies handed out by the page request; the CDN 403s without them.
+    const cookie = (resolveResp.headers.getSetCookie?.() ?? [])
+      .map((c) => c.split(';')[0])
+      .join('; ');
+
     for (const videoUrl of uniqueUrls.slice(0, 5)) {
-      const data = await downloadAsBase64(videoUrl, 'https://www.tiktok.com/');
+      const data = await downloadAsBase64(videoUrl, finalUrl, cookie);
       if (data) {
         return {
           ...data,
@@ -747,8 +752,13 @@ async function downloadTikTok(url: string): Promise<{ base64: string; contentTyp
       }
     }
 
+    console.log('All TikTok CDN URLs failed, trying resolver mirrors...');
+    const mirror = await downloadTikTokViaMirror(videoId);
+    if (mirror) return mirror;
+
     console.log('All TikTok video URLs failed to download');
     return null;
+
   } catch (e) {
     console.error('TikTok download error:', e);
     return null;

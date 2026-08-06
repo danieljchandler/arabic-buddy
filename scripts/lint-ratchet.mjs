@@ -20,9 +20,9 @@ import { execFileSync } from "node:child_process";
 
 /**
  * Maximum tolerated ESLint errors. Only ever goes down.
- * Last lowered: 596 (follow-up to #218).
+ * Last lowered: 552 → 549, when process-approved-video's 36 `any`s were typed.
  */
-const BASELINE = 552;
+const BASELINE = 549;
 
 function runEslint() {
   try {

@@ -16,7 +16,13 @@
 // =============================================================================
 
 export interface AudioChunk {
-  bytes: Uint8Array;
+  /**
+   * `Uint8Array<ArrayBuffer>` rather than plain `Uint8Array`: the default type
+   * argument is `ArrayBufferLike`, which includes `SharedArrayBuffer` and so is
+   * not a `BlobPart`. Every chunk here is plain-buffer backed, and callers put
+   * these straight into a `File` for a multipart upload.
+   */
+  bytes: Uint8Array<ArrayBuffer>;
   /** Start of this chunk within the original audio, in seconds. */
   offsetSec: number;
   /** Duration of this chunk, in seconds. */
@@ -69,7 +75,7 @@ export function* iterMp3Frames(
   }
 }
 
-export function chunkMp3ByDuration(bytes: Uint8Array, targetSec: number): AudioChunk[] {
+export function chunkMp3ByDuration(bytes: Uint8Array<ArrayBuffer>, targetSec: number): AudioChunk[] {
   const chunks: AudioChunk[] = [];
   let chunkStart = -1;
   let chunkDurMs = 0;
@@ -171,7 +177,7 @@ function wavHeader(info: WavInfo, dataLength: number): Uint8Array {
  * Uncompressed samples can be cut anywhere on a block boundary, so this is just
  * a slice plus a fresh header.
  */
-export function chunkWavByDuration(bytes: Uint8Array, targetSec: number): AudioChunk[] {
+export function chunkWavByDuration(bytes: Uint8Array<ArrayBuffer>, targetSec: number): AudioChunk[] {
   const info = parseWavHeader(bytes);
   if (!info || targetSec <= 0) return [];
   const bytesPerSec = info.sampleRate * info.blockAlign;
@@ -504,7 +510,7 @@ export function parseAdtsTrack(bytes: Uint8Array): AacTrack | null {
 }
 
 /** Concatenate demuxed ADTS frames back into one continuous stream. */
-export function joinAdtsFrames(track: AacTrack): Uint8Array {
+export function joinAdtsFrames(track: AacTrack): Uint8Array<ArrayBuffer> {
   const total = track.frames.reduce((n, f) => n + f.length, 0);
   const out = new Uint8Array(total);
   let o = 0;
@@ -586,7 +592,7 @@ export function containerLabel(bytes: Uint8Array, contentType?: string): string 
  * reason rather than a silent skip.
  */
 export function planAsrPayloads(
-  bytes: Uint8Array,
+  bytes: Uint8Array<ArrayBuffer>,
   contentType: string | undefined,
   maxBytes: number,
   targetChunkSec = 60,

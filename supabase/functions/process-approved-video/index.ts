@@ -1,6 +1,6 @@
 // process-approved-video — v2: accept anon-key bearer + early logging
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { SONIOX_MODEL, buildSonioxContext, type AsrWord, type AsrLegResult } from "../_shared/asrConfig.ts";
 import {
@@ -22,6 +22,110 @@ const MUNSIT_MAX_BYTES = 9 * 1024 * 1024;
 
 function generateId(): string {
   return crypto.randomUUID().slice(0, 8);
+}
+
+// ── Shapes crossing the pipeline ──────────────────────────────────────────────
+// These are deliberately loose: every one of them arrives as decoded JSON from
+// a database row, an external API, or a sibling edge function, and the pipeline
+// reads a handful of fields while passing the rest through untouched. The index
+// signature is what makes "pass the rest through" type-safe — naming only the
+// fields we actually read keeps the checker useful where it matters without
+// pretending we know the full schema.
+
+type Json = Record<string, unknown>;
+
+/** A transcript line in flight, before it is persisted. */
+interface PipelineLine extends Json {
+  id?: string;
+  arabic?: string;
+  translation?: string;
+  tokens?: unknown;
+  startMs?: number;
+  endMs?: number;
+}
+
+/** One on-screen text segment from extract-visual-context. */
+interface OnScreenSegment extends Json {
+  text?: string;
+  translation?: string;
+  startSeconds?: number;
+  endSeconds?: number;
+  confidence?: string;
+}
+
+/** The `<id>.visual.json` blob stored beside a meme video. */
+interface VisualResult extends Json {
+  onScreenTextSegments?: OnScreenSegment[];
+  sceneContext?: string;
+  culturalContext?: string;
+}
+
+/** The `discover_videos` row this run is processing. */
+interface VideoRow extends Json {
+  source_url?: string | null;
+  dialect?: string | null;
+  title?: string | null;
+  title_arabic?: string | null;
+  is_meme?: boolean | null;
+  duration_seconds?: number | null;
+}
+
+/**
+ * Service-role Supabase client. Generated schema types aren't available to the
+ * Deno functions, so this is the untyped-`Database` client — table reads come
+ * back loosely typed and are narrowed at the point of use.
+ *
+ * Not `ReturnType<typeof createClient>`: that instantiates the schema generics
+ * from their *defaults* rather than from the call, which collapses every
+ * `.from(...).update(...)` argument to `never`.
+ */
+type Supabase = SupabaseClient;
+
+/** The body analyze-gulf-arabic returns when it answers before the gateway times out. */
+interface AnalyzeResponse {
+  success?: boolean;
+  result?: {
+    lines?: PipelineLine[];
+    vocabulary?: unknown[];
+    grammarPoints?: unknown[];
+    culturalContext?: string | null;
+    dialect?: string | null;
+    difficulty?: string | null;
+    title?: string | null;
+    titleArabic?: string | null;
+  };
+}
+
+/** The columns re-read from `discover_videos` after analyze-gulf-arabic runs. */
+interface RefreshedRow extends Json {
+  transcription_status?: string | null;
+  transcript_lines?: unknown;
+  cultural_context?: string | null;
+  title?: string | null;
+  title_arabic?: string | null;
+}
+
+/**
+ * Supabase's Edge Runtime exposes `waitUntil` for work that has to outlive the
+ * HTTP response. It is absent anywhere else this code might run, so it is
+ * looked up through a typed accessor rather than declared as a global — the
+ * optional call is the whole point.
+ */
+type EdgeRuntimeGlobal = { EdgeRuntime?: { waitUntil?(task: Promise<unknown>): void } };
+const edgeRuntime = () => (globalThis as unknown as EdgeRuntimeGlobal).EdgeRuntime;
+
+/** A word with timings, as returned by an ASR engine before normalisation. */
+interface RawAsrWord extends Json {
+  text?: string;
+  word?: string;
+  type?: string;
+  speaker_id?: string | number;
+  start?: number | string;
+  end?: number | string;
+  start_ms?: number;
+  end_ms?: number;
+  startMs?: number;
+  endMs?: number;
 }
 
 function stripArabicDiacritics(text: string): string {
@@ -55,7 +159,10 @@ function tokenizeOnScreenText(text: string) {
     .map((surface, index) => ({ id: `screen-tok-${generateId()}-${index}`, surface }));
 }
 
-function mergeOnScreenTextLines(rawLines: any[], onScreenSegments: any[]): any[] {
+function mergeOnScreenTextLines(
+  rawLines: PipelineLine[],
+  onScreenSegments: OnScreenSegment[],
+): PipelineLine[] {
   if (!Array.isArray(rawLines)) return [];
   if (!Array.isArray(onScreenSegments) || onScreenSegments.length === 0) return rawLines;
 
@@ -101,11 +208,13 @@ function mergeOnScreenTextLines(rawLines: any[], onScreenSegments: any[]): any[]
   return merged.sort((a, b) => Number(a?.startMs ?? 0) - Number(b?.startMs ?? 0));
 }
 
-function buildVisualContextText(visualResult: any): string | null {
+function buildVisualContextText(visualResult: VisualResult | null | undefined): string | null {
   if (!visualResult) return null;
-  const segs = Array.isArray(visualResult?.onScreenTextSegments) ? visualResult.onScreenTextSegments : [];
+  const segs: OnScreenSegment[] = Array.isArray(visualResult?.onScreenTextSegments)
+    ? visualResult.onScreenTextSegments
+    : [];
   const onScreenSummary = segs
-    .map((s: any) => `[${s.startSeconds}s-${s.endSeconds}s] ${s.text}${s.translation ? ` — ${s.translation}` : ""}`)
+    .map((s) => `[${s.startSeconds}s-${s.endSeconds}s] ${s.text}${s.translation ? ` — ${s.translation}` : ""}`)
     .join("\n");
   return [
     onScreenSummary ? `On-screen text:\n${onScreenSummary}` : "",
@@ -120,7 +229,10 @@ function combineContext(primary?: string | null, visual?: string | null): string
   return [...new Set(parts)].join("\n\n");
 }
 
-function buildMemeReviewContext(onScreenSegments: any[], visualContext?: string | null): string | null {
+function buildMemeReviewContext(
+  onScreenSegments: OnScreenSegment[],
+  visualContext?: string | null,
+): string | null {
   if (Array.isArray(onScreenSegments) && onScreenSegments.length > 0) return visualContext ?? null;
   return combineContext(
     visualContext ?? null,
@@ -176,8 +288,8 @@ function extractYouTubeVideoId(url: string): string | null {
 // (fired by the platform when the request connection closes) cannot abort it.
 async function runPipeline(
   videoId: string,
-  video: any,
-  supabase: any,
+  video: VideoRow,
+  supabase: Supabase,
   authHeader: string,
   projectUrl: string,
 ): Promise<void> {
@@ -343,7 +455,7 @@ async function runPipeline(
     // corpus — and runs on the ElevenLabs key the app already holds for TTS.
     const scribePromise: Promise<AsrLegResult> = (async () => {
       const ELEVENLABS_API_KEY = Deno.env.get("ELEVENLABS_API_KEY")?.trim();
-      if (!ELEVENLABS_API_KEY) { console.warn("[pipeline] Scribe: no API key"); return null; }
+      if (!ELEVENLABS_API_KEY) { console.warn("[pipeline] Scribe: no API key"); return { text: null, words: [], latencyMs: 0 }; }
 
       const t0 = Date.now();
       try {
@@ -364,10 +476,12 @@ async function runPipeline(
         const data = await resp.json();
         const text: string = data?.text ?? "";
         // Scribe emits spacing/audio-event entries alongside words — keep words only.
-        const words = (data?.words ?? [])
-          .filter((w: any) => (w.type ?? "word") === "word" && (w.text ?? "").trim())
-          .map((w: any) => ({
-            text: w.text, start: w.start, end: w.end,
+        const words: AsrWord[] = ((data?.words ?? []) as RawAsrWord[])
+          .filter((w) => (w.type ?? "word") === "word" && (w.text ?? "").trim())
+          .map((w) => ({
+            text: String(w.text ?? ""),
+            start: Number(w.start ?? 0),
+            end: Number(w.end ?? 0),
             ...(w.speaker_id ? { speaker: String(w.speaker_id) } : {}),
           }));
         const latencyMs = Date.now() - t0;
@@ -556,7 +670,14 @@ async function runPipeline(
         // shape (+ speaker when diarization returned one). Also average token
         // confidence — the merge step downstream can weight engines by it
         // instead of the char-length heuristic alone.
-        const tokens: any[] = Array.isArray(tData.tokens) ? tData.tokens : [];
+        interface SonioxToken {
+          text?: string;
+          start_ms?: number;
+          end_ms?: number;
+          speaker?: string | number | null;
+          confidence?: number;
+        }
+        const tokens: SonioxToken[] = Array.isArray(tData.tokens) ? tData.tokens : [];
         const words: AsrWord[] = [];
         let curr = "";
         let wStart = 0;
@@ -619,7 +740,9 @@ async function runPipeline(
       const t0 = Date.now();
 
       const callOnce = async (
-        payload: Uint8Array,
+        // Plain-buffer backed, so it can go straight into a File — see the
+        // note on AudioChunk.bytes.
+        payload: Uint8Array<ArrayBuffer>,
         label: string,
       ): Promise<{ text: string; words: AsrWord[] }> => {
         const fd = new FormData();
@@ -645,7 +768,7 @@ async function runPipeline(
         const attrs = body?.attributes ?? {};
         const text = ((body.transcription ?? body.text ?? raw.transcription ?? raw.text) as string | undefined) || "";
         const words: AsrWord[] = [];
-        const pushWord = (w: any) => {
+        const pushWord = (w: RawAsrWord | null | undefined) => {
           if (!w) return;
           const txt = (w.word ?? w.text ?? "").toString();
           if (!txt) return;
@@ -683,7 +806,7 @@ async function runPipeline(
       // container before believing it. Demuxing the AAC track out of an MP4 into
       // a raw ADTS stream is the one re-encode-free conversion available here.
       const retryAsAdts = async (
-        payload: Uint8Array,
+        payload: Uint8Array<ArrayBuffer>,
       ): Promise<{ text: string; words: AsrWord[] } | null> => {
         if (containerLabel(payload, audioContentType) !== "mp4") return null;
         const track = extractAacFromMp4(payload);
@@ -806,7 +929,7 @@ async function runPipeline(
         const data = await resp.json();
         const text =
           (data.combinedPhrases?.[0]?.text as string | undefined) ??
-          ((data.phrases ?? []).map((p: any) => p.text).filter(Boolean).join(" ") as string) ??
+          (((data.phrases ?? []) as { text?: string }[]).map((p) => p.text).filter(Boolean).join(" ") as string) ??
           "";
         const latencyMs = Date.now() - t0;
         console.log(`[pipeline] Azure (${locale}): ${text.length} chars, ${latencyMs}ms`);
@@ -854,16 +977,17 @@ async function runPipeline(
     // whose Arabic word boundaries were never trusted for alignment) it is a
     // top-ranked Arabic/code-switching engine with usable word timings.
     type EngineName = "Munsit" | "Soniox" | "Scribe" | "Cohere" | "Fanar" | "Azure";
-    const arabicCandidates: Array<{ name: EngineName; text: string; words: any[] }> = [
+    type ArabicCandidate = { name: EngineName; text: string; words: AsrWord[] };
+    const arabicCandidates: ArabicCandidate[] = ([
       { name: "Munsit", text: munsitText, words: munsitResult?.words ?? [] },
       { name: "Soniox", text: sonioxText, words: sonioxResult?.words ?? [] },
       { name: "Scribe", text: scribeText, words: scribeResult?.words ?? [] },
       { name: "Cohere", text: cohereText, words: [] }, // Cohere returns text only
       { name: "Fanar",  text: fanarText,  words: [] }, // Fanar has no word timings
-    ].filter(c => (c.text || "").trim().length > 0);
+    ] as ArabicCandidate[]).filter(c => (c.text || "").trim().length > 0);
 
     const PRIORITY: EngineName[] = ["Munsit", "Soniox", "Scribe", "Cohere", "Fanar", "Azure"];
-    function pickPrimary(): { name: EngineName; text: string; words: any[] } {
+    function pickPrimary(): { name: EngineName; text: string; words: AsrWord[] } {
       if (arabicCandidates.length === 0) {
         // Nothing Arabic-aware produced text — Azure is all that's left.
         return { name: "Azure", text: azureText, words: [] };
@@ -968,7 +1092,7 @@ async function runPipeline(
     // (frames -> extract-visual-context -> stored as <id>.visual.json).
     let visualContextSummary: string | null = null;
     let visualCulturalContext: string | null = null;
-    let onScreenTextLines: any[] = [];
+    let onScreenTextLines: OnScreenSegment[] = [];
     let visualContextLoaded = false;
     if (video.is_meme) {
       try {
@@ -978,12 +1102,14 @@ async function runPipeline(
         if (visualBlob) {
           visualContextLoaded = true;
           const visualText = await visualBlob.text();
-          const visualResult = JSON.parse(visualText);
-          const segs = Array.isArray(visualResult?.onScreenTextSegments) ? visualResult.onScreenTextSegments : [];
+          const visualResult = JSON.parse(visualText) as VisualResult;
+          const segs: OnScreenSegment[] = Array.isArray(visualResult?.onScreenTextSegments)
+            ? visualResult.onScreenTextSegments
+            : [];
           onScreenTextLines = segs;
           visualCulturalContext = buildVisualContextText(visualResult);
           if (segs.length > 0) {
-            const onScreenSummary = segs.map((s: any) => `[${s.startSeconds}s-${s.endSeconds}s] ${s.text}${s.translation ? ` (${s.translation})` : ""}`).join("\n");
+            const onScreenSummary = segs.map((s) => `[${s.startSeconds}s-${s.endSeconds}s] ${s.text}${s.translation ? ` (${s.translation})` : ""}`).join("\n");
             visualContextSummary = `MEME — on-screen text segments:\n${onScreenSummary}\n\nScene: ${visualResult?.sceneContext ?? ""}`.trim();
             console.log(`[pipeline] Meme: ${segs.length} on-screen text segments loaded`);
           } else {
@@ -1036,7 +1162,7 @@ async function runPipeline(
 
     // Fire the analysis — it saves results directly to DB via videoId.
     // We still try to read the response, but a 504 is non-fatal now.
-    let analyzeData: any = null;
+    let analyzeData: AnalyzeResponse | null = null;
     try {
       const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
       const internalAuth = serviceRoleKey ? `Bearer ${serviceRoleKey}` : authHeader;
@@ -1076,13 +1202,13 @@ async function runPipeline(
     // source available and proportionally allocate to each line by character
     // length. This keeps line audio in roughly the right place even when the
     // merged text and the timestamped ASR diverge.
-    const alignLinesToAudio = (rawLines: any[]): any[] => {
+    const alignLinesToAudio = (rawLines: PipelineLine[]): PipelineLine[] => {
       if (!Array.isArray(rawLines) || rawLines.length === 0) return rawLines;
 
       // Total audio duration in ms — the most reliable upper bound.
       const audioDurationMs =
         ((downloadDuration && downloadDuration > 0 ? downloadDuration : 0) * 1000) ||
-        (((video as any).duration_seconds && (video as any).duration_seconds > 0 ? (video as any).duration_seconds : 0) * 1000) ||
+        ((video.duration_seconds && video.duration_seconds > 0 ? video.duration_seconds : 0) * 1000) ||
         0;
 
       // Scan all alignment words for true min start / max end. Some ASRs
@@ -1092,8 +1218,8 @@ async function runPipeline(
       let spanStartMs = Number.POSITIVE_INFINITY;
       let spanEndMs = 0;
       for (const w of relativeWords) {
-        const s = Number((w as any)?.start ?? 0) * 1000;
-        const e = Number((w as any)?.end ?? 0) * 1000;
+        const s = Number(w?.start ?? 0) * 1000;
+        const e = Number(w?.end ?? 0) * 1000;
         if (s > 0 && s < spanStartMs) spanStartMs = s;
         if (e > spanEndMs) spanEndMs = e;
         if (s > spanEndMs) spanEndMs = s; // start-only tokens still extend span
@@ -1115,14 +1241,14 @@ async function runPipeline(
 
       const totalSpan = Math.max(1, spanEndMs - spanStartMs);
 
-      const lens = rawLines.map((l: any) => {
+      const lens = rawLines.map((l) => {
         const txt = String(l?.arabic ?? "").replace(/\s+/g, "");
         return Math.max(1, txt.length);
       });
       const totalLen = lens.reduce((a, b) => a + b, 0);
 
       let cursor = spanStartMs;
-      return rawLines.map((line: any, i: number) => {
+      return rawLines.map((line, i) => {
         const share = (lens[i] / totalLen) * totalSpan;
         const startMs = Math.round(cursor);
         const endMs = Math.round(cursor + share);
@@ -1135,7 +1261,7 @@ async function runPipeline(
       console.log("[pipeline] Results persisted directly by analyze-gulf-arabic");
 
       const lines = mergeOnScreenTextLines(
-        alignLinesToAudio((refreshed.transcript_lines as any[]) || []),
+        alignLinesToAudio((refreshed.transcript_lines as PipelineLine[]) || []),
         onScreenTextLines,
       );
 
@@ -1156,8 +1282,12 @@ async function runPipeline(
       }).eq("id", videoId);
 
       if (finalErr) throw new Error(`Failed to finalize results: ${finalErr.message}`);
-    } else if (analyzeData?.success) {
-      // Fallback: HTTP response arrived before gateway timeout
+    } else if (analyzeData?.success && analyzeData.result) {
+      // Fallback: HTTP response arrived before gateway timeout.
+      // `result` is required here, not just `success`: a success envelope with
+      // no payload used to walk straight into `result.lines` and throw. Falling
+      // through to the polling branch instead is what we'd want anyway — the
+      // analysis may still be writing directly to the row.
       const result = analyzeData.result;
 
       const lines = mergeOnScreenTextLines(
@@ -1165,7 +1295,7 @@ async function runPipeline(
         onScreenTextLines,
       );
 
-      const sanitizedLines = lines.map((line: any) => ({
+      const sanitizedLines = lines.map((line) => ({
         ...line,
         tokens: Array.isArray(line.tokens) ? line.tokens
           : String(line.arabic ?? "").split(/\s+/).filter(Boolean)
@@ -1180,7 +1310,7 @@ async function runPipeline(
       // Auto-generate a concise title via Lovable AI if still missing/placeholder
       if (!title || title === "Untitled Video" || !titleArabic) {
         try {
-          const sampleLines = sanitizedLines.slice(0, 6).map((l: any) =>
+          const sampleLines = sanitizedLines.slice(0, 6).map((l) =>
             `${l.arabic ?? ""}${l.translation ? " — " + l.translation : ""}`
           ).join("\n");
           const lovableKey = Deno.env.get("LOVABLE_API_KEY");
@@ -1211,7 +1341,7 @@ async function runPipeline(
           console.warn("[pipeline] Auto title generation failed (non-fatal):", e);
         }
         // Deterministic fallback from first line
-        const first = sanitizedLines[0] as any;
+        const first = sanitizedLines[0];
         if ((!title || title === "Untitled Video") && first?.translation) title = String(first.translation).slice(0, 80);
         if (!titleArabic && first?.arabic) titleArabic = String(first.arabic).slice(0, 80);
       }
@@ -1244,7 +1374,7 @@ async function runPipeline(
       // Poll for up to 4 minutes (24 * 10s) so we catch that late-arriving write.
       console.log("[pipeline] No HTTP result — polling for late analyze-gulf-arabic persist (up to 4 min)...");
       let landed = false;
-      let retryFull: any = null;
+      let retryFull: RefreshedRow | null = null;
       for (let attempt = 0; attempt < 24; attempt++) {
         await new Promise(r => setTimeout(r, 10_000));
         const { data: retry } = await supabase.from("discover_videos")
@@ -1261,7 +1391,7 @@ async function runPipeline(
 
       if (landed && retryFull) {
         const retryLines = mergeOnScreenTextLines(
-          alignLinesToAudio((retryFull?.transcript_lines as any[]) || []),
+          alignLinesToAudio((retryFull?.transcript_lines as PipelineLine[]) || []),
           onScreenTextLines,
         );
 
@@ -1305,8 +1435,7 @@ async function runPipeline(
           }
         })
         .catch((e) => console.warn("[pipeline] auto-rate fetch error:", e instanceof Error ? e.message : String(e)));
-      // deno-lint-ignore no-explicit-any
-      (globalThis as any).EdgeRuntime?.waitUntil?.(ratePromise);
+      edgeRuntime()?.waitUntil?.(ratePromise);
     } catch (e) {
       console.warn("[pipeline] auto-rate dispatch error (non-fatal):", e);
     }
@@ -1374,7 +1503,7 @@ serve(async (req) => {
     console.log(`[handler] authenticated user ${user.id}`);
   }
 
-  let body: any = null;
+  let body: { videoId?: string } | null = null;
   try {
     body = await req.json();
   } catch (e) {
@@ -1428,8 +1557,7 @@ serve(async (req) => {
   const pipeline = runPipeline(videoId, video, supabase, pipelineAuth, projectUrl);
 
   try {
-    // deno-lint-ignore no-explicit-any
-    (globalThis as any).EdgeRuntime?.waitUntil(pipeline);
+    edgeRuntime()?.waitUntil?.(pipeline);
   } catch {
     // Fallback: keep the promise alive as a detached task
     pipeline.catch((err: unknown) => console.error("[pipeline] Unhandled background error:", err));

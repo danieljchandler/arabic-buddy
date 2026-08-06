@@ -666,7 +666,49 @@ async function downloadAsBase64(
 }
 
 // ─── TikTok ─────────────────────────────────────────────────────────────────
+// Keyless resolver mirrors. These return a direct, cookie-free media URL, which
+// is what saves us when TikTok's own CDN rejects the signed playAddr (403).
+async function downloadTikTokViaMirror(
+  videoId: string,
+): Promise<{ base64: string; contentType: string; size: number; filename: string } | null> {
+  const endpoints = [
+    `https://tikwm.com/api/?url=https://www.tiktok.com/video/${videoId}&hd=0`,
+    `https://www.tikwm.com/api/?url=https://www.tiktok.com/video/${videoId}`,
+  ];
+
+  for (const endpoint of endpoints) {
+    try {
+      const resp = await fetch(endpoint, {
+        headers: { 'User-Agent': 'Mozilla/5.0', Accept: 'application/json' },
+        signal: AbortSignal.timeout(20000),
+      });
+      if (!resp.ok) {
+        console.warn(`TikTok mirror ${endpoint} returned ${resp.status}`);
+        continue;
+      }
+      const json = await resp.json();
+      const d = json?.data ?? {};
+      const candidates = [d.music, d.play, d.wmplay, d.hdplay]
+        .filter((u: unknown): u is string => typeof u === 'string' && u.length > 0)
+        .map((u: string) => (u.startsWith('http') ? u : `https://tikwm.com${u}`));
+
+      for (const mediaUrl of candidates) {
+        const data = await downloadAsBase64(mediaUrl, 'https://tikwm.com/');
+        if (data) {
+          const isAudio = data.contentType.startsWith('audio/') || /\.mp3(\?|$)/i.test(mediaUrl);
+          return { ...data, filename: `tiktok_${videoId}.${isAudio ? 'mp3' : 'mp4'}` };
+        }
+      }
+    } catch (e) {
+      console.warn(`TikTok mirror ${endpoint} error:`, e);
+    }
+  }
+
+  return null;
+}
+
 async function downloadTikTok(url: string): Promise<{ base64: string; contentType: string; size: number; filename: string } | null> {
+
   console.log('Trying TikTok-specific download...');
 
   try {

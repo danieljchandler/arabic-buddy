@@ -610,7 +610,11 @@ function looksLikeMedia(url: string, contentType?: string): boolean {
   return /\.(mp3|mp4|m4a|wav|ogg|webm|mov|aac|flac)(\?|$)/i.test(url);
 }
 
-async function downloadAsBase64(url: string, referer?: string): Promise<{ base64: string; contentType: string; size: number } | null> {
+async function downloadAsBase64(
+  url: string,
+  referer?: string,
+  cookie?: string,
+): Promise<{ base64: string; contentType: string; size: number } | null> {
   try {
     console.log(`Downloading: ${url.substring(0, 120)}...`);
     const resp = await fetch(url, {
@@ -620,9 +624,14 @@ async function downloadAsBase64(url: string, referer?: string): Promise<{ base64
         'Accept': '*/*',
         'Accept-Language': 'en-US,en;q=0.9,ar;q=0.8',
         'Referer': referer || new URL(url).origin + '/',
+        // TikTok's CDN rejects requests without a byte range and without the
+        // session cookies handed out by the page request (403 Forbidden).
+        'Range': 'bytes=0-',
+        ...(cookie ? { Cookie: cookie } : {}),
       },
       signal: AbortSignal.timeout(120000),
     });
+
 
     if (!resp.ok) {
       console.error(`Download failed: ${resp.status} ${resp.statusText}`);
@@ -657,7 +666,49 @@ async function downloadAsBase64(url: string, referer?: string): Promise<{ base64
 }
 
 // ─── TikTok ─────────────────────────────────────────────────────────────────
+// Keyless resolver mirrors. These return a direct, cookie-free media URL, which
+// is what saves us when TikTok's own CDN rejects the signed playAddr (403).
+async function downloadTikTokViaMirror(
+  videoId: string,
+): Promise<{ base64: string; contentType: string; size: number; filename: string } | null> {
+  const endpoints = [
+    `https://tikwm.com/api/?url=https://www.tiktok.com/video/${videoId}&hd=0`,
+    `https://www.tikwm.com/api/?url=https://www.tiktok.com/video/${videoId}`,
+  ];
+
+  for (const endpoint of endpoints) {
+    try {
+      const resp = await fetch(endpoint, {
+        headers: { 'User-Agent': 'Mozilla/5.0', Accept: 'application/json' },
+        signal: AbortSignal.timeout(20000),
+      });
+      if (!resp.ok) {
+        console.warn(`TikTok mirror ${endpoint} returned ${resp.status}`);
+        continue;
+      }
+      const json = await resp.json();
+      const d = json?.data ?? {};
+      const candidates = [d.music, d.play, d.wmplay, d.hdplay]
+        .filter((u: unknown): u is string => typeof u === 'string' && u.length > 0)
+        .map((u: string) => (u.startsWith('http') ? u : `https://tikwm.com${u}`));
+
+      for (const mediaUrl of candidates) {
+        const data = await downloadAsBase64(mediaUrl, 'https://tikwm.com/');
+        if (data) {
+          const isAudio = data.contentType.startsWith('audio/') || /\.mp3(\?|$)/i.test(mediaUrl);
+          return { ...data, filename: `tiktok_${videoId}.${isAudio ? 'mp3' : 'mp4'}` };
+        }
+      }
+    } catch (e) {
+      console.warn(`TikTok mirror ${endpoint} error:`, e);
+    }
+  }
+
+  return null;
+}
+
 async function downloadTikTok(url: string): Promise<{ base64: string; contentType: string; size: number; filename: string } | null> {
+
   console.log('Trying TikTok-specific download...');
 
   try {
@@ -728,8 +779,13 @@ async function downloadTikTok(url: string): Promise<{ base64: string; contentTyp
     const uniqueUrls = [...new Set(videoUrls)];
     console.log(`Found ${uniqueUrls.length} TikTok video URL candidates`);
 
+    // Cookies handed out by the page request; the CDN 403s without them.
+    const cookie = (resolveResp.headers.getSetCookie?.() ?? [])
+      .map((c) => c.split(';')[0])
+      .join('; ');
+
     for (const videoUrl of uniqueUrls.slice(0, 5)) {
-      const data = await downloadAsBase64(videoUrl, 'https://www.tiktok.com/');
+      const data = await downloadAsBase64(videoUrl, finalUrl, cookie);
       if (data) {
         return {
           ...data,
@@ -738,8 +794,13 @@ async function downloadTikTok(url: string): Promise<{ base64: string; contentTyp
       }
     }
 
+    console.log('All TikTok CDN URLs failed, trying resolver mirrors...');
+    const mirror = await downloadTikTokViaMirror(videoId);
+    if (mirror) return mirror;
+
     console.log('All TikTok video URLs failed to download');
     return null;
+
   } catch (e) {
     console.error('TikTok download error:', e);
     return null;
@@ -754,24 +815,33 @@ serve(async (req) => {
   }
 
   try {
-    // Authenticate user
+    // Authenticate: either a signed-in user JWT, or an internal
+    // server-to-server call from the video pipeline (service-role key).
     const authHeader = req.headers.get('Authorization');
     if (!authHeader?.startsWith('Bearer ')) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
-    const supabaseAuth = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_ANON_KEY')!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-    const { data: { user }, error: userError } = await supabaseAuth.auth.getUser();
-    if (userError || !user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+    const token = authHeader.slice('Bearer '.length).trim();
+    const isInternalServiceCall = token === (Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '\u0000');
+
+    if (!isInternalServiceCall) {
+      const supabaseAuth = createClient(
+        Deno.env.get('SUPABASE_URL')!,
+        Deno.env.get('SUPABASE_ANON_KEY')!,
+        { global: { headers: { Authorization: authHeader } } }
+      );
+      const { data: { user }, error: userError } = await supabaseAuth.auth.getUser();
+      if (userError || !user) {
+        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+          status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+    } else {
+      console.log('download-media: internal service-role call');
     }
+
 
     const { url, bypassCache } = await req.json();
 

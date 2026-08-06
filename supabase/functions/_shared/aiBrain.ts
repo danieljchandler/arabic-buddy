@@ -14,6 +14,7 @@ import {
 import { detectMsaLeaks, type MsaLeakResult } from './msaLeakDetector.ts';
 import { logMsaViolations, logValidatorResult } from './msaViolationLogger.ts';
 import { validateDialectCrossChecked, type ValidatorResult } from './dialectValidator.ts';
+import { decideCriticOutcome } from './criticDecision.ts';
 import { emitMetric } from './featureMetrics.ts';
 import {
   DEFAULT_FAST,
@@ -46,6 +47,8 @@ const DEFAULT_CALL_TIMEOUT_MS = 45_000;
 const DEFAULT_TASK_BUDGET_MS = 90_000;
 /** Below this much remaining budget, an optional extra pass isn't worth starting. */
 const MIN_PASS_BUDGET_MS = 12_000;
+/** Ceiling for the dialect-authenticity check — a short classification, not a generation. */
+const VALIDATOR_MAX_MS = 20_000;
 
 interface Deadline {
   at: number;
@@ -693,14 +696,23 @@ async function runDraftCritic<T>(task: BrainTask, apiKey: string, deadline: Dead
   // That is precisely the failure mode a learner notices, so it needs a reader,
   // not a regex. One short classification call, and only a failed verdict costs
   // a rewrite.
-  if (task.enforceDialect && remainingMs(deadline) > MIN_PASS_BUDGET_MS) {
+  //
+  // Requires room for the validator AND the rewrite it may order: at
+  // MIN_PASS_BUDGET_MS the check would still run, spend up to 20s, and return a
+  // "rewrite" verdict into a budget with nothing left to rewrite with — paying
+  // for a judgment we then have to ignore. The validator's own timeout is
+  // likewise clipped to leave the critic its floor.
+  if (task.enforceDialect && remainingMs(deadline) > MIN_PASS_BUDGET_MS * 2) {
     const vStart = Date.now();
     try {
       validator = await validateDialectCrossChecked(draftText, task.dialect, {
         apiKey,
         // timeoutMs, not a shared signal: the cross-check runs two calls at once
         // and one AbortSignal between them let a slow leg abort the other.
-        timeoutMs: Math.min(20_000, callBudget(deadline)),
+        timeoutMs: Math.max(
+          1_000,
+          Math.min(VALIDATOR_MAX_MS, remainingMs(deadline) - MIN_PASS_BUDGET_MS),
+        ),
       });
     } catch (err) {
       console.warn('[aiBrain] dialect validator failed; treating draft as acceptable', err);
@@ -766,19 +778,30 @@ async function runDraftCritic<T>(task: BrainTask, apiKey: string, deadline: Dead
     criticLeaks.leaks.every((t) => draftLeaks.leaks.includes(t));
 
   // The critic rewrites rather than merges, so it can come back worse than what
-  // it was given. Keep the draft when the rewrite regresses: either it dropped a
-  // field the draft had, or it drifted further into MSA without fixing anything.
+  // it was given — but "worse" has to be judged against why it ran. See
+  // _shared/criticDecision.ts; the short version is that a rewrite ordered by
+  // the native-speaker validator must not be discarded over a token count, the
+  // metric that is blind to fusha in the first place.
   const criticGateReason = task.qualityGate ? safeGate(task.qualityGate, critiqued.parsed, text) : null;
-  const fixedCompleteness = gateReason !== null && criticGateReason === null;
-  const brokeCompleteness = gateReason === null && criticGateReason !== null;
-  if (brokeCompleteness || (!fixedCompleteness && criticLeaks.leaks.length > draftLeaks.leaks.length)) {
-    console.warn('[aiBrain] critic regressed on the draft; keeping draft', {
+  const decision = decideCriticOutcome({
+    draftGateReason: gateReason,
+    criticGateReason,
+    draftLeakCount: draftLeaks.leaks.length,
+    criticLeakCount: criticLeaks.leaks.length,
+    dialectDrift: drift !== null,
+  });
+  if (decision.keep === 'draft') {
+    console.warn(`[aiBrain] keeping draft over critic rewrite: ${decision.reason}`, {
       draftLeaks: draftLeaks.leaks.length,
       criticLeaks: criticLeaks.leaks.length,
       criticGateReason,
+      // Worth its own field: this is a draft a native-speaker reviewer already
+      // failed, shipping anyway because the rewrite was unusable.
+      shippingDriftedDraft: drift !== null,
     });
     return shipDraft();
   }
+  console.log(`[aiBrain] taking critic rewrite: ${decision.reason}`);
 
   return {
     output: critiqued.parsed as T,

@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { ArrowRight, Headphones, Brain, PlayCircle, Globe2 } from "lucide-react";
-import { Button } from "@/components/design-system";
+import { Button, CaravanMedallion } from "@/components/design-system";
 import hakiyaLogoAsset from "@/assets/hakiya-logo.png.asset.json";
 
 const hakiyaLogo = hakiyaLogoAsset.url;
@@ -8,6 +8,10 @@ const hakiyaLogo = hakiyaLogoAsset.url;
 /**
  * Logged-out landing hero shown on `/` when the visitor isn't authenticated.
  * Goal: explain Hakiya in one screen and push to /auth or /placement.
+ *
+ * The framing is the journey — the same caravan language the Alphabet Journey
+ * already uses ("a 28-stop caravan through the Arabic alphabet"), so a visitor
+ * who signs up meets a metaphor they've already been introduced to.
  */
 export function LandingHero() {
   const navigate = useNavigate();
@@ -15,23 +19,41 @@ export function LandingHero() {
   return (
     <section className="py-6">
       {/* Logo */}
-      <div className="flex justify-center mb-6">
-        <img src={hakiyaLogo} alt="Hakiya" className="h-24" />
+      <div className="flex justify-center mb-5">
+        <img src={hakiyaLogo} alt="Hakiya" className="h-16 sm:h-20" />
+      </div>
+
+      {/* The road: caravan clip + its one-line beat */}
+      <div className="flex flex-col items-center mb-6">
+        <CaravanMedallion className="max-w-[220px] sm:max-w-[280px]" />
+        <p className="mt-3 text-caption text-muted-foreground text-center">
+          <span className="font-arabic" dir="rtl">
+            رحلة
+          </span>{" "}
+          — a journey. Yours starts with one word.
+        </p>
       </div>
 
       {/* Hero copy */}
       <div className="text-center max-w-xl mx-auto mb-8">
-        <h1
-          className="text-3xl sm:text-4xl font-bold text-desert-red mb-3 leading-tight"
-          style={{ fontFamily: "'Montserrat', sans-serif" }}
-        >
-          Learn real spoken Arabic.
+        {/*
+          The line breaks are deliberate: left to wrap on its own the headline
+          splits after "one", and the dialect line strands "Yemeni." on a line
+          of its own at 375px. The dialect names step down a size — they qualify
+          the promise above rather than share its weight.
+        */}
+        <h1 className="text-t-headline sm:text-t-display text-desert-red mb-3 text-balance">
+          Real spoken Arabic,
           <br />
-          <span className="text-desert-red/70">Gulf · Egyptian · Yemeni.</span>
+          one stop at a time.
+          <span className="block mt-1 text-t-subtitle sm:text-t-title text-desert-red/70">
+            Gulf · Egyptian · Yemeni.
+          </span>
         </h1>
         <p className="text-base text-muted-foreground leading-relaxed">
           Not the textbook stuff. Dialect-first lessons, native audio, and
-          spaced-repetition flashcards built around what people actually say.
+          spaced-repetition flashcards that carry you from your first word to a
+          real conversation.
         </p>
       </div>
 
@@ -53,21 +75,21 @@ export function LandingHero() {
         </Button>
       </div>
 
-      {/* Value props */}
+      {/* Value props — the three stages of the route */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-3xl mx-auto mb-6">
         <ValueCard
           icon={<Headphones className="h-5 w-5" />}
-          title="Native dialect audio"
-          body="Every word and sentence recorded by native speakers from the Gulf, Egypt and Yemen."
+          title="Set out with native voices"
+          body="Every word and sentence recorded by native speakers from the Gulf, Egypt and Yemen — so what you learn is what you'll actually hear."
         />
         <ValueCard
           icon={<Brain className="h-5 w-5" />}
-          title="Smart spaced repetition"
+          title="Nothing gets left behind"
           body="Words come back exactly when you're about to forget them. Built on FSRS, the modern successor to SM-2."
         />
         <ValueCard
           icon={<PlayCircle className="h-5 w-5" />}
-          title="Real media, not phrasebooks"
+          title="Arrive at real conversation"
           body="TikToks, news clips, stories and conversations — tap any word to learn and save it."
         />
       </div>
@@ -75,8 +97,14 @@ export function LandingHero() {
       {/* Secondary nudges */}
       <div className="text-center max-w-md mx-auto">
         <p className="text-xs text-muted-foreground flex items-center justify-center gap-2">
-          <Globe2 className="h-3.5 w-3.5" />
-          Coming from MSA? We bridge فصحى into spoken dialect for you.
+          <Globe2 className="h-3.5 w-3.5 shrink-0" />
+          <span>
+            Coming from MSA? We bridge{" "}
+            <span className="font-arabic" dir="rtl">
+              فصحى
+            </span>{" "}
+            into spoken dialect for you.
+          </span>
         </p>
       </div>
     </section>

@@ -49,26 +49,48 @@ export interface FarasaDepToken {
   relationLabel: string;
 }
 
+/**
+ * Why a task produced nothing. `invalid_api_key` means FARASA_API_KEY is unset
+ * or rejected — a configuration problem, not a transient one, so retrying is
+ * pointless until the secret is fixed.
+ */
+export type FarasaFailureReason =
+  | 'invalid_api_key'
+  | 'all_endpoints_failed'
+  | 'timeout'
+  | 'empty_input';
+
 export interface FarasaResult {
   inputText: string;
   tasks: FarasaTask[];
   diac?: FarasaDiacResult | null;
   diacAvailable?: boolean;
+  diacError?: FarasaFailureReason;
   seg?: { raw: string; tokens: FarasaSegToken[] } | null;
   segAvailable?: boolean;
+  segError?: FarasaFailureReason;
   pos?: { raw: string; tokens: FarasaPosToken[] } | null;
   posAvailable?: boolean;
+  posError?: FarasaFailureReason;
   NER?: { entities: FarasaNerEntity[]; raw: string } | null;
   NERAvailable?: boolean;
+  NERError?: FarasaFailureReason;
   parsing?: { raw: string; tokens: FarasaDepToken[] } | null;
   parsingAvailable?: boolean;
+  parsingError?: FarasaFailureReason;
+  /** Per-task failure reasons, keyed by task name. */
+  errors?: Partial<Record<FarasaTask, FarasaFailureReason>>;
+  /** Present when every requested task failed for the same configuration reason. */
+  configHint?: string;
 }
 
 // ── Hook ─────────────────────────────────────────────────────────────────────
 
 /**
  * useFarasa — Arabic NLP analysis via the QCRI Farasa REST API.
- * No API key required. All tasks are free and run in parallel.
+ * Tasks run in parallel. Requires the FARASA_API_KEY secret on the edge
+ * function — without it every task returns `<task>Available: false` with
+ * `<task>Error: 'invalid_api_key'`.
  *
  * Quick-start:
  *   const { analyze, diacritize, isLoading, result } = useFarasa();

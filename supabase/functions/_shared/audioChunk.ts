@@ -450,6 +450,68 @@ export function extractAacFromMp4(bytes: Uint8Array): AacTrack | null {
   return null;
 }
 
+// ── ADTS (raw AAC) ───────────────────────────────────────────────────────────
+
+/** Byte offset of the first frame, skipping an ID3v2 tag if one is present. */
+function afterId3(bytes: Uint8Array): number {
+  if (bytes.length > 10 && bytes[0] === 0x49 && bytes[1] === 0x44 && bytes[2] === 0x33) {
+    const size = ((bytes[6] & 0x7f) << 21) | ((bytes[7] & 0x7f) << 14) |
+      ((bytes[8] & 0x7f) << 7) | (bytes[9] & 0x7f);
+    return 10 + size;
+  }
+  return 0;
+}
+
+/**
+ * ADTS and MPEG audio share an 11-bit sync word, so the two are only told apart
+ * by the layer field that follows it: MP3 is Layer III (`01`), ADTS is always
+ * `00`. Masking with 0xF6 tests sync + layer together — without it, every AAC
+ * stream this pipeline demuxes out of an MP4 sniffs as an MP3.
+ */
+export function isLikelyAdts(bytes: Uint8Array): boolean {
+  const o = afterId3(bytes);
+  return bytes.length >= o + 2 && bytes[o] === 0xff && (bytes[o + 1] & 0xf6) === 0xf0;
+}
+
+/**
+ * Walk a raw ADTS stream into per-frame slices. Each frame already carries its
+ * own header, so the result can be regrouped by `chunkAdtsByDuration` without
+ * any re-framing — the same shape `extractAacFromMp4` produces.
+ */
+export function parseAdtsTrack(bytes: Uint8Array): AacTrack | null {
+  const frames: Uint8Array[] = [];
+  const durations: number[] = [];
+  let sampleRate = 0;
+  let channels = 0;
+
+  let i = afterId3(bytes);
+  while (i + 7 <= bytes.length) {
+    if (bytes[i] !== 0xff || (bytes[i + 1] & 0xf6) !== 0xf0) { i++; continue; }
+    const freqIndex = (bytes[i + 2] >> 2) & 0x0f;
+    const sr = AAC_SAMPLE_RATES[freqIndex] || 0;
+    const frameLength = ((bytes[i + 3] & 0x03) << 11) | (bytes[i + 4] << 3) | ((bytes[i + 5] >> 5) & 0x07);
+    if (!sr || frameLength < 7 || i + frameLength > bytes.length) { i++; continue; }
+    // Each raw data block is 1024 samples; the count is stored minus one.
+    const blocks = (bytes[i + 6] & 0x03) + 1;
+    frames.push(bytes.subarray(i, i + frameLength));
+    durations.push((1024 * blocks) / sr);
+    sampleRate = sr;
+    channels = ((bytes[i + 2] & 0x01) << 2) | ((bytes[i + 3] >> 6) & 0x03);
+    i += frameLength;
+  }
+
+  return frames.length > 0 ? { frames, durations, sampleRate, channels } : null;
+}
+
+/** Concatenate demuxed ADTS frames back into one continuous stream. */
+export function joinAdtsFrames(track: AacTrack): Uint8Array {
+  const total = track.frames.reduce((n, f) => n + f.length, 0);
+  const out = new Uint8Array(total);
+  let o = 0;
+  for (const f of track.frames) { out.set(f, o); o += f.length; }
+  return out;
+}
+
 /** Group ADTS frames into ~`targetSec` runs. Each run is a playable AAC stream. */
 export function chunkAdtsByDuration(track: AacTrack, targetSec: number): AudioChunk[] {
   const chunks: AudioChunk[] = [];
@@ -484,7 +546,8 @@ export type AsrPayloadStrategy =
   | "single"
   | "mp3-chunks"
   | "wav-chunks"
-  | "mp4-adts-chunks";
+  | "mp4-adts-chunks"
+  | "adts-chunks";
 
 export interface AsrPayloadPlan {
   chunks: AudioChunk[];
@@ -506,6 +569,9 @@ export function containerLabel(bytes: Uint8Array, contentType?: string): string 
   if (isLikelyMp4(bytes)) return "mp4";
   if (bytes.length >= 4 && bytes[0] === 0x1a && bytes[1] === 0x45 && bytes[2] === 0xdf && bytes[3] === 0xa3) return "webm";
   if (bytes.length >= 4 && ascii(bytes, 0, 4) === "OggS") return "ogg";
+  // Before the MP3 checks: ADTS shares MPEG audio's sync word, and a
+  // content-type hint of "audio/mpeg" is enough for isLikelyMp3 to claim it.
+  if (isLikelyAdts(bytes)) return "adts";
   if (isLikelyMp3(bytes, contentType)) return "mp3";
   if (isLikelyWav(bytes, contentType)) return "wav";
   if (isLikelyMp4(bytes, contentType)) return "mp4";
@@ -559,5 +625,62 @@ export function planAsrPayloads(
       : { chunks: [], strategy: "mp4-adts-chunks", skipReason: "mp4-demux-produced-no-frames" };
   }
 
+  if (label === "adts") {
+    const track = parseAdtsTrack(bytes);
+    const chunks = track ? chunkAdtsByDuration(track, targetChunkSec) : [];
+    return chunks.length > 0
+      ? { chunks, strategy: "adts-chunks" }
+      : { chunks: [], strategy: "adts-chunks", skipReason: "adts-stream-unreadable" };
+  }
+
   return { chunks: [], strategy: "single", skipReason: `unsupported-container:${label}` };
+}
+
+// ── Upload naming ────────────────────────────────────────────────────────────
+
+export interface AsrUpload {
+  /** File name to put in the multipart part. */
+  filename: string;
+  /** MIME type to declare for that part. */
+  mimeType: string;
+  /** Container the bytes were actually sniffed as. */
+  container: string;
+}
+
+const UPLOAD_BY_CONTAINER: Record<string, { ext: string; mime: string }> = {
+  mp3:  { ext: "mp3",  mime: "audio/mpeg" },
+  wav:  { ext: "wav",  mime: "audio/wav" },
+  mp4:  { ext: "m4a",  mime: "audio/mp4" },
+  adts: { ext: "aac",  mime: "audio/aac" },
+  webm: { ext: "webm", mime: "audio/webm" },
+  ogg:  { ext: "ogg",  mime: "audio/ogg" },
+};
+
+/**
+ * Name a multipart audio part after what the bytes actually are.
+ *
+ * Every ASR leg used to hardcode `audio.mp3` with whatever content type storage
+ * happened to report — which for TikTok/YouTube audio is an MP4/AAC payload
+ * announced as an MP3. Engines that sniff the bytes shrug this off; engines that
+ * dispatch on the file extension hand the container to the wrong decoder and
+ * return an empty transcript with a 200, which is indistinguishable from silence.
+ *
+ * Falls back to the caller's declared content type for containers we can't
+ * identify, rather than guessing an extension that may be wrong in a new way.
+ */
+export function asrUpload(
+  bytes: Uint8Array,
+  contentType?: string,
+  stem = "audio",
+): AsrUpload {
+  const container = containerLabel(bytes, contentType);
+  const known = UPLOAD_BY_CONTAINER[container];
+  if (known) {
+    return { filename: `${stem}.${known.ext}`, mimeType: known.mime, container };
+  }
+  return {
+    filename: `${stem}.bin`,
+    mimeType: contentType?.split(";")[0]?.trim() || "application/octet-stream",
+    container,
+  };
 }

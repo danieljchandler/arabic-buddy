@@ -1273,6 +1273,7 @@ const AdminVideoForm = () => {
                   flagged?: boolean;
                   camel_agrees?: boolean | null;
                   camel_error?: string;
+                  camel_config_hint?: string;
                   camel?: { dialect?: string; code?: string; confidence?: number } | null;
                   fanar_validation?: { content?: string; issues?: DialectIssue[] } | null;
                 };
@@ -1309,6 +1310,7 @@ const AdminVideoForm = () => {
                     ) : (
                       <p className="text-muted-foreground">
                         CAMeL BERT: unavailable{signals.camel_error ? ` (${signals.camel_error})` : ""}
+                        {signals.camel_config_hint ? ` — ${signals.camel_config_hint}` : ""}
                       </p>
                     )}
                     {issues && issues.length > 0 && (
@@ -1338,6 +1340,38 @@ const AdminVideoForm = () => {
                       <p className="text-muted-foreground whitespace-pre-wrap" dir="auto">
                         Fanar review: {String(signals.fanar_validation.content).slice(0, 500)}
                       </p>
+                    )}
+                  </div>
+                );
+              })()}
+              {/* Diacritization status. A run with no tashkeel used to leave no
+                  trace outside the edge-function logs, so "Farasa is down" and
+                  "FARASA_API_KEY was never set" looked the same from here. */}
+              {(() => {
+                type Diacritization = {
+                  ok?: boolean;
+                  lines_total?: number;
+                  lines_diacritized?: number;
+                  reason?: string;
+                  config_hint?: string;
+                };
+                const diac = (existingVideo?.engines_used as
+                  { diacritization?: Diacritization } | null | undefined)?.diacritization;
+                if (!diac) return null;
+                const covered = diac.lines_diacritized ?? 0;
+                const total = diac.lines_total ?? 0;
+                return (
+                  <div
+                    className={`p-3 rounded-lg border text-sm ${
+                      diac.ok ? "bg-muted/50 border-border" : "bg-destructive/10 border-destructive/40"
+                    }`}
+                  >
+                    <p className="font-medium">
+                      Diacritization (Farasa) —{" "}
+                      {diac.ok ? `${covered}/${total} lines got tashkeel` : `unavailable (${diac.reason ?? "unknown"})`}
+                    </p>
+                    {diac.config_hint && (
+                      <p className="text-muted-foreground">{diac.config_hint}</p>
                     )}
                   </div>
                 );

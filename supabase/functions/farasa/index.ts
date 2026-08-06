@@ -26,7 +26,11 @@
  *   { text: string, tasks?: FarasaTask[] }
  *   Default tasks: ['diac']
  *
- * No API key required — Farasa WebAPI is a free public service from QCRI.
+ * Auth: set FARASA_API_KEY (register at farasa.qcri.org). The endpoints that
+ * once served anonymous traffic now answer "invalid api key. please register",
+ * so without the secret every task fails and the response carries
+ * `<task>Error: "invalid_api_key"` plus a top-level `configHint`.
+ *
  * Rate limiting: Farasa may throttle high-frequency requests. Each task is an
  * independent HTTP call; run only the tasks you need.
  *
@@ -36,84 +40,9 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
+import { callFarasa, type FarasaFailureReason, type FarasaTask } from "../_shared/farasa.ts";
 
-const FARASA_TIMEOUT_MS = 20_000;
-
-export type FarasaTask = 'diac' | 'seg' | 'pos' | 'NER' | 'parsing';
-
-// ── Raw API caller (tries multiple URLs + content types) ─────────────────────
-
-async function callFarasaRaw(task: FarasaTask, text: string): Promise<string | null> {
-  const farasaApiKey = Deno.env.get('FARASA_API_KEY') ?? '';
-
-  // Build list of [url, contentType] attempts for this task.
-  // diacritization has extra endpoints including diacritizeV2.
-  type Attempt = [string, 'json' | 'form'];
-  let attempts: Attempt[];
-
-  if (task === 'diac') {
-    attempts = [
-      ['https://farasa-api.qcri.org/msa/webapi/diacritizeV2/', 'json'],
-      ['https://farasa.qcri.org/webapi/diacritize/', 'json'],
-      ['https://farasa.qcri.org/webapi/diacritize/', 'form'],
-      ['https://farasa-api.qcri.org/webapi/diacritize/', 'json'],
-      ['https://farasa.qcri.org/webapi/seq2seq_diacritize/', 'json'],
-    ];
-  } else {
-    const bases = ['https://farasa.qcri.org/webapi', 'https://farasa-api.qcri.org/webapi'];
-    attempts = bases.flatMap(base => [
-      [`${base}/${task}/`, 'json'] as Attempt,
-      [`${base}/${task}/`, 'form'] as Attempt,
-    ]);
-  }
-
-  for (const [url, contentType] of attempts) {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), FARASA_TIMEOUT_MS);
-    try {
-      let headers: Record<string, string>;
-      let body: string;
-      if (contentType === 'json') {
-        const jsonBody: Record<string, string> = { text };
-        if (farasaApiKey) jsonBody.api_key = farasaApiKey;
-        headers = { 'Content-Type': 'application/json' };
-        body = JSON.stringify(jsonBody);
-      } else {
-        const params: Record<string, string> = { text };
-        if (farasaApiKey) params.api_key = farasaApiKey;
-        headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
-        body = new URLSearchParams(params).toString();
-      }
-      const res = await fetch(url, {
-        method: 'POST',
-        signal: controller.signal,
-        headers,
-        body,
-      });
-      if (res.status === 404 || res.status === 400) {
-        const errText = await res.text().catch(() => '');
-        console.warn(`Farasa ${task}: HTTP ${res.status} at ${url} [${contentType}] — ${errText.slice(0, 100)}`);
-        continue;
-      }
-      if (!res.ok) {
-        const errText = await res.text().catch(() => '');
-        console.warn(`Farasa ${task}: HTTP ${res.status} at ${url} [${contentType}] — ${errText.slice(0, 100)}`);
-        continue;
-      }
-      const data = await res.json();
-      console.log(`Farasa ${task}: success via ${url} [${contentType}]`);
-      // Farasa field name differs by task but is always one of: text / output / result
-      return (data.text ?? data.output ?? data.result ?? null) as string | null;
-    } catch (e) {
-      console.warn(`Farasa ${task} failed at ${url} [${contentType}]:`, e instanceof Error ? e.message : String(e));
-      continue;
-    } finally {
-      clearTimeout(timeout);
-    }
-  }
-  console.warn(`Farasa ${task}: all URLs exhausted`);
-  return null;
-}
+export type { FarasaTask };
 
 // ── Result types ──────────────────────────────────────────────────────────────
 
@@ -387,19 +316,25 @@ serve(async (req) => {
 
     // Run all requested tasks in parallel
     const rawResults = await Promise.all(
-      requestedTasks.map(task => callFarasaRaw(task, clean).then(r => ({ task, raw: r }))),
+      requestedTasks.map(task => callFarasa(task, clean).then(outcome => ({ task, outcome }))),
     );
 
     // Build structured response
     const result: Record<string, unknown> = { inputText: clean, tasks: requestedTasks };
+    const failures: Partial<Record<FarasaTask, FarasaFailureReason>> = {};
 
-    for (const { task, raw } of rawResults) {
-      if (!raw) {
+    for (const { task, outcome } of rawResults) {
+      if (!outcome.ok) {
         result[task] = null;
         result[`${task}Available`] = false;
-        console.warn(`farasa: ${task} returned null`);
+        // Callers need to distinguish "Farasa is down" from "the key was
+        // rejected" — only one of those is worth retrying.
+        result[`${task}Error`] = outcome.reason;
+        failures[task] = outcome.reason;
+        console.warn(`farasa: ${task} unavailable — ${outcome.reason}`);
         continue;
       }
+      const raw = outcome.text;
 
       result[`${task}Available`] = true;
 
@@ -435,7 +370,18 @@ serve(async (req) => {
       }
     }
 
-    console.log(`farasa: complete — tasks=${requestedTasks.join(',')}`);
+    const failedTasks = Object.keys(failures) as FarasaTask[];
+    if (failedTasks.length > 0) {
+      result.errors = failures;
+      if (failedTasks.every((t) => failures[t] === 'invalid_api_key')) {
+        result.configHint = 'FARASA_API_KEY is missing or rejected — register at farasa.qcri.org';
+      }
+    }
+
+    console.log(
+      `farasa: complete — tasks=${requestedTasks.join(',')}` +
+        (failedTasks.length ? ` | failed=${failedTasks.map(t => `${t}:${failures[t]}`).join(',')}` : ''),
+    );
     return new Response(
       JSON.stringify(result),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },

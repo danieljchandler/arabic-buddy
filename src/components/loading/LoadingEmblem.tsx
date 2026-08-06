@@ -5,18 +5,14 @@ import { useReducedMotion } from "@/lib/uiPrefs";
 /**
  * LoadingEmblem — the looping dallah-and-finjan mark shown during long waits.
  *
- * The artwork composites onto whatever is behind it: no plate, no background.
- * H.264 can't carry alpha and an actual alpha channel doesn't compress for line
- * art of this kind (VP9-alpha came out at 2.4MB against 364KB here, animated
- * WebP at 6.4MB), so the clip ships as dark line art on a **white** matte and
- * `#hakiya-emblem-alpha` in index.html turns luminance into alpha.
+ * The clip is shown exactly as supplied, cropped to a circular medallion. Its own
+ * warm background is part of the design, so there is no keying, no alpha and no
+ * blend mode here — an earlier revision needed all three to fake transparency
+ * against a grey matte, and none of it survives.
  *
- * A blend mode would be the obvious alternative and it does not work: AppShell's
- * content wrapper carries `animate-fade-up`, whose `both` fill-mode leaves a
- * persistent transform — a stacking context, so an isolation boundary — and that
- * wrapper has no background. Inside a card `mix-blend-mode: multiply` is flawless;
- * directly in the wrapper, as on the ReadingPractice loading screen, it has
- * nothing to blend against and the white rectangle shows through.
+ * The source is square (a 700x700 crop centred on the subject, verified so that
+ * nothing crosses the inscribed circle in any frame), which is why the size
+ * classes below are diameters.
  *
  * Decorative only: `aria-hidden`. LoadingPanel carries the announced text.
  */
@@ -25,31 +21,21 @@ const EMBLEM_MP4 = "/assets/loading-emblem.mp4";
 const EMBLEM_WEBM = "/assets/loading-emblem.webm";
 const EMBLEM_POSTER = "/assets/loading-emblem-poster.webp";
 
-/** The clip is 5:4, so these are ~0.8x as tall as they are wide. */
+/** Diameters — the asset is square. */
 const SIZES = {
-  sm: "w-[150px]",
-  md: "w-[210px]",
-  lg: "w-[260px]",
+  sm: "w-[140px]",
+  md: "w-[190px]",
+  lg: "w-[230px]",
 } as const;
 
 /**
- * The source clip runs off the top and bottom of its own frame in every frame —
- * the pot's lid during the pour, the cup's base throughout — so the artwork
- * would otherwise end in a hard horizontal slice. Feathering those two edges
- * turns an accidental-looking crop into a vignette.
- *
- * This hides the seam, it does not repair it: those pixels were never recorded.
- * A source clip with the whole dallah inside the frame is the only real fix, and
- * this constant should come out when one arrives.
+ * clip-path rather than `rounded-full overflow-hidden` on the wrapper: Safari has
+ * a long-standing bug where border-radius plus overflow fails to clip a <video>,
+ * leaving square corners. clip-path clips it reliably.
  */
-const EDGE_FADE =
-  "linear-gradient(to bottom, transparent 0%, #000 8%, #000 92%, transparent 100%)";
-
-/** Filter is defined in index.html; see the note there on why the region is pinned. */
-const EMBLEM_STYLE: CSSProperties = {
-  filter: "url(#hakiya-emblem-alpha)",
-  maskImage: EDGE_FADE,
-  WebkitMaskImage: EDGE_FADE,
+const CIRCLE: CSSProperties = {
+  clipPath: "circle(50%)",
+  WebkitClipPath: "circle(50%)",
 };
 
 export interface LoadingEmblemProps {
@@ -78,7 +64,7 @@ export function LoadingEmblem({ size = "md", className }: LoadingEmblemProps) {
     void el.play()?.catch(() => setFailed(true));
 
     // Most browsers pause hidden video for us; Android WebView doesn't always,
-    // and a 10s loop decoding behind a background tab is real battery.
+    // and an 8s loop decoding behind a background tab is real battery.
     const onVisibility = () => {
       if (document.hidden) el.pause();
       else void el.play()?.catch(() => {});
@@ -88,13 +74,20 @@ export function LoadingEmblem({ size = "md", className }: LoadingEmblemProps) {
   }, [still]);
 
   return (
-    <div aria-hidden="true" className={cn(SIZES[size], className)}>
+    <div
+      aria-hidden="true"
+      className={cn(
+        "aspect-square overflow-hidden rounded-full ring-1 ring-border/60",
+        SIZES[size],
+        className,
+      )}
+    >
       {still ? (
         <img
           src={EMBLEM_POSTER}
           alt=""
-          className="block w-full"
-          style={EMBLEM_STYLE}
+          className="block h-full w-full object-cover"
+          style={CIRCLE}
         />
       ) : (
         <video
@@ -107,8 +100,8 @@ export function LoadingEmblem({ size = "md", className }: LoadingEmblemProps) {
           preload="metadata"
           disablePictureInPicture
           tabIndex={-1}
-          className="block w-full"
-          style={EMBLEM_STYLE}
+          className="block h-full w-full object-cover"
+          style={CIRCLE}
         >
           {/*
             H.264 first: every mainstream browser plays it, so almost nobody

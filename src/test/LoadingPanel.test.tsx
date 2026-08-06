@@ -61,22 +61,17 @@ describe("LoadingPanel", () => {
     expect(srcs[0]).toMatch(/\.mp4$/);
     expect(srcs[1]).toMatch(/\.webm$/);
     expect(video.closest("[aria-hidden='true']")).toBeTruthy();
-    // The white matte is turned into real transparency by the filter, not by a
-    // blend mode — see the note in LoadingEmblem.
-    expect(video.style.filter).toBe("url(#hakiya-emblem-alpha)");
-    // The source clip is cropped at top and bottom; the mask feathers those
-    // edges so the artwork doesn't end in a hard slice.
-    expect(video.style.maskImage).toContain("linear-gradient");
   });
 
-  it("carries no plate behind the artwork", () => {
-    // Regression guard: the emblem overlays the page, so nothing in its wrapper
-    // may reintroduce a background.
+  it("clips the emblem to a circle", () => {
+    // clip-path, not border-radius: Safari won't clip a <video> with the latter.
     const { container } = render(
       <LoadingPanel task="passage" showAfterMs={0} />,
     );
-    const wrapper = container.querySelector("video")!.parentElement!;
-    expect(wrapper.className).not.toMatch(/\bbg-|\bring-|\bshadow-/);
+    const video = container.querySelector("video") as HTMLVideoElement;
+    expect(video.style.clipPath).toContain("circle");
+    // The wrapper has to stay square or the circle turns into an ellipse.
+    expect(video.parentElement!.className).toContain("aspect-square");
   });
 
   it("holds a still frame when the user prefers reduced motion", () => {
@@ -85,10 +80,10 @@ describe("LoadingPanel", () => {
       <LoadingPanel task="passage" showAfterMs={0} />,
     );
     expect(container.querySelector("video")).toBeNull();
-    const still = container.querySelector("img")!;
+    const still = container.querySelector("img")! as HTMLElement;
     expect(still).toBeTruthy();
-    // The still needs the same treatment or it renders as a white box.
-    expect((still as HTMLElement).style.filter).toBe("url(#hakiya-emblem-alpha)");
+    // The still is clipped to the same circle as the video.
+    expect(still.style.clipPath).toContain("circle");
     // The copy still rotates — changing text isn't motion.
     expect(screen.getByText(LOADING_DECKS.passage[0].en)).toBeInTheDocument();
   });

@@ -900,6 +900,21 @@ async function runPipeline(
           if (alt.text.length > out.text.length) out = alt;
         }
 
+        // Still nothing usable? The other Munsit model is the one variable that
+        // has actually explained this failure before — one is degraded while the
+        // other transcribes the same bytes in full — so swap and try once more.
+        if (looksTruncated(out.text, durationSec) || !out.text) {
+          const swapped = munsitFallbackModel(munsitModel);
+          console.warn(
+            `[pipeline] Munsit: ${out.text.length} chars from ${munsitModel} — retrying on ${swapped}`,
+          );
+          const before = munsitModel;
+          munsitModel = swapped;
+          const alt = await transcribe(primary.bytes, primary.contentType, `model-retry:${swapped}`);
+          if (alt.text.length > out.text.length) out = alt;
+          else munsitModel = before;
+        }
+
         const latencyMs = Date.now() - t0;
         const { text, words } = out;
         console.log(

@@ -9,6 +9,33 @@
 // contract (context biasing, diarization, per-token language) on purpose.
 export const SONIOX_MODEL = "stt-async-v5";
 
+/**
+ * Munsit ASR model.
+ *
+ * `munsit` — the model this pipeline used to send — is degraded upstream: it
+ * answers 200 with a handful of characters for *any* payload, including a
+ * synthetic sine tone and clips five other engines transcribe in full (0 / 7 /
+ * 187 chars on the last four uploads). `munsit-en-ar` on the exact same bytes
+ * returned 1048 chars against Soniox's 1179, so the fault is the model, not the
+ * container, sample rate, chunking or noise floor.
+ *
+ * Default to the code-switch model everywhere; MUNSIT_ASR_MODEL still overrides
+ * it without a redeploy, and callers retry with MUNSIT_ASR_FALLBACK_MODEL when
+ * the first answer comes back empty/truncated.
+ */
+export const MUNSIT_ASR_MODEL = "munsit-en-ar";
+export const MUNSIT_ASR_FALLBACK_MODEL = "munsit";
+
+/** Resolved primary model, honouring the MUNSIT_ASR_MODEL secret override. */
+export function munsitModel(): string {
+  return Deno.env.get("MUNSIT_ASR_MODEL")?.trim() || MUNSIT_ASR_MODEL;
+}
+
+/** The other Munsit model, used as a retry when the primary returns nothing. */
+export function munsitFallbackModel(primary: string): string {
+  return primary === MUNSIT_ASR_FALLBACK_MODEL ? MUNSIT_ASR_MODEL : MUNSIT_ASR_FALLBACK_MODEL;
+}
+
 /** Word-level timing, in seconds. Shared shape across every ASR engine. */
 export interface AsrWord {
   text: string;

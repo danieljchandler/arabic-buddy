@@ -6,6 +6,8 @@ import {
   SONIOX_MODEL,
   buildSonioxContext,
   looksTruncated,
+  munsitModel as resolveMunsitModel,
+  munsitFallbackModel,
   type AsrWord,
   type AsrLegResult,
 } from "../_shared/asrConfig.ts";

@@ -48,8 +48,15 @@ export interface Arbitration {
   score: number;
   /** How far ahead of the runner-up the winner is. 0 when it stands alone. */
   margin: number;
+  /**
+   * How the winner was chosen.
+   * `nearest` — the arbiter is clearly closer to this candidate than the rest.
+   * `corroborated` — the arbiter backs several candidates comparably well, so
+   *   the line is not a quality risk and the highest-weight model takes it.
+   */
+  mode?: 'nearest' | 'corroborated';
   /** Why no winner was chosen, for provenance. */
-  reason?: 'no_arbiter_text' | 'no_candidates' | 'below_threshold' | 'too_close';
+  reason?: 'no_arbiter_text' | 'no_candidates' | 'below_threshold';
 }
 
 /**
@@ -62,18 +69,29 @@ export interface Arbitration {
 export const ARBITER_MIN_SCORE = 0.45;
 
 /**
- * How far the winner must lead the runner-up. Without it, 0.51 vs 0.50 would
- * "settle" a line the arbiter is genuinely undecided about — worse than leaving
- * it flagged, because it silently removes it from the review queue.
+ * How far the winner must lead the runner-up to be called the *nearest* match.
+ * Below this the arbiter is not discriminating between them — which is a
+ * separate question from whether either is any good; see `corroborated`.
  */
 export const ARBITER_MIN_MARGIN = 0.1;
 
 /**
  * Decide which disputed candidate an arbiter's rendering supports.
  *
- * Returns a winner only when one candidate is both close enough to the arbiter
- * and clearly closer than the rest. Anything else leaves the line disputed —
- * this narrows the review queue, it does not replace it.
+ * Two ways a line can be settled, and the second exists because the first
+ * settled nothing in practice. A run with eight disputed lines produced best
+ * scores of 0.24-0.69 against margins of 0.01-0.14: the arbiter was repeatedly
+ * *equally* close to two candidates, so requiring a clear margin left every line
+ * in the review queue.
+ *
+ * A near-tie is not evidence of a problem. Candidates only reach arbitration
+ * because they failed the ensemble's own 0.6 clustering bar, so they are
+ * genuinely different wordings — but an independent Arabic-native MT model
+ * landing close to *both* is positive evidence that both convey the same thing.
+ * The review queue is for lines where the models disagree about meaning, not for
+ * choosing between two renderings that a third model corroborates. So when every
+ * leading candidate clears `minScore`, the line is settled on model weight and
+ * marked `corroborated`; when the arbiter backs none of them, it stays flagged.
  */
 export function arbitrateDispute(
   arbiterText: string | null | undefined,
@@ -99,11 +117,20 @@ export function arbitrateDispute(
   const runnerUp = scored[1];
   const margin = runnerUp ? best.score - runnerUp.score : best.score;
 
+  // The arbiter backs nothing here — a real disagreement, keep it flagged.
   if (best.score < minScore) {
     return { winner: null, score: best.score, margin, reason: 'below_threshold' };
   }
-  if (runnerUp && margin < minMargin) {
-    return { winner: null, score: best.score, margin, reason: 'too_close' };
+
+  // Clearly nearer to one candidate than the rest.
+  if (!runnerUp || margin >= minMargin) {
+    return { winner: best.cand, score: best.score, margin, mode: 'nearest' };
   }
-  return { winner: best.cand, score: best.score, margin };
+
+  // Too close to call, but both are backed. Take the higher-weight model —
+  // `scored` already breaks score ties that way.
+  const corroborated = scored
+    .filter((s) => s.score >= minScore)
+    .sort((a, b) => b.cand.weight - a.cand.weight || b.score - a.score)[0];
+  return { winner: corroborated.cand, score: best.score, margin, mode: 'corroborated' };
 }

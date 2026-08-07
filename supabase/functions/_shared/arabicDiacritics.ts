@@ -229,3 +229,34 @@ export function overlayLineByWord(
 
   return { line: out.join(' '), matched, filled };
 }
+
+/**
+ * Overlay diacritized text that is already aligned to the lines, one to one.
+ *
+ * This is the path to prefer. When each line was diacritized by its own request,
+ * output `i` belongs to input `i` by construction and there is no stream to walk
+ * — the failure mode that produced "0/143 words located" cannot arise. A null
+ * entry means that line's request failed and it keeps its original text.
+ */
+export function overlayDiacritizedPerLine(
+  originalLines: string[],
+  diacritizedLines: (string | null)[],
+): OverlayResult {
+  const total = originalLines.reduce(
+    (n, l) => n + l.split(/\s+/).filter(Boolean).length,
+    0,
+  );
+  let matched = 0;
+  let filled = 0;
+
+  const lines = originalLines.map((orig, i) => {
+    const diac = diacritizedLines[i];
+    if (!diac || !diac.trim()) return orig;
+    const res = overlayLineByWord(orig, diac);
+    matched += res.matched;
+    filled += res.filled;
+    return res.line;
+  });
+
+  return { lines, matched, filled, total, strategy: 'per-line' };
+}

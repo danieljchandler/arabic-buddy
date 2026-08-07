@@ -458,6 +458,29 @@ describe("fault injection", () => {
     expect(recovered.data).toHaveLength(3);
   });
 
+  it("failWrites leaves reads working", async () => {
+    // A save-failed test needs the page to render first. Failing the table
+    // outright breaks the query that renders it, so the test never reaches the
+    // button it means to click.
+    backend.db.seed("vocabulary_words", words).failWrites("vocabulary_words", 500);
+
+    const read = await db.from("vocabulary_words").select("*");
+    expect(read.error).toBeNull();
+    expect(read.data).toHaveLength(3);
+
+    const write = await db.from("vocabulary_words").update({ display_order: 9 }).eq("id", "w1");
+    expect(write.error).not.toBeNull();
+  });
+
+  it("failNextWrite fails one save, then lets a retry through", async () => {
+    backend.db.seed("user_vocabulary", []).failNextWrite("user_vocabulary", 503);
+
+    const row = { user_id: "u1", word_arabic: "قلم", word_english: "pen" };
+    expect((await db.from("user_vocabulary").insert(row)).error).not.toBeNull();
+    expect((await db.from("user_vocabulary").insert(row)).error).toBeNull();
+    expect(backend.db.rows("user_vocabulary")).toHaveLength(1);
+  });
+
   it("failAlways keeps failing until cleared", async () => {
     backend.db.seed("vocabulary_words", words).failAlways("vocabulary_words", 503);
 
@@ -503,6 +526,18 @@ describe("rpc", () => {
   it("errors loudly for an RPC nothing implements", async () => {
     const { error } = await db.rpc("some_function_nobody_wrote");
     expect(error?.code).toBe("PGRST202");
+  });
+
+  it("turns a raising function into an error response, not a torn-down request", async () => {
+    // A test makes an RPC fail by throwing from an override. Postgres reports a
+    // raised exception to the client, so the app should reach its error branch.
+    backend.stubRpc("award_xp", () => {
+      throw new Error("no seats left");
+    });
+
+    const { data, error } = await db.rpc("award_xp", { _amount: 10 });
+    expect(data).toBeNull();
+    expect(error?.message).toBe("no seats left");
   });
 });
 

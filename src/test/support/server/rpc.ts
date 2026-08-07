@@ -252,5 +252,21 @@ export function callRpc(
     };
   }
 
-  return { status: 200, body: handler(context) as Row };
+  try {
+    return { status: 200, body: handler(context) as Row };
+  } catch (error) {
+    // A Postgres function that raises returns an error to the client rather
+    // than tearing down the request, so a test making an RPC fail — by throwing
+    // from an override — should see the app's error branch, not an unhandled
+    // exception in the transport.
+    return {
+      status: 400,
+      body: {
+        code: "P0001",
+        message: error instanceof Error ? error.message : String(error),
+        details: null,
+        hint: null,
+      },
+    };
+  }
 }

@@ -24,6 +24,14 @@ export interface FailureSpec {
   body?: unknown;
   /** Consume after one request; otherwise it applies until cleared. */
   once: boolean;
+  /**
+   * Which requests to fail. Defaults to all of them.
+   *
+   * "writes" exists because failing a table outright also fails the read that
+   * renders the page, so a test about a *save* failing never gets far enough to
+   * click save.
+   */
+  scope: "all" | "writes" | "reads";
 }
 
 /**
@@ -87,13 +95,31 @@ export class MemoryDb {
 
   /** Make the next request touching `table` fail. */
   failNext(table: string, status = 500, body?: unknown): this {
-    this.failures.set(table, { status, body, once: true });
+    this.failures.set(table, { status, body, once: true, scope: "all" });
     return this;
   }
 
   /** Make every request touching `table` fail until cleared. */
   failAlways(table: string, status = 500, body?: unknown): this {
-    this.failures.set(table, { status, body, once: false });
+    this.failures.set(table, { status, body, once: false, scope: "all" });
+    return this;
+  }
+
+  /**
+   * Fail only writes to `table`, leaving reads working.
+   *
+   * This is what a save-failed test needs: failing the table outright also
+   * fails the query that renders the page, so the test never reaches the
+   * button it means to click.
+   */
+  failWrites(table: string, status = 500, body?: unknown): this {
+    this.failures.set(table, { status, body, once: false, scope: "writes" });
+    return this;
+  }
+
+  /** Fail only the next write to `table`, so a retry can succeed. */
+  failNextWrite(table: string, status = 500, body?: unknown): this {
+    this.failures.set(table, { status, body, once: true, scope: "writes" });
     return this;
   }
 
@@ -109,9 +135,17 @@ export class MemoryDb {
   }
 
   /** Consumed by the executor; not part of the public test API. */
-  takeFailure(table: string): FailureSpec | undefined {
+  takeFailure(table: string, isWrite: boolean): FailureSpec | undefined {
     const failure = this.failures.get(table);
-    if (failure?.once) this.failures.delete(table);
+    if (!failure) return undefined;
+
+    const applies =
+      failure.scope === "all" ||
+      (failure.scope === "writes" && isWrite) ||
+      (failure.scope === "reads" && !isWrite);
+    if (!applies) return undefined;
+
+    if (failure.once) this.failures.delete(table);
     return failure;
   }
 

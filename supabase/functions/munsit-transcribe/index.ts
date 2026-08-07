@@ -2,7 +2,8 @@
  * munsit-transcribe — Munsit Arabic ASR (https://api.munsit.com/api/v1).
  *
  * Endpoint: POST /audio/transcribe (multipart/form-data, x-api-key auth)
- * Models:   "munsit" (default) | "munsit-en-ar" (code-switch)
+ * Models:   "munsit-en-ar" (default; the bare "munsit" model is degraded
+ *           upstream and returns a few characters for any input)
  *
  * This is a thin wrapper exposed for ad-hoc callers / testing.  The main
  * pipeline (process-approved-video) calls the Munsit REST API directly so it
@@ -19,6 +20,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { asrUpload } from "../_shared/audioChunk.ts";
+import { munsitModel, munsitFallbackModel } from "../_shared/asrConfig.ts";
 
 
 const MUNSIT_BASE = "https://api.munsit.com/api/v1";
@@ -41,7 +43,7 @@ serve(async (req) => {
 
   try {
     let fileBlob: Blob | null = null;
-    let model = "munsit";
+    let model = munsitModel();
 
     const ctype = req.headers.get("content-type") || "";
     if (ctype.includes("multipart/form-data")) {

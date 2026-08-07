@@ -28,7 +28,7 @@ const u16 = (n: number) => {
   new DataView(b.buffer).setUint16(0, n, false);
   return b;
 };
-const concat = (parts: Uint8Array[]) => {
+const concat = (parts: Uint8Array[]): Uint8Array<ArrayBuffer> => {
   const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
   let o = 0;
   for (const p of parts) { out.set(p, o); o += p.length; }
@@ -41,7 +41,7 @@ const concat = (parts: Uint8Array[]) => {
  */
 const MP3_FRAME_BYTES = 417;
 const MP3_FRAME_MS = (1152 / 44100) * 1000;
-function makeMp3(frameCount: number, withId3 = false): Uint8Array {
+function makeMp3(frameCount: number, withId3 = false): Uint8Array<ArrayBuffer> {
   const frames: Uint8Array[] = [];
   if (withId3) {
     // ID3v2 header, 10 bytes + a 20-byte synchsafe-sized payload.
@@ -61,7 +61,7 @@ function makeMp3(frameCount: number, withId3 = false): Uint8Array {
 }
 
 /** 16 kHz mono 16-bit PCM WAV holding `samples` frames. */
-function makeWav(samples: number, sampleRate = 16000, channels = 1): Uint8Array {
+function makeWav(samples: number, sampleRate = 16000, channels = 1): Uint8Array<ArrayBuffer> {
   const blockAlign = channels * 2;
   const dataLength = samples * blockAlign;
   const header = new Uint8Array(44);
@@ -110,7 +110,7 @@ const MP4_FRAME_SEC = MP4_SAMPLE_DELTA / MP4_TIMESCALE; // 0.064s
  * A minimal but structurally valid MP4 with one AAC-LC audio track:
  * ftyp + moov(trak(mdia(mdhd, hdlr, minf(stbl(stsd(mp4a(esds)), stts, stsc, stsz, stco))))) + mdat.
  */
-function makeMp4(frameCount: number, frameSize = 64, opts: { audioHandler?: string } = {}): Uint8Array {
+function makeMp4(frameCount: number, frameSize = 64, opts: { audioHandler?: string } = {}): Uint8Array<ArrayBuffer> {
   // AudioSpecificConfig: AAC-LC (2), freqIndex 8 (16 kHz), 1 channel.
   const asc = new Uint8Array([(2 << 3) | (8 >> 1), ((8 & 1) << 7) | (1 << 3)]);
   const dsi = desc(0x05, asc);
@@ -450,7 +450,7 @@ describe("planAsrPayloads", () => {
 // ── ADTS ─────────────────────────────────────────────────────────────────────
 
 /** AAC-LC, 16 kHz, mono — the same configuration `makeMp4` demuxes to. */
-function makeAdts(frameCount: number, payloadSize = 32): Uint8Array {
+function makeAdts(frameCount: number, payloadSize = 32): Uint8Array<ArrayBuffer> {
   const frames: Uint8Array[] = [];
   for (let i = 0; i < frameCount; i++) {
     const total = 7 + payloadSize;

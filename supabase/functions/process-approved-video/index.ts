@@ -6,6 +6,8 @@ import {
   SONIOX_MODEL,
   buildSonioxContext,
   looksTruncated,
+  munsitModel as resolveMunsitModel,
+  munsitFallbackModel,
   type AsrWord,
   type AsrLegResult,
 } from "../_shared/asrConfig.ts";
@@ -733,10 +735,15 @@ async function runPipeline(
     })();
 
     // --- Munsit (Arabic-native; sync endpoint only — chunk MP3s for long audio) ---
-    // MUNSIT_ASR_MODEL lets us trial `munsit-en-ar` (the code-switch model,
-    // better for Arabic-English mixed speech) without a redeploy. Default stays
-    // the standard Arabic model.
-    const munsitModel = Deno.env.get("MUNSIT_ASR_MODEL")?.trim() || "munsit";
+    // The model defaults to `munsit-en-ar`: the bare `munsit` model is degraded
+    // upstream and answers 200 with a handful of characters for any payload —
+    // even a synthetic sine tone — which is where the 0/7/187-char legs on the
+    // last four uploads came from. On the very same bytes `munsit-en-ar`
+    // returned 1048 chars against Soniox's 1179. MUNSIT_ASR_MODEL still
+    // overrides this without a redeploy, and an empty/truncated answer is
+    // retried on the other model below.
+    let munsitModel = resolveMunsitModel();
+
     const munsitPromise: Promise<AsrLegResult> = (async () => {
       const MUNSIT_API_KEY = Deno.env.get("MUNSIT_API_KEY")?.trim();
       if (!MUNSIT_API_KEY) { console.warn("[pipeline] Munsit: no API key"); return { text: null, words: [], latencyMs: 0 }; }
@@ -891,6 +898,21 @@ async function runPipeline(
           );
           const alt = await transcribe(audioU8, audioContentType, "container-retry");
           if (alt.text.length > out.text.length) out = alt;
+        }
+
+        // Still nothing usable? The other Munsit model is the one variable that
+        // has actually explained this failure before — one is degraded while the
+        // other transcribes the same bytes in full — so swap and try once more.
+        if (looksTruncated(out.text, durationSec) || !out.text) {
+          const swapped = munsitFallbackModel(munsitModel);
+          console.warn(
+            `[pipeline] Munsit: ${out.text.length} chars from ${munsitModel} — retrying on ${swapped}`,
+          );
+          const before = munsitModel;
+          munsitModel = swapped;
+          const alt = await transcribe(primary.bytes, primary.contentType, `model-retry:${swapped}`);
+          if (alt.text.length > out.text.length) out = alt;
+          else munsitModel = before;
         }
 
         const latencyMs = Date.now() - t0;

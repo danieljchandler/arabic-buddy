@@ -107,6 +107,48 @@ swapped, because `_shared/usageCap.ts` caches its Supabase client at module
 scope and that cache outlives any single test. A per-test stub would leave the
 cached client calling a dead one. `restore()` clears the route table instead.
 
+## Schema contract
+
+Two checks, because they answer different questions.
+
+**`src/test/schemaContract.test.ts`** parses every `.from("t").select(...)`,
+`.rpc(...)` and `functions.invoke(...)` in `src/` and `supabase/functions/` with
+the TypeScript compiler API and checks each name against the generated Supabase
+types. It needs no database and runs on every push.
+
+It exists for one failure mode: a renamed or dropped column makes PostgREST
+return 400, react-query surfaces an empty array, and the page renders a
+plausible empty state. No error, no crash, nothing to notice.
+
+**`src/test/migrationReplay.test.ts`** replays all 137 migrations against a real
+Postgres to check the history still produces the schema. Skipped without
+`DATABASE_URL`; CI runs it against a service container.
+
+```sh
+DATABASE_URL=postgres://postgres@127.0.0.1:5432/postgres \
+  npx vitest run src/test/migrationReplay.test.ts
+```
+
+`contract/prelude.sql` supplies the `auth` and `storage` objects the migrations
+reference but do not create — 233 uses of `auth.uid()` alone — so stock Postgres
+is enough and the Supabase CLI is not needed.
+
+### What it currently finds
+
+Both are recorded as pinned baselines rather than fixed, so they cannot get
+worse; shrinking them is the goal.
+
+- **7 of 137 migrations do not replay from scratch.** Five create something an
+  earlier migration already created; two reference tables nothing creates.
+- **Three tables exist in production but in no migration**: `processed_videos`,
+  `review_streaks` and `subscribers`. A rebuilt database would not have them.
+  `subscribers` is the significant one — `_shared/usageCap.ts` reads it to
+  decide whether a caller is a paying customer, so on a rebuilt database every
+  user would look free-tier. It is not in the generated types either.
+
+Fixing the last two means writing migrations for tables whose real shape only
+production knows, which needs a schema dump rather than a guess.
+
 ## Time
 
 `spacedRepetition`, `reviewQueue`, `todayCompletion`, `useNewCardBudget`,

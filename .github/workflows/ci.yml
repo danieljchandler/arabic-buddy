@@ -117,6 +117,51 @@ jobs:
       - name: Runtime tests
         run: npm run test:edge
 
+  # Can the schema be rebuilt from the migrations in this repo?
+  #
+  # The unit job's schema-contract test compares the app's queries against the
+  # generated types and needs no database. This one is the other half: it
+  # replays all 137 migrations against a stock Postgres to check the history
+  # still produces the schema. A migration set that only works against the one
+  # database it grew on is invisible until someone tries to recreate it.
+  #
+  # A service container rather than the Supabase CLI: the migrations need
+  # `auth` and `storage` objects, which contract/prelude.sql supplies in ~120
+  # lines, and standing up the full Supabase stack to get them would cost
+  # minutes per run for nothing this check uses.
+  contract:
+    name: Migration replay
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # psql comes preinstalled on ubuntu-latest; contract/build.mjs shells out
+      # to it rather than pulling in a Postgres client library for one script.
+      - name: Replay migrations
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+        run: npx vitest run src/test/migrationReplay.test.ts
+
   # Browser tests. Separate job so a Playwright/browser problem is
   # distinguishable at a glance from a type or unit-test failure.
   #

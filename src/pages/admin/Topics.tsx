@@ -64,7 +64,12 @@ const Topics = () => {
       <header className="border-b bg-card">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => navigate('/admin')}>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Back to admin dashboard"
+              onClick={() => navigate('/admin')}
+            >
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <h1 className="text-xl font-bold">Manage Topics</h1>
@@ -106,6 +111,10 @@ const Topics = () => {
                       <Button
                         variant="outline"
                         size="icon"
+                        // Icon-only, so without this the button has no
+                        // accessible name at all — nothing for a screen reader
+                        // to announce, and nothing for a test to address.
+                        aria-label={`Edit ${topic.name}`}
                         onClick={() => navigate(`/admin/topics/${topic.id}/edit`)}
                       >
                         <Edit className="h-4 w-4" />
@@ -116,6 +125,7 @@ const Topics = () => {
                         variant="outline"
                         size="icon"
                         className="text-destructive hover:text-destructive"
+                        aria-label={`Delete ${topic.name}`}
                         onClick={() => setDeleteId(topic.id)}
                       >
                         <Trash2 className="h-4 w-4" />

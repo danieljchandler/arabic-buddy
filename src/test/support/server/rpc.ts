@@ -1,4 +1,9 @@
-import { hasBibleAccessFromRoles, type AppRole } from "../../../lib/rbac";
+import {
+  hasBibleAccessFromRoles,
+  MANAGED_ROLES,
+  type AppRole,
+  type ManagedRole,
+} from "../../../lib/rbac";
 import type { MemoryDb } from "../postgrest/store";
 import type { Row } from "../postgrest/types";
 
@@ -66,12 +71,18 @@ export const defaultRpcs: Record<string, RpcHandler> = {
 
   admin_list_managed_roles: ({ db }) => {
     const profiles = new Map(db.rows("profiles").map((row) => [row.user_id, row]));
-    return db.rows("user_roles").map((row) => ({
-      user_id: row.user_id,
-      role: row.role,
-      email: (profiles.get(row.user_id)?.email as string) ?? null,
-      display_name: (profiles.get(row.user_id)?.display_name as string) ?? null,
-    }));
+    return db
+      .rows("user_roles")
+      .filter((row) => MANAGED_ROLES.includes(row.role as ManagedRole))
+      .map((row) => ({
+        // The row id, not just the user id: BibleAccess keys its table on it and
+        // revokes by it, so omitting it renders unkeyed rows and breaks revoke.
+        id: row.id,
+        user_id: row.user_id,
+        role: row.role,
+        email: (profiles.get(row.user_id)?.email as string) ?? null,
+        display_name: (profiles.get(row.user_id)?.display_name as string) ?? null,
+      }));
   },
 
   admin_find_user: ({ db, args }) => {

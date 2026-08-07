@@ -28,7 +28,7 @@ const u16 = (n: number) => {
   new DataView(b.buffer).setUint16(0, n, false);
   return b;
 };
-const concat = (parts: Uint8Array[]) => {
+const concat = (parts: Uint8Array[]): Uint8Array<ArrayBuffer> => {
   const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
   let o = 0;
   for (const p of parts) { out.set(p, o); o += p.length; }
@@ -450,7 +450,7 @@ describe("planAsrPayloads", () => {
 // ── ADTS ─────────────────────────────────────────────────────────────────────
 
 /** AAC-LC, 16 kHz, mono — the same configuration `makeMp4` demuxes to. */
-function makeAdts(frameCount: number, payloadSize = 32): Uint8Array {
+function makeAdts(frameCount: number, payloadSize = 32): Uint8Array<ArrayBuffer> {
   const frames: Uint8Array[] = [];
   for (let i = 0; i < frameCount; i++) {
     const total = 7 + payloadSize;

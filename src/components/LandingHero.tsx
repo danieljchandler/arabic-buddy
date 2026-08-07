@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { ArrowRight, Headphones, Brain, PlayCircle, Globe2 } from "lucide-react";
-import { Button, CaravanMedallion } from "@/components/design-system";
+import { Button, CampfireMedallion } from "@/components/design-system";
 import hakiyaLogoAsset from "@/assets/hakiya-logo.png.asset.json";
 
 const hakiyaLogo = hakiyaLogoAsset.url;
@@ -9,9 +9,13 @@ const hakiyaLogo = hakiyaLogoAsset.url;
  * Logged-out landing hero shown on `/` when the visitor isn't authenticated.
  * Goal: explain Hakiya in one screen and push to /auth or /placement.
  *
- * The framing is the journey — the same caravan language the Alphabet Journey
- * already uses ("a 28-stop caravan through the Arabic alphabet"), so a visitor
- * who signs up meets a metaphor they've already been introduced to.
+ * The framing is the name. Hakiya is حكاية — a story — so the page opens on
+ * people telling one round a fire, and the three value cards run as a story
+ * arc: who tells it, how it stays with you, what you get to hear next.
+ *
+ * The journey/caravan metaphor is not gone, just moved to where it earns its
+ * keep: the placement quiz ("wherever you are in your journey") and the
+ * Alphabet Journey's 28-stop caravan.
  */
 export function LandingHero() {
   const navigate = useNavigate();
@@ -23,14 +27,14 @@ export function LandingHero() {
         <img src={hakiyaLogo} alt="Hakiya" className="h-16 sm:h-20" />
       </div>
 
-      {/* The road: caravan clip + its one-line beat */}
+      {/* The fire: campfire clip + its one-line beat */}
       <div className="flex flex-col items-center mb-6">
-        <CaravanMedallion className="max-w-[220px] sm:max-w-[280px]" />
+        <CampfireMedallion className="max-w-[360px] sm:max-w-[480px]" />
         <p className="mt-3 text-caption text-muted-foreground text-center">
           <span className="font-arabic" dir="rtl">
-            رحلة
+            حكاية
           </span>{" "}
-          — a journey. Yours starts with one word.
+          — a story. Yours starts with one word.
         </p>
       </div>
 
@@ -45,15 +49,18 @@ export function LandingHero() {
         <h1 className="text-t-headline sm:text-t-display text-desert-red mb-3 text-balance">
           Real spoken Arabic,
           <br />
-          one stop at a time.
+          one story at a time.
           <span className="block mt-1 text-t-subtitle sm:text-t-title text-desert-red/70">
             Gulf · Egyptian · Yemeni.
           </span>
         </h1>
         <p className="text-base text-muted-foreground leading-relaxed">
-          Not the textbook stuff. Dialect-first lessons, native audio, and
-          spaced-repetition flashcards that carry you from your first word to a
-          real conversation.
+          Hakiya means{" "}
+          <span className="font-arabic" dir="rtl">
+            حكاية
+          </span>{" "}
+          — a story. Dialect-first lessons, native audio, and spaced-repetition
+          flashcards built from the stories people actually tell.
         </p>
       </div>
 
@@ -75,21 +82,21 @@ export function LandingHero() {
         </Button>
       </div>
 
-      {/* Value props — the three stages of the route */}
+      {/* Value props — who tells the story, how it sticks, what you hear next */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-3xl mx-auto mb-6">
         <ValueCard
           icon={<Headphones className="h-5 w-5" />}
-          title="Set out with native voices"
+          title="Told by native voices"
           body="Every word and sentence recorded by native speakers from the Gulf, Egypt and Yemen — so what you learn is what you'll actually hear."
         />
         <ValueCard
           icon={<Brain className="h-5 w-5" />}
-          title="Nothing gets left behind"
+          title="Every story stays with you"
           body="Words come back exactly when you're about to forget them. Built on FSRS, the modern successor to SM-2."
         />
         <ValueCard
           icon={<PlayCircle className="h-5 w-5" />}
-          title="Arrive at real conversation"
+          title="Stories you'd actually watch"
           body="TikToks, news clips, stories and conversations — tap any word to learn and save it."
         />
       </div>

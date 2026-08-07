@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useDialect } from "@/contexts/DialectContext";
 import { DIALECT_LABELS } from "@/config";
 import { AppShell } from "@/components/layout/AppShell";
+import { CaravanMedallion } from "@/components/design-system";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
@@ -218,14 +219,16 @@ export default function PlacementQuiz() {
         {/* ─── INTRO ─── */}
         {phase === "intro" && (
           <div className="flex-1 flex flex-col items-center justify-center text-center space-y-6 animate-in fade-in duration-300">
-            <div className="bg-primary/10 rounded-full p-6">
-              <Brain className="h-12 w-12 text-primary" />
-            </div>
+            {/* The caravan: this screen is the one about where you are on the road. */}
+            <CaravanMedallion className="max-w-[200px] sm:max-w-[240px]" />
             <div>
               <h1 className="text-3xl font-bold font-heading text-foreground mb-3">
                 {DIALECT_LABELS[activeDialect]} Placement
               </h1>
               <p className="text-muted-foreground leading-relaxed max-w-sm">
+                No matter where you are in your Arabic journey, we'll get you to the right test to show you exactly where you stand right now.
+              </p>
+              <p className="text-sm text-muted-foreground leading-relaxed max-w-sm mt-3">
                 Answer 20 adaptive questions in <span className="font-semibold">{DIALECT_LABELS[activeDialect]}</span> to find your CEFR level for this dialect. Your placement is tracked separately for each dialect.
               </p>
             </div>

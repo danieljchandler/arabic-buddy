@@ -735,10 +735,15 @@ async function runPipeline(
     })();
 
     // --- Munsit (Arabic-native; sync endpoint only — chunk MP3s for long audio) ---
-    // MUNSIT_ASR_MODEL lets us trial `munsit-en-ar` (the code-switch model,
-    // better for Arabic-English mixed speech) without a redeploy. Default stays
-    // the standard Arabic model.
-    const munsitModel = Deno.env.get("MUNSIT_ASR_MODEL")?.trim() || "munsit";
+    // The model defaults to `munsit-en-ar`: the bare `munsit` model is degraded
+    // upstream and answers 200 with a handful of characters for any payload —
+    // even a synthetic sine tone — which is where the 0/7/187-char legs on the
+    // last four uploads came from. On the very same bytes `munsit-en-ar`
+    // returned 1048 chars against Soniox's 1179. MUNSIT_ASR_MODEL still
+    // overrides this without a redeploy, and an empty/truncated answer is
+    // retried on the other model below.
+    let munsitModel = resolveMunsitModel();
+
     const munsitPromise: Promise<AsrLegResult> = (async () => {
       const MUNSIT_API_KEY = Deno.env.get("MUNSIT_API_KEY")?.trim();
       if (!MUNSIT_API_KEY) { console.warn("[pipeline] Munsit: no API key"); return { text: null, words: [], latencyMs: 0 }; }

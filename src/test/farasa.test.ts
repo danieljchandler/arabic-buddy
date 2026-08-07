@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   callFarasa,
+  callFarasaDiacritizeLines,
   extractFarasaText,
   farasaEndpoints,
   looksLikeAuthFailure,
@@ -176,5 +177,81 @@ describe("callFarasa", () => {
 
     await callFarasa("diac", "مرحبا", { apiKey: "" });
     expect(JSON.parse(fetchMock.mock.calls[0][1].body)).not.toHaveProperty("api_key");
+  });
+});
+
+describe("callFarasaDiacritizeLines", () => {
+  beforeEach(() => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.spyOn(console, "log").mockImplementation(() => {});
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const ok = (text: string) => reply(200, JSON.stringify({ text }));
+
+  it("returns one diacritized line per input line, in order", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(ok("أَوَّل"))
+      .mockResolvedValueOnce(ok("ثَانِي"))
+      .mockResolvedValueOnce(ok("ثَالِث"));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const out = await callFarasaDiacritizeLines(["اول", "ثاني", "ثالث"], { apiKey: "k" });
+    expect(out.lines).toEqual(["أَوَّل", "ثَانِي", "ثَالِث"]);
+    expect(out.ok).toBe(true);
+    expect(out.succeeded).toBe(3);
+  });
+
+  it("stops immediately when the key is rejected, rather than retrying every line", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(reply(401, AUTH_BODY));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const out = await callFarasaDiacritizeLines(["اول", "ثاني", "ثالث"], { apiKey: "" });
+    expect(out.ok).toBe(false);
+    expect(out.reason).toBe("invalid_api_key");
+    // Only the probe line's endpoint cascade — not 3 lines' worth.
+    expect(fetchMock.mock.calls.length).toBe(farasaEndpoints("diac").length);
+  });
+
+  it("keeps the lines that worked when one fails", async () => {
+    const fetchMock = vi.fn().mockImplementation((_url: string, init: { body: string }) => {
+      const text = JSON.parse(init.body).text;
+      if (text === "ثاني") return Promise.resolve(reply(500, "boom"));
+      return Promise.resolve(ok(`${text}ِ`));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const out = await callFarasaDiacritizeLines(["اول", "ثاني", "ثالث"], { apiKey: "k" });
+    expect(out.lines[0]).toBeTruthy();
+    expect(out.lines[1]).toBeNull();
+    expect(out.lines[2]).toBeTruthy();
+    expect(out.succeeded).toBe(2);
+    expect(out.failed).toBe(1);
+  });
+
+  it("skips blank lines without calling out for them", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(ok("أَوَّل"));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const out = await callFarasaDiacritizeLines(["اول", "   ", ""], { apiKey: "k" });
+    expect(out.lines[1]).toBeNull();
+    expect(out.lines[2]).toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("carries a sample of the output for diagnosis", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(ok("أَوَّل")));
+    const out = await callFarasaDiacritizeLines(["اول"], { apiKey: "k" });
+    expect(out.sample).toBe("أَوَّل");
+  });
+
+  it("reports empty input without calling out", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const out = await callFarasaDiacritizeLines([], { apiKey: "k" });
+    expect(out.reason).toBe("empty_input");
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

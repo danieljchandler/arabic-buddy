@@ -62,13 +62,36 @@ describe("arbitrateDispute", () => {
     expect(verdict.winner?.literal).toBe("boy the ate bread");
   });
 
-  it("refuses to choose when two candidates are equally close", () => {
+  it("settles a near-tie by corroboration rather than leaving it flagged", () => {
+    // Both candidates are backed by the arbiter, so neither is a quality risk.
+    // Requiring a clear margin here is what left 8 of 8 disputed lines in the
+    // review queue on a real run.
     const verdict = arbitrateDispute("the cat sat on the mat", [
-      cand("claude", "the cat sat on the mat"),
-      cand("gemini", "the cat sat on the mat"),
+      cand("qwen", "the cat sat on the mat", 0.5),
+      cand("claude", "the cat sat on the mat", 1),
+    ]);
+    expect(verdict.winner?.name).toBe("claude"); // higher weight wins the tie
+    expect(verdict.mode).toBe("corroborated");
+  });
+
+  it("does not corroborate when the arbiter backs nobody", () => {
+    const verdict = arbitrateDispute("entirely different subject matter", [
+      cand("claude", "the cat sat down"),
+      cand("gemini", "the cat sat still"),
     ]);
     expect(verdict.winner).toBeNull();
-    expect(verdict.reason).toBe("too_close");
+    expect(verdict.reason).toBe("below_threshold");
+  });
+
+  it("only corroborates among candidates that clear the score bar", () => {
+    // claude and gemini are both close to the arbiter; qwen is not, and must
+    // not win on weight alone.
+    const verdict = arbitrateDispute("he went to the market yesterday", [
+      cand("claude", "he went to the market yesterday", 1),
+      cand("gemini", "he went to the market today", 1),
+      cand("qwen", "unrelated wording entirely here", 1),
+    ]);
+    expect(verdict.winner?.name).not.toBe("qwen");
   });
 
   it("refuses to choose when nothing is close enough", () => {
@@ -97,6 +120,7 @@ describe("arbitrateDispute", () => {
       cand("claude", "he sells fish at the souq"),
     ]);
     expect(verdict.winner?.name).toBe("claude");
+    expect(verdict.mode).toBe("nearest");
     expect(verdict.margin).toBe(verdict.score);
   });
 
@@ -115,14 +139,18 @@ describe("arbitrateDispute", () => {
       cand("claude", "a b c d e f g h i j k"),
       cand("qwen", "a b c d e f g h i j k l"),
     ];
-    const strict = arbitrateDispute(arbiter, candidates);
+    // Within the default margin, so this is a corroborated settlement...
+    const settled = arbitrateDispute(arbiter, candidates);
+    expect(settled.mode).toBe("corroborated");
+    expect(settled.margin).toBeLessThan(ARBITER_MIN_MARGIN);
+    // ...but raising the score bar above both puts it back in the queue.
+    const strict = arbitrateDispute(arbiter, candidates, { minScore: 0.95 });
     expect(strict.winner).toBeNull();
-    expect(strict.reason).toBe("too_close");
-    expect(strict.margin).toBeLessThan(ARBITER_MIN_MARGIN);
-    // A permissive margin lets the closer one through.
+    expect(strict.reason).toBe("below_threshold");
+    // A permissive margin makes it a plain nearest-match instead.
     expect(
-      arbitrateDispute(arbiter, candidates, { minMargin: 0 }).winner?.name,
-    ).toBe("claude");
+      arbitrateDispute(arbiter, candidates, { minMargin: 0 }).mode,
+    ).toBe("nearest");
   });
 
   it("breaks exact score ties toward the higher-weight model before margin applies", () => {

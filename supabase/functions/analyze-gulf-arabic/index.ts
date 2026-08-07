@@ -6,9 +6,12 @@ import {
   jaccard,
   type ArbiterCandidate,
 } from "../_shared/translationArbiter.ts";
-import { callFarasa, type FarasaOutcome } from "../_shared/farasa.ts";
 import {
-  overlayDiacritizedLines,
+  callFarasaDiacritizeLines,
+  type FarasaLinesOutcome,
+} from "../_shared/farasa.ts";
+import {
+  overlayDiacritizedPerLine,
   stripDiacritics,
 } from "../_shared/arabicDiacritics.ts";
 import {
@@ -1451,8 +1454,15 @@ type MetaAI = {
 // of both, and the copy here silently dropped responses that used the `result`
 // field. The outcome is returned whole rather than reduced to `string | null`
 // so `engines_used.diacritization` can say *why* a run has no tashkeel.
-async function callFarasaDiacritize(text: string): Promise<FarasaOutcome> {
-  return await callFarasa('diac', text, { timeoutMs: 15_000 });
+//
+// One request per line, not one for the transcript. Farasa does not preserve
+// the newlines it is sent and truncates long input — 245 characters back for a
+// 748-character transcript in the last run — so the joined call left the
+// pipeline guessing which output word belonged to which line, and it guessed
+// wrong every time (0 of 143 words located across three consecutive audits).
+// Per-line requests make output `i` belong to input `i` by construction.
+async function callFarasaDiacritize(lines: string[]) {
+  return await callFarasaDiacritizeLines(lines, { timeoutMs: 15_000 });
 }
 
 // Fallback: use Qwen + Gemini via OpenRouter for translation when needed
@@ -1903,15 +1913,23 @@ serve(async (req) => {
        // Farasa diacritize. Like CAMeL, a failure carries its reason instead of
        // collapsing to null — "no tashkeel this run" needs to name whether the
        // service was unreachable or the API key was rejected.
-       callFarasaDiacritize(arabicOnlyText).catch((e) => {
+       callFarasaDiacritize(mergedLines.map((l) => l.arabic)).catch((e) => {
          console.warn('Farasa diacritize failed (non-blocking):', e);
-         return { ok: false, reason: 'all_endpoints_failed', attempts: [] } as FarasaOutcome;
+         return {
+           lines: mergedLines.map(() => null),
+           ok: false, succeeded: 0, failed: mergedLines.length,
+           reason: 'all_endpoints_failed',
+         } as FarasaLinesOutcome;
        }),
      ]);
 
      const camelDialectResult: CamelPrediction | null = camelOutcome.ok ? camelOutcome.result : null;
      const camelError: CamelFailureReason | null = camelOutcome.ok ? null : camelOutcome.reason;
-     const diacritizedTranscript: string | null = diacOutcome.ok ? diacOutcome.text : null;
+     // The response still carries a whole diacritized transcript for downstream
+     // TTS; lines Farasa could not do keep their original text.
+     const diacritizedTranscript: string | null = diacOutcome.ok
+       ? diacOutcome.lines.map((l, i) => l ?? mergedLines[i]?.arabic ?? '').join('\n')
+       : null;
 
      // --- Log CAMeL dialect result vs LLM-detected dialect ---
      if (camelDialectResult) {
@@ -1991,9 +2009,36 @@ serve(async (req) => {
       const shaheenByLine: (string | null)[] = new Array(mergedLines.length).fill(null);
       /** Model name Shaheen's arbitration settled each line on, where it did. */
       const shaheenResolvedBy: (string | null)[] = new Array(mergedLines.length).fill(null);
+      // Ordered by how far apart the candidates are, widest first.
+      //
+      // Shaheen's budget is a handful of calls a day and only covers the first
+      // few lines handed to it — the last run had 8 disputed lines and room for
+      // 4. Taking them in transcript order spends that on whichever lines happen
+      // to come first; taking the most divergent first spends it where a third
+      // opinion actually changes something. Lines whose candidates nearly agree
+      // are the ones arbitration would have found hardest to call anyway.
+      const candidateSpread = (l: EnsembleLineResult): number => {
+        const texts = l.candidates.map((c) => c.text).filter(Boolean);
+        if (texts.length < 2) return 0;
+        let closest = 0;
+        for (let a = 0; a < texts.length; a++) {
+          for (let b = a + 1; b < texts.length; b++) {
+            closest = Math.max(closest, jaccard(texts[a], texts[b]));
+          }
+        }
+        return 1 - closest;
+      };
       const disputedIdx = ensembleMerge.lines
         .map((l, i) => (l.needs_review || !l.translation) ? i : -1)
-        .filter((i) => i >= 0);
+        .filter((i) => i >= 0)
+        .sort((a, b) => {
+          // Empty lines first — filling one is worth more than settling a
+          // dispute between two translations that both already exist.
+          const emptyA = ensembleMerge.lines[a].translation ? 0 : 1;
+          const emptyB = ensembleMerge.lines[b].translation ? 0 : 1;
+          if (emptyA !== emptyB) return emptyB - emptyA;
+          return candidateSpread(ensembleMerge.lines[b]) - candidateSpread(ensembleMerge.lines[a]);
+        });
       // `attempted` vs `succeeded` are deliberately separate: the old single
       // `called` flag was set only on success, so a budget exhaustion, a 429 and
       // a missing API key all reported identically to "never ran". `called` is
@@ -2008,15 +2053,20 @@ serve(async (req) => {
         filled: number;
         /** Disputed lines Shaheen settled in favour of an ensemble candidate. */
         resolved: number;
+        /** Of those, ones settled because it backed several candidates equally. */
+        corroborated: number;
         /** Disputed lines it saw but could not settle either way. */
         unresolved: number;
+        /** Disputed lines the per-line budget never reached. */
+        unarbitrated: number;
         skip_reason?: ShaheenSkipReason;
         http_status?: number;
         budget_used?: number;
         strategy?: 'single' | 'per_line';
       } = {
         attempted: false, succeeded: false, called: false,
-        disputed_lines: disputedIdx.length, filled: 0, resolved: 0, unresolved: 0,
+        disputed_lines: disputedIdx.length, filled: 0, resolved: 0,
+        corroborated: 0, unresolved: 0, unarbitrated: 0,
       };
       if (!fanarLlmAvailable) {
         shaheenProvenance.skip_reason = 'no_api_key';
@@ -2063,13 +2113,21 @@ serve(async (req) => {
             dedicatedTranslations[i] = verdict.winner.text.trim();
             if (verdict.winner.literal) dedicatedLiterals[i] = verdict.winner.literal.trim();
             ensembleNeedsReview[i] = false;
-            shaheenResolvedBy[i] = verdict.winner.name;
+            shaheenResolvedBy[i] = `${verdict.winner.name}:${verdict.mode}`;
             shaheenProvenance.resolved++;
+            if (verdict.mode === 'corroborated') shaheenProvenance.corroborated++;
             console.log(
               `Shaheen-MT arbitration line ${i + 1}: resolved to ${verdict.winner.name} ` +
-                `(score=${verdict.score.toFixed(2)}, margin=${verdict.margin.toFixed(2)})`,
+                `via ${verdict.mode} (score=${verdict.score.toFixed(2)}, margin=${verdict.margin.toFixed(2)})`,
             );
           }
+
+          // Disputed lines the budget never reached. Distinct from `unresolved`
+          // — those got an opinion and it settled nothing, these were never
+          // asked, and only the second is fixed by raising the budget.
+          shaheenProvenance.unarbitrated = disputedIdx.filter(
+            (i) => ensembleNeedsReview[i] && !shaheenByLine[i],
+          ).length;
 
           // The merge's own needs_review tally is pre-arbitration; recount so
           // engines_used and the review queue can't disagree about how many
@@ -2078,8 +2136,10 @@ serve(async (req) => {
 
           console.log(
             `Shaheen-MT tiebreak: ${disputedIdx.length} disputed lines → ` +
-              `${shaheenProvenance.filled} filled, ${shaheenProvenance.resolved} resolved, ` +
-              `${shaheenProvenance.unresolved} still disputed`,
+              `${shaheenProvenance.filled} filled, ${shaheenProvenance.resolved} resolved ` +
+              `(${shaheenProvenance.corroborated} by corroboration), ` +
+              `${shaheenProvenance.unresolved} still disputed, ` +
+              `${shaheenProvenance.unarbitrated} never reached by the budget`,
           );
         } else {
           console.warn(
@@ -2158,9 +2218,9 @@ serve(async (req) => {
       // Overlay Farasa diacritization onto each line so per-line `arabic`
       // includes tashkeel (pronunciation markings) — not just the top-level
       // `diacritizedTranscript` field.
-      const overlay = overlayDiacritizedLines(
+      const overlay = overlayDiacritizedPerLine(
         mergedLines.map(l => l.arabic),
-        diacritizedTranscript,
+        diacOutcome.lines,
       );
       const diacritizedPerLine = overlay.lines;
       const diacritizedLineCount = diacritizedPerLine.filter(
@@ -2192,11 +2252,16 @@ serve(async (req) => {
         words_total: overlay.total,
         words_matched: overlay.matched,
         words_filled: overlay.filled,
+        lines_returned: diacOutcome.succeeded,
+        lines_failed: diacOutcome.failed,
+        // What Farasa actually sent back. Three audits in a row reported
+        // "succeeded but nothing landed" with no way to see the output that
+        // failed to line up; this ends that.
+        ...(diacOutcome.sample ? { sample: diacOutcome.sample } : {}),
         ...(diacOutcome.ok
-          ? { chars: diacOutcome.text.length, endpoint: diacOutcome.url }
+          ? {}
           : {
               reason: diacOutcome.reason,
-              endpoints_tried: diacOutcome.attempts.length,
               ...(diacOutcome.reason === 'invalid_api_key'
                 ? { config_hint: 'set FARASA_API_KEY — register at farasa.qcri.org' }
                 : {}),

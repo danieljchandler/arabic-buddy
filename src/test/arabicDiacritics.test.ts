@@ -3,6 +3,7 @@ import {
   hasDiacritics,
   normalizeArabicForMatch,
   overlayDiacritizedLines,
+  overlayDiacritizedPerLine,
   overlayLineByWord,
   stripDiacritics,
 } from "../../supabase/functions/_shared/arabicDiacritics";
@@ -143,5 +144,48 @@ describe("overlayDiacritizedLines", () => {
     const r = overlayDiacritizedLines(["انا رايح"], "كِتَاب جَدِيد");
     expect(r.matched).toBe(0);
     expect(r.lines).toEqual(["انا رايح"]);
+  });
+});
+
+describe("overlayDiacritizedPerLine", () => {
+  const lines = ["انا رايح السوق", "وش تبي منه"];
+
+  it("aligns line to line with no stream to walk", () => {
+    const r = overlayDiacritizedPerLine(lines, [
+      "أَنَا رَايِح السُّوق",
+      "وِش تَبِي مِنه",
+    ]);
+    expect(r.strategy).toBe("per-line");
+    expect(r.matched).toBe(6);
+    expect(r.filled).toBe(6);
+  });
+
+  it("keeps a line whose own request failed", () => {
+    const r = overlayDiacritizedPerLine(lines, ["أَنَا رَايِح السُّوق", null]);
+    expect(r.lines[1]).toBe(lines[1]);
+    expect(r.matched).toBe(3);
+    expect(r.total).toBe(6);
+  });
+
+  it("is unaffected by a diacritizer that truncates one line", () => {
+    // The whole-transcript path lost every later line when this happened;
+    // per-line confines the damage to the line it belongs to.
+    const r = overlayDiacritizedPerLine(lines, ["أَنَا", "وِش تَبِي مِنه"]);
+    expect(r.lines[1]).toContain("تَبِي");
+    expect(r.matched).toBe(4);
+  });
+
+  it("tolerates a short array without throwing", () => {
+    const r = overlayDiacritizedPerLine(lines, ["أَنَا رَايِح السُّوق"]);
+    expect(r.lines).toHaveLength(2);
+    expect(r.lines[1]).toBe(lines[1]);
+  });
+
+  it("never reorders or drops words", () => {
+    const r = overlayDiacritizedPerLine(lines, [
+      "أَنَا رَايِح السُّوق",
+      "وِش تَبِي مِنه",
+    ]);
+    expect(stripDiacritics(r.lines.join(" "))).toBe(lines.join(" "));
   });
 });

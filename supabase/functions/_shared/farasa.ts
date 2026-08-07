@@ -189,3 +189,104 @@ export async function callFarasa(
   );
   return { ok: false, reason, attempts };
 }
+
+// ── Per-line diacritization ───────────────────────────────────────────────────
+
+export interface FarasaLinesOutcome {
+  /** One entry per input line, positionally aligned. Null where a line failed. */
+  lines: (string | null)[];
+  /** True when at least one line came back. */
+  ok: boolean;
+  succeeded: number;
+  failed: number;
+  /** Set when nothing succeeded. */
+  reason?: FarasaFailureReason;
+  /**
+   * First slice of the diacritizer's answer for the first line that produced
+   * one. Carried into provenance so a run where the output still fails to line
+   * up shows *what came back* rather than only that it didn't fit.
+   */
+  sample?: string;
+}
+
+/** How many lines to diacritize at once. Farasa throttles aggressive callers. */
+const LINE_CONCURRENCY = 3;
+
+/** Past this many lines, per-line calls stop being worth the request count. */
+const MAX_LINES = 60;
+
+/**
+ * Diacritize each line with its own request.
+ *
+ * The whole-transcript call this replaces sent every line joined by newlines and
+ * then had to work out which output word belonged to which input line. Farasa
+ * does not preserve those newlines, and on long input returns a fraction of what
+ * it was sent (245 characters for a 748-character transcript in the reported
+ * run), so the stream never aligned and no tashkeel reached any line.
+ *
+ * One line per request removes the problem rather than compensating for it:
+ * output `i` belongs to input `i` by construction, and each input is short
+ * enough to come back whole.
+ */
+export async function callFarasaDiacritizeLines(
+  lines: string[],
+  opts: { apiKey?: string; timeoutMs?: number; concurrency?: number } = {},
+): Promise<FarasaLinesOutcome> {
+  const out: (string | null)[] = new Array(lines.length).fill(null);
+  if (lines.length === 0) {
+    return { lines: out, ok: false, succeeded: 0, failed: 0, reason: 'empty_input' };
+  }
+  if (lines.length > MAX_LINES) {
+    console.warn(
+      `Farasa diac: ${lines.length} lines exceeds the ${MAX_LINES}-line per-line budget — ` +
+      `sending the transcript whole instead`,
+    );
+    const whole = await callFarasa('diac', lines.join('\n'), opts);
+    return whole.ok
+      ? { lines: [whole.text], ok: true, succeeded: 1, failed: 0, sample: whole.text.slice(0, 200) }
+      : { lines: out, ok: false, succeeded: 0, failed: lines.length, reason: whole.reason };
+  }
+
+  // Probe with the first non-empty line before fanning out. A rejected key
+  // fails identically on every line, and firing all of them would mean dozens
+  // of pointless requests against a service that throttles.
+  const firstIdx = lines.findIndex((l) => l.trim());
+  if (firstIdx < 0) {
+    return { lines: out, ok: false, succeeded: 0, failed: lines.length, reason: 'empty_input' };
+  }
+  const probe = await callFarasa('diac', lines[firstIdx], opts);
+  if (!probe.ok) {
+    if (probe.reason === 'invalid_api_key') {
+      console.warn('Farasa diac: key rejected on the first line — not attempting the rest');
+      return { lines: out, ok: false, succeeded: 0, failed: lines.length, reason: probe.reason };
+    }
+  } else {
+    out[firstIdx] = probe.text;
+  }
+
+  const remaining = lines
+    .map((line, i) => ({ line, i }))
+    .filter(({ line, i }) => i !== firstIdx && line.trim());
+
+  for (let start = 0; start < remaining.length; start += LINE_CONCURRENCY) {
+    const slice = remaining.slice(start, start + (opts.concurrency ?? LINE_CONCURRENCY));
+    const settled = await Promise.all(
+      slice.map(({ line }) => callFarasa('diac', line, opts).catch(() => null)),
+    );
+    settled.forEach((res, k) => {
+      if (res?.ok) out[slice[k].i] = res.text;
+    });
+  }
+
+  const succeeded = out.filter((l) => l !== null).length;
+  const sample = out.find((l) => l)?.slice(0, 200);
+  console.log(`Farasa diac: ${succeeded}/${lines.length} lines diacritized`);
+  return {
+    lines: out,
+    ok: succeeded > 0,
+    succeeded,
+    failed: lines.length - succeeded,
+    ...(succeeded === 0 ? { reason: probe.ok ? 'all_endpoints_failed' : probe.reason } : {}),
+    ...(sample ? { sample } : {}),
+  };
+}

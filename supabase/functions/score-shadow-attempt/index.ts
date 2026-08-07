@@ -21,6 +21,7 @@
  */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { munsitModel, munsitFallbackModel } from "../_shared/asrConfig.ts";
 import {
   recordLearnerErrorsForRequest,
   resolveLearnerErrorsForRequest,
@@ -146,7 +147,7 @@ function alignWords(reference: string, recognized: string): WordDiff[] {
   return diffs.reverse();
 }
 
-async function munsitTranscribe(audioBase64: string, mimeType: string, apiKey: string): Promise<string> {
+async function munsitCall(audioBase64: string, mimeType: string, apiKey: string, model: string): Promise<string> {
   const bin = atob(audioBase64);
   const bytes = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
@@ -158,7 +159,7 @@ async function munsitTranscribe(audioBase64: string, mimeType: string, apiKey: s
   const blob = new Blob([bytes], { type: effectiveType });
   const fd = new FormData();
   fd.append("file", new File([blob], `utterance.${ext}`, { type: effectiveType }));
-  fd.append("model", "munsit");
+  fd.append("model", model);
 
   console.log(`munsit request: bytes=${bytes.length} type=${effectiveType} ext=${ext}`);
 

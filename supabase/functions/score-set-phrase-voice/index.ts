@@ -10,6 +10,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { munsitModel, munsitFallbackModel } from "../_shared/asrConfig.ts";
 import {
   recordLearnerErrorsForRequest,
   resolveLearnerErrorsForRequest,
@@ -69,14 +70,14 @@ function similarity(a: string, b: string): number {
   return 1 - dist / maxLen;
 }
 
-async function munsitTranscribe(audioBase64: string, mimeType: string, apiKey: string): Promise<string> {
+async function munsitCall(audioBase64: string, mimeType: string, apiKey: string, model: string): Promise<string> {
   const bin = atob(audioBase64);
   const bytes = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
   const blob = new Blob([bytes], { type: mimeType || "audio/webm" });
   const fd = new FormData();
   fd.append("file", new File([blob], "utterance." + (mimeType.includes("wav") ? "wav" : "webm"), { type: blob.type }));
-  fd.append("model", "munsit");
+  fd.append("model", model);
 
   const resp = await fetch(`${MUNSIT_BASE}/audio/transcribe`, {
     method: "POST",

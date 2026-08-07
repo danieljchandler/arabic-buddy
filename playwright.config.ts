@@ -17,6 +17,12 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
+  // Refuses to start unless the webServer env below actually took effect.
+  globalSetup: "./e2e/support/globalSetup.ts",
+  // CI defaults to one worker, which does not scale to a suite covering every
+  // route. Each test gets its own browser context and its own in-memory
+  // database, so there is no shared state to serialize on.
+  workers: process.env.CI ? 4 : undefined,
   // In CI, also emit the HTML report so a failed run uploads something
   // debuggable as an artifact — "line" alone writes nothing to disk.
   reporter: process.env.CI

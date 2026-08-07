@@ -40,8 +40,13 @@ jobs:
       # function modules the tests import). The Deno functions themselves are
       # checked by the `edge` job below — tsc cannot resolve their https://
       # imports, so it would report noise rather than real errors here.
+      #
+      # `npm run typecheck` also covers tsconfig.e2e.json. The e2e tree used to
+      # be typechecked by nothing at all — tsconfig.app.json's `include: ["src"]`
+      # leaves it out — so a spec could reference a helper that no longer existed
+      # and only fail once a browser had spent 15s getting there.
       - name: Typecheck
-        run: npx tsc --noEmit -p tsconfig.app.json
+        run: npm run typecheck
 
       # Ratchet, not a clean-lint gate: the repo carries ~596 pre-existing
       # errors, so requiring zero would make every build red and train people

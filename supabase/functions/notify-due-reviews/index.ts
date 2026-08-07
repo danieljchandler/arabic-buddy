@@ -19,7 +19,12 @@
  */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import webpush from "https://esm.sh/web-push@3.6.7";
+// Namespace import, not a default one: web-push is CJS and its bundled types
+// declare only named exports, so `import webpush from` failed to typecheck.
+// esm.sh serves both shapes at runtime (verified: setVapidDetails and
+// sendNotification are functions on the namespace), so the call sites below are
+// unaffected.
+import * as webpush from "https://esm.sh/web-push@3.6.7";
 import { getCorsHeaders } from "../_shared/cors.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;

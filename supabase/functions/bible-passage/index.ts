@@ -356,9 +356,12 @@ serve(async (req) => {
         : 500;
 
     if (status >= 500) {
+      // Without the headers this response reached the browser un-CORSed, so a
+      // recoverable upstream 5xx surfaced to the client as a network error
+      // rather than the fallback payload it was meant to deliver.
       return fallback({
         error: error instanceof Error ? error.message : "Unknown error",
-      });
+      }, corsHeaders);
     }
 
     return new Response(

@@ -26,9 +26,14 @@ export const SONIOX_MODEL = "stt-async-v5";
 export const MUNSIT_ASR_MODEL = "munsit-en-ar";
 export const MUNSIT_ASR_FALLBACK_MODEL = "munsit";
 
-/** Resolved primary model, honouring the MUNSIT_ASR_MODEL secret override. */
+/**
+ * Resolved primary model, honouring the MUNSIT_ASR_MODEL secret override.
+ * Reads the env off `globalThis` so this module still typechecks when the
+ * frontend test suite imports it outside Deno.
+ */
 export function munsitModel(): string {
-  return Deno.env.get("MUNSIT_ASR_MODEL")?.trim() || MUNSIT_ASR_MODEL;
+  const env = (globalThis as { Deno?: { env: { get(k: string): string | undefined } } }).Deno?.env;
+  return env?.get("MUNSIT_ASR_MODEL")?.trim() || MUNSIT_ASR_MODEL;
 }
 
 /** The other Munsit model, used as a retry when the primary returns nothing. */

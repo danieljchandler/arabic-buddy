@@ -48,11 +48,21 @@ export default tseslint.config(
       "no-only-tests/no-only-tests": "error",
     },
   },
-  // Playwright's fixture API hands each fixture a `use()` callback. The React
-  // hooks plugin matches on the `use` prefix and reads those as hook calls in a
-  // non-component function, which they are not — there is no React here at all.
+  // Two rules that misread Playwright's fixture API, which is not React and not
+  // ordinary destructuring:
+  //
+  // - `use()` is the callback each fixture is handed. The React hooks plugin
+  //   matches on the `use` prefix and reads those as hook calls outside a
+  //   component. There is no React in this directory at all.
+  // - `async ({}, use)` is the documented signature for a fixture that depends
+  //   on no other fixtures. Playwright reads the destructured names to build its
+  //   dependency graph, so the empty pattern is load-bearing — omitting it makes
+  //   the fixture appear to depend on everything.
   {
     files: ["e2e/**/*.ts"],
-    rules: { "react-hooks/rules-of-hooks": "off" },
+    rules: {
+      "react-hooks/rules-of-hooks": "off",
+      "no-empty-pattern": "off",
+    },
   },
 );

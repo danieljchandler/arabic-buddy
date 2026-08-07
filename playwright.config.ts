@@ -40,7 +40,23 @@ export default defineConfig({
         // The sandbox/CI image ships browsers at PLAYWRIGHT_BROWSERS_PATH
         // rather than in node_modules, so let Playwright resolve them itself
         // and only drop the sandbox, which containers don't allow.
-        launchOptions: { args: ["--no-sandbox"] },
+        //
+        // The fake-media flags give Chromium a synthetic capture device. A
+        // container has no microphone, so without them getUserMedia rejects
+        // with NotFoundError and every recording surface — pronunciation,
+        // shadowing, the conversation simulator, the admin audio recorders —
+        // errors on mount. These produce a *real* MediaStream, which matters:
+        // a hand-written stand-in is rejected by RTCPeerConnection.addTrack,
+        // so the live-voice panel could not be tested with one.
+        launchOptions: {
+          args: [
+            "--no-sandbox",
+            "--use-fake-device-for-media-stream",
+            "--use-fake-ui-for-media-stream",
+            "--autoplay-policy=no-user-gesture-required",
+          ],
+        },
+        permissions: ["microphone"],
       },
     },
   ],

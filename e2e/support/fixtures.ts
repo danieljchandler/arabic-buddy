@@ -12,6 +12,7 @@ import {
   seedSession,
 } from "../../src/test/support/transports/playwright";
 import { TEST_USER_ID } from "../../src/test/support/server/session";
+import { installBrowserFakes } from "../../src/test/support/browser/fakes";
 
 /**
  * The fixture new specs build on.
@@ -57,24 +58,75 @@ export interface Fixtures {
   signInAs: (persona: Persona, options?: PersonaOptions) => Promise<void>;
   /** Console errors the page emitted. Assert on it, or let teardown do it. */
   consoleErrors: string[];
-  /** Opt out of the console-error assertion for a spec that expects one. */
+  /** Opt out of the console-error assertion entirely. Prefer expectConsoleErrors. */
   allowConsoleErrors: () => void;
+  /**
+   * Tolerate specific console errors while still failing on anything else.
+   * Narrower than `allowConsoleErrors`, so a real crash is still caught.
+   */
+  expectConsoleErrors: (patterns: RegExp[]) => void;
+  /**
+   * Declare third-party hosts this page contacts on purpose. They stay blocked
+   * — the suite is hermetic — but stop counting as a leak.
+   */
+  allowExternalHosts: (hosts: string[]) => void;
+
+  /**
+   * Backing stores for the two declaring helpers above. Exposed only because
+   * Playwright requires every fixture to be typed; specs should call
+   * `allowExternalHosts` / `expectConsoleErrors` rather than push directly.
+   */
+  externalHostAllowList: string[];
+  expectedConsoleErrorPatterns: RegExp[];
 }
 
 export const test = base.extend<Fixtures>({
-  backend: async ({ page }, use) => {
+  /**
+   * Shared, mutable state the declaring fixtures write to and the asserting
+   * fixtures read at teardown. Keeping it a fixture rather than module state
+   * is what makes it safe under parallel workers.
+   */
+  externalHostAllowList: [async ({}, use) => {
+    await use([]);
+  }, { scope: "test" }],
+
+  expectedConsoleErrorPatterns: [async ({}, use) => {
+    await use([]);
+  }, { scope: "test" }],
+
+  allowExternalHosts: async ({ externalHostAllowList }, use) => {
+    await use((hosts) => externalHostAllowList.push(...hosts));
+  },
+
+  expectConsoleErrors: async ({ expectedConsoleErrorPatterns }, use) => {
+    await use((patterns) => expectedConsoleErrorPatterns.push(...patterns));
+  },
+
+  backend: async ({ page, externalHostAllowList }, use) => {
+    // Before anything navigates: a container has no microphone, so every
+    // recording surface in the app errors on mount without these.
+    await page.addInitScript(installBrowserFakes);
+
     const { backend, blockedRequests } = await installSupabaseRoutes(page);
 
     await use(backend);
 
     // Run after the spec, so a failure here always follows the real assertions
     // and never masks them.
-    if (blockedRequests.length > 0) {
+    const leaked = blockedRequests.filter((url) => {
+      const hostname = new URL(url).hostname;
+      return !externalHostAllowList.some(
+        (allowed) => hostname === allowed || hostname.endsWith(`.${allowed}`),
+      );
+    });
+
+    if (leaked.length > 0) {
       throw new Error(
         `The page tried to reach hosts outside the test environment:\n` +
-          [...new Set(blockedRequests)].map((url) => `  - ${url}`).join("\n") +
+          [...new Set(leaked)].map((url) => `  - ${url}`).join("\n") +
           `\n\nIf this is production Supabase, the env override has broken — see ` +
-          `e2e/support/globalSetup.ts. If it is a third party, stub it in the spec.`,
+          `e2e/support/globalSetup.ts. If the page legitimately calls a third ` +
+          `party, declare it with allowExternalHosts([...]).`,
       );
     }
 
@@ -100,17 +152,31 @@ export const test = base.extend<Fixtures>({
     await use(errors);
   },
 
-  allowConsoleErrors: async ({ consoleErrors }, use, testInfo) => {
+  allowConsoleErrors: async (
+    { consoleErrors, expectedConsoleErrorPatterns },
+    use,
+    testInfo,
+  ) => {
     let allowed = false;
     await use(() => {
       allowed = true;
     });
 
-    if (!allowed && consoleErrors.length > 0 && testInfo.status === testInfo.expectedStatus) {
+    // Don't pile a teardown failure onto a test that already failed — the
+    // original assertion is the useful one.
+    if (allowed || testInfo.status !== testInfo.expectedStatus) return;
+
+    const unexpected = consoleErrors.filter(
+      (line) => !expectedConsoleErrorPatterns.some((pattern) => pattern.test(line)),
+    );
+
+    if (unexpected.length > 0) {
       throw new Error(
         `The page logged errors:\n` +
-          consoleErrors.map((line) => `  - ${line}`).join("\n") +
-          `\n\nIf the spec expects them, call allowConsoleErrors().`,
+          unexpected.map((line) => `  - ${line}`).join("\n") +
+          `\n\nIf the page is expected to log these, declare them with ` +
+          `expectConsoleErrors([...]); allowConsoleErrors() switches the check ` +
+          `off entirely and should be a last resort.`,
       );
     }
   },

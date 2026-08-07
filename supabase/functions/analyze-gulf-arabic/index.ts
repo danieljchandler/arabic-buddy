@@ -2235,6 +2235,7 @@ serve(async (req) => {
         // "succeeded but nothing landed" with no way to see the output that
         // failed to line up; this ends that.
         ...(diacOutcome.sample ? { sample: diacOutcome.sample } : {}),
+        ...(diacOutcome.sampleInput ? { sample_input: diacOutcome.sampleInput } : {}),
         ...(diacOutcome.ok
           ? {}
           : {

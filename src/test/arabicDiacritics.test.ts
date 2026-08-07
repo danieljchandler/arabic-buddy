@@ -189,3 +189,49 @@ describe("overlayDiacritizedPerLine", () => {
     expect(stripDiacritics(r.lines.join(" "))).toBe(lines.join(" "));
   });
 });
+
+describe("segmented diacritizer output", () => {
+  // Farasa's segmenting endpoints split clitics off the stem. Before this was
+  // handled, every affixed word — most Arabic words — scored a miss, which is
+  // how a whole transcript matched exactly zero words.
+
+  it("matches a word the diacritizer returned with inline + boundaries", () => {
+    const r = overlayLineByWord("والكتاب", "وَ+الْ+كِتَاب");
+    expect(r.matched).toBe(1);
+    expect(stripDiacritics(r.line)).toBe("والكتاب");
+    expect(hasDiacritics(r.line)).toBe(true);
+  });
+
+  it("matches a word split into separate space-separated tokens", () => {
+    const r = overlayLineByWord("والكتاب", "وَ الْ كِتَاب");
+    expect(r.matched).toBe(1);
+    expect(stripDiacritics(r.line)).toBe("والكتاب");
+  });
+
+  it("keeps the rest of the line aligned after a split word", () => {
+    const r = overlayLineByWord("والكتاب جديد", "وَ الْ كِتَاب جَدِيد");
+    expect(r.matched).toBe(2);
+    expect(r.line.split(" ")).toHaveLength(2);
+    expect(stripDiacritics(r.line)).toBe("والكتاب جديد");
+  });
+
+  it("handles a whole segmented line the way the transcript arrives", () => {
+    const r = overlayDiacritizedPerLine(
+      ["انا رايح للسوق"],
+      ["أَنَا رَايِح لِ+لْ+سُّوق"],
+    );
+    expect(r.matched).toBe(3);
+    expect(stripDiacritics(r.lines[0])).toBe("انا رايح للسوق");
+  });
+
+  it("still does not merge two genuinely different adjacent words", () => {
+    // Joining must not let "بيت" swallow the following token.
+    const r = overlayLineByWord("بيت كبير", "بَيْت كَبِير");
+    expect(r.matched).toBe(2);
+    expect(r.line.split(" ")).toHaveLength(2);
+  });
+
+  it("normalises the + marker out of match comparisons", () => {
+    expect(normalizeArabicForMatch("و+ال+كتاب")).toBe(normalizeArabicForMatch("والكتاب"));
+  });
+});

@@ -207,6 +207,8 @@ export interface FarasaLinesOutcome {
    * up shows *what came back* rather than only that it didn't fit.
    */
   sample?: string;
+  /** The line that produced `sample`, so the two can be compared directly. */
+  sampleInput?: string;
 }
 
 /** How many lines to diacritize at once. Farasa throttles aggressive callers. */
@@ -279,7 +281,13 @@ export async function callFarasaDiacritizeLines(
   }
 
   const succeeded = out.filter((l) => l !== null).length;
-  const sample = out.find((l) => l)?.slice(0, 200);
+  // Paired sample: the first line that came back, next to the exact text that
+  // was sent for it. Four audits reported "Farasa succeeded but nothing landed"
+  // and none could show *what* came back, so each round diagnosed the mismatch
+  // by inference. Side by side, one glance settles it.
+  const sampleIdx = out.findIndex((l) => l);
+  const sample = sampleIdx >= 0 ? out[sampleIdx]!.slice(0, 200) : undefined;
+  const sampleInput = sampleIdx >= 0 ? lines[sampleIdx].slice(0, 200) : undefined;
   console.log(`Farasa diac: ${succeeded}/${lines.length} lines diacritized`);
   return {
     lines: out,
@@ -288,5 +296,6 @@ export async function callFarasaDiacritizeLines(
     failed: lines.length - succeeded,
     ...(succeeded === 0 ? { reason: probe.ok ? 'all_endpoints_failed' : probe.reason } : {}),
     ...(sample ? { sample } : {}),
+    ...(sampleInput ? { sampleInput } : {}),
   };
 }

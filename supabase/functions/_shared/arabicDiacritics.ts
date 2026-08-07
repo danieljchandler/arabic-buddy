@@ -64,6 +64,10 @@ export function normalizeArabicForMatch(word: string): string {
   return stripDiacritics(word)
     .replace(ZERO_WIDTH, '')
     .replace(TATWEEL, '')
+    // Farasa's clitic-boundary marker. Its segmenting endpoints return
+    // "و+ال+كتاب" for "والكتاب", and leaving the plus in place makes every
+    // affixed word — which in Arabic is most of them — compare unequal.
+    .replace(/\+/g, '')
     .replace(EDGE_PUNCTUATION, '')
     // Hamza carriers → bare alef. This is the normalisation Farasa applies.
     .replace(/[أإآٱ]/g, 'ا')
@@ -103,8 +107,12 @@ function transplantMarks(bare: string, diacritized: string): string | null {
   return i === bare.length ? out.join('') : null;
 }
 
-function mergeWord(original: string, diacritized: string): string {
+function mergeWord(original: string, rawDiacritized: string): string {
   if (hasDiacritics(original)) return original;
+  // Clitic boundaries are annotation, not letters — they must come off before
+  // the skeletons are compared or transplanted onto, or every segmented word
+  // looks like a respelling and keeps its bare form.
+  const diacritized = rawDiacritized.replace(/\+/g, '');
   if (!hasDiacritics(diacritized)) return original;
   const bareOriginal = stripDiacritics(original);
   const bareDiacritized = stripDiacritics(diacritized);
@@ -200,7 +208,20 @@ export function overlayDiacritizedLines(
   return { lines, matched, filled, total, strategy: 'word-stream' };
 }
 
-/** Overlay a single line, position by position with a small lookahead. */
+/** How many consecutive diacritized tokens may be joined to match one word. */
+const MAX_JOIN = 3;
+
+/**
+ * Overlay a single line, position by position with a small lookahead.
+ *
+ * A word is matched against the token at the cursor, and also against joins of
+ * the next two or three tokens. Farasa's family of endpoints does not agree on
+ * tokenisation: the segmenting ones split clitics off ("والكتاب" comes back as
+ * "و+ال+كتاب", and on some deployments as three space-separated pieces), so
+ * one input word can correspond to several output tokens. Comparing one to one
+ * scores every such word a miss — which is what a whole transcript matching
+ * exactly zero words looks like.
+ */
 export function overlayLineByWord(
   orig: string,
   diac: string,
@@ -212,17 +233,23 @@ export function overlayLineByWord(
   let cursor = 0;
 
   const out = origWords.map((ow) => {
+    // hit = index of the first token of the match, span = how many it covers.
     let hit = -1;
+    let span = 1;
+    search:
     for (let k = 0; k < 3 && cursor + k < diacWords.length; k++) {
-      if (sameWord(diacWords[cursor + k], ow)) { hit = cursor + k; break; }
+      for (let n = 1; n <= MAX_JOIN && cursor + k + n <= diacWords.length; n++) {
+        const piece = diacWords.slice(cursor + k, cursor + k + n).join('');
+        if (sameWord(piece, ow)) { hit = cursor + k; span = n; break search; }
+      }
     }
     if (hit < 0) {
       if (cursor < diacWords.length) cursor++;
       return ow;
     }
     matched++;
-    cursor = hit + 1;
-    const merged = mergeWord(ow, diacWords[hit]);
+    cursor = hit + span;
+    const merged = mergeWord(ow, diacWords.slice(hit, hit + span).join(''));
     if (merged !== ow) filled++;
     return merged;
   });

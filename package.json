@@ -9,6 +9,7 @@
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "lint:ratchet": "node scripts/lint-ratchet.mjs",
+    "check:edge": "deno check supabase/functions/*/index.ts supabase/functions/_shared/*.ts",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",

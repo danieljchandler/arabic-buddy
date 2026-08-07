@@ -6,7 +6,7 @@
 // for admin approval through the same Dialect Rulebook UI.
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { askBrain } from "../_shared/aiBrain.ts";
 import type { Dialect } from "../_shared/dialectHelpers.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
@@ -113,8 +113,16 @@ interface CorpusSnippet {
   text: string;
 }
 
+/**
+ * Service-role client. `SupabaseClient` rather than
+ * `ReturnType<typeof createClient>`: that form instantiates the schema
+ * generics from their *defaults* instead of from the call, producing a type
+ * the real client is not assignable to.
+ */
+type Admin = SupabaseClient;
+
 async function buildCorpus(
-  admin: ReturnType<typeof createClient>,
+  admin: Admin,
   dialect: Dialect,
   perSource: number,
 ): Promise<CorpusSnippet[]> {

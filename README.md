@@ -53,13 +53,35 @@ the edge functions are configured in the Supabase dashboard, not committed.
 | `npm run test:e2e` | Run the Playwright end-to-end suite |
 | `npm run test:e2e:ui` | Run the E2E suite in Playwright's UI mode |
 | `npm run lint:ratchet` | Fail only if lint errors increased (what CI runs) |
+| `npm run check:edge` | Typecheck the Deno edge functions (needs `deno` installed) |
 
 ### Continuous integration
 
-`.github/workflows/ci.yml` runs on every push to `main` and every pull request:
-typecheck, lint ratchet, Vitest, production build (one job), and Playwright
-(a second job, so a browser problem is distinguishable from a type error at a
-glance). A failed E2E run uploads its HTML report as an artifact.
+`.github/workflows/ci.yml` runs on every push to `main` and every pull request,
+in three jobs so a failure names its own kind:
+
+- **Typecheck, lint & unit tests** — `tsc` over `src/`, the lint ratchet, Vitest,
+  and the production build.
+- **Typecheck edge functions (Deno)** — `deno check` over
+  `supabase/functions/**`. See below.
+- **End-to-end** — Playwright. A failed run uploads its HTML report as an
+  artifact.
+
+**The edge functions need their own typecheck.** They are Deno, they import over
+`https://`, and `tsc` cannot resolve those specifiers — so `tsconfig.app.json`
+covers `src/` and the shared modules the Vitest suite imports, but never the
+functions themselves. That left roughly 15k lines with no typechecker at all.
+Adding `deno check` found eight real defects in its first three runs, including
+a `corsHeaders` reference from a scope that did not contain it (every response
+from `dialect-violations-digest` threw a `ReferenceError`, success path
+included), a `fallback()` call missing the argument that carries CORS headers,
+and an unguarded `analyzeData.result` dereference in the transcription pipeline.
+
+Unlike lint, this one is a clean gate rather than a ratchet: the whole directory
+passes today, so there is no debt to tolerate. The Deno version in the workflow
+is pinned exactly — `deno check` bundles its own TypeScript, so a Deno release
+can turn the job red with no repo change, and that is how a check stops being
+trusted. Bump it deliberately.
 
 **Lint is a ratchet, not a clean-lint gate.** The repo carries a few hundred
 pre-existing errors — almost all `no-explicit-any` — so requiring zero would

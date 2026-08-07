@@ -15,6 +15,16 @@ Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
+  // Closes over this request's CORS headers. As a module-level function it
+  // referenced `corsHeaders` from an enclosing scope that does not exist there,
+  // so every response — including the success path — threw a ReferenceError
+  // before it could be sent.
+  const json = (body: unknown, status = 200) =>
+    new Response(JSON.stringify(body), {
+      status,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+
   try {
     const authHeader = req.headers.get('Authorization') ?? '';
     if (!authHeader.startsWith('Bearer ')) {
@@ -99,10 +109,3 @@ Deno.serve(async (req) => {
     return json({ error: String(err) }, 500);
   }
 });
-
-function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-  });
-}

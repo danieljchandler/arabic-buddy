@@ -38,7 +38,8 @@ jobs:
 
       # tsconfig.app.json is the one that covers src/ (and the shared edge-
       # function modules the tests import). The Deno functions themselves are
-      # not typechecked here — they have no local toolchain.
+      # checked by the `edge` job below — tsc cannot resolve their https://
+      # imports, so it would report noise rather than real errors here.
       - name: Typecheck
         run: npx tsc --noEmit -p tsconfig.app.json
 
@@ -53,6 +54,48 @@ jobs:
 
       - name: Production build
         run: npm run build
+
+  # Edge functions. These are Deno, not covered by tsconfig.app.json, and until
+  # now nothing typechecked them at all — `npx tsc` cannot even resolve their
+  # https:// imports. The first three runs of this check found eight real
+  # defects, including a `corsHeaders` reference from a scope that did not
+  # contain it (every response from dialect-violations-digest threw), a
+  # `fallback()` call missing its CORS argument, and an unguarded
+  # `analyzeData.result` dereference in the transcription pipeline.
+  #
+  # Separate job for the same reason e2e is: a Deno failure should be
+  # distinguishable at a glance from a frontend type error.
+  edge:
+    name: Typecheck edge functions (Deno)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      # Pinned exactly, not to v2.x. `deno check` bundles its own TypeScript, so
+      # a Deno release can turn this red without anything in the repo changing —
+      # which is how a check stops being trusted. Bump this line deliberately.
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.9.5
+
+      # Remote modules are fetched over the network on a cold cache. Keyed on
+      # the sources themselves since there is no lockfile: deno.lock is
+      # gitignored, as the only thing that writes it is a local check run.
+      - name: Cache Deno modules
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/deno
+          key: deno-${{ runner.os }}-${{ hashFiles('supabase/functions/**/*.ts') }}
+          restore-keys: |
+            deno-${{ runner.os }}-
+
+      # One invocation over every function and shared module — they share most
+      # of their dependency graph, so checking them together is far faster than
+      # a loop, and a single command reports every error at once rather than
+      # stopping at the first bad file.
+      - name: Typecheck
+        run: deno check supabase/functions/*/index.ts supabase/functions/_shared/*.ts
 
   # Browser tests. Separate job so a Playwright/browser problem is
   # distinguishable at a glance from a type or unit-test failure.

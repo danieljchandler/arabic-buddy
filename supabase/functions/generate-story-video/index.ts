@@ -5,7 +5,7 @@
 //   video_preview_url    -> preview narration AUDIO url
 //   story_video_status   -> 'generating' | 'ready' | 'failed'
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { estimateSeconds, planProvider, synthesizeLine } from "../_shared/listenTts.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 
@@ -75,6 +75,14 @@ function buildImagePrompt(story: Story, arabicScript: string): string {
   return `Warm cinematic storybook illustration for an Arabic short story. ${setting}. Photorealistic painterly style, soft natural lighting, rich color palette, no text of any language, no captions, no signs, no logos, no watermarks, no Latin letters, no Arabic letters visible in the scene. Depict the following story moment visually only:\n\n${excerpt}`;
 }
 
+/**
+ * Service-role client. `SupabaseClient` rather than
+ * `ReturnType<typeof createClient>`: that form instantiates the schema
+ * generics from their *defaults* instead of from the call, producing a type
+ * the real client is not assignable to.
+ */
+type Admin = SupabaseClient;
+
 async function generateSceneImage(prompt: string): Promise<Uint8Array> {
   const resp = await fetch("https://ai.gateway.lovable.dev/v1/images/generations", {
     method: "POST",
@@ -101,7 +109,7 @@ async function generateSceneImage(prompt: string): Promise<Uint8Array> {
 }
 
 async function synthesizePreviewNarration(
-  admin: ReturnType<typeof createClient>,
+  admin: Admin,
   story: Story,
   lines: StoryLine[],
 ): Promise<{ url: string; text: string; duration: number }> {
@@ -119,7 +127,7 @@ async function synthesizePreviewNarration(
 }
 
 async function uploadImage(
-  admin: ReturnType<typeof createClient>,
+  admin: Admin,
   storyId: string,
   bytes: Uint8Array,
   label: string,

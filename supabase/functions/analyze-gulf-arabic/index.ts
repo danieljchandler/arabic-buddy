@@ -11,6 +11,10 @@ import {
   type FarasaLinesOutcome,
 } from "../_shared/farasa.ts";
 import {
+  parseDialectIssues,
+  type DialectIssue,
+} from "../_shared/dialectIssues.ts";
+import {
   overlayDiacritizedPerLine,
   stripDiacritics,
 } from "../_shared/arabicDiacritics.ts";
@@ -380,42 +384,6 @@ const getFanarValidationSystemPrompt = () => {
 // that mis-fires both ways: a chatty clean pass flags, a terse real complaint
 // doesn't. Asking for JSON lets the bit be driven by an actual issue count and
 // lets the admin banner render a list instead of a truncated wall of text.
-interface DialectIssue {
-  line?: number;
-  word?: string;
-  kind?: string;
-  severity?: 'low' | 'high';
-  note?: string;
-}
-
-/**
- * Parse Fanar's validation reply into issues. Returns `null` when the reply
- * isn't the requested JSON — callers fall back to the old length heuristic so
- * the signal degrades rather than disappearing.
- */
-function parseDialectIssues(content: string): DialectIssue[] | null {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(extractJsonObject(content));
-  } catch {
-    return null;
-  }
-  const raw = (parsed as { issues?: unknown })?.issues;
-  if (!Array.isArray(raw)) return null;
-  return raw.flatMap((item): DialectIssue[] => {
-    if (!item || typeof item !== 'object') return [];
-    const o = item as Record<string, unknown>;
-    const severity = o.severity === 'high' ? 'high' : 'low';
-    return [{
-      ...(typeof o.line === 'number' ? { line: o.line } : {}),
-      ...(typeof o.word === 'string' && o.word ? { word: o.word.slice(0, 80) } : {}),
-      ...(typeof o.kind === 'string' && o.kind ? { kind: o.kind.slice(0, 32) } : {}),
-      severity,
-      ...(typeof o.note === 'string' && o.note ? { note: o.note.slice(0, 200) } : {}),
-    }];
-  });
-}
-
 // ─── GLOSS ENRICHMENT PROMPT ─────────────────────────────────────────────────
 // Generates per-word English translations for EVERY unique Arabic token.
 // This is the critical step that was missing — previously only 5-8 vocab items
@@ -1972,6 +1940,15 @@ serve(async (req) => {
          `Fanar dialect validation: ${issues ? `${issues.length} issue(s) parsed` : 'unparseable, keeping raw text'}` +
          ` — first 150 chars: ${fanarValidResp.content.slice(0, 150)}`,
        );
+       if (!issues) {
+         // Genuinely unstructured now means Fanar answered in prose, not that
+         // its JSON tripped the parser — worth the full text in the log, since
+         // it is the only place the finding survives.
+         console.warn(
+           `Fanar dialect validation: no issue array recoverable from ` +
+           `${fanarValidResp.content.length} chars — ${fanarValidResp.content.slice(0, 400)}`,
+         );
+       }
      }
 
       // --- TRANSLATION ENSEMBLE: merge Gemini + Claude + Qwen candidates per line ---
@@ -2576,6 +2553,11 @@ serve(async (req) => {
                   validation_high_severity: validationIssues.filter((i) => i.severity === 'high').length,
                 }
               : {}),
+            // Whether `flagged` rests on a real issue count or on the length
+            // fallback. The two mean different things and used to be reported
+            // identically, so an audit could not tell a clean pass from a reply
+            // nobody could read.
+            validation_parsed: Boolean(validationIssues),
             flagged: camelAgrees === false || validationFlagged,
           };
 

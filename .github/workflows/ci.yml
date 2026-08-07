@@ -102,12 +102,38 @@ jobs:
       - name: Typecheck
         run: deno check supabase/functions/*/index.ts supabase/functions/_shared/*.ts
 
+      # Runtime tests. Until now these functions were only proved to compile —
+      # nothing checked that any of them actually responded. The harness in
+      # supabase/functions/_test/ loads each one's handler without touching the
+      # production sources and puts every outbound fetch under the test's
+      # control, so CORS, auth, validation and error mapping are all assertable.
+      #
+      # --import-map is what redirects the std http server to the capture shim,
+      # and it is passed here rather than living in a deno.json precisely so the
+      # `deno check` above still sees the real module.
+      #
+      # --no-check because the step above already typechecks the sources, and
+      # the tests import remote std modules whose types add nothing here.
+      - name: Runtime tests
+        run: npm run test:edge
+
   # Browser tests. Separate job so a Playwright/browser problem is
   # distinguishable at a glance from a type or unit-test failure.
+  #
+  # Sharded four ways. The suite went from 23 tests to 330 when route coverage
+  # landed, and it keeps growing; four shards keeps each one well inside the
+  # timeout with room for the per-area specs still to come. playwright.config.ts
+  # also raises workers to 4 in CI — every test gets its own browser context and
+  # its own in-memory database, so there is no shared state to serialize on.
   e2e:
-    name: End-to-end
+    name: End-to-end (${{ matrix.shard }}/4)
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    strategy:
+      # One shard failing should not hide which of the others also failed.
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     steps:
       - uses: actions/checkout@v4
 
@@ -123,15 +149,18 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       # No secrets needed: playwright.config.ts points the dev server at a fake
-      # Supabase host and e2e/support/supabase.ts answers every request from
-      # fixtures, so the suite is hermetic.
+      # Supabase host and the in-memory backend in src/test/support/ answers
+      # every request, so the suite is hermetic. e2e/support/globalSetup.ts
+      # refuses to start if that is ever not true.
       - name: E2E tests
-        run: npm run test:e2e
+        run: npm run test:e2e -- --shard=${{ matrix.shard }}/4
 
       - name: Upload report on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report
+          # Shards run concurrently, so the name has to be unique per shard or
+          # the uploads collide and only one survives.
+          name: playwright-report-shard-${{ matrix.shard }}
           path: playwright-report/
           retention-days: 7

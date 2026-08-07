@@ -15,6 +15,7 @@ npm test              # unit + component
 npm run test:watch
 npm run test:coverage
 npm run test:e2e      # hermetic; needs no credentials
+npm run test:edge     # edge functions; needs Deno
 npm run typecheck     # app AND e2e trees
 npm run lint:ratchet
 ```
@@ -79,6 +80,32 @@ Interactions go through `@testing-library/user-event`, not `fireEvent`. Radix �
 which is every dropdown, select, popover and dialog in the app — opens on
 `pointerdown`/`keydown` and inspects `event.pointerType`, none of which a bare
 `fireEvent.click` dispatches.
+
+## Edge functions
+
+The 84 functions in `supabase/functions/` are Deno, and every one of them calls
+`serve(handler)` (or `Deno.serve`) at module scope and exports nothing — so
+there is no handler to import. Rather than editing 84 production files to add an
+export, `supabase/functions/_test/` intercepts both forms:
+
+- a **test-only import map** redirects the std http server to `serveShim.ts`,
+  which captures the handler instead of binding a port;
+- `Deno.serve` is monkey-patched before the dynamic import, for the rest.
+
+`loadFunction(name)` returns the handler with the ~30 secrets set to fakes and
+every outbound `fetch` routed to canned upstreams. An unrouted call **throws** —
+if a test is not in control of what the function talks to, any assertion about
+the result is describing something else.
+
+The import map is passed via `--import-map` and deliberately **not** placed in a
+`deno.json`. The `edge` CI job runs `deno check` over the real sources; if the
+map applied there it would typecheck the shim instead of the real std module and
+quietly remove the coverage that job exists to provide.
+
+One gotcha worth knowing: the routing `fetch` is installed once and never
+swapped, because `_shared/usageCap.ts` caches its Supabase client at module
+scope and that cache outlives any single test. A per-test stub would leave the
+cached client calling a dead one. `restore()` clears the route table instead.
 
 ## Time
 

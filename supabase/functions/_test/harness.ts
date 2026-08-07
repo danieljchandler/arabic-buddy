@@ -1,0 +1,298 @@
+import { takeCapturedHandler, type Handler } from "./serveShim.ts";
+import { defaultUpstreams, json, type UpstreamHandler } from "./upstreams.ts";
+
+/**
+ * Loads an edge function as a callable handler, with its environment and every
+ * outbound `fetch` under the test's control.
+ *
+ * The 84 functions had no runtime coverage at all — `deno check` proved they
+ * compiled and nothing proved they responded. This makes each one's CORS,
+ * auth, validation, error-mapping and happy path assertable in about thirty
+ * lines, without touching a single production file.
+ */
+
+/** Every secret the functions read, set to something obviously fake. */
+export const FIXTURE_ENV: Record<string, string> = {
+  SUPABASE_URL: "https://e2e.supabase.co",
+  SUPABASE_ANON_KEY: "e2e-anon-key-not-a-real-secret",
+  SUPABASE_SERVICE_ROLE_KEY: "e2e-service-role-not-a-real-secret",
+
+  LOVABLE_API_KEY: "fixture-lovable",
+  OPENROUTER_API_KEY: "fixture-openrouter",
+  GEMINI_API_KEY: "fixture-gemini",
+  OPENAI_API_KEY: "fixture-openai",
+  FANAR_API_KEY: "fixture-fanar",
+  HUGGINGFACE_API_KEY: "fixture-hf",
+
+  AZURE_SPEECH_KEY: "fixture-azure",
+  AZURE_SPEECH_REGION: "westeurope",
+  ELEVENLABS_API_KEY: "fixture-elevenlabs",
+  ELEVENLABS_TTS_MODEL: "eleven_multilingual_v2",
+  ELEVENLABS_STT_MODEL: "scribe_v1",
+  DEEPGRAM_API_KEY: "fixture-deepgram",
+  SONIOX_API_KEY: "fixture-soniox",
+  MUNSIT_API_KEY: "fixture-munsit",
+  MUNSIT_ASR_MODEL: "munsit-1",
+  MUNSIT_TTS_MODEL_ID: "munsit-tts-1",
+  MUNSIT_GULF_VOICE_ID: "gulf-1",
+  COHERE_API_KEY: "fixture-cohere",
+  COHERE_STT_MODEL: "cohere-stt",
+  FARASA_API_KEY: "fixture-farasa",
+
+  STRIPE_SECRET_KEY: "sk_test_fixture",
+  YOUTUBE_API_KEY: "fixture-youtube",
+  RAPIDAPI_KEY: "fixture-rapidapi",
+  COBALT_API_KEY: "fixture-cobalt",
+  FIRECRAWL_API_KEY: "fixture-firecrawl",
+  JINA_API_KEY: "fixture-jina",
+
+  VAPID_PUBLIC_KEY: "fixture-vapid-public",
+  VAPID_PRIVATE_KEY: "fixture-vapid-private",
+  VAPID_SUBJECT: "mailto:test@example.com",
+
+  ALLOWED_ORIGINS: "https://hakiya.app,https://lahja-arabic.lovable.app",
+};
+
+/** A recorded outbound call, so a test can assert what was sent upstream. */
+export interface UpstreamCall {
+  url: string;
+  method: string;
+  headers: Record<string, string>;
+  body: string | null;
+}
+
+export interface LoadedFunction {
+  handler: Handler;
+  /** Every outbound fetch the function made, in order. */
+  calls: UpstreamCall[];
+  /** Route a URL substring to a response, replacing any default. */
+  stub: (match: string, handler: UpstreamHandler) => void;
+  /** Calls whose URL contains `match`. */
+  callsTo: (match: string) => UpstreamCall[];
+  /** Undo the env and fetch patches. Always call this in a finally. */
+  restore: () => void;
+}
+
+export interface LoadOptions {
+  /** Override or add environment variables. */
+  env?: Record<string, string | undefined>;
+  /** Override or add upstream routes. */
+  upstreams?: Record<string, UpstreamHandler>;
+}
+
+/**
+ * Import cache buster.
+ *
+ * Deno caches a module after the first import, so its top-level `serve(...)`
+ * runs once. A unique query string per load forces a fresh evaluation, which is
+ * what lets each test set up its own env before the module reads it — several
+ * shared modules capture `Deno.env.get(...)` at module scope.
+ */
+let loadCounter = 0;
+
+/**
+ * The routing fetch is installed once and never swapped.
+ *
+ * It has to be, because `_shared/usageCap.ts` builds its Supabase client lazily
+ * and caches it at module scope — and Deno caches that module, so the cache
+ * survives between tests even though each function module is re-imported. The
+ * client captures whatever `fetch` existed when it was constructed, so a stub
+ * that is installed and torn down per test leaves the cached client calling a
+ * dead one from two tests ago.
+ *
+ * A single stable wrapper reading mutable state sidesteps that entirely: the
+ * captured reference stays valid, and `restore()` only has to swap the table
+ * underneath it.
+ */
+let currentRoutes: Record<string, UpstreamHandler> | null = null;
+let currentCalls: UpstreamCall[] | null = null;
+let fetchInstalled = false;
+
+function installRoutingFetch(): void {
+  if (fetchInstalled) return;
+  fetchInstalled = true;
+
+  const realFetch = globalThis.fetch;
+
+  globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+    if (!currentRoutes) return realFetch(input as RequestInfo, init);
+
+    const request = input instanceof Request ? input : new Request(input, init);
+    const url = request.url;
+
+    currentCalls?.push({
+      url,
+      method: request.method,
+      headers: Object.fromEntries(request.headers.entries()),
+      body:
+        request.method === "GET" || request.method === "HEAD"
+          ? null
+          : await request.clone().text().catch(() => null),
+    });
+
+    // Longest match wins, so a specific route ("/rest/v1/subscribers") beats
+    // the catch-all it sits inside ("/rest/v1/"). Matching in insertion order
+    // instead would let the defaults shadow every override a test supplies.
+    const match = Object.keys(currentRoutes)
+      .filter((key) => url.includes(key))
+      .sort((a, b) => b.length - a.length)[0];
+
+    if (!match) {
+      // Loud rather than silent: an unrouted call means the test is not in
+      // control of what the function talks to, so any assertion about the
+      // result is describing something else.
+      throw new Error(
+        `Unrouted upstream request to ${url}\n` +
+          `Add a route in supabase/functions/_test/upstreams.ts, or pass one ` +
+          `via loadFunction(name, { upstreams: { "${new URL(url).hostname}": ... } }).`,
+      );
+    }
+
+    return currentRoutes[match](request);
+  }) as typeof fetch;
+}
+
+export async function loadFunction(
+  name: string,
+  options: LoadOptions = {},
+): Promise<LoadedFunction> {
+  const originalEnv = new Map<string, string | undefined>();
+  const applyEnv = (key: string, value: string | undefined) => {
+    if (!originalEnv.has(key)) originalEnv.set(key, Deno.env.get(key));
+    if (value === undefined) Deno.env.delete(key);
+    else Deno.env.set(key, value);
+  };
+
+  for (const [key, value] of Object.entries(FIXTURE_ENV)) applyEnv(key, value);
+  for (const [key, value] of Object.entries(options.env ?? {})) applyEnv(key, value);
+
+  const routes = { ...defaultUpstreams(), ...(options.upstreams ?? {}) };
+  const calls: UpstreamCall[] = [];
+
+  installRoutingFetch();
+  currentRoutes = routes;
+  currentCalls = calls;
+
+  // Deno.serve is the other half of the interception; the import map covers the
+  // std `serve` import, this covers the 28 functions that call Deno.serve.
+  const originalDenoServe = Deno.serve;
+  let denoServeHandler: Handler | undefined;
+
+  // Deno.serve is overloaded — (handler), (options, handler) and
+  // (options-with-handler) are all valid — so the capture accepts either shape
+  // and the assignment goes through `unknown` rather than `any`, which keeps
+  // test code inside the no-explicit-any rule the lint config holds it to.
+  const captureServe = (
+    handlerOrOptions: Handler | Record<string, unknown>,
+    maybeHandler?: Handler,
+  ) => {
+    denoServeHandler = typeof handlerOrOptions === "function" ? handlerOrOptions : maybeHandler;
+    return {
+      finished: new Promise<void>(() => {}),
+      shutdown: () => Promise.resolve(),
+      ref: () => {},
+      unref: () => {},
+      addr: { transport: "tcp", hostname: "127.0.0.1", port: 0 },
+    };
+  };
+
+  Deno.serve = captureServe as unknown as typeof Deno.serve;
+
+  const restore = () => {
+    // The routing fetch itself stays installed — see installRoutingFetch. Only
+    // the table it reads is cleared, so a call made after the test (by a cached
+    // client, say) falls through to the real fetch rather than a stale route.
+    currentRoutes = null;
+    currentCalls = null;
+    Deno.serve = originalDenoServe;
+    for (const [key, value] of originalEnv) {
+      if (value === undefined) Deno.env.delete(key);
+      else Deno.env.set(key, value);
+    }
+  };
+
+  try {
+    await import(`../${name}/index.ts?load=${++loadCounter}`);
+  } catch (error) {
+    restore();
+    throw error;
+  }
+
+  const handler = takeCapturedHandler() ?? denoServeHandler;
+  if (!handler) {
+    restore();
+    throw new Error(
+      `Importing supabase/functions/${name}/index.ts did not register a handler.\n` +
+        `It should call serve(...) from the std http server, or Deno.serve(...). ` +
+        `If it imports a std version not listed in _test/import_map.json, add it ` +
+        `there — otherwise the real serve() binds a port and the test hangs.`,
+    );
+  }
+
+  return {
+    handler,
+    calls,
+    stub: (match, upstream) => {
+      routes[match] = upstream;
+    },
+    callsTo: (match) => calls.filter((call) => call.url.includes(match)),
+    restore,
+  };
+}
+
+// ── Request builders ─────────────────────────────────────────────────────────
+
+const FUNCTION_ORIGIN = "https://e2e.supabase.co/functions/v1";
+
+/** An unsigned JWT with the shape the functions' getUser() calls expect. */
+export function fixtureJwt(userId = "00000000-0000-4000-8000-000000000001"): string {
+  const encode = (value: object) =>
+    btoa(JSON.stringify(value)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+
+  return [
+    encode({ alg: "HS256", typ: "JWT" }),
+    encode({
+      sub: userId,
+      aud: "authenticated",
+      role: "authenticated",
+      email: "e2e@example.com",
+      exp: Math.floor(Date.now() / 1000) + 3600,
+    }),
+    "fixture-signature",
+  ].join(".");
+}
+
+export interface RequestOptions {
+  origin?: string;
+  jwt?: string | null;
+  headers?: Record<string, string>;
+  method?: string;
+}
+
+/** A POST with a JSON body, which is how every function is invoked. */
+export function jsonRequest(
+  name: string,
+  body: unknown,
+  { origin = "https://hakiya.app", jwt, headers = {}, method = "POST" }: RequestOptions = {},
+): Request {
+  return new Request(`${FUNCTION_ORIGIN}/${name}`, {
+    method,
+    headers: {
+      "content-type": "application/json",
+      origin,
+      ...(jwt === null ? {} : { authorization: `Bearer ${jwt ?? fixtureJwt()}` }),
+      ...headers,
+    },
+    body: method === "GET" || method === "HEAD" ? undefined : JSON.stringify(body),
+  });
+}
+
+/** The CORS preflight browsers send before the real call. */
+export function optionsRequest(name: string, origin = "https://hakiya.app"): Request {
+  return new Request(`${FUNCTION_ORIGIN}/${name}`, {
+    method: "OPTIONS",
+    headers: { origin, "access-control-request-method": "POST" },
+  });
+}
+
+export { json };

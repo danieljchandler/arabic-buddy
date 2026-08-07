@@ -37,6 +37,34 @@ export interface AsrLegResult {
   locale?: string;
 }
 
+/**
+ * Roughly the slowest rate at which continuous Arabic speech produces
+ * characters. Real speech runs 8-15 chars/sec; this sits far below that so a
+ * clip that is genuinely sparse — a few words over a long take, music, silence
+ * — is not mistaken for a broken engine.
+ */
+const MIN_CHARS_PER_SECOND = 2;
+
+/** Below this, a clip is too short for the rate to mean anything. */
+const MIN_DURATION_FOR_CHECK_SEC = 5;
+
+/**
+ * Does this transcript look truncated for the audio it came from?
+ *
+ * An engine that accepts a payload it cannot decode may answer 200 with a
+ * near-empty transcription rather than an error — Munsit returned 7 characters
+ * for a clip on which five other engines each produced 200-440. Length alone
+ * cannot prove truncation, but against a known duration it separates "the clip
+ * was quiet" from "the decoder gave up after the first frame".
+ *
+ * Returns false whenever the duration is unknown or too short to judge, so this
+ * only ever fires on evidence.
+ */
+export function looksTruncated(text: string, durationSec: number): boolean {
+  if (!Number.isFinite(durationSec) || durationSec < MIN_DURATION_FOR_CHECK_SEC) return false;
+  return text.trim().length < durationSec * MIN_CHARS_PER_SECOND;
+}
+
 export type DialectModule = "Gulf" | "Egyptian" | "Yemeni";
 
 // Characteristic dialect function words / markers. Fed to Soniox `context.terms`

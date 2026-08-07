@@ -60,9 +60,12 @@ test.describe("signed in — analytics", () => {
         // Two well-established cards: high stability, several reviews. Read from
         // the persisted `stage` column these would show as New forever, since
         // only the Anki importer ever writes it.
+        //
+        // user_id is required now that the backend applies the query's filters —
+        // the page scopes this read to the signed-in learner.
         user_vocabulary: [
-          { repetitions: 9, ease_factor: 120, review_count: 9, correct_count: 8, word_arabic: "أ", word_english: "a" },
-          { repetitions: 7, ease_factor: 90, review_count: 7, correct_count: 7, word_arabic: "ب", word_english: "b" },
+          { id: "v1", user_id: TEST_USER_ID, repetitions: 9, ease_factor: 120, review_count: 9, correct_count: 8, word_arabic: "أ", word_english: "a" },
+          { id: "v2", user_id: TEST_USER_ID, repetitions: 7, ease_factor: 90, review_count: 7, correct_count: 7, word_arabic: "ب", word_english: "b" },
         ],
       },
     });
@@ -195,6 +198,7 @@ test.describe("signed in — curriculum", () => {
     await stubSupabase(page, {
       tables: curriculumTables([
         {
+          user_id: TEST_USER_ID,
           lesson_id: LESSON_A,
           status: "completed",
           last_word_index: 0,
@@ -224,11 +228,23 @@ test.describe("signed in — curriculum", () => {
 
 test.describe("signed in — grammar drills", () => {
   /**
-   * `user_concept_mastery` rows as PostgREST returns them for the embedded
-   * `curriculum_concepts!inner(...)` select the page issues.
+   * The page selects `user_concept_mastery` with `curriculum_concepts!inner(...)`
+   * embedded and filters on the embedded `kind` and `dialect`. These fixtures
+   * therefore seed both sides and let the backend resolve the join, rather than
+   * pre-shaping the joined row — which is what the old double required, and
+   * which meant the `!inner` and the embedded filters were never exercised.
    */
-  const masteryRow = (key: string, label: string, exposures: number, correct: number) => ({
+  const conceptFor = (key: string, label: string) => ({
+    id: `concept-${key}`,
+    key,
+    display_english: label,
+    kind: "grammar",
+    dialect: "Gulf",
+  });
+
+  const masteryFor = (key: string, exposures: number, correct: number) => ({
     user_id: TEST_USER_ID,
+    concept_id: `concept-${key}`,
     exposures,
     correct,
     incorrect: exposures - correct,
@@ -236,14 +252,19 @@ test.describe("signed in — grammar drills", () => {
     strength: correct / exposures >= 0.8 ? "strong" : "learning",
     next_due_at: new Date().toISOString(),
     last_seen_at: new Date().toISOString(),
-    curriculum_concepts: { key, display_english: label, kind: "grammar", dialect: "Gulf" },
+  });
+
+  /** Seed a set of categories with the scores the learner has earned on each. */
+  const drilled = (entries: Array<[key: string, label: string, exposures: number, correct: number]>) => ({
+    curriculum_concepts: entries.map(([key, label]) => conceptFor(key, label)),
+    user_concept_mastery: entries.map(([key, , exposures, correct]) =>
+      masteryFor(key, exposures, correct),
+    ),
   });
 
   test("a category the learner has drilled shows its standing", async ({ page }) => {
     await signIn(page);
-    await stubSupabase(page, {
-      tables: { user_concept_mastery: [masteryRow("negation", "Negation", 10, 3)] },
-    });
+    await stubSupabase(page, { tables: drilled([["negation", "Negation", 10, 3]]) });
     await page.goto("/grammar");
 
     // The score used to be rendered once on the results screen and dropped.
@@ -252,7 +273,7 @@ test.describe("signed in — grammar drills", () => {
 
   test("shows nothing for categories never drilled", async ({ page }) => {
     await signIn(page);
-    await stubSupabase(page, { tables: { user_concept_mastery: [] } });
+    await stubSupabase(page, { tables: { curriculum_concepts: [], user_concept_mastery: [] } });
     await page.goto("/grammar");
 
     await expect(page.getByRole("button", { name: /Negation/ })).toBeVisible();
@@ -263,16 +284,14 @@ test.describe("signed in — grammar drills", () => {
   test("nudges toward one category instead of six equal tiles", async ({ page }) => {
     await signIn(page);
     await stubSupabase(page, {
-      tables: {
-        user_concept_mastery: [
-          masteryRow("verb-conjugation", "Verb Conjugation", 10, 9),
-          masteryRow("pronouns", "Pronouns", 10, 9),
-          masteryRow("negation", "Negation", 10, 2),
-          masteryRow("possessives", "Possessives", 10, 9),
-          masteryRow("questions", "Question Forms", 10, 9),
-          masteryRow("sentence-structure", "Sentence Structure", 10, 9),
-        ],
-      },
+      tables: drilled([
+        ["verb-conjugation", "Verb Conjugation", 10, 9],
+        ["pronouns", "Pronouns", 10, 9],
+        ["negation", "Negation", 10, 2],
+        ["possessives", "Possessives", 10, 9],
+        ["questions", "Question Forms", 10, 9],
+        ["sentence-structure", "Sentence Structure", 10, 9],
+      ]),
     });
     await page.goto("/grammar");
 

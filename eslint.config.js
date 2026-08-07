@@ -48,4 +48,11 @@ export default tseslint.config(
       "no-only-tests/no-only-tests": "error",
     },
   },
+  // Playwright's fixture API hands each fixture a `use()` callback. The React
+  // hooks plugin matches on the `use` prefix and reads those as hook calls in a
+  // non-component function, which they are not — there is no React here at all.
+  {
+    files: ["e2e/**/*.ts"],
+    rules: { "react-hooks/rules-of-hooks": "off" },
+  },
 );

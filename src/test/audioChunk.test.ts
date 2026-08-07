@@ -29,7 +29,7 @@ const u16 = (n: number) => {
   return b;
 };
 const concat = (parts: Uint8Array[]) => {
-  const out = new Uint8Array<ArrayBuffer>(parts.reduce((n, p) => n + p.length, 0));
+  const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
   let o = 0;
   for (const p of parts) { out.set(p, o); o += p.length; }
   return out;

@@ -27,14 +27,38 @@ export interface FunctionContext {
 export interface FunctionResponse {
   status: number;
   body: unknown;
-  /** Set for the handful of functions the app consumes as an SSE stream. */
-  stream?: string[];
+  /**
+   * Set for the handful of functions the app consumes as an SSE stream.
+   *
+   * Each entry becomes one `data:` frame, JSON-encoded. Objects rather than
+   * strings, because the three streaming callers all parse OpenAI's delta
+   * shape — `parsed.choices[0].delta.content` — so a frame carrying a bare
+   * string would be silently skipped by every one of them. `[DONE]` is
+   * appended by the transport.
+   */
+  stream?: unknown[];
   headers?: Record<string, string>;
 }
 
 export type FunctionHandler = (context: FunctionContext) => FunctionResponse | unknown;
 
 const ok = (body: unknown): FunctionResponse => ({ status: 200, body });
+
+/**
+ * An SSE response streaming `pieces` as OpenAI-shaped deltas.
+ *
+ * The three streaming callers — culture guide, the conversation simulator and
+ * the ask-about-this-sentence panel — all read
+ * `parsed.choices[0].delta.content` and ignore anything else, so this is the
+ * only frame shape that reaches them. Splitting a sentence across several
+ * pieces is the point: the incremental append is the behaviour under test, and
+ * a single-chunk stream would pass even if the accumulation were broken.
+ */
+export const streaming = (...pieces: string[]): FunctionResponse => ({
+  status: 200,
+  body: null,
+  stream: pieces.map((content) => ({ choices: [{ delta: { content } }] })),
+});
 
 /**
  * The shape each function returns on success, minimal but valid.

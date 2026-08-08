@@ -214,7 +214,19 @@ export const defaultFunctions: Record<string, FunctionHandler> = {
   "generate-listen-script": () => ok({ lines: [] }),
   "generate-listen-audio": () => ok({ audioUrl: "https://cdn.test/listen.mp3" }),
   "generate-listen-line-audio": () => ok({ audioUrl: "https://cdn.test/line.mp3" }),
-  "realtime-session-token": () => ok({ client_secret: { value: "fixture-token" } }),
+  // `client_secret` is a *string* here, not `{ value }`. The function emits the
+  // key under both `value` and `client_secret` as flat strings; the nested form
+  // is only one of three fallbacks the client tolerates for older payloads, so
+  // a fixture using it exercised the fallback and never the real shape.
+  "realtime-session-token": () =>
+    ok({
+      value: "fixture-token",
+      client_secret: "fixture-token",
+      expires_at: Math.floor(Date.now() / 1000) + 60,
+      model: "gpt-realtime-2",
+      voice: "ballad",
+      session_id: "sess_fixture",
+    }),
   "bible-passage": () => ok({ verses: [] }),
   "seed-set-phrases": () => ok({ inserted: 0 }),
   "suggest-stories-admin": () => ok({ suggestions: [] }),

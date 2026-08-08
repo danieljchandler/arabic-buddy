@@ -1,5 +1,5 @@
 import { expect, test } from "./support/fixtures";
-import { anInviteCode, aProfile } from "../src/test/support/factories";
+import { anInviteCode, aProfile, daysAgo, TEST_USER_ID } from "../src/test/support/factories";
 
 /**
  * Sign-in, sign-up and password reset.
@@ -70,7 +70,8 @@ test.describe("the form validates before it hits the network", () => {
 test.describe("signing in", () => {
   test("a correct password lands the learner on the home page", async ({ page, signInAs, backend }) => {
     await signInAs("anonymous");
-    backend.db.seed("profiles", [aProfile({ email: EMAIL, onboarding_completed: true })]);
+    backend.addUser(TEST_USER_ID, EMAIL);
+    backend.db.seed("profiles", [aProfile({ onboarding_completed: true })]);
 
     await page.goto("/auth");
     await fillCredentials(page);
@@ -100,7 +101,8 @@ test.describe("signing in", () => {
     backend,
   }) => {
     await signInAs("anonymous");
-    backend.db.seed("profiles", [aProfile({ email: EMAIL, onboarding_completed: false })]);
+    backend.addUser(TEST_USER_ID, EMAIL);
+    backend.db.seed("profiles", [aProfile({ onboarding_completed: false })]);
 
     await page.goto("/auth");
     await fillCredentials(page);
@@ -117,7 +119,8 @@ test.describe("signing in", () => {
     // ProtectedRoute stashes the attempted path in location.state; the whole
     // point of that is for it to be honoured after sign-in.
     await signInAs("anonymous");
-    backend.db.seed("profiles", [aProfile({ email: EMAIL })]);
+    backend.addUser(TEST_USER_ID, EMAIL);
+    backend.db.seed("profiles", [aProfile()]);
 
     await page.goto("/my-words");
     await expect(page).toHaveURL(/\/auth$/);
@@ -181,8 +184,8 @@ test.describe("signing up with an invite code", () => {
     await expect(page.getByText(/invalid, expired, or fully used code/i)).toBeVisible();
   });
 
-  test("a deactivated code is refused", async ({ page, backend }) => {
-    backend.db.seed("invite_codes", [anInviteCode({ code: "HAKIYA-OFF", is_active: false })]);
+  test("an expired code is refused", async ({ page, backend }) => {
+    backend.db.seed("invite_codes", [anInviteCode({ code: "HAKIYA-OFF", expires_at: daysAgo(1) })]);
 
     await fillCredentials(page, { email: "new@example.com", invite: "HAKIYA-OFF" });
     await page.getByRole("button", { name: /^sign up$/i }).click();
@@ -193,7 +196,8 @@ test.describe("signing up with an invite code", () => {
   test("an email that already has an account says so", async ({ page, backend }) => {
     backend.db
       .seed("invite_codes", [anInviteCode({ code: "HAKIYA-GOOD" })])
-      .seed("profiles", [aProfile({ email: "taken@example.com" })]);
+      .seed("profiles", [aProfile()]);
+    backend.addUser("00000000-0000-4000-8000-000000000077", "taken@example.com");
 
     await fillCredentials(page, { email: "taken@example.com", invite: "HAKIYA-GOOD" });
     await page.getByRole("button", { name: /^sign up$/i }).click();

@@ -34,6 +34,8 @@ export type Persona =
 
 export interface PersonaOptions {
   userId?: string;
+  /** The account's email. Lives in auth.users, not on the profile row. */
+  email?: string;
   /** Extra profile columns, e.g. `{ onboarding_completed: false }`. */
   profile?: Record<string, unknown>;
 }
@@ -80,6 +82,8 @@ export function seedPersona(
   }
 
   backend.setUser(userId);
+  // The account itself, which lives in auth.users rather than profiles.
+  backend.addUser(userId, options.email ?? "e2e@example.com");
   backend.db.seed("profiles", [aProfile({ user_id: userId, ...options.profile })]);
   backend.db.seed(
     "user_roles",

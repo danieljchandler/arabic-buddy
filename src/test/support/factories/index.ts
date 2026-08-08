@@ -45,9 +45,11 @@ export { TEST_USER_ID };
 
 // ── Identity ─────────────────────────────────────────────────────────────────
 
+// `profiles` has no email column — the address lives in auth.users, which is
+// why BibleAccess resolves a user through the admin_find_user RPC rather than
+// querying profiles directly.
 export const aProfile = (over: Row = {}): Row => ({
   user_id: TEST_USER_ID,
-  email: "e2e@example.com",
   display_name: "Test Learner",
   // Index.tsx bounces the user to /onboarding without this.
   onboarding_completed: true,
@@ -61,7 +63,7 @@ export const aProfile = (over: Row = {}): Row => ({
   ...over,
 });
 
-export const aRole = (role: string, over: Row = {}): Row => ({
+export const aRole = (role = "user", over: Row = {}): Row => ({
   user_id: TEST_USER_ID,
   role,
   created_at: daysAgo(30),
@@ -80,9 +82,12 @@ export const aSubscriber = (over: Row = {}): Row => ({
 export const aUserXp = (over: Row = {}): Row => ({
   user_id: TEST_USER_ID,
   total_xp: 250,
-  current_level: 1,
+  // `level`, not `current_level`.
+  level: 1,
   xp_today: 20,
   xp_today_date: new Date().toISOString().slice(0, 10),
+  xp_this_week: 60,
+  week_start_date: new Date().toISOString().slice(0, 10),
   ...over,
 });
 
@@ -112,7 +117,8 @@ export const aLesson = (over: Row = {}): Row => ({
   dialect_module: "Gulf",
   cefr_target: "A1",
   duration_minutes: 15,
-  unlock_condition: null,
+  lesson_number: 1,
+  status: "published",
   created_at: daysAgo(30),
   updated_at: daysAgo(30),
   ...over,
@@ -153,7 +159,6 @@ export const aWordReview = (over: Row = {}): Row => ({
   user_id: TEST_USER_ID,
   word_id: wordId(0),
   ease_factor: 5,
-  difficulty: 5,
   interval_days: 3,
   repetitions: 2,
   lapses: 0,
@@ -252,9 +257,11 @@ export const aSetPhrase = (over: Row = {}): Row => ({
   id: setPhraseId(0),
   phrase_arabic: "عبارة ثابتة",
   phrase_english: "set phrase",
-  transliteration: null,
+  // The columns are prefixed: phrase_transliteration and phrase_literal.
+  phrase_transliteration: null,
+  phrase_literal: null,
   dialect: "Gulf",
-  literal_english: null,
+  status: "published",
   created_at: daysAgo(30),
   updated_at: daysAgo(30),
   ...over,
@@ -307,15 +314,31 @@ export const aConceptMastery = (over: Row = {}): Row => ({
 
 // ── Content ──────────────────────────────────────────────────────────────────
 
+/**
+ * Column names here follow the generated types exactly — `published`, not
+ * `is_published`, and `source_url`/`embed_url` rather than `video_url`. A
+ * fixture that invents a column simply never matches the query's filter, and
+ * the test reads as "no videos" rather than as a broken fixture.
+ */
 export const aDiscoverVideo = (over: Row = {}): Row => ({
   id: videoId(0),
   title: "A short clip",
-  video_url: "https://www.youtube.com/watch?v=fixture",
+  title_arabic: null,
+  source_url: "https://www.youtube.com/watch?v=fixture",
+  embed_url: "https://www.youtube.com/embed/fixture",
+  platform: "youtube",
   thumbnail_url: null,
   dialect: "Gulf",
+  difficulty: "beginner",
   cefr_level: "A2",
   duration_seconds: 60,
-  is_published: true,
+  published: true,
+  is_meme: false,
+  transcription_status: "complete",
+  transcript_lines: [],
+  vocabulary: [],
+  grammar_points: [],
+  created_by: TEST_USER_ID,
   created_at: daysAgo(5),
   updated_at: daysAgo(5),
   ...over,
@@ -325,10 +348,14 @@ export const aListenEpisode = (over: Row = {}): Row => ({
   id: episodeId(0),
   title: "Episode one",
   dialect: "Gulf",
-  cefr_level: "A2",
-  audio_url: "https://cdn.test/episode.mp3",
+  // creator_id, format, length_bucket and topic are all NOT NULL.
+  creator_id: TEST_USER_ID,
+  format: "dialogue",
+  length_bucket: "short",
+  topic: "greetings",
+  full_audio_url: "https://cdn.test/episode.mp3",
+  audio_status: "ready",
   play_count: 0,
-  is_published: true,
   created_at: daysAgo(5),
   updated_at: daysAgo(5),
   ...over,
@@ -339,19 +366,24 @@ export const anAuthenticStory = (over: Row = {}): Row => ({
   title: "A story",
   title_arabic: "قصة",
   dialect: "Gulf",
-  cefr_level: "A2",
-  is_published: true,
+  // `difficulty` and `status`, not cefr_level and is_published.
+  difficulty: "beginner",
+  status: "published",
   created_at: daysAgo(5),
   updated_at: daysAgo(5),
   ...over,
 });
 
+// `invite_codes` has no is_active column — a code is disabled by expiring it or
+// by exhausting max_uses, which is what verify_invite_code actually checks.
 export const anInviteCode = (over: Row = {}): Row => ({
   id: makeId("eeeeeeee")(0),
   code: "BETA1234",
-  is_active: true,
   max_uses: 10,
   uses: 0,
+  expires_at: daysFromNow(30),
+  note: null,
+  created_by: TEST_USER_ID,
   created_at: daysAgo(30),
   ...over,
 });

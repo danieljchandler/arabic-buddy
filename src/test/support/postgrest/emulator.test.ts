@@ -598,7 +598,9 @@ describe("auth", () => {
   });
 
   it("rejects a sign-up for an email that already exists", async () => {
-    backend.db.seed("profiles", [{ user_id: "u1", email: "taken@example.com" }]);
+    // Registered as an account rather than a profile row: `profiles` has no
+    // email column, which is the whole reason admin_find_user is an RPC.
+    backend.addUser("u1", "taken@example.com");
 
     const { error } = await db.auth.signUp({
       email: "taken@example.com",

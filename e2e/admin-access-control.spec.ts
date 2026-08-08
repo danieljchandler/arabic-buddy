@@ -121,12 +121,12 @@ test.describe("invite codes", () => {
 });
 
 test.describe("role management", () => {
-  test.beforeEach(async ({ signInAs, db }) => {
+  test.beforeEach(async ({ signInAs, db, backend }) => {
     await signInAs("admin");
-    db.seed("profiles", [
-      aProfile({ email: "e2e@example.com" }),
-      aProfile({ user_id: OTHER_USER, email: "learner@example.com", display_name: "Learner" }),
-    ]);
+    // Emails live in auth.users, which is why admin_find_user is an RPC — the
+    // client cannot resolve one itself.
+    backend.addUser(OTHER_USER, "learner@example.com");
+    db.seed("profiles", [aProfile(), aProfile({ user_id: OTHER_USER, display_name: "Learner" })]);
   });
 
   test("lists who currently holds a managed role", async ({ page, db }) => {

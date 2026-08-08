@@ -56,6 +56,35 @@ export class SupabaseBackend {
   /** Every RPC the app called, with its arguments. */
   readonly rpcCalls: Array<{ name: string; args: Record<string, unknown>; at: number }> = [];
 
+  /**
+   * Accounts, standing in for `auth.users`.
+   *
+   * Kept separate from `profiles` because that is where they actually live —
+   * `profiles` has no email column, which is why `admin_find_user` exists as an
+   * RPC rather than being a query the client could make. Hanging email off a
+   * profile fixture would teach a shape the real schema does not have.
+   */
+  private users = new Map<string, { id: string; email: string }>();
+
+  /** Register an account so it can sign in and be found by email. */
+  addUser(id: string, email: string): this {
+    this.users.set(id, { id, email });
+    return this;
+  }
+
+  /** Look an account up by email or id, as admin_find_user does. */
+  findUser(identifier: string): { id: string; email: string } | undefined {
+    const needle = identifier.trim().toLowerCase();
+    return [...this.users.values()].find(
+      (user) => user.email.toLowerCase() === needle || user.id.toLowerCase() === needle,
+    );
+  }
+
+  /** Every registered account. */
+  listUsers(): Array<{ id: string; email: string }> {
+    return [...this.users.values()];
+  }
+
   private rpcs: Record<string, RpcHandler>;
   private functions: Record<string, FunctionHandler>;
   private sessionUserId: string | null;
@@ -235,7 +264,16 @@ export class SupabaseBackend {
     this.rpcCalls.push({ name, args, at: Date.now() });
 
     const userId = userIdFromAuthHeader(request.headers.get("authorization")) ?? this.sessionUserId;
-    const result = callRpc(name, { db: this.db, userId, args }, this.rpcs);
+    const result = callRpc(
+      name,
+      {
+        db: this.db,
+        userId,
+        args,
+        users: { find: (id) => this.findUser(id), list: () => this.listUsers() },
+      },
+      this.rpcs,
+    );
 
     return this.json(result.status, result.body);
   }
@@ -317,7 +355,7 @@ export class SupabaseBackend {
 
       if (grantType === "password") {
         const email = String(body.email ?? "");
-        const known = this.db.rows("profiles").find((row) => row.email === email);
+        const known = this.findUser(email);
         const password = String(body.password ?? "");
 
         // A deliberately recognisable wrong password, so the failure path is
@@ -329,7 +367,7 @@ export class SupabaseBackend {
           });
         }
 
-        const userId = (known?.user_id as string) ?? this.sessionUserId ?? TEST_USER_ID;
+        const userId = known?.id ?? this.sessionUserId ?? TEST_USER_ID;
         this.sessionUserId = userId;
         return this.json(200, makeSession(userId, email || undefined));
       }
@@ -341,7 +379,7 @@ export class SupabaseBackend {
 
     if (pathname.endsWith("/signup")) {
       const email = String(body.email ?? "");
-      const taken = this.db.rows("profiles").some((row) => row.email === email);
+      const taken = this.findUser(email) !== undefined;
       if (taken) {
         return this.json(422, {
           code: "user_already_exists",

@@ -22,6 +22,15 @@ export interface RpcContext {
   /** The caller, from the Authorization header. Null when signed out. */
   userId: string | null;
   args: Record<string, unknown>;
+  /**
+   * Accounts, standing in for `auth.users`. Only the RPCs that are
+   * security-definer in the real database get to see this — which is the point
+   * of them.
+   */
+  users: {
+    find: (identifier: string) => { id: string; email: string } | undefined;
+    list: () => Array<{ id: string; email: string }>;
+  };
 }
 
 export type RpcHandler = (context: RpcContext) => unknown;
@@ -69,8 +78,14 @@ export const defaultRpcs: Record<string, RpcHandler> = {
   user_has_bible_access: ({ db, args }) =>
     hasBibleAccessFromRoles(rolesFor(db, arg(args, "user_id") as string)),
 
-  admin_list_managed_roles: ({ db }) => {
+  // Both of these join auth.users in the real database, which is the whole
+  // reason they exist as security-definer RPCs — the client cannot read that
+  // table, so it cannot resolve an email itself. `findUser`/`listUsers` on the
+  // backend stand in for it; profiles has no email column.
+  admin_list_managed_roles: ({ db, users }) => {
     const profiles = new Map(db.rows("profiles").map((row) => [row.user_id, row]));
+    const accounts = new Map(users.list().map((user) => [user.id, user]));
+
     return db
       .rows("user_roles")
       .filter((row) => MANAGED_ROLES.includes(row.role as ManagedRole))
@@ -80,21 +95,17 @@ export const defaultRpcs: Record<string, RpcHandler> = {
         id: row.id,
         user_id: row.user_id,
         role: row.role,
-        email: (profiles.get(row.user_id)?.email as string) ?? null,
+        email: accounts.get(row.user_id as string)?.email ?? null,
         display_name: (profiles.get(row.user_id)?.display_name as string) ?? null,
       }));
   },
 
-  admin_find_user: ({ db, args }) => {
-    const identifier = String(arg(args, "identifier") ?? "").toLowerCase();
-    return db
-      .rows("profiles")
-      .filter(
-        (row) =>
-          String(row.email ?? "").toLowerCase() === identifier ||
-          String(row.user_id ?? "").toLowerCase() === identifier,
-      )
-      .map((row) => ({ user_id: row.user_id, email: row.email, display_name: row.display_name }));
+  admin_find_user: ({ db, args, users }) => {
+    const found = users.find(String(arg(args, "identifier") ?? ""));
+    if (!found) return [];
+
+    const profile = db.rows("profiles").find((row) => row.user_id === found.id);
+    return [{ user_id: found.id, email: found.email, display_name: profile?.display_name ?? null }];
   },
 
   award_xp: ({ db, userId, args }) => {
@@ -209,9 +220,15 @@ export const defaultRpcs: Record<string, RpcHandler> = {
       .find((row) => String(row.code ?? "").toUpperCase() === code);
 
     if (!invite) return false;
-    if (invite.is_active === false) return false;
+
+    // A code is disabled by expiring it or by exhausting its uses — there is no
+    // is_active column on invite_codes.
+    const expiresAt = invite.expires_at as string | null | undefined;
+    if (expiresAt && new Date(expiresAt) < new Date()) return false;
+
     const max = invite.max_uses as number | null | undefined;
     if (max !== null && max !== undefined && Number(invite.uses ?? 0) >= max) return false;
+
     return true;
   },
 

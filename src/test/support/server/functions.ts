@@ -178,7 +178,11 @@ export const defaultFunctions: Record<string, FunctionHandler> = {
   "suggest-flashcards": () => ok({ suggestions: [] }),
   "generate-sample-sentences": () => ok({ sentences: [] }),
 
-  "discover-feed": () => ok({ videos: [] }),
+  // `items`, plus the cold-start flag and the seed the shuffle was built from.
+  // `useDiscoverFeed` reads all three; the earlier `{ videos: [] }` matched none
+  // of them, so the feed rendered empty and always claimed a warm start.
+  "discover-feed": () =>
+    ok({ items: [], cold_start: false, seed: 1, active_dialect: "Gulf", cefr: null }),
   "extract-grammar-points": () => ok({ points: [] }),
 
   "score-shadow-attempt": () => ok({ score: 80, feedback: "" }),

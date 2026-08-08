@@ -258,7 +258,15 @@ export function fixtureJwt(userId = "00000000-0000-4000-8000-000000000001"): str
       email: "e2e@example.com",
       exp: Math.floor(Date.now() / 1000) + 3600,
     }),
-    "fixture-signature",
+    // A *decodable* signature, not just a plausible-looking one. Nothing here
+    // verifies it, but `auth-js`'s `getClaims` base64url-decodes all three
+    // segments before it does anything else — and a segment whose length is
+    // 1 mod 4 is not valid base64url, so it rejects the token with
+    // "JWT not in base64url format" without ever calling the auth server.
+    // The previous 17-character placeholder failed exactly that check, which
+    // made every function using `getClaims` answer 401 in tests regardless of
+    // how it was routed.
+    encode({ sig: "fixture" }),
   ].join(".");
 }
 

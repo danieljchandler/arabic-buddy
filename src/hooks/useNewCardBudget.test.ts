@@ -201,10 +201,11 @@ describe("claiming a card against the budget", () => {
 
     // A silent failure means the cap stops counting and the learner is handed
     // an unlimited day without either of them knowing.
-    await expect(
-      act(async () => {
-        await harness.result.current.mutateAsync();
-      }),
-    ).rejects.toThrow();
+    // Asserted inside `act` rather than around it: a rejection escaping the act
+    // scope leaves React's internal queue flagged, and the next test in the
+    // file renders a tree whose result is null.
+    await act(async () => {
+      await expect(harness.result.current.mutateAsync()).rejects.toThrow();
+    });
   });
 });

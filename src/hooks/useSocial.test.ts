@@ -375,11 +375,12 @@ describe("following and unfollowing", () => {
     });
     cleanup = harness.cleanup;
 
-    await expect(
-      act(async () => {
-        await harness.result.current.mutateAsync(FRIEND);
-      }),
-    ).rejects.toThrow(/not authenticated/i);
+    // Asserted inside `act` rather than around it: a rejection escaping the act
+    // scope leaves React's internal queue flagged, and the next test in the
+    // file renders a tree whose result is null.
+    await act(async () => {
+      await expect(harness.result.current.mutateAsync(FRIEND)).rejects.toThrow(/not authenticated/i);
+    });
     expect(harness.backend.db.rows("user_follows")).toHaveLength(0);
   });
 });

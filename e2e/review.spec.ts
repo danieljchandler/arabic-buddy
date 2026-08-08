@@ -283,8 +283,17 @@ test.describe("saved-word decks", () => {
     // rating into word_reviews would silently corrupt the curriculum deck.
     expect(db.writesTo("word_reviews")).toHaveLength(0);
 
-    const patch = db.lastWriteTo("user_vocabulary")?.payload[0] ?? {};
-    expect(patch).toHaveProperty("next_review_at");
+    // The *scheduling* write, not the last one, and polled rather than read
+    // once. Audio persistence patches the same table with `word_audio_url` and
+    // races the rating, so `lastWriteTo` picks up whichever landed second —
+    // sometimes the audio one, sometimes before the rating has gone out at all.
+    await expect
+      .poll(() =>
+        db
+          .writesTo("user_vocabulary")
+          .some((write) => "next_review_at" in (write.payload[0] ?? {})),
+      )
+      .toBe(true);
   });
 
   test("reports the deck finished when nothing is due", async ({ page, db }) => {

@@ -63,10 +63,26 @@ async function expectSaid(page: Page, sentence: string) {
   }
 }
 
-/** Live mode is on by default and dials immediately; leave it before typing. */
+/**
+ * Leave live mode.
+ *
+ * Needed after *every* navigation to this page, not just the first: `liveMode`
+ * is component state initialised to `true`, so it comes back on with every
+ * fresh mount and the panel covers the typed conversation underneath. Tolerant
+ * of already being out, so a reload path and a cold path can share one helper.
+ */
 async function exitLive(page: Page) {
-  await page.getByRole("button", { name: /Exit live/ }).click();
-  await expect(page.getByText("Pick a topic to start")).toBeVisible();
+  // Wait for the toggle before reading it. `count()` resolves immediately
+  // rather than waiting, so checking it on a page that has not finished
+  // hydrating reports zero and silently skips the click — leaving the live
+  // panel mounted over everything the test then looks for.
+  const toggle = page.getByRole("button", { name: /Exit live|Live voice/ });
+  await expect(toggle).toBeVisible();
+  if ((await toggle.textContent())?.includes("Exit live")) await toggle.click();
+  // Assert on the panel unmounting rather than on the topic picker, which is
+  // only there when the conversation is empty — this helper is also used on the
+  // reload path, where a stored thread is what comes back.
+  await expect(page.getByRole("button", { name: /Exit live/ })).toHaveCount(0);
 }
 
 async function startTopic(page: Page, label = "Free Talk") {
@@ -499,14 +515,14 @@ test.describe("the conversation between visits", () => {
     await expectSaid(page, OPENER);
 
     await page.reload();
-    await exitLive(page).catch(() => undefined);
+    await exitLive(page);
 
     // Kept in localStorage, not the database — so it survives a reload but not
     // a different device, and nothing about this conversation is on the server.
     await expectSaid(page, OPENER);
   });
 
-  test("is dropped when the learner switches dialect", async ({ page, backend }) => {
+  test("is dropped when the learner switches dialect", async ({ page, db }) => {
     await page.goto("/conversation");
     await exitLive(page);
     await startTopic(page);
@@ -514,7 +530,17 @@ test.describe("the conversation between visits", () => {
 
     await page.goto("/settings");
     await page.getByRole("button", { name: /Egyptian Arabic/ }).click();
+    // Settings stages the picker in form state; nothing is persisted until Save
+    // Changes. Navigating away on the click alone leaves the app still in Gulf,
+    // the thread is then correctly restored, and that looks exactly like the
+    // drop failing.
+    await page.getByRole("button", { name: /^save changes$/i }).click();
+    await expect
+      .poll(() => db.rows("profiles")[0]?.preferred_dialect)
+      .toBe("Egyptian");
+
     await page.goto("/conversation");
+    await exitLive(page);
 
     // The stored thread carries the dialect it was held in. Restoring a Gulf
     // conversation into an Egyptian session would have the tutor answer its own

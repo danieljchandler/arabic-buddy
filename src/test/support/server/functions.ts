@@ -142,8 +142,16 @@ export const defaultFunctions: Record<string, FunctionHandler> = {
   "munsit-tts": () => audio("audio/wav"),
   "elevenlabs-tts": () => audio("audio/mpeg"),
 
-  "translate-text": () => ok({ translation: "translated" }),
-  "translate-phrase": () => ok({ translation: "translated", transliteration: "" }),
+  // Per-sentence, with the detected dialect alongside the requested one —
+  // `useTranslateText` reads all three and Translate.tsx renders the detected
+  // dialect as a badge. A flat `{ translation }` matched nothing it reads.
+  "translate-text": () =>
+    ok({ detected_dialect: "Gulf", sentences: [], used_dialect: "auto" }),
+  // `msa` and `literal`, not `transliteration`. The word popover shows the MSA
+  // equivalent and the word-for-word gloss; there is no transliteration in this
+  // response at all, so the old fixture named a field nothing reads and omitted
+  // the two that are rendered.
+  "translate-phrase": () => ok({ translation: "translated", msa: "", literal: "" }),
   "how-do-i-say": () => ok({ arabic: "كيف", english: "how", transliteration: "kayf" }),
 
   "grammar-drill": () => ok({ questions: [] }),

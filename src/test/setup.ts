@@ -1,5 +1,19 @@
 import "@testing-library/jest-dom";
+import { configure } from "@testing-library/react";
 import { afterEach, beforeEach, vi } from "vitest";
+
+/**
+ * Give `waitFor` room to survive a loaded machine.
+ *
+ * The 1000ms default was set when the suite was mostly pure functions. It now
+ * renders hundreds of component trees through react-query and the in-memory
+ * backend, and a run under contention took nearly twice as long as an idle one
+ * — long enough for a single `waitFor` to time out on work that was about to
+ * succeed. A timeout that fires on a slow machine says nothing about the code.
+ *
+ * Failures still fail; they just get long enough to be believed.
+ */
+configure({ asyncUtilTimeout: 5000 });
 
 // jsdom leaves the media playback methods unimplemented and throws when they're
 // called, so anything rendering <video>/<audio> needs these stubbed.

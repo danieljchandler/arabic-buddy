@@ -99,6 +99,20 @@ function silentWav(): Uint8Array {
 }
 
 /**
+ * The jingle functions' answer: base64 audio in a JSON envelope.
+ *
+ * Deliberately not raw bytes. `functions.invoke` coerces a binary body through
+ * UTF-8 in some environments, which turns an MP3 into white noise — the base64
+ * round trip is what keeps the audio intact, and the caller decodes it.
+ */
+const aJingle = () => ({
+  audioBase64: btoa(String.fromCharCode(...silentWav())),
+  mimeType: "audio/wav",
+  extension: "wav",
+  lyrics: "la la la",
+});
+
+/**
  * A binary audio response, as the TTS functions actually send one.
  *
  * The content type is the one each function declares, because the caller hands
@@ -129,8 +143,13 @@ export const defaultFunctions: Record<string, FunctionHandler> = {
 
   "generate-mnemonic": () => ok({ mnemonic: "a memorable hook" }),
   "generate-flashcard-image": () => ok({ imageUrl: "https://cdn.test/flashcard.png" }),
-  "generate-word-jingle": () => ok({ audioUrl: "https://cdn.test/jingle.mp3", lyrics: "la la la" }),
-  "generate-phrase-jingle": () => ok({ audioUrl: "https://cdn.test/jingle.mp3", lyrics: "la la la" }),
+  // Base64 audio plus the type and extension the caller needs to store it —
+  // not a URL. `MyWordsReview` decodes `audioBase64`, uploads it with
+  // `mimeType` and names the file from `extension`, so the earlier
+  // `{ audioUrl }` matched nothing it reads and every jingle upload failed on
+  // an undefined blob.
+  "generate-word-jingle": () => ok(aJingle()),
+  "generate-phrase-jingle": () => ok(aJingle()),
   "persist-word-audio": () => ok({ audioUrl: "https://cdn.test/word.mp3" }),
 
   // Raw audio, not JSON. All three return `new Response(audioBuffer)` with an

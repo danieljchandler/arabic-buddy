@@ -154,6 +154,31 @@ export function defaultUpstreams(): Record<string, UpstreamHandler> {
     "api.munsit.com": () => json({ data: { transcription: "مرحبا" } }),
     "api.elevenlabs.io": () => new Response(new Uint8Array([0, 1, 2, 3]), { status: 200 }),
     "tts.speech.microsoft.com": () => new Response(new Uint8Array([0, 1, 2, 3]), { status: 200 }),
+    // Speech-to-text is a different host from text-to-speech, and pronunciation
+    // assessment goes here. The shape is Azure's own: scores live under
+    // `NBest[0].PronunciationAssessment`, which is what the function unwraps.
+    "stt.speech.microsoft.com": () =>
+      json({
+        RecognitionStatus: "Success",
+        NBest: [
+          {
+            Lexical: "مرحبا",
+            PronunciationAssessment: {
+              PronScore: 82,
+              AccuracyScore: 85,
+              FluencyScore: 78,
+              CompletenessScore: 100,
+            },
+            Words: [
+              {
+                Word: "مرحبا",
+                PronunciationAssessment: { AccuracyScore: 85, ErrorType: "None" },
+                Phonemes: [],
+              },
+            ],
+          },
+        ],
+      }),
     "api.cognitive.microsoft.com": () => json({ AccuracyScore: 85, NBest: [] }),
     "speech.platform.bing.com": () => json({ AccuracyScore: 85 }),
     "api.cohere.com": () => json({ text: "مرحبا" }),

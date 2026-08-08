@@ -164,7 +164,21 @@ export const defaultFunctions: Record<string, FunctionHandler> = {
 
   "score-shadow-attempt": () => ok({ score: 80, feedback: "" }),
   "pronunciation-feedback": () => ok({ feedback: "" }),
-  "azure-pronunciation": () => ok({ accuracyScore: 80, words: [] }),
+  // The flat result the function normalises Azure's response into. `words` and
+  // `recognizedText` are not optional extras — the page renders the per-word
+  // breakdown from one and the "what Azure heard" line from the other, and the
+  // earlier `{ accuracyScore }` here matched no field the hook reads, so every
+  // score rendered as zero while the call looked successful.
+  "azure-pronunciation": () =>
+    ok({
+      overall: 80,
+      accuracy: 80,
+      fluency: 80,
+      completeness: 100,
+      words: [],
+      recognizedText: "",
+      locale: "ar-SA",
+    }),
   "score-set-phrase-voice": () => ok({ score: 80 }),
 
   // The four ASR engines Transcribe fires in parallel. Every one of them

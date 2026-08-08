@@ -32,4 +32,16 @@ export function installBrowserFakes(): void {
     synthesis.speak = () => undefined;
     synthesis.cancel = () => undefined;
   }
+
+  // Checkout and the billing portal hand off by opening a Stripe URL in a new
+  // tab. Letting that happen would drive a real popup at stripe.com, which the
+  // hermetic guard has to block anyway — and a blocked popup is indistinguishable
+  // from a handoff the app never attempted. Recording the URL instead is what
+  // makes "it sent the learner to checkout" assertable at all.
+  const opened: string[] = [];
+  (window as unknown as { __openedUrls: string[] }).__openedUrls = opened;
+  window.open = (url?: string | URL) => {
+    opened.push(String(url ?? ""));
+    return null;
+  };
 }

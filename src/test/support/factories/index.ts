@@ -354,7 +354,7 @@ export const aListenEpisode = (over: Row = {}): Row => ({
   dialect: "Gulf",
   // creator_id, format, length_bucket and topic are all NOT NULL.
   creator_id: TEST_USER_ID,
-  format: "dialogue",
+  format: "podcast",
   length_bucket: "short",
   topic: "greetings",
   full_audio_url: "https://cdn.test/episode.mp3",

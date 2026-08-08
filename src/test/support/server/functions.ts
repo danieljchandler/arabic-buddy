@@ -230,7 +230,17 @@ export const defaultFunctions: Record<string, FunctionHandler> = {
   "generate-suggested-story-text": () => ok({ text: "" }),
   "request-situation-phrases": () => ok({ phrases: [] }),
   "practice-sentence-coach": () => ok({ feedback: "" }),
-  "dialect-compare": () => ok({ comparisons: [] }),
+  // `comparison`, singular, and an object. The page reads `data.comparison`
+  // and stores it whole; `{ comparisons: [] }` set it to undefined, so a
+  // successful call rendered as if nothing had been asked.
+  "dialect-compare": () =>
+    ok({
+      comparison: {
+        word_arabic: "",
+        word_english: "",
+        dialects: [],
+      },
+    }),
   "culture-guide": () => ok({ answer: "" }),
   "free-chat": () => ok({ reply: "" }),
   "ask-translation": () => ok({ answer: "" }),

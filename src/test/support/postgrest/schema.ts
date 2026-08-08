@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
+import { COLUMNS_MISSING_FROM_TYPES, extraColumnsFor } from "./typesDrift";
 
 /**
  * The schema the in-memory PostgREST validates against.
@@ -158,6 +159,21 @@ function parseRelationships(body: string): Relationship[] {
 
 let cached: DatabaseSchema | undefined;
 
+/**
+ * Columns as the generated types actually declare them, before typesDrift.ts
+ * adds the ones the types are missing.
+ *
+ * Kept separate so `typesDrift.test.ts` can check that every entry on that list
+ * is still genuinely absent — otherwise regenerating the types would leave the
+ * list quietly accumulating dead entries.
+ */
+const declaredInTypes = new Map<string, Set<string>>();
+
+export function columnsFromTypes(table: string): Set<string> | undefined {
+  loadSchema();
+  return declaredInTypes.get(table);
+}
+
 export function loadSchema(): DatabaseSchema {
   if (cached) return cached;
 
@@ -173,6 +189,13 @@ export function loadSchema(): DatabaseSchema {
       if (row.all.size === 0) continue;
 
       const insert = parseFields(body, "Insert");
+      declaredInTypes.set(name, new Set(row.all));
+
+      // The generated types are behind the migrations in 24 places; without
+      // these the double would reject writes the real database accepts. See
+      // typesDrift.ts.
+      for (const column of extraColumnsFor(name)) row.all.add(column);
+
       tables.set(name, {
         name,
         columns: row.all,
@@ -180,6 +203,28 @@ export function loadSchema(): DatabaseSchema {
         relationships: parseRelationships(body),
       });
     }
+  }
+
+  // Two tables are missing from the types entirely rather than column by column
+  // — they carry no anon or authenticated grants, so the generator skips them.
+  // Registering them from the drift list is what lets the schema-contract check
+  // validate the columns the edge functions write.
+  for (const { table, column } of COLUMNS_MISSING_FROM_TYPES) {
+    if (declaredInTypes.has(table)) continue;
+
+    let entry = tables.get(table);
+    if (!entry) {
+      entry = {
+        name: table,
+        columns: new Set<string>(),
+        // No `Insert` type to read, so nothing is known to be required. Better
+        // empty than guessed: a wrong entry here would reject a valid write.
+        requiredOnInsert: new Set<string>(),
+        relationships: [],
+      };
+      tables.set(table, entry);
+    }
+    entry.columns.add(column);
   }
 
   cached = { tables };

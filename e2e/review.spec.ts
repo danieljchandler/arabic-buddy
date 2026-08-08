@@ -45,7 +45,6 @@ function seedCurriculum(db: MemoryDb, count: number) {
       id: reviewId(index),
       word_id: wordId(index),
       ease_factor: 5,
-      difficulty: 5,
       interval_days: 3,
       repetitions: 2,
       lapses: 0,

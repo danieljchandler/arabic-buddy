@@ -158,7 +158,11 @@ export const aWordReview = (over: Row = {}): Row => ({
   id: reviewId(0),
   user_id: TEST_USER_ID,
   word_id: wordId(0),
+  // FSRS keeps stability in `ease_factor` and difficulty in `difficulty`. The
+  // latter is missing from the generated types but real in the database — see
+  // src/test/support/postgrest/typesDrift.ts.
   ease_factor: 5,
+  difficulty: 5,
   interval_days: 3,
   repetitions: 2,
   lapses: 0,

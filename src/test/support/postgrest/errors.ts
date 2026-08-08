@@ -59,6 +59,22 @@ export const errors = {
     };
   },
 
+  /**
+   * A write payload named a column the table does not have.
+   *
+   * PostgREST answers this rather than 42703 for writes, because it checks the
+   * payload against its schema cache before reaching Postgres. Reproduced
+   * separately so a test that hits it gets the message it would really get.
+   */
+  unknownColumnInPayload(table: string, column: string): PostgrestErrorBody {
+    return {
+      code: "PGRST204",
+      details: null,
+      hint: null,
+      message: `Could not find the '${column}' column of '${table}' in the schema cache`,
+    };
+  },
+
   /** Primary-key collision on insert. */
   uniqueViolation(table: string, column: string): PostgrestErrorBody {
     return {

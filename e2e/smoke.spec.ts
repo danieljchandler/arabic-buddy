@@ -152,7 +152,6 @@ test.describe("signed in — curriculum", () => {
         unlock_condition: null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-        vocabulary_words: [{ id: "w1" }, { id: "w2" }],
       },
       {
         id: LESSON_B,
@@ -165,11 +164,21 @@ test.describe("signed in — curriculum", () => {
         dialect_module: "Gulf",
         cefr_target: "A1",
         duration_minutes: 15,
-        unlock_condition: null,
+        // Deliberately does not contain either lesson title — the specs locate
+        // lesson rows by their name, and this text is part of the same link.
+        unlock_condition: "Finish the previous lesson first",
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-        vocabulary_words: [{ id: "w3" }],
       },
+    ],
+    // Real rows rather than a pre-shaped embed. The curriculum page counts a
+    // lesson's words through `vocabulary_words(id)`, and the backend resolves
+    // that relationship itself now — so the words have to exist and point at
+    // their lesson, exactly as they would in the database.
+    vocabulary_words: [
+      { id: wordId(1), lesson_id: LESSON_A, word_arabic: "كلمة1", word_english: "word 1" },
+      { id: wordId(2), lesson_id: LESSON_A, word_arabic: "كلمة2", word_english: "word 2" },
+      { id: wordId(3), lesson_id: LESSON_B, word_arabic: "كلمة3", word_english: "word 3" },
     ],
     lesson_progress: progress,
   });
@@ -182,6 +191,14 @@ test.describe("signed in — curriculum", () => {
     await expect(page.getByRole("heading", { name: "Foundations" })).toBeVisible();
     await expect(page.getByRole("link", { name: /Greetings/ })).toBeVisible();
     await expect(page.getByRole("link", { name: /At the Market/ })).toBeVisible();
+
+    // Gating is soft: `unlock_condition` is advice printed under the lesson, not
+    // something that stops the link working. Asserting it renders keeps the
+    // column alive in the fixtures — it is one of the columns missing from the
+    // generated types, so nothing else would catch it being dropped.
+    await expect(page.getByRole("link", { name: /At the Market/ })).toContainText(
+      "Finish the previous lesson first",
+    );
   });
 
   test("marks exactly one lesson as next up", async ({ page }) => {

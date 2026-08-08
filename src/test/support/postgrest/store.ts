@@ -1,4 +1,38 @@
+import { getTable } from "./schema";
 import type { Row } from "./types";
+
+/**
+ * Reject a fixture row that names a column the table does not have.
+ *
+ * This is the single most productive check in the test suite. A fixture with an
+ * invented column is written happily, then fails the query's filter, and the
+ * test reads "no rows" — indistinguishable from a genuine empty state, so it
+ * passes while exercising nothing. Nine factories and several spec overrides
+ * were wrong this way before it existed.
+ *
+ * Thrown rather than returned as a PostgREST error: a bad seed is a mistake in
+ * the test, not something the app did, so it should surface where it was
+ * written.
+ */
+function assertKnownColumns(table: string, rows: Row[]): void {
+  const schema = getTable(table);
+  // Tables outside the generated types — `subscribers` and the two
+  // service-role-only ones — have nothing to check against.
+  if (!schema) return;
+
+  for (const row of rows) {
+    const unknown = Object.keys(row).filter((column) => !schema.columns.has(column));
+    if (unknown.length === 0) continue;
+
+    throw new Error(
+      `Fixture for "${table}" sets ${unknown.map((c) => `"${c}"`).join(", ")}, which ` +
+        `${unknown.length === 1 ? "is not a column" : "are not columns"} of that table.\n` +
+        `A row with an invented column is stored but never matches a filter, so the ` +
+        `test would read as "no rows" rather than failing here.\n` +
+        `Columns: ${[...schema.columns].sort().join(", ")}`,
+    );
+  }
+}
 
 /** A write the app performed, as recorded for assertions. */
 export interface WriteRecord {
@@ -53,6 +87,7 @@ export class MemoryDb {
 
   /** Replace a table's contents. */
   seed(table: string, rows: Row[]): this {
+    assertKnownColumns(table, rows);
     this.tables.set(table, rows.map((row) => ({ ...row })));
     return this;
   }
@@ -65,6 +100,7 @@ export class MemoryDb {
 
   /** Append without clearing. */
   add(table: string, ...rows: Row[]): this {
+    assertKnownColumns(table, rows);
     const existing = this.tables.get(table) ?? [];
     this.tables.set(table, [...existing, ...rows.map((row) => ({ ...row }))]);
     return this;

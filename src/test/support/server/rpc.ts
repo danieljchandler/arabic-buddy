@@ -240,7 +240,7 @@ export const defaultRpcs: Record<string, RpcHandler> = {
 
     invite.uses = Number(invite.uses ?? 0) + 1;
     db.add("invite_redemptions", {
-      code_id: invite.id,
+      invite_code_id: invite.id,
       user_id: userId,
       redeemed_at: new Date().toISOString(),
     });

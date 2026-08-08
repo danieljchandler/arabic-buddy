@@ -280,6 +280,11 @@ function insert(db: MemoryDb, query: ParsedQuery): ExecuteResult {
     const candidate = withDefaults(table, raw);
 
     if (schema) {
+      const unknown = Object.keys(raw).find((column) => !schema.columns.has(column));
+      if (unknown !== undefined) {
+        return fail(400, errors.unknownColumnInPayload(table, unknown));
+      }
+
       const missing = [...schema.requiredOnInsert].filter(
         (column) => candidate[column] === undefined || candidate[column] === null,
       );
@@ -320,6 +325,14 @@ function update(db: MemoryDb, query: ParsedQuery): ExecuteResult {
   const { table, filters, fields, returning, single } = query;
   const rows = db.raw(table);
   const patch = asRows(query.body)[0] ?? {};
+
+  const schema = getTable(table);
+  if (schema) {
+    const unknown = Object.keys(patch).find((column) => !schema.columns.has(column));
+    if (unknown !== undefined) {
+      return fail(400, errors.unknownColumnInPayload(table, unknown));
+    }
+  }
 
   const affected: Row[] = [];
   for (let index = 0; index < rows.length; index++) {

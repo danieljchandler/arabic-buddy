@@ -12,6 +12,12 @@
  * migration runs in its own transaction, so one failure does not abort the
  * rest — the point is to report every problem in one pass.
  *
+ * DESTRUCTIVE: drops and recreates the public, auth and storage schemas before
+ * it starts. Point DATABASE_URL at a throwaway database and nothing else. The
+ * reset is not optional — without it a second run reports every `CREATE TABLE`
+ * as "already exists", which reads exactly like a migration that does not
+ * replay, and the whole output becomes noise.
+ *
  * Usage:
  *   DATABASE_URL=postgres://postgres@127.0.0.1:5432/postgres node contract/build.mjs
  *
@@ -44,6 +50,33 @@ function apply(file) {
     const line = stderr.split("\n").find((l) => l.includes("ERROR:")) ?? stderr.trim();
     return line.replace(/^.*ERROR:\s*/, "");
   }
+}
+
+/** Run a statement, returning its error output if it failed. */
+function exec(sql) {
+  try {
+    execFileSync("psql", [DATABASE_URL, "-v", "ON_ERROR_STOP=1", "-q", "-c", sql], {
+      stdio: ["ignore", "ignore", "pipe"],
+    });
+    return null;
+  } catch (error) {
+    const stderr = String(error.stderr ?? "");
+    const line = stderr.split("\n").find((l) => l.includes("ERROR:")) ?? stderr.trim();
+    return line.replace(/^.*ERROR:\s*/, "");
+  }
+}
+
+// Start from nothing, so the result is the same whether this is a fresh CI
+// service container or the fourth run of the afternoon on a local server.
+const resetError = exec(
+  "DROP SCHEMA IF EXISTS public CASCADE; " +
+    "DROP SCHEMA IF EXISTS auth CASCADE; " +
+    "DROP SCHEMA IF EXISTS storage CASCADE; " +
+    "CREATE SCHEMA public;",
+);
+if (resetError) {
+  console.error(`could not reset the database: ${resetError}`);
+  process.exit(2);
 }
 
 const preludeError = apply(join(here, "prelude.sql"));

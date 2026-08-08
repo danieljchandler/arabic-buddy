@@ -9,6 +9,17 @@ export default defineConfig({
     globals: true,
     setupFiles: ["./src/test/setup.ts"],
     include: ["src/**/*.{test,spec}.{ts,tsx}"],
+    // Vitest's 5s default was fine for a suite of pure functions. This one now
+    // renders hundreds of component trees, and a run competing with the
+    // Playwright suite for CPU took 85s where an idle one takes 46 — long
+    // enough for a starved worker to blow the per-test budget on work that was
+    // about to finish. Two different tests failed that way, neither
+    // reproducible on an idle machine.
+    //
+    // Generous rather than precise: a real hang still fails, just later, and a
+    // slow machine no longer reports a false one.
+    testTimeout: 20_000,
+    hookTimeout: 20_000,
     // src/integrations/supabase/client.ts throws at import time when these are
     // missing, which is why hook tests have historically had to vi.mock the
     // client just to be importable. Setting them here lets tests exercise the

@@ -163,7 +163,18 @@ export const defaultFunctions: Record<string, FunctionHandler> = {
   "reading-qa": () => ok({ answer: "" }),
   "phrase-of-the-day": () => ok({ phrase: null }),
 
-  "word-enrichment": () => ok({ words: [] }),
+  // One word in, one word's detail out — not a list. `TappableArabicText` reads
+  // `definition`, `literal`, `root`, `transliteration` and `uses` off the top
+  // level; the earlier `{ words: [] }` matched none of them, so every word
+  // popover rendered blank while the call looked successful.
+  "word-enrichment": () =>
+    ok({
+      definition: null,
+      literal: null,
+      root: null,
+      transliteration: null,
+      uses: [],
+    }),
   "suggest-flashcards": () => ok({ suggestions: [] }),
   "generate-sample-sentences": () => ok({ sentences: [] }),
 

@@ -269,7 +269,7 @@ function read(db: MemoryDb, query: ParsedQuery): ExecuteResult {
 }
 
 function insert(db: MemoryDb, query: ParsedQuery): ExecuteResult {
-  const { table, fields, returning, upsert, onConflict, single } = query;
+  const { table, fields, returning, upsert, ignoreDuplicates, onConflict, single } = query;
   const rows = db.raw(table);
   const incoming = asRows(query.body);
   const schema = getTable(table);
@@ -301,6 +301,13 @@ function insert(db: MemoryDb, query: ParsedQuery): ExecuteResult {
     if (existingIndex > -1) {
       if (!upsert) {
         return fail(409, errors.uniqueViolation(table, conflictColumns[0]));
+      }
+      if (ignoreDuplicates) {
+        // Left untouched, and deliberately left out of `affected` — PostgREST
+        // returns only the rows it actually wrote. Callers doing bulk saves
+        // subtract that from what they sent to report how many were already
+        // there, so including it here would make every duplicate look new.
+        continue;
       }
       rows[existingIndex] = { ...rows[existingIndex], ...candidate };
       affected.push(rows[existingIndex]);

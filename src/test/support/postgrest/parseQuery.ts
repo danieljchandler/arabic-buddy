@@ -264,10 +264,19 @@ export function parseOrder(value: string | null): OrderSpec[] {
 /** `Prefer: count=exact, return=representation, resolution=merge-duplicates` */
 function parsePrefer(header: string | null) {
   const prefer = (header ?? "").toLowerCase();
+  const ignoreDuplicates = prefer.includes("resolution=ignore-duplicates");
+
   return {
     count: /count=(exact|planned|estimated)/.exec(prefer)?.[1] as ParsedQuery["count"],
     returning: prefer.includes("return=minimal") ? ("minimal" as const) : ("representation" as const),
-    upsert: prefer.includes("resolution=merge-duplicates"),
+    // Both resolutions mean "upsert"; they differ in what happens to a row
+    // that already exists. Merging overwrites it, ignoring leaves it alone —
+    // and, crucially, leaves it out of the returned representation. That
+    // shorter result set is not cosmetic: it is how the app counts which of a
+    // bulk save's words were new, which is what "Saved 3 — 2 already in My
+    // Words" is derived from.
+    upsert: prefer.includes("resolution=merge-duplicates") || ignoreDuplicates,
+    ignoreDuplicates,
   };
 }
 
@@ -353,6 +362,7 @@ export function parseQuery({ method, url, headers, body }: ParseInput): ParsedQu
     single: (headers["accept"] ?? "").includes("pgrst.object"),
     returning: prefer.returning,
     upsert: prefer.upsert,
+    ignoreDuplicates: prefer.ignoreDuplicates,
     onConflict: params.get("on_conflict")?.split(",").map((c) => c.trim()),
     body,
   };

@@ -93,8 +93,17 @@ export interface ParsedQuery {
   returning: ReturnMode;
   /** Columns from `on_conflict=`, for upserts. */
   onConflict?: string[];
-  /** True when `Prefer: resolution=merge-duplicates` is set. */
+  /** True for either upsert resolution. */
   upsert: boolean;
+  /**
+   * True for `resolution=ignore-duplicates` specifically.
+   *
+   * An existing row is then left untouched *and* left out of the returned
+   * representation, so the result set is shorter than the payload. Callers
+   * doing bulk saves count the difference to report how many were already
+   * there.
+   */
+  ignoreDuplicates?: boolean;
   body?: Row | Row[];
 }
 

@@ -429,6 +429,45 @@ describe("writes", () => {
     expect(rows[0].repetitions).toBe(9);
   });
 
+  it("upsert with ignoreDuplicates leaves the existing row alone", async () => {
+    backend.db.seed("user_vocabulary", [
+      { id: "a", user_id: "u1", word_arabic: "قلم", word_english: "pen", dialect: "Gulf" },
+    ]);
+
+    await db
+      .from("user_vocabulary")
+      .upsert(
+        { user_id: "u1", word_arabic: "قلم", word_english: "OVERWRITTEN", dialect: "Gulf" },
+        { onConflict: "user_id,word_arabic,dialect", ignoreDuplicates: true },
+      );
+
+    // The point of ignore-duplicates: re-saving a word a learner already has
+    // must not overwrite the definition, tags or schedule they built up on it.
+    expect(backend.db.rows("user_vocabulary")[0].word_english).toBe("pen");
+  });
+
+  it("upsert with ignoreDuplicates returns only the rows it actually wrote", async () => {
+    backend.db.seed("user_vocabulary", [
+      { id: "a", user_id: "u1", word_arabic: "قلم", word_english: "pen", dialect: "Gulf" },
+    ]);
+
+    const { data } = await db
+      .from("user_vocabulary")
+      .upsert(
+        [
+          { user_id: "u1", word_arabic: "قلم", word_english: "pen", dialect: "Gulf" },
+          { user_id: "u1", word_arabic: "كتاب", word_english: "book", dialect: "Gulf" },
+        ],
+        { onConflict: "user_id,word_arabic,dialect", ignoreDuplicates: true },
+      )
+      .select("id");
+
+    // Bulk saves subtract this length from what they sent to report "N already
+    // in My Words". Returning both rows would make every duplicate look new.
+    expect(data).toHaveLength(1);
+    expect(backend.db.rows("user_vocabulary")).toHaveLength(2);
+  });
+
   it("insert on an existing primary key conflicts", async () => {
     const row = { id: "a", user_id: "u1", word_arabic: "قلم", word_english: "pen" };
     backend.db.seed("user_vocabulary", [row]);

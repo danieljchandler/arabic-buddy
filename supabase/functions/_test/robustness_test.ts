@@ -110,6 +110,37 @@ Deno.test("no function throws on nulls where it expects strings", async () => {
   );
 });
 
+Deno.test("two functions report a TypeError instead of naming the missing field", async () => {
+  // Found by the sweep above. Both dereference a required array straight off
+  // req.json() with no default and no guard:
+  //
+  //   listening-quiz  words.slice(0, 20)
+  //   culture-guide   messages.filter(...)
+  //
+  // Their own try/catch stops it becoming a crash, so the sweep passes — but
+  // the message that reaches the caller is "Cannot read properties of
+  // undefined (reading 'slice')" rather than something naming the field. A
+  // default (`words = []`) or an explicit 400 would fix both.
+  //
+  // Recorded rather than fixed, and pinned so the list cannot grow: this is a
+  // one-line change per function, but changing behaviour is a separate job from
+  // describing it.
+  const unclear: string[] = [];
+
+  for (const name of ["listening-quiz", "culture-guide"]) {
+    const fn = await loadFunction(name);
+    try {
+      const response = await fn.handler(malformedRequest(name, JSON.stringify({ dialect: "Gulf" })));
+      const text = await response.text();
+      if (/Cannot read propert/i.test(text)) unclear.push(name);
+    } finally {
+      fn.restore();
+    }
+  }
+
+  assertEquals(unclear, ["listening-quiz", "culture-guide"]);
+});
+
 Deno.test("no function throws on an oversized field", async () => {
   // A megabyte of text through a prompt-building path is a realistic way to
   // find an unguarded slice or a regex that backtracks.

@@ -1,3 +1,4 @@
+import { defaultsFor } from "./columnDefaults";
 import { errors, UnsupportedQueryError } from "./errors";
 import { applyFilters, applyOrder, readValue } from "./filters";
 import { findRelationship, getTable } from "./schema";
@@ -159,6 +160,25 @@ function withDefaults(table: string, row: Row): Row {
   return filled;
 }
 
+/**
+ * Literal defaults from the migrations, applied only to a genuinely new row.
+ *
+ * Without these a page that omits a defaulted column on insert — which is the
+ * whole point of having a default — reads it back as `undefined` and renders a
+ * hole. But they must not touch the update half of an upsert: `ON CONFLICT DO
+ * UPDATE` sets only the columns named, so folding defaults in before the merge
+ * would overwrite a lesson's stored `words_total` with 0 and demote a
+ * `completed` lesson back to its default status. Postgres defaults an absent
+ * column on INSERT and leaves it alone on UPDATE, and so does this.
+ */
+function withColumnDefaults(table: string, row: Row): Row {
+  const filled: Row = { ...row };
+  for (const [column, value] of defaultsFor(table)) {
+    if (filled[column] === undefined) filled[column] = value;
+  }
+  return filled;
+}
+
 function asRows(body: ParsedQuery["body"]): Row[] {
   if (body === undefined || body === null) return [];
   return Array.isArray(body) ? body : [body];
@@ -312,8 +332,11 @@ function insert(db: MemoryDb, query: ParsedQuery): ExecuteResult {
       rows[existingIndex] = { ...rows[existingIndex], ...candidate };
       affected.push(rows[existingIndex]);
     } else {
-      rows.push(candidate);
-      affected.push(candidate);
+      const inserted = withColumnDefaults(table, candidate);
+      rows.push(inserted);
+      // The same object, so `Prefer: return=representation` answers with the
+      // defaults the row actually got rather than the payload it was sent.
+      affected.push(inserted);
     }
   }
 

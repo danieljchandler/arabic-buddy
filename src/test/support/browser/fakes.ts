@@ -15,11 +15,20 @@
 export function installBrowserFakes(): void {
   // The container's Chromium has no clipboard permission, so every copy button
   // throws a NotAllowedError that has nothing to do with the app.
+  //
+  // Recorded rather than discarded, for the same reason `window.open` is: a
+  // copy button's whole job is putting a *particular* string on the clipboard,
+  // and "it did not throw" does not check that. Read it from a spec as
+  // `window.__copiedText`.
+  const copied: string[] = [];
+  (window as unknown as { __copiedText: string[] }).__copiedText = copied;
   Object.defineProperty(navigator, "clipboard", {
     configurable: true,
     value: {
-      writeText: async () => undefined,
-      readText: async () => "",
+      writeText: async (text: string) => {
+        copied.push(String(text));
+      },
+      readText: async () => copied[copied.length - 1] ?? "",
       write: async () => undefined,
       read: async () => [],
     },

@@ -648,3 +648,63 @@ describe("auth", () => {
     expect(error).not.toBeNull();
   });
 });
+
+describe("column defaults", () => {
+  it("fills a defaulted column the payload omitted", async () => {
+    backend.db.seed("invite_codes", []);
+
+    await db.from("invite_codes").insert({ code: "FRESH001", max_uses: 5 });
+
+    // `uses INTEGER NOT NULL DEFAULT 0`. Leaving it absent is the normal way to
+    // insert — the admin console renders `{uses}/{max_uses} used` immediately
+    // afterwards, and without the default that reads "/5 used".
+    expect(backend.db.rows("invite_codes")[0].uses).toBe(0);
+  });
+
+  it("returns the defaults it filled in", async () => {
+    backend.db.seed("invite_codes", []);
+
+    const { data } = await db
+      .from("invite_codes")
+      .insert({ code: "FRESH002", max_uses: 5 })
+      .select()
+      .single();
+
+    expect(data).toMatchObject({ code: "FRESH002", uses: 0 });
+  });
+
+  it("does not overwrite a value the payload supplied", async () => {
+    backend.db.seed("invite_codes", []);
+
+    await db.from("invite_codes").insert({ code: "PARTUSED", max_uses: 5, uses: 3 });
+
+    expect(backend.db.rows("invite_codes")[0].uses).toBe(3);
+  });
+
+  it("leaves an existing row's columns alone on the update half of an upsert", async () => {
+    backend.db.seed("user_lesson_progress", [
+      {
+        id: "p1",
+        user_id: "u1",
+        lesson_id: "l1",
+        status: "completed",
+        words_total: 10,
+        words_seen: 10,
+      },
+    ]);
+
+    await db
+      .from("user_lesson_progress")
+      .upsert({ id: "p1", user_id: "u1", lesson_id: "l1", words_seen: 4 }, { onConflict: "id" });
+
+    // The distinction that matters: Postgres applies a default when INSERTing
+    // an absent column and leaves it alone on the UPDATE half of ON CONFLICT.
+    // Folding defaults in before the merge would demote this finished lesson to
+    // its default status and reset a word count the payload never mentioned.
+    expect(backend.db.rows("user_lesson_progress")[0]).toMatchObject({
+      status: "completed",
+      words_total: 10,
+      words_seen: 4,
+    });
+  });
+});

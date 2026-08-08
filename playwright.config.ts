@@ -23,6 +23,12 @@ export default defineConfig({
   // route. Each test gets its own browser context and its own in-memory
   // database, so there is no shared state to serialize on.
   workers: process.env.CI ? 4 : undefined,
+  // The default 5s assertion timeout was set when the suite was one spec file.
+  // With every route covered, several workers share one dev server, and a lazy
+  // route's first paint behind a cold Vite transform can take longer than that
+  // — a timeout that says nothing about the app. Failures still fail; they just
+  // get long enough to be believed.
+  expect: { timeout: 10_000 },
   // In CI, also emit the HTML report so a failed run uploads something
   // debuggable as an artifact — "line" alone writes nothing to disk.
   reporter: process.env.CI

@@ -107,7 +107,9 @@ export const defaultFunctions: Record<string, FunctionHandler> = {
 
   // Called on page mount, so the route sweep needs them to resolve.
   "generate-daily-story": () => ok({ story: null, scenes: [] }),
-  "generate-set-phrase-quiz": () => ok({ questions: [] }),
+  // `items`, not `questions`: useGenerateQuiz reads `data?.items ?? []`, so the
+  // other spelling made every quiz look empty regardless of what was seeded.
+  "generate-set-phrase-quiz": () => ok({ items: [] }),
   "souq-news": () => ok({ articles: [] }),
   "souq-news-quiz": () => ok({ questions: [] }),
   "suggest-stories": () => ok({ suggestions: [] }),

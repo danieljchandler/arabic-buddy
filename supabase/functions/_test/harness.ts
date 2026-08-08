@@ -287,6 +287,39 @@ export function jsonRequest(
   });
 }
 
+/**
+ * A POST carrying `multipart/form-data`, which is how the four ASR functions
+ * are invoked.
+ *
+ * Worth a builder of its own rather than a hand-rolled body: each engine reads
+ * its file from a *different* part name — `audio` for three of them, `file` for
+ * Munsit — and the part's filename is what Munsit dispatches its decoder on. A
+ * test that hardcoded one shape would pass against the wrong engine.
+ */
+export function formRequest(
+  name: string,
+  parts: Record<string, string | File>,
+  { origin = "https://hakiya.app", jwt, headers = {} }: RequestOptions = {},
+): Request {
+  const form = new FormData();
+  for (const [key, value] of Object.entries(parts)) form.append(key, value);
+
+  return new Request(`${FUNCTION_ORIGIN}/${name}`, {
+    method: "POST",
+    headers: {
+      origin,
+      ...(jwt === null ? {} : { authorization: `Bearer ${jwt ?? fixtureJwt()}` }),
+      ...headers,
+    },
+    body: form,
+  });
+}
+
+/** A stand-in for an uploaded clip. Nothing decodes the bytes. */
+export function audioFile(name = "clip.mp3", type = "audio/mpeg"): File {
+  return new File([new Uint8Array([0x49, 0x44, 0x33, 0x04, 0x00])], name, { type });
+}
+
 /** The CORS preflight browsers send before the real call. */
 export function optionsRequest(name: string, origin = "https://hakiya.app"): Request {
   return new Request(`${FUNCTION_ORIGIN}/${name}`, {

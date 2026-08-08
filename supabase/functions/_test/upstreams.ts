@@ -73,8 +73,35 @@ export function defaultUpstreams(): Record<string, UpstreamHandler> {
           ],
         },
       }),
-    "api.soniox.com": () => json({ text: "مرحبا", tokens: [] }),
-    "api.munsit.ai": () => json({ text: "مرحبا", segments: [] }),
+    // Soniox is four requests, not one: upload the file, create a
+    // transcription, poll it to `completed`, then fetch the transcript. A
+    // single flat body answered every step with the same thing, so `id` and
+    // `status` were both undefined and the function polled for its full 240s
+    // timeout — twice, because it retries once with a minimal body. Routing by
+    // path lets a test finish in milliseconds and exercises the real sequence.
+    "api.soniox.com": (request) => {
+      const path = new URL(request.url).pathname;
+      if (path.endsWith("/files")) return json({ id: "file_fixture" });
+      if (path.endsWith("/transcript")) {
+        return json({
+          text: "مرحبا",
+          tokens: [
+            { text: "مر", start_ms: 0, end_ms: 200 },
+            { text: "حبا", start_ms: 200, end_ms: 400 },
+            { text: " ", start_ms: 400, end_ms: 400 },
+          ],
+        });
+      }
+      // Both the create and the first poll: `completed` straight away, so the
+      // polling loop exits on its first check.
+      return json({ id: "tr_fixture", status: "completed" });
+    },
+    // `api.munsit.com`, and `transcription` — both corrected against the
+    // function. The host was `api.munsit.ai`, which nothing calls, so the route
+    // was dead and any real request would have hit the unrouted-upstream guard;
+    // and the body used `text`, where munsit-transcribe reads
+    // `data.transcription ?? raw.transcription` and would have seen null.
+    "api.munsit.com": () => json({ data: { transcription: "مرحبا" } }),
     "api.elevenlabs.io": () => new Response(new Uint8Array([0, 1, 2, 3]), { status: 200 }),
     "tts.speech.microsoft.com": () => new Response(new Uint8Array([0, 1, 2, 3]), { status: 200 }),
     "api.cognitive.microsoft.com": () => json({ AccuracyScore: 85, NBest: [] }),

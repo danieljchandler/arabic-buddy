@@ -37,6 +37,14 @@ export interface FunctionResponse {
    * appended by the transport.
    */
   stream?: unknown[];
+  /**
+   * Set for functions that answer with a binary body rather than JSON.
+   *
+   * `body` is ignored when this is present. Only the TTS trio needs it today:
+   * they return raw audio and their caller pipes `res.blob()` into an `<audio>`
+   * element, so a JSON body would arrive as an unplayable source.
+   */
+  bytes?: Uint8Array;
   headers?: Record<string, string>;
 }
 
@@ -61,6 +69,50 @@ export const streaming = (...pieces: string[]): FunctionResponse => ({
 });
 
 /**
+ * A short, genuinely decodable silent clip.
+ *
+ * A zero-length buffer would satisfy `res.blob()` and then fail in the media
+ * element, which is the failure the old JSON fixture produced. This is a real
+ * 44-byte WAV header describing 0 samples of 8kHz mono PCM — Chromium parses
+ * it, reports a duration and fires `ended`, so playback state in the page
+ * advances the way it does in production.
+ */
+function silentWav(): Uint8Array {
+  const bytes = new Uint8Array(44);
+  const view = new DataView(bytes.buffer);
+  const ascii = (offset: number, text: string) => {
+    for (let i = 0; i < text.length; i++) bytes[offset + i] = text.charCodeAt(i);
+  };
+  ascii(0, "RIFF");
+  view.setUint32(4, 36, true); // chunk size: header only, no samples
+  ascii(8, "WAVEfmt ");
+  view.setUint32(16, 16, true); // PCM fmt chunk length
+  view.setUint16(20, 1, true); // PCM
+  view.setUint16(22, 1, true); // mono
+  view.setUint32(24, 8000, true); // sample rate
+  view.setUint32(28, 16000, true); // byte rate
+  view.setUint16(32, 2, true); // block align
+  view.setUint16(34, 16, true); // bits per sample
+  ascii(36, "data");
+  view.setUint32(40, 0, true); // no sample data
+  return bytes;
+}
+
+/**
+ * A binary audio response, as the TTS functions actually send one.
+ *
+ * The content type is the one each function declares, because the caller hands
+ * the blob straight to an `<audio>` element and the type is what decides
+ * whether it plays.
+ */
+const audio = (contentType: string): FunctionResponse => ({
+  status: 200,
+  body: null,
+  bytes: silentWav(),
+  headers: { "content-type": contentType },
+});
+
+/**
  * The shape each function returns on success, minimal but valid.
  *
  * Derived from each function's own response literal. They are intentionally
@@ -81,9 +133,14 @@ export const defaultFunctions: Record<string, FunctionHandler> = {
   "generate-phrase-jingle": () => ok({ audioUrl: "https://cdn.test/jingle.mp3", lyrics: "la la la" }),
   "persist-word-audio": () => ok({ audioUrl: "https://cdn.test/word.mp3" }),
 
-  "azure-tts": () => ok({ audioContent: "" }),
-  "munsit-tts": () => ok({ audioContent: "" }),
-  "elevenlabs-tts": () => ok({ audioContent: "" }),
+  // Raw audio, not JSON. All three return `new Response(audioBuffer)` with an
+  // audio content type, and every caller pipes `res.blob()` through
+  // `URL.createObjectURL` into an `<audio>` element. The `{ audioContent: "" }`
+  // these used to answer was invented — nothing in the app reads that field —
+  // and it made every playback log a media error while still looking stubbed.
+  "azure-tts": () => audio("audio/mpeg"),
+  "munsit-tts": () => audio("audio/wav"),
+  "elevenlabs-tts": () => audio("audio/mpeg"),
 
   "translate-text": () => ok({ translation: "translated" }),
   "translate-phrase": () => ok({ translation: "translated", transliteration: "" }),

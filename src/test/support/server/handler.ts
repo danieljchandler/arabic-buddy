@@ -325,8 +325,26 @@ export class SupabaseBackend {
     const response = normalise(handler({ db: this.db, userId, body }));
 
     if (response.stream) return this.sse(response);
+    if (response.bytes) return this.binary(response);
 
     return this.json(response.status, response.body, response.headers);
+  }
+
+  /**
+   * The three TTS functions answer with raw audio bytes, not JSON, and their
+   * callers read the response with `res.blob()` straight into an `<audio>`
+   * element. A JSON body here loads as an unplayable source and the page logs a
+   * media error, so the bytes have to survive the round trip intact.
+   */
+  private binary(response: FunctionResponse): Response {
+    return new Response(response.bytes as BodyInit, {
+      status: response.status,
+      headers: {
+        ...CORS_HEADERS,
+        "content-type": "application/octet-stream",
+        ...response.headers,
+      },
+    });
   }
 
   /**

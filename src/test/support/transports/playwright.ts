@@ -36,11 +36,16 @@ async function fulfill(route: Route, response: Response): Promise<void> {
     headers[key] = value;
   });
 
-  await route.fulfill({
-    status: response.status,
-    headers,
-    body: response.status === 204 ? undefined : await response.text(),
-  });
+  // Buffer, not text. The TTS functions answer with raw audio, and decoding
+  // those bytes as UTF-8 replaces every invalid sequence with U+FFFD — the
+  // response still arrives, still has a plausible length, and is no longer a
+  // playable file.
+  const body =
+    response.status === 204
+      ? undefined
+      : Buffer.from(await response.arrayBuffer());
+
+  await route.fulfill({ status: response.status, headers, body });
 }
 
 export interface PlaywrightBackendOptions {

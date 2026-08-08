@@ -266,6 +266,19 @@ export class SupabaseBackend {
     const delay = this.db.delayFor(`rpc:${name}`);
     if (delay > 0) await sleep(delay);
 
+    const failure = this.db.takeFailure(`rpc:${name}`, false);
+    if (failure) {
+      return this.json(
+        failure.status,
+        failure.body ?? {
+          code: String(failure.status),
+          message: `Injected failure for rpc ${name}`,
+          details: null,
+          hint: null,
+        },
+      );
+    }
+
     const userId = userIdFromAuthHeader(request.headers.get("authorization")) ?? this.sessionUserId;
     const result = callRpc(
       name,

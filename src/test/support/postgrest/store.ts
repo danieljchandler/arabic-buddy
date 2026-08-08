@@ -164,6 +164,21 @@ export class MemoryDb {
     return this;
   }
 
+  /**
+   * Fail an RPC.
+   *
+   * Not reachable through `failAlways`: a security-definer RPC reads its
+   * tables server-side, so failing `user_roles` leaves
+   * `admin_list_managed_roles` answering happily. That is faithful to
+   * production — the client never issues that read — but it means the only way
+   * to exercise "the listing could not load" is to fail the RPC itself.
+   * Namespaced into the same map as table failures.
+   */
+  failRpc(name: string, status = 500, body?: unknown): this {
+    this.failures.set(`rpc:${name}`, { status, body, once: false, scope: "all" });
+    return this;
+  }
+
   /** Hold responses for `table` open, so loading states are assertable. */
   delay(table: string, ms: number): this {
     this.delays.set(table, ms);

@@ -95,6 +95,10 @@ export const defaultRpcs: Record<string, RpcHandler> = {
         id: row.id,
         user_id: row.user_id,
         role: row.role,
+        // The function's signature is (id, user_id, role, created_at, email).
+        // Omitting created_at rendered the "Added" column as "Invalid Date" —
+        // a real column the double simply did not answer.
+        created_at: row.created_at,
         email: accounts.get(row.user_id as string)?.email ?? null,
         display_name: (profiles.get(row.user_id)?.display_name as string) ?? null,
       }));

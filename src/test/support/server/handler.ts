@@ -263,6 +263,9 @@ export class SupabaseBackend {
 
     this.rpcCalls.push({ name, args, at: Date.now() });
 
+    const delay = this.db.delayFor(`rpc:${name}`);
+    if (delay > 0) await sleep(delay);
+
     const userId = userIdFromAuthHeader(request.headers.get("authorization")) ?? this.sessionUserId;
     const result = callRpc(
       name,
@@ -287,16 +290,7 @@ export class SupabaseBackend {
 
   private async handleFunction(request: Request, url: URL): Promise<Response> {
     const name = url.pathname.replace(/^.*\/functions\/v1\//, "").split("?")[0];
-    const text = await request.text();
-
-    let body: unknown = undefined;
-    if (text) {
-      try {
-        body = JSON.parse(text);
-      } catch {
-        body = text;
-      }
-    }
+    const body = await functionBody(request);
 
     this.functionCalls.push({
       name,
@@ -304,6 +298,9 @@ export class SupabaseBackend {
       headers: headerRecord(request),
       at: Date.now(),
     });
+
+    const delay = this.db.delayFor(`fn:${name}`);
+    if (delay > 0) await sleep(delay);
 
     const handler = this.functions[name] ?? defaultFunctions[name];
     if (!handler) {
@@ -445,6 +442,49 @@ export class SupabaseBackend {
       status,
       headers: { ...CORS_HEADERS, "content-type": "application/json", ...extra },
     });
+  }
+}
+
+/**
+ * A recorded shape for whatever an edge function was posted.
+ *
+ * Three encodings are in use and a spec should not have to care which:
+ * `functions.invoke` sends JSON, the four ASR engines send `multipart/
+ * form-data` with the media as a File, and a couple of callers send raw text.
+ *
+ * Multipart is flattened to a plain object with files reduced to their
+ * metadata. Keeping the bytes would let a spec assert on audio content that no
+ * fixture actually has, whereas name/size/type is what the functions dispatch
+ * on — munsit-transcribe reads the extension off the part filename to pick a
+ * decoder, so "was the part named for the container the bytes really are"
+ * is a real question a test can now ask.
+ */
+async function functionBody(request: Request): Promise<unknown> {
+  const contentType = request.headers.get("content-type") ?? "";
+
+  if (contentType.includes("multipart/form-data")) {
+    try {
+      const form = await request.formData();
+      const fields: Record<string, unknown> = {};
+      form.forEach((value, key) => {
+        fields[key] = value instanceof File
+          ? { filename: value.name, size: value.size, type: value.type }
+          : value;
+      });
+      return fields;
+    } catch {
+      // A malformed or truncated multipart body is worth surfacing as itself
+      // rather than as an empty object that reads like "no fields sent".
+      return { multipartParseFailed: true };
+    }
+  }
+
+  const text = await request.text();
+  if (!text) return undefined;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
   }
 }
 

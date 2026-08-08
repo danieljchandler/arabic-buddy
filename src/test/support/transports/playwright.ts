@@ -11,11 +11,21 @@ import { makeSession, STORAGE_KEY } from "../server/session";
  * sees through `installSupabaseFetch`.
  */
 
-/** Convert a Playwright request into a standard `Request`. */
+/**
+ * Convert a Playwright request into a standard `Request`.
+ *
+ * Body via `postDataBuffer()` rather than `postData()`: the latter decodes as
+ * UTF-8 and returns null when that fails, which is exactly what a multipart
+ * upload of audio bytes does. Transcribe posts four of those in parallel, and
+ * with `postData()` they arrived at the backend with no body at all — the
+ * request looked like it had been made but carried nothing.
+ */
 async function toRequest(request: PlaywrightRequest): Promise<Request> {
   const method = request.method();
   const headers = await request.allHeaders();
-  const body = method === "GET" || method === "HEAD" ? undefined : request.postData() ?? undefined;
+  const body = method === "GET" || method === "HEAD"
+    ? undefined
+    : request.postDataBuffer() ?? undefined;
 
   return new Request(request.url(), { method, headers, body });
 }

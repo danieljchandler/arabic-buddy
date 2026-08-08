@@ -170,6 +170,32 @@ export class MemoryDb {
     return this;
   }
 
+  /**
+   * The same, for an RPC.
+   *
+   * Worth having separately because several of the app's gates are RPCs rather
+   * than table reads — `has_role` decides what the admin surfaces offer — and a
+   * component that acts on a gate before it resolves is a race no table delay
+   * can reproduce. Namespaced into the same map so there is one delay
+   * mechanism rather than two.
+   */
+  delayRpc(name: string, ms: number): this {
+    this.delays.set(`rpc:${name}`, ms);
+    return this;
+  }
+
+  /**
+   * The same, for an edge function.
+   *
+   * Several pages gate their whole render on one function — Pricing shows a
+   * spinner until `check-subscription` answers — and that branch is only
+   * reachable while the call is in flight.
+   */
+  delayFunction(name: string, ms: number): this {
+    this.delays.set(`fn:${name}`, ms);
+    return this;
+  }
+
   /** Consumed by the executor; not part of the public test API. */
   takeFailure(table: string, isWrite: boolean): FailureSpec | undefined {
     const failure = this.failures.get(table);

@@ -43,7 +43,11 @@ const ok = (body: unknown): FunctionResponse => ({ status: 200, body });
  * boring — a test that cares about the content overrides them.
  */
 export const defaultFunctions: Record<string, FunctionHandler> = {
-  "check-subscription": () => ok({ subscribed: false, subscription_tier: null, subscription_end: null }),
+  // `tier`, not `subscription_tier`: the function names it `tier` and
+  // `useSubscription` reads `data.tier`. A fixture using the other spelling
+  // reports every subscriber as untiered while still looking subscribed.
+  "check-subscription": () =>
+    ok({ subscribed: false, tier: null, product_id: null, subscription_end: null }),
   "create-checkout": () => ok({ url: "https://checkout.stripe.test/session" }),
   "customer-portal": () => ok({ url: "https://billing.stripe.test/portal" }),
 
@@ -82,12 +86,24 @@ export const defaultFunctions: Record<string, FunctionHandler> = {
   "azure-pronunciation": () => ok({ accuracyScore: 80, words: [] }),
   "score-set-phrase-voice": () => ok({ score: 80 }),
 
-  "deepgram-transcribe": () => ok({ transcript: "", segments: [] }),
-  "munsit-transcribe": () => ok({ transcript: "", segments: [] }),
-  "soniox-transcribe": () => ok({ transcript: "", segments: [] }),
-  "fanar-transcribe": () => ok({ transcript: "", segments: [] }),
-  "download-media": () => ok({ url: "https://cdn.test/media.mp3" }),
-  "extract-visual-context": () => ok({ context: "" }),
+  // The four ASR engines Transcribe fires in parallel. Every one of them
+  // answers `text` — an earlier `{ transcript, segments }` here was invented,
+  // and since the page reads `data.text` it made a silent engine look like a
+  // successful one. The `*Used` flags are the real gating: Fanar and Soniox
+  // return 200 with `text: null` when they are unconfigured or out of budget,
+  // so "responded" and "transcribed" are genuinely different states.
+  "deepgram-transcribe": () => ok({ text: "", words: [] }),
+  "munsit-transcribe": () => ok({ text: null, error: "no transcript" }),
+  "soniox-transcribe": () => ok({ text: null, sonioxUsed: false, reason: "api_key_not_configured" }),
+  "fanar-transcribe": () =>
+    ok({ text: null, fanarUsed: false, fanarAvailable: false, reason: "api_key_not_configured", budgetRemaining: 0 }),
+  // `audioBase64` has to be non-empty: the page treats a falsy one as "no audio
+  // file found" and aborts, so a zero-length default would make every caller
+  // look like a failed download.
+  "download-media": () =>
+    ok({ audioBase64: "bWVkaWE=", contentType: "audio/mpeg", filename: "media.mp3", size: 5 }),
+  "extract-visual-context": () =>
+    ok({ success: true, result: { onScreenTextSegments: [], sceneContext: "", culturalContext: "" } }),
 
   // Called on page mount, so the route sweep needs them to resolve.
   "generate-daily-story": () => ok({ story: null, scenes: [] }),
@@ -103,7 +119,10 @@ export const defaultFunctions: Record<string, FunctionHandler> = {
   "free-chat": () => ok({ reply: "" }),
   "ask-translation": () => ok({ answer: "" }),
   "analyze-meme": () => ok({ analysis: "" }),
-  "analyze-gulf-arabic": () => ok({ analysis: "" }),
+  // Transcribe's analyser. It reports failure in-band as `success: false`
+  // rather than a non-2xx, so the default has to carry the flag.
+  "analyze-gulf-arabic": () =>
+    ok({ success: true, result: { lines: [], vocabulary: [], grammarPoints: [] } }),
   "scrape-x-post": () => ok({ text: "" }),
   "camel-analyze": () => ok({ dialect: "Gulf", confidence: 1 }),
   "farasa": () => ok({ segments: [] }),

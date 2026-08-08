@@ -40,17 +40,26 @@ function seedSaved(db: MemoryDb, rows: Array<Record<string, unknown>>) {
 }
 
 test.describe("reaching the library", () => {
-  test("sends a signed-out visitor to sign in, and back again after", async ({
-    page,
-    signInAs,
-  }) => {
+  test("sends a signed-out visitor to sign in", async ({ page, signInAs }) => {
     await signInAs("anonymous");
 
     await page.goto("/my-transcriptions");
 
-    // The redirect carries where it came from, so signing in lands the visitor
-    // on the page they asked for rather than the home screen.
-    await expect(page).toHaveURL(/\/auth\?redirect=%2Fmy-transcriptions|\/auth\?redirect=\/my-transcriptions/);
+    await expect(page).toHaveURL(/\/auth/);
+  });
+
+  test("loses the return path it tried to carry", async ({ page, signInAs }) => {
+    await signInAs("anonymous");
+
+    await page.goto("/my-transcriptions");
+
+    // The page has its own `navigate("/auth?redirect=/my-transcriptions")`,
+    // which would land the visitor back here after signing in. ProtectedRoute
+    // redirects first and plainly, so the parameter never reaches the URL and
+    // a visitor who signs in arrives at the home screen instead. Pinned as
+    // current behaviour: two redirects for one guard, and the more helpful one
+    // never runs.
+    await expect(page).toHaveURL(/\/auth$/);
   });
 
   test("lets a learner in", async ({ page, signInAs, db }) => {
@@ -100,7 +109,7 @@ test.describe("the shelf", () => {
     await page.goto("/my-transcriptions");
     await expect(page.getByText("Recording 1")).toBeVisible();
 
-    const titles = await page.locator("div.text-base").allTextContents();
+    const titles = await page.locator("h3.text-base").allTextContents();
     expect(titles).toEqual(["Recording 1", "Recording 2", "Recording 3"]);
   });
 
@@ -129,7 +138,21 @@ test.describe("the shelf", () => {
 
     await page.goto("/my-transcriptions");
 
-    await expect(page.getByText("Couldn't load transcriptions")).toBeVisible();
+    await expect(page.getByText("Couldn't load transcriptions").first()).toBeVisible();
+  });
+
+  test("loads the shelf twice on every visit", async ({ page, db }) => {
+    seedSaved(db, [aTranscription(1)]);
+
+    await page.goto("/my-transcriptions");
+    await expect(page.getByText("Recording 1")).toBeVisible();
+
+    // A finding, pinned. The load effect depends on `[user, authLoading]` and
+    // both settle separately, so it fires twice for one page open — two round
+    // trips for the same rows, and two identical toasts when the read fails.
+    // Not React StrictMode: the app does not use it. Harmless at one request,
+    // but it is the sort of thing that doubles a bill quietly.
+    await expect.poll(() => db.readsOf("saved_transcriptions").length).toBeGreaterThan(1);
   });
 
   test("shows nothing belonging to another learner", async ({ page, db }) => {
@@ -251,7 +274,7 @@ test.describe("acting on a transcription", () => {
     await page.locator("button:has(svg.lucide-trash-2), button:has(svg.lucide-trash2)").click();
     await page.getByRole("button", { name: "Cancel" }).click();
 
-    await expect(page.getByText("Recording 1")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Recording 1" })).toBeVisible();
     expect(db.rows("saved_transcriptions")).toHaveLength(1);
   });
 
@@ -280,6 +303,6 @@ test.describe("acting on a transcription", () => {
     // The list is filtered optimistically on success only — dropping the card
     // on failure would tell a learner their transcript is gone when it is not.
     await expect(page.getByText("Failed to delete")).toBeVisible();
-    await expect(page.getByText("Recording 1")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Recording 1" })).toBeVisible();
   });
 });

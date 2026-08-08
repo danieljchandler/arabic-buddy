@@ -176,17 +176,23 @@ test.describe("hearing it said correctly", () => {
 
     // One TTS request per entry on open would mean a page of twenty mistakes
     // costing twenty syntheses to look at.
+    expect(backend.callsTo("munsit-tts")).toHaveLength(0);
     expect(backend.callsTo("azure-tts")).toHaveLength(0);
   });
 
-  test("asks for the target in the learner's dialect", async ({ page, backend }) => {
-    backend.stubFunction("azure-tts", { audioContent: "" });
+  test("routes a Gulf target to the Gulf voice", async ({ page, backend }) => {
+    backend.stubFunction("munsit-tts", { audioContent: "" });
 
     await page.goto("/mistakes");
     await page.getByRole("button", { name: "Hear it said correctly" }).click();
 
-    await expect.poll(() => backend.callsTo("azure-tts").length).toBeGreaterThan(0);
-    expect(backend.lastCallTo("azure-tts")?.body).toMatchObject({ text: "مرحبا" });
+    // `useAzureTTS` is named for its fallback, not its default: Gulf goes to
+    // munsit-tts and everything else to azure-tts. Sending a Gulf mistake to
+    // the Azure voice would play the learner a correction in the wrong accent,
+    // on a page whose entire purpose is hearing it said right.
+    await expect.poll(() => backend.callsTo("munsit-tts").length).toBeGreaterThan(0);
+    expect(backend.lastCallTo("munsit-tts")?.body).toMatchObject({ text: "مرحبا" });
+    expect(backend.callsTo("azure-tts")).toHaveLength(0);
   });
 });
 

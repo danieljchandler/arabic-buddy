@@ -22,13 +22,36 @@ const videoId = (n: number) => `aaaaaaaa-4444-4000-8000-00000000000${n}`;
 const aVideo = (n: number, over: Record<string, unknown> = {}) => ({
   id: videoId(n),
   title: `Video ${n}`,
-  youtube_id: `yt${n}`,
-  thumbnail_url: `https://img.test/${n}.jpg`,
+  title_arabic: null,
+  // `embed_url` and `source_url`, not a bare `youtube_id` — the table predates
+  // being YouTube-only and carries the platform separately.
+  platform: "youtube",
+  embed_url: `https://www.youtube.com/embed/yt${n}`,
+  source_url: `https://youtube.com/watch?v=yt${n}`,
+  // A data: URI rather than a CDN host: the hermetic guard blocks every
+  // foreign origin, and a blocked thumbnail is indistinguishable from a page
+  // trying to reach somewhere it should not.
+  thumbnail_url:
+    "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7",
   duration_seconds: 90 + n,
   dialect: "Gulf",
   difficulty: "Beginner",
+  cefr_level: null,
+  cultural_context: null,
+  difficulty_metrics: null,
+  difficulty_rationale: null,
+  engines_used: null,
+  grammar_points: [],
+  vocabulary: [],
+  transcript_lines: [],
+  transcription_status: "complete",
+  transcription_error: null,
+  trending_candidate_id: null,
+  is_meme: false,
   published: true,
+  created_by: TEST_USER_ID,
   created_at: new Date().toISOString(),
+  updated_at: new Date().toISOString(),
   ...over,
 });
 

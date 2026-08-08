@@ -75,11 +75,7 @@ export function seedPersona(
   if (!spec.signedIn) {
     backend.setUser(null);
     // The subscription hook still runs signed out; answer it honestly.
-    backend.stubFunction("check-subscription", {
-      subscribed: false,
-      subscription_tier: null,
-      subscription_end: null,
-    });
+    backend.stubFunction("check-subscription", unsubscribedResponse());
     return null;
   }
 
@@ -99,13 +95,29 @@ export function seedPersona(
 
   // useSubscription reads this rather than the table — the tier lives in Stripe,
   // not Postgres, so the function is the only source of truth the client has.
-  backend.stubFunction("check-subscription", {
-    subscribed,
-    subscription_tier: subscribed ? spec.tier : null,
-    subscription_end: subscribed ? aSubscriber().subscription_end : null,
-  });
+  backend.stubFunction(
+    "check-subscription",
+    subscribed
+      ? {
+          subscribed: true,
+          // `tier`, not `subscription_tier`: that is the field
+          // check-subscription actually returns and useSubscription actually
+          // reads. Getting it wrong here made every persona look free-tier
+          // while the tests still passed, because nothing in the app enforces
+          // the tier yet.
+          tier: spec.tier,
+          product_id: `prod_fixture_${spec.tier}`,
+          subscription_end: aSubscriber().subscription_end,
+        }
+      : unsubscribedResponse(),
+  );
 
   return userId;
+}
+
+/** The shape check-subscription returns for someone with no active plan. */
+function unsubscribedResponse() {
+  return { subscribed: false, tier: null, product_id: null, subscription_end: null };
 }
 
 /** Fill the free tier's vocabulary allowance exactly, so the next add is capped. */

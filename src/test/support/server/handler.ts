@@ -53,6 +53,8 @@ export class SupabaseBackend {
   readonly foreignRequests: string[] = [];
   /** Queries using PostgREST features this double has not implemented. */
   readonly unsupportedQueries: string[] = [];
+  /** Every RPC the app called, with its arguments. */
+  readonly rpcCalls: Array<{ name: string; args: Record<string, unknown>; at: number }> = [];
 
   private rpcs: Record<string, RpcHandler>;
   private functions: Record<string, FunctionHandler>;
@@ -230,10 +232,17 @@ export class SupabaseBackend {
     const text = await request.text();
     const args = (text ? JSON.parse(text) : {}) as Record<string, unknown>;
 
+    this.rpcCalls.push({ name, args, at: Date.now() });
+
     const userId = userIdFromAuthHeader(request.headers.get("authorization")) ?? this.sessionUserId;
     const result = callRpc(name, { db: this.db, userId, args }, this.rpcs);
 
     return this.json(result.status, result.body);
+  }
+
+  /** Every call to a given RPC, in order. */
+  rpcCallsTo(name: string): Array<{ name: string; args: Record<string, unknown>; at: number }> {
+    return this.rpcCalls.filter((call) => call.name === name);
   }
 
   // ── Edge functions ─────────────────────────────────────────────────────────

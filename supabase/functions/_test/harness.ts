@@ -46,8 +46,14 @@ export const FIXTURE_ENV: Record<string, string> = {
   FIRECRAWL_API_KEY: "fixture-firecrawl",
   JINA_API_KEY: "fixture-jina",
 
-  VAPID_PUBLIC_KEY: "fixture-vapid-public",
-  VAPID_PRIVATE_KEY: "fixture-vapid-private",
+  // A real, throwaway P-256 pair. `web-push` validates the key length before
+  // it will send anything — a placeholder string throws
+  // "Vapid public key should be 65 bytes long when decoded" at
+  // `setVapidDetails`, which is the first thing `notify-due-reviews` does after
+  // its auth check. These are generated keys with no counterpart anywhere and
+  // are never used to sign a request that leaves the test process.
+  VAPID_PUBLIC_KEY: "BBwEM_afvC6pOZbrTLE03u1Z4475caC2IeFoo8TBLo_5gKL-mAu74mR98dAg-Ea9TgTeMM3ddAqt-aULaMLv1_s",
+  VAPID_PRIVATE_KEY: "tUQVlrPzzw18X2N_kpvu-T6hIHm0emz9ZzGxkDJQ9aE",
   VAPID_SUBJECT: "mailto:test@example.com",
 
   ALLOWED_ORIGINS: "https://hakiya.app,https://lahja-arabic.lovable.app",

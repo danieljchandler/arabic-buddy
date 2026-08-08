@@ -8,6 +8,7 @@ import {
   type PersonaOptions,
 } from "../../src/test/support/personas";
 import {
+  clearSession,
   installSupabaseRoutes,
   seedSession,
 } from "../../src/test/support/transports/playwright";
@@ -185,6 +186,9 @@ export const test = base.extend<Fixtures>({
     await use(async (persona, options = {}) => {
       const userId = seedPersona(backend, persona, options);
       if (isSignedIn(persona)) await seedSession(page, userId ?? TEST_USER_ID);
+      // Signing in as anonymous means signing out, including out of a session a
+      // beforeEach seeded — otherwise the call looks effective and is not.
+      else await clearSession(page);
     });
   },
 });

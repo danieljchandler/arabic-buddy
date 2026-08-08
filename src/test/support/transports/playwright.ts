@@ -136,3 +136,22 @@ export async function seedSession(page: Page, userId: string): Promise<void> {
     { key: STORAGE_KEY, value: JSON.stringify(session) },
   );
 }
+
+/**
+ * Sign the browser out, undoing any session seeded earlier in the test.
+ *
+ * Init scripts are cumulative and cannot be removed, so a later
+ * `signInAs("anonymous")` cannot simply skip seeding — the earlier script still
+ * runs and the page is still signed in. Scripts run in registration order, so
+ * removing the key last is what actually makes the sign-out stick.
+ *
+ * Worth the extra script: a spec asserting that signed-out visitors are
+ * redirected would otherwise pass or fail on whether a `beforeEach` happened to
+ * sign in first, and the failure reads as a broken guard in the app.
+ */
+export async function clearSession(page: Page): Promise<void> {
+  await page.addInitScript(
+    ({ key }) => window.localStorage.removeItem(key),
+    { key: STORAGE_KEY },
+  );
+}

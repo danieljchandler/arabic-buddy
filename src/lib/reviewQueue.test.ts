@@ -95,6 +95,18 @@ describe("enqueue", () => {
     expect(item.id).toEqual(expect.any(String));
     expect(item.id.length).toBeGreaterThan(0);
   });
+
+  it("gives each rating a distinct id, even on the fallback path", () => {
+    vi.spyOn(globalThis, "crypto", "get").mockReturnValue({} as Crypto);
+
+    // `remove` deletes by id, so a collision would drop somebody else's rating
+    // when the first of the pair flushed. The fallback is the risky one — it is
+    // a timestamp plus a random suffix, and two ratings given in the same
+    // millisecond share the timestamp.
+    const ids = Array.from({ length: 50 }, () => enqueue(USER, anEntry()).id);
+
+    expect(new Set(ids).size).toBe(ids.length);
+  });
 });
 
 describe("per-user isolation", () => {

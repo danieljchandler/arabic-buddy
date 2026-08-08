@@ -76,13 +76,13 @@ describe("icon-only buttons", () => {
       `Unlabelled icon-only buttons in the admin console. These are the ` +
         `destructive controls, and they announce as just "button". Add ` +
         `aria-label and lower this number.`,
-    ).toBeLessThanOrEqual(53);
+    ).toBeLessThanOrEqual(49);
   });
 
   it("does not grow across the app", () => {
     const total = countsByArea(() => true);
 
-    expect(total).toBeLessThanOrEqual(95);
+    expect(total).toBeLessThanOrEqual(78);
   });
 
   it("keeps the labels that exist", () => {

@@ -54,6 +54,12 @@ export const aProfile = (over: Row = {}): Row => ({
   // Index.tsx bounces the user to /onboarding without this.
   onboarding_completed: true,
   preferred_dialect: "Gulf",
+  // Both non-nullable in the schema and both read straight into form state by
+  // the leaderboard's profile dialog, which cannot tell "false" from "absent".
+  show_on_leaderboard: true,
+  show_institution: true,
+  institution_id: null,
+  custom_institution: null,
   placement_level: "A2",
   placement_level_gulf: "A2",
   placement_level_egyptian: null,

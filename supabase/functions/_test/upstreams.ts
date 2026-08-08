@@ -46,6 +46,56 @@ export const chatCompletion = (content: string, toolCall?: unknown): Response =>
     usage: { prompt_tokens: 10, completion_tokens: 10, total_tokens: 20 },
   });
 
+/**
+ * The gateway's *streaming* completion shape.
+ *
+ * `streamBrain` sends `stream: true` and pipes the upstream body straight
+ * through to the browser, tapping it on the way past to accumulate the text for
+ * MSA-leak scanning. A non-streaming `chatCompletion` here would give it a JSON
+ * body with no `data:` lines: the passthrough would still "work" and the client
+ * would still see bytes, but the accumulator would stay empty and every
+ * leak-detection assertion would pass vacuously.
+ *
+ * Several pieces rather than one for the same reason as on the client side —
+ * the accumulation across frames is the behaviour worth testing.
+ */
+export const sseCompletion = (...pieces: string[]): Response => {
+  const frames = pieces
+    .map((content) => `data: ${JSON.stringify({ choices: [{ delta: { content } }] })}\n\n`)
+    .join("");
+  return new Response(`${frames}data: [DONE]\n\n`, {
+    status: 200,
+    headers: { "content-type": "text/event-stream" },
+  });
+};
+
+/**
+ * Gemini's *streaming* shape, which culture-guide reads and re-emits.
+ *
+ * The function's whole job is the translation between this and OpenAI's frame
+ * shape, so the fixture has to be in Gemini's own vocabulary — `candidates`,
+ * `content.parts[].text` — or the transform under test is bypassed.
+ */
+export const geminiStream = (
+  pieces: string[],
+  groundingMetadata?: unknown,
+): Response => {
+  const frames = pieces.map((text, i) => {
+    const candidate: Record<string, unknown> = { content: { parts: [{ text }] } };
+    // Grounding metadata arrives attached to a candidate mid-stream, and the
+    // function keeps the last one it saw to build the Sources block after the
+    // model has finished.
+    if (groundingMetadata && i === pieces.length - 1) {
+      candidate.groundingMetadata = groundingMetadata;
+    }
+    return `data: ${JSON.stringify({ candidates: [candidate] })}\n\n`;
+  });
+  return new Response(frames.join(""), {
+    status: 200,
+    headers: { "content-type": "text/event-stream" },
+  });
+};
+
 /** Gemini's own response shape, which culture-guide reads directly. */
 export const geminiResponse = (text: string): Response =>
   json({

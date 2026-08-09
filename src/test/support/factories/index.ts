@@ -54,6 +54,7 @@ export const gameSetId = makeId("fefefefe");
 export const listeningExerciseId = makeId("e1e1e1e1");
 export const battleId = makeId("e2e2e2e2");
 export const transcriptionId = makeId("e3e3e3e3");
+export const msaRuleId = makeId("e4e4e4e4");
 
 export { TEST_USER_ID };
 
@@ -386,6 +387,33 @@ export const aDialectRule = (over: Row = {}): Row => ({
   created_by: TEST_USER_ID,
   created_at: daysAgo(3),
   updated_at: daysAgo(3),
+  ...over,
+});
+
+/**
+ * One MSA-to-dialect transformation rule, as the Bridge screen shows it.
+ *
+ * These are the "if you know fusha, here is the swap" cards — ماذا becomes شنو,
+ * the future particle changes, a sound shifts. Only published rules are ever
+ * shown, because a half-written rule teaches a wrong equivalence that is harder
+ * to unlearn than no rule at all.
+ */
+export const anMsaRule = (over: Row = {}): Row => ({
+  id: msaRuleId(0),
+  dialect: "Gulf",
+  category: "vocab_swap",
+  rule_name: "Interrogative: what",
+  msa_pattern: "ماذا",
+  dialect_pattern: "شنو",
+  example_msa: "ماذا تفعل؟",
+  example_dialect: "شنو تسوي؟",
+  example_audio_url: null,
+  notes: null,
+  status: "published",
+  display_order: 1,
+  created_by: TEST_USER_ID,
+  created_at: daysAgo(30),
+  updated_at: daysAgo(30),
   ...over,
 });
 

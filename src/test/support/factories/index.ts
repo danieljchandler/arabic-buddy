@@ -41,6 +41,7 @@ export const videoId = makeId("aaaaaaaa");
 export const storyId = makeId("bbbbbbbb");
 export const episodeId = makeId("cccccccc");
 export const conceptId = makeId("dddddddd");
+export const candidateId = makeId("f4f4f4f4");
 
 export { TEST_USER_ID };
 
@@ -436,6 +437,37 @@ export const aDiscoverVideo = (over: Row = {}): Row => ({
   created_by: TEST_USER_ID,
   created_at: daysAgo(5),
   updated_at: daysAgo(5),
+  ...over,
+});
+
+/**
+ * A YouTube video the trending crawler proposed but nobody has ruled on yet.
+ *
+ * The three state flags are independent and all nullable: `processed` means
+ * approved, `rejected` means turned down, `dismissed` means hidden from every
+ * tab. The admin page filters on all three.
+ */
+export const aTrendingCandidate = (over: Row = {}): Row => ({
+  id: candidateId(0),
+  video_id: "yt-fixture",
+  platform: "youtube",
+  url: "https://www.youtube.com/watch?v=fixture",
+  title: "A trending clip",
+  creator_name: "A creator",
+  creator_handle: null,
+  thumbnail_url: null,
+  view_count: 1_500,
+  trending_score: 900,
+  detected_topic: "comedy",
+  region_code: "SA",
+  duration_seconds: 45,
+  processed: false,
+  rejected: false,
+  rejection_reason: null,
+  dismissed: false,
+  discovered_at: daysAgo(1),
+  created_at: daysAgo(1),
+  updated_at: daysAgo(1),
   ...over,
 });
 

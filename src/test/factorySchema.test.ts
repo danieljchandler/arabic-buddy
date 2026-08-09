@@ -44,6 +44,7 @@ const FACTORY_TABLES: Record<string, string> = {
   aConceptLink: "content_concept_links",
   aFeatureMetric: "feature_metrics",
   aDiscoverVideo: "discover_videos",
+  aTrendingCandidate: "trending_video_candidates",
   aListenEpisode: "listen_episodes",
   anAuthenticStory: "authentic_stories",
   anInviteCode: "invite_codes",

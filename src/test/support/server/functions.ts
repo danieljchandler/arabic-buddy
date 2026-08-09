@@ -301,7 +301,10 @@ export const defaultFunctions: Record<string, FunctionHandler> = {
   "suggest-stories-admin": () => ok({ suggestions: [] }),
 
   // Admin pipelines.
-  "discover-trending-videos": () => ok({ candidates: [] }),
+  // The admin page reads `candidates` to upsert, and `candidates_found` plus
+  // `region_summary` for its toast — all three come back together.
+  "discover-trending-videos": () =>
+    ok({ success: true, candidates_found: 0, candidates: [], region_summary: {} }),
   "process-approved-video": () => ok({ processed: true }),
   "rate-video-cefr": () => ok({ cefr: "A2" }),
   "extract-concepts": () => ok({ concepts: [] }),

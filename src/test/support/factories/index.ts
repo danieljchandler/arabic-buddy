@@ -43,6 +43,8 @@ export const episodeId = makeId("cccccccc");
 export const conceptId = makeId("dddddddd");
 export const candidateId = makeId("f4f4f4f4");
 export const ruleId = makeId("f6f6f6f6");
+export const chatSessionId = makeId("f8f8f8f8");
+export const chatMessageId = makeId("f9f9f9f9");
 
 export { TEST_USER_ID };
 
@@ -627,6 +629,49 @@ export const anInviteCode = (over: Row = {}): Row => ({
   note: null,
   created_by: TEST_USER_ID,
   created_at: daysAgo(30),
+  ...over,
+});
+
+/**
+ * A Curriculum Builder chat session.
+ *
+ * The sidebar filters these by `target_dialect` against the active dialect, so
+ * a session built for the wrong module is simply absent rather than greyed out.
+ * `status` is how a session is archived — nothing is ever deleted.
+ */
+export const aCurriculumChatSession = (over: Row = {}): Row => ({
+  id: chatSessionId(0),
+  admin_id: TEST_USER_ID,
+  // The column's own default is the literal "New Session", which collides with
+  // the sidebar's New Session button under an accessible-name query. Tests that
+  // care about auto-titling set it explicitly; the rest get something findable.
+  title: "Untitled conversation",
+  target_dialect: "Gulf",
+  target_stage_id: null,
+  target_cefr: null,
+  llm_model: "google/gemini-3-flash-preview",
+  status: "active",
+  created_at: daysAgo(1),
+  updated_at: daysAgo(1),
+  ...over,
+});
+
+/**
+ * One turn in a Curriculum Builder session.
+ *
+ * `structured_output` plus `output_type` is what makes a message previewable —
+ * the page auto-selects the newest message that has both, and the preview panel
+ * dispatches its Approve button on `output_type`.
+ */
+export const aCurriculumChatMessage = (over: Row = {}): Row => ({
+  id: chatMessageId(0),
+  session_id: chatSessionId(0),
+  role: "assistant",
+  content: "Here is a lesson plan.",
+  llm_model: "google/gemini-3-flash-preview",
+  structured_output: null,
+  output_type: null,
+  created_at: daysAgo(1),
   ...over,
 });
 

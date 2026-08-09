@@ -42,6 +42,7 @@ export const storyId = makeId("bbbbbbbb");
 export const episodeId = makeId("cccccccc");
 export const conceptId = makeId("dddddddd");
 export const candidateId = makeId("f4f4f4f4");
+export const ruleId = makeId("f6f6f6f6");
 
 export { TEST_USER_ID };
 
@@ -348,6 +349,52 @@ export const aConceptMastery = (over: Row = {}): Row => ({
   strength: "strong",
   next_due_at: iso(),
   last_seen_at: iso(),
+  ...over,
+});
+
+/**
+ * One rule in the dialect rulebook that steers every AI generation.
+ *
+ * `examples` is JSONB and deliberately loose — the admin renders each entry
+ * through a formatter that accepts a bare string or an object, because both
+ * shapes exist in production.
+ */
+export const aDialectRule = (over: Row = {}): Row => ({
+  id: ruleId(0),
+  dialect: "Gulf",
+  category: "lexis",
+  rule: "Use هالحين, never الآن.",
+  examples: { good: ["هالحين"], bad: ["الآن"] },
+  priority: 3,
+  status: "draft",
+  source: "ai_generated",
+  notes: null,
+  version: 1,
+  approved_by: null,
+  approved_at: null,
+  created_by: TEST_USER_ID,
+  created_at: daysAgo(3),
+  updated_at: daysAgo(3),
+  ...over,
+});
+
+/** A native speaker's queued judgement on a generated line. */
+export const aNativeReview = (over: Row = {}): Row => ({
+  id: makeId("f5f5f5f5")(0),
+  dialect: "Gulf",
+  content_type: "generated_sentence",
+  original_text: "أريد أن أذهب الآن",
+  corrected_text: null,
+  reviewer_id: null,
+  reviewer_notes: null,
+  status: "pending",
+  source: "auto_flagged",
+  source_function: "free-chat",
+  content_id: null,
+  violation_id: null,
+  metadata: {},
+  created_at: daysAgo(1),
+  updated_at: daysAgo(1),
   ...over,
 });
 

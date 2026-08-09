@@ -313,9 +313,29 @@ export const defaultFunctions: Record<string, FunctionHandler> = {
   "rate-video-cefr": () => ok({ cefr: "A2" }),
   "extract-concepts": () => ok({ concepts: [] }),
   "curriculum-chat": () => ok({ reply: "", proposals: [] }),
-  "draft-dialect-rules": () => ok({ rules: [] }),
-  "mine-dialect-corpus": () => ok({ sentences: [] }),
-  "dialect-violations-digest": () => ok({ violations: [] }),
+  // Drafting is queued rather than synchronous: the response carries the
+  // message the admin toast shows, and the rules appear in the Draft tab
+  // minutes later. `{ rules: [] }` named a field nothing reads.
+  "draft-dialect-rules": () =>
+    ok({
+      queued: true,
+      dialect: "Gulf",
+      category: null,
+      message: "Council is drafting rules in the background.",
+    }),
+  // The admin toast counts `inserted` out of `corpus_size`.
+  "mine-dialect-corpus": () =>
+    ok({ dialect: "Gulf", corpus_size: 0, proposed: 0, inserted: 0, drafts: [] }),
+  // A rollup, not a list. The panel reads `totals.all` directly, so the old
+  // `{ violations: [] }` threw on the first render rather than showing zero.
+  "dialect-violations-digest": () =>
+    ok({
+      windowDays: 7,
+      totals: { all: 0, byDialect: {} },
+      topTokens: [],
+      topFunctions: [],
+      samples: [],
+    }),
   // `inserted` is how many draft rules were written, and the metrics page reads
   // nothing else. The old `{ insight: "" }` made every teach-AI call report
   // "AI returned no proposals" regardless of what happened.

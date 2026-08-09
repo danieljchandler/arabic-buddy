@@ -47,6 +47,7 @@ export const chatSessionId = makeId("f8f8f8f8");
 export const chatMessageId = makeId("f9f9f9f9");
 export const sceneId = makeId("fafafafa");
 export const interactiveStoryId = makeId("b1b1b1b1");
+export const storyLineId = makeId("fbfbfbfb");
 
 export { TEST_USER_ID };
 
@@ -589,6 +590,30 @@ export const anAuthenticStory = (over: Row = {}): Row => ({
   // "undefined".
   video_status: "none",
   vocabulary: [],
+  created_at: daysAgo(5),
+  updated_at: daysAgo(5),
+  ...over,
+});
+
+/**
+ * One segmented line of an authentic story.
+ *
+ * The reading page renders `arabic_vocalized` when it exists and falls back to
+ * `arabic`, and treats `audio_url` as the flag for whether narration has been
+ * synthesised for this line yet.
+ */
+export const anAuthenticStoryLine = (over: Row = {}): Row => ({
+  id: storyLineId(0),
+  story_id: storyId(0),
+  line_index: 0,
+  arabic: "كان يا ما كان في قديم الزمان.",
+  arabic_vocalized: "كَانَ يَا مَا كَانَ فِي قَدِيمِ الزَّمَانِ.",
+  dialect: null,
+  dialect_vocalized: null,
+  english: "Once upon a time.",
+  english_literal: "was oh what was in old the-time",
+  audio_url: null,
+  duration_seconds: null,
   created_at: daysAgo(5),
   updated_at: daysAgo(5),
   ...over,

@@ -378,6 +378,35 @@ export const aDialectRule = (over: Row = {}): Row => ({
   ...over,
 });
 
+/**
+ * A hand-curated Bible passage.
+ *
+ * The three verse columns are JSONB arrays, one entry per verse, and the admin
+ * form round-trips them through a newline-joined textarea — so the array is the
+ * shape that matters, not the text.
+ */
+export const aBibleLesson = (over: Row = {}): Row => ({
+  id: makeId("f7f7f7f7")(0),
+  title: "The Beatitudes",
+  description: null,
+  book_usfm: "MAT",
+  book_name: "Matthew",
+  chapter: 5,
+  verse_start: 3,
+  verse_end: 5,
+  dialect: "Gulf",
+  dialect_verses: ["طوبى للمساكين", "طوبى للحزانى"],
+  formal_verses: [],
+  english_verses: [],
+  cultural_note: null,
+  display_order: 0,
+  published: false,
+  created_by: TEST_USER_ID,
+  created_at: daysAgo(5),
+  updated_at: daysAgo(5),
+  ...over,
+});
+
 /** A native speaker's queued judgement on a generated line. */
 export const aNativeReview = (over: Row = {}): Row => ({
   id: makeId("f5f5f5f5")(0),

@@ -215,6 +215,115 @@ test.describe("words within a topic", () => {
   });
 });
 
+test.describe("editing a topic", () => {
+  test.beforeEach(async ({ signInAs, db }) => {
+    await signInAs("admin");
+    db.seed("topics", [
+      aTopic({
+        id: topicId(0),
+        name: "Colours",
+        name_arabic: "ألوان",
+        icon: "🎨",
+        gradient: "bg-gradient-indigo",
+      }),
+    ]);
+  });
+
+  test("loads the topic into the form", async ({ page }) => {
+    await page.goto(`/admin/topics/${topicId(0)}/edit`);
+
+    await expect(page.getByLabel("English Name")).toHaveValue("Colours");
+    await expect(page.getByLabel("Arabic Name")).toHaveValue("ألوان");
+    await expect(page.getByRole("button", { name: "Update Topic" })).toBeVisible();
+  });
+
+  test("keeps the icon and colour the topic was saved with", async ({ page }) => {
+    await page.goto(`/admin/topics/${topicId(0)}/edit`);
+
+    // Both are chosen from a palette with no text, so the only signal that the
+    // right one is selected is the ring — losing it would silently reset the
+    // topic's appearance on every edit.
+    await expect(page.locator("button.ring-2", { hasText: "🎨" })).toBeVisible();
+    await expect(page.locator("button.bg-gradient-indigo.ring-2")).toBeVisible();
+  });
+
+  test("updates rather than creating a second topic", async ({ page, db }) => {
+    await page.goto(`/admin/topics/${topicId(0)}/edit`);
+    await page.getByLabel("English Name").fill("Colors");
+    await page.getByRole("button", { name: "Update Topic" }).click();
+
+    await expect(page.getByText("Topic updated!")).toBeVisible();
+    const write = db.writesTo("topics").at(-1);
+    expect(write?.method).toBe("PATCH");
+    expect(write?.payload[0]).toMatchObject({ name: "Colors", name_arabic: "ألوان" });
+  });
+
+  test("saves a changed icon and colour", async ({ page, db }) => {
+    await page.goto(`/admin/topics/${topicId(0)}/edit`);
+    await page.getByRole("button", { name: "🍎", exact: true }).click();
+    await page.getByRole("button", { name: "Update Topic" }).click();
+
+    await expect(page.getByText("Topic updated!")).toBeVisible();
+    expect(db.lastWriteTo("topics")?.payload[0]).toMatchObject({ icon: "🍎" });
+  });
+
+  test("leaves display_order alone on an edit", async ({ page, db }) => {
+    await page.goto(`/admin/topics/${topicId(0)}/edit`);
+    await page.getByLabel("English Name").fill("Colors");
+    await page.getByRole("button", { name: "Update Topic" }).click();
+    await expect(page.getByText("Topic updated!")).toBeVisible();
+
+    // Position on the curriculum page is set once at creation; an edit that
+    // re-derived it would reshuffle the list every time a typo was fixed.
+    expect(db.lastWriteTo("topics")?.payload[0]).not.toHaveProperty("display_order");
+  });
+
+  test("refuses to save with either name emptied", async ({ page, db }) => {
+    await page.goto(`/admin/topics/${topicId(0)}/edit`);
+    await page.getByLabel("Arabic Name").fill("");
+    await page.getByRole("button", { name: "Update Topic" }).click();
+
+    // Both inputs are `required`, so the browser blocks the submit before the
+    // handler's own check ever runs — which means the app's "Please fill in
+    // both name fields" toast is unreachable from the keyboard or the mouse.
+    // What matters is the outcome: nothing is written and the form stays put.
+    expect(db.writesTo("topics").filter((w) => w.method === "PATCH")).toHaveLength(0);
+    await expect(page).toHaveURL(new RegExp(`/admin/topics/${topicId(0)}/edit$`));
+  });
+
+  test("refuses to save a name that is only whitespace", async ({ page, db }) => {
+    await page.goto(`/admin/topics/${topicId(0)}/edit`);
+    // A space satisfies `required`, so this is the path that reaches the
+    // handler's own validation.
+    await page.getByLabel("Arabic Name").fill("   ");
+    await page.getByRole("button", { name: "Update Topic" }).click();
+
+    await expect(page.getByText("Please fill in both name fields")).toBeVisible();
+    expect(db.writesTo("topics").filter((w) => w.method === "PATCH")).toHaveLength(0);
+  });
+
+  test("says so when the update is refused", async ({ page, db }) => {
+    db.failWrites("topics", 403, { message: "new row violates row-level security policy" });
+
+    await page.goto(`/admin/topics/${topicId(0)}/edit`);
+    await page.getByLabel("English Name").fill("Colors");
+    await page.getByRole("button", { name: "Update Topic" }).click();
+
+    await expect(page.getByText(/row-level security/)).toBeVisible();
+    // Still on the form, so the edit is not lost.
+    await expect(page).toHaveURL(new RegExp(`/admin/topics/${topicId(0)}/edit$`));
+  });
+
+  test("goes back to the list without writing on Cancel", async ({ page, db }) => {
+    await page.goto(`/admin/topics/${topicId(0)}/edit`);
+    await page.getByLabel("English Name").fill("Something else");
+    await page.getByRole("button", { name: "Cancel" }).click();
+
+    await expect(page).toHaveURL(/\/admin\/topics$/);
+    expect(db.writesTo("topics").filter((w) => w.method === "PATCH")).toHaveLength(0);
+  });
+});
+
 test.describe("when the admin console cannot load its data", () => {
   test("topics shows an error rather than an empty list", async ({ page, signInAs, db }) => {
     await signInAs("admin");

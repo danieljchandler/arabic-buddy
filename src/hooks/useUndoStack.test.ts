@@ -18,8 +18,17 @@ import type { UndoOperation } from "@/types/transcript";
  * session.
  */
 
-const anOp = (id: string): UndoOperation =>
-  ({ type: "edit", lineId: id, before: {}, after: {} }) as unknown as UndoOperation;
+/** A real edit operation, tagged by the segment it touched. */
+const anOp = (segmentId: string): UndoOperation => ({
+  type: "EditTextOp",
+  segmentId,
+  previousText: "before",
+  newText: "after",
+});
+
+/** The segment id of an operation the stack handed back. */
+const idOf = (op: UndoOperation | null): string | null =>
+  op && "segmentId" in op ? op.segmentId : null;
 
 describe("an empty stack", () => {
   it("offers neither direction", () => {
@@ -54,7 +63,7 @@ describe("undoing", () => {
       undone = result.current.undo();
     });
 
-    expect(undone).toMatchObject({ lineId: "b" });
+    expect(idOf(undone)).toBe("b");
   });
 
   it("walks back through the history one step at a time", () => {
@@ -68,13 +77,13 @@ describe("undoing", () => {
 
     const order: string[] = [];
     act(() => {
-      order.push((result.current.undo() as { lineId: string }).lineId);
+      order.push(idOf(result.current.undo())!);
     });
     act(() => {
-      order.push((result.current.undo() as { lineId: string }).lineId);
+      order.push(idOf(result.current.undo())!);
     });
     act(() => {
-      order.push((result.current.undo() as { lineId: string }).lineId);
+      order.push(idOf(result.current.undo())!);
     });
 
     expect(order).toEqual(["c", "b", "a"]);
@@ -126,7 +135,7 @@ describe("redoing", () => {
       redone = result.current.redo();
     });
 
-    expect(redone).toMatchObject({ lineId: "b" });
+    expect(idOf(redone)).toBe("b");
   });
 
   it("round-trips a whole history", () => {
@@ -186,8 +195,8 @@ describe("the size limit", () => {
     const seen: string[] = [];
     for (let i = 0; i < 60; i++) {
       act(() => {
-        const op = result.current.undo() as { lineId: string } | null;
-        if (op) seen.push(op.lineId);
+        const id = idOf(result.current.undo());
+        if (id) seen.push(id);
       });
     }
 
@@ -212,6 +221,6 @@ describe("the size limit", () => {
 
     // The most recent edit is the one most likely to need undoing, so the
     // limit must not lock the stack once it is full.
-    expect(first).toMatchObject({ lineId: "op-54" });
+    expect(idOf(first)).toBe("op-54");
   });
 });

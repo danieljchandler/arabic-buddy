@@ -69,14 +69,23 @@ const micButton = (page: Page) => page.locator("button:has(svg.lucide-mic)").fir
  * invocation rather than on a rendered score keeps this usable from the failure
  * specs too, and it doubles as the assertion that capture produced real audio:
  * a zero-byte blob short-circuits in the hook and never reaches the function.
+ *
+ * The pause between the two taps is load-bearing. `useShadowRecorder` calls
+ * `recorder.start()` with no timeslice, so the encoder flushes a single blob at
+ * stop — and stopping a few milliseconds after starting can flush before any
+ * Opus frame exists. `useAzurePronunciation` rejects a zero-byte blob before
+ * invoking anything, so the poll would then be waiting for a call that is never
+ * coming. A quarter-second of the fake device guarantees frames even on a
+ * machine running the whole suite in parallel.
  */
 async function recordTake(page: Page, backend: SupabaseBackend) {
   const before = backend.callsTo("azure-pronunciation").length;
   await micButton(page).click();
   await expect(page.getByText("Tap to stop recording")).toBeVisible();
+  await page.waitForTimeout(250);
   await page.locator("button:has(svg.lucide-mic-off)").first().click();
   await expect
-    .poll(() => backend.callsTo("azure-pronunciation").length)
+    .poll(() => backend.callsTo("azure-pronunciation").length, { timeout: 15_000 })
     .toBeGreaterThan(before);
 }
 

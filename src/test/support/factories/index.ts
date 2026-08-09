@@ -48,6 +48,8 @@ export const chatMessageId = makeId("f9f9f9f9");
 export const sceneId = makeId("fafafafa");
 export const interactiveStoryId = makeId("b1b1b1b1");
 export const storyLineId = makeId("fbfbfbfb");
+export const dailyChallengeId = makeId("fcfcfcfc");
+export const challengeCompletionId = makeId("fdfdfdfd");
 
 export { TEST_USER_ID };
 
@@ -724,6 +726,52 @@ export const aStoryScene = (over: Row = {}): Row => ({
   ending_message_arabic: null,
   created_at: daysAgo(5),
   updated_at: daysAgo(5),
+  ...over,
+});
+
+/**
+ * A pre-approved daily challenge.
+ *
+ * The page prefers these over live generation, picking one at random from up to
+ * ten published rows — so a test that wants a deterministic challenge should
+ * seed exactly one.
+ */
+export const aDailyChallenge = (over: Row = {}): Row => ({
+  id: dailyChallengeId(0),
+  challenge_type: "vocab",
+  challenge_date: null,
+  title: "Today's words",
+  title_arabic: "كلمات اليوم",
+  dialect: "Gulf",
+  difficulty: "beginner",
+  status: "published",
+  questions: [
+    { prompt: "What is 'door'?", options: ["باب", "كتاب", "كرسي"], answer: "باب" },
+    { prompt: "What is 'book'?", options: ["باب", "كتاب", "كرسي"], answer: "كتاب" },
+  ],
+  session_id: null,
+  created_by: TEST_USER_ID,
+  created_at: daysAgo(2),
+  updated_at: daysAgo(2),
+  ...over,
+});
+
+/**
+ * A learner's record of finishing a day's challenge.
+ *
+ * `challenge_date` is a plain date, and the streak is counted by walking back
+ * from today one day at a time — so a row dated in any other format simply
+ * breaks the chain rather than erroring.
+ */
+export const aChallengeCompletion = (over: Row = {}): Row => ({
+  id: challengeCompletionId(0),
+  user_id: TEST_USER_ID,
+  challenge_date: new Date().toISOString().slice(0, 10),
+  challenge_type: "vocab",
+  xp_earned: 30,
+  score: 2,
+  max_score: 2,
+  completed_at: daysAgo(0),
   ...over,
 });
 

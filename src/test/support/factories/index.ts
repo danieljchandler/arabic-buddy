@@ -52,6 +52,7 @@ export const dailyChallengeId = makeId("fcfcfcfc");
 export const challengeCompletionId = makeId("fdfdfdfd");
 export const gameSetId = makeId("fefefefe");
 export const listeningExerciseId = makeId("e1e1e1e1");
+export const battleId = makeId("e2e2e2e2");
 
 export { TEST_USER_ID };
 
@@ -827,6 +828,39 @@ export const aListeningExercise = (over: Row = {}): Row => ({
   created_by: TEST_USER_ID,
   created_at: daysAgo(4),
   updated_at: daysAgo(4),
+  ...over,
+});
+
+/**
+ * An asynchronous vocabulary duel between two learners.
+ *
+ * Turn order is encoded entirely in the score columns rather than in `status`:
+ * a pending battle whose `challenger_score` is null is the challenger's turn,
+ * and one where it is set is the opponent's. The opponent's submission is what
+ * completes the battle and decides the winner — higher score, then faster time,
+ * then a draw.
+ */
+export const aVocabBattle = (over: Row = {}): Row => ({
+  id: battleId(0),
+  challenger_id: TEST_USER_ID,
+  opponent_id: makeId("dddddddd")(1),
+  challenger_score: null,
+  opponent_score: null,
+  challenger_time_ms: null,
+  opponent_time_ms: null,
+  challenger_played_at: null,
+  opponent_played_at: null,
+  status: "pending",
+  winner_id: null,
+  question_count: 2,
+  questions: [
+    { word_arabic: "باب", choices: ["door", "book", "chair"], correct_index: 0 },
+    { word_arabic: "كتاب", choices: ["door", "book", "chair"], correct_index: 1 },
+  ],
+  time_limit_seconds: 60,
+  completed_at: null,
+  expires_at: daysFromNow(7),
+  created_at: daysAgo(1),
   ...over,
 });
 

@@ -40,6 +40,8 @@ const FACTORY_TABLES: Record<string, string> = {
   aUserSetPhrase: "user_set_phrases",
   aLearnerError: "learner_errors",
   aConceptMastery: "user_concept_mastery",
+  aCurriculumConcept: "curriculum_concepts",
+  aConceptLink: "content_concept_links",
   aDiscoverVideo: "discover_videos",
   aListenEpisode: "listen_episodes",
   anAuthenticStory: "authentic_stories",

@@ -143,9 +143,16 @@ export async function installSupabaseRoutes(
   return { backend, blockedRequests, blockedThirdParties };
 }
 
-/** Seed an authenticated session so the app boots past ProtectedRoute. */
-export async function seedSession(page: Page, userId: string): Promise<void> {
-  const session = makeSession(userId);
+/**
+ * Seed an authenticated session so the app boots past ProtectedRoute.
+ *
+ * The email matters: it is a claim on the access token and the only place the
+ * address exists client-side, since `profiles` has no email column. The admin
+ * dashboard prints it, so a persona's chosen email has to reach here rather
+ * than stopping at the backend's account list.
+ */
+export async function seedSession(page: Page, userId: string, email?: string): Promise<void> {
+  const session = makeSession(userId, email);
   await page.addInitScript(
     ({ key, value }) => window.localStorage.setItem(key, value),
     { key: STORAGE_KEY, value: JSON.stringify(session) },

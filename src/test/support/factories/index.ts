@@ -350,6 +350,41 @@ export const aConceptMastery = (over: Row = {}): Row => ({
   ...over,
 });
 
+/**
+ * A row in the concept ledger the curriculum planner writes to.
+ *
+ * `kind` is an enum — vocab / grammar / theme / scenario / phrase — and the
+ * coverage page filters on it, so a fixture using any other word disappears
+ * from the list rather than failing.
+ */
+export const aCurriculumConcept = (over: Row = {}): Row => ({
+  id: conceptId(0),
+  kind: "vocab",
+  key: "work",
+  display_arabic: "شغل",
+  display_english: "work",
+  dialect: "Gulf",
+  cefr_level: "A1",
+  stage_id: null,
+  source_type: null,
+  source_id: null,
+  metadata: {},
+  first_introduced_at: daysAgo(10),
+  created_at: daysAgo(10),
+  updated_at: daysAgo(10),
+  ...over,
+});
+
+export const aConceptLink = (over: Row = {}): Row => ({
+  id: makeId("f2f2f2f2")(0),
+  concept_id: conceptId(0),
+  content_type: "lesson",
+  content_id: lessonId(0),
+  role: "introduce",
+  created_at: daysAgo(5),
+  ...over,
+});
+
 // ── Content ──────────────────────────────────────────────────────────────────
 
 /**

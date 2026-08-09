@@ -185,7 +185,7 @@ export const test = base.extend<Fixtures>({
   signInAs: async ({ page, backend }, use) => {
     await use(async (persona, options = {}) => {
       const userId = seedPersona(backend, persona, options);
-      if (isSignedIn(persona)) await seedSession(page, userId ?? TEST_USER_ID);
+      if (isSignedIn(persona)) await seedSession(page, userId ?? TEST_USER_ID, options.email);
       // Signing in as anonymous means signing out, including out of a session a
       // beforeEach seeded — otherwise the call looks effective and is not.
       else await clearSession(page);

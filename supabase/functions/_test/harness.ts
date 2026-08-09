@@ -67,6 +67,20 @@ export interface UpstreamCall {
   body: string | null;
 }
 
+/** Environment and outbound `fetch` under a test's control, with no function loaded. */
+export interface StubbedUpstreams {
+  /** Every outbound fetch made while this stub was installed, in order. */
+  calls: UpstreamCall[];
+  /** Tasks handed to `EdgeRuntime.waitUntil` while this stub was installed. */
+  tasks: Promise<unknown>[];
+  /** Route a URL substring to a response, replacing any default. */
+  stub: (match: string, handler: UpstreamHandler) => void;
+  /** Calls whose URL contains `match`. */
+  callsTo: (match: string) => UpstreamCall[];
+  /** Undo the env patch and clear the routing table. Always call this in a finally. */
+  restore: () => void;
+}
+
 export interface LoadedFunction {
   handler: Handler;
   /** Every outbound fetch the function made, in order. */
@@ -200,10 +214,21 @@ function installEdgeRuntime(): void {
   };
 }
 
-export async function loadFunction(
-  name: string,
-  options: LoadOptions = {},
-): Promise<LoadedFunction> {
+/**
+ * Everything `loadFunction` sets up *except* the function itself: the fixture
+ * environment, the routing fetch, the `EdgeRuntime` shim and the background
+ * task queue.
+ *
+ * The `_shared` modules are worth testing directly rather than only through the
+ * functions that call them — several of them are deliberately silent (the two
+ * logging sinks swallow every error by design), so a function-level test can
+ * never distinguish "wrote the row" from "did nothing at all". Reaching them
+ * needs the same env and fetch control a function does, and specifically the
+ * same *stable* routing fetch: `featureMetrics` and `msaViolationLogger` cache
+ * their Supabase client at module scope, and a client built against a
+ * per-test fetch that was later torn down would call a dead one.
+ */
+export function stubUpstreams(options: LoadOptions = {}): StubbedUpstreams {
   const originalEnv = new Map<string, string | undefined>();
   const applyEnv = (key: string, value: string | undefined) => {
     if (!originalEnv.has(key)) originalEnv.set(key, Deno.env.get(key));
@@ -216,7 +241,6 @@ export async function loadFunction(
 
   const routes = { ...defaultUpstreams(), ...(options.upstreams ?? {}) };
   const calls: UpstreamCall[] = [];
-
   const tasks: Promise<unknown>[] = [];
 
   installRoutingFetch();
@@ -224,6 +248,49 @@ export async function loadFunction(
   currentRoutes = routes;
   currentCalls = calls;
   currentTasks = tasks;
+
+  return {
+    calls,
+    tasks,
+    stub: (match, upstream) => {
+      routes[match] = upstream;
+    },
+    callsTo: (match) => calls.filter((call) => call.url.includes(match)),
+    restore: () => {
+      // The routing fetch itself stays installed — see installRoutingFetch.
+      // Only the table it reads is cleared, so a call made after the test (by a
+      // cached client, say) falls through to the real fetch rather than a stale
+      // route.
+      currentRoutes = null;
+      currentCalls = null;
+      currentTasks = null;
+      for (const [key, value] of originalEnv) {
+        if (value === undefined) Deno.env.delete(key);
+        else Deno.env.set(key, value);
+      }
+    },
+  };
+}
+
+/**
+ * A fresh evaluation of a `_shared` module, with the fixture env already set.
+ *
+ * Six of these modules read `Deno.env.get(...)` at module scope, so a static
+ * import in a test file would capture whatever the environment was when the
+ * file loaded — before any test ran. The cache buster forces a re-evaluation
+ * per call, which is also what gives each test its own copy of the clients
+ * `featureMetrics` and `msaViolationLogger` memoise.
+ */
+export async function loadSharedModule<T>(name: string): Promise<T> {
+  return await import(`../_shared/${name}.ts?load=${++loadCounter}`) as T;
+}
+
+export async function loadFunction(
+  name: string,
+  options: LoadOptions = {},
+): Promise<LoadedFunction> {
+  const upstreams = stubUpstreams(options);
+  const { calls, tasks } = upstreams;
 
   // Deno.serve is the other half of the interception; the import map covers the
   // std `serve` import, this covers the 28 functions that call Deno.serve.
@@ -251,17 +318,8 @@ export async function loadFunction(
   Deno.serve = captureServe as unknown as typeof Deno.serve;
 
   const restore = () => {
-    // The routing fetch itself stays installed — see installRoutingFetch. Only
-    // the table it reads is cleared, so a call made after the test (by a cached
-    // client, say) falls through to the real fetch rather than a stale route.
-    currentRoutes = null;
-    currentCalls = null;
-    currentTasks = null;
     Deno.serve = originalDenoServe;
-    for (const [key, value] of originalEnv) {
-      if (value === undefined) Deno.env.delete(key);
-      else Deno.env.set(key, value);
-    }
+    upstreams.restore();
   };
 
   try {
@@ -285,10 +343,8 @@ export async function loadFunction(
   return {
     handler,
     calls,
-    stub: (match, upstream) => {
-      routes[match] = upstream;
-    },
-    callsTo: (match) => calls.filter((call) => call.url.includes(match)),
+    stub: upstreams.stub,
+    callsTo: upstreams.callsTo,
     background: async () => {
       // Drained in a loop, not a single allSettled: a background task may hand
       // `waitUntil` further tasks of its own while it runs, and those would be

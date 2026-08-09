@@ -492,10 +492,49 @@ export const anAuthenticStory = (over: Row = {}): Row => ({
   id: storyId(0),
   title: "A story",
   title_arabic: "قصة",
+  author: null,
+  author_arabic: null,
+  source_name: null,
+  source_url: null,
+  license: "public_domain",
+  body_fusha: null,
+  body_fusha_vocalized: null,
+  body_english: null,
   dialect: "Gulf",
   // `difficulty` and `status`, not cefr_level and is_published.
   difficulty: "beginner",
   status: "published",
+  // The admin list renders a badge per video stage; "none" is the only value
+  // that renders nothing, so leaving it off produced a badge reading
+  // "undefined".
+  video_status: "none",
+  vocabulary: [],
+  created_at: daysAgo(5),
+  updated_at: daysAgo(5),
+  ...over,
+});
+
+/**
+ * A choose-your-adventure story.
+ *
+ * Distinct from `authentic_stories`: this is the branching kind, whose scenes
+ * live in `story_scenes`, and the admin list orders it by `display_order`
+ * rather than by recency.
+ */
+export const anInteractiveStory = (over: Row = {}): Row => ({
+  id: makeId("b1b1b1b1")(0),
+  title: "The lost camel",
+  title_arabic: "الجمل الضائع",
+  description: "A traveller loses a camel in the desert.",
+  description_arabic: "مسافر يفقد جمله في الصحراء.",
+  dialect: "Gulf",
+  difficulty: "beginner",
+  icon_name: "BookOpen",
+  cover_image_url: null,
+  display_order: 1,
+  status: "draft",
+  session_id: null,
+  created_by: TEST_USER_ID,
   created_at: daysAgo(5),
   updated_at: daysAgo(5),
   ...over,

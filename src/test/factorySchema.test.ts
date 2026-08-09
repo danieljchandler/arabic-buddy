@@ -47,6 +47,7 @@ const FACTORY_TABLES: Record<string, string> = {
   aTrendingCandidate: "trending_video_candidates",
   aListenEpisode: "listen_episodes",
   anAuthenticStory: "authentic_stories",
+  anInteractiveStory: "interactive_stories",
   anInviteCode: "invite_codes",
 };
 

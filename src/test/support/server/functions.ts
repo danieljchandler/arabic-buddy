@@ -250,7 +250,11 @@ export const defaultFunctions: Record<string, FunctionHandler> = {
   "souq-news": () => ok({ articles: [] }),
   "souq-news-quiz": () => ok({ questions: [] }),
   "suggest-stories": () => ok({ suggestions: [] }),
-  "generate-suggested-story-text": () => ok({ text: "" }),
+  // `body_arabic`, plus the author fields the model may or may not know. The
+  // old `{ text: "" }` left useGenerateStoryText destructuring undefined, so
+  // the reading-library import could never complete.
+  "generate-suggested-story-text": () =>
+    ok({ body_arabic: "كان يا ما كان", author: null, author_arabic: null }),
   "request-situation-phrases": () => ok({ phrases: [] }),
   "practice-sentence-coach": () => ok({ feedback: "" }),
   // `comparison`, singular, and an object. The page reads `data.comparison`
@@ -316,7 +320,10 @@ export const defaultFunctions: Record<string, FunctionHandler> = {
   // nothing else. The old `{ insight: "" }` made every teach-AI call report
   // "AI returned no proposals" regardless of what happened.
   "learn-from-metric": () => ok({ inserted: 1, rules: [] }),
-  "import-authentic-story": () => ok({ story: null }),
+  // The admin page reads `story.id` to navigate to the new story's editor and
+  // throws when it is missing, so a null story made the happy path unreachable.
+  "import-authentic-story": () =>
+    ok({ story: { id: "bbbbbbbb-0000-4000-8000-000000000000", title: "A story" } }),
   "generate-story": () => ok({ story: null }),
   "generate-story-preview-audio": () => ok({ audioUrl: "https://cdn.test/preview.mp3" }),
   "generate-story-full-audio": () => ok({ audioUrl: "https://cdn.test/full.mp3" }),

@@ -309,7 +309,10 @@ export const defaultFunctions: Record<string, FunctionHandler> = {
   "draft-dialect-rules": () => ok({ rules: [] }),
   "mine-dialect-corpus": () => ok({ sentences: [] }),
   "dialect-violations-digest": () => ok({ violations: [] }),
-  "learn-from-metric": () => ok({ insight: "" }),
+  // `inserted` is how many draft rules were written, and the metrics page reads
+  // nothing else. The old `{ insight: "" }` made every teach-AI call report
+  // "AI returned no proposals" regardless of what happened.
+  "learn-from-metric": () => ok({ inserted: 1, rules: [] }),
   "import-authentic-story": () => ok({ story: null }),
   "generate-story": () => ok({ story: null }),
   "generate-story-preview-audio": () => ok({ audioUrl: "https://cdn.test/preview.mp3" }),

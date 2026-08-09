@@ -42,6 +42,7 @@ const FACTORY_TABLES: Record<string, string> = {
   aConceptMastery: "user_concept_mastery",
   aCurriculumConcept: "curriculum_concepts",
   aConceptLink: "content_concept_links",
+  aFeatureMetric: "feature_metrics",
   aDiscoverVideo: "discover_videos",
   aListenEpisode: "listen_episodes",
   anAuthenticStory: "authentic_stories",

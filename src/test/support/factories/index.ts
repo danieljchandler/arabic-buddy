@@ -375,6 +375,28 @@ export const aCurriculumConcept = (over: Row = {}): Row => ({
   ...over,
 });
 
+/**
+ * One structured event from an edge function.
+ *
+ * `status` is free text rather than an enum, and the metrics page treats
+ * anything that is neither "ok" nor "warn" as an error — so a fixture inventing
+ * a status silently lands in the error column.
+ */
+export const aFeatureMetric = (over: Row = {}): Row => ({
+  id: makeId("f3f3f3f3")(0),
+  feature: "souq-news",
+  event: "fetch",
+  dialect: "Gulf",
+  status: "ok",
+  duration_ms: 120,
+  count: null,
+  score: null,
+  user_id: TEST_USER_ID,
+  meta: {},
+  created_at: iso(-60_000),
+  ...over,
+});
+
 export const aConceptLink = (over: Row = {}): Row => ({
   id: makeId("f2f2f2f2")(0),
   concept_id: conceptId(0),

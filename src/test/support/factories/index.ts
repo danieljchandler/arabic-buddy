@@ -51,6 +51,7 @@ export const storyLineId = makeId("fbfbfbfb");
 export const dailyChallengeId = makeId("fcfcfcfc");
 export const challengeCompletionId = makeId("fdfdfdfd");
 export const gameSetId = makeId("fefefefe");
+export const listeningExerciseId = makeId("e1e1e1e1");
 
 export { TEST_USER_ID };
 
@@ -801,6 +802,31 @@ export const aVocabGameSet = (over: Row = {}): Row => ({
   created_by: TEST_USER_ID,
   created_at: daysAgo(3),
   updated_at: daysAgo(3),
+  ...over,
+});
+
+/**
+ * One pre-approved listening exercise.
+ *
+ * `mode` is both the exercise's kind and the filter the page queries on, and
+ * the pool is only used when at least three rows come back for the chosen mode
+ * — below that the page generates instead. `questions` carries the multiple
+ * choice options for comprehension mode and is empty for the typed modes.
+ */
+export const aListeningExercise = (over: Row = {}): Row => ({
+  id: listeningExerciseId(0),
+  mode: "dictation",
+  audio_text: "شلونك اليوم",
+  audio_text_english: "How are you today",
+  questions: [],
+  hint: null,
+  dialect: "Gulf",
+  difficulty: "beginner",
+  status: "published",
+  session_id: null,
+  created_by: TEST_USER_ID,
+  created_at: daysAgo(4),
+  updated_at: daysAgo(4),
   ...over,
 });
 

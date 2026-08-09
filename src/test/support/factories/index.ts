@@ -45,6 +45,8 @@ export const candidateId = makeId("f4f4f4f4");
 export const ruleId = makeId("f6f6f6f6");
 export const chatSessionId = makeId("f8f8f8f8");
 export const chatMessageId = makeId("f9f9f9f9");
+export const sceneId = makeId("fafafafa");
+export const interactiveStoryId = makeId("b1b1b1b1");
 
 export { TEST_USER_ID };
 
@@ -600,7 +602,7 @@ export const anAuthenticStory = (over: Row = {}): Row => ({
  * rather than by recency.
  */
 export const anInteractiveStory = (over: Row = {}): Row => ({
-  id: makeId("b1b1b1b1")(0),
+  id: interactiveStoryId(0),
   title: "The lost camel",
   title_arabic: "الجمل الضائع",
   description: "A traveller loses a camel in the desert.",
@@ -672,6 +674,31 @@ export const aCurriculumChatMessage = (over: Row = {}): Row => ({
   structured_output: null,
   output_type: null,
   created_at: daysAgo(1),
+  ...over,
+});
+
+/**
+ * One node of a branching interactive story.
+ *
+ * `choices` and `vocabulary` are JSONB arrays the admin form round-trips
+ * through repeated inputs, and `next_scene_order` points at a sibling's
+ * `scene_order` rather than its id — so a scene deleted in the editor silently
+ * changes where every choice below it leads.
+ */
+export const aStoryScene = (over: Row = {}): Row => ({
+  id: sceneId(0),
+  story_id: interactiveStoryId(0),
+  scene_order: 0,
+  narrative_arabic: "دخلت المقهى وشفت الناس.",
+  narrative_english: "You entered the café and saw people.",
+  narrative_literal: "entered-I the-café and-saw-I the-people",
+  vocabulary: [{ word_arabic: "مقهى", word_english: "café" }],
+  choices: [{ text_arabic: "اطلب قهوة", text_english: "Order coffee", next_scene_order: 1 }],
+  is_ending: false,
+  ending_message: null,
+  ending_message_arabic: null,
+  created_at: daysAgo(5),
+  updated_at: daysAgo(5),
   ...over,
 });
 

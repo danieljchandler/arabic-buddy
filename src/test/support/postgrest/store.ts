@@ -65,7 +65,7 @@ export interface FailureSpec {
    * renders the page, so a test about a *save* failing never gets far enough to
    * click save.
    */
-  scope: "all" | "writes" | "reads";
+  scope: "all" | "writes" | "reads" | "inserts";
 }
 
 /**
@@ -153,6 +153,21 @@ export class MemoryDb {
     return this;
   }
 
+  /**
+   * Fail only inserts into `table`, leaving reads and deletes working.
+   *
+   * The case this exists for is the delete-then-reinsert save: the interactive
+   * story editor clears a story's scenes and writes the form's back, and
+   * failing the whole table means the delete never runs, so the test cannot
+   * reach the state where the old scenes are gone and the new ones were
+   * refused. That state is the interesting one — it is how a save destroys
+   * content — and `failWrites` hides it.
+   */
+  failInserts(table: string, status = 500, body?: unknown): this {
+    this.failures.set(table, { status, body, once: false, scope: "inserts" });
+    return this;
+  }
+
   /** Fail only the next write to `table`, so a retry can succeed. */
   failNextWrite(table: string, status = 500, body?: unknown): this {
     this.failures.set(table, { status, body, once: true, scope: "writes" });
@@ -212,14 +227,15 @@ export class MemoryDb {
   }
 
   /** Consumed by the executor; not part of the public test API. */
-  takeFailure(table: string, isWrite: boolean): FailureSpec | undefined {
+  takeFailure(table: string, isWrite: boolean, method?: string): FailureSpec | undefined {
     const failure = this.failures.get(table);
     if (!failure) return undefined;
 
     const applies =
       failure.scope === "all" ||
       (failure.scope === "writes" && isWrite) ||
-      (failure.scope === "reads" && !isWrite);
+      (failure.scope === "reads" && !isWrite) ||
+      (failure.scope === "inserts" && method === "POST");
     if (!applies) return undefined;
 
     if (failure.once) this.failures.delete(table);

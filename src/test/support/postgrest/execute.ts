@@ -189,7 +189,7 @@ export function execute(db: MemoryDb, query: ParsedQuery): ExecuteResult {
 
   // Injected failure takes precedence over everything.
   const isWrite = method !== "GET" && method !== "HEAD";
-  const failure = db.takeFailure(table, isWrite);
+  const failure = db.takeFailure(table, isWrite, method);
   if (failure) {
     return fail(
       failure.status,

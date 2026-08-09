@@ -53,6 +53,7 @@ export const challengeCompletionId = makeId("fdfdfdfd");
 export const gameSetId = makeId("fefefefe");
 export const listeningExerciseId = makeId("e1e1e1e1");
 export const battleId = makeId("e2e2e2e2");
+export const transcriptionId = makeId("e3e3e3e3");
 
 export { TEST_USER_ID };
 
@@ -861,6 +862,33 @@ export const aVocabBattle = (over: Row = {}): Row => ({
   completed_at: null,
   expires_at: daysFromNow(7),
   created_at: daysAgo(1),
+  ...over,
+});
+
+/**
+ * A transcription the learner saved from the Transcribe page.
+ *
+ * `lines` is a JSONB array of `{ arabic, translation, startMs, endMs, tokens }`
+ * — the same shape Discover uses — and `dialect` is nullable, which matters:
+ * the cloze search treats an untagged transcription as usable for any dialect
+ * rather than skipping it.
+ */
+export const aSavedTranscription = (over: Row = {}): Row => ({
+  id: transcriptionId(0),
+  user_id: TEST_USER_ID,
+  title: "Coffee shop chat",
+  raw_transcript_arabic: "شلونك اليوم",
+  lines: [
+    { id: "l1", arabic: "شلونك اليوم يا صديقي", translation: "How are you today, my friend", startMs: 0, endMs: 2000 },
+  ],
+  vocabulary: [],
+  grammar_points: [],
+  cultural_context: null,
+  engines_used: null,
+  audio_url: null,
+  dialect: "Gulf",
+  created_at: daysAgo(2),
+  updated_at: daysAgo(2),
   ...over,
 });
 

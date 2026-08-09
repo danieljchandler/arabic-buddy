@@ -36,6 +36,7 @@ const FACTORY_TABLES: Record<string, string> = {
   aUserVocabulary: "user_vocabulary",
   aUserPhrase: "user_phrases",
   aSetPhrase: "set_phrases",
+  aSetPhraseOccasion: "set_phrase_occasions",
   aUserSetPhrase: "user_set_phrases",
   aLearnerError: "learner_errors",
   aConceptMastery: "user_concept_mastery",

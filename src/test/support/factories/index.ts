@@ -35,6 +35,7 @@ export const stageId = makeId("55555555");
 export const lessonId = makeId("66666666");
 export const topicId = makeId("77777777");
 export const setPhraseId = makeId("88888888");
+export const occasionId = makeId("f1f1f1f1");
 export const userSetPhraseId = makeId("99999999");
 export const videoId = makeId("aaaaaaaa");
 export const storyId = makeId("bbbbbbbb");
@@ -270,6 +271,33 @@ export const aSetPhrase = (over: Row = {}): Row => ({
   // The columns are prefixed: phrase_transliteration and phrase_literal.
   phrase_transliteration: null,
   phrase_literal: null,
+  reply_arabic: null,
+  reply_transliteration: null,
+  reply_english: null,
+  scenario_english: null,
+  cultural_note: null,
+  // The admin list renders difficulty and formality as badges, so leaving them
+  // off produced two empty badges rather than a missing-column error.
+  occasion_id: null,
+  difficulty: "A2",
+  formality: "neutral",
+  tags: [],
+  dialect: "Gulf",
+  status: "published",
+  created_at: daysAgo(30),
+  updated_at: daysAgo(30),
+  ...over,
+});
+
+export const aSetPhraseOccasion = (over: Row = {}): Row => ({
+  id: occasionId(0),
+  slug: "greetings",
+  name: "Greetings",
+  name_arabic: null,
+  description: null,
+  icon_name: "Hand",
+  difficulty_floor: "A1",
+  display_order: 0,
   dialect: "Gulf",
   status: "published",
   created_at: daysAgo(30),

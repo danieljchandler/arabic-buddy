@@ -294,7 +294,10 @@ export const defaultFunctions: Record<string, FunctionHandler> = {
       session_id: "sess_fixture",
     }),
   "bible-passage": () => ok({ verses: [] }),
-  "seed-set-phrases": () => ok({ inserted: 0 }),
+  // `summary` is an array of `{ occasion, inserted }`, one entry per occasion.
+  // The fixture used to answer `{ inserted: 0 }`, which the admin page joined
+  // into the toast "Seeded: undefined" — a success message describing nothing.
+  "seed-set-phrases": () => ok({ summary: [{ occasion: "Greetings", inserted: 10 }] }),
   "suggest-stories-admin": () => ok({ suggestions: [] }),
 
   // Admin pipelines.

@@ -50,6 +50,7 @@ export const interactiveStoryId = makeId("b1b1b1b1");
 export const storyLineId = makeId("fbfbfbfb");
 export const dailyChallengeId = makeId("fcfcfcfc");
 export const challengeCompletionId = makeId("fdfdfdfd");
+export const gameSetId = makeId("fefefefe");
 
 export { TEST_USER_ID };
 
@@ -772,6 +773,34 @@ export const aChallengeCompletion = (over: Row = {}): Row => ({
   score: 2,
   max_score: 2,
   completed_at: daysAgo(0),
+  ...over,
+});
+
+/**
+ * A pre-approved set of word pairs for the vocabulary games.
+ *
+ * The page only uses a set with at least six pairs — below that it falls
+ * through to the learner's own words — so the default carries exactly six.
+ */
+export const aVocabGameSet = (over: Row = {}): Row => ({
+  id: gameSetId(0),
+  title: "Around the house",
+  game_type: "matching",
+  dialect: "Gulf",
+  difficulty: "beginner",
+  status: "published",
+  word_pairs: [
+    { word_arabic: "باب", word_english: "door" },
+    { word_arabic: "كتاب", word_english: "book" },
+    { word_arabic: "كرسي", word_english: "chair" },
+    { word_arabic: "طاولة", word_english: "table" },
+    { word_arabic: "نافذة", word_english: "window" },
+    { word_arabic: "مفتاح", word_english: "key" },
+  ],
+  session_id: null,
+  created_by: TEST_USER_ID,
+  created_at: daysAgo(3),
+  updated_at: daysAgo(3),
   ...over,
 });
 

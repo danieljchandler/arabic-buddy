@@ -75,6 +75,21 @@ export interface LoadedFunction {
   stub: (match: string, handler: UpstreamHandler) => void;
   /** Calls whose URL contains `match`. */
   callsTo: (match: string) => UpstreamCall[];
+  /**
+   * Settle every task the function handed to `EdgeRuntime.waitUntil`.
+   *
+   * Five functions return early and finish their real work in the background,
+   * so the response says "generating" and everything worth asserting — the
+   * upstream calls, the segment writes, the terminal status — happens after the
+   * handler has already resolved. Awaiting this is what makes that work
+   * observable; without it the test tears down mid-flight and the assertions
+   * describe a job that had barely started.
+   *
+   * Rejections are absorbed: a background task that throws is a thing to assert
+   * about (the function is expected to catch it and write a failed status), not
+   * a reason to fail the await.
+   */
+  background: () => Promise<void>;
   /** Undo the env and fetch patches. Always call this in a finally. */
   restore: () => void;
 }
@@ -158,6 +173,33 @@ function installRoutingFetch(): void {
   }) as typeof fetch;
 }
 
+/**
+ * `EdgeRuntime` is a global the Supabase edge runtime provides and Deno does
+ * not, so it has to be installed before any function that touches it is
+ * imported. Same single-install-mutable-state shape as the routing fetch, and
+ * for the same reason: a module that captured the global at import time must
+ * not be left holding a reference from a torn-down test.
+ *
+ * Note the two shapes in the codebase. Four functions guard with
+ * `typeof EdgeRuntime !== "undefined"` and fall back to fire-and-forget;
+ * `generate-story-video-full` calls `EdgeRuntime.waitUntil(...)` bare, so
+ * without this shim it would answer 500 "EdgeRuntime is not defined" — which
+ * says nothing about the function and everything about the harness.
+ */
+let currentTasks: Promise<unknown>[] | null = null;
+let edgeRuntimeInstalled = false;
+
+function installEdgeRuntime(): void {
+  if (edgeRuntimeInstalled) return;
+  edgeRuntimeInstalled = true;
+
+  (globalThis as unknown as Record<string, unknown>).EdgeRuntime = {
+    waitUntil: (task: Promise<unknown>) => {
+      currentTasks?.push(task);
+    },
+  };
+}
+
 export async function loadFunction(
   name: string,
   options: LoadOptions = {},
@@ -175,9 +217,13 @@ export async function loadFunction(
   const routes = { ...defaultUpstreams(), ...(options.upstreams ?? {}) };
   const calls: UpstreamCall[] = [];
 
+  const tasks: Promise<unknown>[] = [];
+
   installRoutingFetch();
+  installEdgeRuntime();
   currentRoutes = routes;
   currentCalls = calls;
+  currentTasks = tasks;
 
   // Deno.serve is the other half of the interception; the import map covers the
   // std `serve` import, this covers the 28 functions that call Deno.serve.
@@ -210,6 +256,7 @@ export async function loadFunction(
     // client, say) falls through to the real fetch rather than a stale route.
     currentRoutes = null;
     currentCalls = null;
+    currentTasks = null;
     Deno.serve = originalDenoServe;
     for (const [key, value] of originalEnv) {
       if (value === undefined) Deno.env.delete(key);
@@ -242,6 +289,15 @@ export async function loadFunction(
       routes[match] = upstream;
     },
     callsTo: (match) => calls.filter((call) => call.url.includes(match)),
+    background: async () => {
+      // Drained in a loop, not a single allSettled: a background task may hand
+      // `waitUntil` further tasks of its own while it runs, and those would be
+      // appended after the first snapshot was taken.
+      for (let round = 0; round < 20 && tasks.length > 0; round++) {
+        const pending = tasks.splice(0, tasks.length);
+        await Promise.allSettled(pending);
+      }
+    },
     restore,
   };
 }

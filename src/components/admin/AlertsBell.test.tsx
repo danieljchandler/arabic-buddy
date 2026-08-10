@@ -40,6 +40,7 @@ vi.mock("sonner", () => ({
 }));
 
 let cleanup: (() => void) | undefined;
+let unmount: (() => void) | undefined;
 
 beforeEach(() => {
   realtime.handlers = new Map();
@@ -54,6 +55,7 @@ beforeEach(() => {
       return channel;
     },
     subscribe: () => channel,
+    unsubscribe: async () => "ok",
   };
   vi.spyOn(supabase, "channel").mockReturnValue(channel as never);
   vi.spyOn(supabase, "removeChannel").mockResolvedValue("ok" as never);
@@ -71,6 +73,10 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  // Unmount before the spies go: the component's cleanup calls removeChannel,
+  // and the real one would try to unsubscribe the stand-in channel.
+  unmount?.();
+  unmount = undefined;
   cleanup?.();
   cleanup = undefined;
   vi.restoreAllMocks();
@@ -83,6 +89,7 @@ function render(seed: (backend: SupabaseBackend) => void = () => {}) {
     seed,
   });
   cleanup = harness.cleanup;
+  unmount = harness.unmount;
   return harness;
 }
 

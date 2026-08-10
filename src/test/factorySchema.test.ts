@@ -27,6 +27,8 @@ const FACTORY_TABLES: Record<string, string> = {
   aProfile: "profiles",
   aRole: "user_roles",
   aUserXp: "user_xp",
+  aReviewStreak: "review_streaks",
+  aWeeklyGoal: "weekly_goals",
   aStage: "curriculum_stages",
   aLesson: "lessons",
   aTopic: "topics",

@@ -56,6 +56,8 @@ export const battleId = makeId("e2e2e2e2");
 export const transcriptionId = makeId("e3e3e3e3");
 export const msaRuleId = makeId("e4e4e4e4");
 export const alertId = makeId("e5e5e5e5");
+export const streakId = makeId("e6e6e6e6");
+export const goalId = makeId("e7e7e7e7");
 
 export { TEST_USER_ID };
 
@@ -110,6 +112,35 @@ export const aUserXp = (over: Row = {}): Row => ({
   xp_today_date: new Date().toISOString().slice(0, 10),
   xp_this_week: 60,
   week_start_date: new Date().toISOString().slice(0, 10),
+  ...over,
+});
+
+export const aReviewStreak = (over: Row = {}): Row => ({
+  id: streakId(0),
+  user_id: TEST_USER_ID,
+  current_streak: 5,
+  longest_streak: 12,
+  last_review_date: new Date().toISOString().slice(0, 10),
+  created_at: daysAgo(30),
+  updated_at: iso(),
+  ...over,
+});
+
+/**
+ * The week's XP target. `week_start_date` is a Monday: useWeeklyGoal derives
+ * one from the clock and filters on it, so a spec seeding this has to pin the
+ * clock and use the matching Monday or the row is invisible.
+ */
+export const aWeeklyGoal = (over: Row = {}): Row => ({
+  id: goalId(0),
+  user_id: TEST_USER_ID,
+  week_start_date: new Date().toISOString().slice(0, 10),
+  target_reviews: 50,
+  completed_reviews: 20,
+  target_xp: 300,
+  earned_xp: 120,
+  created_at: daysAgo(2),
+  updated_at: iso(),
   ...over,
 });
 

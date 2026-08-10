@@ -55,6 +55,7 @@ export const listeningExerciseId = makeId("e1e1e1e1");
 export const battleId = makeId("e2e2e2e2");
 export const transcriptionId = makeId("e3e3e3e3");
 export const msaRuleId = makeId("e4e4e4e4");
+export const alertId = makeId("e5e5e5e5");
 
 export { TEST_USER_ID };
 
@@ -928,3 +929,21 @@ export function many(
 ): Row[] {
   return Array.from({ length: count }, (_, index) => factory(build(index)));
 }
+
+// `feature_alerts` is written by the metrics job, never by the app, so the
+// admin bell only ever reads and acknowledges these.
+export const anAlert = (over: Row = {}): Row => ({
+  id: alertId(0),
+  created_at: iso(-60 * 60 * 1000),
+  metric_id: null,
+  feature: "translate",
+  event: "error_rate",
+  dialect: "Gulf",
+  alert_type: "threshold",
+  severity: "error",
+  message: "Translate error rate above 10% for an hour",
+  meta: null,
+  acknowledged_at: null,
+  acknowledged_by: null,
+  ...over,
+});

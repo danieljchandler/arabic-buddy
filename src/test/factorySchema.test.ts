@@ -46,6 +46,7 @@ const FACTORY_TABLES: Record<string, string> = {
   aBibleLesson: "bible_lessons",
   aDialectRule: "dialect_rules",
   anMsaRule: "msa_transformation_rules",
+  anAlert: "feature_alerts",
   aCurriculumChatSession: "curriculum_chat_sessions",
   aCurriculumChatMessage: "curriculum_chat_messages",
   aStoryScene: "story_scenes",

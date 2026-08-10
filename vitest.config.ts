@@ -47,6 +47,32 @@ export default defineConfig({
         "src/**/*.test.{ts,tsx}",
         "src/vite-env.d.ts",
       ],
+      // Per-directory, and deliberately not global.
+      //
+      // A global number here would be meaningless: `src/pages/**` is 110 route
+      // components covered by the Playwright suite rather than this one, and
+      // `src/components/ui/**` is vendored shadcn primitives. Both sit near
+      // zero and would drag any overall figure down to a threshold so low it
+      // could never fail — which is worse than no threshold, because it looks
+      // like a gate.
+      //
+      // These three directories are the ones this suite actually owns, and all
+      // three have a drift guard already (hookCoverage, libCoverage) asserting
+      // that every module *has* a test. The thresholds are the second half of
+      // that: they catch a module that has a test file which stopped exercising
+      // it.
+      //
+      // Set a couple of points under the measured figures so ordinary churn
+      // does not fail the build. Raise them when the real numbers move up —
+      // they are a ratchet, not a target.
+      thresholds: {
+        // measured: 85.48 lines · 89.63 functions · 81.85 branches
+        "src/hooks/**": { lines: 83, functions: 87, branches: 79 },
+        // measured: 92.20 lines · 94.66 functions · 92.07 branches
+        "src/lib/**": { lines: 90, functions: 93, branches: 90 },
+        // measured: 69.61 lines · 57.14 functions · 81.08 branches
+        "src/contexts/**": { lines: 67, functions: 55, branches: 79 },
+      },
     },
   },
   resolve: {

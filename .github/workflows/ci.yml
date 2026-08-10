@@ -54,8 +54,13 @@ jobs:
       - name: Lint (no new errors)
         run: npm run lint:ratchet
 
-      - name: Unit tests
-        run: npm test
+      # With coverage, so vitest.config.ts's per-directory thresholds are
+      # enforced rather than merely recorded. They cover src/hooks, src/lib and
+      # src/contexts — see the comment there for why there is no global figure.
+      # Instrumentation costs roughly a minute on top of the ~2 the suite takes,
+      # which is well inside this job's budget.
+      - name: Unit tests (with coverage thresholds)
+        run: npm run test:coverage
 
       - name: Production build
         run: npm run build

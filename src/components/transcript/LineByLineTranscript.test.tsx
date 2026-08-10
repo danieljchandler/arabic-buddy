@@ -91,6 +91,15 @@ let cleanup: (() => void) | undefined;
 let root: HTMLElement;
 
 beforeEach(() => {
+  // Fake timers for the whole file, not because any test drives the clock, but
+  // because the component leaves one running. Tapping a word schedules a 1.5s
+  // `setSelectedIndices` and nothing cancels it on unmount, so on a slow run it
+  // fires after jsdom has been torn down and takes the whole suite down with a
+  // `ReferenceError: window is not defined`. That surfaced only under
+  // `--coverage`, which is slow enough to lose the race — i.e. it was always a
+  // latent CI failure. `shouldAdvanceTime` keeps waitFor and the rest working
+  // as before; `clearAllTimers` below drops whatever is still pending.
+  vi.useFakeTimers({ shouldAdvanceTime: true });
   audios = [];
   play.mockClear();
   pause.mockClear();
@@ -110,6 +119,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup?.();
   cleanup = undefined;
+  vi.clearAllTimers();
   vi.useRealTimers();
   vi.unstubAllGlobals();
   localStorage.clear();

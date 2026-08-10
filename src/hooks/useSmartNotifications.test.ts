@@ -31,8 +31,16 @@ import type { SupabaseBackend } from "@/test/support/server/handler";
 
 let cleanup: (() => void) | undefined;
 
+/**
+ * A Wednesday. The Monday summary is one of the notifications this hook
+ * produces, so a suite left on the real clock quietly gains an extra
+ * notification one day in seven — which is how these tests first failed.
+ */
+const A_WEDNESDAY = new Date("2026-08-12T09:00:00");
+
 beforeEach(() => {
   vi.useRealTimers();
+  vi.setSystemTime(A_WEDNESDAY);
 });
 
 afterEach(() => {

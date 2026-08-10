@@ -17,7 +17,7 @@
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "test:edge": "deno test --allow-env --allow-read --allow-net --no-check --import-map=supabase/functions/_test/import_map.json supabase/functions/"
+    "test:edge": "deno test --allow-env --allow-read --allow-net --no-check --node-modules-dir=none --import-map=supabase/functions/_test/import_map.json supabase/functions/"
   },
   "dependencies": {
     "@elevenlabs/react": "^0.14.1",

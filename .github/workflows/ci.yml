@@ -99,8 +99,14 @@ jobs:
       # of their dependency graph, so checking them together is far faster than
       # a loop, and a single command reports every error at once rather than
       # stopping at the first bad file.
+      # --node-modules-dir=none because two functions import supabase-js as an
+      # `npm:` specifier. Deno 2 sees this repo's package.json, switches to
+      # node_modules resolution and expects `deno install` to have populated it
+      # — which no job here does. This tells Deno to resolve npm packages from
+      # its own cache instead, which is what happens locally where node_modules
+      # exists for entirely unrelated reasons.
       - name: Typecheck
-        run: deno check supabase/functions/*/index.ts supabase/functions/_shared/*.ts
+        run: deno check --node-modules-dir=none supabase/functions/*/index.ts supabase/functions/_shared/*.ts
 
       # Runtime tests. Until now these functions were only proved to compile —
       # nothing checked that any of them actually responded. The harness in

@@ -402,7 +402,13 @@ test.describe("finishing a battle", () => {
     await page.goto(`/battles/${BATTLE}`);
     await playThrough(page);
 
-    await expect(page.getByText("Score submitted!")).toBeVisible();
+    // The settled outcome, not the moment before it. Two things on this screen
+    // are transient: the toast, and the heading itself — which reads "Score
+    // Submitted!" until the battle refetches as completed and then flips to the
+    // result. Asserting either one races the refetch, and `getByText("Score
+    // submitted!")` matched the toast and the heading at once besides, since
+    // that matcher is case-insensitive.
+    await expect(page.getByRole("heading", { name: /You Won!|Draw!|Nice Try!/ })).toBeVisible();
     await expect(page.getByRole("button", { name: "All Battles" })).toBeVisible();
     await expect(page.getByRole("button", { name: "New Challenge" })).toBeVisible();
   });

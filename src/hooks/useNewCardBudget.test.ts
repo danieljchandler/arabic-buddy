@@ -109,6 +109,15 @@ describe("how much budget is left", () => {
       seed: (backend) => backend.db.seed("daily_new_card_counts", [aCount({ count })]),
     });
     cleanup = harness.cleanup;
+    // `isLoading` is not a readiness signal here. The query is `enabled: !!user`,
+    // and while `useAuth` is still resolving it sits disabled — pending but not
+    // fetching, which TanStack reports as isLoading **false**. Waiting on that
+    // alone returns during the disabled window and reads a count of zero, which
+    // is how this passed locally and failed on a slower CI runner. Wait for the
+    // query to have actually run first.
+    await waitFor(() =>
+      expect(harness.backend.db.readsOf("daily_new_card_counts").length).toBeGreaterThan(0),
+    );
     await waitFor(() => expect(harness.result.current.isLoading).toBe(false));
     return harness.result;
   };

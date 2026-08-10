@@ -252,6 +252,11 @@ test.describe("editing an existing story", () => {
     seedStory(db);
 
     await page.goto(`/admin/stories/${STORY}/edit`);
+    // Wait for the form to hydrate from the fetched story before typing over
+    // it. Filling first is a race the test loses on a slower machine: the load
+    // lands afterwards and puts the stored title back, and the save then PATCHes
+    // the old one.
+    await expect(titleField(page)).toHaveValue("At the Coffee Shop");
     await titleField(page).fill("At the Tea House");
     await saveButton(page).click();
 

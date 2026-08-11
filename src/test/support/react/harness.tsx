@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, renderHook, type RenderHookOptions, type RenderOptions } from "@testing-library/react";
+import { onTestFinished } from "vitest";
+import { act, render, renderHook, type RenderHookOptions, type RenderOptions } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import type { ReactElement, ReactNode } from "react";
 import { DialectProvider } from "@/contexts/DialectContext";
@@ -34,6 +35,38 @@ export interface Harness {
   cleanup: () => void;
 }
 
+/**
+ * Lets supabase-js finish resolving the session before the test tears down.
+ *
+ * `useAuth` asks for the session on mount and supabase-js answers it on a
+ * macrotask, so a test that renders and asserts synchronously ends with that
+ * request still in flight. It then lands *after* the file's `afterEach` has
+ * called `cleanup()` — at which point `fetch` has been handed back to the
+ * hermeticity guard in setup.ts, which throws, and any state update it would
+ * have caused happens outside `act()`. That combination produced ~150 warnings
+ * across the suite: all noise, but noise loud enough to hide a real one.
+ *
+ * `onTestFinished` is the hook that fits: it runs after the test body but
+ * *before* any `afterEach`, so the component is still mounted and the backend
+ * is still installed. One macrotask is enough — the request is already in
+ * flight, this only gives it somewhere to land.
+ *
+ * Registered from the harness rather than from each test file so a new test
+ * cannot forget it.
+ */
+function drainPendingAuthOnTestEnd(): void {
+  try {
+    onTestFinished(async () => {
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+    });
+  } catch {
+    // Only valid inside a running test. A harness built from a `beforeEach`
+    // drains via that test's own registration instead.
+  }
+}
+
 function createTestQueryClient(): QueryClient {
   return new QueryClient({
     defaultOptions: {
@@ -64,6 +97,8 @@ function setUp(options: HarnessOptions): Harness & { wrapper: (props: { children
 
   const installed = installSupabaseFetch({ signedInAs: userId });
   const { backend } = installed;
+
+  drainPendingAuthOnTestEnd();
 
   if (options.persona) {
     seedPersona(backend, options.persona, options.personaOptions);

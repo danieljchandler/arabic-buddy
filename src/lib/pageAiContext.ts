@@ -6,7 +6,7 @@ import { PAGE_HINTS } from "@/lib/pageHints";
  * from PAGE_HINTS by route.
  */
 export interface PageAiContext {
-  kind: "video" | "story" | "drill" | "word" | "passage" | "page";
+  kind: "video" | "story" | "drill" | "word" | "phrase" | "passage" | "page";
   /** What the learner is looking at, e.g. the video or story title. */
   title: string;
   /** One or two sentences of framing (what kind of activity this is). */

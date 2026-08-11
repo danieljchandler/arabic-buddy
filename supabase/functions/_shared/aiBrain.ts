@@ -983,16 +983,26 @@ export interface StreamBrainTask {
   signal?: AbortSignal;
 }
 
-/** Stream a single-model dialect-aware chat response through the Lovable gateway.
+/** Stream a single-model dialect-aware chat response. Routed like callModel:
+ *  anthropic/qwen/etc. via OpenRouter, everything else via the Lovable gateway
+ *  (both speak OpenAI-shaped SSE, so the passthrough and tap are unchanged).
  *  Returns a Response with text/event-stream body, ready to return from a Deno handler. */
 export async function streamBrain(task: StreamBrainTask): Promise<Response> {
-  const apiKey = Deno.env.get('LOVABLE_API_KEY');
-  if (!apiKey) throw new BrainHttpError(500, 'LOVABLE_API_KEY not configured');
-
   await primeDialectPrompt(task.dialect);
 
   const model = task.model ?? DEFAULT_DRAFTERS[1] ?? MODEL_IDS.GEMINI_FLASH;
   const isGpt5 = /^openai\/gpt-5/.test(model);
+
+  const route = routeForModel(model);
+  const apiKey = Deno.env.get(route === 'openrouter' ? 'OPENROUTER_API_KEY' : 'LOVABLE_API_KEY');
+  if (!apiKey) {
+    throw new BrainHttpError(
+      500,
+      route === 'openrouter'
+        ? `OPENROUTER_API_KEY not configured (required for ${model})`
+        : 'LOVABLE_API_KEY not configured',
+    );
+  }
 
   const system = buildSystem({
     purpose: task.purpose,
@@ -1014,7 +1024,7 @@ export async function streamBrain(task: StreamBrainTask): Promise<Response> {
   else body.max_tokens = tokens;
   if (!isGpt5) body.temperature = task.temperature ?? 0.7;
 
-  const upstream = await fetch(GATEWAY_URL, {
+  const upstream = await fetch(route === 'openrouter' ? OPENROUTER_URL : GATEWAY_URL, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${apiKey}`,
@@ -1026,7 +1036,7 @@ export async function streamBrain(task: StreamBrainTask): Promise<Response> {
 
   if (!upstream.ok || !upstream.body) {
     const text = await upstream.text().catch(() => '');
-    throw new BrainHttpError(upstream.status, `gateway stream ${model} ${upstream.status}: ${text.slice(0, 200)}`);
+    throw new BrainHttpError(upstream.status, `${route} stream ${model} ${upstream.status}: ${text.slice(0, 200)}`);
   }
 
   // Tap the stream so we can accumulate the assistant text for MSA leak logging,

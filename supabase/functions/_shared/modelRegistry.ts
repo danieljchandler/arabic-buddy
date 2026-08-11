@@ -21,6 +21,7 @@
 // Bump these when upgrading; everything downstream picks it up automatically.
 export const MODEL_IDS = {
   CLAUDE: 'anthropic/claude-sonnet-4.5',          // one tier below Opus (cheaper)
+  CLAUDE_CHAT: 'anthropic/claude-sonnet-5',        // newest Sonnet — Ask AI text chat
   GEMINI_FLASH: 'google/gemini-3.5-flash',         // via Lovable Gateway
   GEMINI_PRO: 'google/gemini-2.5-pro',             // heavy reasoning fallback
   GEMINI_FAST: 'google/gemini-3-flash-preview',    // cheapest utility default
@@ -83,6 +84,10 @@ export function getLineup(name: LineupName): Lineup {
 export const DEFAULT_FAST = MODEL_IDS.GEMINI_FAST;
 export const DEFAULT_JUDGE = MODEL_LINEUPS.CONTENT.judge;
 export const DEFAULT_DRAFTERS = MODEL_LINEUPS.TRANSLATION.drafters;
+// The learner-facing Ask AI text chat: instruction-following and dialect
+// quality matter more than raw speed here, so it gets the newest Sonnet
+// rather than the cheap utility default. Routes via OpenRouter.
+export const DEFAULT_CHAT = MODEL_IDS.CLAUDE_CHAT;
 
 // ---- Voting weights for runEnsemble ranking --------------------------------
 // Both Claude Sonnet 4.5 and Gemini 3.5 Flash are co-equal authoritative

@@ -1,8 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useDialect } from "@/contexts/DialectContext";
 import { useAuth } from "@/hooks/useAuth";
 import { useAddUserPhrase } from "@/hooks/useUserPhrases";
+import { usePageAiContext } from "@/contexts/AiAssistantContext";
+import type { PageAiContext } from "@/lib/pageAiContext";
+import { AskAISentence } from "@/components/shared/AskAISentence";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Sparkles, BookmarkPlus, RefreshCw, Check, Eye, EyeOff } from "lucide-react";
@@ -32,6 +35,29 @@ export const PhraseOfTheDay = () => {
   const [showArabic, setShowArabic] = useState(false);
 
   const today = new Date().toISOString().slice(0, 10);
+
+  // Publish the displayed phrase to the Ask AI assistant, so "tell me about
+  // the phrase of the day" is answered about THIS phrase, not an invented one.
+  const aiContext = useMemo<PageAiContext | null>(() => {
+    if (!phrase) return null;
+    return {
+      kind: "phrase",
+      title: "Phrase of the Day",
+      summary: `The learner's home screen is showing today's Phrase of the Day in ${phrase.dialect} Arabic.`,
+      content: [
+        `Today's Phrase of the Day (${phrase.dialect} Arabic, ${phrase.date}):`,
+        `Arabic: ${phrase.phrase_arabic}`,
+        `Transliteration: ${phrase.transliteration}`,
+        `English: ${phrase.phrase_english}`,
+        phrase.notes && `Notes: ${phrase.notes}`,
+        !showArabic &&
+          "(The Arabic script is still hidden on screen — the learner hasn't tapped to reveal it yet.)",
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    };
+  }, [phrase, showArabic]);
+  usePageAiContext(aiContext);
 
   const fetchPhrase = async (force = false) => {
     setLoading(true);
@@ -225,6 +251,12 @@ export const PhraseOfTheDay = () => {
                 </>
               )}
             </Button>
+            <AskAISentence
+              arabic={phrase.phrase_arabic}
+              english={phrase.phrase_english}
+              variant="chip"
+              className="h-9"
+            />
             {showArabic && (
               <Button
                 size="sm"

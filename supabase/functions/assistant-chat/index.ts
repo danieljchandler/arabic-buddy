@@ -8,7 +8,7 @@
 // instructions.
 import { streamBrain, BrainHttpError } from "../_shared/aiBrain.ts";
 import { getDialectLabel, getDialectTransliterationRules, type Dialect } from "../_shared/dialectHelpers.ts";
-import { DEFAULT_FAST } from "../_shared/modelRegistry.ts";
+import { DEFAULT_CHAT } from "../_shared/modelRegistry.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
 import { learnerPromptBlock } from "../_shared/learnerProfile.ts";
@@ -117,11 +117,16 @@ ${pageLines.join("\n")}
 ${seedBlock}${pageBlock}${learnerBlock ? `\n${learnerBlock}\n` : ""}${historyBlock ? `\n${historyBlock}\n` : ""}
 ${getDialectTransliterationRules(resolvedDialect)}
 
+GROUNDING (critical — the learner is asking about what is on their screen):
+- When the learner says "this", "it", "this phrase", "this sentence", "the phrase of the day", "today's phrase", "this video", "this story", or similar, they mean the exact material shown above — the sentence this chat was opened about and/or the on-screen content. Answer about that exact material, quoting it back (script + transliteration) so it's clear you're both talking about the same thing.
+- NEVER invent, substitute, or regenerate app content. If they ask about today's phrase/story/video and it appears in the context above, use it verbatim. Do not make up a different phrase or describe the feature in the abstract when the actual content is right there.
+- If they ask about something on screen that is NOT in the context above, or the question could refer to more than one thing, say briefly what you can see and ask one short clarifying question before answering. A wrong guess is worse than a quick question.
+
 GUIDELINES:
 - Answer directly and clearly in English (the learner is still learning Arabic).
 - When showing Arabic words/phrases, use the script then a transliteration in parentheses following the transliteration rules above, e.g. شلونك (shlonak).
 - Explain WHY — idioms, word order, register, dialect-specific choices.
-- Ground answers in what the learner is looking at when it's relevant; connect new words to ones they already know.
+- Connect new words to ones the learner already knows.
 - Keep answers concise but rich. Short paragraphs or bullets. Markdown is rendered.
 - Stay scoped to Arabic learning and this app. Politely decline unrelated topics.`;
 
@@ -130,7 +135,7 @@ GUIDELINES:
       dialect: resolvedDialect,
       messages,
       systemPromptExtra,
-      model: DEFAULT_FAST,
+      model: DEFAULT_CHAT,
       maxTokens: 1024,
       responseHeaders: corsHeaders,
       signal: req.signal,

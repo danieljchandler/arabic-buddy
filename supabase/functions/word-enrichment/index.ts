@@ -3,6 +3,7 @@ import { askBrain, BrainHttpError } from "../_shared/aiBrain.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
 import { getDialectTransliterationRules, type Dialect } from "../_shared/dialectHelpers.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { getCachedEnrichment, cacheEnrichment } from "../_shared/vocabularyCache.ts";
 
 
 interface EnrichmentOut {
@@ -33,6 +34,16 @@ serve(async (req) => {
 
     const trimmed = word.trim().slice(0, 200);
     const isPhrase = Boolean(isPhraseFlag) || /\s/.test(trimmed);
+    const resolvedDialect = (dialect ?? 'Gulf') as Dialect;
+
+    // Try cache first — reuse enrichment across all learners
+    const cached = await getCachedEnrichment(trimmed, resolvedDialect, isPhrase);
+    if (cached) {
+      console.log(`[word-enrichment] cache hit: ${trimmed} (${resolvedDialect})`);
+      return new Response(JSON.stringify(cached), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     const hasContext = typeof sentenceArabic === 'string' && sentenceArabic.trim().length > 0;
     const contextLine = hasContext
@@ -49,7 +60,6 @@ serve(async (req) => {
       : {};
     const phraseRequired = isPhrase ? ['literal'] : [];
 
-    const resolvedDialect = (dialect ?? 'Gulf') as Dialect;
     const userPrompt = `${isPhrase ? 'Phrase' : 'Word'}: ${trimmed}${contextLine}`;
 
     const result = await askBrain<EnrichmentOut>({
@@ -95,14 +105,33 @@ serve(async (req) => {
     });
 
     const out = result.output;
-    return new Response(JSON.stringify({
+    const responseData = {
       definition: out.definition || null,
       literal: out.literal || null,
       root: out.root || null,
       transliteration: out.transliteration || null,
       uses: Array.isArray(out.uses) ? out.uses.slice(0, 5) : [],
       _meta: { strategy: result.strategy, models: result.models, msaRepairs: result.msaRepairs },
-    }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    };
+
+    // Store in cache for future learners (non-blocking).
+    cacheEnrichment(
+      trimmed,
+      resolvedDialect,
+      isPhrase,
+      out,
+      {
+        strategy: result.strategy,
+        models: result.models,
+        msaRepairs: result.msaRepairs,
+      },
+    ).catch((e) => {
+      console.error("[word-enrichment] cache store failed:", e);
+    });
+
+    return new Response(JSON.stringify(responseData), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   } catch (e) {
     if (e instanceof BrainHttpError && (e.status === 402 || e.status === 429)) {
       return new Response(JSON.stringify({ error: e.status === 402 ? 'Credits exhausted' : 'Rate limited' }), {

@@ -30,9 +30,20 @@ export const InfoHint = ({ title, body, className, size = "sm", cta }: InfoHintP
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <span
-          role="button"
-          tabIndex={0}
+        {/*
+          A real button, not a span with role="button".
+
+          A span does not synthesise a click from Enter or Space, and Radix's
+          `asChild` trigger only composes an onClick — so the handler below,
+          which exists to keep those keys off the tile behind the hint, was the
+          only thing that happened: the control announced itself as a button,
+          took focus, and then did nothing. Every explanation in the app sits
+          behind one of these, so the whole feature-hint system was unreachable
+          by keyboard and screen reader. A <button> gets the key handling from
+          the platform, and the handler goes back to being only a guard.
+        */}
+        <button
+          type="button"
           aria-label={`Learn about ${title}`}
           onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => e.stopPropagation()}
@@ -50,7 +61,7 @@ export const InfoHint = ({ title, body, className, size = "sm", cta }: InfoHintP
           )}
         >
           <Info className={iconSize} />
-        </span>
+        </button>
       </PopoverTrigger>
       <PopoverContent
         align="start"

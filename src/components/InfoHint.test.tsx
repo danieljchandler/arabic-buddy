@@ -1,4 +1,5 @@
 import { act, fireEvent, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@/test/support/react/harness";
 import { InfoHint } from "./InfoHint";
@@ -161,32 +162,36 @@ describe("InfoHint — living inside a clickable tile", () => {
 describe("InfoHint — from the keyboard", () => {
   it("is reachable by tabbing", async () => {
     await render();
-    expect(trigger()).toHaveAttribute("tabindex", "0");
+    trigger().focus();
+    expect(trigger()).toHaveFocus();
   });
 
-  /**
-   * FINDING — the hint cannot be opened from the keyboard.
-   *
-   * The trigger is a `<span role="button" tabIndex={0}>`. A span is not a
-   * button: pressing Enter or Space on one does not synthesise a click, and
-   * Radix's `PopoverTrigger asChild` only composes an `onClick`. The component's
-   * own `onKeyDown` handles both keys — but only to call `stopPropagation`, so
-   * it stops the surrounding tile from reacting without ever opening the
-   * popover itself.
-   *
-   * The result is a control that announces itself as a button, takes focus, and
-   * then does nothing. Every explanation in the app is behind one of these, so
-   * for a keyboard or screen-reader user the entire feature-hint system is
-   * unreachable. Rendering a real `<button type="button">` would fix it.
-   */
-  it("does nothing when a keyboard user presses Enter or Space", async () => {
+  it("is a real button rather than a span wearing the role", async () => {
+    // A span does not synthesise a click from Enter or Space, and Radix's
+    // asChild trigger only composes an onClick — so the control announced
+    // itself as a button, took focus, and then did nothing. Every explanation
+    // in the app sits behind one of these, which put the whole feature-hint
+    // system out of reach of a keyboard or screen reader.
     await render();
+    expect(trigger().tagName).toBe("BUTTON");
+    expect(trigger()).toHaveAttribute("type", "button");
+  });
 
-    fireEvent.keyDown(trigger(), { key: "Enter" });
-    expect(screen.queryByText("A word you keep forgetting.")).not.toBeInTheDocument();
+  // userEvent rather than fireEvent for these two: only userEvent performs the
+  // platform's default action, and "Enter on a focused button activates it" is
+  // precisely the behaviour a span never had.
+  it("opens when a keyboard user presses Enter", async () => {
+    await render();
+    trigger().focus();
+    await userEvent.keyboard("{Enter}");
+    expect(await screen.findByText("A word you keep forgetting.")).toBeInTheDocument();
+  });
 
-    fireEvent.keyDown(trigger(), { key: " " });
-    expect(screen.queryByText("A word you keep forgetting.")).not.toBeInTheDocument();
+  it("opens when a keyboard user presses Space", async () => {
+    await render();
+    trigger().focus();
+    await userEvent.keyboard(" ");
+    expect(await screen.findByText("A word you keep forgetting.")).toBeInTheDocument();
   });
 
   it("still keeps those keys off the tile behind it", async () => {

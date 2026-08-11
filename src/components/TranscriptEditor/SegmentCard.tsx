@@ -67,16 +67,24 @@ export default function SegmentCard({
   const handleWordClick = useCallback(
     (wordIndex: number) => {
       if (editing) return;
-      // If hovering a boundary, treat click as split
-      if (hoveredBoundary === wordIndex) {
-        onSplit(segment.id, wordIndex);
-        return;
-      }
-      // Enter edit mode
+      // Enter edit mode. This used to guess at a split by checking whether that
+      // boundary happened to be hovered, because the scissors reported itself
+      // through this same callback with the same index — which misread a click
+      // on a word whose own boundary was under the pointer. WordConfidence now
+      // reports the two separately.
+      void wordIndex;
       setEditValue(segment.text);
       setEditing(true);
     },
-    [editing, hoveredBoundary, onSplit, segment.id, segment.text],
+    [editing, segment.text],
+  );
+
+  const handleSplitAt = useCallback(
+    (wordIndex: number) => {
+      if (editing) return;
+      onSplit(segment.id, wordIndex);
+    },
+    [editing, onSplit, segment.id],
   );
 
   const handleEditDone = useCallback(() => {
@@ -197,6 +205,7 @@ export default function SegmentCard({
             words={segment.words}
             activeWordIndex={activeWordIndex}
             onWordClick={handleWordClick}
+            onSplitAt={handleSplitAt}
             onWordBoundaryHover={setHoveredBoundary}
             hoveredBoundary={hoveredBoundary}
           />

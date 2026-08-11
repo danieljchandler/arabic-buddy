@@ -30,6 +30,7 @@ interface Options {
 
 function renderWords({ words = WORDS, activeWordIndex, hoveredBoundary }: Options = {}) {
   const onWordClick = vi.fn();
+  const onSplitAt = vi.fn();
   const onWordBoundaryHover = vi.fn();
   const result = render(
     <WordConfidence
@@ -37,11 +38,16 @@ function renderWords({ words = WORDS, activeWordIndex, hoveredBoundary }: Option
       activeWordIndex={activeWordIndex}
       hoveredBoundary={hoveredBoundary}
       onWordClick={onWordClick}
+      onSplitAt={onSplitAt}
       onWordBoundaryHover={onWordBoundaryHover}
     />,
   );
-  return { ...result, onWordClick, onWordBoundaryHover };
+  return { ...result, onWordClick, onSplitAt, onWordBoundaryHover };
 }
+
+/** The split hit-zones between words — one fewer than there are words. */
+const boundaries = (container: HTMLElement) =>
+  [...container.querySelectorAll<HTMLElement>("span.inline-block")];
 
 describe("WordConfidence — colouring by confidence", () => {
   it("renders every word", () => {
@@ -137,18 +143,25 @@ describe("WordConfidence — selecting a word", () => {
     expect(screen.getAllByRole("button", { name: /مرحبا|بك|هنا/ })).toHaveLength(3);
   });
 
-  /**
-   * FINDING — the words announce themselves as buttons but ignore Space.
-   *
-   * Each word is a `<span role="button" tabIndex={0}>` whose `onKeyDown` only
-   * handles Enter. A real button fires on Space too, and a screen-reader user
-   * told "button" will try it. The words are the only way to reach the split
-   * from the keyboard, so this is the whole feature for that user, not a
-   * detail.
-   */
-  it("does nothing when a keyboard user presses Space", () => {
+  it("responds to Space as well as Enter", () => {
+    // A real button fires on both, and a screen-reader user told "button" will
+    // try Space. These words are the only keyboard route into the transcript,
+    // so ignoring it withheld the whole feature from that user.
     const { onWordClick } = renderWords();
     fireEvent.keyDown(screen.getByText("بك"), { key: " " });
+    expect(onWordClick).toHaveBeenCalledWith(1);
+  });
+
+  it("keeps Space from scrolling the transcript away", () => {
+    renderWords();
+    const handled = fireEvent.keyDown(screen.getByText("بك"), { key: " " });
+    // fireEvent returns false when a handler called preventDefault.
+    expect(handled).toBe(false);
+  });
+
+  it("ignores keys that are not Enter or Space", () => {
+    const { onWordClick } = renderWords();
+    fireEvent.keyDown(screen.getByText("بك"), { key: "a" });
     expect(onWordClick).not.toHaveBeenCalled();
   });
 });
@@ -172,12 +185,12 @@ describe("WordConfidence — splitting between two words", () => {
   it("puts no boundary after the last word", () => {
     // Splitting after the final word would produce an empty second segment.
     const { container } = renderWords();
-    expect(container.querySelectorAll(".w-0")).toHaveLength(WORDS.length - 1);
+    expect(boundaries(container)).toHaveLength(WORDS.length - 1);
   });
 
   it("reports a boundary being entered and left", () => {
     const { container, onWordBoundaryHover } = renderWords();
-    const boundary = container.querySelector(".w-0")!;
+    const boundary = boundaries(container)[0];
 
     fireEvent.mouseEnter(boundary);
     expect(onWordBoundaryHover).toHaveBeenLastCalledWith(0);
@@ -186,50 +199,58 @@ describe("WordConfidence — splitting between two words", () => {
     expect(onWordBoundaryHover).toHaveBeenLastCalledWith(null);
   });
 
-  /**
-   * FINDING — the split target has no width, so the scissors never appear.
-   *
-   * The hover zone is `inline-block w-0`: a zero-width box. Margins are not
-   * part of an element's hit area, so a pointer can never be inside it and
-   * `onMouseEnter` never fires in a real browser. The ✂ is reachable only if a
-   * parent sets `hoveredBoundary` some other way — which is why it can be
-   * driven here by prop but not by hovering.
-   *
-   * Giving the zone a few pixels of width (and a negative margin so it does not
-   * push the words apart) would make the feature reachable.
-   */
-  it("has a hover zone a pointer cannot enter", () => {
+  it("gives the hover zone a width a pointer can enter", () => {
+    // This was `w-0`: a zero-width box. Margins are not part of an element's
+    // hit area, so a pointer could never be inside it and onMouseEnter never
+    // fired in a real browser — the scissors was reachable only if a parent set
+    // `hoveredBoundary` some other way.
     const { container } = renderWords();
-    const boundary = container.querySelector(".w-0")!;
-    expect(boundary.className).toContain("w-0");
-    expect(boundary.className).toContain("inline-block");
+    const boundary = boundaries(container)[0];
+    expect(boundary.className).toContain("w-2");
+    expect(boundary.className).not.toContain("w-0");
   });
 
-  /**
-   * FINDING — a split and a word selection are indistinguishable to the parent.
-   *
-   * The scissors calls `onWordClick(i)`, the same callback with the same index
-   * as clicking word `i` itself. The parent is told "index 1" for both "select
-   * the second word" and "split after the second word" and cannot tell which
-   * was meant. A separate `onSplitAt` would.
-   */
-  it("reports a split through the same callback as a word click", () => {
-    const { onWordClick } = renderWords({ hoveredBoundary: 1 });
+  it("pulls the zone back in so the words are no further apart", () => {
+    const { container } = renderWords();
+    expect(boundaries(container)[0].className).toContain("-mx-1");
+  });
+
+  it("reports a split separately from a word click", () => {
+    // Both used to be onWordClick with the same index, so the parent was told
+    // "index 1" for "select the second word" and for "split after the second
+    // word" alike — and SegmentCard guessed between them by checking whether
+    // that boundary happened to be hovered.
+    const { onWordClick, onSplitAt } = renderWords({ hoveredBoundary: 1 });
 
     fireEvent.click(screen.getByTitle("Split here"));
-    expect(onWordClick).toHaveBeenLastCalledWith(1);
+    expect(onSplitAt).toHaveBeenCalledWith(1);
+    expect(onWordClick).not.toHaveBeenCalled();
+  });
 
-    onWordClick.mockClear();
+  it("still reports a word click as a word click", () => {
+    const { onWordClick, onSplitAt } = renderWords({ hoveredBoundary: 1 });
     fireEvent.click(screen.getByText("بك"));
     expect(onWordClick).toHaveBeenLastCalledWith(1);
+    expect(onSplitAt).not.toHaveBeenCalled();
+  });
+
+  it("falls back to onWordClick for a caller that offers no split handler", () => {
+    // Keeps the old contract working for anything that has not been updated.
+    const onWordClick = vi.fn();
+    render(
+      <WordConfidence words={WORDS} onWordClick={onWordClick} hoveredBoundary={1} />,
+    );
+    fireEvent.click(screen.getByTitle("Split here"));
+    expect(onWordClick).toHaveBeenCalledWith(1);
   });
 
   it("does not also select the word when the scissors is used", () => {
     // stopPropagation keeps the click off the word behind it, so the parent
-    // gets one call rather than two.
-    const { onWordClick } = renderWords({ hoveredBoundary: 0 });
+    // hears about the split and nothing else.
+    const { onWordClick, onSplitAt } = renderWords({ hoveredBoundary: 0 });
     fireEvent.click(screen.getByTitle("Split here"));
-    expect(onWordClick).toHaveBeenCalledTimes(1);
+    expect(onSplitAt).toHaveBeenCalledTimes(1);
+    expect(onWordClick).not.toHaveBeenCalled();
   });
 });
 

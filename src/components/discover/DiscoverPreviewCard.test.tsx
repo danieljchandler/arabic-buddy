@@ -46,7 +46,7 @@ describe("DiscoverPreviewCard — the whole card is the target", () => {
   it("says what it will do, not just what it shows", () => {
     renderCard(aVideo({ title: "Haggling at the souq" }));
     expect(
-      screen.getByRole("button", { name: "Watch video: Haggling at the souq" }),
+      screen.getByRole("button", { name: /^Watch video: Haggling at the souq/ }),
     ).toBeInTheDocument();
   });
 
@@ -55,26 +55,35 @@ describe("DiscoverPreviewCard — the whole card is the target", () => {
     expect(screen.getByText("Start Watching")).toBeInTheDocument();
   });
 
-  /**
-   * FINDING — the accessible name carries the title and nothing else.
-   *
-   * A button's label replaces its contents for assistive technology, so
-   * "Watch video: Ordering coffee in Doha" is the entire card as far as a
-   * screen reader is concerned. The dialect, the level, the pace and the
-   * running time — the four things a sighted learner scans to choose between
-   * videos — are all inside the button and therefore inaudible. Folding them
-   * into the label, or moving the button inside the card rather than around it,
-   * would put the same information in both places.
-   */
-  it("hides the dialect, level and length from the accessible name", () => {
+  it("carries the dialect, level and length in the accessible name", () => {
+    // A button's label replaces its contents for assistive technology, so the
+    // title alone was the entire card as far as a screen reader was concerned —
+    // and the things a sighted learner scans to choose between videos all sit
+    // inside the button, and were inaudible.
     renderCard(
       aVideo({ dialect: "Egyptian", cefr_level: "B1", duration_seconds: 185 }),
     );
+    expect(screen.getByRole("button")).toHaveAccessibleName(
+      "Watch video: Ordering coffee in Doha, Egyptian, B1, 3:05",
+    );
+  });
+
+  it("leaves out the details a video does not have", () => {
+    renderCard(
+      aVideo({ dialect: null, cefr_level: null, duration_seconds: null }),
+    );
+    expect(screen.getByRole("button")).toHaveAccessibleName(
+      "Watch video: Ordering coffee in Doha",
+    );
+  });
+
+  it("keeps the same order as the badges on screen", () => {
+    // Spoken and seen should agree, or the two descriptions of one card have to
+    // be reconciled by the listener.
+    renderCard(aVideo({ dialect: "Gulf", cefr_level: "A2", duration_seconds: 60 }));
     const name = screen.getByRole("button").getAttribute("aria-label")!;
-    expect(name).toBe("Watch video: Ordering coffee in Doha");
-    expect(name).not.toContain("Egyptian");
-    expect(name).not.toContain("B1");
-    expect(name).not.toContain("3:05");
+    expect(name.indexOf("Gulf")).toBeLessThan(name.indexOf("A2"));
+    expect(name.indexOf("A2")).toBeLessThan(name.indexOf("1:00"));
   });
 });
 

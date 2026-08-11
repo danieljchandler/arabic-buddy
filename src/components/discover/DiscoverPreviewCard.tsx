@@ -22,10 +22,29 @@ interface DiscoverPreviewCardProps {
 }
 
 export const DiscoverPreviewCard = memo(function DiscoverPreviewCard({ video, onClick }: DiscoverPreviewCardProps) {
+  /**
+   * The whole card, spoken.
+   *
+   * A button's label replaces its contents for assistive technology, so
+   * "Watch video: Ordering coffee in Doha" was the entire card as far as a
+   * screen reader was concerned. The dialect, the level and the running time —
+   * the things a sighted learner scans to choose between videos — all sit
+   * inside the button and were therefore inaudible. Folding them into the label
+   * puts the same information in both places.
+   */
+  const label = [
+    `Watch video: ${video.title}`,
+    video.dialect,
+    video.cefr_level,
+    video.duration_seconds ? formatDuration(video.duration_seconds) : null,
+  ]
+    .filter(Boolean)
+    .join(", ");
+
   return (
     <button
       onClick={onClick}
-      aria-label={`Watch video: ${video.title}`}
+      aria-label={label}
       className={cn(
         "w-full rounded-2xl overflow-hidden border-2 border-primary/20 bg-card",
         "text-left transition-all duration-200",

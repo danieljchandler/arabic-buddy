@@ -232,25 +232,24 @@ describe("SegmentList — the gap between two segments", () => {
     expect(second.container.querySelector(".text-amber-600")).toBeInTheDocument();
   });
 
-  /**
-   * FINDING — floating-point noise reads as an overlap.
-   *
-   * `gap < 0` is an exact comparison against numbers that came out of
-   * arithmetic. Timestamps in this editor are seconds derived by dividing
-   * milliseconds, by summing word durations, or by a drag, so two segments that
-   * are meant to touch routinely differ by ~1e-16 in whichever direction. When
-   * the sign lands negative the divider turns red and announces "⚠ overlap
-   * 0.00s" — an alarm about a defect whose own reported size is zero.
-   *
-   * A transcript re-segmented by the AI path is full of these, because that
-   * path rebuilds every boundary from summed word timings. An epsilon on the
-   * comparison would settle it.
-   */
-  it("shouts about an overlap of zero", () => {
+  it("says nothing about an overlap of zero", () => {
     // 0.1 + 0.2 is 0.30000000000000004, so this pair is "touching" by intent
-    // and 5.5e-17 apart in fact.
-    gapBetween(0.1 + 0.2, 0.3);
-    expect(screen.getByText("⚠ overlap 0.00s")).toBeInTheDocument();
+    // and 5.5e-17 apart in fact. An exact `gap < 0` called that an overlap and
+    // announced "⚠ overlap 0.00s" — an alarm about a defect whose own reported
+    // size is zero, and one that a transcript from the AI re-segmentation path
+    // is full of.
+    const { container } = gapBetween(0.1 + 0.2, 0.3);
+    expect(screen.queryByText(/overlap/)).not.toBeInTheDocument();
+    expect(screen.getByText("gap 0.00s")).toBeInTheDocument();
+    expect(container.querySelector(".text-red-600")).toBeNull();
+  });
+
+  it("still reports an overlap big enough to hear", () => {
+    // A millisecond is below anything the editor can express; a tenth of a
+    // second is a real defect and still has to show.
+    const { container } = gapBetween(1.0, 0.9);
+    expect(screen.getByText("⚠ overlap 0.10s")).toBeInTheDocument();
+    expect(container.querySelector(".text-red-600")).toBeInTheDocument();
   });
 });
 

@@ -157,31 +157,42 @@ describe("WeeklyGoalCard — finishing a goal", () => {
     expect(screen.queryByText("🎉 Weekly goals complete!")).not.toBeInTheDocument();
   });
 
-  /**
-   * FINDING — a zero target reads as an instantly completed goal with a broken
-   * bar.
-   *
-   * `completed / target` is 0/0 when a target is zero, so the percentage is
-   * NaN and reaches the progress bar unguarded. The completion check is
-   * separate — `0 >= 0` is true — so the card ticks the goal, turns it green
-   * and fires the confetti line for a week in which nothing was done.
-   *
-   * Targets are written by the goal-setting path rather than being a fixed
-   * constant, so a zero is reachable: a learner whose targets are derived from
-   * a previous week of no activity gets one.
-   */
-  it("congratulates a learner on a target of zero", () => {
+  it("does not congratulate a learner on a target of zero", () => {
+    // 0/0 made the percentage NaN, while the separate completion check —
+    // `0 >= 0` — was true. The card ticked the goal, turned it green and fired
+    // the confetti line for a week in which nothing was done, above a bar the
+    // Progress wrapper's `value || 0` had quietly emptied: the two halves of
+    // the card contradicted each other.
     const { container } = renderCard({
       completed_reviews: 0,
       target_reviews: 0,
       earned_xp: 0,
       target_xp: 0,
     });
-    expect(screen.getByText("🎉 Weekly goals complete!")).toBeInTheDocument();
-    expect(screen.getAllByText(/^0\/0/)[0]).toHaveTextContent("0/0 ✓");
-    // The bar itself is saved by `value || 0` inside the Progress wrapper, which
-    // turns the NaN into an empty track — so the two halves of the card
-    // contradict each other: a finished, ticked, green goal above an empty bar.
+    expect(screen.queryByText("🎉 Weekly goals complete!")).not.toBeInTheDocument();
+    expect(screen.getAllByText(/^0\/0/)[0]).not.toHaveTextContent("✓");
     expect(bars(container)).toEqual([0, 0]);
+  });
+
+  it("leaves a real goal that happens to be met still complete", () => {
+    renderCard({
+      completed_reviews: 50,
+      target_reviews: 50,
+      earned_xp: 300,
+      target_xp: 300,
+    });
+    expect(screen.getByText("🎉 Weekly goals complete!")).toBeInTheDocument();
+  });
+
+  it("holds one half back when only that half has no target", () => {
+    // A zero target on one goal must not drag the other's progress with it.
+    const { container } = renderCard({
+      completed_reviews: 25,
+      target_reviews: 50,
+      earned_xp: 0,
+      target_xp: 0,
+    });
+    expect(bars(container)).toEqual([50, 0]);
+    expect(screen.queryByText("🎉 Weekly goals complete!")).not.toBeInTheDocument();
   });
 });

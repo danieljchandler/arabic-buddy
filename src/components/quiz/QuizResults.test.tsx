@@ -139,21 +139,28 @@ describe("QuizResults — the score", () => {
     );
   });
 
-  /**
-   * FINDING — a quiz with no questions scores NaN.
-   *
-   * `score / answers.length` is 0/0 when the answer list is empty, and nothing
-   * guards it: the screen reads "NaN% correct" under "Try again!", because
-   * every band comparison against NaN is false and the chain falls through to
-   * the worst one. A topic whose words were all deleted, or a quiz abandoned
-   * before the first answer, lands here — and the learner is told they failed a
-   * quiz they never took.
-   */
-  it("reports NaN and a failure for a quiz with no answers", () => {
+  it("scores a quiz with no answers as neither passed nor failed", () => {
+    // 0/0 is NaN, and every band comparison against NaN is false, so the chain
+    // used to fall through to the worst one: "Try again!" over "NaN% correct".
+    // A topic whose words were all deleted, or a quiz abandoned before the
+    // first answer, told the learner they failed a quiz they never took.
     render([], 0);
-    expect(screen.getByText("NaN% correct")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Try again! حاول مرة أخرى" })).toBeInTheDocument();
+    expect(screen.queryByText(/NaN/)).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "No questions to score" })).toBeInTheDocument();
     expect(screen.getByText("0 / 0")).toBeInTheDocument();
+  });
+
+  it("leaves the percentage off a quiz with no answers", () => {
+    // There is no percentage to report, and "0% correct" would be the same lie
+    // in a politer font.
+    render([], 0);
+    expect(screen.queryByText(/% correct/)).not.toBeInTheDocument();
+  });
+
+  it("still calls a genuine zero a failure", () => {
+    render(answers(4, 0));
+    expect(screen.getByRole("heading", { name: "Try again! حاول مرة أخرى" })).toBeInTheDocument();
+    expect(screen.getByText("0% correct")).toBeInTheDocument();
   });
 });
 

@@ -110,8 +110,25 @@ jobs:
       # — which no job here does. This tells Deno to resolve npm packages from
       # its own cache instead, which is what happens locally where node_modules
       # exists for entirely unrelated reasons.
+      #
+      # Retried because this step reaches the network. `deno check` resolves
+      # type-only imports straight from esm.sh, and esm.sh answering 408 on one
+      # deep subpath — @supabase/storage-js, reached from supabase-js's
+      # types.d.ts — has turned this job red twice in a row on commits that
+      # touched no edge function at all. A transient upstream is not a type
+      # error, and a check that cannot tell the difference stops being trusted.
+      # Real type errors still fail on the first attempt and again on the third.
       - name: Typecheck
-        run: deno check --node-modules-dir=none supabase/functions/*/index.ts supabase/functions/_shared/*.ts
+        run: |
+          for attempt in 1 2 3; do
+            if deno check --node-modules-dir=none supabase/functions/*/index.ts supabase/functions/_shared/*.ts; then
+              exit 0
+            fi
+            echo "::warning::deno check failed on attempt $attempt"
+            sleep $((attempt * 15))
+          done
+          echo "::error::deno check failed three times"
+          exit 1
 
       # Runtime tests. Until now these functions were only proved to compile —
       # nothing checked that any of them actually responded. The harness in

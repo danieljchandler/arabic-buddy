@@ -38,6 +38,7 @@ function renderDiff({ original = [], suggested = [] }: Options = {}) {
     onRejectAll: vi.fn(),
     onAcceptOne: vi.fn(),
     onRejectOne: vi.fn(),
+    onKeepOne: vi.fn(),
   };
   const result = render(<DiffPreview original={original} suggested={suggested} {...handlers} />);
   return { ...result, ...handlers };
@@ -106,33 +107,32 @@ describe("DiffPreview — deciding what changed", () => {
     expect(screen.getByText("brand new")).toBeInTheDocument();
   });
 
-  /**
-   * FINDING — boundaries are compared as strings, so float noise makes every
-   * line look new.
-   *
-   * The key is `${s.start}-${s.end}` — an exact string match on numbers that
-   * came out of arithmetic. The re-segmentation path rebuilds each segment's
-   * start and end by summing word durations, so a boundary that is
-   * conceptually unchanged comes back as 1.2000000000000002 against the
-   * original's 1.2 and stringifies differently.
-   *
-   * The result is that the diff turns entirely green, every original line is
-   * listed as removed, and the screen tells the admin that a proposal which
-   * changed two boundaries changed all forty. That is the one job this
-   * component has. Rounding both sides to the millisecond before keying, or
-   * comparing numerically with an epsilon, would fix it.
-   */
-  it("calls an unchanged boundary new when it is a float-width apart", () => {
+  it("sees through float noise on an unchanged boundary", () => {
+    // Boundaries used to be keyed by an exact string match on numbers that came
+    // out of arithmetic. The re-segmentation path rebuilds start and end by
+    // summing word durations, so an unchanged boundary came back as
+    // 1.2000000000000002 against the original's 1.2 — and the diff turned
+    // entirely green, telling the admin a proposal that changed two boundaries
+    // had changed all forty.
     const { container } = renderDiff({
       original: [aSegment({ start: 0, end: 0.3, text: "same line" })],
       // 0.1 + 0.2 is 0.30000000000000004.
       suggested: [aSegment({ start: 0, end: 0.1 + 0.2, text: "same line" })],
     });
+    expect(container.querySelector(".border-green-500")).toBeNull();
+    expect(container.querySelector(".line-through")).toBeNull();
+  });
+
+  it("still calls a boundary new when it moved by more than a millisecond", () => {
+    // The tolerance is millisecond-wide, which is finer than anything the
+    // editor can express and far coarser than float noise. A real edit is
+    // still a real edit.
+    const { container } = renderDiff({
+      original: [aSegment({ start: 0, end: 0.3, text: "same line" })],
+      suggested: [aSegment({ start: 0, end: 0.32, text: "same line" })],
+    });
     expect(container.querySelector(".border-green-500")).toBeInTheDocument();
     expect(container.querySelector(".line-through")).toBeInTheDocument();
-    // And both readouts round to the same displayed time, so the screen gives
-    // the admin no way to see why.
-    expect(screen.getAllByText("0.0s – 0.3s")).toHaveLength(2);
   });
 });
 
@@ -239,21 +239,59 @@ describe("DiffPreview — accepting and rejecting", () => {
     expect(screen.queryByRole("button", { name: "✓" })).not.toBeInTheDocument();
   });
 
-  /**
-   * FINDING — a boundary the proposal deletes cannot be kept on its own.
-   *
-   * Removed lines are rendered struck through with no buttons beside them, so
-   * the only way to hold on to one is Reject All. An admin who likes
-   * nineteen of twenty changes but wants to keep one boundary the model merged
-   * away has to reject the lot and redo the split by hand.
-   */
-  it("gives a removed line no way back", () => {
-    const { container } = renderDiff({
+  it("offers a way to keep a boundary the proposal deletes", () => {
+    // Removed lines used to be struck through with no controls at all, so the
+    // only way to hold on to one was Reject All — an admin who liked nineteen
+    // of twenty changes had to throw the lot out and redo the split by hand.
+    const { onKeepOne } = renderDiff({
       original: [aSegment({ start: 0, end: 1, text: "merged away" }), aSegment({ start: 1, end: 3 })],
       suggested: [aSegment({ start: 0, end: 3, text: "one line now" })],
     });
-    const removed = container.querySelector(".line-through")!;
-    expect(removed).toHaveTextContent("merged away");
-    expect(removed.querySelector("button")).toBeNull();
+
+    const keep = screen.getAllByRole("button", { name: "Keep" });
+    expect(keep).toHaveLength(2);
+    fireEvent.click(keep[0]);
+    expect(onKeepOne).toHaveBeenCalledWith(0);
+  });
+
+  it("identifies the kept line by its place in the original, not in the list of removals", () => {
+    // The removed rows are a filtered view, so numbering them from the filter
+    // would hand the caller the wrong segment as soon as one line survives.
+    const { onKeepOne } = renderDiff({
+      original: [
+        aSegment({ start: 0, end: 1, text: "kept" }),
+        aSegment({ start: 1, end: 2, text: "merged away" }),
+      ],
+      suggested: [aSegment({ start: 0, end: 1, text: "kept" }), aSegment({ start: 1, end: 4 })],
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Keep" }));
+    expect(onKeepOne).toHaveBeenCalledWith(1);
+  });
+
+  it("still strikes the removed text through", () => {
+    // The button must not be struck through with it, which is why the styling
+    // moved onto the text rather than the row.
+    const { container } = renderDiff({
+      original: [aSegment({ start: 0, end: 1, text: "merged away" })],
+      suggested: [aSegment({ start: 0, end: 3, text: "one line now" })],
+    });
+    expect(container.querySelector(".line-through")).toHaveTextContent("merged away");
+    expect(container.querySelector(".line-through")!.querySelector("button")).toBeNull();
+  });
+
+  it("leaves removed lines bare when the caller offers no way to keep them", () => {
+    const { container } = render(
+      <DiffPreview
+        original={[aSegment({ start: 0, end: 1, text: "merged away" })]}
+        suggested={[aSegment({ start: 0, end: 3 })]}
+        onAcceptAll={vi.fn()}
+        onRejectAll={vi.fn()}
+        onAcceptOne={vi.fn()}
+        onRejectOne={vi.fn()}
+      />,
+    );
+    expect(screen.queryByRole("button", { name: "Keep" })).not.toBeInTheDocument();
+    expect(container.querySelector(".line-through")).toHaveTextContent("merged away");
   });
 });

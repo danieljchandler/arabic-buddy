@@ -15,11 +15,23 @@ interface QuizResultsProps {
 }
 
 export const QuizResults = ({ topic, quizState, onRestart, onHome }: QuizResultsProps) => {
-  const percentage = Math.round((quizState.score / quizState.answers.length) * 100);
-  
+  const total = quizState.answers.length;
+  /**
+   * Zero answers is not zero percent.
+   *
+   * `score / answers.length` is 0/0 for an empty quiz, and every band
+   * comparison against NaN is false, so the chain fell through to the worst
+   * one: "Try again!" over "NaN% correct". A topic whose words were all
+   * deleted, or a quiz abandoned before the first answer, landed there — and
+   * the learner was told they had failed a quiz they never took.
+   */
+  const percentage = total > 0 ? Math.round((quizState.score / total) * 100) : 0;
+
   let message = "";
-  
-  if (percentage === 100) {
+
+  if (total === 0) {
+    message = "No questions to score";
+  } else if (percentage === 100) {
     message = "Perfect! ممتاز";
   } else if (percentage >= 80) {
     message = "Great job! أحسنت";
@@ -53,12 +65,14 @@ export const QuizResults = ({ topic, quizState, onRestart, onHome }: QuizResults
           <h2 className="text-xl font-bold mb-2 text-foreground">{message}</h2>
           
           <div className="text-4xl font-bold my-4 text-foreground">
-            {quizState.score} / {quizState.answers.length}
+            {quizState.score} / {total}
           </div>
-          
-          <p className="text-muted-foreground">
-            {percentage}% correct
-          </p>
+
+          {total > 0 && (
+            <p className="text-muted-foreground">
+              {percentage}% correct
+            </p>
+          )}
         </div>
 
         {/* Answer review */}

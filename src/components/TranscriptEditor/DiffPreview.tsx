@@ -7,7 +7,30 @@ interface DiffPreviewProps {
   onRejectAll: () => void;
   onAcceptOne: (index: number) => void;
   onRejectOne: (index: number) => void;
+  /**
+   * Keep one original boundary the proposal deletes, by index into `original`.
+   *
+   * Without it, a removed line has no controls at all, so the only way to hold
+   * on to one is Reject All: an admin who likes nineteen of twenty changes but
+   * wants to keep a single boundary the model merged away has to throw the
+   * whole proposal out and redo the split by hand.
+   */
+  onKeepOne?: (index: number) => void;
 }
+
+/**
+ * A boundary as a pair of whole milliseconds.
+ *
+ * These numbers come out of arithmetic — the re-segmentation path rebuilds each
+ * segment's start and end by summing word durations — so a boundary that is
+ * conceptually unchanged comes back as 1.2000000000000002 against the
+ * original's 1.2. Comparing the raw values as strings made every such line read
+ * as new: the diff turned entirely green, every original line was listed as
+ * removed, and a proposal that changed two boundaries claimed it had changed
+ * all forty. Milliseconds are finer than anything the editor can express and
+ * far coarser than float noise.
+ */
+const boundaryKey = (s: Segment) => `${Math.round(s.start * 1000)}-${Math.round(s.end * 1000)}`;
 
 /**
  * Shows a diff between original and AI-suggested segment boundaries.
@@ -20,10 +43,11 @@ export default function DiffPreview({
   onRejectAll,
   onAcceptOne,
   onRejectOne,
+  onKeepOne,
 }: DiffPreviewProps) {
   // Build a set of boundary times for comparison
-  const origBoundaries = new Set(original.map(s => `${s.start}-${s.end}`));
-  const sugBoundaries = new Set(suggested.map(s => `${s.start}-${s.end}`));
+  const origBoundaries = new Set(original.map(boundaryKey));
+  const sugBoundaries = new Set(suggested.map(boundaryKey));
 
   return (
     <div className="rounded-lg border border-gray-200 dark:border-gray-700 p-4 space-y-3">
@@ -47,7 +71,7 @@ export default function DiffPreview({
 
       <div className="space-y-2 max-h-80 overflow-y-auto">
         {suggested.map((seg, i) => {
-          const key = `${seg.start}-${seg.end}`;
+          const key = boundaryKey(seg);
           const isNew = !origBoundaries.has(key);
 
           return (
@@ -98,19 +122,31 @@ export default function DiffPreview({
 
         {/* Show removed boundaries */}
         {original
-          .filter(s => !sugBoundaries.has(`${s.start}-${s.end}`))
-          .map((seg, i) => (
+          .map((seg, index) => ({ seg, index }))
+          .filter(({ seg }) => !sugBoundaries.has(boundaryKey(seg)))
+          .map(({ seg, index }) => (
             <div
-              key={`removed-${i}`}
+              key={`removed-${index}`}
               dir="rtl"
-              className="flex items-start gap-2 rounded p-2 text-sm bg-red-50 dark:bg-red-900/20 border-l-2 border-red-500 opacity-60 line-through"
+              className="flex items-start gap-2 rounded p-2 text-sm bg-red-50 dark:bg-red-900/20 border-l-2 border-red-500 opacity-60"
             >
-              <div className="flex-1 text-right font-cairo">
+              <div className="flex-1 text-right font-cairo line-through">
                 <span className="text-muted-foreground text-xs font-mono ltr:inline-block" dir="ltr">
                   {seg.start.toFixed(1)}s – {seg.end.toFixed(1)}s
                 </span>
                 <p className="mt-0.5">{seg.text}</p>
               </div>
+              {onKeepOne && (
+                <div className="flex flex-col gap-1" dir="ltr">
+                  <button
+                    className="text-xs px-2 py-0.5 rounded bg-amber-100 hover:bg-amber-200 text-amber-900 transition-colors"
+                    onClick={() => onKeepOne(index)}
+                    title="Keep this boundary"
+                  >
+                    Keep
+                  </button>
+                </div>
+              )}
             </div>
           ))}
       </div>

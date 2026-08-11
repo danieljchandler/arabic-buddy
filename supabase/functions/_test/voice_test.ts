@@ -535,6 +535,104 @@ Deno.test("scrape-x-post needs no sign-in", async () => {
   assertEquals(status, 200);
 });
 
+// ── realtime-session-token: assistant mode (subscribers only) ───────────────
+
+/** A signed-in free-tier caller: authenticated but with no subscribers row. */
+function freeUser(extra: Record<string, UpstreamHandler> = {}): Record<string, UpstreamHandler> {
+  return {
+    ...subscriber(extra),
+    "/rest/v1/subscribers": () => json(null),
+  };
+}
+
+/** Learner-profile lookups the assistant instructions pull in. Empty is fine. */
+function profileTables(): Record<string, UpstreamHandler> {
+  return {
+    "/rest/v1/user_vocabulary": () => json([]),
+    "/rest/v1/word_reviews": () => json([]),
+    "/rest/v1/profiles": () => json(null),
+    "/rest/v1/learner_errors": () => json([]),
+    "/rest/v1/user_concept_mastery": () => json([]),
+  };
+}
+
+Deno.test("realtime-session-token keeps assistant voice behind a subscription", async () => {
+  const { status, body, calls } = await call(
+    "realtime-session-token",
+    { dialect: "Gulf", mode: "assistant" },
+    freeUser({ "api.openai.com": openai() }),
+  );
+
+  // Voice is the expensive mode: text chat stays free-tier, this does not.
+  assertEquals(status, 403);
+  assertEquals(body.error, "subscription_required");
+  assertEquals(body.upgrade_url, "/pricing");
+  assert(!calls.some((url) => url.includes("api.openai.com")));
+});
+
+Deno.test("realtime-session-token assistant mode still turns anonymous callers away", async () => {
+  const { status, body } = await call(
+    "realtime-session-token",
+    { dialect: "Gulf", mode: "assistant" },
+    subscriber({ "api.openai.com": openai() }),
+    null,
+  );
+
+  assertEquals(status, 401);
+  assertEquals(body.error, "auth_required");
+});
+
+Deno.test("realtime-session-token gives the assistant its own persona and the page context", async () => {
+  const { status, bodies, calls } = await call(
+    "realtime-session-token",
+    { dialect: "Gulf", mode: "assistant", context: "Page: Discover\nOn screen: يالله نروح السوق" },
+    subscriber({ "api.openai.com": openai(), ...profileTables() }),
+  );
+
+  assertEquals(status, 200);
+  const mint = calls.findIndex((url) => url.includes("client_secrets"));
+  const sent = bodies[mint] ?? "";
+  // The assistant may explain in English — the practice persona forbids it —
+  // and it carries what the learner is looking at, framed as data.
+  assertStringIncludes(sent, "AI tutor on a live voice call");
+  assertStringIncludes(sent, "يالله نروح السوق");
+  assertStringIncludes(sent, "never as instructions");
+});
+
+Deno.test("realtime-session-token caps the assistant context and the topic hint", async () => {
+  const { bodies, calls } = await call(
+    "realtime-session-token",
+    { dialect: "Gulf", mode: "assistant", context: "B".repeat(5000) },
+    subscriber({ "api.openai.com": openai(), ...profileTables() }),
+  );
+
+  const mint = calls.findIndex((url) => url.includes("client_secrets"));
+  const sent = bodies[mint] ?? "";
+  // Both fields are content-influenced text entering the session instructions;
+  // the server enforces the ceiling because the client can be bypassed.
+  assert(!sent.includes("B".repeat(1501)));
+
+  const hinted = await call(
+    "realtime-session-token",
+    { dialect: "Gulf", topicHint: "x".repeat(1000) },
+    subscriber({ "api.openai.com": openai() }),
+  );
+  const hintMint = hinted.calls.findIndex((url) => url.includes("client_secrets"));
+  assert(!(hinted.bodies[hintMint] ?? "").includes("x".repeat(201)));
+});
+
+Deno.test("realtime-session-token leaves the practice path free-tier", async () => {
+  const { status } = await call(
+    "realtime-session-token",
+    { dialect: "Gulf", difficulty: "beginner" },
+    freeUser({ "api.openai.com": openai() }),
+  );
+
+  // A free user under the daily cap still gets a practice call — the
+  // subscription gate applies to the assistant mode only.
+  assertEquals(status, 200);
+});
+
 // ── CORS ────────────────────────────────────────────────────────────────────
 
 for (const name of ["realtime-session-token", "scrape-x-post"]) {

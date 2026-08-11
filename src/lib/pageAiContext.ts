@@ -22,6 +22,17 @@ export interface PageAiPayload {
   content?: string;
 }
 
+/** Flatten a payload into the plain-text context block the voice session takes. */
+export function serializePagePayload(payload: PageAiPayload): string {
+  return [
+    `Page: ${payload.title}`,
+    payload.summary && `About this page: ${payload.summary}`,
+    payload.content && `On screen: ${payload.content}`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
 /**
  * Route-prefix → PAGE_HINTS key. PAGE_HINTS keys are slugs, not paths, so the
  * mapping has to be explicit. Longest prefix wins (checked in order).

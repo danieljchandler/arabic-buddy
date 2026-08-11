@@ -271,22 +271,28 @@ export default function ConversationSimulator() {
         const cacheKey = `${activeDialect}:${trimmed}`;
         let url = ttsCache.current.get(cacheKey);
         if (!url) {
-          // Route by dialect: Gulf → Munsit Gulf voices, Egyptian → ElevenLabs
-          // native ar-EG voices, Yemeni → Azure's real ar-YE neural voices
-          // (previously Yemeni went to ElevenLabs, which has no Yemeni voice).
-          const fnName =
-            activeDialect === "Gulf" ? "munsit-tts" :
-            activeDialect === "Yemeni" ? "azure-tts" :
-            "elevenlabs-tts";
-          const body =
-            fnName === "azure-tts"
-              ? { text: trimmed, voice: "ar-YE-SalehNeural" }
-              : { text: trimmed };
+          // Route by dialect for cost optimization:
+          // - Gulf → Munsit (cheapest, native Gulf voice)
+          // - Egyptian/Levantine/North African/Yemeni → Azure (cheap, good neural quality)
+          // Keep ElevenLabs only for high-quality story narration (separate function).
+          const shouldUseMunsit = activeDialect === "Gulf";
+          const azureVoiceMap: Record<string, string> = {
+            "Egyptian": "ar-EG-SalmaNeural",
+            "Levantine": "ar-SY-LaithNeural",
+            "North African": "ar-TN-HediNeural",
+            "Yemeni": "ar-YE-SalehNeural",
+          };
+          const body = !shouldUseMunsit
+            ? { text: trimmed, voice: azureVoiceMap[activeDialect] || "ar-EG-SalmaNeural" }
+            : { text: trimmed };
+          const fnName = shouldUseMunsit ? "munsit-tts" : "azure-tts";
           const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
           const ANON = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
           const { data: { session } } = await supabase.auth.getSession();
           const token = session?.access_token ?? ANON;
-          const res = await fetch(`${SUPABASE_URL}/functions/v1/${fnName}`, {
+
+          // Try primary TTS provider, fall back to Azure if needed
+          let res = await fetch(`${SUPABASE_URL}/functions/v1/${fnName}`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -295,7 +301,22 @@ export default function ConversationSimulator() {
             },
             body: JSON.stringify(body),
           });
-          if (!res.ok) throw new Error(`${fnName} ${res.status}`);
+
+          // If Munsit fails for Gulf, try Azure as fallback
+          if (!res.ok && shouldUseMunsit) {
+            console.warn(`Munsit TTS failed (${res.status}), falling back to Azure`);
+            res = await fetch(`${SUPABASE_URL}/functions/v1/azure-tts`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+                apikey: ANON,
+              },
+              body: JSON.stringify({ text: trimmed, voice: "ar-AE-FatimaNeural" }),
+            });
+          }
+
+          if (!res.ok) throw new Error(`TTS failed (${res.status})`);
           const blob = await res.blob();
           url = URL.createObjectURL(blob);
           ttsCache.current.set(cacheKey, url);

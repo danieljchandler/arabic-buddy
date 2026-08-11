@@ -5,6 +5,7 @@ import borderFullPageImg from "@/assets/border-full-page.webp";
 import { BottomNav, shouldShowBottomNav } from "@/components/layout/BottomNav";
 import { OnboardingTour } from "@/components/onboarding/OnboardingTour";
 import { FeedbackWidget } from "@/components/feedback/FeedbackWidget";
+import { AskAiFab } from "@/components/assistant/AskAiFab";
 
 interface AppShellProps {
   children: ReactNode;
@@ -54,6 +55,7 @@ export function AppShell({ children, className, compact = false }: AppShellProps
       <BottomNav />
       <OnboardingTour />
       <FeedbackWidget />
+      <AskAiFab />
     </div>
   );
 }

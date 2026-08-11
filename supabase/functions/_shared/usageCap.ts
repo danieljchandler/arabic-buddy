@@ -89,6 +89,49 @@ async function isAdminUser(userId: string): Promise<boolean> {
   }
 }
 
+/**
+ * Gate a feature to active subscribers (and admins) outright — no free tier.
+ *
+ * Same result shape as enforceDailyCap so callers branch identically:
+ * anonymous → 401 auth_required, signed-in free user → 403
+ * subscription_required with an upgrade_url the client can route to.
+ */
+export async function requireActiveSubscription(
+  req: Request,
+  corsHeaders: Record<string, string>,
+): Promise<CapResult> {
+  const userId = await getUserId(req);
+  if (!userId) {
+    return {
+      limited: true,
+      response: new Response(
+        JSON.stringify({ error: "auth_required", message: "Please sign in to use this feature." }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      ),
+    };
+  }
+
+  const [subscribed, isAdmin] = await Promise.all([
+    hasActiveSubscription(userId),
+    isAdminUser(userId),
+  ]);
+  if (subscribed || isAdmin) {
+    return { limited: false, userId, count: 0, limit: Number.POSITIVE_INFINITY };
+  }
+
+  return {
+    limited: true,
+    response: new Response(
+      JSON.stringify({
+        error: "subscription_required",
+        message: "Live voice for the AI assistant is available on a paid plan.",
+        upgrade_url: "/pricing",
+      }),
+      { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    ),
+  };
+}
+
 export async function enforceDailyCap(
   req: Request,
   key: string,

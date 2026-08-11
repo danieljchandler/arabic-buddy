@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { usePageAiContext } from '@/contexts/AiAssistantContext';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import {
@@ -101,6 +102,21 @@ const StoryPlayer = () => {
   }, [scenes]);
 
   const currentScene = sceneMap.get(currentSceneOrder);
+
+  usePageAiContext(
+    useMemo(
+      () =>
+        storyTitle && currentScene
+          ? {
+              kind: "story" as const,
+              title: storyTitle,
+              summary: "Reading an interactive branching story.",
+              content: `Current scene: ${currentScene.narrative_arabic}${currentScene.narrative_english ? ` — ${currentScene.narrative_english}` : ""}`,
+            }
+          : null,
+      [storyTitle, currentScene],
+    ),
+  );
 
   // Record "continue where you left off" entry on every scene change
   useEffect(() => {

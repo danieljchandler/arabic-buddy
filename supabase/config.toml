@@ -124,6 +124,9 @@ verify_jwt = false
 [functions.ask-translation]
 verify_jwt = false
 
+[functions.assistant-chat]
+verify_jwt = false
+
 [functions.ai-resegment-transcript]
 verify_jwt = true
 

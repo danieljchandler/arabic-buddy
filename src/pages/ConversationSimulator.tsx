@@ -18,6 +18,7 @@ import { PAGE_HINTS } from "@/lib/pageHints";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { showCapToastIfLimited } from "@/lib/handleCapResponse";
+import { streamChat, SseChatError } from "@/lib/sseChat";
 import {
   Loader2,
   Send,
@@ -125,70 +126,23 @@ export default function ConversationSimulator() {
       setMessages((prev) => [...prev, { role: "assistant", content: "", streaming: true }]);
 
       try {
-        const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/free-chat`;
-        const resp = await fetch(url, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-          },
+        const acc = await streamChat({
+          functionName: "free-chat",
           signal: ctrl.signal,
-          body: JSON.stringify({
+          body: {
             messages: history.map((m) => ({ role: m.role, content: m.content })),
             dialect: activeDialect,
             cefrLevel: cefr,
             topicHint,
-          }),
+          },
+          onDelta: (_delta, accumulated) => {
+            setMessages((prev) => {
+              const next = [...prev];
+              next[next.length - 1] = { role: "assistant", content: accumulated, streaming: true };
+              return next;
+            });
+          },
         });
-
-        if (!resp.ok || !resp.body) {
-          let errMsg = "Something went wrong.";
-          try {
-            const j = await resp.json();
-            if (j?.error) errMsg = j.error;
-          } catch {/* ignore */}
-          if (resp.status === 429) errMsg = "Slow down — too many requests. Try again in a moment.";
-          if (resp.status === 402) errMsg = "AI credits exhausted. Add funds in workspace settings.";
-          toast({ title: "Chat error", description: errMsg, variant: "destructive" });
-          setMessages((prev) => prev.slice(0, -1));
-          return;
-        }
-
-        const reader = resp.body.getReader();
-        const decoder = new TextDecoder();
-        let buf = "";
-        let acc = "";
-        let done = false;
-
-        while (!done) {
-          const { value, done: d } = await reader.read();
-          if (d) break;
-          buf += decoder.decode(value, { stream: true });
-          let nl: number;
-          while ((nl = buf.indexOf("\n")) !== -1) {
-            let line = buf.slice(0, nl);
-            buf = buf.slice(nl + 1);
-            if (line.endsWith("\r")) line = line.slice(0, -1);
-            if (!line.startsWith("data: ")) continue;
-            const data = line.slice(6).trim();
-            if (data === "[DONE]") { done = true; break; }
-            try {
-              const parsed = JSON.parse(data);
-              const delta = parsed.choices?.[0]?.delta?.content;
-              if (delta) {
-                acc += delta;
-                setMessages((prev) => {
-                  const next = [...prev];
-                  next[next.length - 1] = { role: "assistant", content: acc, streaming: true };
-                  return next;
-                });
-              }
-            } catch {
-              buf = line + "\n" + buf;
-              break;
-            }
-          }
-        }
 
         // Finalize: split out correction and play TTS
         const { correction, body } = splitCorrection(acc);
@@ -203,7 +157,13 @@ export default function ConversationSimulator() {
       } catch (err: any) {
         if (err?.name !== "AbortError") {
           console.error("free-chat stream error:", err);
-          toast({ title: "Chat error", description: err?.message ?? "Failed to reach AI", variant: "destructive" });
+          let errMsg = err?.message ?? "Failed to reach AI";
+          if (err instanceof SseChatError) {
+            if (err.status === 429) errMsg = "Slow down — too many requests. Try again in a moment.";
+            else if (err.status === 402) errMsg = "AI credits exhausted. Add funds in workspace settings.";
+            else if (err.status === 401) errMsg = "Please sign in to chat.";
+          }
+          toast({ title: "Chat error", description: errMsg, variant: "destructive" });
         }
         setMessages((prev) => prev.filter((_, i) => !(i === prev.length - 1 && prev[i].streaming)));
       } finally {

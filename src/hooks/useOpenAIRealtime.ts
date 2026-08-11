@@ -26,6 +26,10 @@ interface StartArgs {
   dialect: string;
   difficulty: string;
   topicHint?: string;
+  /** "practice" (default) is the free conversation partner; "assistant" is the subscribers-only Ask AI voice. */
+  mode?: "practice" | "assistant";
+  /** Serialized page context for assistant mode, appended to the session instructions server-side. */
+  context?: string;
 }
 
 interface Options {
@@ -208,7 +212,7 @@ export function useOpenAIRealtime(opts: Options = {}) {
     }
   }, [finalizeTurn, upsertTurn]);
 
-  const start = useCallback(async ({ dialect, difficulty, topicHint }: StartArgs) => {
+  const start = useCallback(async ({ dialect, difficulty, topicHint, mode, context }: StartArgs) => {
     if (status === "connecting" || status === "live") return;
     dialectRef.current = dialect || "Gulf";
     setError(null);
@@ -319,7 +323,7 @@ export function useOpenAIRealtime(opts: Options = {}) {
           "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ dialect, difficulty, topicHint }),
+        body: JSON.stringify({ dialect, difficulty, topicHint, mode, context }),
       });
       if (!tokenResp.ok) {
         const t = await tokenResp.text();

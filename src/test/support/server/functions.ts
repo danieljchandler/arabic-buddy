@@ -271,6 +271,7 @@ export const defaultFunctions: Record<string, FunctionHandler> = {
   "culture-guide": () => ok({ answer: "" }),
   "free-chat": () => ok({ reply: "" }),
   "ask-translation": () => ok({ answer: "" }),
+  "assistant-chat": () => streaming(""),
   "analyze-meme": () => ok({ analysis: "" }),
   // Transcribe's analyser. It reports failure in-band as `success: false`
   // rather than a non-2xx, so the default has to carry the flag.

@@ -12,11 +12,25 @@ export function WeeklyGoalCard({ className }: WeeklyGoalCardProps) {
 
   if (isLoading || !goal) return null;
 
-  const reviewPercent = Math.min(100, Math.round((goal.completed_reviews / goal.target_reviews) * 100));
-  const xpPercent = Math.min(100, Math.round((goal.earned_xp / goal.target_xp) * 100));
+  /**
+   * A target of zero is a goal nobody set, not a goal already met.
+   *
+   * `completed / target` is 0/0 when a target is zero, so the percentage was
+   * NaN and reached the progress bar unguarded, while the separate completion
+   * check — `0 >= 0` — was true. The card ticked the goal, turned it green and
+   * fired the confetti line for a week in which nothing was done, above a bar
+   * the Progress wrapper's `value || 0` had quietly emptied. Targets are
+   * written by the goal-setting path rather than being a constant, so a learner
+   * whose targets are derived from a previous week of no activity gets one.
+   */
+  const percentOf = (done: number, target: number) =>
+    target > 0 ? Math.min(100, Math.round((done / target) * 100)) : 0;
 
-  const reviewComplete = goal.completed_reviews >= goal.target_reviews;
-  const xpComplete = goal.earned_xp >= goal.target_xp;
+  const reviewPercent = percentOf(goal.completed_reviews, goal.target_reviews);
+  const xpPercent = percentOf(goal.earned_xp, goal.target_xp);
+
+  const reviewComplete = goal.target_reviews > 0 && goal.completed_reviews >= goal.target_reviews;
+  const xpComplete = goal.target_xp > 0 && goal.earned_xp >= goal.target_xp;
 
   return (
     <div className={cn("bg-card rounded-xl p-4 border border-border", className)}>

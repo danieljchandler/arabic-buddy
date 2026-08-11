@@ -35,6 +35,26 @@ export const LetterTracer = ({ letter, onComplete }: LetterTracerProps) => {
   const [sparkles, setSparkles] = useState<Sparkle[]>([]);
   const sparkleIdRef = useRef(0);
   const lastSparkleAtRef = useRef(0);
+  /**
+   * Every fade timer still in flight, so unmount can cancel them.
+   *
+   * Each spark schedules a 750ms `setSparkles` to fade its own trail, and one
+   * stroke schedules a dozen. Nothing cancelled them, so a learner who traced a
+   * letter and immediately moved on left up to a dozen callbacks setting state
+   * on a component that no longer exists. Under a test runner that tears the
+   * DOM down between files it is worse than a warning: the callback lands after
+   * jsdom is gone and takes the whole run down with `ReferenceError: window is
+   * not defined`, which is exactly how this component first turned CI red while
+   * every test passed.
+   */
+  const sparkleTimersRef = useRef<number[]>([]);
+
+  useEffect(() => {
+    return () => {
+      sparkleTimersRef.current.forEach((id) => window.clearTimeout(id));
+      sparkleTimersRef.current = [];
+    };
+  }, []);
   const reducedMotion = prefersReducedMotion();
 
 
@@ -135,9 +155,11 @@ export const LetterTracer = ({ letter, onComplete }: LetterTracerProps) => {
           y: (pt.y / SIZE) * 100,
         };
         setSparkles((prev) => [...prev.slice(-12), sp]);
-        window.setTimeout(() => {
+        const timer = window.setTimeout(() => {
+          sparkleTimersRef.current = sparkleTimersRef.current.filter((t) => t !== timer);
           setSparkles((prev) => prev.filter((s) => s.id !== id));
         }, 750);
+        sparkleTimersRef.current.push(timer);
       }
     }
   };

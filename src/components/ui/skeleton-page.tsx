@@ -18,7 +18,10 @@ function Skeleton({ className }: SkeletonProps) {
  */
 export function PageSkeleton() {
   return (
-    <div className="min-h-screen p-4 md:p-8 space-y-6">
+    // data-testid: every page is lazy-loaded behind one app-level <Suspense>, so
+    // a navigation resolves long before the chunk does. Tests wait for this to
+    // disappear rather than racing the loader.
+    <div data-testid="page-skeleton" className="min-h-screen p-4 md:p-8 space-y-6">
       {/* Header */}
       <div className="space-y-2">
         <Skeleton className="h-8 w-48" />

@@ -5,6 +5,17 @@ interface WordConfidenceProps {
   words: Word[];
   activeWordIndex?: number;
   onWordClick?: (index: number) => void;
+  /**
+   * Split after word `index`.
+   *
+   * Separate from `onWordClick` because the scissors used to call that with the
+   * same index as clicking word `i` itself, leaving the parent unable to tell
+   * "select the second word" from "split after the second word" — SegmentCard
+   * guessed between them by checking whether that boundary happened to be
+   * hovered, which misreads a click on a word whose own boundary is under the
+   * pointer.
+   */
+  onSplitAt?: (index: number) => void;
   onWordBoundaryHover?: (index: number | null) => void;
   hoveredBoundary?: number | null;
 }
@@ -24,6 +35,7 @@ export default function WordConfidence({
   words,
   activeWordIndex = -1,
   onWordClick,
+  onSplitAt,
   onWordBoundaryHover,
   hoveredBoundary,
 }: WordConfidenceProps) {
@@ -40,14 +52,30 @@ export default function WordConfidence({
               activeWordIndex === i && 'bg-blue-200 dark:bg-blue-800',
             )}
             onClick={() => onWordClick?.(i)}
-            onKeyDown={e => e.key === 'Enter' && onWordClick?.(i)}
+            // Space as well as Enter. A real button fires on both, and a
+            // screen-reader user told "button" will try Space — these words are
+            // the only keyboard route to the split, so ignoring it withheld the
+            // whole feature from that user. preventDefault stops Space
+            // scrolling the transcript out from under them.
+            onKeyDown={e => {
+              if (e.key !== 'Enter' && e.key !== ' ') return;
+              e.preventDefault();
+              onWordClick?.(i);
+            }}
           >
             {w.word}
           </span>
           {/* Split boundary indicator — show between words, not after the last */}
           {i < words.length - 1 && (
             <span
-              className="relative mx-0.5 inline-block w-0 align-middle"
+              // Eight pixels wide, pulled back in by the negative margins so the
+              // words sit exactly as far apart as before. This was `w-0`: a
+              // zero-width box, and margins are not part of an element's hit
+              // area, so a pointer could never be inside it and onMouseEnter
+              // never fired in a real browser. The scissors was reachable only
+              // if a parent set `hoveredBoundary` some other way — which is why
+              // it could be driven by prop but never by hovering.
+              className="relative -mx-1 inline-block w-2 align-middle"
               onMouseEnter={() => onWordBoundaryHover?.(i)}
               onMouseLeave={() => onWordBoundaryHover?.(null)}
             >
@@ -57,7 +85,7 @@ export default function WordConfidence({
                   title="Split here"
                   onClick={e => {
                     e.stopPropagation();
-                    onWordClick?.(i);
+                    (onSplitAt ?? onWordClick)?.(i);
                   }}
                 >
                   ✂

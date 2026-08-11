@@ -28,11 +28,29 @@ export function StreakDisplay({ compact = false, className }: StreakDisplayProps
 
   if (!streak) return null;
 
+  const alive = streak.current_streak > 0;
+
   if (compact) {
+    // Greyed once the run is over, as the full card already does. The pill kept
+    // its orange background and orange flame at zero, and the pill is the
+    // version that sits in the header on every screen — so the state a learner
+    // sees most often was the one that could not tell "you are on a streak"
+    // from "you lost it".
     return (
-      <div className={cn("flex items-center gap-1 px-2 py-1 rounded-full bg-orange-100 dark:bg-orange-900/30", className)}>
-        <Flame className="h-3 w-3 text-orange-500" />
-        <span className="text-xs font-semibold text-orange-600 dark:text-orange-400">
+      <div
+        className={cn(
+          "flex items-center gap-1 px-2 py-1 rounded-full",
+          alive ? "bg-orange-100 dark:bg-orange-900/30" : "bg-muted",
+          className,
+        )}
+      >
+        <Flame className={cn("h-3 w-3", alive ? "text-orange-500" : "text-muted-foreground")} />
+        <span
+          className={cn(
+            "text-xs font-semibold",
+            alive ? "text-orange-600 dark:text-orange-400" : "text-muted-foreground",
+          )}
+        >
           {streak.current_streak} day{streak.current_streak !== 1 ? "s" : ""}
         </span>
       </div>

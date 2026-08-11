@@ -24,13 +24,25 @@ export const TranslationPair = ({
 
   if (variant === "grid") {
     return (
-      <div className={cn("grid grid-cols-1 sm:grid-cols-2 gap-3", className)}>
-        <div>
-          <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-0.5">
-            Literal
-          </p>
-          <p className="text-sm text-foreground/80 italic">{literal}</p>
-        </div>
+      <div
+        className={cn(
+          "grid grid-cols-1 gap-3",
+          // One column when there is nothing to put in the other. The Literal
+          // heading and its paragraph used to render unconditionally, so a
+          // translation without a gloss — which is most of the older content —
+          // put a heading over an empty half of the Translate page.
+          hasLiteral && "sm:grid-cols-2",
+          className,
+        )}
+      >
+        {hasLiteral && (
+          <div>
+            <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-0.5">
+              Literal
+            </p>
+            <p className="text-sm text-foreground/80 italic">{literal}</p>
+          </div>
+        )}
         <div>
           <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-0.5">
             Natural

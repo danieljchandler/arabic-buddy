@@ -11,6 +11,21 @@ import {
 import { useDialect } from "@/contexts/DialectContext";
 import { useResumableLesson } from "@/hooks/useLessonProgress";
 
+/**
+ * How stale the server-side lesson row may be before the card stops offering it.
+ *
+ * The local entry expires after seven days inside `getContinue`; the
+ * `lesson_progress` row behind the fallback had no cutoff at all, and the query
+ * takes the most recent `in_progress` row whatever its date. A learner who
+ * opened one lesson in January and never went back was still shown "Continue
+ * lesson … 250d ago" in September, at the top of Home.
+ *
+ * Deliberately longer than the local seven days rather than equal to it: this
+ * row is what makes resuming survive a new device, a cleared cache or a
+ * fortnight away, and matching the local TTL would leave it with nothing to do.
+ */
+const RESUMABLE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+
 const KIND_META: Record<
   ContinueEntry["kind"],
   { icon: typeof BookOpen; label: string }
@@ -50,16 +65,20 @@ export const ContinueCard = () => {
   // cleared cache.
   const localEntry =
     entry && (!entry.dialect || entry.dialect === activeDialect) ? entry : null;
-  const candidate: ContinueEntry | null = localEntry ?? (resumable
+  const freshResumable =
+    resumable && Date.now() - new Date(resumable.updatedAt).getTime() <= RESUMABLE_MAX_AGE_MS
+      ? resumable
+      : null;
+  const candidate: ContinueEntry | null = localEntry ?? (freshResumable
     ? {
         kind: "lesson",
-        route: `/learn/${resumable.lessonId}`,
-        title: resumable.title,
-        subtitle: resumable.wordsTotal
-          ? `Word ${Math.min(resumable.lastWordIndex + 1, resumable.wordsTotal)} of ${resumable.wordsTotal}`
+        route: `/learn/${freshResumable.lessonId}`,
+        title: freshResumable.title,
+        subtitle: freshResumable.wordsTotal
+          ? `Word ${Math.min(freshResumable.lastWordIndex + 1, freshResumable.wordsTotal)} of ${freshResumable.wordsTotal}`
           : undefined,
         dialect: activeDialect,
-        updatedAt: new Date(resumable.updatedAt).getTime(),
+        updatedAt: new Date(freshResumable.updatedAt).getTime(),
       }
     : null);
 

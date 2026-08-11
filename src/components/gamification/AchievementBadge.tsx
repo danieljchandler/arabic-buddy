@@ -52,9 +52,26 @@ export function AchievementBadge({
               {achievement.description}
             </p>
           )}
-          {earned && earnedAt && (
+          {/*
+            Gated on `earned` alone. It used to require `earnedAt` too, and
+            user_achievements.earned_at is nullable — so a row from a backfill
+            or a manual grant showed gold and full colour while silently
+            dropping the XP line, making an earned achievement look worth
+            nothing.
+          */}
+          {earned && (
             <p className="text-xs text-primary mt-1">
               +{achievement.xp_reward} XP
+            </p>
+          )}
+          {/*
+            And the date itself now reaches the screen. It was typed and named
+            as a timestamp and used only as a boolean, so "when did I earn
+            this?" was unanswerable from the grid.
+          */}
+          {earned && earnedAt && (
+            <p className="text-[10px] text-muted-foreground mt-0.5">
+              {new Date(earnedAt).toLocaleDateString()}
             </p>
           )}
         </>

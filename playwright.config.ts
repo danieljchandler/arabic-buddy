@@ -17,6 +17,18 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
+  // Refuses to start unless the webServer env below actually took effect.
+  globalSetup: "./e2e/support/globalSetup.ts",
+  // CI defaults to one worker, which does not scale to a suite covering every
+  // route. Each test gets its own browser context and its own in-memory
+  // database, so there is no shared state to serialize on.
+  workers: process.env.CI ? 4 : undefined,
+  // The default 5s assertion timeout was set when the suite was one spec file.
+  // With every route covered, several workers share one dev server, and a lazy
+  // route's first paint behind a cold Vite transform can take longer than that
+  // — a timeout that says nothing about the app. Failures still fail; they just
+  // get long enough to be believed.
+  expect: { timeout: 10_000 },
   // In CI, also emit the HTML report so a failed run uploads something
   // debuggable as an artifact — "line" alone writes nothing to disk.
   reporter: process.env.CI
@@ -34,7 +46,23 @@ export default defineConfig({
         // The sandbox/CI image ships browsers at PLAYWRIGHT_BROWSERS_PATH
         // rather than in node_modules, so let Playwright resolve them itself
         // and only drop the sandbox, which containers don't allow.
-        launchOptions: { args: ["--no-sandbox"] },
+        //
+        // The fake-media flags give Chromium a synthetic capture device. A
+        // container has no microphone, so without them getUserMedia rejects
+        // with NotFoundError and every recording surface — pronunciation,
+        // shadowing, the conversation simulator, the admin audio recorders —
+        // errors on mount. These produce a *real* MediaStream, which matters:
+        // a hand-written stand-in is rejected by RTCPeerConnection.addTrack,
+        // so the live-voice panel could not be tested with one.
+        launchOptions: {
+          args: [
+            "--no-sandbox",
+            "--use-fake-device-for-media-stream",
+            "--use-fake-ui-for-media-stream",
+            "--autoplay-policy=no-user-gesture-required",
+          ],
+        },
+        permissions: ["microphone"],
       },
     },
   ],

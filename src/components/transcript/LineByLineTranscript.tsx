@@ -403,6 +403,17 @@ interface TranscriptLineCardProps {
     } | null>(null);
    const selectionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // A tap arms a 1.5s or 3s timer to clear or promote the selection, and
+  // nothing cancelled it on the way out — so a reader who tapped a word and
+  // navigated away left a callback setting state on a component that no longer
+  // exists. Harmless in a browser, fatal under a test runner that tears the DOM
+  // down between files.
+  useEffect(() => {
+    return () => {
+      if (selectionTimerRef.current) clearTimeout(selectionTimerRef.current);
+    };
+  }, []);
+
    // Lookup compound gloss for a range [firstIdx, lastIdx] (inclusive).
    // Supports bigrams (span=1) and trigrams (span=2).
    // The backend marks compound tokens with compoundRef or legacy "(→ firstWord)" in gloss.

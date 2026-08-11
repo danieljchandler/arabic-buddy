@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Loader2, Upload, X } from 'lucide-react';
@@ -18,7 +18,20 @@ const TARGET_HEIGHT = 600;
  * Resizes an image to fit within the target dimensions while maintaining aspect ratio
  * NO CROPPING - the entire image is preserved, with letterboxing if needed
  */
-const resizeImage = (file: File): Promise<Blob> => {
+const resizeImage = async (file: File): Promise<Blob> => {
+  // Released on every path — success, decode failure and canvas failure alike.
+  // Nothing revoked it before, so each source blob stayed pinned for the life of
+  // the document and an admin working through a batch of cards accumulated
+  // every original they had touched, at full size, on top of the resized copies.
+  const sourceUrl = URL.createObjectURL(file);
+  try {
+    return await decodeAndResize(sourceUrl);
+  } finally {
+    URL.revokeObjectURL(sourceUrl);
+  }
+};
+
+const decodeAndResize = (sourceUrl: string): Promise<Blob> => {
   return new Promise((resolve, reject) => {
     const img = new Image();
     const canvas = document.createElement('canvas');
@@ -82,7 +95,7 @@ const resizeImage = (file: File): Promise<Blob> => {
     };
 
     img.onerror = () => reject(new Error('Failed to load image'));
-    img.src = URL.createObjectURL(file);
+    img.src = sourceUrl;
   });
 };
 
@@ -91,6 +104,15 @@ export const ImageUploader = ({ currentUrl, onUpload, onRemove }: ImageUploaderP
   const [preview, setPreview] = useState<string | null>(currentUrl || null);
   const inputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+
+  // Admin forms fetch the record they are editing, so this component routinely
+  // mounts with `currentUrl` undefined and is handed the real URL a moment
+  // later. Reading the prop only in `useState` meant the field went on offering
+  // "Click to upload image" over a record that already had one — so the admin
+  // uploaded a second copy and orphaned the first in the bucket.
+  useEffect(() => {
+    setPreview(currentUrl || null);
+  }, [currentUrl]);
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

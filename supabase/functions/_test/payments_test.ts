@@ -1,0 +1,274 @@
+import { assertEquals, assertStringIncludes } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { fixtureJwt, jsonRequest, loadFunction } from "./harness.ts";
+import { json } from "./upstreams.ts";
+
+/**
+ * The three functions that touch money.
+ *
+ * Nothing about them was tested. They take an authenticated caller, look them
+ * up in Stripe by email, and hand back a URL the browser opens — so the failure
+ * modes that matter are charging the wrong plan, creating a session for the
+ * wrong person, or duplicating a customer for someone who already pays.
+ */
+
+const USER = "00000000-0000-4000-8000-000000000001";
+
+/** Supabase auth and Stripe, with the parts each test cares about. */
+function upstreams(options: {
+  email?: string | null;
+  existingCustomer?: string | null;
+  stripeFails?: boolean;
+} = {}) {
+  const { email = "learner@example.com", existingCustomer = null, stripeFails = false } = options;
+
+  return {
+    "/auth/v1/user": () =>
+      email === null
+        ? json({ message: "invalid claim" }, 401)
+        : json({ id: USER, email, aud: "authenticated", role: "authenticated" }),
+
+    "api.stripe.com": (request: Request) => {
+      if (stripeFails) return json({ error: { message: "card_declined" } }, 402);
+
+      const url = new URL(request.url);
+
+      if (url.pathname.includes("/customers")) {
+        return json({
+          data: existingCustomer ? [{ id: existingCustomer, email }] : [],
+        });
+      }
+      if (url.pathname.includes("checkout/sessions")) {
+        return json({ id: "cs_fixture", url: "https://checkout.stripe.test/cs_fixture" });
+      }
+      if (url.pathname.includes("billing_portal")) {
+        return json({ id: "bps_fixture", url: "https://billing.stripe.test/bps_fixture" });
+      }
+      if (url.pathname.includes("/subscriptions")) {
+        return json({ data: [] });
+      }
+      return json({ data: [] });
+    },
+  };
+}
+
+/** The body Stripe was actually sent, decoded from its form encoding. */
+function stripeForm(body: string | null): URLSearchParams {
+  return new URLSearchParams(body ?? "");
+}
+
+Deno.test("create-checkout returns a session URL for a valid tier", async () => {
+  const fn = await loadFunction("create-checkout", { upstreams: upstreams() });
+  try {
+    const response = await fn.handler(jsonRequest("create-checkout", { tier: "standard" }));
+
+    assertEquals(response.status, 200);
+    assertEquals((await response.json()).url, "https://checkout.stripe.test/cs_fixture");
+  } finally {
+    fn.restore();
+  }
+});
+
+Deno.test("create-checkout charges the price for the tier that was asked for", async () => {
+  // The two price ids are hardcoded in the function and duplicated in
+  // src/hooks/useSubscription.ts. Sending the wrong one bills the wrong amount.
+  const fn = await loadFunction("create-checkout", { upstreams: upstreams() });
+  try {
+    await fn.handler(jsonRequest("create-checkout", { tier: "allin" }));
+
+    const session = fn.callsTo("checkout/sessions").at(-1);
+    const form = stripeForm(session?.body ?? null);
+
+    assertEquals(form.get("line_items[0][price]"), "price_1T8t9QHVAO3F9uuDvaRVzEg4");
+    assertEquals(form.get("line_items[0][quantity]"), "1");
+  } finally {
+    fn.restore();
+  }
+});
+
+Deno.test("create-checkout always opens a subscription, never a one-off payment", async () => {
+  const fn = await loadFunction("create-checkout", { upstreams: upstreams() });
+  try {
+    await fn.handler(jsonRequest("create-checkout", { tier: "standard" }));
+
+    const form = stripeForm(fn.callsTo("checkout/sessions").at(-1)?.body ?? null);
+    assertEquals(form.get("mode"), "subscription");
+  } finally {
+    fn.restore();
+  }
+});
+
+Deno.test("create-checkout reuses an existing Stripe customer", async () => {
+  // Otherwise a returning subscriber gets a second customer record and their
+  // billing history splits in two.
+  const fn = await loadFunction("create-checkout", {
+    upstreams: upstreams({ existingCustomer: "cus_existing" }),
+  });
+  try {
+    await fn.handler(jsonRequest("create-checkout", { tier: "standard" }));
+
+    const form = stripeForm(fn.callsTo("checkout/sessions").at(-1)?.body ?? null);
+    assertEquals(form.get("customer"), "cus_existing");
+    // And does not also pass an email, which Stripe rejects alongside customer.
+    assertEquals(form.get("customer_email"), null);
+  } finally {
+    fn.restore();
+  }
+});
+
+Deno.test("create-checkout passes the email when there is no customer yet", async () => {
+  const fn = await loadFunction("create-checkout", { upstreams: upstreams() });
+  try {
+    await fn.handler(jsonRequest("create-checkout", { tier: "standard" }));
+
+    const form = stripeForm(fn.callsTo("checkout/sessions").at(-1)?.body ?? null);
+    assertEquals(form.get("customer_email"), "learner@example.com");
+  } finally {
+    fn.restore();
+  }
+});
+
+Deno.test("create-checkout looks the customer up by the caller's own email", async () => {
+  // The lookup is what ties the session to a person. Searching for anything
+  // other than the authenticated user's email would let one account start a
+  // checkout attached to another's customer record.
+  const fn = await loadFunction("create-checkout", {
+    upstreams: upstreams({ email: "someone@example.com" }),
+  });
+  try {
+    await fn.handler(jsonRequest("create-checkout", { tier: "standard" }));
+
+    const lookup = fn.callsTo("/customers").at(-1);
+    assertStringIncludes(decodeURIComponent(lookup?.url ?? ""), "someone@example.com");
+  } finally {
+    fn.restore();
+  }
+});
+
+Deno.test("create-checkout rejects a tier that is not on offer", async () => {
+  const fn = await loadFunction("create-checkout", { upstreams: upstreams() });
+  try {
+    for (const tier of ["free", "enterprise", "", null, 1]) {
+      const response = await fn.handler(jsonRequest("create-checkout", { tier }));
+      assertEquals(response.status, 500, `tier ${JSON.stringify(tier)} was accepted`);
+      assertStringIncludes((await response.json()).error, "Invalid tier");
+    }
+
+    // And never reached Stripe.
+    assertEquals(fn.callsTo("checkout/sessions").length, 0);
+  } finally {
+    fn.restore();
+  }
+});
+
+Deno.test("create-checkout refuses a caller the auth server does not recognise", async () => {
+  const fn = await loadFunction("create-checkout", { upstreams: upstreams({ email: null }) });
+  try {
+    const response = await fn.handler(jsonRequest("create-checkout", { tier: "standard" }));
+
+    assertEquals(response.status, 500);
+    assertStringIncludes((await response.json()).error, "not authenticated");
+    assertEquals(fn.callsTo("checkout/sessions").length, 0);
+  } finally {
+    fn.restore();
+  }
+});
+
+Deno.test("create-checkout returns the origin the request came from", async () => {
+  // success_url and cancel_url send the browser back to wherever it started;
+  // a hardcoded origin would bounce a Lovable preview user to production.
+  const fn = await loadFunction("create-checkout", { upstreams: upstreams() });
+  try {
+    await fn.handler(
+      jsonRequest("create-checkout", { tier: "standard" }, { origin: "https://hakiya.app" }),
+    );
+
+    const form = stripeForm(fn.callsTo("checkout/sessions").at(-1)?.body ?? null);
+    assertStringIncludes(form.get("success_url") ?? "", "https://hakiya.app");
+    assertStringIncludes(form.get("cancel_url") ?? "", "https://hakiya.app");
+  } finally {
+    fn.restore();
+  }
+});
+
+Deno.test("create-checkout surfaces a Stripe failure rather than a broken URL", async () => {
+  const fn = await loadFunction("create-checkout", { upstreams: upstreams({ stripeFails: true }) });
+  try {
+    const response = await fn.handler(jsonRequest("create-checkout", { tier: "standard" }));
+
+    assertEquals(response.status, 500);
+    // The client throws on this, so the learner sees an error instead of a
+    // new tab opening on nothing.
+    assertEquals(typeof (await response.json()).error, "string");
+  } finally {
+    fn.restore();
+  }
+});
+
+Deno.test("create-checkout keeps its CORS headers on the error path", async () => {
+  // An error response without them is unreadable to the browser, so the client
+  // reports a network failure instead of the reason.
+  const fn = await loadFunction("create-checkout", { upstreams: upstreams({ email: null }) });
+  try {
+    const response = await fn.handler(jsonRequest("create-checkout", { tier: "standard" }));
+
+    assertEquals(response.headers.get("access-control-allow-origin"), "https://hakiya.app");
+  } finally {
+    fn.restore();
+  }
+});
+
+Deno.test("customer-portal returns a management URL", async () => {
+  const fn = await loadFunction("customer-portal", {
+    upstreams: upstreams({ existingCustomer: "cus_existing" }),
+  });
+  try {
+    const response = await fn.handler(jsonRequest("customer-portal", {}));
+
+    assertEquals(response.status, 200);
+    assertEquals((await response.json()).url, "https://billing.stripe.test/bps_fixture");
+  } finally {
+    fn.restore();
+  }
+});
+
+Deno.test("customer-portal refuses an unauthenticated caller", async () => {
+  const fn = await loadFunction("customer-portal", { upstreams: upstreams({ email: null }) });
+  try {
+    const response = await fn.handler(
+      jsonRequest("customer-portal", {}, { jwt: null }),
+    );
+
+    assertEquals(response.status >= 400, true);
+    assertEquals(fn.callsTo("billing_portal").length, 0);
+  } finally {
+    fn.restore();
+  }
+});
+
+Deno.test("check-subscription reports no plan when Stripe has no customer", async () => {
+  const fn = await loadFunction("check-subscription", { upstreams: upstreams() });
+  try {
+    const response = await fn.handler(jsonRequest("check-subscription", {}));
+
+    assertEquals(response.status, 200);
+    const body = await response.json();
+    assertEquals(body.subscribed, false);
+    // `tier`, which is the field useSubscription reads.
+    assertEquals(body.tier, null);
+  } finally {
+    fn.restore();
+  }
+});
+
+Deno.test("check-subscription authenticates with the caller's own token", async () => {
+  const fn = await loadFunction("check-subscription", { upstreams: upstreams() });
+  try {
+    const token = fixtureJwt(USER);
+    await fn.handler(jsonRequest("check-subscription", {}, { jwt: token }));
+
+    const lookup = fn.callsTo("/auth/v1/user").at(-1);
+    assertStringIncludes(lookup?.headers.authorization ?? "", token);
+  } finally {
+    fn.restore();
+  }
+});

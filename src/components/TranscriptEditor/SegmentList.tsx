@@ -75,11 +75,22 @@ export default function SegmentList({
           {/* Between-segment divider: gap indicator + merge button */}
           {i < segments.length - 1 && (() => {
             const gap = segments[i + 1].start - seg.end;
-            const isOverlap = gap < 0;
+            // Half a millisecond, not zero. Timestamps here are seconds derived
+            // by dividing milliseconds, by summing word durations, or by a
+            // drag, so two lines meant to touch routinely differ by ~1e-16 in
+            // whichever direction. An exact `gap < 0` turned the divider red
+            // whenever the sign happened to land negative and announced
+            // "⚠ overlap 0.00s" — an alarm about a defect whose own reported
+            // size is zero. A transcript from the AI re-segmentation path is
+            // full of these, because that path rebuilds every boundary by
+            // summing word timings.
+            const isOverlap = gap < -0.0005;
             const isLargeGap = gap > 2;
+            // Clamped so noise below the epsilon reads as "gap 0.00s" rather
+            // than "gap -0.00s": toFixed keeps the sign of a negative zero.
             const gapLabel = isOverlap
               ? `⚠ overlap ${Math.abs(gap).toFixed(2)}s`
-              : `gap ${gap.toFixed(2)}s${isLargeGap ? ' ⚠' : ''}`;
+              : `gap ${Math.max(gap, 0).toFixed(2)}s${isLargeGap ? ' ⚠' : ''}`;
 
             return (
               <div className="flex items-center gap-2 py-1 px-1 group/divider">

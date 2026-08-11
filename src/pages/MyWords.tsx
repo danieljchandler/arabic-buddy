@@ -691,6 +691,9 @@ const MyWords = () => {
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                    // Icon-only and destructive, on data the learner created
+                    // themselves. Without a name it announces as just "button".
+                    aria-label={`Delete ${word.word_english}`}
                     onClick={(e) => handleDelete(word.id, e)}
                     disabled={deleteWord.isPending}
                   >

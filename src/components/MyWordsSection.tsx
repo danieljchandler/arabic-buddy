@@ -65,7 +65,12 @@ export const MyWordsSection = () => {
           <Button
             variant="default"
             size="sm"
-            onClick={() => navigate("/review/my-words")}
+            // The count above is across every dialect when Mixed is on, so the
+            // deck has to be told. Without this the button promised "Review 3
+            // due" and opened a session holding only the words from whichever
+            // dialect happened to be active — the two screens disagreed and
+            // neither explained the gap.
+            onClick={() => navigate(mixAll ? "/review/my-words?mixed=1" : "/review/my-words")}
             className="gap-1.5"
           >
             Review {stats.dueCount} due

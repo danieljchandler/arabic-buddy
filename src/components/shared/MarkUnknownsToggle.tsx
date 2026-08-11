@@ -14,24 +14,19 @@ interface Props {
  * the translation popover. Bulk-saved via SaveUnknownsBar.
  */
 export const MarkUnknownsToggle = ({ className }: Props) => {
-  const { enabled, setEnabled, unknowns, clear } = useMarkUnknowns();
+  const { enabled, setEnabled } = useMarkUnknowns();
 
   return (
     <Button
       variant={enabled ? "default" : "outline"}
       size="sm"
       className={cn("text-xs gap-1.5", className)}
-      onClick={() => {
-        if (enabled && unknowns.size === 0) {
-          setEnabled(false);
-        } else if (enabled) {
-          // already marking — leave bar to handle save/cancel
-          setEnabled(false);
-          clear();
-        } else {
-          setEnabled(true);
-        }
-      }}
+      // Turning marking off leaves the batch alone. This used to call clear()
+      // as well, so a reader who had worked down a passage marking twelve words
+      // and tapped the button — reasonably, to stop marking — lost all twelve,
+      // with no confirmation and no undo. SaveUnknownsBar shows on the count
+      // alone, so the batch survives with its Save and Discard still on screen.
+      onClick={() => setEnabled(!enabled)}
     >
       {enabled ? (
         <>

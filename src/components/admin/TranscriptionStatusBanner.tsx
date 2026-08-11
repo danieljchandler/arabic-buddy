@@ -42,10 +42,22 @@ export function TranscriptionStatusBanner() {
           <Loader2 className="h-4 w-4 animate-spin text-primary shrink-0" />
           <span className="text-sm font-semibold truncate">Transcribing in background</span>
         </div>
+        {/*
+          "Hide", not "Cancel job". Its only action is clearJob(), which drops
+          the local record: the pipeline runs in the process-approved-video edge
+          function and knows nothing about this click, so it keeps going, keeps
+          spending on the ASR and translation calls, and eventually writes its
+          result to a video the admin believed they had cancelled. Worse, this
+          banner is the only handle on that job, so an admin who meant to stop a
+          run had instead made it invisible. Actually cancelling needs an
+          endpoint that does not exist yet; until then the label should not
+          claim more than the button does.
+        */}
         <button
           onClick={clearJob}
           className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
-          aria-label="Cancel job"
+          aria-label="Hide"
+          title="Hide this banner — the transcription keeps running"
         >
           <X className="h-4 w-4" />
         </button>

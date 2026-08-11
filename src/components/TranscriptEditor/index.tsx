@@ -184,6 +184,23 @@ export default function TranscriptEditor({
           onRejectOne={() => {
             // Individual reject is a no-op — suggestion stays in diff but isn't applied
           }}
+          onKeepOne={(index) => {
+            // Put one original boundary back into the proposal, so Accept All
+            // stops merging it away. Previously a removed line had no controls
+            // at all and the only way to save one was Reject All — throwing out
+            // nineteen good changes to keep one boundary.
+            const list = (resegmentSuggestion ?? suggestedSegments)!;
+            const kept = segments[index];
+            if (!kept) return;
+            // Timings are floats built by summing word durations, so a tolerance
+            // rather than an exact comparison.
+            const EPSILON = 1e-6;
+            const overlapsKept = (s: Segment) =>
+              s.start < kept.end - EPSILON && kept.start < s.end - EPSILON;
+            setResegmentSuggestion(
+              [...list.filter((s) => !overlapsKept(s)), kept].sort((a, b) => a.start - b.start),
+            );
+          }}
         />
       )}
 

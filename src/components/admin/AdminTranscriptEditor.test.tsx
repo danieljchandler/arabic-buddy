@@ -286,22 +286,11 @@ describe("AdminTranscriptEditor — segments back out", () => {
     expect(onChange.mock.calls[0][0][0].tokens.map((t: WordToken) => t.gloss)).toEqual(["in", "at"]);
   });
 
-  /**
-   * FINDING — glosses are keyed by position, so an edit that shifts a word
-   * loses every gloss after it.
-   *
-   * The key is `segmentId:index:surface`. Deleting one word from the middle of
-   * a line renumbers everything after it, and each of those words then looks up
-   * a key that does not exist: the gloss is dropped and a new id minted, so the
-   * token reads as brand new. The same happens on an insertion, and on the
-   * words after a split point.
-   *
-   * An admin who fixes a typo in the first word of a ten-word line therefore
-   * silently discards nine hand-written glosses. Keying on surface alone would
-   * trade this for the duplicate-word collision the index was added to prevent;
-   * carrying the token id through the editor would fix both.
-   */
-  it("drops the glosses of every word after a deletion", () => {
+  it("keeps the glosses of every word after a deletion", () => {
+    // Glosses used to be keyed by position, so deleting one word renumbered
+    // the rest and each looked up a key that no longer existed. An admin who
+    // fixed a typo in the first word of a ten-word line silently discarded
+    // nine hand-written glosses.
     const { onChange } = render([
       aLine({
         tokens: [
@@ -320,23 +309,104 @@ describe("AdminTranscriptEditor — segments back out", () => {
       }),
     ]);
     expect(onChange.mock.calls[0][0][0].tokens.map((t: WordToken) => t.gloss)).toEqual([
-      undefined,
-      undefined,
+      "hello",
+      "to you",
     ]);
   });
 
-  /**
-   * FINDING — a split loses the glosses of the half that gets a new id.
-   *
-   * `splitSegment` gives one of the two halves a fresh id, and the map has no
-   * entry under it, so every word in that half comes back unglossed.
-   */
-  it("drops the glosses of a segment the editor gave a new id", () => {
+  it("keeps the ids of the surviving words too", () => {
+    // A fresh id would make the token read as brand new downstream, which is
+    // how the lost glosses went unnoticed for so long.
+    const { onChange } = render([
+      aLine({
+        tokens: [
+          token({ surface: "و", gloss: "and" }),
+          token({ surface: "مرحبا", gloss: "hello" }),
+          token({ surface: "بك", gloss: "to you" }),
+        ],
+      }),
+    ]);
+    save([
+      aSegment({
+        words: [
+          { word: "مرحبا", start: 1, end: 2, confidence: 1 },
+          { word: "بك", start: 2, end: 3, confidence: 1 },
+        ],
+      }),
+    ]);
+    expect(onChange.mock.calls[0][0][0].tokens.map((t: WordToken) => t.id)).toEqual([
+      "tok-مرحبا",
+      "tok-بك",
+    ]);
+  });
+
+  it("keeps the glosses of the words around an insertion", () => {
+    const { onChange } = render();
+    save([
+      aSegment({
+        words: [
+          { word: "مرحبا", start: 1, end: 2, confidence: 1 },
+          { word: "جدا", start: 2, end: 2.5, confidence: 1 },
+          { word: "بك", start: 2.5, end: 3, confidence: 1 },
+        ],
+      }),
+    ]);
+    expect(onChange.mock.calls[0][0][0].tokens.map((t: WordToken) => t.gloss)).toEqual([
+      "hello",
+      undefined,
+      "to you",
+    ]);
+  });
+
+  it("keeps the glosses of a segment the editor gave a new id", () => {
+    // splitSegment gives one of the two halves a fresh id, so its words have
+    // no line of their own to look in and fall back to the transcript's pool.
     const { onChange } = render();
     save([aSegment({ id: "line-1-split-2" })]);
-    expect(onChange.mock.calls[0][0][0].tokens.every((t: WordToken) => t.gloss === undefined)).toBe(
-      true,
-    );
+    expect(onChange.mock.calls[0][0][0].tokens.map((t: WordToken) => t.gloss)).toEqual([
+      "hello",
+      "to you",
+    ]);
+  });
+
+  it("gives each half of a split its own glosses rather than the same one twice", () => {
+    const { onChange } = render();
+    save([
+      aSegment({
+        id: "line-1",
+        words: [{ word: "مرحبا", start: 1, end: 2, confidence: 1 }],
+      }),
+      aSegment({
+        id: "line-1-split-2",
+        words: [{ word: "بك", start: 2, end: 3, confidence: 1 }],
+      }),
+    ]);
+    const [first, second] = onChange.mock.calls[0][0];
+    expect(first.tokens.map((t: WordToken) => t.gloss)).toEqual(["hello"]);
+    expect(second.tokens.map((t: WordToken) => t.gloss)).toEqual(["to you"]);
+  });
+
+  it("does not hand the same gloss to two occurrences of a word", () => {
+    // Each cached token is claimed once, which is what the old positional key
+    // was really protecting.
+    const { onChange } = render([
+      aLine({
+        tokens: [
+          token({ surface: "في", id: "t0", gloss: "in" }),
+          token({ surface: "في", id: "t1", gloss: "at" }),
+        ],
+      }),
+    ]);
+    save([
+      aSegment({
+        id: "renamed",
+        words: [
+          { word: "في", start: 1, end: 2, confidence: 1 },
+          { word: "في", start: 2, end: 3, confidence: 1 },
+        ],
+      }),
+    ]);
+    expect(onChange.mock.calls[0][0][0].tokens.map((t: WordToken) => t.gloss)).toEqual(["in", "at"]);
   });
 
   it("keeps the glosses of a word whose spelling was corrected out of reach", () => {
@@ -477,17 +547,11 @@ describe("AdminTranscriptEditor — AI re-segmentation", () => {
     );
   });
 
-  /**
-   * FINDING — the failure toast never carries a usable reason.
-   *
-   * supabase-js raises `FunctionsHttpError` with the fixed message "Edge
-   * Function returned a non-2xx status code" for every non-2xx, whatever the
-   * function actually said; the status and body live on `error.context`, which
-   * this handler does not read. So a 429 over-quota, a 400 bad request and a
-   * 500 crash all show the admin the same line, and the "Unknown error"
-   * fallback is unreachable from an HTTP failure.
-   */
-  it("shows the same opaque reason whatever the function returned", async () => {
+  it("shows what the function actually said", async () => {
+    // supabase-js raises FunctionsHttpError with the fixed message "Edge
+    // Function returned a non-2xx status code" for every non-2xx, so a 429
+    // over-quota, a 400 bad request and a 500 crash all reached the admin as
+    // the same opaque line. The status and body are on `error.context`.
     const { backend } = render();
     backend.stubFunctionFailure("ai-resegment-transcript", 429, {
       error: "rate_limited",
@@ -500,8 +564,36 @@ describe("AdminTranscriptEditor — AI re-segmentation", () => {
 
     expect(toast).toHaveBeenCalledWith(
       expect.objectContaining({
-        description: "Edge Function returned a non-2xx status code",
+        description: "429: Too many re-segmentation requests, try again in an hour",
       }),
+    );
+  });
+
+  it("distinguishes one failure from another", async () => {
+    const { backend } = render();
+    backend.stubFunctionFailure("ai-resegment-transcript", 400, {
+      error: "transcript_too_long",
+    });
+
+    await act(async () => {
+      await props().onAIResegment?.(segments);
+    });
+
+    expect(toast).toHaveBeenCalledWith(
+      expect.objectContaining({ description: "400: transcript_too_long" }),
+    );
+  });
+
+  it("falls back to the status when the body says nothing useful", async () => {
+    const { backend } = render();
+    backend.stubFunctionFailure("ai-resegment-transcript", 500, {});
+
+    await act(async () => {
+      await props().onAIResegment?.(segments);
+    });
+
+    expect(toast).toHaveBeenCalledWith(
+      expect.objectContaining({ description: "The server returned 500." }),
     );
   });
 });

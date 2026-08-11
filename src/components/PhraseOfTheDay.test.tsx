@@ -2,6 +2,7 @@ import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { renderWithProviders } from "@/test/support/react/harness";
 import { aProfile, TEST_USER_ID } from "@/test/support/factories";
+import { useAiAssistant } from "@/contexts/AiAssistantContext";
 import { PhraseOfTheDay } from "./PhraseOfTheDay";
 import type { SupabaseBackend } from "@/test/support/server/handler";
 import type { Persona } from "@/test/support/personas";
@@ -47,6 +48,20 @@ afterEach(() => {
   localStorage.clear();
 });
 
+/**
+ * Reads what the card told the global assistant, the way the Ask AI panel
+ * would: the published page context and the seed a chip click sets.
+ */
+function AssistantProbe() {
+  const { pageContext, seed, isOpen } = useAiAssistant();
+  return (
+    <>
+      <div data-testid="ai-page-context">{pageContext?.content ?? ""}</div>
+      <div data-testid="ai-seed">{isOpen ? (seed?.arabic ?? "") : ""}</div>
+    </>
+  );
+}
+
 interface Options {
   persona?: Persona;
   dialect?: string;
@@ -55,16 +70,22 @@ interface Options {
 
 function render({ persona = "free", dialect = "Gulf", seed }: Options = {}) {
   localStorage.setItem("hakiya_dialect_module", dialect);
-  const harness = renderWithProviders(<PhraseOfTheDay />, {
-    persona,
-    seed: (backend) => {
-      backend.db.seed("profiles", [
-        aProfile({ user_id: TEST_USER_ID, preferred_dialect: dialect }),
-      ]);
-      backend.stubFunction("phrase-of-the-day", aPhrase());
-      seed?.(backend);
+  const harness = renderWithProviders(
+    <>
+      <PhraseOfTheDay />
+      <AssistantProbe />
+    </>,
+    {
+      persona,
+      seed: (backend) => {
+        backend.db.seed("profiles", [
+          aProfile({ user_id: TEST_USER_ID, preferred_dialect: dialect }),
+        ]);
+        backend.stubFunction("phrase-of-the-day", aPhrase());
+        seed?.(backend);
+      },
     },
-  });
+  );
   cleanup = harness.cleanup;
   return harness;
 }
@@ -265,6 +286,57 @@ describe("saving it", () => {
     // The card is worth showing to somebody who has not signed up — it is the
     // clearest sample of what the app teaches — but there is nowhere to keep it.
     expect(backend.db.writesTo("user_phrases")).toEqual([]);
+  });
+});
+
+describe("telling the assistant what's on screen", () => {
+  it("publishes today's phrase as the page context", async () => {
+    render();
+    await waitFor(() => expect(screen.getByText("How are you?")).toBeInTheDocument());
+
+    // "Tell me about the phrase of the day" must be answered about THIS
+    // phrase; without the published context the assistant invents one.
+    await waitFor(() =>
+      expect(screen.getByTestId("ai-page-context").textContent).toContain("شخبارك؟"),
+    );
+    const ctx = screen.getByTestId("ai-page-context").textContent!;
+    expect(ctx).toContain("shakhbarak?");
+    expect(ctx).toContain("How are you?");
+  });
+
+  it("tells the assistant the Arabic is still hidden until it is revealed", async () => {
+    render();
+    await waitFor(() =>
+      expect(screen.getByTestId("ai-page-context").textContent).toContain("hidden"),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /reveal arabic/i }));
+
+    // Once revealed, the "hidden" caveat would just be wrong.
+    await waitFor(() =>
+      expect(screen.getByTestId("ai-page-context").textContent).not.toContain("hidden"),
+    );
+  });
+
+  it("publishes nothing while there is no phrase to talk about", async () => {
+    const { backend } = render({
+      seed: (b) => b.stubFunctionFailure("phrase-of-the-day", 500, { error: "gateway down" }),
+    });
+
+    await waitFor(() => expect(backend.callsTo("phrase-of-the-day").length).toBeGreaterThan(0));
+    // The route's generic hint is better than a stale or empty phrase block.
+    expect(screen.getByTestId("ai-page-context").textContent).toBe("");
+  });
+
+  it("opens the assistant seeded with the phrase from the Ask AI chip", async () => {
+    render();
+    await waitFor(() => expect(screen.getByText("How are you?")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole("button", { name: /ask ai/i }));
+
+    // The chip pins the conversation to this exact phrase, so follow-up
+    // questions ("why this word order?") have a stable referent.
+    expect(screen.getByTestId("ai-seed").textContent).toBe("شخبارك؟");
   });
 });
 

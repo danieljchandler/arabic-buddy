@@ -8,6 +8,7 @@ import {
   Languages,
   LayoutGrid,
   Quote,
+  Sparkles,
   X,
 } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -35,6 +36,7 @@ const KIND_META: Record<ContextKind, { icon: typeof Quote; label: string }> = {
   passage: { icon: FileText, label: "In this passage" },
   drill: { icon: Dumbbell, label: "In this drill" },
   word: { icon: Languages, label: "This word" },
+  phrase: { icon: Sparkles, label: "This phrase" },
   page: { icon: LayoutGrid, label: "On this page" },
 };
 

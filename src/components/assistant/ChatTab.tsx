@@ -1,0 +1,210 @@
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Link, useLocation } from "react-router-dom";
+import { Loader2, Send } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { useAiAssistant } from "@/contexts/AiAssistantContext";
+import { useDialect } from "@/contexts/DialectContext";
+import { useAuth } from "@/hooks/useAuth";
+import { buildPagePayload } from "@/lib/pageAiContext";
+import { streamChat, SseChatError } from "@/lib/sseChat";
+import { showCapToast } from "@/lib/handleCapResponse";
+import { TinyMarkdown } from "@/components/shared/TinyMarkdown";
+import { TappableArabicText } from "@/components/shared/TappableArabicText";
+import { cn } from "@/lib/utils";
+import { toast } from "sonner";
+
+const SUGGESTED_SEEDED = [
+  "Why is it translated like this?",
+  "Explain the grammar",
+  "Tell me more",
+  "Give me alternatives",
+];
+
+const SUGGESTED_PAGE = [
+  "What am I looking at?",
+  "Explain this in simple terms",
+  "Quiz me on this",
+  "What should I learn next?",
+];
+
+export function ChatTab() {
+  const { seed, messages, setMessages, pageContext } = useAiAssistant();
+  const { activeDialect } = useDialect();
+  const { user, loading: authLoading } = useAuth();
+  const { pathname } = useLocation();
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages]);
+
+  useEffect(() => () => abortRef.current?.abort(), []);
+
+  const send = useCallback(
+    async (text: string) => {
+      const trimmed = text.trim();
+      if (!trimmed || loading) return;
+
+      const nextMessages = [...messages, { role: "user" as const, content: trimmed }];
+      setMessages(nextMessages);
+      setInput("");
+      setLoading(true);
+
+      abortRef.current?.abort();
+      const ctrl = new AbortController();
+      abortRef.current = ctrl;
+
+      try {
+        setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
+        await streamChat({
+          functionName: "assistant-chat",
+          signal: ctrl.signal,
+          body: {
+            dialect: activeDialect,
+            messages: nextMessages,
+            seed: seed ?? undefined,
+            pageContext: buildPagePayload(pathname, pageContext),
+          },
+          onDelta: (_delta, accumulated) => {
+            setMessages((prev) => {
+              const copy = [...prev];
+              copy[copy.length - 1] = { role: "assistant", content: accumulated };
+              return copy;
+            });
+          },
+        });
+      } catch (err) {
+        if ((err as Error)?.name !== "AbortError") {
+          if (err instanceof SseChatError) {
+            if (err.status === 429) {
+              showCapToast((err.body as Parameters<typeof showCapToast>[0]) ?? {});
+            } else if (err.status === 402) {
+              toast.error("AI credits exhausted");
+            } else if (err.status === 401) {
+              toast.error("Please sign in to chat");
+            } else {
+              toast.error("Couldn't reach the assistant");
+            }
+          } else {
+            console.error(err);
+            toast.error("Something went wrong");
+          }
+          // Drop the empty assistant placeholder, keep the user's message.
+          setMessages((prev) =>
+            prev.length && prev[prev.length - 1].role === "assistant" && !prev[prev.length - 1].content
+              ? prev.slice(0, -1)
+              : prev,
+          );
+        }
+      } finally {
+        setLoading(false);
+      }
+    },
+    [messages, setMessages, loading, activeDialect, seed, pathname, pageContext],
+  );
+
+  if (!user && !authLoading) {
+    return (
+      <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
+        <p className="text-sm text-muted-foreground">
+          Sign in to ask the AI tutor about anything you see in the app.
+        </p>
+        <Button asChild size="sm">
+          <Link to="/auth">Sign in</Link>
+        </Button>
+      </div>
+    );
+  }
+
+  const suggestions = seed ? SUGGESTED_SEEDED : SUGGESTED_PAGE;
+
+  return (
+    <>
+      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-3 min-h-[180px]">
+        {messages.length === 0 && (
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground">
+              {seed
+                ? "Ask anything — translation choices, grammar, vocabulary, culture…"
+                : "Ask about what's on this page, or anything about Arabic."}
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {suggestions.map((s) => (
+                <button
+                  key={s}
+                  onClick={() => send(s)}
+                  className="text-xs rounded-full border border-border bg-background px-2.5 py-1 hover:bg-primary/10 hover:border-primary/40 transition-colors"
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {messages.map((m, i) => (
+          <div
+            key={i}
+            className={cn(
+              "rounded-lg px-3 py-2 text-sm",
+              m.role === "user"
+                ? "bg-primary/10 ml-6"
+                : "bg-muted/50 mr-6 prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1",
+            )}
+          >
+            {m.role === "assistant" ? (
+              m.content ? (
+                <TinyMarkdown
+                  source={m.content}
+                  renderArabicRun={(text) => (
+                    <TappableArabicText
+                      text={text}
+                      source="ask-ai"
+                      className="inline"
+                      sentenceContext={seed ? { arabic: seed.arabic, english: seed.english } : undefined}
+                    />
+                  )}
+                />
+              ) : (
+                <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+              )
+            ) : (
+              <p>{m.content}</p>
+            )}
+          </div>
+        ))}
+      </div>
+
+      <div className="border-t p-3 flex gap-2">
+        <Textarea
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              send(input);
+            }
+          }}
+          placeholder="Ask a question…"
+          rows={1}
+          className="resize-none min-h-[40px] text-sm"
+          disabled={loading}
+        />
+        <Button
+          size="icon"
+          onClick={() => send(input)}
+          disabled={loading || !input.trim()}
+          aria-label="Send"
+        >
+          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+        </Button>
+      </div>
+    </>
+  );
+}

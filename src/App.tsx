@@ -7,6 +7,8 @@ import { toast } from "sonner";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { DialectProvider } from "@/contexts/DialectContext";
+import { AiAssistantProvider } from "@/contexts/AiAssistantContext";
+import { AssistantMount } from "@/components/assistant/AssistantMount";
 import { lazyRetry } from "@/lib/lazyRetry";
 import { PageSkeleton } from "@/components/ui/skeleton-page";
 import { logClientError } from "@/lib/errorLog";
@@ -216,6 +218,7 @@ const App = () => {
       <TooltipProvider>
         <Sonner />
         <BrowserRouter>
+          <AiAssistantProvider>
           <Suspense fallback={<PageSkeleton />}>
           <Routes>
             {/* Public learning app */}
@@ -471,6 +474,8 @@ const App = () => {
             <Route path="*" element={<NotFound />} />
           </Routes>
           </Suspense>
+          <AssistantMount />
+          </AiAssistantProvider>
         </BrowserRouter>
       </TooltipProvider>
       </DialectProvider>

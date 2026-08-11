@@ -146,36 +146,28 @@ describe("ChatSidebar — when each session was last touched", () => {
     expect(screen.queryByText("7d ago")).not.toBeInTheDocument();
   });
 
-  /**
-   * FINDING — a timestamp from slightly ahead of the browser reads as "-1d ago".
-   *
-   * `updated_at` is written by Postgres and rendered against the browser's
-   * clock, so the two disagree by however far the admin's machine has drifted
-   * — and a session saved seconds ago routinely comes back a moment in the
-   * future. `Math.floor` of a small negative difference is -1, which is neither
-   * 0 nor 1 but is `< 7`, so the row says "-1d ago" for the session the admin
-   * is working in right now. Clamping the difference at zero would fix it.
-   */
-  it("describes a moment in the future as a day ago, negatively", () => {
+  it("describes a moment in the future as today", () => {
+    // `updated_at` is written by Postgres and rendered against the browser's
+    // clock, so a session saved seconds ago routinely comes back a moment in
+    // the future — and Math.floor of a small negative difference is -1, which
+    // is neither 0 nor 1 but is < 7, so the row said "-1d ago" for the session
+    // the admin was working in right then.
     renderSidebar({
       sessions: [aSession({ updated_at: new Date(NOW.getTime() + 2000).toISOString() })],
     });
-    expect(screen.getByText("-1d ago")).toBeInTheDocument();
+    expect(screen.getByText("Today")).toBeInTheDocument();
+    expect(screen.queryByText("-1d ago")).not.toBeInTheDocument();
   });
 
-  /**
-   * FINDING — a dialect the picker does not list loses its flag silently.
-   *
-   * `getDialectFlag` falls back to an empty string, so the row renders a
-   * leading space and then the name. Sessions are stored with whatever dialect
-   * they were created under, so a dialect retired from DIALECT_OPTIONS leaves
-   * its old sessions looking subtly broken rather than clearly legacy.
-   */
-  it("renders a bare space where an unknown dialect's flag would go", () => {
+  it("gives an unknown dialect a placeholder flag", () => {
+    // Sessions keep whatever dialect they were created under, so a dialect
+    // retired from DIALECT_OPTIONS still has rows. Falling back to an empty
+    // string rendered a leading space and then the name — subtly broken rather
+    // than clearly legacy.
     renderSidebar({
       sessions: [aSession({ target_dialect: "Levantine" as ChatSession["target_dialect"] })],
     });
-    expect(screen.getByText("Levantine")).toBeInTheDocument();
+    expect(screen.getByText("🏳️ Levantine")).toBeInTheDocument();
   });
 });
 
@@ -243,18 +235,23 @@ describe("ChatSidebar — archiving", () => {
     expect(onSelectSession).not.toHaveBeenCalled();
   });
 
-  /**
-   * FINDING — the archive control is invisible until the row is hovered.
-   *
-   * `opacity-0 group-hover:opacity-100` hides it from anyone not using a
-   * pointer. It stays in the tab order and stays clickable, so a keyboard user
-   * tabs onto a control they cannot see, with no focus-visible rule to bring it
-   * back — and on a touch screen, where there is no hover state at all, there
-   * is no way to archive a session.
-   */
-  it("hides itself from anyone without a mouse", () => {
+  it("shows itself to a keyboard user who tabs onto it", () => {
+    // `opacity-0 group-hover:opacity-100` alone left a keyboard user tabbing
+    // onto a control they could not see: it stayed in the tab order and stayed
+    // clickable, with nothing to bring it back into view.
+    renderSidebar();
+    expect(archiveButton().className).toContain("focus-visible:opacity-100");
+  });
+
+  it("shows itself on a screen that has no hover at all", () => {
+    // Touch has no hover state, so hiding behind it left no way to archive.
+    renderSidebar();
+    expect(archiveButton().className).toContain("[@media(hover:none)]:opacity-100");
+  });
+
+  it("still keeps out of the way of a pointer user", () => {
     renderSidebar();
     expect(archiveButton().className).toContain("opacity-0");
-    expect(archiveButton().className).not.toContain("focus");
+    expect(archiveButton().className).toContain("group-hover:opacity-100");
   });
 });

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Popover,
@@ -72,13 +73,33 @@ interface QuickActionsMenuProps {
 }
 
 export const QuickActionsMenu = ({ currentMode, onSelect, disabled }: QuickActionsMenuProps) => {
-  const activeAction = GROUPS.flatMap((g) => g.actions).find(
-    (a) => a.mode === currentMode && a.mode !== 'chat',
-  );
+  const [open, setOpen] = useState(false);
+  /**
+   * The reference action the admin last picked.
+   *
+   * "Compare Dialects" and "Translate" both use mode `chat`, and `currentMode`
+   * is the only thing the parent reports — so neither could ever be found by
+   * mode, and selecting one prefilled the prompt while leaving the trigger
+   * saying "Generate". The admin got no confirmation the click registered and
+   * no way to tell afterwards which of the two prefixes was in play.
+   *
+   * Held here because it is presentation state: it is dropped as soon as the
+   * mode moves on to something the mode lookup can name for itself.
+   */
+  const [lastChosen, setLastChosen] = useState<QuickAction | null>(null);
+
+  const activeAction =
+    GROUPS.flatMap((g) => g.actions).find((a) => a.mode === currentMode && a.mode !== 'chat') ??
+    (lastChosen?.mode === currentMode ? lastChosen : null);
   const ActiveIcon = activeAction?.icon ?? Plus;
 
+  const isActive = (action: QuickAction) =>
+    action.mode !== 'chat'
+      ? action.mode === currentMode
+      : currentMode === 'chat' && lastChosen?.label === action.label;
+
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
           type="button"
@@ -103,11 +124,17 @@ export const QuickActionsMenu = ({ currentMode, onSelect, disabled }: QuickActio
                   <button
                     key={action.label}
                     type="button"
-                    onClick={() => onSelect(action)}
+                    // Closes on the way out. The popover was uncontrolled and
+                    // these are plain buttons rather than PopoverClose, so the
+                    // 72-unit panel stayed sitting on top of the input the admin
+                    // now needed to type the topic into.
+                    onClick={() => {
+                      setLastChosen(action);
+                      onSelect(action);
+                      setOpen(false);
+                    }}
                     className={`flex items-center gap-2 px-2 py-1.5 rounded-md text-xs text-left hover:bg-muted transition-colors ${
-                      action.mode === currentMode && action.mode !== 'chat'
-                        ? 'bg-muted ring-1 ring-primary/40'
-                        : ''
+                      isActive(action) ? 'bg-muted ring-1 ring-primary/40' : ''
                     }`}
                   >
                     <action.icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />

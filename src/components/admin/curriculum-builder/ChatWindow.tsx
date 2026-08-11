@@ -65,7 +65,15 @@ export const ChatWindow = ({
         )}
 
         {messages.map((msg) => {
-          const meta = msg.output_type ? TYPE_META[msg.output_type] : null;
+          // Falls back rather than disappearing. The button used to be gated on
+          // a TYPE_META hit, and the edge function decides output_type — so
+          // adding a generator server-side, the normal way this feature grows,
+          // produced messages whose draft was generated, stored and stripped
+          // from the prose, and which the admin had no way to open or approve.
+          // Silent in both directions: no button, no label, no warning.
+          const meta = msg.output_type
+            ? TYPE_META[msg.output_type] ?? { label: humanizeOutputType(msg.output_type), icon: '📄' }
+            : null;
           const isSelected = selectedMessageId === msg.id;
           return (
             <div key={msg.id}>
@@ -90,8 +98,21 @@ export const ChatWindow = ({
                       {getModelName(msg.llm_model)}
                     </Badge>
                   )}
+                  {/*
+                    A model that answers with the JSON and no prose — which the
+                    terser ones do routinely, and the prompt does not forbid —
+                    left this bubble empty. With no output_type either, the
+                    admin saw a blank grey box and could not tell a silent model
+                    from a broken one.
+                  */}
                   <div className="text-sm whitespace-pre-wrap leading-relaxed">
-                    {renderContent(msg.content)}
+                    {renderContent(msg.content) || (
+                      <span className="italic text-muted-foreground">
+                        {msg.structured_output
+                          ? 'Draft returned with no message.'
+                          : 'The model returned nothing.'}
+                      </span>
+                    )}
                   </div>
 
                   {meta && msg.structured_output && (
@@ -136,4 +157,11 @@ export const ChatWindow = ({
 
 function renderContent(content: string): string {
   return content.replace(/```json[\s\S]*?```/g, '').trim();
+}
+
+/** "pronunciation_drill_preview" -> "Pronunciation drill". */
+function humanizeOutputType(outputType: string): string {
+  const words = outputType.replace(/_preview$/, '').split('_').filter(Boolean);
+  if (words.length === 0) return 'Draft';
+  return words.join(' ').replace(/^./, (c) => c.toUpperCase());
 }

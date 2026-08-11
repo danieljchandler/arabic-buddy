@@ -19,14 +19,22 @@ export const ChatSidebar = ({
   onNewSession,
   onArchiveSession,
 }: ChatSidebarProps) => {
+  // A dialect retired from DIALECT_OPTIONS keeps its old sessions, and falling
+  // back to an empty string rendered a leading space and then the name — the row
+  // looked subtly broken rather than clearly legacy.
   const getDialectFlag = (dialect: string) => {
-    return DIALECT_OPTIONS.find((d) => d.value === dialect)?.flag ?? '';
+    return DIALECT_OPTIONS.find((d) => d.value === dialect)?.flag ?? '🏳️';
   };
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
     const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
+    // Clamped at zero. `updated_at` is written by Postgres and rendered against
+    // the browser's clock, so a session saved seconds ago routinely comes back
+    // a moment in the future — and Math.floor of a small negative difference is
+    // -1, which is neither 0 nor 1 but is < 7, so the row said "-1d ago" for
+    // the session the admin was working in right then.
+    const diffMs = Math.max(0, now.getTime() - date.getTime());
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
     if (diffDays === 0) return 'Today';
@@ -88,7 +96,11 @@ export const ChatSidebar = ({
                       e.stopPropagation();
                       onArchiveSession(session.id);
                     }}
-                    className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-muted rounded"
+                    // Also on focus, and always on a touch screen. Hiding it
+                    // behind hover alone left a keyboard user tabbing onto a
+                    // control they could not see, and gave a touch screen — with
+                    // no hover state at all — no way to archive a session.
+                    className="opacity-0 focus:opacity-100 focus-visible:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity p-1 hover:bg-muted rounded"
                     title="Archive session"
                   >
                     <Archive className="h-3.5 w-3.5 text-muted-foreground" />

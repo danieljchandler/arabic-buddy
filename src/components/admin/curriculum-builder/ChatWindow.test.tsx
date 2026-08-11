@@ -183,23 +183,32 @@ describe("ChatWindow — hiding the JSON", () => {
     expect(screen.getByText(/مرحبا/)).toBeInTheDocument();
   });
 
-  /**
-   * FINDING — a reply that is only a payload renders as an empty bubble.
-   *
-   * `renderContent` strips the fence and trims, so a model that answers with
-   * the JSON and no prose — which the terser models do routinely, and which the
-   * prompt does not forbid — leaves a bubble containing nothing at all. If the
-   * message also has no `output_type` the admin sees an empty grey box and no
-   * button, with no way to tell a silent model from a broken one.
-   */
-  it("renders an empty bubble for a reply that was all payload", () => {
-    const { container } = renderWindow({
+  it("says so when a reply was all payload and nothing else", () => {
+    // The terser models answer with the JSON and no prose routinely, and the
+    // prompt does not forbid it — which left an empty grey box the admin could
+    // not tell from a broken model.
+    renderWindow({
       messages: [aMessage({ content: '```json\n{"title":"Greetings"}\n```' })],
     });
-    const bubble = container.querySelector(".whitespace-pre-wrap");
-    expect(bubble).toBeInTheDocument();
-    expect(bubble).toBeEmptyDOMElement();
-    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    expect(screen.getByText("The model returned nothing.")).toBeInTheDocument();
+  });
+
+  it("distinguishes a silent model from one that returned a draft", () => {
+    renderWindow({
+      messages: [
+        aMessage({
+          content: '```json\n{"title":"Greetings"}\n```',
+          structured_output: { title: "Greetings" },
+        }),
+      ],
+    });
+    expect(screen.getByText("Draft returned with no message.")).toBeInTheDocument();
+  });
+
+  it("says nothing extra when there is prose to show", () => {
+    renderWindow({ messages: [aMessage({ content: "Here is your lesson." })] });
+    expect(screen.getByText("Here is your lesson.")).toBeInTheDocument();
+    expect(screen.queryByText(/returned nothing/)).not.toBeInTheDocument();
   });
 });
 
@@ -253,23 +262,30 @@ describe("ChatWindow — the preview button", () => {
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 
-  /**
-   * FINDING — a preview type the front end has not been taught about is
-   * unreachable.
-   *
-   * The button is gated on `TYPE_META[msg.output_type]`, and an unrecognised
-   * type maps to nothing. The edge function decides that value, so adding a
-   * generator server-side — the normal way this feature grows — produces
-   * messages whose draft was generated, stored and stripped from the prose, and
-   * which the admin has no way to open or approve. The failure is silent in
-   * both directions: no button, no fallback label, no console warning.
-   */
-  it("hides a draft whose type it does not recognise", () => {
+  it("still offers a draft whose type it does not recognise", () => {
+    // The edge function decides output_type, so adding a generator server-side
+    // — the normal way this feature grows — produced messages whose draft was
+    // generated, stored and stripped from the prose, and which the admin had no
+    // way to open or approve.
     renderWindow({
       messages: [withDraft({ output_type: "pronunciation_drill_preview" })],
     });
-    expect(screen.queryByRole("button")).not.toBeInTheDocument();
-    expect(screen.queryByText(/ready$/)).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Pronunciation drill ready/ }),
+    ).toBeInTheDocument();
+  });
+
+  it("opens an unrecognised draft like any other", () => {
+    const { onSelectPreview } = renderWindow({
+      messages: [withDraft({ id: "m9", output_type: "pronunciation_drill_preview" })],
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Pronunciation drill ready/ }));
+    expect(onSelectPreview).toHaveBeenCalledWith("m9");
+  });
+
+  it("prefers the authored label for a type it does know", () => {
+    renderWindow({ messages: [withDraft({ output_type: "lesson_preview" })] });
+    expect(screen.getByRole("button", { name: /Lesson ready/ })).toBeInTheDocument();
   });
 });
 

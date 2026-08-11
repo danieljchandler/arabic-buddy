@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { ChatMode } from "./ChatInput";
 import { QuickActionsMenu } from "./QuickActionsMenu";
@@ -47,19 +47,24 @@ describe("QuickActionsMenu — the trigger", () => {
     expect(screen.getByRole("button")).toBeDisabled();
   });
 
-  /**
-   * FINDING — the two reference actions leave the trigger saying "Generate".
-   *
-   * "Compare Dialects" and "Translate" both use mode `chat`, and the lookup
-   * that decides the trigger's label explicitly skips `chat`
-   * (`a.mode === currentMode && a.mode !== 'chat'`). So selecting either one
-   * prefills the prompt but leaves the button looking untouched — the admin has
-   * no confirmation that the click registered, and no way to tell afterwards
-   * which of the two prefixes is in play.
-   */
-  it("shows no sign that a reference action was chosen", () => {
+  it("says Generate until something is chosen", () => {
     render(<QuickActionsMenu currentMode="chat" onSelect={vi.fn()} />);
     expect(screen.getByRole("button", { name: /Generate/ })).toBeInTheDocument();
+  });
+
+  it("names the reference action that was chosen", async () => {
+    // Both reference actions use mode `chat`, and currentMode is all the parent
+    // reports — so neither could be found by mode, and picking one prefilled
+    // the prompt while leaving the trigger looking untouched.
+    await openMenu("chat");
+    fireEvent.click(action("Translate"));
+    expect(screen.getByRole("button", { name: /Translate/ })).toBeInTheDocument();
+  });
+
+  it("tells the two reference actions apart", async () => {
+    await openMenu("chat");
+    fireEvent.click(action("Compare Dialects"));
+    expect(screen.getByRole("button", { name: /Compare Dialects/ })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Translate/ })).not.toBeInTheDocument();
   });
 });
@@ -138,18 +143,18 @@ describe("QuickActionsMenu — the menu", () => {
     expect(action("Compare Dialects").className).not.toContain("ring-1");
   });
 
-  /**
-   * FINDING — the menu stays open over the composer after a choice.
-   *
-   * Nothing closes it: the popover is uncontrolled and the action buttons are
-   * plain buttons rather than `PopoverClose`. So an admin picks a generator and
-   * the 72-unit panel stays sitting on top of the input they now need to type
-   * the topic into, until they click elsewhere to dismiss it.
-   */
-  it("does not close when an action is picked", async () => {
+  it("closes when an action is picked", async () => {
+    // The popover was uncontrolled and these are plain buttons rather than
+    // PopoverClose, so the panel stayed sitting on top of the input the admin
+    // now needed to type the topic into.
     await openMenu();
     fireEvent.click(action("Lesson"));
-    expect(screen.getByText("Brainstorm")).toBeInTheDocument();
-    expect(action("Vocabulary")).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText("Brainstorm")).not.toBeInTheDocument());
+  });
+
+  it("still reports the choice to the caller", async () => {
+    const { onSelect } = await openMenu();
+    fireEvent.click(action("Lesson"));
+    expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({ label: "Lesson" }));
   });
 });

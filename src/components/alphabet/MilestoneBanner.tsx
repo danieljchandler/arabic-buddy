@@ -5,6 +5,8 @@ import { cn } from "@/lib/utils";
 
 const STORAGE_KEY = "hakiya:alphabet:milestone-seen";
 
+const THRESHOLDS = [7, 14, 21, 28];
+
 function getSeen(): number[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -14,10 +16,26 @@ function getSeen(): number[] {
   }
 }
 
+/**
+ * Records the dismissed milestone *and every one below it*.
+ *
+ * Recording only the threshold that was on screen made the banner count
+ * downwards. A learner whose progress arrives in one go — which is what happens
+ * on a second device, or on any account restored from the server — is
+ * congratulated on 28, dismisses it, and next visit is congratulated on 21.
+ * Then 14. Then 7: four celebrations of milestones they passed weeks ago, each
+ * a smaller number than the last. Worse, the effect reruns on `masteredCount`,
+ * so the next one arrived without even a reload.
+ *
+ * Marking everything at or below is what "show the highest unseen" already
+ * implies: crossing 28 means 21 happened too.
+ */
 function markSeen(threshold: number) {
   try {
     const cur = new Set(getSeen());
-    cur.add(threshold);
+    for (const t of THRESHOLDS) {
+      if (t <= threshold) cur.add(t);
+    }
     localStorage.setItem(STORAGE_KEY, JSON.stringify([...cur]));
   } catch {
     /* ignore */
@@ -27,8 +45,6 @@ function markSeen(threshold: number) {
 interface Props {
   masteredCount: number;
 }
-
-const THRESHOLDS = [7, 14, 21, 28];
 
 /**
  * One-time celebratory banner shown when the learner crosses 7/14/21/28 mastered letters.

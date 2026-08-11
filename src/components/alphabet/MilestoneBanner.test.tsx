@@ -159,59 +159,49 @@ describe("MilestoneBanner — remembering it has been seen", () => {
     setItem.mockRestore();
   });
 
-  /**
-   * FINDING — dismissing the top milestone makes the banner count downwards.
-   *
-   * `markSeen` records only the threshold that was on screen. A learner who
-   * reaches 28 — or whose progress simply loads in one go, which is what
-   * happens on any second device — is congratulated on 28, dismisses it, and
-   * on the next visit is congratulated on 21. Then 14. Then 7. Four visits of
-   * celebrating achievements they passed weeks ago, each one a smaller number
-   * than the last.
-   *
-   * Marking every threshold at or below the active one would fix it, and is
-   * what "show the highest unseen" already implies.
-   */
-  it("congratulates a learner on 21 letters after they dismissed 28", () => {
+  it("does not count downwards after the top milestone is dismissed", () => {
+    // A learner whose progress arrives in one go — a second device, or an
+    // account restored from the server — used to be congratulated on 28, then
+    // 21, then 14, then 7: four celebrations of milestones long past, each a
+    // smaller number than the last.
     const first = render(<MilestoneBanner masteredCount={28} />);
     expect(screen.getByText("28 letters mastered!")).toBeInTheDocument();
     dismiss();
     first.unmount();
 
     render(<MilestoneBanner masteredCount={28} />);
-    expect(screen.getByText("21 letters mastered!")).toBeInTheDocument();
-  });
-
-  it("keeps descending on each subsequent visit", () => {
-    for (const expected of [28, 21, 14, 7]) {
-      const view = render(<MilestoneBanner masteredCount={28} />);
-      expect(screen.getByText(`${expected} letters mastered!`)).toBeInTheDocument();
-      dismiss();
-      view.unmount();
-    }
-
-    render(<MilestoneBanner masteredCount={28} />);
     expect(banner()).not.toBeInTheDocument();
   });
 
-  /**
-   * FINDING — a dismissed banner comes straight back when the count moves.
-   *
-   * The effect reruns on `masteredCount`, and after a dismissal the next
-   * unseen lower threshold is still a candidate. Mastering one more letter
-   * immediately after dismissing the 28 banner puts the 21 banner on screen
-   * without leaving the page.
-   */
-  it("returns without a reload when one more letter is mastered", () => {
+  it("records every threshold the dismissed one implies", () => {
+    render(<MilestoneBanner masteredCount={28} />);
+    dismiss();
+    expect(JSON.parse(localStorage.getItem(STORAGE_KEY)!).sort((a: number, b: number) => a - b))
+      .toEqual([7, 14, 21, 28]);
+  });
+
+  it("leaves the milestones above the dismissed one still to come", () => {
+    // Only what the learner has actually passed is marked, so a banner they
+    // have not earned yet is still waiting for them.
+    const first = render(<MilestoneBanner masteredCount={14} />);
+    dismiss();
+    first.unmount();
+
+    render(<MilestoneBanner masteredCount={21} />);
+    expect(screen.getByText("21 letters mastered!")).toBeInTheDocument();
+  });
+
+  it("stays dismissed when one more letter is mastered", () => {
+    // The effect reruns on `masteredCount`, so before the fix the next lower
+    // threshold arrived without even a reload.
     const { rerender } = render(<MilestoneBanner masteredCount={28} />);
     dismiss();
     expect(banner()).not.toBeInTheDocument();
 
-    // Nothing has changed for the learner except a re-render with a new count.
     rerender(<MilestoneBanner masteredCount={28} />);
     expect(banner()).not.toBeInTheDocument();
 
     rerender(<MilestoneBanner masteredCount={27} />);
-    expect(screen.getByText("21 letters mastered!")).toBeInTheDocument();
+    expect(banner()).not.toBeInTheDocument();
   });
 });

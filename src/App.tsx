@@ -34,6 +34,7 @@ const Review = lazyPage(() => import("./pages/Review"));
 const Transcribe = lazyPage(() => import("./pages/Transcribe"));
 const Translate = lazyPage(() => import("./pages/Translate"));
 const SavedTranslations = lazyPage(() => import("./pages/SavedTranslations"));
+const SavedChats = lazyPage(() => import("./pages/SavedChats"));
 const MyWords = lazyPage(() => import("./pages/MyWords"));
 const TutorUpload = lazyPage(() => import("./pages/TutorUpload"));
 const MyWordsReview = lazyPage(() => import("./pages/MyWordsReview"));
@@ -245,6 +246,7 @@ const App = () => {
             <Route path="/my-words" element={<ErrorBoundary name="MyWordsRoute"><ProtectedRoute><MyWords /></ProtectedRoute></ErrorBoundary>} />
             <Route path="/translate" element={<ErrorBoundary name="TranslateRoute"><ProtectedRoute><Translate /></ProtectedRoute></ErrorBoundary>} />
             <Route path="/translate/saved" element={<ErrorBoundary name="SavedTranslationsRoute"><ProtectedRoute><SavedTranslations /></ProtectedRoute></ErrorBoundary>} />
+            <Route path="/saved-chats" element={<ErrorBoundary name="SavedChatsRoute"><ProtectedRoute><SavedChats /></ProtectedRoute></ErrorBoundary>} />
             <Route path="/review/my-words" element={<ErrorBoundary name="MyWordsReviewRoute"><ProtectedRoute><MyWordsReview /></ProtectedRoute></ErrorBoundary>} />
             <Route path="/review/my-phrases" element={<ErrorBoundary name="MyPhrasesReviewRoute"><ProtectedRoute><MyPhrasesReview /></ProtectedRoute></ErrorBoundary>} />
             <Route path="/tutor-upload" element={<ErrorBoundary name="TutorUploadRoute"><ProtectedRoute><TutorUpload /></ProtectedRoute></ErrorBoundary>} />

@@ -147,6 +147,7 @@ export const ROUTES: RouteSpec[] = [
   // ── AI helpers ─────────────────────────────────────────────────────────────
   { path: "/translate", gate: "auth", boundary: "TranslateRoute" },
   { path: "/translate/saved", gate: "auth", boundary: "SavedTranslationsRoute" },
+  { path: "/saved-chats", gate: "auth", boundary: "SavedChatsRoute" },
   { path: "/how-do-i-say", gate: "public", boundary: "HowDoISayRoute" },
   { path: "/culture-guide", gate: "public", boundary: "CultureGuideRoute" },
   { path: "/meme", gate: "public", boundary: "MemeAnalyzerRoute" },

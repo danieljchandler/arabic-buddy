@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Loader2, Send } from "lucide-react";
+import { Bookmark, Loader2, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useAiAssistant } from "@/contexts/AiAssistantContext";
@@ -11,8 +11,16 @@ import { streamChat, SseChatError } from "@/lib/sseChat";
 import { showCapToast } from "@/lib/handleCapResponse";
 import { TinyMarkdown } from "@/components/shared/TinyMarkdown";
 import { TappableArabicText } from "@/components/shared/TappableArabicText";
+import { SavePhraseDialog } from "./SavePhraseDialog";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+
+/** First run of Arabic script in a reply — the pre-fill for "save phrase". */
+function firstArabicRun(text: string): string | null {
+  const match = text.match(/[؀-ۿ][؀-ۿ\s،؟ـ]*/);
+  const run = match?.[0]?.trim();
+  return run && run.length > 1 ? run : null;
+}
 
 const SUGGESTED_SEEDED = [
   "Why is it translated like this?",
@@ -35,6 +43,7 @@ export function ChatTab() {
   const { pathname } = useLocation();
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [phraseToSave, setPhraseToSave] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -148,38 +157,59 @@ export function ChatTab() {
           </div>
         )}
 
-        {messages.map((m, i) => (
-          <div
-            key={i}
-            className={cn(
-              "rounded-lg px-3 py-2 text-sm",
-              m.role === "user"
-                ? "bg-primary/10 ml-6"
-                : "bg-muted/50 mr-6 prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1",
-            )}
-          >
-            {m.role === "assistant" ? (
-              m.content ? (
-                <TinyMarkdown
-                  source={m.content}
-                  renderArabicRun={(text) => (
-                    <TappableArabicText
-                      text={text}
-                      source="ask-ai"
-                      className="inline"
-                      sentenceContext={seed ? { arabic: seed.arabic, english: seed.english } : undefined}
+        {messages.map((m, i) => {
+          const savable = m.role === "assistant" && !loading ? firstArabicRun(m.content) : null;
+          return (
+            <div
+              key={i}
+              className={cn(
+                "rounded-lg px-3 py-2 text-sm",
+                m.role === "user"
+                  ? "bg-primary/10 ml-6"
+                  : "bg-muted/50 mr-6 prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1",
+              )}
+            >
+              {m.role === "assistant" ? (
+                m.content ? (
+                  <>
+                    <TinyMarkdown
+                      source={m.content}
+                      renderArabicRun={(text) => (
+                        <TappableArabicText
+                          text={text}
+                          source="ask-ai"
+                          className="inline"
+                          sentenceContext={seed ? { arabic: seed.arabic, english: seed.english } : undefined}
+                        />
+                      )}
                     />
-                  )}
-                />
+                    {savable && (
+                      <button
+                        type="button"
+                        onClick={() => setPhraseToSave(savable)}
+                        className="mt-1.5 inline-flex items-center gap-1 text-[11px] text-muted-foreground transition-colors hover:text-primary"
+                      >
+                        <Bookmark className="h-3 w-3" />
+                        Save phrase
+                      </button>
+                    )}
+                  </>
+                ) : (
+                  <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                )
               ) : (
-                <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
-              )
-            ) : (
-              <p>{m.content}</p>
-            )}
-          </div>
-        ))}
+                <p>{m.content}</p>
+              )}
+            </div>
+          );
+        })}
       </div>
+
+      <SavePhraseDialog
+        open={phraseToSave !== null}
+        onOpenChange={(open) => !open && setPhraseToSave(null)}
+        initialArabic={phraseToSave ?? ""}
+      />
 
       <div className="border-t p-3 flex gap-2">
         <Textarea

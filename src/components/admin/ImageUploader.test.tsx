@@ -258,17 +258,12 @@ describe("ImageUploader — a field that already has a picture", () => {
     expect(fileInput(container).value).toBe("");
   });
 
-  /**
-   * FINDING — the preview is seeded once and never re-reads the prop.
-   *
-   * `useState(currentUrl || null)` runs on mount only. Admin forms fetch the
-   * record they are editing, so this component routinely mounts with
-   * `currentUrl` still undefined and is handed the real URL a moment later —
-   * at which point the field goes on showing "Click to upload image" over a
-   * record that has an image. The admin uploads a second copy, and the first
-   * is orphaned in the bucket.
-   */
-  it("ignores a picture that arrives after mount", () => {
+  it("shows a picture that arrives after mount", () => {
+    // Admin forms fetch the record they are editing, so this mounts with
+    // currentUrl undefined and is handed the real URL a moment later. Reading
+    // the prop only in useState left the field offering "Click to upload image"
+    // over a record that already had one — so the admin uploaded a second copy
+    // and orphaned the first in the bucket.
     const { rerender, onUpload, onRemove } = render({ currentUrl: null });
     rerender(
       <ImageUploader
@@ -277,6 +272,31 @@ describe("ImageUploader — a field that already has a picture", () => {
         onRemove={onRemove}
       />,
     );
+    expect(screen.getByRole("img")).toHaveAttribute(
+      "src",
+      "https://cdn.example/loaded-late.jpg",
+    );
+  });
+
+  it("follows the prop when the record's picture is replaced elsewhere", () => {
+    const { rerender, onUpload, onRemove } = render({
+      currentUrl: "https://cdn.example/first.jpg",
+    });
+    rerender(
+      <ImageUploader
+        currentUrl="https://cdn.example/second.jpg"
+        onUpload={onUpload}
+        onRemove={onRemove}
+      />,
+    );
+    expect(screen.getByRole("img")).toHaveAttribute("src", "https://cdn.example/second.jpg");
+  });
+
+  it("clears the preview when the record's picture goes away", () => {
+    const { rerender, onUpload, onRemove } = render({
+      currentUrl: "https://cdn.example/first.jpg",
+    });
+    rerender(<ImageUploader currentUrl={null} onUpload={onUpload} onRemove={onRemove} />);
     expect(screen.queryByRole("img")).not.toBeInTheDocument();
     expect(screen.getByText("Click to upload image")).toBeInTheDocument();
   });
@@ -567,22 +587,26 @@ describe("ImageUploader — when it goes wrong", () => {
     await waitFor(() => expect(onUpload).toHaveBeenCalledTimes(1));
   });
 
-  /**
-   * FINDING — the object URL for the source file is never released.
-   *
-   * `resizeImage` calls `URL.createObjectURL(file)` and nothing ever calls
-   * `URL.revokeObjectURL`, on any path — success, decode failure or upload
-   * failure. The blob stays pinned in memory for the life of the document, so
-   * an admin working through a batch of cards accumulates every original they
-   * touched, at full size, on top of the resized copies. A `finally` around the
-   * decode would clear it.
-   */
-  it("keeps every source blob alive for the life of the page", async () => {
+  it("releases the source blob once the resize is done", async () => {
+    // Nothing revoked these before, so every original an admin touched stayed
+    // pinned in memory at full size for the life of the document, on top of the
+    // resized copies.
     const { container } = render();
     await upload(container);
     await upload(container, anImage("second.png"));
 
     expect(objectUrls).toHaveLength(2);
-    expect(revoked).toEqual([]);
+    expect(revoked).toEqual(objectUrls);
+  });
+
+  it("releases it even when the image cannot be decoded", async () => {
+    // The failure path is the one that matters most: an admin retrying a file
+    // their browser dislikes would otherwise pin a copy per attempt.
+    const { container } = render();
+    await choose(container, anImage("broken.png"));
+    await decode("error");
+
+    expect(objectUrls).toHaveLength(1);
+    expect(revoked).toEqual(objectUrls);
   });
 });

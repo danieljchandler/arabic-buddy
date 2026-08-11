@@ -102,47 +102,66 @@ describe("TimeRangeSelector — what it starts on", () => {
     expect(handles()[1]).toHaveAttribute("aria-valuenow", "120");
   });
 
-  /**
-   * FINDING — the caller is never told what was selected for them.
-   *
-   * The component picks `[0, min(duration, maxRange)]` on mount and does not
-   * call `onChange`, so the parent's own idea of the range is whatever it
-   * initialised itself with. A parent that starts at `[0, 0]` and submits
-   * without the user touching the slider sends an empty range while the screen
-   * shows three minutes selected.
-   */
-  it("reports nothing until a handle moves", () => {
+  it("reports the range it picked for itself", () => {
+    // Picking [0, effectiveMax] silently left the parent's idea of the range at
+    // whatever it initialised itself with: a parent starting at [0, 0] and
+    // submitting untouched sent an empty range while the screen showed three
+    // minutes selected.
     const { onChange } = renderSelector({ duration: 600 });
+    expect(onChange).toHaveBeenCalledWith([0, 180]);
+  });
+
+  it("reports the whole clip when it is shorter than the cap", () => {
+    const { onChange } = renderSelector({ duration: 45, maxRange: 180 });
+    expect(onChange).toHaveBeenCalledWith([0, 45]);
+  });
+
+  it("stays quiet when the caller already has a range", () => {
+    // Nothing was chosen on the caller's behalf, so there is nothing to report.
+    const { onChange } = renderSelector({ duration: 600, value: [60, 120] });
     expect(onChange).not.toHaveBeenCalled();
   });
 
-  /**
-   * FINDING — the cap readout ignores how long the clip actually is.
-   *
-   * `formatTime(maxRange)` is the configured cap, not the effective one. On a
-   * forty-five-second clip the whole thing is already selected and the readout
-   * says "0:45 / 3:00 max", which reads as an invitation to select two and a
-   * quarter minutes more that do not exist.
-   */
-  it("offers a cap longer than the clip", () => {
-    renderSelector({ duration: 45, maxRange: 180 });
-    expect(screen.getByText("0:45 / 3:00 max")).toBeInTheDocument();
+  it("reports again when the duration arrives late", () => {
+    // The transcription screen probes the media after mounting the selector.
+    const { rerender, onChange } = renderSelector({ duration: 0 });
+    onChange.mockClear();
+    rerender(<TimeRangeSelector duration={600} onChange={onChange} />);
+    expect(onChange).toHaveBeenCalledWith([0, 180]);
   });
 
-  /**
-   * FINDING — a later `value` from the parent is ignored.
-   *
-   * `useState(value || …)` reads the prop once. The transcription screen
-   * discovers a clip's duration asynchronously and can revise the range after
-   * probing the media, but the slider keeps whatever it was mounted with.
-   */
-  it("keeps its first range when the caller supplies a new one", () => {
+  it("caps the readout at the length of the clip", () => {
+    // "0:45 / 3:00 max" read as an invitation to select two and a quarter
+    // minutes that do not exist.
+    renderSelector({ duration: 45, maxRange: 180 });
+    expect(screen.getByText("0:45 / 0:45 max")).toBeInTheDocument();
+  });
+
+  it("still shows the configured cap when the clip is longer", () => {
+    renderSelector({ duration: 600, maxRange: 180 });
+    expect(screen.getByText("3:00 / 3:00 max")).toBeInTheDocument();
+  });
+
+  it("takes a new range when the caller supplies one", () => {
+    // `useState(value || …)` read the prop once and never again, so a screen
+    // that revised the range after probing the media disagreed with its own
+    // slider about what would be processed.
     const { rerender, onChange } = renderSelector({ duration: 600, value: [0, 60] });
     rerender(
       <TimeRangeSelector duration={600} onChange={onChange} value={[120, 240]} />,
     );
-    expect(handles()[0]).toHaveAttribute("aria-valuenow", "0");
-    expect(handles()[1]).toHaveAttribute("aria-valuenow", "60");
+    expect(handles()[0]).toHaveAttribute("aria-valuenow", "120");
+    expect(handles()[1]).toHaveAttribute("aria-valuenow", "240");
+  });
+
+  it("does not echo the caller's own range back at it", () => {
+    // Following the prop must not look like a user edit, or a controlled parent
+    // would loop.
+    const { rerender, onChange } = renderSelector({ duration: 600, value: [0, 60] });
+    rerender(
+      <TimeRangeSelector duration={600} onChange={onChange} value={[120, 240]} />,
+    );
+    expect(onChange).not.toHaveBeenCalled();
   });
 });
 

@@ -112,22 +112,27 @@ jobs:
       # exists for entirely unrelated reasons.
       #
       # Retried because this step reaches the network. `deno check` resolves
-      # type-only imports straight from esm.sh, and esm.sh answering 408 on one
-      # deep subpath — @supabase/storage-js, reached from supabase-js's
-      # types.d.ts — has turned this job red twice in a row on commits that
-      # touched no edge function at all. A transient upstream is not a type
+      # type-only imports straight from esm.sh, and a 408 there means "this
+      # build is not ready yet, ask again" rather than anything about our code —
+      # @supabase/storage-js, reached from supabase-js's own types.d.ts, has
+      # turned this job red on commits that touched no edge function at all
+      # while its parent module answered 200. A transient upstream is not a type
       # error, and a check that cannot tell the difference stops being trusted.
-      # Real type errors still fail on the first attempt and again on the third.
+      #
+      # The waits are minutes rather than seconds because that is how long an
+      # esm.sh build takes. Worst case is roughly nine minutes against the job's
+      # fifteen. A real type error still fails on the first attempt and on the
+      # last, just later.
       - name: Typecheck
         run: |
-          for attempt in 1 2 3; do
+          for wait in 30 60 90 120 0; do
             if deno check --node-modules-dir=none supabase/functions/*/index.ts supabase/functions/_shared/*.ts; then
               exit 0
             fi
-            echo "::warning::deno check failed on attempt $attempt"
-            sleep $((attempt * 15))
+            echo "::warning::deno check failed; retrying in ${wait}s"
+            sleep "$wait"
           done
-          echo "::error::deno check failed three times"
+          echo "::error::deno check failed five times"
           exit 1
 
       # Runtime tests. Until now these functions were only proved to compile —

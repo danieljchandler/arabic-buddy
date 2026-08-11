@@ -221,24 +221,37 @@ describe("ContinueCard — falling back to the server", () => {
     expect(screen.queryByText("Ordering coffee")).not.toBeInTheDocument();
   });
 
-  /**
-   * FINDING — the server fallback has no expiry, so an abandoned lesson is
-   * offered forever.
-   *
-   * The local entry is dropped after seven days by `getContinue`. The
-   * `lesson_progress` row behind the fallback has no such cutoff: the query
-   * takes the most recent row with status `in_progress` whatever its date. A
-   * learner who opened one lesson in January and never went back is still shown
-   * "Continue lesson … 250d ago" in September, above everything else on Home.
-   */
-  it("still offers a lesson abandoned months ago", () => {
+  it("stops offering a lesson abandoned months ago", () => {
+    // The local entry expires after seven days; the lesson_progress row behind
+    // the fallback had no cutoff at all, so a learner who opened one lesson in
+    // January and never went back was still shown "Continue lesson … 250d ago"
+    // in September, at the top of Home.
     render({
       resumable: aResumable({
         updatedAt: new Date(NOW.getTime() - 250 * 24 * 3600_000).toISOString(),
       }),
     });
+    expect(card()).not.toBeInTheDocument();
+  });
+
+  it("still offers one from beyond the local seven days", () => {
+    // The whole point of the server row is surviving a new device, a cleared
+    // cache or a fortnight away, so its cutoff is deliberately longer.
+    render({
+      resumable: aResumable({
+        updatedAt: new Date(NOW.getTime() - 14 * 24 * 3600_000).toISOString(),
+      }),
+    });
     expect(screen.getByText("Ordering coffee")).toBeInTheDocument();
-    expect(screen.getByText("· 250d ago")).toBeInTheDocument();
+  });
+
+  it("drops one a day past the cutoff", () => {
+    render({
+      resumable: aResumable({
+        updatedAt: new Date(NOW.getTime() - 31 * 24 * 3600_000).toISOString(),
+      }),
+    });
+    expect(card()).not.toBeInTheDocument();
   });
 });
 

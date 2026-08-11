@@ -202,16 +202,11 @@ describe("ArticleSentences — revealing the English", () => {
     });
   });
 
-  /**
-   * FINDING — the revealed lines carry over to the next article.
-   *
-   * `revealed` is a set of indices with no dependency on the content, so when
-   * the parent swaps `sentences` for another article the same positions stay
-   * open. A reader who revealed line 2 of one story opens the next one with
-   * line 2 of that story already translated — which for the sentence-by-sentence
-   * exercise is exactly the thing it is trying to prevent.
-   */
-  it("keeps line two open when the article changes underneath it", () => {
+  it("closes line two when the article changes underneath it", () => {
+    // `revealed` is a set of positions with no tie to the content, so the same
+    // positions used to stay open: a reader who revealed line 2 of one story
+    // opened the next with line 2 already translated — the exact thing a
+    // sentence-by-sentence exercise exists to prevent.
     const { rerender } = renderArticle({ sentences: authored });
     fireEvent.click(screen.getAllByText("Reveal translation")[1]);
     expect(screen.getByText("Hide translation")).toBeInTheDocument();
@@ -224,6 +219,22 @@ describe("ArticleSentences — revealing the English", () => {
           { arabic: "خبر جديد أول.", english: "A different first line." },
           { arabic: "خبر جديد ثاني.", english: "A different second line." },
         ]}
+      />,
+    );
+    expect(screen.queryByText("Hide translation")).not.toBeInTheDocument();
+  });
+
+  it("leaves a revealed line alone when the parent merely re-renders", () => {
+    // The parent rebuilds the sentence array on every render, so identity is
+    // not a usable signal — closing on that would undo the reader's own tap.
+    const { rerender } = renderArticle({ sentences: authored });
+    fireEvent.click(screen.getAllByText("Reveal translation")[1]);
+
+    rerender(
+      <ArticleSentences
+        bodyDialect={BODY}
+        summaryEnglish={SUMMARY}
+        sentences={authored.map((s) => ({ ...s }))}
       />,
     );
     expect(screen.getByText("Hide translation")).toBeInTheDocument();

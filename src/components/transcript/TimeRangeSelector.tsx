@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { Slider } from "@/components/ui/slider";
 
 interface TimeRangeSelectorProps {
@@ -21,9 +21,50 @@ export const TimeRangeSelector = ({
   value,
 }: TimeRangeSelectorProps) => {
   const effectiveMax = Math.min(duration, maxRange);
-  const [range, setRange] = useState<[number, number]>(
-    value || [0, Math.min(duration, effectiveMax)]
-  );
+  const [range, setRange] = useState<[number, number]>(value || [0, effectiveMax]);
+
+  const controlledStart = value?.[0];
+  const controlledEnd = value?.[1];
+
+  /**
+   * Follow the caller when it revises the range.
+   *
+   * `useState(value || …)` read the prop once and never again. The
+   * transcription screen discovers a clip's duration asynchronously and revises
+   * the range after probing the media, but the slider kept whatever it was
+   * mounted with — so the screen and the slider disagreed about what would be
+   * processed.
+   */
+  useEffect(() => {
+    if (controlledStart === undefined || controlledEnd === undefined) return;
+    setRange((cur) =>
+      cur[0] === controlledStart && cur[1] === controlledEnd ? cur : [controlledStart, controlledEnd],
+    );
+  }, [controlledStart, controlledEnd]);
+
+  /**
+   * Tell the caller about the range this component chose for itself.
+   *
+   * Picking `[0, effectiveMax]` on mount without saying so left the parent's
+   * idea of the range at whatever it initialised itself with: a parent starting
+   * at `[0, 0]` submitted an empty range while the screen showed three minutes
+   * selected. Reported whenever the derived default changes, so a duration that
+   * arrives late is reported too.
+   *
+   * The ref guard is what keeps this from looping — `onChange` is usually a
+   * fresh function on every parent render.
+   */
+  const touched = useRef(false);
+  const lastReported = useRef<string | null>(null);
+  useEffect(() => {
+    if (value || touched.current) return;
+    const key = `0-${effectiveMax}`;
+    if (lastReported.current === key) return;
+    lastReported.current = key;
+    const auto: [number, number] = [0, effectiveMax];
+    setRange(auto);
+    onChange(auto);
+  }, [value, effectiveMax, onChange]);
 
   const handleChange = useCallback(
     (newValues: number[]) => {
@@ -45,6 +86,7 @@ export const TimeRangeSelector = ({
       end = Math.min(duration, end);
 
       const newRange: [number, number] = [start, end];
+      touched.current = true;
       setRange(newRange);
       onChange(newRange);
     },
@@ -58,7 +100,13 @@ export const TimeRangeSelector = ({
       <div className="flex items-center justify-between text-sm text-muted-foreground">
         <span>Select segment to process</span>
         <span className="font-mono text-xs">
-          {formatTime(selectedDuration)} / {formatTime(maxRange)} max
+          {/*
+            The effective cap, not the configured one. On a forty-five-second
+            clip the whole thing is already selected, and "0:45 / 3:00 max" read
+            as an invitation to select two and a quarter minutes that do not
+            exist.
+          */}
+          {formatTime(selectedDuration)} / {formatTime(effectiveMax)} max
         </span>
       </div>
       

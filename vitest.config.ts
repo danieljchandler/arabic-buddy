@@ -50,23 +50,33 @@ export default defineConfig({
       // Per-directory, and deliberately not global.
       //
       // A global number here would be meaningless: `src/pages/**` is 110 route
-      // components covered by the Playwright suite rather than this one, and
-      // `src/components/ui/**` is vendored shadcn primitives. Both sit near
-      // zero and would drag any overall figure down to a threshold so low it
-      // could never fail — which is worse than no threshold, because it looks
-      // like a gate.
+      // components covered by the Playwright suite rather than this one. It
+      // sits near zero and would drag any overall figure down to a threshold so
+      // low it could never fail — which is worse than no threshold, because it
+      // looks like a gate.
       //
-      // These three directories are the ones this suite actually owns, and all
-      // three have a drift guard already (hookCoverage, libCoverage) asserting
-      // that every module *has* a test. The thresholds are the second half of
-      // that: they catch a module that has a test file which stopped exercising
-      // it.
+      // These four directories are the ones this suite actually owns, and the
+      // first three have a drift guard already (hookCoverage, libCoverage)
+      // asserting that every module *has* a test. The thresholds are the second
+      // half of that: they catch a module that has a test file which stopped
+      // exercising it.
       //
       // Set a couple of points under the measured figures so ordinary churn
       // does not fail the build. Raise them when the real numbers move up —
       // they are a ratchet, not a target.
       thresholds: {
-        // measured: 85.48 lines · 89.63 functions · 81.85 branches
+        // measured across the whole tree: 75.89 lines · 80.00 functions
+        //
+        // Added once component coverage was worth gating — when the thresholds
+        // below were first set this tree sat near zero and was excluded for
+        // that reason.
+        //
+        // Note the figure is the glob's, not the `src/components` row in the
+        // text reporter: that row covers only the files directly in the folder
+        // (81%), while `**` includes every subdirectory, `ui/`'s vendored
+        // shadcn primitives among them.
+        "src/components/**": { lines: 73, functions: 77, branches: 85 },
+        // measured: 85.65 lines · 89.94 functions · 81.85 branches
         "src/hooks/**": { lines: 83, functions: 87, branches: 79 },
         // measured: 92.20 lines · 94.66 functions · 92.07 branches
         "src/lib/**": { lines: 90, functions: 93, branches: 90 },

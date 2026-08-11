@@ -2,7 +2,7 @@
 
 The test suite added in PR #242 covers every route, hook, lib module and edge
 function, plus the components that carry real branching logic. While writing it,
-**36 behaviour findings** were found across 19 components.
+**47 behaviour findings** were found across 27 components.
 
 **None of them have been fixed.** Each one is pinned as a passing test that
 describes what the code does today, so the suite stays green and the record
@@ -287,8 +287,9 @@ around, not fixed. Cancelling on unmount is the real fix and is worth doing.
 ```sh
 npm run typecheck          # tsconfig.app.json + tsconfig.e2e.json
 npm run lint:ratchet       # fails only if errors rise above the 549 baseline
-npx vitest run             # 228 files, ~4280 tests
+npx vitest run             # 244 files, ~4553 tests
 npm run test:coverage      # same, and enforces the per-directory thresholds
+                           # (src/components, src/hooks, src/lib, src/contexts)
 npm run test:edge          # 1296 Deno tests; needs deno 2.9.5 on PATH
 npm run test:e2e           # 64 Playwright specs; CI shards these four ways
 npm run build

@@ -69,10 +69,10 @@ function sentPrompt(bodies: Array<string | null>): string {
 }
 
 Deno.test("assistant-chat streams the gateway's frames through", async () => {
-  const { response } = await call(
+  const { response, calls, bodies } = await call(
     "assistant-chat",
     { messages: [{ role: "user", content: "explain this" }], dialect: "Gulf" },
-    subscriber({ "ai.gateway.lovable.dev": gateway }),
+    subscriber({ "openrouter.ai": gateway }),
   );
 
   assertEquals(response.status, 200);
@@ -80,13 +80,17 @@ Deno.test("assistant-chat streams the gateway's frames through", async () => {
   const text = await response.text();
   assertStringIncludes(text, "Because ");
   assertStringIncludes(text, "data: [DONE]");
+  // The chat is pinned to Claude via OpenRouter — a silent fall-back to the
+  // cheap utility default is a quality regression, not a routing detail.
+  assert(calls.some((url) => url.includes("openrouter.ai")));
+  assertStringIncludes(sentPrompt(bodies), "anthropic/claude-sonnet-5");
 });
 
 Deno.test("assistant-chat refuses a body with no messages", async () => {
   const { response, calls } = await call("assistant-chat", { dialect: "Gulf" }, subscriber());
 
   assertEquals(response.status, 400);
-  assert(!calls.some((url) => url.includes("ai.gateway")));
+  assert(!calls.some((url) => url.includes("ai.gateway") || url.includes("openrouter.ai")));
 });
 
 Deno.test("assistant-chat turns an anonymous caller away", async () => {
@@ -109,7 +113,7 @@ Deno.test("assistant-chat puts the seed sentence into the system prompt", async 
       dialect: "Gulf",
       seed: { arabic: "شلونك اليوم", english: "How are you today?" },
     },
-    subscriber({ "ai.gateway.lovable.dev": gateway }),
+    subscriber({ "openrouter.ai": gateway }),
   );
 
   const sent = sentPrompt(bodies);
@@ -130,7 +134,7 @@ Deno.test("assistant-chat frames the page context as data, not instructions", as
         content: "current line: يالله نروح السوق",
       },
     },
-    subscriber({ "ai.gateway.lovable.dev": gateway }),
+    subscriber({ "openrouter.ai": gateway }),
   );
 
   const sent = sentPrompt(bodies);
@@ -148,7 +152,7 @@ Deno.test("assistant-chat caps oversized page content server-side", async () => 
       messages: [{ role: "user", content: "hi" }],
       pageContext: { route: "/x", title: "t", content: "A".repeat(5000) },
     },
-    subscriber({ "ai.gateway.lovable.dev": gateway }),
+    subscriber({ "openrouter.ai": gateway }),
   );
 
   const sent = sentPrompt(bodies);
@@ -162,7 +166,7 @@ Deno.test("assistant-chat fetches the learner profile on the first turn only", a
   const firstTurn = await call(
     "assistant-chat",
     { messages: [{ role: "user", content: "hi" }] },
-    subscriber({ "ai.gateway.lovable.dev": gateway }),
+    subscriber({ "openrouter.ai": gateway }),
   );
   assert(firstTurn.calls.some((url) => url.includes("user_vocabulary")));
   assert(firstTurn.calls.some((url) => url.includes("video_views")));
@@ -176,7 +180,7 @@ Deno.test("assistant-chat fetches the learner profile on the first turn only", a
         { role: "user", content: "more" },
       ],
     },
-    subscriber({ "ai.gateway.lovable.dev": gateway }),
+    subscriber({ "openrouter.ai": gateway }),
   );
   // Later turns already carry that knowledge in the visible history; paying
   // the five queries per message would be pure latency.
@@ -192,7 +196,7 @@ Deno.test("assistant-chat mentions recently watched videos in the prompt", async
     "assistant-chat",
     { messages: [{ role: "user", content: "what did I watch?" }] },
     subscriber({
-      "ai.gateway.lovable.dev": gateway,
+      "openrouter.ai": gateway,
       "/rest/v1/video_views": () =>
         json([{ video_id: "v1", watched_at: "2026-08-10T10:00:00Z", completed: true }]),
       "/rest/v1/discover_videos": () =>
@@ -213,7 +217,7 @@ Deno.test("assistant-chat truncates runaway histories instead of forwarding them
   const { bodies } = await call(
     "assistant-chat",
     { messages },
-    subscriber({ "ai.gateway.lovable.dev": gateway }),
+    subscriber({ "openrouter.ai": gateway }),
   );
 
   const sent = sentPrompt(bodies);

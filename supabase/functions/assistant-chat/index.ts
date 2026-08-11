@@ -8,7 +8,7 @@
 // instructions.
 import { streamBrain, BrainHttpError } from "../_shared/aiBrain.ts";
 import { getDialectLabel, getDialectTransliterationRules, type Dialect } from "../_shared/dialectHelpers.ts";
-import { DEFAULT_FAST } from "../_shared/modelRegistry.ts";
+import { DEFAULT_CHAT } from "../_shared/modelRegistry.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
 import { learnerPromptBlock } from "../_shared/learnerProfile.ts";
@@ -135,7 +135,7 @@ GUIDELINES:
       dialect: resolvedDialect,
       messages,
       systemPromptExtra,
-      model: DEFAULT_FAST,
+      model: DEFAULT_CHAT,
       maxTokens: 1024,
       responseHeaders: corsHeaders,
       signal: req.signal,

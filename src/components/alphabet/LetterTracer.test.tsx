@@ -109,6 +109,15 @@ let contexts: FakeContext[] = [];
 let cleanup: (() => void) | undefined;
 
 beforeEach(() => {
+  // Fake timers for the whole file, not because most tests drive the clock, but
+  // because the component leaves one running. Every stroke schedules a 750ms
+  // `setSparkles` to fade the trail and nothing cancels it on unmount, so on a
+  // slow machine it fires after jsdom has been torn down and takes the whole
+  // run down with `ReferenceError: window is not defined` — which is exactly
+  // how this file first turned CI red while all 4238 tests passed.
+  // `shouldAdvanceTime` keeps waitFor and the rest behaving as before;
+  // `clearAllTimers` below drops whatever is still pending.
+  vi.useFakeTimers({ shouldAdvanceTime: true });
   motion.reduced = false;
   contexts = [];
   vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockImplementation(function (
@@ -140,6 +149,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup?.();
   cleanup = undefined;
+  vi.clearAllTimers();
   vi.useRealTimers();
   vi.restoreAllMocks();
 });
@@ -377,6 +387,12 @@ describe("the sparkle trail", () => {
   it("throws sparks along the stroke", () => {
     const { container } = render();
 
+    // The trail is throttled to one spark per 55ms off `performance.now()`,
+    // which the fake clock starts at 0 — so the very first move of the run is
+    // inside the throttle window unless the clock is nudged past it first.
+    act(() => {
+      vi.advanceTimersByTime(100);
+    });
     traceRow(container, 160);
 
     // Tracing is slow and repetitive and mostly done by children; the trail is
@@ -385,7 +401,6 @@ describe("the sparkle trail", () => {
   });
 
   it("lets them fade", () => {
-    vi.useFakeTimers();
     const { container } = render();
     traceRow(container, 160);
 

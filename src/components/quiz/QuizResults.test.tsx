@@ -15,6 +15,18 @@ import { QuizResults } from "./QuizResults";
  * separately, so the correction sits where the mistake was.
  */
 
+/**
+ * The page chrome, stood in for.
+ *
+ * AppShell mounts the onboarding tour and the feedback widget, both of which
+ * resolve a session on a macrotask. Left real, every test in this file leaves
+ * an auth request in flight that lands after teardown — 75 act() warnings and
+ * an unstubbed request to the fake host. All three have their own test files.
+ */
+vi.mock("@/components/layout/AppShell", () => ({
+  AppShell: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+}));
+
 const anWord = (over: Partial<VocabularyWord> = {}): VocabularyWord => ({
   id: "w1",
   topic_id: "t1",

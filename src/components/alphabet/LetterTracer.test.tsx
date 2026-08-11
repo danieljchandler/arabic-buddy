@@ -109,14 +109,10 @@ let contexts: FakeContext[] = [];
 let cleanup: (() => void) | undefined;
 
 beforeEach(() => {
-  // Fake timers for the whole file, not because most tests drive the clock, but
-  // because the component leaves one running. Every stroke schedules a 750ms
-  // `setSparkles` to fade the trail and nothing cancels it on unmount, so on a
-  // slow machine it fires after jsdom has been torn down and takes the whole
-  // run down with `ReferenceError: window is not defined` — which is exactly
-  // how this file first turned CI red while all 4238 tests passed.
-  // `shouldAdvanceTime` keeps waitFor and the rest behaving as before;
-  // `clearAllTimers` below drops whatever is still pending.
+  // Fake timers for the whole file so the sparkle trail's 750ms fade can be
+  // driven rather than waited on, and so `getTimerCount` can show that the
+  // component cancels its own timers on the way out. `shouldAdvanceTime` keeps
+  // waitFor and the rest behaving as they would on the real clock.
   vi.useFakeTimers({ shouldAdvanceTime: true });
   motion.reduced = false;
   contexts = [];
@@ -149,6 +145,9 @@ beforeEach(() => {
 afterEach(() => {
   cleanup?.();
   cleanup = undefined;
+  // Belt and braces: the component cancels its own fade timers on unmount, and
+  // the case below pins that, but a test that failed mid-stroke should not leak
+  // a pending callback into the next file.
   vi.clearAllTimers();
   vi.useRealTimers();
   vi.restoreAllMocks();
@@ -411,6 +410,26 @@ describe("the sparkle trail", () => {
     // Each spark removes itself; without that the overlay accumulates one node
     // per stroke for the life of the exercise.
     expect(container.querySelectorAll(".animate-sparkle")).toHaveLength(0);
+  });
+
+  it("cancels its pending fades when the learner leaves", () => {
+    // Each spark schedules a 750ms `setSparkles` and one stroke schedules a
+    // dozen. Nothing cancelled them, so tracing a letter and moving straight on
+    // left up to a dozen callbacks setting state on a component that no longer
+    // existed — and under a runner that tears the DOM down between files, the
+    // late callback took the whole run down with "window is not defined".
+    const { container, unmount } = render();
+
+    act(() => {
+      vi.advanceTimersByTime(100);
+    });
+    traceRow(container, 160);
+    expect(vi.getTimerCount()).toBeGreaterThan(0);
+
+    act(() => unmount());
+    cleanup = undefined;
+
+    expect(vi.getTimerCount()).toBe(0);
   });
 
   it("stays still for a learner who asked for less motion", () => {

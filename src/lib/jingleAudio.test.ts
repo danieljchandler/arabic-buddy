@@ -56,7 +56,7 @@ const corrupted = (count: number) => {
  * `instanceof Blob`, so the prototype has to be right as well as the method.
  */
 function blobOf(data: Uint8Array, type = ""): Blob {
-  const blob = new Blob([data], { type });
+  const blob = new Blob([data as unknown as BlobPart], { type });
   Object.defineProperty(blob, "arrayBuffer", {
     configurable: true,
     value: async () => data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength),

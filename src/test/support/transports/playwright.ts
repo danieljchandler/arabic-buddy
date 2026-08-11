@@ -23,9 +23,8 @@ import { makeSession, STORAGE_KEY } from "../server/session";
 async function toRequest(request: PlaywrightRequest): Promise<Request> {
   const method = request.method();
   const headers = await request.allHeaders();
-  const body = method === "GET" || method === "HEAD"
-    ? undefined
-    : request.postDataBuffer() ?? undefined;
+  const buffer = method === "GET" || method === "HEAD" ? null : request.postDataBuffer();
+  const body = buffer ? new Uint8Array(buffer) : undefined;
 
   return new Request(request.url(), { method, headers, body });
 }

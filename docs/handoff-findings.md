@@ -244,36 +244,43 @@ Affected: `admin/AdminTranscriptEditor.tsx`, `review/LeechHelperPanel.tsx`.
 
 ---
 
-## Known test-suite noise (not app bugs)
+## The suite runs silent
 
-The unit run prints ~154 `not wrapped in act(...)` warnings and "Unstubbed
-network request" lines across about 20 test files written earlier in the effort.
-They are hermetic — `src/test/setup.ts` throws rather than letting anything reach
-the network — and the suite exits 0. The cause is uniform: `useAuth` resolves
-the session on a macrotask, so a test that ends without awaiting it leaves that
-request in flight.
+The unit run used to print ~229 warnings — `not wrapped in act(...)`, "Unstubbed
+network request", and four requests that escaped to real DNS. All of them are
+gone, and it is worth keeping it that way: **a new warning now means something
+new is wrong.**
 
-The per-file fix is to await one macrotask before the harness `cleanup()`:
+Two causes, both fixed:
 
-```ts
-await act(async () => {
-  await new Promise((resolve) => setTimeout(resolve, 0));
-});
-```
+- `useAuth` resolves the session on a macrotask, so a test that rendered and
+  asserted synchronously ended with the request in flight; it landed after
+  `cleanup()` had handed `fetch` back to the hermeticity guard. Fixed once in
+  `src/test/support/react/harness.tsx`, which now drains via `onTestFinished`
+  — that hook runs after the test body but before any `afterEach`, so the
+  component is still mounted and the backend still installed.
+- Individual tests that called a state-updating async function outside `act()`,
+  or asserted while a query was still settling. Fixed per file.
 
-Worth doing so a genuinely new warning is visible, but it changes no app
-behaviour.
+Two of those were passing only by racing: `RequestSituationCard` and
+`SuggestFlashcardsDialog` asserted on the dialect before `DialectProvider` had
+synced from the profile and overwritten localStorage. Once the settle was added
+they read the profile's dialect and failed. **If you write a test that wants a
+non-default dialect, set `personaOptions: { profile: { preferred_dialect } }`
+as well as the localStorage key** — otherwise the component drifts back a tick
+after render.
 
-**Watch for the related failure mode**, which has bitten twice and both times
-turned CI red while every test passed: a component that schedules a timer and
-never cancels it on unmount fires after jsdom teardown and Vitest reports an
-uncaught `ReferenceError: window is not defined`. `transcript/LineByLineTranscript`
-and `alphabet/LetterTracer` both needed their test files put on fake timers with
-`vi.clearAllTimers()` at teardown. **Both underlying components still leak the
-timer** — the test files are worked around, not fixed. Cancelling on unmount
-would be the real fix.
+### The failure mode to watch for
 
----
+This has bitten twice and both times turned CI red while every single test
+passed: a component that schedules a timer and never cancels it on unmount
+fires after jsdom teardown, and Vitest reports an uncaught
+`ReferenceError: window is not defined`. `transcript/LineByLineTranscript` and
+`alphabet/LetterTracer` both needed their test files put on fake timers with
+`vi.clearAllTimers()` at teardown.
+
+**Both underlying components still leak the timer** — the test files are worked
+around, not fixed. Cancelling on unmount is the real fix and is worth doing.
 
 ## Running the suite
 

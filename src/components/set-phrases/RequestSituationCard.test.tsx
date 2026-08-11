@@ -67,10 +67,14 @@ interface Options {
   seed?: (backend: SupabaseBackend) => void;
 }
 
-function render({ persona = "free", dialect = "Gulf", seed }: Options = {}) {
+async function render({ persona = "free", dialect = "Gulf", seed }: Options = {}) {
   localStorage.setItem("hakiya_dialect_module", dialect);
   const harness = renderWithProviders(<RequestSituationCard />, {
     persona,
+    // DialectProvider syncs from the profile on mount and overwrites what is in
+    // localStorage, so the profile has to agree or the component settles back on
+    // the profile's dialect a tick after render.
+    personaOptions: { profile: { preferred_dialect: dialect } },
     seed: (backend) => {
       backend.stubFunction("request-situation-phrases", {
         phrases: [aPhrase(), ANOTHER_PHRASE],
@@ -79,6 +83,11 @@ function render({ persona = "free", dialect = "Gulf", seed }: Options = {}) {
     },
   });
   cleanup = harness.cleanup;
+  // The prefs and bridge-mode hooks resolve a tick after mount, so a
+  // synchronous assertion would race a re-render already on its way.
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
   return harness;
 }
 
@@ -99,15 +108,15 @@ const phrasesWrittenTo = (backend: SupabaseBackend) =>
   backend.db.writesTo("user_phrases").flatMap((write) => write.payload);
 
 describe("asking for phrases", () => {
-  it("says what it will produce, in the learner's dialect", () => {
-    render({ dialect: "Egyptian" });
+  it("says what it will produce, in the learner's dialect", async () => {
+    await render({ dialect: "Egyptian" });
 
     // "Authentic phrases" means nothing without saying authentic to whom.
     expect(screen.getByText(/authentic Egyptian phrases/)).toBeInTheDocument();
   });
 
-  it("offers situations to start from", () => {
-    render();
+  it("offers situations to start from", async () => {
+    await render();
 
     fireEvent.click(screen.getByRole("button", { name: "Bargaining at the souq" }));
 
@@ -119,7 +128,7 @@ describe("asking for phrases", () => {
   });
 
   it("asks for a real description before spending a call", async () => {
-    const { backend } = render();
+    const { backend } = await render();
     describeSituation("hi");
 
     await generate();
@@ -129,7 +138,7 @@ describe("asking for phrases", () => {
   });
 
   it("sends the situation and the dialect", async () => {
-    const { backend } = render({ dialect: "Yemeni" });
+    const { backend } = await render({ dialect: "Yemeni" });
     describeSituation(`  ${A_SITUATION}  `);
 
     await generate();
@@ -144,7 +153,7 @@ describe("asking for phrases", () => {
   });
 
   it("shows each phrase with everything needed to say it", async () => {
-    render();
+    await render();
     describeSituation(A_SITUATION);
 
     await generate();
@@ -159,7 +168,7 @@ describe("asking for phrases", () => {
   });
 
   it("counts what came back", async () => {
-    render();
+    await render();
     describeSituation(A_SITUATION);
 
     await generate();
@@ -168,7 +177,7 @@ describe("asking for phrases", () => {
   });
 
   it("says so when the model returned nothing usable", async () => {
-    render({ seed: (b) => b.stubFunction("request-situation-phrases", { phrases: [] }) });
+    await render({ seed: (b) => b.stubFunction("request-situation-phrases", { phrases: [] }) });
     describeSituation("aaaaa");
 
     await generate();
@@ -179,7 +188,7 @@ describe("asking for phrases", () => {
   });
 
   it("reports a refusal the function returned with a 200", async () => {
-    render({
+    await render({
       seed: (b) =>
         b.stubFunction("request-situation-phrases", {
           error: "refused",
@@ -196,7 +205,7 @@ describe("asking for phrases", () => {
   });
 
   it("reports a call that failed outright", async () => {
-    render({ seed: (b) => b.stubFunctionFailure("request-situation-phrases", 500) });
+    await render({ seed: (b) => b.stubFunctionFailure("request-situation-phrases", 500) });
     describeSituation(A_SITUATION);
 
     await generate();
@@ -206,7 +215,7 @@ describe("asking for phrases", () => {
   });
 
   it("clears the previous answer before the next one", async () => {
-    render();
+    await render();
     describeSituation(A_SITUATION);
     await generate();
 
@@ -221,7 +230,7 @@ describe("asking for phrases", () => {
 
 describe("keeping a phrase", () => {
   const generated = async (options: Options = {}) => {
-    const harness = render(options);
+    const harness = await render(options);
     describeSituation(A_SITUATION);
     await generate();
     return harness;

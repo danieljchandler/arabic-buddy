@@ -62,13 +62,17 @@ interface Options {
   seed?: (backend: SupabaseBackend) => void;
 }
 
-function render({ dialect = "Gulf", owned = [], seed }: Options = {}) {
+async function render({ dialect = "Gulf", owned = [], seed }: Options = {}) {
   localStorage.setItem("hakiya_dialect_module", dialect);
   const onOpenChange = vi.fn();
   const harness = renderWithProviders(
     <SuggestFlashcardsDialog open onOpenChange={onOpenChange} />,
     {
       persona: "free",
+      // DialectProvider syncs from the profile on mount and overwrites what is
+      // in localStorage, so the profile has to agree or the dialog settles back
+      // on the profile's dialect a tick after render.
+      personaOptions: { profile: { preferred_dialect: dialect } },
       seed: (backend) => {
         backend.db.seed(
           "user_vocabulary",
@@ -84,6 +88,11 @@ function render({ dialect = "Gulf", owned = [], seed }: Options = {}) {
     },
   );
   cleanup = harness.cleanup;
+  // The dialog's own hooks resolve a tick after mount, so a synchronous
+  // assertion would race a re-render already on its way.
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
   return { ...harness, onOpenChange };
 }
 
@@ -101,14 +110,14 @@ const savedWords = (backend: SupabaseBackend) =>
   backend.db.writesTo("user_vocabulary").flatMap((write) => write.payload);
 
 describe("asking for suggestions", () => {
-  it("says what it will produce and in which dialect", () => {
-    render({ dialect: "Egyptian" });
+  it("says what it will produce and in which dialect", async () => {
+    await render({ dialect: "Egyptian" });
 
     expect(screen.getByText(/suggest 10 Egyptian Arabic words you don't already have/)).toBeInTheDocument();
   });
 
-  it("will not generate without a topic", () => {
-    render();
+  it("will not generate without a topic", async () => {
+    await render();
 
     // The one thing the model needs. The button says so by staying dead rather
     // than by complaining after the fact.
@@ -116,7 +125,7 @@ describe("asking for suggestions", () => {
   });
 
   it("sends the topic, the dialect and how many to produce", async () => {
-    const { backend } = render({ dialect: "Yemeni" });
+    const { backend } = await render({ dialect: "Yemeni" });
 
     await generate("  ordering food at a restaurant  ");
 
@@ -128,7 +137,7 @@ describe("asking for suggestions", () => {
   });
 
   it("sends the words the learner already has, so it does not suggest them again", async () => {
-    const { backend } = render({ owned: ["مطعم", "قائمة"] });
+    const { backend } = await render({ owned: ["مطعم", "قائمة"] });
 
     // The deck loads behind auth. Generating before it lands sends an empty
     // exclusion list, which is a real race in the product too — just not the
@@ -146,7 +155,7 @@ describe("asking for suggestions", () => {
   });
 
   it("says so when there was nothing new to suggest", async () => {
-    render({ seed: (b) => b.stubFunction("suggest-flashcards", { flashcards: [] }) });
+    await render({ seed: (b) => b.stubFunction("suggest-flashcards", { flashcards: [] }) });
 
     await generate();
 
@@ -156,7 +165,7 @@ describe("asking for suggestions", () => {
   });
 
   it("reports a generation that failed", async () => {
-    render({ seed: (b) => b.stubFunctionFailure("suggest-flashcards", 500) });
+    await render({ seed: (b) => b.stubFunctionFailure("suggest-flashcards", 500) });
 
     await generate();
 
@@ -167,7 +176,7 @@ describe("asking for suggestions", () => {
 
 describe("choosing from the suggestions", () => {
   it("shows each word with everything needed to judge it", async () => {
-    render();
+    await render();
 
     await generate();
 
@@ -179,7 +188,7 @@ describe("choosing from the suggestions", () => {
   });
 
   it("arrives with everything ticked", async () => {
-    render();
+    await render();
 
     await generate();
 
@@ -192,7 +201,7 @@ describe("choosing from the suggestions", () => {
   });
 
   it("counts down as words are unticked", async () => {
-    render();
+    await render();
     await generate();
 
     fireEvent.click(screen.getAllByRole("checkbox")[0]);
@@ -201,7 +210,7 @@ describe("choosing from the suggestions", () => {
   });
 
   it("offers nothing to save once everything is unticked", async () => {
-    render();
+    await render();
     await generate();
 
     for (const box of screen.getAllByRole("checkbox")) {
@@ -220,7 +229,7 @@ describe("saving the chosen words", () => {
   };
 
   it("keeps each one with its example sentence", async () => {
-    const { backend } = render();
+    const { backend } = await render();
     await generate();
 
     await save();
@@ -237,7 +246,7 @@ describe("saving the chosen words", () => {
   });
 
   it("leaves the unticked ones out", async () => {
-    const { backend } = render();
+    const { backend } = await render();
     await generate();
     fireEvent.click(screen.getAllByRole("checkbox")[0]);
 
@@ -248,7 +257,7 @@ describe("saving the chosen words", () => {
   });
 
   it("says how many landed", async () => {
-    render();
+    await render();
     await generate();
 
     await save();
@@ -257,7 +266,7 @@ describe("saving the chosen words", () => {
   });
 
   it("counts the ones it could not add", async () => {
-    render({ seed: (b) => b.db.failInserts("user_vocabulary") });
+    await render({ seed: (b) => b.db.failInserts("user_vocabulary") });
     await generate();
 
     await save();
@@ -270,7 +279,7 @@ describe("saving the chosen words", () => {
   });
 
   it("closes and clears itself once saved", async () => {
-    const { onOpenChange } = render();
+    const { onOpenChange } = await render();
     await generate();
 
     await save();
@@ -279,7 +288,7 @@ describe("saving the chosen words", () => {
   });
 
   it("throws the suggestions away even when none of them saved", async () => {
-    const { onOpenChange } = render({ seed: (b) => b.db.failInserts("user_vocabulary") });
+    const { onOpenChange } = await render({ seed: (b) => b.db.failInserts("user_vocabulary") });
     await generate();
 
     await save();

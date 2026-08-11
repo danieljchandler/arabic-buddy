@@ -1,4 +1,4 @@
-import { waitFor } from "@testing-library/react";
+import { act, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { renderHookWithProviders } from "@/test/support/react/harness";
 import { aDiscoverVideo, TEST_USER_ID, videoId } from "@/test/support/factories";
@@ -253,7 +253,9 @@ describe("recording what was watched", () => {
     const harness = renderHookWithProviders(() => useRecordVideoView(), { persona: "anonymous" });
     cleanup = harness.cleanup;
 
-    await harness.result.current.mutateAsync({ videoId: videoId(0), watchedSeconds: 5 });
+    await act(async () => {
+      await harness.result.current.mutateAsync({ videoId: videoId(0), watchedSeconds: 5 });
+    });
 
     expect(harness.backend.db.writesTo("video_views")).toEqual([]);
   });

@@ -1,5 +1,4 @@
-import { fireEvent, screen, waitFor } from "@testing-library/react";
-import { act } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@/test/support/react/harness";
 import { MarkUnknownsProvider } from "@/contexts/MarkUnknownsContext";
@@ -50,7 +49,7 @@ interface Options {
   marking?: boolean;
 }
 
-function render({ text = TEXT, vocabulary, persona = "free", seed, marking }: Options = {}) {
+async function render({ text = TEXT, vocabulary, persona = "free", seed, marking }: Options = {}) {
   const element = (
     <TappableArabicText text={text} vocabulary={vocabulary} sentenceContext={{ arabic: text }} />
   );
@@ -73,14 +72,19 @@ function render({ text = TEXT, vocabulary, persona = "free", seed, marking }: Op
     },
   );
   cleanup = harness.cleanup;
+  // The prefs and bridge-mode hooks resolve a tick after mount, so a
+  // synchronous assertion would race a re-render already on its way.
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
   return harness;
 }
 
 const wordButton = (word: string) => screen.getByRole("button", { name: `Look up “${word}”` });
 
 describe("rendering the passage", () => {
-  it("makes every word its own target", () => {
-    render();
+  it("makes every word its own target", async () => {
+    await render();
 
     // Word-level rather than sentence-level: the learner knows which word they
     // did not understand, and asking them to select it by hand on a phone is
@@ -90,27 +94,27 @@ describe("rendering the passage", () => {
     expect(wordButton("السوق")).toBeInTheDocument();
   });
 
-  it("lays the passage out right to left", () => {
-    const { container } = render();
+  it("lays the passage out right to left", async () => {
+    const { container } = await render();
 
     expect(container.querySelector("p")).toHaveAttribute("dir", "rtl");
   });
 
-  it("keeps punctuation in the text but out of the lookup", () => {
-    render({ text: "رحت السوق، أمس؟" });
+  it("keeps punctuation in the text but out of the lookup", async () => {
+    await render({ text: "رحت السوق، أمس؟" });
 
     // The learner sees the sentence as written; the dictionary is asked about
     // the word, and "السوق،" is not a word.
     expect(screen.getByRole("button", { name: "Look up “السوق”" })).toHaveTextContent("السوق،");
   });
 
-  it("strips the vowels when the learner has turned them off", () => {
+  it("strips the vowels when the learner has turned them off", async () => {
     localStorage.setItem(
       "hakiya:display-prefs",
       JSON.stringify({ showArabic: true, showTashkil: false, showFormal: false, showEnglish: false }),
     );
 
-    render({ text: "رَحْت" });
+    await render({ text: "رَحْت" });
 
     // Reading unvocalised text is the skill; leaving the vowels on for someone
     // who asked for them off removes the exercise.
@@ -120,7 +124,7 @@ describe("rendering the passage", () => {
 
 describe("looking a word up", () => {
   it("asks for a definition in the learner's dialect", async () => {
-    const { backend } = render();
+    const { backend } = await render();
 
     fireEvent.click(wordButton("السوق"));
 
@@ -136,7 +140,7 @@ describe("looking a word up", () => {
   });
 
   it("does not ask twice for the same word", async () => {
-    const { backend } = render();
+    const { backend } = await render();
 
     fireEvent.click(wordButton("السوق"));
     await waitFor(() => expect(backend.callsTo("word-enrichment")).toHaveLength(1));
@@ -149,7 +153,7 @@ describe("looking a word up", () => {
   });
 
   it("marks a word that has been looked up", async () => {
-    render();
+    await render();
 
     fireEvent.click(wordButton("السوق"));
 
@@ -159,7 +163,7 @@ describe("looking a word up", () => {
   });
 
   it("ignores a tap on punctuation alone", async () => {
-    const { backend } = render({ text: "رحت ، السوق" });
+    const { backend } = await render({ text: "رحت ، السوق" });
 
     fireEvent.click(screen.getByRole("button", { name: "Look up “”" }));
 
@@ -168,7 +172,7 @@ describe("looking a word up", () => {
   });
 
   it("can be reached from the keyboard", async () => {
-    const { backend } = render();
+    const { backend } = await render();
 
     fireEvent.keyDown(wordButton("السوق"), { key: "Enter" });
 
@@ -176,7 +180,7 @@ describe("looking a word up", () => {
   });
 
   it("still shows the passage when enrichment fails", async () => {
-    const { backend } = render({
+    const { backend } = await render({
       seed: (b) => b.stubFunctionFailure("word-enrichment", 500),
     });
 
@@ -199,8 +203,8 @@ describe("selecting a phrase", () => {
     vi.useRealTimers();
   };
 
-  it("turns every word into a selection toggle", () => {
-    render();
+  it("turns every word into a selection toggle", async () => {
+    await render();
 
     longPress("رحت");
 
@@ -211,8 +215,8 @@ describe("selecting a phrase", () => {
     expect(screen.queryByRole("button", { name: "Look up “السوق”" })).not.toBeInTheDocument();
   });
 
-  it("takes the whole span between the two ends", () => {
-    render();
+  it("takes the whole span between the two ends", async () => {
+    await render();
     longPress("رحت");
 
     fireEvent.click(screen.getByRole("button", { name: "Extend phrase selection to “أمس”" }));
@@ -223,7 +227,7 @@ describe("selecting a phrase", () => {
   });
 
   it("translates the selection as one unit", async () => {
-    const { backend } = render();
+    const { backend } = await render();
     longPress("رحت");
     fireEvent.click(screen.getByRole("button", { name: "Extend phrase selection to “السوق”" }));
 
@@ -240,7 +244,7 @@ describe("selecting a phrase", () => {
   });
 
   it("refuses to save a phrase nobody has translated", async () => {
-    const { backend } = render();
+    const { backend } = await render();
     longPress("رحت");
 
     fireEvent.click(screen.getByRole("button", { name: /save/i }));
@@ -252,7 +256,7 @@ describe("selecting a phrase", () => {
   });
 
   it("saves the phrase once it has a meaning", async () => {
-    const { backend } = render();
+    const { backend } = await render();
     longPress("رحت");
     fireEvent.click(screen.getByRole("button", { name: /translate/i }));
     await waitFor(() => expect(backend.callsTo("word-enrichment")).toHaveLength(1));
@@ -270,8 +274,8 @@ describe("selecting a phrase", () => {
     );
   });
 
-  it("goes back to looking words up when cancelled", () => {
-    render();
+  it("goes back to looking words up when cancelled", async () => {
+    await render();
     longPress("رحت");
 
     fireEvent.click(screen.getByRole("button", { name: /cancel|close|×/i }));
@@ -280,7 +284,7 @@ describe("selecting a phrase", () => {
   });
 
   it("does not look the word up on the way into phrase mode", async () => {
-    const { backend } = render();
+    const { backend } = await render();
 
     longPress("رحت");
 
@@ -293,8 +297,8 @@ describe("selecting a phrase", () => {
 });
 
 describe("marking what you did not understand", () => {
-  it("leaves lookups alone until marking is switched on", () => {
-    render({ marking: true });
+  it("leaves lookups alone until marking is switched on", async () => {
+    await render({ marking: true });
 
     // The provider is present but the mode is off, which is the state every
     // reading screen starts in.
@@ -304,7 +308,7 @@ describe("marking what you did not understand", () => {
 
 describe("saving a single word", () => {
   it("refuses for a signed-out visitor", async () => {
-    const { backend } = render({ persona: "anonymous" });
+    const { backend } = await render({ persona: "anonymous" });
 
     fireEvent.click(wordButton("السوق"));
     await waitFor(() => expect(backend.callsTo("word-enrichment")).toHaveLength(1));

@@ -181,7 +181,7 @@ describe("submitting a rating", () => {
     const harness = renderHookWithProviders(() => useReviewQueue(), { seed: seedCard });
     cleanup = harness.cleanup;
 
-    act(() => {
+    await act(async () => {
       harness.result.current.enqueue({
         wordId: wordId(0),
         rating: "good",

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { waitFor } from "@testing-library/react";
+import { act, waitFor } from "@testing-library/react";
 import { renderHookWithProviders } from "@/test/support/react/harness";
 import { aRole, TEST_USER_ID } from "@/test/support/factories";
 import { useAdminAuth } from "./useAdminAuth";
@@ -155,7 +155,9 @@ describe("signing out", () => {
     await settled(rendered.result);
     expect(rendered.result.current.isAdmin).toBe(true);
 
-    await rendered.result.current.signOut();
+    await act(async () => {
+      await rendered.result.current.signOut();
+    });
 
     await waitFor(() => expect(rendered.result.current.isAdmin).toBe(false));
     expect(rendered.result.current.role).toBeNull();

@@ -107,7 +107,11 @@ describe("which videos a learner has liked", () => {
     });
 
     // The heart renders before the query settles; undefined here would be
-    // rendered as a React child and crash the card.
+    // rendered as a React child and crash the card. Settling first keeps the
+    // assertion from racing the query's own update.
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
     expect(result.current).toBe(false);
   });
 });

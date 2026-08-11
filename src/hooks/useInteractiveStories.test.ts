@@ -1,4 +1,4 @@
-import { waitFor } from "@testing-library/react";
+import { act, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { renderHookWithProviders } from "@/test/support/react/harness";
 import {
@@ -361,14 +361,16 @@ describe("saving a choice", () => {
 
     // Reading a story without an account is fine; there is nowhere to record a
     // path for someone who has none.
-    await expect(
-      harness.result.current.mutateAsync({
-        storyId: STORY,
-        currentSceneId: sceneId(1),
-        completed: false,
-        pathTaken: [0],
-      }),
-    ).rejects.toThrow("Not authenticated");
+    await act(async () => {
+  await expect(
+        harness.result.current.mutateAsync({
+          storyId: STORY,
+          currentSceneId: sceneId(1),
+          completed: false,
+          pathTaken: [0],
+        }),
+      ).rejects.toThrow("Not authenticated");
+    });
   });
 
   it("reports a rejected save", async () => {

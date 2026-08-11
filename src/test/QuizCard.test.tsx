@@ -59,13 +59,19 @@ describe("QuizCard audio", () => {
     vi.useRealTimers();
   });
 
-  it("renders the audio button", () => {
+  it("renders the audio button", async () => {
     // Use a settled (rejected) fetch, not a never-resolving promise: this word
     // routes through the module-level munsit serial queue, and a hung request
     // would leave that queue pending and starve every later test's TTS call.
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("Network error")));
     render(<QuizCard word={makeWord()} otherWords={otherWords} onAnswer={vi.fn()} />);
     expect(screen.getByRole("button", { name: /play pronunciation/i })).toBeInTheDocument();
+
+    // The rejected TTS fetch flips the hook out of loading a tick later; let it
+    // land inside the test.
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
   });
 
   it("auto-plays stored audio_url after 300 ms", async () => {

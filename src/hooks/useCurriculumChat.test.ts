@@ -170,11 +170,13 @@ describe("starting a session", () => {
     const { result, backend } = render();
     await waitFor(() => expect(result.current.sessionsLoading).toBe(false));
 
-    await result.current.createSession.mutateAsync({
-      dialect: "Gulf",
-      model: "google/gemini-2.5-pro",
-      stageId: "stage-1",
-      cefr: "A2",
+    await act(async () => {
+      await result.current.createSession.mutateAsync({
+        dialect: "Gulf",
+        model: "google/gemini-2.5-pro",
+        stageId: "stage-1",
+        cefr: "A2",
+      });
     });
 
     // These three travel with every subsequent turn; a session that did not
@@ -192,9 +194,11 @@ describe("starting a session", () => {
     const { result, backend } = render();
     await waitFor(() => expect(result.current.sessionsLoading).toBe(false));
 
-    await result.current.createSession.mutateAsync({
-      dialect: "Gulf",
-      model: "google/gemini-2.5-pro",
+    await act(async () => {
+      await result.current.createSession.mutateAsync({
+        dialect: "Gulf",
+        model: "google/gemini-2.5-pro",
+      });
     });
 
     expect(backend.db.lastWriteTo("curriculum_chat_sessions")?.payload[0]).toMatchObject({

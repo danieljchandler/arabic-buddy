@@ -30,11 +30,17 @@ describe("useAuth", () => {
     mockGetSession.mockResolvedValue({ data: { session: null } });
   });
 
-  it("starts in loading state", () => {
+  it("starts in loading state", async () => {
     const { result } = renderHook(() => useAuth());
     expect(result.current.loading).toBe(true);
     expect(result.current.user).toBeNull();
     expect(result.current.isAuthenticated).toBe(false);
+
+    // The session resolves on a macrotask. Letting it land here keeps the
+    // update inside the test rather than after it.
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
   });
 
   it("resolves session from getSession", async () => {

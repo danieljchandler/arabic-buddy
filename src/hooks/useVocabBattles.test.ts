@@ -1,4 +1,4 @@
-import { waitFor } from "@testing-library/react";
+import { act, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { renderHookWithProviders } from "@/test/support/react/harness";
 import {
@@ -283,9 +283,11 @@ describe("issuing a challenge", () => {
     const harness = renderHookWithProviders(() => useCreateBattle(), { persona: "anonymous" });
     cleanup = harness.cleanup;
 
-    await expect(
-      harness.result.current.mutateAsync({ opponentId: OPPONENT }),
-    ).rejects.toThrow("Not authenticated");
+    await act(async () => {
+      await expect(
+        harness.result.current.mutateAsync({ opponentId: OPPONENT }),
+      ).rejects.toThrow("Not authenticated");
+    });
   });
 });
 

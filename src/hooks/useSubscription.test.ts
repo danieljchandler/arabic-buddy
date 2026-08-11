@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { waitFor } from "@testing-library/react";
+import { act, waitFor } from "@testing-library/react";
 import { renderHookWithProviders } from "@/test/support/react/harness";
 import { useSubscription } from "./useSubscription";
 
@@ -242,7 +242,11 @@ describe("the sixty-second refresh", () => {
       subscription_end: null,
     });
 
-    await vi.advanceTimersByTimeAsync(60_000);
+    // Inside act: advancing the clock fires the poll, and the state update it
+    // causes belongs to this test rather than to whatever runs next.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60_000);
+    });
 
     await waitFor(() => expect(rendered.result.current.subscribed).toBe(true));
     expect(rendered.result.current.tier).toBe("standard");

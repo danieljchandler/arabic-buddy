@@ -84,33 +84,34 @@ describe("MarkUnknownsToggle — while marking", () => {
     expect(context.clear).not.toHaveBeenCalled();
   });
 
-  /**
-   * FINDING — leaving mark mode throws the marked words away, without warning.
-   *
-   * The branch is commented "already marking — leave bar to handle save/cancel",
-   * but it does not leave anything to the bar: it calls `setEnabled(false)` and
-   * then `clear()`. A reader who has worked down a passage marking twelve words
-   * and taps the button — reasonably, to stop marking — loses all twelve. There
-   * is no confirmation, and no undo.
-   *
-   * The comment describes the intended behaviour, which would be to turn the
-   * mode off and leave the batch for SaveUnknownsBar to save or discard
-   * deliberately. Dropping the `clear()` call would match it.
-   */
-  it("discards a batch of marked words on the way out", () => {
+  it("keeps a batch of marked words on the way out", () => {
+    // This used to call clear() too, so a reader who had worked down a passage
+    // marking twelve words and tapped the button — reasonably, to stop marking
+    // — lost all twelve, with no confirmation and no undo. SaveUnknownsBar
+    // shows on the count alone, so the batch keeps its Save and Discard.
     withMarked("سوق", "خبز", "حليب");
     render(<MarkUnknownsToggle />);
 
     fireEvent.click(button());
 
     expect(context.setEnabled).toHaveBeenCalledWith(false);
-    expect(context.clear).toHaveBeenCalledTimes(1);
+    expect(context.clear).not.toHaveBeenCalled();
   });
 
-  it("discards even a single marked word", () => {
+  it("keeps even a single marked word", () => {
     withMarked("سوق");
     render(<MarkUnknownsToggle />);
     fireEvent.click(button());
-    expect(context.clear).toHaveBeenCalledTimes(1);
+    expect(context.clear).not.toHaveBeenCalled();
+  });
+
+  it("never discards the batch itself, whatever the state", () => {
+    // Discarding is SaveUnknownsBar's to offer; this button only switches the
+    // mode. Pinned so a future tidy-up cannot quietly reintroduce the loss.
+    withMarked("سوق", "خبز");
+    render(<MarkUnknownsToggle />);
+    fireEvent.click(button());
+    fireEvent.click(button());
+    expect(context.clear).not.toHaveBeenCalled();
   });
 });

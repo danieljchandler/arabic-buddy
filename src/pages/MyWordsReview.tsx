@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useUpdateUserVocabularyReview } from "@/hooks/useUserVocabulary";
 import { useDialect } from "@/contexts/DialectContext";
@@ -107,8 +107,18 @@ interface RawRow {
 
 const MyWordsReview = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   const { activeDialect } = useDialect();
+  /**
+   * Review every dialect at once, as MyWordsSection's "Mixed" toggle promises.
+   *
+   * That toggle counts across all dialects but used to open a bare
+   * /review/my-words, and this deck reads the globally active dialect — so a
+   * learner told "Review 3 due" across three modules arrived at a session
+   * holding only one of them, with nothing on either screen explaining the gap.
+   */
+  const mixAll = searchParams.get("mixed") === "1";
   const { enabled: leechTrackingEnabled } = useLeechPrefs();
   const updateReview = useUpdateUserVocabularyReview();
   const { cap: newCap, setCap: setNewCap } = useNewCardCap();
@@ -182,7 +192,13 @@ const MyWordsReview = () => {
   }, []);
 
   const { data: dueWords, isLoading, refetch } = useQuery({
-    queryKey: ["user-vocabulary-due-words", user?.id, activeDialect, newCap, remainingNewBudget],
+    queryKey: [
+      "user-vocabulary-due-words",
+      user?.id,
+      mixAll ? "all" : activeDialect,
+      newCap,
+      remainingNewBudget,
+    ],
     queryFn: async (): Promise<DueCard[]> => {
       if (!user) return [];
       const now = new Date().toISOString();
@@ -192,23 +208,27 @@ const MyWordsReview = () => {
       const baseSelect =
         "id, word_arabic, word_english, ease_factor, difficulty, interval_days, repetitions, next_review_at, last_reviewed_at, production_ease_factor, production_difficulty, production_interval_days, production_repetitions, production_next_review_at, production_last_reviewed_at, word_audio_url, sentence_audio_url, image_url, jingle_audio_url, jingle_lyrics, sentence_text, sentence_english, lapses, production_lapses, is_leech, mnemonic, root";
 
-      const { data: recogRows, error: recogErr } = await (supabase
+      let recogQuery = (supabase
         .from("user_vocabulary")
         .select(baseSelect)
         .eq("user_id", user.id)
         .lte("next_review_at", now)
-        .order("next_review_at", { ascending: true }) as any)
-        .eq("dialect", activeDialect);
+        .order("next_review_at", { ascending: true }) as any);
+      if (!mixAll) recogQuery = recogQuery.eq("dialect", activeDialect);
+
+      const { data: recogRows, error: recogErr } = await recogQuery;
       if (recogErr) throw recogErr;
 
-      const { data: prodRows, error: prodErr } = await (supabase
+      let prodQuery = (supabase
         .from("user_vocabulary")
         .select(baseSelect)
         .eq("user_id", user.id)
         .not("production_next_review_at", "is", null)
         .lte("production_next_review_at", now)
-        .order("production_next_review_at", { ascending: true }) as any)
-        .eq("dialect", activeDialect);
+        .order("production_next_review_at", { ascending: true }) as any);
+      if (!mixAll) prodQuery = prodQuery.eq("dialect", activeDialect);
+
+      const { data: prodRows, error: prodErr } = await prodQuery;
       if (prodErr) throw prodErr;
 
       const cards: DueCard[] = [];

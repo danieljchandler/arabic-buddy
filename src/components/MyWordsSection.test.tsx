@@ -268,17 +268,11 @@ describe("MyWordsSection — the review prompt", () => {
     expect(navigate).toHaveBeenCalledWith("/review/my-words");
   });
 
-  /**
-   * FINDING — the mixed toggle does not travel to the review deck.
-   *
-   * With "Mixed" on, the count is across every dialect, but the button routes
-   * to a bare `/review/my-words` with nothing saying so. The deck reads the
-   * global active dialect, so a learner who has just been told "Review 3 due"
-   * across three modules arrives at a session holding only the one from the
-   * dialect they are currently studying. The count and the deck disagree, and
-   * nothing on either screen explains the gap.
-   */
-  it("promises a mixed count and routes to an unscoped deck", async () => {
+  it("tells the deck when the count is a mixed one", async () => {
+    // The count is across every dialect with "Mixed" on, but the button used
+    // to route to a bare /review/my-words. The deck reads the globally active
+    // dialect, so a learner told "Review 2 due" across two modules arrived at
+    // a session holding only one — with nothing on either screen explaining it.
     render({
       seed: (b) => {
         b.db.add("user_vocabulary", aWord(1, { ...due, dialect: "Gulf" }));
@@ -288,6 +282,12 @@ describe("MyWordsSection — the review prompt", () => {
     });
     fireEvent.click(await screen.findByRole("button", { name: /Gulf/ }));
 
+    fireEvent.click(await screen.findByRole("button", { name: /Review 2 due/ }));
+    expect(navigate).toHaveBeenCalledWith("/review/my-words?mixed=1");
+  });
+
+  it("leaves the deck scoped when the count is one dialect's", async () => {
+    render({ seed: seedWords(2, due), activeDialect: "Gulf" });
     fireEvent.click(await screen.findByRole("button", { name: /Review 2 due/ }));
     expect(navigate).toHaveBeenCalledWith("/review/my-words");
   });

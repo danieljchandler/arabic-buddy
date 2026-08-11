@@ -164,24 +164,28 @@ describe("ErrorBoundary — classifying the error", () => {
     expect(screen.getByText("Something went wrong")).toBeInTheDocument();
   });
 
-  /**
-   * FINDING — the `token` keyword captures JSON parse failures.
-   *
-   * "Unexpected token < in JSON at position 0" is what every browser throws
-   * when a fetch that expected JSON got an HTML error page instead, and it is
-   * one of the commonest render-time errors there is. `classifyError` sees
-   * "token", calls it an auth failure, and the panel tells the user their
-   * session expired — and its only button sends them to /auth, where signing in
-   * again fixes nothing because nothing was ever wrong with the session.
-   *
-   * The same applies to the syntax error React throws for a malformed chunk.
-   * Pinned as current behaviour; narrowing the keyword to something like
-   * "invalid token" or checking `error.name` would be the fix.
-   */
-  it("misreads a JSON parse failure as an expired session", () => {
+  it("does not read a JSON parse failure as an expired session", () => {
+    // "Unexpected token < in JSON" is what a request that expected JSON and got
+    // an HTML error page throws, and it is one of the commonest render-time
+    // errors there is. Matching a bare "token" substring sent that user to
+    // /auth, where signing in again fixed nothing.
     render(new SyntaxError("Unexpected token < in JSON at position 0"));
+    expect(screen.getByText("Something went wrong")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Sign in" })).not.toBeInTheDocument();
+  });
+
+  const tokens = [
+    ["a named access token", "access token is invalid"],
+    ["a refresh token", "refresh_token not found"],
+    ["a token that expired", "token has expired"],
+    ["a token called invalid", "invalid token"],
+  ] as const;
+
+  it.each(tokens)("still reads %s as an expired session", (_label, message) => {
+    // The narrowing has to keep the real cases: a token counts when something
+    // says which kind it is, or what went wrong with it.
+    render(new Error(message));
     expect(screen.getByText("Your session expired")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Sign in" })).toBeInTheDocument();
   });
 });
 
@@ -207,24 +211,24 @@ describe("ErrorBoundary — the details disclosure", () => {
     expect(screen.getByRole("button", { name: "Show details" })).toBeInTheDocument();
   });
 
-  /**
-   * FINDING — the two classified panels have no way to see the message.
-   *
-   * The disclosure is gated on `errorType === "unknown"`, so a connection or
-   * session panel shows a friendly sentence and nothing else. That is right for
-   * the learner and wrong for the person they forward the screenshot to: a
-   * misclassified error (see the JSON case above) becomes unreportable, because
-   * the screen no longer contains a single fact about what actually failed.
-   */
-  it("offers no details on a connection panel", () => {
+  it("offers the details on a connection panel too", () => {
+    // The friendly sentence is for the learner; the message is for whoever they
+    // forward the screenshot to. Without it a misclassified error is
+    // unreportable — the screen holds no fact about what actually failed.
     render(new Error("Failed to fetch /api/lessons"));
-    expect(screen.queryByRole("button", { name: "Show details" })).not.toBeInTheDocument();
-    expect(screen.queryByText("Failed to fetch /api/lessons")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Show details" }));
+    expect(screen.getByText("Failed to fetch /api/lessons")).toBeInTheDocument();
   });
 
-  it("offers no details on a session panel", () => {
+  it("offers the details on a session panel too", () => {
     render(new Error("JWT expired at 1700000000"));
-    expect(screen.queryByRole("button", { name: "Show details" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Show details" }));
+    expect(screen.getByText("JWT expired at 1700000000")).toBeInTheDocument();
+  });
+
+  it("still starts collapsed on a classified panel", () => {
+    render(new Error("Failed to fetch /api/lessons"));
+    expect(screen.queryByText("Failed to fetch /api/lessons")).not.toBeInTheDocument();
   });
 });
 

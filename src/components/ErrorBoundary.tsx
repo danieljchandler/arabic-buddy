@@ -15,14 +15,39 @@ type State = {
   showDetails: boolean;
 };
 
+const NETWORK_PATTERNS = [
+  /\bfetch\b/,
+  /\bnetwork\b/,
+  /failed to load/,
+  /\btimeout\b/,
+  /timed out/,
+];
+
+/**
+ * Deliberately narrower than "mentions a token".
+ *
+ * "Unexpected token < in JSON at position 0" is what every browser throws when a
+ * request that expected JSON got an HTML error page instead — one of the
+ * commonest render-time errors there is, and nothing to do with the session.
+ * Matching a bare `token` substring classified it as an expired session and sent
+ * the user to /auth, where signing in again fixed nothing. So a token only
+ * counts when something says which kind of token it is, or what went wrong with
+ * it.
+ */
+const AUTH_PATTERNS = [
+  /\bauth\b/,
+  /\bjwt\b/,
+  /\bunauthorized\b/,
+  /\b401\b/,
+  /\b(access|refresh|id|bearer|session)[ _-]token\b/,
+  /\btoken (has )?expired\b/,
+  /\b(invalid|missing|malformed) token\b/,
+];
+
 function classifyError(error: Error): "network" | "auth" | "unknown" {
   const msg = error.message?.toLowerCase() || "";
-  if (msg.includes("fetch") || msg.includes("network") || msg.includes("failed to load") || msg.includes("timeout")) {
-    return "network";
-  }
-  if (msg.includes("auth") || msg.includes("jwt") || msg.includes("token") || msg.includes("unauthorized") || msg.includes("401")) {
-    return "auth";
-  }
+  if (NETWORK_PATTERNS.some((re) => re.test(msg))) return "network";
+  if (AUTH_PATTERNS.some((re) => re.test(msg))) return "auth";
   return "unknown";
 }
 
@@ -96,22 +121,27 @@ export class ErrorBoundary extends React.Component<Props, State> {
               <p className="text-sm text-muted-foreground">
                 {messages.description}
               </p>
-              {this.state.errorType === "unknown" && (
-                <div>
-                  <button
-                    type="button"
-                    onClick={this.toggleDetails}
-                    className="text-xs text-muted-foreground underline hover:text-foreground"
-                  >
-                    {this.state.showDetails ? "Hide details" : "Show details"}
-                  </button>
-                  {this.state.showDetails && (
-                    <pre className="mt-2 text-xs whitespace-pre-wrap rounded-md bg-muted p-3 border">
-                      {String(this.state.error?.message ?? this.state.error)}
-                    </pre>
-                  )}
-                </div>
-              )}
+              {/*
+                On every panel, not just the generic one. The friendly sentence
+                is right for the learner; the person they forward the screenshot
+                to needs a fact. Gating this on `unknown` meant a misclassified
+                error — see classifyError above — left a screen containing
+                nothing about what actually failed.
+              */}
+              <div>
+                <button
+                  type="button"
+                  onClick={this.toggleDetails}
+                  className="text-xs text-muted-foreground underline hover:text-foreground"
+                >
+                  {this.state.showDetails ? "Hide details" : "Show details"}
+                </button>
+                {this.state.showDetails && (
+                  <pre className="mt-2 text-xs whitespace-pre-wrap rounded-md bg-muted p-3 border">
+                    {String(this.state.error?.message ?? this.state.error)}
+                  </pre>
+                )}
+              </div>
               <div className="flex gap-2">
                 <Button type="button" onClick={this.handleRetry}>
                   {messages.action}

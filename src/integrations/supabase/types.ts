@@ -2592,6 +2592,42 @@ export type Database = {
         }
         Relationships: []
       }
+      saved_chat_conversations: {
+        Row: {
+          created_at: string
+          dialect: string
+          id: string
+          messages: Json
+          page_context: Json | null
+          seed: Json | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          dialect: string
+          id?: string
+          messages: Json
+          page_context?: Json | null
+          seed?: Json | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          dialect?: string
+          id?: string
+          messages?: Json
+          page_context?: Json | null
+          seed?: Json | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       saved_text_translations: {
         Row: {
           created_at: string

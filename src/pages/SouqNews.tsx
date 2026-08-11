@@ -169,7 +169,6 @@ const SouqNews = () => {
                 <div className="mb-4">
                   <ArticleSentences
                     bodyDialect={article.body_dialect}
-                    summaryEnglish={article.summary_english}
                     sentences={article.sentences}
                     vocabulary={article.vocabulary}
                   />

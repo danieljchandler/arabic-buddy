@@ -107,31 +107,37 @@ describe("AchievementBadge — sizes", () => {
   });
 });
 
-/**
- * FINDING — `earnedAt` is a date that is never shown, used as a flag.
- *
- * The prop is typed and named as a timestamp, and the only thing the component
- * does with it is gate the XP line: `earned && earnedAt`. The date itself never
- * reaches the screen, so "when did I earn this?" is unanswerable from the grid.
- *
- * The gate also has a hole. `user_achievements.earned_at` is nullable, and a
- * row inserted without one — which is what a backfill or a manual grant
- * produces — is `earned` with no `earnedAt`, so the badge shows gold and full
- * colour but silently drops the XP line, making an earned achievement look
- * worth nothing.
- */
-describe("AchievementBadge — the earnedAt gap", () => {
-  it("never shows the date it was earned", () => {
+describe("AchievementBadge — when it was earned", () => {
+  it("shows the date it was earned", () => {
+    // The prop was typed and named as a timestamp and used only as a boolean,
+    // so "when did I earn this?" was unanswerable from the grid.
     render(
       <AchievementBadge achievement={anAchievement()} earned earnedAt="2026-03-01T10:00:00Z" />,
     );
-    expect(screen.queryByText(/2026/)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Mar/)).not.toBeInTheDocument();
+    expect(
+      screen.getByText(new Date("2026-03-01T10:00:00Z").toLocaleDateString()),
+    ).toBeInTheDocument();
   });
 
-  it("hides the XP of an achievement earned without a timestamp", () => {
+  it("shows no date for one that has not been earned", () => {
+    render(<AchievementBadge achievement={anAchievement()} earnedAt="2026-03-01T10:00:00Z" />);
+    expect(
+      screen.queryByText(new Date("2026-03-01T10:00:00Z").toLocaleDateString()),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows the XP of an achievement earned without a timestamp", () => {
+    // user_achievements.earned_at is nullable, and a row from a backfill or a
+    // manual grant has none — which used to show gold and full colour while
+    // silently dropping the XP line, making an earned achievement look worth
+    // nothing.
     const { container } = render(<AchievementBadge achievement={anAchievement()} earned />);
     expect(container.querySelector(".border-amber-400")).toBeInTheDocument();
+    expect(screen.getByText("+50 XP")).toBeInTheDocument();
+  });
+
+  it("still withholds the XP from one that has not been earned", () => {
+    render(<AchievementBadge achievement={anAchievement()} />);
     expect(screen.queryByText("+50 XP")).not.toBeInTheDocument();
   });
 });

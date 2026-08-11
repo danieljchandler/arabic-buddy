@@ -67,24 +67,24 @@ describe("TranslationPair — the grid form", () => {
     expect(container.querySelector(".grid")).toBeInTheDocument();
   });
 
-  /**
-   * FINDING — the grid form labels a literal column that has nothing in it.
-   *
-   * `hasLiteral` is computed and then used only by the compact branch. The grid
-   * branch renders its "Literal" heading and paragraph unconditionally, so a
-   * translation without a gloss — which is most of the older content — shows a
-   * heading over an empty half of the Translate page.
-   *
-   * Reusing the same guard, or collapsing to one column, would fix it.
-   */
-  it("shows an empty Literal column when there is no gloss", () => {
+  it("drops the Literal column when there is no gloss", () => {
+    // `hasLiteral` was computed and used only by the compact branch, so the
+    // grid rendered its heading and paragraph unconditionally — a heading over
+    // an empty half of the Translate page, which is most of the older content.
     render(<TranslationPair variant="grid" natural="I went to the market" />);
-    expect(screen.getByText("Literal")).toBeInTheDocument();
+    expect(screen.queryByText("Literal")).not.toBeInTheDocument();
     expect(screen.getByText("Natural")).toBeInTheDocument();
   });
 
-  it("shows the same empty column for a whitespace-only gloss", () => {
+  it("drops it for a whitespace-only gloss too", () => {
     render(<TranslationPair variant="grid" natural="I went to the market" literal="  " />);
-    expect(screen.getByText("Literal")).toBeInTheDocument();
+    expect(screen.queryByText("Literal")).not.toBeInTheDocument();
+  });
+
+  it("collapses to one column rather than leaving a gap", () => {
+    const { container } = render(
+      <TranslationPair variant="grid" natural="I went to the market" />,
+    );
+    expect(container.querySelector(".sm\\:grid-cols-2")).toBeNull();
   });
 });

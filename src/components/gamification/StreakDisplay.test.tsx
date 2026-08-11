@@ -104,18 +104,22 @@ describe("StreakDisplay — the compact pill", () => {
     expect(screen.queryByText("Best")).not.toBeInTheDocument();
   });
 
-  /**
-   * FINDING — a broken streak still looks alive in the compact pill.
-   *
-   * The full card greys its flame when `current_streak` is 0. The pill has no
-   * such branch: it renders "0 days" on the same orange background, with the
-   * same orange flame, as a thirty-day run. The pill is the version that sits
-   * in the header on every screen, so the state a learner sees most often is
-   * the one that does not distinguish "you are on a streak" from "you lost it".
-   */
-  it("keeps the orange flame on a streak of zero", async () => {
+  it("greys the flame on a streak of zero", async () => {
+    // The full card already greys at zero; the pill rendered "0 days" on the
+    // same orange background, with the same orange flame, as a thirty-day run.
+    // It is the version that sits in the header on every screen, so the state a
+    // learner saw most often was the one that could not tell "you are on a
+    // streak" from "you lost it".
     const { container } = await render({ compact: true, seed: withStreak(0, 12) });
     await screen.findByText("0 days");
+    expect(container.querySelector(".bg-orange-100")).toBeNull();
+    expect(container.querySelector(".text-orange-500")).toBeNull();
+    expect(container.querySelector(".bg-muted")).toBeInTheDocument();
+  });
+
+  it("keeps the orange while the streak is alive", async () => {
+    const { container } = await render({ compact: true, seed: withStreak(1) });
+    await screen.findByText("1 day");
     expect(container.querySelector(".bg-orange-100")).toBeInTheDocument();
     expect(container.querySelector(".text-orange-500")).toBeInTheDocument();
   });

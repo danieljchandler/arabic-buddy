@@ -115,28 +115,27 @@ describe("TranscriptionStatusBanner — while a job is running", () => {
     expect(container.querySelector(".fixed")).toBeInTheDocument();
   });
 
-  /**
-   * FINDING — the "Cancel job" button does not cancel the job.
-   *
-   * Its only action is `clearJob()`, which drops the local record of the job.
-   * The pipeline itself runs in the `process-approved-video` edge function and
-   * knows nothing about this click: it keeps going, keeps spending on the ASR
-   * and translation calls, and eventually writes its result to a video the
-   * admin believes they cancelled.
-   *
-   * Worse, the banner is the only handle on that job — once cleared there is no
-   * way back to it, so an admin who wanted to stop a run has instead made it
-   * invisible. Either the label should say "Hide" or the button should call an
-   * endpoint that actually cancels.
-   */
-  it("only hides the banner, leaving the pipeline running", () => {
+  it("offers to hide the banner rather than claiming to cancel the job", () => {
+    // The button was labelled "Cancel job" and its only action is clearJob(),
+    // which drops the local record. The pipeline runs in the
+    // process-approved-video edge function and knows nothing about the click:
+    // it keeps going, keeps spending, and eventually writes its result to a
+    // video the admin believed they had cancelled — and since this banner is
+    // the only handle on that job, they had made it invisible instead.
     renderBanner(aJob());
-    const button = screen.getByRole("button", { name: "Cancel job" });
+    expect(screen.queryByRole("button", { name: "Cancel job" })).not.toBeInTheDocument();
+
+    const button = screen.getByRole("button", { name: "Hide" });
+    expect(button).toHaveAttribute(
+      "title",
+      "Hide this banner — the transcription keeps running",
+    );
 
     fireEvent.click(button);
 
     expect(context.clearJob).toHaveBeenCalledTimes(1);
-    // Nothing else happens: no navigation, and no request to stop the work.
+    // Still nothing that stops the work — that needs an endpoint which does not
+    // exist yet. The label no longer claims otherwise.
     expect(navigate).not.toHaveBeenCalled();
   });
 });

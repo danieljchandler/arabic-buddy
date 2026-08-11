@@ -17,7 +17,6 @@ interface IntroCardProps {
  * Clean, focused presentation of vocabulary with audio.
  */
 export const IntroCard = ({ word, onContinue, topicLabel }: IntroCardProps) => {
-  const [hasPlayed, setHasPlayed] = useState(false);
   const [showArabic, setShowArabic] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -47,10 +46,15 @@ export const IntroCard = ({ word, onContinue, topicLabel }: IntroCardProps) => {
 
       {/* Word Card */}
       <div className="mb-6">
+        {/*
+          The tap plays. Its only action used to be setting a `hasPlayed` flag
+          that nothing read — so "Tap the card to hear again" was untrue even
+          for a word that had a recording.
+        */}
         <VocabularyCard
           word={word}
           showTapHint={false}
-          onCardClick={() => setHasPlayed(true)}
+          onCardClick={playStoredAudio}
         />
       </div>
 
@@ -97,9 +101,13 @@ export const IntroCard = ({ word, onContinue, topicLabel }: IntroCardProps) => {
         </p>
       </div>
 
-      {/* Tap hint */}
+      {/*
+        Only for a word that has audio. This was unconditional, so a lesson
+        imported without recordings — the normal state of a freshly authored one
+        — promised audio on every word and the tap did nothing at all.
+      */}
       <p className="text-sm text-muted-foreground mb-6">
-        Tap the card to hear again
+        {word.audio_url ? "Tap the card to hear again" : "\u00A0"}
       </p>
 
       {/* Continue Button */}
@@ -112,7 +120,6 @@ export const IntroCard = ({ word, onContinue, topicLabel }: IntroCardProps) => {
         <audio
           ref={audioRef}
           src={word.audio_url}
-          onEnded={() => setHasPlayed(true)}
           preload="auto"
         />
       )}

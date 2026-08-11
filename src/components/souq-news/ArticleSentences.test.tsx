@@ -69,12 +69,10 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-const SUMMARY = "Qatar announced a new rail link on Tuesday.";
 const BODY = "أعلنت قطر عن خط سكة حديد جديد. بدأ العمل أمس. ينتهي في ٢٠٣٠؟ نعم!";
 
 interface Options {
   bodyDialect?: string;
-  summaryEnglish?: string;
   sentences?: {
     arabic: string;
     transliteration?: string;
@@ -86,14 +84,12 @@ interface Options {
 
 function renderArticle({
   bodyDialect = BODY,
-  summaryEnglish = SUMMARY,
   sentences,
   vocabulary,
 }: Options = {}) {
   return render(
     <ArticleSentences
       bodyDialect={bodyDialect}
-      summaryEnglish={summaryEnglish}
       sentences={sentences}
       vocabulary={vocabulary}
     />,
@@ -214,7 +210,6 @@ describe("ArticleSentences — revealing the English", () => {
     rerender(
       <ArticleSentences
         bodyDialect={BODY}
-        summaryEnglish={SUMMARY}
         sentences={[
           { arabic: "خبر جديد أول.", english: "A different first line." },
           { arabic: "خبر جديد ثاني.", english: "A different second line." },
@@ -233,7 +228,6 @@ describe("ArticleSentences — revealing the English", () => {
     rerender(
       <ArticleSentences
         bodyDialect={BODY}
-        summaryEnglish={SUMMARY}
         sentences={authored.map((s) => ({ ...s }))}
       />,
     );
@@ -301,23 +295,18 @@ describe("ArticleSentences — asking the AI about a line", () => {
     });
   });
 
-  /**
-   * FINDING — an untranslated line is described to the AI as the whole article.
-   *
-   * Both the AI chip and the word-gloss context fall back to
-   * `line.english || summaryEnglish`. On the authored path that never fires;
-   * on the fallback path every line has an empty English, so every one of them
-   * is sent up paired with the article's entire summary. The model is told that
-   * a four-word sentence means a paragraph, and so is the word-lookup that
-   * produces the gloss a learner then saves — which is how a wrong definition
-   * ends up in someone's deck.
-   */
-  it("pairs a split line with the whole article summary", () => {
+  it("does not pair a split line with the whole article summary", () => {
+    // Both the AI chip and the word-gloss context fell back to
+    // `line.english || summaryEnglish`. On the authored path that never fires;
+    // on the split-sentence path every line has an empty English, so each was
+    // sent up paired with the article's entire summary — telling the model, and
+    // the word lookup that produces the gloss a learner then saves, that a
+    // four-word sentence means a paragraph.
     renderArticle();
     expect(spies.ask[0]).toMatchObject({
       arabic: "أعلنت قطر عن خط سكة حديد جديد.",
-      english: SUMMARY,
+      english: "",
     });
-    expect(spies.tappable[0].sentenceContext.english).toBe(SUMMARY);
+    expect(spies.tappable[0].sentenceContext.english).toBe("");
   });
 });

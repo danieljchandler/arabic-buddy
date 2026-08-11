@@ -221,32 +221,28 @@ describe("IntroCard — a word with no recording", () => {
     expect(play).not.toHaveBeenCalled();
   });
 
-  /**
-   * FINDING — the card promises audio it does not have.
-   *
-   * "Tap the card to hear again" is rendered unconditionally. A word with no
-   * `audio_url` has no audio element at all, so the tap does nothing at all —
-   * and a lesson imported without recordings, which is the normal state of a
-   * freshly authored lesson, shows this line on every one of its words.
-   */
-  it("still tells the learner to tap for audio", () => {
+  it("does not tell the learner to tap for audio it does not have", () => {
+    // A lesson imported without recordings — the normal state of a freshly
+    // authored one — showed this line on every word, and the tap did nothing.
     renderCard(aWord({ audio_url: null }));
+    expect(screen.queryByText("Tap the card to hear again")).not.toBeInTheDocument();
+  });
+
+  it("still offers the hint for a word that does have one", () => {
+    renderCard();
     expect(screen.getByText("Tap the card to hear again")).toBeInTheDocument();
   });
 });
 
 /**
- * FINDING — `hasPlayed` is written three ways and never read.
- *
- * The card tracks whether the learner has heard the word — set on a card tap
- * and on the audio's `ended` — and then does nothing with it. Nothing is gated
- * on it, nothing is displayed from it, and Continue is enabled from the first
- * frame. The state reads like the remains of a rule that the learner should
- * hear a word before being quizzed on it, and whether that rule is wanted is a
- * product question; what is certain is that the bookkeeping for it is still
- * here and costs a re-render each time.
+ * `hasPlayed` used to be set on a card tap and on the audio's `ended`, and then
+ * read by nothing: not gated on, not displayed, and Continue enabled from the
+ * first frame. It read like the remains of a rule that a learner should hear a
+ * word before being quizzed on it — a product question, not a defect — so the
+ * bookkeeping is gone and the tap now does the thing the card advertises.
+ * Continue stays open from the start, which these cases pin.
  */
-describe("IntroCard — the unused play tracking", () => {
+describe("IntroCard — hearing the word is not required", () => {
   it("lets the learner continue without hearing the word", () => {
     const { onContinue } = renderCard();
     fireEvent.click(screen.getByRole("button", { name: "Continue to Quiz" }));

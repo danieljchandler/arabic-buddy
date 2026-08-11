@@ -64,7 +64,7 @@ Test files are held to a *higher* lint standard than the app, not a lower one
 (see the override in `eslint.config.js`):
 
 - **No `any`.** The fixtures and harness expose typed helpers. The app carries
-  ~549 pre-existing `no-explicit-any` errors that `scripts/lint-ratchet.mjs`
+  ~548 pre-existing `no-explicit-any` errors that `scripts/lint-ratchet.mjs`
   holds the line on; test code starts from zero and stays there.
 - **No `.only`.** At this suite's size a stray `.only` silently reduces
   thousands of tests to one, and CI still reports green. It is an error.

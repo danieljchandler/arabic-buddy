@@ -539,6 +539,136 @@ describe("re-segmenting the whole transcript", () => {
   // non-zero, so it is recorded here rather than pinned.
 });
 
+describe("keeping one boundary the proposal removes", () => {
+  /** Three lines, so a proposal can merge two and leave the third alone. */
+  const THREE: Segment[] = [
+    aSegment({ id: "seg-1", start: 0, end: 2, text: "شلونك", translation: "how are you" }),
+    aSegment({ id: "seg-2", start: 2, end: 4, text: "زين", translation: "good" }),
+    aSegment({ id: "seg-3", start: 4, end: 6, text: "تمام", translation: "fine" }),
+  ];
+
+  /** Merges the first two, keeps the third. */
+  const MERGE_FIRST_TWO: Segment[] = [
+    aSegment({ id: "m-1", start: 0, end: 4, text: "شلونك زين", translation: "how are you, good" }),
+    aSegment({ id: "m-2", start: 4, end: 6, text: "تمام", translation: "fine" }),
+  ];
+
+  const pane = () =>
+    screen.getByRole("button", { name: "Accept All" }).closest("div.rounded-lg") as HTMLElement;
+
+  /**
+   * The timing labels of the diff's rows, in the order they are rendered.
+   *
+   * The two kinds of row share a shape and differ only by the strike-through on
+   * the removed one, so that is what tells them apart. Reading them by timing
+   * rather than by text is deliberate: the whole point of the handler is which
+   * *boundaries* survive.
+   */
+  const rows = (kind: "proposed" | "removed") =>
+    Array.from(pane().querySelectorAll<HTMLElement>('[dir="rtl"]'))
+      .filter((row) => (kind === "removed") === !!row.querySelector(".line-through"))
+      .map((row) => row.querySelector("span.font-mono")!.textContent!.trim());
+
+  const keepButtons = () => screen.queryAllByRole("button", { name: "Keep" });
+
+  /** Suggest breaks on the three-line fixture, and open the diff. */
+  async function suggestMerge() {
+    const harness = render({
+      segments: THREE,
+      aiApiCall: vi.fn(async () => JSON.stringify(MERGE_FIRST_TWO)),
+    });
+    await act(async () => {
+      fireEvent.click(suggestButton());
+    });
+    return harness;
+  }
+
+  it("offers a Keep on each boundary the proposal drops", async () => {
+    await suggestMerge();
+
+    // The merge deletes the 0–2 and 2–4 boundaries; 4–6 comes back unchanged.
+    expect(rows("removed")).toEqual(["0.0s – 2.0s", "2.0s – 4.0s"]);
+    expect(keepButtons()).toHaveLength(2);
+  });
+
+  it("puts the kept boundary back into the proposal", async () => {
+    await suggestMerge();
+
+    await act(async () => {
+      fireEvent.click(keepButtons()[0]);
+    });
+
+    // Keeping 0–2 means the merged 0–4 line cannot stand: it is the line that
+    // swallowed the boundary. Everything else the model proposed survives.
+    expect(rows("proposed")).toEqual(["0.0s – 2.0s", "4.0s – 6.0s"]);
+  });
+
+  it("drops only the suggested lines that overlap what was kept", async () => {
+    await suggestMerge();
+
+    await act(async () => {
+      fireEvent.click(keepButtons()[0]);
+    });
+
+    // 4–6 does not overlap 0–2 and must not be collateral. Comparing against a
+    // tolerance rather than exact equality is what makes this hold for the real
+    // timings, which are floats summed from word durations.
+    expect(rows("proposed")).toContain("4.0s – 6.0s");
+    expect(rows("proposed")).not.toContain("0.0s – 4.0s");
+  });
+
+  it("works on the first keep, before any amended proposal exists", async () => {
+    await suggestMerge();
+
+    // The first Keep reads the suggestion out of the AI hook — there is no
+    // amended proposal yet — and every later one reads its own output. A handler
+    // that only looked at the amended list would crash on this click.
+    await act(async () => {
+      fireEvent.click(keepButtons()[0]);
+    });
+    expect(rows("proposed")).toHaveLength(2);
+
+    await act(async () => {
+      fireEvent.click(keepButtons()[0]);
+    });
+
+    // Keeping both dropped boundaries restores the original segmentation, so
+    // there is nothing left to keep.
+    expect(rows("proposed")).toEqual(["0.0s – 2.0s", "2.0s – 4.0s", "4.0s – 6.0s"]);
+    expect(keepButtons()).toHaveLength(0);
+  });
+
+  it("leaves the amended proposal in start order", async () => {
+    await suggestMerge();
+
+    // The kept line is appended and the list re-sorted; without the sort a kept
+    // early boundary would render last, and Accept All would write the
+    // transcript out of order.
+    await act(async () => {
+      fireEvent.click(keepButtons()[0]);
+    });
+
+    const proposed = rows("proposed");
+    expect(proposed).toEqual([...proposed].sort());
+  });
+
+  it("applies the amended proposal, not the model's original", async () => {
+    const { container } = await suggestMerge();
+
+    await act(async () => {
+      fireEvent.click(keepButtons()[0]);
+    });
+    await act(async () => {
+      fireEvent.click(acceptAll());
+    });
+
+    // Two lines — the kept 0–2 and the untouched 4–6 — rather than the model's
+    // merged pair. Keeping a boundary and then accepting has to mean the
+    // amended thing the admin was looking at.
+    expect(lines(container)).toEqual(["شلونك", "تمام"]);
+  });
+});
+
 describe("when both AI actions have produced something", () => {
   it("shows the re-segment rather than the break suggestion", async () => {
     render({

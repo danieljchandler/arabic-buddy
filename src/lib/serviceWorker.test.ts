@@ -31,7 +31,32 @@ async function loadModule() {
   return import("./serviceWorker");
 }
 
+/**
+ * `registerServiceWorker` defers its work to a `load` listener and nothing ever
+ * takes that listener off again. Left in place it fires on the *next* test's
+ * `load` dispatch and calls whatever `navigator.serviceWorker` is stubbed in by
+ * then — which is how "registers nothing" saw three registrations once the
+ * tests ran in a different order. Every listener added during a test is
+ * recorded here and removed after it.
+ */
+const realAddEventListener = window.addEventListener.bind(window);
+let added: Array<[string, EventListenerOrEventListenerObject]> = [];
+
+beforeEach(() => {
+  added = [];
+  window.addEventListener = ((
+    type: string,
+    listener: EventListenerOrEventListenerObject,
+    options?: boolean | AddEventListenerOptions,
+  ) => {
+    added.push([type, listener]);
+    realAddEventListener(type, listener, options);
+  }) as typeof window.addEventListener;
+});
+
 afterEach(() => {
+  for (const [type, listener] of added) window.removeEventListener(type, listener);
+  window.addEventListener = realAddEventListener as typeof window.addEventListener;
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
   vi.restoreAllMocks();

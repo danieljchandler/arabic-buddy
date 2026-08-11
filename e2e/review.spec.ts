@@ -302,6 +302,58 @@ test.describe("saved-word decks", () => {
 
     await expect(page.getByRole("heading", { name: /all caught up|deck complete/i })).toBeVisible();
   });
+
+  /**
+   * The "Mixed" toggle on the home screen counts saved words across every
+   * dialect, but this deck reads the globally active one — so the link now
+   * carries `?mixed=1` and the deck drops its dialect filter when it sees it.
+   *
+   * Both halves are asserted: without the flag the deck must still scope to the
+   * active dialect, or the toggle would be the only way to get a scoped session.
+   */
+  function seedTwoDialects(db: MemoryDb) {
+    db.seed("user_vocabulary", [
+      aUserVocabulary({
+        id: vocabId(0),
+        word_arabic: "خليجي",
+        word_english: "gulf word",
+        dialect: "Gulf",
+        next_review_at: daysAgo(2),
+      }),
+      aUserVocabulary({
+        id: vocabId(1),
+        word_arabic: "مصري",
+        word_english: "egyptian word",
+        dialect: "Egyptian",
+        next_review_at: daysAgo(1),
+      }),
+    ]);
+  }
+
+  test("?mixed=1 opens a session across every dialect", async ({ page, db }) => {
+    seedTwoDialects(db);
+
+    await page.goto("/review/my-words?mixed=1");
+
+    await expect(page.getByText(/1 \/ 2 due/)).toBeVisible();
+    await expect(page.getByText("خليجي")).toBeVisible();
+
+    await rate(page, "good");
+
+    // The second dialect's word is in the same session rather than behind a
+    // dialect switch — which is what the "3 due" count promised.
+    await expect(page.getByText("مصري")).toBeVisible();
+  });
+
+  test("without the flag the deck still holds one dialect", async ({ page, db }) => {
+    seedTwoDialects(db);
+
+    await page.goto("/review/my-words");
+
+    await expect(page.getByText(/1 \/ 1 due/)).toBeVisible();
+    await expect(page.getByText("خليجي")).toBeVisible();
+    await expect(page.getByText("مصري")).toHaveCount(0);
+  });
 });
 
 test.describe("when the deck cannot load", () => {

@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, onlineManager } from "@tanstack/react-query";
 import { onTestFinished } from "vitest";
 import { act, render, renderHook, type RenderHookOptions, type RenderOptions } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
@@ -120,6 +120,17 @@ function setUp(options: HarnessOptions): Harness & { wrapper: (props: { children
   const cleanup = () => {
     queryClient.clear();
     installed.restore();
+    /**
+     * Put the process back online.
+     *
+     * TanStack Query's `onlineManager` is a module singleton that listens on
+     * `window`, so a test that dispatches an `offline` event — the only way to
+     * exercise the review queue's offline path — leaves *every* later test in
+     * the worker with its mutations paused. That reads as a mutation which
+     * simply never runs: no error, no write, and an assertion that times out
+     * somewhere unrelated.
+     */
+    onlineManager.setOnline(true);
     // DialectProvider persists to localStorage and writes CSS variables onto
     // documentElement; both would otherwise carry into the next test.
     window.localStorage.clear();

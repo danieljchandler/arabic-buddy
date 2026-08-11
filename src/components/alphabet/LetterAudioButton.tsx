@@ -32,41 +32,92 @@ export const LetterAudioButton = ({
   // auto-selected Azure voice for Egyptian/Yemeni).
   const dialectProp = forceMsa ? "MSA" : undefined;
   const voice = forceMsa ? MSA_VOICE : undefined;
+
+  /**
+   * Synthesise on demand, not on render.
+   *
+   * `useAzureTTS` was called with no `skip`, so every one of these buttons
+   * synthesised the moment it appeared. The alphabet grid puts twenty-eight on
+   * one screen and the letter detail view adds a Fusha button beside each
+   * dialect one, so opening a page fired a TTS request per button whether or
+   * not the learner ever tapped one — and held every response as a blob for the
+   * life of the page. `bible/VerseAudioButton` had already solved this by
+   * arming on the first tap.
+   *
+   * Keyed on the letter rather than a bare flag so a button reused for the next
+   * letter goes back to waiting instead of speaking unasked.
+   */
+  const [armedFor, setArmedFor] = useState<string | null>(autoplay ? text : null);
+  const armed = armedFor === text;
   const { ttsUrl, isLoading } = useAzureTTS({
     text,
     dialect: dialectProp,
     voice,
+    skip: !armed || !text?.trim(),
   });
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [playing, setPlaying] = useState(false);
   const autoplayedRef = useRef(false);
+  /** A tap that arrived before the clip did, waiting for it to land. */
+  const pendingTapRef = useRef(false);
 
   // Reset the autoplay guard whenever the letter (text) changes so the next
   // letter's audio actually plays instead of being silently skipped.
   useEffect(() => {
     autoplayedRef.current = false;
-  }, [text]);
+    if (autoplay) setArmedFor(text);
+  }, [text, autoplay]);
 
-  useEffect(() => {
-    if (!ttsUrl) return;
-    if (autoplay && !autoplayedRef.current) {
-      autoplayedRef.current = true;
-      const a = new Audio(ttsUrl);
-      audioRef.current = a;
-      a.play().catch(() => {});
-    }
-  }, [ttsUrl, autoplay]);
-
-  const handlePlay = () => {
-    if (!ttsUrl) return;
-    if (audioRef.current) {
-      audioRef.current.pause();
-    }
-    const a = new Audio(ttsUrl);
+  const play = (url: string) => {
+    audioRef.current?.pause();
+    const a = new Audio(url);
     audioRef.current = a;
     setPlaying(true);
     a.onended = () => setPlaying(false);
+    a.onpause = () => setPlaying(false);
     a.play().catch(() => setPlaying(false));
+  };
+
+  useEffect(() => {
+    if (!ttsUrl || !armed) return;
+    // Autoplay goes through the same path as a tap, so the ring that says
+    // "this is the sound you are hearing" appears either way. It used to build
+    // its own Audio and touch neither `playing` nor `onended`, which left the
+    // button looking idle for the whole clip on the letter tour — where
+    // autoplay is the entire point.
+    if (autoplay && !autoplayedRef.current) {
+      autoplayedRef.current = true;
+      play(ttsUrl);
+      return;
+    }
+    // Armed by a tap that arrived before the clip did.
+    if (pendingTapRef.current) {
+      pendingTapRef.current = false;
+      play(ttsUrl);
+    }
+  }, [ttsUrl, armed, autoplay]);
+
+  // Nothing stopped the clip on unmount, so tapping a letter and going straight
+  // back left it being pronounced over the next screen — and on the letter tour
+  // every skipped letter kept playing.
+  useEffect(() => {
+    return () => {
+      const a = audioRef.current;
+      if (a) {
+        a.pause();
+        a.src = "";
+      }
+    };
+  }, []);
+
+  const handlePlay = () => {
+    if (ttsUrl && armed) {
+      play(ttsUrl);
+      return;
+    }
+    // First tap: ask for the clip and play it when it lands.
+    pendingTapRef.current = true;
+    setArmedFor(text);
   };
 
   const sizeCls =
@@ -77,7 +128,10 @@ export const LetterAudioButton = ({
     <button
       type="button"
       onClick={handlePlay}
-      disabled={isLoading || !ttsUrl}
+      // Only once it is actually fetching. Gating on `!ttsUrl` as well would
+      // leave a lazily-armed button permanently disabled and untappable, since
+      // there is no clip until the first tap asks for one.
+      disabled={isLoading || !text?.trim()}
       aria-label={label ?? `Play ${text}`}
       className={cn(
         "rounded-full bg-primary text-primary-foreground flex items-center justify-center",

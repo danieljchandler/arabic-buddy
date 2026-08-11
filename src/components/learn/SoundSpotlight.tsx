@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Volume2, ChevronDown } from "lucide-react";
 import { useAzureTTS } from "@/hooks/useAzureTTS";
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";
@@ -24,13 +24,38 @@ const SoundRow = ({ entry }: { entry: SoundSpotlightEntry }) => {
   const { activeDialect } = useDialect();
   const example = entry.example?.trim();
 
-  // Only synthesise when there's an Arabic example worth hearing.
+  /**
+   * Synthesise on demand, not on arrival.
+   *
+   * The panel opens by default and every row asked for its clip immediately, so
+   * loading a lesson fired a TTS request per sound whether or not the learner
+   * ever tapped a speaker — the same eager pattern the alphabet button had, and
+   * the opposite of the Bible reader's.
+   */
+  const [armed, setArmed] = useState(false);
   const { ttsUrl } = useAzureTTS({
     text: example ?? "",
-    skip: !example,
+    skip: !armed || !example,
     dialect: activeDialect,
   });
   const { play } = useAudioPlayer();
+  /** A tap that arrived before the clip did, waiting for it to land. */
+  const pendingTapRef = useRef(false);
+
+  useEffect(() => {
+    if (!ttsUrl || !pendingTapRef.current) return;
+    pendingTapRef.current = false;
+    play(ttsUrl);
+  }, [ttsUrl, play]);
+
+  const handlePlay = () => {
+    if (ttsUrl) {
+      play(ttsUrl);
+      return;
+    }
+    pendingTapRef.current = true;
+    setArmed(true);
+  };
 
   return (
     <li className="flex items-start gap-3 py-2">
@@ -51,16 +76,19 @@ const SoundRow = ({ entry }: { entry: SoundSpotlightEntry }) => {
             >
               {example}
             </span>
-            {ttsUrl && (
-              <button
-                type="button"
-                onClick={() => play(ttsUrl)}
-                aria-label={`Play ${example}`}
-                className="text-muted-foreground hover:text-primary transition-colors"
-              >
-                <Volume2 className="h-4 w-4" />
-              </button>
-            )}
+            {/*
+              Offered before the clip exists, because tapping is what asks for
+              one. Gating on `ttsUrl` would leave a lazily-armed row with no
+              button at all.
+            */}
+            <button
+              type="button"
+              onClick={handlePlay}
+              aria-label={`Play ${example}`}
+              className="text-muted-foreground hover:text-primary transition-colors"
+            >
+              <Volume2 className="h-4 w-4" />
+            </button>
           </div>
         )}
         {entry.explanation && (
@@ -94,13 +122,17 @@ export const SoundSpotlight = ({ entries }: Props) => {
           )}
         />
       </button>
-      {open && (
-        <ul className="px-4 pb-3 divide-y divide-border/60">
-          {usable.map((entry, i) => (
-            <SoundRow key={`${entry.sound ?? "sound"}-${i}`} entry={entry} />
-          ))}
-        </ul>
-      )}
+      {/*
+        Hidden rather than unmounted. Unmounting tore down each row's
+        useAzureTTS and revoked its blob, so a learner who folded the panel away
+        to see the vocabulary and folded it back paid for a full round of TTS
+        calls again — twice over for a two-sound lesson.
+      */}
+      <ul className="px-4 pb-3 divide-y divide-border/60" hidden={!open}>
+        {usable.map((entry, i) => (
+          <SoundRow key={`${entry.sound ?? "sound"}-${i}`} entry={entry} />
+        ))}
+      </ul>
     </div>
   );
 };

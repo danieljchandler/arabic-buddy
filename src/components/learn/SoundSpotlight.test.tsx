@@ -153,32 +153,38 @@ describe("SoundSpotlight — hearing an example", () => {
     expect(tts.asked[0]).toMatchObject({ skip: true });
   });
 
-  it("offers no button while the clip is still being made", () => {
+  it("offers a button before any clip exists, since tapping is what asks for one", () => {
+    // Gating the button on `ttsUrl` would leave a lazily-armed row with no way
+    // to ask for its clip.
     tts.url = null;
     renderSpotlight();
-    expect(screen.queryByRole("button", { name: /^Play/ })).not.toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: /^Play/ })).toHaveLength(2);
   });
 });
+
+const lastAskFor = (text: string) => tts.asked.filter((a) => a.text === text).at(-1);
 
 describe("SoundSpotlight — collapsing", () => {
   it("starts open, because the notes are the point", () => {
     renderSpotlight();
     expect(toggle()).toHaveAttribute("aria-expanded", "true");
-    expect(screen.getByText("عين")).toBeInTheDocument();
+    expect(screen.getByText("عين")).toBeVisible();
   });
 
   it("closes on a tap", () => {
+    // Hidden rather than unmounted, so the clips survive — see the reopening
+    // case below.
     renderSpotlight();
     fireEvent.click(toggle());
     expect(toggle()).toHaveAttribute("aria-expanded", "false");
-    expect(screen.queryByText("عين")).not.toBeInTheDocument();
+    expect(screen.getByText("عين")).not.toBeVisible();
   });
 
   it("opens again", () => {
     renderSpotlight();
     fireEvent.click(toggle());
     fireEvent.click(toggle());
-    expect(screen.getByText("عين")).toBeInTheDocument();
+    expect(screen.getByText("عين")).toBeVisible();
   });
 
   it("turns the chevron over when open", () => {
@@ -188,37 +194,35 @@ describe("SoundSpotlight — collapsing", () => {
     expect(container.querySelector("svg")?.getAttribute("class")).not.toContain("rotate-180");
   });
 
-  /**
-   * FINDING — collapsing throws the audio away and reopening pays for it again.
-   *
-   * The rows are unmounted rather than hidden, so each one's `useAzureTTS` tears
-   * down and revokes its blob. Reopening remounts them and every example is
-   * synthesised from scratch: a learner who folds the panel away to see the
-   * vocabulary and then folds it back has cost a full round of TTS calls, twice
-   * over for a two-sound lesson. Hiding the list with CSS, or lifting the
-   * synthesis above the toggle, would keep the clips.
-   */
-  it("re-synthesises every example on reopening", () => {
+  it("keeps the clips it has already made when reopened", () => {
+    // The rows used to be unmounted, so each one's useAzureTTS tore down and
+    // revoked its blob. Reopening remounted them and re-synthesised every
+    // example: a learner who folded the panel away to see the vocabulary and
+    // folded it back paid for a full round of TTS calls, twice over for a
+    // two-sound lesson.
     renderSpotlight();
-    const afterFirstOpen = tts.asked.filter((a) => !a.skip).length;
+    fireEvent.click(screen.getAllByRole("button", { name: /^Play/ })[0]);
+    expect(lastAskFor("عين")?.skip).toBe(false);
 
     fireEvent.click(toggle());
     fireEvent.click(toggle());
 
-    expect(tts.asked.filter((a) => !a.skip).length).toBeGreaterThan(afterFirstOpen);
+    // Still armed, so the row never went back to asking for nothing — which is
+    // what a remount would have done.
+    expect(lastAskFor("عين")?.skip).toBe(false);
   });
 
-  /**
-   * FINDING — the notes synthesise on arrival, not on demand.
-   *
-   * The panel is open by default and each row asks for its clip immediately, so
-   * loading a lesson fires a TTS request per sound whether or not the learner
-   * ever taps a speaker. It is the same eager pattern as the alphabet trainer's
-   * button, and the opposite of the Bible reader's, which arms on first tap.
-   */
-  it("requests every clip before anything is tapped", () => {
+  it("requests no clip before anything is tapped", () => {
+    // The panel opens by default, so an eager row meant loading a lesson fired
+    // a TTS request per sound whether or not the learner ever tapped a speaker.
     renderSpotlight();
-    expect(tts.asked.filter((a) => !a.skip)).toHaveLength(2);
+    expect(tts.asked.filter((a) => !a.skip)).toHaveLength(0);
     expect(play).not.toHaveBeenCalled();
+  });
+
+  it("requests only the clip that was tapped", () => {
+    renderSpotlight();
+    fireEvent.click(screen.getAllByRole("button", { name: /^Play/ })[0]);
+    expect(tts.asked.filter((a) => !a.skip)).toHaveLength(1);
   });
 });

@@ -296,18 +296,11 @@ describe("VerseAudioButton — leaving the verse", () => {
     expect(audios[0].src).toBe("");
   });
 
-  /**
-   * FINDING — a verse whose text changes under an armed button starts speaking
-   * on its own.
-   *
-   * `armed` is set once and never cleared, and the autoplay effect fires on
-   * every new `ttsUrl`. So once a reader has listened to one verse, any change
-   * to that row's `text` — switching translation, a dialect toggle, or a
-   * virtualised list reusing the row for the next verse — synthesises and plays
-   * the new text immediately, without a tap. Clearing `armed` alongside the
-   * text would restore the lazy contract.
-   */
-  it("speaks a new verse without being asked", async () => {
+  it("waits to be asked again when the verse changes", async () => {
+    // `armed` was set once and never cleared, and the autoplay effect fires on
+    // every new ttsUrl — so once a reader had listened to one verse, any change
+    // to that row's text (switching translation, a dialect toggle, or a
+    // virtualised list reusing the row) played the new verse without a tap.
     const { rerender } = render();
     await tap();
     expect(audios).toHaveLength(1);
@@ -317,25 +310,44 @@ describe("VerseAudioButton — leaving the verse", () => {
       rerender(<VerseAudioButton text="والكلمة كان عند الله" />);
     });
 
+    expect(audios).toHaveLength(1);
+  });
+
+  it("stops asking the TTS service once the verse changes", async () => {
+    const { rerender } = render();
+    await tap();
+
+    await act(async () => {
+      rerender(<VerseAudioButton text="والكلمة كان عند الله" />);
+    });
+
+    expect(lastAsk().skip).toBe(true);
+  });
+
+  it("still plays the new verse when it is asked to", async () => {
+    const { rerender } = render();
+    await tap();
+
+    tts.url = "blob:next-verse";
+    await act(async () => {
+      rerender(<VerseAudioButton text="والكلمة كان عند الله" />);
+    });
+    await tap();
+
     expect(audios).toHaveLength(2);
     expect(audios[1].play).toHaveBeenCalledTimes(1);
   });
 
-  /**
-   * FINDING — an empty verse gives a button that does nothing, twice.
-   *
-   * `skip` stays true while the text is blank, so no clip is ever generated —
-   * but the button is not disabled and shows no spinner, because `isLoading` is
-   * false too. A reader taps it, nothing happens, and nothing says why. Bible
-   * rows render from dialect columns that are frequently null while a chapter
-   * is still being translated, so this is the state a partially translated
-   * chapter is in.
-   */
-  it("stays a silent, live-looking button for an untranslated verse", async () => {
+  it("disables itself for an untranslated verse", async () => {
+    // `skip` stayed true while the text was blank so no clip was ever
+    // generated — but `isLoading` was false too, leaving a live-looking button
+    // that did nothing when tapped and said nothing about why. Bible rows
+    // render from dialect columns that are routinely null while a chapter is
+    // still being translated.
     render({ text: "" });
-    await tap();
 
-    expect(button()).toBeEnabled();
+    expect(button()).toBeDisabled();
+    expect(button()).toHaveAttribute("title", "No translation for this verse yet");
     expect(audios).toEqual([]);
     expect(lastAsk().skip).toBe(true);
   });

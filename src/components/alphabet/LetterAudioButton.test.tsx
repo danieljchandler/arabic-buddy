@@ -113,9 +113,16 @@ describe("LetterAudioButton — the control itself", () => {
     expect(button()).toBeDisabled();
   });
 
-  it("cannot be pressed before a clip exists", () => {
+  it("can be pressed before a clip exists, since pressing is what asks for one", () => {
+    // Gating on `!ttsUrl` would leave a lazily-armed button permanently
+    // disabled: there is no clip until the first tap requests it.
     tts.url = null;
     render();
+    expect(button()).toBeEnabled();
+  });
+
+  it("cannot be pressed for a letter with no text", () => {
+    render({ text: "  " });
     expect(button()).toBeDisabled();
   });
 
@@ -158,21 +165,39 @@ describe("LetterAudioButton — choosing a voice", () => {
     expect(tts.asked[0]).toMatchObject({ text: "ق", dialect: undefined, voice: undefined });
   });
 
-  /**
-   * FINDING — the clip is requested on mount, not on tap.
-   *
-   * `useAzureTTS` is called with no `skip`, so every one of these buttons
-   * synthesises as soon as it renders. The alphabet grid puts twenty-eight of
-   * them on one screen, and the letter detail view adds a Fusha button beside
-   * each dialect one — so opening a page fires a TTS request per button whether
-   * or not the learner ever taps one, and each response is a blob held for the
-   * life of the page. `bible/VerseAudioButton` solves the same problem the
-   * other way, arming on the first tap.
-   */
-  it("synthesises without waiting to be asked", () => {
+  it("asks for nothing until it is tapped", () => {
+    // Called with no `skip`, every one of these synthesised the moment it
+    // appeared. The alphabet grid puts twenty-eight on one screen and the
+    // letter detail view adds a Fusha button beside each dialect one, so
+    // opening a page fired a TTS request per button whether or not the learner
+    // ever tapped one — and held every response as a blob for the life of the
+    // page.
     render();
-    expect(tts.asked[0].skip).toBeUndefined();
+    expect(tts.asked[0].skip).toBe(true);
     expect(audios).toEqual([]);
+  });
+
+  it("asks once it is tapped", () => {
+    render();
+    fireEvent.click(button());
+    expect(tts.asked.at(-1)).toMatchObject({ skip: false });
+  });
+
+  it("goes back to waiting when the button is reused for another letter", () => {
+    // The grid and the letter tour both reuse these, so a bare armed flag would
+    // make the next letter speak unasked.
+    const { rerender } = render({ text: "ب" });
+    fireEvent.click(button());
+    expect(tts.asked.at(-1)?.skip).toBe(false);
+
+    rerender(<LetterAudioButton text="ت" />);
+    expect(tts.asked.at(-1)).toMatchObject({ text: "ت", skip: true });
+  });
+
+  it("still autoplays without waiting for a tap", () => {
+    // Autoplay is an explicit request from the caller, so it arms on mount.
+    render({ autoplay: true });
+    expect(tts.asked[0].skip).toBe(false);
   });
 });
 
@@ -288,39 +313,49 @@ describe("LetterAudioButton — playing on arrival", () => {
     expect(audios[0].play).toHaveBeenCalled();
   });
 
-  /**
-   * FINDING — an autoplayed clip never lights the button.
-   *
-   * The autoplay branch builds its own `Audio` and never touches `playing` or
-   * wires `onended`, so the ring that marks "this is the sound you are hearing"
-   * appears only for a tapped clip. On the letter tour, where autoplay is the
-   * whole point, the button therefore looks idle for the entire clip.
-   */
-  it("looks idle while it is autoplaying", async () => {
+  it("lights up while it is autoplaying", async () => {
+    // The autoplay branch built its own Audio and touched neither `playing` nor
+    // `onended`, so the ring that says "this is the sound you are hearing"
+    // appeared only for a tapped clip — leaving the button looking idle for the
+    // whole clip on the letter tour, where autoplay is the entire point.
     render({ autoplay: true });
     await settle();
 
     expect(audios[0].play).toHaveBeenCalled();
+    expect(button().className).toContain("ring-2");
+  });
+
+  it("stops looking active when an autoplayed clip ends", async () => {
+    render({ autoplay: true });
+    await settle();
+
+    act(() => audios[0].onended?.());
     expect(button().className).not.toContain("ring-2");
   });
 });
 
 describe("LetterAudioButton — leaving the page", () => {
-  /**
-   * FINDING — nothing stops the clip on unmount.
-   *
-   * There is no cleanup on either effect and no unmount handler, so the
-   * `Audio` outlives the component. Tapping a letter and immediately going back
-   * leaves the letter being pronounced over whatever screen comes next, and on
-   * the letter tour every skipped letter keeps playing.
-   */
-  it("goes on playing after the button is gone", async () => {
+  it("stops playing once the button is gone", async () => {
+    // There was no cleanup on either effect and no unmount handler, so the
+    // Audio outlived the component: tapping a letter and going straight back
+    // left it being pronounced over the next screen, and on the letter tour
+    // every skipped letter kept playing.
     const { unmount } = render();
     fireEvent.click(button());
     await settle();
 
     act(() => unmount());
 
-    expect(audios[0].pause).not.toHaveBeenCalled();
+    expect(audios[0].pause).toHaveBeenCalledTimes(1);
+    expect(audios[0].src).toBe("");
+  });
+
+  it("stops an autoplayed clip too", async () => {
+    const { unmount } = render({ autoplay: true });
+    await settle();
+
+    act(() => unmount());
+
+    expect(audios[0].pause).toHaveBeenCalledTimes(1);
   });
 });

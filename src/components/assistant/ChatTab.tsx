@@ -36,7 +36,12 @@ const SUGGESTED_PAGE = [
   "What should I learn next?",
 ];
 
-export function ChatTab() {
+interface ChatTabProps {
+  /** Fired when the composer takes focus, so a peeking sheet can expand first. */
+  onComposerFocus?: () => void;
+}
+
+export function ChatTab({ onComposerFocus }: ChatTabProps = {}) {
   const { seed, messages, setMessages, pageContext } = useAiAssistant();
   const { activeDialect } = useDialect();
   const { user, loading: authLoading } = useAuth();
@@ -135,7 +140,8 @@ export function ChatTab() {
 
   return (
     <>
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-3 min-h-[180px]">
+      {/* min-h-0 so this can actually shrink inside the sheet's bounded column. */}
+      <div ref={scrollRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3">
         {messages.length === 0 && (
           <div className="space-y-2">
             <p className="text-xs text-muted-foreground">
@@ -211,10 +217,11 @@ export function ChatTab() {
         initialArabic={phraseToSave ?? ""}
       />
 
-      <div className="border-t p-3 flex gap-2">
+      <div className="flex shrink-0 gap-2 border-t p-3">
         <Textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
+          onFocus={onComposerFocus}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();

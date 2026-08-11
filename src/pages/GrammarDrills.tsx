@@ -9,6 +9,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useUserLevel } from "@/hooks/useUserLevel";
 import { useGrammarMastery, useRecordGrammarOutcome } from "@/hooks/useGrammarMastery";
 import { buildCategoryProgress, GRAMMAR_CATEGORIES } from "@/lib/grammarCategories";
+import { usePageAiContext } from "@/contexts/AiAssistantContext";
+import type { PageAiContext } from "@/lib/pageAiContext";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { InfoHint } from "@/components/InfoHint";
@@ -91,6 +93,30 @@ const GrammarDrills = () => {
   );
   const focusCategory = categories.find((c) => c.focus) ?? null;
   const resultCategory = categories.find((c) => c.id === category) ?? null;
+
+  // Tell Ask AI which grammar point is on screen, so the panel can show it and
+  // the tutor can talk about it. The explanation is withheld until the learner
+  // has answered — otherwise asking the AI would give away the answer.
+  const currentQuestion = questions[currentIndex] as DrillQuestion | undefined;
+  const answered = selectedAnswer !== null;
+  const aiContext = useMemo<PageAiContext | null>(() => {
+    if (!currentQuestion) return null;
+    const categoryLabel = GRAMMAR_CATEGORIES.find((c) => c.id === category)?.label;
+    return {
+      kind: "drill",
+      title: categoryLabel ? `Grammar drill: ${categoryLabel}` : "Grammar drill",
+      summary: `Working through a ${difficulty} grammar drill, question ${currentIndex + 1} of ${questions.length}.`,
+      content: [
+        `Grammar point: ${currentQuestion.grammar_point}`,
+        `Question: ${currentQuestion.question_arabic} — ${currentQuestion.question_english}`,
+        answered && `Explanation: ${currentQuestion.explanation}`,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    };
+  }, [currentQuestion, category, difficulty, currentIndex, questions.length, answered]);
+
+  usePageAiContext(aiContext);
 
   // Persist session state
   useEffect(() => {

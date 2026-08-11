@@ -10,7 +10,8 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { BookmarkPlus, Loader2, Sparkles, Link2, X } from "lucide-react";
+import { BookmarkPlus, Loader2, Sparkles, Link2, MessageCircleQuestion, X } from "lucide-react";
+import { useAiAssistant } from "@/contexts/AiAssistantContext";
 import { toast } from "sonner";
 import { useDisplayPrefs } from "@/hooks/useDisplayPrefs";
 import { stripTashkil } from "@/lib/displayPrefs";
@@ -101,6 +102,7 @@ export const TappableArabicText = ({
   const { enabled: bridgeOn } = useBridgeMode();
   const addVocab = useAddUserVocabulary();
   const markUnknowns = useMarkUnknowns();
+  const { openChat } = useAiAssistant();
   const [wordTranslations, setWordTranslations] = useState<Record<string, WordData>>({});
 
   // ── Phrase selection state ────────────────────────────────────────
@@ -449,6 +451,21 @@ export const TappableArabicText = ({
                     )}
 
                     <div className="pt-1 border-t border-border space-y-1">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full border-primary/40 bg-primary/5 text-xs text-primary hover:bg-primary/10 hover:text-primary"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openChat({
+                            arabic: cleanWord,
+                            english: wordData.translation,
+                          });
+                        }}
+                      >
+                        <MessageCircleQuestion className="h-3 w-3 mr-1" />
+                        Ask AI about this word
+                      </Button>
                       <Button
                         variant="outline"
                         size="sm"

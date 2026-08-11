@@ -3,7 +3,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@/test/support/react/harness";
 import { streaming } from "@/test/support/server/functions";
 import { aProfile } from "@/test/support/factories";
-import { AiAssistantProvider, useAiAssistant } from "@/contexts/AiAssistantContext";
+import {
+  AiAssistantProvider,
+  useAiAssistant,
+  usePageAiContext,
+} from "@/contexts/AiAssistantContext";
+import type { PageAiContext } from "@/lib/pageAiContext";
 import { AskAiPanel } from "./AskAiPanel";
 
 /**
@@ -22,6 +27,12 @@ function Opener({ seed }: { seed?: { arabic: string; english?: string } }) {
   );
 }
 
+/** Stands in for a page that publishes what it's showing. */
+function PagePublisher({ ctx }: { ctx: PageAiContext }) {
+  usePageAiContext(ctx);
+  return null;
+}
+
 let cleanup: (() => void) | undefined;
 
 afterEach(async () => {
@@ -36,10 +47,16 @@ afterEach(async () => {
 function render({
   seed,
   route = "/reading",
-}: { seed?: { arabic: string; english?: string }; route?: string } = {}) {
+  pageContext,
+}: {
+  seed?: { arabic: string; english?: string };
+  route?: string;
+  pageContext?: PageAiContext;
+} = {}) {
   localStorage.setItem("hakiya_dialect_module", "Gulf");
   const harness = renderWithProviders(
     <AiAssistantProvider>
+      {pageContext && <PagePublisher ctx={pageContext} />}
       <Opener seed={seed} />
       <AskAiPanel />
     </AiAssistantProvider>,
@@ -102,7 +119,7 @@ describe("AskAiPanel", () => {
 
     await open();
 
-    // The seed is pinned in the header (context chip + sentence card).
+    // The seed is pinned in the header by the context card.
     expect(screen.getAllByText("شلونك اليوم").length).toBeGreaterThan(0);
     expect(screen.getByText("How are you today?")).toBeInTheDocument();
 
@@ -135,5 +152,94 @@ describe("AskAiPanel", () => {
 
     expect(screen.queryByText(/Because it is idiomatic\./)).toBeNull();
     expect(screen.getByText("What am I looking at?")).toBeInTheDocument();
+  });
+
+  /**
+   * The panel is non-modal and only takes part of the screen, so the learner
+   * can still see and use the page it's asking about. These cover the pieces
+   * that make that true. Note src/test/setup.ts stubs matchMedia to always
+   * report false, so the resize handle's own media query is irrelevant here —
+   * the button is in the DOM either way.
+   */
+  describe("staying out of the way of the page", () => {
+    it("does not close when the page behind it is clicked", async () => {
+      render();
+      await open();
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
+
+      // Radix dismisses a non-modal dialog on outside pointerdown unless it's
+      // prevented. Without the guard, tapping the video to pause would close
+      // the panel — the exact thing this layout exists to allow.
+      await act(async () => {
+        fireEvent.pointerDown(document.body);
+        fireEvent.mouseDown(document.body);
+      });
+
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
+    });
+
+    it("toggles between the peek and expanded heights", async () => {
+      render();
+      await open();
+
+      const handle = screen.getByRole("button", { name: "Expand panel" });
+      expect(handle).toHaveAttribute("aria-expanded", "false");
+
+      await act(async () => {
+        fireEvent.click(handle);
+      });
+
+      expect(screen.getByRole("button", { name: "Collapse panel" })).toHaveAttribute(
+        "aria-expanded",
+        "true",
+      );
+    });
+
+    it("expands automatically for a live voice call", async () => {
+      render();
+      await open();
+      expect(screen.getByRole("button", { name: "Expand panel" })).toBeInTheDocument();
+
+      await act(async () => {
+        // Radix tabs switch on mousedown, not click.
+        fireEvent.mouseDown(screen.getByRole("tab", { name: /Live voice/ }));
+      });
+
+      expect(screen.getByRole("button", { name: "Collapse panel" })).toHaveAttribute(
+        "aria-expanded",
+        "true",
+      );
+    });
+  });
+
+  describe("the context card", () => {
+    it("shows what the page is displaying when there's no seed sentence", async () => {
+      render({
+        pageContext: {
+          kind: "video",
+          title: "Souq bargaining",
+          summary: "Watching a Gulf dialect video.",
+          content: "Current subtitle: كم سعر هذا؟ — How much is this?",
+        },
+      });
+      await open();
+
+      expect(screen.getByText("In this video")).toBeInTheDocument();
+      expect(
+        screen.getAllByText(/Current subtitle: كم سعر هذا؟/).length,
+      ).toBeGreaterThan(0);
+    });
+
+    it("collapses to hide the detail", async () => {
+      render({ seed: { arabic: "شلونك اليوم", english: "How are you today?" } });
+      await open();
+      expect(screen.getByText("How are you today?")).toBeInTheDocument();
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: "Hide context" }));
+      });
+
+      expect(screen.queryByText("How are you today?")).toBeNull();
+    });
   });
 });

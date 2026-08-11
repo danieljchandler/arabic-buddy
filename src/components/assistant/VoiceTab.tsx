@@ -76,7 +76,7 @@ export function VoiceTab() {
 
   return (
     <>
-      <div className="flex-1 space-y-2 overflow-y-auto px-4 py-3 text-sm">
+      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-4 py-3 text-sm">
         {error && (
           <div className="flex items-start gap-2 rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">
             <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
@@ -117,7 +117,7 @@ export function VoiceTab() {
         )}
       </div>
 
-      <div className="space-y-2 border-t p-3">
+      <div className="shrink-0 space-y-2 border-t p-3">
         <div className="flex items-center justify-center gap-3">
           {live || connecting ? (
             <>

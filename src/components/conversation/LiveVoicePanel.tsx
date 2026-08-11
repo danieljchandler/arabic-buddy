@@ -25,7 +25,7 @@ export function LiveVoicePanel({
   onTurnFinalized,
   onExitLive,
 }: Props) {
-  const { status, error, turns, muted, setMuted, start, stop } = useOpenAIRealtime({
+  const { status, error, turns, muted, setMuted, start, stop, elapsedSeconds } = useOpenAIRealtime({
     onTurnFinalized,
   });
 
@@ -36,6 +36,12 @@ export function LiveVoicePanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const formatTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s.toString().padStart(2, "0")}`;
+  };
+
   const statusLabel = useMemo(() => {
     switch (status) {
       case "connecting": return "Connecting…";
@@ -45,6 +51,10 @@ export function LiveVoicePanel({
       default: return "Idle";
     }
   }, [status, muted]);
+
+  // Warn when approaching the 60-minute limit (show warning at 50 minutes).
+  const isNearLimit = elapsedSeconds >= 50 * 60;
+  const timeRemaining = 60 * 60 - elapsedSeconds;
 
   const handleEnd = () => {
     stop();
@@ -65,7 +75,18 @@ export function LiveVoicePanel({
           ) : null}
           <span className="text-sm font-medium">{statusLabel}</span>
         </div>
-        <span className="text-xs text-muted-foreground">Live voice • {dialect}</span>
+        <div className="flex items-center gap-3">
+          {status === "live" && (
+            <span className={cn(
+              "text-xs font-mono",
+              isNearLimit ? "font-semibold text-amber-600" : "text-muted-foreground"
+            )}>
+              {formatTime(elapsedSeconds)} / 60:00
+              {isNearLimit && <span className="ml-1 text-amber-600">⚠️ limit approaching</span>}
+            </span>
+          )}
+          <span className="text-xs text-muted-foreground">Live voice • {dialect}</span>
+        </div>
       </div>
 
       {error && (

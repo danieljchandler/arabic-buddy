@@ -9,6 +9,7 @@ import { getDialectIdentity, getDialectVocabRules, primeDialectPrompt, type Dial
 import { enforceDailyCap, requireActiveSubscription } from "../_shared/usageCap.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { learnerPromptBlock } from "../_shared/learnerProfile.ts";
+import { logSessionStart } from "../_shared/sessionTracker.ts";
 
 const REALTIME_MODEL = "gpt-realtime-2";
 
@@ -202,6 +203,10 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Log session start for analytics and cost tracking.
+    // Non-blocking: if logging fails, still return the token.
+    const sessionId = await logSessionStart(cap.userId, mode, dialect);
+
     // Compatibility for stale browser bundles that still send an SDP offer to
     // this function and expect an SDP answer back. Do a two-step exchange: mint
     // the ephemeral key above, then send the raw SDP to OpenAI with that key.
@@ -246,6 +251,11 @@ Deno.serve(async (req) => {
         model: REALTIME_MODEL,
         voice,
         session_id: data.session?.id,
+        // Session limits sent to client for enforcement.
+        // Client will display a timer and force-disconnect at max duration.
+        session_tracking_id: sessionId,
+        max_session_minutes: 60,
+        idle_timeout_minutes: 15,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );

@@ -23,7 +23,7 @@ export function VoiceTab() {
   const { user, loading: authLoading } = useAuth();
   const { subscribed, loading: subLoading } = useSubscription();
   const { pathname } = useLocation();
-  const { status, error, turns, muted, setMuted, start, stop } = useOpenAIRealtime();
+  const { status, error, turns, muted, setMuted, start, stop, elapsedSeconds } = useOpenAIRealtime();
 
   // Closing the panel or switching tabs unmounts this component; the call must
   // not keep running (and billing) with no UI attached to it.
@@ -73,6 +73,14 @@ export function VoiceTab() {
 
   const live = status === "live";
   const connecting = status === "connecting";
+
+  const formatTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s.toString().padStart(2, "0")}`;
+  };
+
+  const isNearLimit = elapsedSeconds >= 50 * 60;
 
   return (
     <>
@@ -156,6 +164,15 @@ export function VoiceTab() {
             <Radio className={cn("h-4 w-4", muted ? "text-muted-foreground" : "animate-pulse text-primary")} />
           )}
         </div>
+        {live && (
+          <div className={cn(
+            "text-center text-xs font-mono",
+            isNearLimit ? "font-semibold text-amber-600" : "text-muted-foreground"
+          )}>
+            {formatTime(elapsedSeconds)} / 60:00
+            {isNearLimit && <div className="mt-1 text-amber-600">⚠️ Time limit approaching</div>}
+          </div>
+        )}
         <p className="text-center text-[11px] text-muted-foreground">
           The tutor knows what's on your screen. Voice powered by ChatGPT Realtime.
         </p>

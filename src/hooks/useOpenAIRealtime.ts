@@ -46,6 +46,9 @@ type RealtimeEvent = Record<string, unknown>;
 interface ClientSecretResponse {
   value?: string;
   client_secret?: string | { value?: string };
+  session_tracking_id?: string;
+  max_session_minutes?: number;
+  idle_timeout_minutes?: number;
 }
 
 const CLIENT_MSA_TOKENS: Record<string, string[]> = {
@@ -72,6 +75,8 @@ export function useOpenAIRealtime(opts: Options = {}) {
   const [error, setError] = useState<string | null>(null);
   const [turns, setTurns] = useState<InternalLiveTurn[]>([]);
   const [muted, setMuted] = useState(false);
+  /** Elapsed time in seconds; displayed as mm:ss countdown timer. */
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const dcRef = useRef<RTCDataChannel | null>(null);
@@ -81,6 +86,15 @@ export function useOpenAIRealtime(opts: Options = {}) {
   const audioCtxRef = useRef<AudioContext | null>(null);
   const dialectRef = useRef<string>("Gulf");
   const endingRef = useRef(false);
+  const sessionStartRef = useRef<number | null>(null);
+  const sessionIdRef = useRef<string | null>(null);
+  const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const durationTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lastActivityRef = useRef<number>(Date.now());
+
+  // Session config: hard max 60 min, idle timeout 15 min.
+  const SESSION_MAX_MINUTES = 60;
+  const IDLE_TIMEOUT_MINUTES = 15;
 
   // Buffers per item_id so deltas concat cleanly.
   const userBufRef = useRef<Map<string, string>>(new Map());
@@ -126,7 +140,29 @@ export function useOpenAIRealtime(opts: Options = {}) {
     }
   }, [opts]);
 
+  /** Reset idle timeout whenever activity is detected (user or assistant speaks). */
+  const resetIdleTimer = useCallback(() => {
+    lastActivityRef.current = Date.now();
+    if (idleTimerRef.current) {
+      clearTimeout(idleTimerRef.current);
+    }
+    // Idle timeout will be re-armed after stop() is called.
+  }, []);
+
   const cleanup = useCallback(() => {
+    // Stop timers first.
+    if (durationTimerRef.current) {
+      clearInterval(durationTimerRef.current);
+      durationTimerRef.current = null;
+    }
+    if (idleTimerRef.current) {
+      clearTimeout(idleTimerRef.current);
+      idleTimerRef.current = null;
+    }
+    sessionStartRef.current = null;
+    sessionIdRef.current = null;
+    setElapsedSeconds(0);
+
     try { dcRef.current?.close(); } catch { /* noop */ }
     dcRef.current = null;
     try { pcRef.current?.getSenders().forEach((s) => s.track?.stop()); } catch { /* noop */ }
@@ -154,16 +190,40 @@ export function useOpenAIRealtime(opts: Options = {}) {
   const stop = useCallback(() => {
     endingRef.current = true;
     setStatus("ending");
+
+    // Log session end if we have a tracking ID and session duration.
+    if (sessionIdRef.current && sessionStartRef.current) {
+      const durationSeconds = Math.floor((Date.now() - sessionStartRef.current) / 1000);
+      const trackingId = sessionIdRef.current;
+      // Fire and forget — don't block on logging.
+      const apiUrl = new URL(import.meta.env.VITE_SUPABASE_URL);
+      fetch(`${apiUrl.protocol}//${apiUrl.host}/functions/v1/voice-session-end`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        },
+        body: JSON.stringify({
+          session_id: trackingId,
+          duration_seconds: durationSeconds,
+          close_reason: error ? "error" : "user_disconnected",
+        }),
+      }).catch((e) => {
+        console.warn("[realtime] failed to log session end:", e);
+      });
+    }
+
     cleanup();
     setStatus("idle");
     endingRef.current = false;
-  }, [cleanup]);
+  }, [cleanup, error]);
 
   const handleEvent = useCallback((evt: RealtimeEvent) => {
     const type = typeof evt.type === "string" ? evt.type : "";
 
     // User speech transcripts (Whisper).
     if (type === "conversation.item.input_audio_transcription.delta") {
+      resetIdleTimer();
       const id = typeof evt.item_id === "string" ? evt.item_id : "user-current";
       const prev = userBufRef.current.get(id) ?? "";
       const next = prev + (typeof evt.delta === "string" ? evt.delta : "");
@@ -172,6 +232,7 @@ export function useOpenAIRealtime(opts: Options = {}) {
       return;
     }
     if (type === "conversation.item.input_audio_transcription.completed") {
+      resetIdleTimer();
       const id = typeof evt.item_id === "string" ? evt.item_id : "user-current";
       const finalText = typeof evt.transcript === "string" ? evt.transcript : userBufRef.current.get(id) ?? "";
       userBufRef.current.delete(id);
@@ -182,6 +243,7 @@ export function useOpenAIRealtime(opts: Options = {}) {
     // Assistant audio transcript (what the model is saying). Handle both GA
     // output_audio_transcript events and legacy audio_transcript names.
     if (type === "response.output_audio_transcript.delta" || type === "response.audio_transcript.delta") {
+      resetIdleTimer();
       const id = typeof evt.item_id === "string"
         ? evt.item_id
         : typeof evt.response_id === "string"
@@ -194,6 +256,7 @@ export function useOpenAIRealtime(opts: Options = {}) {
       return;
     }
     if (type === "response.output_audio_transcript.done" || type === "response.audio_transcript.done") {
+      resetIdleTimer();
       const id = typeof evt.item_id === "string"
         ? evt.item_id
         : typeof evt.response_id === "string"
@@ -210,7 +273,7 @@ export function useOpenAIRealtime(opts: Options = {}) {
       const err = evt.error as { message?: unknown } | undefined;
       setError(typeof err?.message === "string" ? err.message : "Realtime server error");
     }
-  }, [finalizeTurn, upsertTurn]);
+  }, [finalizeTurn, upsertTurn, resetIdleTimer]);
 
   const start = useCallback(async ({ dialect, difficulty, topicHint, mode, context }: StartArgs) => {
     if (status === "connecting" || status === "live") return;
@@ -334,10 +397,17 @@ export function useOpenAIRealtime(opts: Options = {}) {
         } catch { /* noop */ }
         throw new Error(`Voice token failed (${tokenResp.status}): ${String(message).slice(0, 300)}`);
       }
-      const clientSecret = extractClientSecret(await tokenResp.json());
+      const tokenData = await tokenResp.json();
+      const clientSecret = extractClientSecret(tokenData);
       if (!clientSecret) {
         throw new Error("Voice token response was missing a client secret.");
       }
+
+      // Extract session tracking info from server response.
+      sessionIdRef.current = tokenData.session_tracking_id || null;
+      // Server can override defaults if needed in the future.
+      const configMaxMinutes = tokenData.max_session_minutes ?? SESSION_MAX_MINUTES;
+      const configIdleMinutes = tokenData.idle_timeout_minutes ?? IDLE_TIMEOUT_MINUTES;
 
       // 3. SDP exchange directly with OpenAI using the ephemeral key. Sending
       // raw application/sdp avoids edge-runtime multipart serialization issues.
@@ -377,7 +447,100 @@ export function useOpenAIRealtime(opts: Options = {}) {
     }
   }, [cleanup, handleEvent, status]);
 
+  // Session duration timer: tracks elapsed time and enforces max session duration.
+  useEffect(() => {
+    if (status !== "live") return;
+
+    if (!sessionStartRef.current) {
+      sessionStartRef.current = Date.now();
+      lastActivityRef.current = Date.now();
+      // Arm idle timeout for the first time.
+      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+      idleTimerRef.current = setTimeout(() => {
+        console.warn("[realtime] idle timeout reached after 15 min of silence — disconnecting");
+        const errorMsg = "Disconnected due to inactivity (15 minutes of silence)";
+        setError(errorMsg);
+        const idleDuration = Math.floor((Date.now() - (sessionStartRef.current || Date.now())) / 1000);
+        endingRef.current = true;
+        setStatus("ending");
+
+        // Log session end with idle_timeout reason.
+        if (sessionIdRef.current) {
+          const trackingId = sessionIdRef.current;
+          fetch(
+            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/voice-session-end`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+              },
+              body: JSON.stringify({
+                session_id: trackingId,
+                duration_seconds: idleDuration,
+                close_reason: "idle_timeout",
+              }),
+            },
+          ).catch((e) => {
+            console.warn("[realtime] failed to log idle timeout", e);
+          });
+        }
+
+        cleanup();
+        setStatus("idle");
+        endingRef.current = false;
+      }, IDLE_TIMEOUT_MINUTES * 60 * 1000);
+    }
+
+    const intervalId = setInterval(() => {
+      const elapsedMs = Date.now() - (sessionStartRef.current || Date.now());
+      const elapsedSec = Math.floor(elapsedMs / 1000);
+      setElapsedSeconds(elapsedSec);
+
+      // Hard max: 60 minutes.
+      if (elapsedSec >= SESSION_MAX_MINUTES * 60) {
+        console.warn(`[realtime] session duration exceeded ${SESSION_MAX_MINUTES} minutes — disconnecting`);
+        const errorMsg = `Session duration limit reached (${SESSION_MAX_MINUTES} minutes)`;
+        setError(errorMsg);
+        endingRef.current = true;
+        setStatus("ending");
+
+        // Log session end with duration_limit reason.
+        if (sessionIdRef.current) {
+          const trackingId = sessionIdRef.current;
+          fetch(
+            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/voice-session-end`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+              },
+              body: JSON.stringify({
+                session_id: trackingId,
+                duration_seconds: SESSION_MAX_MINUTES * 60,
+                close_reason: "duration_limit",
+              }),
+            },
+          ).catch((e) => {
+            console.warn("[realtime] failed to log duration limit", e);
+          });
+        }
+
+        cleanup();
+        setStatus("idle");
+        endingRef.current = false;
+        clearInterval(intervalId);
+      }
+    }, 1000);
+
+    durationTimerRef.current = intervalId;
+    return () => {
+      clearInterval(intervalId);
+    };
+  }, [status, cleanup]);
+
   useEffect(() => () => cleanup(), [cleanup]);
 
-  return { status, error, turns, muted, setMuted, start, stop };
+  return { status, error, turns, muted, setMuted, start, stop, elapsedSeconds };
 }

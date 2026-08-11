@@ -1,4 +1,5 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
+import { usePageAiContext } from "@/contexts/AiAssistantContext";
 import { Switch } from "@/components/ui/switch";
 import { useDialect } from "@/contexts/DialectContext";
 import { useNavigate } from "react-router-dom";
@@ -331,6 +332,21 @@ const ReadingPractice = () => {
   const [mode, setMode] = useState<Mode>("select");
   const [difficulty, setDifficulty] = useState<Difficulty | null>(savedSession?.difficulty ?? null);
   const [passage, setPassage] = useState<Passage | null>(savedSession?.passage ?? null);
+
+  usePageAiContext(
+    useMemo(
+      () =>
+        passage
+          ? {
+              kind: "passage" as const,
+              title: passage.title,
+              summary: `Reading a ${passage.difficulty} practice passage.`,
+              content: passage.lines.map((l) => l.arabic).join(" "),
+            }
+          : null,
+      [passage],
+    ),
+  );
   const [loading, setLoading] = useState(false);
   const [customTopic, setCustomTopic] = useState("");
   const [revealedLines, setRevealedLines] = useState<Set<number>>(new Set());

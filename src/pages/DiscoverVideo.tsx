@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { usePageAiContext } from "@/contexts/AiAssistantContext";
 import { useParams, useNavigate } from "react-router-dom";
 import { useDiscoverVideo, type DiscoverVideo as DiscoverVideoType } from "@/hooks/useDiscoverVideos";
 import { useAuth } from "@/hooks/useAuth";
@@ -1060,6 +1061,23 @@ const DiscoverVideo = () => {
   const displayLine = (playbackMode === "line" && lines[lineControlIndex])
     ? lines[lineControlIndex]
     : activeLine ?? lines[lineControlIndex] ?? null;
+
+  usePageAiContext(
+    useMemo(
+      () =>
+        video
+          ? {
+              kind: "video" as const,
+              title: video.title,
+              summary: `Watching a ${video.dialect} dialect video${video.cefr_level ? ` (${video.cefr_level})` : ""} with tap-to-translate subtitles.`,
+              content: displayLine
+                ? `Current subtitle: ${displayLine.arabic}${displayLine.translation ? ` — ${displayLine.translation}` : ""}`
+                : undefined,
+            }
+          : null,
+      [video, displayLine],
+    ),
+  );
   const displayLineShadowClip = useMemo(
     () => (displayLine ? buildShadowClipForLine(displayLine, video ?? undefined, shadowAudioUrl) : null),
     [displayLine, video, shadowAudioUrl],

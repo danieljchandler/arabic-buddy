@@ -184,6 +184,9 @@ Deno.test("assistant-chat fetches the learner profile on the first turn only", a
   assert(!laterTurn.calls.some((url) => url.includes("video_views")));
 });
 
+// _shared/contentHistory.ts is exercised through the function: the three
+// history queries above (video_views, story_progress, listen_episode_plays)
+// come from contentHistoryBlock, and this case pins its rendered output.
 Deno.test("assistant-chat mentions recently watched videos in the prompt", async () => {
   const { bodies } = await call(
     "assistant-chat",

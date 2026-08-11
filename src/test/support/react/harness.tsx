@@ -4,6 +4,7 @@ import { act, render, renderHook, type RenderHookOptions, type RenderOptions } f
 import { MemoryRouter } from "react-router-dom";
 import type { ReactElement, ReactNode } from "react";
 import { DialectProvider } from "@/contexts/DialectContext";
+import { AiAssistantProvider } from "@/contexts/AiAssistantContext";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { installSupabaseFetch, type InstalledBackend } from "../transports/vitest";
 import { isSignedIn, seedPersona, type Persona, type PersonaOptions } from "../personas";
@@ -111,7 +112,9 @@ function setUp(options: HarnessOptions): Harness & { wrapper: (props: { children
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={[options.route ?? "/"]}>
         <DialectProvider>
-          <TooltipProvider>{children}</TooltipProvider>
+          <AiAssistantProvider>
+            <TooltipProvider>{children}</TooltipProvider>
+          </AiAssistantProvider>
         </DialectProvider>
       </MemoryRouter>
     </QueryClientProvider>

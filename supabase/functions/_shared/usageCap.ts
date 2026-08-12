@@ -133,7 +133,9 @@ export type SubscriptionTier = "free" | "standard" | "allin";
  * schema-debt item in docs/testing.md).
  */
 export async function getSubscriptionTier(userId: string): Promise<SubscriptionTier> {
+  if (await hasComplimentaryAccess(userId)) return "allin";
   try {
+
     const { data, error } = await admin()
       .from("subscribers")
       .select("subscribed, subscription_end, subscription_tier")

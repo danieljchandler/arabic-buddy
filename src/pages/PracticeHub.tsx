@@ -104,6 +104,15 @@ const PracticeHub = () => {
         title="Skills"
         tiles={[
           {
+            id: "writing",
+            label: "Writing",
+            description: "Reply in dialect & get corrected",
+            icon: PenLine,
+            to: "/write",
+            accent: "bg-violet-500/10 text-violet-600",
+            show: isAuthenticated,
+          },
+          {
             id: "listening",
             label: "Listening Practice",
             description: "Dictation, comprehension & speed drills",

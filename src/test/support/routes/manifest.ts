@@ -129,6 +129,9 @@ export const ROUTES: RouteSpec[] = [
   // Loads its credit balance on mount; the default native-feedback stub in
   // src/test/support/server/functions.ts answers it.
   { path: "/native-feedback", gate: "auth", boundary: "NativeFeedbackRoute" },
+  // Fetches a writing prompt on mount; the default writing-coach stub in
+  // src/test/support/server/functions.ts answers it.
+  { path: "/write", gate: "auth", boundary: "WritingPracticeRoute" },
   {
     path: "/conversation",
     gate: "public",

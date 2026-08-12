@@ -66,6 +66,13 @@ const SERVICE_ROLE_ONLY_TABLES = new Set([
   // function and read by the payments functions, all under the service role.
   "referral_codes",
   "referral_redemptions",
+  // Paid native feedback (D2): ledger and requests, all through the
+  // native-feedback function; the settle trigger writes the answers.
+  "native_feedback_credits",
+  "native_feedback_requests",
+  // Recurring placement (C4): the trajectory, written only by placement-quiz
+  // at scoring time so a charted level is always one the assessment produced.
+  "placement_history",
 ]);
 
 describe("tables", () => {

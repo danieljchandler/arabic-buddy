@@ -264,7 +264,12 @@ const Index = () => {
                   <GraduationCap className="h-6 w-6 text-primary" />
                 </div>
                 <div className="flex-1 min-w-0 relative z-10">
-                  <p className="font-bold text-foreground text-base mb-1 flex items-center gap-1.5">Take the Placement Quiz<InfoHint title={TILE_HINTS.placement.title} body={TILE_HINTS.placement.body} /></p>
+                  {/* No InfoHint here: the tile IS a <button>, and InfoHint is
+                      deliberately a real <button> too (see its comment), so
+                      nesting one inside violates DOM nesting and made the
+                      routes sweep red. The tile's own copy carries the hint's
+                      content. */}
+                  <p className="font-bold text-foreground text-base mb-1 flex items-center gap-1.5">Take the Placement Quiz</p>
                   <p className="text-sm text-muted-foreground leading-relaxed">
                     Answer 20 adaptive questions so we can tailor lessons, vocabulary, and exercises to your exact level.
                   </p>

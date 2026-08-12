@@ -1,4 +1,4 @@
-import { Brain, Mic, MessageSquare, Headphones, FileText, Gamepad2, Swords, Flame, BookOpen, MessageCircle, AlertTriangle } from "lucide-react";
+import { Brain, Mic, MessageSquare, Headphones, FileText, Gamepad2, Swords, Flame, BookOpen, MessageCircle, AlertTriangle, PenLine } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { HubHeader, HubSection } from "@/components/layout/HubGrid";
 import { useAuth } from "@/hooks/useAuth";
@@ -71,6 +71,15 @@ const PracticeHub = () => {
             icon: MessageSquare,
             to: "/conversation",
             accent: "bg-primary/10 text-primary",
+          },
+          {
+            id: "native-feedback",
+            label: "Native Feedback",
+            description: "A real native speaker corrects your writing",
+            icon: PenLine,
+            to: "/native-feedback",
+            accent: "bg-emerald-500/10 text-emerald-600",
+            show: isAuthenticated,
           },
           {
             id: "mistakes",

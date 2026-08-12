@@ -1,6 +1,23 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { MODEL_IDS } from "../_shared/modelRegistry.ts";
+import { resolveUserId } from "../_shared/usageCap.ts";
+import { normalizeDialect } from "../_shared/transcriptDiffCore.ts";
+
+// Service-role client for the placement_history trajectory, cached per
+// isolate like every other function's.
+let cachedHistoryClient: ReturnType<typeof createClient> | null = null;
+function historyClient() {
+  if (!cachedHistoryClient) {
+    cachedHistoryClient = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      { auth: { persistSession: false, autoRefreshToken: false } },
+    );
+  }
+  return cachedHistoryClient;
+}
 
 
 const CEFR_LEVELS = ["A1", "A2", "B1", "B2", "C1", "C2"];
@@ -71,9 +88,62 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
+    // The learner's assessment trajectory (C4) — server-written rows only,
+    // so the chart can't be self-reported.
+    if (action === "history") {
+      const userId = await resolveUserId(req);
+      if (!userId) {
+        return new Response(JSON.stringify({ error: "auth_required" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const { data: rows, error: historyErr } = await historyClient()
+        .from("placement_history")
+        .select("dialect, cefr_level, confidence, taken_at")
+        .eq("user_id", userId)
+        .order("taken_at", { ascending: true })
+        .limit(100);
+      if (historyErr) {
+        return new Response(JSON.stringify({ error: historyErr.message }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      return new Response(JSON.stringify({ history: rows ?? [] }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Score action — no AI needed
     if (action === "score") {
       const result = calculateCEFR(history || []);
+      // Append the trajectory row (fire-and-forget: scoring must not fail on
+      // bookkeeping). Anonymous callers simply record nothing.
+      try {
+        const userId = await resolveUserId(req);
+        const scoredDialect = normalizeDialect(dialect);
+        if (userId && scoredDialect) {
+          historyClient()
+            .from("placement_history")
+            .insert([
+              {
+                user_id: userId,
+                dialect: scoredDialect,
+                cefr_level: result.cefr_level,
+                confidence: Math.max(0, Math.min(100, Math.round(result.confidence ?? 0))),
+              },
+            ] as unknown as never)
+            .then(
+              ({ error }: { error: { message: string } | null }) => {
+                if (error) console.warn("[placement-quiz] history insert failed:", error.message);
+              },
+              (err: unknown) => console.warn("[placement-quiz] history insert threw:", err),
+            );
+        }
+      } catch (e) {
+        console.warn("[placement-quiz] history record failed:", e);
+      }
       return new Response(JSON.stringify(result), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

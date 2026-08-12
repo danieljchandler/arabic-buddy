@@ -126,6 +126,9 @@ export const ROUTES: RouteSpec[] = [
 
   // ── Practice tools ─────────────────────────────────────────────────────────
   { path: "/pronunciation", gate: "public", boundary: "PronunciationRoute" },
+  // Loads its credit balance on mount; the default native-feedback stub in
+  // src/test/support/server/functions.ts answers it.
+  { path: "/native-feedback", gate: "auth", boundary: "NativeFeedbackRoute" },
   {
     path: "/conversation",
     gate: "public",

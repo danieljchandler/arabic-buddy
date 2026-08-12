@@ -139,7 +139,8 @@ export default function PlacementQuiz() {
         setLoading(true);
         try {
           const { data, error } = await supabase.functions.invoke("placement-quiz", {
-            body: { action: "score", history: updatedAnswers },
+            // dialect: the server appends this run to placement_history (C4).
+            body: { action: "score", history: updatedAnswers, dialect: activeDialect },
           });
           if (error) throw error;
           setResults(data);

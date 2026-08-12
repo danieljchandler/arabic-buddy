@@ -10,6 +10,7 @@ import { useUserXP, useUserAchievements, calculateLevel, xpProgressInLevel } fro
 import { ArrowLeft, Flame, Sparkles, BookOpen, Trophy, Settings as SettingsIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ReferralCard } from "@/components/social/ReferralCard";
+import { LevelJourneyCard } from "@/components/social/LevelJourneyCard";
 
 interface DialectStudy {
   dialect: string;
@@ -177,6 +178,11 @@ const Profile = () => {
           <StatCard icon={<BookOpen className="h-4 w-4" />} label="Words" value={totalWords} sub={`${totalMature} mature`} />
           <StatCard icon={<Trophy className="h-4 w-4" />} label="Badges" value={achievements?.length ?? 0} sub="earned" />
         </div>
+
+        {/* ── Assessed level ── */}
+        <section className="mt-6">
+          <LevelJourneyCard />
+        </section>
 
         {/* ── Referrals ── */}
         <section className="mt-6">

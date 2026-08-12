@@ -66,6 +66,10 @@ const SERVICE_ROLE_ONLY_TABLES = new Set([
   // function and read by the payments functions, all under the service role.
   "referral_codes",
   "referral_redemptions",
+  // Paid native feedback (D2): ledger and requests, all through the
+  // native-feedback function; the settle trigger writes the answers.
+  "native_feedback_credits",
+  "native_feedback_requests",
 ]);
 
 describe("tables", () => {

@@ -140,6 +140,10 @@ export const defaultFunctions: Record<string, FunctionHandler> = {
     ok({ subscribed: false, tier: null, product_id: null, subscription_end: null }),
   "create-checkout": () => ok({ url: "https://checkout.stripe.test/session" }),
   "customer-portal": () => ok({ url: "https://billing.stripe.test/portal" }),
+  // Fresh account, nothing on sale: the page renders its empty state and the
+  // dark-until-configured purchase button stays hidden.
+  "native-feedback": () =>
+    ok({ balance: 0, requests: [], credits_per_pack: 5, purchase_enabled: false }),
 
   "generate-mnemonic": () => ok({ mnemonic: "a memorable hook" }),
   "generate-flashcard-image": () => ok({ imageUrl: "https://cdn.test/flashcard.png" }),

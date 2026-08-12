@@ -220,8 +220,11 @@ describe("opening the task", () => {
   it("is the whole row, not a small target inside it", () => {
     render();
 
-    // On a phone this is the primary control on the page; anything smaller than
-    // the row is a miss waiting to happen.
-    expect(row().className).toContain("w-full");
+    // On a phone this is the primary control on the page; anything smaller
+    // than the row is a miss waiting to happen. The control is now a
+    // full-bleed overlay (inset-0) under the content — it became an overlay
+    // when the row learned to host an InfoHint, which is itself a <button>
+    // and cannot legally nest inside one.
+    expect(row().className).toContain("inset-0");
   });
 });

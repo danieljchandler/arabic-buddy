@@ -41,12 +41,17 @@ export const TaskRow = ({
   const rail = DIALECT_RAIL[activeDialect] ?? DIALECT_RAIL.Gulf;
   const iconTint = DIALECT_ICON_TINT[activeDialect] ?? DIALECT_ICON_TINT.Gulf;
 
+  // The row reads as one big button but may carry an InfoHint — itself a real
+  // <button> (see its comment). A button can't contain a button, so the row
+  // is a clickable wrapper with a full-bleed <button> UNDER the content for
+  // the accessible name, focus ring and key handling; every click — on the
+  // overlay or on the painted content — bubbles to the wrapper's onClick.
+  // The InfoHint stops propagation, which is exactly its contract.
   return (
-    <button
+    <div
       onClick={onClick}
-      aria-label={`${done ? "Completed: " : ""}${title} — estimated ${estMinutes} minutes`}
       className={cn(
-        "group relative w-full flex items-stretch gap-3 pr-4 pl-0 py-3.5 rounded-2xl text-left overflow-hidden",
+        "group relative w-full flex cursor-pointer items-stretch gap-3 pr-4 pl-0 py-3.5 rounded-2xl text-left overflow-hidden",
         "bg-card-cream border-2 transition-all duration-300",
         "shadow-[0_1px_0_rgba(92,58,70,0.04),0_4px_12px_-6px_rgba(92,58,70,0.12)]",
         "hover:shadow-[0_2px_0_rgba(92,58,70,0.06),0_10px_20px_-8px_rgba(92,58,70,0.2)] hover:-translate-y-px active:translate-y-0",
@@ -55,18 +60,25 @@ export const TaskRow = ({
           : "border-desert-red/15 hover:border-desert-red/35"
       )}
     >
+      {/* No handler of its own: a click (or Enter/Space, which a native
+          button synthesises into a click) bubbles to the wrapper's onClick,
+          so pointer and keyboard share one code path. */}
+      <button
+        aria-label={`${done ? "Completed: " : ""}${title} — estimated ${estMinutes} minutes`}
+        className="absolute inset-0 z-0 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      />
       {/* Left dialect rail */}
       <span
         aria-hidden
         className={cn(
-          "w-1.5 shrink-0 rounded-r-full transition-opacity",
+          "relative z-[1] w-1.5 shrink-0 rounded-r-full transition-opacity",
           rail,
           done && "opacity-40"
         )}
       />
 
       {/* Micro-icon tile */}
-      <div className="pl-1 flex items-center">
+      <div className="relative z-[1] pl-1 flex items-center">
         <div
           className={cn(
             "h-11 w-11 rounded-xl flex items-center justify-center shrink-0 transition-colors",
@@ -92,7 +104,7 @@ export const TaskRow = ({
       </div>
 
       {/* Body */}
-      <div className="flex-1 min-w-0 flex flex-col justify-center">
+      <div className="relative z-[1] flex-1 min-w-0 flex flex-col justify-center">
         <div className="flex items-center gap-2 flex-wrap">
           <span
             className={cn(
@@ -128,7 +140,7 @@ export const TaskRow = ({
 
       <ChevronRight
         className={cn(
-          "h-5 w-5 shrink-0 self-center transition-transform",
+          "relative z-[1] h-5 w-5 shrink-0 self-center transition-transform",
           done ? "text-desert-red/30" : "text-desert-red/40 group-hover:translate-x-0.5 group-hover:text-desert-red/70"
         )}
       />
@@ -140,6 +152,6 @@ export const TaskRow = ({
           to   { stroke-dashoffset: 0; }
         }
       `}</style>
-    </button>
+    </div>
   );
 };

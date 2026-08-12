@@ -187,3 +187,8 @@ verify_jwt = true
 # Rewards are Stripe-side, conversion-gated (see check-subscription).
 [functions.referral]
 verify_jwt = true
+
+# Paid native feedback: credit ledger, submissions into the reviewers' queue,
+# Stripe one-off credit packs (dark until STRIPE_FEEDBACK_PACK_PRICE is set).
+[functions.native-feedback]
+verify_jwt = true

@@ -139,20 +139,44 @@ test.describe("the daily queue", () => {
     await expect(page.getByText("Flashcards reviewed")).toHaveCount(0);
   });
 
-  test("hides the listening task when the feed is empty", async ({ page, db }) => {
+  test("hides the video card when the feed is empty", async ({ page, db }) => {
     db.seed("discover_videos", []);
     await page.goto("/");
 
-    // Offering "listen to 1 clip" with nothing to listen to sends the learner
-    // to an empty page.
-    await expect(page.getByText("Listen to 1 clip")).toHaveCount(0);
+    // Offering a video with nothing to watch sends the learner to an empty
+    // page.
+    await expect(page.getByRole("heading", { name: /Watch today's video/ })).toHaveCount(0);
   });
 
-  test("offers the listening task once the feed has something in it", async ({ page, db }) => {
+  test("leads with the video once the feed has something in it", async ({ page, db }) => {
     db.seed("discover_videos", [aDiscoverVideo({ id: videoId(0), dialect: "Gulf" })]);
     await page.goto("/");
 
-    await expect(page.getByText("Listen to 1 clip")).toBeVisible();
+    await expect(page.getByRole("heading", { name: /Watch today's video/ })).toBeVisible();
+  });
+
+  test("puts the video above the rest of the day", async ({ page, db }) => {
+    db.seed("discover_videos", [aDiscoverVideo({ id: videoId(0), dialect: "Gulf" })]);
+    await page.goto("/");
+
+    // Watching native video is the app's core loop and it used to sit at the
+    // bottom of the page, under the whole queue — reachable only by scrolling
+    // past everything else.
+    const video = await page.getByRole("heading", { name: /Watch today's video/ }).boundingBox();
+    const queue = await page.getByRole("heading", { name: "Today", exact: true }).boundingBox();
+    expect(video!.y).toBeLessThan(queue!.y);
+  });
+
+  test("still counts the video in the day's total", async ({ page, db }) => {
+    db.seed("discover_videos", [aDiscoverVideo({ id: videoId(0), dialect: "Gulf" })]);
+    await completeTasks(page, "listening");
+    await page.goto("/");
+
+    // It renders as the card at the top rather than as a queue row, but it is
+    // still one of today's tasks — dropping it out of the count would make a
+    // finished day read as unfinished.
+    await expect(page.getByText(/1 of \d+ tasks done/)).toBeVisible();
+    await expect(page.getByText("Watched")).toBeVisible();
   });
 
   test("counts due set phrases", async ({ page, db }) => {
@@ -205,14 +229,17 @@ test.describe("starting a task", () => {
     await expect(page).toHaveURL(/\/review$/);
   });
 
-  test("listening completes on click, because it has no completion event", async ({ page, db }) => {
+  test("the video card opens today's clip and completes on click", async ({ page, db }) => {
     db.seed("discover_videos", [aDiscoverVideo({ id: videoId(0), dialect: "Gulf" })]);
     await page.goto("/");
-    await page.getByText("Listen to 1 clip").click();
-    await expect(page).toHaveURL(/\/discover$/);
+    await page.getByRole("button", { name: /^Watch video:/ }).click();
 
-    // It routes to the browse list, where nothing marks the task done, so the
-    // click is the only completion signal available.
+    // Straight to the clip, not the browse list: the point of "today's video"
+    // is that the choice has already been made.
+    await expect(page).toHaveURL(new RegExp(`/discover/${videoId(0)}$`));
+
+    // The video page marks nothing done, so the click is the only completion
+    // signal available.
     const stored = await page.evaluate((key) => window.localStorage.getItem(key), TODAY_KEY());
     expect(JSON.parse(stored ?? "[]")).toContain("listening");
   });

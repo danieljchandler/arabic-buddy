@@ -8,9 +8,8 @@ import { useUserVocabularyDueCount } from "@/hooks/useUserVocabulary";
 import { useSRSStats } from "@/hooks/useSRSStats";
 import { useUserXP } from "@/hooks/useGamification";
 import { useTodayQueue } from "@/hooks/useTodayQueue";
-import { useDiscoverVideos, difficultyWindow } from "@/hooks/useDiscoverVideos";
 import { Button } from "@/components/design-system";
-import { Settings, Brain, LogIn, LogOut, Mic, BookOpen, Sparkles, GraduationCap, Laugh, Play, ChevronRight, Twitter, MessageCircleQuestion, Compass, MessageSquare, MessageCircle, Globe2, Headphones, Trophy, FileText, Flame, BarChart3, PenTool, Gamepad2, Users, Swords, Newspaper, BookMarked, Image as ImageIcon, Languages, Settings2 } from "lucide-react";
+import { Settings, Brain, LogIn, LogOut, Mic, BookOpen, Sparkles, GraduationCap, Laugh, Play, ChevronRight, Twitter, MessageCircleQuestion, MessageSquare, MessageCircle, Globe2, Headphones, Trophy, FileText, Flame, BarChart3, PenTool, Gamepad2, Users, Swords, Newspaper, BookMarked, Image as ImageIcon, Languages, Settings2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AppShell } from "@/components/layout/AppShell";
 import { Badge } from "@/components/ui/badge";
@@ -28,25 +27,18 @@ import { PhraseOfTheDay } from "@/components/PhraseOfTheDay";
 import { useHomeLayout } from "@/hooks/useHomeLayout";
 import { HomeSectionId, isSectionVisible } from "@/lib/homeLayout";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
-import { DiscoverPreviewCard } from "@/components/discover/DiscoverPreviewCard";
 import { InfoHint } from "@/components/InfoHint";
 import { useAlphabetProgress } from "@/hooks/useAlphabetProgress";
 import { ARABIC_LETTERS } from "@/data/arabicAlphabet";
 import { DailyLetterGoalRing } from "@/components/alphabet/DailyLetterGoalRing";
 import { DailyGoalRing } from "@/components/today/DailyGoalRing";
 import { TaskRow } from "@/components/today/TaskRow";
-import { getDailyGoal, setDailyGoal, markTaskCompletedToday } from "@/lib/todayCompletion";
+import { WatchTodayCard } from "@/components/today/WatchTodayCard";
+import { getDailyGoal, setDailyGoal } from "@/lib/todayCompletion";
 import { ContinueCard } from "@/components/ContinueCard";
 import { LandingHero } from "@/components/LandingHero";
 import { Footer } from "@/components/Footer";
 
-
-const TILE_HINTS: Record<string, { title: string; body: string }> = {
-  "review": { title: "Smart review", body: "Spaced repetition surfaces only the words you're about to forget. Quick taps now mean rock-solid long-term memory." },
-  "my-words": { title: "My Words", body: "Every word you've saved — with native audio, images, and SRS scheduling. Your personal vocabulary deck, on autopilot." },
-  "discover": { title: "Discover videos", body: "Real native videos with synced subtitles. Tap any word to learn it, then save it to review later." },
-  "placement": { title: "Placement Quiz", body: "20 adaptive questions to pin down your exact CEFR level so every lesson lands in your sweet spot." },
-};
 
 // Daily-queue task hints, keyed by useTodayQueue's TodayTaskId — moved here
 // from the old standalone Today.tsx page now that the queue is inline.
@@ -67,10 +59,8 @@ const TASK_HINTS: Record<string, { title: string; body: string }> = {
     title: "Today's story",
     body: "A fresh ~200-word story written around words you already know, with a few new ones gently introduced. Tap any word for an instant gloss.",
   },
-  listening: {
-    title: "Listening clip",
-    body: "Real native videos with synced subtitles — train your ear on how Arabic actually sounds in the wild.",
-  },
+  // No "listening" entry: today's video renders as WatchTodayCard at the top of
+  // the page rather than as a queue row, and carries its own hint.
   souq: {
     title: "Souq News",
     body: "Today's headlines, retold like a friend gossiping in dialect. Casual Arabic + current events in one go.",
@@ -99,14 +89,9 @@ const Index = () => {
   const { data: myWordsStats } = useUserVocabularyDueCount();
   const { data: stats } = useReviewStats();
   const { data: srsStats } = useSRSStats();
-  // Dialect-aware placement level (see the profile fetch below) — feeds the
-  // Discover feed's difficulty filter so a beginner isn't shown the same feed
-  // as a C1 learner.
+  // Dialect-aware placement level (see the profile fetch below) — decides
+  // whether the placement banner is still worth showing.
   const [placementLevel, setPlacementLevel] = useState<string | null>(null);
-  const { data: discoverVideos } = useDiscoverVideos({
-    dialect: activeDialect,
-    difficulty: difficultyWindow(placementLevel) ?? undefined,
-  });
   const { hasAccess: hasBibleAccess } = useBibleAccess();
 
   const { state: homeLayout } = useHomeLayout();
@@ -115,9 +100,6 @@ const Index = () => {
     ? ARABIC_LETTERS.find((l) => alphabetUnlocked(l.order_index) && !alphabetProgress[l.code]?.mastered_at) ?? ARABIC_LETTERS[0]
     : null;
   const { isAdmin } = useAdminAuth();
-  const [previewIndex, setPreviewIndex] = useState(0);
-  const previewVideos = discoverVideos?.slice(0, 5) ?? [];
-  const previewVideo = previewVideos[previewIndex];
 
   // Daily queue — inlined here (was previously a separate /today page the
   // user had to navigate to via a "Start today" card).
@@ -142,15 +124,12 @@ const Index = () => {
   const tasksCompleted = visibleTasks.filter((t) => t.done).length;
   const tasksTotal = visibleTasks.length;
 
-  const handleTaskClick = (taskId: string, route: string) => {
-    // daily-challenge, reading, and souq mark themselves complete on their own
-    // real completion event; "listening" has no single completion event to
-    // hook (it routes to the Discover browse list), so it completes on click.
-    if (taskId === "listening") {
-      markTaskCompletedToday(taskId);
-    }
-    navigate(route);
-  };
+  // Video leads the page as a full card at the very top rather than as a row
+  // buried in the queue, so it is pulled out of the list here — it still counts
+  // towards the totals above, and WatchTodayCard handles its own navigation and
+  // completion.
+  const videoTask = visibleTasks.find((t) => t.id === "listening");
+  const queueRows = visibleTasks.filter((t) => t.id !== "listening");
 
   // Check onboarding + placement status for authenticated users (per active dialect)
   useEffect(() => {
@@ -231,6 +210,12 @@ const Index = () => {
           )}
         </div>
       </div>
+
+      {/* Today's video — first thing on the page. Watching native video is the
+          core of the app, and this used to sit at the very bottom under the
+          whole daily queue, which meant scrolling past everything else to reach
+          it. It shows on every dialect (see useTodaysVideo). */}
+      {isAuthenticated && <WatchTodayCard done={videoTask?.done} />}
 
       {/* A — Majlis welcome panel */}
       <MajlisWelcome />
@@ -339,8 +324,13 @@ const Index = () => {
                 </div>
               </div>
 
+              {/* Every row left in the queue marks itself complete on its own
+                  real completion event, so opening one is a plain navigation —
+                  marking on click would let a learner clear the day by tapping
+                  through it. (Today's video is the exception, and it lives in
+                  the card at the top of the page.) */}
               <div className="space-y-3">
-                {visibleTasks.map((task) => (
+                {queueRows.map((task) => (
                   <TaskRow
                     key={task.id}
                     title={task.title}
@@ -350,7 +340,7 @@ const Index = () => {
                     icon={task.icon}
                     done={task.done}
                     hint={TASK_HINTS[task.id]}
-                    onClick={() => handleTaskClick(task.id, task.route)}
+                    onClick={() => navigate(task.route)}
                   />
                 ))}
                 {visibleTasks.length === 0 && (
@@ -463,33 +453,6 @@ const Index = () => {
           </div>
           <ChevronRight className="h-4 w-4 text-[#5C3A46]/60 shrink-0" />
         </button>
-
-        {previewVideo && (
-          <div>
-            <div className="px-1 mb-3 flex items-baseline gap-3">
-              <span className="h-px flex-1 bg-[#5C3A46]/15" aria-hidden />
-              <h2
-                className="text-[10px] font-bold text-[#5C3A46]/70 uppercase tracking-[0.18em] flex items-center gap-1.5"
-                style={{ fontFamily: "'Montserrat', sans-serif" }}
-              >
-                <Compass className="h-3 w-3" />
-                Watch today
-                <InfoHint title={TILE_HINTS.discover.title} body={TILE_HINTS.discover.body} />
-              </h2>
-              <span className="h-px flex-1 bg-[#5C3A46]/15" aria-hidden />
-            </div>
-            <DiscoverPreviewCard
-              video={previewVideo}
-              onClick={() => navigate(`/discover/${previewVideo.id}`)}
-            />
-            <button
-              onClick={() => navigate("/discover")}
-              className="mt-2 text-xs text-primary font-semibold flex items-center gap-0.5 mx-auto"
-            >
-              See all videos <ChevronRight className="h-3 w-3" />
-            </button>
-          </div>
-        )}
       </div>
 
     </AppShell>

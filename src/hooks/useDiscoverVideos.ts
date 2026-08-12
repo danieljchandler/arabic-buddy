@@ -53,9 +53,17 @@ export interface DiscoverVideo {
   engines_used?: Json | null;
 }
 
-export function useDiscoverVideos(filters?: { dialect?: string; difficulty?: string | string[]; search?: string }) {
+export function useDiscoverVideos(
+  filters?: { dialect?: string; difficulty?: string | string[]; search?: string },
+  options?: { enabled?: boolean },
+) {
   return useQuery({
     queryKey: ["discover-videos", filters],
+    // Off by default for nobody — the flag exists so a caller can hold a second,
+    // wider read back until it knows the narrow one came up empty (see
+    // useTodaysVideo), rather than fetching the whole library on every home page
+    // load just in case.
+    enabled: options?.enabled ?? true,
     queryFn: async () => {
       let query = supabase
         .from("discover_videos" as any)

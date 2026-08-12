@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderHookWithProviders } from "@/test/support/react/harness";
 import {
   aDiscoverVideo,
+  aProfile,
   aSetPhrase,
   aUserSetPhrase,
   aUserVocabulary,
@@ -12,6 +13,7 @@ import {
   reviewId,
   setPhraseId,
   userSetPhraseId,
+  videoId,
   vocabId,
   wordId,
 } from "@/test/support/factories";
@@ -219,18 +221,54 @@ describe("set phrases", () => {
   });
 });
 
-describe("listening", () => {
-  it("appears when there are clips in the active dialect", async () => {
+describe("today's video", () => {
+  // Still filed under the "listening" id: that is the key completions are
+  // stored under in localStorage, and renaming it would un-tick the task for
+  // everyone who had already watched today.
+  it("appears when there is a clip to watch", async () => {
     const rendered = renderHookWithProviders(() => useTodayQueue(), {
       persona: "free",
-      seed: (backend) => backend.db.seed("discover_videos", [aDiscoverVideo({ dialect: "Gulf" })]),
+      seed: (backend) =>
+        backend.db.seed("discover_videos", [aDiscoverVideo({ id: videoId(0), dialect: "Gulf" })]),
+    });
+    cleanup = rendered.cleanup;
+
+    await waitFor(() => expect(visible(rendered.result.current)).toContain("listening"));
+    expect(taskById(rendered.result.current, "listening")?.title).toBe("Watch today's video");
+  });
+
+  it("routes straight to the clip rather than the browse list", async () => {
+    // The point of the task is that the choice has already been made; dropping
+    // the learner on a grid of thumbnails hands it back to them.
+    const rendered = renderHookWithProviders(() => useTodayQueue(), {
+      persona: "free",
+      seed: (backend) =>
+        backend.db.seed("discover_videos", [aDiscoverVideo({ id: videoId(0), dialect: "Gulf" })]),
+    });
+    cleanup = rendered.cleanup;
+
+    await waitFor(() =>
+      expect(taskById(rendered.result.current, "listening")?.route).toBe(`/discover/${videoId(0)}`),
+    );
+  });
+
+  it("appears on a dialect with no clips of its own", async () => {
+    // The card this task drives is the top of the home page, so it has to be
+    // there on every dialect — a Yemeni learner falls back to another dialect's
+    // clip rather than to nothing.
+    const rendered = renderHookWithProviders(() => useTodayQueue(), {
+      persona: "free",
+      seed: (backend) => {
+        backend.db.seed("profiles", [aProfile({ preferred_dialect: "Yemeni" })]);
+        backend.db.seed("discover_videos", [aDiscoverVideo({ id: videoId(0), dialect: "Gulf" })]);
+      },
     });
     cleanup = rendered.cleanup;
 
     await waitFor(() => expect(visible(rendered.result.current)).toContain("listening"));
   });
 
-  it("hides when there is nothing to listen to", async () => {
+  it("hides when there is nothing to watch", async () => {
     // Offering a task that leads to an empty page is worse than not offering
     // it — the learner cannot complete it and it never clears.
     const rendered = renderHookWithProviders(() => useTodayQueue(), {

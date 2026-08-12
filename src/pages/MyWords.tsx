@@ -160,7 +160,10 @@ const MyWords = () => {
     setBackfilling(true);
     try {
       const { data, error } = await supabase.functions.invoke("enrich-word-roots", {
-        body: { dialect: activeDialect },
+        // The count on the button comes from the list on screen, which is
+        // scoped to the active dialect unless "All dialects" is on. The run has
+        // to be scoped the same way or the number never goes down.
+        body: mixAll ? {} : { dialect: activeDialect },
       });
       if (showCapToastIfLimited(error, data)) return;
       if (error) throw error;

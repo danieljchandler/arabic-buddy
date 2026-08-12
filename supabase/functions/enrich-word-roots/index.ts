@@ -180,13 +180,23 @@ Deno.serve(async (req) => {
   try {
     const body = await req.json().catch(() => ({}));
     const limit = Math.min(Math.max(Number(body.limit ?? DEFAULT_LIMIT) || DEFAULT_LIMIT, 1), MAX_LIMIT);
-    const dialect = (body.dialect ?? "Gulf") as Dialect;
+    /**
+     * Which deck to work through, and the voice to ask in.
+     *
+     * Present means "this dialect only". My Words shows the count for the
+     * dialect the learner is looking at, so the run has to match it — otherwise
+     * a press of "Find roots for 12 words" while viewing Gulf could spend the
+     * whole batch on the Egyptian deck, leave the Gulf count untouched, and
+     * look like it did nothing. Absent means every dialect, which is what the
+     * page's mix-all mode counts.
+     */
+    const dialect = typeof body.dialect === "string" && body.dialect ? (body.dialect as Dialect) : null;
 
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE, {
       auth: { persistSession: false, autoRefreshToken: false },
     });
 
-    const { data, error } = await supabase
+    let query = supabase
       .from("user_vocabulary")
       .select("id, word_arabic")
       // Scoped to the caller even though this holds the service role: the
@@ -195,6 +205,9 @@ Deno.serve(async (req) => {
       .is("root", null)
       .order("created_at", { ascending: false })
       .limit(limit);
+    if (dialect) query = query.eq("dialect", dialect);
+
+    const { data, error } = await query;
     if (error) throw error;
 
     const candidates = (data ?? []) as Candidate[];
@@ -218,7 +231,7 @@ Deno.serve(async (req) => {
 
     for (let start = 0; start < words.length; start += BATCH_SIZE) {
       const batch = words.slice(start, start + BATCH_SIZE);
-      const roots = await rootsForBatch(batch, dialect);
+      const roots = await rootsForBatch(batch, dialect ?? "Gulf");
       batch.forEach((word, offset) => {
         // A word the model skipped is left out entirely rather than written as
         // '': it has not been answered, so the next run should still try it.

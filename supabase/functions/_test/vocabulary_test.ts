@@ -873,6 +873,46 @@ Deno.test("enrich-word-roots caps how much one call can chew through", async () 
   assertEquals(body.examined, 5);
 });
 
+Deno.test("enrich-word-roots works through the dialect it was asked for", async () => {
+  const requests: string[] = [];
+  const { status } = await call(
+    "enrich-word-roots",
+    { dialect: "Yemeni" },
+    caller({
+      "/rest/v1/user_vocabulary": (request: Request) => {
+        if (request.method !== "PATCH") requests.push(new URL(request.url).search);
+        return json([]);
+      },
+    }),
+  );
+
+  assertEquals(status, 200);
+  // My Words counts the words missing a root in the deck on screen. If the run
+  // ignored that scope, pressing "Find roots for 12 words" while looking at
+  // Gulf could spend the batch on the Egyptian deck and leave the number
+  // exactly where it was — which reads as the button doing nothing.
+  assert(requests.some((search) => search.includes("dialect=eq.Yemeni")));
+});
+
+Deno.test("enrich-word-roots covers every dialect when none is named", async () => {
+  const requests: string[] = [];
+  const { status } = await call(
+    "enrich-word-roots",
+    {},
+    caller({
+      "/rest/v1/user_vocabulary": (request: Request) => {
+        if (request.method !== "PATCH") requests.push(new URL(request.url).search);
+        return json([]);
+      },
+    }),
+  );
+
+  assertEquals(status, 200);
+  // This is what My Words' "All dialects" mode counts.
+  assert(requests.length > 0);
+  assert(!requests.some((search) => search.includes("dialect=")));
+});
+
 Deno.test("enrich-word-roots turns an anonymous caller away", async () => {
   const { status, calls } = await call(
     "enrich-word-roots",

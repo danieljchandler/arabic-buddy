@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TappableArabicText } from "@/components/shared/TappableArabicText";
 import { ArticleQuiz } from "@/components/souq-news/ArticleQuiz";
-import { ArticleSentences } from "@/components/souq-news/ArticleSentences";
+import { SentenceReader } from "@/components/shared/SentenceReader";
 import { MarkUnknownsProvider } from "@/contexts/MarkUnknownsContext";
 import { MarkUnknownsToggle } from "@/components/shared/MarkUnknownsToggle";
 import { SaveUnknownsBar } from "@/components/shared/SaveUnknownsBar";
@@ -167,10 +167,11 @@ const SouqNews = () => {
 
                 {/* Arabic body — line by line with reveal */}
                 <div className="mb-4">
-                  <ArticleSentences
-                    bodyDialect={article.body_dialect}
+                  <SentenceReader
+                    body={article.body_dialect}
                     sentences={article.sentences}
                     vocabulary={article.vocabulary}
+                    source="souq-news"
                   />
                 </div>
 

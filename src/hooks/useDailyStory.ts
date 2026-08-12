@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useDialect } from "@/contexts/DialectContext";
+import type { ReaderSentence } from "@/lib/sentences";
 
 export interface DailyStory {
   id: string;
@@ -13,6 +14,8 @@ export interface DailyStory {
   body_transliteration: string | null;
   body_english: string | null;
   body_english_literal: string | null;
+  /** Per-sentence text for the reader. Null on stories generated before it existed. */
+  sentences: ReaderSentence[] | null;
   vocab_used: string[];
   new_words: string[];
   audio_url: string | null;

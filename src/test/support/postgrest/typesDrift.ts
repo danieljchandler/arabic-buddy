@@ -72,12 +72,8 @@ export const COLUMNS_MISSING_FROM_TYPES: DriftedColumn[] = [
     column,
     migration: "20260226000000_fanar_usage",
   })),
-  ...["id", "user_id", "function_name", "phrase", "llm_used", "created_at"].map((column) => ({
-    table: "llm_usage_logs",
-    column,
-    migration: "20260224010000_llm_usage_logs",
-  })),
 ];
+
 
 /** Extra columns for a table, as a set. */
 export function extraColumnsFor(table: string): string[] {

@@ -16,6 +16,8 @@ import { logMsaViolations, logValidatorResult } from './msaViolationLogger.ts';
 import { validateDialectCrossChecked, type ValidatorResult } from './dialectValidator.ts';
 import { decideCriticOutcome } from './criticDecision.ts';
 import { emitMetric } from './featureMetrics.ts';
+import { extractUsage } from './llmUsageCore.ts';
+import { logLlmUsage } from './llmUsageLogger.ts';
 import {
   DEFAULT_FAST,
   DEFAULT_JUDGE,
@@ -339,6 +341,49 @@ function buildSystem(task: BrainTask): string {
   return `${identity}\n\n${rules}${extra}`;
 }
 
+/**
+ * The same prompt split at its cache boundary. The dialect identity and the
+ * Rulebook are stable across every call and every user of a dialect; the
+ * learner profile (`systemPromptExtra`) changes per user per day. Keeping the
+ * volatile half strictly AFTER the stable half is what makes the stable half
+ * cacheable at all — anything volatile placed earlier would invalidate
+ * everything behind it on every call.
+ */
+function buildSystemParts(task: BrainTask): { stable: string; volatile: string } {
+  const identity = getDialectIdentity(task.dialect);
+  const rules = getDialectVocabRules(task.dialect);
+  return {
+    stable: `${identity}\n\n${rules}`,
+    volatile: task.systemPromptExtra ?? '',
+  };
+}
+
+/** Providers that honour cache_control breakpoints through OpenRouter. */
+function supportsPromptCache(model: string): boolean {
+  return /^anthropic\//.test(model);
+}
+
+/**
+ * The system message for a call: a plain string normally, or — for models with
+ * prompt caching behind OpenRouter — content parts with a cache_control
+ * breakpoint after the stable prefix, so the dialect identity and Rulebook are
+ * billed at the cached rate on every call after the first.
+ */
+function systemMessage(
+  opts: Pick<CallOptions, 'system' | 'systemParts' | 'model'>,
+  route: 'openrouter' | 'lovable',
+): { role: 'system'; content: unknown } {
+  const parts = opts.systemParts;
+  if (route === 'openrouter' && supportsPromptCache(opts.model) && parts?.stable) {
+    const content: unknown[] = [
+      { type: 'text', text: parts.stable, cache_control: { type: 'ephemeral' } },
+    ];
+    if (parts.volatile) content.push({ type: 'text', text: parts.volatile });
+    return { role: 'system', content };
+  }
+  return { role: 'system', content: opts.system };
+}
+
 // ----------------- Single model call -----------------
 
 interface CallOptions {
@@ -351,6 +396,15 @@ interface CallOptions {
   apiKey: string;
   /** Hard ceiling for this one call. Defaults to DEFAULT_CALL_TIMEOUT_MS. */
   timeoutMs?: number;
+  /** The task's purpose, so cost telemetry can name the feature it served. */
+  purpose?: string;
+  /**
+   * The system prompt split at its cache boundary (stable dialect block vs
+   * volatile learner profile). When set and the model supports prompt caching,
+   * it is sent as content parts with a cache_control breakpoint; `system`
+   * remains the joined fallback for every other model.
+   */
+  systemParts?: { stable: string; volatile: string };
 }
 
 /** True when the error came from our own AbortSignal.timeout rather than upstream. */
@@ -362,10 +416,11 @@ function isTimeout(err: unknown): boolean {
 
 async function callModel(opts: CallOptions): Promise<{ raw: string; parsed: unknown }> {
   const isGpt5 = /^openai\/gpt-5/.test(opts.model);
+  const route = routeForModel(opts.model);
   const body: Record<string, unknown> = {
     model: opts.model,
     messages: [
-      { role: 'system', content: opts.system },
+      systemMessage(opts, route),
       { role: 'user', content: opts.user },
     ],
   };
@@ -389,7 +444,6 @@ async function callModel(opts: CallOptions): Promise<{ raw: string; parsed: unkn
     body.tool_choice = { type: 'function', function: { name: opts.tool.name } };
   }
 
-  const route = routeForModel(opts.model);
   let url: string;
   let authKey: string | undefined;
   if (route === 'openrouter') {
@@ -398,6 +452,10 @@ async function callModel(opts: CallOptions): Promise<{ raw: string; parsed: unkn
     if (!authKey) {
       throw new BrainHttpError(500, `OPENROUTER_API_KEY not configured (required for ${opts.model})`);
     }
+    // Ask OpenRouter to report spend per call; it lands in `usage.cost` (USD)
+    // alongside the token counts. Cost telemetry stores what the provider
+    // says rather than computing from a price table that would drift.
+    body.usage = { include: true };
   } else {
     url = GATEWAY_URL;
     authKey = opts.apiKey;
@@ -428,6 +486,12 @@ async function callModel(opts: CallOptions): Promise<{ raw: string; parsed: unkn
   }
 
   const data = await res.json();
+  logLlmUsage({
+    functionName: opts.purpose ?? 'ai-brain',
+    model: opts.model,
+    provider: route,
+    usage: extractUsage(data),
+  });
   const msg = data.choices?.[0]?.message;
   if (opts.tool) {
     const tc = msg?.tool_calls?.[0];
@@ -551,11 +615,13 @@ async function runSolo<T>(task: BrainTask, apiKey: string, deadline: Deadline): 
   const { raw, parsed, model: usedModel } = await timePass(passes, 'solo', model, () => callModelWithFallback({
     model,
     system: buildSystem(task),
+    systemParts: buildSystemParts(task),
     user: task.userPrompt,
     tool: task.tool,
     maxTokens: task.maxTokens,
     temperature: task.temperature,
     apiKey,
+    purpose: task.purpose,
   }, deadline));
   const text = extractScanText(task, parsed, raw);
   return {
@@ -582,11 +648,13 @@ async function runEnsemble<T>(task: BrainTask, apiKey: string, deadline: Deadlin
       callModel({
         model: m,
         system: sys,
+        systemParts: buildSystemParts(task),
         user: task.userPrompt,
         tool: task.tool,
         maxTokens: task.maxTokens,
         temperature: task.temperature,
         apiKey,
+        purpose: task.purpose,
         timeoutMs: callBudget(deadline),
       }),
     ),
@@ -647,11 +715,13 @@ async function runDraftCritic<T>(task: BrainTask, apiKey: string, deadline: Dead
   const draft = await timePass(passes, 'draft', drafter, () => callModelWithFallback({
     model: drafter,
     system: sys,
+    systemParts: buildSystemParts(task),
     user: task.userPrompt,
     tool: task.tool,
     maxTokens: task.maxTokens,
     temperature: task.temperature,
     apiKey,
+    purpose: task.purpose,
   }, deadline));
 
   const draftText = extractScanText(task, draft.parsed, draft.raw);
@@ -758,6 +828,7 @@ async function runDraftCritic<T>(task: BrainTask, apiKey: string, deadline: Dead
       maxTokens: task.maxTokens,
       temperature: 0.3,
       apiKey,
+      purpose: task.purpose,
     }, deadline));
   } catch (err) {
     // A failed critic used to fail the whole task, dropping callers onto their
@@ -846,11 +917,13 @@ async function runCouncil<T>(task: BrainTask, apiKey: string, deadline: Deadline
       callModel({
         model: m,
         system: sys,
+        systemParts: buildSystemParts(task),
         user: task.userPrompt,
         tool: task.tool,
         maxTokens: task.maxTokens,
         temperature: task.temperature ?? 0.7,
         apiKey,
+        purpose: task.purpose,
         timeoutMs: callBudget(deadline),
       }),
     ),
@@ -886,6 +959,7 @@ async function runCouncil<T>(task: BrainTask, apiKey: string, deadline: Deadline
       maxTokens: task.maxTokens,
       temperature: 0.3,
       apiKey,
+      purpose: task.purpose,
       timeoutMs: callBudget(deadline),
     });
   } catch (e) {
@@ -921,6 +995,7 @@ async function runRepair<T>(task: BrainTask, prior: BrainResult<T>, apiKey: stri
     maxTokens: task.maxTokens,
     temperature: 0.2,
     apiKey,
+    purpose: task.purpose,
     timeoutMs: callBudget(deadline),
   });
   const text = extractScanText(task, parsed, raw);
@@ -1004,12 +1079,13 @@ export async function streamBrain(task: StreamBrainTask): Promise<Response> {
     );
   }
 
-  const system = buildSystem({
+  const streamTask = {
     purpose: task.purpose,
     dialect: task.dialect,
     userPrompt: '',
     systemPromptExtra: task.systemPromptExtra,
-  } as BrainTask);
+  } as BrainTask;
+  const system = buildSystem(streamTask);
 
   // Drop any client-supplied system messages — we own the system prompt here.
   const userMessages = task.messages.filter((m) => m.role !== 'system');
@@ -1017,12 +1093,22 @@ export async function streamBrain(task: StreamBrainTask): Promise<Response> {
   const body: Record<string, unknown> = {
     model,
     stream: true,
-    messages: [{ role: 'system', content: system }, ...userMessages],
+    messages: [
+      // Ask AI chat streams through here on an Anthropic model many times per
+      // conversation with an identical dialect block — the single best prompt
+      // cache in the app.
+      systemMessage({ model, system, systemParts: buildSystemParts(streamTask) }, route),
+      ...userMessages,
+    ],
   };
   const tokens = task.maxTokens ?? 1024;
   if (isGpt5) body.max_completion_tokens = tokens;
   else body.max_tokens = tokens;
   if (!isGpt5) body.temperature = task.temperature ?? 0.7;
+  // OpenRouter reports tokens and spend in the final SSE chunk when asked;
+  // the tap below picks it up for cost telemetry. Only sent on the OpenRouter
+  // route — the Lovable gateway is not documented to accept the field.
+  if (route === 'openrouter') body.usage = { include: true };
 
   const upstream = await fetch(route === 'openrouter' ? OPENROUTER_URL : GATEWAY_URL, {
     method: 'POST',
@@ -1044,6 +1130,8 @@ export async function streamBrain(task: StreamBrainTask): Promise<Response> {
   const accumulator: string[] = [];
   const decoder = new TextDecoder();
   let sseBuffer = '';
+  // The usage block rides the stream's final chunk; hold the last one seen.
+  let streamUsage: unknown = null;
 
   const tap = new TransformStream<Uint8Array, Uint8Array>({
     transform(chunk, controller) {
@@ -1061,11 +1149,20 @@ export async function streamBrain(task: StreamBrainTask): Promise<Response> {
             const json = JSON.parse(payload);
             const delta = json.choices?.[0]?.delta?.content;
             if (typeof delta === 'string') accumulator.push(delta);
+            if (json.usage) streamUsage = json;
           } catch { /* ignore partial chunks */ }
         }
       } catch { /* never break the passthrough */ }
     },
     flush() {
+      if (streamUsage) {
+        logLlmUsage({
+          functionName: task.purpose,
+          model,
+          provider: route,
+          usage: extractUsage(streamUsage),
+        });
+      }
       const full = accumulator.join('');
       if (full && task.dialect) {
         try {

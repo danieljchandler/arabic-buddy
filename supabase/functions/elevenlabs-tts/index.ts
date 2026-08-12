@@ -1,6 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { EMPTY_USAGE } from "../_shared/llmUsageCore.ts";
+import { logLlmUsage } from "../_shared/llmUsageLogger.ts";
 
 // Voices this function is allowed to synthesize. Callers can only pick from
 // this set; anything else falls back to the default, so an attacker can't
@@ -88,6 +90,17 @@ serve(async (req) => {
 
     const audioBuffer = await response.arrayBuffer();
     console.log(`Generated audio: ${audioBuffer.byteLength} bytes`);
+
+    // ElevenLabs bills per character; cost telemetry records the unit count so
+    // the admin cost view covers the speech legs, not just the LLM ones.
+    logLlmUsage({
+      functionName: "elevenlabs-tts",
+      model: MODEL_ID,
+      provider: "elevenlabs",
+      usage: EMPTY_USAGE,
+      units: typeof text === "string" ? text.length : null,
+      unitKind: "characters",
+    });
 
     return new Response(audioBuffer, {
       headers: {

@@ -41,11 +41,43 @@ serve(async (req) => {
     if (!user?.email) throw new Error("User not authenticated or email not available");
     logStep("User authenticated", { userId: user.id, email: user.email });
 
+    // Persist what Stripe told us into `subscribers`, which is what
+    // _shared/usageCap.ts reads on every AI request. Stripe stays the source
+    // of truth; this row is the cache the per-tier allowances run on — without
+    // the write, subscription_tier goes stale and the tier ladder guesses.
+    // Failures are logged and swallowed: an unwritable cache must not break
+    // the subscription check itself.
+    const persist = async (fields: {
+      subscribed: boolean;
+      tier: string | null;
+      subscriptionEnd: string | null;
+      stripeCustomerId: string | null;
+    }) => {
+      try {
+        const { error } = await supabaseClient.from("subscribers").upsert(
+          {
+            email: user.email,
+            user_id: user.id,
+            stripe_customer_id: fields.stripeCustomerId,
+            subscribed: fields.subscribed,
+            subscription_tier: fields.tier,
+            subscription_end: fields.subscriptionEnd,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "email" },
+        );
+        if (error) logStep("subscribers upsert failed", { message: error.message });
+      } catch (e) {
+        logStep("subscribers upsert threw", { message: e instanceof Error ? e.message : String(e) });
+      }
+    };
+
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
-    
+
     if (customers.data.length === 0) {
       logStep("No customer found, returning unsubscribed state");
+      await persist({ subscribed: false, tier: null, subscriptionEnd: null, stripeCustomerId: null });
       return new Response(JSON.stringify({ subscribed: false, tier: null }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
@@ -71,7 +103,9 @@ serve(async (req) => {
       logStep("Active subscription found", { subscriptionId: subscription.id, endDate: subscriptionEnd });
       productId = subscription.items.data[0].price.product;
       
-      // Map product ID to tier name
+      // Map product ID to tier name. Annual prices must be created under
+      // these same two products in Stripe — then this mapping covers both
+      // cadences with no code change.
       if (productId === "prod_U77NfmTFN3mabx") {
         tier = "standard";
       } else if (productId === "prod_U77OH1rRl0YAiF") {
@@ -81,6 +115,13 @@ serve(async (req) => {
     } else {
       logStep("No active subscription found");
     }
+
+    await persist({
+      subscribed: hasActiveSub,
+      tier,
+      subscriptionEnd,
+      stripeCustomerId: customerId,
+    });
 
     return new Response(JSON.stringify({
       subscribed: hasActiveSub,

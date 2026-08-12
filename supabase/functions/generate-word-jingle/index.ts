@@ -12,7 +12,13 @@ serve(async (req) => {
   }
 
   // Free-tier daily cap: 5 jingle generations / user / day (Lyria is expensive).
-  const cap = await enforceDailyCap(req, "generate-word-jingle", 50, corsHeaders);
+  // Music generation (Lyria) costs real money per call. The free allowance
+  // comes down from 50 — which was uncapped-in-practice — and paid tiers get
+  // a ladder instead of a bypass.
+  const cap = await enforceDailyCap(req, "generate-word-jingle", 15, corsHeaders, {
+    standard: 40,
+    allin: 120,
+  });
   if (cap.limited) return cap.response;
 
   try {

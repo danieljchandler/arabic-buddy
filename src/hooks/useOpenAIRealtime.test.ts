@@ -195,7 +195,11 @@ afterEach(() => {
   document.querySelectorAll("audio").forEach((element) => element.remove());
 });
 
-const START = { dialect: "Gulf", difficulty: "beginner", topicHint: "at the souq" };
+const START: Parameters<ReturnType<typeof useOpenAIRealtime>["start"]>[0] = {
+  dialect: "Gulf",
+  difficulty: "beginner",
+  topicHint: "at the souq",
+};
 
 /** Start a session and settle the connection handshake. */
 async function startSession(
@@ -678,6 +682,87 @@ describe("watching for dialect drift", () => {
     // A learner reaching for the fusha they already know is the normal way in;
     // flagging it would be correcting them for trying.
     expect(onDialectDrift).not.toHaveBeenCalled();
+  });
+});
+
+describe("the minute meter", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("reports the call's duration when it ends", async () => {
+    const { result } = renderHook(() => useOpenAIRealtime());
+    const pc = await startSession(result, { ...START, mode: "practice" });
+    vi.useFakeTimers({ toFake: ["Date"] });
+    goLive(pc);
+    vi.setSystemTime(Date.now() + 65_000);
+
+    act(() => {
+      result.current.stop();
+    });
+    vi.useRealTimers();
+
+    // The server meters monthly voice minutes from this report; a call that
+    // ends silently is a call the meter never saw.
+    await waitFor(() => {
+      const report = calls.find((call) => String(call.init?.body ?? "").includes('"report"'));
+      expect(report).toBeDefined();
+      expect(JSON.parse(String(report!.init?.body))).toMatchObject({
+        action: "report",
+        mode: "practice",
+        seconds: 65,
+      });
+    });
+  });
+
+  it("reports only once per call", async () => {
+    const { result } = renderHook(() => useOpenAIRealtime());
+    const pc = await startSession(result);
+    vi.useFakeTimers({ toFake: ["Date"] });
+    goLive(pc);
+    vi.setSystemTime(Date.now() + 30_000);
+
+    act(() => {
+      result.current.stop();
+    });
+    act(() => {
+      result.current.stop();
+    });
+    vi.useRealTimers();
+
+    // stop() and the unmount cleanup can both run for one call; billing it
+    // twice would drain the learner's balance at double speed.
+    await waitFor(() => {
+      expect(calls.filter((call) => String(call.init?.body ?? "").includes('"report"'))).toHaveLength(1);
+    });
+  });
+
+  it("does not report a call that never went live", async () => {
+    const { result } = renderHook(() => useOpenAIRealtime());
+    await startSession(result);
+
+    act(() => {
+      result.current.stop();
+    });
+
+    // Connecting isn't talking: a failed handshake must not spend minutes.
+    expect(calls.some((call) => String(call.init?.body ?? "").includes('"report"'))).toBe(false);
+  });
+
+  it("shares the monthly balance the server returned with the token", async () => {
+    tokenReply = {
+      status: 200,
+      body: JSON.stringify({
+        client_secret: { value: "ephemeral-key" },
+        voice_remaining_seconds: 540,
+      }),
+    };
+    const { result } = renderHook(() => useOpenAIRealtime());
+
+    await startSession(result);
+
+    // The UI shows "N min left this month" from this value.
+    expect(result.current.remainingSeconds).toBe(540);
   });
 });
 

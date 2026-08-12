@@ -23,7 +23,7 @@ export function VoiceTab() {
   const { user, loading: authLoading } = useAuth();
   const { subscribed, loading: subLoading } = useSubscription();
   const { pathname } = useLocation();
-  const { status, error, turns, muted, setMuted, start, stop } = useOpenAIRealtime();
+  const { status, error, turns, muted, setMuted, start, stop, remainingSeconds } = useOpenAIRealtime();
 
   // Closing the panel or switching tabs unmounts this component; the call must
   // not keep running (and billing) with no UI attached to it.
@@ -157,6 +157,14 @@ export function VoiceTab() {
           )}
         </div>
         <p className="text-center text-[11px] text-muted-foreground">
+          {typeof remainingSeconds === "number" && (
+            <>
+              <span className={cn(remainingSeconds < 300 && "font-medium text-amber-600 dark:text-amber-500")}>
+                {Math.floor(remainingSeconds / 60)} min left this month
+              </span>
+              {" · "}
+            </>
+          )}
           The tutor knows what's on your screen. Voice powered by ChatGPT Realtime.
         </p>
       </div>

@@ -1,4 +1,4 @@
-import { assertEquals, assertStringIncludes } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { assert, assertEquals, assertStringIncludes } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { fixtureJwt, jsonRequest, loadFunction } from "./harness.ts";
 import { json } from "./upstreams.ts";
 
@@ -268,6 +268,79 @@ Deno.test("check-subscription authenticates with the caller's own token", async 
 
     const lookup = fn.callsTo("/auth/v1/user").at(-1);
     assertStringIncludes(lookup?.headers.authorization ?? "", token);
+  } finally {
+    fn.restore();
+  }
+});
+
+// ── Annual billing ──────────────────────────────────────────────────────────
+// Annual prices are env-configured (STRIPE_ANNUAL_PRICE_*) rather than
+// hardcoded: they don't exist in Stripe yet, and the function must refuse
+// clearly rather than silently fall back to monthly billing.
+
+Deno.test("create-checkout charges the annual price when configured and asked", async () => {
+  const fn = await loadFunction("create-checkout", {
+    upstreams: upstreams(),
+    env: { STRIPE_ANNUAL_PRICE_STANDARD: "price_annual_std_fixture" },
+  });
+  try {
+    const response = await fn.handler(
+      jsonRequest("create-checkout", { tier: "standard", cadence: "annual" }),
+    );
+
+    assertEquals(response.status, 200);
+    const form = stripeForm(fn.callsTo("checkout/sessions").at(-1)?.body ?? null);
+    assertEquals(form.get("line_items[0][price]"), "price_annual_std_fixture");
+  } finally {
+    fn.restore();
+  }
+});
+
+Deno.test("create-checkout refuses annual when no annual price is configured", async () => {
+  const fn = await loadFunction("create-checkout", {
+    upstreams: upstreams(),
+    env: { STRIPE_ANNUAL_PRICE_STANDARD: undefined },
+  });
+  try {
+    const response = await fn.handler(
+      jsonRequest("create-checkout", { tier: "standard", cadence: "annual" }),
+    );
+
+    // A clear refusal, not a silent fall-back to monthly — the learner clicked
+    // a price and must never be billed a different one.
+    assertEquals(response.status, 500);
+    assert(!fn.callsTo("checkout/sessions").length);
+  } finally {
+    fn.restore();
+  }
+});
+
+Deno.test("create-checkout still bills monthly when no cadence is sent", async () => {
+  // Every deployed client predates the cadence field.
+  const fn = await loadFunction("create-checkout", { upstreams: upstreams() });
+  try {
+    await fn.handler(jsonRequest("create-checkout", { tier: "standard" }));
+
+    const form = stripeForm(fn.callsTo("checkout/sessions").at(-1)?.body ?? null);
+    assertEquals(form.get("line_items[0][price]"), "price_1T8t8sHVAO3F9uuDOpwSh2zQ");
+  } finally {
+    fn.restore();
+  }
+});
+
+Deno.test("check-subscription writes what Stripe said into subscribers", async () => {
+  // usageCap reads this table on every AI request; without the write-back the
+  // per-tier allowances run on stale data.
+  const fn = await loadFunction("check-subscription", {
+    upstreams: upstreams({ existingCustomer: "cus_fixture" }),
+  });
+  try {
+    await fn.handler(jsonRequest("check-subscription", {}));
+
+    const upsert = fn.callsTo("/rest/v1/subscribers").at(-1);
+    assert(upsert, "expected an upsert into subscribers");
+    assertStringIncludes(upsert.body ?? "", '"subscribed"');
+    assertStringIncludes(upsert.body ?? "", '"subscription_tier"');
   } finally {
     fn.restore();
   }

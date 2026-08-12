@@ -25,6 +25,7 @@ const live = vi.hoisted(() => ({
   error: null as string | null,
   turns: [] as Turn[],
   muted: false,
+  remainingSeconds: null as number | null,
   setMuted: vi.fn(),
   start: vi.fn(),
   stop: vi.fn(),
@@ -36,6 +37,7 @@ vi.mock("@/hooks/useOpenAIRealtime", () => ({
     error: live.error,
     turns: live.turns,
     muted: live.muted,
+    remainingSeconds: live.remainingSeconds,
     setMuted: live.setMuted,
     start: live.start,
     stop: live.stop,
@@ -61,6 +63,7 @@ beforeEach(() => {
   live.error = null;
   live.turns = [];
   live.muted = false;
+  live.remainingSeconds = null;
   live.setMuted.mockReset();
   live.start.mockReset();
   live.stop.mockReset();
@@ -154,5 +157,21 @@ describe("the call", () => {
     render();
 
     expect(screen.getByText("Voice connection failed")).toBeInTheDocument();
+  });
+
+  it("shows the monthly minute balance once the server has reported one", () => {
+    live.remainingSeconds = 754; // 12.6 minutes — floor, don't round up
+    render();
+
+    // The balance doubles as the upgrade prompt: a learner watching it run
+    // down knows why the next tier exists.
+    expect(screen.getByText(/12 min left this month/)).toBeInTheDocument();
+  });
+
+  it("says nothing about minutes before a call has been attempted", () => {
+    live.remainingSeconds = null;
+    render();
+
+    expect(screen.queryByText(/min left this month/)).not.toBeInTheDocument();
   });
 });

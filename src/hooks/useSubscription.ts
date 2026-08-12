@@ -11,10 +11,23 @@ interface SubscriptionState {
   loading: boolean;
 }
 
+/**
+ * Flip to true once yearly prices exist in Stripe (under the same two
+ * products, so tier detection keeps working) and the edge-function secrets
+ * STRIPE_ANNUAL_PRICE_STANDARD / STRIPE_ANNUAL_PRICE_ALLIN are set — the
+ * pricing page then shows the billing toggle, defaulting to annual. Until
+ * then the toggle stays hidden and nothing changes.
+ */
+export const ANNUAL_BILLING_AVAILABLE = false;
+
+export type BillingCadence = 'monthly' | 'annual';
+
 export const SUBSCRIPTION_TIERS = {
   standard: {
     name: 'Standard',
     price: 5,
+    /** Yearly price in dollars — two months free vs 12 × monthly. */
+    annualPrice: 50,
     priceId: 'price_1T8t8sHVAO3F9uuDOpwSh2zQ',
     productId: 'prod_U77NfmTFN3mabx',
     features: [
@@ -28,6 +41,7 @@ export const SUBSCRIPTION_TIERS = {
   allin: {
     name: 'All-In',
     price: 15,
+    annualPrice: 150,
     priceId: 'price_1T8t9QHVAO3F9uuDvaRVzEg4',
     productId: 'prod_U77OH1rRl0YAiF',
     features: [
@@ -97,13 +111,13 @@ export const useSubscription = () => {
     return () => clearInterval(interval);
   }, [user, checkSubscription]);
 
-  const createCheckout = useCallback(async (tier: 'standard' | 'allin') => {
+  const createCheckout = useCallback(async (tier: 'standard' | 'allin', cadence: BillingCadence = 'monthly') => {
     if (!session?.access_token) {
       throw new Error('Must be logged in to subscribe');
     }
 
     const { data, error } = await supabase.functions.invoke('create-checkout', {
-      body: { tier },
+      body: { tier, cadence },
       headers: {
         Authorization: `Bearer ${session.access_token}`,
       },

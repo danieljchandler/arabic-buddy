@@ -6,9 +6,21 @@
 //
 // Per-dialect system prompt + voice is baked into the session config.
 import { getDialectIdentity, getDialectVocabRules, primeDialectPrompt, type Dialect } from "../_shared/dialectHelpers.ts";
-import { enforceDailyCap, requireActiveSubscription } from "../_shared/usageCap.ts";
+import {
+  enforceDailyCap,
+  getSubscriptionTier,
+  isAdminUser,
+  requireActiveSubscription,
+  resolveUserId,
+} from "../_shared/usageCap.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { learnerPromptBlock } from "../_shared/learnerProfile.ts";
+import {
+  clampReportedSeconds,
+  remainingSeconds,
+  VOICE_MONTHLY_SECONDS,
+} from "../_shared/voiceBudgetCore.ts";
+import { getMonthUsedSeconds, recordVoiceUsage } from "../_shared/voiceBudget.ts";
 
 const REALTIME_MODEL = "gpt-realtime-2";
 
@@ -112,10 +124,66 @@ Deno.serve(async (req) => {
   const body = await req.json().catch(() => ({}));
   const mode = body.mode === "assistant" ? "assistant" : "practice";
 
+  // The client reports a finished call's duration here (fire-and-forget on
+  // teardown). This is the write side of the minute meter — clamped, never
+  // trusted — and it answers with the caller's fresh balance for the UI.
+  if (body.action === "report") {
+    const userId = await resolveUserId(req);
+    if (!userId) {
+      return new Response(
+        JSON.stringify({ error: "auth_required", message: "Please sign in to use this feature." }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+    const seconds = clampReportedSeconds(body.seconds);
+    if (seconds > 0) await recordVoiceUsage(userId, mode, seconds);
+    if (await isAdminUser(userId)) {
+      return new Response(
+        JSON.stringify({ ok: true, voice_limit_seconds: null, voice_remaining_seconds: null }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+    const tier = await getSubscriptionTier(userId);
+    const limit = VOICE_MONTHLY_SECONDS[tier];
+    const used = await getMonthUsedSeconds(userId);
+    return new Response(
+      JSON.stringify({
+        ok: true,
+        voice_limit_seconds: limit,
+        voice_remaining_seconds: remainingSeconds(limit, used),
+      }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+
   const cap = mode === "assistant"
     ? await requireActiveSubscription(req, corsHeaders)
     : await enforceDailyCap(req, "live-session", 30, corsHeaders);
   if (cap.limited) return cap.response;
+
+  // Sessions are throttled per day above; minutes are the budget that tracks
+  // what the upstream actually bills. Admins are unmetered.
+  let voiceLimitSeconds: number | null = null;
+  let voiceRemainingSeconds: number | null = null;
+  if (!(await isAdminUser(cap.userId))) {
+    const tier = await getSubscriptionTier(cap.userId);
+    voiceLimitSeconds = VOICE_MONTHLY_SECONDS[tier];
+    const used = await getMonthUsedSeconds(cap.userId);
+    voiceRemainingSeconds = remainingSeconds(voiceLimitSeconds, used);
+    if (voiceRemainingSeconds <= 0) {
+      return new Response(
+        JSON.stringify({
+          error: "voice_minutes_exhausted",
+          message:
+            `You've used this month's live voice minutes (${Math.round(voiceLimitSeconds / 60)} min on your plan). ` +
+            "Your balance resets at the start of next month — or upgrade for more.",
+          limit_seconds: voiceLimitSeconds,
+          upgrade_url: "/pricing",
+        }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+  }
 
   const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
   if (!OPENAI_API_KEY) {
@@ -246,6 +314,8 @@ Deno.serve(async (req) => {
         model: REALTIME_MODEL,
         voice,
         session_id: data.session?.id,
+        voice_limit_seconds: voiceLimitSeconds,
+        voice_remaining_seconds: voiceRemainingSeconds,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );

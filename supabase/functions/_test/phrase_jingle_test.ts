@@ -1,5 +1,5 @@
 import { assert, assertEquals, assertStringIncludes } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { jsonRequest, loadFunction, optionsRequest } from "./harness.ts";
+import { fixtureJwt, jsonRequest, loadFunction, optionsRequest } from "./harness.ts";
 import { json, type UpstreamHandler } from "./upstreams.ts";
 
 /**
@@ -409,7 +409,13 @@ Deno.test("generate-phrase-jingle reports a crash as a message, not an empty bod
     const response = await fn.handler(
       new Request("https://e2e.supabase.co/functions/v1/generate-phrase-jingle", {
         method: "POST",
-        headers: { "content-type": "application/json", origin: "https://hakiya.app" },
+        headers: {
+          "content-type": "application/json",
+          origin: "https://hakiya.app",
+          // Signed in: the daily cap now gates this endpoint, and an anonymous
+          // crash would be a 401 before the body was ever parsed.
+          authorization: `Bearer ${fixtureJwt()}`,
+        },
         body: "{ not json",
       }),
     );

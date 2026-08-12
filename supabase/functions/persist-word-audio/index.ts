@@ -94,11 +94,17 @@ serve(async (req) => {
 
     // Synthesise here rather than accepting a client-uploaded blob: the row is
     // shared across every learner, so its audio must provably be this word.
+    // azure-tts gates on its own daily cap, which resolves a *user* from the
+    // Authorization header. A service-role key has no user, so passing it here
+    // made every call fail 401 auth_required → tts_failed. Forward the caller's
+    // token instead: they're already past this function's own cap check.
+    const callerAuth = req.headers.get("Authorization") ?? "";
     const ttsRes = await fetch(`${SUPABASE_URL}/functions/v1/azure-tts`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${SERVICE_ROLE}`,
+        ...(callerAuth ? { Authorization: callerAuth } : {}),
+        apikey: SERVICE_ROLE,
       },
       body: JSON.stringify({
         text: word.word_arabic,

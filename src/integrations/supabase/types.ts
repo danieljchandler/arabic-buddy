@@ -525,6 +525,39 @@ export type Database = {
           },
         ]
       }
+      content_embeddings: {
+        Row: {
+          chunk_index: number
+          content: string
+          created_at: string
+          dialect: string
+          embedding: string
+          id: string
+          kind: string
+          source_id: string
+        }
+        Insert: {
+          chunk_index?: number
+          content: string
+          created_at?: string
+          dialect: string
+          embedding: string
+          id?: string
+          kind: string
+          source_id: string
+        }
+        Update: {
+          chunk_index?: number
+          content?: string
+          created_at?: string
+          dialect?: string
+          embedding?: string
+          id?: string
+          kind?: string
+          source_id?: string
+        }
+        Relationships: []
+      }
       content_import_logs: {
         Row: {
           created_at: string
@@ -2087,6 +2120,54 @@ export type Database = {
         }
         Relationships: []
       }
+      llm_usage_logs: {
+        Row: {
+          cached_tokens: number | null
+          completion_tokens: number | null
+          cost_usd: number | null
+          created_at: string
+          function_name: string
+          id: string
+          llm_used: string
+          phrase: string | null
+          prompt_tokens: number | null
+          provider: string | null
+          unit_kind: string | null
+          units: number | null
+          user_id: string | null
+        }
+        Insert: {
+          cached_tokens?: number | null
+          completion_tokens?: number | null
+          cost_usd?: number | null
+          created_at?: string
+          function_name: string
+          id?: string
+          llm_used: string
+          phrase?: string | null
+          prompt_tokens?: number | null
+          provider?: string | null
+          unit_kind?: string | null
+          units?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          cached_tokens?: number | null
+          completion_tokens?: number | null
+          cost_usd?: number | null
+          created_at?: string
+          function_name?: string
+          id?: string
+          llm_used?: string
+          phrase?: string | null
+          prompt_tokens?: number | null
+          provider?: string | null
+          unit_kind?: string | null
+          units?: number | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       meme_posts: {
         Row: {
           audio_lines: Json
@@ -2219,6 +2300,75 @@ export type Database = {
         }
         Relationships: []
       }
+      native_feedback_credits: {
+        Row: {
+          created_at: string
+          delta: number
+          id: string
+          reason: string
+          stripe_session_id: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          delta: number
+          id?: string
+          reason: string
+          stripe_session_id?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          delta?: number
+          id?: string
+          reason?: string
+          stripe_session_id?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      native_feedback_requests: {
+        Row: {
+          answered_at: string | null
+          created_at: string
+          dialect: string
+          id: string
+          kind: string
+          response_text: string | null
+          review_id: string | null
+          reviewer_notes: string | null
+          status: string
+          text: string
+          user_id: string
+        }
+        Insert: {
+          answered_at?: string | null
+          created_at?: string
+          dialect: string
+          id?: string
+          kind?: string
+          response_text?: string | null
+          review_id?: string | null
+          reviewer_notes?: string | null
+          status?: string
+          text: string
+          user_id: string
+        }
+        Update: {
+          answered_at?: string | null
+          created_at?: string
+          dialect?: string
+          id?: string
+          kind?: string
+          response_text?: string | null
+          review_id?: string | null
+          reviewer_notes?: string | null
+          status?: string
+          text?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       picture_scene_hotspots: {
         Row: {
           created_at: string
@@ -2323,6 +2473,33 @@ export type Database = {
         }
         Relationships: []
       }
+      placement_history: {
+        Row: {
+          cefr_level: string
+          confidence: number | null
+          dialect: string
+          id: string
+          taken_at: string
+          user_id: string
+        }
+        Insert: {
+          cefr_level: string
+          confidence?: number | null
+          dialect: string
+          id?: string
+          taken_at?: string
+          user_id: string
+        }
+        Update: {
+          cefr_level?: string
+          confidence?: number | null
+          dialect?: string
+          id?: string
+          taken_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       processed_videos: {
         Row: {
           content_hash: string
@@ -2375,8 +2552,10 @@ export type Database = {
         Row: {
           avatar_url: string | null
           bridge_view_enabled: boolean
+          contribute_audio: boolean
           created_at: string
           custom_institution: string | null
+          desired_retention: number | null
           display_name: string | null
           id: string
           institution_id: string | null
@@ -2404,8 +2583,10 @@ export type Database = {
         Insert: {
           avatar_url?: string | null
           bridge_view_enabled?: boolean
+          contribute_audio?: boolean
           created_at?: string
           custom_institution?: string | null
+          desired_retention?: number | null
           display_name?: string | null
           id?: string
           institution_id?: string | null
@@ -2433,8 +2614,10 @@ export type Database = {
         Update: {
           avatar_url?: string | null
           bridge_view_enabled?: boolean
+          contribute_audio?: boolean
           created_at?: string
           custom_institution?: string | null
+          desired_retention?: number | null
           display_name?: string | null
           id?: string
           institution_id?: string | null
@@ -2559,6 +2742,54 @@ export type Database = {
           title_english?: string
           updated_at?: string
           vocabulary?: Json
+        }
+        Relationships: []
+      }
+      referral_codes: {
+        Row: {
+          code: string
+          created_at: string
+          user_id: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          user_id: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      referral_redemptions: {
+        Row: {
+          converted_at: string | null
+          created_at: string
+          id: string
+          referred_user_id: string
+          referrer_id: string
+          rewarded_at: string | null
+          status: string
+        }
+        Insert: {
+          converted_at?: string | null
+          created_at?: string
+          id?: string
+          referred_user_id: string
+          referrer_id: string
+          rewarded_at?: string | null
+          status?: string
+        }
+        Update: {
+          converted_at?: string | null
+          created_at?: string
+          id?: string
+          referred_user_id?: string
+          referrer_id?: string
+          rewarded_at?: string | null
+          status?: string
         }
         Relationships: []
       }
@@ -2994,6 +3225,42 @@ export type Database = {
           },
         ]
       }
+      subscribers: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          stripe_customer_id: string | null
+          subscribed: boolean
+          subscription_end: string | null
+          subscription_tier: string | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          stripe_customer_id?: string | null
+          subscribed?: boolean
+          subscription_end?: string | null
+          subscription_tier?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          stripe_customer_id?: string | null
+          subscribed?: boolean
+          subscription_end?: string | null
+          subscription_tier?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       topics: {
         Row: {
           created_at: string
@@ -3027,6 +3294,78 @@ export type Database = {
           name?: string
           name_arabic?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      training_examples: {
+        Row: {
+          audio_bucket: string | null
+          audio_end_ms: number | null
+          audio_path: string | null
+          audio_start_ms: number | null
+          context: Json
+          corrector_id: string | null
+          corrector_role: string
+          created_at: string
+          dialect: string
+          engines: Json | null
+          export_batch_id: string | null
+          human_output: string
+          id: string
+          machine_output: string
+          pii_reviewed: boolean
+          source_function: string | null
+          source_id: string | null
+          source_license: string
+          source_table: string
+          task_type: string
+          tier: string
+        }
+        Insert: {
+          audio_bucket?: string | null
+          audio_end_ms?: number | null
+          audio_path?: string | null
+          audio_start_ms?: number | null
+          context?: Json
+          corrector_id?: string | null
+          corrector_role: string
+          created_at?: string
+          dialect: string
+          engines?: Json | null
+          export_batch_id?: string | null
+          human_output: string
+          id?: string
+          machine_output: string
+          pii_reviewed?: boolean
+          source_function?: string | null
+          source_id?: string | null
+          source_license?: string
+          source_table: string
+          task_type: string
+          tier: string
+        }
+        Update: {
+          audio_bucket?: string | null
+          audio_end_ms?: number | null
+          audio_path?: string | null
+          audio_start_ms?: number | null
+          context?: Json
+          corrector_id?: string | null
+          corrector_role?: string
+          created_at?: string
+          dialect?: string
+          engines?: Json | null
+          export_batch_id?: string | null
+          human_output?: string
+          id?: string
+          machine_output?: string
+          pii_reviewed?: boolean
+          source_function?: string | null
+          source_id?: string | null
+          source_license?: string
+          source_table?: string
+          task_type?: string
+          tier?: string
         }
         Relationships: []
       }
@@ -4050,6 +4389,30 @@ export type Database = {
           },
         ]
       }
+      voice_usage: {
+        Row: {
+          created_at: string
+          id: string
+          mode: string
+          seconds: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          mode: string
+          seconds: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          mode?: string
+          seconds?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       weekly_goals: {
         Row: {
           completed_reviews: number
@@ -4233,6 +4596,15 @@ export type Database = {
       }
     }
     Views: {
+      asr_engine_corrections: {
+        Row: {
+          corrected_lines: number | null
+          dialect: string | null
+          engine: string | null
+          week: string | null
+        }
+        Relationships: []
+      }
       leaderboard_profiles: {
         Row: {
           avatar_url: string | null
@@ -4313,6 +4685,22 @@ export type Database = {
       is_beta_tester: { Args: never; Returns: boolean }
       is_content_reviewer: { Args: never; Returns: boolean }
       is_recorder: { Args: never; Returns: boolean }
+      match_content: {
+        Args: {
+          match_count?: number
+          match_dialect?: string
+          match_kind?: string
+          query_embedding: string
+        }
+        Returns: {
+          chunk_index: number
+          content: string
+          dialect: string
+          kind: string
+          similarity: number
+          source_id: string
+        }[]
+      }
       record_checkpoint: {
         Args: { _index: number; _score: number }
         Returns: undefined

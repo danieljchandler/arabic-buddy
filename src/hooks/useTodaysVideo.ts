@@ -8,7 +8,7 @@ import { useDiscoverVideos, difficultyWindow, type DiscoverVideo } from "./useDi
  *
  * Watching native video is the thing this app is for, so the home page opens
  * with a single clip rather than a browse list — one decision, already made for
- * the learner. Three rules shape which clip that is:
+ * the learner. Two rules shape which clip that is:
  *
  * 1. It is dialect-first. A Gulf learner gets Gulf.
  * 2. It is never empty when the library is not. A dialect we have not filmed
@@ -16,22 +16,10 @@ import { useDiscoverVideos, difficultyWindow, type DiscoverVideo } from "./useDi
  *    card — the learner would just see a home page with no video on it and
  *    conclude the feature does not exist. Each filter falls back to the wider
  *    pool instead of returning nothing.
- * 3. It rotates daily. "Today's video" that is the same video all week is not
- *    today's anything; the pick is keyed to the local date so it changes at
- *    midnight and stays put across reloads within a day.
- */
-
-/**
- * Days since the epoch in *local* time.
  *
- * Local rather than UTC to match `lib/todayCompletion`, which keys completions
- * by the local date — a UTC day boundary would roll the pick over while the
- * "watched today" tick was still set from the evening before.
+ * The pool is ordered newest-first by created_at, so the lead clip is the most
+ * recently uploaded and published one.
  */
-function localDayIndex(now: Date = new Date()): number {
-  const local = new Date(now.getTime() - now.getTimezoneOffset() * 60_000);
-  return Math.floor(local.getTime() / 86_400_000);
-}
 
 const sameDifficulty = (a: string | null | undefined, b: string) =>
   (a ?? "").toLowerCase() === b.toLowerCase();
@@ -72,7 +60,10 @@ export function useTodaysVideo(): TodaysVideo {
       : pool;
     const candidates = atLevel.length > 0 ? atLevel : pool;
 
-    return candidates[localDayIndex() % candidates.length];
+    // The pool is already ordered newest-first by created_at (see
+    // useDiscoverVideos), so the first candidate is the most recently
+    // uploaded and published clip — lead with that rather than rotating.
+    return candidates[0];
   }, [pool, placementLevel]);
 
   return {

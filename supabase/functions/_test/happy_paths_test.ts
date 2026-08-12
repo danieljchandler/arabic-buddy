@@ -466,3 +466,102 @@ Deno.test("reading-passage returns a passage under the key the page reads", asyn
   // `_timing` is diagnostic; `passage` is the contract.
   assert(body.passage !== undefined, "expected a `passage` key");
 });
+
+// ── placement-quiz: the trajectory (C4) ─────────────────────────────────────
+// Scoring appends a server-written placement_history row — the Profile chart
+// is real assessment history, never self-reported — and the history action
+// reads it back for the card.
+
+Deno.test("placement-quiz records the scored level in the trajectory", async () => {
+  const fn = await loadFunction("placement-quiz", {
+    upstreams: {
+      ...allowed(),
+      "/rest/v1/placement_history": () => json({}, 201),
+    },
+  });
+  try {
+    const response = await fn.handler(
+      jsonRequest("placement-quiz", {
+        action: "score",
+        history: answers(20, true),
+        // A regional label must fold onto the training dialect, same as
+        // everywhere else in the pipeline.
+        dialect: "Saudi",
+      }),
+    );
+    assertEquals(response.status, 200);
+
+    // The write is fire-and-forget (scoring never waits on bookkeeping), so
+    // give it a beat to land before asserting.
+    let insert: { url: string; body: string | null } | undefined;
+    for (let attempt = 0; attempt < 100 && !insert; attempt++) {
+      insert = fn.calls.find(
+        (c) => c.url.includes("placement_history") && (c.body ?? "").length > 0,
+      );
+      if (!insert) await new Promise((resolve) => setTimeout(resolve, 5));
+    }
+    assert(insert, "expected a placement_history insert");
+    const row = (JSON.parse(insert.body ?? "[]") as Array<Record<string, unknown>>)[0];
+    assertEquals(row.cefr_level, "C2");
+    assertEquals(row.dialect, "Gulf");
+    assertEquals(row.user_id, USER);
+    assertEquals(row.confidence, 100);
+  } finally {
+    fn.restore();
+  }
+});
+
+Deno.test("placement-quiz records no trajectory without a dialect", async () => {
+  // The legacy score call (no dialect field) keeps working and writes nothing
+  // rather than guessing a dialect for the chart.
+  const fn = await loadFunction("placement-quiz", {
+    upstreams: { ...allowed(), "/rest/v1/placement_history": () => json({}, 201) },
+  });
+  try {
+    const response = await fn.handler(
+      jsonRequest("placement-quiz", { action: "score", history: answers(10, true) }),
+    );
+    assertEquals(response.status, 200);
+    assertEquals(
+      fn.calls.filter((c) => c.url.includes("placement_history") && (c.body ?? "").length > 0).length,
+      0,
+    );
+  } finally {
+    fn.restore();
+  }
+});
+
+Deno.test("placement-quiz hands back the caller's own trajectory", async () => {
+  const fn = await loadFunction("placement-quiz", {
+    upstreams: {
+      ...allowed(),
+      "/rest/v1/placement_history": () =>
+        json([
+          { dialect: "Gulf", cefr_level: "A2", confidence: 70, taken_at: "2026-05-01T00:00:00Z" },
+          { dialect: "Gulf", cefr_level: "B1", confidence: 85, taken_at: "2026-08-01T00:00:00Z" },
+        ]),
+    },
+  });
+  try {
+    const response = await fn.handler(jsonRequest("placement-quiz", { action: "history" }));
+    assertEquals(response.status, 200);
+    const body = await response.json();
+    assertEquals((body.history as unknown[]).length, 2);
+  } finally {
+    fn.restore();
+  }
+});
+
+Deno.test("placement-quiz refuses an anonymous trajectory read", async () => {
+  const fn = await loadFunction("placement-quiz", {
+    upstreams: { ...allowed(), "/auth/v1/user": () => json({}, 401) },
+  });
+  try {
+    const response = await fn.handler(
+      jsonRequest("placement-quiz", { action: "history" }, { jwt: null }),
+    );
+    assertEquals(response.status, 401);
+  } finally {
+    fn.restore();
+  }
+});

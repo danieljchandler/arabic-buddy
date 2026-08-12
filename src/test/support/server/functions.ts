@@ -181,7 +181,9 @@ export const defaultFunctions: Record<string, FunctionHandler> = {
   "record-grammar-outcome": () => ok({ recorded: true }),
   "listening-quiz": () => ok({ questions: [] }),
   "daily-challenge": () => ok({ challenge: null }),
-  "placement-quiz": () => ok({ questions: [], level: "A2" }),
+  // `history: []` serves the Profile level card's never-placed state; the
+  // quiz shapes serve everything the quiz flow itself doesn't override.
+  "placement-quiz": () => ok({ questions: [], level: "A2", history: [] }),
   "reading-passage": () => ok({ passage: "", questions: [] }),
   "reading-qa": () => ok({ answer: "" }),
   "phrase-of-the-day": () => ok({ phrase: null }),

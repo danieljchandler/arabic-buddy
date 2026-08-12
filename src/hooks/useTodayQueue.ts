@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
 import { useReviewSession } from "@/hooks/useReviewSession";
 import { useUserSetPhrasesDueCount } from "@/hooks/useSetPhrases";
-import { useDiscoverVideos } from "@/hooks/useDiscoverVideos";
-import { useDialect } from "@/contexts/DialectContext";
+import { useTodaysVideo } from "@/hooks/useTodaysVideo";
 import { isTaskCompletedToday } from "@/lib/todayCompletion";
-import { BookOpen, Headphones, Newspaper, MessageCircle, Flame, Brain, Sparkles, type LucideIcon } from "lucide-react";
+import { BookOpen, Play, Newspaper, MessageCircle, Flame, Brain, Sparkles, type LucideIcon } from "lucide-react";
 
 export type TodayTaskId =
   | "flashcards"
@@ -39,16 +38,16 @@ const useCompletionTick = () => {
 
 export const useTodayQueue = (): TodayTask[] => {
   useCompletionTick();
-  const { activeDialect } = useDialect();
   // Covers all three SRS decks (curriculum, saved words, saved phrases) — the
   // flashcards task used to count only the personal-vocabulary deck, so cards
   // due elsewhere never showed up in the daily queue.
   const session = useReviewSession();
   const { data: phrasesDue } = useUserSetPhrasesDueCount();
-  const { data: videos } = useDiscoverVideos({ dialect: activeDialect });
+  // The same pick the home page leads with, so the task and the card at the top
+  // of the page can never point at two different clips.
+  const { video: todaysVideo } = useTodaysVideo();
 
   const vocabDueCount = session.totalDue;
-  const hasListening = (videos?.length ?? 0) > 0;
 
   const tasks: TodayTask[] = [
     {
@@ -96,14 +95,21 @@ export const useTodayQueue = (): TodayTask[] => {
       xpEstimate: 15,
     },
     {
+      // Kept as "listening" because that is the key completions are stored
+      // under in localStorage; renaming the id would silently un-tick the task
+      // for everyone who had already done it today. The home page renders this
+      // one as the WatchTodayCard hero rather than as a queue row, so it still
+      // counts towards "n of m tasks done" without appearing twice.
       id: "listening",
-      title: "Listen to 1 clip",
+      title: "Watch today's video",
       subtitle: "Discover",
       estMinutes: 3,
-      icon: Headphones,
-      route: "/discover",
+      icon: Play,
+      // Straight to today's clip rather than the browse list — the point of the
+      // task is that the choice has already been made.
+      route: todaysVideo ? `/discover/${todaysVideo.id}` : "/discover",
       done: isTaskCompletedToday("listening"),
-      hidden: !hasListening,
+      hidden: !todaysVideo,
       xpEstimate: 10,
     },
     {

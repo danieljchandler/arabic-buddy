@@ -192,3 +192,15 @@ verify_jwt = true
 # Stripe one-off credit packs (dark until STRIPE_FEEDBACK_PACK_PRICE is set).
 [functions.native-feedback]
 verify_jwt = true
+
+# Written production (C3): dialect writing prompts and Rulebook-corrected
+# reviews of the learner's typed Arabic. Tier-capped inside.
+[functions.writing-coach]
+verify_jwt = true
+
+# Nightly batch that pre-builds daily stories for recently-active learners.
+# Run on a schedule shortly after 00:00 UTC with the service-role key (a
+# valid JWT, so verify_jwt = true does not block the scheduler); also
+# runnable by an admin. Guarded inside as well.
+[functions.pregenerate-daily]
+verify_jwt = true

@@ -2,57 +2,24 @@
 // Uses up to ~15 mature SRS words from their My Words deck + 5 NEW words
 // for the active dialect. Cached per (user, date, dialect) in
 // `daily_vocab_stories`.
+//
+// The generation itself lives in _shared/dailyStory.ts so the nightly
+// pregenerate-daily batch builds byte-identical stories; this file owns only
+// the learner-facing policy: the daily cap, authentication, and the cache.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { askBrain } from "../_shared/aiBrain.ts";
-import { getTashkeelMandate, getDialectTransliterationRules, type Dialect } from "../_shared/dialectHelpers.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
-import { LITERAL_GLOSS_RULE } from "../_shared/literalGloss.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
-
+import {
+  DailyStoryError,
+  existingStory,
+  generateDailyStoryFor,
+  todayUtc,
+  type DailyStoryDb,
+} from "../_shared/dailyStory.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-
-interface VocabRow {
-  word_arabic: string;
-  word_english: string;
-  stage: string;
-  interval_days: number;
-}
-
-// Cold-start fallback: a small curated starter set per dialect so a brand-new
-// user (with fewer than 3 saved words) still gets a story on day one instead
-// of a "not enough vocab" wall.
-const STARTER_WORDS: Record<string, VocabRow[]> = {
-  Gulf: [
-    { word_arabic: "بيت", word_english: "house", stage: "NEW", interval_days: 0 },
-    { word_arabic: "أكل", word_english: "food", stage: "NEW", interval_days: 0 },
-    { word_arabic: "صديق", word_english: "friend", stage: "NEW", interval_days: 0 },
-    { word_arabic: "شغل", word_english: "work", stage: "NEW", interval_days: 0 },
-    { word_arabic: "زين", word_english: "good", stage: "NEW", interval_days: 0 },
-  ],
-  Egyptian: [
-    { word_arabic: "بيت", word_english: "house", stage: "NEW", interval_days: 0 },
-    { word_arabic: "أكل", word_english: "food", stage: "NEW", interval_days: 0 },
-    { word_arabic: "صاحب", word_english: "friend", stage: "NEW", interval_days: 0 },
-    { word_arabic: "شغل", word_english: "work", stage: "NEW", interval_days: 0 },
-    { word_arabic: "كويس", word_english: "good", stage: "NEW", interval_days: 0 },
-  ],
-  Yemeni: [
-    { word_arabic: "بيت", word_english: "house", stage: "NEW", interval_days: 0 },
-    { word_arabic: "أكل", word_english: "food", stage: "NEW", interval_days: 0 },
-    { word_arabic: "صاحب", word_english: "friend", stage: "NEW", interval_days: 0 },
-    { word_arabic: "شغل", word_english: "work", stage: "NEW", interval_days: 0 },
-    { word_arabic: "زين", word_english: "good", stage: "NEW", interval_days: 0 },
-  ],
-};
-
-function todayUtc(): string {
-  const d = new Date();
-  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
-}
-
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -87,17 +54,12 @@ Deno.serve(async (req) => {
     const force: boolean = !!body?.force;
     const today = todayUtc();
 
-    const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
+    const admin = createClient(SUPABASE_URL, SERVICE_ROLE) as unknown as DailyStoryDb;
 
-    // 1. Return cached if exists & not forced
+    // Return cached if exists & not forced — this is where the nightly
+    // pre-generated story is served from, making the usual open instant.
     if (!force) {
-      const { data: existing } = await admin
-        .from("daily_vocab_stories")
-        .select("*")
-        .eq("user_id", user.id)
-        .eq("story_date", today)
-        .eq("dialect", dialect)
-        .maybeSingle();
+      const existing = await existingStory(admin, user.id, dialect, today);
       if (existing) {
         return new Response(JSON.stringify({ story: existing, cached: true }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -105,155 +67,23 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 2. Pick vocab from the user's deck
-    const { data: matureRows } = await admin
-      .from("user_vocabulary")
-      .select("word_arabic, word_english, stage, interval_days")
-      .eq("user_id", user.id)
-      .eq("dialect", dialect)
-      .gte("interval_days", 7)
-      .order("interval_days", { ascending: false })
-      .limit(15);
-
-    const { data: newRows } = await admin
-      .from("user_vocabulary")
-      .select("word_arabic, word_english, stage, interval_days")
-      .eq("user_id", user.id)
-      .eq("dialect", dialect)
-      .eq("stage", "NEW")
-      .order("created_at", { ascending: false })
-      .limit(5);
-
-    const mature = (matureRows ?? []) as VocabRow[];
-    let fresh = (newRows ?? []) as VocabRow[];
-
-    // Cold start: pad with a small built-in starter set so a brand-new user
-    // still gets a story instead of hitting a wall on day one.
-    if (mature.length + fresh.length < 3) {
-      const starters = STARTER_WORDS[dialect] ?? STARTER_WORDS.Gulf;
-      const known = new Set([...mature, ...fresh].map((w) => w.word_arabic));
-      fresh = [...fresh, ...starters.filter((w) => !known.has(w.word_arabic))];
-    }
-
-    const matureList = mature.map((w) => `${w.word_arabic} (${w.word_english})`).join(", ");
-    const newList = fresh.map((w) => `${w.word_arabic} (${w.word_english})`).join(", ");
-
-    // 3. Ask the brain for a ~200-word story (draft_critic strategy, dialect-guarded)
-    const systemExtra = `You are a creative Arabic short-story writer.
-Write a vivid, self-contained micro-story of about 180-220 Arabic words.
-Weave in as many of the learner's MATURE words as feels natural, and gently introduce each of the NEW words at least once (use them in context so meaning is inferable).
-Reading level: late beginner to intermediate. Short sentences, concrete imagery, one clear arc.
-
-${getTashkeelMandate()}
-- body_arabic must be fully vocalized — it is read aloud by text-to-speech.
-
-${getDialectTransliterationRules(dialect as Dialect)}
-- Provide a transliteration for body_arabic as body_transliteration.
-
-${LITERAL_GLOSS_RULE}
-- Provide the whole-story literal gloss as body_english_literal.
-
-Return ONLY the structured fields via the provided tool.`;
-
-    const userPrompt = `MATURE words (review-anchored): ${matureList || "(none yet)"}\nNEW words to gently introduce: ${newList || "(none yet)"}`;
-
-    let brain;
+    let saved: Record<string, unknown>;
     try {
-      brain = await askBrain<{
-        title: string;
-        body_arabic: string;
-        body_transliteration: string;
-        body_english: string;
-        body_english_literal: string;
-        used_mature: string[];
-        used_new: string[];
-      }>({
-        purpose: "story",
-        dialect: dialect as Dialect,
-        strategy: "draft_critic",
-        // Uses MODEL_LINEUPS.CONTENT (Gemini 3.5 Flash drafts, Claude Sonnet 4.5 critiques)
-        // from _shared/modelRegistry.ts. Do not hardcode model IDs here.
-        systemPromptExtra: systemExtra,
-        userPrompt,
-        maxTokens: 3072,
-        temperature: 0.7,
-        arabicTextPath: (p: any) => p?.body_arabic ?? "",
-        tool: {
-          name: "emit_story",
-          description: "Return the daily vocabulary story in the target dialect.",
-          parameters: {
-            type: "object",
-            properties: {
-              title: { type: "string", description: "Short evocative Arabic title" },
-              body_arabic: { type: "string", description: "Story in target dialect, ~200 Arabic words" },
-              body_transliteration: { type: "string", description: "Latin-letter transliteration of body_arabic, following the dialect's transliteration rules" },
-              body_english: { type: "string", description: "Faithful natural English translation" },
-              body_english_literal: { type: "string", description: "Word-for-word English gloss of the story preserving Arabic word order (may sound stiff; shows how sentences are built)" },
-              used_mature: { type: "array", items: { type: "string" } },
-              used_new: { type: "array", items: { type: "string" } },
-            },
-            required: ["title", "body_arabic", "body_transliteration", "body_english", "used_mature", "used_new"],
-          },
-        },
-      });
-    } catch (e: any) {
-      console.error("daily-story brain error", e?.status, e?.message);
-      return new Response(
-        JSON.stringify({ error: "ai_failed", detail: String(e?.message ?? e).slice(0, 400) }),
-        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
-
-    if (brain.msaLeaks.leaks.length > 0) {
-      console.warn("daily-story MSA leaks after repair", brain.msaLeaks.leaks, "repairs:", brain.msaRepairs);
-    }
-
-    const parsed = brain.output;
-
-
-    const title = String(parsed.title ?? "").slice(0, 160) || "قصة اليوم";
-    const bodyArabic = String(parsed.body_arabic ?? "").trim();
-    const bodyTransliteration = String(parsed.body_transliteration ?? "").trim();
-    const bodyEnglish = String(parsed.body_english ?? "").trim();
-    const bodyEnglishLiteral = String(parsed.body_english_literal ?? "").trim();
-    if (!bodyArabic) {
-      return new Response(
-        JSON.stringify({ error: "empty_story", raw: brain.raw.slice(0, 400) }),
-        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
-
-    const vocabUsed = Array.isArray(parsed.used_mature) ? parsed.used_mature : [];
-    const newUsed = Array.isArray(parsed.used_new) ? parsed.used_new : [];
-
-    // 4. Upsert
-    const { data: saved, error: saveErr } = await admin
-      .from("daily_vocab_stories")
-      .upsert(
-        {
-          user_id: user.id,
-          story_date: today,
-          dialect,
-          title,
-          body_arabic: bodyArabic,
-          body_transliteration: bodyTransliteration || null,
-          body_english: bodyEnglish || null,
-          body_english_literal: bodyEnglishLiteral || null,
-          vocab_used: vocabUsed,
-          new_words: newUsed,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "user_id,story_date,dialect" },
-      )
-      .select("*")
-      .single();
-
-    if (saveErr) {
-      console.error("daily-story save error", saveErr);
-      return new Response(
-        JSON.stringify({ error: "save_failed", detail: saveErr.message }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+      saved = await generateDailyStoryFor(admin, user.id, dialect, today);
+    } catch (e) {
+      if (e instanceof DailyStoryError) {
+        // Same wire shapes as before the extraction: the client and the edge
+        // tests key on these exact error codes and statuses.
+        const payload =
+          e.code === "empty_story"
+            ? { error: e.code, raw: e.message }
+            : { error: e.code, detail: e.message };
+        return new Response(JSON.stringify(payload), {
+          status: e.code === "save_failed" ? 500 : 502,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      throw e;
     }
 
     return new Response(JSON.stringify({ story: saved, cached: false }), {

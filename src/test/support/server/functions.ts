@@ -144,6 +144,29 @@ export const defaultFunctions: Record<string, FunctionHandler> = {
   // dark-until-configured purchase button stays hidden.
   "native-feedback": () =>
     ok({ balance: 0, requests: [], credits_per_pack: 5, purchase_enabled: false }),
+  // Both of the writing page's calls, told apart by action: the prompt it
+  // fetches on mount, and the review of whatever the spec typed.
+  "writing-coach": (ctx) =>
+    (ctx.body as { action?: string } | null)?.action === "prompt"
+      ? ok({
+          prompt: {
+            scenario_english: "Your friend is planning the weekend.",
+            message_arabic: "وش رايك نروح البر بكرة؟",
+            message_transliteration: "wish rayik nrooh al-barr bukra?",
+            message_english: "What do you think about going to the desert tomorrow?",
+          },
+        })
+      : ok({
+          review: {
+            understandable: true,
+            verdict: "Nice work — one small fix.",
+            corrected_arabic: "ايه، يلا نروح",
+            corrected_transliteration: "eh, yalla nrooh",
+            corrected_english: "Yes, let's go",
+            corrections: [],
+            tips: [],
+          },
+        }),
 
   "generate-mnemonic": () => ok({ mnemonic: "a memorable hook" }),
   "generate-flashcard-image": () => ok({ imageUrl: "https://cdn.test/flashcard.png" }),

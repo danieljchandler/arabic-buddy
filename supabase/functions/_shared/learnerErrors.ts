@@ -23,7 +23,8 @@ export type LearnerErrorSource =
   | "shadow"
   | "sentence_coach"
   | "set_phrase_voice"
-  | "quiz";
+  | "quiz"
+  | "writing";
 
 export interface LearnerErrorInput {
   source: LearnerErrorSource;

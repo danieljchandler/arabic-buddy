@@ -91,8 +91,10 @@ function buildUserPrompt(args: {
   count: number;
   guidance?: string;
   existing: Array<{ category: string; rule: string }>;
+  /** Flywheel gold pairs: what a model wrote → what a native made of it. */
+  corrections?: Array<{ bad: string; good: string }>;
 }): string {
-  const { dialect, category, count, guidance, existing } = args;
+  const { dialect, category, count, guidance, existing, corrections } = args;
 
   const existingBlock = existing.length
     ? existing
@@ -100,12 +102,28 @@ function buildUserPrompt(args: {
         .join("\n")
     : "  (none yet)";
 
+  // Real fixes beat introspection: when the flywheel supplies corrections,
+  // the panel's job shifts from "imagine failure modes" to "name the patterns
+  // in these observed ones".
+  const correctionsBlock = corrections?.length
+    ? [
+        "",
+        "Recent native-speaker corrections of model output in this dialect (WRONG → CORRECTED):",
+        ...corrections.map(
+          (c, i) => `  ${i + 1}. ${c.bad.slice(0, 200)}  →  ${c.good.slice(0, 200)}`,
+        ),
+        "",
+        "Derive your rules from the RECURRING PATTERNS in these corrections — what class of mistake does each fix, and what instruction would have prevented it? Do not invent failure modes the corrections don't show.",
+      ].join("\n")
+    : "";
+
   return [
     `Propose up to ${count} NEW candidate prompt rules for generating authentic ${dialect} Arabic content.`,
     category
       ? `Focus area: "${category}". Stay within this category.`
       : `Cover whichever categories have the biggest authenticity gaps (vocabulary, pronouns, negation, verb conjugation, question words, cultural references, forbidden MSA forms, etc.).`,
     guidance ? `Additional guidance from the admin: ${guidance}` : "",
+    correctionsBlock,
     "",
     "Each rule must be:",
     "  - Atomic (one instruction, not a paragraph).",
@@ -162,6 +180,9 @@ serve(async (req) => {
     const guidance: string | undefined = body.guidance?.trim() || undefined;
     const count = Math.max(1, Math.min(12, Number(body.count) || 5));
     const autoApprove = body.autoApprove === true;
+    // source: 'flywheel_gold' grounds the panel in recent native corrections
+    // instead of model introspection — the flywheel's Rulebook-mining wire.
+    const fromGold = body.source === "flywheel_gold";
 
     if (!ALLOWED_DIALECTS.includes(dialect)) {
       return createErrorResponse(400, `dialect must be one of ${ALLOWED_DIALECTS.join(", ")}`, corsHeaders);
@@ -182,12 +203,37 @@ serve(async (req) => {
       return createErrorResponse(500, `Failed to load existing rules: ${existingErr.message}`, corsHeaders);
     }
 
+    let corrections: Array<{ bad: string; good: string }> | undefined;
+    if (fromGold) {
+      const { data: goldRows, error: goldErr } = await admin
+        .from("training_examples")
+        .select("machine_output, human_output")
+        .eq("dialect", dialect)
+        .eq("tier", "gold")
+        .order("created_at", { ascending: false })
+        .limit(40);
+      if (goldErr) {
+        return createErrorResponse(500, `Failed to load gold corrections: ${goldErr.message}`, corsHeaders);
+      }
+      corrections = ((goldRows ?? []) as Array<{ machine_output: string; human_output: string }>)
+        .filter((r) => r.machine_output && r.human_output)
+        .map((r) => ({ bad: r.machine_output, good: r.human_output }));
+      if (corrections.length < 3) {
+        return createErrorResponse(
+          400,
+          `Only ${corrections.length} gold corrections exist for ${dialect} — need at least 3 to mine patterns. Correct more reviews first, or draft without source=flywheel_gold.`,
+          corsHeaders,
+        );
+      }
+    }
+
     const userPrompt = buildUserPrompt({
       dialect,
       category,
       count,
       guidance,
       existing: existingRules ?? [],
+      corrections,
     });
 
     // Long-running council strategy runs in background so the client can
@@ -232,7 +278,7 @@ serve(async (req) => {
             },
             priority: Math.max(1, Math.min(5, Math.round(Number(p.priority) || 3))),
             status: autoApprove ? "approved" : "draft",
-            source: "ai_generated",
+            source: fromGold ? "flywheel_gold" : "ai_generated",
             notes: p.notes?.toString().slice(0, 1000) ?? null,
             created_by: userId,
             ...(autoApprove

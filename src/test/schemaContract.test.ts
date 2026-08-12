@@ -62,6 +62,10 @@ const SERVICE_ROLE_ONLY_TABLES = new Set([
   // The semantic index (pgvector). Guarded migration — absent entirely on a
   // database without the extension — and reached only through edge functions.
   "content_embeddings",
+  // Referrals (D4): codes and redemptions are written by the referral
+  // function and read by the payments functions, all under the service role.
+  "referral_codes",
+  "referral_redemptions",
 ]);
 
 describe("tables", () => {

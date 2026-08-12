@@ -182,3 +182,8 @@ verify_jwt = true
 # run embeds a bounded slice; loop until it reports embedded: 0.
 [functions.embed-content]
 verify_jwt = true
+
+# Learner referral codes: get-or-create my code, redeem someone else's.
+# Rewards are Stripe-side, conversion-gated (see check-subscription).
+[functions.referral]
+verify_jwt = true

@@ -68,6 +68,35 @@ serve(async (req) => {
       logStep("Existing customer found", { customerId });
     }
 
+    // Referred learners get their first month via the env-configured coupon
+    // (create it in Stripe as "one month free" and set STRIPE_REFERRAL_COUPON).
+    // Only while the redemption is still pending — after they convert, the
+    // discount has been spent. Best-effort: a lookup failure means no
+    // discount, never a failed checkout.
+    let discounts: Array<{ coupon: string }> | undefined;
+    const referralCoupon = Deno.env.get("STRIPE_REFERRAL_COUPON");
+    if (referralCoupon) {
+      try {
+        const service = createClient(
+          Deno.env.get("SUPABASE_URL") ?? "",
+          Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+          { auth: { persistSession: false } },
+        );
+        const { data: redemption } = await service
+          .from("referral_redemptions")
+          .select("status")
+          .eq("referred_user_id", user.id)
+          .eq("status", "pending")
+          .maybeSingle();
+        if (redemption) {
+          discounts = [{ coupon: referralCoupon }];
+          logStep("Applying referral coupon", { coupon: referralCoupon });
+        }
+      } catch (e) {
+        logStep("Referral lookup failed", { message: e instanceof Error ? e.message : String(e) });
+      }
+    }
+
     const origin = req.headers.get("origin") || "https://laha-arabic.lovable.app";
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
@@ -79,6 +108,7 @@ serve(async (req) => {
         },
       ],
       mode: "subscription",
+      discounts,
       success_url: `${origin}/?checkout=success`,
       cancel_url: `${origin}/?checkout=cancelled`,
     });

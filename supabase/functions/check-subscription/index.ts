@@ -123,6 +123,55 @@ serve(async (req) => {
       stripeCustomerId: customerId,
     });
 
+    // Referral conversion (D4): the moment a referred learner shows up with an
+    // active subscription, their redemption graduates pending → converted and
+    // the referrer earns a $5 customer-balance credit (a month of Standard)
+    // toward their next invoice. Conversion-gated on purpose — fabricated
+    // signups that never pay earn nothing. The status update claims the row
+    // atomically, so concurrent checks can't double-credit; every failure here
+    // is logged and swallowed.
+    if (hasActiveSub) {
+      try {
+        const { data: claimed } = await supabaseClient
+          .from("referral_redemptions")
+          .update({ status: "converted", converted_at: new Date().toISOString() })
+          .eq("referred_user_id", user.id)
+          .eq("status", "pending")
+          .select("id, referrer_id");
+        const redemption = (claimed as Array<{ id: string; referrer_id: string }> | null)?.[0];
+        if (redemption) {
+          logStep("Referral converted", { redemptionId: redemption.id });
+          const { data: referrerUser } = await supabaseClient.auth.admin.getUserById(
+            redemption.referrer_id,
+          );
+          const referrerEmail = referrerUser?.user?.email;
+          if (referrerEmail) {
+            const referrerCustomers = await stripe.customers.list({ email: referrerEmail, limit: 1 });
+            const referrerCustomer = referrerCustomers.data[0];
+            if (referrerCustomer) {
+              await stripe.customers.createBalanceTransaction(referrerCustomer.id, {
+                amount: -500, // $5.00 credit toward the next invoice
+                currency: "usd",
+                description: "Referral reward — your invite subscribed",
+              });
+              await supabaseClient
+                .from("referral_redemptions")
+                .update({ status: "rewarded", rewarded_at: new Date().toISOString() })
+                .eq("id", redemption.id);
+              logStep("Referrer credited", { customerId: referrerCustomer.id });
+            } else {
+              // No Stripe customer yet — the row stays 'converted' and the
+              // credit can be granted when they first subscribe (visible in
+              // their referral card meanwhile).
+              logStep("Referrer has no Stripe customer yet", { referrerEmail });
+            }
+          }
+        }
+      } catch (e) {
+        logStep("Referral conversion failed", { message: e instanceof Error ? e.message : String(e) });
+      }
+    }
+
     return new Response(JSON.stringify({
       subscribed: hasActiveSub,
       tier,

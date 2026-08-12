@@ -1029,7 +1029,6 @@ export type Database = {
           dialect: string
           id: string
           new_words: Json
-          sentences: Json | null
           story_date: string
           title: string
           updated_at: string
@@ -1046,7 +1045,6 @@ export type Database = {
           dialect?: string
           id?: string
           new_words?: Json
-          sentences?: Json | null
           story_date?: string
           title: string
           updated_at?: string
@@ -1063,7 +1061,6 @@ export type Database = {
           dialect?: string
           id?: string
           new_words?: Json
-          sentences?: Json | null
           story_date?: string
           title?: string
           updated_at?: string
@@ -4338,7 +4335,6 @@ export type Database = {
           lesson_id: string | null
           msa_form: string | null
           msa_note: string | null
-          root: string | null
           topic_id: string | null
           updated_at: string
           word_arabic: string
@@ -4355,7 +4351,6 @@ export type Database = {
           lesson_id?: string | null
           msa_form?: string | null
           msa_note?: string | null
-          root?: string | null
           topic_id?: string | null
           updated_at?: string
           word_arabic: string
@@ -4372,7 +4367,6 @@ export type Database = {
           lesson_id?: string | null
           msa_form?: string | null
           msa_note?: string | null
-          root?: string | null
           topic_id?: string | null
           updated_at?: string
           word_arabic?: string

@@ -59,6 +59,9 @@ const SERVICE_ROLE_ONLY_TABLES = new Set([
   // The training-data flywheel's canonical store: written by edge functions
   // and a DB trigger, read by admins and the export script.
   "training_examples",
+  // The semantic index (pgvector). Guarded migration — absent entirely on a
+  // database without the extension — and reached only through edge functions.
+  "content_embeddings",
 ]);
 
 describe("tables", () => {

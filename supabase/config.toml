@@ -177,3 +177,8 @@ verify_jwt = true
 # speaker corrects them.
 [functions.report-content]
 verify_jwt = true
+
+# Populates the semantic content index (pgvector). Admin-gated inside — each
+# run embeds a bounded slice; loop until it reports embedded: 0.
+[functions.embed-content]
+verify_jwt = true

@@ -296,6 +296,72 @@ test.describe("saved-word decks", () => {
       .toBe(true);
   });
 
+  /**
+   * The root footnote under a revealed card.
+   *
+   * This is the scenario the feature exists for and the one that silently
+   * failed before: two cards from one root, saved by different paths and so
+   * carrying different spellings of it. Matching on the stored string made them
+   * strangers; matching on a canonical key makes them a family.
+   */
+  test("shows the words you know from the card's root, however each was spelled", async ({ page, db }) => {
+    db.seed("user_vocabulary", [
+      aUserVocabulary({
+        id: vocabId(0),
+        user_id: TEST_USER_ID,
+        word_arabic: "كتاب",
+        word_english: "book",
+        root: "ك-ت-ب",
+      }),
+      aUserVocabulary({
+        id: vocabId(1),
+        user_id: TEST_USER_ID,
+        word_arabic: "مكتبة",
+        word_english: "library",
+        root: "ك ت ب",
+        next_review_at: new Date(Date.now() + 86_400_000).toISOString(),
+      }),
+    ]);
+
+    await page.goto("/review/my-words");
+    await expect(page.getByText("كتاب")).toBeVisible();
+
+    // Nothing before the learner has committed to an answer.
+    await expect(page.getByText(/shares this root/i)).toHaveCount(0);
+
+    await page.getByRole("button", { name: /show answer|reveal/i }).click();
+
+    const footnote = page.getByRole("button", { name: /1 word you know shares this root/i });
+    await expect(footnote).toBeVisible();
+    // Collapsed until asked: the learner is mid-recall.
+    await expect(footnote).toHaveAttribute("aria-expanded", "false");
+
+    await footnote.click();
+    await expect(page.getByText("library")).toBeVisible();
+  });
+
+  test("says nothing about roots when the learner has turned them off", async ({ page, db }) => {
+    db.seed("user_vocabulary", [
+      aUserVocabulary({ id: vocabId(0), user_id: TEST_USER_ID, word_arabic: "كتاب", root: "ك ت ب" }),
+      aUserVocabulary({
+        id: vocabId(1),
+        user_id: TEST_USER_ID,
+        word_arabic: "مكتبة",
+        root: "ك ت ب",
+        next_review_at: new Date(Date.now() + 86_400_000).toISOString(),
+      }),
+    ]);
+
+    await page.addInitScript(() => {
+      window.localStorage.setItem("hakiya:root-families-enabled", "false");
+    });
+
+    await page.goto("/review/my-words");
+    await page.getByRole("button", { name: /show answer|reveal/i }).click();
+
+    await expect(page.getByText(/shares this root/i)).toHaveCount(0);
+  });
+
   test("reports the deck finished when nothing is due", async ({ page, db }) => {
     db.seed("user_vocabulary", []);
     await page.goto("/review/my-words");

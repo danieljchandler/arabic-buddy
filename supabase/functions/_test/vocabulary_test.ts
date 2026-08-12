@@ -714,3 +714,173 @@ Deno.test("persist-word-audio turns an anonymous caller away", async () => {
   assertEquals(status, 401);
   assert(!calls.some((url) => url.includes("azure-tts")));
 });
+
+// ── enrich-word-roots ───────────────────────────────────────────────────────
+
+/**
+ * The catch-up pass that fills in `user_vocabulary.root`.
+ *
+ * Roots were only ever written on one save path, so most of a learner's deck
+ * has none and the "words from the same root" footnote has nothing to say. The
+ * interesting surface here is not the happy path — it is everything the
+ * function refuses to spend money on, and what it does with an answer it does
+ * not trust.
+ */
+
+/** Vocabulary rows on the read, and a capture of every write. */
+function vocabulary(rows: Array<{ id: string; word_arabic: string }>, writes: string[] = []) {
+  return {
+    "/rest/v1/user_vocabulary": (request: Request) => {
+      if (request.method === "PATCH") {
+        writes.push(new URL(request.url).search);
+        return json({});
+      }
+      return json(rows);
+    },
+  };
+}
+
+/**
+ * Distinct words made only of Arabic letters.
+ *
+ * Numbering them "كلمة1" would be the obvious thing and would prove nothing:
+ * the function resolves anything containing a digit locally as "no root", so
+ * every fixture word would be answered for free and no model would ever be
+ * called.
+ */
+const someWords = (n: number, prefix = "كلمة") =>
+  Array.from({ length: n }, (_, i) => ({
+    id: `voc-${i}`,
+    word_arabic:
+      prefix +
+      String(i)
+        .split("")
+        .map((digit) => "ابتثجحخدذر"[Number(digit)])
+        .join(""),
+  }));
+
+/** A tool response answering every word in the batch with the same root. */
+const rootsFor = (count: number, root = "ك ت ب") =>
+  emitting({ roots: Array.from({ length: count }, (_, i) => ({ index: i + 1, root })) });
+
+Deno.test("enrich-word-roots asks about forty words at a time", async () => {
+  const { status, body, calls } = await call(
+    "enrich-word-roots",
+    { limit: 120 },
+    caller({ ...vocabulary(someWords(120)), "ai.gateway.lovable.dev": rootsFor(40) }),
+  );
+
+  assertEquals(status, 200);
+  // Three calls, not 120. Paying the system prompt once per word is the
+  // difference between this being affordable and not.
+  assertEquals(calls.filter((url) => url.includes("ai.gateway.lovable.dev")).length, 3);
+  assertEquals(body.examined, 120);
+});
+
+Deno.test("enrich-word-roots resolves the hopeless cases without asking anyone", async () => {
+  const rows = [
+    { id: "phrase", word_arabic: "من فضلك" },
+    { id: "particle", word_arabic: "في" },
+    { id: "latin", word_arabic: "kataba" },
+    { id: "digits", word_arabic: "١٢٣" },
+    { id: "real", word_arabic: "كتاب" },
+  ];
+  const { status, body, calls, bodies } = await call(
+    "enrich-word-roots",
+    {},
+    caller({ ...vocabulary(rows), "ai.gateway.lovable.dev": rootsFor(1) }),
+  );
+
+  assertEquals(status, 200);
+  assertEquals(body.skippedFree, 4);
+
+  // Deciding what *not* to send is where the savings are, so it matters that
+  // these never reach a prompt rather than merely being discarded afterwards.
+  const prompts = bodies
+    .filter((_, i) => calls[i].includes("ai.gateway.lovable.dev"))
+    .join("\n");
+  assertStringIncludes(prompts, "كتاب");
+  assert(!prompts.includes("من فضلك"));
+  assert(!prompts.includes("kataba"));
+});
+
+Deno.test("enrich-word-roots stores a word with no root as '' so it is never asked about twice", async () => {
+  const writes: string[] = [];
+  const { status } = await call(
+    "enrich-word-roots",
+    {},
+    caller({
+      ...vocabulary([{ id: "voc-0", word_arabic: "كمبيوتر" }], writes),
+      "ai.gateway.lovable.dev": emitting({ roots: [{ index: 1, root: "" }] }),
+    }),
+  );
+
+  assertEquals(status, 200);
+  // Left null it would come back on every future run; '' is the record that we
+  // asked. The client reads '' as "no root", never as a family.
+  assertEquals(writes.length, 1);
+});
+
+Deno.test("enrich-word-roots refuses an answer that is not radicals", async () => {
+  for (const notARoot of ["من الكتاب", "kataba", "unknown"]) {
+    const { status, body } = await call(
+      "enrich-word-roots",
+      {},
+      caller({
+        ...vocabulary([{ id: "voc-0", word_arabic: "كتاب" }]),
+        "ai.gateway.lovable.dev": emitting({ roots: [{ index: 1, root: notARoot }] }),
+      }),
+    );
+
+    assertEquals(status, 200);
+    // A prose answer written into the column would be indistinguishable from a
+    // real root afterwards, and would put a false family in front of a learner.
+    assertEquals(body.resolved, 0);
+  }
+});
+
+Deno.test("enrich-word-roots skips an index it cannot place rather than shifting the rest", async () => {
+  const { status, body } = await call(
+    "enrich-word-roots",
+    {},
+    caller({
+      ...vocabulary(someWords(3)),
+      "ai.gateway.lovable.dev": emitting({
+        roots: [
+          { index: 1, root: "ك ت ب" },
+          { index: 99, root: "د ر س" },
+        ],
+      }),
+    }),
+  );
+
+  assertEquals(status, 200);
+  // A positional array would have handed word 99's root to word 2. Explicit
+  // indices make a short or reordered response a gap, not a silent mix-up.
+  assertEquals(body.resolved, 1);
+});
+
+Deno.test("enrich-word-roots caps how much one call can chew through", async () => {
+  const { status, body } = await call(
+    "enrich-word-roots",
+    { limit: 100000 },
+    caller({ ...vocabulary(someWords(5)), "ai.gateway.lovable.dev": rootsFor(5) }),
+  );
+
+  assertEquals(status, 200);
+  // The limit reaches PostgREST as a range header rather than being trusted;
+  // what matters is that the function never asks for an unbounded page.
+  assertEquals(body.examined, 5);
+});
+
+Deno.test("enrich-word-roots turns an anonymous caller away", async () => {
+  const { status, calls } = await call(
+    "enrich-word-roots",
+    {},
+    caller({ ...vocabulary(someWords(3)), "ai.gateway.lovable.dev": rootsFor(3) }),
+    { jwt: null },
+  );
+
+  assertEquals(status, 401);
+  assert(!calls.some((url) => url.includes("ai.gateway.lovable.dev")));
+});

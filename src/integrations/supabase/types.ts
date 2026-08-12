@@ -4663,6 +4663,7 @@ export type Database = {
       can_manage_content: { Args: never; Returns: boolean }
       grant_achievement: { Args: { _achievement_id: string }; Returns: Json }
       has_bible_access: { Args: never; Returns: boolean }
+      has_complimentary_access: { Args: { _user_id: string }; Returns: boolean }
       has_redeemed_invite: { Args: never; Returns: boolean }
       has_role: {
         Args: {
@@ -4717,6 +4718,7 @@ export type Database = {
         | "bible_reader"
         | "beta_tester"
         | "content_reviewer"
+        | "complimentary"
       concept_kind: "vocab" | "grammar" | "theme" | "scenario" | "phrase"
       concept_role: "introduce" | "reinforce" | "assess"
       mastery_strength: "new" | "learning" | "familiar" | "strong" | "mastered"
@@ -4854,6 +4856,7 @@ export const Constants = {
         "bible_reader",
         "beta_tester",
         "content_reviewer",
+        "complimentary",
       ],
       concept_kind: ["vocab", "grammar", "theme", "scenario", "phrase"],
       concept_role: ["introduce", "reinforce", "assess"],

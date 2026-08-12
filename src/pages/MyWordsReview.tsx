@@ -210,28 +210,49 @@ const MyWordsReview = () => {
       const baseSelect =
         "id, word_arabic, word_english, ease_factor, difficulty, interval_days, repetitions, next_review_at, last_reviewed_at, production_ease_factor, production_difficulty, production_interval_days, production_repetitions, production_next_review_at, production_last_reviewed_at, word_audio_url, sentence_audio_url, image_url, jingle_audio_url, jingle_lyrics, sentence_text, sentence_english, lapses, production_lapses, is_leech, mnemonic, root";
 
-      let recogQuery = (supabase
-        .from("user_vocabulary")
-        .select(baseSelect)
-        .eq("user_id", user.id)
-        .lte("next_review_at", now)
-        .order("next_review_at", { ascending: true }) as any);
-      if (!mixAll) recogQuery = recogQuery.eq("dialect", activeDialect);
+      // PostgREST caps unbounded selects at 1000 rows, and large decks pass that
+      // easily. Page through so a big backlog doesn't silently truncate (which
+      // looked like cards failing to load).
+      const PAGE = 1000;
+      const fetchAllPages = async (
+        build: (from: number, to: number) => any,
+      ): Promise<RawRow[]> => {
+        const out: RawRow[] = [];
+        for (let from = 0; ; from += PAGE) {
+          const { data, error } = await build(from, from + PAGE - 1);
+          if (error) throw error;
+          const page = (data ?? []) as RawRow[];
+          out.push(...page);
+          if (page.length < PAGE) break;
+        }
+        return out;
+      };
 
-      const { data: recogRows, error: recogErr } = await recogQuery;
-      if (recogErr) throw recogErr;
+      const recogRows = await fetchAllPages((from, to) => {
+        let q = (supabase
+          .from("user_vocabulary")
+          .select(baseSelect)
+          .eq("user_id", user.id)
+          .lte("next_review_at", now)
+          .order("next_review_at", { ascending: true })
+          .range(from, to) as any);
+        if (!mixAll) q = q.eq("dialect", activeDialect);
+        return q;
+      });
 
-      let prodQuery = (supabase
-        .from("user_vocabulary")
-        .select(baseSelect)
-        .eq("user_id", user.id)
-        .not("production_next_review_at", "is", null)
-        .lte("production_next_review_at", now)
-        .order("production_next_review_at", { ascending: true }) as any);
-      if (!mixAll) prodQuery = prodQuery.eq("dialect", activeDialect);
+      const prodRows = await fetchAllPages((from, to) => {
+        let q = (supabase
+          .from("user_vocabulary")
+          .select(baseSelect)
+          .eq("user_id", user.id)
+          .not("production_next_review_at", "is", null)
+          .lte("production_next_review_at", now)
+          .order("production_next_review_at", { ascending: true })
+          .range(from, to) as any);
+        if (!mixAll) q = q.eq("dialect", activeDialect);
+        return q;
+      });
 
-      const { data: prodRows, error: prodErr } = await prodQuery;
-      if (prodErr) throw prodErr;
 
       const cards: DueCard[] = [];
       for (const r of (recogRows || []) as RawRow[]) {

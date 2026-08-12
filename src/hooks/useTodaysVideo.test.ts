@@ -114,14 +114,16 @@ describe("choosing today's clip", () => {
   });
 });
 
-describe("rotating the pick", () => {
+describe("leading with the most recent clip", () => {
+  // The pool is ordered newest-first by created_at, so the home page leads with
+  // the most recently uploaded and published clip rather than rotating by day.
   const threeClips = [
     aDiscoverVideo({ id: videoId(0), title: "One" }),
     aDiscoverVideo({ id: videoId(1), title: "Two" }),
     aDiscoverVideo({ id: videoId(2), title: "Three" }),
   ];
 
-  it("gives the same clip all day", async () => {
+  it("always leads with the newest clip, all day", async () => {
     const first = render(threeClips);
     await waitFor(() => expect(first.result.current.video).toBeTruthy());
     const morning = first.result.current.video?.id;
@@ -130,12 +132,10 @@ describe("rotating the pick", () => {
     vi.setSystemTime(new Date("2026-03-11T21:30:00"));
     const second = render(threeClips);
 
-    // A pick that moved between visits would make "today's video" mean nothing
-    // and lose a half-watched clip.
     await waitFor(() => expect(second.result.current.video?.id).toBe(morning));
   });
 
-  it("moves on the next day", async () => {
+  it("keeps the newest clip the next day too", async () => {
     const first = render(threeClips);
     await waitFor(() => expect(first.result.current.video).toBeTruthy());
     const today = first.result.current.video?.id;
@@ -144,8 +144,7 @@ describe("rotating the pick", () => {
     vi.setSystemTime(new Date("2026-03-12T09:00:00"));
     const second = render(threeClips);
 
-    await waitFor(() => expect(second.result.current.video).toBeTruthy());
-    expect(second.result.current.video?.id).not.toBe(today);
+    await waitFor(() => expect(second.result.current.video?.id).toBe(today));
   });
 });
 

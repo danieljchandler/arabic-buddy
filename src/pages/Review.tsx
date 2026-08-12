@@ -8,6 +8,7 @@ import {
 } from "@/hooks/useReview";
 import { useReviewQueue } from "@/hooks/useReviewQueue";
 import { useReviewSession } from "@/hooks/useReviewSession";
+import { RootChip } from "@/components/vocab/RootChip";
 import { PronunciationButton } from "@/components/review/PronunciationButton";
 import { RatingButtons } from "@/components/review/RatingButtons";
 import { SessionHandoff } from "@/components/review/SessionHandoff";
@@ -459,6 +460,10 @@ const Review = () => {
                 ) : (
                   <p className="text-xl text-muted-foreground">{currentWord.word_english}</p>
                 )}
+                {/* Only after the reveal. On a production card the Arabic is
+                    the answer, and a root shown alongside the English prompt
+                    would hand over most of it. */}
+                <RootChip root={currentWord.root} className="mt-2" />
               </div>
             )}
             {!showAnswer && (

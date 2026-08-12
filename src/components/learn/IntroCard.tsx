@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/design-system";
 import { VocabularyCard, type VocabularyWord } from "@/components/design-system";
+import { RootChip } from "@/components/vocab/RootChip";
 
 interface IntroCardProps {
   word: VocabularyWord;
@@ -61,12 +62,17 @@ export const IntroCard = ({ word, onContinue, topicLabel }: IntroCardProps) => {
       {/* Arabic Word Display - hidden until revealed */}
       <div className="mb-3 py-4 px-5 rounded-xl bg-card border border-border">
         {showArabic ? (
-          <p
-            className="text-2xl font-bold text-foreground font-arabic leading-relaxed animate-in fade-in duration-200"
-            dir="rtl"
-          >
-            {word.word_arabic}
-          </p>
+          <div className="animate-in fade-in duration-200">
+            <p
+              className="text-2xl font-bold text-foreground font-arabic leading-relaxed"
+              dir="rtl"
+            >
+              {word.word_arabic}
+            </p>
+            {/* Under the Arabic, not beside it: the root is context for a word
+                the learner has just chosen to see, never a hint before that. */}
+            <RootChip root={word.root} className="mt-1.5" />
+          </div>
         ) : (
           <p className="text-sm text-muted-foreground/70 italic">
             Try saying it in Arabic, then reveal

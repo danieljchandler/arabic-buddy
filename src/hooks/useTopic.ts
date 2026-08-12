@@ -10,6 +10,12 @@ export interface VocabularyWord {
   image_url: string | null;
   audio_url: string | null;
   image_position: string | null;
+  /**
+   * Arabic root. Optional because the column postdates every fixture and
+   * every row written before the backfill: null means nobody has looked it up,
+   * '' means the word has none.
+   */
+  root?: string | null;
   display_order: number;
   created_at: string;
   updated_at: string;

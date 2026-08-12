@@ -1,10 +1,16 @@
 /**
- * enrich-word-roots — fill in `user_vocabulary.root` for a learner's own deck.
+ * enrich-word-roots — fill in the Arabic root on words that have none.
  *
- * Roots have only ever been written by `word-enrichment`, on the one save path
- * that goes through it (tapping a word in a text). Anki imports, tutor uploads
- * and flashcard suggestions all leave `root` null, which is why the "words from
- * the same root" footnote almost never has anything to say.
+ * Two decks, chosen by `scope`:
+ *
+ * - `mine` (default) — the caller's own `user_vocabulary`. Roots have only ever
+ *   been written by `word-enrichment`, on the one save path that goes through
+ *   it (tapping a word in a text). Anki imports, tutor uploads and flashcard
+ *   suggestions all leave `root` null, which is why the "words from the same
+ *   root" footnote almost never has anything to say.
+ * - `curriculum` — the shared `vocabulary_words`, which gained a `root` column
+ *   after every lesson in it had already been authored. **Admin only**: every
+ *   learner reads these rows, so a wrong root here is wrong for all of them.
  *
  * This is the catch-up pass, and it is built to be cheap:
  *
@@ -27,7 +33,7 @@
  */
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { askBrain, BrainHttpError } from "../_shared/aiBrain.ts";
-import { enforceDailyCap } from "../_shared/usageCap.ts";
+import { enforceDailyCap, isAdminUser } from "../_shared/usageCap.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import type { Dialect } from "../_shared/dialectHelpers.ts";
 
@@ -192,20 +198,45 @@ Deno.serve(async (req) => {
      */
     const dialect = typeof body.dialect === "string" && body.dialect ? (body.dialect as Dialect) : null;
 
+    /**
+     * Whose words to work on.
+     *
+     * `mine` is the learner's own deck. `curriculum` is the shared
+     * `vocabulary_words` table, which every learner reads — so it is
+     * admin-only, and a wrong root there is a wrong root for everyone rather
+     * than for one person.
+     */
+    const curriculum = body.scope === "curriculum";
+    const lessonId = typeof body.lessonId === "string" ? body.lessonId : null;
+
+    if (curriculum && !(await isAdminUser(cap.userId))) {
+      return new Response(JSON.stringify({ error: "admin_required" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE, {
       auth: { persistSession: false, autoRefreshToken: false },
     });
 
+    const table = curriculum ? "vocabulary_words" : "user_vocabulary";
     let query = supabase
-      .from("user_vocabulary")
+      .from(table)
       .select("id, word_arabic")
-      // Scoped to the caller even though this holds the service role: the
-      // function's whole job is the caller's own deck.
-      .eq("user_id", cap.userId)
       .is("root", null)
       .order("created_at", { ascending: false })
       .limit(limit);
-    if (dialect) query = query.eq("dialect", dialect);
+
+    if (curriculum) {
+      if (lessonId) query = query.eq("lesson_id", lessonId);
+      if (dialect) query = query.eq("dialect_module", dialect);
+    } else {
+      // Scoped to the caller even though this holds the service role: on this
+      // branch the function's whole job is the caller's own deck.
+      query = query.eq("user_id", cap.userId);
+      if (dialect) query = query.eq("dialect", dialect);
+    }
 
     const { data, error } = await query;
     if (error) throw error;
@@ -243,9 +274,13 @@ Deno.serve(async (req) => {
     const updates = [...resolved.entries()];
     for (let start = 0; start < updates.length; start += 20) {
       await Promise.all(
-        updates.slice(start, start + 20).map(([id, root]) =>
-          supabase.from("user_vocabulary").update({ root }).eq("id", id).eq("user_id", cap.userId)
-        ),
+        updates.slice(start, start + 20).map(([id, root]) => {
+          const write = supabase.from(table).update({ root }).eq("id", id);
+          // The owner predicate is the belt to the service role's braces on the
+          // personal deck. Curriculum rows have no owner — the admin check at
+          // the top of the request is what stands in for it.
+          return curriculum ? write : write.eq("user_id", cap.userId);
+        }),
       );
     }
 

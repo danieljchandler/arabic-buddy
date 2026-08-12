@@ -913,6 +913,50 @@ Deno.test("enrich-word-roots covers every dialect when none is named", async () 
   assert(!requests.some((search) => search.includes("dialect=")));
 });
 
+Deno.test("enrich-word-roots will not touch shared curriculum words for a non-admin", async () => {
+  const { status, calls } = await call(
+    "enrich-word-roots",
+    { scope: "curriculum" },
+    caller({
+      ...vocabulary(someWords(3)),
+      "/rest/v1/vocabulary_words": () => json(someWords(3)),
+      "ai.gateway.lovable.dev": rootsFor(3),
+    }),
+  );
+
+  // A subscriber is not an editor. These rows are read by every learner, so a
+  // wrong root written here is wrong for all of them — the paid-tier cap that
+  // guards the personal deck is not the right gate.
+  assertEquals(status, 403);
+  assert(!calls.some((url) => url.includes("ai.gateway.lovable.dev")));
+});
+
+Deno.test("enrich-word-roots backfills a lesson's words for an admin", async () => {
+  const reads: string[] = [];
+  const { status, body } = await call(
+    "enrich-word-roots",
+    { scope: "curriculum", lessonId: "lesson-1", dialect: "Gulf" },
+    caller({
+      "/rest/v1/user_roles": () => json([{ role: "admin" }]),
+      "/rest/v1/vocabulary_words": (request: Request) => {
+        if (request.method === "PATCH") return json({});
+        reads.push(new URL(request.url).search);
+        return json(someWords(2));
+      },
+      "ai.gateway.lovable.dev": rootsFor(2),
+    }),
+  );
+
+  assertEquals(status, 200);
+  assertEquals(body.resolved, 2);
+  // Scoped to the lesson the admin is looking at, and to its dialect module —
+  // the curriculum column is `dialect_module`, not `dialect`.
+  assert(reads.some((search) => search.includes("lesson_id=eq.lesson-1")));
+  assert(reads.some((search) => search.includes("dialect_module=eq.Gulf")));
+  // And never scoped by user_id: curriculum rows have no owner.
+  assert(!reads.some((search) => search.includes("user_id=")));
+});
+
 Deno.test("enrich-word-roots turns an anonymous caller away", async () => {
   const { status, calls } = await call(
     "enrich-word-roots",

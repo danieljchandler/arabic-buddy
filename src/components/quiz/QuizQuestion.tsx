@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { RootChip } from "@/components/vocab/RootChip";
 import { VocabularyWord } from "@/hooks/useTopic";
 
 export type QuizMode = "multiple-choice" | "typing";
@@ -123,6 +124,9 @@ export const QuizQuestion = ({
         <p className="text-4xl font-bold mb-2 font-arabic leading-relaxed" dir="rtl">
           {currentWord.word_arabic}
         </p>
+        {/* Held back until the question is answered. The root of a word is a
+            strong clue to its meaning, which is exactly what is being asked. */}
+        {showResult && <RootChip root={currentWord.root} className="mb-2" />}
         <p className="text-muted-foreground text-sm font-sans">
           What is this in English?
         </p>

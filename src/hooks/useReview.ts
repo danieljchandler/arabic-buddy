@@ -55,6 +55,8 @@ export interface VocabularyWord {
   topic_id: string | null;
   image_position?: string | null;
   dialect_module?: string;
+  /** Arabic root. Null until an admin backfills it; '' means the word has none. */
+  root?: string | null;
 }
 
 interface WordWithReview extends VocabularyWord {
@@ -106,6 +108,7 @@ export const useDueWords = (mixAll = false) => {
           topic_id,
           lesson_id,
           image_position,
+          root,
           dialect_module,
           lessons (
             title,

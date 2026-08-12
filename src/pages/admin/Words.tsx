@@ -7,6 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
+import { RootChip } from '@/components/vocab/RootChip';
 import { Loader2, ArrowLeft, Plus, Edit, Trash2, Volume2, Upload } from 'lucide-react';
 import {
   AlertDialog,
@@ -144,6 +145,7 @@ const Words = () => {
                     <div>
                       <p className="font-bold text-xl" dir="rtl">{word.word_arabic}</p>
                       <p className="text-muted-foreground">{word.word_english}</p>
+                      <RootChip root={word.root} className="mt-1" />
                     </div>
                     <Button
                       variant="ghost"

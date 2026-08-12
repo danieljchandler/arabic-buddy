@@ -199,6 +199,9 @@ export const aVocabularyWord = (over: Row = {}): Row => ({
   topic_id: null,
   lesson_id: null,
   image_position: null,
+  // Null, not a root: the column postdates every authored lesson, so an
+  // un-backfilled word is the normal state of curriculum vocabulary.
+  root: null,
   display_order: 1,
   dialect_module: "Gulf",
   created_at: daysAgo(30),

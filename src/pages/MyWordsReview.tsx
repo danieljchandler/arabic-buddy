@@ -10,6 +10,7 @@ import { Loader2, Trophy, LogIn, Eye, Volume2, Music, RefreshCw, Sparkles, Play,
 import { SentencePracticeSheet } from "@/components/practice/SentencePracticeSheet";
 import { LeechHelperPanel } from "@/components/review/LeechHelperPanel";
 import { SiblingWordsPanel } from "@/components/review/SiblingWordsPanel";
+import { RootFamilySheet } from "@/components/vocab/RootFamilySheet";
 import { useLeechPrefs } from "@/hooks/useLeechPrefs";
 import { GenerateImageDialog } from "@/components/mywords/GenerateImageDialog";
 import { useUpdateUserVocabularyImage } from "@/hooks/useUserVocabulary";
@@ -72,6 +73,12 @@ interface DueCard {
   is_leech: boolean;
   mnemonic: string | null;
   root: string | null;
+  /**
+   * The card's own dialect. Carried because a mixed-dialect session serves all
+   * three decks at once, so the app's active dialect cannot say which one this
+   * card belongs to — and root siblings are scoped per card.
+   */
+  dialect: string;
   transliteration: string | null;
 }
 
@@ -104,6 +111,7 @@ interface RawRow {
   is_leech: boolean | null;
   mnemonic: string | null;
   root: string | null;
+  dialect: string | null;
 }
 
 const MyWordsReview = () => {
@@ -137,6 +145,8 @@ const MyWordsReview = () => {
   const [showLyrics, setShowLyrics] = useState(false);
   const [imageDialogOpen, setImageDialogOpen] = useState(false);
   const [practiceOpen, setPracticeOpen] = useState(false);
+  /** Canonical root key of the family sheet, or null when it is closed. */
+  const [familyKey, setFamilyKey] = useState<string | null>(null);
   const [lastAction, setLastAction] = useState<null | {
     cardId: string;
     cardType: CardType;
@@ -208,7 +218,7 @@ const MyWordsReview = () => {
       // Fetch all rows that are due in either direction. We do two queries
       // and merge so each direction can be tagged independently.
       const baseSelect =
-        "id, word_arabic, word_english, ease_factor, difficulty, interval_days, repetitions, next_review_at, last_reviewed_at, production_ease_factor, production_difficulty, production_interval_days, production_repetitions, production_next_review_at, production_last_reviewed_at, word_audio_url, sentence_audio_url, image_url, jingle_audio_url, jingle_lyrics, sentence_text, sentence_english, lapses, production_lapses, is_leech, mnemonic, root";
+        "id, word_arabic, word_english, ease_factor, difficulty, interval_days, repetitions, next_review_at, last_reviewed_at, production_ease_factor, production_difficulty, production_interval_days, production_repetitions, production_next_review_at, production_last_reviewed_at, word_audio_url, sentence_audio_url, image_url, jingle_audio_url, jingle_lyrics, sentence_text, sentence_english, lapses, production_lapses, is_leech, mnemonic, root, dialect";
 
       // PostgREST caps unbounded selects at 1000 rows, and large decks pass that
       // easily. Page through so a big backlog doesn't silently truncate (which
@@ -281,6 +291,7 @@ const MyWordsReview = () => {
           is_leech: r.is_leech ?? false,
           mnemonic: r.mnemonic,
           root: (r as any).root ?? null,
+          dialect: r.dialect ?? activeDialect,
         });
       }
       for (const r of (prodRows || []) as RawRow[]) {
@@ -309,6 +320,7 @@ const MyWordsReview = () => {
           is_leech: r.is_leech ?? false,
           mnemonic: r.mnemonic,
           root: (r as any).root ?? null,
+          dialect: r.dialect ?? activeDialect,
         });
       }
 
@@ -1003,8 +1015,11 @@ const MyWordsReview = () => {
             <SiblingWordsPanel
               root={currentWord.root}
               currentWordId={currentWord.id}
-              dialect={activeDialect}
+              // The card's dialect, not the app's: in a mixed session the deck
+              // spans all three, and the active one is right for at most one.
+              dialect={currentWord.dialect}
               onPlayAudio={playAudio}
+              onOpenFamily={setFamilyKey}
             />
           )}
 
@@ -1074,6 +1089,12 @@ const MyWordsReview = () => {
         onOpenChange={setPracticeOpen}
         targetArabic={currentWord.word_arabic}
         targetEnglish={currentWord.word_english}
+      />
+
+      <RootFamilySheet
+        familyKey={familyKey}
+        onOpenChange={(open) => !open && setFamilyKey(null)}
+        onPlayAudio={playAudio}
       />
     </AppShell>
   );

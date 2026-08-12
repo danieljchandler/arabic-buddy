@@ -14,6 +14,7 @@ import { Loader2, Check, ArrowLeft, User, Globe2, Target, Eye, Heart, ChevronRig
 import { HomeLayoutEditor } from '@/components/settings/HomeLayoutEditor';
 import { DisplayPrefsEditor } from '@/components/settings/DisplayPrefsEditor';
 import { useLeechPrefs } from '@/hooks/useLeechPrefs';
+import { useRootFamilyPrefs } from '@/hooks/useRootFamilyPrefs';
 import { useFeatureHints } from '@/hooks/useFeatureHints';
 import { useSubscription } from '@/hooks/useSubscription';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
@@ -51,6 +52,7 @@ const Settings = () => {
   const { user, isAuthenticated, loading: authLoading, signOut } = useAuth();
   const [loading, setLoading] = useState(true);
   const { enabled: leechEnabled, setEnabled: setLeechEnabled } = useLeechPrefs();
+  const { enabled: rootFamiliesEnabled, setEnabled: setRootFamiliesEnabled } = useRootFamilyPrefs();
   const { enabled: hintsEnabled, setEnabled: setHintsEnabled } = useFeatureHints();
   const { subscribed, tier, openCustomerPortal } = useSubscription();
   const [clearingLeeches, setClearingLeeches] = useState(false);
@@ -515,6 +517,16 @@ const Settings = () => {
                 </p>
               </div>
               <Switch checked={leechEnabled} onCheckedChange={setLeechEnabled} />
+            </div>
+            <div className="flex items-center justify-between p-3 rounded-xl bg-card border border-border">
+              <div className="min-w-0 pr-3">
+                <p className="font-medium text-foreground text-sm">Show related words from the same root</p>
+                <p className="text-xs text-muted-foreground">
+                  Under a card you've answered, quietly list the other words you know that are built
+                  from its Arabic root — كتب, كتاب, مكتب.
+                </p>
+              </div>
+              <Switch checked={rootFamiliesEnabled} onCheckedChange={setRootFamiliesEnabled} />
             </div>
             <div className="p-3 rounded-xl bg-card border border-border">
               <p className="font-medium text-foreground text-sm">Review intensity</p>

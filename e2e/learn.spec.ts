@@ -125,6 +125,52 @@ test.describe("working through a lesson", () => {
     await expect(page.getByText("كلمة1")).toBeVisible();
   });
 
+  test("shows the word's root once the Arabic is revealed, and not before", async ({ page, db }) => {
+    db.seed("vocabulary_words", [
+      aVocabularyWord({
+        id: wordId(0),
+        lesson_id: LESSON,
+        topic_id: null,
+        word_arabic: "كتاب",
+        word_english: "book",
+        display_order: 0,
+        // Stored with hyphens, as one of the AI paths writes it — the display
+        // canonicalises whatever spelling reached the column.
+        root: "ك-ت-ب",
+      }),
+    ]);
+
+    await page.goto(`/learn/${LESSON}`);
+    // The root is a strong clue to the meaning, and the learner is being asked
+    // to produce the word from the picture.
+    await expect(page.getByText("ك · ت · ب")).toHaveCount(0);
+
+    await page.getByRole("button", { name: /show arabic/i }).click();
+
+    await expect(page.getByText("ك · ت · ب")).toBeVisible();
+  });
+
+  test("shows no root chip for a word that has none", async ({ page, db }) => {
+    db.seed("vocabulary_words", [
+      aVocabularyWord({
+        id: wordId(0),
+        lesson_id: LESSON,
+        topic_id: null,
+        word_arabic: "كمبيوتر",
+        word_english: "computer",
+        display_order: 0,
+        root: null,
+      }),
+    ]);
+
+    await page.goto(`/learn/${LESSON}`);
+    await page.getByRole("button", { name: /show arabic/i }).click();
+
+    // Most curriculum words have no root until an admin backfills them, so an
+    // empty chip would be the normal case rather than the exception.
+    await expect(page.getByTitle("Arabic root")).toHaveCount(0);
+  });
+
   test("asks for the English once the quiz starts", async ({ page }) => {
     await page.goto(`/learn/${LESSON}`);
     await page.getByRole("button", { name: /continue to quiz/i }).click();

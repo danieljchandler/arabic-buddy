@@ -19,6 +19,9 @@ const ImportFromAnkiDialog = lazy(() =>
 import { Wand2 } from "lucide-react";
 import { InfoHint } from "@/components/InfoHint";
 import { PAGE_HINTS } from "@/lib/pageHints";
+import { buildRootFamilies, formatRoot, rootKey } from "@/lib/arabicRoot";
+import { useRootFamilyPrefs } from "@/hooks/useRootFamilyPrefs";
+import { showCapToastIfLimited } from "@/lib/handleCapResponse";
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
@@ -44,6 +47,7 @@ const MyWords = () => {
   const { data: phrases } = useUserPhrases(mixAll);
   const { data: phraseStats } = useUserPhrasesDueCount(mixAll);
   const deletePhrase = useDeleteUserPhrase();
+  const { enabled: rootFamiliesEnabled } = useRootFamilyPrefs();
   const [imageDialogWord, setImageDialogWord] = useState<UserVocabularyWord | null>(null);
   const [expandedContext, setExpandedContext] = useState<Set<string>>(new Set());
   const [suggestOpen, setSuggestOpen] = useState(false);
@@ -51,6 +55,9 @@ const MyWords = () => {
   const [ankiOpen, setAnkiOpen] = useState(false);
   const [deckFilter, setDeckFilter] = useState<string | null>(null);
   const [tagFilter, setTagFilter] = useState<string | null>(null);
+  const [rootFilter, setRootFilter] = useState<string | null>(null);
+  const [confirmBackfill, setConfirmBackfill] = useState(false);
+  const [backfilling, setBackfilling] = useState(false);
   const [sourceFilter, setSourceFilter] = useState<"anki" | "app" | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [selectMode, setSelectMode] = useState(false);
@@ -110,6 +117,25 @@ const MyWords = () => {
     return Array.from(m.entries()).sort((a, b) => b[1] - a[1]);
   }, [words]);
 
+  /**
+   * Root families, grouped from the deck already in memory.
+   *
+   * `useUserVocabulary` fetches every word, so grouping here costs a pass over
+   * an array rather than a query. Families of one are dropped: a single word is
+   * not a pattern, and keeping them would bury the real families under a wall
+   * of chips that each filter to exactly one card.
+   */
+  const rootOptions = useMemo(
+    () => buildRootFamilies(words ?? [], { minSize: 2 }),
+    [words],
+  );
+
+  /** Words nobody has looked up a root for yet — `''` means we looked and found none. */
+  const rootlessCount = useMemo(
+    () => (words ?? []).filter((w) => w.root === null && !/\s/.test(w.word_arabic)).length,
+    [words],
+  );
+
   const filteredWords = useMemo(() => {
     if (!words) return words;
     return words.filter((w) => {
@@ -118,9 +144,46 @@ const MyWords = () => {
       if (categoryFilter && w.source !== categoryFilter) return false;
       if (deckFilter && w.deck_name !== deckFilter) return false;
       if (tagFilter && !(w.tags || []).includes(tagFilter)) return false;
+      if (rootFilter && rootKey(w.root) !== rootFilter) return false;
       return true;
     });
-  }, [words, sourceFilter, categoryFilter, deckFilter, tagFilter]);
+  }, [words, sourceFilter, categoryFilter, deckFilter, tagFilter, rootFilter]);
+
+  /**
+   * Look up the roots of words that have none.
+   *
+   * One call covers up to 120 words; the button stays until there are none
+   * left, so a large imported deck is caught up in a few deliberate presses
+   * rather than one silent unbounded run.
+   */
+  const findRoots = async () => {
+    setBackfilling(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("enrich-word-roots", {
+        // The count on the button comes from the list on screen, which is
+        // scoped to the active dialect unless "All dialects" is on. The run has
+        // to be scoped the same way or the number never goes down.
+        body: mixAll ? {} : { dialect: activeDialect },
+      });
+      if (showCapToastIfLimited(error, data)) return;
+      if (error) throw error;
+
+      const found = Number((data as { resolved?: number } | null)?.resolved ?? 0);
+      toast.success(
+        found > 0
+          ? `Found roots for ${found} ${found === 1 ? "word" : "words"}`
+          : "No new roots found in that batch",
+      );
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["user-vocabulary"] }),
+        queryClient.invalidateQueries({ queryKey: ["root-index"] }),
+      ]);
+    } catch {
+      toast.error("Couldn't look up roots just now");
+    } finally {
+      setBackfilling(false);
+    }
+  };
 
   const selectSource = (next: "anki" | "app" | null) => {
     setSourceFilter(next);
@@ -538,6 +601,71 @@ const MyWords = () => {
               </div>
             </div>
           )}
+
+          {/*
+            Root families. Hidden entirely when there are none — a learner whose
+            words have no roots yet should not be shown an empty shelf labelled
+            with something they cannot use.
+          */}
+          {rootFamiliesEnabled && (rootOptions.length > 0 || rootlessCount > 0) && (
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-1.5">Roots</p>
+              {/* No chip row at all before any family exists — an "All" chip on
+                  its own filters nothing and only asks to be clicked. */}
+              {rootOptions.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+                <button
+                  onClick={() => setRootFilter(null)}
+                  className={cn(
+                    "px-2.5 py-1 rounded-full text-xs border transition-colors",
+                    !rootFilter
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-card border-border text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  All
+                </button>
+                {rootOptions.slice(0, 24).map((family) => (
+                  <button
+                    key={family.key}
+                    onClick={() =>
+                      setRootFilter(rootFilter === family.key ? null : family.key)
+                    }
+                    title={`${family.words.length} words from this root`}
+                    className={cn(
+                      "px-2.5 py-1 rounded-full text-xs border transition-colors font-arabic",
+                      rootFilter === family.key
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-card border-border text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    <span dir="rtl">{family.display}</span>{" "}
+                    <span className="opacity-70">· {family.words.length}</span>
+                  </button>
+                ))}
+              </div>
+              )}
+
+              {/*
+                The only part of this feature that spends credits, and it never
+                runs on its own. Most cards have no root because only one save
+                path ever wrote one — this is how an imported deck catches up,
+                at a moment the learner picks.
+              */}
+              {rootlessCount > 0 && (
+                <button
+                  onClick={() => setConfirmBackfill(true)}
+                  disabled={backfilling}
+                  className="mt-1.5 inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 disabled:no-underline disabled:opacity-60"
+                >
+                  {backfilling && <Loader2 className="h-3 w-3 animate-spin" />}
+                  {backfilling
+                    ? "Finding roots…"
+                    : `Find roots for ${rootlessCount} ${rootOptions.length > 0 ? "more " : ""}${rootlessCount === 1 ? "word" : "words"}`}
+                </button>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -581,6 +709,27 @@ const MyWords = () => {
           )}
         </div>
       )}
+
+      <AlertDialog open={confirmBackfill} onOpenChange={setConfirmBackfill}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Find roots for your words?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This asks the AI for the Arabic root of up to 120 words that don't have one yet,
+              and uses some of your daily AI allowance. Each word is only ever looked up once.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={backfilling}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); setConfirmBackfill(false); findRoots(); }}
+              disabled={backfilling}
+            >
+              Find roots
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={confirmBulkDelete} onOpenChange={setConfirmBulkDelete}>
         <AlertDialogContent>
@@ -653,10 +802,31 @@ const MyWords = () => {
                     >
                       {word.word_arabic}
                     </span>
+                    {/*
+                      Falls back to the raw stored value when it will not
+                      canonicalise, so a card whose root was written oddly still
+                      shows what it has rather than silently losing it — it just
+                      cannot be filtered on.
+                    */}
                     {word.root && (
-                      <span className="text-xs font-mono text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
-                        {word.root}
-                      </span>
+                      rootKey(word.root) && !selectMode ? (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const key = rootKey(word.root)!;
+                            setRootFilter(rootFilter === key ? null : key);
+                          }}
+                          title="Show every word you know from this root"
+                          className="text-xs font-arabic text-muted-foreground bg-muted hover:bg-muted/70 hover:text-foreground px-1.5 py-0.5 rounded transition-colors"
+                          dir="rtl"
+                        >
+                          {formatRoot(word.root)}
+                        </button>
+                      ) : (
+                        <span className="text-xs font-mono text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                          {formatRoot(word.root) ?? word.root}
+                        </span>
+                      )
                     )}
                   </div>
                 </div>

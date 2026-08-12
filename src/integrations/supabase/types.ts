@@ -4335,6 +4335,7 @@ export type Database = {
           lesson_id: string | null
           msa_form: string | null
           msa_note: string | null
+          root: string | null
           topic_id: string | null
           updated_at: string
           word_arabic: string
@@ -4351,6 +4352,7 @@ export type Database = {
           lesson_id?: string | null
           msa_form?: string | null
           msa_note?: string | null
+          root?: string | null
           topic_id?: string | null
           updated_at?: string
           word_arabic: string
@@ -4367,6 +4369,7 @@ export type Database = {
           lesson_id?: string | null
           msa_form?: string | null
           msa_note?: string | null
+          root?: string | null
           topic_id?: string | null
           updated_at?: string
           word_arabic?: string

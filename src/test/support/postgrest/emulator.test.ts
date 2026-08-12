@@ -82,6 +82,21 @@ describe("filters", () => {
     expect(data).toHaveLength(1);
   });
 
+  it("compares against the empty string, which goes over the wire as a bare `neq.`", async () => {
+    // supabase-js encodes `.neq(col, "")` as `col=neq.` with nothing after the
+    // dot. The parser used to drop that empty tail and then reject the filter
+    // as unparseable, so a perfectly ordinary "exclude the blanks" query failed
+    // in tests while working in production.
+    backend.db.seed("vocabulary_words", [
+      { id: "a", msa_form: "قصر" },
+      { id: "b", msa_form: "" },
+    ]);
+    const { data, error } = await db.from("vocabulary_words").select("id").neq("msa_form", "");
+
+    expect(error).toBeNull();
+    expect(data).toEqual([{ id: "a" }]);
+  });
+
   it("gt / gte / lt / lte compare numerically, not as strings", async () => {
     // "10" < "2" as strings — the bug this guards against.
     backend.db.seed("vocabulary_words", [

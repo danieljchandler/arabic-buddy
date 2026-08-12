@@ -77,7 +77,11 @@ function splitTopLevel(input: string, separator: string): string[] {
     current += char;
   }
 
-  if (current !== "") parts.push(current);
+  // A trailing separator marks an empty final segment, not a missing one:
+  // `root=neq.` is how PostgREST spells "not equal to the empty string", and
+  // dropping the empty tail turned that valid filter into an unparseable one.
+  // An empty input still yields no parts.
+  if (current !== "" || parts.length > 0) parts.push(current);
   return parts;
 }
 

@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ArrowLeft, Trash2, Volume2, ImagePlus, RefreshCw, Pencil } from 'lucide-react';
+import { RootChip } from '@/components/vocab/RootChip';
+import { Loader2, ArrowLeft, Trash2, Volume2, ImagePlus, RefreshCw, Pencil, Sparkles } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import {
   AlertDialog,
@@ -28,6 +29,8 @@ interface VocabWord {
   audio_url: string | null;
   display_order: number;
   dialect_module: string;
+  /** Arabic root. Null until backfilled; '' means the word has none. */
+  root?: string | null;
 }
 
 interface LessonDetail {
@@ -51,6 +54,7 @@ const LessonWords = () => {
   const [playingAudio, setPlayingAudio] = useState<string | null>(null);
   const [generatingIds, setGeneratingIds] = useState<Set<string>>(new Set());
   const [bulkGenerating, setBulkGenerating] = useState(false);
+  const [findingRoots, setFindingRoots] = useState(false);
   const [customInstructions, setCustomInstructions] = useState<Record<string, string>>({});
 
   const { data: lesson, isLoading: lessonLoading } = useQuery({
@@ -72,7 +76,7 @@ const LessonWords = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('vocabulary_words')
-        .select('id, word_arabic, word_english, image_url, audio_url, display_order, dialect_module')
+        .select('id, word_arabic, word_english, image_url, audio_url, display_order, dialect_module, root')
         .eq('lesson_id', lessonId!)
         .order('display_order', { ascending: true });
       if (error) throw error;
@@ -160,6 +164,33 @@ const LessonWords = () => {
 
   const isLoading = lessonLoading || wordsLoading;
   const missingImageCount = words?.filter((w) => !w.image_url).length ?? 0;
+  /** Words nobody has looked a root up for. `''` means we looked and there is none. */
+  const missingRootCount = words?.filter((w) => w.root === null || w.root === undefined).length ?? 0;
+
+  /**
+   * Look up the Arabic roots for this lesson's words.
+   *
+   * These rows are shared curriculum, so this is admin-only server-side too —
+   * the button merely hides what the function would refuse anyway.
+   */
+  const findRoots = async () => {
+    setFindingRoots(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('enrich-word-roots', {
+        body: { scope: 'curriculum', lessonId, dialect: lesson?.dialect_module },
+      });
+      if (error) throw error;
+      const found = Number((data as { resolved?: number } | null)?.resolved ?? 0);
+      toast({
+        title: found > 0 ? `Found roots for ${found} word${found === 1 ? '' : 's'}` : 'No new roots found',
+      });
+      queryClient.invalidateQueries({ queryKey: ['lesson-vocab', lessonId] });
+    } catch {
+      toast({ title: "Couldn't look up roots", variant: 'destructive' });
+    } finally {
+      setFindingRoots(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -212,6 +243,21 @@ const LessonWords = () => {
                   <ImagePlus className="h-4 w-4 mr-1" />
                 )}
                 Generate All Images ({missingImageCount})
+              </Button>
+            )}
+            {isAdmin && missingRootCount > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={findingRoots}
+                onClick={findRoots}
+              >
+                {findingRoots ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                ) : (
+                  <Sparkles className="h-4 w-4 mr-1" />
+                )}
+                Find Roots ({missingRootCount})
               </Button>
             )}
             <Badge variant="outline">{lesson.dialect_module}</Badge>
@@ -279,6 +325,7 @@ const LessonWords = () => {
                       <div>
                         <p className="font-bold text-xl" dir="rtl">{word.word_arabic}</p>
                         <p className="text-muted-foreground">{word.word_english}</p>
+                        <RootChip root={word.root} className="mt-1" />
                       </div>
                       {word.audio_url && (
                         <Button

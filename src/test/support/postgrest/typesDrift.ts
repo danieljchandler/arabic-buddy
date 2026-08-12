@@ -38,6 +38,10 @@ export const COLUMNS_MISSING_FROM_TYPES: DriftedColumn[] = [
   // and writes it; the scoring functions read it server-side.
   { table: "profiles", column: "contribute_audio", migration: "20260812140000_flywheel_learner_loop" },
 
+  // The FSRS retention dial (C2). Settings writes it; every scheduler call
+  // site reads it through useDesiredRetention.
+  { table: "profiles", column: "desired_retention", migration: "20260812170000_desired_retention" },
+
   // The lesson-content columns the curriculum builder writes.
   ...[
     "unlock_condition",

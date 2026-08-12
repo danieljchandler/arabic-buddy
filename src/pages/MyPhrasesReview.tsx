@@ -21,6 +21,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Rating, calculateNextReview, elapsedDaysSince } from "@/lib/spacedRepetition";
+import { useDesiredRetention } from "@/hooks/useDesiredRetention";
 import { useAzureTTS } from "@/hooks/useAzureTTS";
 import { Loader2, Trophy, LogIn, Eye, Volume2, Trash2, MessageCircleQuestion, Music, Play, RefreshCw, Undo2, MessageSquarePlus } from "lucide-react";
 import { SentencePracticeSheet } from "@/components/practice/SentencePracticeSheet";
@@ -36,6 +37,7 @@ import { AskAISentence } from "@/components/shared/AskAISentence";
 const MyPhrasesReview = () => {
   const navigate = useNavigate();
   const { isAuthenticated, loading: authLoading, user } = useAuth();
+  const desiredRetention = useDesiredRetention();
   const { activeDialect } = useDialect();
   const { enabled: leechTrackingEnabled } = useLeechPrefs();
   const { data: duePhrases, isLoading, refetch } = useDueUserPhrases();
@@ -179,6 +181,7 @@ const MyPhrasesReview = () => {
       current.interval_days,
       current.repetitions,
       elapsedDaysSince(current.last_reviewed_at),
+      { desiredRetention, fuzzSeed: current.id },
     );
 
     await updateReview.mutateAsync({

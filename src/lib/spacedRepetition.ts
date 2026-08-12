@@ -59,6 +59,56 @@ const W = [
 const DECAY  = -0.5;
 const FACTOR = 19 / 81; // ≈ 0.2346 — derived from DECAY and 90% retention target
 
+// ── Personalisation options ───────────────────────────────────────────────────
+
+export interface ScheduleOptions {
+  /**
+   * Target recall probability at review time. FSRS stores stability as "days
+   * until retention drops to 90%"; the forgetting curve converts it to an
+   * interval for any other target: t = S × (R^(1/DECAY) − 1) / FACTOR.
+   * 0.9 (the default) leaves intervals exactly as before; lower means fewer,
+   * longer reviews with more forgetting; higher means the reverse. Clamped to
+   * [0.7, 0.97] — outside that the curve asks for absurd intervals.
+   */
+  desiredRetention?: number;
+  /**
+   * When set (any stable per-card string — the card id), intervals of 3+ days
+   * get a deterministic ±5% fuzz so cards created or imported together don't
+   * all land due on the same future day. Deterministic per (card, interval):
+   * the same rating previewed twice or applied after a preview yields the
+   * same number. Absent = no fuzz, which keeps historical behaviour.
+   */
+  fuzzSeed?: string;
+}
+
+/** Interval multiplier for a desired retention; 1.0 at the 90% default. */
+export function retentionFactor(desiredRetention: number | undefined): number {
+  const r = Math.min(0.97, Math.max(0.7, desiredRetention ?? 0.9));
+  return (Math.pow(r, 1 / DECAY) - 1) / FACTOR;
+}
+
+/** Deterministic hash → [-1, 1), stable across sessions. */
+function fuzzUnit(seed: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < seed.length; i++) {
+    h ^= seed.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  // Map the 32-bit hash onto [-1, 1).
+  return ((h >>> 0) / 4294967296) * 2 - 1;
+}
+
+/**
+ * ±5% load-balancing fuzz for day-scale intervals. Sub-3-day intervals are
+ * left exact — learning steps are meant to be precise — and the result never
+ * drops below 2 days so fuzz can't demote a graduated card back to tomorrow.
+ */
+export function fuzzInterval(intervalDays: number, seed: string | undefined): number {
+  if (!seed || intervalDays < 3) return intervalDays;
+  const delta = Math.round(intervalDays * 0.05 * fuzzUnit(`${seed}:${intervalDays}`));
+  return Math.max(2, intervalDays + delta);
+}
+
 // ── Rating → integer (FSRS uses 1-4) ─────────────────────────────────────────
 const RATING_NUM: Record<Rating, number> = { again: 1, hard: 2, good: 3, easy: 4 };
 
@@ -146,9 +196,11 @@ export function calculateNextReview(
   intervalDays: number,
   repetitions: number,
   elapsedDays?: number,
+  options?: ScheduleOptions,
 ): ReviewResult {
   const r = RATING_NUM[rating];
   const isNewCard = repetitions === 0 || stability <= 0;
+  const intervalFactor = retentionFactor(options?.desiredRetention);
 
   let newStability: number;
   let newDifficulty: number;
@@ -165,7 +217,7 @@ export function calculateNextReview(
       newRepetitions = 0; // still in learning phase
     } else {
       // Good/Easy: graduate to review
-      newInterval    = Math.max(rating === 'easy' ? 4 : 1, Math.round(newStability));
+      newInterval    = Math.max(rating === 'easy' ? 4 : 1, Math.round(newStability * intervalFactor));
       newRepetitions = 1;
     }
   } else {
@@ -190,9 +242,10 @@ export function calculateNextReview(
       newInterval    = LEARNING_INTERVALS.again;
       newRepetitions = repetitions;
     } else {
-      // Recalled — stability grows; interval = new stability (90% retention target)
+      // Recalled — stability grows; the interval is the stability scaled to
+      // the learner's retention target (identical at the 90% default).
       newStability   = Math.max(nextRecallStability(d, s, ret, r), 0.1);
-      newInterval    = Math.round(newStability);
+      newInterval    = Math.round(newStability * intervalFactor);
       newRepetitions = repetitions + 1;
     }
   }
@@ -200,6 +253,7 @@ export function calculateNextReview(
   // Sub-day intervals keep minute precision; day+ intervals are whole days
   if (newInterval >= 1) {
     newInterval = Math.max(1, Math.round(newInterval));
+    newInterval = fuzzInterval(newInterval, options?.fuzzSeed);
   }
 
   const nextReviewAt = new Date();
@@ -241,8 +295,9 @@ export function estimateNextInterval(
   intervalDays: number,
   repetitions: number,
   elapsedDays?: number,
+  options?: ScheduleOptions,
 ): string {
-  const result = calculateNextReview(rating, stability, difficulty, intervalDays, repetitions, elapsedDays);
+  const result = calculateNextReview(rating, stability, difficulty, intervalDays, repetitions, elapsedDays, options);
   return getIntervalDisplay(result.intervalDays);
 }
 

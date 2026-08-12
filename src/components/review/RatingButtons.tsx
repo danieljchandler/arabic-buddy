@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import { Rating, estimateNextInterval } from "@/lib/spacedRepetition";
+import { useDesiredRetention } from "@/hooks/useDesiredRetention";
 import { RotateCcw, ThumbsDown, ThumbsUp, Sparkles } from "lucide-react";
 
 interface RatingButtonsProps {
@@ -27,6 +28,10 @@ export const RatingButtons = ({
   elapsedDays,
   disabled,
 }: RatingButtonsProps) => {
+  // The previewed intervals honour the learner's retention dial. Fuzz is
+  // deliberately not previewed: like Anki, the label shows the base interval
+  // and the ±5% load balancing lands silently on the stored schedule.
+  const desiredRetention = useDesiredRetention();
   const buttons: { rating: Rating; label: string; icon: React.ReactNode; color: string }[] = [
     {
       rating: 'again',
@@ -61,7 +66,9 @@ export const RatingButtons = ({
       </p>
       <div className="grid grid-cols-4 gap-2">
         {buttons.map(({ rating, label, icon, color }) => {
-          const nextInterval = estimateNextInterval(rating, stability, difficulty, intervalDays, repetitions, elapsedDays);
+          const nextInterval = estimateNextInterval(rating, stability, difficulty, intervalDays, repetitions, elapsedDays, {
+            desiredRetention,
+          });
 
           return (
             <button

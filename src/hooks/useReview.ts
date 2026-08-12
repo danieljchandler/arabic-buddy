@@ -1,7 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
-import { calculateNextReview, elapsedDaysSince, Rating } from '@/lib/spacedRepetition';
+import { calculateNextReview, elapsedDaysSince, Rating, type ScheduleOptions } from '@/lib/spacedRepetition';
+import { useDesiredRetention } from './useDesiredRetention';
 import {
   buildReviewOrder,
   scheduleDirectionFor,
@@ -288,6 +289,7 @@ export function buildReviewUpdate(
   direction: ScheduleDirection,
   currentReview: WordReview | null,
   now: Date = new Date(),
+  options?: ScheduleOptions,
 ): { update: Record<string, unknown>; result: ReturnType<typeof calculateNextReview> } {
   const production = direction === 'production';
 
@@ -299,7 +301,7 @@ export function buildReviewUpdate(
     production ? currentReview?.production_last_reviewed_at : currentReview?.last_reviewed_at,
   );
 
-  const result = calculateNextReview(rating, stability, difficulty, intervalDays, repetitions, elapsedDays);
+  const result = calculateNextReview(rating, stability, difficulty, intervalDays, repetitions, elapsedDays, options);
 
   const failed = rating === 'again';
   const lapses = (currentReview?.lapses ?? 0) + (failed && !production ? 1 : 0);
@@ -351,6 +353,7 @@ export async function submitRatingToServer(
   rating: Rating,
   currentReview: WordReview | null,
   direction: ScheduleDirection = 'recognition',
+  options?: ScheduleOptions,
 ) {
   // A production rating with no existing row would build a production-only
   // column set and insert it without next_review_at, which is NOT NULL — a
@@ -363,7 +366,13 @@ export async function submitRatingToServer(
     );
   }
 
-  const { update, result } = buildReviewUpdate(rating, direction, currentReview);
+  // The card id seeds the load-balancing fuzz so a deck saved in one sitting
+  // doesn't come due as one 200-card day; the retention target flows from the
+  // learner's Settings dial via the calling hook.
+  const { update, result } = buildReviewUpdate(rating, direction, currentReview, new Date(), {
+    fuzzSeed: wordId,
+    ...options,
+  });
 
   if (currentReview) {
     const { error } = await supabase
@@ -390,6 +399,7 @@ export async function submitRatingToServer(
 
 export const useSubmitReview = () => {
   const { user } = useAuth();
+  const desiredRetention = useDesiredRetention();
   const queryClient = useQueryClient();
   const addXP = useAddXP();
   const incrementReviews = useIncrementReviews();
@@ -406,7 +416,9 @@ export const useSubmitReview = () => {
       currentReview: WordReview | null;
     }) => {
       if (!user) throw new Error('Must be logged in');
-      return submitRatingToServer(user.id, wordId, rating, currentReview);
+      return submitRatingToServer(user.id, wordId, rating, currentReview, 'recognition', {
+        desiredRetention,
+      });
     },
     onSuccess: ({ rating }) => {
       queryClient.invalidateQueries({ queryKey: ['review-stats'] });

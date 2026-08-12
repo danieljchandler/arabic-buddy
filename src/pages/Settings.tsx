@@ -99,6 +99,7 @@ const Settings = () => {
   const [goal, setGoal] = useState('regular');
   const [showOnLeaderboard, setShowOnLeaderboard] = useState(true);
   const [contributeAudio, setContributeAudio] = useState(false);
+  const [desiredRetention, setDesiredRetention] = useState<number>(0.9);
   // Purpose + topics. Both feed the server-side learner profile that content
   // generators read, so editing them here changes what gets generated next.
   const [reason, setReason] = useState<string | null>(null);
@@ -124,7 +125,7 @@ const Settings = () => {
     const load = async () => {
       const { data } = await supabase
         .from('profiles' as any)
-        .select('display_name, avatar_url, preferred_dialect, proficiency_level, weekly_goal, show_on_leaderboard, learning_reason, interests, contribute_audio')
+        .select('display_name, avatar_url, preferred_dialect, proficiency_level, weekly_goal, show_on_leaderboard, learning_reason, interests, contribute_audio, desired_retention')
         .eq('user_id', user.id)
         .maybeSingle();
 
@@ -137,6 +138,11 @@ const Settings = () => {
         setGoal(p.weekly_goal || 'regular');
         setShowOnLeaderboard(p.show_on_leaderboard ?? true);
         setContributeAudio(p.contribute_audio === true);
+        setDesiredRetention(
+          typeof p.desired_retention === 'number' && p.desired_retention >= 0.7 && p.desired_retention <= 0.97
+            ? p.desired_retention
+            : 0.9,
+        );
         setReason(reasonIdFromLabel(p.learning_reason));
         setInterests(Array.isArray(p.interests) ? p.interests : []);
       }
@@ -201,6 +207,7 @@ const Settings = () => {
           weekly_goal: goal,
           show_on_leaderboard: showOnLeaderboard,
           contribute_audio: contributeAudio,
+          desired_retention: desiredRetention,
           learning_reason: reasonLabel(reason),
           interests,
         } as any)
@@ -508,6 +515,32 @@ const Settings = () => {
                 </p>
               </div>
               <Switch checked={leechEnabled} onCheckedChange={setLeechEnabled} />
+            </div>
+            <div className="p-3 rounded-xl bg-card border border-border">
+              <p className="font-medium text-foreground text-sm">Review intensity</p>
+              <p className="text-xs text-muted-foreground mb-2">
+                How reliably you want to remember cards at review time. Lighter means fewer,
+                longer-spaced reviews and a little more forgetting; intense means the reverse.
+              </p>
+              <div className="flex gap-2" role="radiogroup" aria-label="Review intensity">
+                {[
+                  { value: 0.85, label: 'Lighter' },
+                  { value: 0.9, label: 'Standard' },
+                  { value: 0.95, label: 'Intense' },
+                ].map(({ value, label }) => (
+                  <Button
+                    key={value}
+                    size="sm"
+                    variant={Math.abs(desiredRetention - value) < 0.001 ? 'default' : 'outline'}
+                    role="radio"
+                    aria-checked={Math.abs(desiredRetention - value) < 0.001}
+                    onClick={() => setDesiredRetention(value)}
+                    className="flex-1"
+                  >
+                    {label}
+                  </Button>
+                ))}
+              </div>
             </div>
             <div className="flex items-center justify-between p-3 rounded-xl bg-card border border-border">
               <div className="min-w-0 pr-3">

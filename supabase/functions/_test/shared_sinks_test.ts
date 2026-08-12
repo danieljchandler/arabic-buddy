@@ -1001,3 +1001,88 @@ Deno.test("a source function with no name falls back to manual", async () => {
     assertEquals(row.content_type, "manual");
   });
 });
+
+// ── logRepairPair (trainingExampleLogger) ───────────────────────────────────
+// The flywheel's bronze lane: when the Brain's MSA repair pass actually shifts
+// a leak, the before/after pair lands in training_examples as automated
+// (auto_repair) distillation data. Same silent-sink contract as the others.
+
+interface TrainingExampleLoggerModule {
+  logRepairPair: (args: {
+    dialect: string;
+    machineOutput: string;
+    repairedOutput: string;
+    sourceFunction: string;
+    leaks: string[];
+    metadata?: Record<string, unknown>;
+  }) => void;
+}
+
+async function withRepairLogger(
+  run: (mod: TrainingExampleLoggerModule, up: StubbedUpstreams) => Promise<void>,
+  env: Record<string, string | undefined> = {},
+): Promise<void> {
+  const up = stubUpstreams({
+    upstreams: { "/rest/v1/training_examples": () => json({}, 201) },
+    env,
+  });
+  try {
+    await run(await loadSharedModule<TrainingExampleLoggerModule>("trainingExampleLogger"), up);
+  } finally {
+    up.restore();
+  }
+}
+
+Deno.test("a shifted repair lands as a bronze auto_repair pair", async () => {
+  await withRepairLogger(async (mod, up) => {
+    mod.logRepairPair({
+      dialect: "Gulf",
+      machineOutput: "ماذا تريد الآن؟",
+      repairedOutput: "وش تبي الحين؟",
+      sourceFunction: "generate-story",
+      leaks: ["ماذا", "الآن"],
+    });
+
+    const [call] = await waitForCall(up, "training_examples");
+    const [row] = bodyOf(call);
+    assertEquals(row.tier, "bronze");
+    assertEquals(row.corrector_role, "auto_repair");
+    assertEquals(row.machine_output, "ماذا تريد الآن؟");
+    assertEquals(row.human_output, "وش تبي الحين؟");
+    assertEquals(row.source_function, "generate-story");
+    assertEquals(row.context.leaks, ["ماذا", "الآن"]);
+  });
+});
+
+Deno.test("an unchanged repair writes nothing — there is no correction to learn", async () => {
+  await withRepairLogger(async (mod, up) => {
+    mod.logRepairPair({
+      dialect: "Gulf",
+      machineOutput: "وش تبي الحين؟",
+      repairedOutput: "وش تبي الحين؟",
+      sourceFunction: "generate-story",
+      leaks: [],
+    });
+
+    await settle();
+    assertEquals(up.callsTo("training_examples").length, 0);
+  });
+});
+
+Deno.test("a repair pair is silent when the service role is missing", async () => {
+  await withRepairLogger(
+    async (mod, up) => {
+      mod.logRepairPair({
+        dialect: "Gulf",
+        machineOutput: "ماذا تريد",
+        repairedOutput: "وش تبي",
+        sourceFunction: "generate-story",
+        leaks: ["ماذا"],
+      });
+
+      await settle();
+      assertEquals(up.callsTo("training_examples").length, 0);
+    },
+    { SUPABASE_SERVICE_ROLE_KEY: undefined },
+  );
+});

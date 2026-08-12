@@ -18,6 +18,7 @@ import { decideCriticOutcome } from './criticDecision.ts';
 import { emitMetric } from './featureMetrics.ts';
 import { extractUsage } from './llmUsageCore.ts';
 import { logLlmUsage } from './llmUsageLogger.ts';
+import { logRepairPair } from './trainingExampleLogger.ts';
 import {
   DEFAULT_FAST,
   DEFAULT_JUDGE,
@@ -224,7 +225,24 @@ export async function askBrain<T = unknown>(task: BrainTask): Promise<BrainResul
       console.warn('[aiBrain] skipping repair pass, latency budget spent');
     } else {
       try {
+        const beforeText = extractScanText(task, result.output, result.raw);
         const repaired = await runRepair<T>(task, result, apiKey, deadline);
+        const afterText = extractScanText(task, repaired.output, repaired.raw);
+        // A repair that actually shifted the leaks is a correction pair worth
+        // keeping (bronze — automated, not human): what the model said vs what
+        // the repair made of it. Distillation data for the flywheel.
+        if (
+          beforeText && afterText && beforeText !== afterText &&
+          repaired.msaLeaks.leaks.length < result.msaLeaks.leaks.length
+        ) {
+          logRepairPair({
+            dialect: task.dialect,
+            machineOutput: beforeText,
+            repairedOutput: afterText,
+            sourceFunction: task.purpose,
+            leaks: result.msaLeaks.leaks,
+          });
+        }
         result = { ...repaired, msaRepairs: result.msaRepairs + 1 };
       } catch (err) {
         console.warn('[aiBrain] repair pass failed, returning original', err);

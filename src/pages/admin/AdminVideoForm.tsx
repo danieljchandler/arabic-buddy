@@ -940,6 +940,17 @@ const AdminVideoForm = () => {
       };
 
       if (isEditing) {
+        // Capture what the editor changed BEFORE the destructive update below
+        // overwrites the stored lines — the server diffs old vs new and banks
+        // every corrected line as training data (the flywheel's W1 source).
+        // Best-effort: a failed capture must never block the save.
+        try {
+          await supabase.functions.invoke("record-transcript-corrections", {
+            body: { videoId, lines: transcriptLines },
+          });
+        } catch (captureErr) {
+          console.warn("transcript correction capture failed:", captureErr);
+        }
         const { error } = await (supabase.from("discover_videos" as any) as any).update(record).eq("id", videoId);
         if (error) throw error;
         toast.success("Video updated!");

@@ -166,3 +166,8 @@ verify_jwt = false
 # should be visible here as well as enforced in the function.
 [functions.record-grammar-outcome]
 verify_jwt = true
+
+# Captures transcript corrections into training_examples before the admin save
+# overwrites them. Role-gated inside (admin / content_reviewer only).
+[functions.record-transcript-corrections]
+verify_jwt = true

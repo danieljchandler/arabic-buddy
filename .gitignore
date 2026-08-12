@@ -48,3 +48,6 @@ supabase/.temp/
 
 # Deno lockfile from local `deno check` runs on supabase/functions/**
 deno.lock
+
+# Local training-data export snapshots (scripts/export-training-data.mjs)
+training-exports/

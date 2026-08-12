@@ -56,6 +56,9 @@ const SERVICE_ROLE_ONLY_TABLES = new Set([
   // Promoted out of UNTRACKED_TABLES when 20260812103000 finally gave it a
   // migration — the "rebuilt database makes everyone look free-tier" debt.
   "subscribers",
+  // The training-data flywheel's canonical store: written by edge functions
+  // and a DB trigger, read by admins and the export script.
+  "training_examples",
 ]);
 
 describe("tables", () => {

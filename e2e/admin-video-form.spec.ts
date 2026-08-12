@@ -60,8 +60,12 @@ async function writtenTo(db: MemoryDb, table: string): Promise<Record<string, un
   return db.lastWriteTo(table)!.payload as Record<string, unknown>[];
 }
 
-test.beforeEach(async ({ signInAs }) => {
+test.beforeEach(async ({ signInAs, backend }) => {
   await signInAs("admin");
+  // Every edit-save first reports transcript corrections to the flywheel
+  // (record-transcript-corrections) before overwriting the row. The capture is
+  // fire-and-forget, so acknowledging it is all these tests need.
+  backend.stubFunction("record-transcript-corrections", { recorded: 0 });
 });
 
 test.describe("resolving a URL", () => {

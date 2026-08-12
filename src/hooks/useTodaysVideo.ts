@@ -72,7 +72,10 @@ export function useTodaysVideo(): TodaysVideo {
       : pool;
     const candidates = atLevel.length > 0 ? atLevel : pool;
 
-    return candidates[localDayIndex() % candidates.length];
+    // The pool is already ordered newest-first by created_at (see
+    // useDiscoverVideos), so the first candidate is the most recently
+    // uploaded and published clip — lead with that rather than rotating.
+    return candidates[0];
   }, [pool, placementLevel]);
 
   return {

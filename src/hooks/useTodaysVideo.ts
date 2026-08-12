@@ -22,16 +22,11 @@ import { useDiscoverVideos, difficultyWindow, type DiscoverVideo } from "./useDi
  */
 
 /**
- * Days since the epoch in *local* time.
- *
- * Local rather than UTC to match `lib/todayCompletion`, which keys completions
- * by the local date — a UTC day boundary would roll the pick over while the
- * "watched today" tick was still set from the evening before.
+ * Days since the epoch in *local* time — kept for the comment above on why
+ * local, not UTC, though the pick no longer rotates by day.
  */
-function localDayIndex(now: Date = new Date()): number {
-  const local = new Date(now.getTime() - now.getTimezoneOffset() * 60_000);
-  return Math.floor(local.getTime() / 86_400_000);
-}
+
+
 
 const sameDifficulty = (a: string | null | undefined, b: string) =>
   (a ?? "").toLowerCase() === b.toLowerCase();

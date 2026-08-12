@@ -55,7 +55,27 @@ async function getUserId(req: Request): Promise<string | null> {
   }
 }
 
+/**
+ * Complimentary access: the `complimentary` role hands out top-tier access
+ * without a Stripe subscription (investors, partners, press). Treated exactly
+ * like an All-In subscriber everywhere a paid check happens.
+ */
+export async function hasComplimentaryAccess(userId: string): Promise<boolean> {
+  try {
+    const { data } = await admin()
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId)
+      .eq("role", "complimentary")
+      .maybeSingle();
+    return !!data;
+  } catch {
+    return false;
+  }
+}
+
 async function hasActiveSubscription(userId: string): Promise<boolean> {
+  if (await hasComplimentaryAccess(userId)) return true;
   try {
     const supa = admin();
     const { data } = await supa
@@ -73,6 +93,7 @@ async function hasActiveSubscription(userId: string): Promise<boolean> {
     return false; // fail closed — treat as free-tier
   }
 }
+
 
 /**
  * The caller's user id from the request's bearer token, or null. Exported for
@@ -112,7 +133,9 @@ export type SubscriptionTier = "free" | "standard" | "allin";
  * schema-debt item in docs/testing.md).
  */
 export async function getSubscriptionTier(userId: string): Promise<SubscriptionTier> {
+  if (await hasComplimentaryAccess(userId)) return "allin";
   try {
+
     const { data, error } = await admin()
       .from("subscribers")
       .select("subscribed, subscription_end, subscription_tier")

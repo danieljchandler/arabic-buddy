@@ -1,19 +1,27 @@
 import type { Database } from "@/integrations/supabase/types";
 
 export type AppRole = Database["public"]["Enums"]["app_role"];
-export type ManagedRole = "bible_reader" | "content_reviewer" | "beta_tester";
+export type ManagedRole =
+  | "bible_reader"
+  | "content_reviewer"
+  | "beta_tester"
+  | "complimentary";
 
 export const MANAGED_ROLES: ManagedRole[] = [
   "bible_reader",
   "content_reviewer",
   "beta_tester",
+  "complimentary",
 ];
 
 export const ROLE_LABELS: Record<ManagedRole, string> = {
   bible_reader: "Bible reader",
   content_reviewer: "Content reviewer",
   beta_tester: "Beta tester",
+  // Full All-In access with no payment — investors, partners, press.
+  complimentary: "Complimentary (All-In, free)",
 };
+
 
 const CONTENT_REVIEWER_ALLOWED_ADMIN_PREFIXES = [
   "/admin/videos",

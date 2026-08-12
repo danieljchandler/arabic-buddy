@@ -72,7 +72,29 @@ serve(async (req) => {
       }
     };
 
+    // Complimentary access (investors, partners, press): the `complimentary`
+    // role grants top-tier access without ever touching Stripe. Checked before
+    // the Stripe lookup so these accounts stay unlocked even if they have no
+    // customer record at all. Cached into `subscribers` like a paid row so the
+    // per-tier allowances in _shared/usageCap.ts see the same picture.
+    const { data: compRole } = await supabaseClient
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("role", "complimentary")
+      .maybeSingle();
+
+    if (compRole) {
+      logStep("Complimentary access granted", { userId: user.id });
+      await persist({ subscribed: true, tier: "allin", subscriptionEnd: null, stripeCustomerId: null });
+      return new Response(
+        JSON.stringify({ subscribed: true, tier: "allin", complimentary: true, subscription_end: null }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 },
+      );
+    }
+
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
+
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
 
     if (customers.data.length === 0) {

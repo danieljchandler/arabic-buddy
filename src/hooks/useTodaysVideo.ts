@@ -21,13 +21,6 @@ import { useDiscoverVideos, difficultyWindow, type DiscoverVideo } from "./useDi
  *    midnight and stays put across reloads within a day.
  */
 
-/**
- * Days since the epoch in *local* time — kept for the comment above on why
- * local, not UTC, though the pick no longer rotates by day.
- */
-
-
-
 const sameDifficulty = (a: string | null | undefined, b: string) =>
   (a ?? "").toLowerCase() === b.toLowerCase();
 

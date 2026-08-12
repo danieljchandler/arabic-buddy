@@ -37,24 +37,37 @@ export const useUserVocabulary = (mixAll = false) => {
     queryKey: ["user-vocabulary", user?.id, mixAll ? "all" : activeDialect],
     queryFn: async () => {
       if (!user) return [];
-      
-      let query = supabase
-        .from("user_vocabulary")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false }) as any;
 
-      if (!mixAll) {
-        query = query.eq("dialect", activeDialect);
+      // PostgREST caps an unbounded select at 1000 rows. Learners with bigger
+      // decks (this app already has accounts near 2000 saved words) silently
+      // lost everything past the first page — the list looked like it "didn't
+      // load" the older half. Page explicitly instead.
+      const PAGE = 1000;
+      const rows: UserVocabularyWord[] = [];
+      for (let from = 0; ; from += PAGE) {
+        let query = supabase
+          .from("user_vocabulary")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false })
+          .range(from, from + PAGE - 1) as any;
+
+        if (!mixAll) {
+          query = query.eq("dialect", activeDialect);
+        }
+
+        const { data, error } = await query;
+        if (error) throw error;
+        const page = (data ?? []) as UserVocabularyWord[];
+        rows.push(...page);
+        if (page.length < PAGE) break;
       }
-
-      const { data, error } = await query;
-      if (error) throw error;
-      return data as UserVocabularyWord[];
+      return rows;
     },
     enabled: !!user,
   });
 };
+
 
 export const useUserVocabularyDueCount = (mixAll = false) => {
   const { user } = useAuth();

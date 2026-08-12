@@ -1029,6 +1029,7 @@ export type Database = {
           dialect: string
           id: string
           new_words: Json
+          sentences: Json | null
           story_date: string
           title: string
           updated_at: string
@@ -1045,6 +1046,7 @@ export type Database = {
           dialect?: string
           id?: string
           new_words?: Json
+          sentences?: Json | null
           story_date?: string
           title: string
           updated_at?: string
@@ -1061,6 +1063,7 @@ export type Database = {
           dialect?: string
           id?: string
           new_words?: Json
+          sentences?: Json | null
           story_date?: string
           title?: string
           updated_at?: string

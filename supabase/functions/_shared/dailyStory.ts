@@ -76,6 +76,56 @@ export const STARTER_WORDS: Record<string, VocabRow[]> = {
   ],
 };
 
+/** One card in the reader: a sentence of the story with its own translations. */
+export interface StorySentence {
+  arabic: string;
+  transliteration?: string;
+  english?: string;
+  literal?: string;
+}
+
+/** Non-whitespace characters, for comparing a split against the body it came from. */
+const dense = (text: string) => text.replace(/\s+/g, "");
+
+/**
+ * The model's sentence split, reduced to what is safe to store.
+ *
+ * Entries without Arabic are dropped — a card with no Arabic on it is nothing
+ * to read — and blank translations become absent rather than empty strings, so
+ * the reader can tell "no translation" from "a translation that is empty".
+ *
+ * The whole split is discarded unless it accounts for nearly all of the story:
+ * a model that quietly skipped a sentence would otherwise produce a story the
+ * learner reads a shortened version of, with no sign that anything is missing.
+ * Dropping it costs only the per-sentence translations, since the page falls
+ * back to splitting body_arabic on punctuation.
+ */
+export function cleanStorySentences(raw: unknown, bodyArabic: string): StorySentence[] {
+  if (!Array.isArray(raw)) return [];
+
+  const text = (value: unknown) =>
+    typeof value === "string" && value.trim() ? value.trim() : undefined;
+
+  const sentences: StorySentence[] = [];
+  for (const entry of raw) {
+    if (!entry || typeof entry !== "object") continue;
+    const row = entry as Record<string, unknown>;
+    const arabic = text(row.arabic);
+    if (!arabic) continue;
+    sentences.push({
+      arabic,
+      transliteration: text(row.transliteration),
+      english: text(row.english),
+      literal: text(row.literal),
+    });
+  }
+
+  if (sentences.length === 0) return [];
+  const covered = dense(sentences.map((s) => s.arabic).join(""));
+  if (covered.length < dense(bodyArabic).length * 0.95) return [];
+  return sentences;
+}
+
 export function todayUtc(): string {
   const d = new Date();
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
@@ -166,6 +216,8 @@ ${getDialectTransliterationRules(dialect as Dialect)}
 ${LITERAL_GLOSS_RULE}
 - Provide the whole-story literal gloss as body_english_literal.
 
+Also split the story into its sentences as "sentences", one entry per sentence, in order — the learner reads the story a sentence at a time. The arabic values joined back together must be body_arabic, unchanged and fully vocalized.
+
 Return ONLY the structured fields via the provided tool.`;
 
   const userPrompt = `MATURE words (review-anchored): ${matureList || "(none yet)"}\nNEW words to gently introduce: ${newList || "(none yet)"}`;
@@ -178,6 +230,7 @@ Return ONLY the structured fields via the provided tool.`;
       body_transliteration: string;
       body_english: string;
       body_english_literal: string;
+      sentences: StorySentence[];
       used_mature: string[];
       used_new: string[];
     }>({
@@ -202,6 +255,20 @@ Return ONLY the structured fields via the provided tool.`;
             body_transliteration: { type: "string", description: "Latin-letter transliteration of body_arabic, following the dialect's transliteration rules" },
             body_english: { type: "string", description: "Faithful natural English translation" },
             body_english_literal: { type: "string", description: "Word-for-word English gloss of the story preserving Arabic word order (may sound stiff; shows how sentences are built)" },
+            sentences: {
+              type: "array",
+              description: "body_arabic split into its individual sentences, in order, each with its own transliteration, natural English and literal gloss",
+              items: {
+                type: "object",
+                properties: {
+                  arabic: { type: "string", description: "One sentence of body_arabic, fully vocalized" },
+                  transliteration: { type: "string", description: "Latin-letter transliteration of this sentence, following the dialect's rules" },
+                  english: { type: "string", description: "Faithful natural English translation of this sentence" },
+                  literal: { type: "string", description: "Word-for-word English gloss of this sentence, preserving Arabic word order" },
+                },
+                required: ["arabic", "english"],
+              },
+            },
             used_mature: { type: "array", items: { type: "string" } },
             used_new: { type: "array", items: { type: "string" } },
           },
@@ -229,6 +296,7 @@ Return ONLY the structured fields via the provided tool.`;
     throw new DailyStoryError("empty_story", brain.raw.slice(0, 400));
   }
 
+  const sentences = cleanStorySentences(parsed.sentences, bodyArabic);
   const vocabUsed = Array.isArray(parsed.used_mature) ? parsed.used_mature : [];
   const newUsed = Array.isArray(parsed.used_new) ? parsed.used_new : [];
 
@@ -245,6 +313,7 @@ Return ONLY the structured fields via the provided tool.`;
         body_transliteration: bodyTransliteration || null,
         body_english: bodyEnglish || null,
         body_english_literal: bodyEnglishLiteral || null,
+        sentences: sentences.length > 0 ? sentences : null,
         vocab_used: vocabUsed,
         new_words: newUsed,
         updated_at: new Date().toISOString(),

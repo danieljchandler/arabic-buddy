@@ -33,10 +33,24 @@ function caller(extra: Record<string, UpstreamHandler> = {}): Record<string, Ups
 
 const story = {
   title: "يوم في السوق",
-  body_arabic: "كَانَ البَيْت هَادِئًا",
-  body_transliteration: "kaan al-bayt haadi'an",
-  body_english: "The house was quiet",
-  body_english_literal: "was the-house quiet",
+  body_arabic: "كَانَ البَيْت هَادِئًا. رَاحَ عَلِي لِلشُّغُل",
+  body_transliteration: "kaan al-bayt haadi'an. raah 'ali lish-shughul",
+  body_english: "The house was quiet. Ali went to work",
+  body_english_literal: "was the-house quiet. went Ali to-the-work",
+  sentences: [
+    {
+      arabic: "كَانَ البَيْت هَادِئًا.",
+      transliteration: "kaan al-bayt haadi'an.",
+      english: "The house was quiet.",
+      literal: "was the-house quiet.",
+    },
+    {
+      arabic: "رَاحَ عَلِي لِلشُّغُل",
+      transliteration: "raah 'ali lish-shughul",
+      english: "Ali went to work",
+      literal: "went Ali to-the-work",
+    },
+  ],
   used_mature: ["بيت"],
   used_new: ["شغل"],
 };
@@ -284,11 +298,58 @@ Deno.test("generate-daily-story saves the story it generated", async () => {
   assertEquals(saved.user_id, USER);
   assertEquals(saved.dialect, "Yemeni");
   assertEquals(saved.title, "يوم في السوق");
-  assertEquals(saved.body_arabic, "كَانَ البَيْت هَادِئًا");
-  assertEquals(saved.body_transliteration, "kaan al-bayt haadi'an");
-  assertEquals(saved.body_english_literal, "was the-house quiet");
+  assertEquals(saved.body_arabic, story.body_arabic);
+  assertEquals(saved.body_transliteration, story.body_transliteration);
+  assertEquals(saved.body_english_literal, story.body_english_literal);
   assertEquals(saved.vocab_used, ["بيت"]);
   assertEquals(saved.new_words, ["شغل"]);
+});
+
+Deno.test("generate-daily-story saves the story's sentence split", async () => {
+  // The story is read one sentence to a card. The page can split the Arabic on
+  // punctuation by itself, but only the model can say which English belongs to
+  // which line, so the split is stored rather than re-derived.
+  const result = await call({}, backend());
+
+  assertEquals(savedRow(result).sentences, story.sentences);
+});
+
+Deno.test("generate-daily-story asks the model to split the story up", async () => {
+  const result = await call({}, backend());
+
+  assertStringIncludes(gatewayPrompt(result), "split the story into its sentences");
+});
+
+Deno.test("generate-daily-story stores no split when the model left one out", async () => {
+  // A split that does not account for the whole body would show the learner a
+  // shortened story with nothing to say a sentence went missing. Dropping it
+  // costs only the per-sentence translations — the page still splits the body.
+  const result = await call(
+    {},
+    backend({ extra: emitting({ ...story, sentences: [story.sentences[0]] }) }),
+  );
+
+  assertEquals(savedRow(result).sentences, null);
+});
+
+Deno.test("generate-daily-story drops a sentence that has no Arabic", async () => {
+  const result = await call(
+    {},
+    backend({
+      extra: emitting({
+        ...story,
+        sentences: [...story.sentences, { arabic: "  ", english: "Nothing to read." }],
+      }),
+    }),
+  );
+
+  assertEquals(savedRow(result).sentences, story.sentences);
+});
+
+Deno.test("generate-daily-story stores a missing split as null", async () => {
+  const result = await call({}, backend({ extra: emitting({ ...story, sentences: [] }) }));
+
+  assertEquals(savedRow(result).sentences, null);
 });
 
 Deno.test("generate-daily-story upserts on the three-part cache key", async () => {

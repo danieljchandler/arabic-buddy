@@ -70,7 +70,7 @@ test.describe("reading the news", () => {
     await page.goto("/souq-news");
     await expect(page.getByRole("heading", { name: "السوق اليوم" })).toBeVisible();
 
-    // The per-sentence gloss has its own reveal inside ArticleSentences; this
+    // The per-sentence gloss has its own reveal inside SentenceReader; this
     // is the article-level headline and summary, which start collapsed.
     await expect(page.getByText("Vegetable prices fell today.")).toHaveCount(0);
     await page.getByRole("button", { name: /show english/i }).click();

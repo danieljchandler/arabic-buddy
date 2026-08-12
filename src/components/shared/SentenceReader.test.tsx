@@ -1,16 +1,17 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ArticleSentences } from "./ArticleSentences";
+import { SentenceReader } from "./SentenceReader";
 
 /**
- * The body of a Souq News article, one sentence to a card.
+ * A body of Arabic — a Souq News article, Today's Story — one sentence to a
+ * card.
  *
- * News is the hardest thing a learner reads, so the article is broken up rather
- * than presented as a block: one line at a time, the English hidden behind a
- * tap so the eye cannot cheat, and every word tappable for a gloss. When the
- * generator returns per-sentence pairs the split is authored; when it does not,
- * the component falls back to splitting the Arabic on punctuation, which gives
- * the same shape with no translations to reveal.
+ * News and a 200-word story are the hardest things a learner reads, so the body
+ * is broken up rather than presented as a block: one line at a time, the
+ * English hidden behind a tap so the eye cannot cheat, and every word tappable
+ * for a gloss. When the generator returns per-sentence pairs the split is
+ * authored; when it does not, the component falls back to splitting the Arabic
+ * on punctuation, which gives the same shape with no translations to reveal.
  *
  * The three children are covered by their own files and stood in for here, so
  * what stays visible is the splitting, the reveal state, and — the part that
@@ -72,26 +73,32 @@ afterEach(() => {
 const BODY = "أعلنت قطر عن خط سكة حديد جديد. بدأ العمل أمس. ينتهي في ٢٠٣٠؟ نعم!";
 
 interface Options {
-  bodyDialect?: string;
+  body?: string;
   sentences?: {
     arabic: string;
     transliteration?: string;
-    english: string;
+    english?: string;
     literal?: string;
   }[];
   vocabulary?: { word_arabic: string; word_english: string }[];
+  source?: string;
+  revealByDefault?: boolean;
 }
 
 function renderArticle({
-  bodyDialect = BODY,
+  body = BODY,
   sentences,
   vocabulary,
+  source = "souq-news",
+  revealByDefault,
 }: Options = {}) {
   return render(
-    <ArticleSentences
-      bodyDialect={bodyDialect}
+    <SentenceReader
+      body={body}
       sentences={sentences}
       vocabulary={vocabulary}
+      source={source}
+      revealByDefault={revealByDefault}
     />,
   );
 }
@@ -101,7 +108,7 @@ const authored = [
   { arabic: "بدأ العمل أمس.", english: "Work began yesterday." },
 ];
 
-describe("ArticleSentences — splitting the article up", () => {
+describe("SentenceReader — splitting the article up", () => {
   it("uses the authored sentences when the generator supplied them", () => {
     renderArticle({ sentences: authored });
     expect(screen.getAllByTestId("arabic").map((el) => el.textContent)).toEqual([
@@ -118,7 +125,7 @@ describe("ArticleSentences — splitting the article up", () => {
   it("recognises the Arabic question mark as an ending", () => {
     // ؟ is a different code point from ?, and an Arabic article uses it — a
     // splitter that only knew the Latin one would run two sentences together.
-    renderArticle({ bodyDialect: "سؤال؟ جواب." });
+    renderArticle({ body: "سؤال؟ جواب." });
     expect(screen.getAllByTestId("arabic").map((el) => el.textContent)).toEqual([
       "سؤال؟",
       "جواب.",
@@ -126,22 +133,22 @@ describe("ArticleSentences — splitting the article up", () => {
   });
 
   it("splits on line breaks as well as punctuation", () => {
-    renderArticle({ bodyDialect: "سطر أول\nسطر ثاني" });
+    renderArticle({ body: "سطر أول\nسطر ثاني" });
     expect(screen.getAllByTestId("arabic")).toHaveLength(2);
   });
 
   it("keeps a body with no punctuation as one line", () => {
-    renderArticle({ bodyDialect: "جملة بدون علامات" });
+    renderArticle({ body: "جملة بدون علامات" });
     expect(screen.getAllByTestId("arabic")).toHaveLength(1);
   });
 
   it("drops the empty pieces a trailing full stop leaves behind", () => {
-    renderArticle({ bodyDialect: "جملة." });
+    renderArticle({ body: "جملة." });
     expect(screen.getAllByTestId("arabic")).toHaveLength(1);
   });
 
   it("renders nothing but the hint for an empty body", () => {
-    renderArticle({ bodyDialect: "" });
+    renderArticle({ body: "" });
     expect(screen.queryAllByTestId("arabic")).toEqual([]);
     expect(screen.getByText(/Tap any word for translation/)).toBeInTheDocument();
   });
@@ -157,7 +164,7 @@ describe("ArticleSentences — splitting the article up", () => {
   });
 });
 
-describe("ArticleSentences — revealing the English", () => {
+describe("SentenceReader — revealing the English", () => {
   it("starts with every translation hidden", () => {
     renderArticle({ sentences: authored });
     expect(screen.getAllByText("Reveal translation")).toHaveLength(2);
@@ -187,6 +194,27 @@ describe("ArticleSentences — revealing the English", () => {
     expect(screen.queryByText("Reveal translation")).not.toBeInTheDocument();
   });
 
+  it("offers the reveal on a line that has only a literal gloss", () => {
+    // A gloss without a natural translation is still something to reveal, and
+    // gating on the English alone hid it behind a control that never appeared.
+    renderArticle({ sentences: [{ arabic: "جملة.", literal: "sentence" }] });
+    expect(screen.getByText("Reveal translation")).toBeInTheDocument();
+  });
+
+  it("starts every line open when the learner reads with English on", () => {
+    // The display preference is "show me the English"; making them tap each
+    // line to get back to the setting they already chose is the wrong default.
+    renderArticle({ sentences: authored, revealByDefault: true });
+    expect(screen.getAllByText("Hide translation")).toHaveLength(2);
+  });
+
+  it("still lets a line be closed when English is on by default", () => {
+    renderArticle({ sentences: authored, revealByDefault: true });
+    fireEvent.click(screen.getAllByText("Hide translation")[0]);
+    expect(screen.getByText("Reveal translation")).toBeInTheDocument();
+    expect(screen.getAllByText("Hide translation")).toHaveLength(1);
+  });
+
   it("passes the literal gloss to the translation pair", () => {
     renderArticle({
       sentences: [{ ...authored[0], literal: "announced Qatar about line rail iron new" }],
@@ -208,8 +236,9 @@ describe("ArticleSentences — revealing the English", () => {
     expect(screen.getByText("Hide translation")).toBeInTheDocument();
 
     rerender(
-      <ArticleSentences
-        bodyDialect={BODY}
+      <SentenceReader
+        body={BODY}
+        source="souq-news"
         sentences={[
           { arabic: "خبر جديد أول.", english: "A different first line." },
           { arabic: "خبر جديد ثاني.", english: "A different second line." },
@@ -226,8 +255,9 @@ describe("ArticleSentences — revealing the English", () => {
     fireEvent.click(screen.getAllByText("Reveal translation")[1]);
 
     rerender(
-      <ArticleSentences
-        bodyDialect={BODY}
+      <SentenceReader
+        body={BODY}
+        source="souq-news"
         sentences={authored.map((s) => ({ ...s }))}
       />,
     );
@@ -235,17 +265,18 @@ describe("ArticleSentences — revealing the English", () => {
   });
 });
 
-describe("ArticleSentences — the word gloss", () => {
+describe("SentenceReader — the word gloss", () => {
   it("makes every line tappable", () => {
     renderArticle({ sentences: authored });
     expect(spies.tappable).toHaveLength(2);
   });
 
-  it("tags the lookups as coming from the news reader", () => {
+  it("tags the lookups with the surface the reader is on", () => {
     // The source is what lets a saved word be traced back to where it was met,
-    // which is most of the value of saving it.
-    renderArticle({ sentences: authored });
-    expect(spies.tappable[0].source).toBe("souq-news");
+    // which is most of the value of saving it. Two surfaces share this reader,
+    // so it cannot be hardcoded to either.
+    renderArticle({ sentences: authored, source: "daily-story" });
+    expect(spies.tappable[0].source).toBe("daily-story");
   });
 
   it("hands the article's own glossary down so known words resolve locally", () => {
@@ -280,7 +311,7 @@ describe("ArticleSentences — the word gloss", () => {
   });
 });
 
-describe("ArticleSentences — asking the AI about a line", () => {
+describe("SentenceReader — asking the AI about a line", () => {
   it("puts the chip on every line", () => {
     renderArticle({ sentences: authored });
     expect(screen.getAllByTestId("ask")).toHaveLength(2);

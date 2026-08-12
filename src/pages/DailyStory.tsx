@@ -1,12 +1,13 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Loader2, Sparkles, RefreshCw, ArrowLeft, Check } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { TappableArabicText } from "@/components/shared/TappableArabicText";
+import { SentenceReader } from "@/components/shared/SentenceReader";
 import { AskAISentence } from "@/components/shared/AskAISentence";
 import { TranslationPair } from "@/components/shared/TranslationPair";
+import { pairSentences, type ReaderSentence } from "@/lib/sentences";
 import { useAuth } from "@/hooks/useAuth";
 import { useDailyStory, useGenerateDailyStory } from "@/hooks/useDailyStory";
 import { useDisplayPrefs } from "@/hooks/useDisplayPrefs";
@@ -35,6 +36,29 @@ const DailyStoryPage = () => {
       markTaskCompletedToday("daily-story");
     }
   }, [story]);
+
+  /**
+   * The story, one sentence to a card.
+   *
+   * Newer stories carry an authored `sentences` array; the ones already in the
+   * table are four whole-paragraph columns, so they are split here and their
+   * translations lined up by position — which only happens when the counts
+   * agree (see `pairSentences`). Whatever that leaves unmatched still has the
+   * whole-story blocks below to fall back on.
+   */
+  const lines = useMemo<ReaderSentence[]>(() => {
+    if (!story) return [];
+    if (story.sentences && story.sentences.length > 0) return story.sentences;
+    return pairSentences({
+      arabic: story.body_arabic,
+      transliteration: story.body_transliteration,
+      english: story.body_english,
+      literal: story.body_english_literal,
+    });
+  }, [story]);
+
+  const perSentenceEnglish = lines.some((l) => l.english || l.literal);
+  const perSentenceTransliteration = lines.some((l) => l.transliteration);
 
   if (authLoading) {
     return (
@@ -129,29 +153,33 @@ const DailyStoryPage = () => {
               </div>
             </header>
 
-            <div dir="rtl" className="text-right leading-loose text-lg">
-              <TappableArabicText
-                text={story.body_arabic}
-                source="daily-story"
-                sentenceContext={{ arabic: story.body_arabic, english: story.body_english ?? undefined }}
-              />
-            </div>
+            <SentenceReader
+              body={story.body_arabic}
+              sentences={lines}
+              source="daily-story"
+              revealByDefault={showEnglish}
+              arabicClassName="text-lg"
+            />
 
-            {story.body_transliteration && (
+            {/* Whole-story fallbacks: only for a story whose paragraphs could
+                not be lined up sentence by sentence, so nothing is lost. */}
+            {!perSentenceTransliteration && story.body_transliteration && (
               <p className="text-sm text-muted-foreground italic">
                 {story.body_transliteration}
               </p>
             )}
 
-            <div className="flex justify-start">
-              <AskAISentence
-                arabic={story.body_arabic}
-                english={story.body_english ?? undefined}
-                variant="chip"
-              />
-            </div>
+            {!perSentenceEnglish && (
+              <div className="flex justify-start">
+                <AskAISentence
+                  arabic={story.body_arabic}
+                  english={story.body_english ?? undefined}
+                  variant="chip"
+                />
+              </div>
+            )}
 
-            {showEnglish && story.body_english && (
+            {!perSentenceEnglish && showEnglish && story.body_english && (
               <div className="border-t border-border pt-3">
                 <TranslationPair
                   variant="compact"

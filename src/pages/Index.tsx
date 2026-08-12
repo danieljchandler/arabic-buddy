@@ -211,12 +211,6 @@ const Index = () => {
         </div>
       </div>
 
-      {/* Today's video — first thing on the page. Watching native video is the
-          core of the app, and this used to sit at the very bottom under the
-          whole daily queue, which meant scrolling past everything else to reach
-          it. It shows on every dialect (see useTodaysVideo). */}
-      {isAuthenticated && <WatchTodayCard done={videoTask?.done} />}
-
       {/* A — Majlis welcome panel */}
       <MajlisWelcome />
 
@@ -324,11 +318,16 @@ const Index = () => {
                 </div>
               </div>
 
+              {/* Today's video — sits just below the daily goals and above the
+                  task queue / flashcard review. Watching native video is the
+                  core of the app; it used to lead the page, but now follows the
+                  goals so learners see their target first. */}
+              {isAuthenticated && <WatchTodayCard done={videoTask?.done} />}
+
               {/* Every row left in the queue marks itself complete on its own
                   real completion event, so opening one is a plain navigation —
                   marking on click would let a learner clear the day by tapping
-                  through it. (Today's video is the exception, and it lives in
-                  the card at the top of the page.) */}
+                  through it. */}
               <div className="space-y-3">
                 {queueRows.map((task) => (
                   <TaskRow

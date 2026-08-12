@@ -44,9 +44,9 @@ export function AskAiFab({ className }: { className?: string }) {
       data-feedback-ignore="true"
       onClick={() => openChat()}
       className={cn(
-        "fixed right-3 bottom-32 z-40 flex h-10 w-10 items-center justify-center rounded-full",
+        "fixed left-3 bottom-32 z-40 flex h-10 w-10 items-center justify-center rounded-full",
         "bg-primary text-primary-foreground shadow-lg transition-transform hover:scale-105",
-        "md:bottom-[4.5rem] md:right-6",
+        "md:bottom-[4.5rem] md:left-6",
         className,
       )}
     >

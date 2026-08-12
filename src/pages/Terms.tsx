@@ -63,6 +63,23 @@ const Terms = () => {
           flashcards). We won't sell your content.
         </p>
 
+        <h2>Contributing practice recordings (optional)</h2>
+        <p>
+          In Settings you can choose to contribute your pronunciation practice
+          recordings. This is <strong>off by default</strong>. If you turn it on, we
+          keep the audio clips you record during pronunciation practice, together
+          with the phrase you were practising and the score you received, and we may
+          use them to improve Arabic speech recognition and the learning features in
+          Hakiya — including training or fine-tuning speech and language models.
+        </p>
+        <p>
+          Contributed recordings are stored privately, are never published or shared
+          as identifiable audio, and are kept separate from your name and email in
+          our training data. You can turn contribution off at any time in Settings —
+          new recordings stop being kept immediately. To have previously contributed
+          recordings deleted, contact us and we will remove them.
+        </p>
+
         <h2>AI-generated content</h2>
         <p>
           Hakiya uses AI models to generate translations, explanations, images, audio,

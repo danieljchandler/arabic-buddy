@@ -34,6 +34,10 @@ export const COLUMNS_MISSING_FROM_TYPES: DriftedColumn[] = [
   // for user_vocabulary and user_phrases but not for word_reviews.
   { table: "word_reviews", column: "difficulty", migration: "20260304000000_fsrs_difficulty" },
 
+  // The learner-audio contribution consent flag (flywheel W5). Settings reads
+  // and writes it; the scoring functions read it server-side.
+  { table: "profiles", column: "contribute_audio", migration: "20260812140000_flywheel_learner_loop" },
+
   // The lesson-content columns the curriculum builder writes.
   ...[
     "unlock_condition",

@@ -98,6 +98,7 @@ const Settings = () => {
   const [level, setLevel] = useState('beginner');
   const [goal, setGoal] = useState('regular');
   const [showOnLeaderboard, setShowOnLeaderboard] = useState(true);
+  const [contributeAudio, setContributeAudio] = useState(false);
   // Purpose + topics. Both feed the server-side learner profile that content
   // generators read, so editing them here changes what gets generated next.
   const [reason, setReason] = useState<string | null>(null);
@@ -123,7 +124,7 @@ const Settings = () => {
     const load = async () => {
       const { data } = await supabase
         .from('profiles' as any)
-        .select('display_name, avatar_url, preferred_dialect, proficiency_level, weekly_goal, show_on_leaderboard, learning_reason, interests')
+        .select('display_name, avatar_url, preferred_dialect, proficiency_level, weekly_goal, show_on_leaderboard, learning_reason, interests, contribute_audio')
         .eq('user_id', user.id)
         .maybeSingle();
 
@@ -135,6 +136,7 @@ const Settings = () => {
         setLevel(p.proficiency_level || 'beginner');
         setGoal(p.weekly_goal || 'regular');
         setShowOnLeaderboard(p.show_on_leaderboard ?? true);
+        setContributeAudio(p.contribute_audio === true);
         setReason(reasonIdFromLabel(p.learning_reason));
         setInterests(Array.isArray(p.interests) ? p.interests : []);
       }
@@ -198,6 +200,7 @@ const Settings = () => {
           proficiency_level: level,
           weekly_goal: goal,
           show_on_leaderboard: showOnLeaderboard,
+          contribute_audio: contributeAudio,
           learning_reason: reasonLabel(reason),
           interests,
         } as any)
@@ -505,6 +508,17 @@ const Settings = () => {
                 </p>
               </div>
               <Switch checked={leechEnabled} onCheckedChange={setLeechEnabled} />
+            </div>
+            <div className="flex items-center justify-between p-3 rounded-xl bg-card border border-border">
+              <div className="min-w-0 pr-3">
+                <p className="font-medium text-foreground text-sm">Contribute my practice recordings</p>
+                <p className="text-xs text-muted-foreground">
+                  Keep my pronunciation clips (with the phrase I was saying and my score) to help
+                  improve Arabic speech recognition. Off by default; stored privately, never
+                  published, and you can turn this off anytime — see the Terms for details.
+                </p>
+              </div>
+              <Switch checked={contributeAudio} onCheckedChange={setContributeAudio} />
             </div>
             <Button
               variant="outline"

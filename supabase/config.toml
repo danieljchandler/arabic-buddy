@@ -171,3 +171,9 @@ verify_jwt = true
 # overwrites them. Role-gated inside (admin / content_reviewer only).
 [functions.record-transcript-corrections]
 verify_jwt = true
+
+# Learner reports (thumbs-down, "this looks wrong") into the native-review
+# queue. Capped per day; reports only become training data after a native
+# speaker corrects them.
+[functions.report-content]
+verify_jwt = true

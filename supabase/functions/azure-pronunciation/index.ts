@@ -51,6 +51,7 @@
 import { enforceDailyCap } from "../_shared/usageCap.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { recordLearnerErrors, resolveLearnerErrors } from "../_shared/learnerErrors.ts";
+import { contributeLearnerAudio } from "../_shared/learnerAudioContribution.ts";
 
 
 const AZURE_SPEECH_KEY = Deno.env.get('AZURE_SPEECH_KEY') ?? '';
@@ -367,6 +368,20 @@ Deno.serve(async (req: Request) => {
       const spoken = result.words.map((w) => w.word).filter(Boolean);
       void resolveLearnerErrors(cap.userId, spoken, localeToDialect(locale));
     }
+
+    // Opt-in audio contribution (profiles.contribute_audio, off by default):
+    // the clip, the target text, what Azure heard, and the score — the
+    // flywheel's W5 lane. Fire-and-forget; the module checks consent itself.
+    contributeLearnerAudio({
+      userId: cap.userId,
+      dialect: localeToDialect(locale),
+      audioBytes,
+      mimeType: baseMime,
+      referenceText,
+      recognizedText: typeof nbest.Display === 'string' ? nbest.Display : null,
+      score: typeof result.overall === 'number' ? result.overall : null,
+      sourceFunction: 'azure-pronunciation',
+    });
 
     return new Response(JSON.stringify(result), {
       status: 200,

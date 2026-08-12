@@ -1,4 +1,4 @@
-import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { assert, assertEquals, assertStringIncludes } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { fixtureJwt, loadSharedModule, stubUpstreams, type StubbedUpstreams } from "./harness.ts";
 import { json } from "./upstreams.ts";
 
@@ -1085,4 +1085,121 @@ Deno.test("a repair pair is silent when the service role is missing", async () =
     },
     { SUPABASE_SERVICE_ROLE_KEY: undefined },
   );
+});
+
+// ── contributeLearnerAudio (learnerAudioContribution) ───────────────────────
+// W5: opt-in retention of a learner's scored clips. The consent flag is read
+// fresh per contribution, and everything is silent — a scoring response never
+// waits on this bookkeeping.
+
+interface LearnerAudioModule {
+  contributeLearnerAudio: (args: {
+    userId: string;
+    dialect: string;
+    audioBytes: Uint8Array;
+    mimeType: string;
+    referenceText: string;
+    recognizedText: string | null;
+    score: number | null;
+    sourceFunction: string;
+  }) => void;
+}
+
+const CLIP = new Uint8Array([1, 2, 3, 4]);
+
+function contributionArgs(over: Record<string, unknown> = {}) {
+  return {
+    userId: USER_ID,
+    dialect: "Yemeni",
+    audioBytes: CLIP,
+    mimeType: "audio/webm",
+    referenceText: "ايش تبغى ذحين؟",
+    recognizedText: "ايش تبا ذحين",
+    score: 82,
+    sourceFunction: "azure-pronunciation",
+    ...over,
+  } as Parameters<LearnerAudioModule["contributeLearnerAudio"]>[0];
+}
+
+async function withLearnerAudio(
+  optedIn: boolean,
+  run: (mod: LearnerAudioModule, up: StubbedUpstreams) => Promise<void>,
+): Promise<void> {
+  const up = stubUpstreams({
+    upstreams: {
+      "/rest/v1/profiles": () => json({ contribute_audio: optedIn }),
+      "/storage/v1/object/learner-audio": () => json({ Key: "stored" }),
+      "/rest/v1/training_examples": () => json({}, 201),
+    },
+  });
+  try {
+    await run(await loadSharedModule<LearnerAudioModule>("learnerAudioContribution"), up);
+  } finally {
+    up.restore();
+  }
+}
+
+Deno.test("an opted-in learner's clip is stored and banked with its target text", async () => {
+  await withLearnerAudio(true, async (mod, up) => {
+    mod.contributeLearnerAudio(contributionArgs());
+
+    const [upload] = await waitForCall(up, "/storage/v1/object/learner-audio");
+    // Keyed {user_id}/{uuid}.webm so a deletion request is one prefix removal.
+    assertStringIncludes(upload.url, `learner-audio/${USER_ID}/`);
+    assertStringIncludes(upload.url, ".webm");
+
+    const [insert] = await waitForCall(up, "training_examples");
+    const [row] = bodyOf(insert);
+    assertEquals(row.task_type, "pronunciation");
+    assertEquals(row.human_output, "ايش تبغى ذحين؟");
+    assertEquals(row.machine_output, "ايش تبا ذحين");
+    assertEquals(row.corrector_role, "learner");
+    assertEquals(row.source_license, "learner_contributed");
+    assertEquals(row.pii_reviewed, false);
+    assertEquals(row.context.score, 82);
+  });
+});
+
+Deno.test("without consent, nothing is stored — not even the metadata row", async () => {
+  await withLearnerAudio(false, async (mod, up) => {
+    mod.contributeLearnerAudio(contributionArgs());
+
+    await settle();
+    assertEquals(up.callsTo("learner-audio").length, 0);
+    assertEquals(up.callsTo("training_examples").length, 0);
+  });
+});
+
+Deno.test("an oversized clip is dropped rather than stored", async () => {
+  await withLearnerAudio(true, async (mod, up) => {
+    mod.contributeLearnerAudio(
+      contributionArgs({ audioBytes: new Uint8Array(3 * 1024 * 1024) }),
+    );
+
+    await settle();
+    // Two megabytes bounds a single practice utterance; beyond that it is not
+    // one — and the storage bill is real.
+    assertEquals(up.callsTo("learner-audio").length, 0);
+  });
+});
+
+Deno.test("a failed upload never writes a dangling metadata row", async () => {
+  const up = stubUpstreams({
+    upstreams: {
+      "/rest/v1/profiles": () => json({ contribute_audio: true }),
+      "/storage/v1/object/learner-audio": () => json({ error: "bucket full" }, 500),
+      "/rest/v1/training_examples": () => json({}, 201),
+    },
+  });
+  try {
+    const mod = await loadSharedModule<LearnerAudioModule>("learnerAudioContribution");
+    mod.contributeLearnerAudio(contributionArgs());
+
+    await waitForCall(up, "/storage/v1/object/learner-audio");
+    await settle();
+    // A training row pointing at audio that never landed poisons the export.
+    assertEquals(up.callsTo("training_examples").length, 0);
+  } finally {
+    up.restore();
+  }
 });

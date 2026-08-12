@@ -4509,6 +4509,7 @@ export type Database = {
         Row: {
           correct_count: number
           created_at: string
+          difficulty: number
           ease_factor: number
           id: string
           interval_days: number
@@ -4535,6 +4536,7 @@ export type Database = {
         Insert: {
           correct_count?: number
           created_at?: string
+          difficulty?: number
           ease_factor?: number
           id?: string
           interval_days?: number
@@ -4561,6 +4563,7 @@ export type Database = {
         Update: {
           correct_count?: number
           created_at?: string
+          difficulty?: number
           ease_factor?: number
           id?: string
           interval_days?: number

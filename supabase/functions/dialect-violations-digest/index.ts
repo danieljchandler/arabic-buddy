@@ -97,12 +97,51 @@ Deno.serve(async (req) => {
       resolved: r.resolved,
     }));
 
+    // The flywheel's weekly pulse: corrections banked in the window, by tier
+    // and dialect, plus minutes of gold audio accumulated. Failure here
+    // degrades to an absent section, never a failed digest.
+    let flywheel: Record<string, unknown> | null = null;
+    try {
+      const { data: teRows } = await admin
+        .from('training_examples')
+        .select('dialect, tier, task_type, audio_start_ms, audio_end_ms, audio_path')
+        .gte('created_at', since)
+        .limit(5000);
+      const te = (teRows ?? []) as Array<{
+        dialect: string;
+        tier: string;
+        task_type: string;
+        audio_start_ms: number | null;
+        audio_end_ms: number | null;
+        audio_path: string | null;
+      }>;
+      const byTier: Record<string, number> = {};
+      const goldAudioMsByDialect: Record<string, number> = {};
+      for (const r of te) {
+        byTier[r.tier] = (byTier[r.tier] ?? 0) + 1;
+        if (r.tier === 'gold' && r.audio_path && r.audio_start_ms != null && r.audio_end_ms != null) {
+          goldAudioMsByDialect[r.dialect] =
+            (goldAudioMsByDialect[r.dialect] ?? 0) + Math.max(0, r.audio_end_ms - r.audio_start_ms);
+        }
+      }
+      flywheel = {
+        examples: te.length,
+        byTier,
+        goldAudioMinutesByDialect: Object.fromEntries(
+          Object.entries(goldAudioMsByDialect).map(([d, ms]) => [d, Math.round(ms / 60_000)]),
+        ),
+      };
+    } catch (e) {
+      console.warn('[dialect-violations-digest] flywheel section failed:', e);
+    }
+
     return json({
       windowDays: days,
       totals: { all: all.length, byDialect },
       topTokens,
       topFunctions,
       samples,
+      flywheel,
     });
   } catch (err) {
     console.error('[dialect-violations-digest] error', err);

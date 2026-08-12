@@ -36,7 +36,7 @@ const schema = loadSchema();
  * separating paid from free on every AI endpoint. It is not even in the
  * generated types.
  */
-const UNTRACKED_TABLES = new Set(["subscribers", "processed_videos", "review_streaks"]);
+const UNTRACKED_TABLES = new Set(["processed_videos", "review_streaks"]);
 
 /**
  * Tables that migrations create but the generated types omit.
@@ -49,7 +49,24 @@ const UNTRACKED_TABLES = new Set(["subscribers", "processed_videos", "review_str
  * Listed so the check does not report them as missing while still failing on a
  * table that is genuinely absent.
  */
-const SERVICE_ROLE_ONLY_TABLES = new Set(["fanar_usage", "llm_usage_logs"]);
+const SERVICE_ROLE_ONLY_TABLES = new Set([
+  "fanar_usage",
+  "llm_usage_logs",
+  "voice_usage",
+  // Promoted out of UNTRACKED_TABLES when 20260812103000 finally gave it a
+  // migration — the "rebuilt database makes everyone look free-tier" debt.
+  "subscribers",
+  // The training-data flywheel's canonical store: written by edge functions
+  // and a DB trigger, read by admins and the export script.
+  "training_examples",
+  // The semantic index (pgvector). Guarded migration — absent entirely on a
+  // database without the extension — and reached only through edge functions.
+  "content_embeddings",
+  // Referrals (D4): codes and redemptions are written by the referral
+  // function and read by the payments functions, all under the service role.
+  "referral_codes",
+  "referral_redemptions",
+]);
 
 describe("tables", () => {
   it("finds the queries to check", () => {
@@ -94,7 +111,7 @@ describe("tables", () => {
       (table) => inventory.tables.has(table) || schema.tables.has(table),
     );
 
-    expect(referenced.sort()).toEqual(["processed_videos", "review_streaks", "subscribers"]);
+    expect(referenced.sort()).toEqual(["processed_videos", "review_streaks"]);
   });
 });
 

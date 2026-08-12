@@ -46,6 +46,8 @@ type RealtimeEvent = Record<string, unknown>;
 interface ClientSecretResponse {
   value?: string;
   client_secret?: string | { value?: string };
+  /** Monthly minute budget, in seconds. null = unmetered (admins). */
+  voice_remaining_seconds?: number | null;
 }
 
 const CLIENT_MSA_TOKENS: Record<string, string[]> = {
@@ -72,6 +74,9 @@ export function useOpenAIRealtime(opts: Options = {}) {
   const [error, setError] = useState<string | null>(null);
   const [turns, setTurns] = useState<InternalLiveTurn[]>([]);
   const [muted, setMuted] = useState(false);
+  // Seconds left in the monthly voice budget, from the server. null until a
+  // call has been attempted, and null for unmetered (admin) accounts.
+  const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null);
 
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const dcRef = useRef<RTCDataChannel | null>(null);
@@ -81,6 +86,10 @@ export function useOpenAIRealtime(opts: Options = {}) {
   const audioCtxRef = useRef<AudioContext | null>(null);
   const dialectRef = useRef<string>("Gulf");
   const endingRef = useRef(false);
+  const modeRef = useRef<"practice" | "assistant">("practice");
+  // Set when the data channel opens; consumed (and cleared) by reportUsage so
+  // a call is billed exactly once, and never billed if it failed to go live.
+  const liveSinceRef = useRef<number | null>(null);
 
   // Buffers per item_id so deltas concat cleanly.
   const userBufRef = useRef<Map<string, string>>(new Map());
@@ -126,7 +135,45 @@ export function useOpenAIRealtime(opts: Options = {}) {
     }
   }, [opts]);
 
+  // Report the finished call's duration so the server can meter monthly voice
+  // minutes. Fire-and-forget with keepalive: this often runs during teardown
+  // (panel closed, navigation away) and must not block it — and losing a
+  // report costs the app one usage row, not the learner their session.
+  const reportUsage = useCallback(() => {
+    const startedAt = liveSinceRef.current;
+    liveSinceRef.current = null;
+    if (startedAt == null) return;
+    const seconds = Math.round((Date.now() - startedAt) / 1000);
+    if (seconds < 1) return;
+    const mode = modeRef.current;
+    void (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+        const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/realtime-session-token`, {
+          method: "POST",
+          keepalive: true,
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ action: "report", mode, seconds }),
+        });
+        if (resp.ok) {
+          const payload = (await resp.json().catch(() => null)) as ClientSecretResponse | null;
+          if (payload && typeof payload.voice_remaining_seconds === "number") {
+            setRemainingSeconds(payload.voice_remaining_seconds);
+          }
+        }
+      } catch {
+        /* usage reporting must never break teardown */
+      }
+    })();
+  }, []);
+
   const cleanup = useCallback(() => {
+    reportUsage();
     try { dcRef.current?.close(); } catch { /* noop */ }
     dcRef.current = null;
     try { pcRef.current?.getSenders().forEach((s) => s.track?.stop()); } catch { /* noop */ }
@@ -149,7 +196,7 @@ export function useOpenAIRealtime(opts: Options = {}) {
     micSenderRef.current = null;
     userBufRef.current.clear();
     assistantBufRef.current.clear();
-  }, []);
+  }, [reportUsage]);
 
   const stop = useCallback(() => {
     endingRef.current = true;
@@ -215,6 +262,7 @@ export function useOpenAIRealtime(opts: Options = {}) {
   const start = useCallback(async ({ dialect, difficulty, topicHint, mode, context }: StartArgs) => {
     if (status === "connecting" || status === "live") return;
     dialectRef.current = dialect || "Gulf";
+    modeRef.current = mode === "assistant" ? "assistant" : "practice";
     setError(null);
     setStatus("connecting");
     setTurns([]);
@@ -295,6 +343,7 @@ export function useOpenAIRealtime(opts: Options = {}) {
         }
       };
       dc.onopen = () => {
+        liveSinceRef.current = Date.now();
         setStatus("live");
       };
       dc.onerror = (e) => {
@@ -334,7 +383,11 @@ export function useOpenAIRealtime(opts: Options = {}) {
         } catch { /* noop */ }
         throw new Error(`Voice token failed (${tokenResp.status}): ${String(message).slice(0, 300)}`);
       }
-      const clientSecret = extractClientSecret(await tokenResp.json());
+      const tokenPayload = (await tokenResp.json()) as ClientSecretResponse;
+      if (typeof tokenPayload.voice_remaining_seconds === "number") {
+        setRemainingSeconds(tokenPayload.voice_remaining_seconds);
+      }
+      const clientSecret = extractClientSecret(tokenPayload);
       if (!clientSecret) {
         throw new Error("Voice token response was missing a client secret.");
       }
@@ -379,5 +432,5 @@ export function useOpenAIRealtime(opts: Options = {}) {
 
   useEffect(() => () => cleanup(), [cleanup]);
 
-  return { status, error, turns, muted, setMuted, start, stop };
+  return { status, error, turns, muted, setMuted, start, stop, remainingSeconds };
 }

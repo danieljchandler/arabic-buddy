@@ -9,10 +9,21 @@ const logStep = (step: string, details?: any) => {
   console.log(`[CREATE-CHECKOUT] ${step}${detailsStr}`);
 };
 
-// Price IDs for each tier
+// Price IDs for each tier, by billing cadence.
+//
+// Monthly IDs are live. Annual is enabled by creating yearly prices in the
+// Stripe dashboard — under the SAME two products, so check-subscription's
+// product→tier mapping keeps working — and setting the price IDs as edge
+// function secrets STRIPE_ANNUAL_PRICE_STANDARD / STRIPE_ANNUAL_PRICE_ALLIN.
+// Until both are set, annual requests answer 400 and the pricing page keeps
+// its toggle hidden (ANNUAL_BILLING_AVAILABLE in src/hooks/useSubscription.ts).
 const PRICE_IDS = {
   standard: "price_1T8t8sHVAO3F9uuDOpwSh2zQ",
   allin: "price_1T8t9QHVAO3F9uuDvaRVzEg4",
+};
+const ANNUAL_PRICE_IDS: Record<string, string | undefined> = {
+  standard: Deno.env.get("STRIPE_ANNUAL_PRICE_STANDARD") || undefined,
+  allin: Deno.env.get("STRIPE_ANNUAL_PRICE_ALLIN") || undefined,
 };
 
 serve(async (req) => {
@@ -29,12 +40,18 @@ serve(async (req) => {
   try {
     logStep("Function started");
 
-    const { tier } = await req.json();
+    const { tier, cadence } = await req.json();
     if (!tier || !PRICE_IDS[tier as keyof typeof PRICE_IDS]) {
       throw new Error(`Invalid tier: ${tier}. Must be 'standard' or 'allin'`);
     }
-    const priceId = PRICE_IDS[tier as keyof typeof PRICE_IDS];
-    logStep("Tier selected", { tier, priceId });
+    const billing = cadence === "annual" ? "annual" : "monthly";
+    const priceId = billing === "annual"
+      ? ANNUAL_PRICE_IDS[tier as keyof typeof PRICE_IDS]
+      : PRICE_IDS[tier as keyof typeof PRICE_IDS];
+    if (!priceId) {
+      throw new Error(`Annual billing is not configured for tier '${tier}'`);
+    }
+    logStep("Tier selected", { tier, billing, priceId });
 
     const authHeader = req.headers.get("Authorization")!;
     const token = authHeader.replace("Bearer ", "");
@@ -51,6 +68,35 @@ serve(async (req) => {
       logStep("Existing customer found", { customerId });
     }
 
+    // Referred learners get their first month via the env-configured coupon
+    // (create it in Stripe as "one month free" and set STRIPE_REFERRAL_COUPON).
+    // Only while the redemption is still pending — after they convert, the
+    // discount has been spent. Best-effort: a lookup failure means no
+    // discount, never a failed checkout.
+    let discounts: Array<{ coupon: string }> | undefined;
+    const referralCoupon = Deno.env.get("STRIPE_REFERRAL_COUPON");
+    if (referralCoupon) {
+      try {
+        const service = createClient(
+          Deno.env.get("SUPABASE_URL") ?? "",
+          Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+          { auth: { persistSession: false } },
+        );
+        const { data: redemption } = await service
+          .from("referral_redemptions")
+          .select("status")
+          .eq("referred_user_id", user.id)
+          .eq("status", "pending")
+          .maybeSingle();
+        if (redemption) {
+          discounts = [{ coupon: referralCoupon }];
+          logStep("Applying referral coupon", { coupon: referralCoupon });
+        }
+      } catch (e) {
+        logStep("Referral lookup failed", { message: e instanceof Error ? e.message : String(e) });
+      }
+    }
+
     const origin = req.headers.get("origin") || "https://laha-arabic.lovable.app";
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
@@ -62,6 +108,7 @@ serve(async (req) => {
         },
       ],
       mode: "subscription",
+      discounts,
       success_url: `${origin}/?checkout=success`,
       cancel_url: `${origin}/?checkout=cancelled`,
     });

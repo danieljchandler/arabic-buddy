@@ -166,3 +166,24 @@ verify_jwt = false
 # should be visible here as well as enforced in the function.
 [functions.record-grammar-outcome]
 verify_jwt = true
+
+# Captures transcript corrections into training_examples before the admin save
+# overwrites them. Role-gated inside (admin / content_reviewer only).
+[functions.record-transcript-corrections]
+verify_jwt = true
+
+# Learner reports (thumbs-down, "this looks wrong") into the native-review
+# queue. Capped per day; reports only become training data after a native
+# speaker corrects them.
+[functions.report-content]
+verify_jwt = true
+
+# Populates the semantic content index (pgvector). Admin-gated inside — each
+# run embeds a bounded slice; loop until it reports embedded: 0.
+[functions.embed-content]
+verify_jwt = true
+
+# Learner referral codes: get-or-create my code, redeem someone else's.
+# Rewards are Stripe-side, conversion-gated (see check-subscription).
+[functions.referral]
+verify_jwt = true

@@ -26,6 +26,7 @@ function subscriber(extra: Record<string, UpstreamHandler> = {}): Record<string,
     "/auth/v1/user": () => json({ id: USER, aud: "authenticated", role: "authenticated" }),
     "/rest/v1/subscribers": () => json({ subscribed: true, subscription_end: null }),
     "/rest/v1/user_roles": () => json(null),
+    "/rest/v1/voice_usage": () => json([]),
     "/rest/v1/rpc/increment_usage_counter": () => json(1),
     "/rest/v1/dialect_prompts": () => json([]),
     "/rest/v1/dialect_rules": () => json([]),
@@ -84,6 +85,108 @@ async function call(
     fn.restore();
   }
 }
+
+// ── realtime-session-token: the minute meter ────────────────────────────────
+// Sessions were the wrong unit — a 30-second call and a two-hour call counted
+// the same while the upstream bills by the minute. The meter reads and writes
+// voice_usage through _shared/voiceBudget.ts; the arithmetic lives in
+// _shared/voiceBudgetCore.ts and is unit-tested from the Vitest suite.
+
+Deno.test("realtime-session-token includes the monthly balance with the token", async () => {
+  const { status, body } = await call(
+    "realtime-session-token",
+    { dialect: "Gulf" },
+    subscriber({ "api.openai.com": openai() }),
+  );
+
+  assertEquals(status, 200);
+  // Subscribed with no tier recorded fails open to the top tier: never newly
+  // block someone who pays because a column is stale.
+  assertEquals(body.voice_limit_seconds, 300 * 60);
+  assertEquals(body.voice_remaining_seconds, 300 * 60);
+});
+
+Deno.test("realtime-session-token refuses to mint once the month's minutes are spent", async () => {
+  const { status, body, calls } = await call(
+    "realtime-session-token",
+    { dialect: "Gulf" },
+    subscriber({
+      "api.openai.com": openai(),
+      "/rest/v1/subscribers": () =>
+        json({ subscribed: true, subscription_end: null, subscription_tier: "standard" }),
+      "/rest/v1/voice_usage": () => json([{ seconds: 7000 }, { seconds: 300 }]),
+    }),
+  );
+
+  // 7300s used ≥ the standard tier's 7200s: no token, and — the actual point —
+  // no client_secrets call upstream, because that is where the money goes.
+  assertEquals(status, 429);
+  assertEquals(body.error, "voice_minutes_exhausted");
+  assertEquals(body.upgrade_url, "/pricing");
+  assert(!calls.some((url) => url.includes("client_secrets")));
+});
+
+Deno.test("realtime-session-token meters free practice callers too", async () => {
+  const { status, body } = await call(
+    "realtime-session-token",
+    { dialect: "Gulf" },
+    subscriber({
+      "api.openai.com": openai(),
+      "/rest/v1/subscribers": () => json(null),
+      "/rest/v1/voice_usage": () => json([{ seconds: 30 * 60 }]),
+    }),
+  );
+
+  // Free practice previously had a session cap but unbounded length — the one
+  // AI feature with uncapped spend on the free tier.
+  assertEquals(status, 429);
+  assertEquals(body.error, "voice_minutes_exhausted");
+});
+
+Deno.test("realtime-session-token records a reported call and answers with the balance", async () => {
+  const { status, body, calls, bodies } = await call(
+    "realtime-session-token",
+    { action: "report", mode: "practice", seconds: 95 },
+    subscriber({
+      "/rest/v1/subscribers": () => json(null),
+      "/rest/v1/voice_usage": () => json([{ seconds: 95 }]),
+    }),
+  );
+
+  assertEquals(status, 200);
+  assertEquals(body.ok, true);
+  const insert = calls.findIndex((url) => url.includes("voice_usage"));
+  assertStringIncludes(bodies[insert] ?? "", '"seconds":95');
+  assertStringIncludes(bodies[insert] ?? "", '"mode":"practice"');
+  // Free tier is 1800s; 95 used → 1705 left, for the "N min left" UI.
+  assertEquals(body.voice_limit_seconds, 1800);
+  assertEquals(body.voice_remaining_seconds, 1705);
+});
+
+Deno.test("realtime-session-token clamps a forged duration report", async () => {
+  const { status, calls, bodies } = await call(
+    "realtime-session-token",
+    { action: "report", mode: "assistant", seconds: 999_999 },
+    subscriber({ "/rest/v1/voice_usage": () => json([]) }),
+  );
+
+  assertEquals(status, 200);
+  const insert = calls.findIndex((url) => url.includes("voice_usage"));
+  // The client reports its own elapsed time, so the value is clamped, never
+  // trusted: a forged report costs its sender one two-hour call, not a month.
+  assertStringIncludes(bodies[insert] ?? "", '"seconds":7200');
+});
+
+Deno.test("realtime-session-token refuses an anonymous usage report", async () => {
+  const { status, body } = await call(
+    "realtime-session-token",
+    { action: "report", mode: "practice", seconds: 60 },
+    { "/auth/v1/user": () => json({}, 401) },
+  );
+
+  assertEquals(status, 401);
+  assertEquals(body.error, "auth_required");
+});
 
 // ── realtime-session-token ──────────────────────────────────────────────────
 

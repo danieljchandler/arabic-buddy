@@ -26,6 +26,9 @@ import {
   recordLearnerErrorsForRequest,
   resolveLearnerErrorsForRequest,
 } from "../_shared/learnerErrors.ts";
+import { contributeLearnerAudio } from "../_shared/learnerAudioContribution.ts";
+import { normalizeDialect } from "../_shared/transcriptDiffCore.ts";
+import { resolveUserId } from "../_shared/usageCap.ts";
 
 
 const MUNSIT_BASE = "https://api.munsit.com/api/v1";
@@ -244,6 +247,27 @@ serve(async (req) => {
         .filter((w): w is string => !!w);
       void resolveLearnerErrorsForRequest(req, matched, dialect);
     }
+
+    // Opt-in audio contribution (flywheel W5) — same lane as azure-pronunciation:
+    // the module checks profiles.contribute_audio itself; without consent this
+    // is a no-op. Shadowing clips are especially useful pairs because the
+    // reference is a native-audio transcript, not an isolated word.
+    try {
+      const contributedDialect = normalizeDialect(dialect);
+      const userId = await resolveUserId(req);
+      if (userId && contributedDialect) {
+        contributeLearnerAudio({
+          userId,
+          dialect: contributedDialect,
+          audioBytes: Uint8Array.from(atob(audioBase64), (c) => c.charCodeAt(0)),
+          mimeType: String(mimeType || "audio/wav").split(";")[0].trim(),
+          referenceText,
+          recognizedText,
+          score: Math.round(transcriptSimilarity * 100),
+          sourceFunction: "score-shadow-attempt",
+        });
+      }
+    } catch { /* contribution must never affect the score response */ }
 
     return new Response(
       JSON.stringify({ recognizedText, transcriptSimilarity, wordDiffs }),

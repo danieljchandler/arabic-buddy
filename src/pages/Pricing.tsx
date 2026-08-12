@@ -1,6 +1,12 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { useSubscription, SUBSCRIPTION_TIERS } from '@/hooks/useSubscription';
+import {
+  useSubscription,
+  ANNUAL_BILLING_AVAILABLE,
+  SUBSCRIPTION_TIERS,
+  type BillingCadence,
+} from '@/hooks/useSubscription';
 import { AppShell } from '@/components/layout/AppShell';
 import { HomeButton } from '@/components/HomeButton';
 import { Button } from '@/components/ui/button';
@@ -16,6 +22,11 @@ const Pricing = () => {
   const { toast } = useToast();
   const { user, loading: authLoading } = useAuth();
   const { subscribed, tier, loading: subLoading, createCheckout, openCustomerPortal } = useSubscription();
+  // Annual is the default when available: it is the plan most learners should
+  // take (two months free) and the one the business should lead with.
+  const [cadence, setCadence] = useState<BillingCadence>(
+    ANNUAL_BILLING_AVAILABLE ? 'annual' : 'monthly',
+  );
 
   const handleSubscribe = async (selectedTier: 'standard' | 'allin') => {
     if (!user) {
@@ -24,7 +35,7 @@ const Pricing = () => {
     }
 
     try {
-      await createCheckout(selectedTier);
+      await createCheckout(selectedTier, cadence);
     } catch (err) {
       toast({
         title: 'Error',
@@ -89,6 +100,26 @@ const Pricing = () => {
               </div>
             )}
 
+            {ANNUAL_BILLING_AVAILABLE && (
+              <div className="mb-6 flex items-center justify-center gap-2">
+                <Button
+                  variant={cadence === 'annual' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setCadence('annual')}
+                >
+                  Annual
+                  <Badge variant="secondary" className="ml-2">2 months free</Badge>
+                </Button>
+                <Button
+                  variant={cadence === 'monthly' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setCadence('monthly')}
+                >
+                  Monthly
+                </Button>
+              </div>
+            )}
+
             <div className="grid md:grid-cols-3 gap-6">
               {/* Free tier */}
               <Card className="border-border">
@@ -133,8 +164,20 @@ const Pricing = () => {
                   </div>
                   <CardDescription>For serious learners</CardDescription>
                   <div className="mt-4">
-                    <span className="text-3xl font-bold">${SUBSCRIPTION_TIERS.standard.price}</span>
-                    <span className="text-muted-foreground">/month</span>
+                    {cadence === 'annual' ? (
+                      <>
+                        <span className="text-3xl font-bold">${SUBSCRIPTION_TIERS.standard.annualPrice}</span>
+                        <span className="text-muted-foreground">/year</span>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          ${(SUBSCRIPTION_TIERS.standard.annualPrice / 12).toFixed(2)}/month, billed yearly
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-3xl font-bold">${SUBSCRIPTION_TIERS.standard.price}</span>
+                        <span className="text-muted-foreground">/month</span>
+                      </>
+                    )}
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -177,8 +220,20 @@ const Pricing = () => {
                   </div>
                   <CardDescription>Unlimited everything</CardDescription>
                   <div className="mt-4">
-                    <span className="text-3xl font-bold">${SUBSCRIPTION_TIERS.allin.price}</span>
-                    <span className="text-muted-foreground">/month</span>
+                    {cadence === 'annual' ? (
+                      <>
+                        <span className="text-3xl font-bold">${SUBSCRIPTION_TIERS.allin.annualPrice}</span>
+                        <span className="text-muted-foreground">/year</span>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          ${(SUBSCRIPTION_TIERS.allin.annualPrice / 12).toFixed(2)}/month, billed yearly
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-3xl font-bold">${SUBSCRIPTION_TIERS.allin.price}</span>
+                        <span className="text-muted-foreground">/month</span>
+                      </>
+                    )}
                   </div>
                 </CardHeader>
                 <CardContent>

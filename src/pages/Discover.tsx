@@ -17,6 +17,12 @@ import { PAGE_HINTS } from "@/lib/pageHints";
 import { useDialect } from "@/contexts/DialectContext";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserLevel } from "@/hooks/useUserLevel";
+import { useComprehensionMap } from "@/hooks/useComprehensionMap";
+import {
+  comprehensionBarClass,
+  comprehensionLabel,
+  type Comprehension,
+} from "@/lib/comprehension";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Select,
@@ -49,9 +55,11 @@ interface CardProps {
   video: DiscoverVideo;
   onClick: () => void;
   feed?: FeedItem;
+  /** Transcript-level coverage for the signed-in learner (browse tab). */
+  comprehension?: Comprehension;
 }
 
-function VideoCard({ video, onClick, feed }: CardProps) {
+function VideoCard({ video, onClick, feed, comprehension }: CardProps) {
   return (
     <button
       onClick={onClick}
@@ -101,6 +109,22 @@ function VideoCard({ video, onClick, feed }: CardProps) {
             </div>
           </div>
         )}
+        {/* Browse-tab coverage: measured over the WHOLE transcript against the
+            learner's real decks, unlike the feed bar's curated-vocab sample. */}
+        {comprehension && (
+          <div className="mb-2">
+            <div className="mb-0.5 flex items-center justify-between text-[10px] text-muted-foreground">
+              <span>{comprehensionLabel(comprehension.band)}</span>
+              <span>{Math.round(comprehension.coverage * 100)}% words you know</span>
+            </div>
+            <div className="h-1 w-full bg-muted rounded-full overflow-hidden">
+              <div
+                className={cn("h-full transition-all", comprehensionBarClass(comprehension.band))}
+                style={{ width: `${Math.max(6, Math.round(comprehension.coverage * 100))}%` }}
+              />
+            </div>
+          </div>
+        )}
         <div className="flex gap-1.5 flex-wrap">
           <Badge variant="outline" className="text-xs">{video.dialect}</Badge>
           <Badge variant="outline" className={cn("text-xs", difficultyColor(video.difficulty))}>
@@ -137,6 +161,22 @@ const Discover = () => {
     difficulty: difficulty === "All" ? undefined : difficulty,
     search: search || undefined,
   });
+
+  // Transcript-level coverage per video, from the decks already in cache.
+  // Empty until the learner has saved enough words for it to mean anything.
+  const comprehensionMap = useComprehensionMap(browseVideos);
+  const [justRightOnly, setJustRightOnly] = useState(false);
+  const shelfVideos = useMemo(() => {
+    if (!browseVideos) return browseVideos;
+    if (!justRightOnly || comprehensionMap.size === 0) return browseVideos;
+    // "Just right" = the comprehensible-input sweet spot and above: ≥70% of
+    // the transcript's words already known. Unmeasured videos (no transcript
+    // yet) are excluded rather than guessed at.
+    return browseVideos.filter((v) => {
+      const c = comprehensionMap.get(v.id);
+      return c !== undefined && c.band !== "challenge";
+    });
+  }, [browseVideos, justRightOnly, comprehensionMap]);
 
   const { data: feed, isLoading: isFeedLoading, isFetching: isFeedFetching } = useDiscoverFeed(seed);
 
@@ -248,28 +288,45 @@ const Discover = () => {
                 </SelectContent>
               </Select>
             </div>
+            {comprehensionMap.size > 0 && (
+              <Button
+                variant={justRightOnly ? "default" : "outline"}
+                size="sm"
+                onClick={() => setJustRightOnly((v) => !v)}
+                aria-pressed={justRightOnly}
+                className="gap-1.5"
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                Just right for me
+              </Button>
+            )}
           </div>
 
           {isBrowseLoading ? (
             <div className="flex justify-center py-16">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
-          ) : browseVideos && browseVideos.length > 0 ? (
+          ) : shelfVideos && shelfVideos.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {browseVideos.map((video) => (
+              {shelfVideos.map((video) => (
                 <VideoCard
                   key={video.id}
                   video={video}
                   onClick={() => navigate(`/discover/${video.id}`)}
+                  comprehension={comprehensionMap.get(video.id)}
                 />
               ))}
             </div>
           ) : (
             <div className="text-center py-16">
               <Play className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
-              <p className="text-muted-foreground">No videos found</p>
+              <p className="text-muted-foreground">
+                {justRightOnly ? "Nothing in your sweet spot yet" : "No videos found"}
+              </p>
               <p className="text-sm text-muted-foreground/70 mt-1">
-                Check back later for new content
+                {justRightOnly
+                  ? "Save more words, or turn the filter off to browse everything."
+                  : "Check back later for new content"}
               </p>
             </div>
           )}

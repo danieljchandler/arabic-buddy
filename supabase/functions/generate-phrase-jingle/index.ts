@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getDialectLabel, getDialectVocabRules } from "../_shared/dialectHelpers.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { MODEL_IDS } from "../_shared/modelRegistry.ts";
+import { enforceDailyCap } from "../_shared/usageCap.ts";
 
 
 serve(async (req) => {
@@ -10,6 +11,25 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Two models, two keys — a missing one fails here, before the cap's own
+  // round-trips, so a config error costs nothing.
+  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+  const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+  if (!LOVABLE_API_KEY || !GEMINI_API_KEY) {
+    return new Response(
+      JSON.stringify({ error: "AI keys not configured" }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+
+  // This was the one generation endpoint with no cap at all — a music-model
+  // call anyone signed in could loop for free. Same ladder as word jingles.
+  const cap = await enforceDailyCap(req, "generate-phrase-jingle", 15, corsHeaders, {
+    standard: 40,
+    allin: 120,
+  });
+  if (cap.limited) return cap.response;
+
   try {
     const { phrase_arabic, phrase_english, dialect = "Gulf" } = await req.json();
 
@@ -17,16 +37,6 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ error: "phrase_arabic and phrase_english are required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
-
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-
-    if (!LOVABLE_API_KEY || !GEMINI_API_KEY) {
-      return new Response(
-        JSON.stringify({ error: "AI keys not configured" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 

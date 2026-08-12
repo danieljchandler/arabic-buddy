@@ -226,17 +226,16 @@ test.describe("review preferences", () => {
   test("the leech toggle persists across a reload", async ({ page }) => {
     await page.goto("/settings");
 
-    const toggle = page
-      .locator("section")
-      .filter({ hasText: /flag difficult cards/i })
-      .getByRole("switch");
+    // Row-scoped, not section-scoped: the Review Preferences section now also
+    // carries the recording-contribution switch.
+    const leechRow = () =>
+      page.locator("div.rounded-xl").filter({ hasText: /flag difficult cards/i });
+    const toggle = leechRow().getByRole("switch");
     await expect(toggle).toBeChecked();
     await toggle.click();
 
     await page.reload();
-    await expect(
-      page.locator("section").filter({ hasText: /flag difficult cards/i }).getByRole("switch"),
-    ).not.toBeChecked();
+    await expect(leechRow().getByRole("switch")).not.toBeChecked();
   });
 });
 

@@ -35,6 +35,35 @@ const Dashboard = () => {
     navigate('/admin/login');
   };
 
+  // The flywheel's north-star numbers: corrections banked, and minutes of
+  // gold (native-corrected) audio per the improvement plan. Resilient by
+  // design — on any error the card shows zeros rather than failing the page.
+  const { data: flywheel } = useQuery({
+    queryKey: ['flywheel-stats'],
+    enabled: isAdmin,
+    retry: false,
+    queryFn: async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- training_examples is service-role-first and absent from the generated types
+      const te = () => supabase.from('training_examples' as any) as any;
+      try {
+        const [{ count: total }, { count: gold }, { data: goldAudio }] = await Promise.all([
+          te().select('id', { count: 'exact', head: true }),
+          te().select('id', { count: 'exact', head: true }).eq('tier', 'gold'),
+          te()
+            .select('audio_start_ms, audio_end_ms')
+            .eq('tier', 'gold')
+            .not('audio_path', 'is', null)
+            .limit(10000),
+        ]);
+        const ms = ((goldAudio ?? []) as Array<{ audio_start_ms: number | null; audio_end_ms: number | null }>)
+          .reduce((sum, row) => sum + Math.max(0, (row.audio_end_ms ?? 0) - (row.audio_start_ms ?? 0)), 0);
+        return { total: total ?? 0, gold: gold ?? 0, goldAudioMinutes: Math.round(ms / 60_000) };
+      } catch {
+        return { total: 0, gold: 0, goldAudioMinutes: 0 };
+      }
+    },
+  });
+
   if (authLoading || lessonsLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -106,6 +135,20 @@ const Dashboard = () => {
               </CardTitle>
             </CardHeader>
           </Card>
+          {isAdmin && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardDescription>Flywheel · gold audio</CardDescription>
+                <CardTitle className="text-4xl">
+                  {flywheel?.goldAudioMinutes ?? 0}
+                  <span className="text-lg font-normal text-muted-foreground"> min</span>
+                </CardTitle>
+                <p className="text-xs text-muted-foreground">
+                  {flywheel?.gold ?? 0} gold of {flywheel?.total ?? 0} banked corrections
+                </p>
+              </CardHeader>
+            </Card>
+          )}
         </div>
 
         {/* Quick Actions - Different for admin vs recorder */}

@@ -74,7 +74,16 @@ async function hasActiveSubscription(userId: string): Promise<boolean> {
   }
 }
 
-async function isAdminUser(userId: string): Promise<boolean> {
+/**
+ * The caller's user id from the request's bearer token, or null. Exported for
+ * endpoints that need identity outside the cap flow (e.g. the voice usage
+ * report action).
+ */
+export async function resolveUserId(req: Request): Promise<string | null> {
+  return getUserId(req);
+}
+
+export async function isAdminUser(userId: string): Promise<boolean> {
   try {
     const supa = admin();
     const { data } = await supa
@@ -86,6 +95,40 @@ async function isAdminUser(userId: string): Promise<boolean> {
     return !!data;
   } catch {
     return false;
+  }
+}
+
+export type SubscriptionTier = "free" | "standard" | "allin";
+
+/**
+ * The caller's paid tier, for allowances that differ between plans.
+ *
+ * Two deliberate fail-open choices: a paying user whose tier is unknown is
+ * treated as the top tier (never newly block someone who pays because a column
+ * is stale), and `subscribers.subscription_tier` may not exist on a rebuilt
+ * database — that error falls back to the boolean subscription check rather
+ * than reporting everyone as free… which is what hasActiveSubscription would
+ * conclude anyway on a database with no subscribers table at all (a documented
+ * schema-debt item in docs/testing.md).
+ */
+export async function getSubscriptionTier(userId: string): Promise<SubscriptionTier> {
+  try {
+    const { data, error } = await admin()
+      .from("subscribers")
+      .select("subscribed, subscription_end, subscription_tier")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (error) throw error;
+    if (!data || data.subscribed !== true) return "free";
+    const endsAt = data.subscription_end as string | null | undefined;
+    if (endsAt && new Date(endsAt) < new Date()) return "free";
+    const tier = (data as { subscription_tier?: unknown }).subscription_tier;
+    if (tier === "standard") return "standard";
+    if (tier === "allin") return "allin";
+    return "allin"; // paying, tier unknown — fail open to the higher allowance
+  } catch {
+    const subscribed = await hasActiveSubscription(userId);
+    return subscribed ? "allin" : "free";
   }
 }
 
@@ -132,11 +175,24 @@ export async function requireActiveSubscription(
   };
 }
 
+/**
+ * Per-paid-tier daily limits for a feature. Without one, subscribers bypass
+ * the cap entirely (the original behaviour, right for cheap features). With
+ * one, each paid tier gets its own ceiling — the mechanism that lets the
+ * expensive capabilities (image generation, jingles) be part of what the
+ * higher tier actually buys. A tier missing from the table is unlimited.
+ */
+export interface TierLimits {
+  standard?: number;
+  allin?: number;
+}
+
 export async function enforceDailyCap(
   req: Request,
   key: string,
   limit: number,
   corsHeaders: Record<string, string>,
+  tierLimits?: TierLimits,
 ): Promise<CapResult> {
   const userId = await getUserId(req);
   if (!userId) {
@@ -151,12 +207,24 @@ export async function enforceDailyCap(
 
   // Both are independent lookups; `await a || await b` serialised them on the
   // critical path of every AI request for no reason.
-  const [subscribed, isAdmin] = await Promise.all([
-    hasActiveSubscription(userId),
+  const [tier, isAdmin] = await Promise.all([
+    tierLimits ? getSubscriptionTier(userId) : hasActiveSubscription(userId).then(
+      (subscribed): SubscriptionTier => (subscribed ? "allin" : "free"),
+    ),
     isAdminUser(userId),
   ]);
-  if (subscribed || isAdmin) {
+  if (isAdmin) {
     return { limited: false, userId, count: 0, limit: Number.POSITIVE_INFINITY };
+  }
+
+  let effectiveLimit = limit;
+  if (tier !== "free") {
+    const tierLimit = tierLimits?.[tier];
+    if (tierLimit === undefined) {
+      // No per-tier table (or this tier isn't in it): subscribers bypass.
+      return { limited: false, userId, count: 0, limit: Number.POSITIVE_INFINITY };
+    }
+    effectiveLimit = tierLimit;
   }
 
   const supa = admin();
@@ -169,21 +237,27 @@ export async function enforceDailyCap(
   if (error) {
     console.error(`[usageCap] increment failed for ${key}:`, error.message);
     // Don't block on counter failure.
-    return { limited: false, userId, count: 0, limit };
+    return { limited: false, userId, count: 0, limit: effectiveLimit };
   }
 
   const count = typeof data === "number" ? data : Number(data);
 
-  if (count > limit) {
+  if (count > effectiveLimit) {
+    const message =
+      tier === "free"
+        ? `You've reached the free daily limit for this feature (${effectiveLimit}/day). Upgrade for unlimited access.`
+        : `You've reached your plan's daily limit for this feature (${effectiveLimit}/day).` +
+          (tier === "standard" ? " The All-In plan includes more." : " It resets tomorrow.");
     return {
       limited: true,
       response: new Response(
         JSON.stringify({
           error: "daily_limit_reached",
-          message: `You've reached the free daily limit for this feature (${limit}/day). Upgrade for unlimited access.`,
+          message,
           key,
           count,
-          limit,
+          limit: effectiveLimit,
+          tier,
           upgrade_url: "/pricing",
         }),
         { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
@@ -191,5 +265,5 @@ export async function enforceDailyCap(
     };
   }
 
-  return { limited: false, userId, count, limit };
+  return { limited: false, userId, count, limit: effectiveLimit };
 }

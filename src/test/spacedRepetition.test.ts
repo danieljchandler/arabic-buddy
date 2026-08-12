@@ -150,4 +150,79 @@ describe("FSRS-4.5 spacedRepetition", () => {
       expect(elapsedDaysSince(future)).toBe(0);
     });
   });
+
+  describe("personalisation (C2)", () => {
+    // A mature card: high stability so intervals are long enough to measure.
+    const MATURE = { stability: 40, difficulty: 5, interval: 40, reps: 6 } as const;
+
+    const schedule = (options?: Parameters<typeof calculateNextReview>[6]) =>
+      calculateNextReview("good", MATURE.stability, MATURE.difficulty, MATURE.interval, MATURE.reps, 40, options);
+
+    it("changes nothing at the default 90% target with no fuzz seed", () => {
+      // The dial and the fuzz are strictly additive: a caller that passes no
+      // options gets the exact historical schedule.
+      expect(schedule().intervalDays).toBe(schedule({ desiredRetention: 0.9 }).intervalDays);
+    });
+
+    it("stretches intervals when the learner accepts more forgetting", () => {
+      const standard = schedule({ desiredRetention: 0.9 }).intervalDays;
+      const lighter = schedule({ desiredRetention: 0.85 }).intervalDays;
+      const intense = schedule({ desiredRetention: 0.95 }).intervalDays;
+      expect(lighter).toBeGreaterThan(standard);
+      expect(intense).toBeLessThan(standard);
+    });
+
+    it("does not change the memory model, only the schedule", () => {
+      // Stability is what the learner's memory is estimated to be; the dial
+      // must never rewrite that estimate, or switching back would corrupt
+      // every card it touched.
+      expect(schedule({ desiredRetention: 0.8 }).stability).toBe(schedule().stability);
+    });
+
+    it("clamps an absurd retention target", () => {
+      const floor = schedule({ desiredRetention: 0.1 }).intervalDays;
+      expect(floor).toBe(schedule({ desiredRetention: 0.7 }).intervalDays);
+    });
+
+    it("fuzzes deterministically: same card, same interval, same answer", () => {
+      const a = schedule({ fuzzSeed: "card-1" }).intervalDays;
+      const b = schedule({ fuzzSeed: "card-1" }).intervalDays;
+      expect(a).toBe(b);
+    });
+
+    it("spreads different cards apart", () => {
+      // Not every pair of seeds lands apart (5% of a short interval rounds to
+      // zero for some hashes), but across many cards the spread must be real —
+      // that is the whole point of load balancing.
+      const intervals = new Set(
+        Array.from({ length: 30 }, (_, i) => schedule({ fuzzSeed: `card-${i}` }).intervalDays),
+      );
+      expect(intervals.size).toBeGreaterThan(1);
+    });
+
+    it("keeps fuzz inside ±5% of the base interval", () => {
+      const base = schedule().intervalDays;
+      for (let i = 0; i < 30; i++) {
+        const fuzzed = schedule({ fuzzSeed: `card-${i}` }).intervalDays;
+        expect(Math.abs(fuzzed - base)).toBeLessThanOrEqual(Math.max(1, Math.round(base * 0.05)));
+      }
+    });
+
+    it("never fuzzes learning steps", () => {
+      // Sub-3-day intervals are meant to be precise; a 1-minute relearning
+      // step must not wobble.
+      const result = calculateNextReview("again", 0, 5, 0, 0, undefined, { fuzzSeed: "card-1" });
+      expect(result.intervalDays).toBe(calculateNextReview("again", 0, 5, 0, 0).intervalDays);
+    });
+
+    it("previews match scheduling when given the same options", () => {
+      const preview = estimateNextInterval("good", MATURE.stability, MATURE.difficulty, MATURE.interval, MATURE.reps, 40, {
+        desiredRetention: 0.85,
+      });
+      const actual = calculateNextReview("good", MATURE.stability, MATURE.difficulty, MATURE.interval, MATURE.reps, 40, {
+        desiredRetention: 0.85,
+      });
+      expect(preview).toBe(getIntervalDisplay(actual.intervalDays));
+    });
+  });
 });

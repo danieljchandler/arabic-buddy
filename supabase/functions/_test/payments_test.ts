@@ -1,4 +1,4 @@
-import { assertEquals, assertStringIncludes } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { assert, assertEquals, assertStringIncludes } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { fixtureJwt, jsonRequest, loadFunction } from "./harness.ts";
 import { json } from "./upstreams.ts";
 
@@ -268,6 +268,191 @@ Deno.test("check-subscription authenticates with the caller's own token", async 
 
     const lookup = fn.callsTo("/auth/v1/user").at(-1);
     assertStringIncludes(lookup?.headers.authorization ?? "", token);
+  } finally {
+    fn.restore();
+  }
+});
+
+// ── Annual billing ──────────────────────────────────────────────────────────
+// Annual prices are env-configured (STRIPE_ANNUAL_PRICE_*) rather than
+// hardcoded: they don't exist in Stripe yet, and the function must refuse
+// clearly rather than silently fall back to monthly billing.
+
+Deno.test("create-checkout charges the annual price when configured and asked", async () => {
+  const fn = await loadFunction("create-checkout", {
+    upstreams: upstreams(),
+    env: { STRIPE_ANNUAL_PRICE_STANDARD: "price_annual_std_fixture" },
+  });
+  try {
+    const response = await fn.handler(
+      jsonRequest("create-checkout", { tier: "standard", cadence: "annual" }),
+    );
+
+    assertEquals(response.status, 200);
+    const form = stripeForm(fn.callsTo("checkout/sessions").at(-1)?.body ?? null);
+    assertEquals(form.get("line_items[0][price]"), "price_annual_std_fixture");
+  } finally {
+    fn.restore();
+  }
+});
+
+Deno.test("create-checkout refuses annual when no annual price is configured", async () => {
+  const fn = await loadFunction("create-checkout", {
+    upstreams: upstreams(),
+    env: { STRIPE_ANNUAL_PRICE_STANDARD: undefined },
+  });
+  try {
+    const response = await fn.handler(
+      jsonRequest("create-checkout", { tier: "standard", cadence: "annual" }),
+    );
+
+    // A clear refusal, not a silent fall-back to monthly — the learner clicked
+    // a price and must never be billed a different one.
+    assertEquals(response.status, 500);
+    assert(!fn.callsTo("checkout/sessions").length);
+  } finally {
+    fn.restore();
+  }
+});
+
+Deno.test("create-checkout still bills monthly when no cadence is sent", async () => {
+  // Every deployed client predates the cadence field.
+  const fn = await loadFunction("create-checkout", { upstreams: upstreams() });
+  try {
+    await fn.handler(jsonRequest("create-checkout", { tier: "standard" }));
+
+    const form = stripeForm(fn.callsTo("checkout/sessions").at(-1)?.body ?? null);
+    assertEquals(form.get("line_items[0][price]"), "price_1T8t8sHVAO3F9uuDOpwSh2zQ");
+  } finally {
+    fn.restore();
+  }
+});
+
+Deno.test("check-subscription writes what Stripe said into subscribers", async () => {
+  // usageCap reads this table on every AI request; without the write-back the
+  // per-tier allowances run on stale data.
+  const fn = await loadFunction("check-subscription", {
+    upstreams: upstreams({ existingCustomer: "cus_fixture" }),
+  });
+  try {
+    await fn.handler(jsonRequest("check-subscription", {}));
+
+    const upsert = fn.callsTo("/rest/v1/subscribers").at(-1);
+    assert(upsert, "expected an upsert into subscribers");
+    assertStringIncludes(upsert.body ?? "", '"subscribed"');
+    assertStringIncludes(upsert.body ?? "", '"subscription_tier"');
+  } finally {
+    fn.restore();
+  }
+});
+
+// ── Referral rewards (D4) ───────────────────────────────────────────────────
+// Both rewards are Stripe-side. The referred learner's month off is a coupon
+// auto-applied at first checkout while their redemption is still pending; the
+// referrer's $5 balance credit is granted by check-subscription only when the
+// referral actually converts to a paid plan — fabricated signups earn nothing.
+
+Deno.test("create-checkout applies the referral coupon to a pending referred learner", async () => {
+  const fn = await loadFunction("create-checkout", {
+    upstreams: {
+      ...upstreams(),
+      "/rest/v1/referral_redemptions": () => json({ status: "pending" }),
+    },
+    env: { STRIPE_REFERRAL_COUPON: "coupon_month_free" },
+  });
+  try {
+    const response = await fn.handler(jsonRequest("create-checkout", { tier: "standard" }));
+
+    assertEquals(response.status, 200);
+    const form = stripeForm(fn.callsTo("checkout/sessions").at(-1)?.body ?? null);
+    assertEquals(form.get("discounts[0][coupon]"), "coupon_month_free");
+  } finally {
+    fn.restore();
+  }
+});
+
+Deno.test("create-checkout applies no coupon without a redemption", async () => {
+  const fn = await loadFunction("create-checkout", {
+    upstreams: {
+      ...upstreams(),
+      "/rest/v1/referral_redemptions": () => json(null),
+    },
+    env: { STRIPE_REFERRAL_COUPON: "coupon_month_free" },
+  });
+  try {
+    await fn.handler(jsonRequest("create-checkout", { tier: "standard" }));
+
+    const form = stripeForm(fn.callsTo("checkout/sessions").at(-1)?.body ?? null);
+    assertEquals(form.get("discounts[0][coupon]"), null);
+  } finally {
+    fn.restore();
+  }
+});
+
+Deno.test("check-subscription converts a referral and credits the referrer", async () => {
+  const REFERRER = "99999999-8888-4777-8666-555555555555";
+  const fn = await loadFunction("check-subscription", {
+    upstreams: {
+      ...upstreams({ existingCustomer: "cus_referred" }),
+      // The referred learner now has an active subscription…
+      "api.stripe.com": (request: Request) => {
+        const url = new URL(request.url);
+        if (url.pathname.includes("/customers") && request.method === "GET") {
+          // Two lookups by email: the caller's, then the referrer's.
+          return json({ data: [{ id: url.search.includes("referrer") ? "cus_referrer" : "cus_referred", email: "x" }] });
+        }
+        if (url.pathname.includes("/subscriptions")) {
+          return json({
+            data: [{
+              id: "sub_1",
+              current_period_end: Math.floor(Date.now() / 1000) + 86_400,
+              items: { data: [{ price: { product: "prod_U77NfmTFN3mabx" } }] },
+            }],
+          });
+        }
+        if (url.pathname.includes("balance_transactions")) {
+          return json({ id: "cbtxn_1", amount: -500 });
+        }
+        return json({ data: [] });
+      },
+      // …and a pending redemption that this check claims.
+      "/rest/v1/referral_redemptions": (request) =>
+        request.method === "PATCH"
+          ? json([{ id: "red_1", referrer_id: REFERRER }])
+          : json([]),
+      "/auth/v1/admin/users": () => json({ user: { id: REFERRER, email: "referrer@example.com" } }),
+    },
+  });
+  try {
+    const response = await fn.handler(jsonRequest("check-subscription", {}));
+
+    assertEquals(response.status, 200);
+    // The credit landed on the referrer's Stripe balance…
+    const credit = fn.callsTo("balance_transactions").at(-1);
+    assert(credit, "expected a customer balance credit");
+    assertStringIncludes(credit.body ?? "", "-500");
+    // …and the redemption graduated out of pending.
+    const patches = fn.callsTo("referral_redemptions").filter((c) => c.method === "PATCH");
+    assert(patches.length >= 2, "expected pending→converted and converted→rewarded updates");
+    assertStringIncludes(patches.at(-1)?.body ?? "", "rewarded");
+  } finally {
+    fn.restore();
+  }
+});
+
+Deno.test("check-subscription touches no referral machinery for an unsubscribed caller", async () => {
+  const fn = await loadFunction("check-subscription", {
+    upstreams: {
+      ...upstreams({ existingCustomer: "cus_free" }),
+      "/rest/v1/referral_redemptions": (request) =>
+        request.method === "PATCH" ? json([{ id: "red_1", referrer_id: "x" }]) : json([]),
+    },
+  });
+  try {
+    await fn.handler(jsonRequest("check-subscription", {}));
+
+    // No active subscription → no conversion claim, no reward.
+    assertEquals(fn.callsTo("referral_redemptions").filter((c) => c.method === "PATCH").length, 0);
   } finally {
     fn.restore();
   }

@@ -8,6 +8,7 @@ import {
   useCheckAchievements,
 } from "@/hooks/useGamification";
 import { submitRatingToServer } from "@/hooks/useReview";
+import { useDesiredRetention } from "@/hooks/useDesiredRetention";
 import type { Rating } from "@/lib/spacedRepetition";
 import type { ScheduleDirection } from "@/lib/reviewOrder";
 import {
@@ -49,6 +50,7 @@ export function useReviewQueue() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const addXP = useAddXP();
+  const desiredRetention = useDesiredRetention();
   const incrementReviews = useIncrementReviews();
   const checkAchievements = useCheckAchievements();
 
@@ -89,7 +91,8 @@ export function useReviewQueue() {
             // those were all recognition ratings, so defaulting keeps a queue
             // that survived the deploy flushing correctly instead of writing
             // them into the wrong column set.
-            item.direction ?? "recognition"
+            item.direction ?? "recognition",
+            { desiredRetention }
           );
           remove(user.id, item.id);
           setPendingCount(count(user.id));
@@ -126,7 +129,7 @@ export function useReviewQueue() {
       flushingRef.current = false;
       setIsFlushing(false);
     }
-  }, [user, addXP, incrementReviews, checkAchievements, queryClient]);
+  }, [user, addXP, incrementReviews, checkAchievements, queryClient, desiredRetention]);
 
   const enqueue = useCallback(
     (args: EnqueueArgs) => {

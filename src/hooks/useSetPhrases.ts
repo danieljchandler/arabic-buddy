@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
 import { useDialect } from "@/contexts/DialectContext";
 import { calculateNextReview, elapsedDaysSince, type Rating } from "@/lib/spacedRepetition";
+import { useDesiredRetention } from "./useDesiredRetention";
 
 const sb = supabase as any;
 
@@ -158,6 +159,7 @@ export const useSavePhrase = () => {
 export const useReviewPhrase = () => {
   const { user } = useAuth();
   const qc = useQueryClient();
+  const desiredRetention = useDesiredRetention();
   return useMutation({
     mutationFn: async ({
       phraseId,
@@ -184,7 +186,10 @@ export const useReviewPhrase = () => {
       const repetitions = existing?.repetitions ?? 0;
       const elapsedDays = elapsedDaysSince(existing?.last_reviewed_at);
 
-      const next = calculateNextReview(rating, stability, difficulty, intervalDays, repetitions, elapsedDays);
+      const next = calculateNextReview(rating, stability, difficulty, intervalDays, repetitions, elapsedDays, {
+        desiredRetention,
+        fuzzSeed: phraseId,
+      });
 
       const row = {
         user_id: user.id,

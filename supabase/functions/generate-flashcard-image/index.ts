@@ -9,7 +9,12 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   // Free-tier daily cap: 20 image generations / user / day. Paid users bypass.
-  const cap = await enforceDailyCap(req, "generate-flashcard-image", 20, corsHeaders);
+  // Image generation is one of the priciest per-call features, so paid tiers
+  // get a ladder rather than a bypass — this is part of what All-In buys.
+  const cap = await enforceDailyCap(req, "generate-flashcard-image", 20, corsHeaders, {
+    standard: 60,
+    allin: 200,
+  });
   if (cap.limited) return cap.response;
 
   // Authenticate user (auth header presence already verified by usageCap)

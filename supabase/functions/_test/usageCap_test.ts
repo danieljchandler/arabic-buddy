@@ -147,3 +147,93 @@ Deno.test("a subscribers lookup that throws fails closed, keeping the cap on", a
 
   assertEquals(response.status, 429);
 });
+
+// ── Per-tier ladders ────────────────────────────────────────────────────────
+// A feature may pass `tierLimits` to give each paid tier its own ceiling
+// instead of the blanket subscriber bypass. Driven through
+// `generate-phrase-jingle` (free 15 / standard 40 / allin 120), the music
+// endpoint that previously had no cap at all.
+
+async function callPhraseJingle(
+  upstreams: Record<string, () => Response>,
+): Promise<Response> {
+  const fn = await loadFunction("generate-phrase-jingle", { upstreams });
+  try {
+    return await fn.handler(
+      jsonRequest("generate-phrase-jingle", {
+        phrase_arabic: "شلونك",
+        phrase_english: "how are you",
+      }),
+    );
+  } finally {
+    fn.restore();
+  }
+}
+
+/** The two model calls behind the jingle, answering just enough to succeed. */
+function jingleModels() {
+  return {
+    "ai.gateway.lovable.dev": () =>
+      json({
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({ lyrics: "شلونك يا صديقي", prompt: "Khaliji pop, 12s" }),
+            },
+          },
+        ],
+      }),
+    "generativelanguage.googleapis.com": () =>
+      json({
+        candidates: [
+          {
+            content: {
+              parts: [
+                { inlineData: { mimeType: "audio/L16;rate=48000", data: btoa("\x01\x02\x03\x04") } },
+              ],
+            },
+          },
+        ],
+      }),
+  };
+}
+
+Deno.test("a ladder feature caps the standard tier at its own limit", async () => {
+  const response = await callPhraseJingle({
+    ...backend({ usageCount: 41 }),
+    ...jingleModels(),
+    "/rest/v1/subscribers": () =>
+      json({ subscribed: true, subscription_end: null, subscription_tier: "standard" }),
+  });
+
+  // 41 > standard's 40. Before ladders, any subscriber bypassed every cap —
+  // which is why the $15 tier bought nothing the $5 tier didn't have.
+  assertEquals(response.status, 429);
+  const body = await response.json();
+  assertEquals(body.tier, "standard");
+});
+
+Deno.test("a ladder feature lets the All-In tier keep going where standard stops", async () => {
+  const response = await callPhraseJingle({
+    ...backend({ usageCount: 41 }),
+    ...jingleModels(),
+    "/rest/v1/subscribers": () =>
+      json({ subscribed: true, subscription_end: null, subscription_tier: "allin" }),
+  });
+
+  assertEquals(response.status, 200);
+});
+
+Deno.test("a subscriber with no recorded tier gets the top tier's ladder, not a lockout", async () => {
+  const response = await callPhraseJingle({
+    ...backend({ usageCount: 121 }),
+    ...jingleModels(),
+    "/rest/v1/subscribers": () => json({ subscribed: true, subscription_end: null }),
+  });
+
+  // Fails open to All-In's 120 — and 121 exceeds even that. Never newly block
+  // a paying user because the tier column is stale; do block at the ceiling.
+  assertEquals(response.status, 429);
+  const body = await response.json();
+  assertEquals(body.tier, "allin");
+});

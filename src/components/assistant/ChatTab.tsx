@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Bookmark, Loader2, Send } from "lucide-react";
+import { Bookmark, Flag, Loader2, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useAiAssistant } from "@/contexts/AiAssistantContext";
 import { useDialect } from "@/contexts/DialectContext";
 import { useAuth } from "@/hooks/useAuth";
 import { buildPagePayload } from "@/lib/pageAiContext";
+import { supabase } from "@/integrations/supabase/client";
 import { streamChat, SseChatError } from "@/lib/sseChat";
 import { showCapToast } from "@/lib/handleCapResponse";
 import { TinyMarkdown } from "@/components/shared/TinyMarkdown";
@@ -49,8 +50,29 @@ export function ChatTab({ onComposerFocus }: ChatTabProps = {}) {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [phraseToSave, setPhraseToSave] = useState<string | null>(null);
+  // Message indexes already reported this session — one flag per reply.
+  const [reported, setReported] = useState<ReadonlySet<number>>(new Set());
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+
+  // A learner's flag goes to the native-review queue, not straight into
+  // training data — natives decide what was actually wrong.
+  const reportMessage = useCallback(async (index: number, content: string) => {
+    setReported((prev) => new Set(prev).add(index));
+    const { error } = await supabase.functions.invoke("report-content", {
+      body: { kind: "assistant_message", dialect: activeDialect, text: content },
+    });
+    if (error) {
+      setReported((prev) => {
+        const next = new Set(prev);
+        next.delete(index);
+        return next;
+      });
+      toast.error("Couldn't send the report — try again in a moment.");
+      return;
+    }
+    toast.success("Thanks — a native speaker will take a look.");
+  }, [activeDialect]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -189,15 +211,28 @@ export function ChatTab({ onComposerFocus }: ChatTabProps = {}) {
                         />
                       )}
                     />
-                    {savable && (
-                      <button
-                        type="button"
-                        onClick={() => setPhraseToSave(savable)}
-                        className="mt-1.5 inline-flex items-center gap-1 text-[11px] text-muted-foreground transition-colors hover:text-primary"
-                      >
-                        <Bookmark className="h-3 w-3" />
-                        Save phrase
-                      </button>
+                    {!loading && (
+                      <div className="mt-1.5 flex items-center gap-3">
+                        {savable && (
+                          <button
+                            type="button"
+                            onClick={() => setPhraseToSave(savable)}
+                            className="inline-flex items-center gap-1 text-[11px] text-muted-foreground transition-colors hover:text-primary"
+                          >
+                            <Bookmark className="h-3 w-3" />
+                            Save phrase
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          disabled={reported.has(i)}
+                          onClick={() => reportMessage(i, m.content)}
+                          className="inline-flex items-center gap-1 text-[11px] text-muted-foreground transition-colors hover:text-destructive disabled:opacity-60 disabled:hover:text-muted-foreground"
+                        >
+                          <Flag className="h-3 w-3" />
+                          {reported.has(i) ? "Reported" : "Report"}
+                        </button>
+                      </div>
                     )}
                   </>
                 ) : (

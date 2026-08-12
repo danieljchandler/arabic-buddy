@@ -8,7 +8,7 @@ import { useDiscoverVideos, difficultyWindow, type DiscoverVideo } from "./useDi
  *
  * Watching native video is the thing this app is for, so the home page opens
  * with a single clip rather than a browse list — one decision, already made for
- * the learner. Three rules shape which clip that is:
+ * the learner. Two rules shape which clip that is:
  *
  * 1. It is dialect-first. A Gulf learner gets Gulf.
  * 2. It is never empty when the library is not. A dialect we have not filmed
@@ -16,9 +16,9 @@ import { useDiscoverVideos, difficultyWindow, type DiscoverVideo } from "./useDi
  *    card — the learner would just see a home page with no video on it and
  *    conclude the feature does not exist. Each filter falls back to the wider
  *    pool instead of returning nothing.
- * 3. It rotates daily. "Today's video" that is the same video all week is not
- *    today's anything; the pick is keyed to the local date so it changes at
- *    midnight and stays put across reloads within a day.
+ *
+ * The pool is ordered newest-first by created_at, so the lead clip is the most
+ * recently uploaded and published one.
  */
 
 const sameDifficulty = (a: string | null | undefined, b: string) =>

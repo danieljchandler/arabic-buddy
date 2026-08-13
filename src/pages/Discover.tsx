@@ -150,11 +150,17 @@ const Discover = () => {
   const [dialect, setDialect] = useState<string>(activeDialect);
   // Default the difficulty filter to the learner's placement level (still a
   // plain dropdown they can override) instead of always showing everything.
-  const [difficulty, setDifficulty] = useState(() =>
-    hasTakenPlacement
-      ? levelDifficulty.charAt(0).toUpperCase() + levelDifficulty.slice(1)
-      : "All"
-  );
+  // The profile query isn't resolved on first render, so we can't set this in
+  // a useState initializer — apply it once via effect when placement resolves.
+  const [difficulty, setDifficulty] = useState<string>("All");
+  const appliedAutoLevel = useRef(false);
+  useEffect(() => {
+    if (appliedAutoLevel.current || !hasTakenPlacement || !levelDifficulty) return;
+    appliedAutoLevel.current = true;
+    setDifficulty(
+      levelDifficulty.charAt(0).toUpperCase() + levelDifficulty.slice(1),
+    );
+  }, [hasTakenPlacement, levelDifficulty]);
 
   const { data: browseVideos, isLoading: isBrowseLoading } = useDiscoverVideos({
     dialect: dialect === "All" ? undefined : dialect,

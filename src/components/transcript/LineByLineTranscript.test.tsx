@@ -183,6 +183,9 @@ const isRevealed = (card: HTMLElement) =>
 
 const sentenceOf = (card: HTMLElement) => card.querySelector<HTMLElement>('div[dir="rtl"]')!;
 
+const showAllSwitch = () => screen.getByRole("switch", { name: "Show all translations" });
+const fushaSwitch = () => screen.getByRole("switch", { name: "Show Fusha (MSA) line" });
+
 /** The only button in a card with no label on it is the play button. */
 const playButton = (card: HTMLElement) =>
   Array.from(card.querySelectorAll("button")).find((b) => b.textContent === "");
@@ -294,7 +297,7 @@ describe("the English", () => {
   it("opens every line at once for a reread", () => {
     const { container } = render({ lines: [A_LINE, ANOTHER_LINE] });
 
-    fireEvent.click(screen.getByRole("switch"));
+    fireEvent.click(showAllSwitch());
 
     // Working through it line by line is the exercise; reading it straight
     // through afterwards is how a learner checks what they got.
@@ -303,7 +306,7 @@ describe("the English", () => {
 
   it("cannot hide a single line while every line is showing", () => {
     const { container } = render();
-    fireEvent.click(screen.getByRole("switch"));
+    fireEvent.click(showAllSwitch());
     const card = cards(container)[0];
 
     fireEvent.click(sentenceOf(card));
@@ -320,6 +323,69 @@ describe("the English", () => {
     // what the sentence means.
     expect(screen.getByText("went-I the-market yesterday")).toBeInTheDocument();
     expect(screen.getByText("I went to the market yesterday")).toBeInTheDocument();
+  });
+});
+
+/**
+ * The Fusha row: the same sentence in Modern Standard Arabic, for learners who
+ * arrived from فصحى and are trying to map it onto what people actually say.
+ *
+ * It is the one row that is *not* a translation, so it sits with the Arabic
+ * rather than inside the collapsible English — and it is off until asked for,
+ * because a second Arabic sentence under every line is noise to the learners
+ * who did not come from MSA.
+ */
+describe("the Fusha line", () => {
+  const FUSHA = "ذهبت إلى السوق أمس";
+  const withFusha = [{ ...A_LINE, fusha: FUSHA }];
+
+  it("stays hidden until the learner asks for it", () => {
+    render({ lines: withFusha });
+
+    expect(screen.queryByText(FUSHA)).not.toBeInTheDocument();
+  });
+
+  it("shows the stored rendering next to the dialect line", () => {
+    render({ lines: withFusha });
+
+    fireEvent.click(fushaSwitch());
+
+    expect(screen.getByText(FUSHA)).toBeInTheDocument();
+    // Visible without opening the English: it is the same sentence, not what
+    // the sentence means.
+    expect(cards().every(isRevealed)).toBe(false);
+  });
+
+  it("converts lines that predate the Fusha pass", async () => {
+    render({ lines: [A_LINE] });
+
+    fireEvent.click(fushaSwitch());
+
+    await waitFor(() => expect(screen.getByText("فصحى 1")).toBeInTheDocument());
+  });
+
+  it("says so rather than repeating a line that was already Fusha", () => {
+    render({ lines: [{ ...A_LINE, fusha: A_LINE.arabic }] });
+
+    fireEvent.click(fushaSwitch());
+
+    // Printing the identical sentence under a فصحى heading teaches nothing;
+    // "nothing changed here" is itself the answer.
+    expect(screen.getByText("Already فصحى")).toBeInTheDocument();
+  });
+
+  it("offers a retry when the conversion failed", async () => {
+    render({
+      lines: [A_LINE],
+      seed: (backend) => backend.stubFunctionFailure("convert-to-fusha", 502),
+    });
+
+    fireEvent.click(fushaSwitch());
+
+    await waitFor(() =>
+      expect(screen.getByText("Couldn't convert every line to فصحى.")).toBeInTheDocument(),
+    );
+    expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
   });
 });
 

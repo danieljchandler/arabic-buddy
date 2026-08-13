@@ -11,6 +11,13 @@
    arabic: string;          // full sentence as spoken
    translation: string;     // English sentence translation
    literal?: string;        // word-for-word English gloss of the whole line
+  /**
+   * The same sentence rewritten in Modern Standard Arabic (فصحى) — a
+   * conversion, not a translation, so a Fusha learner can see which pieces the
+   * dialect changed. Absent on everything analysed before the Fusha pass
+   * existed; `useFushaLines` fills those in on demand.
+   */
+  fusha?: string;
    tokens: WordToken[];     // clickable words
    startMs?: number;        // for future audio sync
    endMs?: number;

@@ -34,6 +34,9 @@ import type { TranscriptLine, WordToken, VocabItem } from "@/types/transcript";
 import { VideoRating } from "@/components/discover/VideoRating";
 import { AskAISentence } from "@/components/shared/AskAISentence";
 import { TranslationPair } from "@/components/shared/TranslationPair";
+import { FushaLine } from "@/components/shared/FushaLine";
+import { useFushaLines } from "@/hooks/useFushaLines";
+import { useDisplayPrefs } from "@/hooks/useDisplayPrefs";
 import { LineShadowPanel } from "@/components/pronunciation/LineShadowPanel";
 import type { ExternalYouTubeController } from "@/components/pronunciation/ClipSourcePlayer";
 import { DIALECT_LOCALE, extractYouTubeId, type ShadowClip } from "@/hooks/useShadowQueue";
@@ -228,6 +231,7 @@ const TranscriptRow = ({
   isActive,
   showTranslation,
   showLiteral,
+  fusha,
   onSave,
   savedWords,
   lineRef,
@@ -242,6 +246,8 @@ const TranscriptRow = ({
   isActive: boolean;
   showTranslation: boolean;
   showLiteral?: boolean;
+  /** The line in Modern Standard Arabic, when the Fusha row is on and one exists. */
+  fusha?: string;
   onSave?: (word: VocabItem) => void;
   savedWords?: Set<string>;
   lineRef?: React.Ref<HTMLDivElement>;
@@ -290,6 +296,10 @@ const TranscriptRow = ({
             ))
           : line.arabic}
       </p>
+
+      {/* Fusha row — the same sentence in MSA, next to the dialect rather than
+          down with the translation, because it is not what the line means. */}
+      {fusha && <FushaLine dialect={line.arabic} fusha={fusha} className="mt-1" />}
 
       {line.arabic && (
         <div className="mt-2 flex flex-wrap items-center gap-2" onClick={(e) => e.stopPropagation()}>
@@ -594,6 +604,13 @@ const DiscoverVideo = () => {
   const [savedWords, setSavedWords] = useState<Set<string>>(new Set());
   const [showTranslations, setShowTranslations] = useState(false);
   const [showLiteral, setShowLiteral] = useState(false);
+  // Unlike its neighbours, the Fusha switch is the global "Formal Arabic (MSA)"
+  // preference rather than page state: a learner who asked for MSA in Settings
+  // or on a transcript means it everywhere, and one row appearing on some
+  // screens and not others reads as a bug rather than a setting.
+  const { prefs: displayPrefs, update: updateDisplayPrefs } = useDisplayPrefs();
+  const showFusha = displayPrefs.showFormal;
+  const setShowFusha = (on: boolean) => updateDisplayPrefs({ showFormal: on });
   const [playbackMode, setPlaybackMode] = useState<"continuous" | "line">("continuous");
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const playbackSpeedRef = useRef(playbackSpeed);
@@ -880,6 +897,14 @@ const DiscoverVideo = () => {
   const lines = useMemo(
     () => allLines.filter((l: any) => !(l?.source === "on_screen" || l?.segmentType === "text_overlay")),
     [allLines],
+  );
+
+  // Most of the Discover library was analysed before the Fusha pass existed,
+  // so the row is filled in on demand the first time a learner asks for it.
+  const { fushaFor, status: fushaStatus } = useFushaLines(
+    lines,
+    showFusha,
+    video?.dialect ?? "Gulf",
   );
 
   // For YouTube: find active line by time. For others: use manual index.
@@ -1740,6 +1765,19 @@ const DiscoverVideo = () => {
                         ))
                       : displayLine.arabic}
                   </p>
+                  {showFusha && (
+                    fushaFor(displayLine) ? (
+                      <FushaLine
+                        dialect={displayLine.arabic}
+                        fusha={fushaFor(displayLine)}
+                        variant="inline"
+                      />
+                    ) : fushaStatus === "loading" ? (
+                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground/60 text-center">
+                        Converting to فصحى…
+                      </p>
+                    ) : null
+                  )}
                   {showTranslations && displayLine.translation && (
                     <>
                       <p
@@ -1883,6 +1921,12 @@ const DiscoverVideo = () => {
             checked={showLiteral}
             onCheckedChange={setShowLiteral}
           />
+          <span className="text-xs text-muted-foreground ml-2">Fusha</span>
+          <Switch
+            checked={showFusha}
+            onCheckedChange={setShowFusha}
+            aria-label="Show Fusha (MSA) line"
+          />
         </div>
       </div>
 
@@ -1916,6 +1960,7 @@ const DiscoverVideo = () => {
               isActive={activeLineId === line.id}
               showTranslation={showTranslations}
               showLiteral={showLiteral}
+              fusha={showFusha ? fushaFor(line) : undefined}
               onSave={isAuthenticated ? handleSaveToMyWords : undefined}
               savedWords={savedWords}
               lineRef={(el) => {

@@ -13,7 +13,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useDialect } from "@/contexts/DialectContext";
 import { AskAISentence } from "@/components/shared/AskAISentence";
 import { TranslationPair } from "@/components/shared/TranslationPair";
- 
+import { FushaLine } from "@/components/shared/FushaLine";
+import { useDisplayPrefs } from "@/hooks/useDisplayPrefs";
+import { useFushaLines } from "@/hooks/useFushaLines";
+
  interface LineByLineTranscriptProps {
    lines: TranscriptLine[];
    audioUrl?: string;
@@ -364,6 +367,8 @@ interface TranscriptLineCardProps {
    isActive: boolean;
    isPlaying: boolean;
    showTranslation: boolean;
+  /** The line in Modern Standard Arabic, when the Fusha row is on and one exists. */
+  fusha?: string;
    onToggle: () => void;
    onPlay: () => void;
    hasAudio: boolean;
@@ -379,6 +384,7 @@ interface TranscriptLineCardProps {
    isActive,
    isPlaying,
    showTranslation,
+   fusha,
    onToggle,
    onPlay,
    hasAudio,
@@ -679,7 +685,11 @@ interface TranscriptLineCardProps {
            )}
          </div>
        </div>
- 
+
+      {/* Fusha (MSA) rendering — sits with the Arabic, not with the
+          translation: it is the same sentence, not what the sentence means. */}
+      {fusha && <FushaLine dialect={line.arabic} fusha={fusha} className="mt-2" />}
+
        {/* English translation (collapsible) */}
        <div
          className={cn(
@@ -732,6 +742,17 @@ export const LineByLineTranscript = ({
    savedWords,
    vocabSectionWords,
  }: LineByLineTranscriptProps) => {
+   const { activeDialect } = useDialect();
+   // The Fusha row rides on the global "Formal Arabic (MSA)" display
+   // preference, the same switch Settings and the Bible reader use — a learner
+   // who asked for MSA everywhere should not have to ask again per transcript.
+   const { prefs, update: updatePrefs } = useDisplayPrefs();
+   const showFusha = prefs.showFormal;
+   const { fushaFor, status: fushaStatus, retry: retryFusha } = useFushaLines(
+     lines,
+     showFusha,
+     activeDialect,
+   );
    const [showAllTranslations, setShowAllTranslations] = useState(false);
    const [expandedLines, setExpandedLines] = useState<Set<string>>(new Set());
    const [activeLineId, setActiveLineId] = useState<string | null>(null);
@@ -828,7 +849,13 @@ export const LineByLineTranscript = ({
             Sentences
          </h3>
          <div className="flex items-center gap-2">
-           <span className="text-xs text-muted-foreground">
+           <span className="text-xs text-muted-foreground">Fusha</span>
+           <Switch
+             checked={showFusha}
+             onCheckedChange={(on) => updatePrefs({ showFormal: on })}
+             aria-label="Show Fusha (MSA) line"
+           />
+           <span className="text-xs text-muted-foreground ml-2">
              {showAllTranslations ? (
                <Eye className="h-4 w-4 inline mr-1" />
              ) : (
@@ -839,10 +866,25 @@ export const LineByLineTranscript = ({
            <Switch
              checked={showAllTranslations}
              onCheckedChange={setShowAllTranslations}
+             aria-label="Show all translations"
            />
          </div>
        </div>
- 
+
+      {showFusha && fushaStatus === "loading" && (
+        <p className="text-xs text-muted-foreground text-center">
+          Converting to فصحى…
+        </p>
+      )}
+      {showFusha && fushaStatus === "error" && (
+        <div className="flex items-center justify-center gap-2">
+          <p className="text-xs text-muted-foreground">Couldn't convert every line to فصحى.</p>
+          <Button variant="outline" size="sm" className="h-6 text-xs px-2" onClick={retryFusha}>
+            Retry
+          </Button>
+        </div>
+      )}
+
        <div className="space-y-3">
          {lines.map((line) => (
            <TranscriptLineCard
@@ -851,6 +893,7 @@ export const LineByLineTranscript = ({
              isActive={activeLineId === line.id}
              isPlaying={isPlaying && activeLineId === line.id}
              showTranslation={isLineExpanded(line.id)}
+             fusha={showFusha ? fushaFor(line) : undefined}
              onToggle={() => toggleLine(line.id)}
              onPlay={() => handlePlayLine(line)}
              hasAudio={!!audioUrl}

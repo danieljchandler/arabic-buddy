@@ -127,6 +127,47 @@ are unaffected.
 - `supabase/migrations/` — database schema and RLS policies
 - `docs/` — planning notes and branding assets
 
+## The Fusha row
+
+A transcript line carries three things about the same sentence: the Arabic as
+spoken, the English translation, and — since this feature — `fusha`, the same
+sentence rewritten in Modern Standard Arabic. It is a **conversion, not a
+translation**: the row stays in Arabic and only the dialect-specific parts move
+(شلونك → كيف حالك, يبغى → يريد, ما راح أروح → لن أذهب), so a learner who arrived
+from فصحى can see which pieces the dialect changed rather than only what the
+line means. That is why it renders beside the Arabic rather than inside the
+collapsible English.
+
+The rules live in `supabase/functions/_shared/fushaBridge.ts` — prompt text,
+parsing, alignment, and the comparison that decides whether anything actually
+changed — so the analysis pipeline, the on-demand converter and the React
+component all agree on what a Fusha rendering is. Two of its rules are worth
+knowing:
+
+- **Anything without Arabic script is dropped.** The row renders RTL under a
+  فصحى heading, so a model that answers "I went to the market" produces a second
+  translation wearing Arabic's clothes. A blank is better; the row just doesn't
+  render.
+- **Short answers pad, they never shift.** A model that returns nine renderings
+  for ten lines has merged two of them, and sliding the array into place files
+  every later line's Fusha under the wrong sentence — invisible to exactly the
+  learner this row is for.
+
+`analyze-gulf-arabic` runs the conversion as its own model call, parallel to the
+translation ensemble rather than folded into it: the ensemble picks a winner by
+clustering *English* token overlap, and a Fusha rendering has no bearing on
+which English translation is right. Provenance lands in
+`engines_used.fusha` (status, model, `lines_filled` / `lines_total`) — a pass
+that "succeeded" while filling 3 of 40 lines is a failure a learner sees.
+
+Everything analysed before this existed has no `fusha`, which is most of the
+Discover library and every saved transcription. `convert-to-fusha` fills those
+in on demand: `useFushaLines` sends only the lines missing one, only once the
+learner turns the row on, and only once per line per mount. The switch is the
+global "Formal Arabic (MSA)" display preference on every screen that shows the
+row, so asking for MSA once — in Settings, on a transcript, on a video — turns
+it on everywhere.
+
 ## The learner's mistakes
 
 `learner_errors` collects every pronunciation miss, shadowing gap, sentence-coach

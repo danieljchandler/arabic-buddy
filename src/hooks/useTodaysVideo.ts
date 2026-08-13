@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useDialect } from "@/contexts/DialectContext";
 import { useUserLevel } from "./useUserLevel";
 import { useDiscoverVideos, difficultyWindow, type DiscoverVideo } from "./useDiscoverVideos";
+import { DIALECT_MODULE_VALUES, type Dialect } from "@/config";
 
 /**
  * The one clip the home page leads with.
@@ -66,9 +67,17 @@ export function useTodaysVideo(): TodaysVideo {
     return candidates[0];
   }, [pool, placementLevel]);
 
+  // A Gulf-module video can be tagged with the specific country the AI
+  // detected (Saudi, Kuwaiti, ...) rather than the bare "Gulf" module name,
+  // so this has to check module membership rather than raw string equality —
+  // otherwise every country-tagged Gulf clip would misreport as borrowed from
+  // another dialect even though it came back from the dialect-scoped query.
+  const moduleValues = DIALECT_MODULE_VALUES[activeDialect as Dialect];
+  const isFromAnotherDialect = !!video && !(moduleValues?.includes(video.dialect) ?? video.dialect === activeDialect);
+
   return {
     video,
-    isFromAnotherDialect: !!video && video.dialect !== activeDialect,
+    isFromAnotherDialect,
     isLoading: inDialect.isLoading || (dialectIsEmpty && anyDialect.isLoading),
   };
 }

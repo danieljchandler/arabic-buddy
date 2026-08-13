@@ -69,6 +69,11 @@ function normalizeTranscriptResult(input: TranscriptResult): TranscriptResult {
           id: typeof line.id === "string" && line.id ? line.id : `line-${idx}`,
           arabic: String(line.arabic ?? ""),
           translation: String(line.translation ?? ""),
+          // Both of these used to be dropped here, so a transcript that came
+          // back with a word-for-word gloss and a Fusha rendering rendered
+          // neither — the normalizer rebuilds each line field by field.
+          literal: line.literal ? String(line.literal) : undefined,
+          fusha: line.fusha ? String(line.fusha) : undefined,
           tokens: tokens
             .filter((t) => t && typeof t === "object")
             .map((t, tIdx) => ({

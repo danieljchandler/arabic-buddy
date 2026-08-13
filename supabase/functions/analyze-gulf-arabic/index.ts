@@ -25,6 +25,11 @@ import {
   type CamelOutcome,
   type CamelPrediction,
 } from "../_shared/camelDialect.ts";
+import {
+  alignFushaLines,
+  buildFushaSystemPrompt,
+} from "../_shared/fushaBridge.ts";
+import { MODEL_IDS } from "../_shared/modelRegistry.ts";
 
 // Helper to generate unique IDs
 function generateId(): string {
@@ -45,6 +50,12 @@ function generateId(): string {
    arabic: string;
    translation: string;
    literal?: string;
+   /**
+    * The same sentence in Modern Standard Arabic (فصحى). Not a translation —
+    * see _shared/fushaBridge.ts. Empty when the Fusha pass failed or returned
+    * something that wasn't Arabic; the row simply doesn't render.
+    */
+   fusha?: string;
    tokens: WordToken[];
    needs_review?: boolean;
    /** Why the line needs review — set whenever needs_review is true. */
@@ -657,6 +668,86 @@ async function callTranslationModel(opts: {
       error: e instanceof Error ? e.message : String(e),
     };
   }
+}
+
+// ============================================================================
+// FUSHA PASS — dialect → Modern Standard Arabic, one line at a time.
+//
+// Deliberately its own call rather than a fourth array on the translation
+// prompt. The ensemble clusters candidates by English token overlap to pick a
+// winner, and a Fusha rendering has no bearing on which English translation is
+// right — folding it in would make the three models' Arabic hostage to a vote
+// about their English. It is also the field most likely to come back missing
+// or misaligned, and a separate call means that failure costs the transcript
+// one optional row instead of its translations.
+// ============================================================================
+type FushaOutcome = {
+  lines: string[];
+  model: string | null;
+  status: 'ok' | 'failed' | 'parse_failed';
+  latencyMs: number;
+  /** How many lines actually came back with Arabic in them. */
+  filled: number;
+};
+
+/**
+ * Convert the merged dialect lines to Fusha, trying one model then a fallback.
+ *
+ * Never throws and never blocks: a transcript with no Fusha is a transcript
+ * that renders exactly as it did before this feature existed.
+ */
+async function runFushaPass(opts: {
+  numberedLines: string;
+  lineCount: number;
+  dialectLabel: string;
+  apiKey: string;
+}): Promise<FushaOutcome> {
+  const t0 = Date.now();
+  const systemPrompt = buildFushaSystemPrompt(opts.dialectLabel);
+  // Claude first (strongest Arabic morphology of the pair), Gemini as fallback.
+  const attempts: Array<{ model: string; gateway: 'openrouter' | 'lovable' }> = [
+    { model: MODEL_IDS.CLAUDE, gateway: 'openrouter' },
+    { model: MODEL_IDS.GEMINI_FLASH, gateway: 'lovable' },
+  ];
+
+  let lastStatus: FushaOutcome['status'] = 'failed';
+  for (const attempt of attempts) {
+    try {
+      const resp = await callAI({
+        model: attempt.model,
+        gateway: attempt.gateway,
+        systemPrompt,
+        userContent: opts.numberedLines,
+        apiKey: opts.apiKey,
+        maxTokens: 16384,
+      });
+      if (!resp.content) {
+        lastStatus = 'failed';
+        console.warn(`[fusha] ${attempt.model} returned nothing: ${resp.error?.slice(0, 120) ?? 'no error'}`);
+        continue;
+      }
+      const parsed = safeJsonParse<{ fusha?: unknown }>(resp.content);
+      const lines = alignFushaLines(parsed, opts.lineCount);
+      const filled = lines.filter((l) => l.length > 0).length;
+      if (filled === 0) {
+        lastStatus = 'parse_failed';
+        console.warn(`[fusha] ${attempt.model} produced no usable Arabic across ${opts.lineCount} lines`);
+        continue;
+      }
+      return { lines, model: attempt.model, status: 'ok', latencyMs: Date.now() - t0, filled };
+    } catch (e) {
+      lastStatus = 'failed';
+      console.warn(`[fusha] ${attempt.model} threw:`, e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  return {
+    lines: new Array(opts.lineCount).fill(''),
+    model: null,
+    status: lastStatus,
+    latencyMs: Date.now() - t0,
+    filled: 0,
+  };
 }
 
 // Returned by Call 1 (merge only — no translations)
@@ -1776,7 +1867,7 @@ serve(async (req) => {
      const arabicOnlyText = mergedLines.map(l => l.arabic).join('\n');
      const hfApiKey = Deno.env.get('HUGGINGFACE_API_KEY') ?? '';
 
-      const [translationEnsembleResult, analysisResp, fanarMetaResp, fanarValidResp, camelOutcome, diacOutcome] = await Promise.all([
+      const [translationEnsembleResult, fushaOutcome, analysisResp, fanarMetaResp, fanarValidResp, camelOutcome, diacOutcome] = await Promise.all([
         // TRANSLATION ENSEMBLE — Claude Sonnet 4.5 (1.0) + Gemini 3.5 Flash (1.0)
         // as co-equal peers, Qwen3-Max (0.5) as lower-weight verifier. Model
         // IDs are sourced from _shared/modelRegistry.ts (MODEL_LINEUPS.TRANSLATION)
@@ -1837,6 +1928,15 @@ serve(async (req) => {
           });
           return candidates;
         })(),
+       // FUSHA PASS — the same lines rewritten in Modern Standard Arabic, so a
+       // Fusha learner can see what the dialect changed rather than only what
+       // it means. Non-blocking: failure leaves every line's `fusha` empty.
+       runFushaPass({
+         numberedLines: mergedTranscriptText,
+         lineCount: mergedLines.length,
+         dialectLabel: dialectFamilyLabel(),
+         apiKey: OPENROUTER_API_KEY,
+       }),
        // Call 2: vocabulary + grammar (Qwen, unchanged from Step 2)
        callAI({
          systemPrompt: getAnalysisSystemPrompt(false, detectedDialect, visualContext, memeMode),
@@ -2144,6 +2244,17 @@ serve(async (req) => {
           ...(c.error ? { error: c.error.slice(0, 200) } : {}),
         })),
       };
+      // Structured provenance for engines_used.fusha. Kept separate from the
+      // translation block: it is a different call to a different prompt, and
+      // an audit asking "why has this video no Fusha row" should not have to
+      // read it out of the translation tiers.
+      const fushaProvenance = {
+        status: fushaOutcome.status,
+        model: fushaOutcome.model,
+        latency_ms: fushaOutcome.latencyMs,
+        lines_total: mergedLines.length,
+        lines_filled: fushaOutcome.filled,
+      };
       console.log(
         `[ensemble] merged ${dedicatedTranslations.length} lines | ` +
           `all_three=${ensembleMerge.agreements.all_three} ` +
@@ -2269,6 +2380,7 @@ serve(async (req) => {
           // Shaheen fills only when the ensemble + Call 2 both came back empty.
           translation: ensembleTranslation || shaheenByLine[i] || '',
           literal: dedicatedLiterals[i] || '',
+          fusha: fushaOutcome.lines[i] || '',
           needs_review: needsReview,
           ...(reviewReason ? { review_reason: reviewReason } : {}),
           // Shaheen's own rendering rides along on any line it had an opinion
@@ -2288,6 +2400,13 @@ serve(async (req) => {
             `needs_review=${translationProvenance.agreements.needs_review})`,
         );
       }
+
+      // A Fusha pass that "succeeded" while filling 3 of 40 lines is a failure
+      // the learner sees and the log would otherwise call ok. Print the ratio.
+      console.log(
+        `[fusha] ${fushaOutcome.status} via ${fushaOutcome.model ?? 'none'} — ` +
+          `${fushaOutcome.filled}/${mergedLines.length} lines in ${fushaOutcome.latencyMs}ms`,
+      );
 
 
      // Merge Fanar meta results if available
@@ -2412,6 +2531,7 @@ serve(async (req) => {
           arabic: String(l.arabic ?? '').trim(),
           translation: String(l.translation ?? '').trim(),
           literal: String(l.literal ?? '').trim(),
+          fusha: String(l.fusha ?? '').trim(),
           needs_review: Boolean(l.needs_review),
           ...(l.review_reason ? { review_reason: l.review_reason } : {}),
           ...(l.altTranslation ? { altTranslation: String(l.altTranslation).trim() } : {}),
@@ -2566,6 +2686,7 @@ serve(async (req) => {
           // by process-approved-video. Translation ensemble + dialect signals are additive.
           let mergedEnginesUsed: Record<string, unknown> = {
             translation: translationProvenance,
+            fusha: fushaProvenance,
             dialect_signals: dialectSignals,
             diacritization: diacritizationProvenance,
           };
@@ -2581,6 +2702,7 @@ serve(async (req) => {
             mergedEnginesUsed = {
               ...existing,
               translation: translationProvenance,
+              fusha: fushaProvenance,
               dialect_signals: dialectSignals,
               diacritization: diacritizationProvenance,
             };

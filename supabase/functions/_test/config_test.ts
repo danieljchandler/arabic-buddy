@@ -108,9 +108,9 @@ Deno.test("the undeclared functions are listed, so the default is a choice", asy
   // Adjust deliberately, in the same commit that adds or declares a function.
   assertEquals(
     undeclared.length,
-    // 36 since `enrich-word-roots`, which backfills roots onto the caller's own
-    // vocabulary and must have a JWT to know whose deck to touch.
-    36,
+    // 37 since `convert-to-fusha`, which is capped per user and answers 401
+    // without a JWT anyway — the inherited default is the one it wants.
+    37,
     `The number of functions with no config.toml entry changed (now ${undeclared.length}: ` +
       `${undeclared.join(", ")}). They inherit verify_jwt = true. If that is right, ` +
       `update this count; if not, add a block.`,

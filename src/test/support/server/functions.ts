@@ -198,6 +198,17 @@ export const defaultFunctions: Record<string, FunctionHandler> = {
   // response at all, so the old fixture named a field nothing reads and omitted
   // the two that are rendered.
   "translate-phrase": () => ok({ translation: "translated", msa: "", literal: "" }),
+  // Echoes one Fusha rendering per line asked for, so a caller that mis-aligns
+  // the response fails instead of quietly rendering the first line's Arabic
+  // under every sentence.
+  "convert-to-fusha": ({ body }) => {
+    const lines = (body as { lines?: unknown })?.lines;
+    const count = Array.isArray(lines) ? lines.length : 0;
+    return ok({
+      fusha: Array.from({ length: count }, (_, i) => `فصحى ${i + 1}`),
+      model: "test-model",
+    });
+  },
   "how-do-i-say": () => ok({ arabic: "كيف", english: "how", transliteration: "kayf" }),
 
   "grammar-drill": () => ok({ questions: [] }),

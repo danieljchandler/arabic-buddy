@@ -32,7 +32,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-const DIALECTS = ["All", "Gulf", "MSA", "Egyptian", "Levantine", "Maghrebi"];
+const DIALECTS = ["All", "Gulf", "Egyptian", "Yemeni", "MSA", "Levantine", "Maghrebi"];
 const DIFFICULTIES = ["All", "Beginner", "Intermediate", "Advanced", "Expert"];
 
 function difficultyColor(d: string) {

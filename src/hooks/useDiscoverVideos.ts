@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
+import { DIALECT_MODULE_VALUES, type Dialect } from "@/config";
 
 const DIFFICULTY_ORDER = ["Beginner", "Intermediate", "Advanced", "Expert"];
 const CEFR_TO_DIFFICULTY: Record<string, string> = {
@@ -72,7 +73,15 @@ export function useDiscoverVideos(
         .order("created_at", { ascending: false });
 
       if (filters?.dialect) {
-        query = query.eq("dialect", filters.dialect);
+        // Gulf videos can be tagged with the specific country the AI detected
+        // (Saudi, Kuwaiti, ...) rather than the bare "Gulf" module name, so an
+        // exact-match filter would drop them. Expand to every raw value that
+        // belongs to the selected module; fall back to an exact match for any
+        // other (e.g. legacy MSA/Levantine/Maghrebi) tag.
+        const moduleValues = DIALECT_MODULE_VALUES[filters.dialect as Dialect];
+        query = moduleValues
+          ? query.in("dialect", moduleValues as string[])
+          : query.eq("dialect", filters.dialect);
       }
       if (Array.isArray(filters?.difficulty)) {
         if (filters.difficulty.length > 0) query = query.in("difficulty", filters.difficulty);

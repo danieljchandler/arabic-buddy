@@ -22,6 +22,21 @@ export const DIALECT_LABELS: Record<Dialect, string> = {
   Yemeni: 'Yemeni Arabic',
 };
 
+/**
+ * `discover_videos.dialect` is written by the AI analysis pipeline, which for
+ * the Gulf module stores the specific country it detected (Saudi, Kuwaiti,
+ * UAE, Bahraini, Qatari, Omani) rather than the bare module name — Egyptian
+ * and Yemeni are always stored as their module name. Anything filtering
+ * videos by dialect module needs to match every raw value that belongs to
+ * that module, or Gulf-tagged-by-country videos silently disappear from a
+ * "Gulf" filter.
+ */
+export const DIALECT_MODULE_VALUES: Record<Dialect, readonly string[]> = {
+  Gulf: ['Gulf', 'Saudi', 'Kuwaiti', 'UAE', 'Bahraini', 'Qatari', 'Omani'],
+  Egyptian: ['Egyptian'],
+  Yemeni: ['Yemeni'],
+};
+
 // ─── Difficulty levels ───────────────────────────────────────────────────────
 
 export const DIFFICULTIES = ['beginner', 'intermediate', 'advanced'] as const;

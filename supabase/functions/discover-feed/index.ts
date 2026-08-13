@@ -15,6 +15,19 @@ interface FeedItem {
   bucket: "match" | "stretch" | "comfort" | "fresh";
 }
 
+// discover_videos.dialect can hold the specific Gulf country the AI detected
+// (Saudi, Kuwaiti, UAE, Bahraini, Qatari, Omani) instead of the bare "Gulf"
+// module name — Egyptian and Yemeni are always stored as their module name.
+// Matching only the literal module string would silently drop every
+// country-tagged Gulf clip from a Gulf learner's feed.
+const GULF_DIALECT_VALUES = ["Gulf", "Saudi", "Kuwaiti", "UAE", "Bahraini", "Qatari", "Omani"];
+function dialectModuleValues(activeDialect: string): string[] {
+  return activeDialect === "Gulf" ? GULF_DIALECT_VALUES : [activeDialect];
+}
+function dialectMatchesModule(videoDialect: string, activeDialect: string): boolean {
+  return activeDialect === "Gulf" ? GULF_DIALECT_VALUES.includes(videoDialect) : videoDialect === activeDialect;
+}
+
 const CEFR_ORDER = ["A1", "A2", "B1", "B2", "C1", "C2"];
 const DIFF_TO_CEFR: Record<string, string> = {
   Beginner: "A1",
@@ -171,7 +184,7 @@ Deno.serve(async (req) => {
       )
       .eq("published", true)
       .gte("created_at", sinceIso)
-      .in("dialect", [activeDialect, "MSA"])
+      .in("dialect", [...dialectModuleValues(activeDialect), "MSA"])
       .order("created_at", { ascending: false })
       .limit(300);
 
@@ -226,7 +239,7 @@ Deno.serve(async (req) => {
       }
 
       // Dialect
-      const dialectScore = (v as any).dialect === activeDialect ? 1.0 : 0.5;
+      const dialectScore = dialectMatchesModule((v as any).dialect, activeDialect) ? 1.0 : 0.5;
 
       // Freshness (decay over 30d)
       const ageDays = (now - new Date((v as any).created_at).getTime()) / (24 * 3600 * 1000);

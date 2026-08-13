@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDiscoverVideos } from "@/hooks/useDiscoverVideos";
 import { useDiscoverFeed, type FeedItem } from "@/hooks/useDiscoverFeed";

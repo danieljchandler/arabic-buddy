@@ -22,6 +22,17 @@ dialect, never Modern Standard Arabic (MSA / فصحى).
   as `systemPromptExtra`. Its pure half (`learnerProfileCore.ts`) is unit-tested
   from the Vitest suite. Never send a client-supplied "words the user knows"
   list — build it server-side.
+- **Assistant context:** what the Ask AI tutor can see, in five layers. Pages
+  publish structured context via `usePageAiContext` — the line in focus, the
+  *whole* document it sits in (transcript, article, passage), editorial
+  metadata, and the learner's position — budgeted by
+  `_shared/pageContextCore.ts`, which windows a long document around the
+  focused line rather than truncating it. On top of that: semantic retrieval
+  over `content_embeddings` (`_shared/contentRetrieval.ts`), three tools the
+  tutor can call (`_shared/assistantTools.ts` — read the source article, search
+  the library, check a word's review history), a timestamped record of what is
+  on screen (`_shared/visualTimelineCore.ts`), and notes carried between
+  sessions (`_shared/learnerMemory.ts`). See "Assistant context" below.
 - **Grammar mastery:** the learner model also carries *structural* weakness, not
   just lexical — see "Grammar mastery" below.
 
@@ -186,6 +197,78 @@ Reads and writes are asymmetric, as with grammar mastery: the client may read
 its own rows and set `resolved_at`, and nothing else. `20260726140000` revoked
 blanket UPDATE and re-granted it on that one column, because `target_arabic` and
 `detail` feed the learner's own content generation.
+
+## Assistant context
+
+The Ask AI tutor — text chat and live voice — used to see four strings, the
+longest capped at 1500 characters. On a video that string held exactly one
+subtitle line, so "what did he mean earlier?" had nothing behind it. Context is
+now layered, and each layer is separately defeatable: every one of them
+degrades to "the tutor knows a little less" rather than to an error.
+
+**The page.** `usePageAiContext` publishes a structured payload rather than a
+blob: `content` (the line in focus), `document` (the whole transcript, article
+or passage it sits inside), `meta` (level, dialect, vocabulary, grammar points,
+cultural and visual context) and `position` (line 12 of 48, 0:47 of 3:10).
+`_shared/pageContextCore.ts` renders and budgets it, and is shared verbatim by
+the client and both edge functions — the client's caps are a courtesy, the
+server's are the boundary.
+
+Long documents are windowed, not truncated. `slice(0, N)` keeps a transcript's
+opening and throws away the part being watched; `windowDocument` grows a
+contiguous window outward from the focused line, reserves a short head so the
+material stays identifiable, and reports what it dropped as
+`… 14 lines omitted …`. That marker is load-bearing: a model shown two
+non-adjacent lines with no gap between them reads them as consecutive and then
+explains a transition that never happened.
+
+**Live voice stays in sync.** A Realtime session's instructions are minted once
+and carry the dialect rulebook and learner profile, so they are deliberately
+not rebuilt from the browser. Instead the document goes out at mint time and
+position changes are added to the conversation as notes over the data channel
+that is already open (`serializeFocusUpdate`), throttled and only on a real
+change. Without this the tutor is frozen at whatever was on screen when the
+call connected.
+
+**Retrieval.** `content_embeddings` and `match_content()` shipped in Sprint 3
+and nothing read them. `_shared/contentRetrieval.ts` is the reader: it embeds
+the question, takes the nearest material in the learner's dialect, keeps one
+match per source, and drops anything under a similarity floor — a
+nearest-neighbour lookup always returns *something*, and without a floor the
+tutor reports the closest row in the library as related.
+
+**Tools.** `_shared/assistantTools.ts` gives the tutor `read_source` (the web
+page the app's content was made from, via Firecrawl), `search_library` and
+`get_word_history`. Chat reaches them through a pre-flight router
+(`assistantToolRouter.ts`) because `streamBrain` has no tool loop; voice
+declares them on the Realtime session and relays calls through the
+`assistant-tools` function.
+
+`read_source` is the one to be careful with. The model choosing the URL has
+scraped third-party text in its context, so the URL is not a free parameter:
+the caller passes the URLs the learner's own screen points at, and the
+allow-list holds exact addresses — not domains, not prefixes. "The host
+matches, so the path is fine" is the reasoning an injected instruction would
+reach for. Everything a tool returns is framed as untrusted data, and a refused
+or failed lookup is shown to the model rather than dropped — swallowing it is
+how an assistant ends up inventing the contents of a page it never read.
+
+**What's on screen.** Half of an Arabic meme is text burned into the frame and
+never spoken. `extract-visual-context` has always OCR'd those overlays with
+their timings; `discover_videos.visual_timeline` now keeps the timings, and the
+player resolves the current moment as playback advances
+(`_shared/visualTimelineCore.ts`).
+
+**Between sessions.** `learner_ai_memory` holds short notes per learner per
+dialect — what keeps confusing them, which kind of explanation lands — written
+by a small model after the answer has streamed, inside `waitUntil`, and only
+once enough turns have passed to be worth the call. The notes are rewritten
+rather than appended to. They are also the least reliable thing in the prompt,
+so the block hedges hard: a hint, never a fact, dropped the moment the learner
+contradicts it. Settings shows a learner exactly what is remembered and lets
+them erase it; the table has SELECT and DELETE policies for them and no INSERT
+or UPDATE, because a client-supplied "here is what you remember about me" is a
+prompt-injection surface with a database behind it.
 
 ## Grammar mastery
 

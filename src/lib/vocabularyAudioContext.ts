@@ -7,6 +7,7 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { clipToWav, decodeAudioFile } from "./audioClipper";
+import { resolveStagedVideoAudioUrl } from "./videoAudioStaging";
 
 export interface AudioContext {
   sentenceAudioUrl?: string;
@@ -192,17 +193,11 @@ export async function resolveDiscoverVideoAudioUrl(video: {
   embed_url?: string;
 }): Promise<string | null> {
   try {
-    const extensions = [".mp4", ".opus", ".m4a", ".webm", ".mp3"];
-
     // Strategy 1: private `video-audio` bucket keyed by discover_videos.id
     // (this is the path used by the admin uploader)
     if (video.id) {
-      for (const ext of extensions) {
-        const { data } = await supabase.storage
-          .from("video-audio")
-          .createSignedUrl(`${video.id}${ext}`, 3600);
-        if (data?.signedUrl) return data.signedUrl;
-      }
+      const staged = await resolveStagedVideoAudioUrl(video.id);
+      if (staged) return staged;
     }
 
     // Strategy 2: legacy YouTube id-based files in `video-audio`
@@ -213,12 +208,8 @@ export async function resolveDiscoverVideoAudioUrl(video: {
     const videoId = ytMatch?.[1];
 
     if (videoId) {
-      for (const ext of extensions) {
-        const { data } = await supabase.storage
-          .from("video-audio")
-          .createSignedUrl(`${videoId}${ext}`, 3600);
-        if (data?.signedUrl) return data.signedUrl;
-      }
+      const staged = await resolveStagedVideoAudioUrl(videoId);
+      if (staged) return staged;
 
       // Strategy 3: public `audio` bucket via `audio_files` lookup
       const { data: audioRecord } = await supabase

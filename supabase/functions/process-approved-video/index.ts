@@ -305,6 +305,11 @@ async function runPipeline(
   // stages it as WAV, so when both exist the extracted audio is the better input
   // (smaller, already 16 kHz mono). The other extensions cover URL-sourced
   // downloads and uploads whose container the browser couldn't decode.
+  //
+  // Keep this list in step with STAGED_AUDIO_EXTENSIONS in
+  // `src/lib/videoAudioStaging.ts` — the Discover player streams the same
+  // staged file for TikTok subtitle sync, and audio only this side can find is
+  // audio the player treats as absent.
   const storagePaths = [
     `${videoId}.wav`, `${videoId}.mp4`, `${videoId}.m4a`, `${videoId}.webm`,
     `${videoId}.mp3`, `${videoId}.opus`,
@@ -388,9 +393,19 @@ async function runPipeline(
     // acquisition path after the storage-cache lookup above.)
     if (!audioBytes) {
       console.log("[pipeline] No storage audio found, downloading from URL...");
+      // Service-role bearer, for the same reason the analyze and rate-video
+      // calls use one: `authHeader` is whatever the original caller sent, and
+      // the admin form sends the anon/publishable key. download-media accepts
+      // only the service-role key or a real user JWT, so forwarding a public
+      // key made every URL-sourced acquisition — the whole TikTok-by-link
+      // path — fail with `Download failed (401): Unauthorized`.
+      const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
       const downloadResp = await fetch(`${projectUrl}/functions/v1/download-media`, {
         method: "POST",
-        headers: { Authorization: authHeader, "Content-Type": "application/json" },
+        headers: {
+          Authorization: serviceRoleKey ? `Bearer ${serviceRoleKey}` : authHeader,
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({ url: video.source_url }),
       });
 

@@ -1087,21 +1087,66 @@ const DiscoverVideo = () => {
     ? lines[lineControlIndex]
     : activeLine ?? lines[lineControlIndex] ?? null;
 
+  // Everything the assistant is told about this video. The transcript is the
+  // point: the tutor used to get one subtitle line, so "what did he mean
+  // earlier?" had nothing behind it. All of this is already loaded to render
+  // the page, so publishing it costs no extra fetch.
+  const lineIndexOfDisplay = useMemo(
+    () => (displayLine ? lines.findIndex((l) => l.id === displayLine.id) : -1),
+    [lines, displayLine],
+  );
+
   usePageAiContext(
-    useMemo(
-      () =>
-        video
-          ? {
-              kind: "video" as const,
-              title: video.title,
-              summary: `Watching a ${video.dialect} dialect video${video.cefr_level ? ` (${video.cefr_level})` : ""} with tap-to-translate subtitles.`,
-              content: displayLine
-                ? `Current subtitle: ${displayLine.arabic}${displayLine.translation ? ` — ${displayLine.translation}` : ""}`
-                : undefined,
-            }
-          : null,
-      [video, displayLine],
-    ),
+    useMemo(() => {
+      if (!video) return null;
+      const vocabulary = Array.isArray(video.vocabulary)
+        ? (video.vocabulary as Array<{ word?: string; arabic?: string; translation?: string; english?: string }>)
+            .map((v) => ({
+              arabic: String(v.arabic ?? v.word ?? "").trim(),
+              english: (v.english ?? v.translation) ? String(v.english ?? v.translation).trim() : undefined,
+            }))
+            .filter((v) => v.arabic)
+        : undefined;
+      const grammarPoints = Array.isArray(video.grammar_points)
+        ? (video.grammar_points as Array<string | { title?: string; point?: string; explanation?: string }>)
+            .map((g) =>
+              typeof g === "string" ? g : [g.title ?? g.point, g.explanation].filter(Boolean).join(" — "),
+            )
+            .filter((g) => g.length > 0)
+        : undefined;
+
+      return {
+        kind: "video" as const,
+        title: video.title,
+        summary: `Watching a ${video.dialect} dialect video${video.cefr_level ? ` (${video.cefr_level})` : ""} with tap-to-translate subtitles.`,
+        content: displayLine
+          ? `${displayLine.arabic}${displayLine.translation ? ` — ${displayLine.translation}` : ""}`
+          : undefined,
+        document: {
+          label: "Full transcript of this video",
+          sourceUrl: video.source_url ?? undefined,
+          lines: lines.map((line, i) => ({
+            index: i + 1,
+            arabic: line.arabic,
+            english: line.translation ?? undefined,
+            atSeconds: line.startMs !== undefined ? line.startMs / 1000 : undefined,
+          })),
+        },
+        meta: {
+          level: video.cefr_level ?? undefined,
+          dialect: video.dialect,
+          vocabulary,
+          grammarPoints,
+          culturalContext: video.cultural_context ?? undefined,
+        },
+        position: {
+          index: lineIndexOfDisplay >= 0 ? lineIndexOfDisplay + 1 : undefined,
+          total: lines.length,
+          atSeconds: displayLine?.startMs !== undefined ? displayLine.startMs / 1000 : undefined,
+          durationSeconds: video.duration_seconds ?? undefined,
+        },
+      };
+    }, [video, displayLine, lines, lineIndexOfDisplay]),
   );
   const displayLineShadowClip = useMemo(
     () => (displayLine ? buildShadowClipForLine(displayLine, video ?? undefined, shadowAudioUrl) : null),

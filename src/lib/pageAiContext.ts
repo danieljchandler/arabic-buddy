@@ -1,9 +1,31 @@
 import { PAGE_HINTS } from "@/lib/pageHints";
+import {
+  CHAT_BUDGET,
+  clampPageContext,
+  serializePageContext,
+  type PageContextDocument,
+  type PageContextLine,
+  type PageContextMeta,
+  type PageContextPayload,
+  type PageContextPosition,
+} from "../../supabase/functions/_shared/pageContextCore";
+
+export type {
+  PageContextDocument,
+  PageContextLine,
+  PageContextMeta,
+  PageContextPosition,
+} from "../../supabase/functions/_shared/pageContextCore";
 
 /**
  * What a page tells the AI assistant about itself. Pages register this via
  * usePageAiContext(); pages that don't get a generic description resolved
  * from PAGE_HINTS by route.
+ *
+ * `content` is the line in focus. `document` is what that line sits inside —
+ * the rest of the transcript, the rest of the article — and is the field that
+ * lets the tutor answer "what did he mean earlier?". Publishing it costs
+ * nothing to fetch: pages already hold this data to render it.
  */
 export interface PageAiContext {
   kind: "video" | "story" | "drill" | "word" | "phrase" | "passage" | "page";
@@ -11,26 +33,24 @@ export interface PageAiContext {
   title: string;
   /** One or two sentences of framing (what kind of activity this is). */
   summary?: string;
-  /** The material itself — current line, passage text, word + gloss. */
+  /** The material in focus — current line, selected sentence, word + gloss. */
   content?: string;
+  /** The whole transcript / article / passage the focus sits inside. */
+  document?: PageContextDocument;
+  /** Level, dialect, vocabulary, grammar and cultural notes already on record. */
+  meta?: PageContextMeta;
+  /** Where in the document the learner currently is. */
+  position?: PageContextPosition;
 }
 
-export interface PageAiPayload {
-  route: string;
-  title: string;
-  summary?: string;
-  content?: string;
-}
+export type PageAiPayload = PageContextPayload & { route: string; title: string };
 
 /** Flatten a payload into the plain-text context block the voice session takes. */
 export function serializePagePayload(payload: PageAiPayload): string {
-  return [
-    `Page: ${payload.title}`,
-    payload.summary && `About this page: ${payload.summary}`,
-    payload.content && `On screen: ${payload.content}`,
-  ]
-    .filter(Boolean)
-    .join("\n");
+  // Route is for the server's logs and the chat function's own framing; a voice
+  // tutor reading "/discover/abc-123" aloud helps nobody.
+  const { route: _route, ...rest } = payload;
+  return serializePageContext(rest);
 }
 
 /**
@@ -90,31 +110,38 @@ export function hintKeyForPath(pathname: string): string | null {
   return null;
 }
 
-const cap = (s: string | undefined, max: number) =>
-  s && s.length > max ? `${s.slice(0, max)}…` : s;
-
 /**
  * Resolve what to tell the assistant about the current page: the registered
  * context when the page published one, otherwise the PAGE_HINTS blurb for the
- * route. Values are truncated client-side; the edge function re-caps them.
+ * route.
+ *
+ * Clamped here so an oversized document never leaves the browser, and clamped
+ * again server-side because this side is not a trust boundary.
  */
 export function buildPagePayload(
   pathname: string,
   registered: PageAiContext | null,
 ): PageAiPayload {
   if (registered) {
-    return {
-      route: pathname,
-      title: cap(registered.title, 120) ?? "",
-      summary: cap(registered.summary, 400),
-      content: cap(registered.content, 1500),
-    };
+    const clamped = clampPageContext(
+      {
+        route: pathname,
+        title: registered.title,
+        summary: registered.summary,
+        content: registered.content,
+        document: registered.document,
+        meta: registered.meta,
+        position: registered.position,
+      },
+      CHAT_BUDGET,
+    );
+    return { ...clamped, route: pathname, title: clamped.title ?? "" };
   }
   const key = hintKeyForPath(pathname);
   const hint = key ? PAGE_HINTS[key] : undefined;
-  return {
-    route: pathname,
-    title: hint?.title ?? "Hakiya",
-    summary: cap(hint?.body, 400),
-  };
+  const clamped = clampPageContext(
+    { route: pathname, title: hint?.title ?? "Hakiya", summary: hint?.body },
+    CHAT_BUDGET,
+  );
+  return { ...clamped, route: pathname, title: clamped.title ?? "Hakiya" };
 }

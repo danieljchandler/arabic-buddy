@@ -341,7 +341,29 @@ const ReadingPractice = () => {
               kind: "passage" as const,
               title: passage.title,
               summary: `Reading a ${passage.difficulty} practice passage.`,
-              content: passage.lines.map((l) => l.arabic).join(" "),
+              // The passage used to go out as bare Arabic run together into one
+              // string, which the tutor could read but not point at. Lines with
+              // their translations let it answer "line 4" and be understood.
+              document: {
+                label: `The passage: ${passage.title}${passage.titleEnglish ? ` (${passage.titleEnglish})` : ""}`,
+                lines: passage.lines.map((l, i) => ({
+                  index: i + 1,
+                  arabic: l.arabic,
+                  english: l.english,
+                })),
+              },
+              meta: {
+                level: passage.difficulty,
+                vocabulary: passage.vocabulary?.map((v) => ({ arabic: v.arabic, english: v.english })),
+                notes: passage.questions?.length
+                  ? [
+                      `Comprehension questions the learner will be asked: ${passage.questions
+                        .map((q) => q.questionEnglish || q.question)
+                        .join(" | ")}`,
+                      "Do not reveal the answers to those questions unless the learner asks outright.",
+                    ]
+                  : undefined,
+              },
             }
           : null,
       [passage],

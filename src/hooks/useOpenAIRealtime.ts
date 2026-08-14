@@ -12,6 +12,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import type { PageContextPayload } from "../../supabase/functions/_shared/pageContextCore";
 
 export type LiveStatus = "idle" | "connecting" | "live" | "ending" | "error";
 
@@ -28,8 +29,12 @@ interface StartArgs {
   topicHint?: string;
   /** "practice" (default) is the free conversation partner; "assistant" is the subscribers-only Ask AI voice. */
   mode?: "practice" | "assistant";
-  /** Serialized page context for assistant mode, appended to the session instructions server-side. */
-  context?: string;
+  /**
+   * What the learner is looking at, for assistant mode. Structured rather than
+   * pre-serialized: the server owns the rendering and the budget, so a page
+   * publishing a whole transcript can't inflate a session's instructions.
+   */
+  pageContext?: PageContextPayload;
 }
 
 interface Options {
@@ -259,7 +264,47 @@ export function useOpenAIRealtime(opts: Options = {}) {
     }
   }, [finalizeTurn, upsertTurn]);
 
-  const start = useCallback(async ({ dialect, difficulty, topicHint, mode, context }: StartArgs) => {
+  /**
+   * Tell a call in progress that the screen moved on.
+   *
+   * The session's instructions are minted once, server-side, and carry the
+   * dialect rulebook and the learner profile — so they are deliberately not
+   * rebuilt from the browser. Instead the change is added to the conversation
+   * as a note, which the model reads before its next turn. That costs no round
+   * trip and keeps prompt construction where it belongs.
+   *
+   * Sent without a `response.create`: the learner scrolling to the next
+   * subtitle is not a request to be talked at.
+   *
+   * Returns false when there is no open channel to send on, so callers can
+   * tell "not delivered" from "delivered".
+   */
+  const updateContext = useCallback((note: string): boolean => {
+    const dc = dcRef.current;
+    if (!dc || dc.readyState !== "open") return false;
+    const text = note.trim();
+    if (!text) return false;
+    try {
+      dc.send(
+        JSON.stringify({
+          type: "conversation.item.create",
+          item: {
+            type: "message",
+            role: "user",
+            // Marked, because it arrives on the same channel as the learner's
+            // own speech and the model would otherwise answer it as if spoken.
+            content: [{ type: "input_text", text: `[Screen update — not spoken aloud]\n${text}` }],
+          },
+        }),
+      );
+      return true;
+    } catch (e) {
+      console.warn("[realtime] context update failed", e);
+      return false;
+    }
+  }, []);
+
+  const start = useCallback(async ({ dialect, difficulty, topicHint, mode, pageContext }: StartArgs) => {
     if (status === "connecting" || status === "live") return;
     dialectRef.current = dialect || "Gulf";
     modeRef.current = mode === "assistant" ? "assistant" : "practice";
@@ -372,7 +417,7 @@ export function useOpenAIRealtime(opts: Options = {}) {
           "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ dialect, difficulty, topicHint, mode, context }),
+        body: JSON.stringify({ dialect, difficulty, topicHint, mode, pageContext }),
       });
       if (!tokenResp.ok) {
         const t = await tokenResp.text();
@@ -432,5 +477,5 @@ export function useOpenAIRealtime(opts: Options = {}) {
 
   useEffect(() => () => cleanup(), [cleanup]);
 
-  return { status, error, turns, muted, setMuted, start, stop, remainingSeconds };
+  return { status, error, turns, muted, setMuted, start, stop, updateContext, remainingSeconds };
 }

@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { usePageAiContext } from '@/contexts/AiAssistantContext';
+import type { PageContextLine } from '@/lib/pageAiContext';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import {
@@ -111,10 +112,29 @@ const StoryPlayer = () => {
               kind: "story" as const,
               title: storyTitle,
               summary: "Reading an interactive branching story.",
-              content: `Current scene: ${currentScene.narrative_arabic}${currentScene.narrative_english ? ` — ${currentScene.narrative_english}` : ""}`,
+              content: `${currentScene.narrative_arabic}${currentScene.narrative_english ? ` — ${currentScene.narrative_english}` : ""}`,
+              // The path taken, not the whole story: this is a branching story
+              // and the scenes the learner did not choose have not happened for
+              // them. Sending those would let the tutor spoil a branch — or
+              // "remind" them of a scene they never read.
+              document: {
+                label: "The story so far (only the scenes this learner chose)",
+                lines: pathTaken
+                  .map((order, i): PageContextLine | null => {
+                    const scene = sceneMap.get(order);
+                    if (!scene) return null;
+                    return {
+                      index: i + 1,
+                      arabic: scene.narrative_arabic,
+                      english: scene.narrative_english ?? undefined,
+                    };
+                  })
+                  .filter((l): l is PageContextLine => !!l),
+              },
+              position: { index: pathTaken.length, total: scenes?.length ?? undefined },
             }
           : null,
-      [storyTitle, currentScene],
+      [storyTitle, currentScene, pathTaken, sceneMap, scenes],
     ),
   );
 

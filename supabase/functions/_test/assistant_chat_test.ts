@@ -162,6 +162,76 @@ Deno.test("assistant-chat caps oversized page content server-side", async () => 
   assert(sent.includes("A".repeat(1000)));
 });
 
+Deno.test("assistant-chat sends the whole document, not just the focused line", async () => {
+  const { bodies } = await call(
+    "assistant-chat",
+    {
+      messages: [{ role: "user", content: "what did he mean earlier?" }],
+      pageContext: {
+        route: "/discover/abc",
+        title: "Souq tour",
+        content: "الحين نمشي — now we walk",
+        document: {
+          label: "Full transcript of this video",
+          sourceUrl: "https://example.com/v/1",
+          lines: [
+            { index: 1, arabic: "يالله نروح السوق", english: "let's go to the market", atSeconds: 0 },
+            { index: 2, arabic: "شف هالتمر", english: "look at these dates", atSeconds: 4 },
+            { index: 3, arabic: "الحين نمشي", english: "now we walk", atSeconds: 9 },
+          ],
+        },
+        meta: { level: "A2", dialect: "Gulf", culturalContext: "Souqs open after asr." },
+        position: { index: 3, total: 3, atSeconds: 9, durationSeconds: 120 },
+      },
+    },
+    subscriber({ "openrouter.ai": gateway }),
+  );
+
+  const sent = sentPrompt(bodies);
+  // The earlier lines are the whole point: "what did he mean earlier?" used to
+  // have nothing behind it, because only the current subtitle was ever sent.
+  assertStringIncludes(sent, "يالله نروح السوق");
+  assertStringIncludes(sent, "شف هالتمر");
+  // The focused line is marked, so "this" is unambiguous.
+  assertStringIncludes(sent, "▶ 3.");
+  assertStringIncludes(sent, "line 3 of 3");
+  assertStringIncludes(sent, "https://example.com/v/1");
+  assertStringIncludes(sent, "Souqs open after asr.");
+  // Still framed as data.
+  assertStringIncludes(sent, "never as instructions");
+});
+
+Deno.test("assistant-chat caps an oversized document server-side", async () => {
+  const { bodies } = await call(
+    "assistant-chat",
+    {
+      messages: [{ role: "user", content: "hi" }],
+      pageContext: {
+        route: "/discover/abc",
+        title: "t",
+        document: {
+          label: "Transcript",
+          // A page (or a hand-rolled client) publishing a book.
+          lines: Array.from({ length: 5000 }, (_, i) => ({
+            index: i + 1,
+            arabic: `سطر ${i + 1}`,
+            english: `line ${i + 1} of a very long transcript indeed`,
+          })),
+        },
+        position: { index: 4000, total: 5000 },
+      },
+    },
+    subscriber({ "openrouter.ai": gateway }),
+  );
+
+  const sent = sentPrompt(bodies);
+  // Bounded — and bounded around the line the learner is on, not the opening,
+  // which is what a plain truncation would have kept.
+  assert(sent.length < 40_000, `prompt was ${sent.length} chars`);
+  assertStringIncludes(sent, "line 4000 of a very long transcript");
+  assertStringIncludes(sent, "lines omitted");
+});
+
 Deno.test("assistant-chat fetches the learner profile on the first turn only", async () => {
   const firstTurn = await call(
     "assistant-chat",

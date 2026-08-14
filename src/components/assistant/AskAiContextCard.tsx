@@ -54,6 +54,15 @@ export function AskAiContextCard({ seed, payload, pageKind, onClearSeed }: AskAi
   const hasDetail = !!seed || !!payload.content;
   const [open, setOpen] = useState(hasDetail);
 
+  // What the assistant can see beyond the focused line. Worth stating plainly:
+  // "it has the whole transcript" changes what a learner thinks to ask.
+  const doc = payload.document;
+  const docNote = doc
+    ? doc.lines?.length
+      ? `${doc.label} · ${doc.lines.length} line${doc.lines.length === 1 ? "" : "s"}`
+      : doc.label
+    : null;
+
   const kind: ContextKind = seed ? "sentence" : (pageKind ?? "page");
   const { icon: Icon, label } = KIND_META[kind];
 
@@ -125,6 +134,12 @@ export function AskAiContextCard({ seed, payload, pageKind, onClearSeed }: AskAi
             )}
             {!seed && !payload.content && payload.summary && (
               <p className="text-xs text-muted-foreground">{payload.summary}</p>
+            )}
+            {docNote && (
+              <p className="flex items-center gap-1 text-[10px] text-primary/70">
+                <FileText className="h-2.5 w-2.5 shrink-0" />
+                <span className="truncate">Also reading: {docNote}</span>
+              </p>
             )}
             <p className="truncate text-[10px] text-muted-foreground/70">{payload.title}</p>
           </div>

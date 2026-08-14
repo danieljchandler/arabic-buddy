@@ -20,6 +20,7 @@ import type { TranscriptLine } from "@/types/transcript";
 import { TimeRangeSelector } from "@/components/transcript/TimeRangeSelector";
 import { extractFramesWithTimestamps } from "@/lib/videoFrameExtractor";
 import { extractAudioForAsr } from "@/lib/audioToWav";
+import { resolveStagedVideoAudioUrl, STAGED_AUDIO_EXTENSIONS } from "@/lib/videoAudioStaging";
 
 const DIALECTS = ["Saudi", "Kuwaiti", "UAE", "Bahraini", "Qatari", "Omani", "Gulf", "MSA", "Egyptian", "Yemeni", "Levantine", "Maghrebi"];
 const DIFFICULTIES = ["Beginner", "Intermediate", "Advanced", "Expert"];
@@ -157,15 +158,10 @@ const AdminVideoForm = () => {
 
     const tryLoadAudio = async () => {
       // Strategy 1: video-audio bucket (private) — try signed URLs
-      const extensions = ['.mp4', '.opus', '.m4a', '.webm'];
-      for (const ext of extensions) {
-        const { data } = await supabase.storage
-          .from('video-audio')
-          .createSignedUrl(`${videoId}${ext}`, 3600);
-        if (data?.signedUrl) {
-          setStableAudioUrl(data.signedUrl);
-          return;
-        }
+      const staged = await resolveStagedVideoAudioUrl(videoId);
+      if (staged) {
+        setStableAudioUrl(staged);
+        return;
       }
 
       // Strategy 2: audio bucket (public) via audio_files table lookup
@@ -486,6 +482,18 @@ const AdminVideoForm = () => {
           `→ ${(extracted.size / 1048576).toFixed(1)} MB wav`,
         );
       }
+      // Clear any audio staged for this video under a different extension.
+      // `upsert` only replaces the identical path, so re-uploading a clip whose
+      // first attempt staged (say) `.mp4` would leave two files for one video —
+      // and both the pipeline and the player take the first extension that
+      // resolves, not the newest. The result is a video transcribed from, and
+      // played against, the audio it used to have.
+      const stalePaths = STAGED_AUDIO_EXTENSIONS
+        .map((e) => `${targetVideoId}${e}`)
+        .filter((p) => p !== storagePath);
+      const { error: staleErr } = await supabase.storage.from("video-audio").remove(stalePaths);
+      if (staleErr) console.warn("Could not clear stale staged audio:", staleErr);
+
       const { error: uploadErr } = await supabase.storage
         .from("video-audio")
         .upload(storagePath, extracted ?? file, { upsert: true });
@@ -744,16 +752,11 @@ const AdminVideoForm = () => {
     try {
       // Strategy 1: video-audio bucket (staged / recently uploaded)
       if (videoId) {
-        const extensions = ['.mp4', '.opus', '.m4a', '.webm', '.mp3'];
-        for (const ext of extensions) {
-          const { data } = await supabase.storage
-            .from('video-audio')
-            .createSignedUrl(`${videoId}${ext}`, 3600);
-          if (data?.signedUrl) {
-            setStableAudioUrl(data.signedUrl);
-            toast.success("Audio loaded!");
-            return;
-          }
+        const staged = await resolveStagedVideoAudioUrl(videoId);
+        if (staged) {
+          setStableAudioUrl(staged);
+          toast.success("Audio loaded!");
+          return;
         }
       }
 

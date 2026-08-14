@@ -638,6 +638,25 @@ Deno.test("process-approved-video calls analysis with the service role, not the 
   }
 });
 
+Deno.test("process-approved-video downloads media with the service role, not the caller's token", async () => {
+  const fn = await loadFunction("process-approved-video", { upstreams: backend() });
+  try {
+    await fn.handler(
+      jsonRequest("process-approved-video", { videoId: VIDEO }, { jwt: ANON }),
+    );
+    await fn.background();
+
+    // download-media accepts the service-role key or a real user JWT and
+    // nothing else. Forwarding the anon key the admin form sends made every
+    // URL-sourced acquisition — TikTok links included — die on a 401 before it
+    // ever reached the downloader.
+    const download = fn.callsTo("download-media")[0];
+    assertEquals(download.headers.authorization, `Bearer ${SERVICE_ROLE}`);
+  } finally {
+    fn.restore();
+  }
+});
+
 Deno.test("process-approved-video finalises from the HTTP result when analysis answers in time", async () => {
   const result = await call({ videoId: VIDEO }, backend());
   const final = lastPatchWith(result, "transcription_status");

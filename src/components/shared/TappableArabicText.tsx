@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { Fragment, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useAddUserVocabulary } from "@/hooks/useUserVocabulary";
@@ -79,6 +79,13 @@ interface TappableArabicTextProps {
   className?: string;
   /** Optional surrounding sentence (Arabic + accepted English) so word translations match context */
   sentenceContext?: { arabic?: string; english?: string };
+  /**
+   * Render inside a line of prose rather than as its own block — an Arabic run
+   * inside an AI reply, say. Emits a `<span>` (a `<p>` nested in the host's
+   * paragraph is invalid) and drops the flex layout, which has no meaning
+   * inline.
+   */
+  inline?: boolean;
 }
 
 /**
@@ -95,6 +102,7 @@ export const TappableArabicText = ({
   source = "tappable-text",
   className,
   sentenceContext,
+  inline = false,
 }: TappableArabicTextProps) => {
   const { user } = useAuth();
   const { activeDialect } = useDialect();
@@ -269,279 +277,306 @@ export const TappableArabicText = ({
 
   const inPhraseMode = phraseSel !== null;
 
+  /**
+   * One word. Split out only so the caller below can put a real space between
+   * consecutive words — see the note on the container.
+   */
+  const renderWord = (word: string, wIdx: number) => {
+    const cleanWord = clean(word);
+    const wordData = wordTranslations[cleanWord];
+    const marking = markUnknowns.enabled;
+    const marked = marking && markUnknowns.isMarked(cleanWord);
+
+    if (marking) {
+      const toggleMark = () =>
+        cleanWord &&
+        markUnknowns.toggle({
+          arabic: cleanWord,
+          sentence_text: sentenceContext?.arabic || text,
+          sentence_english: sentenceContext?.english,
+        });
+      return (
+        <span
+          key={wIdx}
+          role="button"
+          tabIndex={0}
+          aria-pressed={marked}
+          aria-label={`${marked ? "Unmark" : "Mark"} “${cleanWord}” as unknown`}
+          onClick={toggleMark}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              toggleMark();
+            }
+          }}
+          className={cn(
+            "cursor-pointer rounded px-0.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+            marked
+              ? "bg-yellow-300/70 text-foreground dark:bg-yellow-500/40"
+              : "hover:bg-yellow-200/40"
+          )}
+        >
+          {word}
+        </span>
+      );
+    }
+
+    // Phrase mode: every word becomes a toggle within contiguous range
+    if (inPhraseMode && phraseRange) {
+      const inRange = wIdx >= phraseRange.lo && wIdx <= phraseRange.hi;
+      const isEdge = wIdx === phraseRange.lo || wIdx === phraseRange.hi;
+      return (
+        <span
+          key={wIdx}
+          role="button"
+          tabIndex={0}
+          aria-label={`Extend phrase selection to “${clean(word)}”`}
+          onClick={(e) => {
+            e.stopPropagation();
+            extendPhrase(wIdx);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              e.stopPropagation();
+              extendPhrase(wIdx);
+            }
+          }}
+          className={cn(
+            "cursor-pointer rounded px-1 transition-colors select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+            inRange
+              ? "bg-primary/25 text-foreground ring-1 ring-primary/40"
+              : "hover:bg-primary/10",
+            isEdge && "ring-2 ring-primary"
+          )}
+        >
+          {word}
+        </span>
+      );
+    }
+
+    return (
+      <Popover key={wIdx}>
+        <PopoverTrigger asChild>
+          <span
+            role="button"
+            tabIndex={0}
+            aria-label={`Look up “${clean(word)}”`}
+            onPointerDown={() => onPointerDown(wIdx)}
+            onPointerUp={onPointerUp}
+            onPointerLeave={onPointerUp}
+            onPointerCancel={onPointerUp}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                handleWordTap(word);
+              }
+            }}
+            onClick={(e) => {
+              if (longPressFired.current) {
+                // Long-press just started phrase mode — swallow the tap so popover doesn't open
+                e.preventDefault();
+                e.stopPropagation();
+                longPressFired.current = false;
+                return;
+              }
+              handleWordTap(word);
+            }}
+            className={cn(
+              "cursor-pointer rounded px-0.5 transition-colors select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+              wordData
+                ? "text-primary underline underline-offset-4 decoration-primary/30"
+                : "hover:bg-primary/10"
+            )}
+          >
+            {word}
+          </span>
+        </PopoverTrigger>
+        {wordData && (
+          <PopoverContent className="w-72 p-3 max-h-[70vh] overflow-y-auto" side="top">
+            <div className="space-y-2">
+              <p className="font-bold text-foreground font-arabic text-lg" dir="rtl">
+                {cleanWord}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {wordData.translation || "Tap to enrich…"}
+              </p>
+
+              {wordData.enriching ? (
+                <div className="flex items-center gap-2 pt-1">
+                  <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground">Loading root & uses…</span>
+                </div>
+              ) : wordData.enrichment?.root ? (
+                <div className="pt-1 border-t border-border">
+                  <p className="text-xs font-medium text-muted-foreground">Root</p>
+                  <p className="font-arabic text-sm text-foreground" dir="rtl">
+                    {wordData.enrichment.root}
+                  </p>
+                </div>
+              ) : null}
+
+              {bridgeOn && (() => {
+                const match = vocabulary.find(
+                  (v) => v.msa_form && (cleanWord.includes(v.word_arabic) || v.word_arabic.includes(cleanWord))
+                );
+                if (!match?.msa_form) return null;
+                return (
+                  <div className="pt-1 border-t border-border bg-[#5C3A46]/5 -mx-3 px-3 py-2">
+                    <p className="text-[10px] font-medium uppercase tracking-wide text-[#5C3A46]">
+                      MSA · الفصحى
+                    </p>
+                    <p className="font-arabic text-sm text-foreground" dir="rtl">
+                      {match.msa_form}
+                    </p>
+                    {match.msa_note && (
+                      <p className="text-[11px] text-muted-foreground mt-1 leading-snug">
+                        {match.msa_note}
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {wordData.enrichment?.otherUses && wordData.enrichment.otherUses.length > 0 && (
+                <div className="pt-1 border-t border-border">
+                  <p className="text-xs font-medium text-muted-foreground mb-1">Other forms</p>
+                  <div className="space-y-0.5">
+                    {wordData.enrichment.otherUses.map((u, i) => (
+                      <p key={i} className="text-xs">
+                        <span className="font-arabic" dir="rtl">{u.arabic}</span>
+                        <span className="text-muted-foreground"> — {u.english}</span>
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="pt-1 border-t border-border space-y-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full border-primary/40 bg-primary/5 text-xs text-primary hover:bg-primary/10 hover:text-primary"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openChat({
+                      arabic: cleanWord,
+                      english: wordData.translation,
+                    });
+                  }}
+                >
+                  <MessageCircleQuestion className="h-3 w-3 mr-1" />
+                  Ask AI about this word
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full text-xs"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    startPhrase(wIdx);
+                  }}
+                >
+                  <Link2 className="h-3 w-3 mr-1" />
+                  Combine with neighbour
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full text-xs"
+                  disabled={wordData.generatingSamples || wordData.enriching}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    generateSamples(cleanWord);
+                  }}
+                >
+                  {wordData.generatingSamples ? (
+                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-3 w-3 mr-1" />
+                  )}
+                  {wordData.samples && wordData.samples.length > 0
+                    ? "Regenerate sentences"
+                    : "Generate sample sentences"}
+                </Button>
+              </div>
+
+              {wordData.samples && wordData.samples.length > 0 && (
+                <div className="pt-1 border-t border-border">
+                  <p className="text-xs font-medium text-muted-foreground mb-1">Examples</p>
+                  <div className="space-y-1.5">
+                    {wordData.samples.map((s, i) => (
+                      <div key={i} className="text-xs">
+                        <p className="font-arabic text-foreground" dir="rtl">{s.arabic}</p>
+                        <p className="text-muted-foreground">{s.english}</p>
+                        {s.literal && (
+                          <p className="italic text-muted-foreground/70">
+                            <span className="not-italic uppercase tracking-wide text-[9px] mr-1 text-muted-foreground/50">
+                              Literal
+                            </span>
+                            {s.literal}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {user && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full text-xs mt-1"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    saveAsFlashcard(cleanWord, wordData.translation, wordData.enrichment?.root, wordData.enrichment?.transliteration);
+                  }}
+                >
+                  <BookmarkPlus className="h-3 w-3 mr-1" />
+                  Save to My Words
+                </Button>
+              )}
+            </div>
+          </PopoverContent>
+        )}
+      </Popover>
+    );
+  };
+
+  const Container = inline ? "span" : "p";
+
   return (
     <>
-      <p
+      <Container
         className={cn(
-          "text-base leading-loose text-foreground/90 flex flex-wrap justify-end gap-1 font-arabic",
+          "text-base leading-loose text-foreground/90 font-arabic",
+          inline ? "inline" : "flex flex-wrap justify-end gap-1",
           className
         )}
         dir="rtl"
-        style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}
+        // Naskh is the face for vocalised Arabic, but the fallback has to stay
+        // an Arabic-capable one: bare `serif` lands on a face with no Arabic
+        // coverage, and the system substitute positions tashkil badly.
+        style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', 'Open Sans', sans-serif" }}
       >
-        {words.map((word, wIdx) => {
-          const cleanWord = clean(word);
-          const wordData = wordTranslations[cleanWord];
-          const marking = markUnknowns.enabled;
-          const marked = marking && markUnknowns.isMarked(cleanWord);
-
-          if (marking) {
-            const toggleMark = () =>
-              cleanWord &&
-              markUnknowns.toggle({
-                arabic: cleanWord,
-                sentence_text: sentenceContext?.arabic || text,
-                sentence_english: sentenceContext?.english,
-              });
-            return (
-              <span
-                key={wIdx}
-                role="button"
-                tabIndex={0}
-                aria-pressed={marked}
-                aria-label={`${marked ? "Unmark" : "Mark"} “${cleanWord}” as unknown`}
-                onClick={toggleMark}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    toggleMark();
-                  }
-                }}
-                className={cn(
-                  "cursor-pointer rounded px-0.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
-                  marked
-                    ? "bg-yellow-300/70 text-foreground dark:bg-yellow-500/40"
-                    : "hover:bg-yellow-200/40"
-                )}
-              >
-                {word}
-              </span>
-            );
-          }
-
-          // Phrase mode: every word becomes a toggle within contiguous range
-          if (inPhraseMode && phraseRange) {
-            const inRange = wIdx >= phraseRange.lo && wIdx <= phraseRange.hi;
-            const isEdge = wIdx === phraseRange.lo || wIdx === phraseRange.hi;
-            return (
-              <span
-                key={wIdx}
-                role="button"
-                tabIndex={0}
-                aria-label={`Extend phrase selection to “${clean(word)}”`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  extendPhrase(wIdx);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    extendPhrase(wIdx);
-                  }
-                }}
-                className={cn(
-                  "cursor-pointer rounded px-1 transition-colors select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
-                  inRange
-                    ? "bg-primary/25 text-foreground ring-1 ring-primary/40"
-                    : "hover:bg-primary/10",
-                  isEdge && "ring-2 ring-primary"
-                )}
-              >
-                {word}
-              </span>
-            );
-          }
-
-          return (
-            <Popover key={wIdx}>
-              <PopoverTrigger asChild>
-                <span
-                  role="button"
-                  tabIndex={0}
-                  aria-label={`Look up “${clean(word)}”`}
-                  onPointerDown={() => onPointerDown(wIdx)}
-                  onPointerUp={onPointerUp}
-                  onPointerLeave={onPointerUp}
-                  onPointerCancel={onPointerUp}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      handleWordTap(word);
-                    }
-                  }}
-                  onClick={(e) => {
-                    if (longPressFired.current) {
-                      // Long-press just started phrase mode — swallow the tap so popover doesn't open
-                      e.preventDefault();
-                      e.stopPropagation();
-                      longPressFired.current = false;
-                      return;
-                    }
-                    handleWordTap(word);
-                  }}
-                  className={cn(
-                    "cursor-pointer rounded px-0.5 transition-colors select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
-                    wordData
-                      ? "text-primary underline underline-offset-4 decoration-primary/30"
-                      : "hover:bg-primary/10"
-                  )}
-                >
-                  {word}
-                </span>
-              </PopoverTrigger>
-              {wordData && (
-                <PopoverContent className="w-72 p-3 max-h-[70vh] overflow-y-auto" side="top">
-                  <div className="space-y-2">
-                    <p className="font-bold text-foreground font-arabic text-lg" dir="rtl">
-                      {cleanWord}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {wordData.translation || "Tap to enrich…"}
-                    </p>
-
-                    {wordData.enriching ? (
-                      <div className="flex items-center gap-2 pt-1">
-                        <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
-                        <span className="text-xs text-muted-foreground">Loading root & uses…</span>
-                      </div>
-                    ) : wordData.enrichment?.root ? (
-                      <div className="pt-1 border-t border-border">
-                        <p className="text-xs font-medium text-muted-foreground">Root</p>
-                        <p className="font-arabic text-sm text-foreground" dir="rtl">
-                          {wordData.enrichment.root}
-                        </p>
-                      </div>
-                    ) : null}
-
-                    {bridgeOn && (() => {
-                      const match = vocabulary.find(
-                        (v) => v.msa_form && (cleanWord.includes(v.word_arabic) || v.word_arabic.includes(cleanWord))
-                      );
-                      if (!match?.msa_form) return null;
-                      return (
-                        <div className="pt-1 border-t border-border bg-[#5C3A46]/5 -mx-3 px-3 py-2">
-                          <p className="text-[10px] font-medium uppercase tracking-wide text-[#5C3A46]">
-                            MSA · الفصحى
-                          </p>
-                          <p className="font-arabic text-sm text-foreground" dir="rtl">
-                            {match.msa_form}
-                          </p>
-                          {match.msa_note && (
-                            <p className="text-[11px] text-muted-foreground mt-1 leading-snug">
-                              {match.msa_note}
-                            </p>
-                          )}
-                        </div>
-                      );
-                    })()}
-
-                    {wordData.enrichment?.otherUses && wordData.enrichment.otherUses.length > 0 && (
-                      <div className="pt-1 border-t border-border">
-                        <p className="text-xs font-medium text-muted-foreground mb-1">Other forms</p>
-                        <div className="space-y-0.5">
-                          {wordData.enrichment.otherUses.map((u, i) => (
-                            <p key={i} className="text-xs">
-                              <span className="font-arabic" dir="rtl">{u.arabic}</span>
-                              <span className="text-muted-foreground"> — {u.english}</span>
-                            </p>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="pt-1 border-t border-border space-y-1">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-full border-primary/40 bg-primary/5 text-xs text-primary hover:bg-primary/10 hover:text-primary"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openChat({
-                            arabic: cleanWord,
-                            english: wordData.translation,
-                          });
-                        }}
-                      >
-                        <MessageCircleQuestion className="h-3 w-3 mr-1" />
-                        Ask AI about this word
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-full text-xs"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          startPhrase(wIdx);
-                        }}
-                      >
-                        <Link2 className="h-3 w-3 mr-1" />
-                        Combine with neighbour
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-full text-xs"
-                        disabled={wordData.generatingSamples || wordData.enriching}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          generateSamples(cleanWord);
-                        }}
-                      >
-                        {wordData.generatingSamples ? (
-                          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                        ) : (
-                          <Sparkles className="h-3 w-3 mr-1" />
-                        )}
-                        {wordData.samples && wordData.samples.length > 0
-                          ? "Regenerate sentences"
-                          : "Generate sample sentences"}
-                      </Button>
-                    </div>
-
-                    {wordData.samples && wordData.samples.length > 0 && (
-                      <div className="pt-1 border-t border-border">
-                        <p className="text-xs font-medium text-muted-foreground mb-1">Examples</p>
-                        <div className="space-y-1.5">
-                          {wordData.samples.map((s, i) => (
-                            <div key={i} className="text-xs">
-                              <p className="font-arabic text-foreground" dir="rtl">{s.arabic}</p>
-                              <p className="text-muted-foreground">{s.english}</p>
-                              {s.literal && (
-                                <p className="italic text-muted-foreground/70">
-                                  <span className="not-italic uppercase tracking-wide text-[9px] mr-1 text-muted-foreground/50">
-                                    Literal
-                                  </span>
-                                  {s.literal}
-                                </p>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {user && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="w-full text-xs mt-1"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          saveAsFlashcard(cleanWord, wordData.translation, wordData.enrichment?.root, wordData.enrichment?.transliteration);
-                        }}
-                      >
-                        <BookmarkPlus className="h-3 w-3 mr-1" />
-                        Save to My Words
-                      </Button>
-                    )}
-                  </div>
-                </PopoverContent>
-              )}
-            </Popover>
-          );
-        })}
-      </p>
+        {/*
+          A real space between words, not just the flex `gap`. Dropping the
+          spaces and spacing the words with `gap-1` looks fine right up until
+          the container isn't a flex one — and then Arabic doesn't merely look
+          cramped, it changes letters: with nothing between them the words join,
+          so a final ى (say, in عَلَى) reshapes into its medial form and reads as
+          a different letter entirely. Whitespace-only text between flex items
+          is dropped by the flex algorithm, so this costs the block layout
+          nothing while making the inline one correct.
+        */}
+        {words.map((word, wIdx) => (
+          <Fragment key={wIdx}>
+            {wIdx > 0 && " "}
+            {renderWord(word, wIdx)}
+          </Fragment>
+        ))}
+      </Container>
 
       {/* Floating phrase bar */}
       {inPhraseMode && (

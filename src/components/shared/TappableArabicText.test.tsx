@@ -47,11 +47,24 @@ interface Options {
   persona?: Persona;
   seed?: (backend: SupabaseBackend) => void;
   marking?: boolean;
+  inline?: boolean;
 }
 
-async function render({ text = TEXT, vocabulary, persona = "free", seed, marking }: Options = {}) {
+async function render({
+  text = TEXT,
+  vocabulary,
+  persona = "free",
+  seed,
+  marking,
+  inline,
+}: Options = {}) {
   const element = (
-    <TappableArabicText text={text} vocabulary={vocabulary} sentenceContext={{ arabic: text }} />
+    <TappableArabicText
+      text={text}
+      vocabulary={vocabulary}
+      sentenceContext={{ arabic: text }}
+      inline={inline}
+    />
   );
   const harness = renderWithProviders(
     marking ? <MarkUnknownsProvider>{element}</MarkUnknownsProvider> : element,
@@ -106,6 +119,30 @@ describe("rendering the passage", () => {
     // The learner sees the sentence as written; the dictionary is asked about
     // the word, and "السوق،" is not a word.
     expect(screen.getByRole("button", { name: "Look up “السوق”" })).toHaveTextContent("السوق،");
+  });
+
+  /**
+   * The words used to be separated by nothing but the container's flex `gap`,
+   * which is a visual space, not a textual one. Anywhere the container wasn't
+   * a flex box — the AI reply renders this inline, inside a line of prose —
+   * the words ran together, and Arabic doesn't just look cramped when that
+   * happens: letters that connect take a different form. "عَلَى السَّلَامَةِ"
+   * came out as "عَلَدَ السَّلَامَةِ", because a ى with a letter after it is no
+   * longer final. Non-connecting letters hid it, so most text looked fine.
+   */
+  it("keeps a real space between the words, not just a flex gap", async () => {
+    const { container } = await render({ text: "عَلَى السَّلَامَةِ" });
+
+    expect(container.textContent).toBe("عَلَى السَّلَامَةِ");
+  });
+
+  it("keeps the words apart when it renders inline inside prose", async () => {
+    const { container } = await render({ text: "عَلَى السَّلَامَةِ", inline: true });
+
+    expect(container.textContent).toBe("عَلَى السَّلَامَةِ");
+    // A <p> here would be invalid markup — the host is already a paragraph.
+    expect(container.querySelector("p")).toBeNull();
+    expect(container.querySelector("span")).toHaveAttribute("dir", "rtl");
   });
 
   it("strips the vowels when the learner has turned them off", async () => {

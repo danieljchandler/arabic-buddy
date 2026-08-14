@@ -236,7 +236,7 @@ export function ChatTab({ onComposerFocus }: ChatTabProps = {}) {
                         <TappableArabicText
                           text={text}
                           source="ask-ai"
-                          className="inline"
+                          inline
                           sentenceContext={seed ? { arabic: seed.arabic, english: seed.english } : undefined}
                         />
                       )}

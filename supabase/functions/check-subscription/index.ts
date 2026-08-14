@@ -72,26 +72,27 @@ serve(async (req) => {
       }
     };
 
-    // Complimentary access (investors, partners, press): the `complimentary`
-    // role grants top-tier access without ever touching Stripe. Checked before
-    // the Stripe lookup so these accounts stay unlocked even if they have no
-    // customer record at all. Cached into `subscribers` like a paid row so the
-    // per-tier allowances in _shared/usageCap.ts see the same picture.
-    const { data: compRole } = await supabaseClient
+    // Full-access roles: `admin` (staff need every feature unlocked) and
+    // `complimentary` (investors, partners, press) get top-tier access without
+    // ever touching Stripe. Checked before the Stripe lookup so these accounts
+    // stay unlocked even if they have no customer record at all. Cached into
+    // `subscribers` like a paid row so the per-tier allowances in
+    // _shared/usageCap.ts see the same picture.
+    const { data: fullAccessRoles } = await supabaseClient
       .from("user_roles")
       .select("role")
       .eq("user_id", user.id)
-      .eq("role", "complimentary")
-      .maybeSingle();
+      .in("role", ["complimentary", "admin"]);
 
-    if (compRole) {
-      logStep("Complimentary access granted", { userId: user.id });
+    if (fullAccessRoles && fullAccessRoles.length > 0) {
+      logStep("Full access granted without Stripe", { userId: user.id });
       await persist({ subscribed: true, tier: "allin", subscriptionEnd: null, stripeCustomerId: null });
       return new Response(
         JSON.stringify({ subscribed: true, tier: "allin", complimentary: true, subscription_end: null }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 },
       );
     }
+
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
 

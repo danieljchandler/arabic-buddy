@@ -1125,6 +1125,7 @@ const DiscoverVideo = () => {
         document: {
           label: "Full transcript of this video",
           sourceUrl: video.source_url ?? undefined,
+          sourceId: video.id,
           lines: lines.map((line, i) => ({
             index: i + 1,
             arabic: line.arabic,

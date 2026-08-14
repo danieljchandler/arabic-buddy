@@ -232,6 +232,71 @@ Deno.test("assistant-chat caps an oversized document server-side", async () => {
   assertStringIncludes(sent, "lines omitted");
 });
 
+Deno.test("assistant-chat brings in related material from the semantic index", async () => {
+  const OTHER_VIDEO = "99999999-8888-4777-8666-555555555555";
+  const { bodies } = await call(
+    "assistant-chat",
+    {
+      messages: [{ role: "user", content: "have I seen this word before?" }],
+      pageContext: {
+        route: "/discover/abc",
+        title: "Souq tour",
+        document: {
+          label: "Full transcript",
+          sourceId: "11111111-2222-4333-8444-555555555555",
+          lines: [{ index: 1, arabic: "شف هالتمر", english: "look at these dates" }],
+        },
+      },
+    },
+    subscriber({
+      "openrouter.ai": gateway,
+      "api.openai.com": async (request) => {
+        const parsed = JSON.parse((await request.text()) || "{}");
+        const inputs: string[] = Array.isArray(parsed.input) ? parsed.input : [];
+        return json({ data: inputs.map((_, index) => ({ index, embedding: [0.1, 0.2] })) });
+      },
+      "/rest/v1/rpc/match_content": () =>
+        json([
+          {
+            kind: "video_line",
+            source_id: OTHER_VIDEO,
+            chunk_index: 2,
+            dialect: "Gulf",
+            content: "التمر من نجد\nthe dates are from Najd",
+            similarity: 0.71,
+          },
+        ]),
+      "/rest/v1/discover_videos": () => json([{ id: OTHER_VIDEO, title: "Dates of Najd" }]),
+    }),
+  );
+
+  const sent = sentPrompt(bodies);
+  // The index has existed since Sprint 3 with nothing reading it. This is what
+  // reading it buys: "you met this word in another video".
+  assertStringIncludes(sent, "ELSEWHERE IN THE LIBRARY");
+  assertStringIncludes(sent, "Dates of Najd");
+  assertStringIncludes(sent, "التمر من نجد");
+  // Retrieved material is context, never an override for what is on screen.
+  assertStringIncludes(sent, "related, not authoritative");
+});
+
+Deno.test("assistant-chat still answers when the semantic index is unavailable", async () => {
+  // No pgvector on this database: the guarded migration created neither the
+  // table nor the RPC. The answer must not depend on them.
+  const { response, bodies } = await call(
+    "assistant-chat",
+    { messages: [{ role: "user", content: "explain this please" }] },
+    subscriber({
+      "openrouter.ai": gateway,
+      "/rest/v1/rpc/match_content": () => json({ message: "does not exist" }, 404),
+    }),
+  );
+
+  assertEquals(response.status, 200);
+  const sent = sentPrompt(bodies);
+  assert(!sent.includes("ELSEWHERE IN THE LIBRARY"));
+});
+
 Deno.test("assistant-chat fetches the learner profile on the first turn only", async () => {
   const firstTurn = await call(
     "assistant-chat",

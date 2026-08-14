@@ -31,7 +31,7 @@ const live = vi.hoisted(() => ({
   setMuted: vi.fn(),
   start: vi.fn(),
   stop: vi.fn(),
-  updateContext: vi.fn(() => true),
+  updateContext: vi.fn((_note: string) => true),
 }));
 
 vi.mock("@/hooks/useOpenAIRealtime", () => ({

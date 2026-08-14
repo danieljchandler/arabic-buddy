@@ -48,6 +48,14 @@ export interface PageContextDocument {
   text?: string;
   /** Where the material came from, so the assistant can offer to read it. */
   sourceUrl?: string;
+  /**
+   * The row id of the content on screen, when it has one.
+   *
+   * Not for the prompt — it never appears in the rendered block. It tells the
+   * retrieval layer which source the learner is already looking at, so
+   * "elsewhere in the library" can't cite the video they are watching.
+   */
+  sourceId?: string;
 }
 
 export interface PageContextVocabItem {
@@ -319,11 +327,13 @@ export function clampPageContext(
       : undefined;
     const text = clip(doc.text, budget.document);
     const sourceUrl = clip(doc.sourceUrl, budget.sourceUrl);
+    const sourceId = clip(doc.sourceId, 100);
     if ((lines && lines.length > 0) || text) {
       out.document = { label };
       if (lines && lines.length > 0) out.document.lines = lines;
       if (text) out.document.text = text;
       if (sourceUrl) out.document.sourceUrl = sourceUrl;
+      if (sourceId) out.document.sourceId = sourceId;
     }
   }
 

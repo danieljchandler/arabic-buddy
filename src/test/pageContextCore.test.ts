@@ -228,6 +228,19 @@ describe("serializePageContext", () => {
     expect(serializePageContext(videoPayload)).toContain("https://example.com/v/1");
   });
 
+  it("keeps the row id out of the prompt", () => {
+    // sourceId exists for the retrieval layer — it is how "elsewhere in the
+    // library" knows not to cite the video the learner is already watching.
+    // A uuid in the prompt is pure noise the model might read back out.
+    const withId = {
+      ...videoPayload,
+      document: { ...videoPayload.document, sourceId: "11111111-2222-4333-8444-555555555555" },
+    };
+    const clamped = clampPageContext(withId);
+    expect(clamped.document!.sourceId).toBe("11111111-2222-4333-8444-555555555555");
+    expect(serializePageContext(clamped)).not.toContain("11111111-2222");
+  });
+
   it("renders position, level, vocabulary, grammar and culture", () => {
     const text = serializePageContext(videoPayload);
     expect(text).toContain("line 3 of 3");

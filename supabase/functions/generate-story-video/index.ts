@@ -114,7 +114,7 @@ async function synthesizePreviewNarration(
   lines: StoryLine[],
 ): Promise<{ url: string; text: string; duration: number }> {
   const text = buildNarrationText(story, lines);
-  const plan = await planProvider(story.dialect || "Gulf");
+  const plan = await planProvider(story.dialect || "Gulf", { minVoices: 1 });
   const bytes = await synthesizeLine(text, "narrator", 0, plan);
   const path = `authentic-stories/${story.id}/preview-narration-${Date.now()}.${plan.ext}`;
   const up = await admin.storage.from(BUCKET).upload(path, bytes, {

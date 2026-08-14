@@ -128,11 +128,6 @@ export async function extractAndUploadAudioClip(
  * is not available (e.g. YouTube Discover videos without an extracted
  * audio track) so the flashcard still has a saved audio clip.
  */
-const MUNSIT_DIALECTS = new Set([
-  "gulf", "khaleeji", "saudi", "kuwaiti", "uae", "emirati",
-  "bahraini", "qatari", "omani", "yemeni", "yemen",
-]);
-
 export async function synthesizeAndUploadTTS(
   text: string,
   userId: string,
@@ -145,9 +140,8 @@ export async function synthesizeAndUploadTTS(
     const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
     const { data: sessionData } = await supabase.auth.getSession();
     const token = sessionData?.session?.access_token ?? anonKey;
-    const useMunsit = MUNSIT_DIALECTS.has(String(dialect ?? "").toLowerCase());
 
-    const call = (fn: string) =>
+    const call = (fn: string, body: Record<string, unknown>) =>
       fetch(`${supabaseUrl}/functions/v1/${fn}`, {
         method: "POST",
         headers: {
@@ -155,26 +149,19 @@ export async function synthesizeAndUploadTTS(
           "Content-Type": "application/json",
           apikey: anonKey,
         },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify(body),
       });
 
-    let response = await call(useMunsit ? "munsit-tts" : "azure-tts");
-    // munsit may return 200 with { fallback: true } under quota
-    if (response.ok && useMunsit) {
-      const ct = response.headers.get("content-type") ?? "";
-      if (ct.includes("application/json")) {
-        try {
-          const j = await response.clone().json();
-          if (j?.fallback) response = await call("azure-tts");
-        } catch { /* ignore */ }
-      }
+    // The server routes the dialect. This file used to keep its own Munsit
+    // dialect set that included Yemeni while useAzureTTS's excluded it, so the
+    // same Yemeni word was voiced differently depending on which path reached it.
+    let response = await call("tts-speak", { text, dialect });
+    let ct = response.headers.get("content-type") ?? "";
+    if (!response.ok || !ct.startsWith("audio/")) {
+      response = await call("azure-tts", { text });
+      ct = response.headers.get("content-type") ?? "";
     }
-    if (!response.ok) {
-      if (useMunsit) response = await call("azure-tts");
-      if (!response.ok) return null;
-    }
-    const ct = response.headers.get("content-type") ?? "";
-    if (!ct.startsWith("audio/")) return null;
+    if (!response.ok || !ct.startsWith("audio/")) return null;
 
     const blob = await response.blob();
     const ext = ct.includes("wav") ? "wav" : ct.includes("mp3") || ct.includes("mpeg") ? "mp3" : "audio";

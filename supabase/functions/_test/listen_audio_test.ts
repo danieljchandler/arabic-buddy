@@ -200,10 +200,42 @@ Deno.test("generate-listen-line-audio falls back to Azure when Munsit has no voi
   const result = await call(
     { episodeId: EPISODE, lineIndex: 0 },
     backend({ extra: { "api.munsit.com": () => json({ error: "down" }, 503) } }),
+    // Without clearing the fixture's pin this would still resolve to Munsit —
+    // see the test below, which is the deliberate half of that behaviour.
+    { env: { MUNSIT_GULF_VOICE_ID: undefined } },
   );
 
   assertEquals(result.status, 200);
   assertEquals(result.body.provider, "azure");
+});
+
+Deno.test("generate-listen-line-audio keeps a pinned voice through a discovery outage", async () => {
+  // A `/voices` outage is not a reason to ignore a voice someone configured by
+  // hand. The pin is the only route to a cloned voice — Munsit returns null for
+  // dialect and gender on clones, so discovery can never find one — and silently
+  // reverting Yemeni to Azure here would defeat the point of cloning it.
+  //
+  // Only the catalogue is down; synthesis still answers. `synthesizeLine` makes
+  // a single attempt by design, so a full outage is the separate 500 case below.
+  const result = await call(
+    { episodeId: EPISODE, lineIndex: 0 },
+    backend({
+      episode: { dialect: "Yemeni", script },
+      extra: {
+        "api.munsit.com": (request: Request) =>
+          request.url.includes("/voices")
+            ? json({ error: "down" }, 503)
+            : new Response(new Uint8Array([0x52, 0x49, 0x46, 0x46]), {
+              status: 200,
+              headers: { "content-type": "audio/wav" },
+            }),
+      },
+    }),
+    { env: { MUNSIT_YEMENI_VOICE_IDS: "cl-friend-8f21", TTS_ALLOW_SINGLE_VOICE_EPISODES: "true" } },
+  );
+
+  assertEquals(result.status, 200);
+  assertEquals(result.body.provider, "munsit");
 });
 
 Deno.test("generate-listen-line-audio uses Azure when Munsit is not configured", async () => {
@@ -227,7 +259,10 @@ Deno.test("generate-listen-line-audio uses ElevenLabs for an Egyptian episode", 
   assertEquals(result.body.provider, "elevenlabs");
 });
 
-Deno.test("generate-listen-line-audio uses Azure for a Yemeni episode", async () => {
+Deno.test("generate-listen-line-audio falls to Azure for Yemeni only when Munsit is gone", async () => {
+  // Azure is the floor, not the plan. With no Munsit catalogue there is nothing
+  // else left; the Munsit-backed case is asserted at the bottom of this file,
+  // where the module-scope voice cache cannot leak into the fallback tests.
   const result = await call(
     { episodeId: EPISODE, lineIndex: 0 },
     backend({ episode: { dialect: "Yemeni", script } }),
@@ -296,16 +331,23 @@ Deno.test("generate-listen-line-audio reports a failed upload", async () => {
 
 // ── Munsit, last ─────────────────────────────────────────────────────────────
 //
-// `listenTts` caches the resolved Munsit voice list at module scope, and Deno
+// These functions reach the providers through `listenTts`, which now delegates
+// every dialect→voice decision to `ttsVoiceRouting` and keeps only what
+// long-form audio needs: voice slots, prosody conditioning and clip assembly.
+//
+// `ttsVoiceRouting` caches the resolved Munsit catalogue at module scope, and Deno
 // caches the module itself — so the first test that succeeds with Munsit makes
 // every later Gulf request use it regardless of what its own fixtures say. The
 // two tests that need Munsit to work therefore come last, after every fallback
 // assertion has already run.
 
-/** Munsit's voice list, with a male Gulf voice so the Gulf filter keeps one. */
+/** Munsit's catalogue: two male Gulf voices, so a two-host episode has two. */
 const munsitVoices: UpstreamHandler = (request) =>
   request.url.includes("/voices")
-    ? json([{ voice_id: "gulf-male-1", name: "Faisal", gender: "male", dialect: ["gulf"] }])
+    ? json([
+      { voice_id: "gulf-male-1", name: "Faisal", gender: "male", dialect: ["gulf"] },
+      { voice_id: "gulf-male-2", name: "Nasser", gender: "male", dialect: ["khaleeji"] },
+    ])
     : json({ data: { transcription: "" } });
 
 Deno.test("generate-listen-line-audio prefers Munsit for a Gulf episode", async () => {
@@ -317,6 +359,24 @@ Deno.test("generate-listen-line-audio prefers Munsit for a Gulf episode", async 
   assertEquals(result.status, 200);
   assertEquals(result.body.provider, "munsit");
   // And Munsit returns WAV, so the stored file is named for it.
+  assert(
+    result.calls.find((url) => url.includes("/storage/v1/object"))?.endsWith(".wav"),
+    "Munsit returns WAV",
+  );
+});
+
+Deno.test("generate-listen-line-audio gives a Yemeni episode a Munsit voice", async () => {
+  // The change this file's Yemeni tests exist to pin. Yemeni used to be read by
+  // Azure's `ar-YE-*` neurals — a real Yemeni locale, and the thing learners
+  // complained about. Munsit has no Yemeni voice, so it borrows a Gulf one:
+  // the wrong accent family, but far closer and far more natural. Deliberate.
+  const result = await call(
+    { episodeId: EPISODE, lineIndex: 0 },
+    backend({ episode: { dialect: "Yemeni", script }, extra: { "api.munsit.com": munsitVoices } }),
+  );
+
+  assertEquals(result.status, 200);
+  assertEquals(result.body.provider, "munsit");
   assert(
     result.calls.find((url) => url.includes("/storage/v1/object"))?.endsWith(".wav"),
     "Munsit returns WAV",

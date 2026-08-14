@@ -61,8 +61,9 @@ async function call(
   body: unknown,
   upstreams: Record<string, UpstreamHandler>,
   jwt?: string | null,
+  opts: { env?: Record<string, string | undefined> } = {},
 ) {
-  const fn = await loadFunction(name, { upstreams });
+  const fn = await loadFunction(name, { upstreams, env: opts.env });
   try {
     const response = await fn.handler(jsonRequest(name, body, jwt === undefined ? {} : { jwt }));
     const text = await response.text();
@@ -240,7 +241,12 @@ Deno.test("realtime-session-token picks a voice per dialect", async () => {
   for (const [dialect, voice] of [
     ["Gulf", "ballad"],
     ["Egyptian", "shimmer"],
-    ["Yemeni", "verse"],
+    // Yemeni shares Gulf's `ballad`, having moved off `verse`: the Realtime API
+    // ships eight fixed personas and the dialect comes from the system prompt,
+    // not the voice, so the only question is which of the eight sounds best
+    // reading Yemeni — and `ballad` was preferred. Unlike everywhere else in the
+    // app this cannot be served by Munsit, and a cloned voice can never be used.
+    ["Yemeni", "ballad"],
   ] as const) {
     const { body, bodies, calls } = await call(
       "realtime-session-token",
@@ -252,6 +258,20 @@ Deno.test("realtime-session-token picks a voice per dialect", async () => {
     const mint = calls.findIndex((url) => url.includes("client_secrets"));
     assertStringIncludes(bodies[mint] ?? "", `"voice":"${voice}"`);
   }
+});
+
+Deno.test("realtime-session-token lets the Yemeni persona be overridden", async () => {
+  // Gulf and Yemeni sound identical on a call by default. This is the knob that
+  // separates them without a deploy, should that turn out to matter.
+  const { body } = await call(
+    "realtime-session-token",
+    { dialect: "Yemeni" },
+    subscriber({ "api.openai.com": openai() }),
+    undefined,
+    { env: { REALTIME_VOICE_YEMENI: "ash" } },
+  );
+
+  assertEquals(body.voice, "ash");
 });
 
 Deno.test("realtime-session-token falls back to the Gulf voice for an unknown dialect", async () => {

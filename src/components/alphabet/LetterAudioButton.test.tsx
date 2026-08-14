@@ -148,21 +148,23 @@ describe("LetterAudioButton — the control itself", () => {
 });
 
 describe("LetterAudioButton — choosing a voice", () => {
-  it("pins the Fusha button to the formal MSA voice", () => {
+  it("asks for MSA on the Fusha button", () => {
     // Whatever dialect the learner is studying, the Fusha button has to say the
     // letter the way the reference does — otherwise the comparison it exists to
     // support is between two dialects rather than dialect and standard.
+    //
+    // It names the dialect and nothing else. It used to also pin the Azure voice
+    // `ar-SA-HamedNeural` by name, which is exactly the per-call-site voice table
+    // that let the app's dialects drift apart; MSA now resolves to a Munsit fusha
+    // voice through the same router every other dialect uses.
     render({ text: "ق", forceMsa: true });
-    expect(tts.asked[0]).toMatchObject({
-      text: "ق",
-      dialect: "MSA",
-      voice: "ar-SA-HamedNeural",
-    });
+    expect(tts.asked[0]).toMatchObject({ text: "ق", dialect: "MSA" });
+    expect(tts.asked[0]).not.toHaveProperty("voice", expect.any(String));
   });
 
   it("leaves the routing to the hook for a dialect button", () => {
     render({ text: "ق" });
-    expect(tts.asked[0]).toMatchObject({ text: "ق", dialect: undefined, voice: undefined });
+    expect(tts.asked[0]).toMatchObject({ text: "ق", dialect: undefined });
   });
 
   it("asks for nothing until it is tapped", () => {

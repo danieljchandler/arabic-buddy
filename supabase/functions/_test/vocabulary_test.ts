@@ -528,16 +528,41 @@ Deno.test("generate-mnemonic needs no sign-in", async () => {
 
 // ── persist-word-audio ──────────────────────────────────────────────────────
 
-/** Storage upload and public-URL endpoints, which the admin client calls. */
+/**
+ * Storage plus a working Munsit, which is where the audio now comes from.
+ *
+ * It used to be an HTTP hop to the `azure-tts` function, which had to forward
+ * the caller's Authorization header because that function's own daily cap
+ * resolves a user and a service-role key has none. The synthesis happens in
+ * process now, so the fixtures are the provider's endpoints rather than a
+ * sibling function's.
+ */
 function storage(): Record<string, UpstreamHandler> {
   return {
     "/storage/v1/object/flashcard-audio": () => json({ Key: "flashcard-audio/x" }),
-    "/functions/v1/azure-tts": () =>
-      new Response(new Uint8Array([1, 2, 3]), {
+    "api.munsit.com/api/v1/voices": () =>
+      json([
+        { voice_id: "ar-najdi-male-1", gender: "male", dialect: ["najdi", "khaleeji"], type: "neural" },
+        { voice_id: "ar-emirati-male-1", gender: "male", dialect: ["emirati"], type: "neural" },
+        { voice_id: "ar-masri-male-1", gender: "male", dialect: ["masri"], type: "neural" },
+      ]),
+    "api.munsit.com/api/v1/text-to-speech": () =>
+      new Response(new Uint8Array([0x52, 0x49, 0x46, 0x46]), {
         status: 200,
-        headers: { "content-type": "audio/mpeg" },
+        headers: { "content-type": "audio/wav" },
       }),
   };
+}
+
+/** The URL substring every TTS provider call shares, for "did it synthesise?". */
+const TTS_HOSTS = /api\.munsit\.com\/api\/v1\/text-to-speech|tts\.speech\.microsoft\.com|api\.elevenlabs\.io/;
+const synthesised = (calls: string[]) => calls.some((url) => TTS_HOSTS.test(url));
+
+/** The voice id sent to Munsit, which is what "the right voice" now means. */
+function voiceSent(calls: string[], bodies: (string | null)[]): string | undefined {
+  const i = calls.findIndex((url) => url.includes("text-to-speech"));
+  if (i < 0) return undefined;
+  return (JSON.parse(bodies[i] ?? "{}") as { voice_id?: string }).voice_id;
 }
 
 const aWord = (over: Record<string, unknown> = {}) => ({
@@ -563,7 +588,22 @@ Deno.test("persist-word-audio synthesises and stores a word with no audio", asyn
   assert(String(body.audioUrl).length > 0);
   // Synthesised here rather than accepting a client-uploaded blob: the row is
   // shared across every learner, so its audio must provably be this word.
-  assert(calls.some((url) => url.includes("azure-tts")));
+  assert(synthesised(calls));
+});
+
+Deno.test("persist-word-audio stores Munsit's WAV under a .wav key", async () => {
+  // The extension and content type used to be hardcoded to .mp3 / audio/mpeg,
+  // from when this always went to Azure. Munsit answers in WAV, so every
+  // curriculum word would have been stored as WAV bytes under an .mp3 name and
+  // served mislabelled — permanently, since each word is synthesised once ever.
+  const { calls } = await call(
+    "persist-word-audio",
+    { wordId: WORD_ID },
+    caller({ ...storage(), "/rest/v1/vocabulary_words": () => json(aWord()) }),
+  );
+
+  const upload = calls.find((url) => url.includes("/storage/v1/object/flashcard-audio")) ?? "";
+  assertStringIncludes(decodeURIComponent(upload), `curriculum/word-${WORD_ID}.wav`);
 });
 
 Deno.test("persist-word-audio returns the existing audio without synthesising", async () => {
@@ -583,46 +623,29 @@ Deno.test("persist-word-audio returns the existing audio without synthesising", 
   // The whole point: each curriculum word is synthesised once ever, across all
   // learners. A cache miss that re-synthesised would multiply the cost by the
   // user count.
-  assert(!calls.some((url) => url.includes("azure-tts")));
+  assert(!synthesised(calls));
 });
 
-Deno.test("persist-word-audio picks the voice for the word's dialect", async () => {
-  for (const [dialect, voice] of [
-    ["Egyptian", "ar-EG-ShakirNeural"],
-    ["Yemeni", "ar-YE-MaryamNeural"],
-  ] as const) {
+Deno.test("persist-word-audio voices a word in its own dialect", async () => {
+  // A word cached in the wrong voice is cached that way permanently, for
+  // everyone — so this is the assertion that matters most in this file.
+  const voiceFor = async (dialect: string) => {
     const { bodies, calls } = await call(
       "persist-word-audio",
       { wordId: WORD_ID, dialect },
-      caller({
-        ...storage(),
-        "/rest/v1/vocabulary_words": () => json(aWord()),
-      }),
+      caller({ ...storage(), "/rest/v1/vocabulary_words": () => json(aWord()) }),
+      // The fixture environment pins a Gulf voice. Cleared so this exercises
+      // matching against the catalogue, which is what decides the other dialects.
+      { env: { MUNSIT_GULF_VOICE_ID: undefined } },
     );
+    return voiceSent(calls, bodies);
+  };
 
-    const i = calls.findIndex((u) => u.includes("azure-tts"));
-    // azure-tts takes a *voice*, not a dialect. Passing a dialect name falls
-    // through to its Gulf default, so every Egyptian and Yemeni word would be
-    // cached — permanently, for everyone — in a Gulf voice.
-    assertStringIncludes(bodies[i] ?? "", voice);
-  }
-});
-
-Deno.test("persist-word-audio sends no voice for Gulf", async () => {
-  const { bodies, calls } = await call(
-    "persist-word-audio",
-    { wordId: WORD_ID, dialect: "Gulf" },
-    caller({
-      ...storage(),
-      "/rest/v1/vocabulary_words": () => json(aWord()),
-    }),
-  );
-
-  const i = calls.findIndex((u) => u.includes("azure-tts"));
-  const sent = JSON.parse(bodies[i] ?? "{}") as { voice?: string };
-  // azure-tts's own default is already a Gulf voice, so naming one here would
-  // be a second place to keep in sync for no gain.
-  assertEquals(sent.voice, undefined);
+  assertEquals(await voiceFor("Egyptian"), "ar-masri-male-1");
+  assertEquals(await voiceFor("Gulf"), "ar-najdi-male-1");
+  // No Yemeni voice in the catalogue, so Yemeni borrows a Gulf one — but not
+  // the same one Gulf leads with, or the two dialects would be indistinguishable.
+  assertEquals(await voiceFor("Yemeni"), "ar-emirati-male-1");
 });
 
 Deno.test("persist-word-audio falls back to the word's own dialect", async () => {
@@ -635,9 +658,8 @@ Deno.test("persist-word-audio falls back to the word's own dialect", async () =>
     }),
   );
 
-  const i = calls.findIndex((u) => u.includes("azure-tts"));
   // Callers do not always know the dialect of a curriculum word; the row does.
-  assertStringIncludes(bodies[i] ?? "", "ar-EG-ShakirNeural");
+  assertEquals(voiceSent(calls, bodies), "ar-masri-male-1");
 });
 
 Deno.test("persist-word-audio only fills an empty audio slot", async () => {
@@ -670,7 +692,7 @@ Deno.test("persist-word-audio reports an unknown word as 404", async () => {
 
   assertEquals(status, 404);
   assertEquals(body.error, "word not found");
-  assert(!calls.some((url) => url.includes("azure-tts")));
+  assert(!synthesised(calls));
 });
 
 Deno.test("persist-word-audio refuses a request with no word id", async () => {
@@ -681,7 +703,7 @@ Deno.test("persist-word-audio refuses a request with no word id", async () => {
   );
 
   assertEquals(status, 400);
-  assert(!calls.some((url) => url.includes("azure-tts")));
+  assert(!synthesised(calls));
 });
 
 Deno.test("persist-word-audio reports a failed synthesis as 502", async () => {
@@ -691,7 +713,10 @@ Deno.test("persist-word-audio reports a failed synthesis as 502", async () => {
     caller({
       "/rest/v1/vocabulary_words": () => json(aWord()),
       "/storage/v1/object/flashcard-audio": () => json({ Key: "x" }),
-      "/functions/v1/azure-tts": () => json({ error: "no key" }, 503),
+      // Every provider down, including the Azure floor — otherwise the chain
+      // would degrade to Azure and succeed, which is the point of the chain.
+      "api.munsit.com/api/v1/text-to-speech": () => json({ error: "no key" }, 503),
+      "tts.speech.microsoft.com": () => json({ error: "no key" }, 503),
     }),
   );
 
@@ -712,7 +737,7 @@ Deno.test("persist-word-audio turns an anonymous caller away", async () => {
   // It runs with the service role, so the cap is the only thing between an
   // anonymous caller and unbounded synthesis into shared rows.
   assertEquals(status, 401);
-  assert(!calls.some((url) => url.includes("azure-tts")));
+  assert(!synthesised(calls));
 });
 
 // ── enrich-word-roots ───────────────────────────────────────────────────────

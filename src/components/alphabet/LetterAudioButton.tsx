@@ -13,9 +13,6 @@ interface LetterAudioButtonProps {
   label?: string;
 }
 
-/** MSA voice used for the Fusha button — a formal, MSA-style Arabic voice. */
-const MSA_VOICE = "ar-SA-HamedNeural";
-
 /**
  * Round speaker button. Wraps useAzureTTS to fetch and play a short clip.
  * `forceMsa` plays the Fusha voice; otherwise it follows the user's active dialect.
@@ -28,10 +25,9 @@ export const LetterAudioButton = ({
   autoplay = false,
   label,
 }: LetterAudioButtonProps) => {
-  // Fusha: force Azure MSA voice. Dialect: let the hook route (Munsit for Gulf,
-  // auto-selected Azure voice for Egyptian/Yemeni).
+  // "MSA" is a routed dialect like any other, so the Fusha button gets a Munsit
+  // fusha voice instead of the Azure one it used to pin by name.
   const dialectProp = forceMsa ? "MSA" : undefined;
-  const voice = forceMsa ? MSA_VOICE : undefined;
 
   /**
    * Synthesise on demand, not on render.
@@ -52,7 +48,6 @@ export const LetterAudioButton = ({
   const { ttsUrl, isLoading } = useAzureTTS({
     text,
     dialect: dialectProp,
-    voice,
     skip: !armed || !text?.trim(),
   });
   const audioRef = useRef<HTMLAudioElement | null>(null);

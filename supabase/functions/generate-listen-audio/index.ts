@@ -17,6 +17,7 @@ import {
   synthesizeLine,
   concatForPlan,
   estimateSeconds,
+  slotsNeeded,
 } from "../_shared/listenTts.ts";
 
 
@@ -41,8 +42,15 @@ async function runJob(episodeId: string) {
       .update({ audio_status: "pending", updated_at: new Date().toISOString() })
       .eq("id", episodeId);
 
-    const plan = await planProvider(episode.dialect);
-    console.log(`generate-listen-audio: episode=${episodeId} provider=${plan.provider}`);
+    const script = (episode.script as any[]) ?? [];
+    // Planned from the whole script, so a two-host episode can never be assigned
+    // a rung that has only one voice and end up with both hosts sounding alike.
+    const plan = await planProvider(episode.dialect, {
+      minVoices: slotsNeeded(script.map((line) => String(line?.speaker_role ?? ""))),
+    });
+    console.log(
+      `generate-listen-audio: episode=${episodeId} provider=${plan.provider} source=${plan.source}`,
+    );
 
     // Resume support: which lines do we already have?
     const { data: existingRows } = await admin
@@ -51,7 +59,6 @@ async function runJob(episodeId: string) {
       .eq("episode_id", episodeId);
     const existing = new Set<number>((existingRows ?? []).map((r: any) => r.line_index));
 
-    const script = (episode.script as any[]) ?? [];
     const parts: Uint8Array[] = [];
     const lineDurations: number[] = [];
     let runningSeconds = 0;

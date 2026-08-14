@@ -24,30 +24,11 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
+import { synthesizeForDialect } from "../_shared/ttsVoiceRouting.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const BUCKET = "flashcard-audio";
-
-/**
- * Dialect → Azure voice. Mirrors DEFAULT_AZURE_VOICE in src/hooks/useAzureTTS.ts.
- *
- * azure-tts takes `voice`, not `dialect` — passing a dialect name silently falls
- * through to its Gulf default, so every Egyptian and Yemeni curriculum word
- * would have been cached with a Gulf voice.
- */
-const VOICE_BY_DIALECT: Record<string, string> = {
-  egyptian: "ar-EG-ShakirNeural",
-  egypt: "ar-EG-ShakirNeural",
-  yemeni: "ar-YE-MaryamNeural",
-  yemen: "ar-YE-MaryamNeural",
-};
-
-function voiceFor(dialect: string | null | undefined): string | undefined {
-  if (!dialect) return undefined;
-  // Gulf has no entry: azure-tts's own default is already a Gulf voice.
-  return VOICE_BY_DIALECT[String(dialect).toLowerCase()];
-}
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -94,39 +75,36 @@ serve(async (req) => {
 
     // Synthesise here rather than accepting a client-uploaded blob: the row is
     // shared across every learner, so its audio must provably be this word.
-    // azure-tts gates on its own daily cap, which resolves a *user* from the
-    // Authorization header. A service-role key has no user, so passing it here
-    // made every call fail 401 auth_required → tts_failed. Forward the caller's
-    // token instead: they're already past this function's own cap check.
-    const callerAuth = req.headers.get("Authorization") ?? "";
-    const ttsRes = await fetch(`${SUPABASE_URL}/functions/v1/azure-tts`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(callerAuth ? { Authorization: callerAuth } : {}),
-        apikey: SERVICE_ROLE,
-      },
-      body: JSON.stringify({
-        text: word.word_arabic,
-        voice: voiceFor(dialect || word.dialect_module),
-      }),
-    });
-
-    if (!ttsRes.ok) {
-      const detail = await ttsRes.text();
-      console.error("persist-word-audio: TTS failed", ttsRes.status, detail.slice(0, 200));
+    //
+    // In-process rather than over HTTP to azure-tts. That hop had to forward the
+    // caller's Authorization header, because azure-tts gates on a daily cap that
+    // resolves a *user* and a service-role key has none — so a service-role call
+    // failed 401 auth_required → tts_failed. Calling the router directly removes
+    // the second cap check along with the workaround.
+    let audio: Uint8Array;
+    let plan;
+    try {
+      ({ bytes: audio, plan } = await synthesizeForDialect(
+        word.word_arabic,
+        dialect || word.dialect_module,
+        { minVoices: 1 },
+      ));
+    } catch (ttsErr) {
+      console.error("persist-word-audio: TTS failed", ttsErr);
       return new Response(JSON.stringify({ error: "tts_failed" }), {
         status: 502,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const audio = new Uint8Array(await ttsRes.arrayBuffer());
-    const path = `curriculum/word-${wordId}.mp3`;
+    // Extension and content type follow the provider. Munsit answers in WAV, so
+    // hardcoding .mp3/audio/mpeg here would store WAV bytes under an .mp3 name
+    // and serve them mislabelled.
+    const path = `curriculum/word-${wordId}.${plan.ext}`;
 
     const { error: uploadErr } = await admin.storage
       .from(BUCKET)
-      .upload(path, audio, { contentType: "audio/mpeg", upsert: true });
+      .upload(path, audio, { contentType: plan.contentType, upsert: true });
     if (uploadErr) throw uploadErr;
 
     const { data: urlData } = admin.storage.from(BUCKET).getPublicUrl(path);

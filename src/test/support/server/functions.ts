@@ -187,6 +187,9 @@ export const defaultFunctions: Record<string, FunctionHandler> = {
   "azure-tts": () => audio("audio/mpeg"),
   "munsit-tts": () => audio("audio/wav"),
   "elevenlabs-tts": () => audio("audio/mpeg"),
+  // The dialect-routed endpoint every surface now calls. WAV because it
+  // resolves to Munsit for every dialect.
+  "tts-speak": () => audio("audio/wav"),
 
   // Per-sentence, with the detected dialect alongside the requested one —
   // `useTranslateText` reads all three and Translate.tsx renders the detected

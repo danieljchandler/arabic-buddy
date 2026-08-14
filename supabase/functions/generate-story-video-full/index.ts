@@ -187,7 +187,7 @@ async function synthesizeSceneNarration(
   arabicBeat: string,
 ): Promise<{ audio_url: string; narration_arabic: string; duration_seconds: number }> {
   const narration = validateArabicOnly(`scene ${sceneIndex + 1} narration`, firstWords(arabicBeat, 40));
-  const providerPlan = await planProvider(story.dialect || "Gulf");
+  const providerPlan = await planProvider(story.dialect || "Gulf", { minVoices: 1 });
   const bytes = await synthesizeLine(narration, "narrator", sceneIndex, providerPlan);
   const path = `authentic-stories/${story.id}/full-${sceneIndex}-narration-${Date.now()}.${providerPlan.ext}`;
   const up = await admin.storage.from(BUCKET).upload(path, bytes, {

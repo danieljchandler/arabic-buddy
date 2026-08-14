@@ -271,31 +271,24 @@ export default function ConversationSimulator() {
         const cacheKey = `${activeDialect}:${trimmed}`;
         let url = ttsCache.current.get(cacheKey);
         if (!url) {
-          // Route by dialect: Gulf → Munsit Gulf voices, Egyptian → ElevenLabs
-          // native ar-EG voices, Yemeni → Azure's real ar-YE neural voices
-          // (previously Yemeni went to ElevenLabs, which has no Yemeni voice).
-          const fnName =
-            activeDialect === "Gulf" ? "munsit-tts" :
-            activeDialect === "Yemeni" ? "azure-tts" :
-            "elevenlabs-tts";
-          const body =
-            fnName === "azure-tts"
-              ? { text: trimmed, voice: "ar-YE-SalehNeural" }
-              : { text: trimmed };
+          // The server picks the provider and voice for the dialect. This used
+          // to be a three-way switch here, which is how the simulator ended up
+          // speaking Yemeni in a male voice while the flashcards used a female
+          // one for the same dialect.
           const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
           const ANON = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
           const { data: { session } } = await supabase.auth.getSession();
           const token = session?.access_token ?? ANON;
-          const res = await fetch(`${SUPABASE_URL}/functions/v1/${fnName}`, {
+          const res = await fetch(`${SUPABASE_URL}/functions/v1/tts-speak`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
               Authorization: `Bearer ${token}`,
               apikey: ANON,
             },
-            body: JSON.stringify(body),
+            body: JSON.stringify({ text: trimmed, dialect: activeDialect }),
           });
-          if (!res.ok) throw new Error(`${fnName} ${res.status}`);
+          if (!res.ok) throw new Error(`tts-speak ${res.status}`);
           const blob = await res.blob();
           url = URL.createObjectURL(blob);
           ttsCache.current.set(cacheKey, url);

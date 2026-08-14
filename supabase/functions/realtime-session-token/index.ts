@@ -6,6 +6,7 @@
 //
 // Per-dialect system prompt + voice is baked into the session config.
 import { getDialectIdentity, getDialectVocabRules, primeDialectPrompt, type Dialect } from "../_shared/dialectHelpers.ts";
+import { REALTIME_VOICE_BY_DIALECT } from "../_shared/ttsVoiceRoutingCore.ts";
 import {
   enforceDailyCap,
   getSubscriptionTier,
@@ -24,13 +25,27 @@ import { getMonthUsedSeconds, recordVoiceUsage } from "../_shared/voiceBudget.ts
 
 const REALTIME_MODEL = "gpt-realtime-2";
 
-// OpenAI Realtime voices: alloy, ash, ballad, coral, echo, sage, shimmer, verse.
-// Mapping chosen to roughly match each dialect persona.
-const DIALECT_VOICE: Record<string, string> = {
-  Gulf: "ballad",     // warm, grounded — Khaliji vibe
-  Egyptian: "shimmer",// bright, expressive — Cairo storyteller
-  Yemeni: "verse",    // measured — Sana'ani host
-};
+/**
+ * The live call's voice, which is not a TTS voice.
+ *
+ * OpenAI Realtime ships a fixed set of eight personas (alloy, ash, ballad,
+ * coral, echo, sage, shimmer, verse) and the dialect comes from the system
+ * prompt, not the voice — so unlike everywhere else in the app, this cannot be
+ * served by Munsit and a cloned voice can never appear here.
+ *
+ * Yemeni shares Gulf's `ballad` because that is the voice that was preferred
+ * over `verse`. `REALTIME_VOICE_YEMENI` overrides it without a deploy — `ash` is
+ * the nearest warm male alternative if the two dialects should sound distinct.
+ */
+const DIALECT_VOICE: Record<string, string> = REALTIME_VOICE_BY_DIALECT;
+
+function voiceForDialect(dialect: string): string {
+  if (dialect === "Yemeni") {
+    const override = Deno.env.get("REALTIME_VOICE_YEMENI")?.trim();
+    if (override) return override;
+  }
+  return DIALECT_VOICE[dialect] ?? DIALECT_VOICE.Gulf;
+}
 
 function difficultyExtras(difficulty: string): string {
   if (difficulty === "advanced") {
@@ -203,7 +218,7 @@ Deno.serve(async (req) => {
     // Warm the dialect rulebook cache so identity/vocab include admin edits.
     try { await primeDialectPrompt(dialect); } catch { /* fallback to hard-coded */ }
 
-    const voice = DIALECT_VOICE[dialect] ?? DIALECT_VOICE.Gulf;
+    const voice = voiceForDialect(dialect);
     const instructions = mode === "assistant"
       ? buildAssistantInstruction(
           dialect,

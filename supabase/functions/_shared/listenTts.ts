@@ -1,255 +1,55 @@
-// Shared TTS helpers for the Listen feature.
-// - Gulf episodes → Munsit (WAV, multiple Gulf voices).
-// - Egyptian episodes → ElevenLabs native Egyptian voices, else Azure Neural TTS (MP3).
-// - Yemeni episodes → Azure Neural TTS using real ar-YE-* Yemeni voices (MP3).
+// Episode and story audio: voice slots, synthesis per line, and clip assembly.
+//
+// Which provider and which voices serve a dialect is no longer decided here —
+// `ttsVoiceRouting.ts` owns that for the whole app, so Listen, the vocabulary
+// cards and the conversation simulator can't drift apart again the way they had.
+// Every dialect resolves to Munsit's Faseeh voices, with Azure as the floor if
+// Munsit is unreachable.
+//
+// What stays here is what only long-form audio cares about: assigning speakers
+// to voice slots, conditioning prosody on neighbouring lines, and concatenating
+// the clips.
 
-const MUNSIT_BASE = "https://api.munsit.com/api/v1";
-const GULF_DIALECTS = new Set([
-  "najdi", "emirati", "khaleeji", "gulf",
-  "saudi", "kuwaiti", "qatari", "bahraini", "omani",
-]);
+import {
+  planForDialect,
+  pickVoiceSlot,
+  synthesizeWithPlan,
+  type VoicePlan,
+} from "./ttsVoiceRouting.ts";
 
 export type Provider = "munsit" | "azure" | "elevenlabs";
 
-export interface ProviderPlan {
-  provider: Provider;
-  ext: "wav" | "mp3";
-  contentType: "audio/wav" | "audio/mpeg";
-  // For Munsit: ordered list of distinct Gulf voice_ids + modelId.
-  munsitVoices?: string[];
-  munsitModelId?: string;
-  // For Azure: full neural voice list.
-  azureVoices?: string[];
-  // For ElevenLabs: ordered list of voice IDs (alternated by speaker slot).
-  elevenLabsVoices?: string[];
-  elevenLabsModelId?: string;
-}
+/**
+ * The shape the six episode/story functions read.
+ *
+ * They only ever touch `provider`, `ext` and `contentType`; the voice list is
+ * read by `synthesizeLine` alone, which is why collapsing the old
+ * per-provider arrays into one `voices` field was a local change.
+ */
+export type ProviderPlan = VoicePlan;
 
-// Native Egyptian Arabic voices from the workspace library.
-const ELEVENLABS_EGYPTIAN_VOICES = [
-  "6aXW46RTUz6Y2lkBGQ1a", // Farida — Lively and Radiant (female, ar-EG)
-  "rMheqEfwsIJckq2yCdb5", // Ahmed Yahia (male, ar-EG)
-  "ckGEQg6YnSVooU5uDRsF", // Tarek — Pleasant and Professional (male, ar-EG)
-];
-
-const AZURE_VOICE_MAP: Record<string, string[]> = {
-  Egyptian: ["ar-EG-ShakirNeural", "ar-EG-SalmaNeural"],
-  Yemeni: ["ar-YE-MaryamNeural", "ar-YE-SalehNeural"],
-  Gulf: ["ar-AE-HamdanNeural", "ar-AE-FatimaNeural", "ar-SA-HamedNeural", "ar-SA-ZariyahNeural"],
-};
-
-let cachedMunsit: { voices: string[]; modelId: string } | null = null;
-
-async function pickMunsitModelId(apiKey: string): Promise<string | null> {
-  const override = Deno.env.get("MUNSIT_TTS_MODEL_ID")?.trim();
-  if (override) return override;
-  try {
-    const resp = await fetch(`${MUNSIT_BASE}/models`, {
-      headers: { "x-api-key": apiKey },
-      signal: AbortSignal.timeout(15_000),
-    });
-    if (!resp.ok) return null;
-    const models = await resp.json() as Array<{ model_id: string }>;
-    if (!Array.isArray(models) || models.length === 0) return null;
-    const v1 = models.find((m) => /v1/i.test(m.model_id));
-    const mini = models.find((m) => /mini/i.test(m.model_id));
-    return (v1 ?? mini ?? models[0]).model_id;
-  } catch {
-    return null;
-  }
-}
-
-async function loadMunsitGulfVoices(apiKey: string): Promise<{ voices: string[]; modelId: string } | null> {
-  if (cachedMunsit) return cachedMunsit;
-  const [voicesResp, modelId] = await Promise.all([
-    fetch(`${MUNSIT_BASE}/voices`, {
-      headers: { "x-api-key": apiKey },
-      signal: AbortSignal.timeout(15_000),
-    }).catch(() => null),
-    pickMunsitModelId(apiKey),
-  ]);
-  if (!modelId || !voicesResp || !voicesResp.ok) return null;
-  const all = await voicesResp.json() as Array<{
-    voice_id: string;
-    name?: string;
-    gender?: string;
-    dialect?: string[];
-  }>;
-  if (!Array.isArray(all) || all.length === 0) return null;
-
-  const gulf = all.filter((v) =>
-    Array.isArray(v.dialect) &&
-    v.dialect.some((d) => GULF_DIALECTS.has(d.toLowerCase()))
-  );
-
-  // Story narration uses male Gulf voices only (user preference).
-  const males = gulf.filter((v) => (v.gender ?? "").toLowerCase() === "male");
-  const fallback = males.length > 0
-    ? males.map((v) => v.voice_id)
-    : (gulf.length > 0 ? gulf.map((v) => v.voice_id) : all.slice(0, 4).map((v) => v.voice_id));
-  const voices = fallback.slice(0, 4);
-  if (voices.length === 0) return null;
-
-  cachedMunsit = { voices, modelId };
-  console.log(`listenTts: cached ${voices.length} Munsit Gulf voices (model=${modelId})`);
-  return cachedMunsit;
-}
-
-export async function planProvider(dialect: string): Promise<ProviderPlan> {
-  const munsitKey = Deno.env.get("MUNSIT_API_KEY");
-  if (dialect === "Gulf" && munsitKey) {
-    const m = await loadMunsitGulfVoices(munsitKey);
-    if (m) {
-      return {
-        provider: "munsit",
-        ext: "wav",
-        contentType: "audio/wav",
-        munsitVoices: m.voices,
-        munsitModelId: m.modelId,
-      };
-    }
-    console.warn(`listenTts: Munsit unavailable for ${dialect}, falling back to Azure`);
-  }
-
-  if (dialect === "Egyptian" && Deno.env.get("ELEVENLABS_API_KEY")) {
-    return {
-      provider: "elevenlabs",
-      ext: "mp3",
-      contentType: "audio/mpeg",
-      elevenLabsVoices: ELEVENLABS_EGYPTIAN_VOICES,
-      elevenLabsModelId: elevenLabsModel(),
-    };
-  }
-
-
+/**
+ * Resolves the provider and voices for a dialect.
+ *
+ * @param opts.minVoices distinct voices the caller needs. Two-host episodes must
+ *   pass 2 or a single-voice rung could be chosen and both hosts would share a
+ *   voice. Derive it from the whole script with `slotsNeeded`, never from one
+ *   line — planning line 0 and line 1 separately can land them on different
+ *   providers, and a WAV clip cannot be concatenated with an MP3 one.
+ */
+export async function planProvider(
+  dialect: string,
+  opts: { minVoices?: number } = {},
+): Promise<ProviderPlan> {
+  const plan = await planForDialect(dialect, { minVoices: opts.minVoices ?? 2 });
   return {
-    provider: "azure",
-    ext: "mp3",
-    contentType: "audio/mpeg",
-    azureVoices: AZURE_VOICE_MAP[dialect] ?? AZURE_VOICE_MAP.Gulf,
+    provider: plan.provider,
+    ext: plan.ext,
+    contentType: plan.contentType,
+    voices: plan.voices,
+    modelId: plan.modelId,
+    source: plan.source,
   };
-}
-
-export function pickVoiceSlot(role: string, index: number): number {
-  const r = (role || "").toLowerCase();
-  if (r.includes("host_b") || r === "guest" || r === "character") return 1;
-  // Narrator uses the same primary voice slot the podcast host uses — that
-  // voice is proven to sound natural on long-form narration. Slot 2 previously
-  // picked a more energetic voice that sounded like shouting on stories.
-  if (r === "narrator") return 0;
-  if (r === "speaker") return 0;
-  return index % 2;
-}
-
-function escapeXml(s: string) {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;").replace(/'/g, "&apos;");
-}
-
-export async function synthesizeAzure(text: string, voice: string): Promise<Uint8Array> {
-  const key = Deno.env.get("AZURE_SPEECH_KEY");
-  if (!key) throw new Error("AZURE_SPEECH_KEY missing");
-  const endpoint = Deno.env.get("AZURE_SPEECH_ENDPOINT");
-  const region = Deno.env.get("AZURE_SPEECH_REGION") ?? "eastus";
-  const url = endpoint
-    ? `${endpoint.replace(/\/$/, "")}/tts/cognitiveservices/v1`
-    : `https://${region}.tts.speech.microsoft.com/cognitiveservices/v1`;
-  const locale = voice.split("-").slice(0, 2).join("-");
-  const ssml = `<speak version='1.0' xml:lang='${locale}'><voice name='${voice}'>${escapeXml(text)}</voice></speak>`;
-  const resp = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Ocp-Apim-Subscription-Key": key,
-      "Content-Type": "application/ssml+xml",
-      "X-Microsoft-OutputFormat": "audio-24khz-48kbitrate-mono-mp3",
-      "User-Agent": "lahja-listen",
-    },
-    body: ssml,
-  });
-  if (!resp.ok) {
-    const err = await resp.text();
-    throw new Error(`Azure TTS ${resp.status}: ${err.slice(0, 200)}`);
-  }
-  return new Uint8Array(await resp.arrayBuffer());
-}
-
-export async function synthesizeMunsit(
-  text: string,
-  voiceId: string,
-  modelId: string,
-  opts: { stability?: number; speed?: number } = {},
-): Promise<Uint8Array> {
-  const key = Deno.env.get("MUNSIT_API_KEY");
-  if (!key) throw new Error("MUNSIT_API_KEY missing");
-  const resp = await fetch(`${MUNSIT_BASE}/text-to-speech/${encodeURIComponent(modelId)}`, {
-    method: "POST",
-    headers: { "x-api-key": key, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      voice_id: voiceId,
-      text,
-      // Higher stability → calmer, less "shouty" delivery. Podcast dialogue
-      // sounds fine at 0.6; long narration benefits from 0.75+.
-      stability: typeof opts.stability === "number" ? opts.stability : 0.6,
-      speed: typeof opts.speed === "number" ? opts.speed : 1.0,
-      streaming: false,
-    }),
-    signal: AbortSignal.timeout(45_000),
-  });
-  if (!resp.ok) {
-    const err = await resp.text();
-    throw new Error(`Munsit TTS ${resp.status}: ${err.slice(0, 200)}`);
-  }
-  return new Uint8Array(await resp.arrayBuffer());
-}
-
-// Model override knob for A/B-ing eleven_v3 (better dialect handling incl.
-// Egyptian) against the current default without a redeploy.
-export function elevenLabsModel(): string {
-  return Deno.env.get("ELEVENLABS_TTS_MODEL")?.trim() || "eleven_multilingual_v2";
-}
-
-export interface ElevenLabsOpts {
-  stability?: number;
-  style?: number;
-  // Prosody conditioning: pass the surrounding lines so multi-line narration
-  // flows naturally across line boundaries instead of restarting intonation.
-  previousText?: string;
-  nextText?: string;
-}
-
-export async function synthesizeElevenLabs(
-  text: string,
-  voiceId: string,
-  modelId: string,
-  opts: ElevenLabsOpts = {},
-): Promise<Uint8Array> {
-  const key = Deno.env.get("ELEVENLABS_API_KEY");
-  if (!key) throw new Error("ELEVENLABS_API_KEY missing");
-  const resp = await fetch(
-    `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`,
-    {
-      method: "POST",
-      headers: { "xi-api-key": key, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        text,
-        model_id: modelId,
-        ...(opts.previousText ? { previous_text: opts.previousText.slice(-600) } : {}),
-        ...(opts.nextText ? { next_text: opts.nextText.slice(0, 600) } : {}),
-        voice_settings: {
-          stability: opts.stability ?? 0.4,
-          similarity_boost: 0.8,
-          style: opts.style ?? 0.5,
-          use_speaker_boost: true,
-        },
-      }),
-      signal: AbortSignal.timeout(60_000),
-    },
-  );
-  if (!resp.ok) {
-    const err = await resp.text();
-    throw new Error(`ElevenLabs TTS ${resp.status}: ${err.slice(0, 200)}`);
-  }
-  return new Uint8Array(await resp.arrayBuffer());
 }
 
 export async function synthesizeLine(
@@ -261,22 +61,24 @@ export async function synthesizeLine(
   // same narration so intonation carries across line boundaries.
   neighbors: { previousText?: string; nextText?: string } = {},
 ): Promise<Uint8Array> {
-  if (plan.provider === "munsit") {
-    const voices = plan.munsitVoices!;
-    const slot = pickVoiceSlot(role, index) % voices.length;
-    // Narration → higher stability so it doesn't sound like shouting.
-    const stability = (role || "").toLowerCase() === "narrator" ? 0.8 : 0.6;
-    return synthesizeMunsit(text, voices[slot], plan.munsitModelId!, { stability });
-  }
-  if (plan.provider === "elevenlabs") {
-    const voices = plan.elevenLabsVoices!;
-    const slot = pickVoiceSlot(role, index) % voices.length;
-    return synthesizeElevenLabs(text, voices[slot], plan.elevenLabsModelId ?? elevenLabsModel(), neighbors);
-  }
-  const voices = plan.azureVoices!;
-  const slot = pickVoiceSlot(role, index) % voices.length;
-  return synthesizeAzure(text, voices[slot]);
+  const slot = pickVoiceSlot(role, index);
+  // Narration → higher stability so it doesn't sound like shouting. Munsit only:
+  // ElevenLabs reads `stability` on a different scale, where 0.8 flattens the
+  // expressive delivery its Egyptian voices were chosen for.
+  const stability = plan.provider === "munsit" && (role || "").toLowerCase() === "narrator"
+    ? 0.8
+    : undefined;
+  return synthesizeWithPlan(text, plan, slot, { ...neighbors, stability });
 }
+
+// Re-exported so callers and tests have one import for line-level audio.
+export { pickVoiceSlot, slotsNeeded } from "./ttsVoiceRouting.ts";
+export {
+  elevenLabsModel,
+  synthesizeAzure,
+  synthesizeElevenLabs,
+  synthesizeMunsit,
+} from "./ttsVoiceRouting.ts";
 
 // ---- WAV concatenation (strip RIFF headers from clips 2..N, rewrite sizes) ----
 // Assumes all clips share the same PCM format (true for one Munsit model run).

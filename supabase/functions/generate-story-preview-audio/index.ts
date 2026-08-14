@@ -66,7 +66,9 @@ Deno.serve(async (req) => {
     }
 
     const dialect = story.dialect || "Gulf";
-    const plan = await planProvider(dialect);
+    // Stories are single-narrator (every line is role "narrator" → slot 0), so one
+    // voice is enough and a single cloned voice can narrate them immediately.
+    const plan = await planProvider(dialect, { minVoices: 1 });
 
     // Generate audio for preview lines
     const audioUrls: string[] = [];

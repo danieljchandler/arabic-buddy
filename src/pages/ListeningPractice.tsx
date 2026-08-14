@@ -174,21 +174,32 @@ const ListeningPractice = () => {
     setAudioPlaying(true);
 
     try {
-      // Use Azure TTS — returns raw MP3 binary
+      const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
+      // The session token, not the anon key. The daily cap resolves a *user*
+      // from this header and the anon key has none, so every call here answered
+      // 401 — a listening exercise that could not play its audio.
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token ?? anonKey;
+
+      // Sends the dialect, so a Yemeni or Egyptian learner hears their own
+      // dialect. Omitting it fell through to the Gulf default for everyone.
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/azure-tts`,
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/tts-speak`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            apikey: anonKey,
+            Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ text: currentQuestion.audioText }),
+          body: JSON.stringify({
+            text: currentQuestion.audioText,
+            dialect: activeDialect,
+          }),
         }
       );
 
-      if (!response.ok) throw new Error(`Azure TTS error: ${response.status}`);
+      if (!response.ok) throw new Error(`tts-speak error: ${response.status}`);
 
       const blob = await response.blob();
       const audioUrl = URL.createObjectURL(blob);
@@ -217,7 +228,7 @@ const ListeningPractice = () => {
       toast.error("Could not play audio");
       setAudioPlaying(false);
     }
-  }, [currentQuestion, speedRate, audioPlaying]);
+  }, [currentQuestion, speedRate, audioPlaying, activeDialect]);
 
   const checkDictationAnswer = () => {
     if (!currentQuestion) return;

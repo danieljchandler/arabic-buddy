@@ -56,9 +56,9 @@ async function getUserId(req: Request): Promise<string | null> {
 }
 
 /**
- * Complimentary access: the `complimentary` role hands out top-tier access
- * without a Stripe subscription (investors, partners, press). Treated exactly
- * like an All-In subscriber everywhere a paid check happens.
+ * Unlimited access roles: `complimentary` (investors, partners, press) and
+ * `admin` (staff) hand out top-tier access without a Stripe subscription.
+ * Treated exactly like an All-In subscriber everywhere a paid check happens.
  */
 export async function hasComplimentaryAccess(userId: string): Promise<boolean> {
   try {
@@ -66,13 +66,13 @@ export async function hasComplimentaryAccess(userId: string): Promise<boolean> {
       .from("user_roles")
       .select("role")
       .eq("user_id", userId)
-      .eq("role", "complimentary")
-      .maybeSingle();
-    return !!data;
+      .in("role", ["complimentary", "admin"]);
+    return Array.isArray(data) && data.length > 0;
   } catch {
     return false;
   }
 }
+
 
 async function hasActiveSubscription(userId: string): Promise<boolean> {
   if (await hasComplimentaryAccess(userId)) return true;

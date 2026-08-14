@@ -29,6 +29,7 @@ import {
   type PageContextPayload,
 } from "../_shared/pageContextCore.ts";
 import { ASSISTANT_TOOL_SPECS } from "../_shared/assistantToolsCore.ts";
+import { learnerMemoryBlock } from "../_shared/learnerMemory.ts";
 
 const REALTIME_MODEL = "gpt-realtime-2";
 
@@ -102,6 +103,7 @@ function buildAssistantInstruction(
   dialect: Dialect,
   context: string,
   learnerBlock: string,
+  memoryBlock: string,
 ): string {
   const identity = getDialectIdentity(dialect);
   const vocab = getDialectVocabRules(dialect);
@@ -117,7 +119,7 @@ ${context}
 ${vocab}
 
 You are Hakiya's AI tutor on a live voice call. The learner may ask about anything they see in the app — a video, a story, a grammar point, a word — or about Arabic in general.
-${contextBlock}${learnerBlock ? `\n${learnerBlock}\n` : ""}
+${contextBlock}${learnerBlock ? `\n${learnerBlock}\n` : ""}${memoryBlock ? `\n${memoryBlock}\n` : ""}
 Strict rules:
 - This is spoken dialogue — keep every turn short (1-2 sentences) and wait for the learner.
 - Explain in English when the learner asks in English or seems lost; model phrases in your assigned dialect.
@@ -245,7 +247,13 @@ Deno.serve(async (req) => {
       ? buildAssistantInstruction(
           dialect,
           context,
-          await learnerPromptBlock({ userId: cap.userId, dialect, includeWeak: true }),
+          ...(await Promise.all([
+            learnerPromptBlock({ userId: cap.userId, dialect, includeWeak: true }),
+            // The same notes the text tutor keeps. A learner who spent last
+            // week's chat untangling one construction should not have to
+            // explain that again to the voice tutor.
+            learnerMemoryBlock(cap.userId, dialect),
+          ])) as [string, string],
         )
       : buildSystemInstruction(dialect, difficulty, topicHint);
     // Tools are the assistant's only way to reach past what it was handed at

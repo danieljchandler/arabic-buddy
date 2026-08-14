@@ -23,6 +23,12 @@ import { relatedContentBlock } from "../_shared/contentRetrieval.ts";
 import { allowedUrlsFromContext, toolResultsBlock } from "../_shared/assistantToolsCore.ts";
 import { executePlan } from "../_shared/assistantTools.ts";
 import { planToolCalls } from "../_shared/assistantToolRouter.ts";
+import { readLearnerMemory, updateLearnerMemory } from "../_shared/learnerMemory.ts";
+import { memoryBlock } from "../_shared/learnerMemoryCore.ts";
+
+/** Supabase's isolate runtime. Absent locally and under the test harness, which
+ *  is why every use of it is guarded rather than assumed. */
+declare const EdgeRuntime: { waitUntil?: (promise: Promise<unknown>) => void } | undefined;
 
 interface ChatMessage {
   role: "user" | "assistant";
@@ -128,6 +134,11 @@ ${pageText}
       return toolResultsBlock(results);
     })();
 
+    // What earlier conversations left behind. Read every turn — it is one
+    // indexed lookup, and the rewrite below needs it anyway — but only shown
+    // to the model on the first, like the profile.
+    const memoryPromise = readLearnerMemory(cap.userId, resolvedDialect);
+
     // Only the first turn pays for the profile queries: on later turns the
     // same knowledge is already reflected in the visible history.
     let learnerBlock = "";
@@ -143,10 +154,15 @@ ${pageText}
         contentHistoryBlock({ userId: cap.userId }),
       ]);
     }
-    const [retrievalBlockText, toolBlockText] = await Promise.all([retrievalPromise, toolsPromise]);
+    const [retrievalBlockText, toolBlockText, memory] = await Promise.all([
+      retrievalPromise,
+      toolsPromise,
+      memoryPromise,
+    ]);
+    const memoryText = messages.length <= 2 ? memoryBlock(memory) : "";
 
     const systemPromptExtra = `You are Hakiya's in-app AI tutor, a friendly expert in spoken ${dialectLabel}. The learner can ask about anything they see in the app — a video, a story, a grammar point, a word — or about Arabic in general.
-${seedBlock}${pageBlock}${learnerBlock ? `\n${learnerBlock}\n` : ""}${historyBlock ? `\n${historyBlock}\n` : ""}${retrievalBlockText ? `\n${retrievalBlockText}\n` : ""}${toolBlockText ? `\n${toolBlockText}\n` : ""}
+${seedBlock}${pageBlock}${learnerBlock ? `\n${learnerBlock}\n` : ""}${historyBlock ? `\n${historyBlock}\n` : ""}${memoryText ? `\n${memoryText}\n` : ""}${retrievalBlockText ? `\n${retrievalBlockText}\n` : ""}${toolBlockText ? `\n${toolBlockText}\n` : ""}
 ${getDialectTransliterationRules(resolvedDialect)}
 
 GROUNDING (critical — the learner is asking about what is on their screen):
@@ -173,6 +189,25 @@ GUIDELINES:
       maxTokens: 1024,
       responseHeaders: corsHeaders,
       signal: req.signal,
+      // Fold this exchange into the learner's notes once the answer has gone
+      // out. Deliberately after the stream and off the request's critical
+      // path: nobody should wait on their own memory being updated, and a
+      // failed rewrite costs the next conversation a little context rather
+      // than costing this one its reply.
+      onComplete: (answer) => {
+        const assistantTurns = memory.turnsSeen +
+          messages.filter((m) => m.role === "assistant").length + 1;
+        const job = updateLearnerMemory({
+          userId: cap.userId,
+          dialect: resolvedDialect,
+          messages: [...messages, { role: "assistant", content: answer }],
+          assistantTurns,
+          current: memory,
+        });
+        // waitUntil keeps the isolate alive for it; without one (local, tests)
+        // the promise still runs and its own catch handles the failure.
+        if (typeof EdgeRuntime?.waitUntil === "function") EdgeRuntime.waitUntil(job);
+      },
     });
   } catch (err) {
     if (err instanceof BrainHttpError) {

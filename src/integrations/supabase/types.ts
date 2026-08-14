@@ -1704,6 +1704,33 @@ export type Database = {
           },
         ]
       }
+      learner_ai_memory: {
+        Row: {
+          dialect: string
+          open_questions: Json
+          summary: string
+          turns_seen: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          dialect: string
+          open_questions?: Json
+          summary?: string
+          turns_seen?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          dialect?: string
+          open_questions?: Json
+          summary?: string
+          turns_seen?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       learner_errors: {
         Row: {
           created_at: string

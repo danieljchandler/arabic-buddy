@@ -433,6 +433,65 @@ Deno.test("assistant-chat mentions recently watched videos in the prompt", async
   assertStringIncludes(sent, "Souq Tour Kuwait");
 });
 
+Deno.test("assistant-chat opens with what it remembers about the learner", async () => {
+  const { bodies } = await call(
+    "assistant-chat",
+    { messages: [{ role: "user", content: "explain this construction" }] },
+    subscriber({
+      "openrouter.ai": gateway,
+      "/rest/v1/learner_ai_memory": () =>
+        json({
+          summary: "Prefers examples before rules; keeps mixing up بـ and راح.",
+          open_questions: ["when do you drop the ال?"],
+          turns_seen: 6,
+        }),
+    }),
+  );
+
+  const sent = sentPrompt(bodies);
+  // Nothing else in the prompt records what the learner has been *asking* —
+  // the SRS knows which words are weak, not which explanations landed.
+  assertStringIncludes(sent, "keeps mixing up");
+  assertStringIncludes(sent, "when do you drop the ال?");
+  assertStringIncludes(sent, "never as a fact about them");
+});
+
+Deno.test("assistant-chat leaves the memory out of later turns", async () => {
+  const { bodies } = await call(
+    "assistant-chat",
+    {
+      messages: [
+        { role: "user", content: "explain this" },
+        { role: "assistant", content: "Because…" },
+        { role: "user", content: "and the other one?" },
+      ],
+    },
+    subscriber({
+      "openrouter.ai": gateway,
+      "/rest/v1/learner_ai_memory": () =>
+        json({ summary: "Prefers examples before rules.", open_questions: [], turns_seen: 6 }),
+    }),
+  );
+
+  // Same reasoning as the learner profile: by turn three it is already
+  // reflected in the visible history, and re-sending it is pure cost.
+  assert(!sentPrompt(bodies).includes("Prefers examples before rules"));
+});
+
+Deno.test("assistant-chat still answers when it can remember nothing", async () => {
+  const { response, bodies } = await call(
+    "assistant-chat",
+    { messages: [{ role: "user", content: "explain this" }] },
+    subscriber({
+      "openrouter.ai": gateway,
+      "/rest/v1/learner_ai_memory": () => json({ message: "denied" }, 500),
+    }),
+  );
+
+  assertEquals(response.status, 200);
+  assert(!sentPrompt(bodies).includes("FROM EARLIER CONVERSATIONS"));
+});
+
 Deno.test("assistant-chat truncates runaway histories instead of forwarding them", async () => {
   const messages = Array.from({ length: 60 }, (_, i) => ({
     role: i % 2 === 0 ? "user" : "assistant",

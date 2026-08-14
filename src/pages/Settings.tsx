@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { Loader2, Check, ArrowLeft, User, Globe2, Target, Eye, Heart, ChevronRight, Camera, AlertTriangle, Info, Compass, Bell } from 'lucide-react';
 import { HomeLayoutEditor } from '@/components/settings/HomeLayoutEditor';
 import { DisplayPrefsEditor } from '@/components/settings/DisplayPrefsEditor';
+import { TutorMemoryCard } from '@/components/settings/TutorMemoryCard';
 import { useLeechPrefs } from '@/hooks/useLeechPrefs';
 import { useRootFamilyPrefs } from '@/hooks/useRootFamilyPrefs';
 import { useFeatureHints } from '@/hooks/useFeatureHints';
@@ -618,6 +619,7 @@ const Settings = () => {
               </div>
               <Switch checked={showOnLeaderboard} onCheckedChange={setShowOnLeaderboard} />
             </div>
+            <TutorMemoryCard />
           </section>
 
           {/* Subscription */}

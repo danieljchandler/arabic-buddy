@@ -54,6 +54,10 @@ export function ChatTab({ onComposerFocus }: ChatTabProps = {}) {
   const [reported, setReported] = useState<ReadonlySet<number>>(new Set());
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+  // Whether the transcript is parked at the bottom. A reply streams in a token
+  // at a time, and each one used to snap the view back down — so scrolling up
+  // to re-read the start of a long answer was undone before you got a line in.
+  const pinnedRef = useRef(true);
 
   // A learner's flag goes to the native-review queue, not straight into
   // training data — natives decide what was actually wrong.
@@ -74,11 +78,25 @@ export function ChatTab({ onComposerFocus }: ChatTabProps = {}) {
     toast.success("Thanks — a native speaker will take a look.");
   }, [activeDialect]);
 
+  const onScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    // A generous threshold: fractional scroll heights and a partly-written last
+    // line both mean "at the bottom" is rarely exactly zero.
+    pinnedRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 48;
+  }, []);
+
   useEffect(() => {
-    if (scrollRef.current) {
+    if (pinnedRef.current && scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages]);
+
+  // A new question is the learner's own doing, so follow it down regardless of
+  // where they had scrolled to while reading the last answer.
+  const stickToBottom = useCallback(() => {
+    pinnedRef.current = true;
+  }, []);
 
   useEffect(() => () => abortRef.current?.abort(), []);
 
@@ -87,6 +105,7 @@ export function ChatTab({ onComposerFocus }: ChatTabProps = {}) {
       const trimmed = text.trim();
       if (!trimmed || loading) return;
 
+      stickToBottom();
       const nextMessages = [...messages, { role: "user" as const, content: trimmed }];
       setMessages(nextMessages);
       setInput("");
@@ -142,7 +161,7 @@ export function ChatTab({ onComposerFocus }: ChatTabProps = {}) {
         setLoading(false);
       }
     },
-    [messages, setMessages, loading, activeDialect, seed, pathname, pageContext],
+    [messages, setMessages, loading, activeDialect, seed, pathname, pageContext, stickToBottom],
   );
 
   if (!user && !authLoading) {
@@ -162,8 +181,17 @@ export function ChatTab({ onComposerFocus }: ChatTabProps = {}) {
 
   return (
     <>
-      {/* min-h-0 so this can actually shrink inside the sheet's bounded column. */}
-      <div ref={scrollRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3">
+      {/* min-h-0 so this can actually shrink inside the sheet's bounded column.
+          Full screen buys room, so spend some of it on the reply itself — the
+          panel tags itself with data-snap for exactly this. */}
+      <div
+        ref={scrollRef}
+        onScroll={onScroll}
+        className={cn(
+          "min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3",
+          "group-data-[snap=cover]/panel:space-y-4 group-data-[snap=cover]/panel:px-5 group-data-[snap=cover]/panel:py-4",
+        )}
+      >
         {messages.length === 0 && (
           <div className="space-y-2">
             <p className="text-xs text-muted-foreground">
@@ -192,6 +220,8 @@ export function ChatTab({ onComposerFocus }: ChatTabProps = {}) {
               key={i}
               className={cn(
                 "rounded-lg px-3 py-2 text-sm",
+                "group-data-[snap=cover]/panel:px-4 group-data-[snap=cover]/panel:py-3",
+                "group-data-[snap=cover]/panel:text-[15px] group-data-[snap=cover]/panel:leading-relaxed",
                 m.role === "user"
                   ? "bg-primary/10 ml-6"
                   : "bg-muted/50 mr-6 prose prose-sm max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1",

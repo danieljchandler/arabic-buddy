@@ -212,6 +212,74 @@ describe("AskAiPanel", () => {
     });
   });
 
+  /**
+   * Peek keeps the page visible, which is the right default until there's an
+   * answer to read — at which point roughly four lines of reply behind a
+   * scrollbar is the wrong trade. These cover the two ways out of it.
+   */
+  describe("making the conversation readable", () => {
+    it("expands out of the peek height as soon as there are messages", async () => {
+      render();
+      await open();
+      expect(screen.getByRole("button", { name: "Expand panel" })).toBeInTheDocument();
+
+      // Via a suggested prompt, which never touches the composer — so composer
+      // focus alone was never enough to expand the panel.
+      await act(async () => {
+        fireEvent.click(screen.getByText("What am I looking at?"));
+      });
+
+      await waitFor(() => {
+        expect(screen.getByRole("button", { name: "Collapse panel" })).toHaveAttribute(
+          "aria-expanded",
+          "true",
+        );
+      });
+    });
+
+    it("hands the whole screen to the transcript, and gives it back", async () => {
+      render();
+      await open();
+
+      const dialog = screen.getByRole("dialog");
+      expect(dialog).toHaveAttribute("data-snap", "peek");
+
+      const expand = screen.getByRole("button", { name: "Read full screen" });
+      expect(expand).toHaveAttribute("aria-pressed", "false");
+
+      await act(async () => {
+        fireEvent.click(expand);
+      });
+
+      expect(dialog).toHaveAttribute("data-snap", "cover");
+      const exit = screen.getByRole("button", { name: "Exit full screen" });
+      expect(exit).toHaveAttribute("aria-pressed", "true");
+
+      await act(async () => {
+        fireEvent.click(exit);
+      });
+
+      // Back to the taller sheet, not all the way down to peek.
+      expect(dialog).toHaveAttribute("data-snap", "full");
+    });
+
+    it("lets Escape leave full screen without closing the panel", async () => {
+      render();
+      await open();
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: "Read full screen" }));
+      });
+
+      await act(async () => {
+        fireEvent.keyDown(document.body, { key: "Escape" });
+      });
+
+      // Losing a conversation you were reading is the harsher reading of Escape.
+      expect(screen.getByRole("dialog")).toHaveAttribute("data-snap", "full");
+    });
+  });
+
   describe("the context card", () => {
     it("shows what the page is displaying when there's no seed sentence", async () => {
       render({

@@ -99,6 +99,55 @@ test.describe("Ask AI panel", () => {
     await expect(page.getByRole("button", { name: "Expand panel" })).toBeVisible();
   });
 
+  test("gives the whole screen to the conversation on request", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/reading");
+    await expect(page.getByRole("heading", { name: /reading practice/i })).toBeVisible();
+    await openPanel(page);
+
+    const dialog = page.getByRole("dialog");
+    expect((await dialog.boundingBox())!.height).toBeLessThan(844 * 0.7);
+
+    await page.getByRole("button", { name: "Read full screen" }).click();
+    await expect(page.getByRole("button", { name: "Exit full screen" })).toBeVisible();
+
+    // The whole point: no more reading an answer through a letterbox. The
+    // sheet grows upward from a pinned bottom edge, so poll on the top edge —
+    // it only reaches the top of the screen once the animation has settled,
+    // where a height threshold is satisfied part-way there.
+    await expect.poll(async () => (await dialog.boundingBox())!.y).toBeLessThan(2);
+    expect((await dialog.boundingBox())!.height).toBeGreaterThan(844 * 0.95);
+
+    await page.screenshot({ path: "/tmp/ask-ai-mobile-fullscreen.png" });
+
+    await page.getByRole("button", { name: "Exit full screen" }).click();
+    await expect(page.getByRole("button", { name: "Read full screen" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /reading practice/i })).toBeInViewport();
+  });
+
+  test("widens past the rail into a reading column on desktop", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto("/reading");
+    await expect(page.getByRole("heading", { name: /reading practice/i })).toBeVisible();
+    await openPanel(page);
+
+    const dialog = page.getByRole("dialog");
+    expect((await dialog.boundingBox())!.width).toBeLessThan(1440 * 0.5);
+
+    await page.getByRole("button", { name: "Read full screen" }).click();
+    await expect(page.getByRole("button", { name: "Exit full screen" })).toBeVisible();
+    // The rail widens rather than snapping, so poll past the transition.
+    await expect
+      .poll(async () => (await dialog.boundingBox())!.width)
+      .toBeGreaterThan(1440 * 0.95);
+
+    // Full width, but the text itself stays in a column you can read across.
+    const column = page.locator("#ask-ai-body");
+    expect((await column.boundingBox())!.width).toBeLessThan(900);
+
+    await page.screenshot({ path: "/tmp/ask-ai-desktop-fullscreen.png" });
+  });
+
   test("shows the sentence it was opened about, with the passage still on screen", async ({
     page,
   }) => {

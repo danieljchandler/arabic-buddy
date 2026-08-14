@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { AlertCircle, Crown, Loader2, Mic, MicOff, Phone, PhoneOff, Radio } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -28,6 +28,25 @@ export function VoiceTab() {
   // Closing the panel or switching tabs unmounts this component; the call must
   // not keep running (and billing) with no UI attached to it.
   useEffect(() => () => stop(), [stop]);
+
+  // The transcript is written by the call, not by the learner, so it has to
+  // follow the speaking on its own — otherwise the newest turn lands out of
+  // sight and you're scrolling to keep up with a live conversation. Unless
+  // they've scrolled back to read something, in which case leave them there.
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const pinnedRef = useRef(true);
+
+  const onScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    pinnedRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 48;
+  }, []);
+
+  useEffect(() => {
+    if (pinnedRef.current && scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [turns]);
 
   const contextString = useMemo(() => {
     const page = serializePagePayload(buildPagePayload(pathname, pageContext));
@@ -76,7 +95,17 @@ export function VoiceTab() {
 
   return (
     <>
-      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-4 py-3 text-sm">
+      {/* Full screen buys room; a call transcript is the thing most worth
+          spending it on, since it's the only record of what was said. */}
+      <div
+        ref={scrollRef}
+        onScroll={onScroll}
+        className={cn(
+          "min-h-0 flex-1 space-y-2 overflow-y-auto px-4 py-3 text-sm",
+          "group-data-[snap=cover]/panel:space-y-3 group-data-[snap=cover]/panel:px-5 group-data-[snap=cover]/panel:py-4",
+          "group-data-[snap=cover]/panel:text-[15px]",
+        )}
+      >
         {error && (
           <div className="flex items-start gap-2 rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">
             <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />

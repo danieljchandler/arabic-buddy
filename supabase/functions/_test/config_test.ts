@@ -108,9 +108,11 @@ Deno.test("the undeclared functions are listed, so the default is a choice", asy
   // Adjust deliberately, in the same commit that adds or declares a function.
   assertEquals(
     undeclared.length,
-    // 37 since `convert-to-fusha`, which is capped per user and answers 401
-    // without a JWT anyway — the inherited default is the one it wants.
-    37,
+    // 38 since `assistant-tools`, which runs the live voice tutor's lookups.
+    // It is subscribers-only and resolves the learner from their JWT, so the
+    // inherited default is exactly what it wants — the same call
+    // `realtime-session-token` makes, and for the same reason.
+    38,
     `The number of functions with no config.toml entry changed (now ${undeclared.length}: ` +
       `${undeclared.join(", ")}). They inherit verify_jwt = true. If that is right, ` +
       `update this count; if not, add a block.`,

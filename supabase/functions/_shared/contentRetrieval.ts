@@ -76,14 +76,22 @@ export interface RetrieveOptions {
   /** The video or article already on screen — excluded from the results. */
   excludeSourceId?: string;
   max?: number;
+  /**
+   * Shortest query worth embedding.
+   *
+   * The default suits the automatic per-turn retrieval, where the query is
+   * whatever the learner typed and a short one is an acknowledgement ("ok",
+   * "thanks") rather than a question. A deliberate `search_library` tool call
+   * is the opposite case — one Arabic word is exactly what it is for — so it
+   * lowers the floor.
+   */
+  minQueryLength?: number;
 }
 
 /** Nearest library material to a question. Empty on every failure. */
 export async function retrieveRelatedContent(opts: RetrieveOptions): Promise<RetrievedChunk[]> {
   const query = opts.query.trim();
-  // Below this it isn't a question, it's an acknowledgement ("ok", "thanks"),
-  // and embedding it would spend a call to match noise.
-  if (query.length < 8) return [];
+  if (query.length < (opts.minQueryLength ?? 8)) return [];
   if (!SUPABASE_URL || !SERVICE_ROLE) return [];
 
   try {

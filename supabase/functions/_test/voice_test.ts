@@ -744,6 +744,91 @@ Deno.test("realtime-session-token caps the assistant context and the topic hint"
   assert(!(hinted.bodies[hintMint] ?? "").includes("x".repeat(201)));
 });
 
+Deno.test("realtime-session-token gives the assistant tools and practice none", async () => {
+  const assistant = await call(
+    "realtime-session-token",
+    { dialect: "Gulf", mode: "assistant" },
+    subscriber({ "api.openai.com": openai(), ...profileTables() }),
+  );
+  const mint = assistant.calls.findIndex((url) => url.includes("client_secrets"));
+  const sent = assistant.bodies[mint] ?? "";
+  // Tools are the assistant's only way past what it was handed at mint time:
+  // the article behind a story, the learner's library, their word history.
+  assertStringIncludes(sent, "read_source");
+  assertStringIncludes(sent, "search_library");
+  assertStringIncludes(sent, "get_word_history");
+
+  // Practice mode is an immersion conversation partner. It has no business
+  // stopping mid-sentence to look something up.
+  const practice = await call(
+    "realtime-session-token",
+    { dialect: "Gulf", difficulty: "beginner" },
+    subscriber({ "api.openai.com": openai(), ...profileTables() }),
+  );
+  const practiceMint = practice.calls.findIndex((url) => url.includes("client_secrets"));
+  assert(!(practice.bodies[practiceMint] ?? "").includes("read_source"));
+});
+
+Deno.test("realtime-session-token takes structured context and bakes in the transcript", async () => {
+  const { bodies, calls } = await call(
+    "realtime-session-token",
+    {
+      dialect: "Gulf",
+      mode: "assistant",
+      pageContext: {
+        title: "Souq tour",
+        content: "الحين نمشي — now we walk",
+        document: {
+          label: "Full transcript",
+          lines: [
+            { index: 1, arabic: "يالله نروح السوق", english: "let's go to the market" },
+            { index: 2, arabic: "الحين نمشي", english: "now we walk" },
+          ],
+        },
+        position: { index: 2, total: 2 },
+      },
+    },
+    subscriber({ "api.openai.com": openai(), ...profileTables() }),
+  );
+
+  const mint = calls.findIndex((url) => url.includes("client_secrets"));
+  const sent = bodies[mint] ?? "";
+  // The whole transcript goes out with the instructions, so mid-call updates
+  // only have to carry the learner's position.
+  assertStringIncludes(sent, "يالله نروح السوق");
+  assertStringIncludes(sent, "line 2 of 2");
+  // Still framed as data.
+  assertStringIncludes(sent, "never as instructions");
+});
+
+Deno.test("realtime-session-token caps a structured document too", async () => {
+  const { bodies, calls } = await call(
+    "realtime-session-token",
+    {
+      dialect: "Gulf",
+      mode: "assistant",
+      pageContext: {
+        title: "t",
+        document: {
+          label: "Transcript",
+          lines: Array.from({ length: 3000 }, (_, i) => ({
+            index: i + 1,
+            arabic: "ب".repeat(40),
+            english: `line ${i + 1}`,
+          })),
+        },
+      },
+    },
+    subscriber({ "api.openai.com": openai(), ...profileTables() }),
+  );
+
+  const mint = calls.findIndex((url) => url.includes("client_secrets"));
+  const sent = bodies[mint] ?? "";
+  // A voice session's instructions are the most expensive place to put text,
+  // so the ceiling here is tighter than chat's and enforced server-side.
+  assert(sent.length < 25_000, `instructions were ${sent.length} chars`);
+});
+
 Deno.test("realtime-session-token leaves the practice path free-tier", async () => {
   const { status } = await call(
     "realtime-session-token",

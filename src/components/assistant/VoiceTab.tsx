@@ -95,7 +95,9 @@ export function VoiceTab() {
       // again, and the newest position is the only one worth sending.
       const fresh = serializeFocusUpdate(contextRef.current);
       if (!fresh || fresh === lastSentRef.current.note) return;
-      if (updateContext(fresh)) lastSentRef.current = { note: fresh, at: Date.now() };
+      if (updateContext(fresh, contextRef.current)) {
+        lastSentRef.current = { note: fresh, at: Date.now() };
+      }
     }, wait);
     return () => clearTimeout(timer);
   }, [live, contextPayload, updateContext]);

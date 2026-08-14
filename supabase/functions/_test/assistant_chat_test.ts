@@ -1,6 +1,6 @@
 import { assert, assertEquals, assertStringIncludes } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { jsonRequest, loadFunction } from "./harness.ts";
-import { json, sseCompletion, type UpstreamHandler } from "./upstreams.ts";
+import { chatCompletion, json, sseCompletion, type UpstreamHandler } from "./upstreams.ts";
 
 /**
  * The global Ask AI assistant. Its distinguishing features over the other
@@ -64,8 +64,23 @@ async function call(
 
 const gateway = () => sseCompletion("Because ", "it flows.");
 
+/**
+ * The prompt sent to the model that actually answers.
+ *
+ * Two calls now reach a gateway on a normal turn: the tool router's, and the
+ * answer's. Only the answer streams, which is what tells them apart — matching
+ * on "system" alone would return whichever came first, and the router's went
+ * first.
+ */
 function sentPrompt(bodies: Array<string | null>): string {
-  return bodies.find((b) => b?.includes("system")) ?? "";
+  return bodies.find((b) => b?.includes('"stream":true')) ??
+    bodies.find((b) => b?.includes("system")) ??
+    "";
+}
+
+/** The tool router's call, when it made one. */
+function routerPrompt(bodies: Array<string | null>): string {
+  return bodies.find((b) => b?.includes("plan_lookups")) ?? "";
 }
 
 Deno.test("assistant-chat streams the gateway's frames through", async () => {
@@ -295,6 +310,80 @@ Deno.test("assistant-chat still answers when the semantic index is unavailable",
   assertEquals(response.status, 200);
   const sent = sentPrompt(bodies);
   assert(!sent.includes("ELSEWHERE IN THE LIBRARY"));
+});
+
+Deno.test("assistant-chat reads the source article when the router asks for it", async () => {
+  const ARTICLE = "https://news.example.com/gulf/dates-harvest";
+  const { bodies } = await call(
+    "assistant-chat",
+    {
+      messages: [{ role: "user", content: "what did the original article actually say?" }],
+      pageContext: {
+        route: "/souq-news",
+        title: "Dates harvest",
+        document: {
+          label: "Full article",
+          sourceUrl: ARTICLE,
+          lines: [{ index: 1, arabic: "التمر زاد", english: "the dates increased" }],
+        },
+      },
+    },
+    subscriber({
+      "openrouter.ai": gateway,
+      // The router, answering with a forced plan_lookups call.
+      "ai.gateway.lovable.dev": () => chatCompletion("", { lookups: [{ tool: "read_source", url: ARTICLE }] }),
+      "api.firecrawl.dev": () =>
+        json({ data: { markdown: "The harvest in Najd rose thirty percent.", metadata: { title: "Harvest" } } }),
+    }),
+  );
+
+  const sent = sentPrompt(bodies);
+  // This is the layer the learner asked for: the tutor can go to the page the
+  // app's retelling was made from.
+  assertStringIncludes(sent, "LOOKED UP FOR THIS QUESTION");
+  assertStringIncludes(sent, "rose thirty percent");
+  // A fetched web page is a stranger's text and is framed as such.
+  assertStringIncludes(sent, "written by strangers");
+
+  // And the router was told which URL it was allowed to name.
+  assertStringIncludes(routerPrompt(bodies), ARTICLE);
+});
+
+Deno.test("assistant-chat will not read a URL the learner's screen never showed", async () => {
+  const { bodies } = await call(
+    "assistant-chat",
+    {
+      messages: [{ role: "user", content: "what does the source say about this?" }],
+      pageContext: { route: "/souq-news", title: "Dates harvest" },
+    },
+    subscriber({
+      "openrouter.ai": gateway,
+      // A router that names a URL anyway — which is exactly the case the
+      // allow-list exists for, since its own input contains scraped text.
+      "ai.gateway.lovable.dev": () =>
+        chatCompletion("", { lookups: [{ tool: "read_source", url: "https://evil.example/x" }] }),
+      "api.firecrawl.dev": () => json({ data: { markdown: "should never be read" } }),
+    }),
+  );
+
+  const sent = sentPrompt(bodies);
+  assert(!sent.includes("should never be read"));
+  assertStringIncludes(sent, "Refused");
+});
+
+Deno.test("assistant-chat answers normally when no lookup is needed", async () => {
+  const { response, bodies } = await call(
+    "assistant-chat",
+    { messages: [{ role: "user", content: "why is this word feminine here?" }] },
+    subscriber({
+      "openrouter.ai": gateway,
+      "ai.gateway.lovable.dev": () => chatCompletion("", { lookups: [] }),
+    }),
+  );
+
+  assertEquals(response.status, 200);
+  // The usual case, and it must cost the prompt nothing.
+  assert(!sentPrompt(bodies).includes("LOOKED UP FOR THIS QUESTION"));
 });
 
 Deno.test("assistant-chat fetches the learner profile on the first turn only", async () => {

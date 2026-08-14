@@ -20,6 +20,9 @@ import {
   type PageContextPayload,
 } from "../_shared/pageContextCore.ts";
 import { relatedContentBlock } from "../_shared/contentRetrieval.ts";
+import { allowedUrlsFromContext, toolResultsBlock } from "../_shared/assistantToolsCore.ts";
+import { executePlan } from "../_shared/assistantTools.ts";
+import { planToolCalls } from "../_shared/assistantToolRouter.ts";
 
 interface ChatMessage {
   role: "user" | "assistant";
@@ -103,6 +106,28 @@ ${pageText}
       excludeSourceId: page.document?.sourceId,
     });
 
+    // Lookups the model asked for, rather than context we guessed it wanted.
+    // The router only ever sees the question and a one-line description of the
+    // screen — handing it the whole transcript would cost as much as the
+    // answer it is only routing.
+    const allowedUrls = allowedUrlsFromContext(page.document?.sourceUrl);
+    const toolsPromise = (async () => {
+      const plan = await planToolCalls({
+        question: lastUserMessage,
+        dialect: resolvedDialect,
+        pageSummary: [page.title, page.summary, page.content].filter(Boolean).join(" — "),
+        availableUrls: allowedUrls,
+      });
+      if (plan.length === 0) return "";
+      const results = await executePlan(plan, {
+        userId: cap.userId,
+        dialect: resolvedDialect,
+        allowedUrls,
+        currentSourceId: page.document?.sourceId,
+      });
+      return toolResultsBlock(results);
+    })();
+
     // Only the first turn pays for the profile queries: on later turns the
     // same knowledge is already reflected in the visible history.
     let learnerBlock = "";
@@ -118,10 +143,10 @@ ${pageText}
         contentHistoryBlock({ userId: cap.userId }),
       ]);
     }
-    const retrievalBlockText = await retrievalPromise;
+    const [retrievalBlockText, toolBlockText] = await Promise.all([retrievalPromise, toolsPromise]);
 
     const systemPromptExtra = `You are Hakiya's in-app AI tutor, a friendly expert in spoken ${dialectLabel}. The learner can ask about anything they see in the app — a video, a story, a grammar point, a word — or about Arabic in general.
-${seedBlock}${pageBlock}${learnerBlock ? `\n${learnerBlock}\n` : ""}${historyBlock ? `\n${historyBlock}\n` : ""}${retrievalBlockText ? `\n${retrievalBlockText}\n` : ""}
+${seedBlock}${pageBlock}${learnerBlock ? `\n${learnerBlock}\n` : ""}${historyBlock ? `\n${historyBlock}\n` : ""}${retrievalBlockText ? `\n${retrievalBlockText}\n` : ""}${toolBlockText ? `\n${toolBlockText}\n` : ""}
 ${getDialectTransliterationRules(resolvedDialect)}
 
 GROUNDING (critical — the learner is asking about what is on their screen):

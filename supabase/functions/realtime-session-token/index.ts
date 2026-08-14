@@ -28,6 +28,7 @@ import {
   VOICE_BUDGET,
   type PageContextPayload,
 } from "../_shared/pageContextCore.ts";
+import { ASSISTANT_TOOL_SPECS } from "../_shared/assistantToolsCore.ts";
 
 const REALTIME_MODEL = "gpt-realtime-2";
 
@@ -124,6 +125,7 @@ Strict rules:
 - No transliteration, no Latin-letter pronunciation guides — this is a voice call.
 - Ground answers in what the learner is looking at when it's relevant. The line they are on is marked ▶; the rest of the transcript or article around it is there to be used, so questions about earlier or later parts are answerable. "… N lines omitted …" means those lines were dropped to fit — never guess at what they said.
 - The learner is watching or reading while you talk, so their position updates as they go. Always trust the newest context over anything said earlier in the call.
+- You have lookups available (reading the original source behind app content, searching their library, checking their word history). Use one only when it would change your answer — this is a spoken conversation and a lookup is a pause in it. Say what you're doing in three or four words first ("one sec, let me check"), and if a lookup comes back empty or refused, say so rather than guessing.
 
 Open by asking, in one short sentence, what they'd like help with.`;
 }
@@ -227,8 +229,12 @@ Deno.serve(async (req) => {
           clampPageContext(body.pageContext as PageContextPayload, VOICE_BUDGET),
           VOICE_BUDGET,
         )
+      // The legacy blob keeps the legacy ceiling. The document allowance is
+      // for structured content that has been through clampPageContext field by
+      // field; an opaque string has had none of that, so it gets the tighter
+      // one it was written against.
       : typeof body.context === "string"
-      ? body.context.slice(0, VOICE_BUDGET.document)
+      ? body.context.slice(0, VOICE_BUDGET.content)
       : "";
 
     // Warm the dialect rulebook cache so identity/vocab include admin edits.
@@ -242,11 +248,26 @@ Deno.serve(async (req) => {
           await learnerPromptBlock({ userId: cap.userId, dialect, includeWeak: true }),
         )
       : buildSystemInstruction(dialect, difficulty, topicHint);
+    // Tools are the assistant's only way to reach past what it was handed at
+    // mint time — reading the article behind a story, searching the learner's
+    // library, checking whether they have actually met a word. Practice mode
+    // is an immersion conversation partner and has no business looking things
+    // up mid-sentence, so it gets none.
+    const tools = mode === "assistant"
+      ? ASSISTANT_TOOL_SPECS.map((spec) => ({
+          type: "function",
+          name: spec.name,
+          description: spec.description,
+          parameters: spec.parameters,
+        }))
+      : [];
+
     const sessionConfig = {
       type: "realtime",
       model: REALTIME_MODEL,
       output_modalities: ["audio"],
       instructions,
+      ...(tools.length > 0 ? { tools, tool_choice: "auto" } : {}),
       audio: {
         input: {
           transcription: {

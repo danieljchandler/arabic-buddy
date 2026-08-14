@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useDialect } from "@/contexts/DialectContext";
 import { useNavigate } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
@@ -17,6 +17,8 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { InfoHint } from "@/components/InfoHint";
 import { PAGE_HINTS } from "@/lib/pageHints";
+import { AskAISentence } from "@/components/shared/AskAISentence";
+import { usePageAiContext } from "@/contexts/AiAssistantContext";
 import { Switch } from "@/components/ui/switch";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -105,6 +107,29 @@ const ListeningPractice = () => {
 
   const currentQuestion = questions[currentIndex];
   const progress = questions.length > 0 ? ((currentIndex + 1) / questions.length) * 100 : 0;
+
+  usePageAiContext(
+    useMemo(
+      () =>
+        currentQuestion
+          ? {
+              kind: "drill" as const,
+              title: "Listening practice",
+              summary: `A ${mode ?? "listening"} exercise: the learner hears spoken ${activeDialect} Arabic and types or picks what it means.`,
+              // Only meaningful once the answer is on screen; before that the
+              // assistant would be handing over the answer.
+              content: showResult
+                ? `Audio line: ${currentQuestion.audioText}${
+                    currentQuestion.audioTextEnglish
+                      ? ` — ${currentQuestion.audioTextEnglish}`
+                      : ""
+                  }`
+                : undefined,
+            }
+          : null,
+      [currentQuestion, mode, showResult, activeDialect],
+    ),
+  );
 
   const startSession = async (selectedMode: Mode) => {
     setMode(selectedMode);
@@ -562,6 +587,13 @@ const ListeningPractice = () => {
                       {currentQuestion.audioTextEnglish}
                     </p>
                   )}
+                  <div className="mt-2 flex justify-center">
+                    <AskAISentence
+                      arabic={currentQuestion.audioText}
+                      english={currentQuestion.audioTextEnglish}
+                      variant="chip"
+                    />
+                  </div>
                 </div>
 
                 <Button onClick={nextQuestion} className="w-full">
@@ -602,6 +634,13 @@ const ListeningPractice = () => {
                     "{currentQuestion.audioTextEnglish}"
                   </p>
                 )}
+                <div className="mb-3 flex justify-center">
+                  <AskAISentence
+                    arabic={currentQuestion.audioText}
+                    english={currentQuestion.audioTextEnglish}
+                    variant="chip"
+                  />
+                </div>
                 <Button onClick={nextQuestion} className="w-full">
                   {currentIndex < questions.length - 1 ? "Next" : "Finish"}
                   <ChevronRight className="h-4 w-4 ml-1" />

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useDialect } from "@/contexts/DialectContext";
@@ -18,6 +18,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { toast } from "sonner";
+import { usePageAiContext } from "@/contexts/AiAssistantContext";
 import { cn } from "@/lib/utils";
 import { InfoHint } from "@/components/InfoHint";
 import { PAGE_HINTS } from "@/lib/pageHints";
@@ -59,6 +60,21 @@ const CultureGuide = () => {
   const [isStreaming, setIsStreaming] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+
+  usePageAiContext(
+    useMemo(
+      () => ({
+        kind: "page" as const,
+        title: "Culture guide",
+        summary: `A chat about ${activeDialect} Arabic etiquette and cultural context, with the option of a human native-speaker review.`,
+        content: messages
+          .slice(-2)
+          .map((m) => `${m.role === "user" ? "Learner" : "Guide"}: ${m.content}`)
+          .join("\n"),
+      }),
+      [messages, activeDialect],
+    ),
+  );
 
   // Count human review requests this month
   const { data: reviewCount = 0, refetch: refetchCount } = useQuery({

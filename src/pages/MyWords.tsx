@@ -19,6 +19,8 @@ const ImportFromAnkiDialog = lazy(() =>
 import { Wand2 } from "lucide-react";
 import { InfoHint } from "@/components/InfoHint";
 import { PAGE_HINTS } from "@/lib/pageHints";
+import { AskAISentence } from "@/components/shared/AskAISentence";
+import { usePageAiContext } from "@/contexts/AiAssistantContext";
 import { buildRootFamilies, formatRoot, rootKey } from "@/lib/arabicRoot";
 import { useRootFamilyPrefs } from "@/hooks/useRootFamilyPrefs";
 import { showCapToastIfLimited } from "@/lib/handleCapResponse";
@@ -148,6 +150,22 @@ const MyWords = () => {
       return true;
     });
   }, [words, sourceFilter, categoryFilter, deckFilter, tagFilter, rootFilter]);
+
+  usePageAiContext(
+    useMemo(
+      () => ({
+        kind: "page" as const,
+        title: "My Words",
+        summary:
+          "The learner's own saved vocabulary and phrases, with roots, decks and review counts.",
+        content: (filteredWords ?? [])
+          .slice(0, 25)
+          .map((w) => `${w.word_arabic} — ${w.word_english}`)
+          .join("; "),
+      }),
+      [filteredWords],
+    ),
+  );
 
   /**
    * Look up the roots of words that have none.
@@ -408,6 +426,11 @@ const MyWords = () => {
                     {p.phrase_english}
                   </p>
                 </div>
+                <AskAISentence
+                  arabic={p.phrase_arabic}
+                  english={p.phrase_english}
+                  className="shrink-0"
+                />
                 <Button
                   variant="ghost"
                   size="icon"
@@ -857,6 +880,13 @@ const MyWords = () => {
                   >
                     <Sparkles className="h-4 w-4" />
                   </Button>
+                  <span onClick={(e) => e.stopPropagation()}>
+                    <AskAISentence
+                      arabic={word.sentence_text || word.word_arabic}
+                      english={word.sentence_english || word.word_english}
+                      className="h-8 w-8"
+                    />
+                  </span>
                   <Button
                     variant="ghost"
                     size="icon"

@@ -3,6 +3,7 @@ import { VocabularyWord } from "@/hooks/useReview";
 import { cn } from "@/lib/utils";
 import { CheckCircle2, XCircle, Volume2 } from "lucide-react";
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";
+import { AskAISentence } from "@/components/shared/AskAISentence";
 
 interface ReviewQuizCardProps {
   word: VocabularyWord;
@@ -168,6 +169,16 @@ export const ReviewQuizCard = ({
           {selectedId === word.id
             ? "Correct! أحسنت"
             : `The answer was: ${word.word_arabic}`}
+        </div>
+      )}
+
+      {showResult && (
+        <div className="mt-3 flex justify-center">
+          <AskAISentence
+            arabic={word.word_arabic}
+            english={word.word_english}
+            variant="chip"
+          />
         </div>
       )}
     </div>

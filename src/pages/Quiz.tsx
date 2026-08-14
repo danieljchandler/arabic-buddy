@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useTopic, VocabularyWord } from "@/hooks/useTopic";
 import { HomeButton } from "@/components/HomeButton";
@@ -7,6 +7,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { Loader2 } from "lucide-react";
 import { QuizCard } from "@/components/learn/QuizCard";
 import { QuizResults } from "@/components/quiz/QuizResults";
+import { usePageAiContext } from "@/contexts/AiAssistantContext";
 
 interface QuizState {
   currentIndex: number;
@@ -42,6 +43,19 @@ const Quiz = () => {
       setShuffledWords(shuffleArray(topic.words));
     }
   }, [topic]);
+
+  usePageAiContext(
+    useMemo(() => {
+      const word = shuffledWords[quizState.currentIndex];
+      if (!word) return null;
+      return {
+        kind: "word" as const,
+        title: topic?.name ? `Quiz — ${topic.name}` : "Vocabulary quiz",
+        summary: "A multiple-choice vocabulary quiz over the words in this lesson.",
+        content: `Current word: ${word.word_arabic} — ${word.word_english}`,
+      };
+    }, [shuffledWords, quizState.currentIndex, topic?.name]),
+  );
 
   const resetQuiz = useCallback(() => {
     if (topic?.words) {

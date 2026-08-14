@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -11,6 +11,8 @@ import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { AskAISentence } from "@/components/shared/AskAISentence";
+import { usePageAiContext } from "@/contexts/AiAssistantContext";
 import {
   Loader2,
   Languages,
@@ -214,6 +216,24 @@ export default function PlacementQuiz() {
   const currentQuestion = questions[currentIndex];
   const SkillIcon = currentQuestion ? (SKILL_ICONS[currentQuestion.skill_type] || Brain) : Brain;
 
+  usePageAiContext(
+    useMemo(
+      () => ({
+        kind: "drill" as const,
+        title: "Placement quiz",
+        summary:
+          "An adaptive quiz that estimates the learner's CEFR level. Do not give away answers to a question that hasn't been answered yet.",
+        content:
+          showFeedback && currentQuestion
+            ? `Question just answered: ${currentQuestion.question_arabic}${
+                currentQuestion.question_english ? ` — ${currentQuestion.question_english}` : ""
+              }`
+            : undefined,
+      }),
+      [showFeedback, currentQuestion],
+    ),
+  );
+
   return (
     <AppShell>
       <div className="max-w-lg mx-auto px-4 py-6 min-h-[80vh] flex flex-col">
@@ -298,6 +318,17 @@ export default function PlacementQuiz() {
                     <p className="text-sm text-muted-foreground mt-2">
                       {currentQuestion.question_english}
                     </p>
+                  )}
+                  {/* Held back until the answer is in — this is a placement
+                      test, and an explainer mid-question would skew the level. */}
+                  {showFeedback && (
+                    <div className="mt-3">
+                      <AskAISentence
+                        arabic={currentQuestion.question_arabic}
+                        english={currentQuestion.question_english}
+                        variant="chip"
+                      />
+                    </div>
                   )}
                 </div>
 

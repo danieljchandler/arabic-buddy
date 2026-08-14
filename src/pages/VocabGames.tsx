@@ -10,6 +10,8 @@ import { cn } from "@/lib/utils";
 import { InfoHint } from "@/components/InfoHint";
 import { PAGE_HINTS } from "@/lib/pageHints";
 import { toast } from "sonner";
+import { AskAISentence } from "@/components/shared/AskAISentence";
+import { usePageAiContext } from "@/contexts/AiAssistantContext";
 import {
   Gamepad2,
   Shuffle,
@@ -358,6 +360,13 @@ const FillBlankGame = ({ words, onComplete }: { words: WordPair[]; onComplete: (
                   </p>
                 </div>
               )}
+              <div className="mt-3 flex justify-center">
+                <AskAISentence
+                  arabic={word.word_arabic}
+                  english={word.word_english}
+                  variant="chip"
+                />
+              </div>
             </div>
             <Button onClick={handleNext} className="w-full">
               {current + 1 >= gameWords.length ? "See Results" : "Next"}
@@ -427,6 +436,24 @@ const VocabGames = () => {
   const [words, setWords] = useState<WordPair[]>([]);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{ score: number; total: number; game: string } | null>(null);
+
+  usePageAiContext(
+    useMemo(
+      () => ({
+        kind: "page" as const,
+        title: "Vocab games",
+        summary:
+          "Playing a vocabulary game (matching, memory or recall) over the learner's own word set.",
+        content: words.length
+          ? `Words in play: ${words
+              .slice(0, 20)
+              .map((w) => `${w.word_arabic} — ${w.word_english}`)
+              .join("; ")}`
+          : undefined,
+      }),
+      [words],
+    ),
+  );
 
   const fetchWords = useCallback(async () => {
     setLoading(true);

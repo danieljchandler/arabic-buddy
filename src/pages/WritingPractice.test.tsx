@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import WritingPractice from "./WritingPractice";
+import { AiAssistantProvider } from "@/contexts/AiAssistantContext";
 import { buildDrill } from "@/lib/typingDrills";
 
 /**
@@ -49,7 +50,11 @@ const review = {
 function mount() {
   return render(
     <MemoryRouter>
-      <WritingPractice />
+      {/* The page publishes what it's showing to the assistant and hangs Ask AI
+          chips off the prompt and the corrections. */}
+      <AiAssistantProvider>
+        <WritingPractice />
+      </AiAssistantProvider>
     </MemoryRouter>,
   );
 }

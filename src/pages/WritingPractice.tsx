@@ -18,6 +18,8 @@ import { useDialect } from "@/contexts/DialectContext";
 import { labelForKind } from "@/lib/mistakes";
 import { CheckCircle2, Keyboard, Loader2, PenLine, RefreshCw, Sparkles } from "lucide-react";
 import { toast } from "sonner";
+import { AskAISentence } from "@/components/shared/AskAISentence";
+import { usePageAiContext } from "@/contexts/AiAssistantContext";
 
 /**
  * Written production (C3) — the fourth skill.
@@ -89,6 +91,29 @@ const WriteTab = () => {
     void loadPrompt();
   }, [loadPrompt]);
 
+  usePageAiContext(
+    useMemo(
+      () => ({
+        kind: "page" as const,
+        title: "Writing practice",
+        summary: `Replying in writing to a ${activeDialect} text message and getting the reply corrected.`,
+        content: [
+          prompt && `Incoming message: ${prompt.message_arabic} — ${prompt.message_english}`,
+          text.trim() && `Learner wrote: ${text.trim()}`,
+          review && `Corrected to: ${review.corrected_arabic} — ${review.corrected_english}`,
+          review?.corrections.length
+            ? `Corrections: ${review.corrections
+                .map((c) => `${c.original} → ${c.corrected} (${labelForKind(c.kind)})`)
+                .join("; ")}`
+            : null,
+        ]
+          .filter(Boolean)
+          .join("\n"),
+      }),
+      [activeDialect, prompt, text, review],
+    ),
+  );
+
   const submit = async () => {
     const trimmed = text.trim();
     if (!trimmed) return;
@@ -128,13 +153,20 @@ const WriteTab = () => {
               </div>
             )}
           </div>
-          <button
-            type="button"
-            className="mt-2 text-xs text-primary underline-offset-2 hover:underline"
-            onClick={() => setShowGloss((s) => !s)}
-          >
-            {showGloss ? "Hide translation" : "Show translation"}
-          </button>
+          <div className="mt-2 flex items-center gap-3">
+            <button
+              type="button"
+              className="text-xs text-primary underline-offset-2 hover:underline"
+              onClick={() => setShowGloss((s) => !s)}
+            >
+              {showGloss ? "Hide translation" : "Show translation"}
+            </button>
+            <AskAISentence
+              arabic={prompt.message_arabic}
+              english={prompt.message_english}
+              variant="chip"
+            />
+          </div>
         </div>
       ) : (
         <div className="rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground">
@@ -174,6 +206,13 @@ const WriteTab = () => {
             <p dir="rtl" className="font-arabic text-lg leading-relaxed">{review.corrected_arabic}</p>
             <p className="mt-1 text-sm text-muted-foreground">{review.corrected_transliteration}</p>
             <p className="text-sm text-muted-foreground">{review.corrected_english}</p>
+            <div className="mt-2">
+              <AskAISentence
+                arabic={review.corrected_arabic}
+                english={review.corrected_english}
+                variant="chip"
+              />
+            </div>
           </div>
 
           {review.corrections.length === 0 ? (
@@ -192,6 +231,11 @@ const WriteTab = () => {
                   <div className="mt-1 flex items-start gap-2">
                     <Badge variant="outline" className="shrink-0 text-[10px]">{labelForKind(c.kind)}</Badge>
                     <p className="text-muted-foreground">{c.explanation}</p>
+                    <AskAISentence
+                      className="ms-auto shrink-0"
+                      arabic={c.corrected}
+                      english={`I wrote "${c.original}" and it was corrected to "${c.corrected}" (${labelForKind(c.kind)}). ${c.explanation}`}
+                    />
                   </div>
                 </li>
               ))}

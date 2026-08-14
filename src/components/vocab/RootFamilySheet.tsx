@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { useRootIndex } from "@/hooks/useRootIndex";
 import { getSRSStageByStability, type SRSStageBreakdown } from "@/lib/srsStats";
 import { cn } from "@/lib/utils";
+import { AskAISentence } from "@/components/shared/AskAISentence";
 
 interface RootFamilySheetProps {
   /** Canonical root key, or null when closed. */
@@ -109,6 +110,11 @@ export const RootFamilySheet = ({
                     <Volume2 className="h-4 w-4" />
                   </Button>
                 )}
+                <AskAISentence
+                  arabic={word.word_arabic}
+                  english={word.word_english}
+                  className="h-8 w-8 shrink-0"
+                />
               </li>
             );
           })}

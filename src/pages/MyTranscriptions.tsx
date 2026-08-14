@@ -12,6 +12,7 @@ import { FileAudio, Trash2, Loader2, Eye, Shuffle } from "lucide-react";
 import { toast } from "sonner";
 import { InfoHint } from "@/components/InfoHint";
 import { PAGE_HINTS } from "@/lib/pageHints";
+import { AskAISentence } from "@/components/shared/AskAISentence";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -182,6 +183,9 @@ export default function MyTranscriptions() {
                       >
                         <Eye className="h-4 w-4 mr-1" /> Open
                       </Button>
+                      {r.raw_transcript_arabic && (
+                        <AskAISentence arabic={r.raw_transcript_arabic} variant="chip" />
+                      )}
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <Button size="sm" variant="ghost">

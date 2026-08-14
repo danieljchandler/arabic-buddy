@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/layout/AppShell";
@@ -11,6 +11,8 @@ import { Loader2, Search, Globe2, MapPin, Volume2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { InfoHint } from "@/components/InfoHint";
 import { PAGE_HINTS } from "@/lib/pageHints";
+import { AskAISentence } from "@/components/shared/AskAISentence";
+import { usePageAiContext } from "@/contexts/AiAssistantContext";
 
 interface DialectVariant {
   dialect: string;
@@ -89,6 +91,30 @@ export default function DialectCompare() {
     setQuery(word);
     compareMutation.mutate(word);
   };
+
+  usePageAiContext(
+    useMemo(
+      () =>
+        comparison
+          ? {
+              kind: "word" as const,
+              title: `Dialect comparison: ${comparison.word_english}`,
+              summary:
+                "Comparing how one word is said across Arabic dialects, with usage and formality notes.",
+              content: [
+                `${comparison.word_arabic} — ${comparison.word_english}`,
+                comparison.common_root ? `Root: ${comparison.common_root}` : null,
+                ...comparison.dialects.map(
+                  (v) => `${v.dialect}: ${v.word} (${v.transliteration})`,
+                ),
+              ]
+                .filter(Boolean)
+                .join("\n"),
+            }
+          : null,
+      [comparison],
+    ),
+  );
 
   return (
     <AppShell>
@@ -188,6 +214,13 @@ export default function DialectCompare() {
                     Root: <span className="font-arabic">{comparison.common_root}</span>
                   </p>
                 )}
+                <div className="mt-3 flex justify-center">
+                  <AskAISentence
+                    arabic={comparison.word_arabic}
+                    english={comparison.word_english}
+                    variant="chip"
+                  />
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -230,6 +263,10 @@ export default function DialectCompare() {
                     <p className="text-2xl font-arabic" dir="rtl">
                       {variant.word}
                     </p>
+                    <AskAISentence
+                      arabic={variant.word}
+                      english={`${comparison.word_english} (${variant.dialect})`}
+                    />
                   </div>
                   <p className="text-sm text-muted-foreground italic">
                     {variant.transliteration}

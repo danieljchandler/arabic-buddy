@@ -23,6 +23,7 @@ import { useAddUserVocabulary } from "@/hooks/useUserVocabulary";
 import { Input } from "@/components/ui/input";
 import { InfoHint } from "@/components/InfoHint";
 import { PAGE_HINTS } from "@/lib/pageHints";
+import { usePageAiContext } from "@/contexts/AiAssistantContext";
 import {
   Dialog,
   DialogContent,
@@ -203,6 +204,25 @@ const Transcribe = () => {
   } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const enginesUsedRef = useRef<string[]>([]);
+
+  usePageAiContext(
+    useMemo(
+      () =>
+        transcriptResult
+          ? {
+              kind: "passage" as const,
+              title: "Transcribe",
+              summary:
+                "Media the learner uploaded, transcribed into Arabic lines with translations, vocabulary and grammar notes.",
+              content: (transcriptResult.lines ?? [])
+                .slice(0, 12)
+                .map((l) => `${l.arabic}${l.translation ? ` — ${l.translation}` : ""}`)
+                .join("\n"),
+            }
+          : null,
+      [transcriptResult],
+    ),
+  );
 
   // URL import state
   const [urlInput, setUrlInput] = useState("");

@@ -9,6 +9,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { DialectProvider } from "@/contexts/DialectContext";
 import { AiAssistantProvider } from "@/contexts/AiAssistantContext";
 import { AssistantMount } from "@/components/assistant/AssistantMount";
+import { AskAiFab } from "@/components/assistant/AskAiFab";
 import { lazyRetry } from "@/lib/lazyRetry";
 import { PageSkeleton } from "@/components/ui/skeleton-page";
 import { logClientError } from "@/lib/errorLog";
@@ -489,6 +490,10 @@ const App = () => {
             <Route path="*" element={<NotFound />} />
           </Routes>
           </Suspense>
+          {/* Outside <Routes> on purpose: every screen gets the Ask AI button,
+              including the ones that render their own layout instead of
+              AppShell (the video player, Transcribe, Learn from X). */}
+          <AskAiFab />
           <AssistantMount />
           </AiAssistantProvider>
         </BrowserRouter>

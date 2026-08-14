@@ -1,8 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render as rtlRender, screen, fireEvent, type RenderOptions } from "@testing-library/react";
 import React from "react";
 import { ReviewQuizCard } from "@/components/review/ReviewQuizCard";
+import { AiAssistantProvider } from "@/contexts/AiAssistantContext";
 import { VocabularyWord } from "@/hooks/useReview";
+
+// The answered card carries an Ask AI chip, which reads the global assistant.
+const render = (ui: React.ReactElement, options?: RenderOptions) =>
+  rtlRender(ui, { wrapper: AiAssistantProvider, ...options });
 
 const makeWord = (overrides: Partial<VocabularyWord> = {}): VocabularyWord => ({
   id: "w1",

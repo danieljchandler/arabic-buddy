@@ -4,6 +4,7 @@ import { useAzureTTS } from "@/hooks/useAzureTTS";
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 import { useDialect } from "@/contexts/DialectContext";
 import { cn } from "@/lib/utils";
+import { AskAISentence } from "@/components/shared/AskAISentence";
 import type { SoundSpotlightEntry } from "@/hooks/useTopic";
 
 interface Props {
@@ -89,6 +90,10 @@ const SoundRow = ({ entry }: { entry: SoundSpotlightEntry }) => {
             >
               <Volume2 className="h-4 w-4" />
             </button>
+            <AskAISentence
+              arabic={example}
+              english={entry.explanation ?? `The sound ${entry.sound} in Arabic`}
+            />
           </div>
         )}
         {entry.explanation && (

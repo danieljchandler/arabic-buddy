@@ -18,6 +18,8 @@ import { tapFeedback } from "@/lib/tapFeedback";
 import { ChevronLeft, ChevronRight, Check, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { AskAISentence } from "@/components/shared/AskAISentence";
+import { usePageAiContext } from "@/contexts/AiAssistantContext";
 
 const STEP_LABELS: Record<LetterStepId, string> = {
   meet: "Meet the letter",
@@ -72,6 +74,26 @@ const AlphabetLetter = () => {
   };
 
   const allDone = useMemo(() => LETTER_STEPS.every((s) => done[s]), [done]);
+
+  usePageAiContext(
+    useMemo(
+      () =>
+        letter
+          ? {
+              kind: "word" as const,
+              title: `Alphabet — ${letter.name_translit} (${letter.isolated})`,
+              summary:
+                "Learning one Arabic letter: its shapes, its sound, tracing it, and words that use it.",
+              content: [
+                `Letter: ${letter.isolated} (${letter.name_ar}, "${letter.name_translit}")`,
+                `Sound: ${letter.sound_hint}`,
+                `Examples: ${letter.examples.map((ex) => `${ex.ar} — ${ex.en}`).join("; ")}`,
+              ].join("\n"),
+            }
+          : null,
+      [letter],
+    ),
+  );
 
   if (!letter) {
     return (
@@ -175,6 +197,13 @@ const AlphabetLetter = () => {
                 <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{activeDialect}</span>
               </div>
             </div>
+            <div className="flex justify-center">
+              <AskAISentence
+                arabic={letter.name_ar}
+                english={`The Arabic letter ${letter.name_translit} (${letter.isolated}) — ${letter.sound_hint}`}
+                variant="chip"
+              />
+            </div>
             <Button onClick={(e) => { tapFeedback(e.currentTarget); handleStepDone("meet"); setStepIdx(1); }} size="lg" className="w-full">
               I've heard it <ChevronRight className="h-4 w-4 ml-1" />
             </Button>
@@ -202,6 +231,7 @@ const AlphabetLetter = () => {
                     </p>
                   )}
                 </div>
+                <AskAISentence arabic={ex.ar} english={ex.en} className="shrink-0" />
               </div>
             ))}
             <Button onClick={(e) => { tapFeedback(e.currentTarget); handleStepDone("examples"); setStepIdx(2); }} size="lg" className="w-full mt-4">

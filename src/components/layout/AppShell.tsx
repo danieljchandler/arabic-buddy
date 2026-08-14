@@ -5,7 +5,6 @@ import borderFullPageImg from "@/assets/border-full-page.webp";
 import { BottomNav, shouldShowBottomNav } from "@/components/layout/BottomNav";
 import { OnboardingTour } from "@/components/onboarding/OnboardingTour";
 import { FeedbackWidget } from "@/components/feedback/FeedbackWidget";
-import { AskAiFab } from "@/components/assistant/AskAiFab";
 import { useAiAssistant } from "@/contexts/AiAssistantContext";
 
 interface AppShellProps {
@@ -69,7 +68,8 @@ export function AppShell({ children, className, compact = false }: AppShellProps
       <BottomNav />
       <OnboardingTour />
       <FeedbackWidget />
-      <AskAiFab />
+      {/* The Ask AI FAB is mounted once at the app root (App.tsx) so it also
+          reaches the pages that don't wrap themselves in AppShell. */}
     </div>
   );
 }

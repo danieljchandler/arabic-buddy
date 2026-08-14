@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useSiblingWords } from "@/hooks/useSiblingWords";
 import { getSRSStageByStability, type SRSStageBreakdown } from "@/lib/srsStats";
 import { cn } from "@/lib/utils";
+import { AskAISentence } from "@/components/shared/AskAISentence";
 
 interface SiblingWordsPanelProps {
   root: string | null | undefined;
@@ -124,6 +125,11 @@ export const SiblingWordsPanel = ({
                   <Volume2 className="h-3.5 w-3.5" />
                 </Button>
               )}
+              <AskAISentence
+                arabic={sibling.word_arabic}
+                english={sibling.word_english}
+                className="h-7 w-7 shrink-0"
+              />
             </li>
           ))}
 

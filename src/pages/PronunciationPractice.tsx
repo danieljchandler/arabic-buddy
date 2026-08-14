@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -15,6 +15,8 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { InfoHint } from "@/components/InfoHint";
 import { PAGE_HINTS } from "@/lib/pageHints";
+import { AskAISentence } from "@/components/shared/AskAISentence";
+import { usePageAiContext } from "@/contexts/AiAssistantContext";
 import { useRef } from "react";
 import { ShadowPlayer } from "@/components/pronunciation/ShadowPlayer";
 import { useShadowQueue } from "@/hooks/useShadowQueue";
@@ -92,6 +94,24 @@ const PronunciationPractice = () => {
   const referenceText = mode === "sentence" && currentWord?.sentence_text
     ? currentWord.sentence_text
     : currentWord?.word_arabic || "";
+
+  usePageAiContext(
+    useMemo(
+      () =>
+        referenceText
+          ? {
+              kind: "drill" as const,
+              title: "Pronunciation practice",
+              summary:
+                "The learner records themselves saying a word or sentence and gets a per-word accuracy score back.",
+              content: `Target: ${referenceText}${
+                currentWord?.word_english ? ` — ${currentWord.word_english}` : ""
+              }`,
+            }
+          : null,
+      [referenceText, currentWord],
+    ),
+  );
 
   const stopRecording = useCallback(() => {
     recorderRef.current?.stop();
@@ -310,12 +330,29 @@ const PronunciationPractice = () => {
           )}
 
           {/* Listen button */}
-          {currentWord?.word_audio_url && mode === "word" && (
-            <Button variant="ghost" size="sm" onClick={playNativeAudio} className="gap-2">
-              <Volume2 className="h-4 w-4" />
-              Listen first
-            </Button>
-          )}
+          <div className="flex items-center justify-center gap-2">
+            {currentWord?.word_audio_url && mode === "word" && (
+              <Button variant="ghost" size="sm" onClick={playNativeAudio} className="gap-2">
+                <Volume2 className="h-4 w-4" />
+                Listen first
+              </Button>
+            )}
+            {currentWord && (
+              <AskAISentence
+                arabic={
+                  mode === "sentence" && currentWord.sentence_text
+                    ? currentWord.sentence_text
+                    : currentWord.word_arabic
+                }
+                english={
+                  mode === "sentence" && currentWord.sentence_english
+                    ? currentWord.sentence_english
+                    : currentWord.word_english
+                }
+                variant="chip"
+              />
+            )}
+          </div>
         </div>
 
         {/* Recording area */}

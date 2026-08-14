@@ -17,6 +17,7 @@ import hakiyaLogoAsset from "@/assets/hakiya-logo.png.asset.json";
 const lahjaLogo = hakiyaLogoAsset.url;
 import { recordContinue, clearContinue } from "@/lib/continueProgress";
 import { useDialect } from "@/contexts/DialectContext";
+import { usePageAiContext } from "@/contexts/AiAssistantContext";
 import { SoundSpotlight } from "@/components/learn/SoundSpotlight";
 import { LessonPlanSection } from "@/components/learn/LessonPlanSection";
 import { useLessonProgressFor, useUpsertLessonProgress } from "@/hooks/useLessonProgress";
@@ -59,6 +60,19 @@ const Learn = () => {
   const [phase, setPhase] = useState<Phase>("intro");
   const [sessionResults, setSessionResults] = useState({ correct: 0, total: 0 });
   const [isComplete, setIsComplete] = useState(false);
+
+  usePageAiContext(
+    useMemo(() => {
+      const word = words[currentIndex];
+      if (!word) return null;
+      return {
+        kind: "word" as const,
+        title: isMixedMode ? "Mixed review lesson" : (topic?.name ?? "Lesson"),
+        summary: `Learning ${activeDialect} Arabic vocabulary — each word is introduced, then quizzed.`,
+        content: `Current word: ${word.word_arabic} — ${word.word_english}`,
+      };
+    }, [words, currentIndex, isMixedMode, topic?.name, activeDialect]),
+  );
 
   const {
     data: savedProgress,

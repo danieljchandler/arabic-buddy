@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -25,6 +25,8 @@ import { useLeechPrefs } from "@/hooks/useLeechPrefs";
 import { Loader2, Trophy, Brain, Sparkles, LogIn, Shuffle, Eye, Volume2, ImagePlus, WifiOff, CloudUpload, PenLine, BookOpen } from "lucide-react";
 import { GenerateImageDialog } from "@/components/mywords/GenerateImageDialog";
 import { useReviewKeyboard } from "@/hooks/useKeyboardShortcuts";
+import { AskAISentence } from "@/components/shared/AskAISentence";
+import { usePageAiContext } from "@/contexts/AiAssistantContext";
 
 
 const DIALECT_FLAGS: Record<string, string> = {
@@ -49,6 +51,24 @@ const Review = () => {
   const [showAnswer, setShowAnswer] = useState(false);
   const [imageDialogOpen, setImageDialogOpen] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  usePageAiContext(
+    useMemo(() => {
+      const word = dueWords?.[currentIndex];
+      if (!word) return null;
+      return {
+        kind: "word" as const,
+        title: "Review",
+        summary:
+          "Spaced-repetition review of due vocabulary — recognition, production and audio cards.",
+        // The card is a recall test; handing the assistant the pair before the
+        // learner flips would let it give the answer away.
+        content: showAnswer
+          ? `Current card: ${word.word_arabic} — ${word.word_english}`
+          : undefined,
+      };
+    }, [dueWords, currentIndex, showAnswer]),
+  );
 
   const handleFlip = useCallback(() => setShowAnswer(true), []);
   const handleRateKeyboard = useCallback((rating: Rating) => {
@@ -464,6 +484,13 @@ const Review = () => {
                     the answer, and a root shown alongside the English prompt
                     would hand over most of it. */}
                 <RootChip root={currentWord.root} className="mt-2" />
+                <div className="mt-3 flex justify-center">
+                  <AskAISentence
+                    arabic={currentWord.word_arabic}
+                    english={currentWord.word_english}
+                    variant="chip"
+                  />
+                </div>
               </div>
             )}
             {!showAnswer && (

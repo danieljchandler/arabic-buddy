@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useDialect } from "@/contexts/DialectContext";
 import { useAuth } from "@/hooks/useAuth";
@@ -25,6 +25,8 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { InfoHint } from "@/components/InfoHint";
 import { PAGE_HINTS } from "@/lib/pageHints";
+import { AskAISentence } from "@/components/shared/AskAISentence";
+import { usePageAiContext } from "@/contexts/AiAssistantContext";
 
 interface SouqArticle {
   title_dialect: string;
@@ -78,6 +80,21 @@ const SouqNews = () => {
     staleTime: 1000 * 60 * 15,
     retry: 1,
   });
+
+  usePageAiContext(
+    useMemo(
+      () => ({
+        kind: "passage" as const,
+        title: "Souq News",
+        summary: `Today's news rewritten in ${activeDialect} Arabic, line by line with reveals and a quiz.`,
+        content: (articles ?? [])
+          .slice(0, 5)
+          .map((a) => `${a.title_dialect} — ${a.title_english}`)
+          .join("\n"),
+      }),
+      [articles, activeDialect],
+    ),
+  );
 
   const toggleCard = (i: number) => {
     setExpandedCards((prev) => {
@@ -164,6 +181,14 @@ const SouqNews = () => {
                 >
                   {article.title_dialect}
                 </h2>
+
+                <div className="mb-3">
+                  <AskAISentence
+                    arabic={article.title_dialect}
+                    english={article.title_english}
+                    variant="chip"
+                  />
+                </div>
 
                 {/* Arabic body — line by line with reveal */}
                 <div className="mb-4">

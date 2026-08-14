@@ -1,7 +1,13 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render as rtlRender, screen, type RenderOptions } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { ReactElement } from "react";
 import type { VocabularyWord } from "@/components/design-system";
+import { AiAssistantProvider } from "@/contexts/AiAssistantContext";
 import { IntroCard } from "./IntroCard";
+
+// The revealed card carries an Ask AI chip, which reads the global assistant.
+const render = (ui: ReactElement, options?: RenderOptions) =>
+  rtlRender(ui, { wrapper: AiAssistantProvider, ...options });
 
 /**
  * The screen a learner meets a new word on, before the quiz asks them for it.

@@ -1302,6 +1302,7 @@ export type Database = {
           transcription_status: string
           trending_candidate_id: string | null
           updated_at: string
+          visual_timeline: Json
           vocabulary: Json
         }
         Insert: {
@@ -1330,6 +1331,7 @@ export type Database = {
           transcription_status?: string
           trending_candidate_id?: string | null
           updated_at?: string
+          visual_timeline?: Json
           vocabulary?: Json
         }
         Update: {
@@ -1358,6 +1360,7 @@ export type Database = {
           transcription_status?: string
           trending_candidate_id?: string | null
           updated_at?: string
+          visual_timeline?: Json
           vocabulary?: Json
         }
         Relationships: [

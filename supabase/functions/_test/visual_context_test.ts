@@ -252,6 +252,40 @@ Deno.test("extract-visual-context defaults the free-text fields to empty strings
   assertEquals(result.detectedDialectCues, []);
 });
 
+Deno.test("extract-visual-context keeps the timings, not just the prose", async () => {
+  const { bodies } = await call(
+    { frames: [aFrame(0), aFrame(3)], videoId: VIDEO_ID },
+    caller({
+      "ai.gateway.lovable.dev": vision(aResult()),
+      "/rest/v1/rpc/is_admin": () => json(true),
+    }),
+  );
+
+  const update = bodies.find((b) => b?.includes("visual_timeline")) ?? "";
+  const parsed = JSON.parse(update) as { visual_timeline: Array<Record<string, unknown>> };
+  assertEquals(parsed.visual_timeline.length, 1);
+  assertEquals(parsed.visual_timeline[0].startSeconds, 0);
+  assertEquals(parsed.visual_timeline[0].endSeconds, 3);
+  assertEquals(parsed.visual_timeline[0].text, "الزحمة قاتلة");
+  // `cultural_context` carries the same findings as one prose blob. It can
+  // tell the tutor a video has captions; it cannot say which one is on screen
+  // at the moment the learner is asking about.
+  assertEquals(parsed.visual_timeline[0].scene, "One person in a car, daytime.");
+});
+
+Deno.test("extract-visual-context writes an empty timeline when it read nothing", async () => {
+  const { bodies } = await call(
+    { frames: [aFrame(0)], videoId: VIDEO_ID },
+    caller({
+      "ai.gateway.lovable.dev": vision(aResult({ onScreenTextSegments: [] })),
+      "/rest/v1/rpc/is_admin": () => json(true),
+    }),
+  );
+
+  const update = bodies.find((b) => b?.includes("visual_timeline")) ?? "";
+  assertEquals(JSON.parse(update).visual_timeline, []);
+});
+
 Deno.test("extract-visual-context refuses a request with no frames", async () => {
   for (const frames of [undefined, [], "not an array"]) {
     const { status, body, calls } = await call(

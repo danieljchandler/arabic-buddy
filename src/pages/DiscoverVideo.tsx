@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { usePageAiContext } from "@/contexts/AiAssistantContext";
+import { visualContextAt } from "../../supabase/functions/_shared/visualTimelineCore";
 import { useParams, useNavigate } from "react-router-dom";
 import { useDiscoverVideo, type DiscoverVideo as DiscoverVideoType } from "@/hooks/useDiscoverVideos";
 import { useAuth } from "@/hooks/useAuth";
@@ -1139,6 +1140,13 @@ const DiscoverVideo = () => {
           vocabulary,
           grammarPoints,
           culturalContext: video.cultural_context ?? undefined,
+          // What is burned into the frame right now — captions, POV lines,
+          // title cards. Subtitles tell the tutor what was said; this is the
+          // half of a meme that is never spoken aloud.
+          visualContext: visualContextAt(
+            video.visual_timeline,
+            displayLine?.startMs !== undefined ? displayLine.startMs / 1000 : undefined,
+          ),
         },
         position: {
           index: lineIndexOfDisplay >= 0 ? lineIndexOfDisplay + 1 : undefined,

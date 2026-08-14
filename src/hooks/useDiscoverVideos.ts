@@ -43,6 +43,12 @@ export interface DiscoverVideo {
   vocabulary: Json;
   grammar_points: Json;
   cultural_context: string | null;
+  /**
+   * Timestamped on-screen text from `extract-visual-context` — captions, POV
+   * lines, title cards, with the timings kept. `cultural_context` carries the
+   * same findings as prose, which cannot say which overlay is showing now.
+   */
+  visual_timeline?: Json | null;
   published: boolean;
   created_by: string;
   created_at: string;

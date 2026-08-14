@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,6 +16,7 @@ import { Twitter, Loader2, Search, BookOpen, MessageSquare, Globe, Plus, Check }
 import type { TranscriptResult, VocabItem, GrammarPoint } from "@/types/transcript";
 import { InfoHint } from "@/components/InfoHint";
 import { PAGE_HINTS } from "@/lib/pageHints";
+import { usePageAiContext } from "@/contexts/AiAssistantContext";
 
 function normalizeTranscriptResult(input: TranscriptResult): TranscriptResult {
   const safeLines = Array.isArray(input.lines) ? input.lines : [];
@@ -100,6 +101,26 @@ const LearnFromX = () => {
   const grammarPoints = result?.grammarPoints ?? [];
   const culturalContext = result?.culturalContext;
   const lines = result?.lines ?? [];
+
+  usePageAiContext(
+    useMemo(
+      () =>
+        result
+          ? {
+              kind: "passage" as const,
+              title: "Learn from X post",
+              summary: `An Arabic X/Twitter post broken into lines, vocabulary and grammar points${
+                result.dialect ? ` (${result.dialect})` : ""
+              }.`,
+              content: lines
+                .slice(0, 12)
+                .map((l) => `${l.arabic}${l.translation ? ` — ${l.translation}` : ""}`)
+                .join("\n"),
+            }
+          : null,
+      [result, lines],
+    ),
+  );
 
   const handleAnalyze = async () => {
     const trimmed = urlInput.trim();

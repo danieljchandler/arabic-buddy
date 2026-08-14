@@ -17,6 +17,8 @@ import { useBridgeMode } from "@/hooks/useBridgeMode";
 import { useMsaRules, type MsaRule, type MsaRuleCategory } from "@/hooks/useMsaRules";
 import { ArrowRight, Volume2, Sparkles, BookOpen, Languages } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { AskAISentence } from "@/components/shared/AskAISentence";
+import { usePageAiContext } from "@/contexts/AiAssistantContext";
 
 const CATEGORY_META: Record<MsaRuleCategory, { label: string; arabic: string; tint: string }> = {
   sound_shift: { label: "Sound shifts",  arabic: "تَحَوُّلات صَوْتية", tint: "from-teal-500/15 to-teal-500/5 border-teal-500/30" },
@@ -34,21 +36,29 @@ const BACKGROUND_OPTIONS = [
   { id: "advanced", label: "Advanced / fluent" },
 ];
 
-function RuleCard({ rule }: { rule: MsaRule }) {
+function RuleCard({ rule, activeDialectLabel }: { rule: MsaRule; activeDialectLabel: string }) {
   return (
     <div className="rounded-2xl border border-border bg-card/80 p-4 shadow-sm">
       <div className="flex items-start justify-between gap-3 mb-3">
         <h3 className="font-semibold text-foreground text-sm sm:text-base">{rule.rule_name}</h3>
-        {rule.example_audio_url && (
-          <button
-            type="button"
-            className="text-muted-foreground hover:text-primary transition-colors shrink-0"
-            onClick={() => new Audio(rule.example_audio_url!).play().catch(() => {})}
-            aria-label="Play example audio"
-          >
-            <Volume2 className="h-4 w-4" />
-          </button>
-        )}
+        <div className="flex shrink-0 items-center gap-1">
+          {rule.example_audio_url && (
+            <button
+              type="button"
+              className="text-muted-foreground hover:text-primary transition-colors shrink-0"
+              onClick={() => new Audio(rule.example_audio_url!).play().catch(() => {})}
+              aria-label="Play example audio"
+            >
+              <Volume2 className="h-4 w-4" />
+            </button>
+          )}
+          {/* Ask about the rule itself, not just a sentence — the seed carries
+              the MSA → dialect pair so the assistant knows what to explain. */}
+          <AskAISentence
+            arabic={rule.example_dialect || rule.dialect_pattern}
+            english={`${rule.rule_name}: MSA ${rule.msa_pattern} → ${activeDialectLabel} ${rule.dialect_pattern}`}
+          />
+        </div>
       </div>
 
       {/* Pattern row: MSA → Dialect */}
@@ -99,6 +109,21 @@ export default function MsaBridge() {
     });
     return map;
   }, [rules]);
+
+  usePageAiContext(
+    useMemo(
+      () => ({
+        kind: "page" as const,
+        title: `MSA → ${activeDialect} bridge`,
+        summary: `Transformation rules that take Modern Standard Arabic forms to ${activeDialect} — sound shifts, pronouns, verb prefixes and vocabulary swaps.`,
+        content: (rules ?? [])
+          .slice(0, 12)
+          .map((r) => `${r.rule_name}: ${r.msa_pattern} → ${r.dialect_pattern}`)
+          .join("\n"),
+      }),
+      [rules, activeDialect],
+    ),
+  );
 
   return (
     <AppShell>
@@ -212,7 +237,9 @@ export default function MsaBridge() {
                   </span>
                 </div>
                 <div className="grid sm:grid-cols-2 gap-3">
-                  {items.map((rule) => <RuleCard key={rule.id} rule={rule} />)}
+                  {items.map((rule) => (
+                    <RuleCard key={rule.id} rule={rule} activeDialectLabel={activeDialect} />
+                  ))}
                 </div>
               </section>
             );

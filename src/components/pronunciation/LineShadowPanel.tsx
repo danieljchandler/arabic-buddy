@@ -18,6 +18,7 @@ import { useShadowRecorder } from "@/hooks/useShadowRecorder";
 import { useShadowScore } from "@/hooks/useShadowScore";
 import { scoreBand } from "@/hooks/useAzurePronunciation";
 import type { ShadowClip } from "@/hooks/useShadowQueue";
+import { AskAISentence } from "@/components/shared/AskAISentence";
 
 interface Props {
   clip: ShadowClip;
@@ -102,6 +103,9 @@ export function LineShadowPanel({ clip, nativeClipWav, externalYouTubeController
           {clip.text}
         </p>
         {clip.translation && <p className="text-muted-foreground text-sm mt-2">{clip.translation}</p>}
+        <div className="mt-2 flex justify-center">
+          <AskAISentence arabic={clip.text} english={clip.translation} variant="chip" />
+        </div>
       </div>
 
       {/* Native source — a standalone YouTube clip needs a visible frame; audio

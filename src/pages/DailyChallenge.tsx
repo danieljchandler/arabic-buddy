@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useDialect } from "@/contexts/DialectContext";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -17,6 +17,8 @@ import { PAGE_HINTS } from "@/lib/pageHints";
 import { toast } from "sonner";
 import { markTaskCompletedToday } from "@/lib/todayCompletion";
 import { cn } from "@/lib/utils";
+import { AskAISentence } from "@/components/shared/AskAISentence";
+import { usePageAiContext } from "@/contexts/AiAssistantContext";
 import { Switch } from "@/components/ui/switch";
 import {
   Flame,
@@ -164,6 +166,31 @@ const DailyChallenge = () => {
 
   const currentQuestion = challenge?.questions[currentIndex];
   const progress = challenge ? ((currentIndex + 1) / challenge.questions.length) * 100 : 0;
+
+  usePageAiContext(
+    useMemo(
+      () =>
+        challenge
+          ? {
+              kind: "drill" as const,
+              title: `Daily challenge — ${challenge.title}`,
+              summary: `A timed daily ${challenge.type} challenge in ${activeDialect} Arabic.`,
+              content: currentQuestion
+                ? [
+                    currentQuestion.prompt && `Question: ${currentQuestion.prompt}`,
+                    currentQuestion.sentence && `Sentence: ${currentQuestion.sentence}`,
+                    currentQuestion.scrambled && `Scrambled: ${currentQuestion.scrambled}`,
+                    currentQuestion.arabic && `Word: ${currentQuestion.arabic}`,
+                    `Answer: ${currentQuestion.answer}`,
+                  ]
+                    .filter(Boolean)
+                    .join("\n")
+                : undefined,
+            }
+          : null,
+      [challenge, currentQuestion, activeDialect],
+    ),
+  );
 
   const startChallenge = async () => {
     setLoading(true);
@@ -575,6 +602,23 @@ const DailyChallenge = () => {
                 <span className={isCorrect ? "text-green-600 font-medium" : "text-red-600 font-medium"}>
                   {isCorrect ? "Correct!" : `Answer: ${currentQuestion.answer}`}
                 </span>
+              </div>
+              {/* "Why is that the answer?" is the question learners have right
+                  here — seed the assistant with the item, not just the page. */}
+              <div className="mt-2 flex justify-center">
+                <AskAISentence
+                  arabic={
+                    currentQuestion.sentence ||
+                    currentQuestion.arabic ||
+                    currentQuestion.answer
+                  }
+                  english={
+                    currentQuestion.sentenceEnglish ||
+                    currentQuestion.english ||
+                    currentQuestion.prompt
+                  }
+                  variant="chip"
+                />
               </div>
             </div>
             <Button onClick={nextQuestion} className="w-full">

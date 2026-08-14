@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useDialect } from "@/contexts/DialectContext";
 import { useAddUserPhrase } from "@/hooks/useUserPhrases";
 import { toast } from "sonner";
+import { AskAISentence } from "@/components/shared/AskAISentence";
 
 interface GeneratedPhrase {
   phrase_arabic: string;
@@ -166,7 +167,8 @@ export const RequestSituationCard = () => {
                 </p>
               )}
               {p.notes && <p className="text-[11px] text-muted-foreground mt-1">{p.notes}</p>}
-              <div className="flex justify-end mt-2">
+              <div className="flex items-center justify-end gap-1 mt-2">
+                <AskAISentence arabic={p.phrase_arabic} english={p.phrase_english} />
                 {saved.has(i) ? (
                   <Button size="sm" variant="ghost" disabled className="text-emerald-600">
                     <Check className="h-3.5 w-3.5 mr-1" /> Saved

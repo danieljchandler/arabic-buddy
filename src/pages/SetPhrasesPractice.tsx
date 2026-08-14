@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,8 @@ import {
 } from "@/hooks/useSetPhrases";
 import { Loader2, Mic, MicOff, Star, Volume2, ArrowRight, Check, X } from "lucide-react";
 import { toast } from "sonner";
+import { AskAISentence } from "@/components/shared/AskAISentence";
+import { usePageAiContext } from "@/contexts/AiAssistantContext";
 
 interface Props {
   reviewMode?: boolean;
@@ -51,6 +53,30 @@ const SetPhrasesPractice = ({ reviewMode = false }: Props) => {
   }, [occasionId]);
 
   const current = items[idx];
+
+  usePageAiContext(
+    useMemo(
+      () =>
+        current
+          ? {
+              kind: "phrase" as const,
+              title: reviewMode ? "Set phrases review" : "Set phrases practice",
+              summary:
+                "Drilling fixed social phrases — the learner replies out loud (or picks) and gets the expected phrase back.",
+              content: [
+                current.prompt.arabic && `Prompt: ${current.prompt.arabic}`,
+                current.prompt.english && `Scenario: ${current.prompt.english}`,
+                `Expected: ${current.expected_arabic}${
+                  current.expected_english ? ` — ${current.expected_english}` : ""
+                }`,
+              ]
+                .filter(Boolean)
+                .join("\n"),
+            }
+          : null,
+      [current, reviewMode],
+    ),
+  );
 
   const playAudio = (url?: string | null) => {
     if (!url) return;
@@ -160,11 +186,17 @@ const SetPhrasesPractice = ({ reviewMode = false }: Props) => {
               <p className="text-xs uppercase text-muted-foreground mb-2">Reply to this:</p>
               <div className="flex items-center justify-between gap-2">
                 <p className="text-2xl font-semibold leading-relaxed" dir="rtl">{current.prompt.arabic}</p>
-                {current.prompt.audio_url && (
-                  <Button size="icon" variant="ghost" onClick={() => playAudio(current.prompt.audio_url)}>
-                    <Volume2 className="h-5 w-5" />
-                  </Button>
-                )}
+                <div className="flex shrink-0 items-center">
+                  {current.prompt.audio_url && (
+                    <Button size="icon" variant="ghost" onClick={() => playAudio(current.prompt.audio_url)}>
+                      <Volume2 className="h-5 w-5" />
+                    </Button>
+                  )}
+                  <AskAISentence
+                    arabic={current.prompt.arabic ?? ""}
+                    english={current.prompt.english}
+                  />
+                </div>
               </div>
             </div>
           ) : (
@@ -225,11 +257,17 @@ const SetPhrasesPractice = ({ reviewMode = false }: Props) => {
               <p className="text-xs text-muted-foreground">Correct answer:</p>
               <div className="flex items-center justify-between gap-2 mt-1">
                 <p className="text-xl font-semibold" dir="rtl">{current.expected_arabic}</p>
-                {current.expected_audio_url && (
-                  <Button size="icon" variant="ghost" onClick={() => playAudio(current.expected_audio_url)}>
-                    <Volume2 className="h-5 w-5" />
-                  </Button>
-                )}
+                <div className="flex shrink-0 items-center">
+                  {current.expected_audio_url && (
+                    <Button size="icon" variant="ghost" onClick={() => playAudio(current.expected_audio_url)}>
+                      <Volume2 className="h-5 w-5" />
+                    </Button>
+                  )}
+                  <AskAISentence
+                    arabic={current.expected_arabic}
+                    english={current.expected_english ?? undefined}
+                  />
+                </div>
               </div>
               {current.expected_transliteration && (
                 <p className="text-sm text-muted-foreground italic mt-1">{current.expected_transliteration}</p>

@@ -4,6 +4,7 @@ import { useDialect } from "@/contexts/DialectContext";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Loader2, CheckCircle2, XCircle, Brain } from "lucide-react";
+import { AskAISentence } from "@/components/shared/AskAISentence";
 
 interface QuizChoice {
   arabic: string;
@@ -201,6 +202,11 @@ export const ArticleQuiz = ({ article }: ArticleQuizProps) => {
           <p className="text-xs text-muted-foreground bg-muted/50 rounded-lg p-2">
             💡 {q.explanation}
           </p>
+          <AskAISentence
+            arabic={q.question_arabic}
+            english={q.question_english}
+            variant="chip"
+          />
           <Button size="sm" onClick={nextQuestion} className="w-full text-xs">
             {currentQ < questions.length - 1 ? "Next Question" : "See Results"}
           </Button>

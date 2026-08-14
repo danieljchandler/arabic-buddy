@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -19,6 +19,8 @@ import { decodeAudioFile, clipToWav } from "@/lib/audioClipper";
 import { findLineContainingWord } from "@/lib/vocabularyAudioContext";
 import { InfoHint } from "@/components/InfoHint";
 import { PAGE_HINTS } from "@/lib/pageHints";
+import { AskAISentence } from "@/components/shared/AskAISentence";
+import { usePageAiContext } from "@/contexts/AiAssistantContext";
 
 /**
  * Convert an image file to base64 data URI
@@ -46,6 +48,30 @@ const MemeAnalyzer = () => {
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState<MemeAnalysisResult | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  usePageAiContext(
+    useMemo(
+      () =>
+        result
+          ? {
+              kind: "page" as const,
+              title: "Meme analyzer",
+              summary:
+                "An Arabic meme the learner uploaded, broken down into on-screen text, spoken audio and the joke behind it.",
+              content: [
+                result.memeExplanation?.casual && `The joke: ${result.memeExplanation.casual}`,
+                result.onScreenText?.rawTranscriptArabic &&
+                  `On-screen text: ${result.onScreenText.rawTranscriptArabic}`,
+                result.audioText?.rawTranscriptArabic &&
+                  `Spoken: ${result.audioText.rawTranscriptArabic}`,
+              ]
+                .filter(Boolean)
+                .join("\n"),
+            }
+          : null,
+      [result],
+    ),
+  );
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -477,6 +503,8 @@ const MemeAnalyzer = () => {
                           </Badge>
                         )}
                       </div>
+                      <div className="flex shrink-0 items-center">
+                      <AskAISentence arabic={word.arabic} english={word.english} />
                       {isAuthenticated && (
                         <Button
                           variant="ghost"
@@ -492,6 +520,7 @@ const MemeAnalyzer = () => {
                           )}
                         </Button>
                       )}
+                      </div>
                     </div>
                   ))}
                 </div>

@@ -3,6 +3,7 @@ import { Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/design-system";
 import { VocabularyCard, type VocabularyWord } from "@/components/design-system";
 import { RootChip } from "@/components/vocab/RootChip";
+import { AskAISentence } from "@/components/shared/AskAISentence";
 
 interface IntroCardProps {
   word: VocabularyWord;
@@ -72,6 +73,15 @@ export const IntroCard = ({ word, onContinue, topicLabel }: IntroCardProps) => {
             {/* Under the Arabic, not beside it: the root is context for a word
                 the learner has just chosen to see, never a hint before that. */}
             <RootChip root={word.root} className="mt-1.5" />
+            {/* Only once the Arabic is revealed — before that, an Ask AI chip
+                would be a way to get the answer without trying. */}
+            <div className="mt-2 flex justify-center">
+              <AskAISentence
+                arabic={word.word_arabic}
+                english={word.word_english}
+                variant="chip"
+              />
+            </div>
           </div>
         ) : (
           <p className="text-sm text-muted-foreground/70 italic">

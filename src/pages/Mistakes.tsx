@@ -8,6 +8,9 @@ import { useAzureTTS } from "@/hooks/useAzureTTS";
 import { useMistakes, useResolveMistake } from "@/hooks/useLearnerErrors";
 import { describeMistake, labelForKind, labelForSource, type MistakeGroup } from "@/lib/mistakes";
 import { Check, CheckCircle2, Loader2, Volume2 } from "lucide-react";
+import { AskAISentence } from "@/components/shared/AskAISentence";
+import { usePageAiContext } from "@/contexts/AiAssistantContext";
+import { useMemo } from "react";
 
 /**
  * The learner's own mistakes.
@@ -27,6 +30,21 @@ const Mistakes = () => {
   const { activeDialect } = useDialect();
   const { data: groups, isLoading } = useMistakes(activeDialect);
   const resolve = useResolveMistake();
+
+  usePageAiContext(
+    useMemo(
+      () => ({
+        kind: "page" as const,
+        title: "Your mistakes",
+        summary: `The learner's recurring ${activeDialect} Arabic mistakes, gathered from pronunciation, shadowing and sentence practice.`,
+        content: (groups ?? [])
+          .slice(0, 15)
+          .map((g) => `${g.target} — ${describeMistake(g)}`)
+          .join("\n"),
+      }),
+      [groups, activeDialect],
+    ),
+  );
 
   return (
     <AppShell>
@@ -107,6 +125,16 @@ function MistakeCard({ group, onDismiss, dismissing }: MistakeCardProps) {
         </div>
 
         <div className="flex items-center gap-1 shrink-0">
+          {/* "Why was that wrong?" is the whole point of this screen, so the
+              seed carries the attempt as well as the target. */}
+          <AskAISentence
+            arabic={group.target}
+            english={
+              group.attempts.length
+                ? `${describeMistake(group)} I said: ${group.attempts.join("، ")}`
+                : describeMistake(group)
+            }
+          />
           <Button
             variant="ghost"
             size="icon"

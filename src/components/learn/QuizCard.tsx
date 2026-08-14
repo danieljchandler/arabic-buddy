@@ -3,6 +3,7 @@ import { CheckCircle2, XCircle, Volume2, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAzureTTS } from "@/hooks/useAzureTTS";
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";
+import { AskAISentence } from "@/components/shared/AskAISentence";
 
 interface QuizCardWord {
   id: string;
@@ -210,6 +211,17 @@ export const QuizCard = ({ word, otherWords, onAnswer, topicLabel }: QuizCardPro
           {isCorrect
             ? "Correct! أحسنت"
             : `Not quite — "${word.word_arabic}" means "${word.word_english}", not "${selectedAnswer}"`}
+        </div>
+      )}
+
+      {/* Once the answer is out, the follow-up question is "why?" */}
+      {showResult && (
+        <div className="mt-3 flex justify-center">
+          <AskAISentence
+            arabic={word.word_arabic}
+            english={word.word_english}
+            variant="chip"
+          />
         </div>
       )}
 

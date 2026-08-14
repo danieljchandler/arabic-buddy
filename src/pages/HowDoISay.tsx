@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,6 +14,8 @@ import { useAddUserPhrase } from "@/hooks/useUserPhrases";
 import type { VocabItem } from "@/types/transcript";
 import { InfoHint } from "@/components/InfoHint";
 import { PAGE_HINTS } from "@/lib/pageHints";
+import { AskAISentence } from "@/components/shared/AskAISentence";
+import { usePageAiContext } from "@/contexts/AiAssistantContext";
 import {
   MessageCircleQuestion,
   Loader2,
@@ -98,6 +100,24 @@ const HowDoISay = () => {
   const [savedWords, setSavedWords] = useState<Set<string>>(new Set());
   const [savedPhrases, setSavedPhrases] = useState<Set<string>>(new Set());
   const [showInstructions, setShowInstructions] = useState(true);
+
+  usePageAiContext(
+    useMemo(
+      () =>
+        result
+          ? {
+              kind: "phrase" as const,
+              title: `How do I say: ${result.phrase || phraseInput}`,
+              summary: `Ways to say an English phrase in ${activeDialect} Arabic, with a recommended option.`,
+              content: result.translations
+                .slice(0, 5)
+                .map((t) => `${t.arabic} — ${t.english}${t.isPreferred ? " (best option)" : ""}`)
+                .join("\n"),
+            }
+          : null,
+      [result, phraseInput, activeDialect],
+    ),
+  );
 
   const handleSearch = async () => {
     const trimmed = phraseInput.trim();
@@ -380,8 +400,9 @@ const HowDoISay = () => {
                           </p>
                         )}
                         {/* Naturalness stars */}
-                        <div className="mt-2">
+                        <div className="mt-2 flex items-center gap-2">
                           <NaturalnessStars value={t.naturalness} />
+                          <AskAISentence arabic={t.arabic} english={t.english} variant="chip" />
                         </div>
                       </div>
 
@@ -479,6 +500,8 @@ const HowDoISay = () => {
                           </Badge>
                         )}
                       </div>
+                      <div className="flex shrink-0 items-center">
+                      <AskAISentence arabic={word.arabic} english={word.english} />
                       {isAuthenticated && (
                         <button
                           onClick={() => handleSaveWord(word)}
@@ -498,6 +521,7 @@ const HowDoISay = () => {
                           )}
                         </button>
                       )}
+                      </div>
                     </div>
                   ))}
                 </div>

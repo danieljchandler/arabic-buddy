@@ -4,6 +4,7 @@ import { Check, X, Volume2, Play, Loader2, Quote } from "lucide-react";
 import { useAzureTTS } from "@/hooks/useAzureTTS";
 import { useDialect } from "@/contexts/DialectContext";
 import { cn } from "@/lib/utils";
+import { AskAISentence } from "@/components/shared/AskAISentence";
 
 interface Props {
   wordArabic: string;
@@ -218,6 +219,13 @@ export const ReviewClozeCard = ({
               )}
             </div>
           )}
+          <div className="mt-3 flex justify-center">
+            <AskAISentence
+              arabic={sentenceText}
+              english={sentenceEnglish ?? wordEnglish}
+              variant="chip"
+            />
+          </div>
         </div>
       )}
     </div>

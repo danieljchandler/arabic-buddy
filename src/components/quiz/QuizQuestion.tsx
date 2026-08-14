@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { RootChip } from "@/components/vocab/RootChip";
+import { AskAISentence } from "@/components/shared/AskAISentence";
 import { VocabularyWord } from "@/hooks/useTopic";
 
 export type QuizMode = "multiple-choice" | "typing";
@@ -130,6 +131,16 @@ export const QuizQuestion = ({
         <p className="text-muted-foreground text-sm font-sans">
           What is this in English?
         </p>
+        {/* Same reasoning as the root chip: only once the answer is out. */}
+        {showResult && (
+          <div className="mt-2 flex justify-center">
+            <AskAISentence
+              arabic={currentWord.word_arabic}
+              english={currentWord.word_english}
+              variant="chip"
+            />
+          </div>
+        )}
       </div>
 
       {/* Multiple Choice Mode */}

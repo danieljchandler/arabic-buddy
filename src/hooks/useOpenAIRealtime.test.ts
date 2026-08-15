@@ -43,6 +43,8 @@ const aTrack = (): FakeTrack => ({ kind: "audio", enabled: true, stop: vi.fn() }
 
 interface FakeDataChannel {
   close: ReturnType<typeof vi.fn>;
+  send: ReturnType<typeof vi.fn>;
+  readyState: string;
   onmessage: ((event: { data: string }) => void) | null;
   onopen: (() => void) | null;
   onerror: ((event: unknown) => void) | null;
@@ -80,8 +82,23 @@ class FakePeerConnection {
   }
 
   createDataChannel(): FakeDataChannel {
-    this.channel = { close: vi.fn(), onmessage: null, onopen: null, onerror: null };
+    this.channel = {
+      close: vi.fn(),
+      send: vi.fn(),
+      // The browser opens it asynchronously; `goLive` is what flips this.
+      readyState: "connecting",
+      onmessage: null,
+      onopen: null,
+      onerror: null,
+    };
     return this.channel;
+  }
+
+  /** Everything the hook has sent up the data channel, parsed. */
+  sent(): Array<Record<string, unknown>> {
+    return (this.channel?.send.mock.calls ?? []).map(
+      ([payload]) => JSON.parse(payload as string) as Record<string, unknown>,
+    );
   }
 
   async createOffer() {
@@ -140,6 +157,7 @@ class FakeAudioContext {
 // ── Transport ───────────────────────────────────────────────────────────────
 
 const TOKEN_URL = "/functions/v1/realtime-session-token";
+const TOOLS_URL = "/functions/v1/assistant-tools";
 const OPENAI_URL = "https://api.openai.com/v1/realtime/calls";
 
 let tokenReply: { status: number; body: string } = {
@@ -147,13 +165,23 @@ let tokenReply: { status: number; body: string } = {
   body: JSON.stringify({ client_secret: { value: "ephemeral-key" } }),
 };
 let sdpReply: { status: number; body: string } = { status: 200, body: "v=0\r\no=- answer" };
+let toolsReply: { status: number; body: string } = {
+  status: 200,
+  body: JSON.stringify({ ok: true, text: "The harvest rose thirty percent." }),
+};
 
 const calls: Array<{ url: string; init?: RequestInit }> = [];
 
 const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
   const url = String(input);
   calls.push({ url, init });
-  const reply = url.includes(TOKEN_URL) ? tokenReply : url === OPENAI_URL ? sdpReply : null;
+  const reply = url.includes(TOKEN_URL)
+    ? tokenReply
+    : url.includes(TOOLS_URL)
+    ? toolsReply
+    : url === OPENAI_URL
+    ? sdpReply
+    : null;
   if (!reply) throw new Error(`Unstubbed request to ${url}`);
   return new Response(reply.body, { status: reply.status });
 });
@@ -175,6 +203,10 @@ beforeEach(() => {
   fetchImpl.mockClear();
   tokenReply = { status: 200, body: JSON.stringify({ client_secret: { value: "ephemeral-key" } }) };
   sdpReply = { status: 200, body: "v=0\r\no=- answer" };
+  toolsReply = {
+    status: 200,
+    body: JSON.stringify({ ok: true, text: "The harvest rose thirty percent." }),
+  };
 
   (globalThis as Record<string, unknown>).RTCPeerConnection = FakePeerConnection;
   (globalThis as Record<string, unknown>).AudioContext = FakeAudioContext;
@@ -215,6 +247,7 @@ async function startSession(
 /** Open the data channel, which is what flips the session to live. */
 const goLive = (pc: FakePeerConnection) => {
   act(() => {
+    if (pc.channel) pc.channel.readyState = "open";
     pc.channel?.onopen?.();
   });
 };
@@ -867,5 +900,157 @@ describe("ending a session", () => {
         result.current.stop();
       }),
     ).not.toThrow();
+  });
+});
+
+describe("keeping the call up to date", () => {
+  it("puts a screen change into the conversation without asking for a reply", async () => {
+    const { result } = renderHook(() => useOpenAIRealtime());
+    const pc = await startSession(result);
+    goLive(pc);
+
+    act(() => {
+      expect(result.current.updateContext("The learner is now on line 12 of 48.")).toBe(true);
+    });
+
+    const sent = pc.sent();
+    expect(sent).toHaveLength(1);
+    expect(sent[0].type).toBe("conversation.item.create");
+    const item = sent[0].item as { role: string; content: Array<{ text: string }> };
+    expect(item.role).toBe("user");
+    // Marked, because it arrives on the same channel as the learner's speech
+    // and would otherwise be answered as if they had said it out loud.
+    expect(item.content[0].text).toContain("[Screen update — not spoken aloud]");
+    expect(item.content[0].text).toContain("line 12 of 48");
+    // No response.create: scrolling to the next subtitle is not a request to
+    // be talked at.
+    expect(sent.some((e) => e.type === "response.create")).toBe(false);
+  });
+
+  it("reports an update it could not deliver", async () => {
+    const { result } = renderHook(() => useOpenAIRealtime());
+    const pc = await startSession(result);
+    // Never went live — the channel is still connecting.
+
+    act(() => {
+      expect(result.current.updateContext("line 3 of 48")).toBe(false);
+    });
+    expect(pc.channel?.send).not.toHaveBeenCalled();
+  });
+
+  it("ignores an empty update", async () => {
+    const { result } = renderHook(() => useOpenAIRealtime());
+    const pc = await startSession(result);
+    goLive(pc);
+
+    act(() => {
+      expect(result.current.updateContext("   ")).toBe(false);
+    });
+    expect(pc.channel?.send).not.toHaveBeenCalled();
+  });
+});
+
+describe("tool calls from the model", () => {
+  const ARTICLE = "https://news.example.com/gulf/dates-harvest";
+
+  const startWithContext = async (result: { current: ReturnType<typeof useOpenAIRealtime> }) =>
+    await startSession(result, {
+      dialect: "Gulf",
+      difficulty: "intermediate",
+      mode: "assistant",
+      pageContext: {
+        title: "Dates harvest",
+        document: { label: "Article", sourceUrl: ARTICLE, lines: [{ arabic: "التمر زاد" }] },
+      },
+    });
+
+  it("runs the lookup and hands the result back to the call", async () => {
+    const { result } = renderHook(() => useOpenAIRealtime());
+    const pc = await startWithContext(result);
+    goLive(pc);
+
+    await act(async () => {
+      pc.deliver({
+        type: "response.function_call_arguments.done",
+        call_id: "call_1",
+        name: "read_source",
+        arguments: JSON.stringify({ url: ARTICLE }),
+      });
+    });
+
+    await waitFor(() => expect(pc.sent().length).toBeGreaterThanOrEqual(2));
+
+    // The browser is a relay: it forwards the name and arguments, and the page
+    // context that decides what they may reach goes with them.
+    const toolCall = calls.find((c) => c.url.includes(TOOLS_URL));
+    expect(toolCall).toBeTruthy();
+    const body = JSON.parse(String(toolCall!.init?.body));
+    expect(body.name).toBe("read_source");
+    expect(body.args.url).toBe(ARTICLE);
+    expect(body.pageContext.document.sourceUrl).toBe(ARTICLE);
+
+    const sent = pc.sent();
+    const output = sent.find((e) => e.type === "conversation.item.create");
+    expect((output!.item as { type: string; call_id: string; output: string }).type).toBe(
+      "function_call_output",
+    );
+    expect((output!.item as { call_id: string }).call_id).toBe("call_1");
+    expect((output!.item as { output: string }).output).toContain("thirty percent");
+    // Unlike a screen update, the model is waiting on this to carry on talking.
+    expect(sent.some((e) => e.type === "response.create")).toBe(true);
+  });
+
+  it("answers even when the lookup fails, so the tutor never goes silent", async () => {
+    toolsReply = { status: 500, body: "boom" };
+    const { result } = renderHook(() => useOpenAIRealtime());
+    const pc = await startWithContext(result);
+    goLive(pc);
+
+    await act(async () => {
+      pc.deliver({
+        type: "response.function_call_arguments.done",
+        call_id: "call_2",
+        name: "search_library",
+        arguments: '{"query":"تمر"}',
+      });
+    });
+
+    await waitFor(() => expect(pc.sent().length).toBeGreaterThanOrEqual(2));
+    // A function call left unanswered leaves the model waiting mid-sentence,
+    // which the learner experiences as a tutor that stopped talking.
+    const output = pc.sent().find((e) => e.type === "conversation.item.create");
+    expect((output!.item as { output: string }).output).toBe("That lookup failed.");
+    expect(pc.sent().some((e) => e.type === "response.create")).toBe(true);
+  });
+
+  it("survives malformed arguments", async () => {
+    const { result } = renderHook(() => useOpenAIRealtime());
+    const pc = await startWithContext(result);
+    goLive(pc);
+
+    await act(async () => {
+      pc.deliver({
+        type: "response.function_call_arguments.done",
+        call_id: "call_3",
+        name: "search_library",
+        arguments: "{not json",
+      });
+    });
+
+    await waitFor(() => expect(pc.sent().length).toBeGreaterThanOrEqual(2));
+    const body = JSON.parse(String(calls.find((c) => c.url.includes(TOOLS_URL))!.init?.body));
+    expect(body.args).toEqual({});
+  });
+
+  it("ignores a tool event with no call id to answer", async () => {
+    const { result } = renderHook(() => useOpenAIRealtime());
+    const pc = await startWithContext(result);
+    goLive(pc);
+
+    await act(async () => {
+      pc.deliver({ type: "response.function_call_arguments.done", name: "read_source" });
+    });
+
+    expect(calls.some((c) => c.url.includes(TOOLS_URL))).toBe(false);
   });
 });

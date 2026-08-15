@@ -7,7 +7,8 @@ import { useDialect } from "@/contexts/DialectContext";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useOpenAIRealtime } from "@/hooks/useOpenAIRealtime";
-import { buildPagePayload, serializePagePayload } from "@/lib/pageAiContext";
+import { buildPagePayload } from "@/lib/pageAiContext";
+import { serializeFocusUpdate } from "../../../supabase/functions/_shared/pageContextCore";
 import { TappableArabicText } from "@/components/shared/TappableArabicText";
 import { cn } from "@/lib/utils";
 
@@ -23,7 +24,8 @@ export function VoiceTab() {
   const { user, loading: authLoading } = useAuth();
   const { subscribed, loading: subLoading } = useSubscription();
   const { pathname } = useLocation();
-  const { status, error, turns, muted, setMuted, start, stop, remainingSeconds } = useOpenAIRealtime();
+  const { status, error, turns, muted, setMuted, start, stop, updateContext, remainingSeconds } =
+    useOpenAIRealtime();
 
   // Closing the panel or switching tabs unmounts this component; the call must
   // not keep running (and billing) with no UI attached to it.
@@ -48,12 +50,57 @@ export function VoiceTab() {
     }
   }, [turns]);
 
-  const contextString = useMemo(() => {
-    const page = serializePagePayload(buildPagePayload(pathname, pageContext));
-    return seed
-      ? `The learner opened this call about the sentence: ${seed.arabic}${seed.english ? ` (${seed.english})` : ""}\n${page}`
-      : page;
+  const contextPayload = useMemo(() => {
+    const page = buildPagePayload(pathname, pageContext);
+    if (!seed) return page;
+    // The sentence they opened the call about is a note on the page, not a
+    // replacement for it — they may well ask about both.
+    const opener = `The learner opened this call about the sentence: ${seed.arabic}${
+      seed.english ? ` (${seed.english})` : ""
+    }`;
+    return { ...page, meta: { ...page.meta, notes: [opener, ...(page.meta?.notes ?? [])] } };
   }, [pathname, pageContext, seed]);
+
+  // Keep the payload readable by the effect below without making that effect
+  // re-run on every unrelated re-render.
+  const contextRef = useRef(contextPayload);
+  contextRef.current = contextPayload;
+
+  /**
+   * Push the learner's position into a call already in progress.
+   *
+   * Without this the tutor is frozen at whatever was on screen when the call
+   * connected: two minutes into a video the learner is on line 40 and it is
+   * still answering about line 3. The document went out with the session's
+   * instructions, so only the moving parts are re-sent.
+   *
+   * Throttled, and only on a real change — a video advancing a subtitle every
+   * few seconds would otherwise stuff the conversation with notes.
+   */
+  const lastSentRef = useRef<{ note: string; at: number }>({ note: "", at: 0 });
+  const live = status === "live";
+
+  useEffect(() => {
+    if (!live) {
+      lastSentRef.current = { note: "", at: 0 };
+      return;
+    }
+    const note = serializeFocusUpdate(contextRef.current);
+    if (!note || note === lastSentRef.current.note) return;
+
+    const MIN_GAP_MS = 4000;
+    const wait = Math.max(0, MIN_GAP_MS - (Date.now() - lastSentRef.current.at));
+    const timer = setTimeout(() => {
+      // Re-read at fire time: during the wait the learner may have moved on
+      // again, and the newest position is the only one worth sending.
+      const fresh = serializeFocusUpdate(contextRef.current);
+      if (!fresh || fresh === lastSentRef.current.note) return;
+      if (updateContext(fresh, contextRef.current)) {
+        lastSentRef.current = { note: fresh, at: Date.now() };
+      }
+    }, wait);
+    return () => clearTimeout(timer);
+  }, [live, contextPayload, updateContext]);
 
   if (!user && !authLoading) {
     return (
@@ -90,7 +137,6 @@ export function VoiceTab() {
     );
   }
 
-  const live = status === "live";
   const connecting = status === "connecting";
 
   return (
@@ -171,7 +217,7 @@ export function VoiceTab() {
                   dialect: activeDialect,
                   difficulty: "intermediate",
                   mode: "assistant",
-                  context: contextString,
+                  pageContext: contextPayload,
                 })
               }
               className="gap-2"

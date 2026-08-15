@@ -259,10 +259,25 @@ serve(async (req) => {
         result.culturalContext ? `Cultural context: ${result.culturalContext}` : '',
       ].filter(Boolean).join('\n\n');
 
+      // The same findings, with their timings kept. `cultural_context` above
+      // is one prose blob — it can tell the AI tutor that a video contains
+      // captions, but never which one is on screen at the moment the learner
+      // is asking about. The scene description rides on the first moment
+      // because the model describes the video as a whole, not per frame.
+      const visualTimeline = result.onScreenTextSegments.map((segment, index) => ({
+        startSeconds: segment.startSeconds,
+        endSeconds: segment.endSeconds,
+        text: segment.text,
+        translation: segment.translation || undefined,
+        confidence: segment.confidence,
+        ...(index === 0 && result.sceneContext ? { scene: result.sceneContext } : {}),
+      }));
+
       await admin
         .from('discover_videos')
         .update({
           cultural_context: visualCulturalContext || 'Meme screen-text extraction found no readable on-screen text. Review the source video manually before publishing.',
+          visual_timeline: visualTimeline,
           transcription_error: result.onScreenTextSegments.length === 0
             ? 'Meme screen-text extraction found no readable on-screen text.'
             : null,

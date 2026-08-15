@@ -81,19 +81,59 @@ const SouqNews = () => {
     retry: 1,
   });
 
+  // The article the learner has actually opened, if any — the assistant should
+  // be looking at the same one they are.
+  const openedIndex = expandedCards.size === 1 ? [...expandedCards][0] : -1;
+  const openedArticle = openedIndex >= 0 ? (articles ?? [])[openedIndex] : undefined;
+
   usePageAiContext(
-    useMemo(
-      () => ({
+    useMemo(() => {
+      const list = articles ?? [];
+      // An opened article publishes its whole text sentence by sentence, with
+      // the URL it was rewritten from; the index publishes the headlines. The
+      // page previously sent five headlines either way, so asking about the
+      // story you were reading got you a tutor that had only seen its title.
+      const document = openedArticle
+        ? {
+            label: `Full article: ${openedArticle.title_english}`,
+            sourceUrl: openedArticle.source_url ?? undefined,
+            lines: (openedArticle.sentences?.length
+              ? openedArticle.sentences.map((s, i) => ({
+                  index: i + 1,
+                  arabic: s.arabic,
+                  english: s.english,
+                }))
+              : [{ index: 1, arabic: openedArticle.body_dialect }]),
+          }
+        : {
+            label: "Today's headlines",
+            lines: list.map((a, i) => ({
+              index: i + 1,
+              arabic: a.title_dialect,
+              english: a.title_english,
+            })),
+          };
+
+      return {
         kind: "passage" as const,
-        title: "Souq News",
+        title: openedArticle ? openedArticle.title_english : "Souq News",
         summary: `Today's news rewritten in ${activeDialect} Arabic, line by line with reveals and a quiz.`,
-        content: (articles ?? [])
-          .slice(0, 5)
-          .map((a) => `${a.title_dialect} — ${a.title_english}`)
-          .join("\n"),
-      }),
-      [articles, activeDialect],
-    ),
+        content: openedArticle
+          ? `${openedArticle.title_dialect} — ${openedArticle.title_english}`
+          : undefined,
+        document,
+        meta: {
+          dialect: activeDialect,
+          vocabulary: openedArticle?.vocabulary?.map((v) => ({
+            arabic: v.word_arabic,
+            english: v.word_english,
+          })),
+          notes: openedArticle?.summary_english
+            ? [`English summary of this story: ${openedArticle.summary_english}`]
+            : undefined,
+        },
+      };
+    }, [articles, activeDialect, openedArticle]),
   );
 
   const toggleCard = (i: number) => {

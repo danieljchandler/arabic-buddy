@@ -12,6 +12,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import type { PageContextPayload } from "../../supabase/functions/_shared/pageContextCore";
 
 export type LiveStatus = "idle" | "connecting" | "live" | "ending" | "error";
 
@@ -28,8 +29,12 @@ interface StartArgs {
   topicHint?: string;
   /** "practice" (default) is the free conversation partner; "assistant" is the subscribers-only Ask AI voice. */
   mode?: "practice" | "assistant";
-  /** Serialized page context for assistant mode, appended to the session instructions server-side. */
-  context?: string;
+  /**
+   * What the learner is looking at, for assistant mode. Structured rather than
+   * pre-serialized: the server owns the rendering and the budget, so a page
+   * publishing a whole transcript can't inflate a session's instructions.
+   */
+  pageContext?: PageContextPayload;
 }
 
 interface Options {
@@ -87,6 +92,10 @@ export function useOpenAIRealtime(opts: Options = {}) {
   const dialectRef = useRef<string>("Gulf");
   const endingRef = useRef(false);
   const modeRef = useRef<"practice" | "assistant">("practice");
+  // The context the call was started with, kept so a tool call can be resolved
+  // against it server-side. The browser relays tool requests; it never decides
+  // what they are allowed to reach.
+  const pageContextRef = useRef<PageContextPayload | undefined>(undefined);
   // Set when the data channel opens; consumed (and cleared) by reportUsage so
   // a call is billed exactly once, and never billed if it failed to go live.
   const liveSinceRef = useRef<number | null>(null);
@@ -206,8 +215,88 @@ export function useOpenAIRealtime(opts: Options = {}) {
     endingRef.current = false;
   }, [cleanup]);
 
+  const send = useCallback((payload: unknown): boolean => {
+    const dc = dcRef.current;
+    if (!dc || dc.readyState !== "open") return false;
+    try {
+      dc.send(JSON.stringify(payload));
+      return true;
+    } catch (e) {
+      console.warn("[realtime] send failed", e);
+      return false;
+    }
+  }, []);
+
+  /**
+   * Run a tool the model asked for and hand the result back to the call.
+   *
+   * The browser is a relay here, nothing more: it forwards the name and
+   * arguments, and `assistant-tools` decides — from the caller's own JWT and
+   * the page context the call was started with — what that is allowed to
+   * touch. In particular the model naming a URL does not make it readable.
+   *
+   * A failure still returns output. A function call left unanswered leaves the
+   * model waiting mid-conversation, which to the learner is a tutor that
+   * stopped talking.
+   */
+  const runToolCall = useCallback(
+    async (callId: string, name: string, rawArgs: string) => {
+      let output = "That lookup failed.";
+      try {
+        let args: Record<string, unknown> = {};
+        try {
+          args = rawArgs ? JSON.parse(rawArgs) : {};
+        } catch {
+          args = {};
+        }
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+        const resp = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/assistant-tools`,
+          {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${token}`,
+              "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              name,
+              args,
+              dialect: dialectRef.current,
+              pageContext: pageContextRef.current,
+            }),
+          },
+        );
+        const payload = await resp.json().catch(() => null);
+        if (typeof payload?.text === "string" && payload.text) output = payload.text;
+      } catch (e) {
+        console.warn("[realtime] tool call failed", name, e);
+      }
+
+      send({
+        type: "conversation.item.create",
+        item: { type: "function_call_output", call_id: callId, output },
+      });
+      // The model is waiting on this result to carry on speaking, so unlike a
+      // screen update this one does ask for a response.
+      send({ type: "response.create" });
+    },
+    [send],
+  );
+
   const handleEvent = useCallback((evt: RealtimeEvent) => {
     const type = typeof evt.type === "string" ? evt.type : "";
+
+    // Tool call. The GA event carries the name on the event itself; older
+    // shapes only name it on the conversation item, so fall back to that.
+    if (type === "response.function_call_arguments.done") {
+      const callId = typeof evt.call_id === "string" ? evt.call_id : "";
+      const name = typeof evt.name === "string" ? evt.name : "";
+      const args = typeof evt.arguments === "string" ? evt.arguments : "";
+      if (callId && name) void runToolCall(callId, name, args);
+      return;
+    }
 
     // User speech transcripts (Whisper).
     if (type === "conversation.item.input_audio_transcription.delta") {
@@ -257,12 +346,50 @@ export function useOpenAIRealtime(opts: Options = {}) {
       const err = evt.error as { message?: unknown } | undefined;
       setError(typeof err?.message === "string" ? err.message : "Realtime server error");
     }
-  }, [finalizeTurn, upsertTurn]);
+  }, [finalizeTurn, upsertTurn, runToolCall]);
 
-  const start = useCallback(async ({ dialect, difficulty, topicHint, mode, context }: StartArgs) => {
+  /**
+   * Tell a call in progress that the screen moved on.
+   *
+   * The session's instructions are minted once, server-side, and carry the
+   * dialect rulebook and the learner profile — so they are deliberately not
+   * rebuilt from the browser. Instead the change is added to the conversation
+   * as a note, which the model reads before its next turn. That costs no round
+   * trip and keeps prompt construction where it belongs.
+   *
+   * Sent without a `response.create`: the learner scrolling to the next
+   * subtitle is not a request to be talked at.
+   *
+   * Returns false when there is no open channel to send on, so callers can
+   * tell "not delivered" from "delivered".
+   */
+  const updateContext = useCallback(
+    (note: string, pageContext?: PageContextPayload): boolean => {
+      // Keep the stored context current too: a learner who moves to another
+      // video mid-call should be able to ask about *that* video's source, and
+      // the allow-list is derived from whatever is stored here.
+      if (pageContext) pageContextRef.current = pageContext;
+      const text = note.trim();
+      if (!text) return false;
+      return send({
+        type: "conversation.item.create",
+        item: {
+          type: "message",
+          role: "user",
+          // Marked, because it arrives on the same channel as the learner's
+          // own speech and the model would otherwise answer it as if spoken.
+          content: [{ type: "input_text", text: `[Screen update — not spoken aloud]\n${text}` }],
+        },
+      });
+    },
+    [send],
+  );
+
+  const start = useCallback(async ({ dialect, difficulty, topicHint, mode, pageContext }: StartArgs) => {
     if (status === "connecting" || status === "live") return;
     dialectRef.current = dialect || "Gulf";
     modeRef.current = mode === "assistant" ? "assistant" : "practice";
+    pageContextRef.current = pageContext;
     setError(null);
     setStatus("connecting");
     setTurns([]);
@@ -372,7 +499,7 @@ export function useOpenAIRealtime(opts: Options = {}) {
           "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ dialect, difficulty, topicHint, mode, context }),
+        body: JSON.stringify({ dialect, difficulty, topicHint, mode, pageContext }),
       });
       if (!tokenResp.ok) {
         const t = await tokenResp.text();
@@ -432,5 +559,5 @@ export function useOpenAIRealtime(opts: Options = {}) {
 
   useEffect(() => () => cleanup(), [cleanup]);
 
-  return { status, error, turns, muted, setMuted, start, stop, remainingSeconds };
+  return { status, error, turns, muted, setMuted, start, stop, updateContext, remainingSeconds };
 }

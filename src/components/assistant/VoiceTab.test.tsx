@@ -1,7 +1,9 @@
 import { act, fireEvent, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@/test/support/react/harness";
+import { usePageAiContext } from "@/contexts/AiAssistantContext";
 import type { LiveStatus } from "@/hooks/useOpenAIRealtime";
+import type { PageAiContext } from "@/lib/pageAiContext";
 import { VoiceTab } from "./VoiceTab";
 
 /**
@@ -29,6 +31,7 @@ const live = vi.hoisted(() => ({
   setMuted: vi.fn(),
   start: vi.fn(),
   stop: vi.fn(),
+  updateContext: vi.fn((_note: string) => true),
 }));
 
 vi.mock("@/hooks/useOpenAIRealtime", () => ({
@@ -41,6 +44,7 @@ vi.mock("@/hooks/useOpenAIRealtime", () => ({
     setMuted: live.setMuted,
     start: live.start,
     stop: live.stop,
+    updateContext: live.updateContext,
   }),
 }));
 
@@ -67,6 +71,8 @@ beforeEach(() => {
   live.setMuted.mockReset();
   live.start.mockReset();
   live.stop.mockReset();
+  live.updateContext.mockReset();
+  live.updateContext.mockReturnValue(true);
   subscription.subscribed = false;
   subscription.loading = false;
 });
@@ -76,15 +82,46 @@ afterEach(() => {
   cleanup = undefined;
 });
 
-function render({ signedIn = true, route = "/reading" }: { signedIn?: boolean; route?: string } = {}) {
+/** Stands in for a page that publishes what it's showing. */
+function PagePublisher({ ctx }: { ctx: PageAiContext }) {
+  usePageAiContext(ctx);
+  return null;
+}
+
+function render({
+  signedIn = true,
+  route = "/reading",
+  pageContext,
+}: { signedIn?: boolean; route?: string; pageContext?: PageAiContext } = {}) {
   localStorage.setItem("hakiya_dialect_module", "Gulf");
-  const harness = renderWithProviders(<VoiceTab />, {
-    persona: signedIn ? "free" : undefined,
-    route,
-  });
+  const harness = renderWithProviders(
+    <>
+      {pageContext && <PagePublisher ctx={pageContext} />}
+      <VoiceTab />
+    </>,
+    {
+      persona: signedIn ? "free" : undefined,
+      route,
+    },
+  );
   cleanup = harness.cleanup;
   return harness;
 }
+
+const videoAt = (lineIndex: number): PageAiContext => ({
+  kind: "video",
+  title: "Cooking with grandma",
+  content: `line ${lineIndex} arabic — line ${lineIndex} english`,
+  document: {
+    label: "Full transcript of this video",
+    lines: Array.from({ length: 20 }, (_, i) => ({
+      index: i + 1,
+      arabic: `line ${i + 1} arabic`,
+      english: `line ${i + 1} english`,
+    })),
+  },
+  position: { index: lineIndex, total: 20, atSeconds: lineIndex * 5 },
+});
 
 describe("gating", () => {
   it("asks a signed-out visitor to sign in", async () => {
@@ -120,8 +157,112 @@ describe("the call", () => {
     const args = live.start.mock.calls[0][0];
     expect(args.mode).toBe("assistant");
     expect(args.dialect).toBe("Gulf");
+    // Structured, not a pre-rendered string: the server owns the budget, so a
+    // page publishing a whole transcript can't inflate the session prompt.
     // The route is unregistered here, so the PAGE_HINTS fallback describes it.
-    expect(args.context).toContain("Reading Practice");
+    expect(args.pageContext.title).toContain("Reading Practice");
+    expect(args.pageContext.route).toBe("/reading");
+  });
+
+  it("hands over the whole transcript, not just the line in focus", async () => {
+    render({ route: "/discover/abc", pageContext: videoAt(3) });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /Start voice call/ }));
+    });
+
+    const args = live.start.mock.calls[0][0];
+    expect(args.pageContext.document.lines).toHaveLength(20);
+    expect(args.pageContext.position.index).toBe(3);
+  });
+
+  it("tells a call in progress when the learner moves down the transcript", async () => {
+    // Without this the tutor is frozen at whatever was on screen when the call
+    // connected — two minutes in, it is still answering about line 3.
+    //
+    // Only the timers are faked: the throttle between updates is four real
+    // seconds, and auth/subscription resolution still needs ordinary promises.
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      live.status = "live";
+      const harness = render({ route: "/discover/abc", pageContext: videoAt(3) });
+
+      // The first update is not throttled — it is scheduled on a zero delay.
+      await act(async () => {
+        vi.advanceTimersByTime(0);
+      });
+      expect(live.updateContext).toHaveBeenCalled();
+      expect(live.updateContext.mock.calls[0][0]).toContain("line 3 of 20");
+
+      live.updateContext.mockClear();
+      await act(async () => {
+        harness.rerender(
+          <>
+            <PagePublisher ctx={videoAt(12)} />
+            <VoiceTab />
+          </>,
+        );
+      });
+
+      // Throttled, so nothing goes out on the same tick as the change.
+      expect(live.updateContext).not.toHaveBeenCalled();
+      await act(async () => {
+        vi.advanceTimersByTime(4000);
+      });
+
+      expect(live.updateContext).toHaveBeenCalled();
+      const note = live.updateContext.mock.calls.at(-1)![0];
+      expect(note).toContain("line 12 of 20");
+      // The document went out with the session instructions; re-sending it
+      // every time a subtitle advances would be thousands of characters per
+      // line of video.
+      expect(note).not.toContain("line 1 arabic");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("sends one update for a burst of subtitle changes, not one per line", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      live.status = "live";
+      const harness = render({ route: "/discover/abc", pageContext: videoAt(3) });
+      await act(async () => {
+        vi.advanceTimersByTime(0);
+      });
+      live.updateContext.mockClear();
+
+      // A video advancing a subtitle every couple of seconds.
+      for (const i of [4, 5, 6, 7]) {
+        await act(async () => {
+          harness.rerender(
+            <>
+              <PagePublisher ctx={videoAt(i)} />
+              <VoiceTab />
+            </>,
+          );
+        });
+      }
+      await act(async () => {
+        vi.advanceTimersByTime(4000);
+      });
+
+      expect(live.updateContext).toHaveBeenCalledTimes(1);
+      // And it's the position the learner actually ended on, not a stale one.
+      expect(live.updateContext.mock.calls[0][0]).toContain("line 7 of 20");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("stays quiet when the call is not live", async () => {
+    live.status = "idle";
+    render({ route: "/discover/abc", pageContext: videoAt(3) });
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+    expect(live.updateContext).not.toHaveBeenCalled();
   });
 
   it("shows the transcript with speaker labels while live", () => {

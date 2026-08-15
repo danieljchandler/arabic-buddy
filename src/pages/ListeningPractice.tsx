@@ -125,9 +125,16 @@ const ListeningPractice = () => {
                       : ""
                   }`
                 : undefined,
+              position: { index: currentIndex + 1, total: questions.length },
+              meta: {
+                dialect: activeDialect,
+                notes: showResult
+                  ? undefined
+                  : ["The learner has not answered this one yet — do not give away what the audio says."],
+              },
             }
           : null,
-      [currentQuestion, mode, showResult, activeDialect],
+      [currentQuestion, mode, showResult, activeDialect, currentIndex, questions.length],
     ),
   );
 

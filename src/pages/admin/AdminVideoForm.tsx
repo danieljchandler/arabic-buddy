@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Loader2, ArrowLeft, Sparkles, Save, Upload, Download, Plus, Trash2 } from "lucide-react";
+import { Loader2, ArrowLeft, Sparkles, Save, Upload, Download, Plus, Trash2, Image as ImageIcon } from "lucide-react";
 import { AdminTranscriptEditor } from "@/components/admin/AdminTranscriptEditor";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
@@ -135,6 +135,7 @@ const AdminVideoForm = () => {
   const [timeRange, setTimeRange] = useState<[number, number]>([0, 0]);
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isFetchingThumbnail, setIsFetchingThumbnail] = useState(false);
 
   // Stable blob URL for audio playback in transcript editor
   const [stableAudioUrl, setStableAudioUrl] = useState<string | undefined>(undefined);
@@ -333,6 +334,7 @@ const AdminVideoForm = () => {
           const embedUrl = `https://www.tiktok.com/player/v1/${videoId}`;
           setPlatform("tiktok");
           setEmbedUrl(embedUrl);
+          if (data?.thumbnail_url) setThumbnailUrl(data.thumbnail_url);
           toast.success(`TikTok video detected (ID: ${videoId})`);
           return;
         }
@@ -366,6 +368,7 @@ const AdminVideoForm = () => {
           if (videoId) {
             setPlatform("tiktok");
             setEmbedUrl(`https://www.tiktok.com/player/v1/${videoId}`);
+            if (data?.thumbnail_url) setThumbnailUrl(data.thumbnail_url);
             return;
           }
         } catch (err) {
@@ -382,6 +385,72 @@ const AdminVideoForm = () => {
       }
     }
   }, [sourceUrl, embedUrl]);
+
+  /**
+   * Manual fallback for when a thumbnail didn't get set automatically —
+   * TikTok's oEmbed occasionally omits thumbnail_url, and Instagram has no
+   * public oEmbed we can call without an app token. Tries, in order:
+   * platform thumbnail APIs, then capturing a frame from whatever media file
+   * is currently loaded in the form.
+   */
+  const handleFetchThumbnail = useCallback(async () => {
+    if (!sourceUrl && !audioFile) {
+      toast.error("Add a video URL or file first");
+      return;
+    }
+    setIsFetchingThumbnail(true);
+    try {
+      let fetched: string | null = null;
+      let resolvedPlatform = platform;
+
+      if (sourceUrl && !resolvedPlatform) {
+        resolvedPlatform = parseVideoUrl(sourceUrl)?.platform ?? (sourceUrl.includes("tiktok.com") ? "tiktok" : "");
+      }
+
+      if (resolvedPlatform === "youtube") {
+        const parsed = parseVideoUrl(sourceUrl);
+        if (parsed?.platform === "youtube") fetched = getYouTubeThumbnail(parsed.videoId);
+      } else if (resolvedPlatform === "tiktok" && sourceUrl) {
+        try {
+          const response = await fetch(`https://www.tiktok.com/oembed?url=${encodeURIComponent(sourceUrl)}`);
+          const data = await response.json();
+          if (data?.thumbnail_url) fetched = data.thumbnail_url as string;
+        } catch (err) {
+          console.error("TikTok oEmbed thumbnail fetch error:", err);
+        }
+      }
+
+      // Fall back to capturing a frame from whatever media file is loaded,
+      // regardless of platform (covers Instagram and TikTok oEmbed misses).
+      if (!fetched && audioFile && isVideoFile(audioFile)) {
+        fetched = await captureAndUploadThumbnail(audioFile);
+      }
+
+      if (!fetched) {
+        toast.error("Could not fetch a thumbnail", {
+          description: "Upload the video file so a frame can be captured instead.",
+        });
+        return;
+      }
+
+      setThumbnailUrl(fetched);
+      if (videoId) {
+        const { error } = await (supabase.from("discover_videos" as any) as any)
+          .update({ thumbnail_url: fetched })
+          .eq("id", videoId);
+        if (error) {
+          console.error("Failed to persist fetched thumbnail:", error);
+          toast.error("Thumbnail fetched but couldn't be saved — click Update Video to retry.");
+          return;
+        }
+        queryClient.invalidateQueries({ queryKey: ["discover-video", videoId] });
+        queryClient.invalidateQueries({ queryKey: ["admin-discover-videos"] });
+      }
+      toast.success("Thumbnail fetched!");
+    } finally {
+      setIsFetchingThumbnail(false);
+    }
+  }, [sourceUrl, platform, audioFile, videoId, captureAndUploadThumbnail, queryClient]);
 
   /**
    * Creates (or reuses) the DB row, uploads audio to storage, and
@@ -1059,7 +1128,25 @@ const AdminVideoForm = () => {
                 <Badge variant="outline" className="capitalize">
                   {platform}
                 </Badge>
-                {thumbnailUrl && <img src={thumbnailUrl} alt="" className="h-12 rounded" />}
+                {thumbnailUrl ? (
+                  <img src={thumbnailUrl} alt="" className="h-12 rounded" />
+                ) : (
+                  <span className="text-xs text-muted-foreground">No thumbnail yet</span>
+                )}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleFetchThumbnail}
+                  disabled={isFetchingThumbnail}
+                >
+                  {isFetchingThumbnail ? (
+                    <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                  ) : (
+                    <ImageIcon className="h-3.5 w-3.5 mr-1.5" />
+                  )}
+                  {thumbnailUrl ? "Re-fetch" : "Fetch"} thumbnail
+                </Button>
               </div>
             )}
 

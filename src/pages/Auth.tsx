@@ -31,8 +31,11 @@ const validateAuthInput = (
 const Auth = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  // Where the user was headed before being bounced to /auth (set by ProtectedRoute).
-  const redirectTo = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname;
+  // Where the user was headed before being bounced to /auth (set by
+  // ProtectedRoute). Keep the query string: shared-content params on /share
+  // (e.g. ?text= from an iOS Shortcut) must survive the login round-trip.
+  const from = (location.state as { from?: { pathname?: string; search?: string } } | null)?.from;
+  const redirectTo = from?.pathname ? `${from.pathname}${from.search ?? ""}` : undefined;
   const { toast } = useToast();
   const { signIn, signUp, isAuthenticated, loading } = useAuth();
   const [isLogin, setIsLogin] = useState(true);

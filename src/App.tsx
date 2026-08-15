@@ -44,6 +44,7 @@ const MemeAnalyzer = lazyPage(() => import("./pages/MemeAnalyzer"));
 const Discover = lazyPage(() => import("./pages/Discover"));
 const DiscoverVideo = lazyPage(() => import("./pages/DiscoverVideo"));
 const LearnFromX = lazyPage(() => import("./pages/LearnFromX"));
+const Share = lazyPage(() => import("./pages/Share"));
 const HowDoISay = lazyPage(() => import("./pages/HowDoISay"));
 const CultureGuide = lazyPage(() => import("./pages/CultureGuide"));
 const Pricing = lazyPage(() => import("./pages/Pricing"));
@@ -269,6 +270,12 @@ const App = () => {
                 <LearnFromX />
               </ErrorBoundary>
             } />
+            {/* Web Share Target landing. /share-target is the manifest's POST
+                action: the service worker intercepts the POST and 303s to
+                /share, but a GET can reach it directly (no SW on first run,
+                or a crawler) — render the same page. */}
+            <Route path="/share" element={<ErrorBoundary name="ShareRoute"><Share /></ErrorBoundary>} />
+            <Route path="/share-target" element={<ErrorBoundary name="ShareRoute"><Share /></ErrorBoundary>} />
             <Route path="/how-do-i-say" element={
               <ErrorBoundary name="HowDoISayRoute">
                 <HowDoISay />

@@ -24,6 +24,7 @@ import { Input } from "@/components/ui/input";
 import { InfoHint } from "@/components/InfoHint";
 import { PAGE_HINTS } from "@/lib/pageHints";
 import { usePageAiContext } from "@/contexts/AiAssistantContext";
+import { consumeShareHandoff } from "@/lib/shareInbox";
 import {
   Dialog,
   DialogContent,
@@ -227,6 +228,7 @@ const Transcribe = () => {
   // URL import state
   const [urlInput, setUrlInput] = useState("");
   const [isLoadingUrl, setIsLoadingUrl] = useState(false);
+  const [activeTab, setActiveTab] = useState<"upload" | "url">("upload");
 
   // Duration & time range state
   const [mediaDuration, setMediaDuration] = useState<number | null>(null);
@@ -451,9 +453,10 @@ const Transcribe = () => {
     setTranscriptResult(null);
   };
 
-  // URL processing
-  const processUrl = async () => {
-    let trimmed = urlInput.trim();
+  // URL processing. `overrideUrl` lets callers (the share handoff) start the
+  // flow before the urlInput state has committed.
+  const processUrl = async (overrideUrl?: string) => {
+    let trimmed = (overrideUrl ?? urlInput).trim();
     if (!trimmed) return;
 
     // Store URL in component state and URL params for caching
@@ -547,6 +550,39 @@ const Transcribe = () => {
       setIsLoadingUrl(false);
     }
   };
+
+  // Media shared into the app (via /share): seed the page the same way a drop
+  // or a URL paste would. Files stop short of auto-transcribing — the learner
+  // may want to trim the time range first — but a URL starts its download,
+  // which is the cheap half of the flow.
+  const shareHandoffDone = useRef(false);
+  useEffect(() => {
+    if (adminLoading || shareHandoffDone.current) return;
+    shareHandoffDone.current = true;
+
+    const fileHandoff = consumeShareHandoff("file");
+    if (fileHandoff) {
+      const sharedFile = fileHandoff.file;
+      if (!isAdmin && isVideoFile(sharedFile)) {
+        toast.error("Video uploads are admin-only", { description: "Share an audio file instead (MP3, WAV, M4A, OGG)" });
+        return;
+      }
+      setFile(sharedFile);
+      setTranscriptResult(null);
+      setAudioUrl(URL.createObjectURL(sharedFile));
+      detectFileDuration(sharedFile);
+      toast.success("Shared media loaded", { description: "Review it, then start transcribing." });
+      return;
+    }
+
+    const urlHandoff = consumeShareHandoff("url");
+    if (urlHandoff && isAdmin) {
+      setActiveTab("url");
+      setUrlInput(urlHandoff.url);
+      void processUrl(urlHandoff.url);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [adminLoading, isAdmin]);
 
   const analyzeTranscript = async (
     rawText: string,
@@ -1127,7 +1163,7 @@ const Transcribe = () => {
             <CardTitle>Content Source</CardTitle>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue="upload">
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "upload" | "url")}>
               <TabsList className={cn("grid w-full", isAdmin ? "grid-cols-2" : "grid-cols-1")}>
                 <TabsTrigger value="upload" className="gap-2">
                   <Upload className="h-4 w-4" />
@@ -1201,7 +1237,7 @@ const Transcribe = () => {
                         disabled={isLoadingUrl || isProcessing}
                       />
                       <Button
-                        onClick={processUrl}
+                        onClick={() => processUrl()}
                         disabled={!urlInput.trim() || isLoadingUrl || isProcessing}
                         variant="secondary"
                       >

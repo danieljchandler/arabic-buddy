@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
 import { HomeButton } from "@/components/HomeButton";
@@ -21,6 +21,7 @@ import { useTranslateText } from "@/hooks/useTranslateText";
 import { useSavedTranslations } from "@/hooks/useSavedTranslations";
 import { useDialect } from "@/contexts/DialectContext";
 import { useAuth } from "@/hooks/useAuth";
+import { consumeShareHandoff } from "@/lib/shareInbox";
 import { toast } from "sonner";
 import { BookOpen, Check, Languages, Loader2, BookmarkPlus, Info, RotateCcw, Save } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -53,6 +54,19 @@ const Translate = () => {
   const [dialectOpt, setDialectOpt] = useState<DialectOpt>("auto");
   const [saving, setSaving] = useState(false);
   const [savedId, setSavedId] = useState<string | null>(null);
+
+  // Text shared into the app (via /share) arrives pre-screened: seed the box
+  // and translate straight away — the share was the "go" gesture.
+  useEffect(() => {
+    const handoff = consumeShareHandoff("text");
+    if (!handoff) return;
+    const shared = handoff.text.slice(0, 4000);
+    setText(shared);
+    translate(shared, "auto").catch((e) => {
+      toast.error(e instanceof Error ? e.message : "Translation failed");
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const onSave = async () => {
     if (!result) return;

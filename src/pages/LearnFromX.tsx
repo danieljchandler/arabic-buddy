@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,6 +17,7 @@ import type { TranscriptResult, VocabItem, GrammarPoint } from "@/types/transcri
 import { InfoHint } from "@/components/InfoHint";
 import { PAGE_HINTS } from "@/lib/pageHints";
 import { usePageAiContext } from "@/contexts/AiAssistantContext";
+import { consumeShareHandoff } from "@/lib/shareInbox";
 
 function normalizeTranscriptResult(input: TranscriptResult): TranscriptResult {
   const safeLines = Array.isArray(input.lines) ? input.lines : [];
@@ -122,8 +123,21 @@ const LearnFromX = () => {
     ),
   );
 
-  const handleAnalyze = async () => {
-    const trimmed = urlInput.trim();
+  // An X link shared into the app (via /share): seed the field and analyze
+  // right away — the share was the "go" gesture.
+  const shareHandoffDone = useRef(false);
+  useEffect(() => {
+    if (shareHandoffDone.current) return;
+    shareHandoffDone.current = true;
+    const handoff = consumeShareHandoff("url");
+    if (!handoff) return;
+    setUrlInput(handoff.url);
+    void handleAnalyze(handoff.url);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleAnalyze = async (overrideUrl?: string) => {
+    const trimmed = (overrideUrl ?? urlInput).trim();
     if (!trimmed) return;
 
     // Validate it looks like an X/Twitter URL
@@ -236,7 +250,7 @@ const LearnFromX = () => {
                 placeholder="https://x.com/username/status/..."
                 value={urlInput}
                 onChange={(e) => setUrlInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && !isLoading && handleAnalyze()}
+                onKeyDown={(e) => e.key === "Enter" && !isLoading && void handleAnalyze()}
                 disabled={isLoading}
                 className="text-sm font-mono"
                 dir="ltr"

@@ -29,6 +29,10 @@ export const PAGE_HINTS: Record<string, { title: string; body: string; cta?: str
     title: "Transcribe",
     body: "Drop in audio, video, TikTok, or YouTube and get a word-by-word transcript with translations, dialect notes, and tappable vocab.",
   },
+  share: {
+    title: "Shared with Hakiya",
+    body: "Content shared from another app lands here. AI checks what it is — Arabic text, a voice note, a screenshot, a link — and routes it to the right tool automatically.",
+  },
   translate: {
     title: "Translate & Save",
     body: "Paste Arabic text and get a sentence-by-sentence breakdown — literal + natural + cultural notes. Tap any word to save it to My Words.",

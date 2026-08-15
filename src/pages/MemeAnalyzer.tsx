@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useMemo } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -21,6 +21,7 @@ import { InfoHint } from "@/components/InfoHint";
 import { PAGE_HINTS } from "@/lib/pageHints";
 import { AskAISentence } from "@/components/shared/AskAISentence";
 import { usePageAiContext } from "@/contexts/AiAssistantContext";
+import { consumeShareHandoff } from "@/lib/shareInbox";
 
 /**
  * Convert an image file to base64 data URI
@@ -270,6 +271,29 @@ const MemeAnalyzer = () => {
       setIsProcessing(false);
     }
   };
+
+  // Media shared into the app (via /share): load it and analyze immediately —
+  // analysis is this page's entire purpose, so the share is the "go" gesture.
+  const autoAnalyzeRef = useRef(false);
+  useEffect(() => {
+    const handoff = consumeShareHandoff("file");
+    if (!handoff) return;
+    const sharedFile = handoff.file;
+    const isVid = sharedFile.type.startsWith("video/");
+    if (!isVid && !sharedFile.type.startsWith("image/")) return;
+    setFile(sharedFile);
+    setIsVideo(isVid);
+    setResult(null);
+    setMediaPreviewUrl(URL.createObjectURL(sharedFile));
+    autoAnalyzeRef.current = true;
+  }, []);
+
+  useEffect(() => {
+    if (!autoAnalyzeRef.current || !file || isProcessing) return;
+    autoAnalyzeRef.current = false;
+    void analyzeMeme();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [file, isProcessing]);
 
   const onScreenLines = result?.onScreenText?.lines ?? [];
   const audioLines = result?.audioText?.lines ?? [];

@@ -256,7 +256,7 @@ const LearnFromX = () => {
                 dir="ltr"
               />
               <Button
-                onClick={handleAnalyze}
+                onClick={() => handleAnalyze()}
                 disabled={!urlInput.trim() || isLoading}
                 className="shrink-0"
               >

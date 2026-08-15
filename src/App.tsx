@@ -275,7 +275,7 @@ const App = () => {
                 /share, but a GET can reach it directly (no SW on first run,
                 or a crawler) — render the same page. */}
             <Route path="/share" element={<ErrorBoundary name="ShareRoute"><Share /></ErrorBoundary>} />
-            <Route path="/share-target" element={<ErrorBoundary name="ShareRoute"><Share /></ErrorBoundary>} />
+            <Route path="/share-target" element={<ErrorBoundary name="ShareTargetRoute"><Share /></ErrorBoundary>} />
             <Route path="/how-do-i-say" element={
               <ErrorBoundary name="HowDoISayRoute">
                 <HowDoISay />

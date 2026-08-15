@@ -8,9 +8,9 @@
  *
  * That matters beyond the test suite: TypeScript does not know these columns
  * exist, so any code touching one needs a cast, which is part of why the repo
- * carries several hundred `no-explicit-any` errors. `word_reviews.difficulty`
- * is the clearest case — FSRS stores a card's difficulty there and every
- * curriculum rating writes it, with the write typed as `never`.
+ * carries several hundred `no-explicit-any` errors. (`word_reviews.difficulty`
+ * was the clearest case until a types regeneration picked it up — FSRS wrote a
+ * card's difficulty there with the write typed as `never`.)
  *
  * The fix is to regenerate the types, which needs Supabase access. Until then
  * the emulator has to accept these or it would reject writes the real database
@@ -30,13 +30,6 @@ export interface DriftedColumn {
 const CURRICULUM_RESTRUCTURE = "20260224000000_curriculum_restructure";
 
 export const COLUMNS_MISSING_FROM_TYPES: DriftedColumn[] = [
-  // FSRS-4.5 added difficulty to all three SRS tables; the types picked it up
-  // for user_vocabulary and user_phrases but not for word_reviews.
-  { table: "word_reviews", column: "difficulty", migration: "20260304000000_fsrs_difficulty" },
-
-
-
-
   // The lesson-content columns the curriculum builder writes.
   ...[
     "unlock_condition",

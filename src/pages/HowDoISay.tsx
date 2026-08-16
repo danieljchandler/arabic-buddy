@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,6 +16,7 @@ import { InfoHint } from "@/components/InfoHint";
 import { PAGE_HINTS } from "@/lib/pageHints";
 import { AskAISentence } from "@/components/shared/AskAISentence";
 import { usePageAiContext } from "@/contexts/AiAssistantContext";
+import { consumeShareHandoff } from "@/lib/shareInbox";
 import {
   MessageCircleQuestion,
   Loader2,
@@ -119,8 +120,8 @@ const HowDoISay = () => {
     ),
   );
 
-  const handleSearch = async () => {
-    const trimmed = phraseInput.trim();
+  const handleSearch = async (overridePhrase?: string) => {
+    const trimmed = (overridePhrase ?? phraseInput).trim();
     if (!trimmed) return;
 
     setIsLoading(true);
@@ -155,6 +156,17 @@ const HowDoISay = () => {
       setIsLoading(false);
     }
   };
+
+  // An English phrase shared into the app (via /share, screened as a
+  // "how do I say" ask): seed the box and search right away.
+  useEffect(() => {
+    const handoff = consumeShareHandoff("text");
+    if (!handoff) return;
+    setPhraseInput(handoff.text);
+    setShowInstructions(false);
+    void handleSearch(handoff.text);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSaveWord = useCallback(
     async (word: VocabItem) => {
@@ -306,7 +318,7 @@ const HowDoISay = () => {
           disabled={isLoading}
         />
         <Button
-          onClick={handleSearch}
+          onClick={() => handleSearch()}
           disabled={isLoading || !phraseInput.trim()}
           className="gap-2 shrink-0 h-10 mt-0.5"
         >

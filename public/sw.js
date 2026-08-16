@@ -25,8 +25,14 @@ const VERSION = 'v1';
 const SHELL_CACHE = `hakiya-shell-${VERSION}`;
 const ASSET_CACHE = `hakiya-assets-${VERSION}`;
 const AUDIO_CACHE = `hakiya-audio-${VERSION}`;
+// Holds content shared into the app via the Web Share Target (manifest
+// `share_target` → POST /share-target) until the /share page consumes it.
+// The name and entry paths must stay in sync with src/lib/shareInbox.ts —
+// that module is the only reader. Deliberately unversioned: a waiting share
+// must survive a service-worker update between the POST and the page load.
+const SHARE_CACHE = 'hakiya-share-inbox';
 
-const CURRENT_CACHES = [SHELL_CACHE, ASSET_CACHE, AUDIO_CACHE];
+const CURRENT_CACHES = [SHELL_CACHE, ASSET_CACHE, AUDIO_CACHE, SHARE_CACHE];
 
 /** Cached so the app opens offline. Everything else is filled in at runtime. */
 const SHELL_URLS = ['/', '/manifest.webmanifest', '/favicon.png'];
@@ -126,8 +132,63 @@ async function networkFirstNavigation(request) {
   }
 }
 
+// ── Web Share Target ────────────────────────────────────────────────────────
+// Android (and any browser supporting share_target) POSTs the shared payload
+// here as multipart form data. The SPA can't receive a POST, so the worker
+// stashes everything in SHARE_CACHE and redirects to /share, which reads the
+// stash via src/lib/shareInbox.ts. 303 turns the POST into a GET navigation.
+
+async function handleShareTarget(request) {
+  try {
+    const formData = await request.formData();
+    const files = formData.getAll('media').filter((f) => typeof f === 'object' && f && f.size > 0);
+
+    const meta = {
+      title: formData.get('title') || '',
+      text: formData.get('text') || '',
+      url: formData.get('url') || '',
+      files: files.map((f, i) => ({ index: i, name: f.name || `shared-${i}`, type: f.type || '', size: f.size })),
+      receivedAt: Date.now(),
+    };
+
+    const cache = await caches.open(SHARE_CACHE);
+    // One share at a time: a new share replaces whatever wasn't consumed.
+    for (const key of await cache.keys()) await cache.delete(key);
+
+    await cache.put(
+      '/__share-inbox/meta',
+      new Response(JSON.stringify(meta), { headers: { 'Content-Type': 'application/json' } }),
+    );
+    for (let i = 0; i < files.length; i++) {
+      await cache.put(
+        `/__share-inbox/file-${i}`,
+        new Response(files[i], { headers: { 'Content-Type': files[i].type || 'application/octet-stream' } }),
+      );
+    }
+
+    return Response.redirect('/share?received=1', 303);
+  } catch (err) {
+    console.error('[sw] share target failed:', err);
+    return Response.redirect('/share?error=receive_failed', 303);
+  }
+}
+
 self.addEventListener('fetch', (event) => {
   const { request } = event;
+
+  if (request.method === 'POST') {
+    let postUrl;
+    try {
+      postUrl = new URL(request.url);
+    } catch {
+      return;
+    }
+    if (postUrl.origin === self.location.origin && postUrl.pathname === '/share-target') {
+      event.respondWith(handleShareTarget(request));
+    }
+    return;
+  }
+
   if (request.method !== 'GET') return;
 
   let url;

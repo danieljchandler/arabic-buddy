@@ -158,6 +158,10 @@ export const ROUTES: RouteSpec[] = [
   { path: "/culture-guide", gate: "public", boundary: "CultureGuideRoute" },
   { path: "/meme", gate: "public", boundary: "MemeAnalyzerRoute" },
   { path: "/learn-from-x", gate: "public", boundary: "LearnFromXRoute" },
+  // Web Share Target landing: no route guard — the page itself bounces
+  // signed-out visitors to /auth so the shared payload survives the round trip.
+  { path: "/share", gate: "in-page", boundary: "ShareRoute" },
+  { path: "/share-target", gate: "in-page", boundary: "ShareTargetRoute" },
 
   // ── Transcription ──────────────────────────────────────────────────────────
   { path: "/transcribe", gate: "auth", boundary: "TranscribeRoute" },

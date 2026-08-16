@@ -207,3 +207,15 @@ verify_jwt = true
 # runnable by an admin. Guarded inside as well.
 [functions.pregenerate-daily]
 verify_jwt = true
+
+# AI triage for content shared into the app (Web Share Target → /share page).
+# One cheap forced-tool-call classification; usage-capped inside, and the
+# /share flow only runs signed in, so requiring a JWT costs nothing.
+[functions.screen-shared-content]
+verify_jwt = true
+
+# One-step admin ingestion of a shared TikTok/YouTube/Instagram link into the
+# Discover pipeline. Admin-role-checked inside; kicks process-approved-video
+# server-to-server with the service-role key.
+[functions.ingest-shared-video]
+verify_jwt = true

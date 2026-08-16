@@ -67,6 +67,8 @@ const ROUTE_HINTS: Array<[prefix: string, hintKey: string]> = [
   ["/my-transcriptions", "my-transcriptions"],
   ["/tutor-upload", "tutor-upload"],
   ["/meme", "meme"],
+  ["/share", "share"],
+  ["/share-target", "share"],
   ["/discover", "discover"],
   ["/learn-from-x", "learn-from-x"],
   ["/how-do-i-say", "how-do-i-say"],

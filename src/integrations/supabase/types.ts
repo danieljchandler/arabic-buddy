@@ -1302,6 +1302,7 @@ export type Database = {
           transcription_status: string
           trending_candidate_id: string | null
           updated_at: string
+          visual_timeline: Json
           vocabulary: Json
         }
         Insert: {
@@ -1330,6 +1331,7 @@ export type Database = {
           transcription_status?: string
           trending_candidate_id?: string | null
           updated_at?: string
+          visual_timeline?: Json
           vocabulary?: Json
         }
         Update: {
@@ -1358,6 +1360,7 @@ export type Database = {
           transcription_status?: string
           trending_candidate_id?: string | null
           updated_at?: string
+          visual_timeline?: Json
           vocabulary?: Json
         }
         Relationships: [
@@ -1700,6 +1703,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      learner_ai_memory: {
+        Row: {
+          dialect: string
+          open_questions: Json
+          summary: string
+          turns_seen: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          dialect: string
+          open_questions?: Json
+          summary?: string
+          turns_seen?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          dialect?: string
+          open_questions?: Json
+          summary?: string
+          turns_seen?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       learner_errors: {
         Row: {

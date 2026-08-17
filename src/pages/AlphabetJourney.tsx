@@ -2,7 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { ARABIC_LETTERS, CHECKPOINT_INDICES } from "@/data/arabicAlphabet";
 import { useAlphabetProgress, useCheckpointProgress } from "@/hooks/useAlphabetProgress";
 import { AppShell } from "@/components/layout/AppShell";
-import { HomeButton } from "@/components/HomeButton";
+import { PageCorner } from "@/components/shell/PageCorner";
 import { InfoHint } from "@/components/InfoHint";
 import { DesertBackdrop } from "@/components/alphabet/DesertBackdrop";
 import { StopOrnament } from "@/components/alphabet/StopOrnament";
@@ -29,7 +29,7 @@ const AlphabetJourney = () => {
     <AppShell>
       <DesertBackdrop />
       <div className="flex items-center justify-between mb-4">
-        <HomeButton />
+        <PageCorner />
         <div className="flex items-center gap-3">
           <button
             onClick={() => setSoundOn(!soundOn)}

@@ -4,7 +4,7 @@ import { ARABIC_LETTERS, CHECKPOINT_INDICES } from "@/data/arabicAlphabet";
 import { useAlphabetProgress, useCheckpointProgress } from "@/hooks/useAlphabetProgress";
 
 import { AppShell } from "@/components/layout/AppShell";
-import { HomeButton } from "@/components/HomeButton";
+import { PageCorner } from "@/components/shell/PageCorner";
 import { LetterAudioButton } from "@/components/alphabet/LetterAudioButton";
 import { Button } from "@/components/ui/button";
 import { tapFeedback, playSuccessChime } from "@/lib/tapFeedback";
@@ -70,7 +70,7 @@ const AlphabetCheckpoint = () => {
   if (!isUnlocked(CHECKPOINT_INDICES[idx]) || !eligible) {
     return (
       <AppShell>
-        <HomeButton />
+        <PageCorner />
         <div className="mt-8 text-center space-y-3">
           <Trophy className="h-12 w-12 text-muted-foreground mx-auto" />
           <h1 className="text-xl font-bold">Checkpoint locked</h1>
@@ -85,7 +85,7 @@ const AlphabetCheckpoint = () => {
     const previous = checkpoints[idx]?.score ?? 0;
     return (
       <AppShell>
-        <HomeButton />
+        <PageCorner />
         <div className="mt-12 text-center space-y-4">
           <div className="inline-flex h-24 w-24 rounded-full bg-amber-500/20 items-center justify-center">
             <Trophy className="h-12 w-12 text-amber-600" />
@@ -114,7 +114,7 @@ const AlphabetCheckpoint = () => {
   return (
     <AppShell compact>
       <div className="flex items-center justify-between mb-4">
-        <HomeButton />
+        <PageCorner />
         <p className="text-xs text-muted-foreground">
           {roundIdx + 1} / {rounds.length}
         </p>

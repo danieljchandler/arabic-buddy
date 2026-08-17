@@ -10,6 +10,7 @@ import { DialectProvider } from "@/contexts/DialectContext";
 import { AiAssistantProvider } from "@/contexts/AiAssistantContext";
 import { AssistantMount } from "@/components/assistant/AssistantMount";
 import { AskAiFab } from "@/components/assistant/AskAiFab";
+import { OnboardingTour } from "@/components/onboarding/OnboardingTour";
 import { lazyRetry } from "@/lib/lazyRetry";
 import { PageSkeleton } from "@/components/ui/skeleton-page";
 import { logClientError } from "@/lib/errorLog";
@@ -20,11 +21,11 @@ const lazyPage = <T extends ComponentType<any>>(loader: () => Promise<{ default:
   lazy(lazyRetry(loader));
 
 const Index = lazyPage(() => import("./pages/Index"));
+const Feed = lazyPage(() => import("./pages/Feed"));
+const Choose = lazyPage(() => import("./pages/Choose"));
 const Learn = lazyPage(() => import("./pages/Learn"));
-const LearnHub = lazyPage(() => import("./pages/LearnHub"));
 const Curriculum = lazyPage(() => import("./pages/Curriculum"));
 const Mistakes = lazyPage(() => import("./pages/Mistakes"));
-const PracticeHub = lazyPage(() => import("./pages/PracticeHub"));
 const MeHub = lazyPage(() => import("./pages/MeHub"));
 const NotFound = lazyPage(() => import("./pages/NotFound"));
 
@@ -227,15 +228,21 @@ const App = () => {
           <Suspense fallback={<PageSkeleton />}>
           <Routes>
             {/* Public learning app */}
-            <Route path="/" element={<ErrorBoundary name="HomeRoute"><Index /></ErrorBoundary>} />
+            {/* "/" is the video feed for a signed-in learner and the landing
+                page for a visitor. The daily dashboard kept its content and
+                moved to /today when the feed took the front door. */}
+            <Route path="/" element={<ErrorBoundary name="HomeRoute"><Feed /></ErrorBoundary>} />
             <Route path="/index" element={<Navigate to="/" replace />} />
-            {/* The daily queue now lives inline on "/" (see Index.tsx) instead
-                of a separate page — redirect old links/bookmarks. */}
-            <Route path="/today" element={<Navigate to="/" replace />} />
+            <Route path="/choose" element={<ErrorBoundary name="ChooseRoute"><Choose /></ErrorBoundary>} />
+            <Route path="/today" element={<ErrorBoundary name="TodayRoute"><Index /></ErrorBoundary>} />
             <Route path="/auth" element={<ErrorBoundary name="AuthRoute"><Auth /></ErrorBoundary>} />
             <Route path="/reset-password" element={<ErrorBoundary name="ResetPasswordRoute"><ResetPassword /></ErrorBoundary>} />
-            <Route path="/learn-hub" element={<ErrorBoundary name="LearnHubRoute"><LearnHub /></ErrorBoundary>} />
-            <Route path="/practice" element={<ErrorBoundary name="PracticeHubRoute"><PracticeHub /></ErrorBoundary>} />
+            {/* The hubs' entries live on the chooser and /me now, but these
+                addresses were in the navigation for the whole of this app's
+                life — they are in bookmarks and muscle memory, and a 404 is a
+                worse answer than the page that took the job over. */}
+            <Route path="/learn-hub" element={<Navigate to="/choose" replace />} />
+            <Route path="/practice" element={<Navigate to="/choose" replace />} />
             <Route path="/me" element={<ErrorBoundary name="MeHubRoute"><ProtectedRoute><MeHub /></ProtectedRoute></ErrorBoundary>} />
             <Route path="/review" element={<ErrorBoundary name="ReviewRoute"><ProtectedRoute><Review /></ProtectedRoute></ErrorBoundary>} />
 
@@ -497,6 +504,12 @@ const App = () => {
             <Route path="*" element={<NotFound />} />
           </Routes>
           </Suspense>
+          {/* App-wide chrome, not page chrome. The tour points at the dock,
+              and the dock now outlives any single layout — it is on the feed,
+              which does not use AppShell at all. Mounting it here is what
+              makes the first-run tour reachable from the front door. It gates
+              itself on a localStorage flag, so it costs nothing elsewhere. */}
+          <OnboardingTour />
           {/* Outside <Routes> on purpose: every screen gets the Ask AI button,
               including the ones that render their own layout instead of
               AppShell (the video player, Transcribe, Learn from X). */}

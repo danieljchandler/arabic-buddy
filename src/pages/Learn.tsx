@@ -7,7 +7,7 @@ import { useSubmitReview } from "@/hooks/useReview";
 import { IntroCard } from "@/components/learn/IntroCard";
 import { QuizCard } from "@/components/learn/QuizCard";
 import { ProgressDots } from "@/components/ProgressDots";
-import { HomeButton } from "@/components/HomeButton";
+import { PageCorner } from "@/components/shell/PageCorner";
 import { Button } from "@/components/design-system";
 import { AppShell } from "@/components/layout/AppShell";
 import { cn } from "@/lib/utils";
@@ -288,7 +288,7 @@ const Learn = () => {
     return (
       <AppShell compact>
         <div className="mb-6">
-          <HomeButton />
+          <PageCorner />
         </div>
         <div className="flex items-center justify-center py-16">
           <div className="text-center">
@@ -313,7 +313,7 @@ const Learn = () => {
     return (
       <AppShell compact>
         <div className="mb-6">
-          <HomeButton />
+          <PageCorner />
         </div>
 
         <div className="text-center max-w-sm mx-auto py-8">
@@ -383,7 +383,7 @@ const Learn = () => {
     <AppShell compact>
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <HomeButton />
+        <PageCorner />
         
         <Link to="/" className="flex items-center">
           <img src={lahjaLogo} alt="Hakiya" className="h-8" />

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
-import { HomeButton } from "@/components/HomeButton";
+import { PageCorner } from "@/components/shell/PageCorner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -124,7 +124,7 @@ const BibleLessons = () => {
               ? "Please sign in to access this feature."
               : "This feature is available by invitation only."}
           </p>
-          <HomeButton />
+          <PageCorner />
         </div>
       </AppShell>
     );

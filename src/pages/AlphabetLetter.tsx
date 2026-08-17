@@ -4,7 +4,7 @@ import { ARABIC_LETTERS, LETTERS_BY_CODE, LETTER_STEPS, type LetterStepId } from
 import { useAlphabetProgress } from "@/hooks/useAlphabetProgress";
 
 import { AppShell } from "@/components/layout/AppShell";
-import { HomeButton } from "@/components/HomeButton";
+import { PageCorner } from "@/components/shell/PageCorner";
 import { LetterAudioButton } from "@/components/alphabet/LetterAudioButton";
 import { LetterTracer } from "@/components/alphabet/LetterTracer";
 import { FourFacesPanel } from "@/components/alphabet/FourFacesPanel";
@@ -110,7 +110,7 @@ const AlphabetLetter = () => {
     <AppShell compact>
       <XPPopupHost />
       <div className="flex items-center justify-between mb-4">
-        <HomeButton />
+        <PageCorner />
         <Button variant="ghost" size="sm" onClick={() => navigate("/alphabet")}>
           Map
         </Button>

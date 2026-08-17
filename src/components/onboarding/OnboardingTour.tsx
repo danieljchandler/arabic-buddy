@@ -7,7 +7,7 @@ const TOUR_KEY = "hakiya:tourCompleted";
 const TRIGGER_KEY = "hakiya:showTour";
 
 export function markTourPending() {
-  try { localStorage.setItem(TRIGGER_KEY, "1"); } catch {}
+  try { localStorage.setItem(TRIGGER_KEY, "1"); } catch { /* private mode: no storage, no tour */ }
 }
 
 interface Step {
@@ -17,36 +17,39 @@ interface Step {
   placement?: "top" | "bottom" | "center";
 }
 
+/**
+ * Four steps, not five. The old tour walked five tabs because the old nav had
+ * five places to explain; a feed you scroll needs no explaining, so the steps
+ * are only the things that are not obvious from looking: where the skills
+ * went, that upload takes your own clip, and that the mark is your account.
+ * Each step names the slot it points at with the same word the slot itself
+ * uses — a tour that calls it something else is describing a screen the
+ * reader cannot find.
+ */
 const STEPS: Step[] = [
   {
-    selector: "[data-tour='nav-today']",
-    title: "Today",
-    body: "Your daily home — reviews, streak, and what to do next. Start here every day.",
+    selector: "[data-tour='nav-feed']",
+    title: "Home",
+    body: "Real dialect clips, one after another. Scroll up for the next one; tap any clip for the transcript and translation.",
     placement: "top",
   },
   {
-    selector: "[data-tour='nav-learn']",
-    title: "Learn",
-    body: "Curriculum, alphabet, and grammar drills. Build foundations step-by-step.",
+    selector: "[data-tour='nav-choose']",
+    title: "Skills",
+    body: "Listening, reading, speaking and writing each have their own page — reach them here, or swipe the feed sideways.",
     placement: "top",
   },
   {
-    selector: "[data-tour='nav-discover']",
-    title: "Discover",
-    body: "Real native videos with tap-to-translate subtitles. One of the best ways to absorb dialect.",
+    selector: "[data-tour='nav-upload']",
+    title: "Upload",
+    body: "Got a clip you love? Upload it and we'll turn it into a lesson — transcript, vocabulary and exercises from the same video.",
     placement: "top",
   },
   {
-    selector: "[data-tour='nav-practice']",
-    title: "Practice",
-    body: "Spaced repetition, speaking, listening, and games to lock in what you learn.",
-    placement: "top",
-  },
-  {
-    selector: "[data-tour='nav-me']",
-    title: "Me",
-    body: "Your library, saved words, tools, and account settings live here.",
-    placement: "top",
+    selector: "[data-tour='emblem']",
+    title: "Your account",
+    body: "The Hakiya mark in the corner opens your page: saved words, progress and settings. When something's waiting, it gets a ring.",
+    placement: "bottom",
   },
 ];
 
@@ -65,7 +68,7 @@ export function OnboardingTour() {
         // Defer to let nav mount
         setTimeout(() => setActive(true), 400);
       }
-    } catch {}
+    } catch { /* private mode: no storage, no tour */ }
   }, []);
 
   const step = STEPS[stepIdx];
@@ -97,7 +100,7 @@ export function OnboardingTour() {
     try {
       localStorage.setItem(TOUR_KEY, "1");
       localStorage.removeItem(TRIGGER_KEY);
-    } catch {}
+    } catch { /* private mode: the tour may rerun, which beats crashing it */ }
     setActive(false);
   };
 

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
-import { HomeButton } from "@/components/HomeButton";
+import { PageCorner } from "@/components/shell/PageCorner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
@@ -275,7 +275,7 @@ const Share = () => {
     <AppShell>
       <div className="space-y-5">
         <div className="flex items-center justify-between gap-3">
-          <HomeButton />
+          <PageCorner />
           <h1 className="text-xl font-bold flex items-center gap-2">
             <Share2 className="h-5 w-5 text-primary" />
             Shared with Hakiya

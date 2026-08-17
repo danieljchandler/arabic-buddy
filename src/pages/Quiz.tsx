@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useTopic, VocabularyWord } from "@/hooks/useTopic";
-import { HomeButton } from "@/components/HomeButton";
+import { PageCorner } from "@/components/shell/PageCorner";
 import { Button } from "@/components/design-system";
 import { AppShell } from "@/components/layout/AppShell";
 import { Loader2 } from "lucide-react";
@@ -113,7 +113,7 @@ const Quiz = () => {
     return (
       <AppShell compact>
         <div className="mb-6">
-          <HomeButton />
+          <PageCorner />
         </div>
         <div className="text-center py-12">
           <p className="text-lg text-muted-foreground mb-2">Need more words</p>
@@ -146,7 +146,7 @@ const Quiz = () => {
   return (
     <AppShell compact>
       <div className="flex items-center justify-between mb-6">
-        <HomeButton />
+        <PageCorner />
         <div className="px-4 py-2 rounded-lg bg-card border border-border">
           <span className="text-sm font-semibold text-foreground font-arabic">
             {topic.name_arabic}

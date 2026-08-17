@@ -12,7 +12,7 @@ import {
 import { useAddUserVocabulary } from '@/hooks/useUserVocabulary';
 import { supabase } from '@/integrations/supabase/client';
 import { AppShell } from '@/components/layout/AppShell';
-import { HomeButton } from '@/components/HomeButton';
+import { PageCorner } from '@/components/shell/PageCorner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, RotateCcw, BookOpen, Trophy, ArrowLeft, Sparkles, Plus, Check } from 'lucide-react';
@@ -200,7 +200,7 @@ const StoryPlayer = () => {
   if (!scenes || scenes.length === 0) {
     return (
       <AppShell>
-        <div className="mb-6"><HomeButton /></div>
+        <div className="mb-6"><PageCorner /></div>
         <div className="text-center py-16">
           <BookOpen className="h-16 w-16 text-muted-foreground/20 mx-auto mb-4" />
           <p className="text-muted-foreground">This story has no scenes yet.</p>
@@ -215,7 +215,7 @@ const StoryPlayer = () => {
   return (
     <AppShell>
       <div className="mb-6 flex items-center justify-between">
-        <HomeButton />
+        <PageCorner />
         <Button variant="ghost" size="sm" onClick={() => navigate('/stories')}>
           <ArrowLeft className="h-4 w-4 mr-1" />
           All Stories

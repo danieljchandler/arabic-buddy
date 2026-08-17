@@ -18,19 +18,24 @@ test.describe("signed out", () => {
     await expect(page.getByRole("heading", { name: /welcome back/i })).toBeVisible();
   });
 
-  test("/today still resolves after the page was merged into Home", async ({ page }) => {
+  test("the retired hub addresses land on the chooser", async ({ page }) => {
+    // /learn-hub and /practice were in the navigation for the whole of the
+    // app's life, so they are in bookmarks and muscle memory. A 404 is a
+    // worse answer than the page that took the job over.
     await stubSupabase(page);
-    await page.goto("/today");
+    await page.goto("/learn-hub");
+    await expect(page).toHaveURL(/\/choose$/);
 
-    await expect(page).toHaveURL(/127\.0\.0\.1:\d+\/$/);
+    await page.goto("/practice");
+    await expect(page).toHaveURL(/\/choose$/);
   });
 });
 
-test.describe("signed in — home", () => {
+test.describe("signed in — the daily dashboard", () => {
   test("shows the daily queue inline instead of linking to a separate page", async ({ page }) => {
     await signIn(page);
     await stubSupabase(page, { myWordsDue: 3 });
-    await page.goto("/");
+    await page.goto("/today");
 
     // The queue itself, not a "Start today" card that navigates elsewhere.
     await expect(page.getByRole("heading", { name: "Today", exact: true })).toBeVisible();
@@ -41,7 +46,7 @@ test.describe("signed in — home", () => {
   test("due banner counts every deck and routes into the session", async ({ page }) => {
     await signIn(page);
     await stubSupabase(page, { curriculumDue: 2, myWordsDue: 3 });
-    await page.goto("/");
+    await page.goto("/today");
 
     // 2 curriculum + 3 saved words — the banner used to show only one deck.
     const banner = page.getByRole("button", { name: /5 cards due for review/i });

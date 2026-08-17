@@ -67,18 +67,25 @@ const GENERIC_ID = "12345678-0000-4000-8000-000000000000";
 export const ROUTES: RouteSpec[] = [
   // ── Redirects ──────────────────────────────────────────────────────────────
   { path: "/index", gate: "public", redirectsTo: "/" },
-  { path: "/today", gate: "public", redirectsTo: "/" },
+  // The hubs' entries live on /choose and /me now, but these addresses were in
+  // the navigation for the whole of the app's life — bookmarks and muscle
+  // memory — and a 404 is a worse answer than the page that took the job over.
+  { path: "/learn-hub", gate: "public", redirectsTo: "/choose" },
+  { path: "/practice", gate: "public", redirectsTo: "/choose" },
 
   // ── Public shell ───────────────────────────────────────────────────────────
+  // "/" is the video feed for a signed-in learner and the landing page for a
+  // visitor, so it stays public. The daily dashboard kept its content and
+  // moved to /today when the feed took the front door.
   { path: "/", gate: "public", boundary: "HomeRoute" },
+  { path: "/choose", gate: "public", boundary: "ChooseRoute" },
+  { path: "/today", gate: "public", boundary: "TodayRoute" },
   { path: "/auth", gate: "public", boundary: "AuthRoute" },
   { path: "/reset-password", gate: "public", boundary: "ResetPasswordRoute" },
   { path: "/onboarding", gate: "public", boundary: "OnboardingRoute" },
   { path: "/terms", gate: "public", boundary: "TermsRoute" },
   { path: "/privacy", gate: "public", boundary: "PrivacyRoute" },
   { path: "/pricing", gate: "public", boundary: "PricingRoute" },
-  { path: "/learn-hub", gate: "public", boundary: "LearnHubRoute" },
-  { path: "/practice", gate: "public", boundary: "PracticeHubRoute" },
   { path: "/leaderboard", gate: "public", boundary: "LeaderboardRoute" },
 
   // ── Curriculum ─────────────────────────────────────────────────────────────

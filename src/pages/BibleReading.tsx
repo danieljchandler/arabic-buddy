@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
-import { HomeButton } from "@/components/HomeButton";
+import { PageCorner } from "@/components/shell/PageCorner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -353,7 +353,7 @@ const BibleReadingInner = () => {
               ? "Please sign in to access this feature."
               : "This feature is available by invitation only. Contact an administrator to request access."}
           </p>
-          <HomeButton />
+          <PageCorner />
         </div>
       </AppShell>
     );
@@ -514,7 +514,7 @@ const BibleReadingInner = () => {
         <div className="max-w-lg mx-auto space-y-6">
           {/* Header */}
           <div className="flex items-center gap-3">
-            <HomeButton />
+            <PageCorner />
             <div>
               <h1 className="text-2xl font-bold flex items-center gap-2">
                 <BookOpen className="h-6 w-6 text-primary" />

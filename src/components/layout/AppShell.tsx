@@ -2,8 +2,7 @@ import { ReactNode } from "react";
 import { useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import borderFullPageImg from "@/assets/border-full-page.webp";
-import { BottomNav, shouldShowBottomNav } from "@/components/layout/BottomNav";
-import { OnboardingTour } from "@/components/onboarding/OnboardingTour";
+import { AppDock, shouldShowDock } from "@/components/shell/AppDock";
 import { FeedbackWidget } from "@/components/feedback/FeedbackWidget";
 import { useAiAssistant } from "@/contexts/AiAssistantContext";
 
@@ -22,7 +21,7 @@ interface AppShellProps {
  */
 export function AppShell({ children, className, compact = false }: AppShellProps) {
   const { pathname } = useLocation();
-  const showNav = shouldShowBottomNav(pathname);
+  const showNav = shouldShowDock(pathname);
   // The Ask AI panel is non-modal, so the page has to make room for it rather
   // than sit underneath it.
   const { isOpen: aiOpen } = useAiAssistant();
@@ -58,15 +57,20 @@ export function AppShell({ children, className, compact = false }: AppShellProps
       <div className={cn(
         "relative mx-auto w-full max-w-2xl animate-fade-up",
         compact ? "px-4 py-5 sm:px-5 sm:py-6" : "px-4 pt-4 pb-8 sm:px-6 md:pt-6 md:pb-12",
-        showNav && "pb-24",
+        // Clearance for the dock, at every width. The md: variant above is a
+        // separate group as far as tailwind-merge is concerned, so a bare
+        // pb-24 loses to md:pb-12 from 768px up — which leaves 48px of room
+        // under a bar that can be taller than that, putting whatever sits at
+        // the bottom of a page underneath it. Ingleezy hit exactly this when
+        // it swapped its bar; the clearance is stated at both widths.
+        showNav && "pb-24 md:pb-24",
         // Let the page scroll clear of the bottom sheet, or its lower half is
         // unreachable while the panel is open.
         aiOpen && "max-sm:pb-[60dvh]",
       )}>
         {children}
       </div>
-      <BottomNav />
-      <OnboardingTour />
+      <AppDock />
       <FeedbackWidget />
       {/* The Ask AI FAB is mounted once at the app root (App.tsx) so it also
           reaches the pages that don't wrap themselves in AppShell. */}

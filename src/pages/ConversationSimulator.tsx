@@ -5,7 +5,7 @@ import { useUserLevel } from "@/hooks/useUserLevel";
 import { useAddUserPhrase } from "@/hooks/useUserPhrases";
 import { useDisplayPrefs } from "@/hooks/useDisplayPrefs";
 import { AppShell } from "@/components/layout/AppShell";
-import { HomeButton } from "@/components/HomeButton";
+import { PageCorner } from "@/components/shell/PageCorner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -335,7 +335,7 @@ export default function ConversationSimulator() {
   return (
     <AppShell compact>
       <div className="flex items-center justify-between mb-3">
-        <HomeButton />
+        <PageCorner />
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="text-xs">{activeDialect}</Badge>
           <Badge variant="outline" className="text-xs">{cefr}</Badge>

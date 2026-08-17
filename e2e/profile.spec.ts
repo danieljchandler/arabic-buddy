@@ -295,11 +295,16 @@ test.describe("badges", () => {
     );
     db.seed(
       "user_achievements",
+      // Stamped a minute apart, newest first, because the grid is ordered by
+      // earned_at. Seeding these with new Date() gives eight equal timestamps
+      // when the loop stays inside one millisecond and eight ascending ones
+      // when it does not — so which six survived the slice came down to how
+      // fast the machine happened to be that run. That is a flake, not a test.
       Array.from({ length: 8 }, (_, i) => ({
         id: `ua-${i}`,
         user_id: TEST_USER_ID,
         achievement_id: `ach-${i}`,
-        earned_at: new Date().toISOString(),
+        earned_at: new Date(Date.UTC(2025, 0, 1, 12, 8 - i)).toISOString(),
       })),
     );
 
@@ -363,8 +368,11 @@ test.describe("the Me hub", () => {
 
     await page.goto("/me");
 
+    // Links, not buttons: every tile navigates, and a hub built from buttons
+    // gives up middle-click, open-in-new-tab, and the browser's own idea of
+    // what it is looking at.
     for (const tile of ["My Words", "Saved Translations", "My Transcriptions", "Liked Videos"]) {
-      await expect(page.getByRole("button", { name: new RegExp(tile) })).toBeVisible();
+      await expect(page.getByRole("link", { name: new RegExp(tile) })).toBeVisible();
     }
   });
 
@@ -385,20 +393,20 @@ test.describe("the Me hub", () => {
     await signInAs("free");
     seedProfile(db);
     await page.goto("/me");
-    await expect(page.getByRole("button", { name: /Admin/ })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: /Admin/ })).toHaveCount(0);
 
     await signInAs("admin");
     seedProfile(db);
     await page.goto("/me");
 
-    await expect(page.getByRole("button", { name: /Admin/ })).toBeVisible();
+    await expect(page.getByRole("link", { name: /Admin/ })).toBeVisible();
   });
 
   test("shows Bible Reading only to a reader", async ({ page, signInAs, db }) => {
     await signInAs("free");
     seedProfile(db);
     await page.goto("/me");
-    await expect(page.getByRole("button", { name: /Bible Reading/ })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: /Bible Reading/ })).toHaveCount(0);
 
     await signInAs("bible_reader");
     seedProfile(db);
@@ -406,6 +414,6 @@ test.describe("the Me hub", () => {
 
     // Gated in-page by `useBibleAccess`, not at the route — so the hub tile and
     // the route guard are two separate decisions that have to agree.
-    await expect(page.getByRole("button", { name: /Bible Reading/ })).toBeVisible();
+    await expect(page.getByRole("link", { name: /Bible Reading/ })).toBeVisible();
   });
 });

@@ -4,12 +4,13 @@ import { renderWithProviders } from "@/test/support/react/harness";
 import { markTourPending, OnboardingTour } from "./OnboardingTour";
 
 /**
- * The five-step walkthrough of the bottom navigation.
+ * The four-step walkthrough of the new shell.
  *
- * The app's whole surface hangs off five tabs, and a learner who never finds
- * Discover or Practice sees a fraction of what they signed up for. So this runs
- * exactly once, immediately after onboarding, and highlights each tab in turn
- * against a dimmed page.
+ * The old tour walked five tabs because the old nav had five places to
+ * explain. The dock and the corner emblem carry the whole surface now, and a
+ * feed you scroll needs no explaining — so the tour is only the things that
+ * are not obvious from looking. It runs exactly once, immediately after
+ * onboarding, and highlights each slot in turn against a dimmed page.
  *
  * Two things make it delicate. It is armed by one flag and disarmed by another,
  * and getting that wrong means either never showing it or showing it on every
@@ -21,7 +22,8 @@ import { markTourPending, OnboardingTour } from "./OnboardingTour";
 const TOUR_KEY = "hakiya:tourCompleted";
 const TRIGGER_KEY = "hakiya:showTour";
 
-const STEP_TITLES = ["Today", "Learn", "Discover", "Practice", "Me"];
+const STEP_TITLES = ["Home", "Skills", "Upload", "Your account"];
+const LAST = STEP_TITLES.length - 1;
 
 let cleanup: (() => void) | undefined;
 let nav: HTMLElement | undefined;
@@ -46,13 +48,13 @@ afterEach(async () => {
   vi.useRealTimers();
 });
 
-/** Stands in for the bottom navigation the tour points at. */
+/** Stands in for the dock and the profile emblem the tour points at. */
 function mountNav() {
   nav = document.createElement("div");
-  for (const tab of ["today", "learn", "discover", "practice", "me"]) {
+  for (const slot of ["nav-feed", "nav-choose", "nav-upload", "emblem"]) {
     const el = document.createElement("button");
-    el.setAttribute("data-tour", `nav-${tab}`);
-    el.textContent = tab;
+    el.setAttribute("data-tour", slot);
+    el.textContent = slot;
     nav.appendChild(el);
   }
   document.body.appendChild(nav);
@@ -119,26 +121,26 @@ describe("deciding whether to run", () => {
   });
 });
 
-describe("walking through the tabs", () => {
-  it("starts on Today and says where it is", () => {
+describe("walking through the shell", () => {
+  it("starts on Home and says where it is", () => {
     render();
 
     openTour();
 
-    expect(screen.getByRole("heading", { name: "Today" })).toBeInTheDocument();
-    expect(screen.getByText(/Your daily home/)).toBeInTheDocument();
-    expect(screen.getByText("Step 1 of 5")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Home" })).toBeInTheDocument();
+    expect(screen.getByText(/Real dialect clips/)).toBeInTheDocument();
+    expect(screen.getByText("Step 1 of 4")).toBeInTheDocument();
   });
 
-  it("advances through every tab in nav order", () => {
+  it("advances through every slot in shell order", () => {
     render();
     openTour();
 
     for (const [index, title] of STEP_TITLES.entries()) {
-      // Reading in the same order as the tabs on screen is the point — a tour
+      // Reading in the same order as the slots on screen is the point — a tour
       // that jumps around teaches the learner nothing about where things are.
       expect(screen.getByRole("heading", { name: title })).toBeInTheDocument();
-      expect(screen.getByText(`Step ${index + 1} of 5`)).toBeInTheDocument();
+      expect(screen.getByText(`Step ${index + 1} of 4`)).toBeInTheDocument();
       if (index < STEP_TITLES.length - 1) next();
     }
   });
@@ -147,7 +149,7 @@ describe("walking through the tabs", () => {
     render();
     openTour();
 
-    expect(dots()).toHaveLength(5);
+    expect(dots()).toHaveLength(4);
     expect(dots()[0].className).toContain("w-5");
     next();
 
@@ -155,20 +157,20 @@ describe("walking through the tabs", () => {
     expect(dots()[1].className).toContain("w-5");
   });
 
-  it("offers Done rather than Next on the last tab", () => {
+  it("offers Done rather than Next on the last step", () => {
     render();
     openTour();
-    for (let i = 0; i < 4; i++) next();
+    for (let i = 0; i < LAST; i++) next();
 
-    // "Next" on the final step promises a sixth step that does not exist.
+    // "Next" on the final step promises a fifth step that does not exist.
     expect(screen.getByRole("button", { name: "Done" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Next" })).toBeNull();
   });
 
-  it("closes for good once the last tab is acknowledged", () => {
+  it("closes for good once the last step is acknowledged", () => {
     render();
     openTour();
-    for (let i = 0; i < 4; i++) next();
+    for (let i = 0; i < LAST; i++) next();
 
     next();
 
@@ -208,7 +210,7 @@ describe("leaving early", () => {
 });
 
 describe("highlighting the target", () => {
-  it("cuts a hole over the tab it is describing", () => {
+  it("cuts a hole over the slot it is describing", () => {
     render();
     openTour();
 
@@ -220,7 +222,7 @@ describe("highlighting the target", () => {
     expect(document.querySelector(".bg-black\\/65")).toBeNull();
   });
 
-  it("dims the whole page when the tab is not on screen", () => {
+  it("dims the whole page when the slot is not on screen", () => {
     render({ withNav: false });
 
     openTour();
@@ -233,15 +235,15 @@ describe("highlighting the target", () => {
     expect(document.querySelector("[style*='box-shadow']")).toBeNull();
   });
 
-  it("still walks through all five steps with nothing to point at", () => {
+  it("still walks through every step with nothing to point at", () => {
     render({ withNav: false });
     openTour();
 
-    for (let i = 0; i < 4; i++) next();
+    for (let i = 0; i < LAST; i++) next();
 
     // The text is the useful half; losing the whole tour because one nav is
     // hidden would be worse than losing the highlight.
-    expect(screen.getByRole("heading", { name: "Me" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: STEP_TITLES[LAST] })).toBeInTheDocument();
   });
 
   it("follows the page when it moves under the cutout", () => {

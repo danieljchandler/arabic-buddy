@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
-import { HomeButton } from "@/components/HomeButton";
+import { PageCorner } from "@/components/shell/PageCorner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -584,7 +584,7 @@ const Friends = () => {
   if (!isAuthenticated) {
     return (
       <AppShell>
-        <HomeButton />
+        <PageCorner />
         <div className="py-12 text-center">
           <Users className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
           <h2 className="text-lg font-semibold text-foreground mb-2">
@@ -601,7 +601,7 @@ const Friends = () => {
 
   return (
     <AppShell>
-      <HomeButton />
+      <PageCorner />
 
       <div className="py-4 space-y-6">
         {/* Header */}

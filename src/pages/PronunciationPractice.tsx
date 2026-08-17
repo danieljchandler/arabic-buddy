@@ -5,7 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useAzurePronunciation, scoreBand, type PronunciationResult, type WordResult } from "@/hooks/useAzurePronunciation";
 import { AppShell } from "@/components/layout/AppShell";
 import { LoadingPanel } from "@/components/loading/LoadingPanel";
-import { HomeButton } from "@/components/HomeButton";
+import { PageCorner } from "@/components/shell/PageCorner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -197,7 +197,7 @@ const PronunciationPractice = () => {
   if (!user) {
     return (
       <AppShell>
-        <div className="mb-8"><HomeButton /></div>
+        <div className="mb-8"><PageCorner /></div>
         <div className="text-center py-16">
           <Mic className="h-16 w-16 text-muted-foreground/30 mx-auto mb-4" />
           <h1 className="text-2xl font-bold mb-2 font-heading">Pronunciation Practice</h1>
@@ -211,7 +211,7 @@ const PronunciationPractice = () => {
   if (wordsLoading) {
     return (
       <AppShell>
-        <div className="mb-8"><HomeButton /></div>
+        <div className="mb-8"><PageCorner /></div>
         <div className="flex items-center justify-center py-24">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
@@ -222,7 +222,7 @@ const PronunciationPractice = () => {
   if (words.length === 0) {
     return (
       <AppShell>
-        <div className="mb-8"><HomeButton /></div>
+        <div className="mb-8"><PageCorner /></div>
         <div className="text-center py-16">
           <Mic className="h-16 w-16 text-muted-foreground/30 mx-auto mb-4" />
           <h1 className="text-2xl font-bold mb-2 font-heading">Pronunciation Practice</h1>
@@ -237,7 +237,7 @@ const PronunciationPractice = () => {
 
   return (
     <AppShell>
-      <div className="mb-6"><HomeButton /></div>
+      <div className="mb-6"><PageCorner /></div>
 
       <div className="max-w-md mx-auto">
         {/* Header */}

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
-import { HomeButton } from "@/components/HomeButton";
+import { PageCorner } from "@/components/shell/PageCorner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -53,7 +53,7 @@ const SavedTranslations = () => {
               <ArrowLeft className="h-4 w-4 mr-1" /> Back
             </Button>
           ) : (
-            <HomeButton />
+            <PageCorner />
           )}
           <h1 className="text-xl font-bold flex items-center gap-2">
             <BookOpen className="h-5 w-5 text-primary" />

@@ -11,7 +11,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { HomeButton } from "@/components/HomeButton";
+import { PageCorner } from "@/components/shell/PageCorner";
 import { useDialect } from "@/contexts/DialectContext";
 import { useBridgeMode } from "@/hooks/useBridgeMode";
 import { useMsaRules, type MsaRule, type MsaRuleCategory } from "@/hooks/useMsaRules";
@@ -127,7 +127,7 @@ export default function MsaBridge() {
 
   return (
     <AppShell>
-      <HomeButton />
+      <PageCorner />
 
       {/* Hero */}
       <header className="mt-2 mb-6 rounded-3xl border-2 border-[#5C3A46]/30 bg-gradient-to-br from-[#F9F7F2] via-[#F3EDE2] to-[#E8DCC4]/60 p-6 sm:p-8 relative overflow-hidden">

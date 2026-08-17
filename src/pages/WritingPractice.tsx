@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
-import { HomeButton } from "@/components/HomeButton";
+import { PageCorner } from "@/components/shell/PageCorner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -438,7 +438,7 @@ const WritingPractice = () => {
               Text like a native — and learn the keyboard while you're at it.
             </p>
           </div>
-          <HomeButton />
+          <PageCorner />
         </div>
 
         <Tabs defaultValue="write">

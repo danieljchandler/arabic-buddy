@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
-import { HomeButton } from "@/components/HomeButton";
+import { PageCorner } from "@/components/shell/PageCorner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
@@ -523,7 +523,7 @@ const VocabGames = () => {
   if (loading && mode !== "menu") {
     return (
       <AppShell>
-        <HomeButton />
+        <PageCorner />
         <div className="flex items-center justify-center py-24">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
@@ -534,7 +534,7 @@ const VocabGames = () => {
   if (result) {
     return (
       <AppShell>
-        <HomeButton />
+        <PageCorner />
         <ResultsScreen
           score={result.score}
           total={result.total}
@@ -548,7 +548,7 @@ const VocabGames = () => {
 
   return (
     <AppShell>
-      <HomeButton />
+      <PageCorner />
 
       <div className="py-4 space-y-6">
         {mode === "menu" ? (

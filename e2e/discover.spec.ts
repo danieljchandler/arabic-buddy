@@ -209,7 +209,7 @@ test.describe("the difficulty a learner starts on", () => {
     stubFeed(backend, []);
   });
 
-  test("never actually defaults to the placement level", async ({ page, db }) => {
+  test("defaults to the placement level once it resolves", async ({ page, db }) => {
     db.seed("profiles", [aProfile({ placement_level_gulf: "C1" })]);
     seedVideos(db, [
       { title: "Easy clip", difficulty: "Beginner" },
@@ -219,16 +219,13 @@ test.describe("the difficulty a learner starts on", () => {
     await page.goto("/discover");
     await browse(page);
 
-    // Recording current behaviour. Discover.tsx initialises the difficulty
-    // filter from useUserLevel inside a useState initialiser, which runs on the
-    // first render — before the profile query has resolved. hasTakenPlacement
-    // is therefore always false at that moment, the filter locks to "All", and
-    // nothing ever revises it. A C1 learner gets the beginner catalogue, which
-    // is exactly what the code was written to prevent.
-    //
-    // This test fails once the default is derived rather than initialised.
-    await expect(page.getByRole("button", { name: /Easy clip/ })).toBeVisible();
+    // The filter cannot be set in a useState initialiser — the profile query
+    // has not resolved on first render, so an initialiser locks to "All" and
+    // hands a C1 learner the beginner catalogue. The default is applied once
+    // by effect when placement lands. (A previous version of this test pinned
+    // the initialiser bug in place; the effect is the fix it was waiting for.)
     await expect(page.getByRole("button", { name: /Hard clip/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Easy clip/ })).toHaveCount(0);
   });
 
   test("shows everything to a learner who has not placed", async ({ page, db }) => {

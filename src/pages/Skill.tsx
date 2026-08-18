@@ -59,14 +59,14 @@ const Skill = () => {
   return (
     <AppShell>
       <div {...swipe} className="flex flex-col gap-2.5">
-        <header className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
+        <header className="flex items-center justify-between gap-3">
+          <BrandMark />
+          <div className="flex items-center gap-3">
+            <Link to="/choose" className="text-xs text-muted-foreground">
+              ← Skills
+            </Link>
             <ProfileEmblem />
-            <BrandMark />
           </div>
-          <Link to="/choose" className="text-xs text-muted-foreground">
-            ← Skills
-          </Link>
         </header>
 
         {/* The skill wears its own tile colour, so arriving here reads as

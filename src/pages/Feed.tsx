@@ -2,15 +2,16 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } fro
 import { createPortal } from "react-dom";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Bookmark, MessageCircleQuestion, Captions, RotateCcw, Play, Flame } from "lucide-react";
+import { Bookmark, MessageCircleQuestion, Play, Flame } from "lucide-react";
 import { AppDock } from "@/components/shell/AppDock";
-import { ProfileEmblem } from "@/components/shell/ProfileEmblem";
+import { ProfileEmblemView } from "@/components/shell/ProfileEmblem";
 import { BrandMark } from "@/components/shell/BrandMark";
 import { useDiscoverFeed } from "@/hooks/useDiscoverFeed";
 import type { DiscoverVideo } from "@/hooks/useDiscoverVideos";
 import { useSwipeSurfaces } from "@/hooks/useSwipeSurfaces";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserVocabularyDueCount } from "@/hooks/useUserVocabulary";
+import { useProfileAvatar } from "@/hooks/useProfileAvatar";
 import { useDialect, type DialectModule } from "@/contexts/DialectContext";
 import { supabase } from "@/integrations/supabase/client";
 import { LoadingPanel } from "@/components/loading/LoadingPanel";
@@ -39,9 +40,10 @@ const prefetchPlayer = () => import("./DiscoverVideo");
  * Vertical scroll moves through clips. A leftward swipe opens the chooser —
  * see useSwipeSurfaces for why that is the forward direction.
  *
- * The action rail is where the old hub lists went. "Transcript" and "Ask" were
- * destinations you navigated to and then had to feed with content; here they
- * are buttons on the clip in front of you, which is what they always were.
+ * The action rail is where the old hub lists went. "Ask" was a destination you
+ * navigated to and then had to feed with content; here it is a control on the
+ * clip in front of you, which is what it always was. Your picture sits on top
+ * of the rail, because the top-left corner is the mark's.
  *
  * Where Ingleezy's feed header carries For-you/Following, this one carries the
  * dialect: Hakiya has three of them, that choice is exactly what filters the
@@ -63,6 +65,9 @@ const Feed = () => {
   const [seed] = useState(() => Math.floor(Math.random() * 100000));
   const { data: feed, isLoading } = useDiscoverFeed(seed);
   const { data: dueStats } = useUserVocabularyDueCount();
+  // Read once here rather than inside each clip: every clip in the list is
+  // mounted, and each rail shows the same face.
+  const { data: profile } = useProfileAvatar();
   const swipe = useSwipeSurfaces({ onNext: () => navigate("/choose") });
 
   /**
@@ -167,8 +172,7 @@ const Feed = () => {
         className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-center justify-between px-3 pt-3"
         style={{ paddingTop: "calc(env(safe-area-inset-top) + 0.75rem)" }}
       >
-        <div className="pointer-events-auto flex items-center gap-2">
-          <ProfileEmblem hasNews={(dueStats?.dueCount ?? 0) > 0} />
+        <div className="pointer-events-auto">
           <BrandMark />
         </div>
         {/* The dialect is what filters this feed, so it sits on the feed. */}
@@ -218,7 +222,13 @@ const Feed = () => {
             <li key={video.id} className="relative h-[100dvh] snap-start snap-always">
               {/* The first clip fills the viewport on arrival, so its still is
                   the page's largest paint — not something to defer. */}
-              <Clip video={video} onOpen={openVideo} eager={index === 0} />
+              <Clip
+                video={video}
+                onOpen={openVideo}
+                eager={index === 0}
+                avatarUrl={profile?.avatarUrl ?? null}
+                hasNews={(dueStats?.dueCount ?? 0) > 0}
+              />
             </li>
           ))}
         </ul>
@@ -263,10 +273,15 @@ function Clip({
   video,
   onOpen,
   eager = false,
+  avatarUrl,
+  hasNews = false,
 }: {
   video: DiscoverVideo;
   onOpen: (video: DiscoverVideo) => void;
   eager?: boolean;
+  /** The viewer's picture, read once by the feed and handed down. */
+  avatarUrl: string | null;
+  hasNews?: boolean;
 }) {
   const mins = video.duration_seconds
     ? `${Math.floor(video.duration_seconds / 60)}:${String(video.duration_seconds % 60).padStart(2, "0")}`
@@ -307,15 +322,24 @@ function Clip({
         </span>
       </button>
 
-      {/* Verbs, applied to this clip. This rail is why the hub lists could go.
-          Save, Transcript and Replay all open the player — that is where a
-          word gets saved and a line gets replayed — so they open it in place
-          too. Ask is the one true destination on the rail. */}
-      <div className="absolute bottom-40 right-2 z-20 grid gap-4">
+      {/* You, then the verbs. This rail is why the hub lists could go.
+          Transcript and Replay used to sit under these: both did nothing but
+          open the player, which is a whole screen with its own transcript and
+          its own scrubber, so they were two labels promising a third and a
+          fourth thing that turned out to be the same thing. Tapping the clip
+          already gets you there. Save opens it too, but it names something the
+          player is *for*; Ask is the one true destination on the rail.
+
+          Your picture takes the top slot, which is where the right-hand rail
+          puts an identity in every feed anyone has used. */}
+      <div className="absolute bottom-48 right-2 z-20 grid justify-items-center gap-4">
+        <ProfileEmblemView
+          avatarUrl={avatarUrl}
+          hasNews={hasNews}
+          className="ring-2 ring-white/60"
+        />
         <RailButton icon={Bookmark} label="Save" onClick={open} />
         <RailLink icon={MessageCircleQuestion} label="Ask" to="/how-do-i-say" />
-        <RailButton icon={Captions} label="Transcript" onClick={open} />
-        <RailButton icon={RotateCcw} label="Replay" onClick={open} />
       </div>
 
       <div className="absolute inset-x-0 bottom-28 z-20 px-3.5">

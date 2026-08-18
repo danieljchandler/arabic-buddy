@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bookmark, MessageCircleQuestion, Captions, RotateCcw, Play, Flame } from "lucide-react";
 import { AppDock } from "@/components/shell/AppDock";
 import { ProfileEmblem } from "@/components/shell/ProfileEmblem";
+import { BrandMark } from "@/components/shell/BrandMark";
 import { useDiscoverFeed } from "@/hooks/useDiscoverFeed";
 import type { DiscoverVideo } from "@/hooks/useDiscoverVideos";
 import { useSwipeSurfaces } from "@/hooks/useSwipeSurfaces";
@@ -166,8 +167,9 @@ const Feed = () => {
         className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-center justify-between px-3 pt-3"
         style={{ paddingTop: "calc(env(safe-area-inset-top) + 0.75rem)" }}
       >
-        <div className="pointer-events-auto">
+        <div className="pointer-events-auto flex items-center gap-2">
           <ProfileEmblem hasNews={(dueStats?.dueCount ?? 0) > 0} />
+          <BrandMark />
         </div>
         {/* The dialect is what filters this feed, so it sits on the feed. */}
         <div

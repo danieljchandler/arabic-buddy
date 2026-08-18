@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -12,6 +13,7 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { Loader2, Check, ArrowLeft, User, Globe2, Target, Eye, Heart, ChevronRight, Camera, AlertTriangle, Info, Compass, Bell } from 'lucide-react';
 import { AvatarPicker } from '@/components/settings/AvatarPicker';
+import { invalidateProfileAvatar } from '@/hooks/useProfileAvatar';
 import { HomeLayoutEditor } from '@/components/settings/HomeLayoutEditor';
 import { DisplayPrefsEditor } from '@/components/settings/DisplayPrefsEditor';
 import { TutorMemoryCard } from '@/components/settings/TutorMemoryCard';
@@ -52,6 +54,7 @@ const GOALS = [
 const Settings = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated, loading: authLoading, signOut } = useAuth();
+  const queryClient = useQueryClient();
   const [loading, setLoading] = useState(true);
   const { enabled: leechEnabled, setEnabled: setLeechEnabled } = useLeechPrefs();
   const { enabled: rootFamiliesEnabled, setEnabled: setRootFamiliesEnabled } = useRootFamilyPrefs();
@@ -188,6 +191,10 @@ const Settings = () => {
       if (updErr) throw updErr;
 
       setAvatarUrl(newUrl);
+      // The emblem in every page's corner reads its own cached copy of this
+      // row, so a write that skips it leaves the old picture on screen until
+      // the next reload.
+      void invalidateProfileAvatar(queryClient, user.id);
       toast.success('Profile picture updated!');
     } catch (err: any) {
       console.error(err);
@@ -211,10 +218,12 @@ const Settings = () => {
         .eq('user_id', user.id);
       if (error) throw error;
 
+      void invalidateProfileAvatar(queryClient, user.id);
       toast.success('Profile picture updated!');
     } catch (err) {
       console.error(err);
       setAvatarUrl(previous);
+      void invalidateProfileAvatar(queryClient, user.id);
       toast.error(err instanceof Error ? err.message : 'Failed to update picture');
     } finally {
       setUploadingAvatar(false);

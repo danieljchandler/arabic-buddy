@@ -79,27 +79,27 @@ describe("MilestoneBanner — when it appears", () => {
 });
 
 describe("MilestoneBanner — what it says", () => {
-  it("keeps the learner going at the intermediate milestones", () => {
+  it("counts what is left at the intermediate milestones", () => {
     render(<MilestoneBanner masteredCount={21} />);
-    expect(screen.getByText("Keep going — the caravan moves on.")).toBeInTheDocument();
+    expect(screen.getByText("7 to go.")).toBeInTheDocument();
   });
 
   it("marks the whole alphabet differently", () => {
     render(<MilestoneBanner masteredCount={28} />);
     expect(
-      screen.getByText("You've completed the entire alphabet caravan 🐪"),
+      screen.getByText("You've finished the whole alphabet."),
     ).toBeInTheDocument();
   });
 
-  it("animates the shine by default", () => {
+  it("arrives with the app's scale-in by default", () => {
     const { container } = render(<MilestoneBanner masteredCount={7} />);
-    expect(container.querySelector(".animate-banner-shine")).toBeInTheDocument();
+    expect(container.querySelector(".animate-scale-in")).toBeInTheDocument();
   });
 
-  it("drops the shine for a learner who asked for less motion", () => {
+  it("drops the arrival motion for a learner who asked for less", () => {
     reduced.value = true;
     const { container } = render(<MilestoneBanner masteredCount={7} />);
-    expect(container.querySelector(".animate-banner-shine")).not.toBeInTheDocument();
+    expect(container.querySelector(".animate-scale-in")).not.toBeInTheDocument();
     expect(screen.getByText("7 letters mastered!")).toBeInTheDocument();
   });
 });

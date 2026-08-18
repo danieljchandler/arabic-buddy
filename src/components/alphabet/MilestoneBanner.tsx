@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Sparkles, X } from "lucide-react";
+import { X } from "lucide-react";
 import { useReducedMotion } from "@/lib/uiPrefs";
 import { cn } from "@/lib/utils";
 
@@ -71,42 +71,31 @@ export const MilestoneBanner = ({ masteredCount }: Props) => {
   return (
     <div
       className={cn(
-        "relative mb-4 overflow-hidden rounded-2xl border-2 border-[#CFA44E]",
-        "bg-gradient-to-r from-[#F9F0D4] via-[#FBF6EC] to-[#F4E3B8]",
-        "shadow-[0_6px_20px_-6px_rgba(207,164,78,0.45)]",
+        "flex items-center gap-3 rounded-xl border border-primary bg-primary/10 px-4 py-3.5",
+        // scale-in is the app's arrival motion for a card or badge. The banner
+        // used to run a gradient shine on a 2.6s loop, which kept pulling the
+        // eye back to a message that had already been read.
+        !reduced && "animate-scale-in",
       )}
       role="status"
     >
-      {!reduced && (
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div
-            className="absolute -left-full top-0 h-full w-[200%] bg-gradient-to-r from-transparent via-white/55 to-transparent animate-banner-shine"
-            style={{ transform: "skewX(-18deg)" }}
-          />
-        </div>
-      )}
-      <div className="relative flex items-center gap-3 p-4">
-        <div className="h-10 w-10 shrink-0 rounded-full bg-[#CFA44E]/25 flex items-center justify-center">
-          <Sparkles className="h-5 w-5 text-[#A57B1F]" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-bold text-[#5C3A46]">
-            {active} letters mastered!
-          </p>
-          <p className="text-xs text-[#5C3A46]/75">
-            {active === 28
-              ? "You've completed the entire alphabet caravan 🐪"
-              : "Keep going — the caravan moves on."}
-          </p>
-        </div>
-        <button
-          onClick={dismiss}
-          className="p-1.5 rounded-full text-[#5C3A46]/70 hover:text-[#5C3A46] hover:bg-[#5C3A46]/10 transition-colors"
-          aria-label="Dismiss"
-        >
-          <X className="h-4 w-4" />
-        </button>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-medium">
+          {active} letters mastered!
+        </p>
+        <p className="text-[11px] text-muted-foreground">
+          {active === 28
+            ? "You've finished the whole alphabet."
+            : `${28 - active} to go.`}
+        </p>
       </div>
+      <button
+        onClick={dismiss}
+        className="shrink-0 text-muted-foreground transition-colors hover:text-foreground"
+        aria-label="Dismiss"
+      >
+        <X className="h-4 w-4" />
+      </button>
     </div>
   );
 };

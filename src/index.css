@@ -266,44 +266,6 @@
     }
   }
 
-  /* Unlock bounce - subtle spring when a stop becomes unlocked */
-  .animate-unlock-bounce {
-    animation: unlock-bounce 0.7s ease-out;
-  }
-
-  @keyframes unlock-bounce {
-    0% { transform: scale(1); }
-    25% { transform: scale(1.1); }
-    50% { transform: scale(1.02); }
-    75% { transform: scale(1.06); }
-    100% { transform: scale(1); }
-  }
-
-  /* Master bounce - slightly richer spring when a stop becomes mastered */
-  .animate-master-bounce {
-    animation: master-bounce 0.75s ease-out;
-  }
-
-  @keyframes master-bounce {
-    0% { transform: scale(1); }
-    20% { transform: scale(1.14); }
-    45% { transform: scale(0.96); }
-    70% { transform: scale(1.05); }
-    100% { transform: scale(1); }
-  }
-
-  /* Shine sweep - light glare across a mastered stop */
-  .animate-shine-sweep {
-    animation: shine-sweep 0.9s ease-out forwards;
-  }
-
-  @keyframes shine-sweep {
-    0% { transform: translateX(-120%) skewX(-20deg); opacity: 0; }
-    12% { opacity: 0.45; }
-    88% { opacity: 0.45; }
-    100% { transform: translateX(120%) skewX(-20deg); opacity: 0; }
-  }
-
   /* Background gradients - for large areas only */
   .bg-gradient-warm {
     background: linear-gradient(180deg, hsl(38 45% 90%) 0%, hsl(38 40% 86%) 100%);
@@ -338,27 +300,6 @@
     background: hsl(8 45% 38%);
   }
 
-  /* Slow drift for parallax backdrop layers */
-  .animate-drift-slow {
-    animation: drift-slow 28s ease-in-out infinite;
-  }
-  .animate-drift-slower {
-    animation: drift-slow 44s ease-in-out infinite reverse;
-  }
-  @keyframes drift-slow {
-    0%, 100% { transform: translateX(0); }
-    50% { transform: translateX(-18px); }
-  }
-
-  /* Camel caravan bob */
-  .animate-camel-bob {
-    animation: camel-bob 1.4s ease-in-out infinite;
-  }
-  @keyframes camel-bob {
-    0%, 100% { transform: translateY(0) rotate(-2deg); }
-    50% { transform: translateY(-3px) rotate(2deg); }
-  }
-
   /* Floating "+N XP" pill */
   .animate-xp-float {
     animation: xp-float 900ms ease-out forwards;
@@ -367,15 +308,6 @@
     0% { opacity: 0; transform: translateY(8px) scale(0.9); }
     20% { opacity: 1; transform: translateY(0) scale(1); }
     100% { opacity: 0; transform: translateY(-40px) scale(1); }
-  }
-
-  /* Milestone banner shine sweep */
-  .animate-banner-shine {
-    animation: banner-shine 2.6s ease-in-out infinite;
-  }
-  @keyframes banner-shine {
-    0% { transform: translateX(0) skewX(-18deg); }
-    60%, 100% { transform: translateX(100%) skewX(-18deg); }
   }
 
   /* Gentle horizontal shake (wrong answer) */
@@ -433,14 +365,7 @@
   .animate-pop,
   .animate-pulse-glow,
   .animate-float,
-  .animate-unlock-bounce,
-  .animate-master-bounce,
-  .animate-shine-sweep,
-  .animate-drift-slow,
-  .animate-drift-slower,
-  .animate-camel-bob,
   .animate-xp-float,
-  .animate-banner-shine,
   .animate-shake,
   .animate-correct-pulse,
   .animate-sparkle,

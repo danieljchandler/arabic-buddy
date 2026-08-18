@@ -514,7 +514,6 @@ const BibleReadingInner = () => {
         <div className="max-w-lg mx-auto space-y-6">
           {/* Header */}
           <div className="flex items-center gap-3">
-            <PageCorner />
             <div>
               <h1 className="text-2xl font-bold flex items-center gap-2">
                 <BookOpen className="h-6 w-6 text-primary" />
@@ -524,6 +523,9 @@ const BibleReadingInner = () => {
                 Read the Bible in {dialectLabel}
               </p>
             </div>
+            {/* Last in the row: the emblem right-aligns itself, and a heading
+                that used to sit beside the corner keeps the left edge. */}
+            <PageCorner />
           </div>
 
           {/* Curated lessons entry point */}

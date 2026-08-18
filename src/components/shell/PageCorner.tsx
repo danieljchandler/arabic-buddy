@@ -26,6 +26,19 @@ import { cn } from "@/lib/utils";
  * with something whichever corner it picks. A slot the page itself reserved
  * cannot collide with the page.
  *
+ * The emblem takes the *right* of that slot's row, never the left. The corner
+ * on the left is the mark's everywhere else in the app, and an avatar sitting
+ * in it on eighty interior pages was the whole complaint. `ml-auto` is what
+ * does it, and it is chosen over a wrapper because this component is dropped
+ * into two different shapes: a block on its own line, where an auto left
+ * margin right-aligns a fixed-width box, and the first child of a flex row
+ * that already has the page's own controls at its far end, where the same
+ * margin eats the free space and parks the emblem beside them. Neither shape
+ * had to be touched, and nothing the pages already place moved.
+ *
+ * The home button keeps the left. It is an escape hatch on routes with no
+ * other way out, and the back-arrow corner is where a thumb looks for it.
+ *
  * Some Radix/shadcn components pass refs to their children via `asChild`, so
  * this forwards refs.
  */
@@ -35,7 +48,7 @@ export const PageCorner = React.forwardRef<HTMLButtonElement, { className?: stri
     const { pathname } = useLocation();
 
     if (shouldShowDock(pathname)) {
-      return <ProfileEmblem className={cn("h-11 w-11", className)} />;
+      return <ProfileEmblem className={cn("ml-auto h-11 w-11", className)} />;
     }
 
     return (

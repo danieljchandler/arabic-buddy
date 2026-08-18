@@ -26,6 +26,27 @@ test.describe("the corner control", () => {
     await expect(page).toHaveURL(/\/me$/);
   });
 
+  test("sits on the right, never in the mark's corner", async ({ page }) => {
+    // The corner on the left belongs to the mark everywhere else in the app,
+    // and an avatar wearing it on eighty interior pages was the complaint that
+    // sent this back twice. One assertion per layout shape PageCorner is
+    // dropped into, because the shapes are what broke it: a block on its own
+    // line, a row that already has the page's controls at its far end, and a
+    // centred title bar with no slack for an auto margin to eat.
+    for (const route of ["/discover", "/listen", "/translate", "/share", "/transcribe"]) {
+      await page.goto(route);
+
+      const emblem = page.getByRole("link", { name: /Your account/ }).first();
+      await expect(emblem).toBeVisible();
+
+      const box = (await emblem.boundingBox())!;
+      const width = page.viewportSize()!.width;
+      expect(box.x + box.width / 2, `emblem should be right of centre on ${route}`).toBeGreaterThan(
+        width / 2,
+      );
+    }
+  });
+
   test("stays a way out on the pages that have no dock", async ({ page }) => {
     await page.goto("/reset-password");
 

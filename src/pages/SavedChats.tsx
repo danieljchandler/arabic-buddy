@@ -75,12 +75,13 @@ const SavedChats = () => {
     <AppShell>
       <div className="space-y-4">
         <div className="flex items-center justify-between gap-3">
-          <PageCorner />
+          {/* Balances the emblem opposite, so the title stays centred. */}
+          <div className="w-11" />
           <h1 className="flex items-center gap-2 text-xl font-bold">
             <Sparkles className="h-5 w-5 text-primary" />
             Saved Chats
           </h1>
-          <div className="w-9" />
+          <PageCorner />
         </div>
 
         {isLoading ? (

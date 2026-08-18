@@ -1132,6 +1132,7 @@ const AdminVideoForm = () => {
                 {thumbnailUrl ? (
                   <VideoThumbnail
                     src={thumbnailUrl}
+                    sources={{ source_url: sourceUrl, embed_url: embedUrl }}
                     alt=""
                     decorative
                     loading="eager"

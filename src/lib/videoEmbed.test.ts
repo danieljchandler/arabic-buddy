@@ -3,7 +3,7 @@ import {
   extractTikTokVideoId,
   getThumbnailCandidates,
   getTikTokEmbedUrl,
-  getYouTubeIdFromThumbnailUrl,
+  getYouTubeVideoId,
   getYouTubeThumbnail,
   parseVideoUrl,
 } from "./videoEmbed";
@@ -57,20 +57,45 @@ describe("YouTube thumbnails", () => {
     expect(getYouTubeThumbnail(ID)).not.toContain("img.youtube.com");
   });
 
-  describe("recognising a stored still", () => {
+  /**
+   * One id reader for every URL a row carries, because a still has to be
+   * derivable from any of them: the stored thumbnail says what size to
+   * upgrade, and `source_url`/`embed_url` are what a row with no stored
+   * thumbnail at all has to fall back on.
+   */
+  describe("reading the video id back out of a URL", () => {
     it.each([
-      ["the redirecting host", `https://img.youtube.com/vi/${ID}/hqdefault.jpg`],
-      ["the CDN host", `https://i.ytimg.com/vi/${ID}/hqdefault.jpg`],
+      ["a watch URL", `https://www.youtube.com/watch?v=${ID}`],
+      ["a shorts URL", `https://www.youtube.com/shorts/${ID}`],
+      ["a live URL", `https://www.youtube.com/live/${ID}`],
+      ["a short link", `https://youtu.be/${ID}`],
+      ["an embed URL", `https://www.youtube.com/embed/${ID}`],
+      // What every row's `embed_url` actually holds — the player is pointed at
+      // the no-cookie host, so this is the common case, not the exotic one.
+      ["a no-cookie embed URL", `https://www.youtube-nocookie.com/embed/${ID}?enablejsapi=1&rel=0`],
+      ["the redirecting still host", `https://img.youtube.com/vi/${ID}/hqdefault.jpg`],
+      ["the still CDN host", `https://i.ytimg.com/vi/${ID}/hqdefault.jpg`],
       ["a numbered CDN shard", `https://i9.ytimg.com/vi/${ID}/mqdefault.jpg`],
-      ["the webp variant", `https://i.ytimg.com/vi_webp/${ID}/sddefault.webp`],
+      ["the webp still variant", `https://i.ytimg.com/vi_webp/${ID}/sddefault.webp`],
       // What the YouTube Data API hands back for a trending candidate.
       ["signing and crop params", `https://i.ytimg.com/vi/${ID}/hqdefault.jpg?sqp=-oaymwE&rs=AOn4`],
-    ])("reads the video id off %s", (_case, url) => {
-      expect(getYouTubeIdFromThumbnailUrl(url)).toBe(ID);
+    ])("reads it off %s", (_case, url) => {
+      expect(getYouTubeVideoId(url)).toBe(ID);
     });
 
-    it("does not claim a TikTok still", () => {
-      expect(getYouTubeIdFromThumbnailUrl("https://p16-sign.tiktokcdn.com/obj/abc~tplv.jpeg")).toBeNull();
+    it.each([
+      ["a TikTok still", "https://p16-sign.tiktokcdn.com/obj/abc~tplv.jpeg"],
+      ["a TikTok video", "https://www.tiktok.com/@creator/video/7451234567890123456"],
+      ["an Instagram reel", "https://www.instagram.com/reel/CxYzAbCdEfG/"],
+      ["nothing at all", null],
+    ])("does not claim %s", (_case, url) => {
+      expect(getYouTubeVideoId(url)).toBeNull();
+    });
+
+    it("ignores an id of the wrong length", () => {
+      // Guards the fixtures the e2e suite seeds (`?v=fixture`): a placeholder
+      // must not resolve to a real CDN request in a hermetic test.
+      expect(getYouTubeVideoId("https://www.youtube.com/watch?v=fixture")).toBeNull();
     });
   });
 
@@ -97,9 +122,56 @@ describe("YouTube thumbnails", () => {
       expect(getThumbnailCandidates(tiktok)).toEqual([tiktok]);
     });
 
-    it("has nothing to try when the row has no still", () => {
+    it("has nothing to try when the row has no still and no URL to derive one from", () => {
       expect(getThumbnailCandidates(null)).toEqual([]);
       expect(getThumbnailCandidates("")).toEqual([]);
+    });
+
+    /**
+     * The retroactive half. A YouTube still is a pure function of the video
+     * id, and the id is already on the row — so a video whose `thumbnail_url`
+     * was never filled in needs no backfill to show a picture.
+     */
+    describe("a row that never got a thumbnail written to it", () => {
+      it("derives one from the source URL", () => {
+        expect(
+          getThumbnailCandidates(null, { source_url: `https://www.youtube.com/shorts/${ID}` })[0],
+        ).toBe(`https://i.ytimg.com/vi/${ID}/maxresdefault.jpg`);
+      });
+
+      it("falls back to the embed URL when the source URL is not YouTube's", () => {
+        // Shared links get canonicalised inconsistently; the embed URL is the
+        // one the player is built from, so it is the more reliable of the two.
+        expect(
+          getThumbnailCandidates(null, {
+            source_url: "https://some.aggregator/watch/1234",
+            embed_url: `https://www.youtube-nocookie.com/embed/${ID}?rel=0`,
+          })[0],
+        ).toBe(`https://i.ytimg.com/vi/${ID}/maxresdefault.jpg`);
+      });
+
+      it("gets the full ladder, not just one guess", () => {
+        expect(
+          getThumbnailCandidates(null, { source_url: `https://youtu.be/${ID}` }),
+        ).toHaveLength(3);
+      });
+
+      it("still has nothing for a TikTok or Instagram row", () => {
+        // These stills are signed CDN URLs. Nothing about the video's own URL
+        // implies one, which is what the admin backfill is for.
+        expect(
+          getThumbnailCandidates(null, {
+            source_url: "https://www.tiktok.com/@creator/video/7451234567890123456",
+          }),
+        ).toEqual([]);
+      });
+    });
+
+    it("prefers the stored still for a platform it cannot derive", () => {
+      const tiktok = "https://p16-sign.tiktokcdn.com/obj/abc~tplv.jpeg";
+      expect(
+        getThumbnailCandidates(tiktok, { source_url: "https://www.tiktok.com/@a/video/123456789" }),
+      ).toEqual([tiktok]);
     });
   });
 });

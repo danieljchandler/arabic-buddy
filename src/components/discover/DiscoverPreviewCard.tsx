@@ -10,6 +10,9 @@ export interface DiscoverVideo {
   title: string;
   title_arabic?: string | null;
   thumbnail_url?: string | null;
+  /** Used to derive a YouTube still when no thumbnail was ever stored. */
+  source_url?: string | null;
+  embed_url?: string | null;
   dialect?: string | null;
   difficulty?: string | null;
   duration_seconds?: number | null;
@@ -57,6 +60,7 @@ export const DiscoverPreviewCard = memo(function DiscoverPreviewCard({ video, on
       <div className="relative aspect-[4/3] bg-foreground/5 overflow-hidden">
         <VideoThumbnail
           src={video.thumbnail_url}
+          sources={video}
           alt={video.title}
           fallback={
             <div className="w-full h-full flex items-center justify-center bg-muted">

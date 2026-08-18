@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Plus, Laugh, Loader2, Trash2, Edit, Eye } from 'lucide-react';
 import { toast } from 'sonner';
 import { useDialect } from '@/contexts/DialectContext';
+import { VideoThumbnail } from '@/components/media/VideoThumbnail';
 
 interface MemeVideo {
   id: string;
@@ -80,7 +81,7 @@ const AdminMemes = () => {
                 onClick={() => navigate(`/admin/videos/${m.id}/edit?meme=1`)}
               >
                 {m.thumbnail_url ? (
-                  <img src={m.thumbnail_url} alt={m.title} className="w-full h-full object-cover" />
+                  <VideoThumbnail src={m.thumbnail_url} alt={m.title} />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-muted-foreground">
                     <Laugh className="h-10 w-10" />

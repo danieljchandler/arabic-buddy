@@ -3,6 +3,7 @@ import { Play, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { formatDuration } from "@/lib/videoEmbed";
+import { VideoThumbnail } from "@/components/media/VideoThumbnail";
 
 export interface DiscoverVideo {
   id: string;
@@ -54,17 +55,15 @@ export const DiscoverPreviewCard = memo(function DiscoverPreviewCard({ video, on
     >
       {/* Video thumbnail styled like a social feed post */}
       <div className="relative aspect-[4/3] bg-foreground/5 overflow-hidden">
-        {video.thumbnail_url ? (
-          <img
-            src={video.thumbnail_url}
-            alt={video.title}
-            className="w-full h-full object-cover"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center bg-muted">
-            <Play className="h-16 w-16 text-muted-foreground/20" aria-hidden="true" />
-          </div>
-        )}
+        <VideoThumbnail
+          src={video.thumbnail_url}
+          alt={video.title}
+          fallback={
+            <div className="w-full h-full flex items-center justify-center bg-muted">
+              <Play className="h-16 w-16 text-muted-foreground/20" aria-hidden="true" />
+            </div>
+          }
+        />
 
         {/* Gradient overlay */}
         <div className="absolute inset-0 bg-gradient-to-t from-foreground/80 via-foreground/10 to-transparent" />

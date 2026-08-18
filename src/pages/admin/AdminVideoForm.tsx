@@ -21,6 +21,7 @@ import { TimeRangeSelector } from "@/components/transcript/TimeRangeSelector";
 import { extractFramesWithTimestamps } from "@/lib/videoFrameExtractor";
 import { extractAudioForAsr } from "@/lib/audioToWav";
 import { resolveStagedVideoAudioUrl, STAGED_AUDIO_EXTENSIONS } from "@/lib/videoAudioStaging";
+import { VideoThumbnail } from "@/components/media/VideoThumbnail";
 
 const DIALECTS = ["Saudi", "Kuwaiti", "UAE", "Bahraini", "Qatari", "Omani", "Gulf", "MSA", "Egyptian", "Yemeni", "Levantine", "Maghrebi"];
 const DIFFICULTIES = ["Beginner", "Intermediate", "Advanced", "Expert"];
@@ -1129,7 +1130,13 @@ const AdminVideoForm = () => {
                   {platform}
                 </Badge>
                 {thumbnailUrl ? (
-                  <img src={thumbnailUrl} alt="" className="h-12 rounded" />
+                  <VideoThumbnail
+                    src={thumbnailUrl}
+                    alt=""
+                    decorative
+                    loading="eager"
+                    className="h-12 w-auto rounded"
+                  />
                 ) : (
                   <span className="text-xs text-muted-foreground">No thumbnail yet</span>
                 )}

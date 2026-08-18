@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/useAuth";
 import { InfoHint } from "@/components/InfoHint";
+import { VideoThumbnail } from "@/components/media/VideoThumbnail";
 import { PAGE_HINTS } from "@/lib/pageHints";
 import {
   useFriendsActivity,
@@ -69,17 +70,16 @@ const LikedVideoCard = ({
   >
     {/* Thumbnail */}
     <div className="relative w-20 shrink-0 bg-muted overflow-hidden">
-      {video.thumbnail_url ? (
-        <img
-          src={video.thumbnail_url}
-          alt={video.title}
-          className="absolute inset-0 w-full h-full object-cover"
-        />
-      ) : (
-        <div className="absolute inset-0 flex items-center justify-center">
-          <Play className="h-6 w-6 text-muted-foreground/30" />
-        </div>
-      )}
+      <VideoThumbnail
+        src={video.thumbnail_url}
+        alt={video.title}
+        className="absolute inset-0 w-full h-full object-cover"
+        fallback={
+          <div className="absolute inset-0 flex items-center justify-center">
+            <Play className="h-6 w-6 text-muted-foreground/30" />
+          </div>
+        }
+      />
       {video.duration_seconds && (
         <div className="absolute bottom-1 right-1">
           <span className="text-[10px] font-medium text-white bg-black/60 px-1 py-0.5 rounded">

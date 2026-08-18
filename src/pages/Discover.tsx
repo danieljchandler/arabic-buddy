@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2, Search, Play, Shuffle, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDuration } from "@/lib/videoEmbed";
+import { VideoThumbnail } from "@/components/media/VideoThumbnail";
 import { ContentRequestBar } from "@/components/discover/ContentRequestBar";
 import { InfoHint } from "@/components/InfoHint";
 import { PAGE_HINTS } from "@/lib/pageHints";
@@ -71,18 +72,15 @@ function VideoCard({ video, onClick, feed, comprehension }: CardProps) {
       )}
     >
       <div className="relative aspect-video bg-muted">
-        {video.thumbnail_url ? (
-          <img
-            src={video.thumbnail_url}
-            alt={video.title}
-            className="w-full h-full object-cover"
-            loading="lazy"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <Play className="h-10 w-10 text-muted-foreground/30" />
-          </div>
-        )}
+        <VideoThumbnail
+          src={video.thumbnail_url}
+          alt={video.title}
+          fallback={
+            <div className="w-full h-full flex items-center justify-center">
+              <Play className="h-10 w-10 text-muted-foreground/30" />
+            </div>
+          }
+        />
         {video.duration_seconds && (
           <span className="absolute bottom-2 right-2 bg-foreground/80 text-background text-xs px-1.5 py-0.5 rounded">
             {formatDuration(video.duration_seconds)}

@@ -48,18 +48,18 @@ const Choose = () => {
   return (
     <AppShell>
       <div {...swipe} className="flex min-h-[70dvh] flex-col gap-2.5">
-        <header className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <ProfileEmblem />
-            <BrandMark />
-          </div>
+        <header className="flex items-center justify-between gap-3">
+          <BrandMark />
           <div className="flex items-center gap-1.5" aria-hidden>
             <span className="h-1.5 w-1.5 rounded-full bg-foreground/25" />
             <span className="h-1.5 w-4 rounded-full bg-primary" />
           </div>
-          <Link to="/" className="text-xs text-muted-foreground">
-            ← Video
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link to="/" className="text-xs text-muted-foreground">
+              ← Video
+            </Link>
+            <ProfileEmblem />
+          </div>
         </header>
 
         <h1 className="pb-1.5 pt-3 text-[28px] font-bold leading-tight">

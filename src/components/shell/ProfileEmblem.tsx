@@ -2,24 +2,25 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useProfileAvatar } from "@/hooks/useProfileAvatar";
-import hakiyaIconAsset from "@/assets/hakiya-icon.png.asset.json";
+import hakiyaMark from "@/assets/hakiya-mark.png";
 
 /**
- * Your face, top-left, as the way into your profile.
- *
- * Deliberately not a dock tab. A tab competes with four neighbours and shifts
- * as the bar changes; a corner emblem is in the same place on every screen and
- * never moves, which is what makes it reachable without looking.
+ * Your face, as the way into your profile.
  *
  * It shows the picture you chose. That was the point of choosing one: an
  * avatar that only ever appears on the profile page and the leaderboard is a
- * setting, not an identity, and this is the one spot that is on the screen
- * often enough to make it feel like yours. The Hakiya mark it used to carry
- * moved to `BrandMark`, alongside this, so the brand is still on the page.
+ * setting, not an identity.
  *
- * The mark stays here as the fallback, for a visitor who is signed out and for
- * an account that has not picked a picture yet — better a mark than an empty
- * grey disc, and it keeps the corner looking like something rather than like a
+ * Where it sits depends on the screen. On the feed it rides the action rail on
+ * the right, above the verbs, because the top-left corner belongs to the
+ * Hakiya mark — the brand was there first and a corner can only say one thing.
+ * On the chooser and a skill it takes the right end of the header, opposite
+ * the mark. On the interior pages it is still the corner control, because
+ * those pages carry no mark and have nothing to displace.
+ *
+ * The mark stays as the fallback, for a visitor who is signed out and for an
+ * account that has not picked a picture yet — better a mark than an empty grey
+ * disc, and it keeps the slot looking like something rather than like a
  * failure to load.
  *
  * When something is waiting, the desert-red ring lights up and the emblem
@@ -35,13 +36,34 @@ export function ProfileEmblem({
   className?: string;
 }) {
   const { data } = useProfileAvatar();
+  return <ProfileEmblemView avatarUrl={data?.avatarUrl ?? null} hasNews={hasNews} className={className} />;
+}
+
+/**
+ * The same emblem, handed its picture rather than fetching one.
+ *
+ * The feed needs this. Its rail lives inside `Clip`, and every clip in the
+ * list is mounted at once — so a self-fetching emblem there would be a dozen
+ * copies of `useAuth`, each with its own auth subscription and its own
+ * `identify()` call, to render one person's face a dozen times. The feed reads
+ * the picture once and passes it down instead.
+ */
+export function ProfileEmblemView({
+  avatarUrl,
+  hasNews = false,
+  className,
+}: {
+  avatarUrl: string | null;
+  hasNews?: boolean;
+  className?: string;
+}) {
   /**
    * A picture that 404s falls back to the mark rather than to a broken image.
    * Tracked by URL, not as a boolean, so picking a new avatar after a bad one
    * is given its own chance to load.
    */
   const [brokenUrl, setBrokenUrl] = useState<string | null>(null);
-  const avatarUrl = data?.avatarUrl && data.avatarUrl !== brokenUrl ? data.avatarUrl : null;
+  const src = avatarUrl && avatarUrl !== brokenUrl ? avatarUrl : null;
 
   return (
     <Link
@@ -61,15 +83,15 @@ export function ProfileEmblem({
         />
       )}
       <img
-        src={avatarUrl ?? hakiyaIconAsset.url}
+        src={src ?? hakiyaMark}
         alt=""
         aria-hidden
-        onError={avatarUrl ? () => setBrokenUrl(avatarUrl) : undefined}
+        onError={src ? () => setBrokenUrl(src) : undefined}
         className={cn(
           "h-full w-full rounded-full ring-1 ring-border",
           // A photo or a woven medallion fills the disc; the mark is artwork
-          // with its own margins, so cropping it to a circle would cut it.
-          avatarUrl ? "object-cover" : "object-contain",
+          // with its own silhouette, so cropping it to a circle would cut it.
+          src ? "object-cover" : "bg-background object-contain p-0.5",
         )}
         draggable={false}
       />

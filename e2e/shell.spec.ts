@@ -89,18 +89,26 @@ test.describe("the emblem's picture", () => {
     await signInAs("free");
     await page.goto("/choose");
 
-    // Anything but an empty grey disc. The mark is served from the asset host
-    // rather than `public/`, so its filename is the stable half of the URL.
+    // Anything but an empty grey disc. The mark is bundled, so the build
+    // fingerprints its filename — the stem is the stable half of the URL.
     const emblem = page.getByRole("link", { name: /Your account/ }).first();
-    await expect(emblem.locator("img")).toHaveAttribute("src", /hakiya-icon/);
+    await expect(emblem.locator("img")).toHaveAttribute("src", /hakiya-mark/);
   });
 
-  test("keeps the brand on the page beside it", async ({ page, signInAs }) => {
+  test("does not take the corner off the mark to do it", async ({ page, signInAs }) => {
     await signInAs("free", { profile: { avatar_url: "/avatars/sadu-rose.png" } });
     await page.goto("/choose");
 
-    // Either form counts: the artwork, or the typeset name it falls back to
-    // when the asset host does not answer. Both carry the same role and name.
-    await expect(page.getByRole("img", { name: "Hakiya" }).first()).toBeVisible();
+    // The first pass put the two side by side in the same corner and the
+    // avatar ended up wearing the slot the brand had. They are opposite ends
+    // of the header now: mark on the left, where it always was, face on the
+    // right.
+    const mark = page.getByRole("img", { name: "Hakiya" }).first();
+    const face = page.getByRole("link", { name: /Your account/ }).first();
+    await expect(mark).toBeVisible();
+
+    const markBox = (await mark.boundingBox())!;
+    const faceBox = (await face.boundingBox())!;
+    expect(markBox.x).toBeLessThan(faceBox.x);
   });
 });

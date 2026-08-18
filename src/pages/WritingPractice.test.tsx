@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import WritingPractice from "./WritingPractice";
 import { AiAssistantProvider } from "@/contexts/AiAssistantContext";
 import { buildDrill } from "@/lib/typingDrills";
@@ -14,7 +15,17 @@ import { buildDrill } from "@/lib/typingDrills";
 
 const invoke = vi.hoisted(() => vi.fn());
 vi.mock("@/integrations/supabase/client", () => ({
-  supabase: { functions: { invoke } },
+  supabase: {
+    functions: { invoke },
+    // The page's top corner carries the profile emblem, which now shows the
+    // learner's chosen picture — so rendering this page asks who is signed in
+    // even though the page itself never does. Answered "nobody", which is all
+    // the emblem needs to fall back to the Hakiya mark.
+    auth: {
+      onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
+      getSession: async () => ({ data: { session: null } }),
+    },
+  },
 }));
 vi.mock("@/contexts/DialectContext", () => ({
   useDialect: () => ({ activeDialect: "Gulf" }),
@@ -49,13 +60,17 @@ const review = {
 
 function mount() {
   return render(
-    <MemoryRouter>
-      {/* The page publishes what it's showing to the assistant and hangs Ask AI
-          chips off the prompt and the corrections. */}
-      <AiAssistantProvider>
-        <WritingPractice />
-      </AiAssistantProvider>
-    </MemoryRouter>,
+    // A fresh client per mount, so nothing the emblem cached in one test is
+    // still there in the next.
+    <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+      <MemoryRouter>
+        {/* The page publishes what it's showing to the assistant and hangs Ask AI
+            chips off the prompt and the corrections. */}
+        <AiAssistantProvider>
+          <WritingPractice />
+        </AiAssistantProvider>
+      </MemoryRouter>
+    </QueryClientProvider>,
   );
 }
 

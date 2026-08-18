@@ -65,3 +65,42 @@ test.describe("the corner control", () => {
     ).toBeVisible();
   });
 });
+
+/**
+ * What the corner shows once you have chosen a picture.
+ *
+ * Picking an avatar wrote `profiles.avatar_url` and changed nothing anyone
+ * saw day to day: the emblem was a hard-coded logo, so the setting only
+ * surfaced on the profile page and the leaderboard. Both halves of the fix are
+ * pinned here, because each is silent on its own — a corner that never shows
+ * your picture reads as a broken picker, and a brand that vanished when the
+ * avatar took its slot reads as nothing at all.
+ */
+test.describe("the emblem's picture", () => {
+  test("is the avatar you chose", async ({ page, signInAs }) => {
+    await signInAs("free", { profile: { avatar_url: "/avatars/sadu-rose.png" } });
+    await page.goto("/choose");
+
+    const emblem = page.getByRole("link", { name: /Your account/ }).first();
+    await expect(emblem.locator("img")).toHaveAttribute("src", "/avatars/sadu-rose.png");
+  });
+
+  test("falls back to the mark when no picture has been chosen", async ({ page, signInAs }) => {
+    await signInAs("free");
+    await page.goto("/choose");
+
+    // Anything but an empty grey disc. The mark is served from the asset host
+    // rather than `public/`, so its filename is the stable half of the URL.
+    const emblem = page.getByRole("link", { name: /Your account/ }).first();
+    await expect(emblem.locator("img")).toHaveAttribute("src", /hakiya-icon/);
+  });
+
+  test("keeps the brand on the page beside it", async ({ page, signInAs }) => {
+    await signInAs("free", { profile: { avatar_url: "/avatars/sadu-rose.png" } });
+    await page.goto("/choose");
+
+    // Either form counts: the artwork, or the typeset name it falls back to
+    // when the asset host does not answer. Both carry the same role and name.
+    await expect(page.getByRole("img", { name: "Hakiya" }).first()).toBeVisible();
+  });
+});

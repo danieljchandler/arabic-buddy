@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { ProfileEmblem } from "@/components/shell/ProfileEmblem";
+import { BrandMark } from "@/components/shell/BrandMark";
 import { SKILL_BY_ID, type Activity } from "@/lib/surfaces";
 import { useSwipeSurfaces } from "@/hooks/useSwipeSurfaces";
 import { useAuth } from "@/hooks/useAuth";
@@ -59,7 +60,10 @@ const Skill = () => {
     <AppShell>
       <div {...swipe} className="flex flex-col gap-2.5">
         <header className="flex items-center justify-between">
-          <ProfileEmblem />
+          <div className="flex items-center gap-2">
+            <ProfileEmblem />
+            <BrandMark />
+          </div>
           <Link to="/choose" className="text-xs text-muted-foreground">
             ← Skills
           </Link>

@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { ProfileEmblem } from "@/components/shell/ProfileEmblem";
+import { BrandMark } from "@/components/shell/BrandMark";
 import { SKILLS, VERBS, PATHS } from "@/lib/surfaces";
 import { useSwipeSurfaces } from "@/hooks/useSwipeSurfaces";
 import { useAlphabetProgress } from "@/hooks/useAlphabetProgress";
@@ -48,7 +49,10 @@ const Choose = () => {
     <AppShell>
       <div {...swipe} className="flex min-h-[70dvh] flex-col gap-2.5">
         <header className="flex items-center justify-between">
-          <ProfileEmblem />
+          <div className="flex items-center gap-2">
+            <ProfileEmblem />
+            <BrandMark />
+          </div>
           <div className="flex items-center gap-1.5" aria-hidden>
             <span className="h-1.5 w-1.5 rounded-full bg-foreground/25" />
             <span className="h-1.5 w-4 rounded-full bg-primary" />

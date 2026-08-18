@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
-import { Lock, Check, Flag, Trophy, ChevronRight, Volume2, VolumeX } from "lucide-react";
+import { ChevronRight, Volume2, VolumeX } from "lucide-react";
 import { ARABIC_LETTERS, CHECKPOINT_INDICES, type ArabicLetter } from "@/data/arabicAlphabet";
 import { useAlphabetProgress, useCheckpointProgress } from "@/hooks/useAlphabetProgress";
 import { AppShell } from "@/components/layout/AppShell";
@@ -12,18 +12,18 @@ import { cn } from "@/lib/utils";
 /**
  * The alphabet path: 28 letters in four stages, each stage closed by a quiz.
  *
- * This was a cartoon before — a fixed desert scene with a sun, drifting clouds,
- * palm trees and an oasis, painted over the top of the app's own Sadu ground,
- * with a camel bobbing along a dashed trail of zigzagging gold discs. None of
- * its colours were brand colours and none of its motion was in the app's motion
- * language, so the one page meant to introduce the writing system was the one
- * page that looked like a different product.
+ * The page is set like a type specimen, because the letterforms are the whole
+ * point of it. Each stage is one ruled panel — a hairline lattice of glyphs
+ * with the stage's checkpoint as its bottom row — and there is not a single
+ * pictorial icon on any of them. State is carried by ink instead: a mastered
+ * letter sits at full weight, the current one takes the desert red with a
+ * progress rule under it, and a locked one is ghosted but still legible,
+ * because seeing the shape of what is coming is half the reason to show it.
  *
- * What replaced it is the chooser's vocabulary, because that is what a learner
- * has just come from: bordered cards on the shared warm-sand ground, semantic
- * tokens throughout, and the four Lahja motions and nothing else. The zigzag
- * became a grid — 28 stops read faster side by side than stacked down a column,
- * and the four stages are the structure the checkpoints already implied.
+ * An earlier version dressed the stops up as little illustrated cards with
+ * padlocks, ticks, trophies and flags in their corners. All four icons said
+ * nothing the ink was not already saying, and together they made the one page
+ * that introduces the writing system look like a sticker sheet.
  */
 
 /** Letters per stage — CHECKPOINT_INDICES sits at the end of each block of 7. */
@@ -131,7 +131,14 @@ const AlphabetJourney = () => {
           </Link>
         ) : (
           <div className="flex items-center gap-3.5 rounded-2xl bg-primary px-4 py-4 text-primary-foreground">
-            <Trophy className="h-6 w-6 shrink-0" />
+            <span
+              dir="rtl"
+              lang="ar"
+              aria-hidden
+              className="w-10 shrink-0 text-center font-arabic text-[34px] leading-none"
+            >
+              ٢٨
+            </span>
             <span className="min-w-0 flex-1">
               <span className="block text-lg font-bold leading-tight">
                 All 28 letters mastered
@@ -155,9 +162,12 @@ const AlphabetJourney = () => {
                 {stage.lastIndex + 1}
               </h2>
 
-              <div className="grid grid-cols-4 gap-2.5 sm:grid-cols-7">
+              {/* One ruled panel per stage: gap-px over a border-coloured ground
+                  draws the hairlines, and the checkpoint is the panel's own
+                  bottom row rather than a separate card floating under it. */}
+              <div className="grid grid-cols-4 gap-px overflow-hidden rounded-xl border border-border bg-border sm:grid-cols-7">
                 {stage.letters.map((letter) => (
-                  <LetterTile
+                  <LetterCell
                     key={letter.code}
                     letter={letter}
                     unlocked={isUnlocked(letter.order_index)}
@@ -170,48 +180,52 @@ const AlphabetJourney = () => {
                     }}
                   />
                 ))}
-              </div>
+                {/* Seven letters in a four-column lattice leave one cell open;
+                    fill it so the ruled ground doesn't show through as a hole. */}
+                <div aria-hidden className="bg-card sm:hidden" />
 
-              {/* The checkpoint belongs to the stage above it, so it sits inside
-                  the section rather than floating between two of them. */}
-              <button
-                onClick={(e) => {
-                  if (stageDone) {
-                    tapFeedback(e.currentTarget);
-                    navigate(`/alphabet/checkpoint/${checkpointIdx}`);
-                  }
-                }}
-                disabled={!stageDone}
-                className={cn(
-                  "mt-2.5 flex w-full items-center gap-3 rounded-xl border px-4 py-3.5 text-left transition-colors",
-                  stageDone
-                    ? "border-primary bg-primary/10 active:bg-primary/15"
-                    : "border-border bg-card opacity-55",
-                )}
-              >
-                {result ? (
-                  <Trophy className="h-5 w-5 shrink-0 text-primary" />
-                ) : stageDone ? (
-                  <Flag className="h-5 w-5 shrink-0 text-primary" />
-                ) : (
-                  <Lock className="h-5 w-5 shrink-0 text-muted-foreground" />
-                )}
-                <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-medium">
-                    Checkpoint {stage.number}
+                <button
+                  onClick={(e) => {
+                    if (stageDone) {
+                      tapFeedback(e.currentTarget);
+                      navigate(`/alphabet/checkpoint/${checkpointIdx}`);
+                    }
+                  }}
+                  disabled={!stageDone}
+                  className={cn(
+                    "relative col-span-4 flex items-center gap-3 bg-card px-4 py-3.5 text-left transition-colors sm:col-span-7",
+                    stageDone && "active:bg-muted",
+                  )}
+                >
+                  {stageDone && (
+                    <span aria-hidden className="pointer-events-none absolute inset-0 bg-primary/10" />
+                  )}
+                  <span className="relative min-w-0 flex-1">
+                    <span
+                      className={cn(
+                        "block text-sm font-medium",
+                        !stageDone && "text-foreground/40",
+                      )}
+                    >
+                      Checkpoint {stage.number}
+                    </span>
+                    <span className="block text-[11px] text-muted-foreground">
+                      {stageDone
+                        ? `Quiz on letters ${stage.number * STAGE_SIZE - 6}–${stage.lastIndex + 1}`
+                        : `Master all ${STAGE_SIZE} letters to open`}
+                    </span>
                   </span>
-                  <span className="block text-[11px] text-muted-foreground">
-                    {stageDone
-                      ? `Quiz on letters ${stage.number * STAGE_SIZE - 6}–${stage.lastIndex + 1}`
-                      : `Master all ${STAGE_SIZE} letters to open`}
-                  </span>
-                </span>
-                {result && (
-                  <span className="shrink-0 text-xs font-semibold tabular-nums text-primary">
-                    {result.score}%
-                  </span>
-                )}
-              </button>
+                  {result ? (
+                    <span className="relative shrink-0 text-xs font-semibold tabular-nums text-primary">
+                      {result.score}%
+                    </span>
+                  ) : (
+                    stageDone && (
+                      <ChevronRight className="relative h-4 w-4 shrink-0 text-primary" />
+                    )
+                  )}
+                </button>
+              </div>
             </section>
           );
         })}
@@ -220,7 +234,7 @@ const AlphabetJourney = () => {
   );
 };
 
-interface LetterTileProps {
+interface LetterCellProps {
   letter: ArabicLetter;
   unlocked: boolean;
   mastered: boolean;
@@ -230,17 +244,19 @@ interface LetterTileProps {
 }
 
 /**
- * One stop. Three states only, because unlocking is sequential: mastered,
- * current, or locked — there is no "open but not started" that is not current.
+ * One glyph in the lattice. Three states only, because unlocking is
+ * sequential: mastered (full ink), current (desert red, with the step rule
+ * along its bottom edge), or locked (ghosted). No icons — the ink is the
+ * state, and the small woven dot on a mastered cell is the only mark.
  */
-const LetterTile = ({
+const LetterCell = ({
   letter,
   unlocked,
   mastered,
   steps,
   isCurrent,
   onOpen,
-}: LetterTileProps) => (
+}: LetterCellProps) => (
   <button
     onClick={(e) => {
       if (unlocked) onOpen(e.currentTarget);
@@ -248,48 +264,46 @@ const LetterTile = ({
     disabled={!unlocked}
     aria-label={`Letter ${letter.code}${unlocked ? "" : " (locked)"}`}
     className={cn(
-      "relative flex aspect-square flex-col items-center justify-center gap-1 overflow-hidden rounded-xl border transition-colors",
-      mastered && "border-primary/35 bg-primary/5 active:bg-primary/10",
-      isCurrent && "border-primary bg-primary/10 active:bg-primary/15",
-      // Locked stops stay legible rather than greyed to nothing: seeing the
-      // shape of what is coming is half the reason to show them at all.
-      !unlocked && "border-border bg-card opacity-70",
+      "relative flex aspect-square flex-col items-center justify-center gap-1.5 bg-card transition-colors",
+      unlocked && "active:bg-muted",
     )}
   >
+    {isCurrent && (
+      <span aria-hidden className="pointer-events-none absolute inset-0 bg-primary/10" />
+    )}
+
     <span
       dir="rtl"
       lang="ar"
       aria-hidden
       className={cn(
-        "font-arabic text-2xl leading-none",
-        unlocked ? "text-primary" : "text-muted-foreground",
+        "relative font-arabic text-[30px] leading-none",
+        mastered && "text-foreground",
+        isCurrent && "text-primary",
+        !unlocked && "text-foreground/25",
       )}
     >
       {letter.isolated}
     </span>
     <span
       className={cn(
-        "max-w-full truncate px-1 text-[10px] leading-tight",
-        unlocked ? "text-muted-foreground" : "text-muted-foreground/70",
+        "relative max-w-full truncate px-1 text-[10px] leading-tight",
+        unlocked ? "text-muted-foreground" : "text-foreground/25",
       )}
     >
       {letter.name_translit}
     </span>
 
     {mastered && (
-      <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-primary-foreground animate-scale-in motion-reduce:animate-none">
-        <Check className="h-2.5 w-2.5" />
-      </span>
+      <span
+        aria-hidden
+        className="absolute right-2 top-2 h-1 w-1 rounded-full bg-primary/70"
+      />
     )}
 
-    {!unlocked && (
-      <Lock className="absolute right-1 top-1 h-3 w-3 text-muted-foreground" />
-    )}
-
-    {/* Step progress rides the bottom edge of the tile rather than ringing it —
-        a square with a circular gauge around it was the old trail's idea. */}
+    {/* Step progress rides the bottom edge of the current cell. */}
     {isCurrent && steps > 0 && (
-      <span className="absolute inset-x-0 bottom-0 h-1.5 bg-primary/15">
+      <span className="absolute inset-x-0 bottom-0 h-1 bg-primary/15">
         <span
           className="block h-full bg-primary transition-[width] duration-500 ease-lahja motion-reduce:transition-none"
           style={{ width: `${Math.round((steps / 6) * 100)}%` }}

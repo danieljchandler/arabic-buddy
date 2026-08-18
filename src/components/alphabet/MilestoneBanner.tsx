@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Sparkles, X } from "lucide-react";
+import { X } from "lucide-react";
 import { useReducedMotion } from "@/lib/uiPrefs";
 import { cn } from "@/lib/utils";
 
@@ -79,7 +79,6 @@ export const MilestoneBanner = ({ masteredCount }: Props) => {
       )}
       role="status"
     >
-      <Sparkles className="h-5 w-5 shrink-0 text-primary" />
       <div className="min-w-0 flex-1">
         <p className="text-sm font-medium">
           {active} letters mastered!

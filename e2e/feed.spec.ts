@@ -66,10 +66,12 @@ test.describe("the feed", () => {
 
     // This rail is the whole reason three hub screens could go away: "ask" and
     // "transcript" stopped being destinations you navigate to and then have to
-    // feed with content, and became buttons on the content itself.
+    // feed with content, and became buttons on the content itself. Save,
+    // Transcript and Replay are literally buttons now — they open the player
+    // in place — and Ask is the rail's one genuine link.
     await expect(page.getByRole("link", { name: "Ask" }).first()).toBeVisible();
-    await expect(page.getByRole("link", { name: "Transcript" }).first()).toBeVisible();
-    await expect(page.getByRole("link", { name: "Save" }).first()).toBeVisible();
+    await expect(page.getByRole("button", { name: "Transcript" }).first()).toBeVisible();
+    await expect(page.getByRole("button", { name: "Save" }).first()).toBeVisible();
   });
 
   test("carries the dialect choice on the feed itself", async ({ page, db, backend }) => {
@@ -104,6 +106,51 @@ test.describe("the feed", () => {
     await expect(page.getByText("No new clips right now")).toBeVisible();
     await expect(page.getByRole("link", { name: "Upload a clip" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Pick a skill" })).toBeVisible();
+  });
+
+  test("plays a clip in place instead of navigating to it", async ({ page, db, backend }) => {
+    seedFeed(db, backend, 1);
+
+    await page.goto("/");
+    await page.getByRole("button", { name: /^Play / }).click();
+
+    // The full player — the same component /discover/:id serves, badges,
+    // transcript machinery and all — over the feed, with the URL unmoved.
+    // No route change is the entire feature: the gap between tap and playing
+    // is one render, not a navigation plus a chunk load plus a refetch.
+    const player = page.getByRole("dialog", { name: "Video player" });
+    await expect(player.getByRole("button", { name: "Back" })).toBeVisible();
+    await expect(player.getByText("Gulf", { exact: true })).toBeVisible();
+    await expect(page).toHaveURL(/127\.0\.0\.1:\d+\/$/);
+  });
+
+  test("the player's Back closes the clip, back to the feed", async ({ page, db, backend }) => {
+    seedFeed(db, backend, 1);
+
+    await page.goto("/");
+    await page.getByRole("button", { name: /^Play / }).click();
+    await page.getByRole("dialog", { name: "Video player" }).getByRole("button", { name: "Back" }).click();
+
+    // Same feed, same scroll position, no reload — the overlay just leaves.
+    await expect(page.getByRole("dialog", { name: "Video player" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /^Play / })).toBeVisible();
+    await expect(page).toHaveURL(/127\.0\.0\.1:\d+\/$/);
+  });
+
+  test("the browser's back button closes the clip, not the app", async ({ page, db, backend }) => {
+    seedFeed(db, backend, 1);
+
+    await page.goto("/");
+    await page.getByRole("button", { name: /^Play / }).click();
+    await expect(page.getByRole("dialog", { name: "Video player" })).toBeVisible();
+
+    await page.goBack();
+
+    // Back means "close the clip" in every video app this audience uses.
+    // Losing the whole feed to the previous page instead would make the
+    // overlay feel like a trap.
+    await expect(page.getByRole("dialog", { name: "Video player" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /^Play / })).toBeVisible();
   });
 
   test("sends the streak chip to the day it counts", async ({ page, db, backend }) => {

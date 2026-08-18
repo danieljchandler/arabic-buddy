@@ -593,8 +593,23 @@ const GrammarNotesSection = ({
 };
 
 /* ── Main Page ────────────────────────────────────────────── */
-const DiscoverVideo = () => {
-  const { videoId } = useParams<{ videoId: string }>();
+/**
+ * Renders from two places with identical behaviour: as the /discover/:videoId
+ * route (props empty, id from the URL), and inside the feed's inline player
+ * overlay (id passed as a prop, back wired to close the overlay instead of
+ * navigating). One component in two mounts is the whole point — the overlay
+ * exists so tapping a clip skips the route change, and it must never mean a
+ * second, lesser version of this page.
+ */
+const DiscoverVideo = ({
+  videoId: videoIdProp,
+  onBack,
+}: {
+  videoId?: string;
+  onBack?: () => void;
+} = {}) => {
+  const { videoId: videoIdParam } = useParams<{ videoId: string }>();
+  const videoId = videoIdProp ?? videoIdParam;
   const navigate = useNavigate();
   const { data: video, isLoading } = useDiscoverVideo(videoId);
   const { user, isAuthenticated } = useAuth();
@@ -1583,7 +1598,7 @@ const DiscoverVideo = () => {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => navigate("/discover")}
+            onClick={() => (onBack ? onBack() : navigate("/discover"))}
             className="gap-1.5 text-muted-foreground"
           >
             <ArrowLeft className="h-4 w-4" />

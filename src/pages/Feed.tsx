@@ -1,10 +1,12 @@
-import { useMemo, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Link, useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bookmark, MessageCircleQuestion, Captions, RotateCcw, Play, Flame } from "lucide-react";
 import { AppDock } from "@/components/shell/AppDock";
 import { ProfileEmblem } from "@/components/shell/ProfileEmblem";
 import { useDiscoverFeed } from "@/hooks/useDiscoverFeed";
+import type { DiscoverVideo } from "@/hooks/useDiscoverVideos";
 import { useSwipeSurfaces } from "@/hooks/useSwipeSurfaces";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserVocabularyDueCount } from "@/hooks/useUserVocabulary";
@@ -15,6 +17,14 @@ import { AppShell } from "@/components/layout/AppShell";
 import { LandingHero } from "@/components/LandingHero";
 import { Footer } from "@/components/Footer";
 import { cn } from "@/lib/utils";
+
+/**
+ * The full video experience — the same component /discover/:videoId serves,
+ * lazy so the feed's own chunk stays light, prefetched the moment the feed
+ * mounts so that by the time anyone taps a clip it is already here.
+ */
+const InlineVideoPlayer = lazy(() => import("./DiscoverVideo"));
+const prefetchPlayer = () => import("./DiscoverVideo");
 
 /**
  * The home screen: real dialect Arabic, one clip at a time.
@@ -45,12 +55,73 @@ const DIALECTS: { id: DialectModule; label: string }[] = [
 
 const Feed = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   const { activeDialect, setDialect } = useDialect();
   const [seed] = useState(() => Math.floor(Math.random() * 100000));
   const { data: feed, isLoading } = useDiscoverFeed(seed);
   const { data: dueStats } = useUserVocabularyDueCount();
   const swipe = useSwipeSurfaces({ onNext: () => navigate("/choose") });
+
+  /**
+   * The clip playing in place. Tapping a card used to navigate to
+   * /discover/:id — a route change, a chunk load and a refetch between the
+   * tap and the first frame. Now the same page component mounts in an overlay
+   * over the feed, so the only thing between the tap and the player is one
+   * render. The route still exists, unchanged, for deep links and shares.
+   */
+  const [openVideoId, setOpenVideoId] = useState<string | null>(null);
+  // Whether we pushed a history entry for the open overlay — the back button
+  // must close the clip, not leave the feed, because that is what back means
+  // in every video app this audience already uses.
+  const pushedHistory = useRef(false);
+
+  useEffect(() => {
+    // Warm the player chunk while the learner is still browsing, so opening
+    // a clip never waits on the network for code.
+    prefetchPlayer();
+  }, []);
+
+  const openVideo = useCallback(
+    (video: DiscoverVideo) => {
+      // The feed already holds the full row; seeding the cache means the
+      // player mounts with its data in hand instead of showing a spinner
+      // while refetching what we were just looking at.
+      queryClient.setQueryData(["discover-video", video.id], video);
+      setOpenVideoId(video.id);
+      window.history.pushState({ hakiyaClip: video.id }, "");
+      pushedHistory.current = true;
+    },
+    [queryClient],
+  );
+
+  const closeVideo = useCallback(() => {
+    if (pushedHistory.current) {
+      // Pop the entry we pushed; the popstate handler does the actual close,
+      // so ✕ and the browser's back button take exactly the same path.
+      window.history.back();
+    } else {
+      setOpenVideoId(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    const onPopState = () => {
+      pushedHistory.current = false;
+      setOpenVideoId(null);
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
+
+  useEffect(() => {
+    if (!openVideoId) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") closeVideo();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [openVideoId, closeVideo]);
 
   // The chip is a number that opens the page explaining the number; the same
   // row StreakDisplay reads on /today.
@@ -142,13 +213,38 @@ const Feed = () => {
         <ul className="h-[100dvh] snap-y snap-mandatory overflow-y-auto overscroll-y-contain">
           {items.map(({ video }) => (
             <li key={video.id} className="relative h-[100dvh] snap-start snap-always">
-              <Clip video={video} />
+              <Clip video={video} onOpen={openVideo} />
             </li>
           ))}
         </ul>
       )}
 
       <AppDock />
+
+      {/* The inline player. Portaled to <body> for two reasons: it must sit
+          above the dock, and it must escape the feed's `dark` wrapper — this
+          is the same DiscoverVideo the route serves, and it should look
+          exactly the same, light chrome and all. */}
+      {openVideoId &&
+        createPortal(
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Video player"
+            className="fixed inset-0 z-50 overflow-y-auto overscroll-contain bg-background"
+          >
+            <Suspense
+              fallback={
+                <div className="flex min-h-[100dvh] items-center justify-center">
+                  <LoadingPanel size="sm" />
+                </div>
+              }
+            >
+              <InlineVideoPlayer key={openVideoId} videoId={openVideoId} onBack={closeVideo} />
+            </Suspense>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 };
@@ -160,18 +256,15 @@ const Feed = () => {
  */
 function Clip({
   video,
+  onOpen,
 }: {
-  video: {
-    id: string;
-    title: string;
-    title_arabic: string | null;
-    thumbnail_url: string | null;
-    duration_seconds: number | null;
-  };
+  video: DiscoverVideo;
+  onOpen: (video: DiscoverVideo) => void;
 }) {
   const mins = video.duration_seconds
     ? `${Math.floor(video.duration_seconds / 60)}:${String(video.duration_seconds % 60).padStart(2, "0")}`
     : null;
+  const open = () => onOpen(video);
 
   return (
     <>
@@ -193,22 +286,30 @@ function Clip({
         className="absolute inset-0 bg-[linear-gradient(rgba(18,10,8,0.55)_0%,transparent_22%,transparent_45%,rgba(18,10,8,0.92)_100%)]"
       />
 
-      <Link
-        to={`/discover/${video.id}`}
+      {/* A button, not a link to /discover/:id: the player opens in place,
+          over the feed, so the tap-to-playing gap is one render instead of a
+          route change, a chunk load and a refetch. The route survives for
+          deep links; the feed just stops using it. */}
+      <button
+        type="button"
+        onClick={open}
         aria-label={`Play ${video.title}`}
-        className="absolute inset-0 z-10 grid place-items-center"
+        className="absolute inset-0 z-10 grid w-full place-items-center"
       >
         <span className="grid h-16 w-16 place-items-center rounded-full bg-black/45 backdrop-blur">
           <Play className="h-7 w-7 fill-white" />
         </span>
-      </Link>
+      </button>
 
-      {/* Verbs, applied to this clip. This rail is why the hub lists could go. */}
+      {/* Verbs, applied to this clip. This rail is why the hub lists could go.
+          Save, Transcript and Replay all open the player — that is where a
+          word gets saved and a line gets replayed — so they open it in place
+          too. Ask is the one true destination on the rail. */}
       <div className="absolute bottom-40 right-2 z-20 grid gap-4">
-        <RailButton icon={Bookmark} label="Save" to={`/discover/${video.id}`} />
-        <RailButton icon={MessageCircleQuestion} label="Ask" to="/how-do-i-say" />
-        <RailButton icon={Captions} label="Transcript" to={`/discover/${video.id}`} />
-        <RailButton icon={RotateCcw} label="Replay" to={`/discover/${video.id}`} />
+        <RailButton icon={Bookmark} label="Save" onClick={open} />
+        <RailLink icon={MessageCircleQuestion} label="Ask" to="/how-do-i-say" />
+        <RailButton icon={Captions} label="Transcript" onClick={open} />
+        <RailButton icon={RotateCcw} label="Replay" onClick={open} />
       </div>
 
       <div className="absolute inset-x-0 bottom-28 z-20 px-3.5">
@@ -236,6 +337,25 @@ function Clip({
 }
 
 function RailButton({
+  icon: Icon,
+  label,
+  onClick,
+}: {
+  icon: typeof Bookmark;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button type="button" onClick={onClick} aria-label={label} className="grid justify-items-center gap-1">
+      <span className="grid h-10 w-10 place-items-center rounded-full bg-black/45 backdrop-blur">
+        <Icon className="h-5 w-5" />
+      </span>
+      <span className="text-[9px] text-white/85">{label}</span>
+    </button>
+  );
+}
+
+function RailLink({
   icon: Icon,
   label,
   to,

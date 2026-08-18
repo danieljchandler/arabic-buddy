@@ -32,7 +32,11 @@ test.describe("choosing what to do", () => {
     // Speaking needs a microphone and writing needs a keyboard. Both deserve
     // the whole screen rather than half of it above a playing video, so these
     // navigate rather than opening a panel.
-    await expect(page).toHaveURL(/\/pronunciation$/);
+    //
+    // And a skill opens the skill, not one activity inside it: pointing "Read"
+    // straight at /reading is what left Souq News, the Reading Library and
+    // Stories with no door anywhere but the account page.
+    await expect(page).toHaveURL(/\/skills\/speak$/);
   });
 
   test("opens the paths rather than announcing them", async ({ page }) => {

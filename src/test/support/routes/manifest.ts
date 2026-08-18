@@ -79,6 +79,11 @@ export const ROUTES: RouteSpec[] = [
   // moved to /today when the feed took the front door.
   { path: "/", gate: "public", boundary: "HomeRoute" },
   { path: "/choose", gate: "public", boundary: "ChooseRoute" },
+  // One page per skill, listing everything in the app that trains it. An
+  // unknown id redirects to the chooser rather than rendering a shell, and so
+  // does the bare /skills — the chooser is the list of them.
+  { path: "/skills", gate: "public", redirectsTo: "/choose" },
+  { path: "/skills/:skillId", params: { skillId: "read" }, gate: "public", boundary: "SkillRoute" },
   { path: "/today", gate: "public", boundary: "TodayRoute" },
   { path: "/auth", gate: "public", boundary: "AuthRoute" },
   { path: "/reset-password", gate: "public", boundary: "ResetPasswordRoute" },

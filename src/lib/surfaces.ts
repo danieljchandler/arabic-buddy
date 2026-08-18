@@ -10,9 +10,17 @@
  *
  * Skills and verbs are deliberately separate types. The four skills are a
  * closed, permanent set — the classic language quadrant — and each one owns a
- * full page because speaking needs a mic and writing needs a keyboard. The
- * verbs are utilities you apply to whatever is in front of you, so they repeat
- * in the dock and on the chooser without confusing anything.
+ * page because speaking needs a mic and writing needs a keyboard. The verbs are
+ * utilities you apply to whatever is in front of you, so they repeat in the
+ * dock and on the chooser without confusing anything.
+ *
+ * Each skill also owns its *activities*, and that list is the fix for a real
+ * bug this navigation shipped with. Sending "Read" straight to /reading — one
+ * of five reading surfaces — left Souq News, the Reading Library, Stories and
+ * Bible Reading with no door but the account page, filed next to the meme
+ * analyser under "Tools & content". They still worked; nobody could find them.
+ * A skill is a category, so it opens the category, and the thing you reach for
+ * most sits first.
  */
 
 export interface Surface {
@@ -26,13 +34,157 @@ export interface Surface {
   icon: string;
 }
 
+/** One thing you can actually go and do, listed under the skill it trains. */
+export interface Activity {
+  label: string;
+  /** One line on what it is. The skill pages are short enough to afford it —
+   *  it was twenty-two of these that made the old Me page a page you scan. */
+  description: string;
+  to: string;
+  icon: string;
+  /** Entitlement this needs; hidden rather than shown broken without it. */
+  requires?: "auth" | "bible";
+}
+
+export interface Skill extends Surface {
+  arabic: string;
+  /** The tile's ground: four steps from charcoal to Desert Red, all inside the
+   *  brand ramp. Tints, not hues — the old hubs accented tiles sky-blue, amber
+   *  and emerald, colours left over from before the brand guide. Carried here
+   *  so the chooser tile and the skill's own header cannot drift apart. */
+  tint: string;
+  /** Primary first: the one a learner picking this skill most likely wants. */
+  activities: Activity[];
+}
+
 /** The four language skills. Order is the one every syllabus uses. */
-export const SKILLS: Surface[] = [
-  { id: "listen", label: "Listen", arabic: "استماع", to: "/listen", icon: "Headphones" },
-  { id: "read", label: "Read", arabic: "قراءة", to: "/reading", icon: "BookOpen" },
-  { id: "speak", label: "Speak", arabic: "تحدّث", to: "/pronunciation", icon: "Mic" },
-  { id: "write", label: "Write", arabic: "كتابة", to: "/write", icon: "PenLine" },
+export const SKILLS: Skill[] = [
+  {
+    id: "listen",
+    label: "Listen",
+    arabic: "استماع",
+    to: "/skills/listen",
+    tint: "#2E3532",
+    icon: "Headphones",
+    activities: [
+      {
+        label: "Listening Practice",
+        description: "Dictation drills pitched at your level",
+        to: "/listening",
+        icon: "Headphones",
+      },
+      {
+        label: "Episodes",
+        description: "Graded audio, taken a sentence at a time",
+        to: "/listen",
+        icon: "AudioLines",
+        requires: "auth",
+      },
+      {
+        label: "Video Library",
+        description: "Every clip in the app, by dialect and level",
+        to: "/discover",
+        icon: "Video",
+      },
+    ],
+  },
+  {
+    id: "read",
+    label: "Read",
+    arabic: "قراءة",
+    to: "/skills/read",
+    tint: "#4A3733",
+    icon: "BookOpen",
+    activities: [
+      {
+        label: "Reading Practice",
+        description: "Passages written for your level — tap any word",
+        to: "/reading",
+        icon: "BookOpen",
+      },
+      {
+        label: "Reading Library",
+        description: "Graded stories to work through at your own pace",
+        to: "/reading-library",
+        icon: "Library",
+      },
+      {
+        label: "Souq News",
+        description: "Headlines retold in dialect",
+        to: "/souq-news",
+        icon: "Newspaper",
+      },
+      {
+        label: "Interactive Stories",
+        description: "Branching stories you steer as you read",
+        to: "/stories",
+        icon: "BookOpenText",
+      },
+      {
+        label: "Bible Reading",
+        description: "Passages side by side with the English",
+        to: "/bible",
+        icon: "BookMarked",
+        requires: "bible",
+      },
+    ],
+  },
+  {
+    id: "speak",
+    label: "Speak",
+    arabic: "تحدّث",
+    to: "/skills/speak",
+    tint: "#6B3A31",
+    icon: "Mic",
+    activities: [
+      {
+        label: "Pronunciation Practice",
+        description: "Say a line, hear exactly what to fix",
+        to: "/pronunciation",
+        icon: "Mic",
+      },
+      {
+        label: "Conversation Simulator",
+        description: "Talk your way through a real situation",
+        to: "/conversation",
+        icon: "MessagesSquare",
+      },
+      {
+        label: "Native Feedback",
+        description: "Send a recording to a native speaker",
+        to: "/native-feedback",
+        icon: "Headset",
+        requires: "auth",
+      },
+    ],
+  },
+  {
+    id: "write",
+    label: "Write",
+    arabic: "كتابة",
+    to: "/skills/write",
+    tint: "#8C4135",
+    icon: "PenLine",
+    activities: [
+      {
+        label: "Writing Practice",
+        description: "Write to a prompt and get it corrected",
+        to: "/write",
+        icon: "PenLine",
+      },
+      {
+        /* Grammar is cross-cutting, but writing is where this app makes you
+           produce the structures cold, so this is the skill that wants it. */
+        label: "Grammar Drills",
+        description: "Targeted drills on the structures you keep missing",
+        to: "/grammar",
+        icon: "SpellCheck",
+      },
+    ],
+  },
 ];
+
+export const SKILL_BY_ID = new Map(SKILLS.map((s) => [s.id, s]));
 
 /** Verbs, not places. They act on whatever the learner is looking at. */
 export const VERBS: Surface[] = [

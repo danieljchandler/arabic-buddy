@@ -21,9 +21,19 @@ import { cn } from "@/lib/utils";
  * wraps itself in `dark`, and the tokens flip with it.
  */
 
-const SLOTS = [
+const SLOTS: {
+  to: string;
+  label: string;
+  icon: typeof Home;
+  exact?: boolean;
+  primary?: boolean;
+  tourId: string;
+  /** Other routes this slot owns, so the dock still says where you are once
+   *  you have gone one level in. */
+  alsoOwns?: RegExp;
+}[] = [
   { to: "/", label: "Home", icon: Home, exact: true, tourId: "nav-feed" },
-  { to: "/choose", label: "Skills", icon: LayoutGrid, tourId: "nav-choose" },
+  { to: "/choose", label: "Skills", icon: LayoutGrid, tourId: "nav-choose", alsoOwns: /^\/skills(\/|$)/ },
   { to: "/tutor-upload", label: "Upload", icon: Plus, primary: true, tourId: "nav-upload" },
   { to: "/how-do-i-say", label: "Ask", icon: MessageCircleQuestion, tourId: "nav-ask" },
   { to: "/vocab-games", label: "Games", icon: Gamepad2, tourId: "nav-games" },
@@ -70,7 +80,7 @@ export function AppDock({ className }: { className?: string }) {
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
       <ul className="mx-auto flex max-w-2xl items-stretch justify-around px-2">
-        {SLOTS.map(({ to, label, icon: Icon, exact, primary, tourId }) => (
+        {SLOTS.map(({ to, label, icon: Icon, exact, primary, tourId, alsoOwns }) => (
           <li key={to} className="flex-1" data-tour={tourId}>
             <NavLink
               to={to}
@@ -78,7 +88,9 @@ export function AppDock({ className }: { className?: string }) {
               className={({ isActive }) =>
                 cn(
                   "flex flex-col items-center gap-0.5 py-2.5 text-[10px] font-medium transition-colors",
-                  isActive ? "text-foreground" : "text-muted-foreground hover:text-foreground",
+                  isActive || alsoOwns?.test(pathname)
+                    ? "text-foreground"
+                    : "text-muted-foreground hover:text-foreground",
                 )
               }
             >

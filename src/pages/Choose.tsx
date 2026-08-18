@@ -32,18 +32,6 @@ const ICONS = {
   Headphones, BookOpen, Mic, PenLine, Upload, MessageCircleQuestion, Gamepad2, BookA, Route: RouteIcon,
 } as const;
 
-/**
- * Tints, not hues: four steps from charcoal to Desert Red, all inside the
- * brand ramp. The old hubs accented tiles sky-blue, amber and emerald —
- * colours left over from before the brand guide.
- */
-const TILE_BG = [
-  "bg-[#2E3532]",
-  "bg-[#4A3733]",
-  "bg-[#6B3A31]",
-  "bg-[#8C4135]",
-];
-
 const Choose = () => {
   const navigate = useNavigate();
   // The chooser sits one page forward of the feed, so getting back to it is a
@@ -71,7 +59,10 @@ const Choose = () => {
           What do you want to do?
         </h1>
 
-        {/* The four skills. Each one is a full page, never a sheet: speaking
+        {/* The four skills. Each one opens the skill, not a single activity
+            inside it: sending "Read" straight to /reading is what left Souq
+            News, the Reading Library and Stories with no door but the account
+            page. Each skill's page is a full page, never a sheet — speaking
             needs a microphone and writing needs a keyboard, and both deserve
             the whole screen rather than half of it over a playing video. */}
         <div className="grid grid-cols-2 gap-2.5">
@@ -81,10 +72,10 @@ const Choose = () => {
               <Link
                 key={s.id}
                 to={s.to}
+                style={{ backgroundColor: s.tint }}
                 className={cn(
                   "relative flex aspect-[4/3.4] flex-col justify-between overflow-hidden rounded-2xl p-4 text-white",
                   "transition-transform active:scale-[0.98]",
-                  TILE_BG[i],
                 )}
               >
                 <span className="text-[11px] font-semibold tracking-[0.14em] text-white/45">

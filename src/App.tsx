@@ -23,6 +23,7 @@ const lazyPage = <T extends ComponentType<any>>(loader: () => Promise<{ default:
 const Index = lazyPage(() => import("./pages/Index"));
 const Feed = lazyPage(() => import("./pages/Feed"));
 const Choose = lazyPage(() => import("./pages/Choose"));
+const Skill = lazyPage(() => import("./pages/Skill"));
 const Learn = lazyPage(() => import("./pages/Learn"));
 const Curriculum = lazyPage(() => import("./pages/Curriculum"));
 const Mistakes = lazyPage(() => import("./pages/Mistakes"));
@@ -234,6 +235,8 @@ const App = () => {
             <Route path="/" element={<ErrorBoundary name="HomeRoute"><Feed /></ErrorBoundary>} />
             <Route path="/index" element={<Navigate to="/" replace />} />
             <Route path="/choose" element={<ErrorBoundary name="ChooseRoute"><Choose /></ErrorBoundary>} />
+            <Route path="/skills" element={<Navigate to="/choose" replace />} />
+            <Route path="/skills/:skillId" element={<ErrorBoundary name="SkillRoute"><Skill /></ErrorBoundary>} />
             <Route path="/today" element={<ErrorBoundary name="TodayRoute"><Index /></ErrorBoundary>} />
             <Route path="/auth" element={<ErrorBoundary name="AuthRoute"><Auth /></ErrorBoundary>} />
             <Route path="/reset-password" element={<ErrorBoundary name="ResetPasswordRoute"><ResetPassword /></ErrorBoundary>} />

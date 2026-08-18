@@ -53,9 +53,45 @@ function walk(dir: string, out: string[] = []): string[] {
   return out;
 }
 
-/** Every internal path the app links to or navigates to, from anywhere. */
-function linkedPaths(): Set<string> {
-  const found = new Set<string>();
+/**
+ * Which route each page file implements, read off App.tsx.
+ *
+ * Needed because "something links to it" is too weak a test on its own: a
+ * feature whose only inbound links come from inside itself is an island, and
+ * an island has no door. /reading-library was exactly that — the library
+ * linked its stories, a story linked back to the library, and the hub that
+ * used to link the library was deleted. Nothing outside the feature pointed
+ * at it, and the check passed anyway.
+ */
+function routesByPageFile(): Map<string, string[]> {
+  const app = readFileSync(join(SRC, "App.tsx"), "utf8");
+
+  const fileOf = new Map<string, string>();
+  for (const [, name, mod] of app.matchAll(/const\s+(\w+)\s*=\s*[^;]*?import\("\.\/(pages\/[^"]+)"\)/g)) {
+    fileOf.set(name, `${mod}.tsx`);
+  }
+
+  const routes = new Map<string, string[]>();
+  // The tail is a lookahead so it is not consumed: matching it normally would
+  // swallow the next few <Route> tags and quietly drop them from the map.
+  for (const match of app.matchAll(/<Route\s+path="(\/[^"]*)"(?=([\s\S]{0,400}))/g)) {
+    const [, path, tail] = match;
+    // The first referenced component that is actually a page — skipping the
+    // ErrorBoundary/ProtectedRoute/subscription wrappers around it.
+    const page = [...tail.matchAll(/<([A-Z]\w+)/g)].map(([, n]) => n).find((n) => fileOf.has(n));
+    if (!page) continue;
+    const file = fileOf.get(page)!;
+    routes.set(file, [...(routes.get(file) ?? []), path]);
+  }
+  return routes;
+}
+
+/** Strip ":param" segments so "/x/:id" and "/x" compare as the same feature. */
+const base = (path: string) => path.replace(/\/:[^/]+/g, "");
+
+/** Every internal path the app links to, and the files each link came from. */
+function linkedPaths(): Map<string, Set<string>> {
+  const found = new Map<string, Set<string>>();
   const patterns = [
     /\bto="(\/[^"]*)"/g,
     /\bto='(\/[^']*)'/g,
@@ -68,20 +104,43 @@ function linkedPaths(): Set<string> {
     /\bto=\{`(\/[^`$]*)/g,
   ];
   for (const file of walk(SRC)) {
+    const rel = file.replace(`${SRC}/`, "");
     const text = readFileSync(file, "utf8");
     for (const pattern of patterns) {
-      for (const [, path] of text.matchAll(pattern)) found.add(path);
+      for (const [, path] of text.matchAll(pattern)) {
+        if (!found.has(path)) found.set(path, new Set());
+        found.get(path)!.add(rel);
+      }
     }
   }
   return found;
 }
 
-/** "/stories/:id" is reachable if anything links to "/stories/..." at all. */
-function isReachable(routePath: string, linked: Set<string>): boolean {
-  const base = routePath.replace(/\/:[^/]+/g, "");
-  if (linked.has(routePath) || linked.has(base)) return true;
-  const prefix = base.endsWith("/") ? base : `${base}/`;
-  return [...linked].some((l) => l.startsWith(prefix));
+/**
+ * "/stories/:id" is reachable if anything links to "/stories/..." at all —
+ * but only counting links from outside the feature itself. A page that is only
+ * reachable *through* the route it links to cannot be the way in to it, so
+ * links from the route's own page, or from a page nested underneath it, do not
+ * open a door.
+ */
+function isReachable(
+  routePath: string,
+  linked: Map<string, Set<string>>,
+  routesOf: Map<string, string[]>,
+): boolean {
+  const target = base(routePath);
+  const inside = (file: string) => {
+    const own = routesOf.get(file);
+    // A component with no route of its own — the dock, a card, surfaces.ts —
+    // is chrome, reachable from wherever it is mounted. It always counts.
+    if (!own?.length) return false;
+    return own.every((r) => base(r) === target || base(r).startsWith(`${target}/`));
+  };
+  const from = (path: string) => [...(linked.get(path) ?? [])].some((f) => !inside(f));
+
+  if (from(routePath) || from(target)) return true;
+  const prefix = target.endsWith("/") ? target : `${target}/`;
+  return [...linked.keys()].some((l) => l.startsWith(prefix) && from(l));
 }
 
 describe("route reachability", () => {
@@ -97,15 +156,17 @@ describe("route reachability", () => {
 
   it("gives every learner route a way in from the app itself", () => {
     const linked = linkedPaths();
+    const routesOf = routesByPageFile();
     const orphaned = learnerRoutes
       .map((r) => r.path)
-      .filter((path) => !(path in NO_LINK_NEEDED) && !isReachable(path, linked));
+      .filter((path) => !(path in NO_LINK_NEEDED) && !isReachable(path, linked, routesOf));
 
     expect(
       orphaned,
-      `No link anywhere in src/ reaches ${orphaned.join(", ")}. Either link it from a ` +
-        `surface a learner can find, or add it to NO_LINK_NEEDED with the reason it is ` +
-        `reached another way.`,
+      `Nothing outside the feature itself links to ${orphaned.join(", ")}. Either link it ` +
+        `from a surface a learner can find, or add it to NO_LINK_NEEDED with the reason it ` +
+        `is reached another way. Links from the route's own page, or from a page nested ` +
+        `under it, do not count: a feature that only points at itself has no way in.`,
     ).toEqual([]);
   });
 

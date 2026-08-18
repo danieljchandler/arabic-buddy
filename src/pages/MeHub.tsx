@@ -4,7 +4,7 @@ import {
   CreditCard, GraduationCap, BookMarked, Newspaper, Globe2, Compass,
   MessageCircleQuestion, Laugh, Twitter, Mic, BookOpenText, CalendarCheck,
   MessagesSquare, SpellCheck, Target, TriangleAlert, Headset, Shuffle, Swords,
-  Headphones, Quote, ArrowRightLeft, type LucideIcon,
+  Headphones, Quote, ArrowRightLeft, Library, Layers, type LucideIcon,
 } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { useAuth } from "@/hooks/useAuth";
@@ -35,6 +35,12 @@ import { cn } from "@/lib/utils";
  * strand working features — Ingleezy shipped exactly that bug: six features
  * whose tests all kept passing, because a test navigates by URL and never
  * asks how a person would have got there.
+ *
+ * Since the skills got their own pages, anything that trains one of the four
+ * has a home under that skill, and this page is the exhaustive index rather
+ * than the only door. It stays exhaustive on purpose: "I know it exists and I
+ * cannot remember where it lives" needs one page that lists everything, and
+ * that is a different job from helping someone choose what to do next.
  */
 
 interface Item {
@@ -63,6 +69,7 @@ const tools = (signedIn: boolean, bible: boolean): Item[] => [
   { label: "Dialect Compare", icon: Globe2, to: "/dialect-compare" },
   { label: "Stories", icon: BookOpenText, to: "/stories" },
   { label: "Souq News", icon: Newspaper, to: "/souq-news" },
+  { label: "Reading Library", icon: Library, to: "/reading-library" },
   { label: "Bible Reading", icon: BookMarked, to: "/bible", show: bible },
   { label: "Meme Analyzer", icon: Laugh, to: "/meme" },
   { label: "Learn from X", icon: Twitter, to: "/learn-from-x" },
@@ -76,6 +83,7 @@ const tools = (signedIn: boolean, bible: boolean): Item[] => [
  */
 const practice = (signedIn: boolean): Item[] => [
   { label: "Today", icon: CalendarCheck, to: "/today" },
+  { label: "Review", icon: Layers, to: "/review", show: signedIn },
   { label: "Quick Practice", icon: Shuffle, to: "/learn" },
   { label: "Set Phrases", icon: Quote, to: "/set-phrases" },
   { label: "Conversation", icon: MessagesSquare, to: "/conversation" },

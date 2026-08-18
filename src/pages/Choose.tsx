@@ -2,13 +2,14 @@ import { Link, useNavigate } from "react-router-dom";
 import {
   Headphones, BookOpen, Mic, PenLine,
   Upload, MessageCircleQuestion, Gamepad2,
-  BookA, Route as RouteIcon, ChevronRight,
+  BookA, Route as RouteIcon, ChevronRight, Layers,
 } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { ProfileEmblem } from "@/components/shell/ProfileEmblem";
 import { SKILLS, VERBS, PATHS } from "@/lib/surfaces";
 import { useSwipeSurfaces } from "@/hooks/useSwipeSurfaces";
 import { useAlphabetProgress } from "@/hooks/useAlphabetProgress";
+import { useSRSStats } from "@/hooks/useSRSStats";
 import { ARABIC_LETTERS } from "@/data/arabicAlphabet";
 import { cn } from "@/lib/utils";
 
@@ -32,18 +33,6 @@ const ICONS = {
   Headphones, BookOpen, Mic, PenLine, Upload, MessageCircleQuestion, Gamepad2, BookA, Route: RouteIcon,
 } as const;
 
-/**
- * Tints, not hues: four steps from charcoal to Desert Red, all inside the
- * brand ramp. The old hubs accented tiles sky-blue, amber and emerald —
- * colours left over from before the brand guide.
- */
-const TILE_BG = [
-  "bg-[#2E3532]",
-  "bg-[#4A3733]",
-  "bg-[#6B3A31]",
-  "bg-[#8C4135]",
-];
-
 const Choose = () => {
   const navigate = useNavigate();
   // The chooser sits one page forward of the feed, so getting back to it is a
@@ -52,6 +41,8 @@ const Choose = () => {
   // it again.
   const swipe = useSwipeSurfaces({ onPrev: () => navigate("/") });
   const { masteredCount } = useAlphabetProgress();
+  const { data: srs } = useSRSStats();
+  const due = srs?.totalDueNow ?? 0;
 
   return (
     <AppShell>
@@ -71,7 +62,38 @@ const Choose = () => {
           What do you want to do?
         </h1>
 
-        {/* The four skills. Each one is a full page, never a sheet: speaking
+        {/* Review sits above the skills because on most days it is the answer.
+            The four skills are what you do to learn something new; this is what
+            makes the things you already met stick, and it is the half of the
+            app that decays if it is skipped. It leads with the count, because
+            "23 waiting" is a reason to tap and "Review" on its own is not. */}
+        <Link
+          to="/review"
+          className={cn(
+            "flex items-center gap-3.5 rounded-2xl bg-primary px-4 py-4 text-primary-foreground",
+            "transition-transform active:scale-[0.99]",
+          )}
+        >
+          <Layers className="h-6 w-6 shrink-0" />
+          <span className="min-w-0 flex-1">
+            <span className="block text-lg font-bold leading-tight">Review</span>
+            <span className="block text-xs text-primary-foreground/80">
+              {due > 0
+                ? `${due} ${due === 1 ? "card" : "cards"} ready now`
+                : "Nothing due — you are caught up"}
+            </span>
+          </span>
+          {due > 0 && (
+            <span className="rounded-full bg-primary-foreground/20 px-3 py-1 text-base font-bold tabular-nums">
+              {due}
+            </span>
+          )}
+        </Link>
+
+        {/* The four skills. Each one opens the skill, not a single activity
+            inside it: sending "Read" straight to /reading is what left Souq
+            News, the Reading Library and Stories with no door but the account
+            page. Each skill's page is a full page, never a sheet — speaking
             needs a microphone and writing needs a keyboard, and both deserve
             the whole screen rather than half of it over a playing video. */}
         <div className="grid grid-cols-2 gap-2.5">
@@ -81,10 +103,10 @@ const Choose = () => {
               <Link
                 key={s.id}
                 to={s.to}
+                style={{ backgroundColor: s.tint }}
                 className={cn(
                   "relative flex aspect-[4/3.4] flex-col justify-between overflow-hidden rounded-2xl p-4 text-white",
                   "transition-transform active:scale-[0.98]",
-                  TILE_BG[i],
                 )}
               >
                 <span className="text-[11px] font-semibold tracking-[0.14em] text-white/45">

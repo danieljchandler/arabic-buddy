@@ -11,6 +11,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { Loader2, Check, ArrowLeft, User, Globe2, Target, Eye, Heart, ChevronRight, Camera, AlertTriangle, Info, Compass, Bell } from 'lucide-react';
+import { AvatarPicker } from '@/components/settings/AvatarPicker';
 import { HomeLayoutEditor } from '@/components/settings/HomeLayoutEditor';
 import { DisplayPrefsEditor } from '@/components/settings/DisplayPrefsEditor';
 import { TutorMemoryCard } from '@/components/settings/TutorMemoryCard';
@@ -197,6 +198,29 @@ const Settings = () => {
     }
   };
 
+  const handlePresetAvatarSelect = async (src: string) => {
+    if (!user || src === avatarUrl) return;
+
+    const previous = avatarUrl;
+    setAvatarUrl(src); // optimistic — the preset is a local asset, so it renders instantly
+    setUploadingAvatar(true);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ avatar_url: src })
+        .eq('user_id', user.id);
+      if (error) throw error;
+
+      toast.success('Profile picture updated!');
+    } catch (err) {
+      console.error(err);
+      setAvatarUrl(previous);
+      toast.error(err instanceof Error ? err.message : 'Failed to update picture');
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
   const save = async () => {
     if (!user) return;
     setSaving(true);
@@ -311,6 +335,12 @@ const Settings = () => {
                 <p className="text-xs text-muted-foreground">JPG or PNG, up to 5MB</p>
               </div>
             </div>
+
+            <AvatarPicker
+              value={avatarUrl}
+              onSelect={handlePresetAvatarSelect}
+              disabled={uploadingAvatar}
+            />
 
             <div className="space-y-2">
               <Label htmlFor="displayName" className="text-foreground">Display Name</Label>

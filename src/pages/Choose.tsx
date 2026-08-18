@@ -2,13 +2,14 @@ import { Link, useNavigate } from "react-router-dom";
 import {
   Headphones, BookOpen, Mic, PenLine,
   Upload, MessageCircleQuestion, Gamepad2,
-  BookA, Route as RouteIcon, ChevronRight,
+  BookA, Route as RouteIcon, ChevronRight, Layers,
 } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { ProfileEmblem } from "@/components/shell/ProfileEmblem";
 import { SKILLS, VERBS, PATHS } from "@/lib/surfaces";
 import { useSwipeSurfaces } from "@/hooks/useSwipeSurfaces";
 import { useAlphabetProgress } from "@/hooks/useAlphabetProgress";
+import { useSRSStats } from "@/hooks/useSRSStats";
 import { ARABIC_LETTERS } from "@/data/arabicAlphabet";
 import { cn } from "@/lib/utils";
 
@@ -40,6 +41,8 @@ const Choose = () => {
   // it again.
   const swipe = useSwipeSurfaces({ onPrev: () => navigate("/") });
   const { masteredCount } = useAlphabetProgress();
+  const { data: srs } = useSRSStats();
+  const due = srs?.totalDueNow ?? 0;
 
   return (
     <AppShell>
@@ -58,6 +61,34 @@ const Choose = () => {
         <h1 className="pb-1.5 pt-3 text-[28px] font-bold leading-tight">
           What do you want to do?
         </h1>
+
+        {/* Review sits above the skills because on most days it is the answer.
+            The four skills are what you do to learn something new; this is what
+            makes the things you already met stick, and it is the half of the
+            app that decays if it is skipped. It leads with the count, because
+            "23 waiting" is a reason to tap and "Review" on its own is not. */}
+        <Link
+          to="/review"
+          className={cn(
+            "flex items-center gap-3.5 rounded-2xl bg-primary px-4 py-4 text-primary-foreground",
+            "transition-transform active:scale-[0.99]",
+          )}
+        >
+          <Layers className="h-6 w-6 shrink-0" />
+          <span className="min-w-0 flex-1">
+            <span className="block text-lg font-bold leading-tight">Review</span>
+            <span className="block text-xs text-primary-foreground/80">
+              {due > 0
+                ? `${due} ${due === 1 ? "card" : "cards"} ready now`
+                : "Nothing due — you are caught up"}
+            </span>
+          </span>
+          {due > 0 && (
+            <span className="rounded-full bg-primary-foreground/20 px-3 py-1 text-base font-bold tabular-nums">
+              {due}
+            </span>
+          )}
+        </Link>
 
         {/* The four skills. Each one opens the skill, not a single activity
             inside it: sending "Read" straight to /reading is what left Souq

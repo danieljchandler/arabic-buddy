@@ -80,10 +80,77 @@ export function getTikTokEmbedUrl(url: string): string | null {
 }
 
 /**
- * Get YouTube thumbnail URL
+ * YouTube still sizes, largest first.
+ *
+ * `hqdefault` is the only one guaranteed to exist, which is why it was the
+ * safe choice — but it is 480x360, and YouTube letterboxes the widescreen
+ * frame into that 4:3 box. On a card that is 16:9 (Discover) or full-bleed
+ * vertical (the feed) that still gets blown up two to four times its own
+ * size, which is what makes the grid look cheap. `maxresdefault` is 1280x720
+ * or better and is un-letterboxed, so it is worth asking for first and
+ * stepping down when a video has not had one generated.
  */
-export function getYouTubeThumbnail(videoId: string): string {
-  return `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`;
+export const YOUTUBE_THUMBNAIL_QUALITIES = [
+  "maxresdefault",
+  "sddefault",
+  "hqdefault",
+] as const;
+
+export type YouTubeThumbnailQuality = (typeof YOUTUBE_THUMBNAIL_QUALITIES)[number];
+
+/**
+ * A missing still is usually a 404, but YouTube sometimes answers 200 with a
+ * 120x90 grey placeholder instead. Nothing real in the ladder above is that
+ * narrow, so a decoded width at or under this is a miss to be stepped past.
+ */
+export const YOUTUBE_PLACEHOLDER_WIDTH = 120;
+
+/**
+ * Every host YouTube serves stills from. `img.youtube.com` redirects to
+ * `i.ytimg.com`, and the Data API hands back `i.ytimg.com` (sometimes
+ * numbered, e.g. `i9`) with signing/crop query params attached.
+ */
+const YOUTUBE_THUMBNAIL_URL =
+  /^https?:\/\/(?:i\d*\.ytimg\.com|img\.youtube\.com)\/vi(?:_webp)?\/([A-Za-z0-9_-]{11})\//;
+
+/**
+ * Get YouTube thumbnail URL.
+ *
+ * `i.ytimg.com` rather than `img.youtube.com`: the latter is a redirect to
+ * the former, so pointing at it directly saves every card a round trip.
+ */
+export function getYouTubeThumbnail(
+  videoId: string,
+  quality: YouTubeThumbnailQuality = "maxresdefault"
+): string {
+  return `https://i.ytimg.com/vi/${videoId}/${quality}.jpg`;
+}
+
+/**
+ * The video a stored thumbnail URL belongs to, or null when it is not a
+ * YouTube still (a TikTok CDN URL, an Instagram one, a `data:` URI in tests).
+ */
+export function getYouTubeIdFromThumbnailUrl(url: string): string | null {
+  return url.match(YOUTUBE_THUMBNAIL_URL)?.[1] ?? null;
+}
+
+/**
+ * The stills to try for a stored thumbnail, best first.
+ *
+ * Rows written before we asked for `maxresdefault` still hold `hqdefault`
+ * URLs, and the trending importer stores whatever the Data API returned, so
+ * the upgrade happens at render time rather than behind a backfill: any
+ * YouTube URL is re-derived from its video id at the size we actually want.
+ * Everything else is passed through untouched — TikTok and Instagram stills
+ * are signed CDN URLs that cannot be rewritten.
+ */
+export function getThumbnailCandidates(url: string | null | undefined): string[] {
+  if (!url) return [];
+
+  const videoId = getYouTubeIdFromThumbnailUrl(url);
+  if (!videoId) return [url];
+
+  return YOUTUBE_THUMBNAIL_QUALITIES.map((quality) => getYouTubeThumbnail(videoId, quality));
 }
 
 /**

@@ -8,6 +8,7 @@ import { useLikedVideos } from "@/hooks/useVideoLikes";
 import { cn } from "@/lib/utils";
 import { Heart, Play, Loader2 } from "lucide-react";
 import { formatDuration } from "@/lib/videoEmbed";
+import { VideoThumbnail } from "@/components/media/VideoThumbnail";
 import type { DiscoverVideo } from "@/hooks/useDiscoverVideos";
 import { InfoHint } from "@/components/InfoHint";
 import { PAGE_HINTS } from "@/lib/pageHints";
@@ -29,17 +30,16 @@ const LikedVideoCard = ({
   >
     {/* Thumbnail */}
     <div className="relative w-28 shrink-0 bg-muted overflow-hidden">
-      {video.thumbnail_url ? (
-        <img
-          src={video.thumbnail_url}
-          alt={video.title}
-          className="absolute inset-0 w-full h-full object-cover"
-        />
-      ) : (
-        <div className="absolute inset-0 flex items-center justify-center">
-          <Play className="h-8 w-8 text-muted-foreground/30" />
-        </div>
-      )}
+      <VideoThumbnail
+        src={video.thumbnail_url}
+        alt={video.title}
+        className="absolute inset-0 w-full h-full object-cover"
+        fallback={
+          <div className="absolute inset-0 flex items-center justify-center">
+            <Play className="h-8 w-8 text-muted-foreground/30" />
+          </div>
+        }
+      />
       <div className="absolute inset-0 bg-gradient-to-r from-transparent to-black/10" />
       {video.duration_seconds && (
         <div className="absolute bottom-1 right-1">

@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useState } from "react";
 import { formatDuration } from "@/lib/videoEmbed";
+import { VideoThumbnail } from "@/components/media/VideoThumbnail";
 
 const AdminVideos = () => {
   const navigate = useNavigate();
@@ -59,9 +60,10 @@ const AdminVideos = () => {
                 <CardContent className="flex-1 p-4 flex items-center justify-between">
                   <div className="flex items-center gap-4">
                     {video.thumbnail_url && (
-                      <img
+                      <VideoThumbnail
                         src={video.thumbnail_url}
                         alt=""
+                        decorative
                         className="w-20 h-12 object-cover rounded"
                       />
                     )}

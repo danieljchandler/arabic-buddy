@@ -17,6 +17,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { LandingHero } from "@/components/LandingHero";
 import { Footer } from "@/components/Footer";
 import { cn } from "@/lib/utils";
+import { VideoThumbnail } from "@/components/media/VideoThumbnail";
 
 /**
  * The full video experience — the same component /discover/:videoId serves,
@@ -211,9 +212,11 @@ const Feed = () => {
         <EmptyFeed />
       ) : (
         <ul className="h-[100dvh] snap-y snap-mandatory overflow-y-auto overscroll-y-contain">
-          {items.map(({ video }) => (
+          {items.map(({ video }, index) => (
             <li key={video.id} className="relative h-[100dvh] snap-start snap-always">
-              <Clip video={video} onOpen={openVideo} />
+              {/* The first clip fills the viewport on arrival, so its still is
+                  the page's largest paint — not something to defer. */}
+              <Clip video={video} onOpen={openVideo} eager={index === 0} />
             </li>
           ))}
         </ul>
@@ -257,9 +260,11 @@ const Feed = () => {
 function Clip({
   video,
   onOpen,
+  eager = false,
 }: {
   video: DiscoverVideo;
   onOpen: (video: DiscoverVideo) => void;
+  eager?: boolean;
 }) {
   const mins = video.duration_seconds
     ? `${Math.floor(video.duration_seconds / 60)}:${String(video.duration_seconds % 60).padStart(2, "0")}`
@@ -268,19 +273,18 @@ function Clip({
 
   return (
     <>
-      {video.thumbnail_url ? (
-        <img
-          src={video.thumbnail_url}
-          alt=""
-          aria-hidden
-          loading="lazy"
-          className="absolute inset-0 h-full w-full object-cover"
-        />
-      ) : (
-        // The brand's warm ramp where a thumbnail is missing — sand into
-        // desert red into char, not a grey box.
-        <div className="absolute inset-0 bg-gradient-to-br from-[#8C4135] via-[#5C3A46] to-[#20191A]" />
-      )}
+      <VideoThumbnail
+        src={video.thumbnail_url}
+        alt={video.title}
+        decorative
+        loading={eager ? "eager" : "lazy"}
+        className="absolute inset-0 h-full w-full object-cover"
+        fallback={
+          // The brand's warm ramp where a thumbnail is missing — sand into
+          // desert red into char, not a grey box.
+          <div className="absolute inset-0 bg-gradient-to-br from-[#8C4135] via-[#5C3A46] to-[#20191A]" />
+        }
+      />
       <div
         aria-hidden
         className="absolute inset-0 bg-[linear-gradient(rgba(18,10,8,0.55)_0%,transparent_22%,transparent_45%,rgba(18,10,8,0.92)_100%)]"

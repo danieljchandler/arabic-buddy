@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { parseVideoUrl, getYouTubeThumbnail } from '@/lib/videoEmbed';
+import { VideoThumbnail } from '@/components/media/VideoThumbnail';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -391,11 +392,7 @@ const TrendingVideos = () => {
                 {/* Thumbnail */}
                 {c.thumbnail_url && (
                   <div className="relative aspect-video bg-muted">
-                    <img
-                      src={c.thumbnail_url}
-                      alt={c.title}
-                      className="w-full h-full object-cover"
-                    />
+                    <VideoThumbnail src={c.thumbnail_url} alt={c.title} />
                     {c.trending_score && (
                       <Badge className="absolute top-2 right-2 bg-primary/90">
                         Score: {c.trending_score.toLocaleString()}

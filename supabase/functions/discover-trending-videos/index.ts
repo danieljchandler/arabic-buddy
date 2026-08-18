@@ -226,7 +226,12 @@ async function searchShorts(
       title,
       creator_name: video.snippet.channelTitle,
       creator_handle: video.snippet.channelId,
+      // Largest first. `high` is 480x360 with the frame letterboxed into 4:3,
+      // which is well under what a full-width card asks for; `maxres` (1280x720)
+      // is only generated for some videos, so the ladder still needs the rest.
       thumbnail_url:
+        video.snippet.thumbnails.maxres?.url ??
+        video.snippet.thumbnails.standard?.url ??
         video.snippet.thumbnails.high?.url ??
         video.snippet.thumbnails.medium?.url ??
         null,

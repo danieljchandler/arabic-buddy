@@ -3,9 +3,12 @@ import "./index.css";
 import "./lib/storageBootstrap";
 import { runBrandMigration } from "./lib/brandMigration";
 import { registerServiceWorker } from "./lib/serviceWorker";
+import { applyTheme, getThemePref } from "./hooks/useTheme";
 
 runBrandMigration();
 registerServiceWorker();
+// Stamp the stored theme before first render so dark mode never flashes light.
+applyTheme(getThemePref());
 
 
 const root = document.getElementById("root");

@@ -128,6 +128,16 @@
 
     --success: 110 22% 45%;
     --success-foreground: 0 0% 100%;
+
+    /* Brand extensions, night-tuned: the light values are all deep inks that
+       vanish against a dark ground, so each lightens just enough to read as
+       the same hue. card-cream flattens to a raised neutral — a "cream" panel
+       on near-black reads as a glare patch, not a surface. */
+    --card-cream: 0 0% 16%;
+    --desert-red: 8 45% 55%;
+    --olive: 8 40% 55%;
+    --plum: 339 24% 66%;
+    --plum-foreground: 0 0% 10%;
   }
 }
 

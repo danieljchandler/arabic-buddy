@@ -310,6 +310,25 @@
     100% { opacity: 0; transform: translateY(-40px) scale(1); }
   }
 
+  /* The tutor is composing — the bubble breathes rather than spins. */
+  .animate-bubble-breathe {
+    animation: bubble-breathe 1.9s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+    transform-origin: 50% 85%;
+  }
+  @keyframes bubble-breathe {
+    0%, 100% { transform: scale(1) translateY(0); opacity: 0.85; }
+    50%      { transform: scale(1.07) translateY(-2px); opacity: 1; }
+  }
+
+  /* Three dots trailing the bubble, one beat apart. */
+  .animate-bubble-dot {
+    animation: bubble-dot 1.2s ease-in-out infinite;
+  }
+  @keyframes bubble-dot {
+    0%, 60%, 100% { opacity: 0.25; transform: translateY(0); }
+    30%           { opacity: 0.9;  transform: translateY(-2px); }
+  }
+
   /* Gentle horizontal shake (wrong answer) */
   .animate-shake {
     animation: shake 0.45s cubic-bezier(.36,.07,.19,.97) both;
@@ -363,6 +382,8 @@
 /* Honor user reduced-motion preference globally */
 @media (prefers-reduced-motion: reduce) {
   .animate-pop,
+  .animate-bubble-breathe,
+  .animate-bubble-dot,
   .animate-pulse-glow,
   .animate-float,
   .animate-xp-float,

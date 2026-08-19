@@ -11,6 +11,7 @@ import { buildPagePayload } from "@/lib/pageAiContext";
 import { serializeFocusUpdate } from "../../../supabase/functions/_shared/pageContextCore";
 import { TappableArabicText } from "@/components/shared/TappableArabicText";
 import { cn } from "@/lib/utils";
+import { LiveOrb } from "@/components/assistant/LiveOrb";
 
 /**
  * Live voice mode of the Ask AI assistant — subscribers only (the server
@@ -24,7 +25,7 @@ export function VoiceTab() {
   const { user, loading: authLoading } = useAuth();
   const { subscribed, loading: subLoading } = useSubscription();
   const { pathname } = useLocation();
-  const { status, error, turns, muted, setMuted, start, stop, updateContext, remainingSeconds } =
+  const { status, error, turns, muted, setMuted, start, stop, updateContext, remainingSeconds, remoteStream } =
     useOpenAIRealtime();
 
   // Closing the panel or switching tabs unmounts this component; the call must
@@ -160,13 +161,21 @@ export function VoiceTab() {
         )}
 
         {turns.length === 0 ? (
-          <p className="py-10 text-center text-xs text-muted-foreground">
-            {live
-              ? "Just start speaking…"
-              : connecting
-              ? "Setting up the call…"
-              : "Start a call and ask about anything on this page."}
-          </p>
+          <div className="flex flex-col items-center gap-3 py-8">
+            <LiveOrb
+              stream={remoteStream}
+              active={live}
+              muted={muted}
+              className="h-24 w-24"
+            />
+            <p className="text-center text-xs text-muted-foreground">
+              {live
+                ? "Just start speaking…"
+                : connecting
+                ? "Setting up the call…"
+                : "Start a call and ask about anything on this page."}
+            </p>
+          </div>
         ) : (
           turns.map((t, i) => (
             <div

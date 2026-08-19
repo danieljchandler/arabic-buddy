@@ -6,8 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Loader2, LogOut, BookOpen, Plus, Settings, Mic, PlayCircle, Upload, GraduationCap, Sparkles, BookMarked, TrendingUp, Image as ImageIcon, Laugh, MessageCircle, Languages, Activity, AlertTriangle, Ticket } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
-import hakiyaIconAsset from '@/assets/hakiya-icon.png.asset.json';
-const lahjaIcon = hakiyaIconAsset.url;
+import hakiyaIconAsset from '@/assets/hakiya-icon.png';
+const lahjaIcon = hakiyaIconAsset;
 import { useDialect } from '@/contexts/DialectContext';
 
 const Dashboard = () => {

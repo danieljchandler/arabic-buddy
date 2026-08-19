@@ -7,8 +7,8 @@ import { Badge } from '@/components/ui/badge';
 import { Loader2, Plus, ArrowLeft, BookOpen, Pencil, Trash2 } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import hakiyaIconAsset from '@/assets/hakiya-icon.png.asset.json';
-const lahjaIcon = hakiyaIconAsset.url;
+import hakiyaIconAsset from '@/assets/hakiya-icon.png';
+const lahjaIcon = hakiyaIconAsset;
 
 const AdminStories = () => {
   const navigate = useNavigate();

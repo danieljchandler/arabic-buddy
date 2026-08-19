@@ -1,9 +1,9 @@
 import { useNavigate } from "react-router-dom";
 import { ArrowRight, Headphones, Brain, PlayCircle, Globe2 } from "lucide-react";
 import { Button, CampfireMedallion } from "@/components/design-system";
-import hakiyaLogoAsset from "@/assets/hakiya-logo.png.asset.json";
+import hakiyaLogoAsset from "@/assets/hakiya-logo.png";
 
-const hakiyaLogo = hakiyaLogoAsset.url;
+const hakiyaLogo = hakiyaLogoAsset;
 
 /**
  * Logged-out landing hero shown on `/` when the visitor isn't authenticated.

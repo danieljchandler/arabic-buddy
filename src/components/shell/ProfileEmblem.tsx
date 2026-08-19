@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import hakiyaIconAsset from "@/assets/hakiya-icon.png.asset.json";
+import hakiyaIconAsset from "@/assets/hakiya-icon.png";
 
 /**
  * The mark, top-left, as the way into your profile.
@@ -40,7 +40,7 @@ export function ProfileEmblem({
         />
       )}
       <img
-        src={hakiyaIconAsset.url}
+        src={hakiyaIconAsset}
         alt=""
         aria-hidden
         className="h-full w-full rounded-xl object-contain"

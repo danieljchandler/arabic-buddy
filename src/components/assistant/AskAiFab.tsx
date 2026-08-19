@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from "react";
 import { useLocation } from "react-router-dom";
-import { Sparkles } from "lucide-react";
+import { SaduBubble } from "@/components/brand/SaduBubble";
 import { useAiAssistant } from "@/contexts/AiAssistantContext";
 import { cn } from "@/lib/utils";
 
@@ -51,7 +51,15 @@ export function AskAiFab({ className }: { className?: string }) {
         className,
       )}
     >
-      <Sparkles className="h-4 w-4 shrink-0" />
+      {/* The mark is a speech bubble woven with sadu, not a sparkle: the logo
+          is already a bubble with a sadu ring, and asking is what the button
+          does. "simple" because the full band turns to mush at this size. */}
+      <SaduBubble
+        tail="left"
+        detail="simple"
+        inkOpacity={0.45}
+        className="h-[18px] w-auto shrink-0"
+      />
       <span className="text-[13px] font-semibold leading-none tracking-tight">Ask AI</span>
     </button>
   );

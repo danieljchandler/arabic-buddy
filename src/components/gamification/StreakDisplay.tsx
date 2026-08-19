@@ -58,7 +58,7 @@ export function StreakDisplay({ compact = false, className }: StreakDisplayProps
   }
 
   return (
-    <div className={cn("bg-card rounded-xl p-4 border border-border", className)}>
+    <div className={cn("bg-card rounded-2xl p-4 border border-border", className)}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className={cn(

@@ -40,7 +40,7 @@ export const DailyLetterGoalRing = ({ goal = 3, className }: DailyLetterGoalRing
   return (
     <div
       className={cn(
-        "flex items-center gap-2.5 px-3 py-2 rounded-xl border-2 bg-card",
+        "flex items-center gap-2.5 px-3 py-2 rounded-2xl border-2 bg-card",
         complete ? "border-amber-500/60" : "border-border",
         className,
       )}

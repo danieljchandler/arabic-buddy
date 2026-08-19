@@ -318,6 +318,18 @@
     100% { opacity: 0; transform: translateY(-40px) scale(1); }
   }
 
+  /* The voice orb at rest: outline undulating like a droplet, no rotation.
+     The voice-coupled pulse lives on a parent wrapper (scale from --level),
+     so the two transforms never fight over one element. */
+  .animate-orb-blob {
+    animation: orb-blob 7s ease-in-out infinite;
+  }
+  @keyframes orb-blob {
+    0%, 100% { border-radius: 48% 52% 51% 49% / 52% 47% 53% 48%; transform: scale(1); }
+    33%      { border-radius: 54% 46% 48% 52% / 45% 55% 46% 54%; transform: scale(1.035); }
+    66%      { border-radius: 50% 50% 54% 46% / 53% 47% 52% 48%; transform: scale(0.975); }
+  }
+
   /* The tutor is composing — the bubble breathes rather than spins. */
   .animate-bubble-breathe {
     animation: bubble-breathe 1.9s cubic-bezier(0.16, 1, 0.3, 1) infinite;
@@ -390,6 +402,7 @@
 /* Honor user reduced-motion preference globally */
 @media (prefers-reduced-motion: reduce) {
   .animate-pop,
+  .animate-orb-blob,
   .animate-bubble-breathe,
   .animate-bubble-dot,
   .animate-pulse-glow,

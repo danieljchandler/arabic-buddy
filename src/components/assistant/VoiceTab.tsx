@@ -162,12 +162,17 @@ export function VoiceTab() {
 
         {turns.length === 0 ? (
           <div className="flex flex-col items-center gap-3 py-8">
-            <LiveOrb
-              stream={remoteStream}
-              active={live}
-              muted={muted}
-              className="h-24 w-24"
-            />
+            {/* The orb belongs to the call, so it appears when the call does —
+                the idle tab is just an invitation, the way a phone app shows
+                no waveform until you dial. */}
+            {(live || connecting) && (
+              <LiveOrb
+                stream={remoteStream}
+                active={live}
+                muted={muted}
+                className={cn("h-24 w-24 animate-scale-in motion-reduce:animate-none", connecting && "opacity-60")}
+              />
+            )}
             <p className="text-center text-xs text-muted-foreground">
               {live
                 ? "Just start speaking…"

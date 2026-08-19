@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { Trophy } from "lucide-react";
+import caughtUpArt from "@/assets/illustrations/empty-caught-up.webp";
 import { Button } from "@/components/ui/button";
 import type { ReviewDeckId, ReviewSession } from "@/hooks/useReviewSession";
 
@@ -37,7 +37,13 @@ export const SessionHandoff = ({
 
   return (
     <div className="text-center max-w-sm mx-auto py-12">
-      <Trophy className="h-14 w-14 mx-auto mb-6 text-primary" />
+      <img
+        src={caughtUpArt}
+        alt=""
+        aria-hidden
+        draggable={false}
+        className="h-32 w-32 mx-auto mb-6 rounded-full object-cover bg-card-cream ring-1 ring-border/60 shadow-soft select-none animate-scale-in"
+      />
       <h1 className="text-xl font-bold text-foreground mb-3">
         {next ? "Deck complete" : "All caught up!"}
       </h1>

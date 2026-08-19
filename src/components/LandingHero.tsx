@@ -1,7 +1,10 @@
 import { useNavigate } from "react-router-dom";
-import { ArrowRight, Headphones, Brain, PlayCircle, Globe2 } from "lucide-react";
+import { ArrowRight, Globe2 } from "lucide-react";
 import { Button, CampfireMedallion } from "@/components/design-system";
 import hakiyaLogoAsset from "@/assets/hakiya-logo.png";
+import valueVoicesArt from "@/assets/illustrations/value-voices.webp";
+import valueMemoryArt from "@/assets/illustrations/value-memory.webp";
+import valueMediaArt from "@/assets/illustrations/value-media.webp";
 
 const hakiyaLogo = hakiyaLogoAsset;
 
@@ -85,17 +88,17 @@ export function LandingHero() {
       {/* Value props — who tells the story, how it sticks, what you hear next */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-3xl mx-auto mb-6">
         <ValueCard
-          icon={<Headphones className="h-5 w-5" />}
+          image={valueVoicesArt}
           title="Told by native voices"
           body="Every word and sentence recorded by native speakers from the Gulf, Egypt and Yemen — so what you learn is what you'll actually hear."
         />
         <ValueCard
-          icon={<Brain className="h-5 w-5" />}
+          image={valueMemoryArt}
           title="Every story stays with you"
           body="Words come back exactly when you're about to forget them. Built on FSRS, the modern successor to SM-2."
         />
         <ValueCard
-          icon={<PlayCircle className="h-5 w-5" />}
+          image={valueMediaArt}
           title="Stories you'd actually watch"
           body="TikToks, news clips, stories and conversations — tap any word to learn and save it."
         />
@@ -119,19 +122,25 @@ export function LandingHero() {
 }
 
 function ValueCard({
-  icon,
+  image,
   title,
   body,
 }: {
-  icon: React.ReactNode;
+  /** Painted vignette (see assets/illustrations) — replaces the old lucide icon. */
+  image: string;
   title: string;
   body: string;
 }) {
   return (
     <div className="p-4 rounded-2xl bg-card border border-desert-red/15">
-      <div className="h-9 w-9 rounded-xl bg-desert-red/10 flex items-center justify-center text-desert-red mb-2.5">
-        {icon}
-      </div>
+      <img
+        src={image}
+        alt=""
+        aria-hidden
+        loading="lazy"
+        draggable={false}
+        className="h-14 w-14 rounded-xl object-cover mb-2.5 ring-1 ring-desert-red/15 select-none"
+      />
       <h3 className="font-semibold text-foreground text-sm mb-1">{title}</h3>
       <p className="text-xs text-muted-foreground leading-relaxed">{body}</p>
     </div>

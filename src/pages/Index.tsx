@@ -17,6 +17,7 @@ import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover
 import { Input } from "@/components/ui/input";
 import { XPDisplay, StreakDisplay, WeeklyGoalCard } from "@/components/gamification";
 import { BrandMark } from "@/components/shell/BrandMark";
+import { EmptyState } from "@/components/shared/EmptyState";
 import { useState } from "react";
 import { NotificationBell } from "@/components/NotificationBell";
 import { useDialect, DialectModule } from "@/contexts/DialectContext";
@@ -333,11 +334,13 @@ const Index = () => {
                   />
                 ))}
                 {visibleTasks.length === 0 && (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Sparkles className="h-8 w-8 mx-auto mb-2 text-primary" />
-                    <p className="font-semibold text-foreground">All caught up!</p>
-                    <p className="text-sm mt-1">No tasks due today. Explore something new below.</p>
-                  </div>
+                  <EmptyState
+                    art="caught-up"
+                    size="sm"
+                    className="py-8"
+                    title="All caught up!"
+                    body="No tasks due today. Explore something new below."
+                  />
                 )}
               </div>
 

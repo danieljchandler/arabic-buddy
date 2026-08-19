@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { AppShell } from '@/components/layout/AppShell';
+import { LoadingPanel } from '@/components/loading/LoadingPanel';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -93,9 +94,7 @@ const ReadingLibrary = () => {
 
         {/* Stories Grid */}
         {isLoading ? (
-          <div className="flex justify-center py-16">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
+          <LoadingPanel variant="inline" task="story" className="py-16" />
         ) : stories && stories.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {stories.map((story) => (

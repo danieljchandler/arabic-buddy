@@ -16,6 +16,7 @@ import {
   type PathLesson,
 } from "@/lib/lessonPath";
 import { cn } from "@/lib/utils";
+import { EmptyState } from "@/components/shared/EmptyState";
 import { CheckCircle2, ChevronRight, Loader2, PlayCircle, Circle } from "lucide-react";
 import stageFoundationsArt from "@/assets/illustrations/stage-foundations.webp";
 import stageBuildingBlocksArt from "@/assets/illustrations/stage-building-blocks.webp";
@@ -118,16 +119,19 @@ const Curriculum = () => {
       )}
 
       {!hasLessons && (
-        <div className="rounded-2xl border border-border bg-card p-8 text-center">
-          <p className="text-foreground font-medium mb-1">No lessons yet for {activeDialect}</p>
-          <p className="text-sm text-muted-foreground">
-            Try another dialect from the switcher on Home, or start with the{" "}
-            <Link to="/alphabet" className="text-primary hover:underline">
-              Alphabet Journey
-            </Link>
-            .
-          </p>
-        </div>
+        <EmptyState
+          className="py-12"
+          title={`No lessons yet for ${activeDialect}`}
+          body={
+            <>
+              Try another dialect from the switcher on Home, or start with the{" "}
+              <Link to="/alphabet" className="text-primary hover:underline">
+                Alphabet Journey
+              </Link>
+              .
+            </>
+          }
+        />
       )}
 
       {(stages ?? []).map((stage) => {

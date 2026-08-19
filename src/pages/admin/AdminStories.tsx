@@ -8,7 +8,7 @@ import { Loader2, Plus, ArrowLeft, BookOpen, Pencil, Trash2, ImagePlus } from 'l
 import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import hakiyaIconAsset from '@/assets/hakiya-icon.png';
+import hakiyaIconAsset from '@/assets/hakiya-mark.png';
 const lahjaIcon = hakiyaIconAsset;
 
 const AdminStories = () => {

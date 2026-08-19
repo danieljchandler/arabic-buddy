@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 
 import { useAzurePronunciation, scoreBand, type PronunciationResult, type WordResult } from "@/hooks/useAzurePronunciation";
 import { AppShell } from "@/components/layout/AppShell";
+import { EmptyState } from "@/components/shared/EmptyState";
 import { LoadingPanel } from "@/components/loading/LoadingPanel";
 import { PageCorner } from "@/components/shell/PageCorner";
 import { Button } from "@/components/ui/button";
@@ -223,14 +224,13 @@ const PronunciationPractice = () => {
     return (
       <AppShell>
         <div className="mb-8"><PageCorner /></div>
-        <div className="text-center py-16">
-          <Mic className="h-16 w-16 text-muted-foreground/30 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold mb-2 font-heading">Pronunciation Practice</h1>
-          <p className="text-muted-foreground mb-6">
-            Add some words to your vocabulary first, then come back to practice!
-          </p>
+        <EmptyState
+          className="py-16"
+          title="Pronunciation Practice"
+          body="Add some words to your vocabulary first, then come back to practice!"
+        >
           <Button onClick={() => navigate("/my-words")}>Go to My Words</Button>
-        </div>
+        </EmptyState>
       </AppShell>
     );
   }
@@ -536,12 +536,13 @@ const ShadowMode = ({ showEnglish, onScore }: ShadowModeProps) => {
 
   if (clips.length === 0) {
     return (
-      <div className="text-center py-12 bg-card border border-border rounded-2xl">
-        <Headphones className="h-12 w-12 text-muted-foreground/30 mx-auto mb-3" />
-        <h3 className="font-semibold mb-2">No native clips available yet</h3>
-        <p className="text-sm text-muted-foreground mb-4 px-6">
-          Shadow mode plays real native-speaker clips. Browse videos or upload audio to build a queue.
-        </p>
+      <div className="py-4 bg-card border border-border rounded-2xl">
+        <EmptyState
+          size="sm"
+          className="py-4"
+          title="No native clips available yet"
+          body="Shadow mode plays real native-speaker clips. Browse videos or upload audio to build a queue."
+        />
         <div className="flex gap-2 justify-center">
           <Button size="sm" onClick={() => navigate("/discover")}>Browse videos</Button>
           <Button size="sm" variant="outline" onClick={() => navigate("/transcribe")}>Upload audio</Button>

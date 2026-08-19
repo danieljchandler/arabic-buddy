@@ -12,6 +12,7 @@ import {
 import { useAddUserVocabulary } from '@/hooks/useUserVocabulary';
 import { supabase } from '@/integrations/supabase/client';
 import { AppShell } from '@/components/layout/AppShell';
+import { EmptyState } from '@/components/shared/EmptyState';
 import { LoadingPanel } from '@/components/loading/LoadingPanel';
 import { PageCorner } from '@/components/shell/PageCorner';
 import { Button } from '@/components/ui/button';
@@ -200,13 +201,11 @@ const StoryPlayer = () => {
     return (
       <AppShell>
         <div className="mb-6"><PageCorner /></div>
-        <div className="text-center py-16">
-          <BookOpen className="h-16 w-16 text-muted-foreground/20 mx-auto mb-4" />
-          <p className="text-muted-foreground">This story has no scenes yet.</p>
-          <Button variant="outline" className="mt-4" onClick={() => navigate('/stories')}>
+        <EmptyState className="py-16" title="Nothing here yet" body="This story has no scenes yet.">
+          <Button variant="outline" onClick={() => navigate('/stories')}>
             Back to Stories
           </Button>
-        </div>
+        </EmptyState>
       </AppShell>
     );
   }

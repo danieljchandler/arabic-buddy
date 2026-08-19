@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { usePublishedStories } from '@/hooks/useInteractiveStories';
 import { AppShell } from '@/components/layout/AppShell';
+import { LoadingPanel } from '@/components/loading/LoadingPanel';
 import { PageCorner } from '@/components/shell/PageCorner';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, BookOpen, ChevronRight } from 'lucide-react';
@@ -33,9 +34,7 @@ const Stories = () => {
         </div>
 
         {isLoading ? (
-          <div className="flex justify-center py-16">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
+          <LoadingPanel variant="inline" task="story" className="py-16" />
         ) : stories && stories.length > 0 ? (
           <div className="space-y-3">
             {stories.map((story) => (

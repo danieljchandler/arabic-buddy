@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
+import { LoadingPanel } from "@/components/loading/LoadingPanel";
 import { PageCorner } from "@/components/shell/PageCorner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -524,9 +525,7 @@ const VocabGames = () => {
     return (
       <AppShell>
         <PageCorner />
-        <div className="flex items-center justify-center py-24">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
+        <LoadingPanel variant="page" />
       </AppShell>
     );
   }

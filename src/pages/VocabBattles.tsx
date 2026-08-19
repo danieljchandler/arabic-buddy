@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useMyBattles, usePendingBattles, type VocabBattle } from '@/hooks/useVocabBattles';
 import { AppShell } from '@/components/layout/AppShell';
+import { EmptyState } from '@/components/shared/EmptyState';
 import { PageCorner } from '@/components/shell/PageCorner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -198,14 +199,12 @@ const VocabBattles = () => {
             })}
           </div>
         ) : (
-          <div className="text-center py-16">
-            <Swords className="h-16 w-16 text-muted-foreground/20 mx-auto mb-4" />
-            <p className="text-muted-foreground mb-4">No battles yet</p>
+          <EmptyState className="py-16" title="No battles yet" body="Challenge a friend and race through the same ten words.">
             <Button onClick={() => navigate('/friends')}>
               <Users className="h-4 w-4 mr-2" />
               Find Friends to Battle
             </Button>
-          </div>
+          </EmptyState>
         )}
       </div>
     </AppShell>

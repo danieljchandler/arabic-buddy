@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { markTourPending } from '@/components/onboarding/OnboardingTour';
 import { AppShell } from '@/components/layout/AppShell';
+import { LoadingPanel } from '@/components/loading/LoadingPanel';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -159,9 +160,7 @@ const Onboarding = () => {
   if (loading) {
     return (
       <AppShell>
-        <div className="flex items-center justify-center py-24">
-          <Loader2 className="h-10 w-10 animate-spin text-primary" />
-        </div>
+        <LoadingPanel variant="page" />
       </AppShell>
     );
   }

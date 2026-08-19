@@ -4,6 +4,7 @@ import { useDiscoverVideos } from "@/hooks/useDiscoverVideos";
 import { useDiscoverFeed, type FeedItem } from "@/hooks/useDiscoverFeed";
 import type { DiscoverVideo } from "@/hooks/useDiscoverVideos";
 import { AppShell } from "@/components/layout/AppShell";
+import { LoadingPanel } from "@/components/loading/LoadingPanel";
 import { PageCorner } from "@/components/shell/PageCorner";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -235,9 +236,7 @@ const Discover = () => {
           </div>
 
           {isFeedLoading ? (
-            <div className="flex justify-center py-16">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
+            <LoadingPanel variant="inline" className="py-16" />
           ) : feedItems.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {feedItems.map((item) => (
@@ -306,9 +305,7 @@ const Discover = () => {
           </div>
 
           {isBrowseLoading ? (
-            <div className="flex justify-center py-16">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
+            <LoadingPanel variant="inline" className="py-16" />
           ) : shelfVideos && shelfVideos.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {shelfVideos.map((video) => (

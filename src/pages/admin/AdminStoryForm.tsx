@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Slider } from '@/components/ui/slider';
 import { ArrowLeft, Plus, Trash2, Save, Loader2, GripVertical, Sparkles, Wand2 } from 'lucide-react';
 import { toast } from 'sonner';
-import hakiyaIconAsset from '@/assets/hakiya-icon.png';
+import hakiyaIconAsset from '@/assets/hakiya-mark.png';
 const lahjaIcon = hakiyaIconAsset;
 
 interface SceneForm {

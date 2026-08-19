@@ -122,20 +122,23 @@ const Translate = () => {
   return (
     <AppShell>
       <div className="space-y-5">
+        {/* No balancing spacer here, unlike the other title bars: this row
+            carries a second control on the right, so a centred title would be
+            squeezed onto two lines. The title takes the left instead. */}
         <div className="flex items-center justify-between gap-3">
-          <PageCorner />
           <h1 className="text-xl font-bold flex items-center gap-2">
             <Languages className="h-5 w-5 text-primary" />
             Translate & Save
             <InfoHint title={PAGE_HINT.title} body={PAGE_HINT.body} />
           </h1>
-          {isAuthenticated ? (
-            <Button asChild variant="ghost" size="icon" aria-label="Saved translations">
-              <Link to="/translate/saved"><BookOpen className="h-5 w-5" /></Link>
-            </Button>
-          ) : (
-            <div className="w-9" />
-          )}
+          <div className="flex items-center gap-1">
+            {isAuthenticated && (
+              <Button asChild variant="ghost" size="icon" aria-label="Saved translations">
+                <Link to="/translate/saved"><BookOpen className="h-5 w-5" /></Link>
+              </Button>
+            )}
+            <PageCorner />
+          </div>
         </div>
 
         <Card>

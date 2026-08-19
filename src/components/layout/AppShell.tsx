@@ -54,9 +54,17 @@ export function AppShell({ children, className, compact = false }: AppShellProps
           pointerEvents: "none",
         }}
       />
-      <div className={cn(
+      <div
+        style={{
+          // Clear the sadu band. It is part of a background-size: cover image,
+          // so its on-screen height tracks the viewport — a fixed pt-4 clears
+          // it on a phone and is buried by it on a desktop, which is what put
+          // the emblem and the back link on top of the pattern at width.
+          paddingTop: `calc(var(--sadu-band-height) + ${compact ? "0.75rem" : "1rem"})`,
+        }}
+        className={cn(
         "relative mx-auto w-full max-w-2xl animate-fade-up",
-        compact ? "px-4 py-5 sm:px-5 sm:py-6" : "px-4 pt-4 pb-8 sm:px-6 md:pt-6 md:pb-12",
+        compact ? "px-4 pb-5 sm:px-5 sm:pb-6" : "px-4 pb-8 sm:px-6 md:pb-12",
         // Clearance for the dock, at every width. The md: variant above is a
         // separate group as far as tailwind-merge is concerned, so a bare
         // pb-24 loses to md:pb-12 from 768px up — which leaves 48px of room

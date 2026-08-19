@@ -66,6 +66,14 @@
     /* Card cream - white/cream for cards */
     --card-cream: 40 50% 97%;
 
+    /* How tall the backdrop's sadu band actually renders.
+       The backdrop is a 1536x973 image drawn with background-size: cover, so
+       the browser scales it by max(vw/1536, vh/973) and the 46px band in the
+       source grows with it — about 19px on a phone and over 60px on a wide
+       desktop. Page content has to clear that, and a fixed padding cannot:
+       this is the same sum the browser is doing, so the two stay in step. */
+    --sadu-band-height: calc(46 * max(100vw / 1536, 100vh / 973));
+
     /* Shadows - very subtle, borders do the work */
     --shadow-soft: 0 2px 8px -2px hsl(38 30% 50% / 0.08);
     --shadow-card: 0 2px 12px -4px hsl(38 30% 40% / 0.1);

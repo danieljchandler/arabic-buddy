@@ -66,12 +66,6 @@
     /* Card cream - white/cream for cards */
     --card-cream: 40 50% 97%;
 
-    /* Page ground behind the Sadu band, and the band's rendered height.
-       The band is a repeating tile at a fixed height rather than one
-       stretched full-page image, so it stays crisp at every DPR. */
-    --app-ground: 33 90% 91%;
-    --sadu-band-h: 40px;
-
     /* Shadows - very subtle, borders do the work */
     --shadow-soft: 0 2px 8px -2px hsl(38 30% 50% / 0.08);
     --shadow-card: 0 2px 12px -4px hsl(38 30% 40% / 0.1);
@@ -120,8 +114,6 @@
 
     --success: 110 22% 45%;
     --success-foreground: 0 0% 100%;
-
-    --app-ground: 0 0% 10%;
   }
 }
 

@@ -39,7 +39,7 @@ export const ArabicKeyboard = ({ highlight, onKey, className }: ArabicKeyboardPr
                 )}
               >
                 {key.char}
-                <span className="absolute left-1 top-0.5 text-[9px] uppercase text-muted-foreground">
+                <span className="absolute left-1 top-0.5 text-[10px] uppercase text-muted-foreground">
                   {key.qwerty}
                 </span>
               </button>

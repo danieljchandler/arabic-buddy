@@ -99,7 +99,7 @@ export function LiveVoicePanel({
               <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-0.5 flex items-center gap-1.5">
                 <span>{t.role === "user" ? "You" : "Tutor"}</span>
                 {t.role === "assistant" && t.hasDialectDrift && (
-                  <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-semibold text-amber-700 normal-case tracking-normal">
+                  <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700 normal-case tracking-normal">
                     used MSA
                   </span>
                 )}

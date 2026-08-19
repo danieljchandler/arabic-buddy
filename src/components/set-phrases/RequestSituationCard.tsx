@@ -160,7 +160,7 @@ export const RequestSituationCard = () => {
               <p className="text-sm mt-1">{p.phrase_english}</p>
               {p.literal && (
                 <p className="text-xs italic text-muted-foreground/80 mt-0.5">
-                  <span className="not-italic uppercase tracking-wide text-[9px] mr-1 text-muted-foreground/60">
+                  <span className="not-italic uppercase tracking-wide text-[10px] mr-1 text-muted-foreground/60">
                     Literal
                   </span>
                   {p.literal}

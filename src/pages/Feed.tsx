@@ -381,7 +381,7 @@ function RailButton({
       <span className="grid h-10 w-10 place-items-center rounded-full bg-black/45 backdrop-blur">
         <Icon className="h-5 w-5" />
       </span>
-      <span className="text-[9px] text-white/85">{label}</span>
+      <span className="text-[10px] text-white/85">{label}</span>
     </button>
   );
 }
@@ -400,7 +400,7 @@ function RailLink({
       <span className="grid h-10 w-10 place-items-center rounded-full bg-black/45 backdrop-blur">
         <Icon className="h-5 w-5" />
       </span>
-      <span className="text-[9px] text-white/85">{label}</span>
+      <span className="text-[10px] text-white/85">{label}</span>
     </Link>
   );
 }

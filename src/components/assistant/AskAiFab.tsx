@@ -54,12 +54,7 @@ export function AskAiFab({ className }: { className?: string }) {
       {/* The mark is a speech bubble woven with sadu, not a sparkle: the logo
           is already a bubble with a sadu ring, and asking is what the button
           does. "simple" because the full band turns to mush at this size. */}
-      <SaduBubble
-        tail="left"
-        detail="simple"
-        inkOpacity={0.45}
-        className="h-[18px] w-auto shrink-0"
-      />
+      <SaduBubble tone="ivory" className="h-[18px] w-auto shrink-0" />
       <span className="text-[13px] font-semibold leading-none tracking-tight">Ask AI</span>
     </button>
   );

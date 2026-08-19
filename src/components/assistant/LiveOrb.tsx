@@ -1,7 +1,8 @@
 import { useEffect, useRef } from "react";
-import { SaduBubble } from "@/components/brand/SaduBubble";
 import { useReducedMotion } from "@/lib/uiPrefs";
 import { cn } from "@/lib/utils";
+import orbVideo from "@/assets/sadu-orb.mp4";
+import orbPoster from "@/assets/sadu-orb-poster.jpg";
 
 /**
  * The bubble during a voice call, breathing with whatever the tutor is saying.
@@ -114,10 +115,38 @@ export function LiveOrb({
           transition: "transform 70ms linear",
         }}
       />
-      <SaduBubble
-        tone={muted ? "charcoal" : "terracotta"}
-        className="relative h-[58%] w-auto"
-      />
+      {/* The orb itself: a woven sadu sphere, turning slowly. A video rather
+          than CSS because the weave visibly rotating in three dimensions is
+          the whole effect; clipped to a circle that sits just inside the
+          sphere at every point of its breath, so no background survives.
+          Under reduced motion it is a still. */}
+      {reduced ? (
+        <img
+          src={orbPoster}
+          alt=""
+          aria-hidden
+          draggable={false}
+          className={cn(
+            "relative h-[72%] w-[72%] rounded-full object-cover",
+            muted && "opacity-75 grayscale",
+          )}
+        />
+      ) : (
+        <video
+          src={orbVideo}
+          poster={orbPoster}
+          autoPlay
+          muted
+          loop
+          playsInline
+          aria-hidden
+          className={cn(
+            "relative h-[72%] w-[72%] rounded-full object-cover",
+            "transition-[filter,opacity] duration-300",
+            muted && "opacity-75 grayscale",
+          )}
+        />
+      )}
     </span>
   );
 }

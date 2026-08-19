@@ -43,12 +43,25 @@ const Stories = () => {
                 key={story.id}
                 onClick={() => navigate(`/stories/${story.id}`)}
                 className={cn(
-                  'w-full text-left rounded-2xl border-2 border-border bg-card p-5',
+                  'w-full text-left rounded-2xl border-2 border-border bg-card overflow-hidden',
                   'transition-all duration-200 hover:border-primary/40 hover:shadow-elegant',
                   'active:scale-[0.98] group'
                 )}
               >
-                <div className="flex items-start justify-between gap-3">
+                {/* Watercolor cover, generated per story from the admin
+                    console (generate-story-cover). Rows without one keep the
+                    text-only layout. */}
+                {story.cover_image_url && (
+                  <img
+                    src={story.cover_image_url}
+                    alt=""
+                    aria-hidden
+                    loading="lazy"
+                    draggable={false}
+                    className="aspect-[5/2] w-full object-cover select-none"
+                  />
+                )}
+                <div className="flex items-start justify-between gap-3 p-5">
                   <div className="flex-1 min-w-0">
                     <h3 className="font-bold text-lg group-hover:text-primary transition-colors">
                       {story.title}

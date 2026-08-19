@@ -19,7 +19,7 @@ const usePublishedStories = (filters: { difficulty?: string; dialect?: string })
     queryFn: async () => {
       let query = supabase
         .from('authentic_stories')
-        .select('id, title, title_arabic, author, author_arabic, source_name, dialect, difficulty, duration_seconds, video_status, created_at')
+        .select('id, title, title_arabic, author, author_arabic, source_name, dialect, difficulty, duration_seconds, video_status, story_video_url, story_video_approved, created_at')
         .eq('status', 'published')
         .order('created_at', { ascending: false });
 
@@ -32,7 +32,7 @@ const usePublishedStories = (filters: { difficulty?: string; dialect?: string })
 
       const { data, error } = await query;
       if (error) throw error;
-      return data as Pick<AuthenticStory, 'id' | 'title' | 'title_arabic' | 'author' | 'author_arabic' | 'source_name' | 'dialect' | 'difficulty' | 'duration_seconds' | 'video_status' | 'created_at'>[];
+      return data as Pick<AuthenticStory, 'id' | 'title' | 'title_arabic' | 'author' | 'author_arabic' | 'source_name' | 'dialect' | 'difficulty' | 'duration_seconds' | 'video_status' | 'story_video_url' | 'story_video_approved' | 'created_at'>[];
     },
   });
 
@@ -104,7 +104,20 @@ const ReadingLibrary = () => {
                 className="p-4 cursor-pointer hover:shadow-card transition-shadow"
                 onClick={() => navigate(`/reading-library/${story.id}`)}
               >
-                <div className="space-y-2">
+                <div className="flex gap-3">
+                {/* The story's approved preview scene doubles as a cover thumb;
+                    unapproved AI imagery never reaches the learner list. */}
+                {story.story_video_approved && story.story_video_url && (
+                  <img
+                    src={story.story_video_url}
+                    alt=""
+                    aria-hidden
+                    loading="lazy"
+                    draggable={false}
+                    className="h-20 w-20 rounded-xl object-cover shrink-0 select-none ring-1 ring-border/60"
+                  />
+                )}
+                <div className="space-y-2 flex-1 min-w-0">
                   <div className="flex items-start justify-between">
                     <h3 className="font-semibold text-base">{story.title}</h3>
                     <Badge variant="outline" className="text-xs shrink-0 ml-2">
@@ -133,6 +146,7 @@ const ReadingLibrary = () => {
                   {story.source_name && (
                     <p className="text-xs text-muted-foreground">Source: {story.source_name}</p>
                   )}
+                </div>
                 </div>
               </Card>
             ))}

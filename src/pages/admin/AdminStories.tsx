@@ -4,8 +4,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Plus, ArrowLeft, BookOpen, Pencil, Trash2 } from 'lucide-react';
+import { Loader2, Plus, ArrowLeft, BookOpen, Pencil, Trash2, ImagePlus } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
 import { toast } from 'sonner';
 import hakiyaIconAsset from '@/assets/hakiya-icon.png';
 const lahjaIcon = hakiyaIconAsset;
@@ -14,6 +15,25 @@ const AdminStories = () => {
   const navigate = useNavigate();
   const { data: stories, isLoading } = useAllStories();
   const queryClient = useQueryClient();
+  const [coverBusyId, setCoverBusyId] = useState<string | null>(null);
+
+  /** Generate (or regenerate) the story's watercolor cover via the
+   *  generate-story-cover edge function. */
+  const handleGenerateCover = async (id: string) => {
+    setCoverBusyId(id);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-story-cover', {
+        body: { story_id: id },
+      });
+      if (error || data?.error) throw new Error(data?.error || error?.message);
+      toast.success('Cover generated');
+      queryClient.invalidateQueries({ queryKey: ['interactive-stories'] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Failed to generate cover');
+    } finally {
+      setCoverBusyId(null);
+    }
+  };
 
   const handleDelete = async (id: string) => {
     if (!confirm('Delete this story and all its scenes?')) return;
@@ -70,7 +90,15 @@ const AdminStories = () => {
         {stories && stories.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {stories.map((story) => (
-              <Card key={story.id} className="relative">
+              <Card key={story.id} className="relative overflow-hidden">
+                {story.cover_image_url && (
+                  <img
+                    src={story.cover_image_url}
+                    alt=""
+                    loading="lazy"
+                    className="aspect-[5/2] w-full object-cover"
+                  />
+                )}
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-2">
@@ -102,6 +130,19 @@ const AdminStories = () => {
                       onClick={() => handleTogglePublish(story.id, story.status)}
                     >
                       {story.status === 'published' ? 'Unpublish' : 'Publish'}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={coverBusyId === story.id}
+                      onClick={() => handleGenerateCover(story.id)}
+                      title={story.cover_image_url ? 'Regenerate cover' : 'Generate cover'}
+                    >
+                      {coverBusyId === story.id ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <ImagePlus className="h-3.5 w-3.5" />
+                      )}
                     </Button>
                     <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleDelete(story.id)}>
                       <Trash2 className="h-3.5 w-3.5" />

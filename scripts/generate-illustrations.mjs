@@ -21,6 +21,17 @@ watercolor washes and gentle paper grain. Palette anchored to: warm sand beige
 Soft warm light, cozy and inviting mood. Clean composition with breathing room.
 Absolutely no text, no lettering, no captions, no watermark, no borders or frames.`;
 
+
+// Badge emblems match public/avatars — flat woven sadu iconography, not the
+// watercolor style — so achievements read as part of that same family.
+const BADGE_STYLE = `Flat geometric folk-art emblem in the style of Bedouin Sadu
+weaving. A symmetrical, pixel-weave woven motif rendered in deep desert green
+#44663D, terracotta red #8C4135, warm gold #C8963E and cream #F4EEDF, centered
+inside a circular deep-green ring border decorated with a repeating pattern of
+small woven gold diamonds, on a plain cream #F4EEDF background. Crisp flat
+shapes with a subtle woven-thread texture, no gradients, no outlines beyond the
+weave, absolutely no text or letters.`;
+
 const SPECS = {
   "dialect-gulf": {
     aspect: "3:2",
@@ -96,6 +107,181 @@ Scene: A small square vignette on a plain warm cream background (#F9F4EA):
 one person's single pair of hands, anatomically natural (one left hand and
 one right hand), warmly holding a phone whose screen glows with a tiny desert
 campfire scene, a finjan coffee cup on the table beside them. Centered, generous margin, no background scene.`,
+  },
+
+  // ── Curriculum stage banners (21:9) — one traveler's journey across five
+  // stages, same protagonist and camel throughout for continuity. ──
+  "stage-foundations": {
+    aspect: "21:9",
+    prompt: `${STYLE}
+Scene: Very wide cinematic banner. First light of dawn in the desert. A young
+traveler in simple robes kneels beside a small campfire at a palm oasis,
+carefully packing a woven sadu saddlebag onto a kneeling camel, preparing to
+set out. The horizon glows soft gold; the journey has not started yet.
+Wide negative space in the sky.`,
+  },
+  "stage-building-blocks": {
+    aspect: "21:9",
+    prompt: `${STYLE}
+Scene: Very wide cinematic banner. Mid-morning. The same young traveler in
+simple robes leads his camel past low mud-brick houses, stacking and loading
+woven bundles and clay bricks onto the saddle with help from a villager —
+building up his load for the road. Warm sunlight, wide sky.`,
+  },
+  "stage-bridge": {
+    aspect: "21:9",
+    prompt: `${STYLE}
+Scene: Very wide cinematic banner. Midday. The same young traveler leads his
+camel across an ancient stone arch bridge spanning a dry wadi, halfway
+across, hills with terraced fields on the far side. A moment of crossing
+over. Wide composition, generous sky.`,
+  },
+  "stage-immersion": {
+    aspect: "21:9",
+    prompt: `${STYLE}
+Scene: Very wide cinematic banner. Golden late afternoon. The same young
+traveler, camel behind him, walks into a bustling covered souq street —
+hanging lanterns, bolts of woven fabric, spice sacks, merchants mid-banter —
+fully surrounded by the life of the town. Warm glowing light.`,
+  },
+  "stage-fluency": {
+    aspect: "21:9",
+    prompt: `${STYLE}
+Scene: Very wide cinematic banner. Evening under an indigo sky. The same
+traveler, now at ease, sits among friends on a rooftop majlis overlooking
+the lit old city, gesturing warmly as HE tells the story now, a dallah and
+finjan cups between them, a crescent moon above. The journey's arrival.`,
+  },
+
+  // ── Onboarding level & goal chips (1:1 vignettes on cream) ──
+  "level-beginner": {
+    aspect: "1:1",
+    prompt: `${STYLE}
+Scene: A tiny square vignette on a plain warm cream background (#F9F4EA):
+a single small green sprout with two leaves emerging from warm golden sand,
+one small water droplet glistening on a leaf. Centered, very generous
+margin, soft ground shadow only.`,
+  },
+  "level-basic": {
+    aspect: "1:1",
+    prompt: `${STYLE}
+Scene: A tiny square vignette on a plain warm cream background (#F9F4EA):
+three flat stepping stones laid in a short path across golden sand, the
+first stone slightly larger and worn as if just stepped on. Centered, very
+generous margin, soft ground shadow only.`,
+  },
+  "level-elementary": {
+    aspect: "1:1",
+    prompt: `${STYLE}
+Scene: A tiny square vignette on a plain warm cream background (#F9F4EA):
+a small brass oil lamp with a warm steady flame, sitting on a folded piece
+of sadu-weave cloth. Centered, very generous margin, soft glow and ground
+shadow only.`,
+  },
+  "level-intermediate": {
+    aspect: "1:1",
+    prompt: `${STYLE}
+Scene: A tiny square vignette on a plain warm cream background (#F9F4EA):
+two rounded speech bubbles meeting in the middle, one filled with a
+terracotta sadu diamond weave, the other with a deep green sadu weave,
+overlapping slightly as a conversation. Centered, very generous margin.`,
+  },
+  "level-advanced": {
+    aspect: "1:1",
+    prompt: `${STYLE}
+Scene: A tiny square vignette on a plain warm cream background (#F9F4EA):
+a falcon in graceful gliding flight above two small dunes, wings spread
+wide, a few motion lines of warm air beneath. Centered, very generous
+margin.`,
+  },
+  "goal-casual": {
+    aspect: "1:1",
+    prompt: `${STYLE}
+Scene: A tiny square vignette on a plain warm cream background (#F9F4EA):
+a single small finjan coffee cup with gentle steam rising, resting on a
+small woven coaster. Centered, very generous margin, soft ground shadow.`,
+  },
+  "goal-regular": {
+    aspect: "1:1",
+    prompt: `${STYLE}
+Scene: A tiny square vignette on a plain warm cream background (#F9F4EA):
+a brass dallah coffee pot with two finjan cups beside it on a woven mat —
+a steady daily ritual. Centered, very generous margin, soft ground shadow.`,
+  },
+  "goal-serious": {
+    aspect: "1:1",
+    prompt: `${STYLE}
+Scene: A tiny square vignette on a plain warm cream background (#F9F4EA):
+a small steady campfire of neat logs with a strong warm flame, ringed by
+a few stones. Centered, very generous margin, soft glow and ground shadow.`,
+  },
+  "goal-intensive": {
+    aspect: "1:1",
+    prompt: `${STYLE}
+Scene: A tiny square vignette on a plain warm cream background (#F9F4EA):
+a small caravan of two camels with a rider striding at full pace across a
+dune crest at dawn, kicking up a little sand. Centered, very generous
+margin.`,
+  },
+  "badge-trophy": {
+    aspect: "1:1",
+    prompt: `${BADGE_STYLE}
+Motif: a trophy cup with two handles.`,
+  },
+  "badge-flame": {
+    aspect: "1:1",
+    prompt: `${BADGE_STYLE}
+Motif: a rising flame.`,
+  },
+  "badge-star": {
+    aspect: "1:1",
+    prompt: `${BADGE_STYLE}
+Motif: an eight-pointed star.`,
+  },
+  "badge-books": {
+    aspect: "1:1",
+    prompt: `${BADGE_STYLE}
+Motif: a stack of three books.`,
+  },
+  "badge-target": {
+    aspect: "1:1",
+    prompt: `${BADGE_STYLE}
+Motif: a circular archery target with a centered arrow.`,
+  },
+  "badge-speech": {
+    aspect: "1:1",
+    prompt: `${BADGE_STYLE}
+Motif: a rounded speech bubble.`,
+  },
+  "badge-scroll": {
+    aspect: "1:1",
+    prompt: `${BADGE_STYLE}
+Motif: an unrolled scroll with a ribbon.`,
+  },
+  "badge-qalam": {
+    aspect: "1:1",
+    prompt: `${BADGE_STYLE}
+Motif: a reed pen (qalam) crossing an inkwell.`,
+  },
+  "badge-headphones": {
+    aspect: "1:1",
+    prompt: `${BADGE_STYLE}
+Motif: a pair of headphones.`,
+  },
+  "badge-crown": {
+    aspect: "1:1",
+    prompt: `${BADGE_STYLE}
+Motif: a five-pointed crown.`,
+  },
+  "badge-medal": {
+    aspect: "1:1",
+    prompt: `${BADGE_STYLE}
+Motif: a round medal on a short ribbon.`,
+  },
+  "badge-lightning": {
+    aspect: "1:1",
+    prompt: `${BADGE_STYLE}
+Motif: a bold lightning bolt.`,
   },
 };
 

@@ -17,6 +17,25 @@ import {
 } from "@/lib/lessonPath";
 import { cn } from "@/lib/utils";
 import { CheckCircle2, ChevronRight, Loader2, PlayCircle, Circle } from "lucide-react";
+import stageFoundationsArt from "@/assets/illustrations/stage-foundations.webp";
+import stageBuildingBlocksArt from "@/assets/illustrations/stage-building-blocks.webp";
+import stageBridgeArt from "@/assets/illustrations/stage-bridge.webp";
+import stageImmersionArt from "@/assets/illustrations/stage-immersion.webp";
+import stageFluencyArt from "@/assets/illustrations/stage-fluency.webp";
+
+/**
+ * Painted banner per curriculum stage — one traveler's journey told across
+ * the five stages the migrations seed (setting out at dawn → telling the
+ * story himself at night). Keyed by stage name so a renamed or added stage
+ * simply renders without a banner rather than with the wrong one.
+ */
+const STAGE_ART: Record<string, string> = {
+  "Foundations": stageFoundationsArt,
+  "Building Blocks": stageBuildingBlocksArt,
+  "The Bridge": stageBridgeArt,
+  "Immersion": stageImmersionArt,
+  "Fluency": stageFluencyArt,
+};
 
 /**
  * The curriculum path.
@@ -123,11 +142,18 @@ const Curriculum = () => {
 
         return (
           <section key={stage.id} className="mb-8">
+            {STAGE_ART[stage.name] && (
+              <img
+                src={STAGE_ART[stage.name]}
+                alt=""
+                aria-hidden
+                loading="lazy"
+                draggable={false}
+                className="mb-2.5 aspect-[21/9] w-full select-none rounded-2xl border border-border/60 object-cover shadow-soft"
+              />
+            )}
             <div className="flex items-baseline justify-between gap-3 mb-1 px-1">
-              <h2
-                className="text-lg font-bold text-foreground"
-                style={{ fontFamily: "'Montserrat', sans-serif" }}
-              >
+              <h2 className="font-heading text-lg font-bold text-foreground">
                 {stage.name}
               </h2>
               {stage.cefr_level && (

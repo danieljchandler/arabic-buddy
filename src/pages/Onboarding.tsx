@@ -25,6 +25,15 @@ import hakiyaLogo from '@/assets/hakiya-logo.png';
 import dialectGulfArt from '@/assets/illustrations/dialect-gulf.webp';
 import dialectEgyptianArt from '@/assets/illustrations/dialect-egyptian.webp';
 import dialectYemeniArt from '@/assets/illustrations/dialect-yemeni.webp';
+import levelBeginnerArt from '@/assets/illustrations/level-beginner.webp';
+import levelBasicArt from '@/assets/illustrations/level-basic.webp';
+import levelElementaryArt from '@/assets/illustrations/level-elementary.webp';
+import levelIntermediateArt from '@/assets/illustrations/level-intermediate.webp';
+import levelAdvancedArt from '@/assets/illustrations/level-advanced.webp';
+import goalCasualArt from '@/assets/illustrations/goal-casual.webp';
+import goalRegularArt from '@/assets/illustrations/goal-regular.webp';
+import goalSeriousArt from '@/assets/illustrations/goal-serious.webp';
+import goalIntensiveArt from '@/assets/illustrations/goal-intensive.webp';
 
 type Step = 'welcome' | 'dialect' | 'level' | 'purpose' | 'goal';
 
@@ -41,18 +50,18 @@ const DIALECTS = [
 ];
 
 const LEVELS = [
-  { id: 'beginner', label: 'Complete Beginner', desc: "I don't know any Arabic", icon: '🌱', cefr: 'Pre-A1' },
-  { id: 'basic', label: 'Basic', desc: 'I know some words & greetings', icon: '📖', cefr: 'A1' },
-  { id: 'elementary', label: 'Elementary', desc: 'I can make basic sentences', icon: '🗣️', cefr: 'A2' },
-  { id: 'intermediate', label: 'Intermediate', desc: 'I can hold simple conversations', icon: '💬', cefr: 'B1' },
-  { id: 'advanced', label: 'Advanced', desc: 'I understand most spoken Arabic', icon: '🎯', cefr: 'B2+' },
+  { id: 'beginner', label: 'Complete Beginner', desc: "I don't know any Arabic", image: levelBeginnerArt, cefr: 'Pre-A1' },
+  { id: 'basic', label: 'Basic', desc: 'I know some words & greetings', image: levelBasicArt, cefr: 'A1' },
+  { id: 'elementary', label: 'Elementary', desc: 'I can make basic sentences', image: levelElementaryArt, cefr: 'A2' },
+  { id: 'intermediate', label: 'Intermediate', desc: 'I can hold simple conversations', image: levelIntermediateArt, cefr: 'B1' },
+  { id: 'advanced', label: 'Advanced', desc: 'I understand most spoken Arabic', image: levelAdvancedArt, cefr: 'B2+' },
 ];
 
 const GOALS = [
-  { id: 'casual', label: 'Casual', desc: '5 min/day · 2-3 days/week', icon: '☕', reviewTarget: 20, xpTarget: 100 },
-  { id: 'regular', label: 'Regular', desc: '10 min/day · 4-5 days/week', icon: '📚', reviewTarget: 50, xpTarget: 300 },
-  { id: 'serious', label: 'Serious', desc: '20 min/day · every day', icon: '🔥', reviewTarget: 100, xpTarget: 500 },
-  { id: 'intensive', label: 'Intensive', desc: '30+ min/day · every day', icon: '🚀', reviewTarget: 150, xpTarget: 750 },
+  { id: 'casual', label: 'Casual', desc: '5 min/day · 2-3 days/week', image: goalCasualArt, reviewTarget: 20, xpTarget: 100 },
+  { id: 'regular', label: 'Regular', desc: '10 min/day · 4-5 days/week', image: goalRegularArt, reviewTarget: 50, xpTarget: 300 },
+  { id: 'serious', label: 'Serious', desc: '20 min/day · every day', image: goalSeriousArt, reviewTarget: 100, xpTarget: 500 },
+  { id: 'intensive', label: 'Intensive', desc: '30+ min/day · every day', image: goalIntensiveArt, reviewTarget: 150, xpTarget: 750 },
 ];
 
 
@@ -309,7 +318,7 @@ const Onboarding = () => {
                       : 'border-border bg-card hover:border-primary/30'
                   )}
                 >
-                  <span className="text-2xl">{l.icon}</span>
+                  <img src={l.image} alt="" aria-hidden loading="lazy" draggable={false} className="h-12 w-12 rounded-xl object-cover shrink-0 select-none ring-1 ring-border/60" />
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <span className="font-semibold text-foreground">{l.label}</span>
@@ -435,7 +444,7 @@ const Onboarding = () => {
                       : 'border-border bg-card hover:border-primary/30'
                   )}
                 >
-                  <span className="text-2xl">{g.icon}</span>
+                  <img src={g.image} alt="" aria-hidden loading="lazy" draggable={false} className="h-12 w-12 rounded-xl object-cover shrink-0 select-none ring-1 ring-border/60" />
                   <div className="flex-1">
                     <span className="font-semibold text-foreground block">{g.label}</span>
                     <p className="text-xs text-muted-foreground">{g.desc}</p>

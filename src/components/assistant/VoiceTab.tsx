@@ -210,6 +210,17 @@ export function VoiceTab() {
         <div className="flex items-center justify-center gap-3">
           {live || connecting ? (
             <>
+              {/* Once the transcript starts, the big orb above is replaced by
+                  the turns — so the call keeps a small one down here, beside
+                  the controls, which is the one part of the tab that never
+                  scrolls away. It is the same component and the same analyser,
+                  so it goes on answering the tutor's voice for the whole call. */}
+              <LiveOrb
+                stream={remoteStream}
+                active={live}
+                muted={muted}
+                className="h-10 w-10 shrink-0"
+              />
               <Button
                 variant={muted ? "default" : "outline"}
                 size="icon"

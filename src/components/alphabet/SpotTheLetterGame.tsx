@@ -113,7 +113,7 @@ export const SpotTheLetterGame = ({ letter, pool, onComplete }: SpotTheLetterGam
               onClick={() => toggle(w)}
               disabled={submitted}
               className={cn(
-                "p-3 rounded-xl border-2 text-2xl text-center transition-all active:scale-95",
+                "p-3 rounded-xl border-2 text-2xl text-center transition-all active:scale-[0.98]",
                 !showResult && isPicked && "border-primary bg-primary/10",
                 !showResult && !isPicked && "border-border bg-card",
                 correct && "border-green-500 bg-green-500/10 animate-correct-pulse",

@@ -80,7 +80,7 @@ export const RatingButtons = ({
                 "py-3 px-2 rounded-xl border-2",
                 color,
                 "transition-all duration-200",
-                "hover:scale-[1.03] hover:-translate-y-0.5 active:scale-[0.97] active:translate-y-0",
+                "hover:scale-[1.03] hover:-translate-y-0.5 active:scale-[0.98] active:translate-y-0",
                 "disabled:opacity-50 disabled:cursor-not-allowed"
               )}
             >

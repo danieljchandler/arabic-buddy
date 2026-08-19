@@ -60,7 +60,7 @@ export const PageCorner = React.forwardRef<HTMLButtonElement, { className?: stri
           "flex items-center justify-center",
           "bg-card/80 border border-border",
           "transition-all duration-200",
-          "hover:bg-card hover:border-primary/20 active:scale-95",
+          "hover:bg-card hover:border-primary/20 active:scale-[0.98]",
           "focus:outline-none focus:ring-2 focus:ring-primary/30",
           className,
         )}

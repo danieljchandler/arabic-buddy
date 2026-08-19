@@ -2,7 +2,8 @@ import { useEffect, lazy, Suspense, type ComponentType } from "react";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Navigate, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Navigate, Route } from "react-router-dom";
+import { TransitionRoutes } from "@/components/shell/TransitionRoutes";
 import { toast } from "sonner";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
@@ -227,7 +228,7 @@ const App = () => {
         <BrowserRouter>
           <AiAssistantProvider>
           <Suspense fallback={<PageSkeleton />}>
-          <Routes>
+          <TransitionRoutes>
             {/* Public learning app */}
             {/* "/" is the video feed for a signed-in learner and the landing
                 page for a visitor. The daily dashboard kept its content and
@@ -505,7 +506,7 @@ const App = () => {
             <Route path="/reading-library/:id" element={<ErrorBoundary name="ReadingLibraryStoryRoute"><ReadingLibraryStory /></ErrorBoundary>} />
 
             <Route path="*" element={<NotFound />} />
-          </Routes>
+          </TransitionRoutes>
           </Suspense>
           {/* App-wide chrome, not page chrome. The tour points at the dock,
               and the dock now outlives any single layout — it is on the feed,

@@ -117,7 +117,7 @@ export const SoundMatchGame = ({ letter, pool, onComplete }: SoundMatchGameProps
               onClick={() => choose(l.code)}
               disabled={!!picked}
               className={cn(
-                "p-6 rounded-2xl border-2 transition-all active:scale-95",
+                "p-6 rounded-2xl border-2 transition-all active:scale-[0.98]",
                 !picked && "border-border bg-card hover:border-primary/40",
                 showResult && correct && "border-green-500 bg-green-500/10 animate-correct-pulse",
                 showResult && !correct && "border-red-500 bg-red-500/10",

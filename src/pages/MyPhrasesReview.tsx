@@ -377,7 +377,7 @@ const MyPhrasesReview = () => {
                     onClick={() => effectiveAudio && playAudio(effectiveAudio)}
                     disabled={!effectiveAudio || ttsLoading}
                     aria-label="Play audio"
-                    className="h-14 w-14 rounded-full flex items-center justify-center bg-primary text-primary-foreground shadow-elegant transition-all hover:scale-105 active:scale-95 disabled:opacity-50"
+                    className="h-14 w-14 rounded-full flex items-center justify-center bg-primary text-primary-foreground shadow-elegant transition-all hover:scale-105 active:scale-[0.98] disabled:opacity-50"
                   >
                     {ttsLoading ? (
                       <Loader2 className="h-6 w-6 animate-spin" />

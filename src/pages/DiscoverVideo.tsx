@@ -1803,7 +1803,7 @@ const DiscoverVideo = ({
               className={cn(
                 "shrink-0 w-10 h-10 rounded-full flex items-center justify-center",
                 "bg-muted/60 transition-all duration-200",
-                "hover:bg-muted active:scale-95",
+                "hover:bg-muted active:scale-[0.98]",
                 "disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-muted/60"
               )}
               aria-label="Previous line"
@@ -1922,7 +1922,7 @@ const DiscoverVideo = ({
               className={cn(
                 "shrink-0 w-10 h-10 rounded-full flex items-center justify-center",
                 "bg-muted/60 transition-all duration-200",
-                "hover:bg-muted active:scale-95",
+                "hover:bg-muted active:scale-[0.98]",
                 "disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-muted/60"
               )}
               aria-label="Next line"

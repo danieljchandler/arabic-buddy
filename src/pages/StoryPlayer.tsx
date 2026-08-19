@@ -341,7 +341,7 @@ const StoryPlayer = () => {
                             'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm transition-all',
                             isSaved
                               ? 'bg-primary/20 text-primary'
-                              : 'bg-primary/10 hover:bg-primary/20 active:scale-95'
+                              : 'bg-primary/10 hover:bg-primary/20 active:scale-[0.98]'
                           )}
                         >
                           <span className="font-medium">{v.word_arabic}</span>

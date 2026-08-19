@@ -78,7 +78,7 @@ export const VocabularyCard = ({
         className={cn(
           "relative w-full aspect-[4/3] rounded-xl overflow-hidden",
           "transform transition-all duration-200",
-          "hover:scale-[1.02] active:scale-95",
+          "hover:scale-[1.02] active:scale-[0.98]",
           "shadow-card",
           "bg-card border border-border",
           "focus:outline-none focus:ring-2 focus:ring-primary/50"
@@ -163,7 +163,7 @@ export const VocabularyCard = ({
             "flex items-center justify-center",
             "bg-primary shadow-button",
             "transition-all duration-200",
-            "hover:scale-110 active:scale-95",
+            "hover:scale-110 active:scale-[0.98]",
             isPlaying && "animate-wiggle"
           )}
         >

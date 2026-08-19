@@ -153,7 +153,7 @@ export const ReviewClozeCard = ({
           className={cn(
             "h-14 w-14 rounded-full flex items-center justify-center",
             "bg-primary text-primary-foreground shadow-elegant",
-            "transition-all hover:scale-105 active:scale-95",
+            "transition-all hover:scale-105 active:scale-[0.98]",
             "disabled:opacity-50 disabled:cursor-not-allowed"
           )}
         >

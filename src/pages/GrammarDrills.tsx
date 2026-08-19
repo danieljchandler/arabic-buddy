@@ -447,7 +447,7 @@ const GrammarDrills = () => {
                   "p-4 rounded-xl bg-card border",
                   "flex flex-col items-center gap-2 text-center",
                   "transition-all duration-200",
-                  "hover:border-primary/30 active:scale-[0.97]",
+                  "hover:border-primary/30 active:scale-[0.98]",
                   cat.focus ? "border-primary/50 ring-1 ring-primary/20" : "border-border"
                 )}
               >

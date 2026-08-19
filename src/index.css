@@ -399,6 +399,26 @@
   }
 }
 
+/* ── Page transitions ──
+   TransitionRoutes drives route changes through document.startViewTransition;
+   these pseudo-elements are the whole animation. A quick cross-fade on the
+   Lahja curve: the fixed chrome (sadu border, dock) is identical on both
+   snapshots so it appears to hold still, and AppShell's own fade-up remains
+   the content's arrival move. Kept fast — a transition slower than the
+   navigation feels like loading. */
+::view-transition-old(root) {
+  animation: vt-fade-out 160ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+::view-transition-new(root) {
+  animation: vt-fade-in 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes vt-fade-out {
+  to { opacity: 0; }
+}
+@keyframes vt-fade-in {
+  from { opacity: 0; }
+}
+
 /* Honor user reduced-motion preference globally */
 @media (prefers-reduced-motion: reduce) {
   .animate-pop,
@@ -413,6 +433,13 @@
   .animate-sparkle,
   .animate-wave-bar,
   .animate-face-morph {
+    animation: none !important;
+  }
+
+  /* TransitionRoutes already skips startViewTransition under reduced motion;
+     this covers view transitions started anywhere else. */
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
     animation: none !important;
   }
 }

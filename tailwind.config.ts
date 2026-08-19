@@ -108,7 +108,10 @@ export default {
         "topic-hover": "var(--shadow-topic-hover)",
       },
       transitionTimingFunction: {
-        // Lahja Motion Language — single canonical easing
+        // Lahja Motion Language — single canonical easing. DEFAULT makes it
+        // what every transition-* utility uses unless a class says otherwise,
+        // so hover/press/color transitions share one curve app-wide.
+        DEFAULT: "cubic-bezier(0.16, 1, 0.3, 1)",
         lahja: "cubic-bezier(0.16, 1, 0.3, 1)",
       },
       keyframes: {

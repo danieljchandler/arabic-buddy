@@ -19,8 +19,8 @@ import {
 } from 'lucide-react';
 import { getTopicCategories } from '@/data/listenTopics';
 import { LEARNING_REASONS, reasonLabel } from '@/data/learningReasons';
-import hakiyaIconAsset from '@/assets/hakiya-icon.png.asset.json';
-const lahjaIcon = hakiyaIconAsset.url;
+import hakiyaIconAsset from '@/assets/hakiya-icon.png';
+const lahjaIcon = hakiyaIconAsset;
 
 type Step = 'welcome' | 'dialect' | 'level' | 'purpose' | 'goal';
 

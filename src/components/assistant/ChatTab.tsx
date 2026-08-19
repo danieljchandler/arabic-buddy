@@ -14,6 +14,7 @@ import { TinyMarkdown } from "@/components/shared/TinyMarkdown";
 import { TappableArabicText } from "@/components/shared/TappableArabicText";
 import { SavePhraseDialog } from "./SavePhraseDialog";
 import { cn } from "@/lib/utils";
+import { ThinkingBubble } from "@/components/assistant/ThinkingBubble";
 import { toast } from "sonner";
 
 /** First run of Arabic script in a reply — the pre-fill for "save phrase". */
@@ -266,7 +267,7 @@ export function ChatTab({ onComposerFocus }: ChatTabProps = {}) {
                     )}
                   </>
                 ) : (
-                  <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                  <ThinkingBubble />
                 )
               ) : (
                 <p>{m.content}</p>

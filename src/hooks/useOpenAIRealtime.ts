@@ -89,6 +89,9 @@ export function useOpenAIRealtime(opts: Options = {}) {
   const localStreamRef = useRef<MediaStream | null>(null);
   const audioElRef = useRef<HTMLAudioElement | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
+  // The model's own voice, surfaced so the UI can react to it. Kept as state
+  // rather than a ref because a visualiser has to re-render when it arrives.
+  const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   const dialectRef = useRef<string>("Gulf");
   const endingRef = useRef(false);
   const modeRef = useRef<"practice" | "assistant">("practice");
@@ -202,6 +205,7 @@ export function useOpenAIRealtime(opts: Options = {}) {
       try { void audioCtxRef.current.close(); } catch { /* noop */ }
       audioCtxRef.current = null;
     }
+    setRemoteStream(null);
     micSenderRef.current = null;
     userBufRef.current.clear();
     assistantBufRef.current.clear();
@@ -437,6 +441,7 @@ export function useOpenAIRealtime(opts: Options = {}) {
 
       pc.ontrack = (e) => {
         audioEl.srcObject = e.streams[0];
+        setRemoteStream(e.streams[0] ?? null);
         audioEl.play().catch((err) => {
           console.warn("[realtime] audio autoplay blocked", err);
         });
@@ -559,5 +564,5 @@ export function useOpenAIRealtime(opts: Options = {}) {
 
   useEffect(() => () => cleanup(), [cleanup]);
 
-  return { status, error, turns, muted, setMuted, start, stop, updateContext, remainingSeconds };
+  return { status, error, turns, muted, setMuted, start, stop, updateContext, remainingSeconds, remoteStream };
 }

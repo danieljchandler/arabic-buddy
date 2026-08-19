@@ -52,6 +52,7 @@ import {
 } from "lucide-react";
 import { formatDuration } from "@/lib/videoEmbed";
 import type { DiscoverVideo } from "@/hooks/useDiscoverVideos";
+import { EmptyState } from "@/components/shared/EmptyState";
 
 const LikedVideoCard = ({
   video,
@@ -586,16 +587,11 @@ const Friends = () => {
     return (
       <AppShell>
         <PageCorner />
-        <div className="py-12 text-center">
-          <Users className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
-          <h2 className="text-lg font-semibold text-foreground mb-2">
-            Sign in to see friends
-          </h2>
-          <p className="text-muted-foreground mb-4">
-            Follow other learners and challenge them!
-          </p>
-          <Button onClick={() => navigate("/auth")}>Sign In</Button>
-        </div>
+        <EmptyState
+          title="Sign in to see friends"
+          body="Follow other learners and challenge them."
+          action={<Button onClick={() => navigate("/auth")}>Sign In</Button>}
+        />
       </AppShell>
     );
   }
@@ -708,15 +704,11 @@ const Friends = () => {
                 />
               ))
             ) : (
-              <div className="text-center py-8">
-                <UserPlus className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
-                <p className="text-muted-foreground">
-                  You're not following anyone yet
-                </p>
-                <p className="text-sm text-muted-foreground/70">
-                  Search for users above to start following!
-                </p>
-              </div>
+              <EmptyState
+                className="py-8"
+                title="You're not following anyone yet"
+                body="Search above to find other learners."
+              />
             )}
           </div>
         )}

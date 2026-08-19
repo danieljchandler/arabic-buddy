@@ -34,6 +34,7 @@ import {
   LeaderboardEntry,
 } from "@/hooks/useLeaderboard";
 import { cn } from "@/lib/utils";
+import { EmptyState } from "@/components/shared/EmptyState";
 import { toast } from "sonner";
 import {
   Trophy,
@@ -373,13 +374,10 @@ const Leaderboard = () => {
               />
             ))
           ) : (
-            <div className="text-center py-12">
-              <Trophy className="h-12 w-12 text-muted-foreground/30 mx-auto mb-3" />
-              <p className="text-muted-foreground">No rankings yet</p>
-              <p className="text-sm text-muted-foreground/70">
-                Start learning to appear on the leaderboard!
-              </p>
-            </div>
+            <EmptyState
+              title="No rankings yet"
+              body="Finish a lesson or a review and you will show up here."
+            />
           )}
         </div>
 

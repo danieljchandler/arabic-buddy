@@ -10,7 +10,6 @@ import {
   Mic,
   Minimize2,
   Plus,
-  Sparkles,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -24,6 +23,7 @@ import { useKeyboardInset } from "@/hooks/useKeyboardInset";
 import { useSaveConversation } from "@/hooks/useSavedConversations";
 import { buildPagePayload } from "@/lib/pageAiContext";
 import { cn } from "@/lib/utils";
+import { SaduBubble } from "@/components/brand/SaduBubble";
 import { AskAiContextCard } from "./AskAiContextCard";
 import { ChatTab } from "./ChatTab";
 import { VoiceTab } from "./VoiceTab";
@@ -295,7 +295,7 @@ export function AskAiPanel() {
                 part worth the vertical space at the peek height. */}
             <div className="flex items-center gap-1.5">
               <SheetTitle className="mr-auto flex items-center gap-2 text-base">
-                <Sparkles className="h-4 w-4 text-primary" />
+                <SaduBubble tone="terracotta" className="h-4 w-auto" />
                 Ask AI
               </SheetTitle>
               {messages.length > 0 && (

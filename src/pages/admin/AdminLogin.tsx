@@ -8,8 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Eye, EyeOff } from 'lucide-react';
 import { z } from 'zod';
-import hakiyaIconAsset from '@/assets/hakiya-icon.png.asset.json';
-const lahjaIcon = hakiyaIconAsset.url;
+import hakiyaIconAsset from '@/assets/hakiya-icon.png';
+const lahjaIcon = hakiyaIconAsset;
 
 const authSchema = z.object({
   email: z.string().email('Please enter a valid email'),

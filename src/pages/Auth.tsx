@@ -10,8 +10,8 @@ import { PageCorner } from "@/components/shell/PageCorner";
 import { AppShell } from "@/components/layout/AppShell";
 import { Loader2, Mail, Lock, UserPlus, LogIn, Ticket } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import hakiyaIconAsset from "@/assets/hakiya-icon.png.asset.json";
-const lahjaIcon = hakiyaIconAsset.url;
+import hakiyaIconAsset from "@/assets/hakiya-icon.png";
+const lahjaIcon = hakiyaIconAsset;
 
 // Lightweight inline validators — dropping `zod` here saves ~12 kB gz on the Auth chunk.
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

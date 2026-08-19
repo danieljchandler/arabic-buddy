@@ -12,6 +12,7 @@ import { VideoThumbnail } from "@/components/media/VideoThumbnail";
 import type { DiscoverVideo } from "@/hooks/useDiscoverVideos";
 import { InfoHint } from "@/components/InfoHint";
 import { PAGE_HINTS } from "@/lib/pageHints";
+import { EmptyState } from "@/components/shared/EmptyState";
 
 const LikedVideoCard = ({
   video,
@@ -85,13 +86,11 @@ const LikedVideos = () => {
     return (
       <AppShell>
         <PageCorner />
-        <div className="py-12 text-center">
-          <Heart className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
-          <h2 className="text-lg font-semibold text-foreground mb-2">
-            Sign in to see liked videos
-          </h2>
-          <Button onClick={() => navigate("/auth")}>Sign In</Button>
-        </div>
+        <EmptyState
+          title="Sign in to see liked videos"
+          body="Your saved videos follow your account."
+          action={<Button onClick={() => navigate("/auth")}>Sign In</Button>}
+        />
       </AppShell>
     );
   }
@@ -132,17 +131,16 @@ const LikedVideos = () => {
             ))}
           </div>
         ) : (
-          <div className="text-center py-12">
-            <Heart className="h-12 w-12 text-muted-foreground/30 mx-auto mb-3" />
-            <p className="text-muted-foreground">No liked videos yet</p>
-            <p className="text-sm text-muted-foreground/70 mb-4">
-              Tap the ❤️ on any video to save it here
-            </p>
-            <Button onClick={() => navigate("/discover")}>
-              <Play className="h-4 w-4 mr-2" />
-              Browse Videos
-            </Button>
-          </div>
+          <EmptyState
+            title="No liked videos yet"
+            body="Tap the heart on any video to keep it here."
+            action={
+              <Button onClick={() => navigate("/discover")}>
+                <Play className="h-4 w-4 mr-2" />
+                Browse Videos
+              </Button>
+            }
+          />
         )}
       </div>
     </AppShell>

@@ -363,8 +363,8 @@ const PronunciationPractice = () => {
               className={cn(
                 "w-20 h-20 rounded-full flex items-center justify-center transition-all duration-200",
                 isRecording
-                  ? "bg-destructive text-destructive-foreground animate-pulse scale-110 shadow-lg shadow-destructive/30"
-                  : "bg-primary text-primary-foreground hover:scale-105 shadow-lg shadow-primary/30"
+                  ? "bg-destructive text-destructive-foreground animate-pulse scale-110 shadow-elegant shadow-destructive/30"
+                  : "bg-primary text-primary-foreground hover:scale-105 shadow-elegant shadow-primary/30"
               )}
             >
               {isRecording ? (

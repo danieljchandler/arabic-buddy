@@ -166,7 +166,7 @@ const TutorUpload = () => {
               <Button
                 size="lg"
                 onClick={createFlashcards}
-                className="shadow-lg"
+                className="shadow-elegant"
               >
                 <Check className="h-5 w-5 mr-2" />
                 Create {approvedCount} Flashcard{approvedCount !== 1 ? "s" : ""}

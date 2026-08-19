@@ -69,7 +69,7 @@ function VideoCard({ video, onClick, feed, comprehension }: CardProps) {
       className={cn(
         "rounded-xl overflow-hidden border border-border bg-card",
         "text-left transition-all duration-200",
-        "hover:shadow-md hover:border-primary/20 active:scale-[0.98]",
+        "hover:shadow-card hover:border-primary/20 active:scale-[0.98]",
       )}
     >
       <div className="relative aspect-video bg-muted">

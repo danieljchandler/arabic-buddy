@@ -225,7 +225,7 @@ const Onboarding = () => {
                   className={cn(
                     'w-full flex items-center gap-3 p-3.5 rounded-xl border-2 transition-all duration-200 text-left',
                     dialect === d.id
-                      ? 'border-primary bg-primary/5 shadow-sm'
+                      ? 'border-primary bg-primary/5 shadow-soft'
                       : 'border-border bg-card hover:border-primary/30'
                   )}
                 >
@@ -288,7 +288,7 @@ const Onboarding = () => {
                   className={cn(
                     'w-full flex items-center gap-3 p-3.5 rounded-xl border-2 transition-all duration-200 text-left',
                     level === l.id
-                      ? 'border-primary bg-primary/5 shadow-sm'
+                      ? 'border-primary bg-primary/5 shadow-soft'
                       : 'border-border bg-card hover:border-primary/30'
                   )}
                 >
@@ -339,7 +339,7 @@ const Onboarding = () => {
                   className={cn(
                     'w-full flex items-center gap-3 p-3.5 rounded-xl border-2 transition-all duration-200 text-left',
                     reason === r.id
-                      ? 'border-primary bg-primary/5 shadow-sm'
+                      ? 'border-primary bg-primary/5 shadow-soft'
                       : 'border-border bg-card hover:border-primary/30'
                   )}
                 >
@@ -414,7 +414,7 @@ const Onboarding = () => {
                   className={cn(
                     'w-full flex items-center gap-3 p-3.5 rounded-xl border-2 transition-all duration-200 text-left',
                     goal === g.id
-                      ? 'border-primary bg-primary/5 shadow-sm'
+                      ? 'border-primary bg-primary/5 shadow-soft'
                       : 'border-border bg-card hover:border-primary/30'
                   )}
                 >

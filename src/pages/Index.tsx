@@ -234,7 +234,7 @@ const Index = () => {
                   "border-2 border-primary/30",
                   "flex items-start gap-4 text-left",
                   "transition-all duration-200",
-                  "hover:border-primary/50 hover:shadow-lg active:scale-[0.99]",
+                  "hover:border-primary/50 hover:shadow-elegant active:scale-[0.99]",
                   "relative overflow-hidden"
                 )}
               >
@@ -382,27 +382,27 @@ const Index = () => {
               {currentLetter && (
                 <button
                   onClick={() => navigate(alphabetMastered === 0 ? "/alphabet" : `/alphabet/${currentLetter.code}`)}
-                  className="w-full p-4 rounded-2xl bg-gradient-to-br from-[#F5E6CC] via-[#EFE0C2] to-[#E2C892]/60 border-2 border-[#CFA44E]/50 flex items-center gap-3 transition-all hover:border-[#CFA44E] hover:shadow-md active:scale-[0.99] text-left relative overflow-hidden"
+                  className="w-full p-4 rounded-2xl bg-gradient-to-br from-[#F5E6CC] via-[#EFE0C2] to-[#E2C892]/60 border-2 border-[#CFA44E]/50 flex items-center gap-3 transition-all hover:border-[#CFA44E] hover:shadow-card active:scale-[0.99] text-left relative overflow-hidden"
                 >
-                  <div className="h-12 w-12 rounded-full bg-[#FBF6EC] border-2 border-[#5C3A46] flex items-center justify-center shrink-0 shadow-sm">
+                  <div className="h-12 w-12 rounded-full bg-[#FBF6EC] border-2 border-plum flex items-center justify-center shrink-0 shadow-soft">
                     <span
-                      className="text-2xl text-[#5C3A46]"
+                      className="text-2xl text-plum"
                       style={{ fontFamily: "'Noto Sans Arabic', serif", lineHeight: 1 }}
                     >
                       {currentLetter.isolated}
                     </span>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-bold text-[#5C3A46]" style={{ fontFamily: "'Montserrat', sans-serif" }}>
+                    <p className="font-bold text-plum" style={{ fontFamily: "'Montserrat', sans-serif" }}>
                       {alphabetMastered === 0 ? "Start the Alphabet Journey" : "Continue Alphabet Journey"}
                     </p>
-                    <p className="text-xs text-[#5C3A46]/70 mt-0.5">
+                    <p className="text-xs text-plum/70 mt-0.5">
                       {alphabetMastered === 0
                         ? "Stop 1 of 28 — Alif"
                         : `Stop ${currentLetter.order_index + 1} of 28 — ${currentLetter.name_translit} • ${alphabetMastered} mastered`}
                     </p>
                   </div>
-                  <ChevronRight className="h-5 w-5 text-[#5C3A46] shrink-0" />
+                  <ChevronRight className="h-5 w-5 text-plum shrink-0" />
                 </button>
               )}
               <div className="flex gap-3">
@@ -436,21 +436,21 @@ const Index = () => {
           onClick={() => navigate("/bridge")}
           className={cn(
             "w-full px-4 py-3 rounded-2xl text-left",
-            "bg-gradient-to-r from-[#5C3A46]/8 via-[#F9F7F2] to-[#5C3A46]/8",
-            "border border-[#5C3A46]/25 hover:border-[#5C3A46]/50",
+            "bg-gradient-to-r from-plum/8 via-[#F9F7F2] to-plum/8",
+            "border border-plum/25 hover:border-plum/50",
             "flex items-center gap-3 transition-all active:scale-[0.99]"
           )}
         >
-          <div className="h-9 w-9 rounded-xl bg-[#5C3A46]/10 flex items-center justify-center shrink-0">
-            <Globe2 className="h-4 w-4 text-[#5C3A46]" />
+          <div className="h-9 w-9 rounded-xl bg-plum/10 flex items-center justify-center shrink-0">
+            <Globe2 className="h-4 w-4 text-plum" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-[#5C3A46]">Coming from MSA?</p>
-            <p className="text-[11px] text-[#5C3A46]/70 truncate">
+            <p className="text-sm font-semibold text-plum">Coming from MSA?</p>
+            <p className="text-[11px] text-plum/70 truncate">
               Bridge <span className="font-arabic" dir="rtl">الفصحى</span> into {activeDialect} dialect
             </p>
           </div>
-          <ChevronRight className="h-4 w-4 text-[#5C3A46]/60 shrink-0" />
+          <ChevronRight className="h-4 w-4 text-plum/60 shrink-0" />
         </button>
       </div>
 

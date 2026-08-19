@@ -395,7 +395,7 @@ const StoryPlayer = () => {
                     onClick={() => handleChoice(choice.next_scene_order)}
                     className={cn(
                       'w-full text-left rounded-xl border-2 border-border bg-card p-4',
-                      'transition-all duration-200 hover:border-primary hover:shadow-md',
+                      'transition-all duration-200 hover:border-primary hover:shadow-card',
                       'active:scale-[0.98] group'
                     )}
                   >

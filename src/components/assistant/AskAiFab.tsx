@@ -45,7 +45,7 @@ export function AskAiFab({ className }: { className?: string }) {
       onClick={() => openChat()}
       className={cn(
         "fixed right-3 bottom-20 z-40 flex items-center gap-1.5 rounded-full",
-        "bg-primary text-primary-foreground shadow-lg transition-transform hover:scale-105",
+        "bg-primary text-primary-foreground shadow-elegant transition-transform hover:scale-105",
         "md:bottom-6 md:right-6",
         "h-10 pe-3 ps-2.5",
         className,

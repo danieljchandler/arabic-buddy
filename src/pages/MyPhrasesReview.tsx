@@ -337,7 +337,7 @@ const MyPhrasesReview = () => {
       {/* Card */}
       <div className="py-4">
         <div className="max-w-sm mx-auto">
-          <div className="rounded-3xl bg-card border border-[#5C3A46]/15 p-7 text-center space-y-5 shadow-elegant">
+          <div className="rounded-3xl bg-card border border-plum/15 p-7 text-center space-y-5 shadow-elegant">
             <p className="text-[10px] uppercase tracking-[0.18em] font-semibold text-muted-foreground">
               Say this in {activeDialect} Arabic
             </p>
@@ -348,7 +348,7 @@ const MyPhrasesReview = () => {
             {showAnswer ? (
               <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 space-y-4 pt-2">
                 <p
-                  className="text-4xl font-bold text-[#5C3A46] leading-snug"
+                  className="text-4xl font-bold text-plum leading-snug"
                   style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
                   dir="rtl"
                 >

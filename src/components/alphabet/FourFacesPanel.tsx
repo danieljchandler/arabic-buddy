@@ -46,7 +46,7 @@ export const FourFacesPanel = ({ letter }: FourFacesPanelProps) => {
             className={cn(
               "p-4 rounded-2xl border-2 bg-card text-center transition-all duration-300",
               isActive
-                ? "border-primary shadow-md scale-[1.03] bg-primary/5"
+                ? "border-primary shadow-card scale-[1.03] bg-primary/5"
                 : "border-border",
             )}
           >

@@ -1651,7 +1651,7 @@ const DiscoverVideo = ({
                       sitting underneath it. */}
                   {tiktokNeedsManualPlay && (
                     <div className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center px-3">
-                      <span className="rounded-full bg-black/75 px-3 py-1 text-xs font-medium text-white shadow-lg">
+                      <span className="rounded-full bg-black/75 px-3 py-1 text-xs font-medium text-white shadow-elegant">
                         Tap the video to start it
                       </span>
                     </div>

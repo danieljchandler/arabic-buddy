@@ -38,7 +38,7 @@ const BACKGROUND_OPTIONS = [
 
 function RuleCard({ rule, activeDialectLabel }: { rule: MsaRule; activeDialectLabel: string }) {
   return (
-    <div className="rounded-2xl border border-border bg-card/80 p-4 shadow-sm">
+    <div className="rounded-2xl border border-border bg-card/80 p-4 shadow-soft">
       <div className="flex items-start justify-between gap-3 mb-3">
         <h3 className="font-semibold text-foreground text-sm sm:text-base">{rule.rule_name}</h3>
         <div className="flex shrink-0 items-center gap-1">
@@ -130,22 +130,22 @@ export default function MsaBridge() {
       <PageCorner />
 
       {/* Hero */}
-      <header className="mt-2 mb-6 rounded-3xl border-2 border-[#5C3A46]/30 bg-gradient-to-br from-[#F9F7F2] via-[#F3EDE2] to-[#E8DCC4]/60 p-6 sm:p-8 relative overflow-hidden">
+      <header className="mt-2 mb-6 rounded-3xl border-2 border-plum/30 bg-gradient-to-br from-[#F9F7F2] via-[#F3EDE2] to-[#E8DCC4]/60 p-6 sm:p-8 relative overflow-hidden">
         <div className="absolute -top-10 -right-10 w-48 h-48 rounded-full bg-primary/10 blur-3xl" />
         <div className="relative">
           <div className="flex items-center gap-2 mb-3">
-            <Languages className="h-5 w-5 text-[#5C3A46]" />
-            <Badge variant="outline" className="border-[#5C3A46]/40 text-[#5C3A46] bg-[#F9F7F2]/70">
+            <Languages className="h-5 w-5 text-plum" />
+            <Badge variant="outline" className="border-plum/40 text-plum bg-[#F9F7F2]/70">
               From MSA → {activeDialect}
             </Badge>
           </div>
           <h1
-            className="text-2xl sm:text-3xl font-bold text-[#5C3A46] mb-2 leading-tight"
+            className="text-2xl sm:text-3xl font-bold text-plum mb-2 leading-tight"
             style={{ fontFamily: "'Montserrat', sans-serif" }}
           >
             Bridge your Modern Standard Arabic into dialect
           </h1>
-          <p className="text-sm sm:text-base text-[#5C3A46]/80 leading-relaxed max-w-prose">
+          <p className="text-sm sm:text-base text-plum/80 leading-relaxed max-w-prose">
             You already know <span className="font-arabic" dir="rtl">الفصحى</span>. Here's how it
             transforms into <span className="font-semibold">{activeDialect}</span> — sound by sound,
             word by word.
@@ -182,7 +182,7 @@ export default function MsaBridge() {
               className={cn(
                 "px-3 py-1.5 rounded-full text-xs font-medium border transition-all",
                 msaBackground === opt.id
-                  ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                  ? "bg-primary text-primary-foreground border-primary shadow-soft"
                   : "bg-card text-muted-foreground border-border hover:border-primary/40"
               )}
             >

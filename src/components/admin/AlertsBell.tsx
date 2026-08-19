@@ -127,7 +127,7 @@ const AlertsBell = () => {
   return (
     <div className="fixed bottom-4 right-4 z-50">
       {open && (
-        <div className="mb-2 w-80 max-h-96 overflow-auto bg-card border rounded-lg shadow-lg text-xs">
+        <div className="mb-2 w-80 max-h-96 overflow-auto bg-card border rounded-lg shadow-elegant text-xs">
           <div className="flex items-center justify-between p-2 border-b bg-muted">
             <span className="font-semibold">Alerts ({count})</span>
             <div className="flex gap-2">
@@ -169,7 +169,7 @@ const AlertsBell = () => {
       )}
       <button
         onClick={() => setOpen((v) => !v)}
-        className={`relative rounded-full shadow-lg p-3 text-white ${
+        className={`relative rounded-full shadow-elegant p-3 text-white ${
           count > 0 ? SEVERITY_RING[topSeverity] ?? "bg-rose-600" : "bg-slate-700"
         }`}
         title="Feature alerts"

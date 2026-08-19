@@ -422,8 +422,8 @@ export const TappableArabicText = ({
                 );
                 if (!match?.msa_form) return null;
                 return (
-                  <div className="pt-1 border-t border-border bg-[#5C3A46]/5 -mx-3 px-3 py-2">
-                    <p className="text-[10px] font-medium uppercase tracking-wide text-[#5C3A46]">
+                  <div className="pt-1 border-t border-border bg-plum/5 -mx-3 px-3 py-2">
+                    <p className="text-[10px] font-medium uppercase tracking-wide text-plum">
                       MSA · الفصحى
                     </p>
                     <p className="font-arabic text-sm text-foreground" dir="rtl">
@@ -581,7 +581,7 @@ export const TappableArabicText = ({
       {/* Floating phrase bar */}
       {inPhraseMode && (
         <div className="fixed inset-x-0 bottom-3 z-50 flex justify-center px-3 pointer-events-none">
-          <div className="pointer-events-auto w-full max-w-md rounded-2xl border border-primary/40 bg-background/95 shadow-lg backdrop-blur p-3 space-y-2">
+          <div className="pointer-events-auto w-full max-w-md rounded-2xl border border-primary/40 bg-background/95 shadow-elegant backdrop-blur p-3 space-y-2">
             <div className="flex items-start gap-2">
               <div className="flex-1 min-w-0">
                 <p className="text-[10px] uppercase tracking-wide text-muted-foreground">

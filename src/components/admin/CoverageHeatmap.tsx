@@ -163,7 +163,7 @@ export default function CoverageHeatmap() {
                     <button
                       onClick={() => handleDraft(cell.dialect, stage.name)}
                       className={cn(
-                        "w-full h-full rounded-md border p-2 text-left transition hover:scale-[1.02] hover:shadow-sm group",
+                        "w-full h-full rounded-md border p-2 text-left transition hover:scale-[1.02] hover:shadow-soft group",
                         densityClass(cell.words),
                       )}
                       title={`${cell.words} words · ${cell.lessons} lessons · click to draft`}

@@ -111,7 +111,7 @@ export const SaveUnknownsBar = ({ source }: Props) => {
 
   return (
     <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 w-[min(92vw,420px)]">
-      <div className="flex items-center gap-2 rounded-2xl border border-primary/40 bg-card/95 backdrop-blur px-3 py-2 shadow-lg">
+      <div className="flex items-center gap-2 rounded-2xl border border-primary/40 bg-card/95 backdrop-blur px-3 py-2 shadow-elegant">
         <Button
           variant="ghost"
           size="icon"

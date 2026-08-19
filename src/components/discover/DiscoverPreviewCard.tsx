@@ -52,8 +52,8 @@ export const DiscoverPreviewCard = memo(function DiscoverPreviewCard({ video, on
       className={cn(
         "w-full rounded-2xl overflow-hidden border-2 border-primary/20 bg-card",
         "text-left transition-all duration-200",
-        "hover:shadow-xl hover:border-primary/40 active:scale-[0.99]",
-        "shadow-lg"
+        "hover:shadow-elegant hover:border-primary/40 active:scale-[0.99]",
+        "shadow-elegant"
       )}
     >
       {/* Video thumbnail styled like a social feed post */}
@@ -74,7 +74,7 @@ export const DiscoverPreviewCard = memo(function DiscoverPreviewCard({ video, on
 
         {/* Play indicator */}
         <div className="absolute inset-0 flex items-center justify-center">
-          <div className="w-16 h-16 rounded-full bg-primary/90 flex items-center justify-center backdrop-blur-sm shadow-2xl">
+          <div className="w-16 h-16 rounded-full bg-primary/90 flex items-center justify-center backdrop-blur-sm shadow-elegant">
             <Play className="h-7 w-7 text-primary-foreground fill-primary-foreground ml-1" aria-hidden="true" />
           </div>
         </div>

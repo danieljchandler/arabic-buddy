@@ -149,7 +149,7 @@ export function OnboardingTour() {
 
       {/* Tooltip */}
       <div
-        className="absolute left-1/2 -translate-x-1/2 w-[min(360px,90vw)] rounded-2xl bg-white shadow-2xl border border-[#5C3A46]/20 p-4 animate-in fade-in zoom-in-95 duration-200"
+        className="absolute left-1/2 -translate-x-1/2 w-[min(360px,90vw)] rounded-2xl bg-white shadow-elegant border border-plum/20 p-4 animate-in fade-in zoom-in-95 duration-200"
         style={{ top: tooltipTop }}
       >
         <div className="flex items-start justify-between gap-2 mb-1">
@@ -171,7 +171,7 @@ export function OnboardingTour() {
               <span
                 key={i}
                 className={`h-1.5 rounded-full transition-all ${
-                  i === stepIdx ? "w-5 bg-[#5C3A46]" : "w-1.5 bg-[#5C3A46]/25"
+                  i === stepIdx ? "w-5 bg-plum" : "w-1.5 bg-plum/25"
                 }`}
               />
             ))}

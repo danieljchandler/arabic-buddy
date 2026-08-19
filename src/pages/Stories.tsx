@@ -43,7 +43,7 @@ const Stories = () => {
                 onClick={() => navigate(`/stories/${story.id}`)}
                 className={cn(
                   'w-full text-left rounded-2xl border-2 border-border bg-card p-5',
-                  'transition-all duration-200 hover:border-primary/40 hover:shadow-lg',
+                  'transition-all duration-200 hover:border-primary/40 hover:shadow-elegant',
                   'active:scale-[0.98] group'
                 )}
               >

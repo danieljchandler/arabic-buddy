@@ -75,6 +75,10 @@ export default {
           cream: "hsl(var(--card-cream))",
         },
         "desert-red": "hsl(var(--desert-red))",
+        plum: {
+          DEFAULT: "hsl(var(--plum))",
+          foreground: "hsl(var(--plum-foreground))",
+        },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
@@ -97,6 +101,8 @@ export default {
       boxShadow: {
         soft: "var(--shadow-soft)",
         card: "var(--shadow-card)",
+        "card-soft": "var(--shadow-card)",
+        elegant: "var(--shadow-elegant)",
         button: "var(--shadow-button)",
         topic: "var(--shadow-topic)",
         "topic-hover": "var(--shadow-topic-hover)",

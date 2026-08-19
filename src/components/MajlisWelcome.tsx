@@ -83,7 +83,7 @@ export function MajlisWelcome() {
     <div
       className={cn(
         "relative overflow-hidden rounded-3xl mb-4",
-        "bg-[#F9F7F2] border border-[#5C3A46]/20",
+        "bg-[#F9F7F2] border border-plum/20",
         "px-4 py-4 sm:px-5 sm:py-5",
         "shadow-[0_1px_0_0_rgba(92,58,70,0.04),0_8px_24px_-12px_rgba(92,58,70,0.18)]"
       )}
@@ -108,13 +108,13 @@ export function MajlisWelcome() {
         {/* Left: greeting */}
         <div className="flex-1 min-w-0">
           <p
-            className="text-2xl sm:text-3xl leading-tight text-[#5C3A46] font-arabic"
+            className="text-2xl sm:text-3xl leading-tight text-plum font-arabic"
             dir="rtl"
           >
             {greeting.ar}
           </p>
           <p
-            className="mt-1 text-sm text-[#5C3A46]/70"
+            className="mt-1 text-sm text-plum/70"
             style={{ fontFamily: "'Open Sans', sans-serif" }}
           >
             {greeting.en}
@@ -142,14 +142,14 @@ export function MajlisWelcome() {
                   "text-[11px] font-semibold border",
                   (streak?.current_streak ?? 0) > 0
                     ? "bg-gradient-to-r from-orange-400/15 to-red-500/10 border-orange-500/40 text-orange-700"
-                    : "bg-[#5C3A46]/5 border-[#5C3A46]/15 text-[#5C3A46]/60"
+                    : "bg-plum/5 border-plum/15 text-plum/60"
                 )}
                 title={`${streak?.current_streak ?? 0}-day streak`}
               >
                 <Flame
                   className={cn(
                     "h-3 w-3",
-                    (streak?.current_streak ?? 0) > 0 ? "text-orange-500" : "text-[#5C3A46]/40"
+                    (streak?.current_streak ?? 0) > 0 ? "text-orange-500" : "text-plum/40"
                   )}
                 />
                 {streak?.current_streak ?? 0}d
@@ -166,7 +166,7 @@ export function MajlisWelcome() {
                 cx="32"
                 cy="32"
                 r={R}
-                stroke="#5C3A46"
+                stroke="hsl(var(--plum))"
                 strokeOpacity={0.12}
                 strokeWidth="5"
                 fill="none"
@@ -175,7 +175,7 @@ export function MajlisWelcome() {
                 cx="32"
                 cy="32"
                 r={R}
-                stroke="#5C3A46"
+                stroke="hsl(var(--plum))"
                 strokeWidth="5"
                 fill="none"
                 strokeLinecap="round"
@@ -185,12 +185,12 @@ export function MajlisWelcome() {
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center leading-none">
               <span
-                className="text-[15px] font-bold text-[#5C3A46]"
+                className="text-[15px] font-bold text-plum"
                 style={{ fontFamily: "'Montserrat', sans-serif" }}
               >
                 {earned}
               </span>
-              <span className="text-[9px] uppercase tracking-wider text-[#5C3A46]/60 mt-0.5">
+              <span className="text-[9px] uppercase tracking-wider text-plum/60 mt-0.5">
                 XP
               </span>
             </div>

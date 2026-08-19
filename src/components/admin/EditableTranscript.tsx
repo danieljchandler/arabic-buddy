@@ -229,7 +229,7 @@ const EditableLineCard = ({
     <div
       className={cn(
         "rounded-xl bg-card border border-border p-4 transition-all duration-200",
-        "hover:shadow-md",
+        "hover:shadow-card",
         isActive && "ring-2 ring-primary/50 border-primary bg-primary/5"
       )}
     >

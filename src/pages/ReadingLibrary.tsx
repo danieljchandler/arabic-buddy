@@ -101,7 +101,7 @@ const ReadingLibrary = () => {
             {stories.map((story) => (
               <Card
                 key={story.id}
-                className="p-4 cursor-pointer hover:shadow-md transition-shadow"
+                className="p-4 cursor-pointer hover:shadow-card transition-shadow"
                 onClick={() => navigate(`/reading-library/${story.id}`)}
               >
                 <div className="space-y-2">

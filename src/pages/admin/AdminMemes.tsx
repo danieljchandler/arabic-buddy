@@ -77,7 +77,7 @@ const AdminMemes = () => {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {memes.map((m) => (
-            <Card key={m.id} className="overflow-hidden hover:shadow-lg transition-shadow">
+            <Card key={m.id} className="overflow-hidden hover:shadow-elegant transition-shadow">
               <div
                 className="aspect-video bg-muted relative cursor-pointer"
                 onClick={() => navigate(`/admin/videos/${m.id}/edit?meme=1`)}

@@ -388,7 +388,7 @@ const TrendingVideos = () => {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredCandidates.map((c) => (
-              <Card key={c.id} className="overflow-hidden hover:shadow-md transition-shadow">
+              <Card key={c.id} className="overflow-hidden hover:shadow-card transition-shadow">
                 {/* Thumbnail. Rendered whether or not the crawler stored one:
                     every candidate is a YouTube video, so a still can be
                     derived from its URL — and the score badge sits in here. */}

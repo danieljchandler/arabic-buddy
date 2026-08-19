@@ -182,8 +182,8 @@ export const DialectRitualSwitcher = ({ className }: Props) => {
                       "[transform-style:preserve-3d]",
                       "disabled:cursor-default",
                       isActive
-                        ? "border-current shadow-md"
-                        : "border-border bg-card hover:shadow-md hover:-translate-y-0.5",
+                        ? "border-current shadow-card"
+                        : "border-border bg-card hover:shadow-card hover:-translate-y-0.5",
                       isFlipping && "[transform:rotateY(180deg)]"
                     )}
                     style={{
@@ -260,7 +260,7 @@ export const DialectRitualSwitcher = ({ className }: Props) => {
           "group w-full flex items-center justify-between gap-3",
           "px-4 py-3 rounded-2xl",
           "bg-card border-2 border-border",
-          "shadow-sm hover:shadow-md hover:border-primary/40",
+          "shadow-soft hover:shadow-card hover:border-primary/40",
           "transition-all duration-200 active:scale-[0.99]",
           className
         )}

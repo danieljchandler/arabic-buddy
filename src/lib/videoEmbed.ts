@@ -1,17 +1,35 @@
 /**
+ * Every shape a YouTube id turns up in.
+ *
+ * Watch, shorts, live and youtu.be are what an admin pastes; `embed/` covers
+ * both youtube.com and the youtube-nocookie.com host the player is actually
+ * pointed at, which is what `embed_url` holds on every row; `vi/` and
+ * `vi_webp/` cover the CDN's own thumbnail URLs. Anywhere a row carries a URL,
+ * this is how the id comes back out of it.
+ */
+const YOUTUBE_ID =
+  /(?:(?:youtube(?:-nocookie)?|ytimg)\.com\/(?:watch\?v=|embed\/|shorts\/|live\/|v\/|vi(?:_webp)?\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
+
+/**
+ * The YouTube video a URL refers to, whatever kind of URL it is, or null when
+ * it is not a YouTube URL at all.
+ */
+export function getYouTubeVideoId(url: string | null | undefined): string | null {
+  return url?.match(YOUTUBE_ID)?.[1] ?? null;
+}
+
+/**
  * Extract video ID and platform from various URL formats
  */
 export function parseVideoUrl(url: string): { platform: string; videoId: string; embedUrl: string } | null {
   // YouTube
-  const ytMatch = url.match(
-    /(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/|live\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/
-  );
-  if (ytMatch) {
+  const youtubeId = getYouTubeVideoId(url);
+  if (youtubeId) {
     return {
       platform: "youtube",
-      videoId: ytMatch[1],
+      videoId: youtubeId,
       // Use youtube-nocookie.com to avoid sign-in / consent prompts in embeds
-      embedUrl: `https://www.youtube-nocookie.com/embed/${ytMatch[1]}?enablejsapi=1&rel=0&modestbranding=1&playsinline=1&origin=${window.location.origin}`,
+      embedUrl: `https://www.youtube-nocookie.com/embed/${youtubeId}?enablejsapi=1&rel=0&modestbranding=1&playsinline=1&origin=${window.location.origin}`,
     };
   }
 
@@ -106,14 +124,6 @@ export type YouTubeThumbnailQuality = (typeof YOUTUBE_THUMBNAIL_QUALITIES)[numbe
 export const YOUTUBE_PLACEHOLDER_WIDTH = 120;
 
 /**
- * Every host YouTube serves stills from. `img.youtube.com` redirects to
- * `i.ytimg.com`, and the Data API hands back `i.ytimg.com` (sometimes
- * numbered, e.g. `i9`) with signing/crop query params attached.
- */
-const YOUTUBE_THUMBNAIL_URL =
-  /^https?:\/\/(?:i\d*\.ytimg\.com|img\.youtube\.com)\/vi(?:_webp)?\/([A-Za-z0-9_-]{11})\//;
-
-/**
  * Get YouTube thumbnail URL.
  *
  * `i.ytimg.com` rather than `img.youtube.com`: the latter is a redirect to
@@ -126,31 +136,45 @@ export function getYouTubeThumbnail(
   return `https://i.ytimg.com/vi/${videoId}/${quality}.jpg`;
 }
 
-/**
- * The video a stored thumbnail URL belongs to, or null when it is not a
- * YouTube still (a TikTok CDN URL, an Instagram one, a `data:` URI in tests).
- */
-export function getYouTubeIdFromThumbnailUrl(url: string): string | null {
-  return url.match(YOUTUBE_THUMBNAIL_URL)?.[1] ?? null;
+/** The URLs a row carries besides its thumbnail, in the order worth trying. */
+export interface ThumbnailSources {
+  source_url?: string | null;
+  embed_url?: string | null;
 }
 
 /**
- * The stills to try for a stored thumbnail, best first.
+ * The stills to try for a video, best first.
+ *
+ * Two problems are solved in one place, both of them without a backfill.
  *
  * Rows written before we asked for `maxresdefault` still hold `hqdefault`
- * URLs, and the trending importer stores whatever the Data API returned, so
- * the upgrade happens at render time rather than behind a backfill: any
- * YouTube URL is re-derived from its video id at the size we actually want.
- * Everything else is passed through untouched — TikTok and Instagram stills
- * are signed CDN URLs that cannot be rewritten.
+ * URLs, and the trending importer stores whatever the Data API returned — so
+ * any YouTube URL is re-derived from its video id at the size we actually
+ * want, whatever size and host it was stored at.
+ *
+ * And a YouTube still is a pure function of the video id, which the row
+ * already carries in `source_url` and `embed_url`. A row whose `thumbnail_url`
+ * was never filled in — an oEmbed that came back empty, an import that
+ * predates thumbnails — does not need one written to it to show a still; it
+ * only needs asking.
+ *
+ * What is left over is genuinely stored-or-nothing: TikTok and Instagram
+ * stills are signed CDN URLs that can be neither rewritten nor guessed.
  */
-export function getThumbnailCandidates(url: string | null | undefined): string[] {
-  if (!url) return [];
+export function getThumbnailCandidates(
+  url: string | null | undefined,
+  sources?: ThumbnailSources | null,
+): string[] {
+  const videoId =
+    getYouTubeVideoId(url) ??
+    getYouTubeVideoId(sources?.source_url) ??
+    getYouTubeVideoId(sources?.embed_url);
 
-  const videoId = getYouTubeIdFromThumbnailUrl(url);
-  if (!videoId) return [url];
+  if (videoId) {
+    return YOUTUBE_THUMBNAIL_QUALITIES.map((quality) => getYouTubeThumbnail(videoId, quality));
+  }
 
-  return YOUTUBE_THUMBNAIL_QUALITIES.map((quality) => getYouTubeThumbnail(videoId, quality));
+  return url ? [url] : [];
 }
 
 /**

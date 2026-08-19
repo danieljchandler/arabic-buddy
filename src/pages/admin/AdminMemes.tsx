@@ -16,6 +16,8 @@ interface MemeVideo {
   dialect: string;
   platform: string;
   thumbnail_url: string | null;
+  source_url: string | null;
+  embed_url: string | null;
   published: boolean;
   transcription_status: string | null;
   created_at: string;
@@ -31,7 +33,7 @@ const AdminMemes = () => {
     setLoading(true);
     const { data, error } = await (supabase
       .from('discover_videos' as any) as any)
-      .select('id, title, title_arabic, dialect, platform, thumbnail_url, published, transcription_status, created_at')
+      .select('id, title, title_arabic, dialect, platform, thumbnail_url, source_url, embed_url, published, transcription_status, created_at')
       .eq('is_meme', true)
       .eq('dialect', activeDialect)
       .order('created_at', { ascending: false });
@@ -80,13 +82,16 @@ const AdminMemes = () => {
                 className="aspect-video bg-muted relative cursor-pointer"
                 onClick={() => navigate(`/admin/videos/${m.id}/edit?meme=1`)}
               >
-                {m.thumbnail_url ? (
-                  <VideoThumbnail src={m.thumbnail_url} alt={m.title} />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                    <Laugh className="h-10 w-10" />
-                  </div>
-                )}
+                <VideoThumbnail
+                  src={m.thumbnail_url}
+                  sources={m}
+                  alt={m.title}
+                  fallback={
+                    <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                      <Laugh className="h-10 w-10" />
+                    </div>
+                  }
+                />
                 <div className="absolute top-2 left-2 flex gap-1">
                   <Badge variant={m.published ? 'default' : 'outline'}>
                     {m.published ? 'published' : 'draft'}

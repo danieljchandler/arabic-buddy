@@ -8,6 +8,7 @@ import {
   useDeleteDiscoverVideo,
   useDiscoverVideo,
   useDiscoverVideos,
+  useBackfillThumbnails,
   useTogglePublish,
 } from "./useDiscoverVideos";
 import type { SupabaseBackend } from "@/test/support/server/handler";
@@ -321,5 +322,69 @@ describe("the admin list", () => {
     await expect(
       harness.result.current.mutateAsync({ id: videoId(0), published: true }),
     ).rejects.toBeTruthy();
+  });
+});
+
+/**
+ * Filling in the videos nobody ever gave a thumbnail.
+ *
+ * A YouTube still is derived from the row's own URL when the page renders, so
+ * this is not what puts pictures on the grid — it is what makes the column
+ * agree with what is on screen, and what fetches the stills that cannot be
+ * derived. It runs from the admin's browser against a public oEmbed endpoint,
+ * so the one thing it must never do is stop on the first dead video.
+ */
+describe("backfilling missing thumbnails", () => {
+  it("writes a derived still onto a video that had none", async () => {
+    const harness = renderHookWithProviders(() => useBackfillThumbnails(), {
+      persona: "admin",
+      seed: seedVideos([aDiscoverVideo({ id: videoId(0), thumbnail_url: null })]),
+    });
+    cleanup = harness.cleanup;
+
+    const report = await harness.result.current.mutateAsync({
+      videos: [
+        {
+          id: videoId(0),
+          title: "A short clip",
+          platform: "youtube",
+          source_url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+          thumbnail_url: null,
+        },
+      ],
+    });
+
+    expect(report.filled).toBe(1);
+    expect(harness.backend.db.lastWriteTo("discover_videos")?.payload[0]).toMatchObject({
+      thumbnail_url: "https://i.ytimg.com/vi/dQw4w9WgXcQ/maxresdefault.jpg",
+    });
+  });
+
+  it("reports a refused write instead of throwing the run away", async () => {
+    // A backfill that rejects on the first RLS refusal loses the report for
+    // every video after it, which is the only output the admin gets.
+    const harness = renderHookWithProviders(() => useBackfillThumbnails(), {
+      persona: "admin",
+      seed: (backend) => {
+        backend.db.seed("discover_videos", [aDiscoverVideo({ id: videoId(0), thumbnail_url: null })]);
+        backend.db.failWrites("discover_videos", 403, { message: "denied" });
+      },
+    });
+    cleanup = harness.cleanup;
+
+    const report = await harness.result.current.mutateAsync({
+      videos: [
+        {
+          id: videoId(0),
+          title: "A short clip",
+          platform: "youtube",
+          source_url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+          thumbnail_url: null,
+        },
+      ],
+    });
+
+    expect(report.filled).toBe(0);
+    expect(report.failedToSave).toHaveLength(1);
   });
 });

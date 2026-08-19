@@ -292,6 +292,7 @@ function Clip({
     <>
       <VideoThumbnail
         src={video.thumbnail_url}
+        sources={video}
         alt={video.title}
         decorative
         loading={eager ? "eager" : "lazy"}

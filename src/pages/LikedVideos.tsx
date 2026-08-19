@@ -32,6 +32,7 @@ const LikedVideoCard = ({
     <div className="relative w-28 shrink-0 bg-muted overflow-hidden">
       <VideoThumbnail
         src={video.thumbnail_url}
+        sources={video}
         alt={video.title}
         className="absolute inset-0 w-full h-full object-cover"
         fallback={

@@ -10,8 +10,10 @@ import { PageCorner } from "@/components/shell/PageCorner";
 import { AppShell } from "@/components/layout/AppShell";
 import { Loader2, Mail, Lock, UserPlus, LogIn, Ticket } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import hakiyaIconAsset from "@/assets/hakiya-icon.png";
-const lahjaIcon = hakiyaIconAsset;
+// The mark file, not hakiya-icon.png — that one is a 712 kB render whose
+// artwork floats inside a much larger canvas (see BrandMark's comment).
+import hakiyaMark from "@/assets/hakiya-mark.png";
+import { LoadingPanel } from "@/components/loading/LoadingPanel";
 
 // Lightweight inline validators — dropping `zod` here saves ~12 kB gz on the Auth chunk.
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -161,9 +163,7 @@ const Auth = () => {
   if (loading) {
     return (
       <AppShell>
-        <div className="flex items-center justify-center py-24">
-          <Loader2 className="h-10 w-10 animate-spin text-primary" />
-        </div>
+        <LoadingPanel variant="page" />
       </AppShell>
     );
   }
@@ -179,11 +179,7 @@ const Auth = () => {
       <div className="max-w-sm mx-auto">
         {/* Logo and Title */}
         <div className="text-center mb-10">
-          <img 
-            src={lahjaIcon} 
-            alt="Hakiya" 
-            className="h-14 w-14 mx-auto mb-5"
-          />
+          <img src={hakiyaMark} alt="Hakiya" className="h-14 w-14 mx-auto mb-5 object-contain" />
           <h1 className="text-2xl font-bold text-foreground mb-2 font-heading">
             {isLogin ? "Welcome Back" : "Join Hakiya"}
           </h1>
@@ -195,7 +191,7 @@ const Auth = () => {
         </div>
 
         {/* Form Card */}
-        <div className="bg-card rounded-xl p-6 border border-border">
+        <div className="bg-card rounded-2xl p-6 border border-border shadow-card">
           <form onSubmit={handleSubmit} className="space-y-5">
             {/* Email */}
             <div className="space-y-2">

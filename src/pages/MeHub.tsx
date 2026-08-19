@@ -110,6 +110,17 @@ const account = (signedIn: boolean, admin: boolean): Item[] => [
 
 const visible = (items: Item[]) => items.filter((i) => i.show !== false);
 
+/** Section accents — the charcoal→terracotta ramp Choose's skill tiles use
+ *  (src/lib/surfaces.ts tints), so the hub's hierarchy comes from the brand
+ *  ramp rather than the pre-brand-guide per-section colours this page once
+ *  had. Account stays neutral on purpose: it is chrome, not content. */
+const ACCENTS = {
+  library: "#2E3532",
+  tools: "#4A3733",
+  practice: "#6B3A31",
+  progress: "#8C4135",
+} as const;
+
 const MeHub = () => {
   const { isAuthenticated } = useAuth();
   const { isAdmin } = useAdminAuth();
@@ -119,7 +130,7 @@ const MeHub = () => {
 
   return (
     <AppShell>
-      <h1 className="pb-1 pt-1 text-[26px] font-bold leading-tight">Me</h1>
+      <h1 className="pb-1 pt-1 text-[28px] font-bold leading-tight">Me</h1>
       <p className="pb-5 text-sm text-muted-foreground">Your library, tools &amp; account.</p>
 
       {/* Where you are, before what you can do. */}
@@ -140,7 +151,12 @@ const MeHub = () => {
                 "transition-colors active:bg-muted",
               )}
             >
-              <Icon className="h-5 w-5 shrink-0 text-primary" />
+              <span
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl"
+                style={{ backgroundColor: `${ACCENTS.library}14`, color: ACCENTS.library }}
+              >
+                <Icon className="h-5 w-5" />
+              </span>
               <span className="text-sm font-semibold leading-tight">{label}</span>
             </Link>
           ))}
@@ -148,15 +164,15 @@ const MeHub = () => {
       </Section>
 
       <Section title="Tools & content">
-        <Grid items={visible(tools(isAuthenticated, hasBible))} />
+        <Grid items={visible(tools(isAuthenticated, hasBible))} accent={ACCENTS.tools} />
       </Section>
 
       <Section title="Practice">
-        <Grid items={visible(practice(isAuthenticated))} />
+        <Grid items={visible(practice(isAuthenticated))} accent={ACCENTS.practice} />
       </Section>
 
       <Section title="Progress">
-        <Grid items={visible(progress(isAuthenticated))} />
+        <Grid items={visible(progress(isAuthenticated))} accent={ACCENTS.progress} />
       </Section>
 
       <Section title="Account">
@@ -189,7 +205,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 /** Tiles are links, not buttons: every one of them navigates, and a hub built
  *  from buttons gives up middle-click, open-in-new-tab, and the browser's own
  *  idea of what it is looking at. */
-function Grid({ items }: { items: Item[] }) {
+function Grid({ items, accent }: { items: Item[]; accent?: string }) {
   return (
     <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-4">
       {items.map(({ label, icon: Icon, to }) => (
@@ -197,11 +213,19 @@ function Grid({ items }: { items: Item[] }) {
           key={`${to}-${label}`}
           to={to}
           className={cn(
-            "flex flex-col items-center gap-1.5 rounded-xl border border-border bg-card px-1 py-3.5 text-center",
+            "flex flex-col items-center gap-1.5 rounded-2xl border border-border bg-card px-1 py-3.5 text-center",
             "transition-colors active:bg-muted",
           )}
         >
-          <Icon className="h-5 w-5 text-primary" />
+          <span
+            className={cn(
+              "flex h-9 w-9 items-center justify-center rounded-xl",
+              !accent && "bg-muted text-muted-foreground",
+            )}
+            style={accent ? { backgroundColor: `${accent}14`, color: accent } : undefined}
+          >
+            <Icon className="h-5 w-5" />
+          </span>
           <span className="text-[11px] font-medium leading-tight">{label}</span>
         </Link>
       ))}

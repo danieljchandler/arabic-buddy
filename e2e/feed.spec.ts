@@ -64,14 +64,45 @@ test.describe("the feed", () => {
 
     await page.goto("/");
 
-    // This rail is the whole reason three hub screens could go away: "ask" and
-    // "transcript" stopped being destinations you navigate to and then have to
-    // feed with content, and became buttons on the content itself. Save,
-    // Transcript and Replay are literally buttons now — they open the player
-    // in place — and Ask is the rail's one genuine link.
+    // This rail is the whole reason three hub screens could go away: "ask"
+    // stopped being a destination you navigate to and then have to feed with
+    // content, and became a control on the content itself. Save is a button —
+    // it opens the player in place, which is where a word gets saved — and Ask
+    // is the rail's one genuine link.
     await expect(page.getByRole("link", { name: "Ask" }).first()).toBeVisible();
-    await expect(page.getByRole("button", { name: "Transcript" }).first()).toBeVisible();
     await expect(page.getByRole("button", { name: "Save" }).first()).toBeVisible();
+
+    // Transcript and Replay are gone. Both did nothing but open the player,
+    // which is a whole screen carrying its own transcript and its own
+    // scrubber — two labels promising a third and a fourth thing that turned
+    // out to be the same thing, on a rail that is only worth having while
+    // every item on it means something different.
+    await expect(page.getByRole("button", { name: "Transcript" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Replay" })).toHaveCount(0);
+  });
+
+  test("puts your picture on the rail and the mark in the corner", async ({
+    page,
+    db,
+    backend,
+    signInAs,
+  }) => {
+    await signInAs("free", { profile: { avatar_url: "/avatars/sadu-rose.png" } });
+    seedFeed(db, backend, 1);
+
+    await page.goto("/");
+
+    // The two used to fight over the same corner, and the avatar won by
+    // arriving second. They are separated now: the mark keeps the corner it
+    // had, and your face moved to the rail on the right.
+    const mark = page.getByRole("img", { name: "Hakiya" }).first();
+    const face = page.getByRole("link", { name: /Your account/ }).first();
+    await expect(mark).toBeVisible();
+    await expect(face.locator("img")).toHaveAttribute("src", "/avatars/sadu-rose.png");
+
+    const markBox = (await mark.boundingBox())!;
+    const faceBox = (await face.boundingBox())!;
+    expect(markBox.x).toBeLessThan(faceBox.x);
   });
 
   test("carries the dialect choice on the feed itself", async ({ page, db, backend }) => {

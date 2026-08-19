@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import { DIALECT_MODULE_VALUES, type Dialect } from "@/config";
+import { backfillThumbnails, type BackfillableVideo } from "@/lib/thumbnailBackfill";
 
 const DIFFICULTY_ORDER = ["Beginner", "Intermediate", "Advanced", "Expert"];
 const CEFR_TO_DIFFICULTY: Record<string, string> = {
@@ -160,6 +161,44 @@ export function useDeleteDiscoverVideo() {
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-discover-videos"] }),
+  });
+}
+
+/**
+ * Fill in the thumbnails of every video that has none.
+ *
+ * Most of the library needs nothing written to it — a YouTube still is derived
+ * from the row's own URL at render time. This is for the rest: TikTok stills
+ * are signed CDN URLs that have to be asked for, and a row whose oEmbed came
+ * back empty at ingest has been blank ever since with nothing to re-try it.
+ *
+ * It takes the admin list it is already looking at rather than re-reading, so
+ * the count on the button and the rows it works on are the same set.
+ */
+export function useBackfillThumbnails() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      videos,
+      onProgress,
+    }: {
+      videos: BackfillableVideo[];
+      onProgress?: (done: number, total: number) => void;
+    }) =>
+      backfillThumbnails(videos, {
+        onProgress,
+        save: async (id, thumbnailUrl) => {
+          const { error } = await supabase
+            .from("discover_videos")
+            .update({ thumbnail_url: thumbnailUrl })
+            .eq("id", id);
+          return { error: error?.message ?? null };
+        },
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin-discover-videos"] });
+      qc.invalidateQueries({ queryKey: ["discover-videos"] });
+    },
   });
 }
 

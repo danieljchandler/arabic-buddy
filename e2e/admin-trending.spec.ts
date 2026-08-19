@@ -44,9 +44,8 @@ test.describe("the queue", () => {
       aTrendingCandidate({
         title: "لقطة مضحكة",
         creator_name: "Abu Fulan",
-        // The score badge lives inside the thumbnail block, so a candidate the
-        // crawler found no image for shows no score either. Inline data so the
-        // hermetic host block never sees a request.
+        // Inline data so the hermetic host block never sees a request — a
+        // candidate with no stored still derives one from its YouTube URL.
         thumbnail_url: TRANSPARENT_GIF,
         view_count: 1_500_000,
         trending_score: 9_400,

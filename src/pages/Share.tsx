@@ -275,12 +275,13 @@ const Share = () => {
     <AppShell>
       <div className="space-y-5">
         <div className="flex items-center justify-between gap-3">
-          <PageCorner />
+          {/* Balances the emblem opposite, so the title stays centred. */}
+          <div className="w-11" />
           <h1 className="text-xl font-bold flex items-center gap-2">
             <Share2 className="h-5 w-5 text-primary" />
             Shared with Hakiya
           </h1>
-          <div className="w-9" />
+          <PageCorner />
         </div>
 
         {busy && (

@@ -74,6 +74,7 @@ function VideoCard({ video, onClick, feed, comprehension }: CardProps) {
       <div className="relative aspect-video bg-muted">
         <VideoThumbnail
           src={video.thumbnail_url}
+          sources={video}
           alt={video.title}
           fallback={
             <div className="w-full h-full flex items-center justify-center">

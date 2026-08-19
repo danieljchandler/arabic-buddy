@@ -227,7 +227,6 @@ const LearnFromX = () => {
       <div className="max-w-2xl mx-auto px-4 py-6">
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
-          <PageCorner />
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
               <Twitter className="h-4 w-4 text-primary" />
@@ -240,6 +239,9 @@ const LearnFromX = () => {
               <p className="text-xs text-muted-foreground">Paste an Arabic X post URL to analyze</p>
             </div>
           </div>
+          {/* Last in the row: the emblem right-aligns itself, and the heading
+              that used to sit beside the corner keeps the left edge. */}
+          <PageCorner />
         </div>
 
         {/* URL input */}

@@ -3,11 +3,17 @@ import { cn } from "@/lib/utils";
 import {
   getThumbnailCandidates,
   YOUTUBE_PLACEHOLDER_WIDTH,
+  type ThumbnailSources,
 } from "@/lib/videoEmbed";
 
 interface VideoThumbnailProps {
   /** Whatever is stored on the row; upgraded to the best size available. */
   src: string | null | undefined;
+  /**
+   * The row's own URLs. A YouTube still can be derived from these, so passing
+   * them is what puts a picture on a row that never had a `thumbnail_url`.
+   */
+  sources?: ThumbnailSources | null;
   alt: string;
   className?: string;
   /** Shown when there is no thumbnail, or when every size failed to load. */
@@ -28,16 +34,28 @@ interface VideoThumbnailProps {
  * back as a 404 (or, occasionally, a grey 120x90 placeholder served with a
  * 200) for the rest. The step down happens before paint in practice, since a
  * missing size fails on headers alone.
+ *
+ * Given `sources`, the ladder is built from the row's own URLs when no
+ * thumbnail was ever stored — a YouTube still is a pure function of the video
+ * id, so those rows are blank only for want of asking.
  */
 export function VideoThumbnail({
   src,
+  sources,
   alt,
   className,
   fallback = null,
   loading = "lazy",
   decorative = false,
 }: VideoThumbnailProps) {
-  const candidates = useMemo(() => getThumbnailCandidates(src), [src]);
+  // Pulled apart before the memo: callers pass the video row itself, whose
+  // identity changes on every refetch, while the two URLs on it do not.
+  const sourceUrl = sources?.source_url;
+  const embedUrl = sources?.embed_url;
+  const candidates = useMemo(
+    () => getThumbnailCandidates(src, { source_url: sourceUrl, embed_url: embedUrl }),
+    [src, sourceUrl, embedUrl],
+  );
 
   // The ladder is stored with the position in it, so a recycled card — the
   // feed reuses them as it scrolls — starts over rather than inheriting the

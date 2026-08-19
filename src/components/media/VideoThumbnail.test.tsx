@@ -60,6 +60,55 @@ describe("VideoThumbnail", () => {
     expect(still().src).toBe(tiktok);
   });
 
+  /**
+   * The retroactive half: a row whose `thumbnail_url` was never filled in
+   * still has the video id on it, and a YouTube still is a pure function of
+   * that. Nothing is written to the database to make these appear.
+   */
+  describe("a video with no stored still", () => {
+    it("derives one from the row's source URL", () => {
+      render(
+        <VideoThumbnail
+          src={null}
+          sources={{ source_url: `https://www.youtube.com/shorts/${ID}` }}
+          alt="Ordering coffee in Doha"
+        />,
+      );
+      expect(still().src).toBe(`https://i.ytimg.com/vi/${ID}/maxresdefault.jpg`);
+    });
+
+    it("derives one from the row's embed URL", () => {
+      render(
+        <VideoThumbnail
+          src={null}
+          sources={{ embed_url: `https://www.youtube-nocookie.com/embed/${ID}?rel=0` }}
+          alt="Ordering coffee in Doha"
+        />,
+      );
+      expect(still().src).toBe(`https://i.ytimg.com/vi/${ID}/maxresdefault.jpg`);
+    });
+
+    it("steps down a derived still the same way", () => {
+      render(
+        <VideoThumbnail src={null} sources={{ source_url: `https://youtu.be/${ID}` }} alt="X" />,
+      );
+      fireEvent.error(still());
+      expect(still().src).toBe(`https://i.ytimg.com/vi/${ID}/sddefault.jpg`);
+    });
+
+    it("shows the fallback for a platform whose stills cannot be derived", () => {
+      render(
+        <VideoThumbnail
+          src={null}
+          sources={{ source_url: "https://www.instagram.com/reel/CxYzAbCdEfG/" }}
+          alt="Meme"
+          fallback={<div data-testid="empty" />}
+        />,
+      );
+      expect(screen.getByTestId("empty")).toBeInTheDocument();
+    });
+  });
+
   it("shows the fallback when there is no still at all", () => {
     render(<VideoThumbnail src={null} alt="Meme" fallback={<div data-testid="empty" />} />);
     expect(screen.getByTestId("empty")).toBeInTheDocument();

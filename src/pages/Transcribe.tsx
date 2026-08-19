@@ -1143,7 +1143,6 @@ const Transcribe = () => {
     <div className="min-h-screen bg-background p-4 md:p-8">
       <div className="max-w-2xl mx-auto space-y-6">
         <div className="flex items-center gap-4">
-          <PageCorner />
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-foreground inline-flex items-center gap-2">
               Transcribe Audio
@@ -1155,6 +1154,9 @@ const Transcribe = () => {
                 : "Upload an audio file to transcribe"}
             </p>
           </div>
+          {/* Last in the row: the emblem right-aligns itself, and the heading
+              that used to sit beside the corner keeps the left edge. */}
+          <PageCorner />
         </div>
 
         {/* Input Area with Tabs */}

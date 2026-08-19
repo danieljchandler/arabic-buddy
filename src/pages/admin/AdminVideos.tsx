@@ -1,9 +1,14 @@
 import { useNavigate } from "react-router-dom";
-import { useAdminDiscoverVideos, useDeleteDiscoverVideo, useTogglePublish } from "@/hooks/useDiscoverVideos";
+import {
+  useAdminDiscoverVideos,
+  useBackfillThumbnails,
+  useDeleteDiscoverVideo,
+  useTogglePublish,
+} from "@/hooks/useDiscoverVideos";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, ArrowLeft, Plus, Edit, Trash2, Eye, EyeOff } from "lucide-react";
+import { Loader2, ArrowLeft, Plus, Edit, Trash2, Eye, EyeOff, ImageDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
   AlertDialog,
@@ -16,7 +21,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useState } from "react";
-import { formatDuration } from "@/lib/videoEmbed";
+import { formatDuration, getThumbnailCandidates } from "@/lib/videoEmbed";
 import { VideoThumbnail } from "@/components/media/VideoThumbnail";
 
 const AdminVideos = () => {
@@ -25,7 +30,42 @@ const AdminVideos = () => {
   const { data: videos, isLoading } = useAdminDiscoverVideos();
   const deleteMutation = useDeleteDiscoverVideo();
   const togglePublish = useTogglePublish();
+  const backfillThumbnails = useBackfillThumbnails();
   const [deleteId, setDeleteId] = useState<string | null>(null);
+
+  /**
+   * The videos showing no picture at all.
+   *
+   * Not simply "thumbnail_url is null": a YouTube still is derived from the
+   * row's own URL, so most rows with an empty column already show something
+   * and there is nothing to go and fetch for them. What is left is the set a
+   * network call might actually help with.
+   */
+  const missingThumbnails = (videos ?? []).filter(
+    (video) => getThumbnailCandidates(video.thumbnail_url, video).length === 0,
+  );
+
+  const runBackfill = () => {
+    backfillThumbnails.mutate(
+      { videos: missingThumbnails },
+      {
+        onSuccess: (report) => {
+          const unresolved = report.unresolved.length + report.failedToSave.length;
+          toast({
+            title: report.filled
+              ? `Found ${report.filled} thumbnail${report.filled === 1 ? "" : "s"}`
+              : "No thumbnails could be found",
+            description: unresolved
+              ? `${unresolved} still need a frame captured — open the video and use "Fetch thumbnail".`
+              : undefined,
+          });
+        },
+        onError: (error: Error) => {
+          toast({ variant: "destructive", title: "Backfill failed", description: error.message });
+        },
+      },
+    );
+  };
 
   if (isLoading) {
     return (
@@ -45,10 +85,29 @@ const AdminVideos = () => {
             </Button>
             <h1 className="text-xl font-bold">Manage Videos</h1>
           </div>
-          <Button onClick={() => navigate("/admin/videos/new")}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Video
-          </Button>
+          <div className="flex gap-2">
+            {/* Only offered when there is something to do — the count is the
+                whole point of the button, so a zero would be a dead control. */}
+            {missingThumbnails.length > 0 && (
+              <Button
+                variant="outline"
+                onClick={runBackfill}
+                disabled={backfillThumbnails.isPending}
+              >
+                {backfillThumbnails.isPending ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <ImageDown className="h-4 w-4 mr-2" />
+                )}
+                Find {missingThumbnails.length} missing thumbnail
+                {missingThumbnails.length === 1 ? "" : "s"}
+              </Button>
+            )}
+            <Button onClick={() => navigate("/admin/videos/new")}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Video
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -59,14 +118,16 @@ const AdminVideos = () => {
               <Card key={video.id} className="flex items-center">
                 <CardContent className="flex-1 p-4 flex items-center justify-between">
                   <div className="flex items-center gap-4">
-                    {video.thumbnail_url && (
-                      <VideoThumbnail
-                        src={video.thumbnail_url}
-                        alt=""
-                        decorative
-                        className="w-20 h-12 object-cover rounded"
-                      />
-                    )}
+                    <VideoThumbnail
+                      src={video.thumbnail_url}
+                      sources={video}
+                      alt=""
+                      decorative
+                      className="w-20 h-12 rounded"
+                      // Keeps the row aligned with its neighbours, and marks
+                      // the videos a still could not be derived for.
+                      fallback={<div className="w-20 h-12 rounded bg-muted" />}
+                    />
                     <div>
                       <h3 className="font-semibold">{video.title}</h3>
                       <div className="flex gap-1.5 mt-1">

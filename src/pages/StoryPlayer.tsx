@@ -12,10 +12,11 @@ import {
 import { useAddUserVocabulary } from '@/hooks/useUserVocabulary';
 import { supabase } from '@/integrations/supabase/client';
 import { AppShell } from '@/components/layout/AppShell';
+import { LoadingPanel } from '@/components/loading/LoadingPanel';
 import { PageCorner } from '@/components/shell/PageCorner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, RotateCcw, BookOpen, Trophy, ArrowLeft, Sparkles, Plus, Check } from 'lucide-react';
+import { RotateCcw, BookOpen, Trophy, ArrowLeft, Sparkles, Plus, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { recordContinue, clearContinue } from '@/lib/continueProgress';
@@ -190,9 +191,7 @@ const StoryPlayer = () => {
   if (scenesLoading) {
     return (
       <AppShell>
-        <div className="flex items-center justify-center py-24">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
+        <LoadingPanel variant="page" task="story" />
       </AppShell>
     );
   }

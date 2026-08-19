@@ -1,7 +1,7 @@
 import { ReactNode } from "react";
 import { useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import borderFullPageImg from "@/assets/border-full-page.webp";
+import saduBandImg from "@/assets/sadu-band.webp";
 import { AppDock, shouldShowDock } from "@/components/shell/AppDock";
 import { FeedbackWidget } from "@/components/feedback/FeedbackWidget";
 import { useAiAssistant } from "@/contexts/AiAssistantContext";
@@ -41,16 +41,21 @@ export function AppShell({ children, className, compact = false }: AppShellProps
         paddingBottom: "env(safe-area-inset-bottom)",
       }}
     >
-      {/* Background image layer with reduced opacity */}
+      {/* Warm sand ground */}
+      <div style={{ position: "fixed", inset: 0, backgroundColor: "hsl(var(--app-ground))", pointerEvents: "none" }} />
+      {/* Sadu band, tiled across the top at a fixed height so it stays crisp
+          at every viewport and DPR instead of being one stretched image. */}
       <div
         style={{
           position: "fixed",
-          inset: 0,
-          backgroundImage: `url(${borderFullPageImg})`,
-          backgroundSize: "cover",
+          top: 0,
+          left: 0,
+          right: 0,
+          height: "var(--sadu-band-h)",
+          backgroundImage: `url(${saduBandImg})`,
+          backgroundRepeat: "repeat-x",
+          backgroundSize: "auto 100%",
           backgroundPosition: "top center",
-          backgroundRepeat: "no-repeat",
-          opacity: 0.95,
           pointerEvents: "none",
         }}
       />

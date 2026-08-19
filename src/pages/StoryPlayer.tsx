@@ -12,10 +12,11 @@ import {
 import { useAddUserVocabulary } from '@/hooks/useUserVocabulary';
 import { supabase } from '@/integrations/supabase/client';
 import { AppShell } from '@/components/layout/AppShell';
+import { LoadingPanel } from '@/components/loading/LoadingPanel';
 import { PageCorner } from '@/components/shell/PageCorner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, RotateCcw, BookOpen, Trophy, ArrowLeft, Sparkles, Plus, Check } from 'lucide-react';
+import { RotateCcw, BookOpen, Trophy, ArrowLeft, Sparkles, Plus, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { recordContinue, clearContinue } from '@/lib/continueProgress';
@@ -190,9 +191,7 @@ const StoryPlayer = () => {
   if (scenesLoading) {
     return (
       <AppShell>
-        <div className="flex items-center justify-center py-24">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
+        <LoadingPanel variant="page" task="story" />
       </AppShell>
     );
   }
@@ -342,7 +341,7 @@ const StoryPlayer = () => {
                             'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm transition-all',
                             isSaved
                               ? 'bg-primary/20 text-primary'
-                              : 'bg-primary/10 hover:bg-primary/20 active:scale-95'
+                              : 'bg-primary/10 hover:bg-primary/20 active:scale-[0.98]'
                           )}
                         >
                           <span className="font-medium">{v.word_arabic}</span>
@@ -395,7 +394,7 @@ const StoryPlayer = () => {
                     onClick={() => handleChoice(choice.next_scene_order)}
                     className={cn(
                       'w-full text-left rounded-xl border-2 border-border bg-card p-4',
-                      'transition-all duration-200 hover:border-primary hover:shadow-md',
+                      'transition-all duration-200 hover:border-primary hover:shadow-card',
                       'active:scale-[0.98] group'
                     )}
                   >

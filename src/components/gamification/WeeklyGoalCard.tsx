@@ -33,7 +33,7 @@ export function WeeklyGoalCard({ className }: WeeklyGoalCardProps) {
   const xpComplete = goal.target_xp > 0 && goal.earned_xp >= goal.target_xp;
 
   return (
-    <div className={cn("bg-card rounded-xl p-4 border border-border", className)}>
+    <div className={cn("bg-card rounded-2xl p-4 border border-border", className)}>
       <div className="flex items-center gap-2 mb-4">
         <Target className="h-5 w-5 text-primary" />
         <h3 className="font-semibold text-foreground">Weekly Goals</h3>
@@ -46,7 +46,7 @@ export function WeeklyGoalCard({ className }: WeeklyGoalCardProps) {
             <span className="text-sm text-muted-foreground">Reviews</span>
             <span className={cn(
               "text-sm font-medium",
-              reviewComplete ? "text-green-600 dark:text-green-400" : "text-foreground"
+              reviewComplete ? "text-success" : "text-foreground"
             )}>
               {goal.completed_reviews}/{goal.target_reviews}
               {reviewComplete && " ✓"}
@@ -54,7 +54,7 @@ export function WeeklyGoalCard({ className }: WeeklyGoalCardProps) {
           </div>
           <Progress 
             value={reviewPercent} 
-            className={cn("h-2", reviewComplete && "[&>div]:bg-green-500")}
+            className={cn("h-2", reviewComplete && "[&>div]:bg-success")}
           />
         </div>
 
@@ -67,7 +67,7 @@ export function WeeklyGoalCard({ className }: WeeklyGoalCardProps) {
             </div>
             <span className={cn(
               "text-sm font-medium",
-              xpComplete ? "text-green-600 dark:text-green-400" : "text-foreground"
+              xpComplete ? "text-success" : "text-foreground"
             )}>
               {goal.earned_xp}/{goal.target_xp}
               {xpComplete && " ✓"}
@@ -75,14 +75,14 @@ export function WeeklyGoalCard({ className }: WeeklyGoalCardProps) {
           </div>
           <Progress 
             value={xpPercent} 
-            className={cn("h-2", xpComplete && "[&>div]:bg-green-500")}
+            className={cn("h-2", xpComplete && "[&>div]:bg-success")}
           />
         </div>
       </div>
 
       {reviewComplete && xpComplete && (
-        <div className="mt-4 p-2 rounded-lg bg-green-50 dark:bg-green-900/20 text-center">
-          <span className="text-sm font-medium text-green-700 dark:text-green-400">
+        <div className="mt-4 p-2 rounded-lg bg-success/10 text-center">
+          <span className="text-sm font-medium text-success">
             🎉 Weekly goals complete!
           </span>
         </div>

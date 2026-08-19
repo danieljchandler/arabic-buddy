@@ -96,7 +96,7 @@ export const ReviewImageQuizCard = ({
           aria-label="Play word audio"
           className={cn(
             "w-20 h-20 rounded-full bg-primary flex items-center justify-center mx-auto shadow-button",
-            "transition-all duration-200 hover:scale-110 active:scale-95",
+            "transition-all duration-200 hover:scale-110 active:scale-[0.98]",
             isPlaying && "animate-pulse-glow",
             ttsLoading && "animate-pulse",
             (!effectiveAudioUrl && !ttsLoading) && "opacity-50 cursor-not-allowed"

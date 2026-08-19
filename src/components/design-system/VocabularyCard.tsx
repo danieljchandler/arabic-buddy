@@ -78,7 +78,7 @@ export const VocabularyCard = ({
         className={cn(
           "relative w-full aspect-[4/3] rounded-xl overflow-hidden",
           "transform transition-all duration-200",
-          "hover:scale-[1.02] active:scale-95",
+          "hover:scale-[1.02] active:scale-[0.98]",
           "shadow-card",
           "bg-card border border-border",
           "focus:outline-none focus:ring-2 focus:ring-primary/50"
@@ -125,7 +125,7 @@ export const VocabularyCard = ({
         {/* Tap hint */}
         {showTapHint && !isPlaying && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="px-5 py-2.5 rounded-full bg-primary shadow-lg animate-bounce-gentle">
+            <div className="px-5 py-2.5 rounded-full bg-primary shadow-elegant animate-bounce-gentle">
               <span className="text-primary-foreground font-semibold text-base flex items-center gap-2">
                 <Volume2 className="w-4 h-4" />
                 {hintText}
@@ -135,7 +135,7 @@ export const VocabularyCard = ({
         )}
 
         {/* Sound icon badge */}
-        <div className="absolute top-3 right-3 w-10 h-10 rounded-lg flex items-center justify-center bg-primary shadow-lg">
+        <div className="absolute top-3 right-3 w-10 h-10 rounded-lg flex items-center justify-center bg-primary shadow-elegant">
           <Volume2 className="w-5 h-5 text-primary-foreground" />
         </div>
       </button>
@@ -163,7 +163,7 @@ export const VocabularyCard = ({
             "flex items-center justify-center",
             "bg-primary shadow-button",
             "transition-all duration-200",
-            "hover:scale-110 active:scale-95",
+            "hover:scale-110 active:scale-[0.98]",
             isPlaying && "animate-wiggle"
           )}
         >

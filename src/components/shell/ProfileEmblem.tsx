@@ -72,7 +72,7 @@ export function ProfileEmblemView({
       aria-label={hasNews ? "Your account — something new is waiting" : "Your account"}
       className={cn(
         "relative grid h-10 w-10 shrink-0 place-items-center rounded-full",
-        "transition-transform active:scale-95",
+        "transition-transform active:scale-[0.98]",
         className,
       )}
     >

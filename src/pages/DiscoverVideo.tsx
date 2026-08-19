@@ -1651,7 +1651,7 @@ const DiscoverVideo = ({
                       sitting underneath it. */}
                   {tiktokNeedsManualPlay && (
                     <div className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center px-3">
-                      <span className="rounded-full bg-black/75 px-3 py-1 text-xs font-medium text-white shadow-lg">
+                      <span className="rounded-full bg-black/75 px-3 py-1 text-xs font-medium text-white shadow-elegant">
                         Tap the video to start it
                       </span>
                     </div>
@@ -1803,7 +1803,7 @@ const DiscoverVideo = ({
               className={cn(
                 "shrink-0 w-10 h-10 rounded-full flex items-center justify-center",
                 "bg-muted/60 transition-all duration-200",
-                "hover:bg-muted active:scale-95",
+                "hover:bg-muted active:scale-[0.98]",
                 "disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-muted/60"
               )}
               aria-label="Previous line"
@@ -1922,7 +1922,7 @@ const DiscoverVideo = ({
               className={cn(
                 "shrink-0 w-10 h-10 rounded-full flex items-center justify-center",
                 "bg-muted/60 transition-all duration-200",
-                "hover:bg-muted active:scale-95",
+                "hover:bg-muted active:scale-[0.98]",
                 "disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-muted/60"
               )}
               aria-label="Next line"

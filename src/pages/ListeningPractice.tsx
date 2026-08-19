@@ -518,7 +518,7 @@ const ListeningPractice = () => {
               "w-24 h-24 rounded-full flex items-center justify-center transition-all",
               audioPlaying
                 ? "bg-primary/20 animate-pulse"
-                : "bg-primary hover:bg-primary/90 active:scale-95"
+                : "bg-primary hover:bg-primary/90 active:scale-[0.98]"
             )}
           >
             {audioPlaying ? (

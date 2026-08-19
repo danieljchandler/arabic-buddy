@@ -1,44 +1,67 @@
-import type { ReactNode } from "react";
-import { SaduBubble, type SaduBubbleTone } from "@/components/brand/SaduBubble";
+import { ReactNode } from "react";
 import { cn } from "@/lib/utils";
+import caughtUpArt from "@/assets/illustrations/empty-caught-up.webp";
+import nothingArt from "@/assets/illustrations/empty-nothing.webp";
 
 /**
  * What a screen says when it has nothing to show yet.
  *
- * These were a scattered pattern before — a large faded lucide icon over two
- * lines of muted text, repeated a couple of dozen times with the icon, the
- * sizes and the text colours all slightly different each time. The icon was
- * doing the least useful work: a greyed heart above "No liked videos yet" only
- * says again what the sentence already said.
- *
- * A sadu bubble says something the sentence cannot — that this is Hakiya, and
- * that the screen is waiting rather than broken. It is the same mark everywhere
- * on purpose; the tone is the only thing that varies, and only where a screen
- * has a reason to feel different.
+ * Successor to the SaduBubble version, keeping its premise — the same brand
+ * mark everywhere, saying the screen is waiting rather than broken — but the
+ * mark is now painted artwork in the campfire-hero watercolor style. Two
+ * pieces: "caught-up" is the reward state (a dallah pouring coffee under a
+ * crescent — you're done), "nothing-yet" is the invitation state (an open
+ * notebook and a finjan waiting on a sadu cushion — begin here). The image
+ * rides a circular cream plate so the vignette's own background reads as
+ * intentional on every surface, card or warm sand alike.
  */
-export function EmptyState({
-  title,
-  body,
-  action,
-  tone = "olive",
-  className,
-}: {
+const ART = {
+  "caught-up": caughtUpArt,
+  "nothing-yet": nothingArt,
+} as const;
+
+export interface EmptyStateProps {
+  art?: keyof typeof ART;
   title: string;
   /** One line on how to make the emptiness go away. */
   body?: ReactNode;
   /** A way out — usually the button that starts the thing. */
   action?: ReactNode;
-  tone?: SaduBubbleTone;
+  /** Alternative to `action`: actions as children. */
+  children?: ReactNode;
   className?: string;
-}) {
+  /** Plate diameter; md fits page-level empties, sm inline ones. */
+  size?: "sm" | "md";
+}
+
+export function EmptyState({
+  art = "nothing-yet",
+  title,
+  body,
+  action,
+  children,
+  className,
+  size = "md",
+}: EmptyStateProps) {
+  const actions = action ?? children;
   return (
-    <div className={cn("flex flex-col items-center px-6 py-12 text-center", className)}>
-      <SaduBubble tone={tone} className="mb-3 h-16 w-auto" />
-      <p className="text-sm font-medium text-foreground">{title}</p>
-      {body && (
-        <p className="mt-1 max-w-xs text-[13px] leading-relaxed text-muted-foreground">{body}</p>
+    <div className={cn("flex flex-col items-center justify-center py-12 px-4 text-center", className)}>
+      <img
+        src={ART[art]}
+        alt=""
+        aria-hidden
+        loading="lazy"
+        draggable={false}
+        className={cn(
+          "rounded-full object-cover bg-card-cream ring-1 ring-border/60 shadow-soft select-none mb-4 animate-scale-in",
+          size === "md" ? "h-36 w-36" : "h-24 w-24",
+        )}
+      />
+      <h2 className="font-heading text-lg font-bold text-foreground mb-1.5">{title}</h2>
+      {body && <p className="text-sm text-muted-foreground max-w-sm leading-relaxed">{body}</p>}
+      {actions && (
+        <div className="mt-5 flex w-full max-w-sm flex-col justify-center gap-3 sm:flex-row">{actions}</div>
       )}
-      {action && <div className="mt-4">{action}</div>}
     </div>
   );
 }

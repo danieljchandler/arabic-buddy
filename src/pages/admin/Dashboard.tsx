@@ -156,7 +156,7 @@ const Dashboard = () => {
           {isAdmin && (
             <>
               <Card
-                className="cursor-pointer hover:shadow-lg transition-shadow border-primary/50 bg-primary/5"
+                className="cursor-pointer hover:shadow-elegant transition-shadow border-primary/50 bg-primary/5"
                 role="button"
                 tabIndex={0}
                 aria-label="Curriculum Builder"
@@ -176,7 +176,7 @@ const Dashboard = () => {
                 </CardContent>
               </Card>
 
-              <Card className="cursor-pointer hover:shadow-lg transition-shadow border-primary/30" onClick={() => navigate('/admin/lessons/import')}>
+              <Card className="cursor-pointer hover:shadow-elegant transition-shadow border-primary/30" onClick={() => navigate('/admin/lessons/import')}>
                 <CardContent className="pt-6">
                   <div className="flex items-center gap-4">
                     <div className="bg-primary/10 rounded-full p-4">
@@ -190,7 +190,7 @@ const Dashboard = () => {
                 </CardContent>
               </Card>
 
-              <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/admin/curriculum')}>
+              <Card className="cursor-pointer hover:shadow-elegant transition-shadow" onClick={() => navigate('/admin/curriculum')}>
                 <CardContent className="pt-6">
                   <div className="flex items-center gap-4">
                     <div className="bg-primary/10 rounded-full p-4">
@@ -204,7 +204,7 @@ const Dashboard = () => {
                 </CardContent>
               </Card>
 
-              <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/admin/topics')}>
+              <Card className="cursor-pointer hover:shadow-elegant transition-shadow" onClick={() => navigate('/admin/topics')}>
                 <CardContent className="pt-6">
                   <div className="flex items-center gap-4">
                     <div className="bg-primary/10 rounded-full p-4">
@@ -218,7 +218,7 @@ const Dashboard = () => {
                 </CardContent>
               </Card>
 
-              <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/admin/videos')}>
+              <Card className="cursor-pointer hover:shadow-elegant transition-shadow" onClick={() => navigate('/admin/videos')}>
                 <CardContent className="pt-6">
                   <div className="flex items-center gap-4">
                     <div className="bg-primary/10 rounded-full p-4">
@@ -232,7 +232,7 @@ const Dashboard = () => {
                 </CardContent>
               </Card>
 
-              <Card className="cursor-pointer hover:shadow-lg transition-shadow border-pink-500/30" onClick={() => navigate('/admin/memes')}>
+              <Card className="cursor-pointer hover:shadow-elegant transition-shadow border-pink-500/30" onClick={() => navigate('/admin/memes')}>
                 <CardContent className="pt-6">
                   <div className="flex items-center gap-4">
                     <div className="bg-pink-500/10 rounded-full p-4">
@@ -246,7 +246,7 @@ const Dashboard = () => {
                 </CardContent>
               </Card>
 
-              <Card className="cursor-pointer hover:shadow-lg transition-shadow border-emerald-500/30" onClick={() => navigate('/admin/set-phrases')}>
+              <Card className="cursor-pointer hover:shadow-elegant transition-shadow border-emerald-500/30" onClick={() => navigate('/admin/set-phrases')}>
                 <CardContent className="pt-6">
                   <div className="flex items-center gap-4">
                     <div className="bg-emerald-500/10 rounded-full p-4">
@@ -260,7 +260,7 @@ const Dashboard = () => {
                 </CardContent>
               </Card>
 
-              <Card className="cursor-pointer hover:shadow-lg transition-shadow border-purple-500/30" onClick={() => navigate('/admin/dialect-rules')}>
+              <Card className="cursor-pointer hover:shadow-elegant transition-shadow border-purple-500/30" onClick={() => navigate('/admin/dialect-rules')}>
                 <CardContent className="pt-6">
                   <div className="flex items-center gap-4">
                     <div className="bg-purple-500/10 rounded-full p-4">
@@ -274,7 +274,7 @@ const Dashboard = () => {
                 </CardContent>
               </Card>
 
-              <Card className="cursor-pointer hover:shadow-lg transition-shadow border-accent/30" onClick={() => navigate('/admin/stories')}>
+              <Card className="cursor-pointer hover:shadow-elegant transition-shadow border-accent/30" onClick={() => navigate('/admin/stories')}>
                 <CardContent className="pt-6">
                   <div className="flex items-center gap-4">
                     <div className="bg-accent/10 rounded-full p-4">
@@ -288,7 +288,7 @@ const Dashboard = () => {
                 </CardContent>
               </Card>
 
-              <Card className="cursor-pointer hover:shadow-lg transition-shadow border-accent/30" onClick={() => navigate('/admin/reading-library')}>
+              <Card className="cursor-pointer hover:shadow-elegant transition-shadow border-accent/30" onClick={() => navigate('/admin/reading-library')}>
                 <CardContent className="pt-6">
                   <div className="flex items-center gap-4">
                     <div className="bg-accent/10 rounded-full p-4">
@@ -302,7 +302,7 @@ const Dashboard = () => {
                 </CardContent>
               </Card>
 
-              <Card className="cursor-pointer hover:shadow-lg transition-shadow border-primary/30" onClick={() => navigate('/admin/trending')}>
+              <Card className="cursor-pointer hover:shadow-elegant transition-shadow border-primary/30" onClick={() => navigate('/admin/trending')}>
                 <CardContent className="pt-6">
                   <div className="flex items-center gap-4">
                     <div className="bg-primary/10 rounded-full p-4">
@@ -316,7 +316,7 @@ const Dashboard = () => {
                 </CardContent>
               </Card>
 
-              <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/admin/bible-access')}>
+              <Card className="cursor-pointer hover:shadow-elegant transition-shadow" onClick={() => navigate('/admin/bible-access')}>
                 <CardContent className="pt-6">
                   <div className="flex items-center gap-4">
                     <div className="bg-primary/10 rounded-full p-4">
@@ -330,7 +330,7 @@ const Dashboard = () => {
                 </CardContent>
               </Card>
 
-              <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/admin/bible-lessons')}>
+              <Card className="cursor-pointer hover:shadow-elegant transition-shadow" onClick={() => navigate('/admin/bible-lessons')}>
                 <CardContent className="pt-6">
                   <div className="flex items-center gap-4">
                     <div className="bg-primary/10 rounded-full p-4">
@@ -345,7 +345,7 @@ const Dashboard = () => {
               </Card>
 
 
-              <Card className="cursor-pointer hover:shadow-lg transition-shadow border-emerald-500/30" onClick={() => navigate('/admin/coverage')}>
+              <Card className="cursor-pointer hover:shadow-elegant transition-shadow border-emerald-500/30" onClick={() => navigate('/admin/coverage')}>
                 <CardContent className="pt-6">
                   <div className="flex items-center gap-4">
                     <div className="bg-emerald-500/10 rounded-full p-4">
@@ -359,7 +359,7 @@ const Dashboard = () => {
                 </CardContent>
               </Card>
 
-              <Card className="cursor-pointer hover:shadow-lg transition-shadow border-amber-500/30" onClick={() => navigate('/admin/metrics')}>
+              <Card className="cursor-pointer hover:shadow-elegant transition-shadow border-amber-500/30" onClick={() => navigate('/admin/metrics')}>
                 <CardContent className="pt-6">
                   <div className="flex items-center gap-4">
                     <div className="bg-amber-500/10 rounded-full p-4">
@@ -373,7 +373,7 @@ const Dashboard = () => {
                 </CardContent>
               </Card>
 
-              <Card className="cursor-pointer hover:shadow-lg transition-shadow border-rose-500/30" onClick={() => navigate('/admin/errors')}>
+              <Card className="cursor-pointer hover:shadow-elegant transition-shadow border-rose-500/30" onClick={() => navigate('/admin/errors')}>
                 <CardContent className="pt-6">
                   <div className="flex items-center gap-4">
                     <div className="bg-rose-500/10 rounded-full p-4">
@@ -387,7 +387,7 @@ const Dashboard = () => {
                 </CardContent>
               </Card>
 
-              <Card className="cursor-pointer hover:shadow-lg transition-shadow border-indigo-500/30" onClick={() => navigate('/admin/invite-codes')}>
+              <Card className="cursor-pointer hover:shadow-elegant transition-shadow border-indigo-500/30" onClick={() => navigate('/admin/invite-codes')}>
                 <CardContent className="pt-6">
                   <div className="flex items-center gap-4">
                     <div className="bg-indigo-500/10 rounded-full p-4">
@@ -401,7 +401,7 @@ const Dashboard = () => {
                 </CardContent>
               </Card>
 
-              <Card className="cursor-pointer hover:shadow-lg transition-shadow border-pink-500/30" onClick={() => navigate('/admin/feedback')}>
+              <Card className="cursor-pointer hover:shadow-elegant transition-shadow border-pink-500/30" onClick={() => navigate('/admin/feedback')}>
                 <CardContent className="pt-6">
                   <div className="flex items-center gap-4">
                     <div className="bg-pink-500/10 rounded-full p-4">
@@ -453,7 +453,7 @@ const Dashboard = () => {
                 </CardContent>
               </Card>
 
-              <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate('/admin/videos')}>
+              <Card className="cursor-pointer hover:shadow-elegant transition-shadow" onClick={() => navigate('/admin/videos')}>
                 <CardContent className="pt-6">
                   <div className="flex items-center gap-4">
                     <div className="bg-primary/10 rounded-full p-4">
@@ -467,7 +467,7 @@ const Dashboard = () => {
                 </CardContent>
               </Card>
 
-              <Card className="cursor-pointer hover:shadow-lg transition-shadow border-emerald-500/30" onClick={() => navigate('/admin/set-phrases')}>
+              <Card className="cursor-pointer hover:shadow-elegant transition-shadow border-emerald-500/30" onClick={() => navigate('/admin/set-phrases')}>
                 <CardContent className="pt-6">
                   <div className="flex items-center gap-4">
                     <div className="bg-emerald-500/10 rounded-full p-4">
@@ -481,7 +481,7 @@ const Dashboard = () => {
                 </CardContent>
               </Card>
 
-              <Card className="cursor-pointer hover:shadow-lg transition-shadow border-purple-500/30" onClick={() => navigate('/admin/dialect-rules')}>
+              <Card className="cursor-pointer hover:shadow-elegant transition-shadow border-purple-500/30" onClick={() => navigate('/admin/dialect-rules')}>
                 <CardContent className="pt-6">
                   <div className="flex items-center gap-4">
                     <div className="bg-purple-500/10 rounded-full p-4">
@@ -514,7 +514,7 @@ const Dashboard = () => {
                 {lessons.map((lesson) => (
                   <Card
                     key={lesson.id}
-                    className="cursor-pointer hover:shadow-md transition-shadow"
+                    className="cursor-pointer hover:shadow-card transition-shadow"
                     onClick={() => navigate(`/admin/lessons/${lesson.id}/words`)}
                   >
                     <CardContent className="pt-4">

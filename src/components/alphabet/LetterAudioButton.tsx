@@ -130,7 +130,7 @@ export const LetterAudioButton = ({
       aria-label={label ?? `Play ${text}`}
       className={cn(
         "rounded-full bg-primary text-primary-foreground flex items-center justify-center",
-        "shadow-md transition-all duration-200 active:scale-95",
+        "shadow-card transition-all duration-200 active:scale-[0.98]",
         "disabled:opacity-50 disabled:cursor-not-allowed",
         playing && "ring-2 ring-primary/40 ring-offset-2",
         sizeCls,

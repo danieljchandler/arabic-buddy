@@ -224,7 +224,7 @@ export function AskAiPanel() {
           "max-sm:data-[state=open]:slide-in-from-bottom max-sm:data-[state=closed]:slide-out-to-bottom",
           // Desktop: a right rail, no scrim over the page.
           "sm:inset-y-0 sm:right-0 sm:h-full sm:w-full",
-          "sm:rounded-none sm:shadow-2xl",
+          "sm:rounded-none sm:shadow-elegant",
           "sm:data-[state=open]:slide-in-from-right sm:data-[state=closed]:slide-out-to-right",
           // The geometry that reading mode overrides is branched rather than
           // layered: Tailwind resolves same-property utilities by its own

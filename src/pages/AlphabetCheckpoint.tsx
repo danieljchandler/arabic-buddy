@@ -152,7 +152,7 @@ const AlphabetCheckpoint = () => {
                 choose(l.code);
               }}
               className={cn(
-                "p-6 rounded-2xl border-2 border-border bg-card transition-all active:scale-95",
+                "p-6 rounded-2xl border-2 border-border bg-card transition-all active:scale-[0.98]",
                 "hover:border-primary/40",
               )}
               style={{ fontFamily: "'Noto Sans Arabic', serif", fontSize: 56, lineHeight: 1 }}

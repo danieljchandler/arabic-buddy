@@ -32,7 +32,7 @@ export function AchievementBadge({
         "bg-gradient-to-br from-amber-100 to-amber-200 dark:from-amber-900/40 dark:to-amber-800/40",
         "border-2",
         earned 
-          ? "border-amber-400 shadow-lg shadow-amber-200/50 dark:shadow-amber-900/30" 
+          ? "border-amber-400 shadow-elegant shadow-amber-200/50 dark:shadow-amber-900/30" 
           : "border-muted",
         sizeClasses[size]
       )}>

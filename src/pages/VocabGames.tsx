@@ -90,7 +90,7 @@ const WordMatchingGame = ({ words, onComplete }: { words: WordPair[]; onComplete
                 matched.has(w.id)
                   ? "bg-primary/10 border-primary/30 text-primary opacity-60"
                   : selectedArabic === w.word_arabic
-                  ? "bg-primary text-primary-foreground border-primary shadow-lg scale-[1.02]"
+                  ? "bg-primary text-primary-foreground border-primary shadow-elegant scale-[1.02]"
                   : "bg-card border-border hover:border-primary/40"
               )}
               style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}
@@ -219,7 +219,7 @@ const MemoryCardGame = ({ words, onComplete }: { words: WordPair[]; onComplete: 
                 matched.has(card.pairId)
                   ? "bg-primary/10 border-primary/30"
                   : isRevealed
-                  ? "bg-card border-primary shadow-md"
+                  ? "bg-card border-primary shadow-card"
                   : "bg-muted border-border hover:border-primary/30 hover:bg-muted/80"
               )}
             >
@@ -587,7 +587,7 @@ const VocabGames = () => {
                     "bg-gradient-to-r from-primary/10 to-primary/5 border-2 border-primary/20",
                     "flex items-center gap-4",
                     "transition-all duration-200",
-                    "hover:border-primary/40 hover:shadow-lg active:scale-[0.98]"
+                    "hover:border-primary/40 hover:shadow-elegant active:scale-[0.98]"
                   )}
                 >
                   <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
@@ -610,7 +610,7 @@ const VocabGames = () => {
                     "bg-gradient-to-r from-accent/30 to-accent/10 border-2 border-accent/20",
                     "flex items-center gap-4",
                     "transition-all duration-200",
-                    "hover:border-accent/40 hover:shadow-lg active:scale-[0.98]"
+                    "hover:border-accent/40 hover:shadow-elegant active:scale-[0.98]"
                   )}
                 >
                   <div className="w-12 h-12 rounded-xl bg-accent/20 flex items-center justify-center shrink-0">
@@ -633,7 +633,7 @@ const VocabGames = () => {
                     "bg-gradient-to-r from-secondary/50 to-secondary/20 border-2 border-secondary/30",
                     "flex items-center gap-4",
                     "transition-all duration-200",
-                    "hover:border-secondary/50 hover:shadow-lg active:scale-[0.98]"
+                    "hover:border-secondary/50 hover:shadow-elegant active:scale-[0.98]"
                   )}
                 >
                   <div className="w-12 h-12 rounded-xl bg-secondary/30 flex items-center justify-center shrink-0">

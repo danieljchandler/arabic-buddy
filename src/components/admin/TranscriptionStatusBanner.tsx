@@ -13,7 +13,7 @@ export function TranscriptionStatusBanner() {
     if (!job || job.status !== "error") return null;
 
     return (
-      <div className="fixed bottom-4 right-4 z-50 max-w-sm w-full bg-destructive text-destructive-foreground rounded-lg shadow-lg p-4 flex items-start gap-3">
+      <div className="fixed bottom-4 right-4 z-50 max-w-sm w-full bg-destructive text-destructive-foreground rounded-lg shadow-elegant p-4 flex items-start gap-3">
         <XCircle className="h-5 w-5 shrink-0 mt-0.5" />
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold">Transcription failed</p>
@@ -36,7 +36,7 @@ export function TranscriptionStatusBanner() {
     : "/admin/videos/new";
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 max-w-sm w-full bg-card border rounded-lg shadow-lg p-4 space-y-2">
+    <div className="fixed bottom-4 right-4 z-50 max-w-sm w-full bg-card border rounded-lg shadow-elegant p-4 space-y-2">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 min-w-0">
           <Loader2 className="h-4 w-4 animate-spin text-primary shrink-0" />

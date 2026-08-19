@@ -94,7 +94,7 @@ export const ContinueCard = () => {
         "bg-gradient-to-r from-primary/10 via-card to-primary/5",
         "border-2 border-primary/25",
         "flex items-stretch overflow-hidden",
-        "transition-all hover:border-primary/50 hover:shadow-md"
+        "transition-all hover:border-primary/50 hover:shadow-card"
       )}
     >
       <button

@@ -377,7 +377,7 @@ const HowDoISay = () => {
                   className={cn(
                     "border",
                     t.isPreferred
-                      ? "border-primary/40 bg-primary/5 shadow-sm"
+                      ? "border-primary/40 bg-primary/5 shadow-soft"
                       : "border-border bg-card",
                   )}
                 >

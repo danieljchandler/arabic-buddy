@@ -1,4 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&family=Montserrat:wght@600;700&family=Open+Sans:wght@400;500&display=swap');
+/* Fonts are loaded from index.html (<link rel="preconnect"> + stylesheet) so the
+   request starts before this file is parsed. Keep the family list there. */
 
 @tailwind base;
 @tailwind components;
@@ -62,6 +63,11 @@
 
     /* Desert Red border color */
     --desert-red: 8 45% 30%;
+
+    /* Plum — deep wine used for the welcome majlis, hub tiles and MSA bridge.
+       Was hardcoded as #5C3A46 across the app before being promoted here. */
+    --plum: 339 23% 29%;
+    --plum-foreground: 38 47% 92%;
 
     /* Card cream - white/cream for cards */
     --card-cream: 40 50% 97%;
@@ -219,13 +225,6 @@
     font-family: 'Open Sans', 'Noto Sans Arabic', sans-serif;
     font-weight: 500;
     color: hsl(var(--muted-foreground));
-  }
-
-  .shadow-elegant {
-    box-shadow: var(--shadow-elegant);
-  }
-  .shadow-card-soft {
-    box-shadow: var(--shadow-card);
   }
 
   /* Subtle float animation for icons */
@@ -400,6 +399,26 @@
   }
 }
 
+/* ── Page transitions ──
+   TransitionRoutes drives route changes through document.startViewTransition;
+   these pseudo-elements are the whole animation. A quick cross-fade on the
+   Lahja curve: the fixed chrome (sadu border, dock) is identical on both
+   snapshots so it appears to hold still, and AppShell's own fade-up remains
+   the content's arrival move. Kept fast — a transition slower than the
+   navigation feels like loading. */
+::view-transition-old(root) {
+  animation: vt-fade-out 160ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+::view-transition-new(root) {
+  animation: vt-fade-in 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes vt-fade-out {
+  to { opacity: 0; }
+}
+@keyframes vt-fade-in {
+  from { opacity: 0; }
+}
+
 /* Honor user reduced-motion preference globally */
 @media (prefers-reduced-motion: reduce) {
   .animate-pop,
@@ -414,6 +433,13 @@
   .animate-sparkle,
   .animate-wave-bar,
   .animate-face-morph {
+    animation: none !important;
+  }
+
+  /* TransitionRoutes already skips startViewTransition under reduced motion;
+     this covers view transitions started anywhere else. */
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
     animation: none !important;
   }
 }

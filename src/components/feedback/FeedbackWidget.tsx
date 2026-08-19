@@ -186,9 +186,9 @@ export function FeedbackWidget() {
         aria-label="Send feedback"
         className={cn(
           "fixed z-40 left-3 bottom-20 md:bottom-6 md:left-6",
-          "h-12 w-12 rounded-full shadow-lg",
+          "h-12 w-12 rounded-full shadow-elegant",
           "bg-primary text-primary-foreground hover:bg-primary/90",
-          "flex items-center justify-center transition-transform active:scale-95",
+          "flex items-center justify-center transition-transform active:scale-[0.98]",
         )}
       >
         {capturing ? <Loader2 className="h-5 w-5 animate-spin" /> : <MessageSquarePlus className="h-5 w-5" />}

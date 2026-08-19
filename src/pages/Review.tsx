@@ -16,13 +16,14 @@ import { SessionProgress } from "@/components/review/SessionProgress";
 import { PageCorner } from "@/components/shell/PageCorner";
 import { Button } from "@/components/ui/button";
 import { AppShell } from "@/components/layout/AppShell";
+import { LoadingPanel } from "@/components/loading/LoadingPanel";
 import { useDialect } from "@/contexts/DialectContext";
 import { Rating, calculateNextReview, elapsedDaysSince } from "@/lib/spacedRepetition";
 import { scheduleDirectionFor } from "@/lib/reviewOrder";
 import { ReviewAudioCard } from "@/components/review/ReviewAudioCard";
 import { LeechHelperPanel } from "@/components/review/LeechHelperPanel";
 import { useLeechPrefs } from "@/hooks/useLeechPrefs";
-import { Loader2, Trophy, Brain, Sparkles, LogIn, Shuffle, Eye, Volume2, ImagePlus, WifiOff, CloudUpload, PenLine, BookOpen } from "lucide-react";
+import { Trophy, Brain, Sparkles, LogIn, Shuffle, Eye, Volume2, ImagePlus, WifiOff, CloudUpload, PenLine, BookOpen } from "lucide-react";
 import { GenerateImageDialog } from "@/components/mywords/GenerateImageDialog";
 import { useReviewKeyboard } from "@/hooks/useKeyboardShortcuts";
 import { AskAISentence } from "@/components/shared/AskAISentence";
@@ -168,12 +169,7 @@ const Review = () => {
   if (authLoading || wordsLoading) {
     return (
       <AppShell compact>
-        <div className="flex items-center justify-center py-24">
-          <div className="text-center">
-            <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto mb-4" />
-            <p className="text-muted-foreground">Loading your reviews...</p>
-          </div>
-        </div>
+        <LoadingPanel variant="page" statusOverride="Loading your reviews…" />
       </AppShell>
     );
   }
@@ -206,9 +202,7 @@ const Review = () => {
     if (session.isLoading) {
       return (
         <AppShell compact>
-          <div className="flex items-center justify-center py-24">
-            <Loader2 className="h-10 w-10 animate-spin text-primary" />
-          </div>
+          <LoadingPanel variant="page" />
         </AppShell>
       );
     }

@@ -24,7 +24,7 @@ export const NavigationArrow = ({
         "flex items-center justify-center",
         "bg-card shadow-card",
         "transition-all duration-300",
-        "hover:scale-110 active:scale-95",
+        "hover:scale-110 active:scale-[0.98]",
         "disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100",
         "focus:outline-none focus:ring-4 focus:ring-primary/50"
       )}

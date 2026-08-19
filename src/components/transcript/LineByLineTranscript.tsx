@@ -548,7 +548,7 @@ interface TranscriptLineCardProps {
      <div
        className={cn(
          "rounded-xl border p-4 transition-all duration-200",
-         "hover:shadow-md",
+         "hover:shadow-card",
          isOverlay
            ? "bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800/50"
            : "bg-card border-border",

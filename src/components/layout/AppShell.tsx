@@ -29,7 +29,7 @@ export function AppShell({ children, className, compact = false }: AppShellProps
   return (
     <div
       className={cn(
-        "min-h-[100dvh] relative bg-white",
+        "min-h-[100dvh] relative bg-background",
         "transition-[padding] duration-300 ease-lahja motion-reduce:transition-none",
         // Only from lg: below that there isn't room to inset without squeezing
         // the text column, so the rail simply overlaps (still readable — no scrim).

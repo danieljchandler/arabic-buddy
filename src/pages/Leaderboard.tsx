@@ -338,7 +338,7 @@ const Leaderboard = () => {
             className={cn(
               "flex-1 py-2.5 rounded-lg text-sm font-medium transition-all",
               tab === "weekly"
-                ? "bg-background text-foreground shadow-sm"
+                ? "bg-background text-foreground shadow-soft"
                 : "text-muted-foreground hover:text-foreground"
             )}
           >
@@ -350,7 +350,7 @@ const Leaderboard = () => {
             className={cn(
               "flex-1 py-2.5 rounded-lg text-sm font-medium transition-all",
               tab === "all-time"
-                ? "bg-background text-foreground shadow-sm"
+                ? "bg-background text-foreground shadow-soft"
                 : "text-muted-foreground hover:text-foreground"
             )}
           >

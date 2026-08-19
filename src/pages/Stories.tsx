@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Loader2, BookOpen, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { InfoHint } from '@/components/InfoHint';
+import { EmptyState } from '@/components/shared/EmptyState';
 import { PAGE_HINTS } from '@/lib/pageHints';
 
 const DIFFICULTY_COLORS: Record<string, string> = {
@@ -43,7 +44,7 @@ const Stories = () => {
                 onClick={() => navigate(`/stories/${story.id}`)}
                 className={cn(
                   'w-full text-left rounded-2xl border-2 border-border bg-card p-5',
-                  'transition-all duration-200 hover:border-primary/40 hover:shadow-lg',
+                  'transition-all duration-200 hover:border-primary/40 hover:shadow-elegant',
                   'active:scale-[0.98] group'
                 )}
               >
@@ -75,10 +76,11 @@ const Stories = () => {
             ))}
           </div>
         ) : (
-          <div className="text-center py-16">
-            <BookOpen className="h-16 w-16 text-muted-foreground/20 mx-auto mb-4" />
-            <p className="text-muted-foreground">No stories available yet. Check back soon!</p>
-          </div>
+          <EmptyState
+            className="py-16"
+            title="No stories yet"
+            body="No stories available yet. Check back soon!"
+          />
         )}
       </div>
     </AppShell>

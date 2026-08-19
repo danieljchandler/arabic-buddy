@@ -300,7 +300,7 @@ function Clip({
         fallback={
           // The brand's warm ramp where a thumbnail is missing — sand into
           // desert red into char, not a grey box.
-          <div className="absolute inset-0 bg-gradient-to-br from-[#8C4135] via-[#5C3A46] to-[#20191A]" />
+          <div className="absolute inset-0 bg-gradient-to-br from-[#8C4135] via-plum to-[#20191A]" />
         }
       />
       <div

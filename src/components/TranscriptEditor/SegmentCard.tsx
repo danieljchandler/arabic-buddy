@@ -128,7 +128,7 @@ export default function SegmentCard({
       className={cn(
         'rounded-lg border p-3 transition-all',
         isActive
-          ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-950/20 shadow-sm'
+          ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-950/20 shadow-soft'
           : 'border-gray-200 dark:border-gray-700 hover:border-gray-300',
       )}
     >

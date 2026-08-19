@@ -34,7 +34,7 @@ export const ArabicKeyboard = ({ highlight, onKey, className }: ArabicKeyboardPr
                 className={cn(
                   "relative h-11 min-w-0 flex-1 max-w-11 rounded-md border text-lg font-arabic transition-colors",
                   isNext
-                    ? "border-primary bg-primary/15 text-primary shadow-sm"
+                    ? "border-primary bg-primary/15 text-primary shadow-soft"
                     : "border-border bg-muted/40 text-foreground hover:bg-muted",
                 )}
               >

@@ -55,7 +55,7 @@ export function NotificationBell() {
       {open && (
         <div className={cn(
           "absolute right-0 top-full mt-2 w-80 max-h-96 overflow-y-auto",
-          "bg-card border border-border rounded-xl shadow-xl z-50",
+          "bg-card border border-border rounded-xl shadow-elegant z-50",
           "animate-in fade-in slide-in-from-top-2 duration-200"
         )}>
           <div className="p-3 border-b border-border">

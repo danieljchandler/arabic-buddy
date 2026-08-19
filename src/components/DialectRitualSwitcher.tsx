@@ -4,6 +4,9 @@ import { ChevronDown, X } from "lucide-react";
 import { useDialect, DialectModule } from "@/contexts/DialectContext";
 import { cn } from "@/lib/utils";
 import dallahAsset from "@/assets/dallah-icon.png";
+import dialectGulfArt from "@/assets/illustrations/dialect-gulf.webp";
+import dialectEgyptianArt from "@/assets/illustrations/dialect-egyptian.webp";
+import dialectYemeniArt from "@/assets/illustrations/dialect-yemeni.webp";
 
 type Meta = {
   id: DialectModule;
@@ -15,6 +18,8 @@ type Meta = {
   vibe: string;         // one-line cultural sketch
   /** HSL string used purely for the ritual wash + card accent */
   hsl: string;
+  /** Painted scene shown as the card's thumbnail (see assets/illustrations). */
+  image: string;
 };
 
 const DIALECTS: Meta[] = [
@@ -27,6 +32,7 @@ const DIALECTS: Meta[] = [
     tagArabic: "مرحبا بالمعازيب",
     vibe: "The unhurried cadence of the majlis — coffee, oud, the Gulf wind.",
     hsl: "12 68% 32%",
+    image: dialectGulfArt,
   },
   {
     id: "Egyptian",
@@ -37,6 +43,7 @@ const DIALECTS: Meta[] = [
     tagArabic: "أهلاً يا باشا",
     vibe: "Quick, warm, theatrical — the lingua franca of Arab cinema.",
     hsl: "38 85% 45%",
+    image: dialectEgyptianArt,
   },
   {
     id: "Yemeni",
@@ -47,6 +54,7 @@ const DIALECTS: Meta[] = [
     tagArabic: "حياك الله",
     vibe: "Mountain Arabic — old vowels, deep hospitality, slow verse.",
     hsl: "0 70% 42%",
+    image: dialectYemeniArt,
   },
 ];
 
@@ -182,8 +190,8 @@ export const DialectRitualSwitcher = ({ className }: Props) => {
                       "[transform-style:preserve-3d]",
                       "disabled:cursor-default",
                       isActive
-                        ? "border-current shadow-md"
-                        : "border-border bg-card hover:shadow-md hover:-translate-y-0.5",
+                        ? "border-current shadow-card"
+                        : "border-border bg-card hover:shadow-card hover:-translate-y-0.5",
                       isFlipping && "[transform:rotateY(180deg)]"
                     )}
                     style={{
@@ -194,20 +202,14 @@ export const DialectRitualSwitcher = ({ className }: Props) => {
                     }}
                   >
                     <div className="flex items-start gap-4">
-                      <div
-                        className="flex items-center justify-center w-14 h-14 rounded-xl text-2xl shrink-0"
-                        style={{
-                          backgroundColor: `hsl(${d.hsl} / 0.12)`,
-                          color: `hsl(${d.hsl})`,
-                        }}
+                      <img
+                        src={d.image}
+                        alt=""
                         aria-hidden
-                      >
-                        {d.id === "Gulf" ? (
-                          <img src={dallahAsset} alt="" className="w-8 h-8 object-contain" />
-                        ) : (
-                          d.flag
-                        )}
-                      </div>
+                        loading="lazy"
+                        draggable={false}
+                        className="w-14 h-14 rounded-xl object-cover shrink-0 select-none ring-1 ring-border/60"
+                      />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-baseline justify-between gap-3">
                           <span
@@ -260,7 +262,7 @@ export const DialectRitualSwitcher = ({ className }: Props) => {
           "group w-full flex items-center justify-between gap-3",
           "px-4 py-3 rounded-2xl",
           "bg-card border-2 border-border",
-          "shadow-sm hover:shadow-md hover:border-primary/40",
+          "shadow-soft hover:shadow-card hover:border-primary/40",
           "transition-all duration-200 active:scale-[0.99]",
           className
         )}

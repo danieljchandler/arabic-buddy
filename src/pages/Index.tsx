@@ -9,15 +9,15 @@ import { useSRSStats } from "@/hooks/useSRSStats";
 import { useUserXP } from "@/hooks/useGamification";
 import { useTodayQueue } from "@/hooks/useTodayQueue";
 import { Button } from "@/components/design-system";
-import { Settings, Brain, LogIn, LogOut, Mic, BookOpen, Sparkles, GraduationCap, Laugh, Play, ChevronRight, Twitter, MessageCircleQuestion, MessageSquare, MessageCircle, Globe2, Headphones, Trophy, FileText, Flame, BarChart3, PenTool, Gamepad2, Users, Swords, Newspaper, BookMarked, Image as ImageIcon, Languages, Settings2 } from "lucide-react";
+import { Settings, Brain, LogOut, Sparkles, GraduationCap, ChevronRight, Globe2, Users, Settings2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AppShell } from "@/components/layout/AppShell";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
-import { XPDisplay, StreakDisplay, WeeklyGoalCard, AchievementsGrid } from "@/components/gamification";
-import hakiyaLogoAsset from "@/assets/hakiya-logo.png";
-const lahjaLogo = hakiyaLogoAsset;
+import { XPDisplay, StreakDisplay, WeeklyGoalCard } from "@/components/gamification";
+import { BrandMark } from "@/components/shell/BrandMark";
+import { EmptyState } from "@/components/shared/EmptyState";
 import { useState } from "react";
 import { NotificationBell } from "@/components/NotificationBell";
 import { useDialect, DialectModule } from "@/contexts/DialectContext";
@@ -171,27 +171,13 @@ const Index = () => {
 
 
 
-      {/* Top bar with logo and auth */}
+      {/* Top bar — the same BrandMark corner the feed, chooser and skills use,
+          with the utility icons gathered into one quiet group on the right.
+          (Signed-out visitors never reach this: they get the landing hero.) */}
       <div className="flex items-center justify-between mb-4">
-        <img src={lahjaLogo} alt="Hakiya" className="h-24" />
-        
-        <div className="flex items-center gap-3">
-          {!authLoading && (isAuthenticated ? (
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground hidden sm:inline">
-                {user?.email?.split("@")[0]}
-              </span>
-              <Button variant="ghost" size="icon" onClick={handleSignOut} className="text-muted-foreground hover:text-foreground" title="Sign out" aria-label="Sign out">
-                <LogOut className="h-4 w-4" />
-              </Button>
-            </div>
-          ) : (
-            <Button variant="ghost" size="sm" onClick={() => navigate("/auth")} className="text-muted-foreground hover:text-foreground">
-              <LogIn className="h-4 w-4 mr-1.5" />
-              Login
-            </Button>
-          ))}
+        <BrandMark />
 
+        <div className="flex items-center gap-0.5">
           {isAuthenticated && (
             <>
               <NotificationBell />
@@ -206,6 +192,11 @@ const Index = () => {
           {isAdmin && (
             <Button variant="ghost" size="icon" onClick={() => navigate("/admin")} className="text-muted-foreground/50 hover:text-muted-foreground" title="Admin" aria-label="Admin">
               <GraduationCap className="h-4 w-4" />
+            </Button>
+          )}
+          {!authLoading && isAuthenticated && (
+            <Button variant="ghost" size="icon" onClick={handleSignOut} className="text-muted-foreground hover:text-foreground" title="Sign out" aria-label="Sign out">
+              <LogOut className="h-4 w-4" />
             </Button>
           )}
         </div>
@@ -231,10 +222,10 @@ const Index = () => {
                 className={cn(
                   "w-full p-5 rounded-2xl",
                   "bg-gradient-to-br from-primary/15 via-accent/10 to-primary/5",
-                  "border-2 border-primary/30",
+                  "border border-primary/30",
                   "flex items-start gap-4 text-left",
                   "transition-all duration-200",
-                  "hover:border-primary/50 hover:shadow-lg active:scale-[0.99]",
+                  "hover:border-primary/50 hover:shadow-elegant active:scale-[0.99]",
                   "relative overflow-hidden"
                 )}
               >
@@ -270,7 +261,7 @@ const Index = () => {
                 <DailyGoalRing current={xpToday} goal={dailyGoal} size={100} />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <h2 className="text-lg font-bold text-foreground" style={{ fontFamily: "'Montserrat', sans-serif" }}>
+                    <h2 className="font-heading text-lg font-bold text-foreground">
                       Today
                     </h2>
                     <InfoHint
@@ -343,16 +334,18 @@ const Index = () => {
                   />
                 ))}
                 {visibleTasks.length === 0 && (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Sparkles className="h-8 w-8 mx-auto mb-2 text-primary" />
-                    <p className="font-semibold text-foreground">All caught up!</p>
-                    <p className="text-sm mt-1">No tasks due today. Explore something new below.</p>
-                  </div>
+                  <EmptyState
+                    art="caught-up"
+                    size="sm"
+                    className="py-8"
+                    title="All caught up!"
+                    body="No tasks due today. Explore something new below."
+                  />
                 )}
               </div>
 
               {tasksCompleted > 0 && tasksCompleted === tasksTotal && (
-                <div className="rounded-2xl border-2 border-primary/30 bg-primary/5 p-4 text-center">
+                <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4 text-center">
                   <Sparkles className="h-6 w-6 mx-auto mb-1 text-primary" />
                   <p className="font-semibold text-foreground text-sm">Daily goal complete</p>
                   <p className="text-xs text-muted-foreground mt-0.5">Come back tomorrow to keep your streak.</p>
@@ -366,15 +359,15 @@ const Index = () => {
               {srsStats && srsStats.totalDueNow > 0 && (
                 <button
                   onClick={() => navigate("/review")}
-                  className="w-full p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-between"
+                  className="w-full p-3 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-between transition-all hover:border-primary/40 active:scale-[0.99]"
                 >
                   <div className="flex items-center gap-2">
-                    <Brain className="h-4 w-4 text-amber-600" />
+                    <Brain className="h-4 w-4 text-primary" />
                     <span className="text-sm font-medium text-foreground">
                       {srsStats.totalDueNow} {srsStats.totalDueNow === 1 ? "card" : "cards"} due for review
                     </span>
                   </div>
-                  <span className="text-xs text-amber-600 font-semibold">Review now →</span>
+                  <span className="text-xs text-primary font-semibold">Review now →</span>
                 </button>
               )}
 
@@ -382,27 +375,27 @@ const Index = () => {
               {currentLetter && (
                 <button
                   onClick={() => navigate(alphabetMastered === 0 ? "/alphabet" : `/alphabet/${currentLetter.code}`)}
-                  className="w-full p-4 rounded-2xl bg-gradient-to-br from-[#F5E6CC] via-[#EFE0C2] to-[#E2C892]/60 border-2 border-[#CFA44E]/50 flex items-center gap-3 transition-all hover:border-[#CFA44E] hover:shadow-md active:scale-[0.99] text-left relative overflow-hidden"
+                  className="w-full p-4 rounded-2xl bg-gradient-to-br from-card-cream via-muted to-muted border border-plum/25 flex items-center gap-3 transition-all hover:border-plum/50 hover:shadow-card active:scale-[0.99] text-left relative overflow-hidden"
                 >
-                  <div className="h-12 w-12 rounded-full bg-[#FBF6EC] border-2 border-[#5C3A46] flex items-center justify-center shrink-0 shadow-sm">
+                  <div className="h-12 w-12 rounded-full bg-card-cream border-2 border-plum flex items-center justify-center shrink-0 shadow-soft">
                     <span
-                      className="text-2xl text-[#5C3A46]"
+                      className="text-2xl text-plum"
                       style={{ fontFamily: "'Noto Sans Arabic', serif", lineHeight: 1 }}
                     >
                       {currentLetter.isolated}
                     </span>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-bold text-[#5C3A46]" style={{ fontFamily: "'Montserrat', sans-serif" }}>
+                    <p className="font-heading font-bold text-plum">
                       {alphabetMastered === 0 ? "Start the Alphabet Journey" : "Continue Alphabet Journey"}
                     </p>
-                    <p className="text-xs text-[#5C3A46]/70 mt-0.5">
+                    <p className="text-xs text-plum/70 mt-0.5">
                       {alphabetMastered === 0
                         ? "Stop 1 of 28 — Alif"
                         : `Stop ${currentLetter.order_index + 1} of 28 — ${currentLetter.name_translit} • ${alphabetMastered} mastered`}
                     </p>
                   </div>
-                  <ChevronRight className="h-5 w-5 text-[#5C3A46] shrink-0" />
+                  <ChevronRight className="h-5 w-5 text-plum shrink-0" />
                 </button>
               )}
               <div className="flex gap-3">
@@ -436,21 +429,21 @@ const Index = () => {
           onClick={() => navigate("/bridge")}
           className={cn(
             "w-full px-4 py-3 rounded-2xl text-left",
-            "bg-gradient-to-r from-[#5C3A46]/8 via-[#F9F7F2] to-[#5C3A46]/8",
-            "border border-[#5C3A46]/25 hover:border-[#5C3A46]/50",
+            "bg-gradient-to-r from-plum/8 via-card to-plum/8",
+            "border border-plum/25 hover:border-plum/50",
             "flex items-center gap-3 transition-all active:scale-[0.99]"
           )}
         >
-          <div className="h-9 w-9 rounded-xl bg-[#5C3A46]/10 flex items-center justify-center shrink-0">
-            <Globe2 className="h-4 w-4 text-[#5C3A46]" />
+          <div className="h-9 w-9 rounded-xl bg-plum/10 flex items-center justify-center shrink-0">
+            <Globe2 className="h-4 w-4 text-plum" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-[#5C3A46]">Coming from MSA?</p>
-            <p className="text-[11px] text-[#5C3A46]/70 truncate">
+            <p className="text-sm font-semibold text-plum">Coming from MSA?</p>
+            <p className="text-[11px] text-plum/70 truncate">
               Bridge <span className="font-arabic" dir="rtl">الفصحى</span> into {activeDialect} dialect
             </p>
           </div>
-          <ChevronRight className="h-4 w-4 text-[#5C3A46]/60 shrink-0" />
+          <ChevronRight className="h-4 w-4 text-plum/60 shrink-0" />
         </button>
       </div>
 

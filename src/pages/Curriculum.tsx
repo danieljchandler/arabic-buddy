@@ -175,7 +175,7 @@ const Curriculum = () => {
                       className={cn(
                         "flex items-center gap-3 p-3.5 rounded-xl border-2 transition-all duration-200",
                         state.isNextUp
-                          ? "border-primary bg-primary/5 shadow-sm"
+                          ? "border-primary bg-primary/5 shadow-soft"
                           : "border-border bg-card hover:border-primary/30",
                       )}
                     >

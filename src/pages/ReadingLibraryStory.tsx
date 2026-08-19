@@ -237,7 +237,7 @@ const ReadingLibraryStory = () => {
           {/* Scene slideshow */}
           {sceneImages.length > 0 && (
             <div className="mb-4">
-              <div className="relative rounded-xl overflow-hidden bg-muted aspect-video shadow-sm">
+              <div className="relative rounded-xl overflow-hidden bg-muted aspect-video shadow-soft">
                 <img
                   src={heroImage}
                   alt={`Scene ${activeSceneIdx + 1}`}
@@ -270,7 +270,7 @@ const ReadingLibraryStory = () => {
 
           {/* Caption card: current phrase under the picture, with prev/next */}
           {lines && lines.length > 0 && focusedLine && (
-            <Card className="p-4 mb-4 border-2 border-primary/20 shadow-sm">
+            <Card className="p-4 mb-4 border-2 border-primary/20 shadow-soft">
               <div dir="rtl" className="text-xl leading-loose text-center min-h-[3rem]">
                 <TappableArabicText
                   text={showDialect

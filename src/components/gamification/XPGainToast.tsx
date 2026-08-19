@@ -27,7 +27,7 @@ export function XPGainToast({ amount, onComplete }: XPGainToastProps) {
         "fixed top-20 left-1/2 -translate-x-1/2 z-50",
         "flex items-center gap-2 px-4 py-2 rounded-full",
         "bg-gradient-to-r from-primary to-primary/80 text-primary-foreground",
-        "shadow-lg shadow-primary/30",
+        "shadow-elegant shadow-primary/30",
         "animate-in fade-in slide-in-from-top-4 duration-300"
       )}
     >

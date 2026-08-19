@@ -205,9 +205,9 @@ describe("the streak", () => {
     render({ streak: 0 });
 
     const flame = await screen.findByTitle("0-day streak");
-    expect(flame.className).toContain("bg-[#5C3A46]/5");
+    expect(flame.className).toContain("bg-plum/5");
     expect(flame.querySelector(".lucide-flame")!.getAttribute("class")).toContain(
-      "text-[#5C3A46]/40",
+      "text-plum/40",
     );
   });
 

@@ -146,7 +146,7 @@ const VocabBattles = () => {
                     'w-full text-left rounded-xl border-2 bg-card p-4',
                     'transition-all duration-200',
                     playable
-                      ? 'border-primary/40 hover:border-primary hover:shadow-md cursor-pointer'
+                      ? 'border-primary/40 hover:border-primary hover:shadow-card cursor-pointer'
                       : 'border-border opacity-70 cursor-default'
                   )}
                 >

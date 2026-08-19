@@ -152,7 +152,7 @@ const TopicForm = () => {
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Preview */}
               <div className="flex justify-center">
-                <div className={`${gradient} rounded-3xl p-6 shadow-lg`}>
+                <div className={`${gradient} rounded-3xl p-6 shadow-elegant`}>
                   <span className="text-5xl">{icon}</span>
                 </div>
               </div>

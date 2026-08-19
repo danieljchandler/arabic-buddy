@@ -19,8 +19,12 @@ import {
 } from 'lucide-react';
 import { getTopicCategories } from '@/data/listenTopics';
 import { LEARNING_REASONS, reasonLabel } from '@/data/learningReasons';
-import hakiyaIconAsset from '@/assets/hakiya-icon.png';
-const lahjaIcon = hakiyaIconAsset;
+// The stacked logo lockup, not hakiya-icon.png — that file is a 712 kB render
+// whose artwork floats inside a much larger canvas (see BrandMark's comment).
+import hakiyaLogo from '@/assets/hakiya-logo.png';
+import dialectGulfArt from '@/assets/illustrations/dialect-gulf.webp';
+import dialectEgyptianArt from '@/assets/illustrations/dialect-egyptian.webp';
+import dialectYemeniArt from '@/assets/illustrations/dialect-yemeni.webp';
 
 type Step = 'welcome' | 'dialect' | 'level' | 'purpose' | 'goal';
 
@@ -31,9 +35,9 @@ const STEPS: Step[] = ['welcome', 'dialect', 'level', 'purpose', 'goal'];
 // Gulf, which previously happened for every Saudi/Kuwaiti/Emirati/etc. pick,
 // while Egyptian and Yemeni (real, supported dialects) weren't offered at all.
 const DIALECTS = [
-  { id: 'Gulf', label: 'Gulf Arabic', labelAr: 'خليجي', desc: 'Shared across all GCC countries', flag: '🌊' },
-  { id: 'Egyptian', label: 'Egyptian Arabic', labelAr: 'مصري', desc: 'The most widely understood dialect', flag: '🇪🇬' },
-  { id: 'Yemeni', label: 'Yemeni Arabic', labelAr: 'يمني', desc: 'Yemeni expressions', flag: '🇾🇪' },
+  { id: 'Gulf', label: 'Gulf Arabic', labelAr: 'خليجي', desc: 'Shared across all GCC countries', flag: '🌊', image: dialectGulfArt },
+  { id: 'Egyptian', label: 'Egyptian Arabic', labelAr: 'مصري', desc: 'The most widely understood dialect', flag: '🇪🇬', image: dialectEgyptianArt },
+  { id: 'Yemeni', label: 'Yemeni Arabic', labelAr: 'يمني', desc: 'Yemeni expressions', flag: '🇾🇪', image: dialectYemeniArt },
 ];
 
 const LEVELS = [
@@ -172,7 +176,7 @@ const Onboarding = () => {
         {/* ─── WELCOME ─────────────────────────── */}
         {step === 'welcome' && (
           <div className="text-center space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-            <img src={lahjaIcon} alt="Hakiya" className="h-20 w-20 mx-auto" />
+            <img src={hakiyaLogo} alt="Hakiya" className="h-28 w-28 mx-auto object-contain" />
             <div>
               <h1 className="text-3xl font-bold font-heading text-foreground mb-3" dir="rtl">
                 !أهلاً وسهلاً
@@ -223,23 +227,36 @@ const Onboarding = () => {
                   key={d.id}
                   onClick={() => setDialect(d.id)}
                   className={cn(
-                    'w-full flex items-center gap-3 p-3.5 rounded-xl border-2 transition-all duration-200 text-left',
+                    'w-full overflow-hidden rounded-2xl border-2 text-left transition-all duration-200 active:scale-[0.99]',
                     dialect === d.id
-                      ? 'border-primary bg-primary/5 shadow-sm'
+                      ? 'border-primary shadow-elegant'
                       : 'border-border bg-card hover:border-primary/30'
                   )}
                 >
-                  <span className="text-2xl">{d.flag}</span>
-                  <div className="flex-1 min-w-0">
+                  {/* Each dialect gets its own painted scene — a Gulf majlis, a
+                      Cairo ahwa, an Old Sana'a rooftop — instead of an emoji. */}
+                  <div className="relative aspect-[5/2]">
+                    <img
+                      src={d.image}
+                      alt=""
+                      aria-hidden
+                      loading="lazy"
+                      draggable={false}
+                      className="absolute inset-0 h-full w-full object-cover select-none"
+                    />
+                    {dialect === d.id && (
+                      <span className="absolute top-2 right-2 flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-button">
+                        <Check className="h-4 w-4" />
+                      </span>
+                    )}
+                  </div>
+                  <div className={cn('p-3', dialect === d.id ? 'bg-primary/5' : 'bg-card')}>
                     <div className="flex items-center gap-2">
                       <span className="font-semibold text-foreground">{d.label}</span>
                       <span className="text-sm text-muted-foreground" dir="rtl">{d.labelAr}</span>
                     </div>
-                    <p className="text-xs text-muted-foreground">{d.desc}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{d.desc}</p>
                   </div>
-                  {dialect === d.id && (
-                    <Check className="h-5 w-5 text-primary shrink-0" />
-                  )}
                 </button>
               ))}
             </div>
@@ -288,7 +305,7 @@ const Onboarding = () => {
                   className={cn(
                     'w-full flex items-center gap-3 p-3.5 rounded-xl border-2 transition-all duration-200 text-left',
                     level === l.id
-                      ? 'border-primary bg-primary/5 shadow-sm'
+                      ? 'border-primary bg-primary/5 shadow-soft'
                       : 'border-border bg-card hover:border-primary/30'
                   )}
                 >
@@ -339,7 +356,7 @@ const Onboarding = () => {
                   className={cn(
                     'w-full flex items-center gap-3 p-3.5 rounded-xl border-2 transition-all duration-200 text-left',
                     reason === r.id
-                      ? 'border-primary bg-primary/5 shadow-sm'
+                      ? 'border-primary bg-primary/5 shadow-soft'
                       : 'border-border bg-card hover:border-primary/30'
                   )}
                 >
@@ -414,7 +431,7 @@ const Onboarding = () => {
                   className={cn(
                     'w-full flex items-center gap-3 p-3.5 rounded-xl border-2 transition-all duration-200 text-left',
                     goal === g.id
-                      ? 'border-primary bg-primary/5 shadow-sm'
+                      ? 'border-primary bg-primary/5 shadow-soft'
                       : 'border-border bg-card hover:border-primary/30'
                   )}
                 >

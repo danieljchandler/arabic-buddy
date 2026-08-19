@@ -322,12 +322,13 @@
      The voice-coupled pulse lives on a parent wrapper (scale from --level),
      so the two transforms never fight over one element. */
   .animate-orb-blob {
-    animation: orb-blob 7s ease-in-out infinite;
+    animation: orb-blob 5s ease-in-out infinite;
   }
   @keyframes orb-blob {
-    0%, 100% { border-radius: 48% 52% 51% 49% / 52% 47% 53% 48%; transform: scale(1); }
-    33%      { border-radius: 54% 46% 48% 52% / 45% 55% 46% 54%; transform: scale(1.035); }
-    66%      { border-radius: 50% 50% 54% 46% / 53% 47% 52% 48%; transform: scale(0.975); }
+    0%, 100% { border-radius: 46% 54% 57% 43% / 55% 48% 52% 45%; transform: translate(0, 0) scale(1); }
+    25%      { border-radius: 62% 38% 43% 57% / 41% 59% 41% 59%; transform: translate(2%, -2.5%) scale(1.06); }
+    50%      { border-radius: 40% 60% 52% 48% / 60% 40% 60% 40%; transform: translate(-1.5%, 2%) scale(0.95); }
+    75%      { border-radius: 56% 44% 38% 62% / 45% 57% 43% 55%; transform: translate(-2%, -1%) scale(1.04); }
   }
 
   /* The tutor is composing — the bubble breathes rather than spins. */

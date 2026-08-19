@@ -27,6 +27,7 @@ import { InfoHint } from "@/components/InfoHint";
 import { PAGE_HINTS } from "@/lib/pageHints";
 import { AskAISentence } from "@/components/shared/AskAISentence";
 import { usePageAiContext } from "@/contexts/AiAssistantContext";
+import { EmptyState } from "@/components/shared/EmptyState";
 
 interface SouqArticle {
   title_dialect: string;
@@ -197,10 +198,10 @@ const SouqNews = () => {
           <Button onClick={() => refetch()}>Try Again</Button>
         </div>
       ) : articles && articles.length === 0 ? (
-        <div className="text-center py-12">
-          <Newspaper className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
-          <p className="text-muted-foreground">No news found for today. Check back later!</p>
-        </div>
+        <EmptyState
+          title="No news today"
+          body="Fresh articles arrive most mornings — check back later."
+        />
       ) : (
         <div className="space-y-4">
           {articles?.map((article, i) => {

@@ -25,6 +25,7 @@ import {
   type Comprehension,
 } from "@/lib/comprehension";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { EmptyState } from "@/components/shared/EmptyState";
 import {
   Select,
   SelectContent,
@@ -249,13 +250,10 @@ const Discover = () => {
               ))}
             </div>
           ) : (
-            <div className="text-center py-16">
-              <Sparkles className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
-              <p className="text-muted-foreground">No personalized picks yet</p>
-              <p className="text-sm text-muted-foreground/70 mt-1">
-                Watch a few videos and save vocab to power your feed.
-              </p>
-            </div>
+            <EmptyState
+              title="No personalised picks yet"
+              body="Watch a few videos and save some vocab, and this fills up."
+            />
           )}
         </TabsContent>
 

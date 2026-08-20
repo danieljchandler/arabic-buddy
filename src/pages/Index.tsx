@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { XPDisplay, StreakDisplay, WeeklyGoalCard } from "@/components/gamification";
+import { SparkleBurst } from "@/components/gamification/SparkleBurst";
 import { BrandMark } from "@/components/shell/BrandMark";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { useState } from "react";
@@ -345,7 +346,8 @@ const Index = () => {
               </div>
 
               {tasksCompleted > 0 && tasksCompleted === tasksTotal && (
-                <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4 text-center">
+                <div className="relative rounded-2xl border border-primary/30 bg-primary/5 p-4 text-center animate-scale-in">
+                  <SparkleBurst />
                   <Sparkles className="h-6 w-6 mx-auto mb-1 text-primary" />
                   <p className="font-semibold text-foreground text-sm">Daily goal complete</p>
                   <p className="text-xs text-muted-foreground mt-0.5">Come back tomorrow to keep your streak.</p>

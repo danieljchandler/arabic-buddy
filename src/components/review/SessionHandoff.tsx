@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import caughtUpArt from "@/assets/illustrations/empty-caught-up.webp";
+import { SparkleBurst } from "@/components/gamification/SparkleBurst";
 import { Button } from "@/components/ui/button";
 import type { ReviewDeckId, ReviewSession } from "@/hooks/useReviewSession";
 
@@ -36,7 +37,9 @@ export const SessionHandoff = ({
   const next = session.nextDeck(deckId);
 
   return (
-    <div className="text-center max-w-sm mx-auto py-12">
+    <div className="relative text-center max-w-sm mx-auto py-12">
+      {/* Finishing a deck is the day's reward moment — let it sparkle once. */}
+      {!next && <SparkleBurst />}
       <img
         src={caughtUpArt}
         alt=""

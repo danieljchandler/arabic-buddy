@@ -5,6 +5,9 @@ import hakiyaLogoAsset from "@/assets/hakiya-logo.png";
 import valueVoicesArt from "@/assets/illustrations/value-voices.webp";
 import valueMemoryArt from "@/assets/illustrations/value-memory.webp";
 import valueMediaArt from "@/assets/illustrations/value-media.webp";
+import dialectGulfArt from "@/assets/illustrations/dialect-gulf.webp";
+import dialectEgyptianArt from "@/assets/illustrations/dialect-egyptian.webp";
+import dialectYemeniArt from "@/assets/illustrations/dialect-yemeni.webp";
 
 const hakiyaLogo = hakiyaLogoAsset;
 
@@ -104,6 +107,38 @@ export function LandingHero() {
         />
       </div>
 
+      {/* Below the fold: the three worlds a learner is choosing between.
+          The same painted scenes the dialect picker uses, so the promise made
+          here is literally the interface they meet inside. */}
+      <div className="max-w-3xl mx-auto mb-10">
+        <h2 className="font-heading text-xl font-bold text-foreground text-center mb-1.5">
+          Three dialects, three worlds
+        </h2>
+        <p className="text-sm text-muted-foreground text-center max-w-md mx-auto mb-5">
+          Pick one to start — a Gulf majlis, a Cairo ahwa, or an Old Sana&rsquo;a
+          rooftop. Real spoken Arabic, never textbook فصحى.
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <DialectCard image={dialectGulfArt} name="Gulf" nameAr="خليجي" line="The unhurried cadence of the majlis." />
+          <DialectCard image={dialectEgyptianArt} name="Egyptian" nameAr="مصري" line="Quick, warm, theatrical — the dialect of cinema." />
+          <DialectCard image={dialectYemeniArt} name="Yemeni" nameAr="يمني" line="Mountain Arabic — old vowels, deep hospitality." />
+        </div>
+      </div>
+
+      {/* Closing CTA — the page used to just stop after the value cards. */}
+      <div className="text-center max-w-md mx-auto mb-8">
+        <p className="font-arabic text-lg text-foreground mb-3" dir="rtl">
+          كل حكاية تبدأ بكلمة
+        </p>
+        <p className="text-sm text-muted-foreground mb-4">
+          Every story starts with one word. Start yours today.
+        </p>
+        <Button size="lg" onClick={() => navigate("/auth")} className="px-8">
+          Join the beta — it&rsquo;s free
+          <ArrowRight className="h-4 w-4 ml-2" />
+        </Button>
+      </div>
+
       {/* Secondary nudges */}
       <div className="text-center max-w-md mx-auto">
         <p className="text-xs text-muted-foreground flex items-center justify-center gap-2">
@@ -118,6 +153,37 @@ export function LandingHero() {
         </p>
       </div>
     </section>
+  );
+}
+
+function DialectCard({
+  image,
+  name,
+  nameAr,
+  line,
+}: {
+  image: string;
+  name: string;
+  nameAr: string;
+  line: string;
+}) {
+  return (
+    <div className="overflow-hidden rounded-2xl bg-card border border-desert-red/15">
+      <img
+        src={image}
+        alt={`${name} Arabic illustration`}
+        loading="lazy"
+        draggable={false}
+        className="aspect-[5/3] w-full object-cover select-none"
+      />
+      <div className="p-3">
+        <div className="flex items-baseline justify-between gap-2">
+          <span className="font-semibold text-foreground text-sm">{name}</span>
+          <span className="font-arabic text-sm text-muted-foreground" dir="rtl">{nameAr}</span>
+        </div>
+        <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{line}</p>
+      </div>
+    </div>
   );
 }
 

@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { AppShell } from '@/components/layout/AppShell';
+import { LoadingPanel } from '@/components/loading/LoadingPanel';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
@@ -195,9 +196,7 @@ const ReadingLibraryStory = () => {
   if (loadingStory || loadingLines) {
     return (
       <AppShell>
-        <div className="flex justify-center items-center min-h-[60vh]">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
+        <LoadingPanel variant="page" />
       </AppShell>
     );
   }

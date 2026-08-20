@@ -1,5 +1,6 @@
 import { Achievement } from "@/hooks/useGamification";
 import { cn } from "@/lib/utils";
+import { badgeArtFor } from "./badgeArt";
 
 interface AchievementBadgeProps {
   achievement: Achievement;
@@ -22,22 +23,41 @@ export function AchievementBadge({
     lg: "w-20 h-20 text-3xl",
   };
 
+  // Woven-sadu emblem when the achievement's emoji maps to one (see
+  // badgeArt.ts); otherwise the emoji disc, so unmapped icons still render.
+  const art = badgeArtFor(achievement.icon);
+
   return (
     <div className={cn(
       "flex flex-col items-center text-center",
       !earned && "opacity-40 grayscale"
     )}>
-      <div className={cn(
-        "rounded-full flex items-center justify-center",
-        "bg-gradient-to-br from-amber-100 to-amber-200 dark:from-amber-900/40 dark:to-amber-800/40",
-        "border-2",
-        earned 
-          ? "border-amber-400 shadow-elegant shadow-amber-200/50 dark:shadow-amber-900/30" 
-          : "border-muted",
-        sizeClasses[size]
-      )}>
-        <span>{achievement.icon}</span>
-      </div>
+      {art ? (
+        <img
+          src={art}
+          alt=""
+          aria-hidden
+          loading="lazy"
+          draggable={false}
+          className={cn(
+            "rounded-full object-cover select-none border-2",
+            earned ? "border-olive/60 shadow-soft" : "border-muted",
+            sizeClasses[size]
+          )}
+        />
+      ) : (
+        <div className={cn(
+          "rounded-full flex items-center justify-center",
+          "bg-gradient-to-br from-amber-100 to-amber-200 dark:from-amber-900/40 dark:to-amber-800/40",
+          "border-2",
+          earned
+            ? "border-amber-400 shadow-elegant shadow-amber-200/50 dark:shadow-amber-900/30"
+            : "border-muted",
+          sizeClasses[size]
+        )}>
+          <span>{achievement.icon}</span>
+        </div>
+      )}
       
       {showDetails && (
         <>

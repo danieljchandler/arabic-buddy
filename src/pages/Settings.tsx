@@ -11,7 +11,7 @@ import { Switch } from '@/components/ui/switch';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { Loader2, Check, ArrowLeft, User, Globe2, Target, Eye, Heart, ChevronRight, Camera, AlertTriangle, Info, Compass, Bell } from 'lucide-react';
+import { Loader2, Check, ArrowLeft, User, Globe2, Target, Eye, Heart, ChevronRight, Camera, AlertTriangle, Info, Compass, Bell, Palette } from 'lucide-react';
 import { AvatarPicker } from '@/components/settings/AvatarPicker';
 import { invalidateProfileAvatar } from '@/hooks/useProfileAvatar';
 import { HomeLayoutEditor } from '@/components/settings/HomeLayoutEditor';
@@ -23,6 +23,7 @@ import { useFeatureHints } from '@/hooks/useFeatureHints';
 import { useSubscription } from '@/hooks/useSubscription';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { getTopicCategories } from '@/data/listenTopics';
+import { useTheme, type ThemePref } from '@/hooks/useTheme';
 import { LEARNING_REASONS, reasonLabel, reasonIdFromLabel } from '@/data/learningReasons';
 
 const DIALECTS = [
@@ -54,6 +55,7 @@ const GOALS = [
 const Settings = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated, loading: authLoading, signOut } = useAuth();
+  const { pref: themePref, setPref: setThemePref } = useTheme();
   const queryClient = useQueryClient();
   const [loading, setLoading] = useState(true);
   const { enabled: leechEnabled, setEnabled: setLeechEnabled } = useLeechPrefs();
@@ -302,6 +304,37 @@ const Settings = () => {
         </div>
 
         <div className="space-y-8">
+          {/* Appearance Section */}
+          <section className="space-y-3">
+            <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+              <Palette className="h-4 w-4" />
+              Appearance
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {([
+                { id: 'light', label: 'Light', desc: 'Warm sand' },
+                { id: 'dark', label: 'Dark', desc: 'Night majlis' },
+                { id: 'system', label: 'System', desc: 'Match device' },
+              ] as { id: ThemePref; label: string; desc: string }[]).map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setThemePref(t.id)}
+                  aria-pressed={themePref === t.id}
+                  className={cn(
+                    'rounded-2xl border-2 p-3 text-left transition-all active:scale-[0.98]',
+                    themePref === t.id
+                      ? 'border-primary bg-primary/5 shadow-soft'
+                      : 'border-border bg-card hover:border-primary/30',
+                  )}
+                >
+                  <span className="block text-sm font-semibold text-foreground">{t.label}</span>
+                  <span className="block text-xs text-muted-foreground mt-0.5">{t.desc}</span>
+                </button>
+              ))}
+            </div>
+          </section>
+
           {/* Profile Section */}
           <section className="space-y-3">
             <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wider">

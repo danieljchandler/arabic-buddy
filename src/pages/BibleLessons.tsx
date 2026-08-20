@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
+import { LoadingPanel } from "@/components/loading/LoadingPanel";
 import { PageCorner } from "@/components/shell/PageCorner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -104,9 +105,7 @@ const BibleLessons = () => {
   if (accessLoading) {
     return (
       <AppShell>
-        <div className="min-h-screen flex items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
+        <LoadingPanel variant="page" />
       </AppShell>
     );
   }

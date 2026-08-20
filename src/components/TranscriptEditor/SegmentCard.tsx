@@ -195,7 +195,7 @@ export default function SegmentCard({
             rows={2}
             autoFocus
           />
-          <p className="text-[9px] text-muted-foreground mt-0.5">
+          <p className="text-[10px] text-muted-foreground mt-0.5">
             Enter — split here &nbsp;·&nbsp; ⌘Enter — save &nbsp;·&nbsp; Esc — cancel
           </p>
         </div>

@@ -25,9 +25,20 @@ const anAchievement = (over: Partial<Achievement> = {}): Achievement => ({
 });
 
 describe("AchievementBadge — what it always shows", () => {
-  it("shows the icon", () => {
-    render(<AchievementBadge achievement={anAchievement({ icon: "🔥" })} />);
-    expect(screen.getByText("🔥")).toBeInTheDocument();
+  it("weaves a known icon into badge art", () => {
+    // 🔥 is one of the emoji mapped to a woven-sadu emblem (badgeArt.ts):
+    // the art replaces the raw emoji, which stays out of the accessible
+    // name — the text below the badge carries the meaning.
+    const { container } = render(<AchievementBadge achievement={anAchievement({ icon: "🔥" })} />);
+    expect(container.querySelector("img")).toBeInTheDocument();
+    expect(screen.queryByText("🔥")).toBeNull();
+  });
+
+  it("falls back to the emoji for an icon with no woven emblem", () => {
+    // Admins can type any emoji into achievements.icon; an unmapped one must
+    // still render rather than leave a blank disc.
+    render(<AchievementBadge achievement={anAchievement({ icon: "🦄" })} />);
+    expect(screen.getByText("🦄")).toBeInTheDocument();
   });
 
   it("names the achievement", () => {

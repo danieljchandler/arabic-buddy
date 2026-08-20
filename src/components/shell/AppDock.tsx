@@ -123,7 +123,7 @@ export function AppDock({ className }: { className?: string }) {
                       aria-label={`${due} due`}
                       className={cn(
                         "absolute -right-2.5 -top-1 grid h-4 min-w-[1rem] place-items-center rounded-full px-1",
-                        "bg-primary text-[9px] font-bold tabular-nums text-primary-foreground",
+                        "bg-primary text-[10px] font-bold tabular-nums text-primary-foreground",
                       )}
                     >
                       {due > 99 ? "99+" : due}

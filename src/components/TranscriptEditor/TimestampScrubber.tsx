@@ -147,7 +147,7 @@ export default function TimestampScrubber({
 
       {/* Ripple hint */}
       {allowRipple && isRippling && (
-        <div className="text-[9px] text-orange-600 text-center mt-0.5">
+        <div className="text-[10px] text-orange-600 text-center mt-0.5">
           ripple active — neighbors will shift
         </div>
       )}

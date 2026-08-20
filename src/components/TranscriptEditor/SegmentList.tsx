@@ -103,7 +103,7 @@ export default function SegmentList({
                 <div className="flex items-center gap-1.5 flex-shrink-0">
                   <span
                     className={cn(
-                      'text-[9px] font-mono tabular-nums',
+                      'text-[10px] font-mono tabular-nums',
                       isOverlap ? 'text-red-600 dark:text-red-400' : isLargeGap ? 'text-amber-600 dark:text-amber-400' : 'text-muted-foreground/70',
                     )}
                   >

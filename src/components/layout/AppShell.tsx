@@ -41,8 +41,10 @@ export function AppShell({ children, className, compact = false }: AppShellProps
         paddingBottom: "env(safe-area-inset-bottom)",
       }}
     >
-      {/* Background image layer with reduced opacity */}
+      {/* Background image layer. Opacity lives in classes so dark mode can
+          dim the sand-toned border art to an ember instead of a glare. */}
       <div
+        className="opacity-95 dark:opacity-20"
         style={{
           position: "fixed",
           inset: 0,
@@ -50,7 +52,6 @@ export function AppShell({ children, className, compact = false }: AppShellProps
           backgroundSize: "cover",
           backgroundPosition: "top center",
           backgroundRepeat: "no-repeat",
-          opacity: 0.95,
           pointerEvents: "none",
         }}
       />

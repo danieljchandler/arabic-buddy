@@ -190,7 +190,7 @@ export function MajlisWelcome() {
               >
                 {earned}
               </span>
-              <span className="text-[9px] uppercase tracking-wider text-plum/60 mt-0.5">
+              <span className="text-[10px] uppercase tracking-wider text-plum/60 mt-0.5">
                 XP
               </span>
             </div>

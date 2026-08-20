@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import emptyNothingArt from "@/assets/illustrations/empty-nothing.webp";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -203,6 +204,14 @@ const Profile = () => {
             </div>
           ) : dialectStudy.length === 0 ? (
             <div className="rounded-2xl border-2 border-dashed border-desert-red/40 bg-card-cream/60 p-8 text-center">
+              <img
+                src={emptyNothingArt}
+                alt=""
+                aria-hidden
+                loading="lazy"
+                draggable={false}
+                className="h-20 w-20 mx-auto mb-3 rounded-full object-cover select-none ring-1 ring-border/60"
+              />
               <p className="text-body-strong font-heading">No stamps yet</p>
               <p className="text-caption mt-1">Save a word from any dialect to earn your first stamp.</p>
             </div>

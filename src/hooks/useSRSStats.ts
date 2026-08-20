@@ -13,7 +13,7 @@ import {
 
 interface WordReviewSRSRow extends Pick<
   Database["public"]["Tables"]["word_reviews"]["Row"],
-  "repetitions" | "next_review_at" | "interval_days" | "ease_factor"
+  "repetitions" | "next_review_at" | "interval_days" | "ease_factor" | "last_reviewed_at"
 > {
   lapses?: number | null;
 }
@@ -30,7 +30,18 @@ type UserVocabularySRSRow = Pick<
   | "production_lapses"
   | "ease_factor"
   | "production_ease_factor"
+  | "last_reviewed_at"
+  | "production_last_reviewed_at"
 >;
+
+/**
+ * How far back a card's activity counts toward the *calibration* measure.
+ * The all-time figure never forgets: a learner who lapsed heavily as a
+ * beginner kept compressed intervals long after their memory improved. Sixty
+ * days of recently-touched cards approximates "recall as it is now" without
+ * a new event table.
+ */
+export const CALIBRATION_WINDOW_DAYS = 60;
 
 export interface SRSStats {
   totalDueNow: number;
@@ -45,6 +56,15 @@ export interface SRSStats {
    * calibration is allowed to move (see calibrationMultiplier).
    */
   reviewedCount: number;
+  /**
+   * `retentionRate` restricted to cards touched in the last
+   * CALIBRATION_WINDOW_DAYS — what the FSRS calibration actually reads, so a
+   * rough first month stops compressing intervals forever. The all-time
+   * figure stays for display.
+   */
+  recentRetentionRate: number;
+  /** Sample size behind `recentRetentionRate`. */
+  recentReviewedCount: number;
   totalCards: number;
   curriculumCards: number;
   myWordsCards: number;
@@ -58,6 +78,8 @@ const getDefaultStats = (): SRSStats => ({
   forecast: buildSRSForecast([]),
   retentionRate: 0,
   reviewedCount: 0,
+  recentRetentionRate: 0,
+  recentReviewedCount: 0,
   totalCards: 0,
   curriculumCards: 0,
   myWordsCards: 0,
@@ -76,11 +98,11 @@ export const useSRSStats = () => {
       const [wordReviewsRes, userVocabularyRes] = await Promise.all([
         supabase
           .from("word_reviews")
-          .select("repetitions, next_review_at, interval_days, ease_factor, lapses")
+          .select("repetitions, next_review_at, interval_days, ease_factor, lapses, last_reviewed_at")
           .eq("user_id", user.id),
         supabase
           .from("user_vocabulary")
-          .select("repetitions, next_review_at, production_next_review_at, production_repetitions, interval_days, production_interval_days, lapses, production_lapses, ease_factor, production_ease_factor")
+          .select("repetitions, next_review_at, production_next_review_at, production_repetitions, interval_days, production_interval_days, lapses, production_lapses, ease_factor, production_ease_factor, last_reviewed_at, production_last_reviewed_at")
           .eq("user_id", user.id),
       ]);
 
@@ -93,6 +115,11 @@ export const useSRSStats = () => {
       const stageBreakdown = createEmptyStageBreakdown();
       const forecastDates: string[] = [];
       const retentionInputs: Array<{ repetitions: number; lapses: number }> = [];
+      // The calibration window's subset — see CALIBRATION_WINDOW_DAYS.
+      const recentInputs: Array<{ repetitions: number; lapses: number }> = [];
+      const recentCutoffMs = now.getTime() - CALIBRATION_WINDOW_DAYS * 24 * 60 * 60 * 1000;
+      const isRecent = (lastReviewedAt: string | null | undefined) =>
+        !!lastReviewedAt && new Date(lastReviewedAt).getTime() >= recentCutoffMs;
 
       let curriculumDue = 0;
       let myWordsDue = 0;
@@ -104,6 +131,9 @@ export const useSRSStats = () => {
         const repetitions = review.repetitions ?? 0;
         stageBreakdown[getSRSStageByStability(repetitions, review.ease_factor ?? 0)] += 1;
         retentionInputs.push({ repetitions, lapses: review.lapses ?? 0 });
+        if (isRecent(review.last_reviewed_at)) {
+          recentInputs.push({ repetitions, lapses: review.lapses ?? 0 });
+        }
         forecastDates.push(review.next_review_at);
 
         if (new Date(review.next_review_at) <= now) {
@@ -116,6 +146,9 @@ export const useSRSStats = () => {
         myWordsCards += 1;
         stageBreakdown[getSRSStageByStability(recognitionRepetitions, word.ease_factor ?? 0)] += 1;
         retentionInputs.push({ repetitions: recognitionRepetitions, lapses: word.lapses ?? 0 });
+        if (isRecent(word.last_reviewed_at)) {
+          recentInputs.push({ repetitions: recognitionRepetitions, lapses: word.lapses ?? 0 });
+        }
         forecastDates.push(word.next_review_at);
 
         if (new Date(word.next_review_at) <= now) {
@@ -130,6 +163,9 @@ export const useSRSStats = () => {
           myWordsCards += 1;
           stageBreakdown[getSRSStageByStability(productionRepetitions, word.production_ease_factor ?? 0)] += 1;
           retentionInputs.push({ repetitions: productionRepetitions, lapses: word.production_lapses ?? 0 });
+          if (isRecent(word.production_last_reviewed_at)) {
+            recentInputs.push({ repetitions: productionRepetitions, lapses: word.production_lapses ?? 0 });
+          }
           forecastDates.push(productionDueAt);
 
           if (new Date(productionDueAt) <= now) {
@@ -148,6 +184,11 @@ export const useSRSStats = () => {
         forecast: buildSRSForecast(forecastDates, now),
         retentionRate: computeSRSRetentionRate(retentionInputs),
         reviewedCount: retentionInputs.reduce(
+          (sum, r) => sum + Math.max(0, r.repetitions),
+          0,
+        ),
+        recentRetentionRate: computeSRSRetentionRate(recentInputs),
+        recentReviewedCount: recentInputs.reduce(
           (sum, r) => sum + Math.max(0, r.repetitions),
           0,
         ),

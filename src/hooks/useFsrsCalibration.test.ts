@@ -13,7 +13,9 @@ import { MIN_REVIEWS_TO_CALIBRATE } from "@/lib/spacedRepetition";
  */
 
 const state = vi.hoisted(() => ({
-  stats: undefined as { retentionRate: number; reviewedCount: number } | undefined,
+  stats: undefined as
+    | { recentRetentionRate: number; recentReviewedCount: number }
+    | undefined,
   retention: 0.9,
 }));
 
@@ -33,18 +35,18 @@ describe("useFsrsCalibration", () => {
   });
 
   it("leaves the schedule alone on a thin review history", () => {
-    state.stats = { retentionRate: 97, reviewedCount: MIN_REVIEWS_TO_CALIBRATE - 1 };
+    state.stats = { recentRetentionRate: 97, recentReviewedCount: MIN_REVIEWS_TO_CALIBRATE - 1 };
     expect(calibration()).toBe(1);
   });
 
   it("stretches intervals for a learner recalling above their target", () => {
-    state.stats = { retentionRate: 96, reviewedCount: 2000 };
+    state.stats = { recentRetentionRate: 96, recentReviewedCount: 2000 };
     state.retention = 0.9;
     expect(calibration()).toBeGreaterThan(1);
   });
 
   it("shortens intervals for a learner recalling below their target", () => {
-    state.stats = { retentionRate: 80, reviewedCount: 2000 };
+    state.stats = { recentRetentionRate: 80, recentReviewedCount: 2000 };
     state.retention = 0.9;
     expect(calibration()).toBeLessThan(1);
   });
@@ -52,7 +54,7 @@ describe("useFsrsCalibration", () => {
   it("compares against the learner's own target, not a fixed 90%", () => {
     // 85% recall is short of the default but exactly what this learner asked
     // for, so their schedule should not move.
-    state.stats = { retentionRate: 85, reviewedCount: 2000 };
+    state.stats = { recentRetentionRate: 85, recentReviewedCount: 2000 };
     state.retention = 0.85;
     expect(calibration()).toBeCloseTo(1, 6);
   });
@@ -60,8 +62,26 @@ describe("useFsrsCalibration", () => {
   it("converts the display percentage to the curve's 0..1 scale", () => {
     // retentionRate is a 0–100 integer for display; feeding it through raw
     // would read as a 9000% recall rate and produce nonsense.
-    state.stats = { retentionRate: 90, reviewedCount: 2000 };
+    state.stats = { recentRetentionRate: 90, recentReviewedCount: 2000 };
     state.retention = 0.9;
     expect(calibration()).toBeCloseTo(1, 6);
+  });
+});
+
+describe("the calibration window", () => {
+  it("reads the windowed recall, never the lifetime figure", () => {
+    // A learner whose early months were rough but who now recalls above
+    // target: lifetime says "compress", the last sixty days say "stretch".
+    // Calibration must listen to the window — the all-time average never
+    // forgets, so a rough start otherwise compressed intervals forever.
+    state.stats = {
+      recentRetentionRate: 96,
+      recentReviewedCount: 2000,
+      // Lifetime figures ride along as the real hook returns them…
+      retentionRate: 70,
+      reviewedCount: 9000,
+    } as never;
+    state.retention = 0.9;
+    expect(calibration()).toBeGreaterThan(1);
   });
 });

@@ -151,12 +151,16 @@ const ListeningPractice = () => {
     setAnswer("");
 
     try {
-      // Try pre-approved content first
+      // Try pre-approved content first — scoped to the active dialect. This
+      // is the highest-quality path, and unfiltered it was the one that could
+      // hand a Yemeni learner Egyptian audio; a thin pool falls through to
+      // AI generation below, which already targets the dialect.
       const { data: approved } = await supabase
         .from("listening_exercises")
         .select("*")
         .eq("status", "published")
         .eq("mode", selectedMode)
+        .eq("dialect", activeDialect)
         .limit(10);
 
       if (approved && approved.length >= 3) {

@@ -141,6 +141,9 @@ const MyWordsReview = () => {
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showAnswer, setShowAnswer] = useState(false);
+  // Cloze cards carry an objective check; null until the learner picks an
+  // option. Rating gates on it, and a wrong pick caps the offered ratings.
+  const [clozeResult, setClozeResult] = useState<boolean | null>(null);
   const [showContext, setShowContext] = useState(false);
   const [sessionCount, setSessionCount] = useState(0);
   const [jingleLoading, setJingleLoading] = useState(false);
@@ -436,6 +439,7 @@ const MyWordsReview = () => {
     setShowAnswer(false);
     setShowContext(false);
     setShowLyrics(false);
+    setClozeResult(null);
   }, [currentWord?.id, currentWord?.card_type]);
 
   // Audio never autoplays on card change. The learner taps "Play" or
@@ -744,6 +748,12 @@ const MyWordsReview = () => {
                 sentenceEnglish={clozeSentenceEnglish}
                 sentenceAudioUrl={clozeSentenceAudio}
                 distractors={distractorPool}
+                onAnswered={(correct) => {
+                  // Picking an option is the cloze card's reveal: it unlocks
+                  // rating, and a wrong pick caps the ratings on offer below.
+                  setClozeResult(correct);
+                  setShowAnswer(true);
+                }}
               />
               {clozeFromTranscript && transcriptCloze && (
                 <p className="mt-2 text-center text-[11px] uppercase tracking-wide text-muted-foreground">
@@ -830,8 +840,13 @@ const MyWordsReview = () => {
             )}
 
 
-            {/* Audio buttons */}
+            {/* Audio buttons. Never before the answer on a production card —
+                the audio IS the answer, and playing it converts recall into
+                recognition while the production schedule records a success
+                that never happened. (Review.tsx has gated this way all along;
+                this deck kept a live "Hear it" button by mistake.) */}
             <div className="flex items-center justify-center gap-2 flex-wrap mb-8">
+              {(!isProduction || showAnswer) && (
               <Button
                 variant="default"
                 size="sm"
@@ -844,8 +859,9 @@ const MyWordsReview = () => {
                 ) : (
                   <Play className="h-4 w-4" />
                 )}
-                {isProduction && !showAnswer ? "Hear it" : "Play"}
+                Play
               </Button>
+              )}
               {currentWord.sentence_audio_url && (showAnswer || !isProduction) && (
                 <Button
                   variant="outline"
@@ -858,6 +874,8 @@ const MyWordsReview = () => {
                 </Button>
               )}
 
+              {/* The jingle sings the word — same gate as the word audio. */}
+              {(!isProduction || showAnswer) && (
               <Button
                 variant="outline"
                 size="sm"
@@ -868,8 +886,9 @@ const MyWordsReview = () => {
                 {jingleLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : currentWord.jingle_audio_url ? <Play className="h-4 w-4" /> : <Music className="h-4 w-4" />}
                 {jingleLoading ? "Creating..." : currentWord.jingle_audio_url ? "Play jingle" : "Generate jingle"}
               </Button>
+              )}
 
-              {currentWord.jingle_audio_url && !jingleLoading && (
+              {(!isProduction || showAnswer) && currentWord.jingle_audio_url && !jingleLoading && (
                 <Button
                   variant="ghost"
                   size="icon"
@@ -1038,7 +1057,11 @@ const MyWordsReview = () => {
           )}
         </div>
 
-        {/* Self-rating always visible */}
+        {/* Rating waits for evidence: the reveal on a flip card, the picked
+            option on a cloze card. Grading before checking runs overconfident,
+            and every inflated "Good" writes a too-long interval. A wrong cloze
+            pick additionally caps the offered ratings at Hard — the card just
+            measured a failure, so "Good" would contradict the evidence. */}
         <div className="mt-10">
           <RatingButtons
             onRate={handleRate}
@@ -1047,7 +1070,8 @@ const MyWordsReview = () => {
             intervalDays={currentWord.interval_days}
             repetitions={currentWord.repetitions}
             elapsedDays={elapsedDaysSince(currentWord.last_reviewed_at)}
-            disabled={updateReview.isPending}
+            disabled={updateReview.isPending || (useCloze ? clozeResult === null : !showAnswer)}
+            maxRating={useCloze && clozeResult === false ? "hard" : undefined}
           />
           <div className="mt-4 flex justify-center gap-2 flex-wrap">
             <Button

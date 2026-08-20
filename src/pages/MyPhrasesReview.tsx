@@ -512,7 +512,9 @@ const MyPhrasesReview = () => {
           </div>
         </div>
 
-        {/* Self rating */}
+        {/* Self rating — waits for the reveal, same as the word decks:
+            grading before checking runs overconfident and writes too-long
+            intervals off inflated "Good"s. */}
         <div className="mt-8">
           <RatingButtons
             onRate={handleRate}
@@ -521,7 +523,7 @@ const MyPhrasesReview = () => {
             intervalDays={current.interval_days}
             repetitions={current.repetitions}
             elapsedDays={elapsedDaysSince(current.last_reviewed_at)}
-            disabled={updateReview.isPending}
+            disabled={updateReview.isPending || !showAnswer}
           />
           <div className="mt-4 flex justify-center gap-2 flex-wrap">
             <Button

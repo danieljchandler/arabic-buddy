@@ -517,7 +517,10 @@ const Review = () => {
           )}
         </div>
 
-        {/* Self-rating always visible */}
+        {/* Rating waits for the reveal. Grading before checking the answer is
+            a judgment-of-learning, which runs overconfident — every inflated
+            "Good" writes a too-long interval. The keyboard path has always
+            gated this way (flip first, then rate); now the buttons match. */}
         <div className="mt-10">
           <RatingButtons
             onRate={handleRate}
@@ -526,7 +529,7 @@ const Review = () => {
             intervalDays={intervalDays}
             repetitions={repetitions}
             elapsedDays={elapsedDays}
-            disabled={false}
+            disabled={!showAnswer}
           />
         </div>
       </div>

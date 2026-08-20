@@ -125,16 +125,19 @@ describe("submitting a rating", () => {
     );
   });
 
-  it("pays the amount the rating is worth", async () => {
+  it("pays the same for an honest failure as for a success", async () => {
     const { result, backend } = await renderQueue();
 
     act(() => {
       result.current.enqueue({ wordId: wordId(0), rating: "again", currentReview: snapshot() });
     });
 
-    // "again" is 5, "good" is 15. Paying a flat rate would make forgetting as
-    // profitable as remembering.
-    await waitFor(() => expect(Number(backend.db.rows("user_xp")[0]?.total_xp)).toBe(255));
+    // Flat rate (REVIEW_XP = 15), whatever the grade. It used to pay by
+    // self-grade — 5 for "again" up to 20 for "easy" — which bribed the
+    // learner to inflate ratings (corrupting the FSRS schedule) and fined
+    // the honest failures that drive learning. The work is the review, not
+    // the grade the learner claims.
+    await waitFor(() => expect(Number(backend.db.rows("user_xp")[0]?.total_xp)).toBe(265));
   });
 
   it("defaults an unspecified direction to recognition", async () => {

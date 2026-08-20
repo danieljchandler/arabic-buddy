@@ -43,6 +43,14 @@ export interface WeeklyGoal {
   earned_xp: number;
 }
 
+/**
+ * Flat XP for one reviewed card, whatever the self-grade. XP must never key
+ * on the grade: paying more for "Easy" than for "Again" bribes the learner to
+ * inflate ratings, which corrupts the FSRS schedule and punishes the honest
+ * failures that drive learning.
+ */
+export const REVIEW_XP = 15;
+
 // Calculate level from XP (every 500 XP = 1 level)
 export function calculateLevel(xp: number): number {
   return Math.floor(xp / 500) + 1;

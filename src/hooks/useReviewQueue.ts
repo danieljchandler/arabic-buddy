@@ -6,6 +6,7 @@ import {
   useAddXP,
   useIncrementReviews,
   useCheckAchievements,
+  REVIEW_XP,
 } from "@/hooks/useGamification";
 import { submitRatingToServer } from "@/hooks/useReview";
 import { useDesiredRetention } from "@/hooks/useDesiredRetention";
@@ -24,12 +25,6 @@ import {
 } from "@/lib/reviewQueue";
 
 const BACKOFF_MS = [1000, 2000, 5000, 15000, 60000];
-const XP_AMOUNTS: Record<Rating, number> = {
-  again: 5,
-  hard: 10,
-  good: 15,
-  easy: 20,
-};
 
 const isNetworkError = (err: unknown) => {
   const msg = String((err as any)?.message ?? err ?? "");
@@ -99,8 +94,9 @@ export function useReviewQueue() {
           remove(user.id, item.id);
           setPendingCount(count(user.id));
 
-          // Side effects on confirmed server save
-          addXP.mutate({ amount: XP_AMOUNTS[item.rating], reason: "review" });
+          // Side effects on confirmed server save. Flat XP per card — see
+          // REVIEW_XP for why it must never key on the self-grade.
+          addXP.mutate({ amount: REVIEW_XP, reason: "review" });
           incrementReviews.mutate();
           checkAchievements.mutate();
           queryClient.invalidateQueries({ queryKey: ["review-stats"] });

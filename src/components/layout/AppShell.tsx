@@ -1,7 +1,7 @@
 import { ReactNode } from "react";
 import { useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import borderFullPageImg from "@/assets/border-full-page.webp";
+import { AppBackdrop } from "@/components/layout/AppBackdrop";
 import { AppDock, shouldShowDock } from "@/components/shell/AppDock";
 import { FeedbackWidget } from "@/components/feedback/FeedbackWidget";
 import { useAiAssistant } from "@/contexts/AiAssistantContext";
@@ -41,20 +41,7 @@ export function AppShell({ children, className, compact = false }: AppShellProps
         paddingBottom: "env(safe-area-inset-bottom)",
       }}
     >
-      {/* Background image layer. Opacity lives in classes so dark mode can
-          dim the sand-toned border art to an ember instead of a glare. */}
-      <div
-        className="opacity-95 dark:opacity-20"
-        style={{
-          position: "fixed",
-          inset: 0,
-          backgroundImage: `url(${borderFullPageImg})`,
-          backgroundSize: "cover",
-          backgroundPosition: "top center",
-          backgroundRepeat: "no-repeat",
-          pointerEvents: "none",
-        }}
-      />
+      <AppBackdrop />
       <div
         style={{
           // Clear the sadu band. It is part of a background-size: cover image,

@@ -117,7 +117,7 @@ const AlphabetJourney = () => {
               <span className="block text-lg font-bold leading-tight">
                 {currentSteps > 0 ? "Continue" : "Start"} {current.name_translit}
               </span>
-              <span className="flex items-center gap-1.5 text-xs text-primary-foreground/80">
+              <span className="flex items-center gap-1.5 text-xs text-primary-foreground">
                 <span>Stop {currentIndex + 1} of 28</span>
                 {currentSteps > 0 && (
                   <>
@@ -143,7 +143,7 @@ const AlphabetJourney = () => {
               <span className="block text-lg font-bold leading-tight">
                 All 28 letters mastered
               </span>
-              <span className="block text-xs text-primary-foreground/80">
+              <span className="block text-xs text-primary-foreground">
                 Every stage is complete.
               </span>
             </span>

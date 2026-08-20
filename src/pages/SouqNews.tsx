@@ -15,6 +15,7 @@ import { SaveUnknownsBar } from "@/components/shared/SaveUnknownsBar";
 import { markTaskCompletedToday } from "@/lib/todayCompletion";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { dialectAccent } from "@/lib/dialectAccent";
 import {
   RefreshCw,
   ExternalLink,
@@ -40,17 +41,6 @@ interface SouqArticle {
   vocabulary?: { word_arabic: string; word_english: string }[];
 }
 
-const DIALECT_COLORS: Record<string, string> = {
-  Gulf: "from-teal-500/10 to-cyan-500/10 border-teal-500/20",
-  Egyptian: "from-amber-500/10 to-orange-500/10 border-amber-500/20",
-  Yemeni: "from-red-500/10 to-rose-500/10 border-red-500/20",
-};
-
-const DIALECT_ACCENT: Record<string, string> = {
-  Gulf: "text-teal-600 dark:text-teal-400",
-  Egyptian: "text-amber-600 dark:text-amber-400",
-  Yemeni: "text-red-600 dark:text-red-400",
-};
 
 const SouqNews = () => {
   const { activeDialect } = useDialect();
@@ -151,8 +141,11 @@ const SouqNews = () => {
     });
   };
 
-  const colorClass = DIALECT_COLORS[activeDialect] || DIALECT_COLORS.Gulf;
-  const accentClass = DIALECT_ACCENT[activeDialect] || DIALECT_ACCENT.Gulf;
+  // The dialect's own accent, from the one table (src/lib/dialectAccent.ts).
+  // This page carried a fourth private copy of it in raw Tailwind teal/amber/
+  // red — cold colours on a warm-sand palette, and unrelated to the accent
+  // the same dialect gets everywhere else in the app.
+  const accent = dialectAccent(activeDialect);
 
   return (
     <AppShell>
@@ -161,7 +154,7 @@ const SouqNews = () => {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-            <Newspaper className={cn("h-6 w-6", accentClass)} />
+            <Newspaper className="h-6 w-6" style={{ color: `hsl(${accent})` }} />
             أخبار السوق
             <InfoHint {...PAGE_HINTS["souq-news"]} size="md" />
           </h1>
@@ -209,10 +202,11 @@ const SouqNews = () => {
             return (
               <div
                 key={i}
-                className={cn(
-                  "rounded-2xl border bg-gradient-to-br p-5 transition-all duration-200",
-                  colorClass
-                )}
+                className="rounded-2xl border p-5 transition-all duration-200"
+                style={{
+                  backgroundColor: `hsl(${accent} / 0.07)`,
+                  borderColor: `hsl(${accent} / 0.22)`,
+                }}
               >
                 {/* Arabic headline */}
                 <h2

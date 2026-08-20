@@ -22,8 +22,12 @@ export function XPDisplay({ compact = false, className }: XPDisplayProps) {
           <Sparkles className="h-3 w-3 text-primary" />
           <span className="text-xs font-semibold text-primary">{userXP.total_xp} XP</span>
         </div>
-        <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-amber-100 dark:bg-amber-900/30">
-          <span className="text-xs font-bold text-amber-600 dark:text-amber-400">Lv.{userXP.level}</span>
+        {/* Built the same way as the XP chip beside it, in the other brand
+            hue. It used raw amber-100/amber-600, which measured 2.86:1 — and
+            needed a hand-written dark: variant to survive night majlis at
+            all, which is the tell that it was outside the token system. */}
+        <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-success/10">
+          <span className="text-xs font-bold text-success">Lv.{userXP.level}</span>
         </div>
       </div>
     );

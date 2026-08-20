@@ -401,7 +401,7 @@ const Index = () => {
                     <p className="font-heading font-bold text-plum">
                       {alphabetMastered === 0 ? "Start the Alphabet Journey" : "Continue Alphabet Journey"}
                     </p>
-                    <p className="text-xs text-plum/70 mt-0.5">
+                    <p className="text-xs text-plum mt-0.5">
                       {alphabetMastered === 0
                         ? "Stop 1 of 28 — Alif"
                         : `Stop ${currentLetter.order_index + 1} of 28 — ${currentLetter.name_translit} • ${alphabetMastered} mastered`}
@@ -451,7 +451,7 @@ const Index = () => {
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-plum">Coming from MSA?</p>
-            <p className="text-[11px] text-plum/70 truncate">
+            <p className="text-[11px] text-plum truncate">
               Bridge <span className="font-arabic" dir="rtl">الفصحى</span> into {activeDialect} dialect
             </p>
           </div>

@@ -115,7 +115,7 @@ export const TaskRow = ({
           {index != null && (
             <span
               aria-hidden
-              className="text-[11px] font-semibold tracking-[0.14em] text-muted-foreground/60 tabular-nums"
+              className="text-[11px] font-semibold tracking-[0.14em] text-muted-foreground tabular-nums"
             >
               {String(index).padStart(2, "0")}
             </span>
@@ -137,14 +137,14 @@ export const TaskRow = ({
         </div>
         <div className="mt-1.5 flex items-center gap-2">
           {subtitle && (
-            <span className="text-[11px] text-desert-red/70 truncate">{subtitle}</span>
+            <span className="text-[11px] text-muted-foreground truncate">{subtitle}</span>
           )}
           <span
             className={cn(
               "text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full border",
               done
                 ? "border-desert-red/20 text-desert-red/50 bg-transparent"
-                : "border-desert-red/15 text-desert-red/80 bg-desert-red/[0.04]"
+                : "border-desert-red/15 text-desert-red bg-desert-red/[0.04]"
             )}
           >
             ~{estMinutes} min

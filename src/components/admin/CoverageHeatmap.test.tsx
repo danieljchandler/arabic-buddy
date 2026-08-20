@@ -151,7 +151,7 @@ describe("laying out the grid", () => {
     // An all-red grid shown while the counts are still in flight reads as a
     // catastrophe, which is exactly the wrong first impression for this screen.
     expect(screen.queryByRole("table")).toBeNull();
-    expect(document.querySelectorAll(".animate-pulse").length).toBeGreaterThan(0);
+    expect(document.querySelectorAll("[data-slot=skeleton]").length).toBeGreaterThan(0);
   });
 
   it("says what a cell means", async () => {
@@ -317,7 +317,7 @@ describe("when a query fails", () => {
     // A zeroed grid would read as "the curriculum is empty" — the most alarming
     // thing this screen can say, and here it would be untrue.
     await waitFor(() => expect(screen.queryByRole("table")).toBeNull());
-    expect(document.querySelectorAll(".animate-pulse").length).toBeGreaterThan(0);
+    expect(document.querySelectorAll("[data-slot=skeleton]").length).toBeGreaterThan(0);
   });
 
   it("draws the grid anyway when only the concept counts failed", async () => {

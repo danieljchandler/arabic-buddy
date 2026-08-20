@@ -5,6 +5,7 @@ import { useDialect } from "@/contexts/DialectContext";
 import { useWeeklyGoal } from "@/hooks/useGamification";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { dialectAccent } from "@/lib/dialectAccent";
 
 /**
  * A — Majlis welcome panel
@@ -18,11 +19,19 @@ const DIALECT_GLYPH: Record<string, string> = {
   Yemeni: "🇾🇪",
 };
 
-const DIALECT_ACCENT: Record<string, string> = {
-  Gulf: "from-teal-500/15 to-teal-700/5 border-teal-700/30 text-teal-800",
-  Egyptian: "from-amber-400/20 to-amber-600/5 border-amber-600/30 text-amber-800",
-  Yemeni: "from-red-500/15 to-red-800/5 border-red-700/30 text-red-800",
-};
+/**
+ * The XP total as it goes *inside* the ring.
+ *
+ * The ring is 64px across and the number sits in the ~47px hole in the middle,
+ * so it holds four digits and no more. A learner on a 2,000 XP week would
+ * otherwise push the figure out over the arc. The full number stays on the
+ * title attribute either way.
+ */
+function compactXp(xp: number): string {
+  if (xp < 1000) return String(xp);
+  const thousands = xp / 1000;
+  return `${thousands < 10 ? thousands.toFixed(1).replace(/\.0$/, "") : Math.round(thousands)}k`;
+}
 
 function greetingFor(hour: number): { ar: string; en: string } {
   if (hour < 5) return { ar: "تصبح على خير", en: "Late night" };
@@ -77,15 +86,18 @@ export function MajlisWelcome() {
   const C = 2 * Math.PI * R;
   const dash = (pct / 100) * C;
 
-  const dialectAccent = DIALECT_ACCENT[activeDialect] ?? DIALECT_ACCENT.Gulf;
+  const accent = dialectAccent(activeDialect);
 
   return (
     <div
       className={cn(
         "relative overflow-hidden rounded-3xl mb-4",
-        "bg-[#F9F7F2] border border-plum/20",
+        // Tokens, not the literal cream this was: on a near-black page a fixed
+        // #F9F7F2 is the brightest thing in the app, and it sits at the top of
+        // the most-visited screen.
+        "bg-card-cream border border-plum/20",
         "px-4 py-4 sm:px-5 sm:py-5",
-        "shadow-[0_1px_0_0_rgba(92,58,70,0.04),0_8px_24px_-12px_rgba(92,58,70,0.18)]"
+        "shadow-card"
       )}
     >
       {/* Sadu pattern watermark */}
@@ -101,7 +113,7 @@ export function MajlisWelcome() {
       {/* Warm radial highlight */}
       <div
         aria-hidden
-        className="absolute -top-16 -right-16 w-56 h-56 rounded-full bg-[#C5A67A]/15 blur-3xl pointer-events-none"
+        className="absolute -top-16 -right-16 w-56 h-56 rounded-full bg-desert-red/10 blur-3xl pointer-events-none"
       />
 
       <div className="relative flex items-start gap-4">
@@ -114,7 +126,7 @@ export function MajlisWelcome() {
             {greeting.ar}
           </p>
           <p
-            className="mt-1 text-sm text-plum/70"
+            className="mt-1 text-sm text-plum"
             style={{ fontFamily: "'Open Sans', sans-serif" }}
           >
             {greeting.en}
@@ -126,9 +138,13 @@ export function MajlisWelcome() {
             <span
               className={cn(
                 "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full",
-                "text-[11px] font-semibold border bg-gradient-to-r",
-                dialectAccent
+                "text-[11px] font-semibold border"
               )}
+              style={{
+                color: `hsl(${accent})`,
+                backgroundColor: `hsl(${accent} / 0.12)`,
+                borderColor: `hsl(${accent} / 0.35)`,
+              }}
             >
               <span className="text-xs leading-none">{DIALECT_GLYPH[activeDialect] ?? "🗣️"}</span>
               {activeDialect}
@@ -141,15 +157,15 @@ export function MajlisWelcome() {
                   "inline-flex items-center gap-1 px-2.5 py-1 rounded-full",
                   "text-[11px] font-semibold border",
                   (streak?.current_streak ?? 0) > 0
-                    ? "bg-gradient-to-r from-orange-400/15 to-red-500/10 border-orange-500/40 text-orange-700"
-                    : "bg-plum/5 border-plum/15 text-plum/60"
+                    ? "bg-desert-red/10 border-desert-red/40 text-desert-red"
+                    : "bg-plum/5 border-plum/15 text-plum"
                 )}
                 title={`${streak?.current_streak ?? 0}-day streak`}
               >
                 <Flame
                   className={cn(
                     "h-3 w-3",
-                    (streak?.current_streak ?? 0) > 0 ? "text-orange-500" : "text-plum/40"
+                    (streak?.current_streak ?? 0) > 0 ? "text-desert-red" : "text-plum/40"
                   )}
                 />
                 {streak?.current_streak ?? 0}d
@@ -167,7 +183,7 @@ export function MajlisWelcome() {
                 cy="32"
                 r={R}
                 stroke="hsl(var(--plum))"
-                strokeOpacity={0.12}
+                strokeOpacity={0.18}
                 strokeWidth="5"
                 fill="none"
               />
@@ -188,9 +204,9 @@ export function MajlisWelcome() {
                 className="text-[15px] font-bold text-plum"
                 style={{ fontFamily: "'Montserrat', sans-serif" }}
               >
-                {earned}
+                {compactXp(earned)}
               </span>
-              <span className="text-[10px] uppercase tracking-wider text-plum/60 mt-0.5">
+              <span className="text-[10px] uppercase tracking-wider text-plum mt-0.5">
                 XP
               </span>
             </div>

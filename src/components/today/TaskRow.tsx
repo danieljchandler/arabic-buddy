@@ -13,6 +13,12 @@ interface TaskRowProps {
   done: boolean;
   onClick: () => void;
   hint?: { title: string; body: string };
+  /**
+   * Position in the day's queue, 1-based. Rendered as an 01/02 numeral — the
+   * same cue the skill chooser uses, and what makes several similar rows read
+   * as one ordered queue rather than unrelated cards.
+   */
+  index?: number;
 }
 
 // The rail and icon chip take the dialect's own brand accent (see
@@ -29,6 +35,7 @@ export const TaskRow = ({
   done,
   onClick,
   hint,
+  index,
 }: TaskRowProps) => {
   const { activeDialect } = useDialect();
   const accent = dialectAccent(activeDialect);
@@ -105,6 +112,14 @@ export const TaskRow = ({
       {/* Body */}
       <div className="relative z-[1] flex-1 min-w-0 flex flex-col justify-center">
         <div className="flex items-center gap-2 flex-wrap">
+          {index != null && (
+            <span
+              aria-hidden
+              className="text-[11px] font-semibold tracking-[0.14em] text-muted-foreground/60 tabular-nums"
+            >
+              {String(index).padStart(2, "0")}
+            </span>
+          )}
           <span
             className={cn(
               "font-semibold text-[15px] text-foreground font-heading",

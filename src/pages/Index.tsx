@@ -258,6 +258,13 @@ const Index = () => {
           // card; it's now inline so Home doesn't compete with a second home.
           "daily-queue": isAuthenticated ? (
             <div key="daily-queue" className="space-y-3">
+              {/* The day's work sits in its own frame.
+                  Everything on this page used to be a card of the same weight,
+                  so the daily queue — the reason the page exists — read as a
+                  peer of the MSA-bridge footnote. The progress widgets below
+                  stay outside it, which is what makes the queue the spine
+                  rather than one more item in a stack of ten. */}
+              <div className="rounded-3xl border border-desert-red/15 bg-desert-red/[0.035] p-3 sm:p-4 space-y-3">
               <div className="flex items-center gap-4">
                 <DailyGoalRing current={xpToday} goal={dailyGoal} size={100} />
                 <div className="flex-1 min-w-0">
@@ -321,9 +328,10 @@ const Index = () => {
                   marking on click would let a learner clear the day by tapping
                   through it. */}
               <div className="space-y-3">
-                {queueRows.map((task) => (
+                {queueRows.map((task, i) => (
                   <TaskRow
                     key={task.id}
+                    index={i + 1}
                     title={task.title}
                     subtitle={task.subtitle}
                     countBadge={task.countBadge}
@@ -353,6 +361,8 @@ const Index = () => {
                   <p className="text-xs text-muted-foreground mt-0.5">Come back tomorrow to keep your streak.</p>
                 </div>
               )}
+
+              </div>
 
               {/* One entry point into the review session — "/review" walks
                   every deck with cards due (curriculum, saved words, saved

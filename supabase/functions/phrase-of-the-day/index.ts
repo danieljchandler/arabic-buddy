@@ -2,6 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { askBrain, BrainHttpError } from "../_shared/aiBrain.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { createErrorResponse } from "../_shared/errorResponse.ts";
+import { enforceDailyCap } from "../_shared/usageCap.ts";
 import { getDialectTransliterationRules, type Dialect } from "../_shared/dialectHelpers.ts";
 
 interface PhraseOut {
@@ -92,6 +93,12 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: cors });
   }
+
+  // Every call is a fresh model generation, so cap it like the other paid
+  // endpoints. Generous limit: the home card fetches once per visit and per
+  // dialect switch, plus deliberate Refresh presses.
+  const cap = await enforceDailyCap(req, "phrase-of-the-day", 20, cors);
+  if (cap.limited) return cap.response;
 
   try {
     const { dialect = "Gulf", seed, category: categoryOverride, avoidCategories } = await req

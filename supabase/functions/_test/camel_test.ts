@@ -298,3 +298,23 @@ Deno.test("camel-analyze echoes the input and the tasks it ran", async () => {
   assertEquals(body.inputText, "الجو حلو");
   assertEquals(body.actions, ["diacritize", "segment"]);
 });
+
+// ── the gate ────────────────────────────────────────────────────────────────
+
+Deno.test("camel-analyze asks an anonymous caller to sign in", async () => {
+  const fn = await loadFunction("camel-analyze", { upstreams: upstreams() });
+  try {
+    const response = await fn.handler(
+      jsonRequest("camel-analyze", { text: "الجو حلو" }, { jwt: null }),
+    );
+
+    // config.toml has verify_jwt = false for this function, so the handler's
+    // own `enforceDailyCap` is the only thing between an anonymous caller and
+    // Farasa/HuggingFace spend. Nothing external may be reached on the way out.
+    assertEquals(response.status, 401);
+    assertEquals((await response.json()).error, "auth_required");
+    assert(!fn.calls.some((c) => c.url.includes("farasa") || c.url.includes("huggingface")));
+  } finally {
+    fn.restore();
+  }
+});

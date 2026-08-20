@@ -511,19 +511,19 @@ Deno.test("generate-mnemonic preserves 429 and 402 from the gateway", async () =
   }
 });
 
-Deno.test("generate-mnemonic needs no sign-in", async () => {
-  const { status } = await call(
+Deno.test("generate-mnemonic asks an anonymous caller to sign in", async () => {
+  const { status, body } = await call(
     "generate-mnemonic",
     { arabic: "كتاب", english: "book" },
     caller({ "ai.gateway.lovable.dev": () => chatCompletion("mnemonic") }),
     { jwt: null },
   );
 
-  // Pinned as-is. Alone among the four functions here it calls no
-  // `enforceDailyCap`, so with `verify_jwt` off there is nothing between an
-  // anonymous caller and a model call on the app's credits. Its neighbours all
-  // gate: word-enrichment at 60/day, sample sentences at 30, word audio at 200.
-  assertEquals(status, 200);
+  // It now gates on `enforceDailyCap` at 15/day like its neighbours
+  // (word-enrichment at 60, sample sentences at 30, word audio at 200), so an
+  // anonymous caller can no longer put a model call on the app's credits.
+  assertEquals(status, 401);
+  assertEquals(body.error, "auth_required");
 });
 
 // ── persist-word-audio ──────────────────────────────────────────────────────

@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { MODEL_IDS } from "../_shared/modelRegistry.ts";
+import { enforceDailyCap } from "../_shared/usageCap.ts";
 
 
 serve(async (req) => {
@@ -8,6 +9,10 @@ serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+
+  // Free-tier daily cap, like every other paid-model endpoint.
+  const cap = await enforceDailyCap(req, "generate-mnemonic", 15, corsHeaders);
+  if (cap.limited) return cap.response;
 
   try {
     const { arabic, english, transliteration, dialect = "Gulf", kind = "word" } =

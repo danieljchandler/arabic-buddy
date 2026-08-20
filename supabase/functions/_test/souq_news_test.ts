@@ -509,3 +509,37 @@ Deno.test("souq-news-quiz reports any other failure as a generation failure", as
   assertEquals(status, 503);
   assertEquals(body.error, "Quiz generation failed");
 });
+
+// ── the gate ────────────────────────────────────────────────────────────────
+
+Deno.test("souq-news asks an anonymous caller to sign in", async () => {
+  const fn = await loadFunction("souq-news", { upstreams: caller() });
+  try {
+    const response = await fn.handler(
+      jsonRequest("souq-news", { dialect: "Gulf" }, { jwt: null }),
+    );
+
+    // config.toml has verify_jwt = false here, so the handler's own
+    // `enforceDailyCap` is the only thing between an anonymous caller and a
+    // Firecrawl search plus four model rewrites. Neither may be reached.
+    assertEquals(response.status, 401);
+    assertEquals((await response.json()).error, "auth_required");
+    assert(!fn.calls.some((c) => c.url.includes("firecrawl") || c.url.includes("chat/completions")));
+  } finally {
+    fn.restore();
+  }
+});
+
+Deno.test("souq-news counts against the free-tier daily cap", async () => {
+  const { status, body } = await call(
+    "souq-news",
+    { dialect: "Gulf" },
+    caller({
+      "/rest/v1/subscribers": () => json({ subscribed: false, subscription_end: null }),
+      "/rest/v1/rpc/increment_usage_counter": () => json(11),
+    }),
+  );
+
+  assertEquals(status, 429);
+  assertEquals(body.error, "daily_limit_reached");
+});

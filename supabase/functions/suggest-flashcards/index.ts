@@ -1,4 +1,5 @@
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { enforceDailyCap } from "../_shared/usageCap.ts";
 
 
 const DIALECT_GUIDE: Record<string, string> = {
@@ -10,6 +11,10 @@ const DIALECT_GUIDE: Record<string, string> = {
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
+  // Free-tier daily cap, like every other paid-model endpoint.
+  const cap = await enforceDailyCap(req, "suggest-flashcards", 15, corsHeaders);
+  if (cap.limited) return cap.response;
 
   try {
     const { topic, dialect = "Gulf", existingWords = [], count = 10 } = await req.json();

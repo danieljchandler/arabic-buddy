@@ -18,9 +18,15 @@ import { chatCompletion, json, type UpstreamHandler } from "./upstreams.ts";
  */
 
 const VIDEO_ID = "33333333-0000-4000-8000-000000000000";
+const USER = "00000000-0000-4000-8000-000000000001";
 
+// The function is gated to pipeline (service-role) and admin callers; the
+// default fixture caller here is an admin so the rating behaviour under test
+// is reachable. The gate itself has its own tests at the bottom.
 function upstreams(extra: Record<string, UpstreamHandler> = {}): Record<string, UpstreamHandler> {
   return {
+    "/auth/v1/user": () => json({ id: USER, aud: "authenticated", role: "authenticated" }),
+    "/rest/v1/user_roles": () => json({ role: "admin" }),
     "/rest/v1/discover_videos": () => json(null),
     "ai.gateway.lovable.dev": () => chatCompletion(JSON.stringify({ cefr_level: "B1", rationale: "Routine." })),
     ...extra,
@@ -349,4 +355,48 @@ Deno.test("rate-video-cefr reports an unknown video", async () => {
 
   assertEquals(status, 500);
   assertStringIncludes(String(body.error), "video not found");
+});
+
+// ── the gate ────────────────────────────────────────────────────────────────
+
+Deno.test("rate-video-cefr refuses a caller who is neither pipeline nor admin", async () => {
+  const fn = await loadFunction("rate-video-cefr", {
+    upstreams: upstreams({ "/rest/v1/user_roles": () => json(null) }),
+  });
+  try {
+    const response = await fn.handler(
+      jsonRequest("rate-video-cefr", { transcript_lines: lines("الجو حلو") }),
+    );
+
+    // A plain signed-in user must not be able to run a paid rating or rewrite
+    // the difficulty columns of a shared video row.
+    assertEquals(response.status, 403);
+    assertEquals((await response.json()).error, "forbidden");
+    assert(!fn.calls.some((c) => c.url.includes("chat/completions")));
+  } finally {
+    fn.restore();
+  }
+});
+
+Deno.test("rate-video-cefr admits the pipeline's service-role bearer", async () => {
+  // The service-role caller never touches auth or roles — remove the stubs so
+  // any lookup would fail loudly rather than pass by fixture coincidence.
+  const routes = upstreams({ "ai.gateway.lovable.dev": rating("A2") });
+  delete routes["/auth/v1/user"];
+  delete routes["/rest/v1/user_roles"];
+  const fn = await loadFunction("rate-video-cefr", { upstreams: routes });
+  try {
+    const response = await fn.handler(
+      jsonRequest(
+        "rate-video-cefr",
+        { transcript_lines: lines("الجو حلو اليوم") },
+        { jwt: "e2e-service-role-not-a-real-secret" },
+      ),
+    );
+
+    assertEquals(response.status, 200);
+    assertEquals((await response.json()).cefr_level, "A2");
+  } finally {
+    fn.restore();
+  }
 });

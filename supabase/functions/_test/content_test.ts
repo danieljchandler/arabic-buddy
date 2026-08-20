@@ -493,16 +493,17 @@ Deno.test("phrase-of-the-day works with no body at all", async () => {
   }
 });
 
-Deno.test("phrase-of-the-day needs no sign-in", async () => {
-  const { status } = await call(
+Deno.test("phrase-of-the-day asks an anonymous caller to sign in", async () => {
+  const { status, body } = await call(
     "phrase-of-the-day",
     { dialect: "Gulf" },
     caller({ "ai.gateway.lovable.dev": emitting(aPhrase) }),
     { jwt: null },
   );
 
-  // Pinned. No `enforceDailyCap` and no auth check, so the home screen renders
-  // it for signed-out visitors — and so can anyone else. One model call per
-  // request, on the app's credits.
-  assertEquals(status, 200);
+  // Every call is a model generation on the app's credits, so the endpoint
+  // now gates on `enforceDailyCap` like its neighbours. The home card only
+  // renders on the signed-in home, so no legitimate caller loses anything.
+  assertEquals(status, 401);
+  assertEquals(body.error, "auth_required");
 });

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { Loader2, ArrowLeft, Play, Pause, Volume2, Plus, Check, Trash2 } from "lucide-react";
+import { Loader2, ArrowLeft, Play, Pause, Volume2, Plus, Check, Trash2, Eye } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import {
@@ -46,6 +46,20 @@ const ListenEpisode = () => {
   const [isPlayingFull, setIsPlayingFull] = useState(false);
   const [addedVocab, setAddedVocab] = useState<Set<string>>(new Set());
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+
+  // Listen first: the Arabic starts blurred, revealed per line on tap, all at
+  // once via the header button, or automatically when a full play finishes.
+  // Reading along from the first second trains grapheme-mediated
+  // comprehension — the ear only works when it has to carry a pass alone.
+  const [revealedLines, setRevealedLines] = useState<Set<number>>(new Set());
+  const [revealAll, setRevealAll] = useState(false);
+  const isRevealed = (i: number) => revealAll || revealedLines.has(i);
+  const revealLine = (i: number) =>
+    setRevealedLines((prev) => {
+      const next = new Set(prev);
+      next.add(i);
+      return next;
+    });
   const incrementedRef = useRef(false);
 
   useEffect(() => {
@@ -87,7 +101,12 @@ const ListenEpisode = () => {
     }
     const a = new Audio(episode.full_audio_url);
     audioRef.current = a;
-    a.onended = () => setIsPlayingFull(false);
+    a.onended = () => {
+      setIsPlayingFull(false);
+      // One full pass by ear has been earned — reading along is now review,
+      // not a crutch.
+      setRevealAll(true);
+    };
     a.onerror = () => { setIsPlayingFull(false); toast.error("Playback failed"); };
     setIsPlayingFull(true);
     await a.play();
@@ -161,6 +180,17 @@ const ListenEpisode = () => {
         </header>
 
         <section className="space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-xs text-muted-foreground">
+              Listen first — tap a line to read it, or reveal everything.
+            </p>
+            {!revealAll && (
+              <Button size="sm" variant="ghost" className="shrink-0" onClick={() => setRevealAll(true)}>
+                <Eye className="h-3.5 w-3.5 mr-1.5" />
+                Show all text
+              </Button>
+            )}
+          </div>
           {episode.script.map((line, i) => (
             <Card key={i} className="p-3 space-y-1.5">
               <div className="flex items-start justify-between gap-2">
@@ -168,7 +198,11 @@ const ListenEpisode = () => {
                   {line.speaker}
                 </span>
                 <div className="flex items-center gap-1 shrink-0">
-                  <AskAISentence arabic={line.arabic} english={line.english} variant="chip" />
+                  {/* Only once revealed — the assistant chip carries the line's
+                      text, which would leak the answer around the blur. */}
+                  {isRevealed(i) && (
+                    <AskAISentence arabic={line.arabic} english={line.english} variant="chip" />
+                  )}
                   <Button
                     size="icon"
                     variant="ghost"
@@ -181,17 +215,42 @@ const ListenEpisode = () => {
                   </Button>
                 </div>
               </div>
-              <TappableArabicText
-                text={line.arabic}
-                source="listen"
-                sentenceContext={{ arabic: line.arabic, english: line.english }}
-              />
-              {showEnglish && line.english && (
-                <TranslationPair
-                  variant="compact"
-                  literal={line.literal}
-                  natural={line.english}
-                />
+              {isRevealed(i) ? (
+                <>
+                  <TappableArabicText
+                    text={line.arabic}
+                    source="listen"
+                    sentenceContext={{ arabic: line.arabic, english: line.english }}
+                  />
+                  {showEnglish && line.english && (
+                    <TranslationPair
+                      variant="compact"
+                      literal={line.literal}
+                      natural={line.english}
+                    />
+                  )}
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => revealLine(i)}
+                  className="relative block w-full rounded-md text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  aria-label={`Reveal line ${i + 1}`}
+                >
+                  {/* The blurred text keeps the card's real height so
+                      revealing doesn't reflow the page. */}
+                  <div aria-hidden className="pointer-events-none select-none blur-[7px] opacity-50">
+                    <TappableArabicText
+                      text={line.arabic}
+                      source="listen"
+                      sentenceContext={{ arabic: line.arabic, english: line.english }}
+                    />
+                  </div>
+                  <span className="absolute inset-0 flex items-center justify-center gap-1.5 text-[11px] uppercase tracking-wide text-muted-foreground">
+                    <Eye className="h-3.5 w-3.5" />
+                    Tap to read
+                  </span>
+                </button>
               )}
             </Card>
           ))}

@@ -11,6 +11,12 @@ interface IntroCardProps {
   onContinue: () => void;
   /** Topic label to display as a tag */
   topicLabel?: string;
+  /**
+   * Whether the next step is this block's quiz rather than another word.
+   * Words are met in blocks and tested together (see lib/lessonFlow), so a
+   * button that always promised the quiz would be lying three times in four.
+   */
+  nextIsQuiz?: boolean;
 }
 
 /**
@@ -18,7 +24,7 @@ interface IntroCardProps {
  * 
  * Clean, focused presentation of vocabulary with audio.
  */
-export const IntroCard = ({ word, onContinue, topicLabel }: IntroCardProps) => {
+export const IntroCard = ({ word, onContinue, topicLabel, nextIsQuiz = true }: IntroCardProps) => {
   const [showArabic, setShowArabic] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -128,7 +134,7 @@ export const IntroCard = ({ word, onContinue, topicLabel }: IntroCardProps) => {
 
       {/* Continue Button */}
       <Button onClick={onContinue} className="w-full">
-        Continue to Quiz
+        {nextIsQuiz ? "Continue to Quiz" : "Next Word"}
       </Button>
 
       {/* Hidden Audio Element */}

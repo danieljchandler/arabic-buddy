@@ -400,7 +400,21 @@ export async function submitRatingToServer(
     // First-ever rating of this word: claim daily new-card budget (shared
     // with the personal-vocab review path). Best-effort — never blocks the
     // review submission.
-    (supabase.rpc as any)('increment_new_card_count', { _amount: 1 }).catch(() => {});
+    //
+    // Awaited inside a try, not `.catch`-ed: a PostgrestFilterBuilder is a
+    // thenable, it implements `then` and nothing else, so `.catch` was
+    // undefined and calling it threw a TypeError *synchronously* — out of
+    // submitRatingToServer, past the mutation, into onError. The card was
+    // scheduled (the insert above had already landed) but onSuccess never
+    // ran, so every brand-new word a learner met paid no XP, awarded no
+    // achievement and counted toward no review total. Only new cards: a word
+    // with an existing row takes the update branch and never reaches here,
+    // which is what kept it invisible.
+    try {
+      await (supabase.rpc as any)('increment_new_card_count', { _amount: 1 });
+    } catch {
+      // Budget accounting is not worth failing a saved review over.
+    }
   }
 
   return { result, rating };

@@ -2,6 +2,14 @@ import { useState, useEffect, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useTopic } from "@/hooks/useTopic";
 import { useAllWords } from "@/hooks/useAllWords";
+import {
+  advance,
+  currentWordIndex,
+  resumeAt,
+  startBlock,
+  wordsCompleted,
+  type LessonFlowState,
+} from "@/lib/lessonFlow";
 import { useAuth } from "@/hooks/useAuth";
 import { useSubmitReview } from "@/hooks/useReview";
 import { IntroCard } from "@/components/learn/IntroCard";
@@ -56,8 +64,15 @@ const Learn = () => {
     return new Map(allWords.map(w => [w.id, w.topic_name]));
   }, [isMixedMode, allWords]);
   
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [phase, setPhase] = useState<Phase>("intro");
+  // Words are met in blocks and then tested as a block, in a different order —
+  // see lib/lessonFlow for why one-word-at-a-time was not retrieval practice.
+  // `flow` is the whole position; the word on screen and the phase derive from
+  // it, so the two can never disagree.
+  const [flow, setFlow] = useState<LessonFlowState>(() => startBlock(0, 0));
+  const currentIndex = currentWordIndex(flow, words.length);
+  const phase: Phase = flow.phase;
+  /** Words actually answered — what progress is saved and drawn from. */
+  const completed = wordsCompleted(flow, words.length);
   const [sessionResults, setSessionResults] = useState({ correct: 0, total: 0 });
   const [isComplete, setIsComplete] = useState(false);
 
@@ -125,12 +140,22 @@ const Learn = () => {
 
   // Reset when topic changes
   useEffect(() => {
-    setCurrentIndex(0);
-    setPhase("intro");
+    setFlow(startBlock(0, words.length));
     setSessionResults({ correct: 0, total: 0 });
     setIsComplete(false);
     setHasResumed(false);
+    // Deliberately keyed on the lesson only: re-running this when the word
+    // list settles would reshuffle the block out from under the learner.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lessonId]);
+
+  // The flow is built from the word count, which is 0 until the lesson loads —
+  // so open the first block properly once the words arrive (this is also the
+  // only initialisation mixed mode gets, having no saved progress to resume).
+  useEffect(() => {
+    if (words.length === 0) return;
+    setFlow((prev) => (prev.quizOrder.length === 0 ? startBlock(0, words.length) : prev));
+  }, [words.length]);
 
   // Pick up where the learner left off, on whatever device they left off on.
   //
@@ -142,14 +167,10 @@ const Learn = () => {
     if (hasResumed || isMixedMode || words.length === 0 || !progressSettled) return;
     setHasResumed(true);
     if (!savedProgress || savedProgress.status === "completed") return;
-    const resumeAt = Math.min(
-      Math.max(0, savedProgress.last_word_index),
-      words.length - 1,
-    );
-    if (resumeAt > 0) {
-      setCurrentIndex(resumeAt);
-      setPhase("intro");
-    }
+    // Snapped back to the start of that word's block: resuming mid-block would
+    // quiz the learner on words this sitting never introduced.
+    const resumed = resumeAt(savedProgress.last_word_index, words.length);
+    if (resumed.blockStart > 0) setFlow(resumed);
   }, [hasResumed, isMixedMode, progressSettled, savedProgress, words.length]);
 
   // Record "continue where you left off". localStorage stays as the fast local
@@ -165,33 +186,38 @@ const Learn = () => {
       kind: "lesson",
       route: `/learn/${lessonId}`,
       title: topic.name || "Lesson",
-      subtitle: `Word ${Math.min(currentIndex + 1, words.length)} of ${words.length}`,
+      subtitle: `Word ${Math.min(completed + 1, words.length)} of ${words.length}`,
       dialect: activeDialect,
     });
-  }, [isMixedMode, lessonId, topic, words.length, currentIndex, isComplete, activeDialect]);
+  }, [isMixedMode, lessonId, topic, words.length, completed, isComplete, activeDialect]);
 
   // Server-side progress: how far through, and whether it's finished. Mixed mode
   // isn't a lesson, so it has nothing to record against.
   useEffect(() => {
     if (isMixedMode || !lessonId || !user || words.length === 0 || isComplete) return;
     // Never write before the resume attempt has run for THIS lesson. On mount
-    // currentIndex is 0, so an early write would persist 0 and destroy the
+    // the flow starts at 0, so an early write would persist 0 and destroy the
     // saved position the learner was about to be restored to. `hasResumed` is
     // reset on every lessonId change, so it's a per-lesson readiness token.
     if (!hasResumed) return;
+    // Answered words, not the word on screen: during a block's quiz the
+    // pointer jumps around the block, and saving it would resume the learner
+    // mid-block — past introductions they would then be quizzed on.
     upsertProgress.mutate({
       lessonId,
-      lastWordIndex: currentIndex,
-      wordsSeen: currentIndex + 1,
+      lastWordIndex: completed,
+      wordsSeen: completed,
       wordsTotal: words.length,
     });
-    // Deliberately keyed on the card index only: this should fire once per card
-    // advance, not on every render or mutation-identity change.
+    // Deliberately keyed on the count only: this should fire once per answered
+    // word, not on every render or mutation-identity change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isMixedMode, lessonId, user?.id, currentIndex, words.length, isComplete]);
+  }, [isMixedMode, lessonId, user?.id, completed, words.length, isComplete]);
 
-  const handleContinueToQuiz = () => {
-    setPhase("quiz");
+  /** Next step: the rest of the block's introductions, then its quiz. */
+  const handleIntroContinue = () => {
+    const next = advance(flow, words.length);
+    if (next) setFlow(next);
   };
 
   const handleQuizAnswer = async (isCorrect: boolean) => {
@@ -225,9 +251,9 @@ const Learn = () => {
     }
 
     setTimeout(() => {
-      if (currentIndex < words.length - 1) {
-        setCurrentIndex(prev => prev + 1);
-        setPhase("intro");
+      const next = advance(flow, words.length);
+      if (next) {
+        setFlow(next);
       } else {
         setIsComplete(true);
         // Score from the freshly-updated tallies, not from `sessionResults`,
@@ -248,8 +274,7 @@ const Learn = () => {
   };
 
   const handleRestartSession = () => {
-    setCurrentIndex(0);
-    setPhase("intro");
+    setFlow(startBlock(0, words.length));
     setSessionResults({ correct: 0, total: 0 });
     setIsComplete(false);
     // Already resumed once this visit; a deliberate restart starts at the top.
@@ -430,15 +455,23 @@ const Learn = () => {
 
       {/* Main Content */}
       <div className="py-4">
+        {/* Keyed by word: a block now shows several introductions (and then
+            several quiz cards) back to back without an unmount in between, so
+            without this the next card would inherit the previous one's state —
+            an already-revealed Arabic, or a spent quiz still showing its
+            result with its options disabled. */}
         {phase === "intro" ? (
           <IntroCard 
+            key={currentWord.id}
             word={currentWord} 
             gradient={isMixedMode ? undefined : topic?.gradient} 
-            onContinue={handleContinueToQuiz}
+            onContinue={handleIntroContinue}
+            nextIsQuiz={advance(flow, words.length)?.phase === "quiz"}
             topicLabel={topicLabel}
           />
         ) : (
           <QuizCard 
+            key={currentWord.id}
             word={currentWord} 
             otherWords={otherWords} 
             gradient={isMixedMode ? undefined : topic?.gradient} 
@@ -450,13 +483,16 @@ const Learn = () => {
 
       {/* Progress */}
       <div className="mt-8">
+        {/* Progress is words *answered*, so it only ever moves forward. The
+            card pointer jumps around inside a block during its quiz, and dots
+            that jumped back with it would read as a bug. */}
         <ProgressDots 
           total={words.length} 
-          current={currentIndex} 
+          current={Math.min(completed, Math.max(0, words.length - 1))} 
           gradient={isMixedMode ? undefined : topic?.gradient} 
         />
         <p className="mt-3 text-center text-sm text-muted-foreground">
-          {currentIndex + 1} / {words.length}
+          {completed} / {words.length} learned
         </p>
       </div>
     </AppShell>

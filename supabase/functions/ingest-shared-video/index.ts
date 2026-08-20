@@ -23,6 +23,14 @@ interface ParsedVideo {
   canonicalUrl: string;
 }
 
+/**
+ * Escape the LIKE metacharacters in a literal before it is interpolated into
+ * an ilike pattern. Backslash is Postgres's default LIKE escape character.
+ */
+export function escapeLikePattern(literal: string): string {
+  return literal.replace(/[\\%_]/g, (ch) => `\\${ch}`);
+}
+
 function json(status: number, body: unknown, corsHeaders: Record<string, string>): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -183,11 +191,16 @@ serve(async (req) => {
 
     // Dedup: the same video re-shared should open the existing row, not fork a
     // second pipeline run. Match by video id (source_url formats vary).
+    //
+    // The id is escaped first: YouTube ids and Instagram shortcodes legally
+    // contain "_", which LIKE reads as "any single character" — so an
+    // unescaped `abc_defghij` also matches a *different* video's `abc-defghij`
+    // and the share would be dropped as a duplicate of the wrong row.
     const { data: existing } = await supabase
       .from("discover_videos")
       .select("id, title, transcription_status")
       .eq("platform", parsed.platform)
-      .ilike("source_url", `%${parsed.videoId}%`)
+      .ilike("source_url", `%${escapeLikePattern(parsed.videoId)}%`)
       .limit(1)
       .maybeSingle();
     if (existing) {

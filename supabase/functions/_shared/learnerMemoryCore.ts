@@ -9,10 +9,25 @@
 export interface LearnerMemory {
   summary: string;
   openQuestions: string[];
+  /** Turns already folded into `summary` — the mark left by the last rewrite. */
   turnsSeen: number;
+  /**
+   * Running total of assistant turns for this learner, across every session.
+   *
+   * Separate from `turnsSeen` on purpose: one records what the summary covers,
+   * the other how far past that the learner has since talked. Collapsing them
+   * into one number is what made rewrites unreachable for anyone whose
+   * conversations are shorter than the threshold.
+   */
+  turnsTotal: number;
 }
 
-export const EMPTY_MEMORY: LearnerMemory = { summary: "", openQuestions: [], turnsSeen: 0 };
+export const EMPTY_MEMORY: LearnerMemory = {
+  summary: "",
+  openQuestions: [],
+  turnsSeen: 0,
+  turnsTotal: 0,
+};
 
 /** Ceilings. This block rides on every first turn, so it is priced like one. */
 export const MAX_SUMMARY_CHARS = 900;
@@ -43,7 +58,18 @@ export function parseMemory(row: unknown): LearnerMemory {
   const turnsSeen = typeof record.turns_seen === "number" && Number.isFinite(record.turns_seen)
     ? record.turns_seen
     : 0;
-  return { summary: summary.slice(0, MAX_SUMMARY_CHARS), openQuestions, turnsSeen };
+  // Rows written before turns_total existed carry only the mark; treating it
+  // as the running total too is where they genuinely are.
+  const storedTotal =
+    typeof record.turns_total === "number" && Number.isFinite(record.turns_total)
+      ? record.turns_total
+      : 0;
+  return {
+    summary: summary.slice(0, MAX_SUMMARY_CHARS),
+    openQuestions,
+    turnsSeen,
+    turnsTotal: Math.max(storedTotal, turnsSeen),
+  };
 }
 
 /** Clamp whatever the summarizer produced before it is stored. */
@@ -58,15 +84,17 @@ export function clampMemory(memory: Partial<LearnerMemory>, turnsSeen: number): 
         .map((q) => q.trim().slice(0, MAX_OPEN_QUESTION_CHARS))
         .slice(0, MAX_OPEN_QUESTIONS)
     : [];
-  return { summary, openQuestions, turnsSeen: Math.max(0, Math.floor(turnsSeen)) };
+  const seen = Math.max(0, Math.floor(turnsSeen));
+  return { summary, openQuestions, turnsSeen: seen, turnsTotal: seen };
 }
 
 /**
  * Is this conversation far enough past the last rewrite to be worth another?
  *
- * `assistantTurns` is the running total for the learner, not for this session,
- * so a learner who asks two questions a day still gets their memory updated
- * every couple of days rather than never.
+ * `assistantTurns` is the running total for the learner (`turnsTotal` plus the
+ * turn being folded in), not a count for this session — so a learner who asks
+ * two questions a day still gets their memory updated every couple of days
+ * rather than never.
  */
 export function shouldRewrite(memory: LearnerMemory, assistantTurns: number): boolean {
   if (assistantTurns <= 0) return false;

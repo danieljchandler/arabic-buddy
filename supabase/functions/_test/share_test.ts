@@ -272,6 +272,30 @@ Deno.test("re-sharing an ingested video opens the existing row", async () => {
   assertEquals(calls.filter((u) => u.includes("process-approved-video")).length, 0);
 });
 
+Deno.test("dedup escapes a video id that contains a LIKE wildcard", async () => {
+  // YouTube ids and Instagram shortcodes legally contain "_", which LIKE
+  // reads as "any single character". Unescaped, `abc_defghij` also matched a
+  // different video's `abc-defghij`, and the share was dropped as a duplicate
+  // of a row it has nothing to do with.
+  const { calls } = await call(
+    "ingest-shared-video",
+    { url: "https://www.youtube.com/watch?v=abc_defghij" },
+    adminIngest({
+      "/rest/v1/discover_videos": (request) =>
+        request.method === "GET" ? json(null) : json({ id: "dv-new" }, 201),
+    }),
+  );
+
+  const lookup = calls.find((u) => u.includes("discover_videos") && u.includes("source_url"));
+  assert(lookup, "expected a dedup lookup");
+  // The pattern carries the escape (%5C is a URL-encoded backslash), so the
+  // underscore is matched literally.
+  assert(
+    lookup!.includes("%5C_") || lookup!.includes("\\_"),
+    `expected the underscore to be escaped, got: ${lookup}`,
+  );
+});
+
 Deno.test("a failed pipeline kickoff marks the row failed rather than stranding it", async () => {
   const { status, body, requests } = await call(
     "ingest-shared-video",

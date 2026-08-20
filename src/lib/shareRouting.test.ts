@@ -121,9 +121,35 @@ describe("classifyShare", () => {
     });
   });
 
-  it("ignores file types nothing can process", () => {
-    expect(classifyShare({ ...base, files: [file("doc.pdf", "application/pdf")] })).toEqual({
-      action: "empty",
+  it("falls back to the extension when the share carries no MIME type", () => {
+    // Android share sheets deliver messaging-app voice notes and
+    // download-manager files with an empty `type`; MIME alone dropped them.
+    const voiceNote = file("voice-note.opus", "");
+    expect(classifyShare({ ...base, files: [voiceNote] })).toEqual({
+      action: "transcribe-file",
+      file: voiceNote,
+    });
+
+    const clip = file("clip.MP4", "");
+    expect(classifyShare({ ...base, files: [clip] })).toEqual({
+      action: "meme-file",
+      file: clip,
+    });
+
+    const shot = file("screenshot.HEIC", "");
+    expect(classifyShare({ ...base, files: [shot] })).toEqual({
+      action: "screen-image",
+      file: shot,
+    });
+  });
+
+  it("names a file type nothing can process rather than dropping it", () => {
+    const pdf = file("doc.pdf", "application/pdf");
+    // "empty" put the learner in front of a blank paste box, which reads as
+    // the share never having arrived. It arrived; we just can't open it.
+    expect(classifyShare({ ...base, files: [pdf] })).toEqual({
+      action: "file-unsupported",
+      file: pdf,
     });
   });
 });

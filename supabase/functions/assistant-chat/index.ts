@@ -195,8 +195,14 @@ GUIDELINES:
       // failed rewrite costs the next conversation a little context rather
       // than costing this one its reply.
       onComplete: (answer) => {
-        const assistantTurns = memory.turnsSeen +
-          messages.filter((m) => m.role === "assistant").length + 1;
+        // One answer, one turn. Counting the assistant messages already in
+        // `messages` re-counted the turns of this conversation that earlier
+        // requests had counted too, while the stored total only ever moved on
+        // a rewrite — so the gap never grew past the length of a single
+        // conversation, and a learner who asks one or two questions a session
+        // (exactly the case shouldRewrite is documented to serve) accumulated
+        // nothing, forever.
+        const assistantTurns = memory.turnsTotal + 1;
         const job = updateLearnerMemory({
           userId: cap.userId,
           dialect: resolvedDialect,

@@ -102,6 +102,11 @@ export function useOpenAIRealtime(opts: Options = {}) {
   // Set when the data channel opens; consumed (and cleared) by reportUsage so
   // a call is billed exactly once, and never billed if it failed to go live.
   const liveSinceRef = useRef<number | null>(null);
+  // call_id -> tool name, learned from the conversation item that announces
+  // the call. The GA arguments-done event names the tool itself; older shapes
+  // only name it on the item, and a call we cannot name is a call we cannot
+  // answer — which strands the model waiting mid-conversation.
+  const toolNamesRef = useRef<Map<string, string>>(new Map());
 
   // Buffers per item_id so deltas concat cleanly.
   const userBufRef = useRef<Map<string, string>>(new Map());
@@ -292,13 +297,36 @@ export function useOpenAIRealtime(opts: Options = {}) {
   const handleEvent = useCallback((evt: RealtimeEvent) => {
     const type = typeof evt.type === "string" ? evt.type : "";
 
+    // A function call is announced as a conversation item before its
+    // arguments finish streaming. Remember the name against its call_id so
+    // the arguments-done event can be answered even when it carries no name
+    // of its own.
+    if (type === "response.output_item.added" || type === "conversation.item.created") {
+      const item = (evt.item ?? {}) as Record<string, unknown>;
+      if (item.type === "function_call") {
+        const id = typeof item.call_id === "string" ? item.call_id : "";
+        const named = typeof item.name === "string" ? item.name : "";
+        if (id && named) toolNamesRef.current.set(id, named);
+      }
+      return;
+    }
+
     // Tool call. The GA event carries the name on the event itself; older
     // shapes only name it on the conversation item, so fall back to that.
     if (type === "response.function_call_arguments.done") {
       const callId = typeof evt.call_id === "string" ? evt.call_id : "";
-      const name = typeof evt.name === "string" ? evt.name : "";
+      const name = typeof evt.name === "string" && evt.name
+        ? evt.name
+        : toolNamesRef.current.get(callId) ?? "";
       const args = typeof evt.arguments === "string" ? evt.arguments : "";
-      if (callId && name) void runToolCall(callId, name, args);
+      if (callId && name) {
+        toolNamesRef.current.delete(callId);
+        void runToolCall(callId, name, args);
+      } else {
+        // Nothing to run and nothing to answer with. Say so — silence here
+        // looks identical to a tutor that simply stopped talking.
+        console.warn("[realtime] unnamed tool call, ignoring", { callId, type });
+      }
       return;
     }
 

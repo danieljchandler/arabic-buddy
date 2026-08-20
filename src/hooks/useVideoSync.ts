@@ -16,6 +16,9 @@ export function useVideoSync(
   const [activeWordIndex, setActiveWordIndex] = useState<number>(-1);
   const segmentsRef = useRef(segments);
   segmentsRef.current = segments;
+  // Tears down the current stop-at-end watcher (timeupdate listener +
+  // interval); null when nothing is being watched.
+  const stopAtEndCleanupRef = useRef<(() => void) | null>(null);
 
   /**
    * Seek the video to the start of a segment and play only that segment.
@@ -33,29 +36,45 @@ export function useVideoSync(
       const video = videoRef.current;
       const endTime = seg.end;
 
-      // Remove any previous stop-at-end listener before adding a new one
-      // by using a named function stored on the element.
-      const prev = (video as any).__stopAtEnd;
-      if (prev) video.removeEventListener('timeupdate', prev);
+      // Remove any previous stop-at-end watcher before adding a new one.
+      stopAtEndCleanupRef.current?.();
 
+      let intervalId: ReturnType<typeof setInterval> | null = null;
+      const cleanup = () => {
+        video.removeEventListener('timeupdate', stopAtEnd);
+        if (intervalId) {
+          clearInterval(intervalId);
+          intervalId = null;
+        }
+        stopAtEndCleanupRef.current = null;
+      };
       const stopAtEnd = () => {
         if (video.currentTime >= endTime) {
           video.pause();
-          video.removeEventListener('timeupdate', stopAtEnd);
-          (video as any).__stopAtEnd = null;
+          cleanup();
         }
       };
-      (video as any).__stopAtEnd = stopAtEnd;
+      stopAtEndCleanupRef.current = cleanup;
 
       video.currentTime = seg.start;
       video.addEventListener('timeupdate', stopAtEnd);
-      video.play().catch(() => {
-        video.removeEventListener('timeupdate', stopAtEnd);
-        (video as any).__stopAtEnd = null;
-      });
+      // `timeupdate` alone fires only every ~250ms, long enough for a segment
+      // to bleed the first syllable of the next one before pausing. Checking
+      // the media clock on a short interval closes the boundary to ~40ms.
+      intervalId = setInterval(stopAtEnd, 40);
+      video.play().catch(() => cleanup());
     },
     [videoRef],
   );
+
+  // The stop-at-end watcher is attached inside a click handler, not an
+  // effect, so nothing above would clear its interval when the component
+  // goes away mid-playback.
+  useEffect(() => {
+    return () => {
+      stopAtEndCleanupRef.current?.();
+    };
+  }, []);
 
   // Track active segment/word for UI highlighting
   useEffect(() => {

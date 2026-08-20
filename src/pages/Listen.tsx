@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Loader2, Sparkles, Mic, Headphones, Users, BookOpen, Play, Library, Plus } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
@@ -20,6 +20,8 @@ import {
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { useComprehensionMap } from "@/hooks/useComprehensionMap";
+import { ComprehensionBar } from "@/components/shared/ComprehensionBar";
 
 const FORMAT_META: Record<ListenFormat, { label: string; icon: any; blurb: string }> = {
   podcast: { label: "Podcast", icon: Headphones, blurb: "Two-host conversation" },
@@ -38,7 +40,21 @@ const Listen = () => {
   useDocumentTitle("Listen — Hakiya");
   const navigate = useNavigate();
   const { activeDialect } = useDialect();
+  // How much of each episode's script the learner already knows. The scripts
+  // are already in the cache — the list query selects them — so this is free.
+  const [justRightOnly, setJustRightOnly] = useState(false);
   const { data: episodes, isLoading } = useListenEpisodes();
+  const comprehensionMap = useComprehensionMap(episodes);
+  const shelfEpisodes = useMemo(() => {
+    if (!episodes) return episodes;
+    if (!justRightOnly || comprehensionMap.size === 0) return episodes;
+    // Same rule as Discover: the comprehensible-input sweet spot and above.
+    // Unmeasured episodes are excluded rather than guessed at.
+    return episodes.filter((ep) => {
+      const c = comprehensionMap.get(ep.id);
+      return c !== undefined && c.band !== "challenge";
+    });
+  }, [episodes, justRightOnly, comprehensionMap]);
   const generate = useGenerateListenEpisode();
 
   const [format, setFormat] = useState<ListenFormat>("podcast");
@@ -89,17 +105,37 @@ const Listen = () => {
           </TabsList>
 
           <TabsContent value="library" className="space-y-3 pt-4">
+            {comprehensionMap.size > 0 && (
+              <Button
+                variant={justRightOnly ? "default" : "outline"}
+                size="sm"
+                onClick={() => setJustRightOnly((v) => !v)}
+                aria-pressed={justRightOnly}
+                className="gap-1.5"
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                Just right for me
+              </Button>
+            )}
             {isLoading && (
               <div className="flex justify-center py-10"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div>
             )}
-            {!isLoading && (!episodes || episodes.length === 0) && (
+            {!isLoading && (!shelfEpisodes || shelfEpisodes.length === 0) && (
               <Card className="p-6 text-center space-y-2">
-                <p className="text-sm text-muted-foreground">No episodes yet in {activeDialect}.</p>
-                <p className="text-xs text-muted-foreground">Be the first — open the Create tab.</p>
+                <p className="text-sm text-muted-foreground">
+                  {justRightOnly
+                    ? "Nothing in your sweet spot yet."
+                    : `No episodes yet in ${activeDialect}.`}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {justRightOnly
+                    ? "Turn the filter off to see everything."
+                    : "Be the first — open the Create tab."}
+                </p>
               </Card>
             )}
             <div className="space-y-2">
-              {episodes?.map((ep) => {
+              {shelfEpisodes?.map((ep) => {
                 const Icon = FORMAT_META[ep.format].icon;
                 return (
                   <Link key={ep.id} to={`/listen/${ep.id}`} className="block">
@@ -109,6 +145,12 @@ const Listen = () => {
                         <h3 className="font-semibold leading-tight truncate" dir="rtl">{ep.title}</h3>
                         {ep.summary && (
                           <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{ep.summary}</p>
+                        )}
+                        {comprehensionMap.get(ep.id) && (
+                          <ComprehensionBar
+                            comprehension={comprehensionMap.get(ep.id)!}
+                            className="mt-2 mb-0"
+                          />
                         )}
                         <div className="flex gap-1.5 mt-2 flex-wrap">
                           <Badge variant="secondary" className="text-[10px]">{FORMAT_META[ep.format].label}</Badge>

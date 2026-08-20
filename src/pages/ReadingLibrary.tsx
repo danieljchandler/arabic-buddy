@@ -1,14 +1,17 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { AppShell } from '@/components/layout/AppShell';
 import { LoadingPanel } from '@/components/loading/LoadingPanel';
+import { useComprehensionMap } from '@/hooks/useComprehensionMap';
+import { ComprehensionBar } from '@/components/shared/ComprehensionBar';
+import { EmptyState } from '@/components/shared/EmptyState';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, BookOpen, Clock, Headphones } from 'lucide-react';
+import { Loader2, BookOpen, Clock, Headphones, Sparkles } from 'lucide-react';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import type { Database } from '@/integrations/supabase/types';
 
@@ -20,7 +23,11 @@ const usePublishedStories = (filters: { difficulty?: string; dialect?: string })
     queryFn: async () => {
       let query = supabase
         .from('authentic_stories')
-        .select('id, title, title_arabic, author, author_arabic, source_name, dialect, difficulty, duration_seconds, video_status, story_video_url, story_video_approved, created_at')
+        // body_dialect rides along so coverage can be computed client-side from
+        // the decks already in cache, the same way Discover ships transcripts.
+        // The library is curated and bounded; if it ever grows past a few
+        // hundred stories this wants a stored coverage column instead.
+        .select('id, title, title_arabic, author, author_arabic, source_name, dialect, difficulty, duration_seconds, video_status, story_video_url, story_video_approved, body_dialect, created_at')
         .eq('status', 'published')
         .order('created_at', { ascending: false });
 
@@ -33,7 +40,7 @@ const usePublishedStories = (filters: { difficulty?: string; dialect?: string })
 
       const { data, error } = await query;
       if (error) throw error;
-      return data as Pick<AuthenticStory, 'id' | 'title' | 'title_arabic' | 'author' | 'author_arabic' | 'source_name' | 'dialect' | 'difficulty' | 'duration_seconds' | 'video_status' | 'story_video_url' | 'story_video_approved' | 'created_at'>[];
+      return data as Pick<AuthenticStory, 'id' | 'title' | 'title_arabic' | 'author' | 'author_arabic' | 'source_name' | 'dialect' | 'difficulty' | 'duration_seconds' | 'video_status' | 'story_video_url' | 'story_video_approved' | 'body_dialect' | 'created_at'>[];
     },
   });
 
@@ -44,6 +51,18 @@ const ReadingLibrary = () => {
   const [dialect, setDialect] = useState('all');
 
   const { data: stories, isLoading } = usePublishedStories({ difficulty, dialect });
+  const comprehensionMap = useComprehensionMap(stories);
+  const [justRightOnly, setJustRightOnly] = useState(false);
+  const shelfStories = useMemo(() => {
+    if (!stories) return stories;
+    if (!justRightOnly || comprehensionMap.size === 0) return stories;
+    // Same rule as Discover and Listen: the sweet spot and above, with
+    // unmeasured stories excluded rather than guessed at.
+    return stories.filter((s) => {
+      const c = comprehensionMap.get(s.id);
+      return c !== undefined && c.band !== "challenge";
+    });
+  }, [stories, justRightOnly, comprehensionMap]);
 
   // duration_seconds is nullable in the DB, so accept null as well as undefined.
   const formatDuration = (seconds?: number | null) => {
@@ -90,14 +109,27 @@ const ReadingLibrary = () => {
               <SelectItem value="MSA">MSA</SelectItem>
             </SelectContent>
           </Select>
+
+          {comprehensionMap.size > 0 && (
+            <Button
+              variant={justRightOnly ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setJustRightOnly((v) => !v)}
+              aria-pressed={justRightOnly}
+              className="gap-1.5 self-center"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              Just right for me
+            </Button>
+          )}
         </div>
 
         {/* Stories Grid */}
         {isLoading ? (
           <LoadingPanel variant="inline" task="story" className="py-16" />
-        ) : stories && stories.length > 0 ? (
+        ) : shelfStories && shelfStories.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {stories.map((story) => (
+            {shelfStories.map((story) => (
               <Card
                 key={story.id}
                 className="p-4 cursor-pointer hover:shadow-card transition-shadow"
@@ -145,17 +177,33 @@ const ReadingLibrary = () => {
                   {story.source_name && (
                     <p className="text-xs text-muted-foreground">Source: {story.source_name}</p>
                   )}
+                  {comprehensionMap.get(story.id) && (
+                    <ComprehensionBar
+                      comprehension={comprehensionMap.get(story.id)!}
+                      className="mb-0 pt-1"
+                    />
+                  )}
                 </div>
                 </div>
               </Card>
             ))}
           </div>
         ) : (
-          <div className="text-center py-16">
-            <BookOpen className="h-16 w-16 text-muted-foreground/30 mx-auto mb-4" />
-            <h2 className="text-xl font-bold mb-2">No Stories Available</h2>
-            <p className="text-muted-foreground">Check back soon for authentic Arabic reading material</p>
-          </div>
+          <EmptyState
+            className="py-16"
+            title={justRightOnly ? 'Nothing in your sweet spot yet' : 'No stories available'}
+            body={
+              justRightOnly
+                ? 'No story here sits in your comfortable range right now. Turn the filter off to see everything.'
+                : 'Check back soon for authentic Arabic reading material.'
+            }
+          >
+            {justRightOnly && (
+              <Button variant="outline" onClick={() => setJustRightOnly(false)}>
+                Show all stories
+              </Button>
+            )}
+          </EmptyState>
         )}
       </div>
     </AppShell>

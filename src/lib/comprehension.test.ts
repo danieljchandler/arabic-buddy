@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   buildKnownTokenSet,
+  contentComprehension,
+  textComprehension,
   comprehensionBand,
   comprehensionBarClass,
   comprehensionLabel,
@@ -114,5 +116,59 @@ describe("the bands", () => {
       expect(comprehensionBarClass(band)).toMatch(/^bg-/);
       expect(comprehensionLabel(band).length).toBeGreaterThan(0);
     }
+  });
+});
+
+describe("prose bodies", () => {
+  // The Reading Library stores one Arabic string per story rather than the
+  // line array a transcript uses, and it must land on the same number.
+  const known = buildKnownTokenSet(["كبسه", "مطعم", "قهوه"]);
+
+  it("measures a story body the same way a transcript is measured", () => {
+    const body = "كبسه مطعم قهوه ".repeat(10);
+    const lines = Array.from({ length: 10 }, () => ({ arabic: "كبسه مطعم قهوه" }));
+
+    const fromText = textComprehension(body, known, "Gulf");
+    const fromLines = transcriptComprehension(lines, known, "Gulf");
+
+    expect(fromText).not.toBeNull();
+    expect(fromText!.coverage).toBe(fromLines!.coverage);
+    expect(fromText!.totalTokens).toBe(fromLines!.totalTokens);
+  });
+
+  it("counts the unknown words in a body", () => {
+    const body = "كبسه مطعم قهوه غامض ".repeat(10);
+    const result = textComprehension(body, known, "Gulf");
+    expect(result!.unknownTokens).toBe(10);
+    expect(result!.coverage).toBeCloseTo(0.75, 5);
+  });
+
+  it("declines to score a body with nothing usable in it", () => {
+    expect(textComprehension(null, known, "Gulf")).toBeNull();
+    expect(textComprehension("", known, "Gulf")).toBeNull();
+    expect(textComprehension("   ", known, "Gulf")).toBeNull();
+    // Under MIN_TOKENS a percentage is noise, not signal.
+    expect(textComprehension("كبسه مطعم", known, "Gulf")).toBeNull();
+  });
+});
+
+describe("contentComprehension dispatch", () => {
+  const known = buildKnownTokenSet(["كبسه", "مطعم", "قهوه"]);
+
+  it("routes a string to the prose path and an array to the line path", () => {
+    const body = "كبسه مطعم قهوه ".repeat(10);
+    const lines = Array.from({ length: 10 }, () => ({ arabic: "كبسه مطعم قهوه" }));
+
+    expect(contentComprehension(body, known, "Gulf")).toEqual(
+      textComprehension(body, known, "Gulf"),
+    );
+    expect(contentComprehension(lines, known, "Gulf")).toEqual(
+      transcriptComprehension(lines, known, "Gulf"),
+    );
+  });
+
+  it("returns null for anything it cannot read", () => {
+    expect(contentComprehension(undefined, known, "Gulf")).toBeNull();
+    expect(contentComprehension(42, known, "Gulf")).toBeNull();
   });
 });

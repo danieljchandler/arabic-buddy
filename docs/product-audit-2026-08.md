@@ -1,5 +1,33 @@
 # Product & AI stack review — August 2026
 
+> **Status, re-verified against the code on 2026-08-20.** Most of this document
+> has been implemented since it was written, and reading it as a to-do list has
+> already sent work in the wrong direction three times. Verified state:
+>
+> | Item | Status | Evidence |
+> | --- | --- | --- |
+> | A1 Voice metering | **Done** | `_shared/voiceBudget.ts`, `VOICE_MONTHLY_SECONDS` per tier, usage recorded on session close |
+> | A2 Tier-aware caps | **Done** | `getSubscriptionTier()` in `_shared/usageCap.ts`, per-tier allowances |
+> | A3 Token & cost telemetry | **Done** | `20260812101000_llm_usage_cost_columns.sql`, `_shared/llmUsageLogger.ts`, written by `aiBrain` |
+> | A4 Prompt caching | **Done** | `cache_control` breakpoints in `_shared/aiBrain.ts` |
+> | B1 Embeddings | **Done** | `content_embeddings`, `_shared/contentRetrieval.ts` |
+> | B2 Offline eval harness | **Done** | frozen golden set (`_test/eval/golden/*.jsonl`), CI gate in `eval_golden_test.ts` pinning detector and set against each other, live model eval in `scripts/eval-dialect-live.ts`, flywheel seeder. Persisted run history would be an addition, not a gap |
+> | B3 Nightly pre-generation | **Done** | `pregenerate-daily` |
+> | C1 Comprehension shelf | **Partial** | Shipping on Discover (`useComprehensionMap`, "Just right for me"); **not** on Listen or Reading Library |
+> | C2 Personalised FSRS | **Partial** | Retention dial (`profiles.desired_retention` → `useDesiredRetention` → every call site) and load-balancing fuzz both shipped; **per-user parameter optimisation still open** — `spacedRepetition.ts` `W` is hardcoded |
+> | C3 Written production | **Done** | `WritingPractice.tsx`, Arabic keyboard |
+> | C4 Recurring placement | **Done** | `placement_history` table written server-side by `placement-quiz`, plotted by `components/social/LevelJourneyCard.tsx` with a 90-day re-check nudge |
+> | D1 Annual plan | **Done** | `Pricing.tsx` cadence toggle |
+> | D2 Native feedback credits | **Done** | credit packs, refund-on-dismiss trigger |
+> | D3 Proficiency certification | **Open** | nothing in the codebase |
+> | D4 Referral loop | **Done** | `components/social/ReferralCard.tsx` |
+>
+> **Genuinely open:** per-user FSRS parameter optimisation (C2) and certification
+> (D3). That is all of it — comprehension coverage on Listen and the Reading
+> Library (C1) was the last gap closed. Verify against the code before treating
+> any line of the original text below as work still to do. Everything below this line is the original August
+> text, left unedited as the record of what was true then.
+
 A code-grounded review of where Hakiya should invest next. Scope: 65 learner
 pages, 87 edge functions, 139 migrations, 3 dialects.
 

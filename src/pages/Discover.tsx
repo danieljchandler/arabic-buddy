@@ -20,11 +20,8 @@ import { useDialect } from "@/contexts/DialectContext";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserLevel } from "@/hooks/useUserLevel";
 import { useComprehensionMap } from "@/hooks/useComprehensionMap";
-import {
-  comprehensionBarClass,
-  comprehensionLabel,
-  type Comprehension,
-} from "@/lib/comprehension";
+import { type Comprehension } from "@/lib/comprehension";
+import { ComprehensionBar } from "@/components/shared/ComprehensionBar";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { EmptyState } from "@/components/shared/EmptyState";
 import {
@@ -112,20 +109,7 @@ function VideoCard({ video, onClick, feed, comprehension }: CardProps) {
         )}
         {/* Browse-tab coverage: measured over the WHOLE transcript against the
             learner's real decks, unlike the feed bar's curated-vocab sample. */}
-        {comprehension && (
-          <div className="mb-2">
-            <div className="mb-0.5 flex items-center justify-between text-[10px] text-muted-foreground">
-              <span>{comprehensionLabel(comprehension.band)}</span>
-              <span>{Math.round(comprehension.coverage * 100)}% words you know</span>
-            </div>
-            <div className="h-1 w-full bg-muted rounded-full overflow-hidden">
-              <div
-                className={cn("h-full transition-all", comprehensionBarClass(comprehension.band))}
-                style={{ width: `${Math.max(6, Math.round(comprehension.coverage * 100))}%` }}
-              />
-            </div>
-          </div>
-        )}
+        {comprehension && <ComprehensionBar comprehension={comprehension} />}
         <div className="flex gap-1.5 flex-wrap">
           <Badge variant="outline" className="text-xs">{video.dialect}</Badge>
           <Badge variant="outline" className={cn("text-xs", difficultyColor(video.difficulty))}>

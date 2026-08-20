@@ -86,6 +86,30 @@ function isKnown(token: string, known: Set<string>, functionWords: Set<string>):
   return candidates.some((c) => known.has(c) || functionWords.has(c));
 }
 
+/** Count tokens in one run of Arabic against the known set. */
+function tally(
+  text: string,
+  known: Set<string>,
+  functionWords: Set<string>,
+  counts: { total: number; unknown: number },
+): void {
+  for (const token of tokenizeArabic(text)) {
+    counts.total++;
+    if (!isKnown(token, known, functionWords)) counts.unknown++;
+  }
+}
+
+function summarize(counts: { total: number; unknown: number }): Comprehension | null {
+  if (counts.total < MIN_TOKENS) return null;
+  const coverage = (counts.total - counts.unknown) / counts.total;
+  return {
+    coverage,
+    band: comprehensionBand(coverage),
+    totalTokens: counts.total,
+    unknownTokens: counts.unknown,
+  };
+}
+
 /**
  * Coverage of a video's transcript lines against a known-token set. Returns
  * null when there is no usable transcript — a card without a bar beats a bar
@@ -100,20 +124,46 @@ export function transcriptComprehension(
   const functionWords: Set<string> =
     ALWAYS_ALLOWED[dialect ?? ""] ?? ALWAYS_ALLOWED.Gulf;
 
-  let total = 0;
-  let unknown = 0;
+  const counts = { total: 0, unknown: 0 };
   for (const raw of lines) {
     const arabic = (raw as { arabic?: unknown } | null)?.arabic;
     if (typeof arabic !== "string") continue;
-    for (const token of tokenizeArabic(arabic)) {
-      total++;
-      if (!isKnown(token, known, functionWords)) unknown++;
-    }
+    tally(arabic, known, functionWords, counts);
   }
-  if (total < MIN_TOKENS) return null;
+  return summarize(counts);
+}
 
-  const coverage = (total - unknown) / total;
-  return { coverage, band: comprehensionBand(coverage), totalTokens: total, unknownTokens: unknown };
+/**
+ * The same measure over a plain prose body — the Reading Library's stories,
+ * which store one Arabic string rather than a line array.
+ */
+export function textComprehension(
+  text: unknown,
+  known: Set<string>,
+  dialect: string | null | undefined,
+): Comprehension | null {
+  if (typeof text !== "string" || !text.trim()) return null;
+  const functionWords: Set<string> =
+    ALWAYS_ALLOWED[dialect ?? ""] ?? ALWAYS_ALLOWED.Gulf;
+
+  const counts = { total: 0, unknown: 0 };
+  tally(text, known, functionWords, counts);
+  return summarize(counts);
+}
+
+/**
+ * Coverage of whatever a piece of content stores its Arabic in — a line array
+ * (Discover transcripts, Listen scripts) or a prose body (Reading Library).
+ * One entry point so every surface measures the same way and a new content
+ * type only has to say where its text lives.
+ */
+export function contentComprehension(
+  source: unknown,
+  known: Set<string>,
+  dialect: string | null | undefined,
+): Comprehension | null {
+  if (typeof source === "string") return textComprehension(source, known, dialect);
+  return transcriptComprehension(source, known, dialect);
 }
 
 /**

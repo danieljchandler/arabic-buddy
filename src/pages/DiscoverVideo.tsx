@@ -636,6 +636,8 @@ const DiscoverVideo = ({
   // Timer-based sync for non-YouTube
   const [timerPlaying, setTimerPlaying] = useState(false);
   const [timerMs, setTimerMs] = useState(0);
+  const timerMsRef = useRef(0);
+  timerMsRef.current = timerMs;
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const playerRef = useRef<any>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -660,6 +662,21 @@ const DiscoverVideo = ({
   const phraseEndMsRef = useRef<number | null>(null);
   const phraseStartMsRef = useRef<number | null>(null);
   const isSeekingRef = useRef(false);
+  // Whether the previous tick of the phrase-mode effects saw playback running —
+  // lets a fresh "play" be told apart from playback that was already going.
+  const phraseWasPlayingRef = useRef(false);
+  // Safari only unlocks an <audio> element after a play() issued inside a real
+  // user-gesture handler, so the first-ever start must not be deferred.
+  const tiktokAudioEverPlayedRef = useRef(false);
+  // A scheduled fallback start of the hidden audio while we wait for the muted
+  // TikTok frame to confirm it is playing (see startTikTokPlayback).
+  const pendingAudioStartRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cancelPendingAudioStart = useCallback(() => {
+    if (pendingAudioStartRef.current) {
+      clearTimeout(pendingAudioStartRef.current);
+      pendingAudioStartRef.current = null;
+    }
+  }, []);
   const shadowPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lineRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const transcriptContainerRef = useRef<HTMLDivElement>(null);
@@ -729,11 +746,14 @@ const DiscoverVideo = ({
               // Apply current playback speed when video starts
               playerRef.current?.setPlaybackRate?.(playbackSpeedRef.current);
               if (intervalRef.current) clearInterval(intervalRef.current);
+              // 100ms keeps the subtitle highlight tight; anything precise
+              // (phrase-end pauses) reads the player clock directly instead
+              // of waiting on this state.
               intervalRef.current = setInterval(() => {
                 if (playerRef.current?.getCurrentTime) {
                   setCurrentTimeMs(playerRef.current.getCurrentTime() * 1000);
                 }
-              }, 200);
+              }, 100);
             } else if (event.data === 3) {
               // Buffering — do NOT clear isSeekingRef here, as this fires
               // during seeks. The seek is still in progress; let it complete.
@@ -765,33 +785,6 @@ const DiscoverVideo = ({
       playerRef.current.setPlaybackRate(playbackSpeed);
     }
   }, [playbackSpeed]);
-
-  const stopTikTokAudio = useCallback(() => {
-    const audio = tiktokAudioRef.current;
-    if (!audio) return;
-    audio.pause();
-    setIsTiktokAudioPlaying(false);
-  }, []);
-
-  const playTikTokAudio = useCallback((startMs?: number) => {
-    const audio = tiktokAudioRef.current;
-    if (!audio || !tiktokAudioReady) return;
-    if (typeof startMs === "number") {
-      audio.currentTime = Math.max(0, startMs / 1000);
-    }
-    audio.play().catch(() => toast.error("Audio playback failed"));
-  }, [tiktokAudioReady]);
-
-  const handleSeek = useCallback((ms: number) => {
-    if (playerRef.current?.seekTo) {
-      playerRef.current.seekTo(ms / 1000, true);
-      playerRef.current.playVideo?.();
-      return;
-    }
-    if (tiktokAudioRef.current && tiktokAudioReady) {
-      playTikTokAudio(ms);
-    }
-  }, [playTikTokAudio, tiktokAudioReady]);
 
   // Resolve hidden audio source for TikTok videos (from video-audio bucket)
   useEffect(() => {
@@ -928,39 +921,6 @@ const DiscoverVideo = ({
   const isTikTok = video?.platform === "tiktok";
   const horizontalVideoMaxHeightClass = "max-h-[min(45vh,calc(100dvh-15rem))]";
   const verticalVideoMaxHeightClass = "max-h-[min(72vh,calc(100dvh-13rem))]";
-
-  const playLineByIndex = useCallback(
-    (index: number) => {
-      if (!lines.length) return;
-      const clampedIndex = Math.max(0, Math.min(index, lines.length - 1));
-      const targetLine = lines[clampedIndex];
-      if (!targetLine) return;
-
-      setLineControlIndex(clampedIndex);
-      setManualLineIndex(clampedIndex);
-
-      // Track the target line's start/end time for phrase-mode pause
-      phraseStartMsRef.current = targetLine.startMs ?? null;
-      phraseEndMsRef.current = targetLine.endMs ?? null;
-
-      if (isYouTube && targetLine.startMs !== undefined) {
-        isSeekingRef.current = true;
-        setTimeout(() => { isSeekingRef.current = false; }, 2000);
-        handleSeek(targetLine.startMs);
-      } else if (isTikTok && targetLine.startMs !== undefined) {
-        if (tiktokAudioReady && tiktokAudioRef.current) {
-          isSeekingRef.current = true;
-          setTimeout(() => { isSeekingRef.current = false; }, 1500);
-          tiktokAudioRef.current.currentTime = targetLine.startMs / 1000;
-          tiktokAudioRef.current.play().catch(() => {});
-        } else {
-          // Fallback: legacy TikTok without uploaded source audio
-          setTimerMs(targetLine.startMs);
-        }
-      }
-    },
-    [handleSeek, isYouTube, isTikTok, lines, tiktokAudioReady],
-  );
 
   useEffect(() => {
     return () => {
@@ -1194,6 +1154,7 @@ const DiscoverVideo = ({
     if (isYouTube) {
       playerRef.current?.pauseVideo?.();
     } else if (isTikTok) {
+      cancelPendingAudioStart();
       tiktokAudioRef.current?.pause();
     }
     const currentLine = lines[lineControlIndex];
@@ -1201,34 +1162,55 @@ const DiscoverVideo = ({
       phraseStartMsRef.current = currentLine.startMs ?? null;
       phraseEndMsRef.current = currentLine.endMs ?? null;
     }
-  }, [playbackMode, isYouTube, isTikTok]); // intentionally exclude lines/lineControlIndex — only fire on mode switch
+  }, [playbackMode, isYouTube, isTikTok, cancelPendingAudioStart]); // intentionally exclude lines/lineControlIndex — only fire on mode switch
 
-  // Phrase-end auto-pause for both YouTube and TikTok (hidden audio)
+  // Phrase-end auto-pause, on a fine-grained clock. This used to ride
+  // currentTimeMs state, which advances only as fast as `timeupdate` fires
+  // (~250ms) or the YouTube poll ticked — every phrase bled a syllable of the
+  // next line before pausing. Reading the real media clock on a 40ms interval
+  // stops within a frame or two of the boundary.
   useEffect(() => {
     if (playbackMode !== "line") return;
-    const isPlaying = isYouTube ? isYouTubePlaying : (isTikTok && isTiktokAudioPlaying);
+    const usingTimer = isTikTok && !tiktokAudioReady;
+    const isPlaying = isYouTube
+      ? isYouTubePlaying
+      : isTikTok
+        ? (usingTimer ? timerPlaying : isTiktokAudioPlaying)
+        : false;
     if (!isPlaying) return;
 
-    const startMs = phraseStartMsRef.current;
-    const endMs = phraseEndMsRef.current;
-    if (endMs == null) return;
+    const readNowMs = () => {
+      if (isYouTube) return (playerRef.current?.getCurrentTime?.() ?? 0) * 1000;
+      if (usingTimer) return timerMsRef.current;
+      return (tiktokAudioRef.current?.currentTime ?? 0) * 1000;
+    };
 
-    if (isSeekingRef.current) {
-      if (startMs != null && currentTimeMs >= startMs && currentTimeMs < endMs) {
-        isSeekingRef.current = false;
-      }
-      return;
-    }
+    const id = setInterval(() => {
+      const endMs = phraseEndMsRef.current;
+      if (endMs == null) return;
+      const nowMs = readNowMs();
 
-    if (currentTimeMs >= endMs) {
-      if (isYouTube) {
-        playerRef.current?.pauseVideo?.();
-        setIsYouTubePlaying(false);
-      } else if (isTikTok) {
-        tiktokAudioRef.current?.pause();
+      if (isSeekingRef.current) {
+        const startMs = phraseStartMsRef.current;
+        if (startMs != null && nowMs >= startMs && nowMs < endMs) {
+          isSeekingRef.current = false;
+        }
+        return;
       }
-    }
-  }, [currentTimeMs, isYouTube, isTikTok, isYouTubePlaying, isTiktokAudioPlaying, playbackMode]);
+
+      if (nowMs >= endMs) {
+        if (isYouTube) {
+          playerRef.current?.pauseVideo?.();
+          setIsYouTubePlaying(false);
+        } else if (usingTimer) {
+          setTimerPlaying(false);
+        } else {
+          tiktokAudioRef.current?.pause();
+        }
+      }
+    }, 40);
+    return () => clearInterval(id);
+  }, [playbackMode, isYouTube, isTikTok, isYouTubePlaying, isTiktokAudioPlaying, tiktokAudioReady, timerPlaying]);
 
   // Auto-scroll to active line
   useEffect(() => {
@@ -1423,6 +1405,110 @@ const DiscoverVideo = ({
     }, 300);
   }, [sendTikTokCommand, resolvedTikTokVideoId]);
 
+  /**
+   * Start the hidden audio (the master clock) and the muted TikTok frame
+   * together, video first.
+   *
+   * Seeking the local <audio> is near-instant while the cross-origin iframe
+   * takes several hundred ms to seek and start — so starting the audio first
+   * put the sound ahead of the picture on every phrase jump. When the frame is
+   * controllable and currently paused, drive the VIDEO first and hold the
+   * audio: the moment the player confirms "playing", the message listener
+   * below sees the paused audio and starts it (the same path that handles taps
+   * inside the iframe). A watchdog starts the audio anyway if the frame never
+   * confirms, so sound is never hostage to the iframe.
+   */
+  const startTikTokPlayback = useCallback((startMs?: number) => {
+    const audio = tiktokAudioRef.current;
+    if (!audio || !tiktokAudioReady) return;
+    cancelPendingAudioStart();
+    if (typeof startMs === "number") {
+      audio.currentTime = Math.max(0, startMs / 1000);
+    }
+    const videoIsPlaying = tiktokObservedStateRef.current === 1;
+    const canDeferAudio =
+      tiktokAudioEverPlayedRef.current && // Safari: first play must ride the gesture
+      !!resolvedTikTokVideoId &&
+      tiktokPrimedRef.current;
+    if (videoIsPlaying || !canDeferAudio) {
+      // Audio-first: either the frame is already rolling (the state listener
+      // re-aligns it once on the next playing tick) or we can't defer safely.
+      audio.play().catch(() => toast.error("Audio playback failed"));
+      return;
+    }
+    ensureTikTokVideoPlaying(true);
+    pendingAudioStartRef.current = setTimeout(() => {
+      pendingAudioStartRef.current = null;
+      if (audio.paused) audio.play().catch(() => {});
+    }, 1500);
+  }, [tiktokAudioReady, resolvedTikTokVideoId, ensureTikTokVideoPlaying, cancelPendingAudioStart]);
+
+  const handleSeek = useCallback((ms: number) => {
+    if (playerRef.current?.seekTo) {
+      playerRef.current.seekTo(ms / 1000, true);
+      playerRef.current.playVideo?.();
+      return;
+    }
+    if (tiktokAudioRef.current && tiktokAudioReady) {
+      startTikTokPlayback(ms);
+    }
+  }, [startTikTokPlayback, tiktokAudioReady]);
+
+  const playLineByIndex = useCallback(
+    (index: number) => {
+      if (!lines.length) return;
+      const clampedIndex = Math.max(0, Math.min(index, lines.length - 1));
+      const targetLine = lines[clampedIndex];
+      if (!targetLine) return;
+
+      setLineControlIndex(clampedIndex);
+      setManualLineIndex(clampedIndex);
+
+      // Track the target line's start/end time for phrase-mode pause
+      phraseStartMsRef.current = targetLine.startMs ?? null;
+      phraseEndMsRef.current = targetLine.endMs ?? null;
+
+      if (isYouTube && targetLine.startMs !== undefined) {
+        isSeekingRef.current = true;
+        setTimeout(() => { isSeekingRef.current = false; }, 2000);
+        handleSeek(targetLine.startMs);
+      } else if (isTikTok && targetLine.startMs !== undefined) {
+        if (tiktokAudioReady && tiktokAudioRef.current) {
+          isSeekingRef.current = true;
+          setTimeout(() => { isSeekingRef.current = false; }, 1500);
+          startTikTokPlayback(targetLine.startMs);
+        } else {
+          // Legacy TikTok without uploaded source audio: run the manual timer
+          // from this line so phrase mode still plays and auto-pauses.
+          setTimerMs(targetLine.startMs);
+          setTimerPlaying(true);
+        }
+      }
+    },
+    [handleSeek, startTikTokPlayback, isYouTube, isTikTok, lines, tiktokAudioReady],
+  );
+
+  // Pressing play again after a phrase auto-paused used to be a dead button:
+  // playback resumed exactly AT the stored phrase end, and the stop logic
+  // paused it again on the next tick. Treat a fresh start at/after the phrase
+  // boundary as "play this phrase again" instead — this covers the main play
+  // button, taps inside the TikTok/YouTube frame, everything.
+  useEffect(() => {
+    const isPlaying = isYouTube ? isYouTubePlaying : (isTikTok && isTiktokAudioPlaying);
+    const wasPlaying = phraseWasPlayingRef.current;
+    phraseWasPlayingRef.current = isPlaying;
+    if (playbackMode !== "line" || !isPlaying || wasPlaying) return;
+    if (isSeekingRef.current) return;
+    const endMs = phraseEndMsRef.current;
+    if (endMs == null) return;
+    const nowMs = isYouTube
+      ? (playerRef.current?.getCurrentTime?.() ?? 0) * 1000
+      : (tiktokAudioRef.current?.currentTime ?? 0) * 1000;
+    if (nowMs >= endMs - 50) {
+      playLineByIndex(lineControlIndex);
+    }
+  }, [isYouTubePlaying, isTiktokAudioPlaying, playbackMode, isYouTube, isTikTok, lineControlIndex, playLineByIndex]);
+
   // Stop any pending retry loop when the video changes or the page unmounts,
   // so a stray timer never posts commands to a torn-down iframe.
   useEffect(() => {
@@ -1431,12 +1517,13 @@ const DiscoverVideo = ({
     tiktokMountedAtRef.current = Date.now();
     tiktokAlignedRef.current = false;
     return () => {
+      cancelPendingAudioStart();
       if (tiktokVideoSyncTimerRef.current) {
         clearInterval(tiktokVideoSyncTimerRef.current);
         tiktokVideoSyncTimerRef.current = null;
       }
     };
-  }, [video?.id]);
+  }, [video?.id, cancelPendingAudioStart]);
 
   // Listen for TikTok player state changes so pressing play/pause INSIDE the
   // TikTok iframe also drives our hidden audio (and therefore the transcript
@@ -1491,9 +1578,11 @@ const DiscoverVideo = ({
           // Mirror the player's real state onto the hidden audio (master clock).
           if (state === 2) {
             tiktokAlignedRef.current = false; // real pause — next play re-aligns
+            cancelPendingAudioStart();
             if (!audio.paused) audio.pause();
           } else if (state === 0) {
             tiktokAlignedRef.current = false;
+            cancelPendingAudioStart();
             audio.pause();
           } else if (startedPlaying) {
             if (audio.paused) {
@@ -1514,6 +1603,7 @@ const DiscoverVideo = ({
         }
         case "onPause":
         case "pause":
+          cancelPendingAudioStart();
           if (audio && !audio.paused) audio.pause();
           break;
         case "onCurrentTime":
@@ -1530,7 +1620,7 @@ const DiscoverVideo = ({
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [isTikTok, tiktokIframeUrl, tiktokAudioReady, sendTikTokCommand]);
+  }, [isTikTok, tiktokIframeUrl, tiktokAudioReady, sendTikTokCommand, cancelPendingAudioStart]);
 
   // Keep the TikTok iframe visual-only. Sound is driven exclusively by our
   // hidden <audio> element via the extracted source track. (The legacy
@@ -1716,7 +1806,12 @@ const DiscoverVideo = ({
               sendTikTokCommand("mute");
             }}
             onTimeUpdate={(e) => setCurrentTimeMs((e.currentTarget.currentTime || 0) * 1000)}
-            onPlay={() => { setIsTiktokAudioPlaying(true); ensureTikTokVideoPlaying(true); }}
+            onPlay={() => {
+              tiktokAudioEverPlayedRef.current = true;
+              cancelPendingAudioStart();
+              setIsTiktokAudioPlaying(true);
+              ensureTikTokVideoPlaying(true);
+            }}
             onPause={() => { setIsTiktokAudioPlaying(false); ensureTikTokVideoPlaying(false); }}
             onSeeked={(e) => { sendTikTokCommand("mute"); sendTikTokCommand("seekTo", e.currentTarget.currentTime); }}
             onEnded={() => { setIsTiktokAudioPlaying(false); sendTikTokCommand("pause"); }}
@@ -1730,20 +1825,25 @@ const DiscoverVideo = ({
                 onClick={() => {
                   const audio = tiktokAudioRef.current;
                   if (!audio) return;
-                  // Drive the video directly from the click too (rides the real
-                  // user gesture, in addition to the audio onPlay/onPause path).
                   if (isTiktokAudioPlaying) {
+                    cancelPendingAudioStart();
                     audio.pause();
                     ensureTikTokVideoPlaying(false);
+                  } else if (playbackMode === "line") {
+                    // Phrase mode: same action as the phrase button — play the
+                    // current line from its start. Resuming from wherever the
+                    // clock stopped (usually exactly ON the phrase boundary)
+                    // is what made this button look dead: the phrase-end stop
+                    // paused it again on the very next tick.
+                    playLineByIndex(lineControlIndex);
                   } else {
-                    audio.play().catch(() => toast.error("Audio playback failed"));
-                    ensureTikTokVideoPlaying(true);
+                    startTikTokPlayback();
                   }
                 }}
                 disabled={!tiktokAudioReady}
               >
                 {isTiktokAudioPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-                {isTiktokAudioPlaying ? "Pause" : "Play"}
+                {isTiktokAudioPlaying ? "Pause" : playbackMode === "line" ? "Play phrase" : "Play"}
               </Button>
               <span className="text-xs text-muted-foreground tabular-nums">
                 {Math.floor(currentTimeMs / 1000)}s

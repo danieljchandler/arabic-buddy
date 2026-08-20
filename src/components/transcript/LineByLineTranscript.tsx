@@ -760,6 +760,20 @@ export const LineByLineTranscript = ({
   const [internalCurrentTimeMs, setInternalCurrentTimeMs] = useState<number>(0);
    const audioRef = useRef<HTMLAudioElement | null>(null);
   const lineEndListenerRef = useRef<(() => void) | null>(null);
+  const lineEndTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // One line's stop-at-end watcher: a timeupdate listener plus a short
+  // interval sharing the same check. Both come off together.
+  const clearLineEndWatch = useCallback(() => {
+    if (audioRef.current && lineEndListenerRef.current) {
+      audioRef.current.removeEventListener('timeupdate', lineEndListenerRef.current);
+    }
+    lineEndListenerRef.current = null;
+    if (lineEndTimerRef.current) {
+      clearInterval(lineEndTimerRef.current);
+      lineEndTimerRef.current = null;
+    }
+  }, []);
  
    useEffect(() => {
      if (audioUrl && !audioRef.current) {
@@ -773,10 +787,7 @@ export const LineByLineTranscript = ({
      }
      return () => {
        if (audioRef.current) {
-         if (lineEndListenerRef.current) {
-           audioRef.current.removeEventListener('timeupdate', lineEndListenerRef.current);
-           lineEndListenerRef.current = null;
-         }
+         clearLineEndWatch();
          audioRef.current.pause();
          // Detach source so the orphaned element stops decoding/playing
          audioRef.current.src = '';
@@ -784,7 +795,7 @@ export const LineByLineTranscript = ({
          audioRef.current = null;
        }
      };
-   }, [audioUrl]);
+   }, [audioUrl, clearLineEndWatch]);
  
    useEffect(() => {
      if (audioRef.current && audioUrl) audioRef.current.src = audioUrl;
@@ -794,33 +805,32 @@ export const LineByLineTranscript = ({
 
   const handlePlayLine = (line: TranscriptLine) => {
     if (!audioRef.current || !audioUrl) return;
-    // Clean up any previous line-end listener
-    if (lineEndListenerRef.current) {
-      audioRef.current.removeEventListener('timeupdate', lineEndListenerRef.current);
-      lineEndListenerRef.current = null;
-    }
+    // Clean up any previous line-end watcher
+    clearLineEndWatch();
     if (activeLineId === line.id && isPlaying) { audioRef.current.pause(); return; }
-    // Always pause and reset before starting a new line to prevent overlapping playback
+    // Always pause before starting a new line to prevent overlapping playback
     audioRef.current.pause();
-    audioRef.current.currentTime = 0;
     setActiveLineId(line.id);
     if (line.startMs !== undefined && line.endMs !== undefined) {
       const endSec = line.endMs / 1000;
-      const onTimeUpdate = () => {
+      const checkLineEnd = () => {
         if (!audioRef.current) return;
         if (audioRef.current.currentTime >= endSec) {
           audioRef.current.pause();
           setIsPlaying(false);
-          if (lineEndListenerRef.current) {
-            audioRef.current.removeEventListener('timeupdate', lineEndListenerRef.current);
-          }
-          lineEndListenerRef.current = null;
+          clearLineEndWatch();
         }
       };
-      lineEndListenerRef.current = onTimeUpdate;
-      audioRef.current.addEventListener('timeupdate', onTimeUpdate);
+      lineEndListenerRef.current = checkLineEnd;
+      audioRef.current.addEventListener('timeupdate', checkLineEnd);
+      // `timeupdate` alone fires only every ~250ms — long enough to bleed the
+      // first word of the next line. The interval closes that to ~40ms.
+      lineEndTimerRef.current = setInterval(checkLineEnd, 40);
       audioRef.current.currentTime = line.startMs / 1000;
-      audioRef.current.play().catch(console.error);
+      audioRef.current.play().catch((err) => {
+        console.error(err);
+        clearLineEndWatch();
+      });
     } else {
       audioRef.current.currentTime = 0;
       audioRef.current.play().catch(console.error);

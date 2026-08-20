@@ -112,13 +112,34 @@ const Feed = () => {
     }
   }, []);
 
+  /** The clip an entry stands for, if it stands for one. */
+  const clipOf = (state: unknown): string | null => {
+    const id = (state as { hakiyaClip?: unknown } | null)?.hakiyaClip;
+    return typeof id === "string" && id ? id : null;
+  };
+
   useEffect(() => {
-    const onPopState = () => {
-      pushedHistory.current = false;
-      setOpenVideoId(null);
+    const onPopState = (e: PopStateEvent) => {
+      // Landing back *on* a clip entry — the learner opened a clip, followed a
+      // link out of it, and pressed back. The entry says a clip was open, so
+      // reopen it. Treating every pop as a close left that entry dead: back
+      // returned to a feed with no overlay and had to be pressed twice.
+      const clipId = clipOf(e.state);
+      pushedHistory.current = clipId !== null;
+      setOpenVideoId(clipId);
     };
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
+  }, []);
+
+  // Same restoration on mount, for the entry the learner returns to after the
+  // feed has unmounted entirely.
+  useEffect(() => {
+    const clipId = clipOf(window.history.state);
+    if (clipId) {
+      pushedHistory.current = true;
+      setOpenVideoId(clipId);
+    }
   }, []);
 
   useEffect(() => {

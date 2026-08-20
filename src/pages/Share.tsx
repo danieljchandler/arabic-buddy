@@ -212,6 +212,12 @@ const Share = () => {
         case "screen-image":
           await screenContent({ imageFile: route.file });
           break;
+        case "file-unsupported":
+          setPhase({
+            name: "manual",
+            note: `${route.file.name || "That file"} isn't a kind we can open — share audio, video or an image, or paste the text below.`,
+          });
+          break;
         case "empty":
           setPhase({ name: "manual", note: null });
           break;
@@ -385,6 +391,11 @@ const Share = () => {
           <>
             <Card>
               <CardContent className="p-4 space-y-3">
+                {phase.note && (
+                  <p className="rounded-xl bg-muted px-3 py-2 text-sm text-foreground">
+                    {phase.note}
+                  </p>
+                )}
                 <p className="text-sm text-muted-foreground">
                   Paste or share Arabic text, a link, a voice note, or a screenshot — it gets routed
                   to the right tool automatically.

@@ -33,6 +33,7 @@ describe("parseMemory", () => {
       summary: "Prefers examples before rules.",
       openQuestions: ["why is كان used here?"],
       turnsSeen: 12,
+      turnsTotal: 12,
     });
   });
 
@@ -81,14 +82,14 @@ describe("clampMemory", () => {
   });
 
   it("survives a summarizer that returned nothing usable", () => {
-    expect(clampMemory({}, 3)).toEqual({ summary: "", openQuestions: [], turnsSeen: 3 });
+    expect(clampMemory({}, 3)).toEqual({ summary: "", openQuestions: [], turnsSeen: 3, turnsTotal: 3 });
     expect(clampMemory({ summary: 42 as unknown as string }, -5).turnsSeen).toBe(0);
   });
 });
 
 describe("shouldRewrite", () => {
   it("waits for enough new turns to be worth a model call", () => {
-    const memory = { summary: "x", openQuestions: [], turnsSeen: 10 };
+    const memory = { summary: "x", openQuestions: [], turnsSeen: 10, turnsTotal: 10 };
     expect(shouldRewrite(memory, 10)).toBe(false);
     expect(shouldRewrite(memory, 10 + TURNS_BETWEEN_REWRITES - 1)).toBe(false);
     expect(shouldRewrite(memory, 10 + TURNS_BETWEEN_REWRITES)).toBe(true);
@@ -107,7 +108,7 @@ describe("shouldRewrite", () => {
   it("counts the learner's whole history, not one session", () => {
     // Otherwise someone who asks two questions a day would never accumulate
     // enough in a single sitting to be remembered at all.
-    expect(shouldRewrite({ summary: "", openQuestions: [], turnsSeen: 2 }, 6)).toBe(true);
+    expect(shouldRewrite({ summary: "", openQuestions: [], turnsSeen: 2, turnsTotal: 6 }, 6)).toBe(true);
   });
 });
 
@@ -121,6 +122,7 @@ describe("memoryBlock", () => {
       summary: "Prefers examples before rules; keeps mixing up ب- and راح.",
       openQuestions: ["when do you drop the ال?"],
       turnsSeen: 8,
+      turnsTotal: 8,
     });
     expect(text).toContain("Prefers examples before rules");
     expect(text).toContain("when do you drop the ال?");
@@ -133,7 +135,7 @@ describe("memoryBlock", () => {
   });
 
   it("renders open questions with no summary", () => {
-    const text = memoryBlock({ summary: "", openQuestions: ["why كان?"], turnsSeen: 4 });
+    const text = memoryBlock({ summary: "", openQuestions: ["why كان?"], turnsSeen: 4, turnsTotal: 4 });
     expect(text).toContain("Left unresolved last time");
   });
 });

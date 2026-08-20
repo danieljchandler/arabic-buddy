@@ -43,7 +43,7 @@ export async function readLearnerMemory(
   try {
     const { data, error } = await admin()
       .from("learner_ai_memory")
-      .select("summary, open_questions, turns_seen")
+      .select("summary, open_questions, turns_seen, turns_total")
       .eq("user_id", userId)
       .eq("dialect", dialect)
       .maybeSingle();
@@ -105,6 +105,32 @@ const REWRITE_SYSTEM =
   `- If the exchange added nothing worth keeping, return the previous notes unchanged.`;
 
 /**
+ * Advance the turn counter without touching the notes.
+ *
+ * Cheap, best-effort and off the critical path: it runs after the answer has
+ * streamed, like the rewrite it defers. A learner whose count is lost simply
+ * waits one more turn for their next rewrite.
+ */
+async function recordTurns(userId: string, dialect: Dialect, turnsTotal: number): Promise<void> {
+  try {
+    const { error } = await admin()
+      .from("learner_ai_memory")
+      .upsert(
+        {
+          user_id: userId,
+          dialect,
+          turns_total: Math.max(0, Math.floor(turnsTotal)),
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id,dialect" },
+      );
+    if (error) throw new Error(error.message);
+  } catch (err) {
+    console.warn("[learnerMemory] turn count not recorded", err);
+  }
+}
+
+/**
  * Fold the latest exchange into the learner's notes.
  *
  * Runs after the answer has gone out, so its cost is invisible to the learner
@@ -125,7 +151,14 @@ export async function updateLearnerMemory(args: {
 
   try {
     const current = args.current ?? (await readLearnerMemory(args.userId, args.dialect));
-    if (!shouldRewrite(current, args.assistantTurns)) return;
+    if (!shouldRewrite(current, args.assistantTurns)) {
+      // No rewrite yet — but the turn still happened, and the count is what
+      // decides when the next rewrite is due. Persisting it only alongside a
+      // rewrite left the counter pinned wherever the last rewrite put it, so
+      // the gap never reached the threshold and no first rewrite ever came.
+      await recordTurns(args.userId, args.dialect, args.assistantTurns);
+      return;
+    }
 
     // The last few turns, not the whole conversation: the notes describe how
     // this learner learns, and that is visible in a couple of exchanges.
@@ -176,7 +209,10 @@ export async function updateLearnerMemory(args: {
           dialect: args.dialect,
           summary: next.summary.slice(0, MAX_SUMMARY_CHARS),
           open_questions: next.openQuestions,
+          // The mark and the running total meet here: everything said so far
+          // is now folded into the summary.
           turns_seen: next.turnsSeen,
+          turns_total: next.turnsSeen,
           updated_at: new Date().toISOString(),
         },
         { onConflict: "user_id,dialect" },

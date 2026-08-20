@@ -78,8 +78,16 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Admin/content_reviewer check
-    const { data: canManage } = await admin.rpc("can_manage_content");
+    // Admin/content_reviewer check, read from the roles table rather than the
+    // can_manage_content() RPC: that function resolves auth.uid(), which is
+    // NULL on this service-role client, so the RPC answered false for every
+    // caller — admins included — and this endpoint always 403'd.
+    const { data: roles } = await admin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .in("role", ["admin", "content_reviewer"]);
+    const canManage = Array.isArray(roles) && roles.length > 0;
     if (!canManage) {
       return new Response(JSON.stringify({ error: "forbidden" }), {
         status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },

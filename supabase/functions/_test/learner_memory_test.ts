@@ -20,6 +20,7 @@ interface MemoryModule {
     summary: string;
     openQuestions: string[];
     turnsSeen: number;
+    turnsTotal: number;
   }>;
   learnerMemoryBlock(userId: string, dialect: string): Promise<string>;
   updateLearnerMemory(args: {
@@ -27,7 +28,12 @@ interface MemoryModule {
     dialect: string;
     messages: Array<{ role: string; content: string }>;
     assistantTurns: number;
-    current?: { summary: string; openQuestions: string[]; turnsSeen: number };
+    current?: {
+      summary: string;
+      openQuestions: string[];
+      turnsSeen: number;
+      turnsTotal: number;
+    };
   }): Promise<void>;
 }
 
@@ -121,7 +127,7 @@ Deno.test("learnerMemory rewrites the notes once enough has been said", async ()
       dialect: "Gulf",
       messages: exchange,
       assistantTurns: 8,
-      current: { summary: "Prefers examples before rules.", openQuestions: [], turnsSeen: 4 },
+      current: { summary: "Prefers examples before rules.", openQuestions: [], turnsSeen: 4, turnsTotal: 4 },
     });
 
     const write = up.calls.find(
@@ -142,13 +148,52 @@ Deno.test("learnerMemory leaves the notes alone until the next rewrite is due", 
       dialect: "Gulf",
       messages: exchange,
       assistantTurns: 5,
-      current: { summary: "x", openQuestions: [], turnsSeen: 4 },
+      current: { summary: "x", openQuestions: [], turnsSeen: 4, turnsTotal: 4 },
     });
 
     // Summarizing after every turn would double the cost of a conversation to
     // re-derive something that barely moved.
     assertEquals(up.calls.filter((c) => c.url.includes("lovable")).length, 0);
-    assert(!up.calls.some((c) => (c.body ?? "").includes("turns_seen")));
+
+    // The turn still counts, though. Recording it only alongside a rewrite
+    // pinned the stored total wherever the last rewrite left it, so the gap
+    // never reached the threshold and the next rewrite never came due.
+    const write = up.calls.find(
+      (c) => c.url.includes("learner_ai_memory") && (c.body ?? "").includes("turns_total"),
+    );
+    assert(write, "expected the turn count to be recorded");
+    const row = JSON.parse(write!.body!);
+    assertEquals((Array.isArray(row) ? row[0] : row).turns_total, 5);
+  });
+});
+
+Deno.test("learnerMemory reaches a rewrite for a learner who asks one question a session", async () => {
+  // The case shouldRewrite is documented to serve: short conversations, days
+  // apart. Each answered request advances the count by one, so the fourth one
+  // is the one that pays for a rewrite.
+  await withMemory(upstreamsFor(), async (mod, up) => {
+    // Three sessions, one question each: nothing has been folded in yet
+    // (turnsSeen stays 0) while the running total climbs.
+    for (const total of [0, 1, 2]) {
+      await mod.updateLearnerMemory({
+        userId: USER,
+        dialect: "Gulf",
+        messages: exchange,
+        assistantTurns: total + 1,
+        current: { summary: "", openQuestions: [], turnsSeen: 0, turnsTotal: total },
+      });
+    }
+    assertEquals(up.calls.filter((c) => c.url.includes("lovable")).length, 0);
+
+    // The fourth question is the one that pays for a rewrite.
+    await mod.updateLearnerMemory({
+      userId: USER,
+      dialect: "Gulf",
+      messages: exchange,
+      assistantTurns: 4,
+      current: { summary: "", openQuestions: [], turnsSeen: 0, turnsTotal: 3 },
+    });
+    assertEquals(up.calls.filter((c) => c.url.includes("lovable")).length, 1);
   });
 });
 
@@ -161,7 +206,7 @@ Deno.test("learnerMemory keeps the old notes when the rewrite comes back empty",
         dialect: "Gulf",
         messages: exchange,
         assistantTurns: 8,
-        current: { summary: "Prefers examples before rules.", openQuestions: [], turnsSeen: 4 },
+        current: { summary: "Prefers examples before rules.", openQuestions: [], turnsSeen: 4, turnsTotal: 4 },
       });
       // An empty rewrite is a failed rewrite, not an instruction to forget.
       assert(!up.calls.some((c) => (c.body ?? "").includes("turns_seen")));

@@ -16,6 +16,8 @@ export type ShareRoute =
   | { action: "video-pipeline"; url: string }
   /** Video link shared by a non-admin — no feature accepts these. */
   | { action: "video-url-unsupported"; url: string }
+  /** A file whose type no feature can take — named, so the UI can say which. */
+  | { action: "file-unsupported"; file: File }
   /** Needs the AI screening call. */
   | { action: "screen-text"; text: string }
   | { action: "screen-image"; file: File }
@@ -66,17 +68,45 @@ function textWithoutUrl(text: string, url: string | null): string {
   return (url ? text.replace(url, " ") : text).trim();
 }
 
+/**
+ * Android share sheets routinely hand over a file with an empty `type` —
+ * voice notes from messaging apps, anything routed through a download
+ * manager. Classifying those by MIME alone dropped the file silently, so the
+ * learner who just shared a recording got an empty paste box and no
+ * explanation. The extension is the only other thing we have.
+ */
+const AUDIO_EXT_RE = /\.(mp3|m4a|aac|wav|ogg|oga|opus|amr|flac|wma|3gp|caf)$/i;
+const VIDEO_EXT_RE = /\.(mp4|mov|m4v|webm|mkv|avi|3gpp)$/i;
+const IMAGE_EXT_RE = /\.(jpe?g|png|gif|webp|heic|heif|bmp|avif)$/i;
+
+type SharedFileKind = "audio" | "video" | "image" | null;
+
+export function classifySharedFile(file: File): SharedFileKind {
+  if (file.type.startsWith("audio/")) return "audio";
+  if (file.type.startsWith("video/")) return "video";
+  if (file.type.startsWith("image/")) return "image";
+  // No usable MIME type: fall back to the filename, the way Transcribe's own
+  // picker already does.
+  if (AUDIO_EXT_RE.test(file.name)) return "audio";
+  if (VIDEO_EXT_RE.test(file.name)) return "video";
+  if (IMAGE_EXT_RE.test(file.name)) return "image";
+  return null;
+}
+
 export function classifyShare(input: ShareInput): ShareRoute {
   const file = input.files[0];
   if (file) {
-    if (file.type.startsWith("audio/")) return { action: "transcribe-file", file };
-    if (file.type.startsWith("video/")) {
+    const kind = classifySharedFile(file);
+    if (kind === "audio") return { action: "transcribe-file", file };
+    if (kind === "video") {
       // Transcribe's video path is admin-only; the public meme analyzer
       // handles short video clips (frames + audio) for everyone else.
       return input.isAdmin ? { action: "transcribe-file", file } : { action: "meme-file", file };
     }
-    if (file.type.startsWith("image/")) return { action: "screen-image", file };
-    return { action: "empty" };
+    if (kind === "image") return { action: "screen-image", file };
+    // Something was shared and we cannot use it. Saying so beats an empty
+    // box that reads as the share having failed to arrive at all.
+    return { action: "file-unsupported", file };
   }
 
   const url = extractSharedUrl(input);

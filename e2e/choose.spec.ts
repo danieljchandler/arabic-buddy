@@ -52,7 +52,9 @@ test.describe("choosing what to do", () => {
   });
 
   test("goes back to the feed", async ({ page }) => {
-    await page.getByRole("link", { name: /Video/ }).click();
+    // "Watch clips", not "Video": the corner used to read "← Video", which
+    // named a noun and left the learner to guess what tapping it did.
+    await page.getByRole("link", { name: /Watch clips/ }).click();
 
     await expect(page).toHaveURL(/127\.0\.0\.1:\d+\/$/);
   });

@@ -97,6 +97,41 @@ test.describe("saving", () => {
     db.seed("profiles", [aProfile()]);
   });
 
+  test("says nothing until something is actually unsaved", async ({ page, db }) => {
+    db.seed("profiles", [aProfile({ display_name: "Sami" })]);
+    await page.goto("/settings");
+    await expect(page.getByLabel(/display name/i)).toHaveValue("Sami");
+
+    // Most of this page applies the moment you touch it — theme, home layout,
+    // display preferences, hints, reminders. Nine fields wait for Save, and
+    // nothing used to distinguish the two: the button simply always sat at the
+    // bottom of a very long scroll, so a learner who changed their dialect and
+    // navigated away lost it with no way to know.
+    await expect(page.getByRole("button", { name: /^save changes$/i })).toHaveCount(0);
+    await expect(page.getByText(/unsaved changes/i)).toHaveCount(0);
+
+    await page.getByLabel(/display name/i).fill("Layla");
+    await expect(page.getByText(/unsaved changes/i)).toBeVisible();
+
+    await page.getByRole("button", { name: /^save changes$/i }).click();
+    await expect(page.getByText(/settings saved/i)).toBeVisible();
+
+    // And it stands down again once the edit has landed.
+    await expect(page.getByText(/unsaved changes/i)).toHaveCount(0);
+  });
+
+  test("leaves the bar down for a setting that saves itself", async ({ page, db }) => {
+    db.seed("profiles", [aProfile({ display_name: "Sami" })]);
+    await page.goto("/settings");
+    await expect(page.getByLabel(/display name/i)).toHaveValue("Sami");
+
+    // Appearance applies instantly and writes nothing through `save`. Raising
+    // an unsaved-changes bar for it would teach the learner to ignore the bar.
+    await page.getByRole("button", { name: /^dark/i }).first().click();
+
+    await expect(page.getByText(/unsaved changes/i)).toHaveCount(0);
+  });
+
   test("writes every edited field", async ({ page, db }) => {
     await page.goto("/settings");
 

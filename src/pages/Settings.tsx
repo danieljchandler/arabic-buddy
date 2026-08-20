@@ -132,6 +132,48 @@ const Settings = () => {
   const [reason, setReason] = useState<string | null>(null);
   const [interests, setInterests] = useState<string[]>([]);
 
+  /**
+   * The nine fields `save` actually writes, as loaded.
+   *
+   * This page mixes two save models: theme, home layout, display preferences,
+   * feature hints, review preferences and reminders all apply the moment you
+   * touch them, while these nine sit in local state until Save Changes is
+   * pressed at the very bottom of a five-thousand-pixel scroll. Nothing said
+   * which was which, so the safe assumption — "it saved itself like the last
+   * one did" — silently lost the edit.
+   *
+   * Comparing against the loaded values is what lets the page say so: the save
+   * bar appears only when there is something unsaved, which also marks, by its
+   * absence, everything that needed no saving at all.
+   */
+  const [savedSnapshot, setSavedSnapshot] = useState<string | null>(null);
+
+  // Order matters for the comparison, so build it in one place.
+  const currentSnapshot = JSON.stringify([
+    displayName.trim(),
+    dialect,
+    level,
+    goal,
+    showOnLeaderboard,
+    contributeAudio,
+    desiredRetention,
+    reason,
+    [...interests].sort(),
+  ]);
+  // Never "dirty" before the profile has loaded: the defaults above would
+  // otherwise read as edits and offer to save them over the real values.
+  const isDirty = savedSnapshot !== null && savedSnapshot !== currentSnapshot;
+
+  // Whatever the page shows once loading finishes is, by definition, already
+  // saved — including the defaults a learner with no profile row starts from.
+  // Taken in an effect rather than at the end of load(), whose closure still
+  // holds the pre-load values, and only once: `?? current` never overwrites a
+  // real baseline with a later edit.
+  useEffect(() => {
+    if (loading) return;
+    setSavedSnapshot((prev) => prev ?? currentSnapshot);
+  }, [loading, currentSnapshot]);
+
   const push = usePushNotifications();
 
   // Same taxonomy the Listen catalog uses, scoped to the selected dialect.
@@ -286,6 +328,7 @@ const Settings = () => {
         } as any, { onConflict: 'user_id,week_start_date' });
       }
 
+      setSavedSnapshot(currentSnapshot);
       toast.success('Settings saved!');
     } catch (e) {
       console.error(e);
@@ -751,17 +794,58 @@ const Settings = () => {
             </div>
           </section>
 
-          {/* Save + Sign Out */}
+          {/* Sign Out. Save lives in the bar below, which follows the learner
+              rather than waiting at the bottom of the scroll. */}
           <div className="space-y-3 pb-8">
-            <Button onClick={save} disabled={saving} className="w-full h-11">
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save Changes'}
-            </Button>
             <Button variant="outline" onClick={handleSignOut} className="w-full h-11 text-destructive hover:text-destructive">
               Sign Out
             </Button>
           </div>
+
+          {/* Room for the unsaved-changes bar, which is fixed and would
+              otherwise sit on top of Sign Out — the same way the Ask AI FAB
+              used to sit on top of whatever ended a page. */}
+          {isDirty && <div aria-hidden className="h-20" />}
         </div>
       </div>
+
+      {/*
+        The unsaved-changes bar.
+
+        Most of this page applies the moment you touch it — theme, home
+        layout, display preferences, hints, review preferences, reminders. Nine
+        fields do not, and the button for them used to sit at the very bottom
+        of a five-thousand-pixel scroll with nothing to distinguish the two
+        models. A learner who changed their dialect and navigated away lost it
+        and had no way to know.
+
+        So the bar appears only when one of those nine has actually changed,
+        and it follows the learner instead of waiting to be scrolled to. Its
+        absence is the other half of the message: if nothing appeared, nothing
+        is waiting to be saved.
+      */}
+      {isDirty && (
+        <div
+          role="status"
+          className={cn(
+            "fixed inset-x-0 bottom-0 z-40 border-t border-border",
+            "bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/85",
+            // Clear the dock below lg; from lg the dock is a left rail, so the
+            // bar starts after it instead. Mirrors AppShell's own insets.
+            "pb-[calc(env(safe-area-inset-bottom)+5.5rem)] lg:left-20 lg:pb-[env(safe-area-inset-bottom)]",
+            "animate-in slide-in-from-bottom-2 duration-200 motion-reduce:animate-none",
+          )}
+        >
+          <div className="mx-auto flex max-w-2xl items-center gap-3 px-4 py-3">
+            <p className="flex-1 text-sm text-muted-foreground">
+              You have unsaved changes.
+            </p>
+            <Button onClick={save} disabled={saving} className="h-10 shrink-0">
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save Changes'}
+            </Button>
+          </div>
+        </div>
+      )}
     </AppShell>
   );
 };

@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -24,7 +24,10 @@ import {
   BookOpen,
   Mic,
   PenTool,
+  Headphones,
+  Play,
 } from "lucide-react";
+import { useAzureTTS } from "@/hooks/useAzureTTS";
 
 type Choice = { text: string; text_arabic: string };
 type Question = {
@@ -42,7 +45,62 @@ const SKILL_ICONS: Record<string, typeof Brain> = {
   grammar: PenTool,
   reading: Brain,
   translation: Mic,
+  listening: Headphones,
 };
+
+/**
+ * A listening item is spoken, never shown.
+ *
+ * The placement test used to have no listening item at all, in an app whose
+ * whole premise is spoken dialect — so it placed on the eye alone and
+ * over-placed anyone whose reading runs ahead of their ear. Printing the line
+ * next to the audio would put that back: it would be a reading question with
+ * a sound effect.
+ */
+const isListening = (skillType: string) => skillType === "listening";
+
+/** The spoken prompt for a listening item: a play button and nothing to read. */
+function ListeningPrompt({ text, dialect }: { text: string; dialect: string }) {
+  const { ttsUrl, isLoading } = useAzureTTS({ text, dialect });
+  const playedRef = useRef(false);
+
+  const play = () => {
+    if (ttsUrl) void new Audio(ttsUrl).play().catch(() => {});
+  };
+
+  // Speak it once as soon as it is ready — the item *is* the audio, and
+  // making the learner press play to receive the question is a step that
+  // teaches nothing. The button is then a replay. Guarded by a ref rather
+  // than the url alone so a re-render never speaks over itself.
+  useEffect(() => {
+    if (!ttsUrl || playedRef.current) return;
+    playedRef.current = true;
+    play();
+     
+  }, [ttsUrl]);
+
+  return (
+    <div className="flex flex-col items-center gap-3 py-2">
+      <button
+        type="button"
+        onClick={play}
+        disabled={!ttsUrl || isLoading}
+        aria-label="Play the line again"
+        className={cn(
+          "h-16 w-16 rounded-full flex items-center justify-center",
+          "bg-primary text-primary-foreground shadow-elegant",
+          "transition-all hover:scale-105 active:scale-[0.98]",
+          "disabled:opacity-50 disabled:cursor-not-allowed",
+        )}
+      >
+        {isLoading ? <Loader2 className="h-7 w-7 animate-spin" /> : <Play className="h-7 w-7 ml-0.5" />}
+      </button>
+      <p className="text-xs uppercase tracking-wider text-muted-foreground">
+        {isLoading ? "Preparing the audio…" : "Listen, then choose the meaning"}
+      </p>
+    </div>
+  );
+}
 
 const CEFR_DESCRIPTIONS: Record<string, { label: string; desc: string }> = {
   A1: { label: "Beginner", desc: "You can understand and use basic everyday expressions and simple phrases." },
@@ -320,9 +378,16 @@ export default function PlacementQuiz() {
 
                 {/* Question */}
                 <div className="bg-card border border-border rounded-2xl p-5 mb-6">
-                  <p className="text-xl font-semibold text-foreground leading-relaxed" dir="rtl">
-                    {currentQuestion.question_arabic}
-                  </p>
+                  {isListening(currentQuestion.skill_type) && !showFeedback ? (
+                    <ListeningPrompt
+                      text={currentQuestion.question_arabic}
+                      dialect={activeDialect}
+                    />
+                  ) : (
+                    <p className="text-xl font-semibold text-foreground leading-relaxed" dir="rtl">
+                      {currentQuestion.question_arabic}
+                    </p>
+                  )}
                   {showEnglish && showFeedback && (
                     <p className="text-sm text-muted-foreground mt-2">
                       {currentQuestion.question_english}

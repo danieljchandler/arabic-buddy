@@ -190,7 +190,7 @@ function Stat({ value, label, divided }: { value: number; label: string; divided
   return (
     <div className={cn("px-2 py-4 text-center", divided && "border-l border-primary-foreground/20")}>
       <span className="block text-2xl font-bold leading-tight tabular-nums">{value}</span>
-      <span className="text-[11px] text-primary-foreground/75">{label}</span>
+      <span className="text-[11px] text-primary-foreground">{label}</span>
     </div>
   );
 }

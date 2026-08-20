@@ -137,7 +137,7 @@ const Profile = () => {
             }}
           />
           {/* Corner stamp */}
-          <div className="absolute top-3 right-3 rotate-6 rounded-md border-2 border-desert-red/80 px-2 py-1 text-[10px] tracking-[0.18em] uppercase font-heading text-desert-red/80">
+          <div className="absolute top-3 right-3 rotate-6 rounded-md border-2 border-desert-red/80 px-2 py-1 text-[10px] tracking-[0.18em] uppercase font-heading text-desert-red">
             Hakiya · جواز
           </div>
 
@@ -306,7 +306,7 @@ const StatCard = ({
   icon, label, value, sub,
 }: { icon: React.ReactNode; label: string; value: number | string; sub: string }) => (
   <div className="rounded-2xl border-2 border-desert-red/30 bg-card-cream px-3 py-3 text-center shadow-soft">
-    <div className="flex items-center justify-center gap-1 text-desert-red/80">
+    <div className="flex items-center justify-center gap-1 text-desert-red">
       {icon}
       <span className="text-overline">{label}</span>
     </div>

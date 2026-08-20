@@ -197,8 +197,9 @@ describe("the streak", () => {
     const flame = await screen.findByTitle("5-day streak");
     expect(flame.textContent).toContain("5d");
     // Warm when it is alive: the flame is the reward, and a grey one on day
-    // five would read as broken.
-    expect(flame.className).toContain("border-orange-500/40");
+    // five would read as broken. The warmth is the app's own desert red rather
+    // than raw Tailwind orange, so it holds up in night majlis too.
+    expect(flame.className).toContain("border-desert-red/40");
   });
 
   it("shows a cold zero rather than hiding when the streak is broken", async () => {
@@ -278,6 +279,30 @@ describe("the weekly XP ring", () => {
     // Distinct from target_xp: 0 — here the whole query resolves to null, and
     // the component's own default applies.
     await waitFor(() => expect(screen.getByTitle("0 / 100 XP this week")).toBeInTheDocument());
+  });
+
+  it("abbreviates a four-figure week so the number stays inside the ring", async () => {
+    render({ earned: 2400, target: 3000 });
+
+    // The hole in the middle of the ring is ~47px across. "2400" fits; a
+    // learner on a 12,000 XP week does not, and the figure would ride out
+    // over the arc. The exact number stays on the title either way.
+    await waitFor(() => expect(screen.getByTitle("2400 / 3000 XP this week")).toBeInTheDocument());
+    expect(screen.getByText("2.4k")).toBeInTheDocument();
+  });
+
+  it("drops a trailing zero rather than showing 3.0k", async () => {
+    render({ earned: 3000, target: 3000 });
+
+    await waitFor(() => expect(screen.getByText("3k")).toBeInTheDocument());
+  });
+
+  it("rounds to whole thousands once past ten", async () => {
+    render({ earned: 12400, target: 3000 });
+
+    // "12.4k" is five glyphs and back to overflowing; past ten thousand the
+    // decimal stops earning its place.
+    await waitFor(() => expect(screen.getByText("12k")).toBeInTheDocument());
   });
 
   it("is not shown to a signed-out visitor", async () => {

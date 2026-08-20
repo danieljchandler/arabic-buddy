@@ -81,7 +81,7 @@ const Choose = () => {
           <Layers className="h-6 w-6 shrink-0" />
           <span className="min-w-0 flex-1">
             <span className="block text-lg font-bold leading-tight">Review</span>
-            <span className="block text-xs text-primary-foreground/80">
+            <span className="block text-xs text-primary-foreground">
               {due > 0
                 ? `${due} ${due === 1 ? "card" : "cards"} ready now`
                 : "Nothing due — you are caught up"}
@@ -113,13 +113,13 @@ const Choose = () => {
                   "transition-transform active:scale-[0.98]",
                 )}
               >
-                <span className="text-[11px] font-semibold tracking-[0.14em] text-white/45">
+                <span className="text-[11px] font-semibold tracking-[0.14em] text-white/85">
                   {String(i + 1).padStart(2, "0")}
                 </span>
                 <Icon className="absolute right-3 top-3 h-6 w-6 text-white/35" />
                 <span className="flex flex-col gap-0.5">
                   <span className="text-2xl font-bold leading-tight">{s.label}</span>
-                  <span dir="rtl" lang="ar" className="text-right font-arabic text-[13px] text-white/60">
+                  <span dir="rtl" lang="ar" className="text-right font-arabic text-[13px] text-white/80">
                     {s.arabic}
                   </span>
                 </span>

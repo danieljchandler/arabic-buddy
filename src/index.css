@@ -21,8 +21,12 @@
     --popover: 38 35% 97%;
     --popover-foreground: 150 5% 15%;
 
-    /* Desert Red - warm terracotta for primary actions */
-    --primary: 8 45% 38%;
+    /* Desert Red - warm terracotta for primary actions.
+       34% rather than 38%: at 38% `text-primary` measured 4.38:1 on the flat
+       sand page and 3.88:1 where the border art tints that sand darker —
+       both under the 4.5:1 floor. The art-tinted sand is the surface to
+       solve against, because that is where the text actually sits. */
+    --primary: 8 47% 34%;
     --primary-foreground: 0 0% 100%;
 
     /* Charcoal secondary */
@@ -30,23 +34,31 @@
     --secondary-foreground: 0 0% 100%;
 
     /* Desert Red accent - warm terracotta */
-    --accent: 8 45% 38%;
+    --accent: 8 47% 34%;
     --accent-foreground: 0 0% 100%;
 
     /* Muted backgrounds - between background and card */
     --muted: 38 40% 93%;
-    --muted-foreground: 150 5% 40%;
+    /* 40% measured 3.38:1 against the warm sand page — under the 4.5:1 floor,
+       and this is the colour of nearly every second line of text in the app,
+       so it failed on essentially every route at once. 30% clears it against
+       the art-tinted sand while staying the same grey-green. */
+    --muted-foreground: 150 6% 30%;
 
-    --destructive: 0 84% 60%;
+    /* Stock shadcn red, until now: bright, cold, and the one colour in the
+       app that came from nowhere. It also failed twice over — 2.32:1 as text
+       on sand, and 3.78:1 for the white sitting on top of it. A deeper brick
+       red clears both and belongs to this palette. */
+    --destructive: 0 70% 38%;
     --destructive-foreground: 0 0% 100%;
 
-    --success: 110 25% 32%;
+    --success: 110 28% 27%;
     --success-foreground: 0 0% 100%;
 
     /* Subtle warm border for structure */
     --border: 38 35% 80%;
     --input: 38 35% 92%;
-    --ring: 8 45% 38%;
+    --ring: 8 47% 34%;
 
     --radius: 1rem;
 
@@ -63,6 +75,14 @@
 
     /* Desert Red border color */
     --desert-red: 8 45% 30%;
+
+    /* The accent each dialect carries. Tokens rather than a table in TS so
+       night majlis can lighten them — the light values are deep inks, and
+       Gulf measured 1.85:1 against the dark card before this existed. See
+       src/lib/dialectAccent.ts, which reads these. */
+    --dialect-gulf: 12 68% 32%;
+    --dialect-egyptian: 38 85% 45%;
+    --dialect-yemeni: 0 70% 42%;
 
     /* Plum — deep wine used for the welcome majlis, hub tiles and MSA bridge.
        Was hardcoded as #5C3A46 across the app before being promoted here. */
@@ -92,14 +112,32 @@
 
     --sidebar-background: 38 35% 96%;
     --sidebar-foreground: 150 5% 15%;
-    --sidebar-primary: 8 45% 38%;
+    --sidebar-primary: 8 47% 34%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 38 40% 92%;
     --sidebar-accent-foreground: 150 5% 15%;
     --sidebar-border: 38 35% 80%;
-    --sidebar-ring: 8 45% 38%;
+    --sidebar-ring: 8 47% 34%;
   }
 
+  /* ── Night majlis ─────────────────────────────────────────────────────
+     The accents invert here, and that is the whole design of this block.
+
+     In light, the brand colours are deep inks carrying white text. Ported
+     straight across they stay deep — and a deep terracotta on a near-black
+     page is the one place a warm palette fails hardest: `text-primary` at
+     8 40% 48% measured 3.07:1 against --card, under the 4.5:1 floor, and it
+     is the most-used colour word in the app. Every accent had the same
+     problem to some degree; the Gulf dialect accent was 1.85:1.
+
+     So in the dark the accents become the *light* half of the pair and take
+     a warm ink as their foreground, which is how dark themes generally
+     resolve this. Two consequences worth stating: `bg-primary` buttons go
+     from white-on-terracotta to ink-on-clay, and every one of the hundreds
+     of `text-primary`/`text-desert-red` call sites is fixed at once without
+     being touched. Values are chosen as the lowest lightness that clears
+     4.5:1 against --card (the stricter of the two surfaces), so they stay as
+     saturated as the requirement allows rather than washing out to pastel. */
   .dark {
     --background: 0 0% 10%;
     --foreground: 38 47% 92%;
@@ -110,34 +148,40 @@
     --popover: 0 0% 14%;
     --popover-foreground: 38 47% 92%;
 
-    --primary: 8 40% 48%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 8 55% 62%;
+    --primary-foreground: 20 25% 10%;
 
     --secondary: 150 10% 32%;
     --secondary-foreground: 0 0% 100%;
 
-    --accent: 8 40% 48%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 8 55% 62%;
+    --accent-foreground: 20 25% 10%;
 
     --muted: 0 0% 18%;
     --muted-foreground: 38 30% 70%;
 
     --border: 0 0% 20%;
     --input: 0 0% 20%;
-    --ring: 8 40% 48%;
+    --ring: 8 55% 62%;
 
-    --success: 110 22% 45%;
-    --success-foreground: 0 0% 100%;
+    --success: 110 32% 58%;
+    --success-foreground: 20 25% 10%;
 
-    /* Brand extensions, night-tuned: the light values are all deep inks that
-       vanish against a dark ground, so each lightens just enough to read as
-       the same hue. card-cream flattens to a raised neutral — a "cream" panel
-       on near-black reads as a glare patch, not a surface. */
+    --destructive: 0 72% 68%;
+    --destructive-foreground: 20 25% 10%;
+
+    /* Brand extensions, night-tuned. card-cream flattens to a raised neutral
+       — a "cream" panel on near-black reads as a glare patch, not a surface,
+       and it sits at the top of the most-visited screen. */
     --card-cream: 0 0% 16%;
-    --desert-red: 8 45% 55%;
-    --olive: 8 40% 55%;
-    --plum: 339 24% 66%;
+    --desert-red: 8 58% 66%;
+    --olive: 8 45% 62%;
+    --plum: 339 30% 70%;
     --plum-foreground: 0 0% 10%;
+
+    --dialect-gulf: 14 62% 67%;
+    --dialect-egyptian: 38 78% 58%;
+    --dialect-yemeni: 0 62% 65%;
   }
 }
 
@@ -175,6 +219,38 @@
 }
 
 @layer utilities {
+  /* ── The full-page border art ──────────────────────────────────────────
+     One fixed layer carries the sadu band at the top and the sand field
+     below it. In light that field *is* the paper the app is printed on. In
+     night majlis it is not: dimmed sand over near-black comes out a muddy
+     brown that lifts the whole page to roughly hsl(0 0% 27%) — lighter than
+     --card, so every card reads as a hole punched in the page instead of a
+     surface raised off it.
+
+     So dark keeps the band and drops the field: mask the art out just below
+     the band's own height, and the page goes back to flat --background with
+     the frame still on it. Opacity can then come back up, because it is only
+     the band it applies to now. */
+  .app-backdrop {
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+
+  .dark .app-backdrop {
+    -webkit-mask-image: linear-gradient(
+      to bottom,
+      #000 0,
+      #000 var(--sadu-band-height),
+      transparent calc(var(--sadu-band-height) + 5rem)
+    );
+    mask-image: linear-gradient(
+      to bottom,
+      #000 0,
+      #000 var(--sadu-band-height),
+      transparent calc(var(--sadu-band-height) + 5rem)
+    );
+  }
+
   .font-sans {
     font-family: 'Open Sans', 'Noto Sans Arabic', sans-serif;
   }

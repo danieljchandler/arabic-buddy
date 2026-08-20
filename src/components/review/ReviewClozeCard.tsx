@@ -4,6 +4,7 @@ import { Check, X, Volume2, Play, Loader2, Quote } from "lucide-react";
 import { useAzureTTS } from "@/hooks/useAzureTTS";
 import { useDialect } from "@/contexts/DialectContext";
 import { cn } from "@/lib/utils";
+import { findWordSpan } from "@/lib/arabicWord";
 import { AskAISentence } from "@/components/shared/AskAISentence";
 
 interface Props {
@@ -25,15 +26,15 @@ const shuffle = <T,>(arr: T[]): T[] => {
   return a;
 };
 
-// Replace first occurrence of the target word (whitespace-bounded) with a blank
+// Replace the first occurrence of the target word with a blank. Matching is
+// normalized (harakat, hamza carriers, ى/ة, attached punctuation), because a
+// word saved vocalized — AI enrichment returns بَيْت — never string-matches
+// its own bare occurrence in a sentence, and the card silently refused to
+// build. The sentence keeps its original spelling; only lookup is folded.
 const buildCloze = (sentence: string, word: string) => {
-  const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const re = new RegExp(`(^|\\s|[،.,!؟?])${escaped}(?=$|\\s|[،.,!؟?])`);
-  const m = sentence.match(re);
-  if (!m) return null;
-  const before = sentence.slice(0, m.index! + m[1].length);
-  const after = sentence.slice(m.index! + m[0].length);
-  return { before, after };
+  const span = findWordSpan(sentence, word);
+  if (!span) return null;
+  return { before: sentence.slice(0, span.start), after: sentence.slice(span.end) };
 };
 
 export const ReviewClozeCard = ({
@@ -126,7 +127,7 @@ export const ReviewClozeCard = ({
       {/* Sentence with blank */}
       <div
         className="text-3xl leading-loose text-foreground mb-7"
-        style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
+        style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}
         dir="rtl"
       >
         <span>{cloze.before}</span>
@@ -183,7 +184,7 @@ export const ReviewClozeCard = ({
                 reveal && isPicked && !isTarget && "border-red-600 bg-red-500/12",
                 reveal && !isTarget && !isPicked && "opacity-50",
               )}
-              style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
+              style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}
               dir="rtl"
             >
               <span className="inline-flex items-center gap-1.5">

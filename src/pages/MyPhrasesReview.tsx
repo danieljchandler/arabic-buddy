@@ -351,7 +351,7 @@ const MyPhrasesReview = () => {
               <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 space-y-4 pt-2">
                 <p
                   className="text-4xl font-bold text-plum leading-snug"
-                  style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
+                  style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}
                   dir="rtl"
                 >
                   {current.phrase_arabic}
@@ -439,7 +439,7 @@ const MyPhrasesReview = () => {
                         <div
                           className="text-sm leading-relaxed font-arabic space-y-1"
                           dir="rtl"
-                          style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
+                          style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}
                         >
                           {current.jingle_lyrics.split(/\r?\n/).map((line, i) => (
                             line.trim() ? (

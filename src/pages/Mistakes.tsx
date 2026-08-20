@@ -116,7 +116,7 @@ function MistakeCard({ group, onDismiss, dismissing }: MistakeCardProps) {
         <div className="min-w-0">
           <p
             className="text-2xl font-bold text-foreground break-words"
-            style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
+            style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}
             dir="rtl"
           >
             {group.target}

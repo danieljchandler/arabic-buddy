@@ -1431,7 +1431,7 @@ const Transcribe = () => {
                       <p
                         className="text-lg font-semibold text-foreground text-right flex-1"
                         dir="rtl"
-                        style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
+                        style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}
                       >
                         {seg.text}
                       </p>
@@ -1506,7 +1506,7 @@ const Transcribe = () => {
                   return (
                     <div key={index} className="flex items-center justify-between p-3 rounded-lg bg-muted/50 border">
                       <div className="flex items-center gap-3">
-                        <span className="text-2xl font-bold text-foreground" style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}>{item.arabic}</span>
+                        <span className="text-2xl font-bold text-foreground" style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}>{item.arabic}</span>
                         {item.root && <Badge variant="outline" className="font-mono text-xs">{item.root}</Badge>}
                       </div>
                       <div className="flex items-center gap-2">

@@ -63,7 +63,7 @@ const SoundRow = ({ entry }: { entry: SoundSpotlightEntry }) => {
       <span
         className="shrink-0 text-xl font-bold text-primary min-w-[2ch] text-center"
         dir="rtl"
-        style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
+        style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}
       >
         {entry.sound}
       </span>
@@ -73,7 +73,7 @@ const SoundRow = ({ entry }: { entry: SoundSpotlightEntry }) => {
             <span
               className="text-base text-foreground"
               dir="rtl"
-              style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
+              style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}
             >
               {example}
             </span>

@@ -802,7 +802,7 @@ const MyWordsReview = () => {
                   <>
                     <p
                       className="text-4xl font-bold text-foreground mb-1 animate-in fade-in duration-200"
-                      style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
+                      style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}
                       dir="rtl"
                     >
                       {currentWord.word_arabic}
@@ -817,7 +817,7 @@ const MyWordsReview = () => {
               <>
                 <p
                   className="text-4xl font-bold text-foreground mb-1"
-                  style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
+                  style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}
                   dir="rtl"
                 >
                   {currentWord.word_arabic}
@@ -920,7 +920,7 @@ const MyWordsReview = () => {
                     <div
                       className="text-sm leading-relaxed space-y-1"
                       dir="rtl"
-                      style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
+                      style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}
                     >
                       {currentWord.jingle_lyrics.split(/\r?\n/).map((line, i) => (
                         line.trim() ? (
@@ -1016,7 +1016,7 @@ const MyWordsReview = () => {
                     <p
                       className="text-base text-foreground/90 font-arabic leading-relaxed"
                       dir="rtl"
-                      style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
+                      style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}
                     >
                       {currentWord.sentence_text}
                     </p>

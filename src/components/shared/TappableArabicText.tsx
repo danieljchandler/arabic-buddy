@@ -15,6 +15,7 @@ import { useAiAssistant } from "@/contexts/AiAssistantContext";
 import { toast } from "sonner";
 import { useDisplayPrefs } from "@/hooks/useDisplayPrefs";
 import { stripTashkil } from "@/lib/displayPrefs";
+import { normalizeArabicWord } from "@/lib/arabicWord";
 import { useMarkUnknowns } from "@/contexts/MarkUnknownsContext";
 import { vibrate } from "@/lib/tapFeedback";
 import { useBridgeMode } from "@/hooks/useBridgeMode";
@@ -123,20 +124,29 @@ export const TappableArabicText = ({
 
   const cleanRe = /[،.؟!,؛:«»"]/g;
   const clean = (w: string) => w.replace(cleanRe, "").trim();
+  // Cache/lookup key: diacritics, hamza variants and ى/ة folded too, so a
+  // tapped بَيت and a saved بيت are the same word. The surface form (clean)
+  // is what gets displayed, enriched and saved; the key is only for matching.
+  const wordKey = (w: string) => normalizeArabicWord(w);
 
   const handleWordTap = async (word: string) => {
     const cleanWord = clean(word);
-    if (!cleanWord) return;
-    if (wordTranslations[cleanWord]) return;
+    const key = wordKey(word);
+    if (!cleanWord || !key) return;
+    if (wordTranslations[key]) return;
 
-    const vocabMatch = vocabulary.find(
-      (v) => cleanWord.includes(v.word_arabic) || v.word_arabic.includes(cleanWord)
-    );
+    // Normalized both ways: with the tashkeel display pref on, every tapped
+    // word used to miss the vocabulary list entirely and fall through to a
+    // paid enrichment call for a gloss the app already had.
+    const vocabMatch = vocabulary.find((v) => {
+      const nv = normalizeArabicWord(v.word_arabic);
+      return nv && (key.includes(nv) || nv.includes(key));
+    });
     const translation = vocabMatch?.word_english || "";
 
     setWordTranslations((prev) => ({
       ...prev,
-      [cleanWord]: { translation, enriching: true },
+      [key]: { translation, enriching: true },
     }));
 
     const enrichment = await enrichWord(cleanWord, activeDialect, sentenceContext ?? { arabic: text });
@@ -144,34 +154,35 @@ export const TappableArabicText = ({
 
     setWordTranslations((prev) => ({
       ...prev,
-      [cleanWord]: { translation: definition, enrichment, enriching: false },
+      [key]: { translation: definition, enrichment, enriching: false },
     }));
   };
 
   const generateSamples = async (cleanWord: string) => {
+    const key = wordKey(cleanWord);
     setWordTranslations((prev) => ({
       ...prev,
-      [cleanWord]: { ...(prev[cleanWord] ?? { translation: "" }), generatingSamples: true },
+      [key]: { ...(prev[key] ?? { translation: "" }), generatingSamples: true },
     }));
     try {
       const { data, error } = await supabase.functions.invoke("generate-sample-sentences", {
         body: {
           word: cleanWord,
           dialect: activeDialect,
-          definition: wordTranslations[cleanWord]?.translation,
+          definition: wordTranslations[key]?.translation,
         },
       });
       if (error) throw error;
       const sentences: SampleSentence[] = Array.isArray(data?.sentences) ? data.sentences : [];
       setWordTranslations((prev) => ({
         ...prev,
-        [cleanWord]: { ...(prev[cleanWord] ?? { translation: "" }), samples: sentences, generatingSamples: false },
+        [key]: { ...(prev[key] ?? { translation: "" }), samples: sentences, generatingSamples: false },
       }));
       if (sentences.length === 0) toast.error("Couldn't generate sentences");
     } catch {
       setWordTranslations((prev) => ({
         ...prev,
-        [cleanWord]: { ...(prev[cleanWord] ?? { translation: "" }), generatingSamples: false },
+        [key]: { ...(prev[key] ?? { translation: "" }), generatingSamples: false },
       }));
       toast.error("Couldn't generate sentences");
     }
@@ -283,7 +294,7 @@ export const TappableArabicText = ({
    */
   const renderWord = (word: string, wIdx: number) => {
     const cleanWord = clean(word);
-    const wordData = wordTranslations[cleanWord];
+    const wordData = wordTranslations[wordKey(word)];
     const marking = markUnknowns.enabled;
     const marked = marking && markUnknowns.isMarked(cleanWord);
 

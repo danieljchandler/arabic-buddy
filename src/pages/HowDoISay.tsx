@@ -397,7 +397,7 @@ const HowDoISay = () => {
                         <p
                           className="text-2xl font-semibold text-foreground leading-snug"
                           dir="rtl"
-                          style={{ fontFamily: "'Amiri', serif" }}
+                          style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}
                         >
                           {t.arabic}
                         </p>
@@ -499,7 +499,7 @@ const HowDoISay = () => {
                         <span
                           className="text-lg font-semibold text-foreground shrink-0"
                           dir="rtl"
-                          style={{ fontFamily: "'Amiri', serif" }}
+                          style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}
                         >
                           {word.arabic}
                         </span>

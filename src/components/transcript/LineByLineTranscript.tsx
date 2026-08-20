@@ -177,7 +177,7 @@ const InlineToken = ({
               </div>
               <p
                 className="text-xl font-bold text-foreground mb-1"
-                style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
+                style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}
                 dir="rtl"
               >
                 {compoundSurface}
@@ -268,7 +268,7 @@ const InlineToken = ({
           <div className="text-center border-b border-border pb-2">
             <p 
               className="text-xl font-bold text-foreground mb-1"
-              style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
+              style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}
               dir="rtl"
             >
               {token.surface}

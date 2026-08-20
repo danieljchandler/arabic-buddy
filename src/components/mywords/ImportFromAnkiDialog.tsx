@@ -524,7 +524,7 @@ export function ImportFromAnkiDialog({ open, onOpenChange }: Props) {
                 <tbody>
                   {previewRows.map((c, i) => (
                     <tr key={i} className="border-t border-border">
-                      <td className="p-2 text-right font-arabic" dir="rtl" style={{ fontFamily: "'Amiri', serif" }}>
+                      <td className="p-2 text-right font-arabic" dir="rtl" style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}>
                         {c.wordArabic}
                       </td>
                       <td className="p-2 text-muted-foreground">{c.wordEnglish}</td>

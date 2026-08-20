@@ -419,7 +419,7 @@ const MyWords = () => {
                   <p
                     className="text-base font-semibold text-foreground truncate"
                     dir="rtl"
-                    style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
+                    style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}
                   >
                     {p.phrase_arabic}
                   </p>
@@ -818,7 +818,7 @@ const MyWords = () => {
                   <div>
                     <span
                       className="text-lg font-bold text-foreground block"
-                      style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
+                      style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}
                       dir="rtl"
                     >
                       {word.word_arabic}
@@ -905,7 +905,7 @@ const MyWords = () => {
                   <p
                     className="text-sm text-foreground/90 font-arabic leading-relaxed"
                     dir="rtl"
-                    style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
+                    style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}
                   >
                     {word.sentence_text}
                   </p>

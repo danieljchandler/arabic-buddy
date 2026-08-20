@@ -429,7 +429,7 @@ const Review = () => {
             ) : (
               <p
                 className="text-4xl font-bold text-foreground mb-6 break-words max-w-full"
-                style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
+                style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}
                 dir="rtl"
               >
                 {currentWord.word_arabic}
@@ -466,7 +466,7 @@ const Review = () => {
                 {isProduction ? (
                   <p
                     className="text-3xl font-bold text-foreground break-words"
-                    style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
+                    style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}
                     dir="rtl"
                   >
                     {currentWord.word_arabic}

@@ -1710,7 +1710,6 @@ export type Database = {
           open_questions: Json
           summary: string
           turns_seen: number
-          turns_total: number
           updated_at: string
           user_id: string
         }
@@ -1719,7 +1718,6 @@ export type Database = {
           open_questions?: Json
           summary?: string
           turns_seen?: number
-          turns_total?: number
           updated_at?: string
           user_id: string
         }
@@ -1728,7 +1726,6 @@ export type Database = {
           open_questions?: Json
           summary?: string
           turns_seen?: number
-          turns_total?: number
           updated_at?: string
           user_id?: string
         }

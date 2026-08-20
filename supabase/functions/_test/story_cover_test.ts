@@ -40,7 +40,7 @@ function coverBackend(
   const { story = storyRow(), extra = {} } = options;
   return {
     "/auth/v1/user": () => json({ id: USER, aud: "authenticated", role: "authenticated" }),
-    "/rest/v1/rpc/can_manage_content": () => json(true),
+    "/rest/v1/user_roles": () => json([{ role: "admin" }]),
     "/storage/v1": () => json({ Key: `listen-audio/interactive-stories/${STORY}/cover` }),
     "/rest/v1/interactive_stories": (request: Request) =>
       request.method === "GET" ? json(story) : json([], 200),
@@ -115,7 +115,7 @@ Deno.test("generate-story-cover turns away an anonymous caller", async () => {
 Deno.test("generate-story-cover turns away a caller who may not manage content", async () => {
   const result = await call(
     { story_id: STORY },
-    coverBackend({ extra: { "/rest/v1/rpc/can_manage_content": () => json(false) } }),
+    coverBackend({ extra: { "/rest/v1/user_roles": () => json([]) } }),
   );
 
   assertEquals(result.status, 403);

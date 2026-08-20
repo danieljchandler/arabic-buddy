@@ -105,6 +105,19 @@ describe("changing the preference", () => {
     expect(document.documentElement.classList.contains("dark")).toBe(false);
   });
 
+  it("keeps every instance in sync — the toaster must not keep the old theme", () => {
+    // Settings and the app-wide Sonner toaster each call useTheme. A switch
+    // made in Settings has to reach the toaster's instance immediately, or
+    // toasts render in the previous palette for the rest of the session.
+    const settings = renderHook(() => useTheme());
+    const toaster = renderHook(() => useTheme());
+
+    act(() => settings.result.current.setPref("dark"));
+
+    expect(toaster.result.current.pref).toBe("dark");
+    expect(toaster.result.current.resolved).toBe("dark");
+  });
+
   it("re-stamps the document when the system preference changes underneath 'system'", () => {
     const listeners = stubMatchMedia(false);
     const { result } = renderHook(() => useTheme());

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 
 /**
  * Theme preference — light (default), dark ("night majlis"), or follow the
@@ -8,6 +8,11 @@ import { useEffect, useState } from "react";
  *
  * Light stays the default on purpose: the warm-sand identity is the brand,
  * and dark is an opt-in reading mode rather than a second first-class theme.
+ *
+ * Built on one module-level store rather than per-instance useState: the
+ * Settings toggle and the app-wide pieces that render themed UI outside it
+ * (the toaster, most of all) must see the same value at the same moment, or
+ * a theme switch leaves them rendering the old palette for the session.
  */
 export type ThemePref = "light" | "dark" | "system";
 
@@ -39,27 +44,49 @@ export function applyTheme(pref: ThemePref): void {
   document.documentElement.classList.toggle("dark", resolveTheme(pref) === "dark");
 }
 
-export function useTheme() {
-  const [pref, setPrefState] = useState<ThemePref>(getThemePref);
+const subscribers = new Set<() => void>();
 
-  const setPref = (next: ThemePref) => {
-    try {
-      localStorage.setItem(STORAGE_KEY, next);
-    } catch {
-      // best-effort persistence
-    }
-    setPrefState(next);
-    applyTheme(next);
+export function setThemePref(next: ThemePref): void {
+  try {
+    localStorage.setItem(STORAGE_KEY, next);
+  } catch {
+    // best-effort persistence
+  }
+  applyTheme(next);
+  subscribers.forEach((fn) => fn());
+}
+
+function subscribe(onChange: () => void): () => void {
+  subscribers.add(onChange);
+
+  // Track the device preference too, so `resolved` stays live while the
+  // learner follows the system. Registered per subscriber and always (not
+  // only while pref === 'system') — the handler itself checks.
+  let mql: MediaQueryList | undefined;
+  let onMedia: (() => void) | undefined;
+  if (typeof window.matchMedia === "function") {
+    mql = window.matchMedia("(prefers-color-scheme: dark)");
+    onMedia = () => {
+      if (getThemePref() === "system") applyTheme("system");
+      onChange();
+    };
+    mql.addEventListener?.("change", onMedia);
+  }
+
+  return () => {
+    subscribers.delete(onChange);
+    if (mql && onMedia) mql.removeEventListener?.("change", onMedia);
   };
+}
 
-  // While following the system, track live changes to its preference.
-  useEffect(() => {
-    if (pref !== "system" || typeof window.matchMedia !== "function") return;
-    const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    const onChange = () => applyTheme("system");
-    mq.addEventListener?.("change", onChange);
-    return () => mq.removeEventListener?.("change", onChange);
-  }, [pref]);
+/** Snapshot as a value-equal string so React only re-renders on real change. */
+function snapshot(): string {
+  const pref = getThemePref();
+  return `${pref}|${resolveTheme(pref)}`;
+}
 
-  return { pref, setPref, resolved: resolveTheme(pref) };
+export function useTheme() {
+  const snap = useSyncExternalStore(subscribe, snapshot);
+  const [pref, resolved] = snap.split("|") as [ThemePref, "light" | "dark"];
+  return { pref, setPref: setThemePref, resolved };
 }

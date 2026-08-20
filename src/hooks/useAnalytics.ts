@@ -1,5 +1,22 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllRows } from "@/lib/fetchAllRows";
+
+/**
+ * The columns every word-derived metric on this dashboard reads. Both sources
+ * — curriculum reviews and saved words — are selected down to this shape and
+ * then treated alike.
+ */
+interface AnalyticsWordRow {
+  repetitions?: number | null;
+  ease_factor?: number | null;
+  review_count?: number | null;
+  correct_count?: number | null;
+  last_reviewed_at?: string | null;
+  created_at?: string | null;
+  word_arabic?: string | null;
+  word_english?: string | null;
+}
 import { useAuth } from "@/hooks/useAuth";
 import { getSRSStageByStability } from "@/lib/srsStats";
 
@@ -52,14 +69,24 @@ export function useLearningAnalytics() {
         challengeRes,
         difficultyRes,
       ] = await Promise.all([
-        supabase
-          .from("word_reviews")
-          .select("repetitions, ease_factor, review_count, correct_count, last_reviewed_at, created_at")
-          .eq("user_id", user.id),
-        supabase
-          .from("user_vocabulary")
-          .select("repetitions, ease_factor, review_count, correct_count, last_reviewed_at, created_at, word_arabic, word_english")
-          .eq("user_id", user.id),
+        // Paged: an unbounded select stops at PostgREST's 1000-row ceiling
+        // without erroring, so every figure derived from these — total words,
+        // accuracy, mastery, the growth curve — quietly under-reported for the
+        // learners with the most to show.
+        fetchAllRows<AnalyticsWordRow>((from, to) =>
+          supabase
+            .from("word_reviews")
+            .select("repetitions, ease_factor, review_count, correct_count, last_reviewed_at, created_at")
+            .eq("user_id", user.id)
+            .range(from, to),
+        ).then((data) => ({ data, error: null })),
+        fetchAllRows<AnalyticsWordRow>((from, to) =>
+          supabase
+            .from("user_vocabulary")
+            .select("repetitions, ease_factor, review_count, correct_count, last_reviewed_at, created_at, word_arabic, word_english")
+            .eq("user_id", user.id)
+            .range(from, to),
+        ).then((data) => ({ data, error: null })),
         supabase
           .from("review_streaks")
           .select("current_streak, longest_streak")
@@ -148,7 +175,7 @@ export function useLearningAnalytics() {
           if (dailyMap[dateStr]) {
             dailyMap[dateStr].reviews++;
             // Approximate correct from ratio
-            if (w.review_count > 0 && w.correct_count > 0) {
+            if ((w.review_count ?? 0) > 0 && (w.correct_count ?? 0) > 0) {
               dailyMap[dateStr].correct++;
             }
           }
@@ -206,8 +233,8 @@ export function useLearningAnalytics() {
         .filter((w) => (w.review_count || 0) >= 2)
         .map((w) => ({
           word: (w as any).word_arabic || "?",
-          errorRate: w.review_count > 0
-            ? Math.round(((w.review_count - w.correct_count) / w.review_count) * 100)
+          errorRate: (w.review_count ?? 0) > 0
+            ? Math.round((((w.review_count ?? 0) - (w.correct_count ?? 0)) / (w.review_count ?? 1)) * 100)
             : 0,
         }))
         .sort((a, b) => b.errorRate - a.errorRate)

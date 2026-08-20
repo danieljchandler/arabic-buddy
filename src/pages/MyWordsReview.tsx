@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { nextRelearn, pushRelearn, type RelearnEntry } from "@/lib/relearn";
 import { useAuth } from "@/hooks/useAuth";
 import { useUpdateUserVocabularyReview } from "@/hooks/useUserVocabulary";
 import { useDialect } from "@/contexts/DialectContext";
@@ -144,6 +145,10 @@ const MyWordsReview = () => {
   // Cloze cards carry an objective check; null until the learner picks an
   // option. Rating gates on it, and a wrong pick caps the offered ratings.
   const [clozeResult, setClozeResult] = useState<boolean | null>(null);
+  // Cards rated Again/Hard, owed a re-test later this session (lib/relearn).
+  const [relearn, setRelearn] = useState<RelearnEntry<DueCard>[]>([]);
+  // The fetched list has been walked to the end; only relearn cards remain.
+  const [mainDone, setMainDone] = useState(false);
   const [showContext, setShowContext] = useState(false);
   const [sessionCount, setSessionCount] = useState(0);
   const [jingleLoading, setJingleLoading] = useState(false);
@@ -343,9 +348,16 @@ const MyWordsReview = () => {
     enabled: !!user,
   });
 
-  const currentWord = dueWords && dueWords.length > 0
+  // In-session relearn: cards rated Again/Hard come back a few cards later
+  // (see lib/relearn) carrying their freshly-computed schedule, and the
+  // session only ends once the queue drains. Without this the end-of-list
+  // refetch ran seconds before a failed card's 1-minute step came due, so the
+  // failure never got its retrieval until tomorrow.
+  const relearnPick = nextRelearn(relearn, sessionCount, mainDone);
+
+  const currentWord = relearnPick?.card ?? (dueWords && dueWords.length > 0
     ? dueWords[Math.min(currentIndex, dueWords.length - 1)]
-    : null;
+    : null);
   const isProduction = currentWord?.card_type === "production";
 
   // Session breakdown for the New / Review header chips
@@ -505,12 +517,12 @@ const MyWordsReview = () => {
   };
 
   const handleRate = async (rating: Rating) => {
-    if (!dueWords || !dueWords[currentIndex]) return;
+    const card = relearnPick?.card ?? dueWords?.[currentIndex];
+    if (!dueWords || !card) return;
     // Guard against a double-tap firing two ratings for the same card before
     // the mutation resolves (which double-counts sessionCount and skips a card).
     if (ratingInFlightRef.current) return;
     ratingInFlightRef.current = true;
-    const card = dueWords[currentIndex];
     const wordCount = dueWords.length;
 
     try {
@@ -568,11 +580,51 @@ const MyWordsReview = () => {
         setLastAction(newAction);
       }
 
+      // A failed card re-enters the session a few cards later, carrying the
+      // schedule this rating just wrote, so its re-rating computes from the
+      // relearned state rather than the stale pre-failure one.
+      let nextQueue = relearnPick ? relearn.slice(1) : relearn;
+      if (rating === "again" || rating === "hard") {
+        nextQueue = pushRelearn(
+          nextQueue,
+          {
+            ...card,
+            ease_factor: result.stability,
+            difficulty: result.difficulty,
+            interval_days: result.intervalDays,
+            repetitions: result.repetitions,
+            last_reviewed_at: new Date().toISOString(),
+            lapses:
+              card.card_type !== "production" && rating === "again"
+                ? (card.lapses ?? 0) + 1
+                : card.lapses,
+            production_lapses:
+              card.card_type === "production" && rating === "again"
+                ? (card.production_lapses ?? 0) + 1
+                : card.production_lapses,
+          },
+          sessionCount + 1,
+        );
+      }
+      setRelearn(nextQueue);
+
       setSessionCount((prev) => prev + 1);
       setShowAnswer(false);
 
-      if (currentIndex < wordCount - 1) {
+      if (relearnPick) {
+        // Rating a relearn card never advances the main list; when the last
+        // one resolves after the list is done, the session is truly over.
+        if (mainDone && nextQueue.length === 0) {
+          setMainDone(false);
+          await refetch();
+          setCurrentIndex(0);
+        }
+      } else if (currentIndex < wordCount - 1) {
         setCurrentIndex((prev) => prev + 1);
+      } else if (nextQueue.length > 0) {
+        // End of the fetched list with relearn cards owed: hold the session
+        // open and present them instead of refetching into "all caught up".
+        setMainDone(true);
       } else {
         await refetch();
         setCurrentIndex(0);
@@ -583,7 +635,9 @@ const MyWordsReview = () => {
       console.error("Failed to save review rating:", err);
       toast.error("Couldn't save your rating — it will come back around. Try again.");
       setShowAnswer(false);
-      if (currentIndex < wordCount - 1) {
+      // A relearn card stays presented on failure — nothing was written, so
+      // it is still owed its retrieval.
+      if (!relearnPick && currentIndex < wordCount - 1) {
         setCurrentIndex((prev) => prev + 1);
       }
     } finally {
@@ -646,7 +700,9 @@ const MyWordsReview = () => {
     );
   }
 
-  if (!dueWords || dueWords.length === 0) {
+  // Relearn cards outlive the fetched list: a mid-session invalidation can
+  // empty dueWords while a failed card is still owed its retrieval.
+  if ((!dueWords || dueWords.length === 0) && !relearnPick) {
     return (
       <AppShell compact>
         <div className="flex items-center justify-between mb-6">
@@ -669,7 +725,9 @@ const MyWordsReview = () => {
     );
   }
 
-  const safeIndex = Math.min(currentIndex, dueWords.length - 1);
+  // Clamp the index if the list shrank — it can even be empty here while a
+  // relearn card keeps the session alive.
+  const safeIndex = Math.max(0, Math.min(currentIndex, (dueWords?.length ?? 0) - 1));
   if (safeIndex !== currentIndex) {
     setCurrentIndex(safeIndex);
   }
@@ -722,7 +780,7 @@ const MyWordsReview = () => {
         deckId="my-words"
         session={session}
         position={safeIndex + 1}
-        total={dueWords.length}
+        total={dueWords?.length ?? 0}
       >
         <div className="flex items-center justify-center gap-3 text-xs text-muted-foreground mt-1">
           <span className="inline-flex items-center gap-1">

@@ -282,9 +282,18 @@ export default function PlacementQuiz() {
               <p className="text-sm font-medium text-muted-foreground">
                 Question {globalQuestionNum} / {TOTAL_QUESTIONS}
               </p>
-              <div className="flex items-center gap-2">
+              {/* English is feedback, not a hint: it appears only after the
+                  answer is in. Mid-question it would let the learner answer
+                  from the translations, and an English-assisted placement
+                  over-places — the level this quiz writes anchors content
+                  selection everywhere. */}
+              <div className="flex items-center gap-2" title="Show English after answering">
                 <Languages className="h-4 w-4 text-muted-foreground" />
-                <Switch checked={showEnglish} onCheckedChange={setShowEnglish} />
+                <Switch
+                  checked={showEnglish}
+                  onCheckedChange={setShowEnglish}
+                  aria-label="Show English after answering"
+                />
               </div>
             </div>
             <Progress value={(answers.length / TOTAL_QUESTIONS) * 100} className="h-2 mb-6" />
@@ -314,7 +323,7 @@ export default function PlacementQuiz() {
                   <p className="text-xl font-semibold text-foreground leading-relaxed" dir="rtl">
                     {currentQuestion.question_arabic}
                   </p>
-                  {showEnglish && (
+                  {showEnglish && showFeedback && (
                     <p className="text-sm text-muted-foreground mt-2">
                       {currentQuestion.question_english}
                     </p>
@@ -363,7 +372,7 @@ export default function PlacementQuiz() {
                           <p className="font-medium text-foreground" dir="rtl">
                             {choice.text_arabic}
                           </p>
-                          {showEnglish && (
+                          {showEnglish && showFeedback && (
                             <p className="text-sm text-muted-foreground">{choice.text}</p>
                           )}
                         </div>

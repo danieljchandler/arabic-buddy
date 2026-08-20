@@ -32,36 +32,73 @@ function adjustDifficulty(history: { correct: boolean; difficulty: string }[]): 
   return CEFR_LEVELS[Math.max(0, currentIdx)];
 }
 
+/**
+ * Placement from the bands the learner actually sustained.
+ *
+ * The old scoring mapped an overall difficulty-weighted percentage through
+ * fixed cutoffs, so a learner who answered 85%+ of *B1-and-easier* questions
+ * correctly was placed at C2 despite never seeing a C1 question. Placement
+ * anchors i+1 content selection everywhere (Discover's default filter,
+ * grammar difficulty), so over-placement put every downstream surface above
+ * the learner's head.
+ *
+ * Now: the level is the highest band the learner *attempted* and answered at
+ * ≥65% — the adaptive walk already spends its questions finding that
+ * frontier — with a single answer never counting as evidence on its own (the
+ * walk can end one question after moving up a band). A learner who sustains
+ * no attempted band lands one below the lowest they tried. The level can
+ * never exceed the hardest question actually asked.
+ */
+const SUSTAINED_ACCURACY = 0.65;
+
 function calculateCEFR(history: { correct: boolean; difficulty: string; skill_type: string }[]): {
   cefr_level: string;
   confidence: number;
   strengths: string[];
   weaknesses: string[];
 } {
-  // Weight correct answers by difficulty level
-  let totalScore = 0;
-  let maxScore = 0;
   const skillScores: Record<string, { correct: number; total: number }> = {};
+  const bandScores: Record<string, { correct: number; total: number }> = {};
 
   for (const h of history) {
-    const diffWeight = CEFR_LEVELS.indexOf(h.difficulty) + 1;
-    maxScore += diffWeight;
-    if (h.correct) totalScore += diffWeight;
-
     if (!skillScores[h.skill_type]) skillScores[h.skill_type] = { correct: 0, total: 0 };
     skillScores[h.skill_type].total++;
     if (h.correct) skillScores[h.skill_type].correct++;
+
+    if (!bandScores[h.difficulty]) bandScores[h.difficulty] = { correct: 0, total: 0 };
+    bandScores[h.difficulty].total++;
+    if (h.correct) bandScores[h.difficulty].correct++;
   }
 
-  const ratio = totalScore / maxScore;
-  // Map ratio to CEFR
-  let levelIdx: number;
-  if (ratio >= 0.85) levelIdx = 5; // C2
-  else if (ratio >= 0.7) levelIdx = 4; // C1
-  else if (ratio >= 0.55) levelIdx = 3; // B2
-  else if (ratio >= 0.4) levelIdx = 2; // B1
-  else if (ratio >= 0.25) levelIdx = 1; // A2
-  else levelIdx = 0; // A1
+  const attempted = CEFR_LEVELS
+    .map((level, idx) => ({ level, idx, score: bandScores[level] }))
+    .filter((b) => b.score && b.score.total > 0);
+
+  let levelIdx = 0;
+  let confidence = 0;
+  if (attempted.length > 0) {
+    let placed: { idx: number; accuracy: number } | null = null;
+    for (let i = attempted.length - 1; i >= 0; i--) {
+      const band = attempted[i];
+      const accuracy = band.score!.correct / band.score!.total;
+      if (band.score!.total >= 2 && accuracy >= SUSTAINED_ACCURACY) {
+        placed = { idx: band.idx, accuracy };
+        break;
+      }
+    }
+    if (placed) {
+      levelIdx = placed.idx;
+      confidence = placed.accuracy;
+    } else {
+      // Nothing sustained. Near-misses at the lowest band tried land one step
+      // below it; a collapse (under 35%) is no evidence of the neighbouring
+      // band either and goes to the floor.
+      const lowest = attempted[0];
+      const accuracy = lowest.score!.correct / lowest.score!.total;
+      levelIdx = accuracy >= 0.35 ? Math.max(0, lowest.idx - 1) : 0;
+      confidence = accuracy;
+    }
+  }
 
   const strengths: string[] = [];
   const weaknesses: string[] = [];
@@ -73,7 +110,7 @@ function calculateCEFR(history: { correct: boolean; difficulty: string; skill_ty
 
   return {
     cefr_level: CEFR_LEVELS[levelIdx],
-    confidence: Math.round(ratio * 100),
+    confidence: Math.round(confidence * 100),
     strengths: strengths.length ? strengths : ["general_comprehension"],
     weaknesses: weaknesses.length ? weaknesses : [],
   };

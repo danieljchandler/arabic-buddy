@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { useWeeklyGoal } from "@/hooks/useGamification";
 import { Progress } from "@/components/ui/progress";
 import { Target, Zap } from "lucide-react";
@@ -31,6 +32,27 @@ export function WeeklyGoalCard({ className }: WeeklyGoalCardProps) {
 
   const reviewComplete = goal.target_reviews > 0 && goal.completed_reviews >= goal.target_reviews;
   const xpComplete = goal.target_xp > 0 && goal.earned_xp >= goal.target_xp;
+
+  // Zero targets across the board mean no goal exists yet. Rendering the
+  // usual body would show "Reviews 0/0" over two empty bars — a card that can
+  // neither progress nor complete — so invite the learner to set one instead.
+  if (goal.target_reviews <= 0 && goal.target_xp <= 0) {
+    return (
+      <div className={cn("bg-card rounded-2xl p-4 border border-border", className)}>
+        <div className="flex items-center gap-2 mb-2">
+          <Target className="h-5 w-5 text-primary" />
+          <h3 className="font-semibold text-foreground">Weekly Goals</h3>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          No goal set for this week yet.{" "}
+          <Link to="/settings" className="text-primary underline underline-offset-2">
+            Pick a weekly pace
+          </Link>{" "}
+          and this card will track it.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className={cn("bg-card rounded-2xl p-4 border border-border", className)}>

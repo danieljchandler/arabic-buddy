@@ -53,13 +53,16 @@ export function AppShell({ children, className, compact = false }: AppShellProps
         className={cn(
         "relative mx-auto w-full max-w-2xl animate-fade-up",
         compact ? "px-4 pb-5 sm:px-5 sm:pb-6" : "px-4 pb-8 sm:px-6 md:pb-12",
-        // Clearance for the dock, at every width. The md: variant above is a
-        // separate group as far as tailwind-merge is concerned, so a bare
-        // pb-24 loses to md:pb-12 from 768px up — which leaves 48px of room
-        // under a bar that can be taller than that, putting whatever sits at
-        // the bottom of a page underneath it. Ingleezy hit exactly this when
-        // it swapped its bar; the clearance is stated at both widths.
-        showNav && "pb-24 md:pb-24",
+        // Clearance for the dock AND the Ask AI FAB, at every width. The md:
+        // variant above is a separate group as far as tailwind-merge is
+        // concerned, so a bare value loses to md:pb-12 from 768px up — the
+        // clearance is stated at both widths. On phones the FAB floats at
+        // bottom-20 and is 40px tall, so it reaches ~120px up from the edge:
+        // pb-24 (96px) left it sitting on whatever ended a page — the Start
+        // a lesson button on My Words, the empty-state copy on Discover.
+        // 128px lets every page scroll its last element clear of it. From md
+        // the FAB drops to bottom-6 and pb-24 already clears it.
+        showNav && "pb-32 md:pb-24",
         // Let the page scroll clear of the bottom sheet, or its lower half is
         // unreachable while the panel is open.
         aiOpen && "max-sm:pb-[60dvh]",

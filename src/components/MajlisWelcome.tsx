@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Flame } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useDialect } from "@/contexts/DialectContext";
-import { useWeeklyGoal } from "@/hooks/useGamification";
+import { useUserXP, useWeeklyGoal } from "@/hooks/useGamification";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { dialectAccent } from "@/lib/dialectAccent";
@@ -45,6 +45,7 @@ export function MajlisWelcome() {
   const { user, isAuthenticated } = useAuth();
   const { activeDialect } = useDialect();
   const { data: weekly } = useWeeklyGoal();
+  const { data: xp } = useUserXP();
 
   const { data: streak } = useQuery({
     queryKey: ["review-streak", user?.id],
@@ -77,8 +78,16 @@ export function MajlisWelcome() {
   const greeting = greetingFor(new Date().getHours());
   const name = profile?.display_name?.split(" ")[0] ?? user?.email?.split("@")[0] ?? "";
 
-  const earned = weekly?.earned_xp ?? 0;
-  const target = Math.max(weekly?.target_xp ?? 100, 1);
+  // The weekly row is written by a different path than the per-day XP counter
+  // and can lag it — which put a weekly 0 beside a daily 20 on one screen, an
+  // impossible state a learner can see. A week can never hold less than today.
+  const todayUtc = new Date().toISOString().slice(0, 10);
+  const xpToday = xp && xp.xp_today_date === todayUtc ? xp.xp_today : 0;
+  const earned = Math.max(weekly?.earned_xp ?? 0, xpToday);
+  // A zero target is a goal nobody set, not a tiny goal: useWeeklyGoal
+  // synthesizes target_xp: 0 when the week has no row yet, so `?? 100` alone
+  // never engaged and the goal-less ring rendered full against a target of 1.
+  const target = (weekly?.target_xp ?? 0) > 0 ? weekly!.target_xp : 100;
   const pct = Math.min(100, Math.round((earned / target) * 100));
 
   // Ring math
@@ -206,8 +215,11 @@ export function MajlisWelcome() {
               >
                 {compactXp(earned)}
               </span>
+              {/* Named for its period: three XP figures share the home screen
+                  (today's ring, total chip, this) and an unlabeled one reads
+                  as a contradiction of the other two. */}
               <span className="text-[10px] uppercase tracking-wider text-plum mt-0.5">
-                XP
+                Week
               </span>
             </div>
           </div>

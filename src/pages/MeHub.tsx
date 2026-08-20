@@ -113,7 +113,11 @@ const visible = (items: Item[]) => items.filter((i) => i.show !== false);
 /** Section accents — the charcoal→terracotta ramp Choose's skill tiles use
  *  (src/lib/surfaces.ts tints), so the hub's hierarchy comes from the brand
  *  ramp rather than the pre-brand-guide per-section colours this page once
- *  had. Account stays neutral on purpose: it is chrome, not content. */
+ *  had. Account stays neutral on purpose: it is chrome, not content.
+ *
+ *  Chips carry the accent at 15%. The first pass used 8%, which on a page of
+ *  thirty tiles was invisible — the hierarchy it was meant to buy simply was
+ *  not legible. */
 const ACCENTS = {
   library: "#2E3532",
   tools: "#4A3733",
@@ -153,7 +157,7 @@ const MeHub = () => {
             >
               <span
                 className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl"
-                style={{ backgroundColor: `${ACCENTS.library}14`, color: ACCENTS.library }}
+                style={{ backgroundColor: `${ACCENTS.library}26`, color: ACCENTS.library }}
               >
                 <Icon className="h-5 w-5" />
               </span>
@@ -222,7 +226,7 @@ function Grid({ items, accent }: { items: Item[]; accent?: string }) {
               "flex h-9 w-9 items-center justify-center rounded-xl",
               !accent && "bg-muted text-muted-foreground",
             )}
-            style={accent ? { backgroundColor: `${accent}14`, color: accent } : undefined}
+            style={accent ? { backgroundColor: `${accent}26`, color: accent } : undefined}
           >
             <Icon className="h-5 w-5" />
           </span>

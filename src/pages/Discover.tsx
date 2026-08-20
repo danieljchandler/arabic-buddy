@@ -302,17 +302,15 @@ const Discover = () => {
               ))}
             </div>
           ) : (
-            <div className="text-center py-16">
-              <Play className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
-              <p className="text-muted-foreground">
-                {justRightOnly ? "Nothing in your sweet spot yet" : "No videos found"}
-              </p>
-              <p className="text-sm text-muted-foreground/70 mt-1">
-                {justRightOnly
+            <EmptyState
+              className="py-16"
+              title={justRightOnly ? "Nothing in your sweet spot yet" : "No videos found"}
+              body={
+                justRightOnly
                   ? "Save more words, or turn the filter off to browse everything."
-                  : "Check back later for new content"}
-              </p>
-            </div>
+                  : "Check back later for new content."
+              }
+            />
           )}
         </TabsContent>
       </Tabs>

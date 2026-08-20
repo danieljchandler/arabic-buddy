@@ -9,7 +9,10 @@ const Progress = React.forwardRef<
 >(({ className, value, ...props }, ref) => (
   <ProgressPrimitive.Root
     ref={ref}
-    className={cn("relative h-4 w-full overflow-hidden rounded-full bg-secondary", className)}
+    /* The track is bg-muted, not bg-secondary: --secondary is a near-black
+       charcoal (150 10% 25%), so as a track it rendered darker than the
+       --primary fill sitting on it and an empty bar read as a full one. */
+    className={cn("relative h-4 w-full overflow-hidden rounded-full bg-muted", className)}
     {...props}
   >
     <ProgressPrimitive.Indicator

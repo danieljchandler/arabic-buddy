@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { ChevronDown, X } from "lucide-react";
 import { useDialect, DialectModule } from "@/contexts/DialectContext";
 import { cn } from "@/lib/utils";
+import { DIALECT_ACCENT } from "@/lib/dialectAccent";
 import dallahAsset from "@/assets/dallah-icon.png";
 import dialectGulfArt from "@/assets/illustrations/dialect-gulf.webp";
 import dialectEgyptianArt from "@/assets/illustrations/dialect-egyptian.webp";
@@ -31,7 +32,7 @@ const DIALECTS: Meta[] = [
     tag: "Majlis · Pearls · Coastal trade",
     tagArabic: "مرحبا بالمعازيب",
     vibe: "The unhurried cadence of the majlis — coffee, oud, the Gulf wind.",
-    hsl: "12 68% 32%",
+    hsl: DIALECT_ACCENT.Gulf,
     image: dialectGulfArt,
   },
   {
@@ -42,7 +43,7 @@ const DIALECTS: Meta[] = [
     tag: "Cairo streets · Cinema · Wit",
     tagArabic: "أهلاً يا باشا",
     vibe: "Quick, warm, theatrical — the lingua franca of Arab cinema.",
-    hsl: "38 85% 45%",
+    hsl: DIALECT_ACCENT.Egyptian,
     image: dialectEgyptianArt,
   },
   {
@@ -53,7 +54,7 @@ const DIALECTS: Meta[] = [
     tag: "Highlands · Honey · Ancient poetry",
     tagArabic: "حياك الله",
     vibe: "Mountain Arabic — old vowels, deep hospitality, slow verse.",
-    hsl: "0 70% 42%",
+    hsl: DIALECT_ACCENT.Yemeni,
     image: dialectYemeniArt,
   },
 ];

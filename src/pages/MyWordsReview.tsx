@@ -523,12 +523,14 @@ const MyWordsReview = () => {
 
   const handleRate = async (rating: Rating) => {
     const card = relearnPick?.card ?? dueWords?.[currentIndex];
-    if (!dueWords || !card) return;
+    // Gate on the card, not the list: a relearn card outlives the fetched
+    // list, and dropping its rating would lose the retrieval it is owed.
+    if (!card) return;
     // Guard against a double-tap firing two ratings for the same card before
     // the mutation resolves (which double-counts sessionCount and skips a card).
     if (ratingInFlightRef.current) return;
     ratingInFlightRef.current = true;
-    const wordCount = dueWords.length;
+    const wordCount = dueWords?.length ?? 0;
 
     try {
       // Snapshot the current DB row so the learner can undo this rating.

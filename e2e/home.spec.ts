@@ -176,10 +176,19 @@ test.describe("the daily queue", () => {
     const firstRow = page.getByText("Daily challenge");
     await expect(video).toBeVisible();
 
-    const follows = (a: Element, b: Element) =>
-      !!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
-    expect(await goal.evaluate(follows, await video.elementHandle())).toBe(true);
-    expect(await video.evaluate(follows, await firstRow.elementHandle())).toBe(true);
+    // Tag each element, then read the tags back with querySelectorAll, whose
+    // result order IS document order. (Passing one locator's ElementHandle as
+    // another's evaluate argument type-checked its way into TS2589 —
+    // "instantiation is excessively deep" — under the pinned toolchain.)
+    await video.evaluate((el) => el.setAttribute("data-order-probe", "video"));
+    await goal.evaluate((el) => el.setAttribute("data-order-probe", "goal"));
+    await firstRow.evaluate((el) => el.setAttribute("data-order-probe", "row"));
+    const order = await page.evaluate(() =>
+      Array.from(document.querySelectorAll("[data-order-probe]")).map((el) =>
+        el.getAttribute("data-order-probe"),
+      ),
+    );
+    expect(order).toEqual(["video", "goal", "row"]);
   });
 
   test("still counts the video in the day's total", async ({ page, db }) => {

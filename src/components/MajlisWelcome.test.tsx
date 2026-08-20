@@ -4,6 +4,7 @@ import { renderWithProviders } from "@/test/support/react/harness";
 import {
   aProfile,
   aReviewStreak,
+  aUserXp,
   aWeeklyGoal,
   TEST_USER_ID,
 } from "@/test/support/factories";
@@ -236,18 +237,36 @@ describe("the weekly XP ring", () => {
 
     await waitFor(() => expect(screen.getByTitle("120 / 300 XP this week")).toBeInTheDocument());
     expect(screen.getByText("120")).toBeInTheDocument();
-    expect(screen.getByText("XP")).toBeInTheDocument();
+    // Labelled by period: three XP figures share the home screen, and an
+    // unlabelled one reads as a contradiction of the other two.
+    expect(screen.getByText("Week")).toBeInTheDocument();
     // 40% of the circumference, the rest left as gap.
     const [dash] = ring().getAttribute("stroke-dasharray")!.split(" ").map(Number);
     expect(dash).toBeCloseTo(0.4 * CIRCUMFERENCE, 5);
   });
 
   it("leaves the ring empty at the start of the week", async () => {
-    render({ earned: 0, target: 300 });
+    // xp_today must be zero too: the ring floors the weekly figure at today's
+    // XP (the two are written by different paths and the weekly row can lag).
+    render({
+      earned: 0,
+      target: 300,
+      seed: (backend) =>
+        backend.db.seed("user_xp", [aUserXp({ user_id: TEST_USER_ID, xp_today: 0 })]),
+    });
 
     await waitFor(() => expect(screen.getByTitle("0 / 300 XP this week")).toBeInTheDocument());
     const [dash] = ring().getAttribute("stroke-dasharray")!.split(" ").map(Number);
     expect(dash).toBe(0);
+  });
+
+  it("never shows the week holding less XP than today", async () => {
+    // The persona's user_xp row carries xp_today: 20. A weekly row that lagged
+    // behind it used to render "0 XP" beside a daily ring showing 20 — an
+    // impossible state on the app's most-visited screen.
+    render({ earned: 0, target: 300 });
+
+    await waitFor(() => expect(screen.getByTitle("20 / 300 XP this week")).toBeInTheDocument());
   });
 
   it("does not overfill once the target is beaten", async () => {
@@ -261,24 +280,25 @@ describe("the weekly XP ring", () => {
     expect(screen.getByText("900")).toBeInTheDocument();
   });
 
-  it("survives a target of zero", async () => {
+  it("treats a target of zero as the default hundred", async () => {
     render({ earned: 50, target: 0 });
 
     // The hook returns target_xp: 0 for a learner with no goal row for this
-    // week, so this is the ordinary first-visit state — not an edge case. A
-    // straight division would put NaN in the dash array and blank the ring.
-    await waitFor(() => expect(screen.getByText("50")).toBeInTheDocument());
+    // week, so this is the ordinary first-visit state — not an edge case. It
+    // used to slip past the `?? 100` default (0 is not nullish) and divide by
+    // a floor of 1, drawing a full ring for a goal nobody set.
+    await waitFor(() => expect(screen.getByTitle("50 / 100 XP this week")).toBeInTheDocument());
     const [dash] = ring().getAttribute("stroke-dasharray")!.split(" ").map(Number);
-    expect(Number.isNaN(dash)).toBe(false);
-    expect(dash).toBeCloseTo(CIRCUMFERENCE, 5);
+    expect(dash).toBeCloseTo(0.5 * CIRCUMFERENCE, 5);
   });
 
   it("shows a hundred-XP target when the week has no goal row yet", async () => {
     render({ seed: (backend) => backend.db.seed("weekly_goals", []) });
 
-    // Distinct from target_xp: 0 — here the whole query resolves to null, and
-    // the component's own default applies.
-    await waitFor(() => expect(screen.getByTitle("0 / 100 XP this week")).toBeInTheDocument());
+    // The hook synthesizes a zero-target row for a missing week, and the
+    // component reads that as "no goal": target defaults to 100, while the
+    // earned side still floors at the persona's xp_today (20).
+    await waitFor(() => expect(screen.getByTitle("20 / 100 XP this week")).toBeInTheDocument());
   });
 
   it("abbreviates a four-figure week so the number stays inside the ring", async () => {

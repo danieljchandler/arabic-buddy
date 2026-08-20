@@ -12,6 +12,7 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 //      detect a truly stuck job.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { enforceDailyCap } from "../_shared/usageCap.ts";
 import {
   planProvider,
   synthesizeLine,
@@ -150,6 +151,39 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: "episodeId_required" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    // Synthesis spends real TTS money and overwrites episode audio state, and
+    // config.toml has verify_jwt = false — so gate the dispatch. Server-side
+    // callers present the service-role key itself (the pattern download-media
+    // uses); everyone else must be a signed-in user, whose re-kicks are capped.
+    const auth = req.headers.get("authorization") ?? "";
+    const bearer = auth.startsWith("Bearer ") ? auth.slice(7) : "";
+    if (bearer !== SERVICE_ROLE) {
+      const cap = await enforceDailyCap(req, "generate-listen-audio", 20, corsHeaders);
+      if (cap.limited) return cap.response;
+
+      // A browser may only (re)start an episode that is not already playable:
+      // the legitimate client paths are the post-create kick and the stalled-
+      // job re-kick, and neither targets a ready episode. Without this check,
+      // any signed-in user could flip a finished episode back to pending and
+      // re-spend its synthesis.
+      const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
+      const { data: episode } = await admin
+        .from("listen_episodes")
+        .select("audio_status")
+        .eq("id", episodeId)
+        .maybeSingle();
+      if (!episode) {
+        return new Response(JSON.stringify({ error: "episode_not_found" }), {
+          status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (episode.audio_status === "ready") {
+        return new Response(JSON.stringify({ accepted: false, episodeId, already: "ready" }), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
     // Run synthesis off the request path so we don't get killed when the

@@ -132,5 +132,7 @@ export function buildRootFamilies<T extends { root: string | null }>(
     .map(([key, words]) => ({ key, display: key.split("").join(" · "), words }))
     // Size first so the biggest families lead; key breaks ties so the order is
     // stable across renders rather than depending on insertion order.
-    .sort((a, b) => b.words.length - a.words.length || a.key.localeCompare(b.key));
+    // Arabic collation pinned explicitly — bare localeCompare orders by the
+    // viewer's browser locale, so the same list sorted differently per host.
+    .sort((a, b) => b.words.length - a.words.length || a.key.localeCompare(b.key, "ar"));
 }

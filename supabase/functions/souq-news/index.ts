@@ -2,6 +2,7 @@ import { getDialectIdentity, getDialectVocabRules, getTashkeelMandate, getDialec
 import { emitMetric } from "../_shared/featureMetrics.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { MODEL_IDS } from "../_shared/modelRegistry.ts";
+import { enforceDailyCap } from "../_shared/usageCap.ts";
 
 const FEATURE = "souq-news";
 
@@ -16,6 +17,12 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+
+  // One call runs up to three Firecrawl searches and four model rewrites, and
+  // config.toml has verify_jwt = false — so without this gate the endpoint was
+  // anonymous, uncapped paid spend for anyone holding the public anon key.
+  const cap = await enforceDailyCap(req, FEATURE, 10, corsHeaders);
+  if (cap.limited) return cap.response;
 
   const startedAt = Date.now();
   let dialect: string = "Gulf";

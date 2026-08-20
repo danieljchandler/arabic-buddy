@@ -281,16 +281,27 @@ test.describe("an episode", () => {
     await signInAs("free");
   });
 
-  test("shows the script line by line", async ({ page, db }) => {
+  test("starts listen-first, with the script blurred until asked for", async ({ page, db }) => {
     seedListen(db);
 
     await page.goto(`/listen/${EPISODE}`);
 
+    // Ear before eye: every line hides behind a reveal button on arrival, so
+    // a learner can't read along on the first pass by accident.
+    await expect(page.getByRole("heading", { name: "قهوة الصباح" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Reveal line 1" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Look up “الخير”/ })).toHaveCount(0);
+
+    // One line at a time…
+    await page.getByRole("button", { name: "Reveal line 1" }).click();
     // Rendered through TappableArabicText, so each word is its own lookup
     // target rather than one run of text — a sentence-level locator matches
     // nothing.
-    await expect(page.getByRole("heading", { name: "قهوة الصباح" })).toBeVisible();
     await expect(page.getByRole("button", { name: /Look up “الخير”/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Look up “النور”/ })).toHaveCount(0);
+
+    // …or the whole script at once.
+    await page.getByRole("button", { name: "Show all text" }).click();
     await expect(page.getByRole("button", { name: /Look up “النور”/ })).toBeVisible();
   });
 
@@ -345,10 +356,12 @@ test.describe("an episode", () => {
     await page.goto(`/listen/${EPISODE}`);
 
     // The script is the product and per-line synthesis still works, so a failed
-    // background job costs a convenience rather than the episode.
+    // background job costs a convenience rather than the episode. The script
+    // arrives listen-first like everywhere else; revealing it still works.
     await expect(
       page.getByText("Audio failed — you can still play each line on tap."),
     ).toBeVisible();
+    await page.getByRole("button", { name: "Show all text" }).click();
     await expect(page.getByRole("button", { name: /Look up “الخير”/ })).toBeVisible();
   });
 

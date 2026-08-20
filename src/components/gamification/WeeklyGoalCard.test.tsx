@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { WeeklyGoalCard } from "./WeeklyGoalCard";
 
@@ -37,7 +38,12 @@ beforeEach(() => {
 
 function renderCard(over: Partial<Goal> = {}) {
   if (goal.data) goal.data = { ...goal.data, ...over };
-  return render(<WeeklyGoalCard />);
+  // A router because the goal-less state links to Settings.
+  return render(
+    <MemoryRouter>
+      <WeeklyGoalCard />
+    </MemoryRouter>,
+  );
 }
 
 /**
@@ -157,21 +163,24 @@ describe("WeeklyGoalCard — finishing a goal", () => {
     expect(screen.queryByText("🎉 Weekly goals complete!")).not.toBeInTheDocument();
   });
 
-  it("does not congratulate a learner on a target of zero", () => {
-    // 0/0 made the percentage NaN, while the separate completion check —
-    // `0 >= 0` — was true. The card ticked the goal, turned it green and fired
-    // the confetti line for a week in which nothing was done, above a bar the
-    // Progress wrapper's `value || 0` had quietly emptied: the two halves of
-    // the card contradicted each other.
-    const { container } = renderCard({
+  it("invites the learner to set a goal instead of rendering 0/0", () => {
+    // A target of zero across the board is a goal nobody set. The card used
+    // to render "Reviews 0/0" over two empty bars — a body that could neither
+    // progress nor complete (and once even congratulated it: 0 >= 0). Now it
+    // says what is actually true and links to where a goal is set.
+    renderCard({
       completed_reviews: 0,
       target_reviews: 0,
       earned_xp: 0,
       target_xp: 0,
     });
     expect(screen.queryByText("🎉 Weekly goals complete!")).not.toBeInTheDocument();
-    expect(screen.getAllByText(/^0\/0/)[0]).not.toHaveTextContent("✓");
-    expect(bars(container)).toEqual([0, 0]);
+    expect(screen.queryByText(/0\/0/)).not.toBeInTheDocument();
+    expect(screen.getByText("No goal set for this week yet.", { exact: false })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Pick a weekly pace" })).toHaveAttribute(
+      "href",
+      "/settings",
+    );
   });
 
   it("leaves a real goal that happens to be met still complete", () => {

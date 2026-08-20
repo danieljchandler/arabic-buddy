@@ -10,7 +10,7 @@ import {
   type CardDirection,
   type ScheduleDirection,
 } from '@/lib/reviewOrder';
-import { useAddXP, useIncrementReviews, useCheckAchievements } from './useGamification';
+import { useAddXP, useIncrementReviews, useCheckAchievements, REVIEW_XP } from './useGamification';
 import { useDialect } from '@/contexts/DialectContext';
 import { useNewCardCap } from './useNewCardCap';
 import { useRemainingNewCardBudget } from './useNewCardBudget';
@@ -426,17 +426,15 @@ export const useSubmitReview = () => {
         stabilityMultiplier,
       });
     },
-    onSuccess: ({ rating }) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['review-stats'] });
 
-      const xpAmounts: Record<Rating, number> = {
-        'again': 5,
-        'hard': 10,
-        'good': 15,
-        'easy': 20,
-      };
-
-      addXP.mutate({ amount: xpAmounts[rating], reason: 'review' });
+      // Flat XP per card reviewed. It used to scale with the self-grade
+      // (again 5 → easy 20), which paid the learner to claim "Easy" and fined
+      // honest failure — exactly the incentive that corrupts FSRS scheduling,
+      // and it punished the errors that drive learning. The work is the
+      // review, not the grade.
+      addXP.mutate({ amount: REVIEW_XP, reason: 'review' });
       incrementReviews.mutate();
       checkAchievements.mutate();
     },

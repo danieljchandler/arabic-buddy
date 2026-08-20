@@ -15,7 +15,12 @@ export function useFsrsCalibration(): number {
   const { data: stats } = useSRSStats();
   const desiredRetention = useDesiredRetention();
 
-  // retentionRate is a 0–100 integer for display; the curve wants 0..1.
-  const observed = stats ? stats.retentionRate / 100 : undefined;
-  return calibrationMultiplier(observed, desiredRetention, stats?.reviewedCount ?? 0);
+  // The windowed measure, not the lifetime one: all-time retention never
+  // forgets, so a learner who lapsed heavily as a beginner kept compressed
+  // intervals long after their memory improved. Cards untouched for
+  // CALIBRATION_WINDOW_DAYS drop out of the sample (and the shrinkage inside
+  // calibrationMultiplier already handles the smaller count conservatively).
+  // The rate is a 0–100 integer for display; the curve wants 0..1.
+  const observed = stats ? stats.recentRetentionRate / 100 : undefined;
+  return calibrationMultiplier(observed, desiredRetention, stats?.recentReviewedCount ?? 0);
 }

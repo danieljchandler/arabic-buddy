@@ -70,6 +70,9 @@ const SouqNews = () => {
     },
     staleTime: 1000 * 60 * 15,
     retry: 1,
+    // The function now requires a signed-in caller (it drives paid search and
+    // model calls), so don't fire a request that can only come back 401.
+    enabled: !!user,
   });
 
   // The article the learner has actually opened, if any — the assistant should
@@ -175,7 +178,12 @@ const SouqNews = () => {
         </div>
       </div>
 
-      {isLoading ? (
+      {!user ? (
+        <EmptyState
+          title="Sign in for today's news"
+          body="Souq News rewrites real headlines into your dialect — sign in and they're ready every morning."
+        />
+      ) : isLoading ? (
         <div className="space-y-4">
           {[1, 2, 3].map((i) => (
             <div key={i} className="rounded-2xl border p-5 space-y-3">

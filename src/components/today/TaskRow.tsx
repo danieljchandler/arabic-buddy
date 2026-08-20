@@ -120,20 +120,25 @@ export const TaskRow = ({
               {String(index).padStart(2, "0")}
             </span>
           )}
-          <span
-            className={cn(
-              "font-semibold text-[15px] text-foreground font-heading",
-              done && "line-through decoration-desert-red/50"
-            )}
-          >
-            {title}
+          {/* Title and hint are one wrapping unit: as separate flex children a
+              longer title pushed the hint onto its own lonely line between
+              title and subtitle. */}
+          <span className="inline-flex items-center gap-2 min-w-0">
+            <span
+              className={cn(
+                "font-semibold text-[15px] text-foreground font-heading",
+                done && "line-through decoration-desert-red/50"
+              )}
+            >
+              {title}
+            </span>
+            {hint && <InfoHint title={hint.title} body={hint.body} />}
           </span>
           {countBadge && !done && (
             <span className="text-[10px] leading-none px-1.5 py-1 rounded-full bg-desert-red text-card-cream font-bold tracking-wide">
               {countBadge}
             </span>
           )}
-          {hint && <InfoHint title={hint.title} body={hint.body} />}
         </div>
         <div className="mt-1.5 flex items-center gap-2">
           {subtitle && (

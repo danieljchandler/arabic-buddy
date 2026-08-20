@@ -222,9 +222,12 @@ const MyWords = () => {
     e.stopPropagation();
     try {
       await deleteWord.mutateAsync(wordId);
-      toast.success("تم حذف الكلمة");
+      // English like every other toast in the app: these two were the only
+      // Arabic-language ones, rendered LTR by the toaster — and in MSA, in a
+      // product whose premise is "never MSA".
+      toast.success("Word deleted");
     } catch (error) {
-      toast.error("فشل حذف الكلمة");
+      toast.error("Couldn't delete the word — try again");
     }
   };
 
@@ -308,14 +311,19 @@ const MyWords = () => {
         >
           <ChevronLeft className="h-5 w-5" />
         </Button>
-        <div className="flex items-center gap-2">
-          <BookOpen className="h-6 w-6 text-primary" />
-          <h1 className="text-2xl font-bold text-foreground">My Words</h1>
+        {/* One line at 390px: the title holds its own count, drops to text-xl
+            below sm, and never wraps — a two-line title beside four chips read
+            as clutter on every phone. */}
+        <div className="flex items-center gap-2 min-w-0">
+          <BookOpen className="h-6 w-6 text-primary shrink-0 max-[380px]:hidden" />
+          <h1 className="text-xl sm:text-2xl font-bold text-foreground whitespace-nowrap">
+            My Words{" "}
+            <span className="text-sm font-normal text-muted-foreground">
+              ({words?.length || 0})
+            </span>
+          </h1>
           <InfoHint {...PAGE_HINTS["my-words"]} />
         </div>
-        <span className="text-sm text-muted-foreground">
-          ({words?.length || 0})
-        </span>
         <Button
           variant={mixAll ? "default" : "outline"}
           size="sm"
@@ -331,8 +339,9 @@ const MyWords = () => {
         />
       </div>
 
-      {/* AI suggest button */}
-      <div className="grid grid-cols-3 gap-2 mb-3">
+      {/* Import / add actions. Stacked below sm: three fixed columns at
+          390px clipped "Import from Anki" at the screen edge. */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-3">
         <Button
           onClick={() => setSuggestOpen(true)}
           variant="outline"
@@ -419,7 +428,7 @@ const MyWords = () => {
                   <p
                     className="text-base font-semibold text-foreground truncate"
                     dir="rtl"
-                    style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
+                    style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}
                   >
                     {p.phrase_arabic}
                   </p>
@@ -818,7 +827,7 @@ const MyWords = () => {
                   <div>
                     <span
                       className="text-lg font-bold text-foreground block"
-                      style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
+                      style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}
                       dir="rtl"
                     >
                       {word.word_arabic}
@@ -905,7 +914,7 @@ const MyWords = () => {
                   <p
                     className="text-sm text-foreground/90 font-arabic leading-relaxed"
                     dir="rtl"
-                    style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
+                    style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}
                   >
                     {word.sentence_text}
                   </p>

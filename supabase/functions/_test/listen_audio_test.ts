@@ -397,3 +397,71 @@ Deno.test("generate-listen-line-audio reports a TTS outage", async () => {
   assertEquals(result.status, 500);
   assertEquals(result.body.error, "internal");
 });
+
+// ── generate-listen-audio: the dispatch gate ────────────────────────────────
+//
+// Full-episode synthesis spends real TTS money and rewrites the episode's
+// audio state, and config.toml has verify_jwt = false — so the dispatch
+// handler gates itself: service-role callers pass, browsers must be signed in
+// and may only (re)start an episode that is not already playable.
+
+async function dispatch(
+  body: unknown,
+  upstreams: Record<string, UpstreamHandler>,
+  opts: { jwt?: string | null } = {},
+) {
+  const fn = await loadFunction("generate-listen-audio", { upstreams });
+  try {
+    const response = await fn.handler(
+      jsonRequest(
+        "generate-listen-audio",
+        body,
+        opts.jwt === undefined ? {} : { jwt: opts.jwt },
+      ),
+    );
+    return {
+      status: response.status,
+      body: (await response.json()) as Record<string, unknown>,
+      calls: fn.calls.map((c) => c.url),
+    };
+  } finally {
+    fn.restore();
+  }
+}
+
+Deno.test("generate-listen-audio asks an anonymous caller to sign in", async () => {
+  const { status, body } = await dispatch({ episodeId: EPISODE }, {}, { jwt: null });
+
+  assertEquals(status, 401);
+  assertEquals(body.error, "auth_required");
+});
+
+Deno.test("generate-listen-audio refuses to restart a ready episode for a browser caller", async () => {
+  const { status, body } = await dispatch(
+    { episodeId: EPISODE },
+    {
+      "/auth/v1/user": () => json({ id: USER, aud: "authenticated", role: "authenticated" }),
+      "/rest/v1/listen_episodes": () => json({ audio_status: "ready" }),
+    },
+  );
+
+  // The legitimate client paths are the post-create kick and the stalled-job
+  // re-kick; neither targets a ready episode. Restarting one would flip it
+  // back to pending and re-spend its synthesis.
+  assertEquals(status, 200);
+  assertEquals(body.accepted, false);
+  assertEquals(body.already, "ready");
+});
+
+Deno.test("generate-listen-audio reports an unknown episode instead of dispatching", async () => {
+  const { status, body } = await dispatch(
+    { episodeId: EPISODE },
+    {
+      "/auth/v1/user": () => json({ id: USER, aud: "authenticated", role: "authenticated" }),
+      "/rest/v1/listen_episodes": () => json(null),
+    },
+  );
+
+  assertEquals(status, 404);
+  assertEquals(body.error, "episode_not_found");
+});

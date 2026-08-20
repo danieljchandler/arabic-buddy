@@ -10,6 +10,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { isAdminUser, resolveUserId } from "../_shared/usageCap.ts";
 
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -307,6 +308,21 @@ Respond ONLY with valid JSON:
 Deno.serve(async (req: Request) => {
   const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
+  // This is a pipeline/admin tool, not a learner feature: its callers are the
+  // process-approved-video pipeline (service-role bearer) and the admin video
+  // form (an admin's JWT). It runs a paid model and writes difficulty columns
+  // on shared rows, so a plain signed-in user has no business invoking it.
+  const auth = req.headers.get("authorization") ?? "";
+  const bearer = auth.startsWith("Bearer ") ? auth.slice(7) : "";
+  if (bearer !== SERVICE_ROLE) {
+    const userId = await resolveUserId(req);
+    if (!userId || !(await isAdminUser(userId))) {
+      return new Response(JSON.stringify({ error: "forbidden" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+  }
 
   try {
     const body = await req.json().catch(() => ({}));

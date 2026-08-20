@@ -10,7 +10,6 @@ import { cn } from "@/lib/utils";
 import { InfoHint } from "@/components/InfoHint";
 import { PAGE_HINTS } from "@/lib/pageHints";
 import { SRSForecastChart } from "@/components/srs/SRSForecastChart";
-import { SRSStageBar } from "@/components/srs/SRSStageBar";
 import {
   BarChart3,
   BookOpen,
@@ -217,37 +216,11 @@ const LearningAnalytics = () => {
               </div>
             ))}
           </div>
-        </div>
 
-        {/* SRS Review Forecast */}
-        <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
-          <h2 className="font-semibold text-foreground flex items-center gap-2">
-            📅 Review Forecast (7 days)
-          </h2>
-          <p className="text-xs text-muted-foreground">Combined across curriculum and your saved words</p>
-          <div className="rounded-xl bg-primary/5 border border-primary/20 p-3">
-            <p className="text-xs text-muted-foreground">Due today</p>
-            <p className="text-2xl font-bold text-primary">{srsStats?.forecast[0]?.count ?? 0}</p>
-          </div>
-          <SRSForecastChart forecast={srsStats?.forecast ?? []} />
-        </div>
-
-        {/* SRS Card Health */}
-        <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
-          <h2 className="font-semibold text-foreground flex items-center gap-2">
-            🧠 Card Health
-          </h2>
-          <SRSStageBar
-            stages={srsStats?.stageBreakdown ?? {
-              new: 0,
-              learning: 0,
-              familiar: 0,
-              practiced: 0,
-              strong: 0,
-              mastered: 0,
-            }}
-            total={srsStats?.totalCards ?? 0}
-          />
+          {/* Retention and card totals used to live in a separate "Card
+              Health" card that re-drew the same six states as a stacked bar —
+              one page saying the same thing twice, cards apart. The tiles are
+              what that card added; they belong with the breakdown. */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
             <div className="rounded-lg bg-muted/50 p-3">
               <p className="text-xs text-muted-foreground">Retention rate</p>
@@ -261,6 +234,19 @@ const LearningAnalytics = () => {
               </p>
             </div>
           </div>
+        </div>
+
+        {/* SRS Review Forecast */}
+        <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
+          <h2 className="font-semibold text-foreground flex items-center gap-2">
+            📅 Review Forecast (7 days)
+          </h2>
+          <p className="text-xs text-muted-foreground">Combined across curriculum and your saved words</p>
+          <div className="rounded-xl bg-primary/5 border border-primary/20 p-3">
+            <p className="text-xs text-muted-foreground">Due today</p>
+            <p className="text-2xl font-bold text-primary">{srsStats?.forecast[0]?.count ?? 0}</p>
+          </div>
+          <SRSForecastChart forecast={srsStats?.forecast ?? []} />
         </div>
 
         {/* Vocab Growth Over Time */}

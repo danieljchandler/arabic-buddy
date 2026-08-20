@@ -142,7 +142,11 @@ const Listen = () => {
                     <Card className="p-4 hover:bg-accent/50 transition flex gap-3 items-start">
                       <div className="p-2 rounded-md bg-primary/10 text-primary"><Icon className="h-5 w-5" /></div>
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold leading-tight truncate" dir="rtl">{ep.title}</h3>
+                        {/* dir="auto", not a hardcoded rtl: a generated title
+                            can be English or mixed, and forcing RTL puts the
+                            truncation ellipsis and punctuation on the wrong
+                            side. Normal leading keeps harakat unclipped. */}
+                        <h3 className="font-semibold leading-normal truncate" dir="auto">{ep.title}</h3>
                         {ep.summary && (
                           <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{ep.summary}</p>
                         )}

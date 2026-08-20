@@ -305,13 +305,17 @@ const answers = (count: number, correct: boolean, difficulty = "B1", skill = "vo
   Array.from({ length: count }, () => ({ correct, difficulty, skill_type: skill }));
 
 /**
- * Scoring is deterministic and local — `calculateCEFR` weights each answer by
- * its difficulty and maps the ratio onto a CEFR band. No model is involved,
- * which is worth pinning on its own: the learner is staring at a spinner after
- * twenty questions, and a needless gateway call would make that slow and
- * subject to the daily cap.
+ * Scoring is deterministic and local — no model is involved, which is worth
+ * pinning on its own: the learner is staring at a spinner after twenty
+ * questions, and a needless gateway call would make that slow and subject to
+ * the daily cap.
+ *
+ * The level itself is the highest band the learner *attempted and sustained*
+ * (≥65% over at least two questions). The old percentage-through-cutoffs
+ * scheme placed a flawless all-B1 run at C2 — a learner who never saw a C1
+ * question — and placement anchors content selection everywhere.
  */
-Deno.test("placement-quiz scores a perfect run at the top band", async () => {
+Deno.test("placement-quiz caps the level at the hardest band actually attempted", async () => {
   const { status, body } = await call(
     "placement-quiz",
     { action: "score", history: answers(20, true) },
@@ -319,7 +323,9 @@ Deno.test("placement-quiz scores a perfect run at the top band", async () => {
   );
 
   assertEquals(status, 200);
-  assertEquals(body.cefr_level, "C2");
+  // Twenty perfect answers, all at B1: strong evidence for B1 and no
+  // evidence at all for anything above it.
+  assertEquals(body.cefr_level, "B1");
   assertEquals(body.confidence, 100);
 });
 
@@ -334,33 +340,47 @@ Deno.test("placement-quiz scores a run with nothing right at the bottom band", a
   assertEquals(body.confidence, 0);
 });
 
-Deno.test("placement-quiz puts a mixed run in the middle", async () => {
-  // 12 of 20 right at one difficulty is a ratio of 0.6, which lands in B2.
+Deno.test("placement-quiz places an unsustained band one step down", async () => {
+  // 60% at B1 is below the 65% bar, so the learner lands at A2 — near B1 but
+  // not yet there — rather than being handed B1 content they miss 4 in 10 of.
   const { body } = await call(
     "placement-quiz",
     { action: "score", history: [...answers(12, true), ...answers(8, false)] },
     allowed(),
   );
 
-  assertEquals(body.cefr_level, "B2");
+  assertEquals(body.cefr_level, "A2");
   assertEquals(body.confidence, 60);
 });
 
-Deno.test("placement-quiz weights harder questions more heavily", async () => {
-  // Half right, half wrong — but the right ones are C2 (weight 6) and the wrong
-  // ones A1 (weight 1), so the ratio is 60/70 = 0.86 and the learner lands at
-  // the top. Counting answers rather than weighting them would put the same run
-  // at B1 and tell a strong learner to start over.
+Deno.test("placement-quiz places at the highest sustained band, not an average", async () => {
+  // The walk climbed to C1 and held it; the early A2 stumbles must not drag
+  // the placement down to a blended middle.
   const { body } = await call(
     "placement-quiz",
     {
       action: "score",
-      history: [...answers(10, true, "C2"), ...answers(10, false, "A1")],
+      history: [...answers(4, false, "A2"), ...answers(8, true, "C1")],
     },
     allowed(),
   );
 
-  assertEquals(body.cefr_level, "C2");
+  assertEquals(body.cefr_level, "C1");
+});
+
+Deno.test("placement-quiz never places off a single lucky answer", async () => {
+  // The quiz ended one question after the walk moved up to C1. One correct
+  // answer is not sustained evidence; the placement stays at the band below.
+  const { body } = await call(
+    "placement-quiz",
+    {
+      action: "score",
+      history: [...answers(8, true, "B2"), ...answers(1, true, "C1")],
+    },
+    allowed(),
+  );
+
+  assertEquals(body.cefr_level, "B2");
 });
 
 Deno.test("placement-quiz names strengths and weaknesses per skill", async () => {
@@ -502,7 +522,9 @@ Deno.test("placement-quiz records the scored level in the trajectory", async () 
     }
     assert(insert, "expected a placement_history insert");
     const row = (JSON.parse(insert.body ?? "[]") as Array<Record<string, unknown>>)[0];
-    assertEquals(row.cefr_level, "C2");
+    // A perfect all-B1 run places at B1 — the trajectory stores the same
+    // sustained-band level the response reports.
+    assertEquals(row.cefr_level, "B1");
     assertEquals(row.dialect, "Gulf");
     assertEquals(row.user_id, USER);
     assertEquals(row.confidence, 100);

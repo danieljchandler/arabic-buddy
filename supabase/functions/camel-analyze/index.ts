@@ -19,6 +19,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callCamelDialect } from "../_shared/camelDialect.ts";
+import { enforceDailyCap } from "../_shared/usageCap.ts";
 
 
 // ── Farasa REST API ──────────────────────────────────────────────────────────
@@ -165,6 +166,11 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
+
+  // config.toml has verify_jwt = false, and every call reaches Farasa and
+  // HuggingFace — without this gate the endpoint was anonymous external spend.
+  const cap = await enforceDailyCap(req, 'camel-analyze', 50, corsHeaders);
+  if (cap.limited) return cap.response;
 
   try {
     const body = await req.json();

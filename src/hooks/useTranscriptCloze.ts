@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { normalizeArabicWord, sentenceHasWord } from "@/lib/arabicWord";
 import { useAuth } from "./useAuth";
 
 export interface TranscriptClozeMatch {
@@ -26,16 +27,18 @@ interface Row {
   dialect: string | null;
 }
 
-// Word-boundary match honoring Arabic punctuation
-const containsWord = (sentence: string, word: string) => {
-  if (!sentence || !word) return false;
-  const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const re = new RegExp(`(^|\\s|[،.,!؟?])${escaped}(?=$|\\s|[،.,!؟?])`);
-  return re.test(sentence);
-};
+// Whole-token match, normalized: a word saved vocalized (بَيْت) or with a
+// hamza/ى/ة variant spelling must still find its own occurrences, or the
+// feature silently mints nothing. See lib/arabicWord.
+const containsWord = sentenceHasWord;
 
-const tokenHasWord = (line: Line, word: string) =>
-  Array.isArray(line.tokens) && line.tokens.some((t) => t?.surface === word);
+const tokenHasWord = (line: Line, word: string) => {
+  const target = normalizeArabicWord(word);
+  return (
+    Array.isArray(line.tokens) &&
+    line.tokens.some((t) => normalizeArabicWord(t?.surface ?? "") === target)
+  );
+};
 
 /**
  * Auto-mint cloze candidates for a target word by scanning the user's own

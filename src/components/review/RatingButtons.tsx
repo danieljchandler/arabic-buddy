@@ -13,7 +13,15 @@ interface RatingButtonsProps {
   /** Real days since last review, so the previewed intervals match scheduling. */
   elapsedDays?: number;
   disabled?: boolean;
+  /**
+   * Highest rating on offer. A card with an objective check (cloze) that was
+   * answered wrongly caps at "hard" — an evidence-contradicting "Good" would
+   * write a too-long interval off a failure.
+   */
+  maxRating?: Rating;
 }
+
+const RATING_ORDER: Rating[] = ["again", "hard", "good", "easy"];
 
 /**
  * RatingButtons - Spaced repetition rating interface
@@ -28,6 +36,7 @@ export const RatingButtons = ({
   repetitions,
   elapsedDays,
   disabled,
+  maxRating,
 }: RatingButtonsProps) => {
   // The previewed intervals honour the learner's retention dial. Fuzz is
   // deliberately not previewed: like Anki, the label shows the base interval
@@ -73,11 +82,15 @@ export const RatingButtons = ({
             stabilityMultiplier,
           });
 
+          const overCap =
+            maxRating !== undefined &&
+            RATING_ORDER.indexOf(rating) > RATING_ORDER.indexOf(maxRating);
+
           return (
             <button
               key={rating}
               onClick={() => onRate(rating)}
-              disabled={disabled}
+              disabled={disabled || overCap}
               className={cn(
                 "flex flex-col items-center justify-center gap-1",
                 "py-3 px-2 rounded-xl border-2",

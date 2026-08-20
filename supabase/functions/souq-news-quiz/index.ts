@@ -1,6 +1,7 @@
 import type { Dialect } from "../_shared/dialectHelpers.ts";
 import { askBrain } from "../_shared/aiBrain.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { enforceDailyCap } from "../_shared/usageCap.ts";
 
 
 Deno.serve(async (req) => {
@@ -8,6 +9,10 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+
+  // Free-tier daily cap, like every other paid-model endpoint.
+  const cap = await enforceDailyCap(req, "souq-news-quiz", 15, corsHeaders);
+  if (cap.limited) return cap.response;
 
   try {
     const { dialect = "Gulf", title_dialect, body_dialect, title_english, summary_english } = await req.json();

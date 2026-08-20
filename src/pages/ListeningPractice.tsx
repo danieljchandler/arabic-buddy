@@ -10,6 +10,7 @@ import { Slider } from "@/components/ui/slider";
 import { PageCorner } from "@/components/shell/PageCorner";
 import { useAuth } from "@/hooks/useAuth";
 import { useAllWords } from "@/hooks/useAllWords";
+import { gradeDictation, type DictationWord } from "@/lib/dictation";
 import { useAddXP } from "@/hooks/useGamification";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserLevel } from "@/hooks/useUserLevel";
@@ -85,6 +86,8 @@ const ListeningPractice = () => {
   const [answer, setAnswer] = useState("");
   const [showResult, setShowResult] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
+  // Per-word marks from the last dictation grade, for the result panel.
+  const [dictationWords, setDictationWords] = useState<DictationWord[] | null>(null);
   const [speedRate, setSpeedRate] = useState(savedSession?.speedRate ?? 1.0);
   const [score, setScore] = useState(savedSession?.score ?? 0);
   const [totalAnswered, setTotalAnswered] = useState(savedSession?.totalAnswered ?? 0);
@@ -148,12 +151,16 @@ const ListeningPractice = () => {
     setAnswer("");
 
     try {
-      // Try pre-approved content first
+      // Try pre-approved content first — scoped to the active dialect. This
+      // is the highest-quality path, and unfiltered it was the one that could
+      // hand a Yemeni learner Egyptian audio; a thin pool falls through to
+      // AI generation below, which already targets the dialect.
       const { data: approved } = await supabase
         .from("listening_exercises")
         .select("*")
         .eq("status", "published")
         .eq("mode", selectedMode)
+        .eq("dialect", activeDialect)
         .limit(10);
 
       if (approved && approved.length >= 3) {
@@ -265,12 +272,13 @@ const ListeningPractice = () => {
   const checkDictationAnswer = () => {
     if (!currentQuestion) return;
 
-    // Normalize and compare
-    const normalizedAnswer = answer.trim().replace(/\s+/g, " ");
-    const normalizedCorrect = currentQuestion.audioText.trim().replace(/\s+/g, " ");
-
-    // Simple character comparison (could be more sophisticated)
-    const correct = normalizedAnswer === normalizedCorrect;
+    // Graded on normalized Arabic (harakat, hamza carriers, ى/ة variants and
+    // punctuation all compare equal) with per-word marking — a learner who
+    // types بيت against بَيت is right, and a wrong answer shows which word
+    // missed. See lib/dictation.ts.
+    const grade = gradeDictation(answer, currentQuestion.audioText);
+    const correct = grade.correct;
+    setDictationWords(grade.words);
     setIsCorrect(correct);
     setShowResult(true);
     setTotalAnswered((prev) => prev + 1);
@@ -307,6 +315,7 @@ const ListeningPractice = () => {
       setCurrentIndex((prev) => prev + 1);
       setShowResult(false);
       setAnswer("");
+      setDictationWords(null);
     } else {
       // Session complete
       toast.success(`Session complete! Score: ${score}/${questions.length}`);
@@ -321,6 +330,7 @@ const ListeningPractice = () => {
     setTotalAnswered(0);
     setShowResult(false);
     setAnswer("");
+    setDictationWords(null);
   };
 
   // Mode selection screen
@@ -581,8 +591,20 @@ const ListeningPractice = () => {
                       {isCorrect ? "Correct!" : "Not quite"}
                     </span>
                   </div>
+                  {/* On a miss, show which words matched and which didn't —
+                      "Not quite" alone teaches nothing. Marks come from the
+                      normalized grade, so a harakat-only difference is green. */}
                   <p className="text-2xl font-arabic mb-1" dir="rtl">
-                    {currentQuestion.audioText}
+                    {!isCorrect && dictationWords
+                      ? dictationWords.map((w, i) => (
+                          <span key={i}>
+                            {i > 0 && " "}
+                            <span className={w.ok ? undefined : "text-red-600 underline decoration-red-400/60 underline-offset-4"}>
+                              {w.word}
+                            </span>
+                          </span>
+                        ))
+                      : currentQuestion.audioText}
                   </p>
                   {currentQuestion.audioTextTransliteration && (
                     <p className="text-sm text-muted-foreground italic mb-1">

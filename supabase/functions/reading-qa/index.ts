@@ -2,13 +2,24 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getDialectVocabRules, getDialectLabel, getDialectIdentity } from "../_shared/dialectHelpers.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { MODEL_IDS } from "../_shared/modelRegistry.ts";
+import { enforceDailyCap } from "../_shared/usageCap.ts";
 
+// The history array is client-supplied and rides straight into the model
+// request; without these clamps one call can be made arbitrarily expensive.
+// Same numbers as assistant-chat's clamp.
+const MAX_HISTORY_MESSAGES = 20;
+const MAX_MESSAGE_CHARS = 4000;
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+
+  // Free-tier daily cap — this endpoint relays a whole conversation to the
+  // model per call, so it was the widest of the uncapped spend paths.
+  const cap = await enforceDailyCap(req, "reading-qa", 30, corsHeaders);
+  if (cap.limited) return cap.response;
 
   try {
     const { question, difficulty = "beginner", dialect = "Gulf", history = [] } = await req.json();
@@ -63,17 +74,19 @@ Return JSON in this exact format:
       { role: "system", content: systemPrompt },
     ];
 
-    // Add conversation history
-    for (const msg of history) {
+    // Add conversation history, clamped in count and per-message size
+    const recent = Array.isArray(history) ? history.slice(-MAX_HISTORY_MESSAGES) : [];
+    for (const msg of recent) {
+      if (typeof msg?.content !== "string") continue;
       if (msg.role === "user") {
-        messages.push({ role: "user", content: msg.content });
+        messages.push({ role: "user", content: msg.content.slice(0, MAX_MESSAGE_CHARS) });
       } else if (msg.role === "assistant" && msg.content) {
-        messages.push({ role: "assistant", content: msg.content });
+        messages.push({ role: "assistant", content: msg.content.slice(0, MAX_MESSAGE_CHARS) });
       }
     }
 
     // Add the current question
-    messages.push({ role: "user", content: question });
+    messages.push({ role: "user", content: question.slice(0, MAX_MESSAGE_CHARS) });
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",

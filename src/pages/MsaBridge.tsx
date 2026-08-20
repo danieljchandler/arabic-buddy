@@ -70,7 +70,11 @@ function RuleCard({ rule, activeDialectLabel }: { rule: MsaRule; activeDialectLa
         <ArrowRight className="h-4 w-4 text-primary mx-1 -scale-x-100" />
         <div className="text-left">
           <p className="text-[10px] uppercase tracking-wide text-primary mb-0.5">Dialect</p>
-          <p className="font-arabic text-xl text-primary font-semibold" dir="ltr">{rule.dialect_pattern}</p>
+          {/* dir="rtl": the pattern is Arabic, and forcing LTR renders any
+              multi-word pattern with neutrals (بـ + فعل, ellipses, brackets)
+              segment-reversed. The column still hugs the arrow via the
+              wrapper's text-left — alignment is visual, direction is not. */}
+          <p className="font-arabic text-xl text-primary font-semibold" dir="rtl">{rule.dialect_pattern}</p>
         </div>
       </div>
 

@@ -437,8 +437,14 @@ const DailyChallenge = () => {
           )}
           {currentQuestion.scrambled && (
             <div>
-              <p className="text-2xl font-arabic text-foreground tracking-widest" dir="rtl">
-                {currentQuestion.scrambled}
+              {/* Letters separated by real spaces so each renders in isolated
+                  form. The old tracking-widest inserted gaps AFTER shaping —
+                  joined initial/medial glyphs floating apart, strokes ending
+                  mid-air, misrepresenting what each letter looks like alone.
+                  The generator is asked for spaces but doesn't always comply,
+                  so respace here; \p{M} keeps any harakat on its base. */}
+              <p className="text-2xl font-arabic text-foreground" dir="rtl">
+                {(currentQuestion.scrambled.replace(/\s+/g, "").match(/.\p{M}*/gu) ?? []).join(" ")}
               </p>
               {currentQuestion.hint && (
                 <p className="text-sm text-muted-foreground mt-2">Hint: {currentQuestion.hint}</p>

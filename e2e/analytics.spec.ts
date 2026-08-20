@@ -175,7 +175,7 @@ test.describe("word mastery", () => {
     await expect(page.getByText("33%").first()).toBeVisible();
   });
 
-  test("agrees with the Card Health chart on the same page", async ({ page, db }) => {
+  test("carries retention and card totals in the mastery card", async ({ page, db }) => {
     db.seed("user_vocabulary", [
       aReviewed("a", { reps: 12, stability: 400 }),
       aReviewed("b", { reps: 0, stability: 0 }),
@@ -183,11 +183,14 @@ test.describe("word mastery", () => {
 
     await page.goto("/analytics");
 
-    // Two charts, one helper. They are computed independently from the same
-    // rows, so a change to one bucketing rule and not the other shows up as
-    // two different answers on one screen.
+    // One card, not two: a separate "Card Health" section used to re-draw the
+    // same six maturity states as a stacked bar further down the page — the
+    // same thing said twice. Its retention and totals tiles are what it
+    // added, and they live inside Word Mastery now.
     await expect(page.getByText("Word Mastery")).toBeVisible();
-    await expect(page.getByText("Card Health")).toBeVisible();
+    await expect(page.getByText("Card Health")).toHaveCount(0);
+    await expect(page.getByText("Retention rate")).toBeVisible();
+    await expect(page.getByText("Total cards")).toBeVisible();
     await expect(page.getByText("50%").first()).toBeVisible();
   });
 

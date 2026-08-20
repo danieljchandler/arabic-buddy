@@ -5,7 +5,12 @@ import { useAuth } from "@/hooks/useAuth";
 import {
   useDueWords,
   useReviewStats,
+  buildReviewUpdate,
+  type DueCurriculumCard,
 } from "@/hooks/useReview";
+import { nextRelearn, pushRelearn, type RelearnEntry } from "@/lib/relearn";
+import { useDesiredRetention } from "@/hooks/useDesiredRetention";
+import { useFsrsCalibration } from "@/hooks/useFsrsCalibration";
 import { useReviewQueue } from "@/hooks/useReviewQueue";
 import { useReviewSession } from "@/hooks/useReviewSession";
 import { RootChip } from "@/components/vocab/RootChip";
@@ -53,9 +58,22 @@ const Review = () => {
   const [imageDialogOpen, setImageDialogOpen] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
+  // In-session relearn: cards rated Again/Hard come back a few cards later
+  // (see lib/relearn). Without this, a failed card's 1-minute learning step
+  // never fires — the end-of-list refetch runs seconds too early, the session
+  // ends, and the card gets no successful retrieval until tomorrow.
+  const [relearn, setRelearn] = useState<RelearnEntry<DueCurriculumCard>[]>([]);
+  // The main list has been walked to the end; only relearn cards remain.
+  const [mainDone, setMainDone] = useState(false);
+  const desiredRetention = useDesiredRetention();
+  const stabilityMultiplier = useFsrsCalibration();
+
+  // The card on screen: a due relearn card takes precedence over the list.
+  const relearnPick = nextRelearn(relearn, sessionCount, mainDone);
+
   usePageAiContext(
     useMemo(() => {
-      const word = dueWords?.[currentIndex];
+      const word = relearnPick?.card ?? dueWords?.[currentIndex];
       if (!word) return null;
       return {
         kind: "word" as const,
@@ -68,13 +86,16 @@ const Review = () => {
           ? `Current card: ${word.word_arabic} — ${word.word_english}`
           : undefined,
       };
-    }, [dueWords, currentIndex, showAnswer]),
+    }, [dueWords, currentIndex, showAnswer, relearnPick]),
   );
 
   const handleFlip = useCallback(() => setShowAnswer(true), []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- handleRate is
+  // recreated per render; list everything it closes over so the keyboard
+  // path never rates through a stale session state.
   const handleRateKeyboard = useCallback((rating: Rating) => {
     handleRate(rating);
-  }, [dueWords, currentIndex]);
+  }, [dueWords, currentIndex, relearn, relearnPick, sessionCount, mainDone]);
 
   useReviewKeyboard({
     showAnswer,
@@ -130,9 +151,10 @@ const Review = () => {
   };
 
   const handleRate = (rating: Rating) => {
-    if (!dueWords || !dueWords[currentIndex]) return;
-    const word = dueWords[currentIndex];
+    const word = relearnPick?.card ?? dueWords?.[currentIndex];
+    if (!dueWords || !word) return;
     const wordCount = dueWords.length;
+    const direction = scheduleDirectionFor(word.card_type);
 
     // Queue locally; background processor retries on network failures.
     // The direction decides which column set the rating lands in — getting it
@@ -142,15 +164,48 @@ const Review = () => {
       wordId: word.id,
       rating,
       currentReview: word.review,
-      direction: scheduleDirectionFor(word.card_type),
+      direction,
     });
+
+    // A failed card re-enters the session a few cards later, carrying the
+    // schedule this rating just computed — the queue flushes writes in order,
+    // so the re-presentation's rating supersedes it from the right state.
+    // Cards with no review row yet are exempt: their first rating is an
+    // INSERT whose id the client never sees, so a second in-session rating
+    // could not target the row.
+    let nextQueue = relearnPick ? relearn.slice(1) : relearn;
+    if ((rating === "again" || rating === "hard") && word.review) {
+      const { update } = buildReviewUpdate(rating, direction, word.review, new Date(), {
+        fuzzSeed: word.id,
+        desiredRetention,
+        stabilityMultiplier,
+      });
+      const requeued = { ...word, review: { ...word.review, ...update } };
+      nextQueue = pushRelearn(nextQueue, requeued, sessionCount + 1);
+    }
+    setRelearn(nextQueue);
 
     setSessionCount((prev) => prev + 1);
     setShowAnswer(false);
 
+    if (relearnPick) {
+      // Rating a relearn card never advances the main list; when the last
+      // relearn card resolves after the main list is done, the session is over.
+      if (mainDone && nextQueue.length === 0) {
+        setMainDone(false);
+        void refetch();
+        setCurrentIndex(0);
+      }
+      return;
+    }
+
     // Advance immediately — UI does not wait on the network
     if (currentIndex < wordCount - 1) {
       setCurrentIndex((prev) => prev + 1);
+    } else if (nextQueue.length > 0) {
+      // End of the fetched list with relearn cards owed: hold the session
+      // open and present them instead of refetching into "all caught up".
+      setMainDone(true);
     } else {
       // End of list: refetch (queue keeps flushing in background)
       void refetch();
@@ -164,6 +219,9 @@ const Review = () => {
     setCurrentIndex(0);
     setSessionCount(0);
     setShowAnswer(false);
+    // Switching decks starts a new session; relearn cards belong to the old one.
+    setRelearn([]);
+    setMainDone(false);
   };
 
   if (authLoading || wordsLoading) {
@@ -195,7 +253,9 @@ const Review = () => {
     );
   }
 
-  if (!dueWords || dueWords.length === 0) {
+  // Relearn cards outlive the fetched list: a mid-session invalidation can
+  // empty dueWords while a failed card is still owed its retrieval.
+  if ((!dueWords || dueWords.length === 0) && !relearnPick) {
     // The other decks' counts load independently of this one, and they read as
     // 0 until they arrive — deciding now would flash "All caught up" before
     // forwarding. Wait for real numbers first.
@@ -268,13 +328,14 @@ const Review = () => {
     );
   }
 
-  // Safety: clamp index if list shrank after refetch
-  const safeIndex = Math.min(currentIndex, dueWords.length - 1);
+  // Safety: clamp index if list shrank after refetch. The list can even be
+  // empty here when only a relearn card keeps the session alive.
+  const safeIndex = Math.max(0, Math.min(currentIndex, (dueWords?.length ?? 0) - 1));
   if (safeIndex !== currentIndex) {
     setCurrentIndex(safeIndex);
   }
 
-  const currentWord = dueWords[safeIndex];
+  const currentWord = relearnPick?.card ?? dueWords?.[safeIndex];
   if (!currentWord) return null;
 
   const dialectFlag = DIALECT_FLAGS[currentWord.dialect_module || "Gulf"] || "";
@@ -357,7 +418,7 @@ const Review = () => {
         deckId="curriculum"
         session={session}
         position={safeIndex + 1}
-        total={dueWords.length}
+        total={dueWords?.length ?? 0}
       />
 
       {/* Card */}
@@ -429,7 +490,7 @@ const Review = () => {
             ) : (
               <p
                 className="text-4xl font-bold text-foreground mb-6 break-words max-w-full"
-                style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
+                style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}
                 dir="rtl"
               >
                 {currentWord.word_arabic}
@@ -466,7 +527,7 @@ const Review = () => {
                 {isProduction ? (
                   <p
                     className="text-3xl font-bold text-foreground break-words"
-                    style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
+                    style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}
                     dir="rtl"
                   >
                     {currentWord.word_arabic}
@@ -517,7 +578,10 @@ const Review = () => {
           )}
         </div>
 
-        {/* Self-rating always visible */}
+        {/* Rating waits for the reveal. Grading before checking the answer is
+            a judgment-of-learning, which runs overconfident — every inflated
+            "Good" writes a too-long interval. The keyboard path has always
+            gated this way (flip first, then rate); now the buttons match. */}
         <div className="mt-10">
           <RatingButtons
             onRate={handleRate}
@@ -526,7 +590,7 @@ const Review = () => {
             intervalDays={intervalDays}
             repetitions={repetitions}
             elapsedDays={elapsedDays}
-            disabled={false}
+            disabled={!showAnswer}
           />
         </div>
       </div>

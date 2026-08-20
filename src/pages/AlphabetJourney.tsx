@@ -280,7 +280,9 @@ const LetterCell = ({
         "relative font-arabic text-[30px] leading-none",
         mastered && "text-foreground",
         isCurrent && "text-primary",
-        !unlocked && "text-foreground/25",
+        // Ghosted but legible: at /25 on the cream card the locked letters
+        // measured near-invisible and read as missing, not as locked.
+        !unlocked && "text-foreground/45",
       )}
     >
       {letter.isolated}
@@ -288,7 +290,7 @@ const LetterCell = ({
     <span
       className={cn(
         "relative max-w-full truncate px-1 text-[10px] leading-tight",
-        unlocked ? "text-muted-foreground" : "text-foreground/25",
+        unlocked ? "text-muted-foreground" : "text-foreground/35",
       )}
     >
       {letter.name_translit}

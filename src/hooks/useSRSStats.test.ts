@@ -228,6 +228,22 @@ describe("the breakdown and the forecast", () => {
     expect(result.current.data?.retentionRate).toBe(100);
   });
 
+  it("measures recent recall from recently-touched cards only", async () => {
+    const { result } = render([
+      // Rough early history, untouched for three months…
+      aCurriculumCard(0, { repetitions: 10, lapses: 5, last_reviewed_at: daysAgo(90) }),
+      // …and a clean card the learner reviewed this week.
+      aCurriculumCard(1, { repetitions: 10, lapses: 0, last_reviewed_at: daysAgo(3) }),
+    ]);
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    // The lifetime figure blends both; the calibration window forgets the
+    // dormant card, so a rough start stops compressing intervals forever.
+    expect(result.current.data?.retentionRate).toBe(75);
+    expect(result.current.data?.recentRetentionRate).toBe(100);
+    expect(result.current.data?.recentReviewedCount).toBe(10);
+  });
+
   it("treats missing counters as zero rather than as nothing", async () => {
     const { result } = render([
       aCurriculumCard(0, { repetitions: null, lapses: null, ease_factor: null }),

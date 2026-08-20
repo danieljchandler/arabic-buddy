@@ -1422,8 +1422,11 @@ const AdminVideoForm = () => {
                         {signals.camel_config_hint ? ` — ${signals.camel_config_hint}` : ""}
                       </p>
                     )}
+                    {/* Logical ps-5: under dir="auto" resolving RTL, a
+                        physical pl-5 wastes its indent on the left while
+                        the bullets collide with the right edge. */}
                     {issues && issues.length > 0 && (
-                      <ul className="text-muted-foreground list-disc pl-5 space-y-0.5" dir="auto">
+                      <ul className="text-muted-foreground list-disc ps-5 space-y-0.5" dir="auto">
                         {issues.slice(0, 25).map((issue, i) => (
                           <li key={i}>
                             {issue.line != null && <span className="tabular-nums">L{issue.line} </span>}

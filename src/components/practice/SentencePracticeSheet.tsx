@@ -124,7 +124,7 @@ export function SentencePracticeSheet({ open, onOpenChange, targetArabic, target
             <span
               dir="rtl"
               className="font-semibold text-foreground"
-              style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
+              style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}
             >
               {targetArabic}
             </span>
@@ -194,7 +194,7 @@ export function SentencePracticeSheet({ open, onOpenChange, targetArabic, target
                       <div
                         dir="rtl"
                         className="text-lg leading-relaxed"
-                        style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
+                        style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}
                       >
                         <TappableArabicText text={feedback.transcript} source="sentence-practice" />
                       </div>
@@ -232,7 +232,7 @@ export function SentencePracticeSheet({ open, onOpenChange, targetArabic, target
                       <div
                         dir="rtl"
                         className="text-lg leading-relaxed"
-                        style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
+                        style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}
                       >
                         <TappableArabicText
                           text={feedback.natural_rewrite}
@@ -261,7 +261,7 @@ export function SentencePracticeSheet({ open, onOpenChange, targetArabic, target
                             <div
                               dir="rtl"
                               className="text-base leading-relaxed"
-                              style={{ fontFamily: "'Amiri', 'Traditional Arabic', serif" }}
+                              style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}
                             >
                               <TappableArabicText
                                 text={alt.arabic}

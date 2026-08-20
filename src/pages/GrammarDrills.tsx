@@ -142,13 +142,17 @@ const GrammarDrills = () => {
     submittedRef.current = false;
 
     try {
-      // Try pre-approved content first
+      // Try pre-approved content first — scoped to the active dialect too:
+      // filtered by category and difficulty but not dialect, the curated pool
+      // could serve a Yemeni learner Gulf grammar. A thin pool falls through
+      // to AI generation, which already targets the dialect.
       const { data: approved } = await supabase
         .from("grammar_exercises" as any)
         .select("*")
         .eq("status", "published")
         .eq("category", cat)
         .eq("difficulty", difficulty)
+        .eq("dialect", activeDialect)
         .limit(10);
 
       if (approved && approved.length >= 3) {

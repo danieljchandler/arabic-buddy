@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { calculateNextReview, getIntervalDisplay, estimateNextInterval, elapsedDaysSince } from "@/lib/spacedRepetition";
+import {
+  calculateNextReview,
+  calibrationMultiplier,
+  getIntervalDisplay,
+  estimateNextInterval,
+  elapsedDaysSince,
+  MIN_REVIEWS_TO_CALIBRATE,
+} from "@/lib/spacedRepetition";
 import type { Rating } from "@/lib/spacedRepetition";
 
 describe("FSRS-4.5 spacedRepetition", () => {
@@ -224,5 +231,98 @@ describe("FSRS-4.5 spacedRepetition", () => {
       });
       expect(preview).toBe(getIntervalDisplay(actual.intervalDays));
     });
+  });
+});
+
+/**
+ * The per-learner interval calibration.
+ *
+ * The stakes are asymmetric: leaving a learner on the stock parameters costs
+ * a little efficiency, while a wrong correction actively schedules worse than
+ * doing nothing. So most of what follows pins the guardrails, not the curve.
+ */
+describe("calibrationMultiplier", () => {
+  const ENOUGH = 1000;
+
+  it("stays exactly 1 until there is enough evidence", () => {
+    // A learner recalling far above target still gets no correction while the
+    // sample is thin — the measurement, not the memory, is what's uncertain.
+    expect(calibrationMultiplier(0.97, 0.9, 0)).toBe(1);
+    expect(calibrationMultiplier(0.97, 0.9, MIN_REVIEWS_TO_CALIBRATE - 1)).toBe(1);
+    expect(calibrationMultiplier(0.97, 0.9, MIN_REVIEWS_TO_CALIBRATE)).not.toBe(1);
+  });
+
+  it("is 1 when the learner hits their target exactly", () => {
+    expect(calibrationMultiplier(0.9, 0.9, ENOUGH)).toBeCloseTo(1, 6);
+    // And at a non-default target: the comparison is against what they asked
+    // for, not against 90%.
+    expect(calibrationMultiplier(0.8, 0.8, ENOUGH)).toBeCloseTo(1, 6);
+  });
+
+  it("stretches intervals for memory stronger than the defaults assume", () => {
+    expect(calibrationMultiplier(0.95, 0.9, ENOUGH)).toBeGreaterThan(1);
+  });
+
+  it("shortens intervals when recall falls short of the target", () => {
+    expect(calibrationMultiplier(0.82, 0.9, ENOUGH)).toBeLessThan(1);
+  });
+
+  it("moves further as evidence accumulates", () => {
+    const early = calibrationMultiplier(0.95, 0.9, 200);
+    const later = calibrationMultiplier(0.95, 0.9, 5000);
+    // Shrinkage: the same measurement earns a bigger correction once it rests
+    // on more reviews, rather than lurching the moment the gate opens.
+    expect(later).toBeGreaterThan(early);
+    expect(early).toBeGreaterThan(1);
+  });
+
+  it("never moves a schedule beyond the clamp, however extreme the input", () => {
+    for (const observed of [0.5, 0.6, 0.98, 0.99, 1]) {
+      const m = calibrationMultiplier(observed, 0.9, 100000);
+      expect(m).toBeGreaterThanOrEqual(0.7);
+      expect(m).toBeLessThanOrEqual(1.5);
+    }
+  });
+
+  it("refuses to act on numbers it cannot use", () => {
+    expect(calibrationMultiplier(undefined, 0.9, ENOUGH)).toBe(1);
+    expect(calibrationMultiplier(NaN, 0.9, ENOUGH)).toBe(1);
+    expect(calibrationMultiplier(0.95, 0.9, NaN)).toBe(1);
+    // 0% recall is a broken measurement, not a signal to collapse intervals.
+    expect(calibrationMultiplier(0, 0.9, ENOUGH)).toBeGreaterThanOrEqual(0.7);
+  });
+});
+
+describe("calibration applied to scheduling", () => {
+  const established = (options?: Parameters<typeof calculateNextReview>[6]) =>
+    calculateNextReview("good", 50, 5, 50, 5, 50, options);
+
+  it("leaves intervals untouched at a multiplier of 1", () => {
+    expect(established({ stabilityMultiplier: 1 }).intervalDays).toBe(
+      established().intervalDays,
+    );
+  });
+
+  it("lengthens and shortens the interval with the multiplier", () => {
+    const base = established().intervalDays;
+    expect(established({ stabilityMultiplier: 1.4 }).intervalDays).toBeGreaterThan(base);
+    expect(established({ stabilityMultiplier: 0.75 }).intervalDays).toBeLessThan(base);
+  });
+
+  it("does not touch the stored stability", () => {
+    // The correction is a scheduling-time adjustment, so recalibrating later
+    // must not have corrupted the model's own estimate of memory.
+    expect(established({ stabilityMultiplier: 1.4 }).stability).toBe(
+      established().stability,
+    );
+  });
+
+  it("clamps a nonsense multiplier rather than trusting it", () => {
+    const wild = established({ stabilityMultiplier: 99 }).intervalDays;
+    const capped = established({ stabilityMultiplier: 1.5 }).intervalDays;
+    expect(wild).toBe(capped);
+    expect(established({ stabilityMultiplier: NaN }).intervalDays).toBe(
+      established().intervalDays,
+    );
   });
 });

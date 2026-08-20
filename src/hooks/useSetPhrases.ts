@@ -4,6 +4,7 @@ import { useAuth } from "./useAuth";
 import { useDialect } from "@/contexts/DialectContext";
 import { calculateNextReview, elapsedDaysSince, type Rating } from "@/lib/spacedRepetition";
 import { useDesiredRetention } from "./useDesiredRetention";
+import { useFsrsCalibration } from "./useFsrsCalibration";
 
 const sb = supabase as any;
 
@@ -160,6 +161,7 @@ export const useReviewPhrase = () => {
   const { user } = useAuth();
   const qc = useQueryClient();
   const desiredRetention = useDesiredRetention();
+  const stabilityMultiplier = useFsrsCalibration();
   return useMutation({
     mutationFn: async ({
       phraseId,
@@ -188,6 +190,7 @@ export const useReviewPhrase = () => {
 
       const next = calculateNextReview(rating, stability, difficulty, intervalDays, repetitions, elapsedDays, {
         desiredRetention,
+        stabilityMultiplier,
         fuzzSeed: phraseId,
       });
 

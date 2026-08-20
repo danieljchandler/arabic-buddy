@@ -1,6 +1,7 @@
 import { cn } from "@/lib/utils";
 import { Rating, estimateNextInterval } from "@/lib/spacedRepetition";
 import { useDesiredRetention } from "@/hooks/useDesiredRetention";
+import { useFsrsCalibration } from "@/hooks/useFsrsCalibration";
 import { RotateCcw, ThumbsDown, ThumbsUp, Sparkles } from "lucide-react";
 
 interface RatingButtonsProps {
@@ -32,6 +33,7 @@ export const RatingButtons = ({
   // deliberately not previewed: like Anki, the label shows the base interval
   // and the ±5% load balancing lands silently on the stored schedule.
   const desiredRetention = useDesiredRetention();
+  const stabilityMultiplier = useFsrsCalibration();
   const buttons: { rating: Rating; label: string; icon: React.ReactNode; color: string }[] = [
     {
       rating: 'again',
@@ -68,6 +70,7 @@ export const RatingButtons = ({
         {buttons.map(({ rating, label, icon, color }) => {
           const nextInterval = estimateNextInterval(rating, stability, difficulty, intervalDays, repetitions, elapsedDays, {
             desiredRetention,
+            stabilityMultiplier,
           });
 
           return (

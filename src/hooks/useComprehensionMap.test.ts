@@ -67,4 +67,54 @@ describe("useComprehensionMap", () => {
     const { result } = renderHook(() => useComprehensionMap(undefined));
     expect(result.current.size).toBe(0);
   });
+
+  // The same measure has to reach every surface that lists content, or a
+  // learner cannot compare a story against an episode against a video —
+  // which is the entire point of showing a number.
+  it("scores a Listen episode from its script", () => {
+    fill(KNOWN_WORDS);
+    const { result } = renderHook(() =>
+      useComprehensionMap([
+        {
+          id: "ep1",
+          dialect: "Gulf",
+          script: Array.from({ length: 12 }, () => ({ arabic: "كبسه مطعم قهوه" })),
+        },
+      ]),
+    );
+    expect(result.current.get("ep1")?.coverage).toBe(1);
+  });
+
+  it("scores a Reading Library story from its prose body", () => {
+    fill(KNOWN_WORDS);
+    const { result } = renderHook(() =>
+      useComprehensionMap([
+        { id: "s1", dialect: "Gulf", body_dialect: "كبسه مطعم قهوه ".repeat(12) },
+      ]),
+    );
+    expect(result.current.get("s1")?.coverage).toBe(1);
+  });
+
+  it("scores mixed content types in one pass", () => {
+    fill(KNOWN_WORDS);
+    const { result } = renderHook(() =>
+      useComprehensionMap([
+        video("v1"),
+        { id: "ep1", dialect: "Gulf", script: Array.from({ length: 12 }, () => ({ arabic: "كبسه مطعم قهوه" })) },
+        { id: "s1", dialect: "Gulf", body_dialect: "كبسه مطعم قهوه ".repeat(12) },
+      ]),
+    );
+    expect([...result.current.keys()].sort()).toEqual(["ep1", "s1", "v1"]);
+  });
+
+  it("leaves out a story whose body is empty or missing", () => {
+    fill(KNOWN_WORDS);
+    const { result } = renderHook(() =>
+      useComprehensionMap([
+        { id: "s1", dialect: "Gulf", body_dialect: null },
+        { id: "s2", dialect: "Gulf", body_dialect: "   " },
+      ]),
+    );
+    expect(result.current.size).toBe(0);
+  });
 });

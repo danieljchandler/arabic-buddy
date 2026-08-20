@@ -39,6 +39,12 @@ export interface SRSStats {
   stageBreakdown: SRSStageBreakdown;
   forecast: SRSForecastPoint[];
   retentionRate: number;
+  /**
+   * Successful reviews behind `retentionRate`, summed over every card. It is
+   * the sample size that measurement rests on, which decides how far the FSRS
+   * calibration is allowed to move (see calibrationMultiplier).
+   */
+  reviewedCount: number;
   totalCards: number;
   curriculumCards: number;
   myWordsCards: number;
@@ -51,6 +57,7 @@ const getDefaultStats = (): SRSStats => ({
   stageBreakdown: createEmptyStageBreakdown(),
   forecast: buildSRSForecast([]),
   retentionRate: 0,
+  reviewedCount: 0,
   totalCards: 0,
   curriculumCards: 0,
   myWordsCards: 0,
@@ -140,6 +147,10 @@ export const useSRSStats = () => {
         stageBreakdown,
         forecast: buildSRSForecast(forecastDates, now),
         retentionRate: computeSRSRetentionRate(retentionInputs),
+        reviewedCount: retentionInputs.reduce(
+          (sum, r) => sum + Math.max(0, r.repetitions),
+          0,
+        ),
         totalCards: curriculumCards + myWordsCards,
         curriculumCards,
         myWordsCards,

@@ -24,6 +24,8 @@ import { useSubscription } from '@/hooks/useSubscription';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { getTopicCategories } from '@/data/listenTopics';
 import { useTheme, type ThemePref } from '@/hooks/useTheme';
+import { useSRSStats } from '@/hooks/useSRSStats';
+import { useFsrsCalibration } from '@/hooks/useFsrsCalibration';
 import { LEARNING_REASONS, reasonLabel, reasonIdFromLabel } from '@/data/learningReasons';
 
 const DIALECTS = [
@@ -56,6 +58,22 @@ const Settings = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated, loading: authLoading, signOut } = useAuth();
   const { pref: themePref, setPref: setThemePref } = useTheme();
+  const { data: srsStats } = useSRSStats();
+  const stabilityMultiplier = useFsrsCalibration();
+  /**
+   * Plain-language read-out of the measured FSRS calibration. Absent until
+   * there is enough review history for a correction to exist at all, so it
+   * never shows a learner a number that isn't doing anything.
+   */
+  const calibrationNote = (() => {
+    if (Math.abs(stabilityMultiplier - 1) < 0.02) return null;
+    const percent = Math.round(Math.abs(stabilityMultiplier - 1) * 100);
+    const direction = stabilityMultiplier > 1 ? 'longer' : 'shorter';
+    const measured = srsStats?.retentionRate ?? 0;
+    return `Measured from your ${srsStats?.reviewedCount ?? 0} reviews: you recall `
+      + `${measured}% at review time, so your intervals run about ${percent}% ${direction} `
+      + `than the default schedule.`;
+  })();
   const queryClient = useQueryClient();
   const [loading, setLoading] = useState(true);
   const { enabled: leechEnabled, setEnabled: setLeechEnabled } = useLeechPrefs();
@@ -626,6 +644,12 @@ const Settings = () => {
                   </Button>
                 ))}
               </div>
+              {/* The correction is invisible otherwise, and an invisible
+                  scheduler change is indistinguishable from a bug when a
+                  learner notices their intervals moved. */}
+              {calibrationNote && (
+                <p className="text-xs text-muted-foreground mt-2">{calibrationNote}</p>
+              )}
             </div>
             <div className="flex items-center justify-between p-3 rounded-xl bg-card border border-border">
               <div className="min-w-0 pr-3">

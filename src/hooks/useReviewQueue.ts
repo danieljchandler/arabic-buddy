@@ -9,6 +9,7 @@ import {
 } from "@/hooks/useGamification";
 import { submitRatingToServer } from "@/hooks/useReview";
 import { useDesiredRetention } from "@/hooks/useDesiredRetention";
+import { useFsrsCalibration } from "@/hooks/useFsrsCalibration";
 import type { Rating } from "@/lib/spacedRepetition";
 import type { ScheduleDirection } from "@/lib/reviewOrder";
 import {
@@ -51,6 +52,7 @@ export function useReviewQueue() {
   const queryClient = useQueryClient();
   const addXP = useAddXP();
   const desiredRetention = useDesiredRetention();
+  const stabilityMultiplier = useFsrsCalibration();
   const incrementReviews = useIncrementReviews();
   const checkAchievements = useCheckAchievements();
 
@@ -92,7 +94,7 @@ export function useReviewQueue() {
             // that survived the deploy flushing correctly instead of writing
             // them into the wrong column set.
             item.direction ?? "recognition",
-            { desiredRetention }
+            { desiredRetention, stabilityMultiplier }
           );
           remove(user.id, item.id);
           setPendingCount(count(user.id));
@@ -129,7 +131,7 @@ export function useReviewQueue() {
       flushingRef.current = false;
       setIsFlushing(false);
     }
-  }, [user, addXP, incrementReviews, checkAchievements, queryClient, desiredRetention]);
+  }, [user, addXP, incrementReviews, checkAchievements, queryClient, desiredRetention, stabilityMultiplier]);
 
   const enqueue = useCallback(
     (args: EnqueueArgs) => {

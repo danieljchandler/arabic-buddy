@@ -2,6 +2,7 @@ import { ChevronRight, Check, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { InfoHint } from "@/components/InfoHint";
 import { useDialect } from "@/contexts/DialectContext";
+import { dialectAccent } from "@/lib/dialectAccent";
 
 interface TaskRowProps {
   title: string;
@@ -14,18 +15,10 @@ interface TaskRowProps {
   hint?: { title: string; body: string };
 }
 
-// Dialect rail colors — tactile vertical bar in each tile's active color
-const DIALECT_RAIL: Record<string, string> = {
-  Gulf: "bg-gradient-to-b from-teal-400 to-teal-600",
-  Egyptian: "bg-gradient-to-b from-amber-400 to-amber-600",
-  Yemeni: "bg-gradient-to-b from-red-500 to-red-700",
-};
-
-const DIALECT_ICON_TINT: Record<string, string> = {
-  Gulf: "bg-teal-500/10 text-teal-700",
-  Egyptian: "bg-amber-500/10 text-amber-700",
-  Yemeni: "bg-red-500/10 text-red-700",
-};
+// The rail and icon chip take the dialect's own brand accent (see
+// lib/dialectAccent). They used to use raw Tailwind teal / amber / red, and
+// teal is a cold colour on a warm-sand palette — repeated once per task, on
+// the screen the learner opens most.
 
 export const TaskRow = ({
   title,
@@ -38,8 +31,7 @@ export const TaskRow = ({
   hint,
 }: TaskRowProps) => {
   const { activeDialect } = useDialect();
-  const rail = DIALECT_RAIL[activeDialect] ?? DIALECT_RAIL.Gulf;
-  const iconTint = DIALECT_ICON_TINT[activeDialect] ?? DIALECT_ICON_TINT.Gulf;
+  const accent = dialectAccent(activeDialect);
 
   // The row reads as one big button but may carry an InfoHint — itself a real
   // <button> (see its comment). A button can't contain a button, so the row
@@ -70,9 +62,11 @@ export const TaskRow = ({
       {/* Left dialect rail */}
       <span
         aria-hidden
+        style={{
+          backgroundImage: `linear-gradient(to bottom, hsl(${accent} / 0.75), hsl(${accent}))`,
+        }}
         className={cn(
           "relative z-[1] w-1.5 shrink-0 rounded-r-full transition-opacity",
-          rail,
           done && "opacity-40"
         )}
       />
@@ -80,9 +74,14 @@ export const TaskRow = ({
       {/* Micro-icon tile */}
       <div className="relative z-[1] pl-1 flex items-center">
         <div
+          style={
+            done
+              ? undefined
+              : { backgroundColor: `hsl(${accent} / 0.12)`, color: `hsl(${accent})` }
+          }
           className={cn(
             "h-11 w-11 rounded-xl flex items-center justify-center shrink-0 transition-colors",
-            done ? "bg-desert-red/10" : iconTint
+            done && "bg-desert-red/10"
           )}
         >
           {done ? (

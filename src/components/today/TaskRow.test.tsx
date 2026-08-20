@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@/test/support/react/harness";
 import { aProfile } from "@/test/support/factories";
 import { TaskRow } from "./TaskRow";
+import { DIALECT_ACCENT } from "@/lib/dialectAccent";
 
 /**
  * One line of the Today list.
@@ -72,6 +73,9 @@ function render({
 
 const row = () => screen.getByRole("button", { name: /minutes$/ });
 const rail = (container: HTMLElement) => container.querySelector("[aria-hidden]")!;
+/** The rail paints its accent inline, so the colour lives in the style attr. */
+const railStyle = (container: HTMLElement) =>
+  rail(container).getAttribute("style") ?? "";
 
 describe("what the row says", () => {
   it("names the task and what it will cost", () => {
@@ -182,10 +186,10 @@ describe("once the task is done", () => {
 
 describe("the dialect rail", () => {
   it.each([
-    ["Gulf", "teal"],
-    ["Egyptian", "amber"],
-    ["Yemeni", "red"],
-  ])("colours the row for %s", async (dialect, hue) => {
+    ["Gulf"],
+    ["Egyptian"],
+    ["Yemeni"],
+  ])("colours the row for %s", async (dialect) => {
     const { container } = render({ dialect });
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
@@ -193,7 +197,10 @@ describe("the dialect rail", () => {
 
     // Today looks the same in every dialect apart from this. It is the only
     // ambient cue that a learner switching modules is where they think they are.
-    expect(rail(container).className).toContain(hue);
+    // The accent is the dialect's brand hue (lib/dialectAccent), applied as an
+    // inline gradient — it used to be raw Tailwind teal/amber/red, and teal
+    // read cold against the warm sand.
+    expect(railStyle(container)).toContain(DIALECT_ACCENT[dialect]);
   });
 
   it("falls back to the Gulf colours for an unknown dialect", async () => {
@@ -204,7 +211,7 @@ describe("the dialect rail", () => {
 
     // A dialect added to the data before the palette would otherwise render an
     // uncoloured rail.
-    expect(rail(container).className).toContain("teal");
+    expect(railStyle(container)).toContain(DIALECT_ACCENT.Gulf);
   });
 });
 

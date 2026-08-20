@@ -72,6 +72,12 @@ export interface ScheduleOptions {
    */
   desiredRetention?: number;
   /**
+   * Correction for how this learner's real recall compares with the target
+   * the scheduler aims at — see {@link calibrationMultiplier}. 1 (the
+   * default) leaves intervals exactly as before.
+   */
+  stabilityMultiplier?: number;
+  /**
    * When set (any stable per-card string — the card id), intervals of 3+ days
    * get a deterministic ±5% fuzz so cards created or imported together don't
    * all land due on the same future day. Deterministic per (card, interval):
@@ -85,6 +91,79 @@ export interface ScheduleOptions {
 export function retentionFactor(desiredRetention: number | undefined): number {
   const r = Math.min(0.97, Math.max(0.7, desiredRetention ?? 0.9));
   return (Math.pow(r, 1 / DECAY) - 1) / FACTOR;
+}
+
+// ── Per-learner calibration ───────────────────────────────────────────────────
+
+/**
+ * Reviews (successful ones, summed across the learner's cards) below which no
+ * correction is applied at all. A handful of cards is noise, and a wrong
+ * correction schedules worse than the untouched defaults.
+ */
+export const MIN_REVIEWS_TO_CALIBRATE = 150;
+
+/**
+ * Shrinkage constant. The correction is blended toward 1.0 with weight
+ * n / (n + K), so it arrives gradually as evidence accumulates instead of
+ * lurching the moment the threshold is crossed.
+ */
+const CALIBRATION_SHRINKAGE = 400;
+
+/** Hard bounds. Even with abundant evidence, never halve or 1.5× a schedule. */
+const CALIBRATION_MIN = 0.7;
+const CALIBRATION_MAX = 1.5;
+
+/**
+ * How much this learner's real memory outruns (or falls short of) the stock
+ * FSRS parameters, as a multiplier on stability at scheduling time.
+ *
+ * The 17 FSRS weights are trained on 20k+ Anki users and are the same for
+ * everyone here. Fitting all seventeen per learner is the full optimiser and
+ * needs a per-review event log this app does not keep. But one number — is
+ * this learner's memory stronger or weaker than the defaults assume? — is
+ * recoverable from state already stored, and carries most of the benefit.
+ *
+ * FSRS schedules every review to land at the learner's target recall
+ * probability, so across many reviews their observed success rate *should*
+ * equal that target. Where it doesn't, the forgetting curve says by how much
+ * the stability estimate is off: solving R(t,S) = observed and R(t,S') =
+ * target at the same t gives
+ *
+ *     S'/S = (target^(1/DECAY) − 1) / (observed^(1/DECAY) − 1)
+ *
+ * A learner recalling 95% where 90% was asked has stronger memory than
+ * modelled and can take longer intervals; one recalling 85% needs shorter.
+ *
+ * Deliberately conservative: nothing below MIN_REVIEWS_TO_CALIBRATE reviews,
+ * shrunk toward 1.0 by sample size, and clamped. The correction applies to
+ * the *interval*, never to the stored stability — so recalibrating later
+ * changes future scheduling without having corrupted card state.
+ *
+ * @param observedRetention 0..1, measured (see computeSRSRetentionRate).
+ * @param targetRetention   0..1, what the learner asked for; default 0.9.
+ * @param reviewCount       Successful reviews the measurement rests on.
+ */
+export function calibrationMultiplier(
+  observedRetention: number | undefined,
+  targetRetention: number | undefined,
+  reviewCount: number,
+): number {
+  if (!Number.isFinite(reviewCount) || reviewCount < MIN_REVIEWS_TO_CALIBRATE) return 1;
+  if (observedRetention == null || !Number.isFinite(observedRetention)) return 1;
+
+  // Outside this range the curve's answer stops being meaningful: at 1.0 the
+  // denominator is zero, and very low rates imply a schedule so wrong that a
+  // multiplier is the wrong remedy.
+  const observed = Math.min(0.98, Math.max(0.5, observedRetention));
+  const target = Math.min(0.97, Math.max(0.7, targetRetention ?? 0.9));
+
+  const raw =
+    (Math.pow(target, 1 / DECAY) - 1) / (Math.pow(observed, 1 / DECAY) - 1);
+  if (!Number.isFinite(raw) || raw <= 0) return 1;
+
+  const weight = reviewCount / (reviewCount + CALIBRATION_SHRINKAGE);
+  const shrunk = 1 + (raw - 1) * weight;
+  return Math.min(CALIBRATION_MAX, Math.max(CALIBRATION_MIN, shrunk));
 }
 
 /** Deterministic hash → [-1, 1), stable across sessions. */
@@ -107,6 +186,12 @@ export function fuzzInterval(intervalDays: number, seed: string | undefined): nu
   if (!seed || intervalDays < 3) return intervalDays;
   const delta = Math.round(intervalDays * 0.05 * fuzzUnit(`${seed}:${intervalDays}`));
   return Math.max(2, intervalDays + delta);
+}
+
+/** Guard the caller's value, so a bad stored number cannot wreck a schedule. */
+function clampCalibration(multiplier: number | undefined): number {
+  if (multiplier == null || !Number.isFinite(multiplier)) return 1;
+  return Math.min(CALIBRATION_MAX, Math.max(CALIBRATION_MIN, multiplier));
 }
 
 // ── Rating → integer (FSRS uses 1-4) ─────────────────────────────────────────
@@ -200,7 +285,11 @@ export function calculateNextReview(
 ): ReviewResult {
   const r = RATING_NUM[rating];
   const isNewCard = repetitions === 0 || stability <= 0;
-  const intervalFactor = retentionFactor(options?.desiredRetention);
+  // Retention target and per-learner calibration both scale stability into an
+  // interval, so they compose as one factor. Stored stability stays the
+  // model's own estimate — see calibrationMultiplier.
+  const calibration = clampCalibration(options?.stabilityMultiplier);
+  const intervalFactor = retentionFactor(options?.desiredRetention) * calibration;
 
   let newStability: number;
   let newDifficulty: number;

@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { calculateNextReview, elapsedDaysSince, Rating, type ScheduleOptions } from '@/lib/spacedRepetition';
 import { useDesiredRetention } from './useDesiredRetention';
+import { useFsrsCalibration } from './useFsrsCalibration';
 import {
   buildReviewOrder,
   scheduleDirectionFor,
@@ -403,6 +404,7 @@ export async function submitRatingToServer(
 export const useSubmitReview = () => {
   const { user } = useAuth();
   const desiredRetention = useDesiredRetention();
+  const stabilityMultiplier = useFsrsCalibration();
   const queryClient = useQueryClient();
   const addXP = useAddXP();
   const incrementReviews = useIncrementReviews();
@@ -421,6 +423,7 @@ export const useSubmitReview = () => {
       if (!user) throw new Error('Must be logged in');
       return submitRatingToServer(user.id, wordId, rating, currentReview, 'recognition', {
         desiredRetention,
+        stabilityMultiplier,
       });
     },
     onSuccess: ({ rating }) => {

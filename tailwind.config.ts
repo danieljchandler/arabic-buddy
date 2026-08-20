@@ -158,6 +158,14 @@ export default {
           "25%": { transform: "rotate(-7deg)" },
           "75%": { transform: "rotate(7deg)" },
         },
+        // A light sweeping across a placeholder. Tailwind's own `animate-pulse`
+        // fades the whole block in and out, which reads as a stuttering box;
+        // a sweep reads as something arriving, and it moves in one direction
+        // so a column of them feels like one surface rather than several
+        // blinking independently.
+        "shimmer": {
+          "100%": { transform: "translateX(100%)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
@@ -171,6 +179,7 @@ export default {
         "fade-in": "fade-up 360ms cubic-bezier(0.16, 1, 0.3, 1) both",
         "bounce-gentle": "bounce-gentle 1.8s ease-in-out infinite",
         "wiggle": "wiggle 0.5s ease-in-out infinite",
+        "shimmer": "shimmer 1.6s cubic-bezier(0.16, 1, 0.3, 1) infinite",
       },
     },
   },

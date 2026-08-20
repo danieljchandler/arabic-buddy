@@ -3,6 +3,7 @@ import {
   buildReviewOrder,
   interleaveDirections,
   isNewCard,
+  recognitionChannel,
   type CardDirection,
   type SchedulableCard,
 } from "@/lib/reviewOrder";
@@ -205,5 +206,42 @@ describe("buildReviewOrder", () => {
     ];
     buildReviewOrder(input, { newCardCap: 0 });
     expect(ids(input)).toEqual(["b", "a"]);
+  });
+});
+
+describe("recognitionChannel", () => {
+  it("reads a brand-new word rather than playing it", () => {
+    // Hearing a word you have never seen written is a listening test, not an
+    // introduction.
+    expect(recognitionChannel({ repetitions: 0, hasAudio: true })).toBe("recognition");
+  });
+
+  it("alternates eye and ear on an ordinary card", () => {
+    expect(recognitionChannel({ repetitions: 1, hasAudio: true })).toBe("audio");
+    expect(recognitionChannel({ repetitions: 2, hasAudio: true })).toBe("recognition");
+    expect(recognitionChannel({ repetitions: 3, hasAudio: true })).toBe("audio");
+  });
+
+  it("stays on text when there is nothing to play", () => {
+    expect(recognitionChannel({ repetitions: 1, hasAudio: false })).toBe("recognition");
+    expect(recognitionChannel({ repetitions: 1, hasAudio: false, isLeech: true })).toBe(
+      "recognition",
+    );
+  });
+
+  it("always plays a leech, whichever half of the alternation it is on", () => {
+    // Six failures in, half of them through the text channel. Re-serving a
+    // failing card in the modality it keeps failing is the one intervention
+    // known not to work, so the rotation stops being optional.
+    expect(recognitionChannel({ repetitions: 2, hasAudio: true, isLeech: true })).toBe("audio");
+    expect(recognitionChannel({ repetitions: 3, hasAudio: true, isLeech: true })).toBe("audio");
+  });
+
+  it("does not promote a new leech card straight to audio", () => {
+    // repetitions 0 means the direction has never been completed; a leech flag
+    // from the *other* direction must not turn the introduction into a test.
+    expect(recognitionChannel({ repetitions: 0, hasAudio: true, isLeech: true })).toBe(
+      "recognition",
+    );
   });
 });

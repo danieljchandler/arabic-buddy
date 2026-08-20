@@ -6,6 +6,7 @@ import { useDesiredRetention } from './useDesiredRetention';
 import { useFsrsCalibration } from './useFsrsCalibration';
 import {
   buildReviewOrder,
+  recognitionChannel,
   scheduleDirectionFor,
   type CardDirection,
   type ScheduleDirection,
@@ -171,10 +172,14 @@ export const useDueWords = (mixAll = false) => {
             // Alternate the input channel for recognition cards: hearing the
             // word and recalling its meaning is the direction that matters most
             // for a spoken dialect, and it was absent from every deck. Only
-            // words that have some audio to play can be served this way.
-            card_type: repetitions > 0 && hasAudio(word) && repetitions % 2 === 1
-              ? 'audio'
-              : 'recognition',
+            // words that have some audio to play can be served this way — and
+            // a leech stops alternating and is always heard (see
+            // recognitionChannel).
+            card_type: recognitionChannel({
+              repetitions,
+              hasAudio: hasAudio(word),
+              isLeech: !!review?.is_leech,
+            }),
             due_at: review?.next_review_at ?? now,
             repetitions,
           });

@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { PageCorner } from "@/components/shell/PageCorner";
 import { AppShell } from "@/components/layout/AppShell";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { supabase } from "@/integrations/supabase/client";
 import { useDialect } from "@/contexts/DialectContext";
 import { useAuth } from "@/hooks/useAuth";
@@ -92,6 +93,7 @@ const NaturalnessStars = ({ value }: { value: number }) => (
 const HowDoISay = () => {
   const { isAuthenticated } = useAuth();
   const { activeDialect } = useDialect();
+  const isMobile = useIsMobile();
   const addUserVocabulary = useAddUserVocabulary();
   const addUserPhrase = useAddUserPhrase();
 
@@ -312,7 +314,13 @@ const HowDoISay = () => {
               handleSearch();
             }
           }}
-          placeholder={"Type a phrase, describe a situation, or paste a conversation…\n(Shift + Enter for a new line)"}
+          // The Shift+Enter hint only where such a key exists — phone
+          // keyboards have no Shift+Enter, so on touch it was just noise.
+          placeholder={
+            isMobile
+              ? "Type a phrase, describe a situation, or paste a conversation…"
+              : "Type a phrase, describe a situation, or paste a conversation…\n(Shift + Enter for a new line)"
+          }
           className="flex-1 resize-none min-h-[80px]"
           rows={3}
           disabled={isLoading}

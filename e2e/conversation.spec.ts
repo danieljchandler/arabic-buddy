@@ -29,15 +29,15 @@ function seedChat(db: MemoryDb) {
 }
 
 /**
- * Declare the noise live mode makes on arrival.
+ * Declare the noise live mode makes once entered.
  *
- * Not incidental — it is what the page does. `liveMode` initialises to `true`,
- * so the panel mounts, auto-starts, mints a session token and then posts an SDP
- * offer straight to api.openai.com. The fixture aborts that request (nothing
- * leaves the machine either way; the allow-list only silences the assertion),
- * the connection fails, and the hook logs it. Every single spec on this page
- * has to account for that, including the ones that never touch voice — which is
- * itself the finding, pinned under "live voice" below.
+ * The live panel auto-starts when it mounts: it mints a session token and then
+ * posts an SDP offer straight to api.openai.com. The fixture aborts that
+ * request (nothing leaves the machine either way; the allow-list only silences
+ * the assertion), the connection fails, and the hook logs it. Live mode is
+ * opt-in now — it used to initialise ON, which made every visit dial — so only
+ * the specs that actually press "Live voice" strictly need this; on the rest
+ * the tolerance simply never fires.
  */
 function tolerateLiveDial(
   expectConsoleErrors: (patterns: RegExp[]) => void,
@@ -64,12 +64,11 @@ async function expectSaid(page: Page, sentence: string) {
 }
 
 /**
- * Leave live mode.
+ * Leave live mode if it is on.
  *
- * Needed after *every* navigation to this page, not just the first: `liveMode`
- * is component state initialised to `true`, so it comes back on with every
- * fresh mount and the panel covers the typed conversation underneath. Tolerant
- * of already being out, so a reload path and a cold path can share one helper.
+ * Live mode is opt-in now, so a fresh mount arrives with the panel closed and
+ * this is a no-op that just waits for the toggle. Kept tolerant of both states
+ * so specs that entered live and specs that never did share one helper.
  */
 async function exitLive(page: Page) {
   // Wait for the toggle before reading it. `count()` resolves immediately
@@ -570,17 +569,22 @@ test.describe("live voice", () => {
     seedChat(db);
   });
 
-  test("dials before the learner asks for it", async ({
+  test("does not dial until the learner asks for it", async ({
     page,
     backend,
   }) => {
 
     await page.goto("/conversation");
 
-    // Pinned as-is. `liveMode` initialises to `true`, so arriving on the page
-    // mounts the panel, which auto-starts on mount: the mic is opened and a
-    // realtime session token is minted before the learner has clicked
-    // anything. Every visit to /conversation costs a token call.
+    // Live voice used to initialise ON: arriving on the page opened the mic,
+    // minted a session token and started spending the monthly voice-minute
+    // budget before the learner had clicked anything. Now the visit is free —
+    // the "Live voice" button is the opt-in, and only it dials.
+    await expect(page.getByText("Pick a topic to start")).toBeVisible();
+    expect(backend.callsTo("realtime-session-token")).toHaveLength(0);
+
+    await page.getByRole("button", { name: /Live voice/ }).click();
+
     await expect.poll(() => backend.callsTo("realtime-session-token").length).toBe(1);
     expect(backend.lastCallTo("realtime-session-token")?.body).toMatchObject({
       dialect: "Gulf",
@@ -593,6 +597,7 @@ test.describe("live voice", () => {
   }) => {
 
     await page.goto("/conversation");
+    await page.getByRole("button", { name: /Live voice/ }).click();
 
     // The SDP exchange goes straight to api.openai.com, which the fixture
     // blocks as a foreign host — the same shape as a real network failure or a
@@ -608,6 +613,7 @@ test.describe("live voice", () => {
     });
 
     await page.goto("/conversation");
+    await page.getByRole("button", { name: /Live voice/ }).click();
 
     // The token function's own message is surfaced rather than a bare status —
     // an unconfigured key and a rejected user look identical otherwise.
@@ -619,6 +625,7 @@ test.describe("live voice", () => {
   test("hands the page back when live is exited", async ({ page }) => {
 
     await page.goto("/conversation");
+    await page.getByRole("button", { name: /Live voice/ }).click();
     await expect(page.getByText(/Disconnected|Connecting/)).toBeVisible({ timeout: 15_000 });
 
     await page.getByRole("button", { name: /Exit live/ }).click();
@@ -631,6 +638,7 @@ test.describe("live voice", () => {
     backend.stubFunction("free-chat", () => streaming(OPENER));
 
     await page.goto("/conversation");
+    await page.getByRole("button", { name: /Live voice/ }).click();
     await expect.poll(() => backend.callsTo("realtime-session-token").length).toBe(1);
 
     await exitLive(page);

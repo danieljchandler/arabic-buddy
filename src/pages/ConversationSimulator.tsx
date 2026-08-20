@@ -76,7 +76,12 @@ export default function ConversationSimulator() {
   const [recording, setRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
   const [playingIdx, setPlayingIdx] = useState<number | null>(null);
-  const [liveMode, setLiveMode] = useState(true);
+  // Off until asked for. Live voice auto-starts when its panel mounts, so a
+  // default of true meant merely arriving on this page opened the microphone,
+  // minted a realtime session token and started spending the learner's
+  // monthly voice-minute budget — before they had clicked anything. The
+  // "🎙️ Live voice" button is the opt-in.
+  const [liveMode, setLiveMode] = useState(false);
   const [liveTopic, setLiveTopic] = useState<string | undefined>(undefined);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);

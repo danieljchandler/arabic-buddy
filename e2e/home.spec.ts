@@ -188,7 +188,9 @@ test.describe("the daily queue", () => {
         el.getAttribute("data-order-probe"),
       ),
     );
-    expect(order).toEqual(["video", "goal", "row"]);
+    // The video sits between them: the day's target first, then what to
+    // watch, then the rest of the queue.
+    expect(order).toEqual(["goal", "video", "row"]);
   });
 
   test("still counts the video in the day's total", async ({ page, db }) => {

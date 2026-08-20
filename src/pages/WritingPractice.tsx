@@ -392,7 +392,11 @@ const TypingTab = () => {
           <p className="text-xs text-muted-foreground">
             {itemIndex + 1} / {drill.length} · {item.kind === "letter" ? "letter" : "word"} · {score.accuracy}%
           </p>
-          <p dir="rtl" className="mt-3 font-arabic text-4xl tracking-wide">
+          {/* No tracking: letter-spacing on Arabic pulls shaped glyphs apart.
+              The per-character spans already isolate each letter (that's what
+              makes per-key coloring possible), so extra spacing only made the
+              severed joins wider. */}
+          <p dir="rtl" className="mt-3 font-arabic text-4xl">
             {[...item.target].map((c, i) => (
               <span
                 key={i}

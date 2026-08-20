@@ -270,7 +270,10 @@ export function ChatTab({ onComposerFocus }: ChatTabProps = {}) {
                   <ThinkingBubble />
                 )
               ) : (
-                <p>{m.content}</p>
+                // dir="auto": learners routinely type Arabic here, and an LTR
+                // bubble scrambles its punctuation to the wrong ends — the
+                // conversation simulator's input has always done this.
+                <p dir="auto">{m.content}</p>
               )}
             </div>
           );
@@ -298,6 +301,7 @@ export function ChatTab({ onComposerFocus }: ChatTabProps = {}) {
           rows={1}
           className="resize-none min-h-[40px] text-sm"
           disabled={loading}
+          dir="auto"
         />
         <Button
           size="icon"

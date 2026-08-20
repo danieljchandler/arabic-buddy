@@ -222,9 +222,12 @@ const MyWords = () => {
     e.stopPropagation();
     try {
       await deleteWord.mutateAsync(wordId);
-      toast.success("تم حذف الكلمة");
+      // English like every other toast in the app: these two were the only
+      // Arabic-language ones, rendered LTR by the toaster — and in MSA, in a
+      // product whose premise is "never MSA".
+      toast.success("Word deleted");
     } catch (error) {
-      toast.error("فشل حذف الكلمة");
+      toast.error("Couldn't delete the word — try again");
     }
   };
 

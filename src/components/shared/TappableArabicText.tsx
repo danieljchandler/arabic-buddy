@@ -562,7 +562,10 @@ export const TappableArabicText = ({
       <Container
         className={cn(
           "text-base leading-loose text-foreground/90 font-arabic",
-          inline ? "inline" : "flex flex-wrap justify-end gap-1",
+          // No justify-end: under dir="rtl" flex main-start is already the
+          // right edge, so justify-end packed short lines to the visual LEFT
+          // — ragged-right Arabic prose, backwards for the script.
+          inline ? "inline" : "flex flex-wrap gap-1",
           className
         )}
         dir="rtl"

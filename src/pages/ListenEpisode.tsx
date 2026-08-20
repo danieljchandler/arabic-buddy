@@ -138,7 +138,9 @@ const ListenEpisode = () => {
             <Badge variant="outline">{episode.dialect}</Badge>
             <Badge variant="outline" className="capitalize">{episode.length_bucket}</Badge>
           </div>
-          <h1 className="text-2xl font-bold leading-tight" dir="rtl">{episode.title}</h1>
+          {/* dir="auto" + normal leading: titles can be English/mixed, and
+              leading-tight at text-2xl clips harakat on stacked Naskh. */}
+          <h1 className="text-2xl font-bold leading-normal" dir="auto">{episode.title}</h1>
           {episode.summary && <p className="text-sm text-muted-foreground">{episode.summary}</p>}
 
           {episode.audio_mode === "full" && (

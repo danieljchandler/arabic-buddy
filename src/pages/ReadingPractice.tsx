@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
+import { ARABIC_PUNCT_RE, normalizeArabicWord } from "@/lib/arabicWord";
 import { usePageAiContext } from "@/contexts/AiAssistantContext";
 import { Switch } from "@/components/ui/switch";
 import { useDialect } from "@/contexts/DialectContext";
@@ -169,10 +170,13 @@ const TappableArabicLine = ({
 
   return (
   <div className="space-y-1">
-    <p className="text-lg leading-relaxed font-arabic text-foreground flex flex-wrap justify-end gap-1" dir="rtl">
+    {/* No justify-end: under dir="rtl" flex-start is already the right edge,
+        so justify-end packed short lines to the visual left. */}
+    <p className="text-lg leading-relaxed font-arabic text-foreground flex flex-wrap gap-1" dir="rtl">
       {line.arabic.split(/\s+/).map((word, wIdx) => {
-        const cleanWord = word.replace(/[،.؟!,]/g, "").trim();
-        const wordData = wordTranslations[cleanWord];
+        const cleanWord = word.replace(ARABIC_PUNCT_RE, "").trim();
+        // Cache entries are keyed on the normalized word (see handleWordTap).
+        const wordData = wordTranslations[normalizeArabicWord(word)];
         const marking = markUnknowns.enabled;
         const marked = marking && markUnknowns.isMarked(cleanWord);
 
@@ -569,9 +573,15 @@ const ReadingPractice = () => {
   };
 
   const handleWordTap = async (word: string, lineIdx: number, contextLines?: PassageLine[], contextVocab?: VocabItem[]) => {
-    const cleanWord = word.replace(/[،.؟!,]/g, "").trim();
-    if (!cleanWord) return;
-    if (wordTranslations[cleanWord]) return;
+    // Surface for display/enrichment keeps its spelling; matching and the
+    // cache go through the shared fold (lib/arabicWord) so a vocalized or
+    // variant-spelled tap still finds the passage's own gloss instead of
+    // falling through to a paid enrichment call — and so the same word isn't
+    // fetched twice under two spellings.
+    const cleanWord = word.replace(ARABIC_PUNCT_RE, "").trim();
+    const key = normalizeArabicWord(word);
+    if (!cleanWord || !key) return;
+    if (wordTranslations[key]) return;
 
     const lines = contextLines || passage?.lines || [];
     const vocab = contextVocab || passage?.vocabulary || [];
@@ -579,21 +589,22 @@ const ReadingPractice = () => {
     const line = lines[lineIdx];
     const lineEnglish = line?.english || "";
 
-    const vocabMatch = vocab.find(
-      (v) => cleanWord.includes(v.arabic) || v.arabic.includes(cleanWord)
-    );
+    const vocabMatch = vocab.find((v) => {
+      const nv = normalizeArabicWord(v.arabic);
+      return nv && (key.includes(nv) || nv.includes(key));
+    });
     const translation = vocabMatch?.english || "";
 
     setWordTranslations((prev) => ({
       ...prev,
-      [cleanWord]: { translation, lineEnglish, enriching: true },
+      [key]: { translation, lineEnglish, enriching: true },
     }));
 
     const enrichment = await enrichWord(cleanWord, activeDialect);
     const definition = enrichment?.definition || translation || `In context: "${lineEnglish}"`;
     setWordTranslations((prev) => ({
       ...prev,
-      [cleanWord]: { ...prev[cleanWord], translation: definition, enrichment, enriching: false },
+      [key]: { ...prev[key], translation: definition, enrichment, enriching: false },
     }));
   };
 

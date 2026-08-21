@@ -2,10 +2,11 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } fro
 import { createPortal } from "react-dom";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Bookmark, MessageCircleQuestion, Play, Flame } from "lucide-react";
+import { Bookmark, MessageCircleQuestion, Flame } from "lucide-react";
 import { AppDock } from "@/components/shell/AppDock";
 import { ProfileEmblemView } from "@/components/shell/ProfileEmblem";
 import { BrandMark } from "@/components/shell/BrandMark";
+import { SaduPlayButton } from "@/components/brand/SaduPlayButton";
 import { useDiscoverFeed } from "@/hooks/useDiscoverFeed";
 import type { DiscoverVideo } from "@/hooks/useDiscoverVideos";
 import { useSwipeSurfaces } from "@/hooks/useSwipeSurfaces";
@@ -339,9 +340,7 @@ function Clip({
         aria-label={`Play ${video.title}`}
         className="absolute inset-0 z-10 grid w-full place-items-center"
       >
-        <span className="grid h-16 w-16 place-items-center rounded-full bg-black/45 backdrop-blur">
-          <Play className="h-7 w-7 fill-white" />
-        </span>
+        <SaduPlayButton className="h-16 w-16 drop-shadow-[0_2px_10px_rgba(0,0,0,0.45)] transition-transform active:scale-95" />
       </button>
 
       {/* You, then the verbs. This rail is why the hub lists could go.

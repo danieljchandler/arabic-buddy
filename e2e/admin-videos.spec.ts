@@ -103,3 +103,79 @@ test.describe("the thumbnail backfill", () => {
     await expect(page.getByText(/1 still need a frame captured/)).toBeVisible();
   });
 });
+
+test.describe("re-reading the text on a video's screen", () => {
+  /**
+   * The first read happens in the admin's browser at upload time, off the file
+   * they still have in hand. This is the way back for everything that misses:
+   * videos added before the vision pass existed, and passes that came back
+   * empty because a caption was low-contrast or fell between two sampled
+   * frames. By then nobody has the file, so the work happens server-side.
+   */
+  const rereadButton = (page: import("@playwright/test").Page) =>
+    page.getByRole("button", { name: /re-read the text/i });
+
+  test("reports what the re-read found", async ({ page, db, backend }) => {
+    backend.stubFunction("reextract-on-screen-text", {
+      success: true,
+      readFrom: "video",
+      onScreenTextCount: 3,
+      removedTranscriptLines: 0,
+    });
+    db.seed("discover_videos", [aDiscoverVideo({ id: videoId(0), title: "A meme" })]);
+
+    await page.goto("/admin/videos");
+    await rereadButton(page).click();
+
+    await expect(page.getByText("Read 3 lines of on-screen text")).toBeVisible();
+  });
+
+  test("says when the captions came out of the transcript", async ({ page, db, backend }) => {
+    backend.stubFunction("reextract-on-screen-text", {
+      success: true,
+      readFrom: "video",
+      onScreenTextCount: 2,
+      removedTranscriptLines: 2,
+    });
+    db.seed("discover_videos", [aDiscoverVideo({ id: videoId(0), title: "A meme" })]);
+
+    await page.goto("/admin/videos");
+    await rereadButton(page).click();
+
+    // The whole point of the re-read on an older video: the overlays stop being
+    // lines somebody supposedly said.
+    await expect(page.getByText(/moved 2 captions out of the spoken transcript/)).toBeVisible();
+  });
+
+  test("does not claim to have found text when there was none", async ({ page, db, backend }) => {
+    backend.stubFunction("reextract-on-screen-text", {
+      success: true,
+      readFrom: "video",
+      onScreenTextCount: 0,
+      removedTranscriptLines: 0,
+    });
+    db.seed("discover_videos", [aDiscoverVideo({ id: videoId(0), title: "A lesson clip" })]);
+
+    await page.goto("/admin/videos");
+    await rereadButton(page).click();
+
+    await expect(page.getByText("No on-screen text found")).toBeVisible();
+  });
+
+  test("surfaces the reason a re-read could not run", async ({ page, db, backend }) => {
+    backend.stubFunctionFailure("reextract-on-screen-text", 500, {
+      error: "Only the audio track could be retrieved from this source.",
+    });
+    db.seed("discover_videos", [aDiscoverVideo({ id: videoId(0), title: "A meme" })]);
+
+    await page.goto("/admin/videos");
+    await rereadButton(page).click();
+
+    // An admin who is told only "failed" has no idea whether to re-upload the
+    // file, wait, or give up on the source.
+    await expect(page.getByText("Could not re-read the video")).toBeVisible();
+    // The reason, not "non-2xx status code": an admin told only "failed" cannot
+    // tell "re-upload the file" from "wait and try again".
+    await expect(page.getByText("Only the audio track could be retrieved from this source.")).toBeVisible();
+  });
+});

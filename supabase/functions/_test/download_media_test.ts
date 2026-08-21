@@ -85,7 +85,12 @@ async function call(
     } catch {
       // The status assertion carries the failure.
     }
-    return { status: response.status, body: parsed, calls: fn.calls.map((c) => c.url) };
+    return {
+      status: response.status,
+      body: parsed,
+      calls: fn.calls.map((c) => c.url),
+      bodies: fn.calls.map((c) => c.body),
+    };
   } finally {
     fn.restore();
   }
@@ -390,4 +395,93 @@ Deno.test("download-media survives an unreachable host", async () => {
   // The HEAD check is wrapped precisely because it fails routinely; a thrown
   // fetch must fall through to the strategies rather than 500.
   assertEquals(status, 400);
+});
+
+// ── Asking for the pictures ─────────────────────────────────────────────────
+//
+// Everything else that calls this wants the smallest payload with the speech in
+// it, so audio-only is the default and stays the default. The on-screen-text
+// re-read is the one caller that needs the frames.
+
+const videoBytes = (): UpstreamHandler => () => {
+  const bytes = new Uint8Array(MEDIA_SIZE);
+  bytes.set([0x00, 0x00, 0x00, 0x18]);
+  return new Response(bytes, {
+    status: 200,
+    headers: { "content-type": "video/mp4", "content-length": String(MEDIA_SIZE) },
+  });
+};
+
+Deno.test("download-media asks Cobalt for audio by default", async () => {
+  const { calls, bodies } = await call(
+    { url: YT },
+    caller({ "co.imput.net": cobalt(), "cdn.test": mediaBytes() }),
+  );
+
+  const sent = JSON.parse(bodies[calls.findIndex((u) => u.includes("co.imput.net"))] ?? "{}");
+  assertEquals(sent.downloadMode, "audio");
+  assertEquals(sent.audioFormat, "mp3");
+});
+
+Deno.test("download-media asks Cobalt for the muxed video when told to", async () => {
+  const { status, body, calls, bodies } = await call(
+    { url: YT, wantVideo: true },
+    caller({ "co.imput.net": cobalt("https://cdn.test/clip.mp4"), "cdn.test": videoBytes() }),
+  );
+
+  const sent = JSON.parse(bodies[calls.findIndex((u) => u.includes("co.imput.net"))] ?? "{}");
+  assertEquals(sent.downloadMode, "auto");
+  assertEquals("audioFormat" in sent, false);
+  assertEquals(status, 200);
+  assertEquals(body.contentType, "video/mp4");
+});
+
+Deno.test("download-media returns the bytes under both names", async () => {
+  const { body } = await call(
+    { url: YT, wantVideo: true },
+    caller({ "co.imput.net": cobalt("https://cdn.test/clip.mp4"), "cdn.test": videoBytes() }),
+  );
+
+  // `audioBase64` is the long-standing field every existing caller reads;
+  // `mediaBase64` is the same bytes under a name that does not lie about a video.
+  assertEquals(body.mediaBase64, body.audioBase64);
+  assert(String(body.audioBase64).length > 0);
+});
+
+Deno.test("download-media skips the audio-only YouTube extractors for a video request", async () => {
+  const { status, calls } = await call(
+    { url: YT, wantVideo: true },
+    caller({
+      "co.imput.net": () => json({ status: "error" }, 500),
+      "cobalt.canine.tools": () => json({ status: "error" }, 500),
+      "api.cobalt.tools": () => json({ status: "error" }, 500),
+    }),
+  );
+
+  // RapidAPI and Innertube are mp3 extractors. Handing back a soundtrack to a
+  // caller that needs to look at the frames is worse than failing.
+  assertEquals(status, 400);
+  assert(!calls.some((url) => url.includes("rapidapi")));
+  assert(!calls.some((url) => url.includes("youtubei")));
+});
+
+Deno.test("download-media does not answer a video request from the transcription cache", async () => {
+  const { calls } = await call(
+    { url: YT, wantVideo: true },
+    caller({
+      "/rest/v1/processed_videos": () => json({
+        content_hash: "youtube:abc12345678",
+        transcription_data: { lines: [] },
+        processed_at: new Date().toISOString(),
+        processing_engines: [],
+      }),
+      "co.imput.net": cobalt("https://cdn.test/clip.mp4"),
+      "cdn.test": videoBytes(),
+    }),
+  );
+
+  // The cache holds a previous run's transcript, which is no answer at all to
+  // "give me the video file".
+  assert(!calls.some((url) => url.includes("processed_videos")));
+  assert(calls.some((url) => url.includes("co.imput.net")));
 });

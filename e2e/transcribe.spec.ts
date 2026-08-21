@@ -529,6 +529,44 @@ test.describe("handing the transcripts to the analyser", () => {
     await expect(page.getByText("نص خام")).toBeVisible();
   });
 
+  test("says the audio was not Arabic rather than showing nonsense", async ({ page, backend }) => {
+    // Every engine here is pinned to Arabic, so handed an English song they
+    // answer in Arabic script anyway. That hallucinated blob used to be shown
+    // under "Transcript" as though it were what the learner had uploaded.
+    backend.stubFunction("deepgram-transcribe", deepgramSaid("واي ار وي نيفر"));
+    backend.stubFunction("analyze-gulf-arabic", {
+      success: true,
+      result: { rawTranscriptArabic: "", lines: [], vocabulary: [], grammarPoints: [] },
+      noArabicSpeech: true,
+      audio: { verdict: "non_arabic", reason: "an Arabic-letter smear of English lyrics" },
+    });
+
+    await page.goto("/transcribe");
+    await chooseFile(page);
+    await page.getByRole("button", { name: "Start Transcription" }).click();
+
+    await expect(page.getByText("This audio is not Arabic")).toBeVisible();
+    await expect(page.getByText("واي ار وي نيفر")).toHaveCount(0);
+  });
+
+  test("distinguishes silence from another language", async ({ page, backend }) => {
+    backend.stubFunction("deepgram-transcribe", deepgramSaid("اه اه اه"));
+    backend.stubFunction("analyze-gulf-arabic", {
+      success: true,
+      result: { rawTranscriptArabic: "", lines: [], vocabulary: [], grammarPoints: [] },
+      noArabicSpeech: true,
+      audio: { verdict: "no_speech", reason: "music with no vocals" },
+    });
+
+    await page.goto("/transcribe");
+    await chooseFile(page);
+    await page.getByRole("button", { name: "Start Transcription" }).click();
+
+    // A learner who uploaded a music video needs a different next step from one
+    // who uploaded an English podcast.
+    await expect(page.getByText("No speech found in this audio")).toBeVisible();
+  });
+
   test("skips the visual pass for an audio-only file", async ({ page, backend }) => {
     backend.stubFunction("deepgram-transcribe", deepgramSaid("مرحبا"));
 

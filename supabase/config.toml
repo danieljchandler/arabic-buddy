@@ -18,6 +18,12 @@ verify_jwt = true
 [functions.process-approved-video]
 verify_jwt = true
 
+# Re-reads a stored video's on-screen text on demand. Admin-gated inside (or an
+# internal service-role call), and the token is read from the Authorization
+# header, so a valid JWT is required to reach it at all.
+[functions.reextract-on-screen-text]
+verify_jwt = true
+
 [functions.curriculum-chat]
 verify_jwt = true
 

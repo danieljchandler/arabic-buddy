@@ -1,6 +1,13 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import {
+  ON_SCREEN_TEXT_PROMPT,
+  buildVisualContextText,
+  normalizeOnScreenSegments,
+  toVisualTimeline,
+  type OnScreenSegment,
+} from "../_shared/onScreenText.ts";
 
 
 interface VideoFrame {
@@ -8,17 +15,8 @@ interface VideoFrame {
   timestampSeconds: number;
 }
 
-interface OnScreenTextSegment {
-  text: string;
-  translation: string;
-  transliteration?: string;
-  startSeconds: number;
-  endSeconds: number;
-  confidence: 'high' | 'medium' | 'low';
-}
-
 interface VisualContextResult {
-  onScreenTextSegments: OnScreenTextSegment[];
+  onScreenTextSegments: OnScreenSegment[];
   sceneContext: string;
   culturalContext: string;
   detectedDialectCues: string[];
@@ -49,41 +47,9 @@ function safeJsonParse<T>(content: string): T | null {
   }
 }
 
-const VISUAL_CONTEXT_PROMPT = `You are analyzing video frames from an Arabic social media meme (TikTok, Instagram, YouTube Shorts) to help with transcription and translation accuracy.
-
-Output ONLY valid JSON matching this schema:
-{
-  "onScreenTextSegments": [
-    {
-      "text": "exact text visible on screen (Arabic or Latin)",
-      "translation": "English translation",
-      "transliteration": "romanized pronunciation (Arabic only, omit for Latin text)",
-      "startSeconds": 0.0,
-      "endSeconds": 5.0,
-      "confidence": "high"
-    }
-  ],
-  "sceneContext": "1-2 sentence description of the setting and what is happening",
-  "culturalContext": "Cultural notes relevant to understanding this content (empty string if nothing notable)",
-  "detectedDialectCues": ["visual cues that suggest a specific Gulf country or dialect"]
-}
-
-Rules for onScreenTextSegments:
-- Include ALL text overlays: POV captions (e.g. "POV: طالب في الجامعة"), subtitles, title cards, stickers, lower thirds, graphics
-- "POV:" text is extremely common on TikTok/Instagram — always capture it
-- Include BOTH Arabic-script text AND Latin-script text (English, romanized Arabic, etc.)
-- Only include text actually visible in the frames — do not infer or guess
-- If you are unsure about a word, include the visible characters with confidence "low" rather than omitting the whole overlay
-- Estimate timestamps based on which frame(s) the text appears in
-- confidence: "high" if text is clear and readable, "medium" if partially visible, "low" if uncertain
-- If the same text spans multiple consecutive frames, use a single segment with broader time range
-- Exclude platform UI (like/share buttons, app chrome) and invisible watermarks
-
-For sceneContext: describe ONLY what is visibly present in the frames: location, number of people, activity, formal/informal tone. Do not infer relationships, dialogue, location/country, or the joke.
-For culturalContext: explain only directly visible cultural signals or the literal role of the on-screen text. If the image alone is insufficient, use an empty string instead of guessing.
-For detectedDialectCues: national flags, license plates, TV channel logos, brand signs, architecture, clothing patterns, or any geographic markers suggesting a specific Gulf country.
-
-No additional text outside JSON.`;
+// The OCR instruction lives in _shared/onScreenText.ts so this pass and the
+// whole-video re-read ask for the same shape and the same rules.
+const VISUAL_CONTEXT_PROMPT = ON_SCREEN_TEXT_PROMPT;
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -158,7 +124,10 @@ serve(async (req) => {
 
     userContent.push({
       type: 'text',
-      text: `Analyze these ${cappedFrames.length} sampled frames from an Arabic social media meme${titleNote}${durationNote}.\n\nFrame timestamps: ${timestampList}\n\nPrimary task: OCR every visible on-screen text overlay. Secondary task: describe only visible scene facts. Do not explain the meme or infer context beyond what is visible in these frames.`,
+      // "video", not "meme": this now runs for every uploaded video file, and
+      // telling the model to expect a meme on an ordinary clip invites it to
+      // find a joke that is not there.
+      text: `Analyze these ${cappedFrames.length} sampled frames from an Arabic social media video${titleNote}${durationNote}.\n\nFrame timestamps: ${timestampList}\n\nPrimary task: OCR every visible on-screen text overlay. Secondary task: describe only visible scene facts. Do not explain the joke or infer context beyond what is visible in these frames.`,
     });
 
     const controller = new AbortController();
@@ -209,18 +178,10 @@ serve(async (req) => {
 
     // Normalise the result
     const result: VisualContextResult = {
-      onScreenTextSegments: Array.isArray(parsed.onScreenTextSegments)
-        ? parsed.onScreenTextSegments
-            .filter((s: any) => s?.text && String(s.text).trim().length > 0)
-            .map((s: any) => ({
-              text: String(s.text).trim(),
-              translation: String(s.translation ?? '').trim(),
-              transliteration: s.transliteration ? String(s.transliteration).trim() : undefined,
-              startSeconds: Number(s.startSeconds ?? 0),
-              endSeconds: Number(s.endSeconds ?? cappedFrames[cappedFrames.length - 1]?.timestampSeconds ?? 0),
-              confidence: (['high', 'medium', 'low'].includes(s.confidence) ? s.confidence : 'medium') as 'high' | 'medium' | 'low',
-            }))
-        : [],
+      onScreenTextSegments: normalizeOnScreenSegments(
+        parsed.onScreenTextSegments,
+        cappedFrames[cappedFrames.length - 1]?.timestampSeconds ?? 0,
+      ),
       sceneContext: String(parsed.sceneContext ?? '').trim(),
       culturalContext: String(parsed.culturalContext ?? '').trim(),
       detectedDialectCues: Array.isArray(parsed.detectedDialectCues)
@@ -250,37 +211,44 @@ serve(async (req) => {
           upsert: true,
         });
 
-      const onScreenSummary = result.onScreenTextSegments
-        .map((s) => `[${s.startSeconds}s-${s.endSeconds}s] ${s.text}${s.translation ? ` — ${s.translation}` : ''}`)
-        .join('\n');
-      const visualCulturalContext = [
-        onScreenSummary ? `On-screen text:\n${onScreenSummary}` : '',
-        result.sceneContext ? `Scene: ${result.sceneContext}` : '',
-        result.culturalContext ? `Cultural context: ${result.culturalContext}` : '',
-      ].filter(Boolean).join('\n\n');
+      const visualCulturalContext = buildVisualContextText(
+        result.onScreenTextSegments,
+        result.sceneContext,
+        result.culturalContext,
+      );
 
-      // The same findings, with their timings kept. `cultural_context` above
-      // is one prose blob — it can tell the AI tutor that a video contains
-      // captions, but never which one is on screen at the moment the learner
-      // is asking about. The scene description rides on the first moment
-      // because the model describes the video as a whole, not per frame.
-      const visualTimeline = result.onScreenTextSegments.map((segment, index) => ({
-        startSeconds: segment.startSeconds,
-        endSeconds: segment.endSeconds,
-        text: segment.text,
-        translation: segment.translation || undefined,
-        confidence: segment.confidence,
-        ...(index === 0 && result.sceneContext ? { scene: result.sceneContext } : {}),
-      }));
+      // The same findings, with their timings kept. `cultural_context` is one
+      // prose blob — it can tell the AI tutor that a video contains captions,
+      // but never which one is on screen at the moment the learner is asking
+      // about. The scene description rides on the first moment because the
+      // model describes the video as a whole, not per frame.
+      const visualTimeline = toVisualTimeline(result.onScreenTextSegments, result.sceneContext);
+
+      // Only a meme has its whole meaning riding on the screen text, so only a
+      // meme gets its `cultural_context` written from this pass and flagged
+      // when the pass comes back empty. Doing that to an ordinary video would
+      // overwrite the cultural notes the transcript analysis produced, and put
+      // a scary "no on-screen text" error on a clip that never had any.
+      const { data: existingRow } = await admin
+        .from('discover_videos')
+        .select('is_meme')
+        .eq('id', videoId)
+        .maybeSingle();
+      const isMeme = Boolean(existingRow?.is_meme);
 
       await admin
         .from('discover_videos')
         .update({
-          cultural_context: visualCulturalContext || 'Meme screen-text extraction found no readable on-screen text. Review the source video manually before publishing.',
           visual_timeline: visualTimeline,
-          transcription_error: result.onScreenTextSegments.length === 0
-            ? 'Meme screen-text extraction found no readable on-screen text.'
-            : null,
+          ...(isMeme
+            ? {
+                cultural_context: visualCulturalContext
+                  ?? 'Meme screen-text extraction found no readable on-screen text. Review the source video manually before publishing.',
+                transcription_error: result.onScreenTextSegments.length === 0
+                  ? 'Meme screen-text extraction found no readable on-screen text.'
+                  : null,
+              }
+            : {}),
         })
         .eq('id', videoId);
 

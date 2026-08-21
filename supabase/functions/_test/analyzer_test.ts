@@ -195,3 +195,102 @@ Deno.test("normalises an unknown dialect module to Gulf", async () => {
 
   assertEquals(status, 200);
 });
+
+// ── Audio that is not Arabic ─────────────────────────────────────────────────
+//
+// Every ASR engine feeding this function is pinned to Arabic, so none of them
+// can report "that was an English song" — handed one, they answer in Arabic
+// script anyway. Left alone, that becomes a transcript, a vocabulary list and a
+// difficulty rating for words nobody said. Memes are the worst case: the joke
+// is written on screen and the audio is a trending track.
+
+const ENGLISH_LYRICS = "we are never ever ever getting back together like ever";
+
+Deno.test("refuses to transcribe audio the engines wrote in another language", async () => {
+  const { status, body, calls } = await call(
+    { transcript: ENGLISH_LYRICS },
+    allowed({ "openrouter.ai": () => chatCompletion("{}") }),
+  );
+
+  assertEquals(status, 200);
+  assertEquals(body.noArabicSpeech, true);
+  assertEquals((body.result as { lines: unknown[] }).lines, []);
+  // Decisive on the text alone, so it never pays for the merge call.
+  assertEquals(calls.filter((url) => url.includes("openrouter.ai")).length, 0);
+});
+
+Deno.test("names what the audio turned out to be", async () => {
+  const { body } = await call(
+    { transcript: ENGLISH_LYRICS },
+    allowed({ "openrouter.ai": () => chatCompletion("{}") }),
+  );
+
+  const audio = body.audio as { verdict: string; reason: string };
+  // The pipeline writes this into `transcription_error` so a reviewer can tell
+  // "we refused this audio" from "transcription broke".
+  assertEquals(audio.verdict, "non_arabic");
+  assert(audio.reason.length > 0);
+});
+
+Deno.test("stops when the model itself says the audio is not Arabic", async () => {
+  const { body, calls } = await call(
+    { transcript: "شلونك اليوم الحمد لله بخير وانت شخبارك" },
+    allowed({
+      "openrouter.ai": () => chatCompletion(JSON.stringify({
+        audio: { verdict: "non_arabic", reason: "an Arabic-letter smear of English lyrics" },
+        lines: [],
+      })),
+    }),
+  );
+
+  assertEquals(body.noArabicSpeech, true);
+  // One call, not four. An empty `lines` with that verdict is the ANSWER, so it
+  // must not fall through to the Fanar fallback and the stricter retry — those
+  // would talk the pipeline back into transcribing the song.
+  assertEquals(calls.filter((url) => url.includes("openrouter.ai")).length, 1);
+});
+
+Deno.test("still teaches from a silent meme's on-screen text", async () => {
+  const { status, body, calls } = await call(
+    {
+      transcript: "",
+      isMeme: true,
+      onScreenTextSegments: [
+        { text: "لما تصحى بدري", translation: "when you wake up early", startSeconds: 0, endSeconds: 2 },
+      ],
+    },
+    allowed({
+      "openrouter.ai": () => chatCompletion(JSON.stringify({
+        vocabulary: [{ arabic: "تصحى", english: "you wake up" }],
+        grammarPoints: [{ title: "لما", explanation: "when" }],
+        culturalContext: "A morning-person joke.",
+      })),
+    }),
+  );
+
+  const result = body.result as { lines: unknown[]; vocabulary: unknown[]; culturalContext?: string };
+  assertEquals(status, 200);
+  // No spoken lines — the audio is a trending song and nobody said any of this.
+  assertEquals(result.lines, []);
+  // But the overlay is the only Arabic in the video, so the vocabulary and the
+  // grammar have to come from it or the video teaches nothing at all.
+  assertEquals(result.vocabulary.length, 1);
+  assertEquals(result.culturalContext, "A morning-person joke.");
+  assertEquals(calls.filter((url) => url.includes("openrouter.ai")).length, 1);
+});
+
+Deno.test("survives the on-screen-only pass failing", async () => {
+  const { status, body } = await call(
+    {
+      transcript: "",
+      isMeme: true,
+      onScreenTextSegments: [{ text: "لما تصحى بدري", startSeconds: 0, endSeconds: 2 }],
+    },
+    allowed({ "openrouter.ai": () => json({ error: "boom" }, 500) }),
+  );
+
+  // Losing the vocabulary is a smaller loss than losing the row.
+  assertEquals(status, 200);
+  assertEquals(body.noArabicSpeech, true);
+  assertEquals((body.result as { vocabulary: unknown[] }).vocabulary, []);
+});

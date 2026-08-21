@@ -18,6 +18,17 @@ import {
   joinAdtsFrames,
   planAsrPayloads,
 } from "../_shared/audioChunk.ts";
+import { noArabicSpeechNote } from "../_shared/arabicSpeechGate.ts";
+import {
+  buildVisualContextText,
+  segmentsFromLegacyLines,
+  segmentsFromVisualBlob,
+  stripOnScreenLines,
+  summarizeOnScreenText,
+  toVisualTimeline,
+  type OnScreenSegment,
+  type VisualResultBlob,
+} from "../_shared/onScreenText.ts";
 
 
 const ASR_TIMEOUT_MS = 5 * 60 * 1000;
@@ -27,10 +38,6 @@ const ASR_TIMEOUT_MS = 5 * 60 * 1000;
 // on real frame boundaries and stitched back together. 9 MB leaves margin.
 // Container handling lives in _shared/audioChunk.ts — see planAsrPayloads.
 const MUNSIT_MAX_BYTES = 9 * 1024 * 1024;
-
-function generateId(): string {
-  return crypto.randomUUID().slice(0, 8);
-}
 
 // ── Shapes crossing the pipeline ──────────────────────────────────────────────
 // These are deliberately loose: every one of them arrives as decoded JSON from
@@ -50,22 +57,6 @@ interface PipelineLine extends Json {
   tokens?: unknown;
   startMs?: number;
   endMs?: number;
-}
-
-/** One on-screen text segment from extract-visual-context. */
-interface OnScreenSegment extends Json {
-  text?: string;
-  translation?: string;
-  startSeconds?: number;
-  endSeconds?: number;
-  confidence?: string;
-}
-
-/** The `<id>.visual.json` blob stored beside a meme video. */
-interface VisualResult extends Json {
-  onScreenTextSegments?: OnScreenSegment[];
-  sceneContext?: string;
-  culturalContext?: string;
 }
 
 /** The `discover_videos` row this run is processing. */
@@ -92,6 +83,9 @@ type Supabase = SupabaseClient;
 /** The body analyze-gulf-arabic returns when it answers before the gateway times out. */
 interface AnalyzeResponse {
   success?: boolean;
+  /** Set when the analysis refused the audio — an English song, music, silence. */
+  noArabicSpeech?: boolean;
+  audio?: { verdict?: string; reason?: string };
   result?: {
     lines?: PipelineLine[];
     vocabulary?: unknown[];
@@ -136,99 +130,21 @@ interface RawAsrWord extends Json {
   endMs?: number;
 }
 
-function stripArabicDiacritics(text: string): string {
-  return text.replace(/[\u064B-\u065F\u0670]/g, "");
-}
-
-function normalizeComparableText(text: string): string {
-  return stripArabicDiacritics(String(text ?? ""))
-    .toLowerCase()
-    .replace(/[\s\u0640]+/g, "")
-    .replace(/[،؟.!:؛…\-—–"'()[\]{}«»]/g, "")
-    .trim();
-}
-
-function normalizeLooseText(text: string): string {
-  return String(text ?? "")
-    .toLowerCase()
-    .replace(/[\s\u0640]+/g, "")
-    .replace(/[،؟.!:؛…\-—–"'()[\]{}«»]/g, "")
-    .trim();
-}
-
-function hasArabic(text: string): boolean {
-  return /[\u0600-\u06FF]/.test(text);
-}
-
-function tokenizeOnScreenText(text: string) {
-  return String(text ?? "")
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((surface, index) => ({ id: `screen-tok-${generateId()}-${index}`, surface }));
-}
-
-function mergeOnScreenTextLines(
-  rawLines: PipelineLine[],
-  onScreenSegments: OnScreenSegment[],
-): PipelineLine[] {
-  if (!Array.isArray(rawLines)) return [];
-  if (!Array.isArray(onScreenSegments) || onScreenSegments.length === 0) return rawLines;
-
-  const merged = [...rawLines];
-  const existingNormalized = new Set(
-    merged
-      .map((line) => normalizeComparableText(line?.arabic ?? ""))
-      .filter((value) => value.length > 0),
-  );
-
-  for (const [idx, segment] of onScreenSegments.entries()) {
-    const text = String(segment?.text ?? "").trim();
-    if (!text) continue;
-
-    const normalized = hasArabic(text) ? normalizeComparableText(text) : normalizeLooseText(text);
-    if (!normalized) continue;
-
-    const alreadyPresent = [...existingNormalized].some((existing) => {
-      const existingKey = hasArabic(text) ? existing : normalizeLooseText(existing);
-      return (
-        existingKey === normalized ||
-        (normalized.length >= 4 && existingKey.includes(normalized)) ||
-        (existingKey.length >= 4 && normalized.includes(existingKey))
-      );
-    });
-    if (alreadyPresent) continue;
-
-    existingNormalized.add(normalized);
-    const startMs = Math.max(0, Math.round(Number(segment?.startSeconds ?? 0) * 1000));
-    const endMs = Math.max(startMs + 500, Math.round(Number(segment?.endSeconds ?? segment?.startSeconds ?? 0) * 1000));
-    merged.push({
-      id: `screen-line-${generateId()}-${idx}`,
-      arabic: text,
-      translation: String(segment?.translation ?? "").trim(),
-      startMs,
-      endMs,
-      source: "on_screen",
-      needs_review: segment?.confidence === "low",
-      tokens: tokenizeOnScreenText(text),
-    });
+/**
+ * The overlay lines an older pipeline appended to `transcript_lines`.
+ *
+ * Screen text now lives in `visual_timeline` and is shown to the learner in
+ * its own section above the transcript. Any row analysed before that change —
+ * or any analysis reply that still folds an overlay in — has them mixed into
+ * the spoken lines, where line-by-line playback, shadowing and the tutor all
+ * read them as something a person said. They come out here, on every write.
+ */
+function withoutOnScreenLines(rawLines: PipelineLine[]): PipelineLine[] {
+  const kept = stripOnScreenLines(rawLines);
+  if (kept.length !== (Array.isArray(rawLines) ? rawLines.length : 0)) {
+    console.log(`[pipeline] Dropped ${rawLines.length - kept.length} on-screen line(s) from the spoken transcript`);
   }
-
-  return merged.sort((a, b) => Number(a?.startMs ?? 0) - Number(b?.startMs ?? 0));
-}
-
-function buildVisualContextText(visualResult: VisualResult | null | undefined): string | null {
-  if (!visualResult) return null;
-  const segs: OnScreenSegment[] = Array.isArray(visualResult?.onScreenTextSegments)
-    ? visualResult.onScreenTextSegments
-    : [];
-  const onScreenSummary = segs
-    .map((s) => `[${s.startSeconds}s-${s.endSeconds}s] ${s.text}${s.translation ? ` — ${s.translation}` : ""}`)
-    .join("\n");
-  return [
-    onScreenSummary ? `On-screen text:\n${onScreenSummary}` : "",
-    visualResult?.sceneContext ? `Scene: ${visualResult.sceneContext}` : "",
-    visualResult?.culturalContext ? `Cultural context: ${visualResult.culturalContext}` : "",
-  ].filter(Boolean).join("\n\n") || null;
+  return kept;
 }
 
 function combineContext(primary?: string | null, visual?: string | null): string | null {
@@ -1166,44 +1082,75 @@ async function runPipeline(
     // goes through as alternates for the LLM merge step.
     console.log("[pipeline] Step 3: Analyzing transcript...");
 
-    // Meme videos: load on-screen text analysis the admin form pre-extracted
-    // (frames -> extract-visual-context -> stored as <id>.visual.json).
+    // On-screen text: read by the vision pass before this ran (frames ->
+    // extract-visual-context -> stored as `<id>.visual.json`) and loaded for
+    // EVERY video, not only the ones flagged as memes. Captions, POV lines and
+    // title cards turn up on ordinary clips just as often; the meme flag only
+    // decides whether the pipeline refuses to continue without them.
     let visualContextSummary: string | null = null;
     let visualCulturalContext: string | null = null;
     let onScreenTextLines: OnScreenSegment[] = [];
+    let visualSceneContext: string | null = null;
     let visualContextLoaded = false;
-    if (video.is_meme) {
-      try {
-        const { data: visualBlob } = await supabase.storage
-          .from("video-audio")
-          .download(`${videoId}.visual.json`);
-        if (visualBlob) {
-          visualContextLoaded = true;
-          const visualText = await visualBlob.text();
-          const visualResult = JSON.parse(visualText) as VisualResult;
-          const segs: OnScreenSegment[] = Array.isArray(visualResult?.onScreenTextSegments)
-            ? visualResult.onScreenTextSegments
-            : [];
-          onScreenTextLines = segs;
-          visualCulturalContext = buildVisualContextText(visualResult);
-          if (segs.length > 0) {
-            const onScreenSummary = segs.map((s) => `[${s.startSeconds}s-${s.endSeconds}s] ${s.text}${s.translation ? ` (${s.translation})` : ""}`).join("\n");
-            visualContextSummary = `MEME — on-screen text segments:\n${onScreenSummary}\n\nScene: ${visualResult?.sceneContext ?? ""}`.trim();
-            console.log(`[pipeline] Meme: ${segs.length} on-screen text segments loaded`);
-          } else {
-            console.warn("[pipeline] Meme: visual context loaded; no on-screen text detected — result will be flagged for review");
-          }
-        } else {
-          console.warn(`[pipeline] Meme: no visual context file found for ${videoId}; processing audio only`);
+    try {
+      const { data: visualBlob } = await supabase.storage
+        .from("video-audio")
+        .download(`${videoId}.visual.json`);
+      if (visualBlob) {
+        visualContextLoaded = true;
+        const visualResult = JSON.parse(await visualBlob.text()) as VisualResultBlob;
+        onScreenTextLines = segmentsFromVisualBlob(visualResult);
+        visualSceneContext = typeof visualResult?.sceneContext === "string" ? visualResult.sceneContext : null;
+        visualCulturalContext = buildVisualContextText(
+          onScreenTextLines,
+          visualSceneContext,
+          typeof visualResult?.culturalContext === "string" ? visualResult.culturalContext : null,
+        );
+        if (onScreenTextLines.length > 0) {
+          // Context for the analysis, never transcript content: it tells the
+          // model what the frame says so it can settle an ambiguous spoken
+          // word, and the prompt forbids copying any of it into lines[].
+          const label = video.is_meme ? "MEME" : "VIDEO";
+          visualContextSummary = `${label} — on-screen text segments (context only, NOT spoken):\n${summarizeOnScreenText(onScreenTextLines)}\n\nScene: ${visualSceneContext ?? ""}`.trim();
+          console.log(`[pipeline] ${onScreenTextLines.length} on-screen text segment(s) loaded`);
+        } else if (video.is_meme) {
+          console.warn("[pipeline] Meme: visual context loaded; no on-screen text detected — result will be flagged for review");
         }
-      } catch (e) {
-        console.warn("[pipeline] Meme visual context load failed (non-fatal):", e instanceof Error ? e.message : String(e));
+      } else if (video.is_meme) {
+        console.warn(`[pipeline] Meme: no visual context file found for ${videoId}`);
       }
-
-      if (!visualContextLoaded) {
-        throw new Error("Meme screen-text extraction is missing. Upload the original video file so the Meme Analyzer can read text on screen before transcription.");
-      }
+    } catch (e) {
+      console.warn("[pipeline] Visual context load failed (non-fatal):", e instanceof Error ? e.message : String(e));
     }
+
+    // A meme's joke is usually the text on screen, so analysing one on audio
+    // alone produces a confident and wrong answer. Better to stop and ask for
+    // the video file. Ordinary videos carry on without it.
+    if (video.is_meme && !visualContextLoaded) {
+      throw new Error("Meme screen-text extraction is missing. Upload the original video file so the Meme Analyzer can read text on screen before transcription.");
+    }
+
+    // What gets written to `visual_timeline` at the end of the run. Kept
+    // alongside the transcript rather than inside it, so a caption is never
+    // mistaken for a line of speech.
+    const visualTimeline = toVisualTimeline(onScreenTextLines, visualSceneContext);
+
+    /**
+     * The `visual_timeline` patch for an update, or nothing.
+     *
+     * Falls back to the overlays an older run left inside `transcript_lines`,
+     * so re-running the pipeline on a video from before this change moves that
+     * text across instead of deleting it. Writes nothing at all when there is
+     * nothing to write — an empty array here would wipe a timeline a separate
+     * re-read had just filled in.
+     */
+    const visualTimelinePatch = (rawLines: PipelineLine[]): Record<string, unknown> => {
+      if (visualTimeline.length > 0) return { visual_timeline: visualTimeline };
+      const recovered = toVisualTimeline(segmentsFromLegacyLines(rawLines), visualSceneContext);
+      if (recovered.length === 0) return {};
+      console.log(`[pipeline] Recovered ${recovered.length} on-screen segment(s) from legacy transcript lines`);
+      return { visual_timeline: recovered };
+    };
 
     // Generate a signed URL for the staged audio so analyze-gulf-arabic
     // can pass it to Tier 1 (Gemini) as native multimodal input.
@@ -1335,12 +1282,36 @@ async function runPipeline(
       });
     };
 
+    // Why this row may need a human before it is published. Two independent
+    // reasons, and a video can carry both: the vision pass read nothing off a
+    // meme's screen, and/or the analysis refused the audio as not-Arabic.
+    const noArabicSpeech = analyzeData?.noArabicSpeech === true;
+    if (noArabicSpeech) {
+      console.log(`[pipeline] Audio rejected as ${analyzeData?.audio?.verdict ?? "not Arabic"}: ${analyzeData?.audio?.reason ?? ""}`);
+    }
+    const reviewNote = (): string | null => {
+      const notes: string[] = [];
+      if (noArabicSpeech) {
+        notes.push(noArabicSpeechNote(
+          {
+            verdict: (analyzeData?.audio?.verdict as "non_arabic" | "no_speech") ?? "non_arabic",
+            keepAudioLines: false,
+            reason: analyzeData?.audio?.reason ?? "the engines did not find Arabic speech",
+          },
+          onScreenTextLines.length > 0,
+        ));
+      }
+      if (video.is_meme && onScreenTextLines.length === 0) {
+        notes.push("Meme screen-text extraction found no readable on-screen text; review manually before publishing.");
+      }
+      return notes.length > 0 ? notes.join(" ") : null;
+    };
+
     if (refreshed?.transcription_status === "analysis_complete") {
       console.log("[pipeline] Results persisted directly by analyze-gulf-arabic");
 
-      const lines = mergeOnScreenTextLines(
-        alignLinesToAudio((refreshed.transcript_lines as PipelineLine[]) || []),
-        onScreenTextLines,
+      const lines = alignLinesToAudio(
+        withoutOnScreenLines((refreshed.transcript_lines as PipelineLine[]) || []),
       );
 
       const title = refreshed.title || video.title;
@@ -1350,12 +1321,11 @@ async function runPipeline(
       const { error: finalErr } = await supabase.from("discover_videos").update({
         title, title_arabic: titleArabic,
         transcript_lines: lines,
+        ...visualTimelinePatch((refreshed.transcript_lines as PipelineLine[]) || []),
         cultural_context: video.is_meme
           ? buildMemeReviewContext(onScreenTextLines, combineContext(refreshed.cultural_context as string | null, visualCulturalContext))
           : combineContext(refreshed.cultural_context as string | null, visualCulturalContext),
-        transcription_error: video.is_meme && onScreenTextLines.length === 0
-          ? "Meme screen-text extraction found no readable on-screen text; review manually before publishing."
-          : null,
+        transcription_error: reviewNote(),
         transcription_status: "completed",
       }).eq("id", videoId);
 
@@ -1368,10 +1338,7 @@ async function runPipeline(
       // analysis may still be writing directly to the row.
       const result = analyzeData.result;
 
-      const lines = mergeOnScreenTextLines(
-        alignLinesToAudio(result.lines || []),
-        onScreenTextLines,
-      );
+      const lines = alignLinesToAudio(withoutOnScreenLines(result.lines || []));
 
       const sanitizedLines = lines.map((line) => ({
         ...line,
@@ -1427,6 +1394,7 @@ async function runPipeline(
       const { error: updateError } = await supabase.from("discover_videos").update({
         title, title_arabic: titleArabic,
         transcript_lines: sanitizedLines,
+        ...visualTimelinePatch(result.lines || []),
         vocabulary: result.vocabulary || [],
         grammar_points: result.grammarPoints || [],
         cultural_context: video.is_meme
@@ -1435,9 +1403,7 @@ async function runPipeline(
         dialect: result.dialect || "Gulf",
         difficulty: result.difficulty || "Intermediate",
         transcription_status: "completed",
-        transcription_error: video.is_meme && onScreenTextLines.length === 0
-          ? "Meme screen-text extraction found no readable on-screen text; review manually before publishing."
-          : null,
+        transcription_error: reviewNote(),
       }).eq("id", videoId);
 
       if (updateError) throw new Error(`Failed to save results: ${updateError.message}`);
@@ -1468,20 +1434,18 @@ async function runPipeline(
       }
 
       if (landed && retryFull) {
-        const retryLines = mergeOnScreenTextLines(
-          alignLinesToAudio((retryFull?.transcript_lines as PipelineLine[]) || []),
-          onScreenTextLines,
+        const retryLines = alignLinesToAudio(
+          withoutOnScreenLines((retryFull?.transcript_lines as PipelineLine[]) || []),
         );
 
         await supabase.from("discover_videos").update({
           transcript_lines: retryLines,
+          ...visualTimelinePatch((retryFull?.transcript_lines as PipelineLine[]) || []),
           cultural_context: video.is_meme
             ? buildMemeReviewContext(onScreenTextLines, combineContext(retryFull?.cultural_context as string | null, visualCulturalContext))
             : combineContext(retryFull?.cultural_context as string | null, visualCulturalContext),
           transcription_status: "completed",
-          transcription_error: video.is_meme && onScreenTextLines.length === 0
-            ? "Meme screen-text extraction found no readable on-screen text; review manually before publishing."
-            : null,
+          transcription_error: reviewNote(),
         }).eq("id", videoId);
       } else {
         throw new Error("Analysis did not complete — no HTTP response and no direct-persist results found after 4 min");

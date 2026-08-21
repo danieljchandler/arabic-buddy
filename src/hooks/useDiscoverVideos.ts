@@ -214,3 +214,51 @@ export function useTogglePublish() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-discover-videos"] }),
   });
 }
+
+/**
+ * Ask the AI to look at a video again and read the text off its screen.
+ *
+ * The first read happens in the browser at upload time, off the file the admin
+ * still has in hand. This is the way back for everything that misses: videos
+ * added before the vision pass existed, and passes that came back empty because
+ * the caption was low-contrast or landed between two sampled frames. The
+ * function fetches the video from its source and re-reads the whole thing.
+ */
+export function useReextractOnScreenText() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (videoId: string) => {
+      const { data, error } = await supabase.functions.invoke<{
+        success: boolean;
+        readFrom?: "frames" | "video";
+        onScreenTextCount?: number;
+        removedTranscriptLines?: number;
+        error?: string;
+      }>("reextract-on-screen-text", { body: { videoId } });
+      // A non-2xx reaches us as a generic "Edge Function returned a non-2xx
+      // status code", with the reason the admin actually needs — "only the
+      // audio track could be retrieved", "too big to send inline" — inside the
+      // response body hanging off `context`.
+      if (error) {
+        let message = error.message || "The re-read failed";
+        try {
+          const response = (error as { context?: Response }).context;
+          if (response && typeof response.json === "function") {
+            const body = await response.json();
+            message = body?.error || body?.message || message;
+          }
+        } catch {
+          // Keep the generic message rather than losing the failure entirely.
+        }
+        throw new Error(message);
+      }
+      if (!data?.success) throw new Error(data?.error ?? "The re-read did not complete");
+      return data;
+    },
+    onSuccess: (_data, videoId) => {
+      qc.invalidateQueries({ queryKey: ["admin-discover-videos"] });
+      qc.invalidateQueries({ queryKey: ["discover-videos"] });
+      qc.invalidateQueries({ queryKey: ["discover-video", videoId] });
+    },
+  });
+}

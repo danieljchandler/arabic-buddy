@@ -572,22 +572,38 @@ const AdminVideoForm = () => {
         // Non-fatal — edge function will try download-media as fallback
       }
 
-      // For memes, extract video frames and run on-screen text analysis up front.
-      // The visual function now also kicks off the server pipeline with the
-      // service role, so a flaky second browser request cannot strand the row
-      // in pending after OCR succeeds.
+      // Read the text off the frames before the pipeline runs, for EVERY video
+      // file — not only the ones ticked as memes. POV captions, subtitles and
+      // title cards turn up on ordinary clips just as often, and the browser is
+      // the only place that still has the file to sample.
+      //
+      // What the meme flag changes is how a failure is treated. A meme's joke is
+      // usually the text on screen, so a meme that cannot be read must not be
+      // transcribed at all; an ordinary video simply loses a nice-to-have and
+      // carries on. Memes also let the visual function kick off the pipeline
+      // itself with the service role, so a flaky second browser request cannot
+      // strand the row in pending after the read succeeds.
       let processingQueuedByVisual = false;
-      if (isMeme && isVideoFile(file)) {
+      if (isVideoFile(file)) {
         try {
-          toast.info("Reading on-screen text from meme frames…");
+          toast.info(isMeme ? "Reading on-screen text from meme frames…" : "Reading any text on screen…");
           const frames = await extractFramesWithTimestamps(file, 1.5, 16, 1280);
           const { data: visualData, error: visualErr } = await supabase.functions.invoke(
             "extract-visual-context",
-            { body: { frames, audioDuration: durationSeconds ?? mediaDuration ?? undefined, videoTitle: title || undefined, videoId: targetVideoId, kickoffProcessing: true } },
+            {
+              body: {
+                frames,
+                audioDuration: durationSeconds ?? mediaDuration ?? undefined,
+                videoTitle: title || undefined,
+                videoId: targetVideoId,
+                kickoffProcessing: isMeme,
+              },
+            },
           );
           if (visualErr) {
             const message = await extractFunctionErrorMessage(visualErr);
             console.warn("extract-visual-context failed:", visualErr);
+            if (!isMeme) throw new Error(message);
             await (supabase.from("discover_videos" as any) as any)
               .update({
                 transcription_status: "failed",
@@ -595,19 +611,24 @@ const AdminVideoForm = () => {
               })
               .eq("id", targetVideoId);
             throw new Error(`Meme screen-text extraction failed: ${message}`);
-          } else if (visualData?.processingQueued) {
-            processingQueuedByVisual = true;
-            const foundText = visualData?.result?.onScreenTextSegments?.length ?? 0;
-            if (foundText === 0) {
-              toast.warning("No on-screen text found", {
-                description: "The meme will be flagged for review instead of inventing context.",
-                duration: 7000,
-              });
-            }
+          }
+          if (visualData?.processingQueued) processingQueuedByVisual = true;
+          const foundText = visualData?.result?.onScreenTextSegments?.length ?? 0;
+          if (foundText === 0 && isMeme) {
+            toast.warning("No on-screen text found", {
+              description: "The meme will be flagged for review instead of inventing context.",
+              duration: 7000,
+            });
           }
         } catch (visualErr) {
-          console.warn("Meme visual extraction error:", visualErr);
-          throw visualErr instanceof Error ? visualErr : new Error("Meme screen-text extraction failed");
+          if (isMeme) {
+            console.warn("Meme visual extraction error:", visualErr);
+            throw visualErr instanceof Error ? visualErr : new Error("Meme screen-text extraction failed");
+          }
+          // Non-fatal for an ordinary video: the transcript is the point, the
+          // screen text is a bonus, and an admin can re-read it later from the
+          // video list without re-uploading anything.
+          console.warn("On-screen text extraction skipped (non-fatal):", visualErr);
         }
       } else if (isMeme) {
         throw new Error("Upload the actual video file for memes so the analyzer can read text on screen. Audio-only files can only transcribe speech.");

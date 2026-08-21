@@ -139,7 +139,7 @@ test.describe("when there is no news", () => {
     stubNews(backend, []);
     await page.goto("/souq-news");
 
-    await expect(page.getByText(/no news found for today/i)).toBeVisible();
+    await expect(page.getByText(/no news today/i)).toBeVisible();
   });
 
   test("offers a retry rather than claiming the day was quiet", async ({
@@ -156,7 +156,7 @@ test.describe("when there is no news", () => {
     // nothing happening in the world, and only one of them is worth retrying.
     await expect(page.getByText(/failed to load news/i)).toBeVisible();
     await expect(page.getByRole("button", { name: /try again/i })).toBeVisible();
-    await expect(page.getByText(/no news found/i)).toHaveCount(0);
+    await expect(page.getByText(/no news today/i)).toHaveCount(0);
   });
 
   test("retries when asked", async ({ page, backend, expectConsoleErrors }) => {

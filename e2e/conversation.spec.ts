@@ -324,6 +324,11 @@ test.describe("the streamed reply", () => {
 test.describe("when the chat fails", () => {
   test.beforeEach(async ({ signInAs, db, expectConsoleErrors, allowExternalHosts }) => {
     tolerateLiveDial(expectConsoleErrors, allowExternalHosts);
+    // Every test here drives the stream into a failure on purpose, and the
+    // page logs the caught error before rendering it as a message. That log is
+    // the behaviour under test, not a crash — declared rather than switched
+    // off, so an unrelated console error in these tests still fails them.
+    expectConsoleErrors([/free-chat stream error/]);
     await signInAs("free");
     seedChat(db);
   });
@@ -439,7 +444,15 @@ test.describe("what a learner can keep", () => {
     await expect(page.getByRole("button", { name: /Save phrase/ })).toBeVisible();
   });
 
-  test("routes Gulf speech to the Gulf voice", async ({ page, backend }) => {
+  // Which provider and voice serve a dialect is resolved server-side, in
+  // `tts-speak` (see supabase/functions/_shared/ttsVoiceRouting.ts, covered by
+  // supabase/functions/_test/voice_routing_test.ts). The client's whole job is
+  // to ask the right question — post the text and the dialect — and these
+  // tests hold it to exactly that. They used to assert the provider the
+  // browser picked, back when six call sites each carried their own
+  // dialect→voice table; asserting that here again would re-pin the
+  // architecture that was deliberately removed.
+  test("asks for Gulf speech in Gulf, and picks no provider itself", async ({ page, backend }) => {
     await page.goto("/conversation");
     await exitLive(page);
     await startTopic(page);
@@ -447,13 +460,16 @@ test.describe("what a learner can keep", () => {
 
     await page.getByRole("button", { name: /Play/ }).click();
 
-    // Each dialect has a different provider behind it because no single one
-    // covers all three: Gulf → Munsit, Egyptian → ElevenLabs, Yemeni → Azure's
-    // real ar-YE neural voice.
-    await expect.poll(() => backend.callsTo("munsit-tts").length).toBe(1);
+    await expect.poll(() => backend.callsTo("tts-speak").length).toBe(1);
+    expect(backend.lastCallTo("tts-speak")?.body).toMatchObject({ dialect: "Gulf" });
+    // Reaching a provider function directly would mean the client had a
+    // dialect→voice opinion again.
+    expect(backend.callsTo("munsit-tts")).toHaveLength(0);
+    expect(backend.callsTo("azure-tts")).toHaveLength(0);
+    expect(backend.callsTo("elevenlabs-tts")).toHaveLength(0);
   });
 
-  test("routes Yemeni speech to a real Yemeni voice", async ({
+  test("asks for Yemeni speech in Yemeni", async ({
     page,
     signInAs,
     db,
@@ -470,15 +486,13 @@ test.describe("what a learner can keep", () => {
 
     await page.getByRole("button", { name: /Play/ }).click();
 
-    await expect.poll(() => backend.callsTo("azure-tts").length).toBe(1);
-    // The voice is named explicitly. Yemeni previously went to ElevenLabs,
-    // which has no Yemeni voice at all, so it was read in something else.
-    expect(backend.lastCallTo("azure-tts")?.body).toMatchObject({
-      voice: "ar-YE-SalehNeural",
-    });
+    await expect.poll(() => backend.callsTo("tts-speak").length).toBe(1);
+    expect(backend.lastCallTo("tts-speak")?.body).toMatchObject({ dialect: "Yemeni" });
+    expect(backend.callsTo("azure-tts")).toHaveLength(0);
+    expect(backend.callsTo("elevenlabs-tts")).toHaveLength(0);
   });
 
-  test("routes Egyptian speech to an Egyptian voice", async ({
+  test("asks for Egyptian speech in Egyptian", async ({
     page,
     signInAs,
     db,
@@ -495,7 +509,10 @@ test.describe("what a learner can keep", () => {
 
     await page.getByRole("button", { name: /Play/ }).click();
 
-    await expect.poll(() => backend.callsTo("elevenlabs-tts").length).toBe(1);
+    await expect.poll(() => backend.callsTo("tts-speak").length).toBe(1);
+    expect(backend.lastCallTo("tts-speak")?.body).toMatchObject({ dialect: "Egyptian" });
+    expect(backend.callsTo("elevenlabs-tts")).toHaveLength(0);
+    expect(backend.callsTo("azure-tts")).toHaveLength(0);
   });
 });
 

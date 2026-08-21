@@ -536,6 +536,11 @@ const MemeAnalyzer = () => {
                           className="gap-1"
                           onClick={() => handleSaveToMyWords(word)}
                           disabled={savedWords.has(word.arabic)}
+                          aria-label={
+                            savedWords.has(word.arabic)
+                              ? `${word.arabic} saved to My Words`
+                              : `Save ${word.arabic} to My Words`
+                          }
                         >
                           {savedWords.has(word.arabic) ? (
                             <Check className="h-4 w-4 text-primary" />

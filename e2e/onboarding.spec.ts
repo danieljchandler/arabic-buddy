@@ -316,14 +316,44 @@ test.describe("the placement quiz", () => {
     await expect(page.getByRole("button", { name: /خطأ 1/ })).toBeDisabled();
   });
 
-  test("shows the English only when asked", async ({ page, backend }) => {
+  test("shows the English only when asked, and only after the answer is in", async ({
+    page,
+    backend,
+  }) => {
     stubQuiz(backend);
     await page.goto("/placement");
     await page.getByRole("button", { name: /start quiz/i }).click();
 
-    await expect(page.getByText("question 1", { exact: true })).toHaveCount(0);
+    const english = page.getByText("question 1", { exact: true });
+
+    // Off by default.
+    await expect(english).toHaveCount(0);
+
+    // On, but the question is still open: English is feedback, not a hint.
+    // Showing it here would let the learner answer from the translation, and
+    // an English-assisted placement over-places — the level this quiz writes
+    // anchors content selection across the app.
     await page.getByRole("switch").click();
-    await expect(page.getByText("question 1", { exact: true })).toBeVisible();
+    await expect(english).toHaveCount(0);
+
+    // Once the answer is committed, the translation is just explanation.
+    await page.getByRole("button", { name: /صح 1/ }).click();
+    await expect(english).toBeVisible();
+  });
+
+  test("keeps the English hidden after answering when the toggle is off", async ({
+    page,
+    backend,
+  }) => {
+    stubQuiz(backend);
+    await page.goto("/placement");
+    await page.getByRole("button", { name: /start quiz/i }).click();
+
+    await page.getByRole("button", { name: /صح 1/ }).click();
+
+    // Feedback is showing — but the learner never asked for translations.
+    await expect(page.getByRole("button", { name: /صح 1/ })).toBeDisabled();
+    await expect(page.getByText("question 1", { exact: true })).toHaveCount(0);
   });
 
   test("fetches a fresh batch every fifth question", async ({ page, backend }) => {

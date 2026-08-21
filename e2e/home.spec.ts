@@ -395,7 +395,7 @@ test.describe("signed out", () => {
     await page.goto("/today");
 
     await expect(page.getByRole("heading", { name: "Today", exact: true })).toHaveCount(0);
-    await expect(page.getByRole("button", { name: /join the beta/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /join the beta/i }).first()).toBeVisible();
   });
 });
 
@@ -428,7 +428,7 @@ test.describe("the header", () => {
     await page.getByRole("button", { name: "Sign out" }).click();
 
     // The landing hero, not a signed-in shell with the data blanked out.
-    await expect(page.getByRole("button", { name: /join the beta/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /join the beta/i }).first()).toBeVisible();
   });
 });
 

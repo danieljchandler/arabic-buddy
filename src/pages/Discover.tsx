@@ -234,7 +234,7 @@ const Discover = () => {
             </div>
           ) : (
             <EmptyState
-              title="No personalised picks yet"
+              title="No personalized picks yet"
               body="Watch a few videos and save some vocab, and this fills up."
             />
           )}

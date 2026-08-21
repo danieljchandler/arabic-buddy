@@ -533,6 +533,11 @@ const HowDoISay = () => {
                               : "text-muted-foreground hover:text-primary hover:bg-primary/10",
                           )}
                           title={savedWords.has(word.arabic) ? "Saved" : "Save word"}
+                          aria-label={
+                            savedWords.has(word.arabic)
+                              ? `${word.arabic} saved to My Words`
+                              : `Save ${word.arabic} to My Words`
+                          }
                         >
                           {savedWords.has(word.arabic) ? (
                             <Check className="h-4 w-4" />

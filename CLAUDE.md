@@ -70,6 +70,15 @@ harness.
   `functions.invoke()` call against generated types (would a renamed column
   fail silently at runtime). Both currently pin known gaps as baselines rather
   than fixing them — see `docs/testing.md` for what and why.
+- **Pronunciation scores are calibrated, not raw.** `azure-pronunciation` does
+  not return Azure's PronScore — `_shared/pronunciationScoringCore.ts` rescores
+  a word on its worst phoneme as well as its average, lets fluency/completeness
+  only ever subtract, and stretches the top of the scale. Azure's originals come
+  back under `raw`. Don't compare a score in the app against Azure's docs or
+  portal, and don't "fix" a number that looks low by reverting to `raw`. The
+  shadowing path has its own calibration in `src/lib/shadowScoring.ts`, for a
+  different reason: ASR snaps to real words, so a clean transcript is evidence
+  about word choice and not about pronunciation.
 - Test code is held to a *stricter* lint standard than the app (no `any`, no
   `.only`) — see the override in `eslint.config.js`.
 

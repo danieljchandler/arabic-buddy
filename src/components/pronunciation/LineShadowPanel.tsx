@@ -224,7 +224,12 @@ export function LineShadowPanel({ clip, nativeClipWav, externalYouTubeController
               <p className={cn("text-sm font-semibold", band.color)}>{band.label}</p>
               <p className="text-[11px] text-muted-foreground">
                 Words {result.transcriptSimilarity}
-                {result.acousticSimilarity != null && ` · Sound ${result.acousticSimilarity}`}
+                {/* Named rather than hidden: without the clip's audio the score
+                    is capped, and "Sound —" is why the number stops short of
+                    the top even on a word-perfect take. */}
+                {result.acousticSimilarity != null
+                  ? ` \u00B7 Sound ${result.acousticSimilarity}`
+                  : " \u00B7 Sound not compared"}
               </p>
               {result.recognizedText && (
                 <p className="text-[11px] text-muted-foreground mt-0.5 max-w-[180px] truncate" dir="rtl">

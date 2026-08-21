@@ -7,6 +7,10 @@
  *   2. Acoustic match    — does your take sound like the clip? (MFCC + DTW,
  *      client-side; only when the clip's audio is downloadable.)
  *
+ * Neither is shown raw. `@/lib/shadowScoring` calibrates the transcript match
+ * and caps a take that had no clip audio to compare against — see the note
+ * there on why a perfect transcript is not a perfect take.
+ *
  * Then fetches 2–3 AI coaching tips from `pronunciation-feedback` (shadow mode).
  */
 
@@ -14,6 +18,7 @@ import { useCallback, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { blobToWav } from "@/lib/audioToWav";
 import { acousticSimilarity } from "@/lib/acousticSimilarity";
+import { shadowOverall, wordsScore } from "@/lib/shadowScoring";
 import { useDialect } from "@/contexts/DialectContext";
 
 export interface ShadowWordDiff {
@@ -25,8 +30,10 @@ export interface ShadowWordDiff {
 export interface ShadowScoreResult {
   /** Combined 0–100 closeness to the clip. */
   overall: number;
-  /** 0–100 word/transcript match to what the native said. */
+  /** 0–100 word match to what the native said, calibrated (see `shadowScoring`). */
   transcriptSimilarity: number;
+  /** The uncalibrated character-level match, 0–100, before the curve. */
+  rawTranscriptSimilarity: number;
   /** 0–100 acoustic match, or null when clip audio wasn't available. */
   acousticSimilarity: number | null;
   /** What the ASR heard the learner say. */
@@ -41,10 +48,6 @@ interface ScoreOptions {
   /** Native clip audio as a WAV Blob — enables the acoustic component. */
   nativeClipWav?: Blob | null;
 }
-
-/** Weight of the transcript vs acoustic signal when both are present. */
-const TRANSCRIPT_WEIGHT = 0.55;
-const ACOUSTIC_WEIGHT = 0.45;
 
 async function blobToBase64(blob: Blob): Promise<string> {
   const bytes = new Uint8Array(await blob.arrayBuffer());
@@ -103,14 +106,15 @@ export function useShadowScore() {
         if (fnError) throw new Error(fnError.message);
         if (data?.error) throw new Error(data.error);
 
-        const transcriptSimilarity = Math.round((data.transcriptSimilarity ?? 0) * 100);
+        const rawTranscriptSimilarity = Math.round((data.transcriptSimilarity ?? 0) * 100);
         const recognizedText: string = data.recognizedText ?? "";
         const wordDiffs: ShadowWordDiff[] = Array.isArray(data.wordDiffs) ? data.wordDiffs : [];
 
-        const overall =
-          acoustic != null
-            ? Math.round(TRANSCRIPT_WEIGHT * transcriptSimilarity + ACOUSTIC_WEIGHT * acoustic)
-            : transcriptSimilarity;
+        // The recogniser writes down real words whatever it hears, so a clean
+        // transcript is evidence the learner chose the right words rather than
+        // that they said them well. `shadowScoring` is where that is priced in.
+        const transcriptSimilarity = wordsScore(rawTranscriptSimilarity);
+        const overall = shadowOverall(transcriptSimilarity, acoustic);
 
         // 3. AI coaching tips — best-effort; never blocks the score.
         let tips: string[] = [];
@@ -134,6 +138,7 @@ export function useShadowScore() {
         const scoreResult: ShadowScoreResult = {
           overall,
           transcriptSimilarity,
+          rawTranscriptSimilarity,
           acousticSimilarity: acoustic,
           recognizedText,
           wordDiffs,

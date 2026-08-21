@@ -29,62 +29,10 @@ import {
 import { contributeLearnerAudio } from "../_shared/learnerAudioContribution.ts";
 import { normalizeDialect } from "../_shared/transcriptDiffCore.ts";
 import { resolveUserId } from "../_shared/usageCap.ts";
+import { arabicSimilarity as similarity, normalizeArabic } from "../_shared/arabicMatch.ts";
 
 
 const MUNSIT_BASE = "https://api.munsit.com/api/v1";
-
-/** Strip Arabic diacritics/tatweel and fold letter variants for fair matching. */
-function normalizeArabic(s: string): string {
-  if (!s) return "";
-  return s
-    // strip tashkeel (diacritics)
-    .replace(/[ً-ٰٟؐ-ؚۖ-ۭ]/g, "")
-    // tatweel
-    .replace(/ـ/g, "")
-    // alef variants → bare alef
-    .replace(/[آأإ]/g, "ا")
-    // alef maqsura → ya
-    .replace(/ى/g, "ي")
-    // ta marbuta → ha
-    .replace(/ة/g, "ه")
-    // hamza variations on waw/ya
-    .replace(/ؤ/g, "و")
-    .replace(/ئ/g, "ي")
-    // strip standalone hamza, punctuation
-    .replace(/[ء،؛؟.,!?؟،؛"'()[\]{}«»]/g, "")
-    .replace(/\s+/g, " ")
-    .trim()
-    .toLowerCase();
-}
-
-function levenshtein(a: string, b: string): number {
-  if (a === b) return 0;
-  if (!a.length) return b.length;
-  if (!b.length) return a.length;
-  const v0 = new Array(b.length + 1);
-  const v1 = new Array(b.length + 1);
-  for (let i = 0; i <= b.length; i++) v0[i] = i;
-  for (let i = 0; i < a.length; i++) {
-    v1[0] = i + 1;
-    for (let j = 0; j < b.length; j++) {
-      const cost = a[i] === b[j] ? 0 : 1;
-      v1[j + 1] = Math.min(v1[j] + 1, v0[j + 1] + 1, v0[j] + cost);
-    }
-    for (let j = 0; j <= b.length; j++) v0[j] = v1[j];
-  }
-  return v1[b.length];
-}
-
-/** Character-level normalized similarity (0..1) between two Arabic strings. */
-function similarity(a: string, b: string): number {
-  const na = normalizeArabic(a);
-  const nb = normalizeArabic(b);
-  if (!na && !nb) return 1;
-  if (!na || !nb) return 0;
-  const dist = levenshtein(na, nb);
-  const maxLen = Math.max(na.length, nb.length);
-  return 1 - dist / maxLen;
-}
 
 type WordStatus = "match" | "sub" | "missing" | "extra";
 interface WordDiff {
@@ -94,9 +42,19 @@ interface WordDiff {
 }
 
 /**
+ * Character similarity at or above which two tokens count as the same word
+ * rather than a substitution.
+ *
+ * This was 0.6, which on a five-letter word calls two wrong letters a match —
+ * the coach then had nothing to say about a word the learner plainly did not
+ * say. 0.7 still absorbs the one-letter differences ASR invents on its own
+ * without turning them into corrections.
+ */
+const WORD_MATCH = 0.7;
+
+/**
  * Token-level alignment of reference vs recognised words via edit-distance
  * backtrace. Yields per-token status so the coach can point at specific words.
- * A per-token character similarity ≥ 0.6 counts as a match rather than a sub.
  */
 function alignWords(reference: string, recognized: string): WordDiff[] {
   const ref = normalizeArabic(reference).split(" ").filter(Boolean);
@@ -108,8 +66,7 @@ function alignWords(reference: string, recognized: string): WordDiff[] {
   if (m === 0) return ref.map((w) => ({ ref: w, status: "missing" as const }));
 
   // Cost of substituting token i for token j: 0 if similar, else 1.
-  const subCost = (i: number, j: number) =>
-    1 - similarity(ref[i], said[j]) < 0.4 ? 0 : 1;
+  const subCost = (i: number, j: number) => (similarity(ref[i], said[j]) >= WORD_MATCH ? 0 : 1);
 
   // DP edit-distance table over tokens.
   const dp: number[][] = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0));

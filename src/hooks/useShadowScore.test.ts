@@ -87,10 +87,14 @@ describe("scoring a take", () => {
       });
     });
 
-    // 0.55 × 90 + 0.45 × 80. Transcript is weighted higher because saying the
-    // wrong words is a bigger failure than saying the right ones unmusically.
-    expect(scored!.overall).toBe(86);
-    expect(scored!.transcriptSimilarity).toBe(90);
+    // A 0.9 character match is not 90: on a phrase this short it is a whole
+    // letter wrong, and the recogniser wrote down real words whatever it heard.
+    // `@/lib/shadowScoring` curves it to 78 first, then 0.55 × 78 + 0.45 × 80.
+    // Transcript is still weighted higher because saying the wrong words is a
+    // bigger failure than saying the right ones unmusically.
+    expect(scored!.overall).toBe(79);
+    expect(scored!.transcriptSimilarity).toBe(78);
+    expect(scored!.rawTranscriptSimilarity).toBe(90);
     expect(scored!.acousticSimilarity).toBe(80);
   });
 
@@ -104,8 +108,9 @@ describe("scoring a take", () => {
 
     // Plenty of clips cannot be downloaded — embeds, region locks. A score from
     // the transcript alone is still a real score, and null tells the UI not to
-    // draw the acoustic half.
-    expect(scored!.overall).toBe(90);
+    // draw the acoustic half. It is capped, though: with no clip audio there is
+    // no evidence about how the take sounded, only about which words were said.
+    expect(scored!.overall).toBe(78);
     expect(scored!.acousticSimilarity).toBeNull();
     expect(acoustic).not.toHaveBeenCalled();
   });
@@ -124,7 +129,7 @@ describe("scoring a take", () => {
 
     // The learner has already recorded; losing half the analysis is better than
     // losing the take.
-    expect(scored!.overall).toBe(90);
+    expect(scored!.overall).toBe(78);
     expect(scored!.acousticSimilarity).toBeNull();
   });
 
@@ -201,7 +206,7 @@ describe("the coaching tips", () => {
       mode: "shadow",
       referenceText: REFERENCE,
       recognizedText: "شخبارك اليوم",
-      closeness: 86,
+      closeness: 79,
     });
   });
 
@@ -218,7 +223,7 @@ describe("the coaching tips", () => {
 
     // Best-effort by design: the number and the diff are the exercise, and the
     // tips are the commentary.
-    expect(scored!.overall).toBe(90);
+    expect(scored!.overall).toBe(78);
     expect(scored!.tips).toEqual([]);
   });
 
@@ -309,7 +314,7 @@ describe("the state around a take", () => {
     });
 
     expect(result.current.isLoading).toBe(false);
-    expect(result.current.result?.overall).toBe(90);
+    expect(result.current.result?.overall).toBe(78);
   });
 
   it("clears the previous take on request", async () => {
@@ -347,6 +352,6 @@ describe("the state around a take", () => {
     // Learners re-record immediately when they know a take was bad. A slow
     // first response landing after a fast second one would show them the score
     // for the attempt they abandoned.
-    expect(result.current.result?.transcriptSimilarity).toBe(90);
+    expect(result.current.result?.transcriptSimilarity).toBe(78);
   });
 });

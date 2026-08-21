@@ -265,14 +265,17 @@ describe("scoring against the right dialect", () => {
 });
 
 describe("showing the score", () => {
-  it("reports phoneme accuracy for a single word", async () => {
+  it("reports the headline score for a single word", async () => {
     render({ word: A_WORD });
 
     await recordTake();
 
     // A one-word take has no fluency to measure and nothing to be incomplete
-    // about; accuracy is the only honest number.
-    await waitFor(() => expect(screen.getByText("84")).toBeInTheDocument());
+    // about. This used to read `accuracy` here for that reason, because Azure's
+    // PronScore folded both in; `azure-pronunciation` now calibrates the
+    // headline itself and leaves those two out of a single word, so `overall`
+    // is the honest number for both shapes.
+    await waitFor(() => expect(screen.getByText("78")).toBeInTheDocument());
     expect(screen.queryByText("Fluency")).not.toBeInTheDocument();
   });
 
@@ -314,11 +317,11 @@ describe("showing the score", () => {
   it("clears the score when the learner tries again", async () => {
     render();
     await recordTake();
-    await waitFor(() => expect(screen.getByText("84")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("78")).toBeInTheDocument());
 
     fireEvent.click(screen.getByRole("button", { name: /try again/i }));
 
-    expect(screen.queryByText("84")).not.toBeInTheDocument();
+    expect(screen.queryByText("78")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /say it/i })).toBeInTheDocument();
   });
 });
@@ -357,7 +360,7 @@ describe("the coaching tips", () => {
 
     // Tips are commentary on a number the learner already has; losing them is
     // not worth losing the score.
-    await waitFor(() => expect(screen.getByText("84")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("78")).toBeInTheDocument());
     expect(screen.queryByText("Tips")).not.toBeInTheDocument();
   });
 });
@@ -391,13 +394,13 @@ describe("moving to the next card", () => {
   it("clears the previous word's score", async () => {
     const { rerender } = render({ word: A_WORD });
     await recordTake();
-    await waitFor(() => expect(screen.getByText("84")).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText("78")).toBeInTheDocument());
 
     rerender(<PronunciationButton word="مطعم" />);
 
     // A score carried over from the previous flashcard would tell the learner
     // how well they said a word they have not been asked for yet.
-    await waitFor(() => expect(screen.queryByText("84")).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByText("78")).not.toBeInTheDocument());
     expect(screen.getByRole("button", { name: /say it/i })).toBeInTheDocument();
   });
 });

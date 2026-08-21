@@ -18,6 +18,21 @@ serve(async (req) => {
     const payload = await req.json();
     const { mode } = payload;
 
+    /**
+     * Tell the model how the take actually went.
+     *
+     * Without this the prompt only ever said "be encouraging", and the tips
+     * came back the same shape whether the learner nailed it or missed half the
+     * words — polish notes on a take that needed a redo. The score is already
+     * on screen; the tips have to agree with it.
+     */
+    const verdict = (score: number): string => {
+      if (score >= 90) return "This was very close to native. Tips should be fine detail — rhythm, linking, intonation.";
+      if (score >= 75) return "This was solid with real errors in it. Name the specific sounds or words that were off.";
+      if (score >= 60) return "This was rough. Say plainly what was wrong before offering anything positive.";
+      return "This missed the target badly. Be direct about what went wrong and give one concrete thing to fix first. Do not open with praise.";
+    };
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
@@ -53,9 +68,12 @@ The learner said (as heard by speech recognition): "${recognizedText || "(nothin
 Closeness to the native clip: ${Math.round(closeness ?? 0)}/100.
 ${diffSummary ? `Differences from the clip: ${diffSummary}.` : "The words matched the clip closely."}
 
-Give exactly 2-3 short, actionable tips (one sentence each) to help them match the native clip more closely. Reference the specific Arabic words/sounds they missed or changed. Be encouraging but specific. If they matched well, give tips on rhythm/intonation. Do not repeat the score.`;
+${verdict(Math.round(closeness ?? 0))}
+
+Give exactly 2-3 short, actionable tips (one sentence each) to help them match the native clip more closely. Reference the specific Arabic words/sounds they missed or changed. Be warm but honest — never call a take good when the score says it was not, and never soften a missed word into a near-miss. Do not repeat the score.`;
     } else {
-      // ── Legacy Azure-scores mode (unchanged). ──────────────────────────────
+      // ── Azure-scores mode: coach on a single word or phrase the learner
+      //    recorded against a reference, scored by `azure-pronunciation`. ─────
       const { word_arabic, word_english, scores, dialect } = payload;
 
       if (!scores) {
@@ -91,7 +109,7 @@ Give exactly 2-3 short, actionable tips (one sentence each) to help them match t
 
 A learner just attempted to pronounce: "${word_arabic}"${word_english ? ` (meaning: "${word_english}")` : ""}.
 
-Here are their Azure Speech Assessment scores:
+Here are their pronunciation-assessment scores (already calibrated for learner speech — an 80 here is a genuinely good attempt, not a mediocre one):
 - Overall: ${Math.round(scores.overall)}/100
 - Accuracy: ${Math.round(scores.accuracy)}/100
 - Fluency: ${Math.round(scores.fluency)}/100
@@ -105,7 +123,9 @@ ${isSingleWord
   ? "This is a single word. Focus on phoneme-level feedback."
   : "This is a phrase. Include word-level and fluency feedback."}
 
-Give exactly 2-3 short, actionable tips (one sentence each) to improve their pronunciation. Be encouraging but specific. Reference the actual Arabic words/sounds. Do not repeat the scores.`;
+${verdict(Math.round(isSingleWord ? scores.accuracy : scores.overall))}
+
+Give exactly 2-3 short, actionable tips (one sentence each) to improve their pronunciation. Reference the actual Arabic words/sounds, and name the specific letter they missed (e.g. ح said as ه, ق said as k, ع dropped) rather than saying "work on your pronunciation". Be warm but honest — never call an attempt good when the scores say it was not. Do not repeat the scores.`;
     }
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {

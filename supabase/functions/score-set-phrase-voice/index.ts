@@ -15,60 +15,10 @@ import {
   recordLearnerErrorsForRequest,
   resolveLearnerErrorsForRequest,
 } from "../_shared/learnerErrors.ts";
+import { arabicSimilarity as similarity } from "../_shared/arabicMatch.ts";
 
 
 const MUNSIT_BASE = "https://api.munsit.com/api/v1";
-
-function normalizeArabic(s: string): string {
-  if (!s) return "";
-  return s
-    // strip tashkeel (diacritics)
-    .replace(/[\u064B-\u065F\u0670\u0610-\u061A\u06D6-\u06ED]/g, "")
-    // tatweel
-    .replace(/\u0640/g, "")
-    // alef variants → bare alef
-    .replace(/[\u0622\u0623\u0625]/g, "\u0627")
-    // alef maqsura → ya
-    .replace(/\u0649/g, "\u064A")
-    // ta marbuta → ha
-    .replace(/\u0629/g, "\u0647")
-    // hamza variations on waw/ya
-    .replace(/\u0624/g, "\u0648")
-    .replace(/\u0626/g, "\u064A")
-    // strip standalone hamza, punctuation
-    .replace(/[\u0621\u060C\u061B\u061F.,!?؟،؛"'()\[\]{}«»]/g, "")
-    .replace(/\s+/g, " ")
-    .trim()
-    .toLowerCase();
-}
-
-function levenshtein(a: string, b: string): number {
-  if (a === b) return 0;
-  if (!a.length) return b.length;
-  if (!b.length) return a.length;
-  const v0 = new Array(b.length + 1);
-  const v1 = new Array(b.length + 1);
-  for (let i = 0; i <= b.length; i++) v0[i] = i;
-  for (let i = 0; i < a.length; i++) {
-    v1[0] = i + 1;
-    for (let j = 0; j < b.length; j++) {
-      const cost = a[i] === b[j] ? 0 : 1;
-      v1[j + 1] = Math.min(v1[j] + 1, v0[j + 1] + 1, v0[j] + cost);
-    }
-    for (let j = 0; j <= b.length; j++) v0[j] = v1[j];
-  }
-  return v1[b.length];
-}
-
-function similarity(a: string, b: string): number {
-  const na = normalizeArabic(a);
-  const nb = normalizeArabic(b);
-  if (!na && !nb) return 1;
-  if (!na || !nb) return 0;
-  const dist = levenshtein(na, nb);
-  const maxLen = Math.max(na.length, nb.length);
-  return 1 - dist / maxLen;
-}
 
 async function munsitCall(audioBase64: string, mimeType: string, apiKey: string, model: string): Promise<string> {
   const bin = atob(audioBase64);
@@ -160,8 +110,14 @@ serve(async (req) => {
       if (s > best) best = s;
     }
 
+    // Quality 5 is SM-2's "perfect response", and it pushes the phrase weeks
+    // out. Char-level similarity on ASR output is a generous measure of that —
+    // at 0.9 a phrase this length can still be a whole letter wrong — so the
+    // top band now needs what is effectively an exact match once diacritics and
+    // letter variants are folded. The acceptance bar below is deliberately
+    // unchanged: this is about not over-rewarding, not about failing more takes.
     let quality = 1;
-    if (best >= 0.9) quality = 5;
+    if (best >= 0.97) quality = 5;
     else if (best >= 0.75) quality = 4;
     else if (best >= 0.55) quality = 3;
     else if (best >= 0.35) quality = 2;

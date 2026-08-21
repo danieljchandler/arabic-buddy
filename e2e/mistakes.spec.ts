@@ -175,24 +175,29 @@ test.describe("hearing it said correctly", () => {
     await expect(page.getByText("مرحبا")).toBeVisible();
 
     // One TTS request per entry on open would mean a page of twenty mistakes
-    // costing twenty syntheses to look at.
+    // costing twenty syntheses to look at. `tts-speak` is the door the client
+    // actually uses; watching only the provider functions made this guard
+    // vacuous once routing moved server-side.
+    expect(backend.callsTo("tts-speak")).toHaveLength(0);
     expect(backend.callsTo("munsit-tts")).toHaveLength(0);
     expect(backend.callsTo("azure-tts")).toHaveLength(0);
   });
 
-  test("routes a Gulf target to the Gulf voice", async ({ page, backend }) => {
-    backend.stubFunction("munsit-tts", { audioContent: "" });
-
+  test("asks for the correction in the learner's own dialect", async ({ page, backend }) => {
     await page.goto("/mistakes");
     await page.getByRole("button", { name: "Hear it said correctly" }).click();
 
-    // `useAzureTTS` is named for its fallback, not its default: Gulf goes to
-    // munsit-tts and everything else to azure-tts. Sending a Gulf mistake to
-    // the Azure voice would play the learner a correction in the wrong accent,
-    // on a page whose entire purpose is hearing it said right.
-    await expect.poll(() => backend.callsTo("munsit-tts").length).toBeGreaterThan(0);
-    expect(backend.lastCallTo("munsit-tts")?.body).toMatchObject({ text: "مرحبا" });
+    // Which voice a dialect gets is resolved server-side in `tts-speak`; the
+    // page's job is to send the target text under the right dialect. Getting
+    // the dialect wrong here would play the learner a correction in the wrong
+    // accent, on a page whose entire purpose is hearing it said right.
+    await expect.poll(() => backend.callsTo("tts-speak").length).toBeGreaterThan(0);
+    expect(backend.lastCallTo("tts-speak")?.body).toMatchObject({
+      text: "مرحبا",
+      dialect: "Gulf",
+    });
     expect(backend.callsTo("azure-tts")).toHaveLength(0);
+    expect(backend.callsTo("munsit-tts")).toHaveLength(0);
   });
 });
 

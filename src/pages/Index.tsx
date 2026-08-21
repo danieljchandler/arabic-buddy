@@ -168,7 +168,7 @@ const Index = () => {
   }
 
   return (
-    <AppShell>
+    <AppShell wide>
 
 
 
@@ -211,7 +211,12 @@ const Index = () => {
         <DialectRitualSwitcher />
       </div>
 
-      {(() => {
+      {/* Main column + Explore rail share one grid from lg up, so the rail
+          sits BESIDE the ordered stack rather than below it. Below lg this is
+          plain block flow — no grid, no reorder — so mobile is unaffected. */}
+      <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-start lg:gap-6">
+        <div className="min-w-0">
+        {(() => {
         const sections: Partial<Record<HomeSectionId, React.ReactNode>> = {
           "phrase-of-the-day": <PhraseOfTheDay key="phrase-of-the-day" />,
 
@@ -430,33 +435,43 @@ const Index = () => {
             })}
           </div>
         );
-      })()}
+        })()}
+        </div>
 
-      {/* Explore — secondary browsing content, below the daily queue rather
-          than competing with it for the first screen. */}
-      <div className="mt-6 space-y-4">
-        {isAuthenticated && <ContinueCard />}
+        {/* Explore rail — beside the daily queue at desktop widths rather than
+          competing with it for the first screen. Deliberately holds only
+          content that was already unconditional and outside homeLayout:
+          Settings' "reorder them on your home page" promise covers the three
+          ordered sections above (its own copy calls out "goal ring, streak
+          and stats" as part of Today's Queue), so that whole stack stays one
+          undivided block in the main column, in whichever order the learner
+          chose, rather than being pulled apart to fill a sidebar. Below lg
+          there is no grid at all, so this renders exactly where it always
+          has: after the ordered stack. */}
+        <aside className="mt-6 lg:mt-0 space-y-4">
+          {isAuthenticated && <ContinueCard />}
 
-        <button
-          onClick={() => navigate("/bridge")}
-          className={cn(
-            "w-full px-4 py-3 rounded-2xl text-left",
-            "bg-gradient-to-r from-plum/8 via-card to-plum/8",
-            "border border-plum/25 hover:border-plum/50",
-            "flex items-center gap-3 transition-all active:scale-[0.99]"
-          )}
-        >
-          <div className="h-9 w-9 rounded-xl bg-plum/10 flex items-center justify-center shrink-0">
-            <Globe2 className="h-4 w-4 text-plum" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-plum">Coming from MSA?</p>
-            <p className="text-[11px] text-plum truncate">
-              Bridge <span className="font-arabic" dir="rtl">الفصحى</span> into {activeDialect} dialect
-            </p>
-          </div>
-          <ChevronRight className="h-4 w-4 text-plum/60 shrink-0" />
-        </button>
+          <button
+            onClick={() => navigate("/bridge")}
+            className={cn(
+              "w-full px-4 py-3 rounded-2xl text-left",
+              "bg-gradient-to-r from-plum/8 via-card to-plum/8",
+              "border border-plum/25 hover:border-plum/50",
+              "flex items-center gap-3 transition-all active:scale-[0.99]"
+            )}
+          >
+            <div className="h-9 w-9 rounded-xl bg-plum/10 flex items-center justify-center shrink-0">
+              <Globe2 className="h-4 w-4 text-plum" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-plum">Coming from MSA?</p>
+              <p className="text-[11px] text-plum truncate">
+                Bridge <span className="font-arabic" dir="rtl">الفصحى</span> into {activeDialect} dialect
+              </p>
+            </div>
+            <ChevronRight className="h-4 w-4 text-plum/60 shrink-0" />
+          </button>
+        </aside>
       </div>
 
     </AppShell>

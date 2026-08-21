@@ -269,7 +269,10 @@ test.describe("saving what came back", () => {
 
   test("saves a word to My Words with its root", async ({ page, db }) => {
     await ask(page);
-    await page.getByRole("button", { name: /Save word|Add/i }).first().click();
+    // The control is icon-only, so its accessible name is the aria-label,
+    // which names the word it saves — a screen-reader user hearing "Save word"
+    // on every row could not tell them apart.
+    await page.getByRole("button", { name: "Save شلون to My Words" }).click();
 
     await expect.poll(() => db.rows("user_vocabulary").length).toBe(1);
     expect(db.rows("user_vocabulary")[0]).toMatchObject({

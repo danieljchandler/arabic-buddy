@@ -11,6 +11,15 @@ interface AppShellProps {
   className?: string;
   /** Use compact padding for learning/review screens */
   compact?: boolean;
+  /**
+   * Widen the content column from lg up, for pages that lay out a main
+   * column plus a side rail at desktop widths (currently just Home). Every
+   * other page stays at the mobile-oriented max-w-2xl even on a wide
+   * screen — narrower than the viewport allows, but appropriate for a
+   * single reading column. A page opting into `wide` still gets max-w-2xl
+   * below lg, so nothing changes on a phone or tablet.
+   */
+  wide?: boolean;
 }
 
 /**
@@ -19,7 +28,7 @@ interface AppShellProps {
  * Provides unified spacing with full-page Sadu border background.
  * Use compact mode for immersive learning screens.
  */
-export function AppShell({ children, className, compact = false }: AppShellProps) {
+export function AppShell({ children, className, compact = false, wide = false }: AppShellProps) {
   const { pathname } = useLocation();
   const showNav = shouldShowDock(pathname);
   // The Ask AI panel is non-modal, so the page has to make room for it rather
@@ -58,6 +67,7 @@ export function AppShell({ children, className, compact = false }: AppShellProps
         }}
         className={cn(
         "relative mx-auto w-full max-w-2xl animate-fade-up",
+        wide && "lg:max-w-5xl",
         compact ? "px-4 pb-5 sm:px-5 sm:pb-6" : "px-4 pb-8 sm:px-6 md:pb-12",
         // Clearance for the dock AND the Ask AI FAB, at every width. The md:
         // variant above is a separate group as far as tailwind-merge is

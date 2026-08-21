@@ -337,10 +337,11 @@ test.describe("keeping a word from a meme", () => {
 
   test("saves a word with the caption it came from", async ({ page, db }) => {
     await analyse(page);
-    // The vocabulary row's save control is icon-only and unnamed — counted
-    // against the app-wide icon-button baseline rather than worked around
-    // silently.
-    await page.locator("div").filter({ hasText: /^Root: ص ح و$/ }).locator("xpath=../..").getByRole("button").click();
+    // The row's save control is icon-only, so it carries an aria-label naming
+    // the word it saves — which is what a screen-reader user needs to tell one
+    // row's button from another's, and what lets this target it directly
+    // instead of walking up the DOM from the root badge.
+    await page.getByRole("button", { name: "Save تصحى to My Words" }).click();
 
     await expect.poll(() => db.rows("user_vocabulary").length).toBeGreaterThan(0);
     expect(db.rows("user_vocabulary")[0]).toMatchObject({

@@ -395,7 +395,7 @@ test.describe("signed out", () => {
     await page.goto("/today");
 
     await expect(page.getByRole("heading", { name: "Today", exact: true })).toHaveCount(0);
-    await expect(page.getByRole("button", { name: /join the beta/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /join the beta/i }).first()).toBeVisible();
   });
 });
 
@@ -428,6 +428,100 @@ test.describe("the header", () => {
     await page.getByRole("button", { name: "Sign out" }).click();
 
     // The landing hero, not a signed-in shell with the data blanked out.
-    await expect(page.getByRole("button", { name: /join the beta/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /join the beta/i }).first()).toBeVisible();
+  });
+});
+
+test.describe("the desktop layout", () => {
+  // From lg the app dock stands up as a left rail (see shell.spec.ts), which
+  // freed the bottom of the viewport — but the page content itself still sat
+  // in the same ~620px column centred in the middle of a 1280px+ window,
+  // wasting the width a rail was supposed to make room for. Home now lays out
+  // a wider main column plus a side rail for content that was already
+  // unconditional and outside the reorderable home-layout stack (Settings'
+  // "reorder them on your home page" promise covers the three ordered
+  // sections, whose own copy calls the daily queue's ring/streak/stats one
+  // bundle — so that stack stays undivided in the main column, in whichever
+  // order the learner chose, rather than being split to fill a sidebar).
+  test("puts the MSA bridge card beside the queue, not below it", async ({
+    page,
+    signInAs,
+    db,
+  }) => {
+    await signInAs("free");
+    db.seed("profiles", [aProfile({ placement_level_gulf: "A2" })]);
+    await page.setViewportSize({ width: 1280, height: 900 });
+
+    await page.goto("/today");
+
+    const queue = await page.getByRole("heading", { name: "Today", exact: true }).boundingBox();
+    const bridge = await page.getByText("Coming from MSA?").boundingBox();
+
+    // Side by side: the bridge card starts to the right of where the queue
+    // card starts, near its top rather than thumbnails below it. The x check
+    // alone already proves "different column"; y just rules out "stacked"
+    // (400px+ in the phone case below), so 300px leaves headroom for content
+    // height varying above the bridge card (banners, streak state) without
+    // going anywhere near that stacked threshold.
+    expect(bridge!.x).toBeGreaterThan(queue!.x + 200);
+    expect(Math.abs(bridge!.y - queue!.y)).toBeLessThan(300);
+  });
+
+  test("stacks below the queue on a phone, exactly as before", async ({
+    page,
+    signInAs,
+    db,
+  }) => {
+    await signInAs("free");
+    db.seed("profiles", [aProfile({ placement_level_gulf: "A2" })]);
+    await page.setViewportSize({ width: 390, height: 844 });
+
+    await page.goto("/today");
+
+    const queue = await page.getByRole("heading", { name: "Today", exact: true }).boundingBox();
+    const bridge = await page.getByText("Coming from MSA?").boundingBox();
+
+    // No grid below lg: same column (loose tolerance — icon/padding differ
+    // between the two cards, but nowhere near the rail's ~680px offset),
+    // bridge card well below the queue.
+    expect(Math.abs(bridge!.x - queue!.x)).toBeLessThan(150);
+    expect(bridge!.y).toBeGreaterThan(queue!.y + 400);
+  });
+
+  test("moves the whole queue — ring, streak, weekly goals — as one unit when reordered", async ({
+    page,
+    signInAs,
+    db,
+  }) => {
+    // A learner who moved Phrase of the Day above Today's Queue in Settings
+    // must see the WHOLE queue (not just its task list) follow behind it —
+    // splitting the queue's own stat widgets into the rail would silently
+    // strand them at their old position, contradicting the reorder.
+    await page.addInitScript(() => {
+      localStorage.setItem(
+        "hakiya:home-layout:v1",
+        JSON.stringify({
+          order: ["phrase-of-the-day", "placement-banner", "daily-queue"],
+          hidden: [],
+        }),
+      );
+    });
+    await signInAs("free");
+    db.seed("profiles", [aProfile({ placement_level_gulf: "A2" })]);
+    await page.setViewportSize({ width: 1280, height: 1400 });
+
+    await page.goto("/today");
+
+    const phrase = await page.getByText("Phrase of the Day").boundingBox();
+    const queue = await page.getByRole("heading", { name: "Today", exact: true }).boundingBox();
+    const weeklyGoals = await page.getByText("Weekly Goals").boundingBox();
+
+    // Phrase of the Day first, then the queue — and Weekly Goals (part of the
+    // same daily-queue bundle) still follows the queue's ring, not the rail.
+    expect(queue!.y).toBeGreaterThan(phrase!.y);
+    expect(weeklyGoals!.y).toBeGreaterThan(queue!.y);
+    // Same column as the queue (loose tolerance for icon/padding — the rail
+    // sits ~680px further right, so this still tells the two apart cleanly).
+    expect(Math.abs(weeklyGoals!.x - queue!.x)).toBeLessThan(150);
   });
 });

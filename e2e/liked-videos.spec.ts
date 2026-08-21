@@ -99,7 +99,13 @@ test.describe("reaching the shelf", () => {
 
     await page.goto("/liked-videos");
 
-    await expect(page.getByRole("heading", { name: "Liked Videos" })).toBeVisible();
+    // Scoped to the page title. getByRole matches the accessible name as a
+    // case-insensitive substring, so a bare "Liked Videos" also matched the
+    // empty state's "No liked videos yet" heading — a strict-mode violation
+    // that only showed up when the empty state won the render race. `exact`
+    // cannot fix it either: the h1 carries an InfoHint, so its accessible
+    // name is "Liked Videos Learn about".
+    await expect(page.getByRole("heading", { level: 1, name: /^Liked Videos/ })).toBeVisible();
   });
 });
 

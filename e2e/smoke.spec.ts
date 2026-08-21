@@ -7,7 +7,9 @@ test.describe("signed out", () => {
     await page.goto("/");
 
     await expect(page.getByRole("heading", { name: /real spoken arabic/i })).toBeVisible();
-    await expect(page.getByRole("button", { name: /join the beta/i })).toBeVisible();
+    // Two CTAs by design — the hero one and the closing one after the
+    // dialect cards. Either proves the page offers a way in.
+    await expect(page.getByRole("button", { name: /join the beta/i }).first()).toBeVisible();
   });
 
   test("protected routes redirect to /auth", async ({ page }) => {

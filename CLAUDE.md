@@ -10,35 +10,46 @@ React + TypeScript + shadcn-ui + Tailwind. Backend: Supabase (Postgres + RLS,
 Auth, Deno Edge Functions). See `README.md` for the full feature/architecture
 writeup — it is detailed and current; read it before large changes, especially
 the sections on the Fusha row, learner mistakes, assistant context, grammar
-mastery, and RBAC roles, which are not repeated here.
+mastery, and RBAC roles, which are not repeated here. `docs/testing.md` is the
+companion for anything test- or CI-shaped.
 
 ## Commands
 
 ```sh
 npm run dev              # Vite dev server
-npm run build             # production build
-npm run lint               # eslint
-npm run lint:ratchet    # fails only if lint error count increased — what CI runs
+npm run build            # production build
+npm run lint             # eslint
+npm run lint:ratchet     # fails only if lint error count increased — what CI runs
 npm run typecheck        # tsc over src/ AND the e2e tree (two separate tsconfigs)
 npm run check:edge       # deno check over supabase/functions/** (needs deno installed)
 
-npm test                       # vitest run (unit + component)
+npm test                 # vitest run (unit + component)
 npm run test:watch
-npm run test:coverage
+npm run test:coverage    # what CI runs — enforces per-directory thresholds
 npx vitest run path/to/file.test.ts        # single unit/component test file
 npx vitest run -t "test name"              # by test name
 
-npm run test:e2e               # playwright, hermetic, no credentials needed
-npm run test:e2e:ui            # playwright UI mode
+npm run test:e2e         # playwright, hermetic, no credentials needed
+npm run test:e2e:ui      # playwright UI mode
 npx playwright test e2e/foo.spec.ts        # single e2e spec
 
-npm run test:edge              # deno test over supabase/functions/ (needs deno)
+npm run test:edge        # deno test over supabase/functions/ (needs deno)
 DATABASE_URL=postgres://postgres@127.0.0.1:5432/postgres \
-  npx vitest run src/test/migrationReplay.test.ts   # schema-contract replay, needs a throwaway Postgres
+  npx vitest run src/test/migrationReplay.test.ts   # schema replay, needs a throwaway Postgres
 ```
 
-CI (`.github/workflows/ci.yml`) runs three independent jobs on every push/PR:
-typecheck+lint+unit+build, `deno check` on edge functions, and Playwright e2e.
+CI (`.github/workflows/ci.yml`) runs **four** independent jobs on every push/PR:
+
+1. **Typecheck, lint & unit tests** — `typecheck`, `lint:ratchet`,
+   `test:coverage` (with thresholds), then a production `build`.
+2. **Typecheck edge functions (Deno)** — `deno check` *and* `npm run test:edge`,
+   so the edge job is a runtime gate, not just a compile one.
+3. **Migration replay** — replays every migration against a stock `postgres:16`
+   service container (`contract/prelude.sql` supplies the `auth`/`storage`
+   objects the migrations expect, instead of standing up the whole Supabase
+   stack).
+4. **End-to-end** — Playwright, sharded 4 ways, Chromium only, no secrets.
+
 `npm run lint:ratchet` is a ratchet (fails only on regressions — the repo has
 pre-existing `no-explicit-any` debt); `deno check` on edge functions is a clean
 gate with no tolerated debt. Full details, including *why* each check exists
@@ -48,15 +59,54 @@ harness.
 
 ## Non-obvious things that will bite you
 
-- **Env vars for tests are not `.env`.** `vite.config.ts` uses `envDir:
-  ".vite-env"` (empty), so root `.env` is ignored for the app build, and the
-  Supabase client vars fall back to the **real production project** when
-  unset. Vitest and Playwright configs point at a fake host
-  (`https://e2e.supabase.co`) instead — never make them mirror
-  `vite.config.ts`'s fallback. `src/test/envGuard.test.ts` guards this; read it
-  before changing how config is loaded.
-- **Edge functions have no exported handler.** All 84 functions in
-  `supabase/functions/` call `serve()`/`Deno.serve()` at module scope.
+- **A misconfigured test run talks to production and still goes green.**
+  `vite.config.ts` uses `envDir: ".vite-env"` (empty), so root `.env` is ignored
+  for the app build, and the Supabase client vars **fall back to the real
+  production project** when unset. Four layers guard this and none of them may
+  be removed casually: `vitest.config.ts` `test.env` and
+  `playwright.config.ts` `webServer.env` both point at the fake host
+  `https://e2e.supabase.co` (never make them mirror `vite.config.ts`'s
+  fallback), `e2e/support/globalSetup.ts` refuses to start if that didn't take
+  effect, and `src/test/setup.ts` replaces `fetch` with one that throws.
+  `src/test/envGuard.test.ts` asserts all four are still in place.
+- **Drift-guard tests fail when you *add* code, not when you break it.** A
+  cluster of meta-tests in `src/test/` reads a source of truth off disk and
+  fails on drift, so landing new code without its counterpart turns the fast
+  unit job red:
+  - `edgeFunctionCoverage` — every dir in `supabase/functions/` must be named
+    by a file in `supabase/functions/_test/`.
+  - `libCoverage` / `hookCoverage` / `sharedModuleCoverage` — every module in
+    `src/lib`, `src/hooks`, `supabase/functions/_shared` must be named by some
+    test (each has a short, reasoned exemption list).
+  - `routeManifest` — every `<Route>` in `src/App.tsx` needs an entry in
+    `src/test/support/routes/manifest.ts`.
+  - `routeReachability` — every learner route needs an in-app link, or an
+    entry in the `NO_LINK_NEEDED` allow-list with a written reason.
+  - `grammarTaxonomy` parses a migration; `typesDrift` checks the
+    generated-types drift allow-list against the migrations that caused it.
+  These checks are deliberately *shallow* — a name in a test file is a claim
+  someone looked at it. Don't satisfy them with an empty test; depth is what
+  review is for.
+- **Unit coverage is gated per-directory, not globally.** `vitest.config.ts`
+  sets thresholds for `src/components/**`, `src/hooks/**`, `src/lib/**` and
+  `src/contexts/**` only (`src/pages/**` is covered by Playwright and would
+  drag any global number to a meaningless floor). They're set a couple of
+  points under the measured figures and are a ratchet — raise them when the
+  real numbers move up.
+- **The lint ratchet has a hard-coded baseline.** `scripts/lint-ratchet.mjs`
+  pins `BASELINE` (currently 537 errors). If you legitimately reduce the count,
+  lower `BASELINE` in the same commit — the script prints the new number.
+- **Vitest and Playwright share one in-memory Supabase backend.**
+  `src/test/support/` is a real PostgREST emulator — it parses the query,
+  applies filters/ordering/limits/counts, persists writes, and implements RPCs
+  and edge functions (`server/`, `postgrest/`, `factories/`, `personas.ts`),
+  reached through `transports/vitest.ts` and `transports/playwright.ts`. It
+  derives its schema from `src/integrations/supabase/types.ts` and **rejects
+  unknown columns exactly as PostgREST does**, so a fixture inventing a field
+  fails instead of silently matching nothing. Every Playwright worker gets its
+  own database, so there's no shared state.
+- **Edge functions have no exported handler.** Every function in
+  `supabase/functions/` calls `serve()`/`Deno.serve()` at module scope.
   `supabase/functions/_test/harness.ts` intercepts both forms via an
   import-map shim and a `Deno.serve` monkey-patch; `loadFunction(name)` is how
   tests get a callable handler with faked secrets and routed `fetch`.
@@ -87,9 +137,11 @@ harness.
 **AI generation** goes through a shared orchestrator, not direct gateway
 calls: `supabase/functions/_shared/aiBrain.ts` (`askBrain()`) layers dialect
 identity, an MSA-leak detector, a repair pass, and an optional native-speaker
-validator over whichever model lineup is requested from `modelRegistry.ts`.
-Every edge function that generates or judges Arabic content calls through
-this, not the gateway directly.
+validator over whichever model lineup is requested from `modelRegistry.ts`. A
+task picks a `Strategy` — `solo`, `ensemble`, `draft_critic` or `council` — and
+`streamBrain()` is the streaming counterpart for chat-shaped responses. Every
+edge function that generates or judges Arabic content calls through this, not
+the gateway directly.
 
 **The learner model** conditions generation on what a learner actually knows.
 `_shared/learnerProfile.ts` assembles known/in-progress/weak vocabulary from
@@ -122,6 +174,20 @@ never promotes, only demotes.
 Gating is soft — `unlock_condition` is free-text guidance, not an enforced
 rule. Lesson content is imported from `.xlsx` (`src/lib/parseLessonXlsx.ts`).
 
+**Access, spend and abuse controls** are cross-cutting concerns every
+model-calling function must respect, not per-function decisions:
+`_shared/usageCap.ts` resolves the caller (`resolveUserId`), their tier
+(`getSubscriptionTier`), and enforces `requireActiveSubscription` /
+`enforceDailyCap`; `_shared/voiceBudget.ts` does the equivalent for realtime
+voice minutes; `_shared/cors.ts` serves an `ALLOWED_ORIGINS` allow-list rather
+than `*`. Billing itself is `create-checkout`, `check-subscription`,
+`customer-portal` and `referral` (Stripe ids are guarded by
+`src/test/stripeIds.test.ts`). Four fire-and-forget sinks record what happened
+— `llmUsageLogger`, `msaViolationLogger`, `trainingExampleLogger`,
+`featureMetrics` — and they swallow their own errors so they can never fail
+the request they're attached to, which also means they can stop working
+silently.
+
 **Reads vs. writes are deliberately asymmetric** in several tables
 (`learner_errors`, `user_concept_mastery`, `learner_ai_memory`) — clients read
 their own rows under RLS but writes go through edge functions under the
@@ -129,21 +195,36 @@ service role, so nobody can post themselves a score or plant a fake memory.
 When adding a table a client should only partially control, follow this
 pattern rather than a blanket RLS policy.
 
-**RBAC**: roles live in `public.user_roles`, admin-writable only. Roles:
-`admin`, `content_reviewer`, `beta_tester`, `bible_reader` — see README for
-exact scoping (e.g. `bible_reader` is overridden when the user is also
-`content_reviewer`).
+**RBAC**: roles live in `public.user_roles`, admin-writable only, and are
+checked through the `has_role` RPC (never by reading the table client-side).
+The `app_role` enum carries `admin`, `user`, `content_reviewer`, `recorder`,
+`beta_tester` and `bible_reader`. `useAdminAuth` collapses the staff-facing
+ones into a single `admin | content_reviewer | recorder | null` role; see
+README for exact scoping (e.g. `bible_reader` is overridden when the user is
+also `content_reviewer`).
 
 ## Project layout
 
 - `src/` — React app; domain/pure logic lives in `src/lib` (unit-tested,
-  co-located `*.test.ts`), not in components.
+  co-located `*.test.ts`), not in components. `src/pages` holds route
+  components — exercised by Playwright rather than Vitest, and excluded from
+  the coverage thresholds; `src/hooks` holds most of the app's decisions and
+  is covered by Vitest under a threshold.
+- `src/test/` — shared harness plus cross-cutting suites with no single home:
+  the drift guards above, the tests for `supabase/functions/_shared/*` (Deno
+  modules that can't sit in the Vitest include glob), and `support/`, the
+  in-memory Supabase backend.
 - `supabase/functions/` — Deno edge functions, one directory per function,
   `_shared/` for cross-function modules, `_test/` for the harness and edge
-  function tests.
+  function tests (`_test/eval/golden` holds the golden-set eval fixtures).
 - `supabase/migrations/` — schema + RLS, applied in filename order.
 - `contract/` — rebuilds the schema from migrations against stock Postgres.
 - `curriculum/`, `docs/` — source lesson spreadsheets/docs and planning notes
-  (`docs/` includes dialect-specific corpus work under `docs/yemeni/`).
+  (`docs/` includes dialect-specific corpus work under `docs/yemeni/`, plus
+  `testing.md`, `sharing.md` and `tts-voice-routing.md`).
 - `e2e/` — Playwright specs, one file per functional area; `e2e/support/`
-  seeds a fake auth session and answers requests from fixtures (no network).
+  seeds a fake auth session and answers requests from the same in-memory
+  backend as the unit suite (no network).
+- `scripts/` — repo tooling that isn't part of the app build: the lint
+  ratchet, corpus/artifact derivation, illustration generation, training-data
+  export.

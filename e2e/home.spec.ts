@@ -458,9 +458,13 @@ test.describe("the desktop layout", () => {
     const bridge = await page.getByText("Coming from MSA?").boundingBox();
 
     // Side by side: the bridge card starts to the right of where the queue
-    // card starts, at roughly the same height — not stacked underneath it.
+    // card starts, near its top rather than thumbnails below it. The x check
+    // alone already proves "different column"; y just rules out "stacked"
+    // (400px+ in the phone case below), so 300px leaves headroom for content
+    // height varying above the bridge card (banners, streak state) without
+    // going anywhere near that stacked threshold.
     expect(bridge!.x).toBeGreaterThan(queue!.x + 200);
-    expect(Math.abs(bridge!.y - queue!.y)).toBeLessThan(150);
+    expect(Math.abs(bridge!.y - queue!.y)).toBeLessThan(300);
   });
 
   test("stacks below the queue on a phone, exactly as before", async ({

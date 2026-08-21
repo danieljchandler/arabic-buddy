@@ -14,12 +14,19 @@ interface RatingButtonsProps {
   elapsedDays?: number;
   disabled?: boolean;
   /**
+   * Called when the learner taps a rating while it is gated (answer not yet
+   * revealed / cloze not answered). A silently dead button reads as a broken
+   * app, so the caller gets a chance to reveal the answer or explain.
+   */
+  onBlocked?: () => void;
+  /**
    * Highest rating on offer. A card with an objective check (cloze) that was
    * answered wrongly caps at "hard" — an evidence-contradicting "Good" would
    * write a too-long interval off a failure.
    */
   maxRating?: Rating;
 }
+
 
 const RATING_ORDER: Rating[] = ["again", "hard", "good", "easy"];
 

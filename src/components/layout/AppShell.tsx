@@ -31,6 +31,12 @@ export function AppShell({ children, className, compact = false }: AppShellProps
       className={cn(
         "min-h-[100dvh] relative bg-background",
         "transition-[padding] duration-300 ease-lahja motion-reduce:transition-none",
+        // Clear the nav rail. From lg the dock stands up as a 5rem column down
+        // the left edge (see AppDock), and it is fixed — so the page has to
+        // make room for it or the centred content sits under it. Same
+        // condition as the dock's own visibility: immersive routes hide it and
+        // get the full width back.
+        showNav && "lg:pl-20",
         // Only from lg: below that there isn't room to inset without squeezing
         // the text column, so the rail simply overlaps (still readable — no scrim).
         aiOpen && "lg:pr-[28rem]",
@@ -61,8 +67,10 @@ export function AppShell({ children, className, compact = false }: AppShellProps
         // pb-24 (96px) left it sitting on whatever ended a page — the Start
         // a lesson button on My Words, the empty-state copy on Discover.
         // 128px lets every page scroll its last element clear of it. From md
-        // the FAB drops to bottom-6 and pb-24 already clears it.
-        showNav && "pb-32 md:pb-24",
+        // the FAB drops to bottom-6 and pb-24 already clears it. From lg there
+        // is no bottom bar at all — the dock is a left rail — so the page only
+        // needs to clear the FAB.
+        showNav && "pb-32 md:pb-24 lg:pb-16",
         // Let the page scroll clear of the bottom sheet, or its lower half is
         // unreachable while the panel is open.
         aiOpen && "max-sm:pb-[60dvh]",

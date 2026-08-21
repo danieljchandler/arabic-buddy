@@ -405,12 +405,17 @@ const MyWordsReview = () => {
     ? currentWord?.sentence_audio_url ?? null
     : null;
   const clozeFromTranscript = !sentenceHasOwnWord && !!transcriptCloze;
+  // Every other card normally, but ALWAYS for a leech: re-serving a card the
+  // learner has failed six times in the same bare-word modality is the one
+  // intervention known not to work, and placing the word in a sentence is a
+  // different task on the same knowledge. (The curriculum deck rotates a leech
+  // onto its audio channel for the same reason — see recognitionChannel.)
   const useCloze =
     !isProduction &&
     !!currentArabic &&
     !!clozeSentenceText &&
     distractorPool.length >= 3 &&
-    currentIndex % 2 === 0;
+    (currentWord?.is_leech || currentIndex % 2 === 0);
 
   // TTS fallback when no recorded word_audio_url is available.
   // When generated for the first time, upload the blob to storage and
@@ -518,12 +523,14 @@ const MyWordsReview = () => {
 
   const handleRate = async (rating: Rating) => {
     const card = relearnPick?.card ?? dueWords?.[currentIndex];
-    if (!dueWords || !card) return;
+    // Gate on the card, not the list: a relearn card outlives the fetched
+    // list, and dropping its rating would lose the retrieval it is owed.
+    if (!card) return;
     // Guard against a double-tap firing two ratings for the same card before
     // the mutation resolves (which double-counts sessionCount and skips a card).
     if (ratingInFlightRef.current) return;
     ratingInFlightRef.current = true;
-    const wordCount = dueWords.length;
+    const wordCount = dueWords?.length ?? 0;
 
     try {
       // Snapshot the current DB row so the learner can undo this rating.

@@ -6,6 +6,7 @@ import { useDesiredRetention } from './useDesiredRetention';
 import { useFsrsCalibration } from './useFsrsCalibration';
 import {
   buildReviewOrder,
+  recognitionChannel,
   scheduleDirectionFor,
   type CardDirection,
   type ScheduleDirection,
@@ -171,10 +172,14 @@ export const useDueWords = (mixAll = false) => {
             // Alternate the input channel for recognition cards: hearing the
             // word and recalling its meaning is the direction that matters most
             // for a spoken dialect, and it was absent from every deck. Only
-            // words that have some audio to play can be served this way.
-            card_type: repetitions > 0 && hasAudio(word) && repetitions % 2 === 1
-              ? 'audio'
-              : 'recognition',
+            // words that have some audio to play can be served this way — and
+            // a leech stops alternating and is always heard (see
+            // recognitionChannel).
+            card_type: recognitionChannel({
+              repetitions,
+              hasAudio: hasAudio(word),
+              isLeech: !!review?.is_leech,
+            }),
             due_at: review?.next_review_at ?? now,
             repetitions,
           });
@@ -395,7 +400,21 @@ export async function submitRatingToServer(
     // First-ever rating of this word: claim daily new-card budget (shared
     // with the personal-vocab review path). Best-effort — never blocks the
     // review submission.
-    (supabase.rpc as any)('increment_new_card_count', { _amount: 1 }).catch(() => {});
+    //
+    // Awaited inside a try, not `.catch`-ed: a PostgrestFilterBuilder is a
+    // thenable, it implements `then` and nothing else, so `.catch` was
+    // undefined and calling it threw a TypeError *synchronously* — out of
+    // submitRatingToServer, past the mutation, into onError. The card was
+    // scheduled (the insert above had already landed) but onSuccess never
+    // ran, so every brand-new word a learner met paid no XP, awarded no
+    // achievement and counted toward no review total. Only new cards: a word
+    // with an existing row takes the update branch and never reaches here,
+    // which is what kept it invisible.
+    try {
+      await (supabase.rpc as any)('increment_new_card_count', { _amount: 1 });
+    } catch {
+      // Budget accounting is not worth failing a saved review over.
+    }
   }
 
   return { result, rating };

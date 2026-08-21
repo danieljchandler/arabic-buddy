@@ -101,7 +101,10 @@ const Review = () => {
     showAnswer,
     onFlip: handleFlip,
     onRate: handleRateKeyboard,
-    enabled: !!dueWords && dueWords.length > 0,
+    // A relearn card outlives the fetched list, so gate on there being a card
+    // rather than on the list being non-empty — otherwise a mid-session
+    // invalidation leaves a card on screen that the keyboard cannot rate.
+    enabled: (dueWords?.length ?? 0) > 0 || !!relearnPick,
   });
 
   const playAudio = (url: string) => {
@@ -125,7 +128,9 @@ const Review = () => {
    * again next time.
    */
   const persistCurriculumAudio = useCallback(async () => {
-    const word = dueWords?.[currentIndex];
+    // The card on screen, which during a relearn pass is not the one the list
+    // index points at — caching against that would stamp the wrong word.
+    const word = relearnPick?.card ?? dueWords?.[currentIndex];
     if (!word || word.audio_url) return;
     try {
       await supabase.functions.invoke("persist-word-audio", {
@@ -137,7 +142,7 @@ const Review = () => {
     } catch (err) {
       console.warn("Couldn't cache word audio:", err);
     }
-  }, [dueWords, currentIndex, activeDialect]);
+  }, [dueWords, currentIndex, activeDialect, relearnPick]);
 
   const goToNext = async () => {
     if (!dueWords) return;
@@ -152,8 +157,10 @@ const Review = () => {
 
   const handleRate = (rating: Rating) => {
     const word = relearnPick?.card ?? dueWords?.[currentIndex];
-    if (!dueWords || !word) return;
-    const wordCount = dueWords.length;
+    // Gate on the card, not the list: a relearn card outlives the fetched
+    // list, and dropping its rating would lose the retrieval it is owed.
+    if (!word) return;
+    const wordCount = dueWords?.length ?? 0;
     const direction = scheduleDirectionFor(word.card_type);
 
     // Queue locally; background processor retries on network failures.

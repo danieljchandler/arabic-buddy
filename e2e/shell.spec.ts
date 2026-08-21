@@ -57,22 +57,32 @@ test.describe("the corner control", () => {
     await expect(page.getByRole("button", { name: "Go home" })).toBeVisible();
   });
 
-  test("leaves room under itself at desktop width", async ({ page }) => {
+  test("leaves room for itself, whichever way it runs", async ({ page }) => {
     // The page padding that clears the dock is set twice — once bare, once
     // under md: — and the md: one wins from 768px up. When it was the smaller
     // of the two, anything at the bottom of a page sat underneath the dock and
     // could not be tapped. Ingleezy hit exactly this when it swapped its bar;
     // the clearance is stated at both widths.
-    await page.setViewportSize({ width: 1280, height: 720 });
+    await page.setViewportSize({ width: 900, height: 720 });
     await page.goto("/reading");
 
-    const dock = await page.getByRole("navigation", { name: "Primary" }).boundingBox();
+    const bar = await page.getByRole("navigation", { name: "Primary" }).boundingBox();
     const padding = await page.evaluate(() => {
       const main = document.querySelector("main, [class*='max-w-2xl']") as HTMLElement;
       return parseFloat(getComputedStyle(main).paddingBottom);
     });
+    expect(padding).toBeGreaterThanOrEqual(bar!.height);
 
-    expect(padding).toBeGreaterThanOrEqual(dock!.height);
+    // From lg the dock stands up as a left rail, so the clearance has to turn
+    // with it: content starting under a fixed rail is unreachable in exactly
+    // the same way, and a bottom padding tall enough for a full-height rail
+    // would be an absurd gap.
+    await page.setViewportSize({ width: 1280, height: 720 });
+    const rail = await page.getByRole("navigation", { name: "Primary" }).boundingBox();
+    const content = await page.locator("[class*='max-w-2xl']").first().boundingBox();
+
+    expect(rail!.x).toBe(0);
+    expect(content!.x).toBeGreaterThanOrEqual(rail!.x + rail!.width);
   });
 
   test("does not offer the same destination twice", async ({ page }) => {

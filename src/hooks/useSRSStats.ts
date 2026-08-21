@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllRows } from "@/lib/fetchAllRows";
 import { useAuth } from "@/hooks/useAuth";
 import type { Database } from "@/integrations/supabase/types";
 import {
@@ -95,22 +96,28 @@ export const useSRSStats = () => {
 
       const now = new Date();
 
-      const [wordReviewsRes, userVocabularyRes] = await Promise.all([
-        supabase
-          .from("word_reviews")
-          .select("repetitions, next_review_at, interval_days, ease_factor, lapses, last_reviewed_at")
-          .eq("user_id", user.id),
-        supabase
-          .from("user_vocabulary")
-          .select("repetitions, next_review_at, production_next_review_at, production_repetitions, interval_days, production_interval_days, lapses, production_lapses, ease_factor, production_ease_factor, last_reviewed_at, production_last_reviewed_at")
-          .eq("user_id", user.id),
+      // Paged, not unbounded. PostgREST returns the first 1000 rows of an
+      // unbounded select with no error, so every number on this screen — due
+      // now, retention, the forecast, the card totals — silently truncated for
+      // exactly the learners who have studied most. The retention half is
+      // worse than cosmetic: useFsrsCalibration reads it and scales real
+      // review intervals by it.
+      const [wordReviews, userVocabulary] = await Promise.all([
+        fetchAllRows<WordReviewSRSRow>((from, to) =>
+          supabase
+            .from("word_reviews")
+            .select("repetitions, next_review_at, interval_days, ease_factor, lapses, last_reviewed_at")
+            .eq("user_id", user.id)
+            .range(from, to),
+        ),
+        fetchAllRows<UserVocabularySRSRow>((from, to) =>
+          supabase
+            .from("user_vocabulary")
+            .select("repetitions, next_review_at, production_next_review_at, production_repetitions, interval_days, production_interval_days, lapses, production_lapses, ease_factor, production_ease_factor, last_reviewed_at, production_last_reviewed_at")
+            .eq("user_id", user.id)
+            .range(from, to),
+        ),
       ]);
-
-      if (wordReviewsRes.error) throw wordReviewsRes.error;
-      if (userVocabularyRes.error) throw userVocabularyRes.error;
-
-      const wordReviews = (wordReviewsRes.data ?? []) as unknown as WordReviewSRSRow[];
-      const userVocabulary = (userVocabularyRes.data ?? []) as unknown as UserVocabularySRSRow[];
 
       const stageBreakdown = createEmptyStageBreakdown();
       const forecastDates: string[] = [];

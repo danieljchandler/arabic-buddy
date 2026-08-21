@@ -121,3 +121,31 @@ export function buildReviewOrder<T extends SchedulableCard>(
   }
   return out;
 }
+
+/**
+ * Which input channel a recognition-side card is tested through.
+ *
+ * Normally the two alternate, so a word is met by eye and by ear in turn.
+ * A **leech** — a card the learner has failed six or more times — breaks that
+ * rule: re-serving a failing card in the same modality is the one intervention
+ * known not to work, and half of a leech's exposures were the text channel it
+ * keeps failing. So a leech with audio is always heard, never read: same
+ * form→meaning mapping, a different route into it, and the route that matters
+ * most for a spoken dialect.
+ *
+ * New cards (no completed reviews) are always read first — hearing a word you
+ * have never seen written is a listening test, not an introduction.
+ */
+export function recognitionChannel({
+  repetitions,
+  hasAudio,
+  isLeech = false,
+}: {
+  repetitions: number;
+  hasAudio: boolean;
+  isLeech?: boolean;
+}): CardDirection {
+  if (repetitions === 0 || !hasAudio) return 'recognition';
+  if (isLeech) return 'audio';
+  return repetitions % 2 === 1 ? 'audio' : 'recognition';
+}

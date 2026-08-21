@@ -205,11 +205,16 @@ Mix these question types across the 5 questions:
 - grammar: Fill-in-the-blank or choose correct form
 - reading: Short Arabic sentence/passage with comprehension question
 - translation: Translate a short phrase
+- listening: A short spoken line. question_arabic is the line EXACTLY as it should be
+  heard and nothing else — no instructions, no English, no quotation marks — because
+  the app speaks it aloud and never shows it. The choices are English meanings.
 
 IMPORTANT RULES:
 - Use authentic ${dialectName} Arabic, NOT Modern Standard Arabic (MSA)
 - Each question must have exactly 4 choices
 - Vary the skill types across the batch
+- Include at least one listening question in every batch. This is a spoken-dialect
+  test: a placement built only from reading over-places anyone whose ear lags their eye
 - Make difficulty appropriate for ${difficulty} level
 - Include diacritics (tashkeel) for A1-A2 level questions
 
@@ -219,7 +224,7 @@ Return a JSON object with this exact structure:
     {
       "question_arabic": "the question prompt in Arabic",
       "question_english": "the question prompt in English",
-      "skill_type": "vocabulary|grammar|reading|translation",
+      "skill_type": "vocabulary|grammar|reading|translation|listening",
       "difficulty": "${difficulty}",
       "choices": [
         {"text": "choice 1", "text_arabic": "الخيار ١"},
@@ -261,7 +266,7 @@ Return a JSON object with this exact structure:
                       properties: {
                         question_arabic: { type: "string" },
                         question_english: { type: "string" },
-                        skill_type: { type: "string", enum: ["vocabulary", "grammar", "reading", "translation"] },
+                        skill_type: { type: "string", enum: ["vocabulary", "grammar", "reading", "translation", "listening"] },
                         difficulty: { type: "string" },
                         choices: {
                           type: "array",

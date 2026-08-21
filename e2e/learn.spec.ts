@@ -54,51 +54,92 @@ function seedLesson(db: MemoryDb, count = 4, over: Record<string, unknown> = {})
   db.seed("lesson_progress", []);
 }
 
-/** The "N / total" counter under the card. */
-const atCard = (page: Page, index: number, total: number) =>
-  expect(page.getByText(`${index + 1} / ${total}`)).toBeVisible();
+/**
+ * Words met before the block is tested — mirrors LESSON_BLOCK_SIZE in
+ * src/lib/lessonFlow.ts. A lesson introduces a block of words and only then
+ * quizzes them, in a different order, so that answering is recall rather than
+ * reading back what is still on screen.
+ */
+const BLOCK = 4;
+
+/** The "N / total learned" counter under the card. Counts words *answered*. */
+const learned = (page: Page, count: number, total: number) =>
+  expect(page.getByText(`${count} / ${total} learned`)).toBeVisible();
 
 /**
- * Move to the quiz for the current card and pick `english`.
+ * Meet every word in the current block, ending on its first quiz card.
+ *
+ * The button says "Next Word" until the last introduction, which promises the
+ * quiz — the label is derived from the flow, so clicking through in this order
+ * is also an assertion that it tells the truth.
+ */
+async function introduceBlock(page: Page, size = BLOCK) {
+  for (let i = 0; i < size - 1; i++) {
+    await page.getByRole("button", { name: /next word/i }).click();
+  }
+  await page.getByRole("button", { name: /continue to quiz/i }).click();
+}
+
+/**
+ * Which word the intro card is showing, 1-based.
+ *
+ * Read from the English: the intro card deliberately keeps the Arabic hidden
+ * until the learner asks for it, so there is no Arabic on screen to read.
+ */
+async function introducedWord(page: Page): Promise<number> {
+  const english = await page.getByText(/^word \d+$/).first().textContent();
+  return Number((english ?? "").replace(/\D/g, ""));
+}
+
+/**
+ * Wait for a quiz card that can actually be answered.
+ *
+ * An answered card disables its options and holds for a beat so the learner
+ * reads the result, so back-to-back answers would otherwise click the spent
+ * card and time out on it.
+ */
+async function liveQuizCard(page: Page) {
+  await expect(page.getByRole("radio").first()).toBeEnabled();
+}
+
+/** Which word the quiz is asking about right now, 1-based. */
+async function askedWord(page: Page): Promise<number> {
+  await liveQuizCard(page);
+  const arabic = await page.getByText(/^كلمة\d+$/).first().textContent();
+  return Number((arabic ?? "").replace(/\D/g, ""));
+}
+
+/**
+ * Answer the quiz card on screen correctly, whichever word it is.
+ *
+ * The block's order is shuffled, so a test can no longer assume it. Reading
+ * the prompt is what a learner does anyway.
  *
  * The options are `role="radio"`, not buttons — QuizCard wraps them in a
  * radiogroup so a screen reader announces them as one choice rather than four
  * unrelated actions.
  */
-async function answer(page: Page, english: string) {
-  await page.getByRole("button", { name: /continue to quiz/i }).click();
-  await page.getByRole("radio", { name: english, exact: true }).click();
+async function answerShown(page: Page): Promise<number> {
+  const n = await askedWord(page);
+  await page.getByRole("radio", { name: `word ${n}`, exact: true }).click();
+  return n;
 }
 
-/** Answer the card at `index` correctly. */
-const answerCorrectly = (page: Page, index: number) => answer(page, `word ${index + 1}`);
-
-/**
- * The first rating of a never-seen word throws, and the throw is visible.
- *
- * `submitRatingToServer` inserts the review row, then calls
- * `supabase.rpc(...).catch(() => {})` to claim daily new-card budget. A
- * PostgrestFilterBuilder is a thenable, not a Promise — it implements `then`
- * and nothing else — so `.catch` is undefined and the call throws a TypeError
- * synchronously, before the function returns. The comment above it says
- * "best-effort — never blocks the review submission"; it blocks it every time.
- *
- * The row still lands, because the insert is awaited first. What is lost is
- * everything downstream of the mutation succeeding: XP, the review counter, the
- * achievement check, and the new-card budget the RPC existed to claim.
- *
- * Only new cards are affected, which is why the review suite never saw it —
- * those fixtures all seed an existing row and take the update path.
- */
-const NEW_CARD_RPC_BUG = [
-  /supabase\.rpc\(\.\.\.\)\.catch is not a function/,
-  /Failed to submit review/,
-];
-
-/** Miss the current card, then acknowledge the correction. */
-async function answerWrongly(page: Page, wrongEnglish: string) {
-  await answer(page, wrongEnglish);
+/** Miss the card on screen, then acknowledge the correction. */
+async function missShown(page: Page): Promise<number> {
+  const n = await askedWord(page);
+  const wrong = n === 1 ? 2 : 1;
+  await page.getByRole("radio", { name: `word ${wrong}`, exact: true }).click();
   await page.getByRole("button", { name: /^continue$/i }).click();
+  return n;
+}
+
+/** Introduce and then correctly answer a whole block. */
+async function completeBlock(page: Page, size = BLOCK): Promise<number[]> {
+  await introduceBlock(page, size);
+  const asked: number[] = [];
+  for (let i = 0; i < size; i++) asked.push(await answerShown(page));
+  return asked;
 }
 
 test.describe("working through a lesson", () => {
@@ -111,7 +152,7 @@ test.describe("working through a lesson", () => {
     await page.goto(`/learn/${LESSON}`);
 
     await expect(page.getByText("word 1", { exact: true })).toBeVisible();
-    await atCard(page, 0, 4);
+    await learned(page, 0, 4);
   });
 
   test("keeps the Arabic hidden until the learner asks for it", async ({ page }) => {
@@ -171,71 +212,84 @@ test.describe("working through a lesson", () => {
     await expect(page.getByTitle("Arabic root")).toHaveCount(0);
   });
 
-  test("asks for the English once the quiz starts", async ({ page }) => {
+  test("asks for the English once the block's quiz starts", async ({ page }) => {
     await page.goto(`/learn/${LESSON}`);
-    await page.getByRole("button", { name: /continue to quiz/i }).click();
+    await introduceBlock(page);
 
     await expect(page.getByText(/what does this mean in English/i)).toBeVisible();
     await expect(page.getByRole("radiogroup")).toBeVisible();
     // The Arabic is the prompt now, so it is shown whether or not it was
-    // revealed on the intro card.
-    await expect(page.getByText("كلمة1")).toBeVisible();
+    // revealed on the intro card — and it is one of the block's words.
+    expect(await askedWord(page)).toBeGreaterThan(0);
   });
 
-  test("advances to the next word after a correct answer", async ({ page, expectConsoleErrors }) => {
-    expectConsoleErrors(NEW_CARD_RPC_BUG);
-
+  test("never opens a quiz on the word just introduced", async ({ page }) => {
+    // The reason blocks exist: answering the word still on screen is reading,
+    // not recall, and it was being written to FSRS as a confident success.
     await page.goto(`/learn/${LESSON}`);
-    await answerCorrectly(page, 0);
+    for (let i = 0; i < BLOCK - 1; i++) {
+      await page.getByRole("button", { name: /next word/i }).click();
+    }
+    const lastIntroduced = await introducedWord(page);
+    await page.getByRole("button", { name: /continue to quiz/i }).click();
 
-    await expect(page.getByText("word 2", { exact: true })).toBeVisible();
-    await atCard(page, 1, 4);
+    expect(await askedWord(page)).not.toBe(lastIntroduced);
+  });
+
+  test("moves on to the next word in the block after a correct answer", async ({ page }) => {
+    await page.goto(`/learn/${LESSON}`);
+    await introduceBlock(page);
+    const first = await answerShown(page);
+
+    // Still inside the block's quiz, on a different word than the one just
+    // answered, with one word banked.
+    await learned(page, 1, 4);
+    expect(await askedWord(page)).not.toBe(first);
   });
 
   test("waits for the learner to read the right answer after a miss", async ({ page }) => {
     await page.goto(`/learn/${LESSON}`);
-    await answer(page, "word 2");
+    await introduceBlock(page);
+    const asked = await askedWord(page);
+    await page
+      .getByRole("radio", { name: `word ${asked === 1 ? 2 : 1}`, exact: true })
+      .click();
 
     // A wrong answer does not auto-advance; it holds until Continue is tapped,
     // so the correct option is actually read rather than flashing past.
     await expect(page.getByRole("button", { name: /^continue$/i })).toBeVisible();
-    await atCard(page, 0, 4);
+    await learned(page, 0, 4);
   });
 
-  test("finishes with a score once every word is answered", async ({ page, expectConsoleErrors }) => {
-    expectConsoleErrors(NEW_CARD_RPC_BUG);
-
+  test("finishes with a score once every word is answered", async ({ page }) => {
     await page.goto(`/learn/${LESSON}`);
-    for (let index = 0; index < 4; index++) await answerCorrectly(page, index);
+    await completeBlock(page);
 
     await expect(page.getByRole("heading", { name: /excellent work/i })).toBeVisible();
     await expect(page.getByText("100%")).toBeVisible();
     await expect(page.getByText("4 / 4 correct")).toBeVisible();
   });
 
-  test("scores a mixed session honestly", async ({ page, expectConsoleErrors }) => {
-    expectConsoleErrors(NEW_CARD_RPC_BUG);
-
+  test("scores a mixed session honestly", async ({ page }) => {
     await page.goto(`/learn/${LESSON}`);
 
-    await answerWrongly(page, "word 2");
-    for (let index = 1; index < 4; index++) await answerCorrectly(page, index);
+    await introduceBlock(page);
+    await missShown(page);
+    for (let i = 0; i < 3; i++) await answerShown(page);
 
     await expect(page.getByText("75%")).toBeVisible();
     await expect(page.getByRole("heading", { name: /good effort/i })).toBeVisible();
   });
 
-  test("restarting clears the score rather than adding to it", async ({ page, expectConsoleErrors }) => {
-    expectConsoleErrors(NEW_CARD_RPC_BUG);
-
+  test("restarting clears the score rather than adding to it", async ({ page }) => {
     await page.goto(`/learn/${LESSON}`);
-    for (let index = 0; index < 4; index++) await answerCorrectly(page, index);
+    await completeBlock(page);
     await expect(page.getByText("100%")).toBeVisible();
 
     await page.getByRole("button", { name: /practice again/i }).click();
 
     await expect(page.getByText("word 1", { exact: true })).toBeVisible();
-    await atCard(page, 0, 4);
+    await learned(page, 0, 4);
   });
 });
 
@@ -245,33 +299,33 @@ test.describe("what a lesson answer records", () => {
     seedLesson(db, 4);
   });
 
-  test("schedules the word that was actually asked", async ({ page, db, expectConsoleErrors }) => {
-    expectConsoleErrors(NEW_CARD_RPC_BUG);
-
+  test("schedules the word that was actually asked", async ({ page, db }) => {
     await page.goto(`/learn/${LESSON}`);
-    await answerCorrectly(page, 0);
-    await atCard(page, 1, 4);
+    await introduceBlock(page);
+    const asked = await answerShown(page);
+    await learned(page, 1, 4);
 
     await expect.poll(() => db.rows("word_reviews").length, { timeout: 10_000 }).toBe(1);
 
     // The review is a scheduling decision for one specific card; the wrong id
-    // here silently reschedules a word the learner never saw.
+    // here silently reschedules a word the learner never saw. The block's quiz
+    // order is shuffled, so this asserts against the word actually put to the
+    // learner rather than against a position.
     const review = db.rows("word_reviews")[0];
-    expect(review.word_id).toBe(wordId(0));
+    expect(review.word_id).toBe(wordId(asked - 1));
     expect(new Date(String(review.next_review_at)).getTime()).toBeGreaterThan(Date.now());
   });
 
-  test("a miss brings the word back soon rather than being dropped", async ({ page, db, expectConsoleErrors }) => {
-    expectConsoleErrors(NEW_CARD_RPC_BUG);
-
+  test("a miss brings the word back soon rather than being dropped", async ({ page, db }) => {
     await page.goto(`/learn/${LESSON}`);
-    await answerWrongly(page, "word 2");
-    await atCard(page, 1, 4);
+    await introduceBlock(page);
+    const missed = await missShown(page);
+    await learned(page, 1, 4);
 
     await expect.poll(() => db.rows("word_reviews").length, { timeout: 10_000 }).toBe(1);
 
     const review = db.rows("word_reviews")[0];
-    expect(review.word_id).toBe(wordId(0));
+    expect(review.word_id).toBe(wordId(missed - 1));
     // Forgetting has to shorten the interval. Recording the miss as a pass
     // would push the word out of sight for weeks.
     expect(Number(review.interval_days)).toBeLessThanOrEqual(1);
@@ -289,34 +343,39 @@ test.describe("what a lesson answer records", () => {
     ]);
 
     await page.goto(`/learn/${LESSON}`);
-    await answerCorrectly(page, 0);
-    await atCard(page, 1, 4);
+    // The block's quiz order is shuffled, so answer all of it rather than
+    // guessing when the seeded word comes up.
+    await completeBlock(page);
 
     await expect
-      .poll(() => Number(db.rows("word_reviews")[0]?.repetitions), { timeout: 10_000 })
+      .poll(() => Number(db.rows("word_reviews").find((r) => r.word_id === wordId(0))?.repetitions), { timeout: 10_000 })
       .toBe(5);
-    // Still one row: a second would give the card two competing schedules.
-    expect(db.rows("word_reviews")).toHaveLength(1);
+    // Still one row for that word: a second would give the card two competing
+    // schedules.
+    expect(db.rows("word_reviews").filter((r) => r.word_id === wordId(0))).toHaveLength(1);
   });
 
-  test("awards no XP for a new card, because the submission throws first", async ({
+  test("pays for a brand-new word the learner just met", async ({
     page,
     db,
-    expectConsoleErrors,
   }) => {
-    expectConsoleErrors(NEW_CARD_RPC_BUG);
-
     await page.goto(`/learn/${LESSON}`);
-    await answerCorrectly(page, 0);
+    await introduceBlock(page);
+    await answerShown(page);
     await expect.poll(() => db.rows("word_reviews").length, { timeout: 10_000 }).toBe(1);
     await page.waitForTimeout(1000);
 
-    // The visible consequence of the bug above: the card is scheduled, but the
-    // mutation rejects, so onSuccess never runs and the learner is paid nothing
-    // for a word they just learned. Rating an already-seen card does award XP —
-    // see "builds on an existing review" — which is what makes this so easy to
-    // miss by hand.
-    expect(Number(db.rows("user_xp")[0]?.total_xp ?? 0)).toBe(250);
+    // Regression pin. Claiming the daily new-card budget used to call
+    // `supabase.rpc(...).catch(...)`, and a PostgrestFilterBuilder is a
+    // thenable with no `.catch` — so the call threw synchronously out of
+    // submitRatingToServer, past the mutation, into onError. The card was
+    // scheduled (the insert lands first) but onSuccess never ran: no XP, no
+    // review counted, no achievement checked, for every brand-new word anyone
+    // ever learned. Rating an already-seen card took the update path and paid
+    // out normally, which is what kept it invisible.
+    await expect
+      .poll(() => Number(db.rows("user_xp")[0]?.total_xp ?? 0), { timeout: 10_000 })
+      .toBeGreaterThan(250);
   });
 
   test("awards XP for a card that already has a review row", async ({ page, db }) => {
@@ -325,7 +384,7 @@ test.describe("what a lesson answer records", () => {
     ]);
 
     await page.goto(`/learn/${LESSON}`);
-    await answerCorrectly(page, 0);
+    await completeBlock(page);
 
     await expect
       .poll(() => Number(db.rows("user_xp")[0]?.total_xp ?? 0), { timeout: 10_000 })
@@ -337,9 +396,10 @@ test.describe("what a lesson answer records", () => {
     seedLesson(db, 4);
 
     await page.goto(`/learn/${LESSON}`);
-    await answerCorrectly(page, 0);
+    await introduceBlock(page);
+    await answerShown(page);
 
-    await atCard(page, 1, 4);
+    await learned(page, 1, 4);
     // Nothing to schedule against, so nothing is written — but the lesson works.
     expect(db.rows("word_reviews")).toHaveLength(0);
   });
@@ -349,7 +409,7 @@ test.describe("what a lesson answer records", () => {
     seedLesson(db, 4);
 
     await page.goto(`/learn/${LESSON}`);
-    for (let index = 0; index < 4; index++) await answerCorrectly(page, index);
+    await completeBlock(page);
 
     await expect(page.getByRole("link", { name: /login/i })).toBeVisible();
   });
@@ -361,12 +421,11 @@ test.describe("picking up where the learner left off", () => {
     seedLesson(db, 4);
   });
 
-  test("saves how far through the lesson got", async ({ page, db, expectConsoleErrors }) => {
-    expectConsoleErrors(NEW_CARD_RPC_BUG);
-
+  test("saves how far through the lesson got", async ({ page, db }) => {
     await page.goto(`/learn/${LESSON}`);
-    await answerCorrectly(page, 0);
-    await atCard(page, 1, 4);
+    await introduceBlock(page);
+    await answerShown(page);
+    await learned(page, 1, 4);
 
     await expect.poll(() => db.rows("lesson_progress").length, { timeout: 10_000 }).toBe(1);
 
@@ -376,41 +435,66 @@ test.describe("picking up where the learner left off", () => {
     expect(Number(progress.words_total)).toBe(4);
   });
 
-  test("resumes at the saved word on the next visit", async ({ page, db }) => {
+  test("resumes at the saved block on the next visit", async ({ page, db }) => {
+    // Two blocks, so there is a later one to resume into.
+    seedLesson(db, 8);
     db.seed("lesson_progress", [
       aLessonProgress({
         lesson_id: LESSON,
         status: "in_progress",
-        last_word_index: 2,
-        words_seen: 3,
-        words_total: 4,
+        last_word_index: 4,
+        words_seen: 4,
+        words_total: 8,
       }),
     ]);
 
     await page.goto(`/learn/${LESSON}`);
 
     // The whole point of the server-side row: a learner who switches device
-    // continues rather than restarting.
-    await expect(page.getByText("word 3", { exact: true })).toBeVisible();
-    await atCard(page, 2, 4);
+    // continues rather than restarting. They land on the first introduction of
+    // the block they had reached — never mid-block, which would quiz them on
+    // words this sitting never introduced.
+    await expect(page.getByText("word 5", { exact: true })).toBeVisible();
+    await learned(page, 4, 8);
   });
 
-  test("does not overwrite the saved position before restoring it", async ({ page, db }) => {
+  test("rewinds a mid-block position to that block's first introduction", async ({ page, db }) => {
+    seedLesson(db, 8);
     db.seed("lesson_progress", [
       aLessonProgress({
         lesson_id: LESSON,
         status: "in_progress",
-        last_word_index: 2,
-        words_total: 4,
+        last_word_index: 6,
+        words_seen: 6,
+        words_total: 8,
       }),
     ]);
 
     await page.goto(`/learn/${LESSON}`);
-    await atCard(page, 2, 4);
+
+    // Word 7 sits in the block that starts at word 5. Dropping the learner
+    // straight onto it would leave two of the block's words unintroduced and
+    // then quiz them anyway.
+    await expect(page.getByText("word 5", { exact: true })).toBeVisible();
+  });
+
+  test("does not overwrite the saved position before restoring it", async ({ page, db }) => {
+    seedLesson(db, 8);
+    db.seed("lesson_progress", [
+      aLessonProgress({
+        lesson_id: LESSON,
+        status: "in_progress",
+        last_word_index: 4,
+        words_total: 8,
+      }),
+    ]);
+
+    await page.goto(`/learn/${LESSON}`);
+    await learned(page, 4, 8);
 
     // Mounting starts at index 0; a write before the restore ran would persist 0
     // and destroy the position it was about to jump to.
-    expect(Number(db.rows("lesson_progress")[0].last_word_index)).toBeGreaterThanOrEqual(2);
+    expect(Number(db.rows("lesson_progress")[0].last_word_index)).toBeGreaterThanOrEqual(4);
   });
 
   test("starts a completed lesson from the top", async ({ page, db }) => {
@@ -429,14 +513,12 @@ test.describe("picking up where the learner left off", () => {
 
     // Re-opening a finished lesson is a decision to practise it again, so
     // resuming at the last card would hand the learner a single word.
-    await atCard(page, 0, 4);
+    await learned(page, 0, 4);
   });
 
-  test("marks the lesson completed with its score", async ({ page, db, expectConsoleErrors }) => {
-    expectConsoleErrors(NEW_CARD_RPC_BUG);
-
+  test("marks the lesson completed with its score", async ({ page, db }) => {
     await page.goto(`/learn/${LESSON}`);
-    for (let index = 0; index < 4; index++) await answerCorrectly(page, index);
+    await completeBlock(page);
     await expect(page.getByText("100%")).toBeVisible();
 
     await expect
@@ -445,9 +527,7 @@ test.describe("picking up where the learner left off", () => {
     expect(Number(db.rows("lesson_progress")[0].best_score)).toBe(100);
   });
 
-  test("keeps the better of two scores", async ({ page, db, expectConsoleErrors }) => {
-    expectConsoleErrors(NEW_CARD_RPC_BUG);
-
+  test("keeps the better of two scores", async ({ page, db }) => {
     db.seed("lesson_progress", [
       aLessonProgress({
         lesson_id: LESSON,
@@ -460,8 +540,9 @@ test.describe("picking up where the learner left off", () => {
     ]);
 
     await page.goto(`/learn/${LESSON}`);
-    await answerWrongly(page, "word 2");
-    for (let index = 1; index < 4; index++) await answerCorrectly(page, index);
+    await introduceBlock(page);
+    await missShown(page);
+    for (let i = 0; i < 3; i++) await answerShown(page);
     await expect(page.getByText("75%")).toBeVisible();
 
     // "Best score" has to mean best; overwriting it turns practice into a way

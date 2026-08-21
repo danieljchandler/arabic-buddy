@@ -27,6 +27,13 @@ import { cn } from "@/lib/utils";
  * tokens rather than literals, because the same dock has to sit under a black
  * video on the feed and on the warm-sand pages everywhere else — the feed
  * wraps itself in `dark`, and the tokens flip with it.
+ *
+ * From `lg` the same five slots stand up into a left rail. A full-width bar
+ * pinned to the bottom of a 1280px window is a phone control on a desktop: it
+ * puts the primary navigation as far from the content as the screen allows,
+ * and wastes the one axis a wide window actually has. Same component, same
+ * markup, same order — CSS decides which way it runs, so there is no
+ * breakpoint flash and nothing to keep in sync.
  */
 
 const SLOTS: {
@@ -90,22 +97,41 @@ export function AppDock({ className }: { className?: string }) {
       className={cn(
         "fixed inset-x-0 bottom-0 z-40 border-t border-border",
         "bg-background/92 backdrop-blur supports-[backdrop-filter]:bg-background/80",
+        // Standing up into a left rail: bottom-anchored full-width bar below
+        // lg, full-height 5rem column at and above it.
+        "lg:inset-y-0 lg:right-auto lg:w-20 lg:border-r lg:border-t-0",
+        "lg:top-[var(--rail-top)]",
         className,
       )}
-      style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+      style={{
+        paddingBottom: "env(safe-area-inset-bottom)",
+        // Start the rail below the sadu band. The band runs edge to edge as
+        // the app's signature; a rail painted over its first 5rem chops it and
+        // reads as a rendering fault rather than as a deliberate surface.
+        // Ignored below lg, where the dock is bottom-anchored and inset-y is
+        // not in play.
+        ["--rail-top" as string]: "var(--sadu-band-height)",
+      }}
     >
-      <ul className="mx-auto flex max-w-2xl items-stretch justify-around px-2">
+      <ul
+        className={cn(
+          "mx-auto flex max-w-2xl items-stretch justify-around px-2",
+          "lg:mx-0 lg:h-full lg:max-w-none lg:flex-col lg:justify-center lg:gap-1",
+        )}
+      >
         {SLOTS.map(({ to, label, icon: Icon, exact, primary, tourId, alsoOwns, badge }) => (
-          <li key={to} className="flex-1" data-tour={tourId}>
+          <li key={to} className="flex-1 lg:flex-none" data-tour={tourId}>
             <NavLink
               to={to}
               end={exact}
               className={({ isActive }) =>
                 cn(
                   "flex flex-col items-center gap-0.5 py-2.5 text-[10px] font-medium transition-colors",
+                  // The rail has room to be a real target rather than a strip.
+                  "lg:gap-1 lg:rounded-xl lg:py-3 lg:text-[11px]",
                   isActive || alsoOwns?.test(pathname)
-                    ? "text-foreground"
-                    : "text-muted-foreground hover:text-foreground",
+                    ? "text-foreground lg:bg-muted"
+                    : "text-muted-foreground hover:text-foreground lg:hover:bg-muted/60",
                 )
               }
             >

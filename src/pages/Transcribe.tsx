@@ -1053,6 +1053,15 @@ const Transcribe = () => {
     }
   };
 
+  const handleDeleteLine = (lineId: string) => {
+    setTranscriptResult(prev => {
+      if (!prev) return prev;
+      return { ...prev, lines: prev.lines.filter(l => l.id !== lineId) };
+    });
+    setIsSaved(false);
+    toast.success("Line deleted");
+  };
+
   const handleAddToVocabSection = (word: VocabItem) => {
     if (!transcriptResult) return;
     if (vocabSectionWords.has(word.arabic)) {
@@ -1441,13 +1450,14 @@ const Transcribe = () => {
               </div>
             </CardHeader>
             <CardContent>
-              <LineByLineTranscript 
-                lines={lines} 
+              <LineByLineTranscript
+                lines={lines}
                 audioUrl={audioUrl || undefined}
                 onAddToVocabSection={handleAddToVocabSection}
                 onSaveToMyWords={handleSaveToMyWords}
                 savedWords={savedWords}
                 vocabSectionWords={vocabSectionWords}
+                onDeleteLine={handleDeleteLine}
               />
             </CardContent>
           </Card>

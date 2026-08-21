@@ -134,6 +134,8 @@ interface Options {
   readOnly?: boolean;
   dialect?: string;
   seed?: (backend: SupabaseBackend) => void;
+  /** Mount it the way a page that lets a learner drop a line does. */
+  deletable?: boolean;
 }
 
 function render({
@@ -144,9 +146,11 @@ function render({
   readOnly = false,
   dialect = "Gulf",
   seed,
+  deletable = false,
 }: Options = {}) {
   const onAddToVocabSection = readOnly ? undefined : vi.fn();
   const onSaveToMyWords = readOnly ? undefined : vi.fn();
+  const onDeleteLine = deletable ? vi.fn() : undefined;
   localStorage.setItem("hakiya_dialect_module", dialect);
   const harness = renderWithProviders(
     <LineByLineTranscript
@@ -156,6 +160,7 @@ function render({
       vocabSectionWords={vocabSectionWords}
       onAddToVocabSection={onAddToVocabSection}
       onSaveToMyWords={onSaveToMyWords}
+      onDeleteLine={onDeleteLine}
     />,
     {
       persona: "free",
@@ -167,7 +172,7 @@ function render({
   );
   cleanup = harness.cleanup;
   root = harness.container;
-  return { ...harness, onAddToVocabSection, onSaveToMyWords };
+  return { ...harness, onAddToVocabSection, onSaveToMyWords, onDeleteLine };
 }
 
 const cards = (container: HTMLElement = root) =>
@@ -271,6 +276,40 @@ describe("showing the transcript", () => {
     // A burned-in caption is not speech: it has no pronunciation to imitate and
     // it is frequently in MSA even when the speaker is not.
     expect(screen.getByText("On screen")).toBeInTheDocument();
+  });
+});
+
+describe("deleting a line", () => {
+  it("offers no delete button when the page has nowhere to send it", () => {
+    const { container } = render({ lines: [A_LINE, ANOTHER_LINE] });
+
+    expect(container.querySelector('button[aria-label="Delete line"]')).toBeNull();
+  });
+
+  it("reports the line's id when the delete button is pressed", () => {
+    const { container, onDeleteLine } = render({
+      lines: [A_LINE, ANOTHER_LINE],
+      deletable: true,
+    });
+
+    const buttons = container.querySelectorAll('button[aria-label="Delete line"]');
+    expect(buttons).toHaveLength(2);
+    fireEvent.click(buttons[1]);
+
+    // The page owns the actual removal; this component only has to say which
+    // line the learner wants gone.
+    expect(onDeleteLine).toHaveBeenCalledWith("line-2");
+  });
+
+  it("does not also toggle the translation open", () => {
+    const { container } = render({ lines: [A_LINE], deletable: true });
+    const card = cards(container)[0];
+
+    fireEvent.click(card.querySelector('button[aria-label="Delete line"]')!);
+
+    // Delete sits inside the same clickable header as the sentence; without
+    // stopping propagation, deleting a line would also expand it.
+    expect(isRevealed(card)).toBe(false);
   });
 });
 

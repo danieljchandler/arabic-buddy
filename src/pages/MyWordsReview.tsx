@@ -1136,6 +1136,17 @@ const MyWordsReview = () => {
             repetitions={currentWord.repetitions}
             elapsedDays={elapsedDaysSince(currentWord.last_reviewed_at)}
             disabled={updateReview.isPending || (useCloze ? clozeResult === null : !showAnswer)}
+            // A gated tap must say something: reveal the answer on a flip card,
+            // and explain the check on a cloze card. Silence reads as broken.
+            onBlocked={() => {
+              if (updateReview.isPending) return;
+              if (useCloze) {
+                toast.info("Pick an answer first, then rate how well you knew it.");
+              } else {
+                setShowAnswer(true);
+              }
+            }}
+
             maxRating={useCloze && clozeResult === false ? "hard" : undefined}
           />
           <div className="mt-4 flex justify-center gap-2 flex-wrap">

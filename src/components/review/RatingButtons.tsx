@@ -43,7 +43,9 @@ export const RatingButtons = ({
   repetitions,
   elapsedDays,
   disabled,
+  onBlocked,
   maxRating,
+
 }: RatingButtonsProps) => {
   // The previewed intervals honour the learner's retention dial. Fuzz is
   // deliberately not previewed: like Anki, the label shows the base interval

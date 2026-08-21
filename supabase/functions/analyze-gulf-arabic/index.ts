@@ -30,6 +30,13 @@ import {
   buildFushaSystemPrompt,
 } from "../_shared/fushaBridge.ts";
 import { MODEL_IDS } from "../_shared/modelRegistry.ts";
+import {
+  decideAudio,
+  dropNonArabicLines,
+  parseAudioVerdict,
+  readAsrScript,
+  type AudioDecision,
+} from "../_shared/arabicSpeechGate.ts";
 
 // Helper to generate unique IDs
 function generateId(): string {
@@ -182,10 +189,20 @@ Compare them carefully and produce the BEST merged transcript:
 
 Output ONLY valid JSON matching this schema:
 {
+  "audio": {"verdict": "arabic_speech" | "arabic_singing" | "non_arabic" | "no_speech", "reason": string},
   "lines": [{"arabic": string}],
   "dialect": "Saudi" | "Kuwaiti" | "UAE" | "Bahraini" | "Qatari" | "Omani" | "Gulf",
   "difficulty": "Beginner" | "Intermediate" | "Advanced" | "Expert"
 }
+
+WHAT IS ACTUALLY IN THE AUDIO — decide this FIRST:
+Every engine above was pinned to Arabic, so each one returns Arabic script no matter what it heard. Handed an English song, a laugh track, or background music, they return confident Arabic-shaped nonsense. Judge from the evidence, not from the fact that the text is in Arabic letters.
+- "arabic_speech": people are speaking Arabic. Normal case.
+- "arabic_singing": Arabic song lyrics, with or without speech. **This counts as Arabic — transcribe it normally and fill lines[] as usual.**
+- "non_arabic": the audio is another language (an English song, English or other-language speech). Tell-tale signs: the engines wildly disagree with each other; the "words" are not real Arabic words; the text reads as an Arabic-letter phonetic smear of English lyrics; the same short phrase repeats over and over.
+- "no_speech": silence, music with no vocals, laughter, sound effects, or nothing intelligible.
+If the verdict is "non_arabic" or "no_speech", return **"lines": []** — an empty array — and nothing else in it. Do NOT translate, transliterate, or salvage the engines' output. An empty transcript is the correct answer for a video whose audio is not Arabic.
+Put a short plain-English justification in "reason" (e.g. "engines disagree completely; text is a phonetic smear of English pop lyrics").
 
 DIALECT IDENTIFICATION RULES:
 Identify the Gulf Arabic dialect based on vocabulary, phonology, and speech patterns. Use ONLY one of these exact string values:
@@ -753,6 +770,8 @@ async function runFushaPass(opts: {
 // Returned by Call 1 (merge only — no translations)
 type MergeOnlyAI = {
   lines: Array<{ arabic: string }>;
+  /** What the model judged the audio to be. Absent from older/looser replies. */
+  audio?: { verdict?: string; reason?: string };
   dialect?: 'Saudi' | 'Kuwaiti' | 'UAE' | 'Bahraini' | 'Qatari' | 'Omani' | 'Gulf';
   difficulty?: 'Beginner' | 'Intermediate' | 'Advanced' | 'Expert';
 };
@@ -1194,6 +1213,24 @@ function createFallbackResult(transcript: string): TranscriptResult {
   return {
     rawTranscriptArabic: transcript,
     lines,
+    vocabulary: [],
+    grammarPoints: [],
+  };
+}
+
+/**
+ * The analysis result for a video whose audio turned out not to be Arabic.
+ *
+ * Empty rather than best-effort, and that is the point: an Arabic-pinned ASR
+ * engine handed an English song returns Arabic-shaped nonsense, and a
+ * best-effort transcript of nonsense is worse for a learner than no transcript,
+ * because it looks like something they failed to understand. Whatever the video
+ * does carry — the text on its screen — is stored separately and unaffected.
+ */
+function createNoArabicAudioResult(): TranscriptResult {
+  return {
+    rawTranscriptArabic: '',
+    lines: [],
     vocabulary: [],
     grammarPoints: [],
   };
@@ -1733,17 +1770,107 @@ serve(async (req) => {
 
      if (memeMode) {
        const audioNote = transcriptIsEmpty
-         ? `THIS IS A MEME WITH NO SPOKEN AUDIO (or audio is silent / unintelligible). The transcripts above may be empty, garbled, or hallucinated by the speech-to-text engines. **DO NOT invent spoken Arabic.** If the audio engines produced text that doesn't correspond to clear speech, IGNORE it. Build the Arabic lines from the on-screen text below instead.`
-         : `THIS IS A MEME. The audio above is real speech, but on-screen text is equally important. **DO NOT invent any Arabic that is not actually present in either the audio transcripts above OR the on-screen text below.** If a transcript engine clearly hallucinated, drop those lines.`;
+         ? `THIS IS A MEME WITH NO SPOKEN AUDIO (or audio is silent / unintelligible). The transcripts above may be empty, garbled, or hallucinated by the speech-to-text engines. **DO NOT invent spoken Arabic.** If the audio engines produced text that does not correspond to clear speech, return "lines": [] with an audio verdict of "no_speech" or "non_arabic".`
+         : `THIS IS A MEME. Memes very often carry a trending song, or a clip in another language, under the picture. Settle the audio verdict strictly before transcribing anything.`;
        const onScreenBlock = onScreenSegs.length > 0
-         ? `\n\nOn-screen text segments (from video frames, in time order):\n${onScreenSegs.map((s: any) => `[${s.startSeconds}s-${s.endSeconds}s] ${s.text}${s.translation ? `  →  ${s.translation}` : ''}`).join('\n')}`
+         ? `\n\nOn-screen text segments (already read from the video frames, in time order):\n${onScreenSegs.map((s: any) => `[${s.startSeconds}s-${s.endSeconds}s] ${s.text}${s.translation ? `  →  ${s.translation}` : ''}`).join('\n')}`
          : '\n\n(No on-screen text detected.)';
-       transcriptParts.push(`MEME CONTEXT:\n${audioNote}${onScreenBlock}\n\nWhen building lines[], merge spoken audio (if any) with on-screen text segments in time order. Mark each line implicitly by source: spoken lines first, then any on-screen-only text. Do not duplicate text that appears in both audio and on-screen overlay.`);
+       // The overlays are stored in their own column and shown above the
+       // transcript. Folding them into lines[] is what used to make a caption
+       // read as something a person said.
+       transcriptParts.push(`MEME CONTEXT:\n${audioNote}${onScreenBlock}\n\nThe on-screen text above is CONTEXT ONLY. It is stored separately and shown to the learner as its own section, so it must NOT appear in lines[]. lines[] is the SPOKEN transcript and nothing else: never copy an overlay into it, and never invent Arabic that is not in the audio transcripts. Use the overlays only to settle what an ambiguous spoken word was.`);
      }
 
      const linesUserContent = transcriptParts.length > 1 ? transcriptParts.join('\n\n') : transcript;
 
      const hasDualOrTriple = asrCount >= 2;
+
+     // ── Is there Arabic in this audio at all? ────────────────────────────
+     // Every engine above is pinned to Arabic, so none of them can tell us
+     // "that was an English song" — they answer in Arabic script regardless.
+     // The script reading catches the engines that gave up and wrote Latin
+     // text; the model's own verdict, read off Call 1 below, catches the ones
+     // that hallucinated Arabic over music. Arabic singing passes both.
+     const asrReading = readAsrScript([
+       transcript, munsitTranscript, fanarTranscript, sonioxTranscript,
+       azureTranscript, scribeTranscript, cohereTranscript,
+     ]);
+     console.log('ASR script reading:', asrReading.reading, JSON.stringify({
+       arabicLetterRatio: Number(asrReading.arabicLetterRatio.toFixed(2)),
+       agreement: asrReading.agreement === null ? null : Number(asrReading.agreement.toFixed(2)),
+     }));
+
+     /**
+      * Finish early with an empty transcript, persisting it the same way a
+      * successful analysis persists — the pipeline reads `analysis_complete`
+      * either way, and a video with no Arabic audio still has its on-screen
+      * text, its title and its row.
+      */
+     const respondNoArabicAudio = async (decision: AudioDecision): Promise<Response> => {
+       console.log(`No Arabic audio to transcribe (${decision.verdict}): ${decision.reason}`);
+       const result = createNoArabicAudioResult();
+
+       // A meme whose audio is a trending song still has Arabic on it — the
+       // overlays. They are never transcript lines, but they are the only
+       // Arabic in the video, so the vocabulary and grammar a learner gets from
+       // this video have to come from them or the video teaches nothing.
+       if (onScreenSegs.length > 0) {
+         try {
+           const onScreenBody = onScreenSegs
+             .map((seg: any) => String(seg?.text ?? '').trim())
+             .filter(Boolean)
+             .join('\n');
+           if (onScreenBody) {
+             const metaResp = await callAI({
+               systemPrompt: getMetaSystemPrompt(),
+               userContent: `Text shown on screen in this video (not spoken aloud):\n${onScreenBody}`,
+               apiKey: OPENROUTER_API_KEY,
+               maxTokens: 2048,
+             });
+             const meta = metaResp.content ? safeJsonParse<MetaAI>(metaResp.content) : null;
+             if (meta) {
+               result.vocabulary = Array.isArray(meta.vocabulary) ? meta.vocabulary : [];
+               result.grammarPoints = Array.isArray(meta.grammarPoints) ? meta.grammarPoints : [];
+               if (meta.culturalContext) result.culturalContext = meta.culturalContext;
+             }
+           }
+         } catch (metaErr) {
+           console.warn('On-screen-only meta pass failed (non-fatal):', metaErr);
+         }
+       }
+
+       if (pipelineVideoId && typeof pipelineVideoId === 'string') {
+         try {
+           const svc = createClient(
+             Deno.env.get('SUPABASE_URL')!,
+             Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+           );
+           await svc.from('discover_videos').update({
+             transcript_lines: [],
+             vocabulary: result.vocabulary,
+             grammar_points: result.grammarPoints,
+             ...(result.culturalContext ? { cultural_context: result.culturalContext } : {}),
+             transcription_status: 'analysis_complete',
+           }).eq('id', pipelineVideoId);
+         } catch (persistErr) {
+           console.error('[analyze] Failed to persist empty-audio result:', persistErr);
+         }
+       }
+       return new Response(
+         JSON.stringify({
+           success: true,
+           result,
+           noArabicSpeech: true,
+           audio: { verdict: decision.verdict, reason: decision.reason },
+         }),
+         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+       );
+     };
+
+     // Decisive on the text alone — no reason to pay for the merge call.
+     if (asrReading.reading === 'no_speech' || asrReading.reading === 'non_arabic') {
+       return await respondNoArabicAudio(decideAudio(asrReading, null));
+     }
 
      // =====================================================================
      // CALL 1 — Transcript merging only
@@ -1793,6 +1920,19 @@ serve(async (req) => {
        mergeOnlyAi = safeJsonParse<MergeOnlyAI>(mergeResp.content);
      }
 
+     // An empty lines[] means two very different things, and this is where they
+     // part company. If the model told us the audio is not Arabic, empty is the
+     // ANSWER — falling through to the Fanar fallback and the stricter retry
+     // below would just spend two more calls talking the pipeline back into
+     // transcribing an English song. Only an empty reply with no such verdict
+     // is treated as a failed parse.
+     {
+       const decision = decideAudio(asrReading, parseAudioVerdict(mergeOnlyAi?.audio?.verdict));
+       if (!decision.keepAudioLines) {
+         return await respondNoArabicAudio(decision);
+       }
+     }
+
      // Fallback to Fanar if Qwen Call 1 parse failed
      if (!mergeOnlyAi?.lines || mergeOnlyAi.lines.length === 0) {
        if (fanarMergeResp.content) {
@@ -1830,8 +1970,20 @@ serve(async (req) => {
        );
      }
 
-     // Store the merged transcript from Call 1
-     const mergedLines = mergeOnlyAi.lines;
+     // Store the merged transcript from Call 1.
+     //
+     // Lines with no Arabic in them at all are dropped here: an Arabic-pinned
+     // engine that writes a whole line of Latin script has transcribed an
+     // English lyric or the background music, not the speaker. Mixed lines
+     // survive — Gulf speech code-switches constantly.
+     const arabicMergedLines = dropNonArabicLines(mergeOnlyAi.lines);
+     if (arabicMergedLines.length < mergeOnlyAi.lines.length) {
+       console.log(`Dropped ${mergeOnlyAi.lines.length - arabicMergedLines.length} line(s) with no Arabic script`);
+     }
+     if (arabicMergedLines.length === 0) {
+       return await respondNoArabicAudio(decideAudio(asrReading, 'non_arabic'));
+     }
+     const mergedLines = arabicMergedLines;
      const detectedDialect = DIALECT_MODULE !== 'Gulf'
        ? (DIALECT_MODULE as any)
        : (mergeOnlyAi.dialect ?? 'Gulf');

@@ -32,6 +32,18 @@ function caller(extra: Record<string, UpstreamHandler> = {}): Record<string, Ups
   };
 }
 
+/**
+ * The `discover_videos` stub, answering both halves of the admin write: the
+ * `is_meme` lookup that decides how much of the row this pass owns, and the
+ * PATCH itself.
+ */
+const videoRow = (isMeme: boolean): UpstreamHandler => (request) =>
+  request.method === "GET" ? json({ is_meme: isMeme }) : json({}, 204);
+
+/** The body of the PATCH that writes the OCR result back to the video. */
+const videoUpdate = (bodies: Array<string | undefined>): Record<string, unknown> =>
+  JSON.parse(bodies.find((b) => b?.includes("visual_timeline")) ?? "{}") as Record<string, unknown>;
+
 const aFrame = (seconds: number) => ({
   dataUri: btoa("fake jpeg"),
   timestampSeconds: seconds,
@@ -383,30 +395,65 @@ Deno.test("extract-visual-context stores the result and updates the video", asyn
     caller({
       "ai.gateway.lovable.dev": vision(aResult()),
       "/rest/v1/rpc/is_admin": () => json(true),
+      "/rest/v1/discover_videos": videoRow(true),
     }),
   );
 
   assertEquals(status, 200);
   assert(calls.some((url) => url.includes("video-audio")));
-  const update = bodies[calls.findIndex((u) => u.includes("discover_videos"))] ?? "";
+  const update = JSON.stringify(videoUpdate(bodies));
   // The reviewer reads `cultural_context`, so the segments are flattened into
   // a timestamped summary rather than left as JSON they would have to decode.
   assertStringIncludes(update, "On-screen text:");
   assertStringIncludes(update, "الزحمة قاتلة");
 });
 
-Deno.test("extract-visual-context flags a video with no readable text", async () => {
-  const { calls, bodies } = await call(
+Deno.test("extract-visual-context leaves an ordinary video's cultural context alone", async () => {
+  const { bodies } = await call(
+    { frames: [aFrame(0)], videoId: VIDEO_ID },
+    caller({
+      "ai.gateway.lovable.dev": vision(aResult()),
+      "/rest/v1/rpc/is_admin": () => json(true),
+      "/rest/v1/discover_videos": videoRow(false),
+    }),
+  );
+
+  const update = videoUpdate(bodies);
+  // Only a meme hangs its whole meaning on the text written on it. On any other
+  // video `cultural_context` is what the transcript analysis wrote, and this
+  // pass overwriting it with a caption summary is a straight loss. The timeline
+  // is still written — that column is this pass's to own.
+  assertEquals(update.cultural_context, undefined);
+  assertEquals(update.transcription_error, undefined);
+  assert(Array.isArray(update.visual_timeline));
+});
+
+Deno.test("extract-visual-context does not flag an ordinary video that has no text on it", async () => {
+  const { bodies } = await call(
     { frames: [aFrame(0)], videoId: VIDEO_ID },
     caller({
       "ai.gateway.lovable.dev": vision(aResult({ onScreenTextSegments: [] })),
       "/rest/v1/rpc/is_admin": () => json(true),
+      "/rest/v1/discover_videos": videoRow(false),
     }),
   );
 
-  const update = JSON.parse(
-    bodies[calls.findIndex((u) => u.includes("discover_videos"))] ?? "{}",
-  ) as Record<string, unknown>;
+  // Most videos have nothing written on them. Saying so as `transcription_error`
+  // would put every one of them in the review queue.
+  assertEquals(videoUpdate(bodies).transcription_error, undefined);
+});
+
+Deno.test("extract-visual-context flags a meme with no readable text", async () => {
+  const { bodies } = await call(
+    { frames: [aFrame(0)], videoId: VIDEO_ID },
+    caller({
+      "ai.gateway.lovable.dev": vision(aResult({ onScreenTextSegments: [] })),
+      "/rest/v1/rpc/is_admin": () => json(true),
+      "/rest/v1/discover_videos": videoRow(true),
+    }),
+  );
+
+  const update = videoUpdate(bodies);
   // A meme with no OCR is not necessarily broken — it may be spoken-only — so
   // the row is flagged for review rather than failed. The scene description is
   // still worth keeping, and it is what the reviewer has to go on.
@@ -418,7 +465,7 @@ Deno.test("extract-visual-context flags a video with no readable text", async ()
 });
 
 Deno.test("extract-visual-context asks for manual review when it saw nothing at all", async () => {
-  const { calls, bodies } = await call(
+  const { bodies } = await call(
     { frames: [aFrame(0)], videoId: VIDEO_ID },
     caller({
       "ai.gateway.lovable.dev": vision({
@@ -428,12 +475,11 @@ Deno.test("extract-visual-context asks for manual review when it saw nothing at 
         detectedDialectCues: [],
       }),
       "/rest/v1/rpc/is_admin": () => json(true),
+      "/rest/v1/discover_videos": videoRow(true),
     }),
   );
 
-  const update = JSON.parse(
-    bodies[calls.findIndex((u) => u.includes("discover_videos"))] ?? "{}",
-  ) as Record<string, unknown>;
+  const update = videoUpdate(bodies);
   // With no text *and* no scene there is nothing to write, so the column would
   // otherwise be set to an empty string — which reads to a reviewer as "this
   // was analysed and there was nothing here" rather than "look at this
@@ -442,17 +488,16 @@ Deno.test("extract-visual-context asks for manual review when it saw nothing at 
 });
 
 Deno.test("extract-visual-context clears a previous error when text is found", async () => {
-  const { calls, bodies } = await call(
+  const { bodies } = await call(
     { frames: [aFrame(0)], videoId: VIDEO_ID },
     caller({
       "ai.gateway.lovable.dev": vision(aResult()),
       "/rest/v1/rpc/is_admin": () => json(true),
+      "/rest/v1/discover_videos": videoRow(true),
     }),
   );
 
-  const update = JSON.parse(
-    bodies[calls.findIndex((u) => u.includes("discover_videos"))] ?? "{}",
-  ) as Record<string, unknown>;
+  const update = videoUpdate(bodies);
   // Null, not left alone: a stale error on a video that now has text would
   // keep it out of the publishable queue forever.
   assertEquals(update.transcription_error, null);

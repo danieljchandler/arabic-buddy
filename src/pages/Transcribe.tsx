@@ -597,6 +597,8 @@ const Transcribe = () => {
     lines?: TranscriptResult["lines"];
     dialect?: TranscriptResult["dialect"];
     difficulty?: TranscriptResult["difficulty"];
+    /** The analyser refused the audio: an English song, music, silence. */
+    noArabicSpeech?: boolean;
   } | null> => {
     setIsAnalyzing(true);
     try {
@@ -620,6 +622,8 @@ const Transcribe = () => {
         result?: TranscriptResult;
         error?: string;
         details?: unknown;
+        noArabicSpeech?: boolean;
+        audio?: { verdict?: string; reason?: string };
       }>("analyze-gulf-arabic", {
         body,
       });
@@ -629,9 +633,21 @@ const Transcribe = () => {
 
       const normalized = normalizeTranscriptResult(data.result);
 
-      toast.success("Analysis complete!", {
-        description: `Extracted ${normalized.vocabulary.length} words and ${normalized.lines.length} sentences`,
-      });
+      if (data.noArabicSpeech) {
+        // Every engine here is pinned to Arabic, so handed an English song or a
+        // music bed they answer in Arabic script anyway. "Extracted 0 words"
+        // would read as a failure of the upload rather than a fact about it.
+        toast.info(
+          data.audio?.verdict === "no_speech"
+            ? "No speech found in this audio"
+            : "This audio is not Arabic",
+          { description: "Nothing was transcribed. Any text on the video's screen is still shown." },
+        );
+      } else {
+        toast.success("Analysis complete!", {
+          description: `Extracted ${normalized.vocabulary.length} words and ${normalized.lines.length} sentences`,
+        });
+      }
 
       setDebugTrace({
         phase: "response:analyze",
@@ -646,6 +662,7 @@ const Transcribe = () => {
         lines: normalized.lines,
         dialect: data.result.dialect,
         difficulty: data.result.difficulty,
+        noArabicSpeech: data.noArabicSpeech === true,
       };
     } catch (error) {
       console.error("Analysis error:", error);
@@ -962,6 +979,10 @@ const Transcribe = () => {
           lines: linesWithTimestamps,
           dialect: analysisData.dialect,
           difficulty: analysisData.difficulty,
+          // The engines' raw output for non-Arabic audio is Arabic-shaped
+          // nonsense. Showing it under "Transcript" while the analysis says
+          // there was nothing to transcribe is the worst of both.
+          ...(analysisData.noArabicSpeech ? { rawTranscriptArabic: "" } : {}),
         } : null);
       }
     } catch (error) {
@@ -1333,6 +1354,48 @@ const Transcribe = () => {
           </div>
         )}
 
+        {/* What the video shows, above what it says. A POV caption or a title
+            card is the setup the spoken lines assume — and it is not something
+            anybody said, so it never belongs in the transcript itself. */}
+        {transcriptResult?.onScreenText && transcriptResult.onScreenText.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Type className="h-5 w-5 text-primary" />Text on screen
+              </CardTitle>
+              <CardDescription>
+                Text written on the video — captions, title cards, or contextual graphics. Shown separately because none of it is spoken aloud.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {transcriptResult.onScreenText.map((seg, i) => (
+                  <div key={i} className="p-3 rounded-lg bg-muted/50 border space-y-1">
+                    <div className="flex items-start justify-between gap-3">
+                      <p
+                        className="text-lg font-semibold text-foreground text-right flex-1"
+                        dir="rtl"
+                        style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}
+                      >
+                        {seg.text}
+                      </p>
+                      <Badge variant="outline" className="text-xs shrink-0">
+                        {seg.startSeconds.toFixed(1)}–{seg.endSeconds.toFixed(1)}s
+                      </Badge>
+                    </div>
+                    {seg.translation && (
+                      <p className="text-sm text-muted-foreground">{seg.translation}</p>
+                    )}
+                    {seg.transliteration && (
+                      <p className="text-xs text-muted-foreground italic">{seg.transliteration}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Transcript Display */}
         {lines.length > 0 ? (
           <Card>
@@ -1411,46 +1474,6 @@ const Transcribe = () => {
             </CardContent>
           </Card>
         ) : null}
-
-        {/* On-screen text overlays (POV captions, title cards, memes, etc.) */}
-        {transcriptResult?.onScreenText && transcriptResult.onScreenText.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Type className="h-5 w-5 text-primary" />On-Screen Text
-              </CardTitle>
-              <CardDescription>
-                Text overlays detected in the video — captions, title cards, or contextual graphics that aren't part of the spoken transcript.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {transcriptResult.onScreenText.map((seg, i) => (
-                  <div key={i} className="p-3 rounded-lg bg-muted/50 border space-y-1">
-                    <div className="flex items-start justify-between gap-3">
-                      <p
-                        className="text-lg font-semibold text-foreground text-right flex-1"
-                        dir="rtl"
-                        style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}
-                      >
-                        {seg.text}
-                      </p>
-                      <Badge variant="outline" className="text-xs shrink-0">
-                        {seg.startSeconds.toFixed(1)}–{seg.endSeconds.toFixed(1)}s
-                      </Badge>
-                    </div>
-                    {seg.translation && (
-                      <p className="text-sm text-muted-foreground">{seg.translation}</p>
-                    )}
-                    {seg.transliteration && (
-                      <p className="text-xs text-muted-foreground italic">{seg.transliteration}</p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
 
         {/* Analysis Loading */}
         {isAnalyzing && (

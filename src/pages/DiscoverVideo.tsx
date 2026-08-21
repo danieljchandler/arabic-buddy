@@ -33,6 +33,8 @@ import {
 } from "@/lib/vocabularyAudioContext";
 import type { TranscriptLine, WordToken, VocabItem } from "@/types/transcript";
 import { VideoRating } from "@/components/discover/VideoRating";
+import { OnScreenTextPanel } from "@/components/discover/OnScreenTextPanel";
+import { screenTextFor, splitTranscriptLines } from "@/lib/onScreenText";
 import { AskAISentence } from "@/components/shared/AskAISentence";
 import { TranslationPair } from "@/components/shared/TranslationPair";
 import { FushaLine } from "@/components/shared/FushaLine";
@@ -899,14 +901,11 @@ const DiscoverVideo = ({
     () => ((video?.transcript_lines as any[]) ?? []) as TranscriptLine[],
     [video],
   );
-  const onScreenLines = useMemo(
-    () => allLines.filter((l: any) => l?.source === "on_screen" || l?.segmentType === "text_overlay"),
-    [allLines],
-  );
-  const lines = useMemo(
-    () => allLines.filter((l: any) => !(l?.source === "on_screen" || l?.segmentType === "text_overlay")),
-    [allLines],
-  );
+  // The transcript is what was SAID. Overlays live in `visual_timeline` now,
+  // but rows analysed before that column existed still carry theirs inline, so
+  // they are filtered back out here before anything reads the transcript.
+  const lines = useMemo(() => splitTranscriptLines(allLines).spoken, [allLines]);
+  const screenText = useMemo(() => screenTextFor(video), [video]);
 
   // Most of the Discover library was analysed before the Fusha pass existed,
   // so the row is filled in on demand the first time a learner asks for it.
@@ -2116,6 +2115,13 @@ const DiscoverVideo = ({
         </div>
       )}
 
+      {/* What the video shows, above what it says. */}
+      <OnScreenTextPanel
+        lines={screenText}
+        showTranslations={showTranslations}
+        onSeek={(seconds) => handleSeek(seconds * 1000)}
+      />
+
       {/* Full transcript (toggleable) */}
       {showFullTranscript && (
         <div
@@ -2149,27 +2155,6 @@ const DiscoverVideo = ({
 
       {/* Vocabulary, grammar & cultural context footer */}
       <div className="border-t border-border bg-card px-4 py-4 space-y-4">
-        {onScreenLines.length > 0 && (
-          <details className="group" open={!!video.is_meme}>
-            <summary className="flex items-center gap-2 cursor-pointer text-sm font-semibold text-foreground">
-              <ChevronDown className="h-4 w-4 transition-transform group-open:rotate-180 text-muted-foreground" />
-              On-Screen Text ({onScreenLines.length})
-            </summary>
-            <div className="mt-3 space-y-2">
-              {onScreenLines.map((line) => (
-                <div key={line.id} className="p-2 rounded-lg bg-muted/50">
-                  <p dir="rtl" className="text-base font-medium text-foreground" style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}>
-                    {line.arabic}
-                  </p>
-                  {line.translation && showTranslations && (
-                    <p className="mt-1 text-xs text-muted-foreground">{line.translation}</p>
-                  )}
-                </div>
-              ))}
-            </div>
-          </details>
-        )}
-
         {vocabulary.length > 0 && (
           <details className="group">
             <summary className="flex items-center gap-2 cursor-pointer text-sm font-semibold text-foreground">

@@ -254,10 +254,40 @@ or failed lookup is shown to the model rather than dropped — swallowing it is
 how an assistant ends up inventing the contents of a page it never read.
 
 **What's on screen.** Half of an Arabic meme is text burned into the frame and
-never spoken. `extract-visual-context` has always OCR'd those overlays with
-their timings; `discover_videos.visual_timeline` now keeps the timings, and the
-player resolves the current moment as playback advances
-(`_shared/visualTimelineCore.ts`).
+never spoken. `extract-visual-context` OCRs those overlays with their timings —
+for every uploaded video file, not only the ones ticked as memes, because POV
+captions and title cards turn up on ordinary clips just as often.
+`discover_videos.visual_timeline` keeps the timings, and the player resolves the
+current moment as playback advances (`_shared/visualTimelineCore.ts`).
+
+That column, not `transcript_lines`, is where the overlays live. The pipeline
+used to append them to the transcript, which made a caption indistinguishable
+from something a person said: line-by-line playback seeked to audio that was
+never recorded, shadowing offered a recording of silence, and the tutor answered
+"what did they say" with text nobody spoke. `_shared/onScreenText.ts` holds the
+split — what counts as an overlay, how it is taken back out of a transcript
+written before the change, and the OCR prompt both read paths share. The player
+shows them as their own "Text on screen" section above the transcript.
+
+`reextract-on-screen-text` is the way back for a video whose overlays were
+missed. The first read happens in the admin's browser at upload time, off the
+file they still hold; by the time anyone notices a caption is missing, nobody
+has that file. So it fetches the video from its source (`download-media`'s
+`wantVideo` mode) and has Gemini read the whole thing rather than sampled
+stills — which is what catches the punchline that landed between two samples.
+It also pulls any overlays an older run buried in the transcript back out.
+
+**Audio that isn't Arabic.** Every ASR engine in the pipeline is pinned to
+Arabic, so none of them can report "that was an English song" — handed one, they
+answer in Arabic script anyway. Left alone that becomes a transcript, a
+vocabulary list and a difficulty rating for words nobody said, worst of all on
+memes, where the joke is written on screen and the audio is a trending track.
+`_shared/arabicSpeechGate.ts` decides: the script reading catches engines that
+gave up and wrote Latin text, the model's own verdict in the merge call catches
+the ones that hallucinated Arabic over music, and where neither is sure the
+transcript is kept. Arabic singing is not a failure case — a learner studying an
+Arabic song wants the lyrics. A refused video still completes, with its
+on-screen text intact and a note saying why the transcript is empty.
 
 **Between sessions.** `learner_ai_memory` holds short notes per learner per
 dialect — what keeps confusing them, which kind of explanation lands — written

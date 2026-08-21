@@ -65,7 +65,7 @@ function extractYouTubeVideoId(url: string): string | null {
 // ─── Cobalt API ─────────────────────────────────────────────────────────────
 // Cobalt is the most reliable approach for YouTube audio.
 // Uses youtubeHLS to bypass PO token restrictions.
-async function downloadViaCobalt(url: string): Promise<{ base64: string; contentType: string; size: number; filename: string } | null> {
+async function downloadViaCobalt(url: string, wantVideo = false): Promise<{ base64: string; contentType: string; size: number; filename: string } | null> {
   const cobaltApiKey = Deno.env.get('COBALT_API_KEY');
 
   // Community Cobalt instances — try instances that don't require auth first,
@@ -98,9 +98,12 @@ async function downloadViaCobalt(url: string): Promise<{ base64: string; content
         headers,
         body: JSON.stringify({
           url,
-          downloadMode: 'audio',
-          audioFormat: 'mp3',
-          audioBitrate: '128',
+          // 'auto' returns the muxed video; the on-screen-text re-read needs
+          // the pictures, and every other caller wants the audio track alone.
+          downloadMode: wantVideo ? 'auto' : 'audio',
+          ...(wantVideo
+            ? { videoQuality: '480' }
+            : { audioFormat: 'mp3', audioBitrate: '128' }),
           filenameStyle: 'basic',
           youtubeHLS: true,  // HLS avoids PO token requirement
         }),
@@ -670,6 +673,7 @@ async function downloadAsBase64(
 // is what saves us when TikTok's own CDN rejects the signed playAddr (403).
 async function downloadTikTokViaMirror(
   videoId: string,
+  wantVideo = false,
 ): Promise<{ base64: string; contentType: string; size: number; filename: string } | null> {
   const endpoints = [
     `https://tikwm.com/api/?url=https://www.tiktok.com/video/${videoId}&hd=0`,
@@ -688,7 +692,7 @@ async function downloadTikTokViaMirror(
       }
       const json = await resp.json();
       const d = json?.data ?? {};
-      const candidates = [d.music, d.play, d.wmplay, d.hdplay]
+      const candidates = (wantVideo ? [d.play, d.hdplay, d.wmplay] : [d.music, d.play, d.wmplay, d.hdplay])
         .filter((u: unknown): u is string => typeof u === 'string' && u.length > 0)
         .map((u: string) => (u.startsWith('http') ? u : `https://tikwm.com${u}`));
 
@@ -707,7 +711,7 @@ async function downloadTikTokViaMirror(
   return null;
 }
 
-async function downloadTikTok(url: string): Promise<{ base64: string; contentType: string; size: number; filename: string } | null> {
+async function downloadTikTok(url: string, wantVideo = false): Promise<{ base64: string; contentType: string; size: number; filename: string } | null> {
 
   console.log('Trying TikTok-specific download...');
 
@@ -795,7 +799,7 @@ async function downloadTikTok(url: string): Promise<{ base64: string; contentTyp
     }
 
     console.log('All TikTok CDN URLs failed, trying resolver mirrors...');
-    const mirror = await downloadTikTokViaMirror(videoId);
+    const mirror = await downloadTikTokViaMirror(videoId, wantVideo);
     if (mirror) return mirror;
 
     console.log('All TikTok video URLs failed to download');
@@ -843,7 +847,11 @@ serve(async (req) => {
     }
 
 
-    const { url, bypassCache } = await req.json();
+    // `wantVideo` asks for the pictures as well as the sound. The default is
+    // still audio-only: every ASR caller wants the smallest payload that has
+    // the speech in it, and only the on-screen-text re-read needs the frames.
+    const { url, bypassCache, wantVideo: wantVideoRaw } = await req.json();
+    const wantVideo = wantVideoRaw === true;
 
     if (!url || typeof url !== 'string') {
       return new Response(
@@ -852,8 +860,10 @@ serve(async (req) => {
       );
     }
 
-    // Check for cached result unless explicitly bypassed
-    if (!bypassCache) {
+    // Check for cached result unless explicitly bypassed. The cache holds a
+    // previous run's transcription, which is no answer at all to "give me the
+    // video file", so a video request always skips it.
+    if (!bypassCache && !wantVideo) {
       try {
         const supabaseUrl = Deno.env.get('SUPABASE_URL');
         const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -942,7 +952,11 @@ serve(async (req) => {
     const makeSuccessResponse = (result: { base64: string; contentType: string; size: number; filename: string }, extras?: Record<string, unknown>) =>
       new Response(
         JSON.stringify({
+          // `audioBase64` is the long-standing field name and every existing
+          // caller reads it; `mediaBase64` is the same bytes under a name that
+          // does not lie when the payload is a video.
           audioBase64: result.base64,
+          mediaBase64: result.base64,
           contentType: result.contentType,
           size: result.size,
           filename: result.filename,
@@ -978,7 +992,7 @@ serve(async (req) => {
 
     // Strategy 2: TikTok-specific download
     if (isTikTokUrl(normalizedUrl)) {
-      const tiktokResult = await downloadTikTok(normalizedUrl);
+      const tiktokResult = await downloadTikTok(normalizedUrl, wantVideo);
       if (tiktokResult) return makeSuccessResponse(tiktokResult);
     }
 
@@ -986,21 +1000,26 @@ serve(async (req) => {
     if (isYouTubeUrl(normalizedUrl)) {
       // Strategy 3a: Cobalt API (most reliable for YouTube)
       console.log('=== YouTube: trying Cobalt first ===');
-      const cobaltResult = await downloadViaCobalt(normalizedUrl);
+      const cobaltResult = await downloadViaCobalt(normalizedUrl, wantVideo);
       if (cobaltResult) return makeSuccessResponse(cobaltResult);
 
-      // Strategy 3b: RapidAPI services
-      console.log('=== YouTube: trying RapidAPI ===');
-      const rapidResult = await downloadYouTubeViaRapidApi(normalizedUrl);
-      if (rapidResult) return makeSuccessResponse(rapidResult);
+      // The remaining YouTube strategies are audio-only extractors, so they
+      // cannot answer a video request — better to fail than to hand back a
+      // soundtrack to something that wanted to look at the frames.
+      if (!wantVideo) {
+        // Strategy 3b: RapidAPI services
+        console.log('=== YouTube: trying RapidAPI ===');
+        const rapidResult = await downloadYouTubeViaRapidApi(normalizedUrl);
+        if (rapidResult) return makeSuccessResponse(rapidResult);
 
-      // Strategy 3c: Innertube API (direct YouTube API — least reliable due to PO tokens)
-      console.log('=== YouTube: trying Innertube ===');
-      const ytResult = await downloadYouTubeViaInnertube(normalizedUrl);
-      if (ytResult) return makeSuccessResponse(ytResult);
+        // Strategy 3c: Innertube API (direct YouTube API — least reliable due to PO tokens)
+        console.log('=== YouTube: trying Innertube ===');
+        const ytResult = await downloadYouTubeViaInnertube(normalizedUrl);
+        if (ytResult) return makeSuccessResponse(ytResult);
+      }
     } else if (isSocialMediaUrl(normalizedUrl)) {
       // For other social media: Cobalt is the primary strategy
-      const cobaltResult = await downloadViaCobalt(normalizedUrl);
+      const cobaltResult = await downloadViaCobalt(normalizedUrl, wantVideo);
       if (cobaltResult) return makeSuccessResponse(cobaltResult);
     }
 

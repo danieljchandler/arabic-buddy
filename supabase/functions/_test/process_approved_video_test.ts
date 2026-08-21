@@ -838,6 +838,208 @@ Deno.test("process-approved-video feeds a meme's on-screen text into the analysi
   assertEquals(finalStatus(result), "completed");
 });
 
+// ── On-screen text is not transcript ─────────────────────────────────────────
+
+/** Storage that serves one `<id>.visual.json` and nothing else. */
+const visualStorage = (visual: unknown): UpstreamHandler => (request) =>
+  request.url.includes(".visual.json")
+    ? new Response(JSON.stringify(visual), { status: 200, headers: { "content-type": "application/json" } })
+    : json({ error: "Object not found" }, 404);
+
+const A_MEME_SCREEN = {
+  sceneContext: "Two men arguing in a majlis",
+  onScreenTextSegments: [
+    { text: "لما تقول لأمك", translation: "when you tell your mum", startSeconds: 0, endSeconds: 2 },
+    { text: "بطلع مع الشباب", translation: "I'm going out with the lads", startSeconds: 2, endSeconds: 4 },
+  ],
+};
+
+Deno.test("process-approved-video keeps on-screen text out of the transcript", async () => {
+  const result = await call({ videoId: VIDEO }, backend({
+    video: aVideo({ is_meme: true }),
+    storage: visualStorage(A_MEME_SCREEN),
+  }));
+
+  const saved = lastPatchWith(result, "transcript_lines")?.transcript_lines as Array<Record<string, unknown>>;
+  // The overlays used to be appended here, which made a caption indistinguishable
+  // from something a speaker said — line-by-line playback would try to play
+  // audio that was never recorded at that timestamp.
+  assertEquals(saved.map((l) => l.arabic), ["شلونك اليوم", "الحمد لله بخير"]);
+  assert(!saved.some((l) => l.source === "on_screen"));
+});
+
+Deno.test("process-approved-video stores on-screen text in its own column", async () => {
+  const result = await call({ videoId: VIDEO }, backend({
+    video: aVideo({ is_meme: true }),
+    storage: visualStorage(A_MEME_SCREEN),
+  }));
+
+  const timeline = lastPatchWith(result, "visual_timeline")?.visual_timeline as Array<Record<string, unknown>>;
+  assertEquals(timeline.length, 2);
+  assertEquals(timeline[0].text, "لما تقول لأمك");
+  assertEquals(timeline[0].startSeconds, 0);
+  // The scene the vision pass described rides on the first moment, so the tutor
+  // can say what is on screen as well as what it reads.
+  assertEquals(timeline[0].scene, "Two men arguing in a majlis");
+});
+
+Deno.test("process-approved-video strips on-screen lines the analysis folded in", async () => {
+  const result = await call({ videoId: VIDEO }, backend({
+    analyze: () => json({
+      success: true,
+      result: aResult({
+        lines: [
+          { id: "l1", arabic: "شلونك اليوم", translation: "How are you today" },
+          { id: "l2", arabic: "POV: تروح الدوام", translation: "POV: you go to work", source: "on_screen" },
+          { id: "l3", arabic: "زين والله", translation: "Good, honestly", segmentType: "text_overlay" },
+        ],
+      }),
+    }),
+  }));
+
+  const saved = lastPatchWith(result, "transcript_lines")?.transcript_lines as Array<Record<string, unknown>>;
+  // The prompt tells the model not to do this. The pipeline does not take its
+  // word for it — one slip would put a caption back in a speaker's mouth.
+  assertEquals(saved.map((l) => l.arabic), ["شلونك اليوم"]);
+});
+
+Deno.test("process-approved-video rescues overlays an older run left in the transcript", async () => {
+  const result = await call({ videoId: VIDEO }, backend({
+    analyze: () => json({
+      success: true,
+      result: aResult({
+        lines: [
+          { id: "l1", arabic: "شلونك اليوم", translation: "How are you today" },
+          {
+            id: "l2",
+            arabic: "POV: تروح الدوام",
+            translation: "POV: you go to work",
+            source: "on_screen",
+            startMs: 2000,
+            endMs: 5000,
+          },
+        ],
+      }),
+    }),
+  }));
+
+  // With no visual pass for this row, the transcript is the only copy of that
+  // caption — stripping it without moving it across would delete it.
+  const timeline = lastPatchWith(result, "visual_timeline")?.visual_timeline as Array<Record<string, unknown>>;
+  assertEquals(timeline.length, 1);
+  assertEquals(timeline[0].text, "POV: تروح الدوام");
+  assertEquals(timeline[0].startSeconds, 2);
+});
+
+Deno.test("process-approved-video writes no timeline when there is nothing to write", async () => {
+  const result = await call({ videoId: VIDEO }, backend());
+
+  // An empty array here would wipe a timeline that a separate re-read had just
+  // filled in, so the column is left alone instead.
+  assertEquals(lastPatchWith(result, "visual_timeline"), undefined);
+});
+
+Deno.test("process-approved-video reads on-screen text for an ordinary video too", async () => {
+  const result = await call({ videoId: VIDEO }, backend({
+    storage: visualStorage({
+      sceneContext: "A woman driving",
+      onScreenTextSegments: [{ text: "الزحمة قاتلة", startSeconds: 0, endSeconds: 3 }],
+    }),
+  }));
+
+  // Captions, POV lines and title cards are not a meme-only phenomenon; this
+  // used to run only when the meme box was ticked.
+  const sent = bodySentTo(result, "analyze-gulf-arabic");
+  assertStringIncludes(String(sent.visualContext), "الزحمة قاتلة");
+  const timeline = lastPatchWith(result, "visual_timeline")?.visual_timeline as unknown[];
+  assertEquals(timeline.length, 1);
+});
+
+Deno.test("process-approved-video tells the analysis the screen text is not speech", async () => {
+  const result = await call({ videoId: VIDEO }, backend({
+    video: aVideo({ is_meme: true }),
+    storage: visualStorage(A_MEME_SCREEN),
+  }));
+
+  const sent = bodySentTo(result, "analyze-gulf-arabic");
+  assertStringIncludes(String(sent.visualContext), "context only, NOT spoken");
+});
+
+Deno.test("process-approved-video does not stop an ordinary video that has no screen-text pass", async () => {
+  // Only a meme is refused without one — its joke is usually the text itself.
+  const result = await call({ videoId: VIDEO }, backend());
+
+  assertEquals(finalStatus(result), "completed");
+});
+
+// ── Audio that is not Arabic ─────────────────────────────────────────────────
+
+const refusedAudio: UpstreamHandler = () => json({
+  success: true,
+  result: { rawTranscriptArabic: "", lines: [], vocabulary: [], grammarPoints: [] },
+  noArabicSpeech: true,
+  audio: { verdict: "non_arabic", reason: "the engines disagree completely over a pop track" },
+});
+
+Deno.test("process-approved-video completes a video whose audio is not Arabic", async () => {
+  const result = await call({ videoId: VIDEO }, backend({ analyze: refusedAudio }));
+
+  // Not a failure: the video is fine, the audio just is not Arabic. Failing it
+  // would hide a meme whose text on screen is the whole lesson.
+  assertEquals(finalStatus(result), "completed");
+  const saved = lastPatchWith(result, "transcript_lines")?.transcript_lines as unknown[];
+  assertEquals(saved.length, 0);
+});
+
+Deno.test("process-approved-video says why it transcribed nothing", async () => {
+  const result = await call({ videoId: VIDEO }, backend({
+    video: aVideo({ is_meme: true }),
+    storage: visualStorage(A_MEME_SCREEN),
+    analyze: refusedAudio,
+  }));
+
+  const note = String(lastPatchWith(result, "transcription_error")?.transcription_error);
+  assertStringIncludes(note, "not Arabic");
+  assertStringIncludes(note, "pop track");
+  // The reviewer needs to know the video still teaches something.
+  assertStringIncludes(note, "on-screen text was kept");
+});
+
+Deno.test("process-approved-video keeps a meme's screen text when its audio is refused", async () => {
+  const result = await call({ videoId: VIDEO }, backend({
+    video: aVideo({ is_meme: true }),
+    storage: visualStorage(A_MEME_SCREEN),
+    analyze: refusedAudio,
+  }));
+
+  const timeline = lastPatchWith(result, "visual_timeline")?.visual_timeline as unknown[];
+  assertEquals(timeline.length, 2);
+});
+
+Deno.test("process-approved-video notes the refusal on the direct-persist path too", async () => {
+  // The production path: analyze-gulf-arabic writes the empty transcript itself
+  // and the pipeline reads `analysis_complete` back off the row. The refusal has
+  // to survive that hand-off, or the row completes with an empty transcript and
+  // no reason given.
+  const result = await call({ videoId: VIDEO }, backend({
+    analyze: refusedAudio,
+    refreshed: { transcription_status: "analysis_complete", transcript_lines: [], cultural_context: null },
+  }));
+
+  assertEquals(finalStatus(result), "completed");
+  assertStringIncludes(
+    String(lastPatchWith(result, "transcription_error")?.transcription_error),
+    "not Arabic",
+  );
+});
+
+Deno.test("process-approved-video leaves no note on an ordinary successful run", async () => {
+  const result = await call({ videoId: VIDEO }, backend());
+
+  // A stale error keeps a video out of the publishable queue forever.
+  assertEquals(lastPatchWith(result, "transcription_error")?.transcription_error, null);
+});
+
 Deno.test("process-approved-video flags a meme whose screen text came back empty", async () => {
   const result = await call({ videoId: VIDEO }, backend({
     video: aVideo({ is_meme: true }),

@@ -3,12 +3,13 @@ import {
   useAdminDiscoverVideos,
   useBackfillThumbnails,
   useDeleteDiscoverVideo,
+  useReextractOnScreenText,
   useTogglePublish,
 } from "@/hooks/useDiscoverVideos";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, ArrowLeft, Plus, Edit, Trash2, Eye, EyeOff, ImageDown } from "lucide-react";
+import { Loader2, ArrowLeft, Plus, Edit, Trash2, Eye, EyeOff, ImageDown, ScanText } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
   AlertDialog,
@@ -31,7 +32,40 @@ const AdminVideos = () => {
   const deleteMutation = useDeleteDiscoverVideo();
   const togglePublish = useTogglePublish();
   const backfillThumbnails = useBackfillThumbnails();
+  const reextractOnScreenText = useReextractOnScreenText();
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [rereadingId, setRereadingId] = useState<string | null>(null);
+
+  /**
+   * Re-read one video's on-screen text.
+   *
+   * Worth surfacing per row rather than as a bulk action: it costs a video
+   * download and a vision call each time, and the videos that need it are the
+   * ones an admin has just noticed are missing their captions.
+   */
+  const rereadScreenText = (videoId: string) => {
+    setRereadingId(videoId);
+    reextractOnScreenText.mutate(videoId, {
+      onSuccess: (result) => {
+        const found = result.onScreenTextCount ?? 0;
+        const removed = result.removedTranscriptLines ?? 0;
+        toast({
+          title: found
+            ? `Read ${found} line${found === 1 ? "" : "s"} of on-screen text`
+            : "No on-screen text found",
+          description: removed
+            ? `Also moved ${removed} caption${removed === 1 ? "" : "s"} out of the spoken transcript.`
+            : found
+              ? undefined
+              : "Nothing readable was written on this video's frames.",
+        });
+      },
+      onError: (error: Error) => {
+        toast({ variant: "destructive", title: "Could not re-read the video", description: error.message });
+      },
+      onSettled: () => setRereadingId(null),
+    });
+  };
 
   /**
    * The videos showing no picture at all.
@@ -183,6 +217,18 @@ const AdminVideos = () => {
                       }
                     >
                       {video.published ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      title="Re-read the text on this video's screen"
+                      aria-label="Re-read the text on this video's screen"
+                      disabled={rereadingId !== null}
+                      onClick={() => rereadScreenText(video.id)}
+                    >
+                      {rereadingId === video.id
+                        ? <Loader2 className="h-4 w-4 animate-spin" />
+                        : <ScanText className="h-4 w-4" />}
                     </Button>
                     <Button
                       variant="outline"

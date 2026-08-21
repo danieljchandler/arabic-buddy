@@ -598,6 +598,10 @@ const Review = () => {
             repetitions={repetitions}
             elapsedDays={elapsedDays}
             disabled={!showAnswer}
+            // Tapping a rating before the reveal flips the card instead of
+            // doing nothing at all.
+            onBlocked={handleFlip}
+
           />
         </div>
       </div>

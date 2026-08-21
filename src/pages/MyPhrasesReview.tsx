@@ -524,6 +524,12 @@ const MyPhrasesReview = () => {
             repetitions={current.repetitions}
             elapsedDays={elapsedDaysSince(current.last_reviewed_at)}
             disabled={updateReview.isPending || !showAnswer}
+            // A tap before the reveal shows the answer rather than reading as
+            // a dead button.
+            onBlocked={() => {
+              if (!updateReview.isPending) setShowAnswer(true);
+            }}
+
           />
           <div className="mt-4 flex justify-center gap-2 flex-wrap">
             <Button

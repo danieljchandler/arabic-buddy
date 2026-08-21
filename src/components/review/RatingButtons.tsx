@@ -14,12 +14,19 @@ interface RatingButtonsProps {
   elapsedDays?: number;
   disabled?: boolean;
   /**
+   * Called when the learner taps a rating while it is gated (answer not yet
+   * revealed / cloze not answered). A silently dead button reads as a broken
+   * app, so the caller gets a chance to reveal the answer or explain.
+   */
+  onBlocked?: () => void;
+  /**
    * Highest rating on offer. A card with an objective check (cloze) that was
    * answered wrongly caps at "hard" — an evidence-contradicting "Good" would
    * write a too-long interval off a failure.
    */
   maxRating?: Rating;
 }
+
 
 const RATING_ORDER: Rating[] = ["again", "hard", "good", "easy"];
 
@@ -36,7 +43,9 @@ export const RatingButtons = ({
   repetitions,
   elapsedDays,
   disabled,
+  onBlocked,
   maxRating,
+
 }: RatingButtonsProps) => {
   // The previewed intervals honour the learner's retention dial. Fuzz is
   // deliberately not previewed: like Anki, the label shows the base interval
@@ -86,20 +95,28 @@ export const RatingButtons = ({
             maxRating !== undefined &&
             RATING_ORDER.indexOf(rating) > RATING_ORDER.indexOf(maxRating);
 
+          // A gated rating stays clickable when the caller can react to the
+          // tap (reveal the answer, explain the gate); only a hard block
+          // (over-cap, save in flight) uses the real disabled attribute.
+          const gated = !!disabled && !!onBlocked && !overCap;
+
           return (
             <button
               key={rating}
-              onClick={() => onRate(rating)}
-              disabled={disabled || overCap}
+              onClick={() => (gated ? onBlocked!() : onRate(rating))}
+              aria-disabled={disabled || overCap}
+              disabled={(disabled && !gated) || overCap}
               className={cn(
                 "flex flex-col items-center justify-center gap-1",
                 "py-3 px-2 rounded-xl border-2",
                 color,
                 "transition-all duration-200",
                 "hover:scale-[1.03] hover:-translate-y-0.5 active:scale-[0.98] active:translate-y-0",
-                "disabled:opacity-50 disabled:cursor-not-allowed"
+                "disabled:opacity-50 disabled:cursor-not-allowed",
+                gated && "opacity-50"
               )}
             >
+
               {icon}
               <span className="text-xs font-semibold leading-none">{label}</span>
               <span className="text-[10px] opacity-70 leading-none mt-0.5">{nextInterval}</span>

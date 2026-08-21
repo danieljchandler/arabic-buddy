@@ -93,6 +93,7 @@ const A_CLIP: ShadowClip = {
 const aScore = (over: Partial<ShadowScoreResult> = {}): ShadowScoreResult => ({
   overall: 82,
   transcriptSimilarity: 88,
+  rawTranscriptSimilarity: 95,
   acousticSimilarity: 74,
   recognizedText: "وين رايح",
   wordDiffs: [],
@@ -363,9 +364,11 @@ describe("scoring against the clip", () => {
     await takeScoring({ acousticSimilarity: null });
 
     // Claiming an acoustic match that was never measured would be worse than
-    // reporting the word match alone.
-    expect(screen.getByText("Words 88")).toBeInTheDocument();
-    expect(screen.queryByText(/Sound/)).not.toBeInTheDocument();
+    // reporting the word match alone — but saying nothing is worse still. The
+    // score is capped when the sound half is missing, and "not compared" is the
+    // only thing on screen that explains why a word-perfect take stopped short.
+    expect(screen.getByText(/Words 88/)).toBeInTheDocument();
+    expect(screen.getByText(/Sound not compared/)).toBeInTheDocument();
   });
 
   it("shows what it heard the learner say", async () => {

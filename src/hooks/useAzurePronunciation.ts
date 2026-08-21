@@ -9,8 +9,13 @@
  *
  *   // After recording a Blob from MediaRecorder:
  *   const scores = await assess(audioBlob, 'مرحبا، كيف حالك؟');
- *   // scores.overall => 0–100 overall pronunciation score
+ *   // scores.overall => 0–100 overall pronunciation score (calibrated)
  *   // scores.words   => per-word accuracy + error type + phoneme breakdown
+ *   // scores.raw     => Azure's uncalibrated numbers, for debugging only
+ *
+ * The edge function calibrates before it answers — Azure's raw scores are
+ * systematically generous for learner speech. See
+ * `supabase/functions/_shared/pronunciationScoringCore.ts`.
  *
  * Gulf Arabic locales (pass as third arg):
  *   'ar-SA' Saudi Arabia (default)
@@ -35,8 +40,10 @@ export interface PhonemeResult {
 export interface WordResult {
   /** Arabic word token */
   word: string;
-  /** 0–100 accuracy score for this word */
+  /** 0–100 calibrated accuracy for this word — what the UI shows */
   accuracy: number;
+  /** Azure's own uncalibrated number for this word */
+  rawAccuracy?: number;
   /** Pronunciation error classification */
   errorType: 'None' | 'Omission' | 'Insertion' | 'Mispronunciation';
   /** Per-phoneme scores (available when Granularity = Phoneme) */
@@ -44,9 +51,9 @@ export interface WordResult {
 }
 
 export interface PronunciationResult {
-  /** Overall pronunciation score (PronScore) 0–100 */
+  /** Overall pronunciation score 0–100, calibrated by the edge function */
   overall: number;
-  /** Phoneme-level accuracy 0–100 */
+  /** Phoneme-level accuracy 0–100, calibrated */
   accuracy: number;
   /** Speaking rate / pause naturalness 0–100 */
   fluency: number;
@@ -58,9 +65,25 @@ export interface PronunciationResult {
   recognizedText: string;
   /** BCP-47 locale used for assessment */
   locale: string;
+  /** Azure's uncalibrated scores. Not displayed — kept so the calibration curve
+   *  in `_shared/pronunciationScoringCore.ts` can be re-tuned against real takes. */
+  raw?: {
+    overall: number;
+    accuracy: number;
+    fluency: number;
+    completeness: number;
+    prosody?: number;
+  };
 }
 
-/** Score band labels for UI display */
+/**
+ * Score band labels for UI display.
+ *
+ * These read against the *calibrated* scale (see
+ * `supabase/functions/_shared/pronunciationScoringCore.ts`), where the top of
+ * the range is spread out rather than bunched: "Excellent" means near-native,
+ * not merely intelligible.
+ */
 export function scoreBand(score: number): { label: string; color: string } {
   if (score >= 90) return { label: 'Excellent', color: 'text-green-600' };
   if (score >= 75) return { label: 'Good', color: 'text-blue-600' };

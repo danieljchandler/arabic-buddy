@@ -21,20 +21,30 @@
  *     audioMimeType?: string // MIME type, default "audio/webm"
  *   }
  *
+ * The scores it returns are calibrated, not Azure's raw ones. Azure's numbers
+ * are systematically generous for learner speech — a word with one sound simply
+ * not made still averages into the eighties, and PronScore lifts that further
+ * with fluency and completeness that are near-100 for any short utterance. See
+ * `_shared/pronunciationScoringCore.ts` for what is adjusted and why. Azure's
+ * originals come back under `raw` so the curve can be re-tuned later against
+ * real takes.
+ *
  * Response:
  *   {
- *     overall:        number   // PronScore 0–100
- *     accuracy:       number   // Phoneme-level accuracy 0–100
- *     fluency:        number   // Speaking rate / pauses 0–100
- *     completeness:   number   // Words spoken vs reference 0–100
+ *     overall:        number   // Calibrated headline 0–100
+ *     accuracy:       number   // Calibrated pronunciation accuracy 0–100
+ *     fluency:        number   // Speaking rate / pauses 0–100 (Azure's, uncalibrated)
+ *     completeness:   number   // Words spoken vs reference 0–100 (Azure's, uncalibrated)
  *     words: [{
- *       word:       string
- *       accuracy:   number
- *       errorType:  "None" | "Omission" | "Insertion" | "Mispronunciation"
+ *       word:        string
+ *       accuracy:    number   // Calibrated
+ *       rawAccuracy: number   // Azure's
+ *       errorType:   "None" | "Omission" | "Insertion" | "Mispronunciation"
  *       phonemes: [{ phoneme: string, accuracy: number }]
  *     }]
  *     recognizedText: string   // What Azure actually heard
  *     locale:         string
+ *     raw:            { overall, accuracy, fluency, completeness, prosody? }
  *   }
  *
  * Required environment variables:
@@ -52,6 +62,7 @@ import { enforceDailyCap } from "../_shared/usageCap.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { recordLearnerErrors, resolveLearnerErrors } from "../_shared/learnerErrors.ts";
 import { contributeLearnerAudio } from "../_shared/learnerAudioContribution.ts";
+import { calibrateAssessment } from "../_shared/pronunciationScoringCore.ts";
 
 
 const AZURE_SPEECH_KEY = Deno.env.get('AZURE_SPEECH_KEY') ?? '';
@@ -118,13 +129,27 @@ interface AzurePhoneme {
 
 interface WordResult {
   word: string;
+  /** Calibrated 0-100 — what the learner is shown. See pronunciationScoringCore. */
   accuracy: number;
+  /** Azure's own number for this word, kept for debugging and for tuning the curve. */
+  rawAccuracy?: number;
   errorType: 'None' | 'Omission' | 'Insertion' | 'Mispronunciation';
   phonemes: PhonemeResult[];
 }
 
-interface PronunciationResult {
+/** Azure's scores exactly as they arrived, before calibration. */
+interface RawScores {
   overall: number;
+  accuracy: number;
+  fluency: number;
+  completeness: number;
+  prosody?: number;
+}
+
+interface PronunciationResult {
+  /** Calibrated headline score — accuracy, pushed down by whatever else went wrong. */
+  overall: number;
+  /** Calibrated pronunciation accuracy. */
   accuracy: number;
   fluency: number;
   completeness: number;
@@ -133,6 +158,9 @@ interface PronunciationResult {
   words: WordResult[];
   recognizedText: string;
   locale: string;
+  /** Azure's uncalibrated numbers. Not shown; kept so the curve can be re-tuned
+   *  against real takes without another round of guessing. */
+  raw?: RawScores;
 }
 
 /** Parse Azure NBest[0] into a clean PronunciationResult.
@@ -187,6 +215,50 @@ function parseAzureResponse(nbest: any, locale: string): PronunciationResult {
     words,
     recognizedText: nbest.Lexical ?? nbest.Display ?? '',
     locale,
+  };
+}
+
+/**
+ * Replace Azure's headline numbers with the calibrated ones the learner sees,
+ * keeping the originals under `raw`.
+ *
+ * Fluency and completeness pass through untouched — they are honest measures of
+ * what they measure, and they are shown as sub-scores. What changes is that
+ * they no longer *lift* the headline: in the calibrated score they can only
+ * subtract. See `_shared/pronunciationScoringCore.ts`.
+ */
+function calibrateResult(result: PronunciationResult, referenceText: string): PronunciationResult {
+  const calibrated = calibrateAssessment({
+    accuracy: result.accuracy,
+    fluency: result.fluency,
+    completeness: result.completeness,
+    ...(typeof result.prosody === 'number' ? { prosody: result.prosody } : {}),
+    words: result.words.map((w) => ({
+      word: w.word,
+      accuracy: w.accuracy,
+      errorType: w.errorType,
+      phonemes: w.phonemes.map((p) => ({ accuracy: p.accuracy })),
+    })),
+    recognizedText: result.recognizedText,
+    referenceText,
+  });
+
+  return {
+    ...result,
+    overall: calibrated.overall,
+    accuracy: calibrated.accuracy,
+    words: result.words.map((w, i) => ({
+      ...w,
+      accuracy: calibrated.words[i] ?? w.accuracy,
+      rawAccuracy: w.accuracy,
+    })),
+    raw: {
+      overall: result.overall,
+      accuracy: result.accuracy,
+      fluency: result.fluency,
+      completeness: result.completeness,
+      ...(typeof result.prosody === 'number' ? { prosody: result.prosody } : {}),
+    },
   };
 }
 
@@ -340,8 +412,11 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const result = parseAzureResponse(nbest, locale);
-    console.log(`Pronunciation assessment [${locale}] overall=${result.overall} accuracy=${result.accuracy} words=${result.words.length}`);
+    const result = calibrateResult(parseAzureResponse(nbest, locale), referenceText);
+    console.log(
+      `Pronunciation assessment [${locale}] overall=${result.overall} accuracy=${result.accuracy} ` +
+      `(azure ${result.raw?.overall}/${result.raw?.accuracy}) words=${result.words.length}`,
+    );
 
     // Persist the words Azure flagged so they can be targeted later. Azure's
     // per-word errorType is the most precise signal the app produces about

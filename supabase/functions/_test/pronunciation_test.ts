@@ -113,8 +113,18 @@ Deno.test("flattens Azure's nested scores", async () => {
   }));
 
   assertEquals(status, 200);
-  assertEquals(body.overall, 82);
-  assertEquals(body.accuracy, 85);
+  // Azure's own numbers, kept verbatim under `raw`. The headline the learner
+  // sees is calibrated from these (see the calibration section below); the
+  // parser's job is only to find them in whichever shape they arrived in.
+  assertEquals(body.raw, {
+    overall: 82,
+    accuracy: 85,
+    fluency: 78,
+    completeness: 100,
+    prosody: 70,
+  });
+  // Fluency, completeness and prosody are passed through as-is — they measure
+  // what they say they measure, and they are shown as sub-scores.
   assertEquals(body.fluency, 78);
   assertEquals(body.completeness, 100);
   assertEquals(body.prosody, 70);
@@ -136,8 +146,9 @@ Deno.test("reads the same scores when Azure inlines them instead", async () => {
   // Azure returns both shapes for the same request depending on locale and
   // load. Handling only the nested one would produce a flat zero — which reads
   // to the learner as "you got everything wrong", not "the parser missed".
-  assertEquals(body.overall, 90);
-  assertEquals(body.accuracy, 91);
+  const raw = body.raw as Record<string, unknown>;
+  assertEquals(raw.overall, 90);
+  assertEquals(raw.accuracy, 91);
   assertEquals(body.fluency, 88);
   assertEquals(body.recognizedText, "مرحبا");
 });
@@ -165,7 +176,7 @@ Deno.test("falls back to the accuracy score when there is no PronScore", async (
     }),
   }));
 
-  assertEquals(body.overall, 77);
+  assertEquals((body.raw as Record<string, unknown>).overall, 77);
 });
 
 Deno.test("carries the per-word breakdown through", async () => {
@@ -186,7 +197,9 @@ Deno.test("carries the per-word breakdown through", async () => {
   assertEquals(words.length, 2);
   assertEquals(words[1].word, "كيف");
   assertEquals(words[1].errorType, "Mispronunciation");
-  assertEquals(words[1].accuracy, 30);
+  assertEquals(words[1].rawAccuracy, 30);
+  // Calibrated for display, Azure's own number kept beside it.
+  assert((words[1].accuracy as number) < 30);
 });
 
 Deno.test("defaults a word with no error type to None", async () => {
@@ -274,6 +287,79 @@ Deno.test("omits nbest entirely when there are no alternatives", async () => {
 
   const words = body.words as Array<{ phonemes: Array<Record<string, unknown>> }>;
   assert(!("nbest" in words[0].phonemes[0]));
+});
+
+// ── Calibration ─────────────────────────────────────────────────────────────
+//
+// The curve itself is tested in `pronunciation_scoring_test.ts`. What matters
+// here is that the function applies it — the parser and the calibrator are
+// wired together, and it is the calibrated number that leaves the door.
+
+Deno.test("scores a butchered sound as a butchered sound", async () => {
+  const { body } = await call(ok, caller({
+    "stt.speech.microsoft.com": azure({
+      Lexical: "\u0645\u0631\u062D\u0628\u0627",
+      PronunciationAssessment: { PronScore: 88, AccuracyScore: 88, FluencyScore: 95, CompletenessScore: 100 },
+      Words: [
+        {
+          Word: "\u0645\u0631\u062D\u0628\u0627",
+          PronunciationAssessment: { AccuracyScore: 80, ErrorType: "None" },
+          Phonemes: [95, 95, 20, 95, 95].map((AccuracyScore) => ({
+            Phoneme: "x",
+            PronunciationAssessment: { AccuracyScore },
+          })),
+        },
+      ],
+    }),
+  }));
+
+  // Azure called this 88 because it averages the phonemes, and the one sound
+  // the learner did not make averages away. This is the complaint the whole
+  // calibration exists to answer.
+  assertEquals((body.raw as Record<string, unknown>).overall, 88);
+  assert((body.overall as number) < 60, `expected a low score, got ${body.overall}`);
+});
+
+Deno.test("leaves a clean take looking clean", async () => {
+  const { body } = await call(ok, caller({
+    "stt.speech.microsoft.com": azure({
+      Lexical: "\u0645\u0631\u062D\u0628\u0627",
+      PronunciationAssessment: { PronScore: 97, AccuracyScore: 97, FluencyScore: 96, CompletenessScore: 100 },
+      Words: [
+        {
+          Word: "\u0645\u0631\u062D\u0628\u0627",
+          PronunciationAssessment: { AccuracyScore: 97, ErrorType: "None" },
+          Phonemes: [97, 96, 98].map((AccuracyScore) => ({
+            Phoneme: "x",
+            PronunciationAssessment: { AccuracyScore },
+          })),
+        },
+      ],
+    }),
+  }));
+
+  // The other half of the brief. A scorer that nobody can satisfy gets ignored,
+  // and then the number stops meaning anything at all.
+  assert((body.overall as number) >= 90, `expected a high score, got ${body.overall}`);
+});
+
+Deno.test("keeps Azure's own numbers beside the calibrated ones", async () => {
+  const { body } = await call(ok, caller({
+    "stt.speech.microsoft.com": azure({
+      Lexical: "\u0645\u0631\u062D\u0628\u0627",
+      PronunciationAssessment: { PronScore: 88, AccuracyScore: 88, FluencyScore: 90, CompletenessScore: 100 },
+      Words: [
+        { Word: "\u0645\u0631\u062D\u0628\u0627", PronunciationAssessment: { AccuracyScore: 88, ErrorType: "None" }, Phonemes: [] },
+      ],
+    }),
+  }));
+
+  // Nothing else reads these, and that is the point: re-tuning the curve later
+  // needs the inputs it was tuned against, and by then the takes are gone.
+  const words = body.words as Array<Record<string, unknown>>;
+  assertEquals(words[0].rawAccuracy, 88);
+  assertEquals((body.raw as Record<string, unknown>).accuracy, 88);
+  assert(words[0].accuracy !== 88);
 });
 
 // ── What Azure is asked for ─────────────────────────────────────────────────
@@ -560,7 +646,7 @@ Deno.test("still answers when the bookkeeping write fails", async () => {
   // Fire-and-forget by design. The learner's score must never wait on, or fail
   // with, a bookkeeping write they cannot see.
   assertEquals(status, 200);
-  assertEquals(body.overall, 40);
+  assertEquals((body.raw as Record<string, unknown>).overall, 40);
 });
 
 // ── CORS ────────────────────────────────────────────────────────────────────

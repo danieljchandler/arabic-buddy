@@ -144,9 +144,53 @@ Deno.test("pronunciation-feedback leaves matched words out of the summary", asyn
   const prompt = promptOf(bodies, calls);
   // A perfect take still gets tips, but on rhythm and intonation rather than
   // on words — otherwise the feature has nothing to say to the learners who
-  // use it most.
+  // use it most. That instruction now rides on the verdict line, which is
+  // banded by the score rather than appended to every prompt regardless of it.
   assertStringIncludes(prompt, "The words matched the clip closely");
-  assertStringIncludes(prompt, "rhythm/intonation");
+  assertStringIncludes(prompt, "rhythm, linking, intonation");
+});
+
+Deno.test("pronunciation-feedback tells the model how badly the take went", async () => {
+  const { bodies, calls } = await call(
+    {
+      mode: "shadow",
+      referenceText: "الجو حلو اليوم",
+      recognizedText: "الجو",
+      closeness: 35,
+      wordDiffs: [
+        { ref: "الجو", said: "الجو", status: "match" },
+        { ref: "حلو", status: "missing" },
+        { ref: "اليوم", status: "missing" },
+      ],
+    },
+    caller({ "ai.gateway.lovable.dev": tips("Say حلو before اليوم.") }),
+  );
+
+  const prompt = promptOf(bodies, calls);
+  // The prompt used to say "be encouraging" and nothing else, so the tips read
+  // the same whether the learner nailed it or dropped two thirds of the line —
+  // polish notes on a take that needed a redo. The score is already on screen;
+  // the advice beside it has to agree with it.
+  assertStringIncludes(prompt, "missed the target badly");
+  assertStringIncludes(prompt, "Do not open with praise");
+});
+
+Deno.test("pronunciation-feedback does not talk down a take that went well", async () => {
+  const { bodies, calls } = await call(
+    {
+      mode: "shadow",
+      referenceText: "الجو حلو",
+      recognizedText: "الجو حلو",
+      closeness: 93,
+      wordDiffs: [{ ref: "الجو", said: "الجو", status: "match" }],
+    },
+    caller({ "ai.gateway.lovable.dev": tips("Link the two words.") }),
+  );
+
+  const prompt = promptOf(bodies, calls);
+  // The band cuts both ways. A coach who finds fault with a near-native take is
+  // no more use than one who praises a bad one.
+  assertStringIncludes(prompt, "very close to native");
 });
 
 Deno.test("pronunciation-feedback says so when nothing was recognised", async () => {

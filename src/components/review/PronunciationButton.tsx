@@ -131,9 +131,11 @@ export const PronunciationButton = ({
   };
 
   const isSingleWord = word.trim().split(/\s+/).length === 1;
-  const displayScore = result
-    ? Math.round(isSingleWord ? result.accuracy : result.overall)
-    : 0;
+  // `overall` for both now. It used to fall back to `accuracy` for a single
+  // word because Azure's PronScore folded in fluency and completeness, which
+  // mean nothing for one word said on its own; `azure-pronunciation` handles
+  // that itself, so the headline is the headline either way.
+  const displayScore = result ? Math.round(result.overall) : 0;
   const band = result ? scoreBand(displayScore) : null;
 
   return (

@@ -1,5 +1,5 @@
  import { useState, useRef, useEffect, useCallback } from "react";
- import { ChevronDown, ChevronUp, Eye, EyeOff, Play, Pause, Plus, BookOpen, Check, Link2, MonitorPlay } from "lucide-react";
+ import { ChevronDown, ChevronUp, Eye, EyeOff, Play, Pause, Plus, BookOpen, Check, Link2, MonitorPlay, Trash2 } from "lucide-react";
  import { cn } from "@/lib/utils";
  import { Switch } from "@/components/ui/switch";
  import {
@@ -25,6 +25,8 @@ import { useFushaLines } from "@/hooks/useFushaLines";
    onSaveToMyWords?: (word: VocabItem) => void;
    savedWords?: Set<string>;
    vocabSectionWords?: Set<string>;
+  /** Present only on pages that let a learner drop a line they don't need. */
+  onDeleteLine?: (lineId: string) => void;
  }
  
 interface InlineTokenProps {
@@ -377,8 +379,9 @@ interface TranscriptLineCardProps {
    onSaveToMyWords?: (word: VocabItem) => void;
    savedWords?: Set<string>;
    vocabSectionWords?: Set<string>;
+  onDelete?: () => void;
  }
- 
+
  const TranscriptLineCard = ({
    line,
    isActive,
@@ -393,6 +396,7 @@ interface TranscriptLineCardProps {
    onSaveToMyWords,
    savedWords,
    vocabSectionWords,
+  onDelete,
   }: TranscriptLineCardProps) => {
     const { activeDialect } = useDialect();
     const [selectedIndices, setSelectedIndices] = useState<number[]>([]);
@@ -684,6 +688,22 @@ interface TranscriptLineCardProps {
              </span>
            )}
          </div>
+
+         {/* Delete button — only on pages that let a learner drop a line */}
+         {onDelete && (
+           <Button
+             variant="ghost"
+             size="icon"
+             className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+             aria-label="Delete line"
+             onClick={(e) => {
+               e.stopPropagation();
+               onDelete();
+             }}
+           >
+             <Trash2 className="h-4 w-4" />
+           </Button>
+         )}
        </div>
 
       {/* Fusha (MSA) rendering — sits with the Arabic, not with the
@@ -741,6 +761,7 @@ export const LineByLineTranscript = ({
    onSaveToMyWords,
    savedWords,
    vocabSectionWords,
+  onDeleteLine,
  }: LineByLineTranscriptProps) => {
    const { activeDialect } = useDialect();
    // The Fusha row rides on the global "Formal Arabic (MSA)" display
@@ -910,6 +931,7 @@ export const LineByLineTranscript = ({
              currentTimeMs={effectiveCurrentTimeMs}
              onAddToVocabSection={onAddToVocabSection}
              onSaveToMyWords={onSaveToMyWords}
+             onDelete={onDeleteLine ? () => onDeleteLine(line.id) : undefined}
              savedWords={savedWords}
              vocabSectionWords={vocabSectionWords}
            />

@@ -8,12 +8,7 @@ import { useAddUserVocabulary } from "@/hooks/useUserVocabulary";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Loader2, ArrowLeft, BookOpen, Check, Eye, EyeOff, ChevronDown, ChevronLeft, ChevronRight, List, Pause, Play, SkipBack, SkipForward, Gauge, Heart } from "lucide-react";
+import { Loader2, ArrowLeft, Eye, EyeOff, ChevronDown, ChevronLeft, ChevronRight, List, Pause, Play, SkipBack, SkipForward, Gauge, Heart } from "lucide-react";
 import { useVideoLikeCount, useIsVideoLiked, useLikeVideo, useUnlikeVideo } from "@/hooks/useVideoLikes";
 import { useRecordVideoView } from "@/hooks/useDiscoverFeed";
 import {
@@ -35,6 +30,7 @@ import type { TranscriptLine, WordToken, VocabItem } from "@/types/transcript";
 import { VideoRating } from "@/components/discover/VideoRating";
 import { OnScreenTextPanel } from "@/components/discover/OnScreenTextPanel";
 import { screenTextFor, splitTranscriptLines } from "@/lib/onScreenText";
+import { ClickableWord } from "@/components/shared/ClickableWord";
 import { AskAISentence } from "@/components/shared/AskAISentence";
 import { TranslationPair } from "@/components/shared/TranslationPair";
 import { FushaLine } from "@/components/shared/FushaLine";
@@ -58,136 +54,6 @@ declare global {
     tiktokEmbedLoad?: () => void;
   }
 }
-
-/* ── Clickable Word Token ─────────────────────────────────── */
-const ClickableWord = ({
-  token,
-  parentLine,
-  onSave,
-  isSaved,
-}: {
-  token: WordToken;
-  parentLine: TranscriptLine;
-  onSave?: (word: VocabItem) => void;
-  isSaved?: boolean;
-}) => {
-  const [open, setOpen] = useState(false);
-  const [liveTranslation, setLiveTranslation] = useState<string | null>(null);
-  const [liveMsa, setLiveMsa] = useState<string | null>(null);
-  const [isTranslating, setIsTranslating] = useState(false);
-
-  // A real gloss exists if gloss is set and is not a legacy compound marker
-  const hasGloss = !!token.gloss && !token.gloss.startsWith("(→") && !token.compoundRef;
-  const displayGloss = hasGloss ? token.gloss : liveTranslation;
-
-  const vocabItem: VocabItem = {
-    arabic: token.surface,
-    english: displayGloss || token.gloss || "",
-    sentenceText: parentLine.arabic,
-    sentenceEnglish: parentLine.translation,
-    startMs: parentLine.startMs,
-    endMs: parentLine.endMs,
-  };
-
-  // Auto-translate when popover opens and no gloss exists
-  useEffect(() => {
-    if (open && !hasGloss && !liveTranslation && !isTranslating) {
-      setIsTranslating(true);
-      supabase.functions
-        .invoke("translate-phrase", {
-          body: {
-            phrase: token.surface,
-            sentenceArabic: parentLine.arabic,
-            sentenceEnglish: parentLine.translation,
-          },
-        })
-        .then(({ data, error }) => {
-          if (!error && data?.translation) {
-            setLiveTranslation(data.translation);
-            if (data.msa) setLiveMsa(data.msa);
-          }
-        })
-        .catch((err) => console.warn("Word translation failed:", err))
-        .finally(() => setIsTranslating(false));
-    }
-  }, [open, hasGloss, liveTranslation, isTranslating, token.surface]);
-
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <span
-          className={cn(
-            "cursor-pointer transition-colors duration-150 rounded px-0.5",
-            "hover:bg-primary/15 hover:text-primary",
-          )}
-          role="button"
-          tabIndex={0}
-        >
-          {token.surface}
-        </span>
-      </PopoverTrigger>
-      <PopoverContent
-        side="top"
-        align="center"
-        className="w-auto min-w-[200px] p-3 z-[100]"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="space-y-3">
-          <div className="text-center border-b border-border pb-2">
-            <p
-              className="text-xl font-bold text-foreground mb-1"
-              style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}
-              dir="rtl"
-            >
-              {token.surface}
-            </p>
-            {displayGloss && <p className="text-sm text-muted-foreground">{displayGloss}</p>}
-            {(token.standard || liveMsa) && (
-              <p className="text-xs text-muted-foreground/70" dir="rtl">
-                (فصحى: {token.standard || liveMsa})
-              </p>
-            )}
-            {!displayGloss && isTranslating && (
-              <div className="flex items-center justify-center gap-2 mt-1">
-                <div className="h-3 w-3 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-                <span className="text-xs text-muted-foreground">Translating…</span>
-              </div>
-            )}
-            {!displayGloss && !isTranslating && (
-              <p className="text-xs text-muted-foreground italic">No definition available</p>
-            )}
-          </div>
-          {onSave && displayGloss && (
-            <Button
-              variant="default"
-              size="sm"
-              className="w-full justify-start gap-2"
-              onClick={() => {
-                onSave(vocabItem);
-                setOpen(false);
-              }}
-              disabled={isSaved}
-            >
-              {isSaved ? (
-                <><Check className="h-4 w-4" /> Saved to My Words</>
-              ) : (
-                <><BookOpen className="h-4 w-4" /> Save to My Words</>
-              )}
-            </Button>
-          )}
-          <div className="pt-1 border-t border-border">
-            <AskAISentence
-              arabic={parentLine.arabic}
-              english={parentLine.translation}
-              variant="chip"
-              className="w-full justify-center"
-            />
-          </div>
-        </div>
-      </PopoverContent>
-    </Popover>
-  );
-};
 
 /* ── Transcript Line Row ──────────────────────────────────── */
 const buildShadowClipForLine = (
@@ -2115,11 +1981,14 @@ const DiscoverVideo = ({
         </div>
       )}
 
-      {/* What the video shows, above what it says. */}
+      {/* What the video shows, above what it says. Not seekable — an overlay
+          is not a moment the player can jump back to and replay the way a
+          spoken line is — but each word is tappable, same as the transcript. */}
       <OnScreenTextPanel
         lines={screenText}
         showTranslations={showTranslations}
-        onSeek={(seconds) => handleSeek(seconds * 1000)}
+        onSave={isAuthenticated ? handleSaveToMyWords : undefined}
+        savedWords={savedWords}
       />
 
       {/* Full transcript (toggleable) */}

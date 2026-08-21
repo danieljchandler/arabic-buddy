@@ -1,6 +1,8 @@
 import { MonitorPlay } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ClickableWord } from "@/components/shared/ClickableWord";
 import type { ScreenTextLine } from "@/lib/onScreenText";
+import type { VocabItem } from "@/types/transcript";
 
 const ARABIC_FONT = "'Noto Naskh Arabic', 'Noto Sans Arabic', serif";
 
@@ -8,8 +10,8 @@ interface OnScreenTextPanelProps {
   lines: ScreenTextLine[];
   /** Hidden when the learner has translations switched off. */
   showTranslations?: boolean;
-  /** Jump the player to an overlay's moment, when the player supports it. */
-  onSeek?: (seconds: number) => void;
+  onSave?: (word: VocabItem) => void;
+  savedWords?: Set<string>;
   className?: string;
 }
 
@@ -22,11 +24,17 @@ interface OnScreenTextPanelProps {
  * said. Folding it into the transcript — which is what the pipeline used to do
  * — puts words in a speaker's mouth and breaks line-by-line playback, because
  * there is no audio at that timestamp to play.
+ *
+ * That also means there is nothing here to seek to: unlike a transcript line,
+ * an overlay is not something the player can jump to and replay. Each word is
+ * tappable instead, the same as the transcript, so a learner can look a word
+ * up without leaving the page.
  */
 export const OnScreenTextPanel = ({
   lines,
   showTranslations = true,
-  onSeek,
+  onSave,
+  savedWords,
   className,
 }: OnScreenTextPanelProps) => {
   if (lines.length === 0) return null;
@@ -52,44 +60,37 @@ export const OnScreenTextPanel = ({
       {/* Bounded: the transcript below it is the scrolling pane, and a video
           with a dozen overlays would otherwise push it off the screen. */}
       <ul className="space-y-2 max-h-40 overflow-y-auto">
-        {lines.map((line) => {
-          const seekable = onSeek && line.startSeconds !== undefined;
-          const body = (
-            <>
-              <p
-                dir="rtl"
-                className="text-base font-medium text-foreground"
-                style={{ fontFamily: ARABIC_FONT }}
-              >
-                {line.text}
+        {lines.map((line) => (
+          <li key={line.id} className="rounded-lg p-2">
+            <p
+              dir="rtl"
+              className="text-base font-medium text-foreground leading-[1.8]"
+              style={{ fontFamily: ARABIC_FONT }}
+            >
+              {line.tokens.length > 0
+                ? line.tokens.map((token, i) => (
+                    <span key={token.id} className="inline">
+                      <ClickableWord
+                        token={token}
+                        parentLine={{ arabic: line.text, translation: line.translation }}
+                        onSave={onSave}
+                        isSaved={savedWords?.has(token.surface)}
+                      />
+                      {i < line.tokens.length - 1 && !/^[،؟.!:؛]+$/.test(token.surface) && " "}
+                    </span>
+                  ))
+                : line.text}
+            </p>
+            {line.translation && showTranslations && (
+              <p className="mt-0.5 text-xs text-muted-foreground">{line.translation}</p>
+            )}
+            {line.confidence === "low" && (
+              <p className="mt-0.5 text-xs italic text-amber-700/80 dark:text-amber-400/80">
+                partly legible
               </p>
-              {line.translation && showTranslations && (
-                <p className="mt-0.5 text-xs text-muted-foreground">{line.translation}</p>
-              )}
-              {line.confidence === "low" && (
-                <p className="mt-0.5 text-xs italic text-amber-700/80 dark:text-amber-400/80">
-                  partly legible
-                </p>
-              )}
-            </>
-          );
-
-          return (
-            <li key={line.id}>
-              {seekable ? (
-                <button
-                  type="button"
-                  onClick={() => onSeek!(line.startSeconds!)}
-                  className="w-full rounded-lg p-2 text-left transition-colors hover:bg-amber-100/70 dark:hover:bg-amber-900/30"
-                >
-                  {body}
-                </button>
-              ) : (
-                <div className="rounded-lg p-2">{body}</div>
-              )}
-            </li>
-          );
-        })}
+            )}
+          </li>
+        ))}
       </ul>
     </section>
   );

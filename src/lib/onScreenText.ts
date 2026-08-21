@@ -10,6 +10,7 @@ import {
   type VisualMoment,
 } from "../../supabase/functions/_shared/visualTimelineCore";
 import { isOnScreenLine } from "../../supabase/functions/_shared/onScreenText";
+import type { WordToken } from "@/types/transcript";
 
 /** One overlay, ready to render. */
 export type ScreenTextLine = {
@@ -19,7 +20,23 @@ export type ScreenTextLine = {
   startSeconds?: number;
   endSeconds?: number;
   confidence?: "high" | "medium" | "low";
+  /**
+   * `text` split into tappable words, the same shape a transcript line's
+   * tokens take. Overlays carry no per-word gloss from the vision pass — a
+   * caption is read as a picture, not parsed — so these have a `surface` only
+   * and pick up their gloss the same way a transcript word with no gloss
+   * does: on tap, from `translate-phrase`.
+   */
+  tokens: WordToken[];
 };
+
+/** Split an overlay's text into tappable words. */
+function tokenize(text: string, lineId: string): WordToken[] {
+  return text
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((surface, index) => ({ id: `${lineId}-tok-${index}`, surface }));
+}
 
 /**
  * Split a stored transcript into what was said and what was merely shown.
@@ -42,14 +59,18 @@ export function splitTranscriptLines<T>(lines: T[] | null | undefined): {
 function fromMoments(moments: VisualMoment[]): ScreenTextLine[] {
   return moments
     .filter((moment) => Boolean(moment.text))
-    .map((moment, index) => ({
-      id: `screen-${index}-${moment.startSeconds}`,
-      text: moment.text!,
-      translation: moment.translation,
-      startSeconds: moment.startSeconds,
-      endSeconds: moment.endSeconds,
-      confidence: moment.confidence,
-    }));
+    .map((moment, index) => {
+      const id = `screen-${index}-${moment.startSeconds}`;
+      return {
+        id,
+        text: moment.text!,
+        translation: moment.translation,
+        startSeconds: moment.startSeconds,
+        endSeconds: moment.endSeconds,
+        confidence: moment.confidence,
+        tokens: tokenize(moment.text!, id),
+      };
+    });
 }
 
 function fromLegacyLines(lines: unknown): ScreenTextLine[] {
@@ -58,15 +79,18 @@ function fromLegacyLines(lines: unknown): ScreenTextLine[] {
     const row = line as Record<string, unknown>;
     const startMs = typeof row.startMs === "number" ? row.startMs : undefined;
     const endMs = typeof row.endMs === "number" ? row.endMs : undefined;
+    const id = typeof row.id === "string" ? row.id : `legacy-screen-${index}`;
+    const text = String(row.arabic ?? "").trim();
     return {
-      id: typeof row.id === "string" ? row.id : `legacy-screen-${index}`,
-      text: String(row.arabic ?? "").trim(),
+      id,
+      text,
       translation: typeof row.translation === "string" && row.translation.trim()
         ? row.translation.trim()
         : undefined,
       startSeconds: startMs === undefined ? undefined : startMs / 1000,
       endSeconds: endMs === undefined ? undefined : endMs / 1000,
       confidence: row.needs_review ? ("low" as const) : undefined,
+      tokens: tokenize(text, id),
     };
   }).filter((line) => line.text.length > 0);
 }

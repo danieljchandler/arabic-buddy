@@ -109,4 +109,39 @@ describe("screenTextFor", () => {
     expect(screenTextFor(null)).toEqual([]);
     expect(screenTextFor({ visual_timeline: "not an array", transcript_lines: null })).toEqual([]);
   });
+
+  it("splits an overlay into tappable words", () => {
+    // The vision pass reads a caption as a picture, not as parsed words, so
+    // there is no per-word gloss to carry over — only the split itself.
+    const [line] = screenTextFor({
+      visual_timeline: [{ startSeconds: 0, text: "لما تصحى بدري", translation: "when you wake up early" }],
+    });
+
+    expect(line.tokens.map((t) => t.surface)).toEqual(["لما", "تصحى", "بدري"]);
+    expect(line.tokens.every((t) => t.gloss === undefined)).toBe(true);
+  });
+
+  it("gives every token in a video a distinct id", () => {
+    const [first, second] = screenTextFor({
+      visual_timeline: [
+        { startSeconds: 0, text: "لما تصحى" },
+        { startSeconds: 5, text: "لما تصحى" },
+      ],
+    });
+
+    // Two overlays can carry the same text; their tokens must not collide,
+    // or tapping a word in one line would key off the other's saved state.
+    const firstIds = first.tokens.map((t) => t.id);
+    const secondIds = second.tokens.map((t) => t.id);
+    expect(new Set([...firstIds, ...secondIds]).size).toBe(firstIds.length + secondIds.length);
+  });
+
+  it("tokenizes a caption recovered from the legacy transcript too", () => {
+    const [line] = screenTextFor({
+      visual_timeline: [],
+      transcript_lines: [{ id: "b", arabic: "POV: تروح الدوام", source: "on_screen" }],
+    });
+
+    expect(line.tokens.map((t) => t.surface)).toEqual(["POV:", "تروح", "الدوام"]);
+  });
 });

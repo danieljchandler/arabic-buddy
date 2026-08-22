@@ -10,9 +10,10 @@ import { PageCorner } from "@/components/shell/PageCorner";
 import { AppShell } from "@/components/layout/AppShell";
 import { Loader2, Mail, Lock, UserPlus, LogIn, Ticket } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-// The framed mark, in the `clear` variant: this page is the app's own light
-// ground, which is the floor the open frame is drawn to sit on.
-import { SaduMark } from "@/components/brand/SaduMark";
+// The full lockup — mark, Arabic and English in one framed plate. This screen
+// has the room to draw it at a size where all three read, which the corner
+// never will.
+import hakiyaLockup from "@/assets/hakiya-lockup.webp";
 import { LoadingPanel } from "@/components/loading/LoadingPanel";
 
 // Lightweight inline validators — dropping `zod` here saves ~12 kB gz on the Auth chunk.
@@ -179,7 +180,7 @@ const Auth = () => {
       <div className="max-w-sm mx-auto">
         {/* Logo and Title */}
         <div className="text-center mb-10">
-          <SaduMark title="Hakiya" variant="clear" className="h-16 w-16 mx-auto mb-5" />
+          <img src={hakiyaLockup} alt="Hakiya" className="h-32 w-32 mx-auto mb-5" />
           <h1 className="text-2xl font-bold text-foreground mb-2 font-heading">
             {isLogin ? "Welcome Back" : "Join Hakiya"}
           </h1>

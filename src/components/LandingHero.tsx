@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { ArrowRight, Globe2 } from "lucide-react";
 import { Button, CampfireMedallion } from "@/components/design-system";
-import hakiyaLogoAsset from "@/assets/hakiya-logo.png";
+import hakiyaLockup from "@/assets/hakiya-lockup.webp";
 import valueVoicesArt from "@/assets/illustrations/value-voices.webp";
 import valueMemoryArt from "@/assets/illustrations/value-memory.webp";
 import valueMediaArt from "@/assets/illustrations/value-media.webp";
@@ -9,7 +9,6 @@ import dialectGulfArt from "@/assets/illustrations/dialect-gulf.webp";
 import dialectEgyptianArt from "@/assets/illustrations/dialect-egyptian.webp";
 import dialectYemeniArt from "@/assets/illustrations/dialect-yemeni.webp";
 
-const hakiyaLogo = hakiyaLogoAsset;
 
 /**
  * Logged-out landing hero shown on `/` when the visitor isn't authenticated.
@@ -30,7 +29,7 @@ export function LandingHero() {
     <section className="py-6">
       {/* Logo */}
       <div className="flex justify-center mb-5">
-        <img src={hakiyaLogo} alt="Hakiya" className="h-16 sm:h-20" />
+        <img src={hakiyaLockup} alt="Hakiya" className="h-32 w-32 sm:h-40 sm:w-40" />
       </div>
 
       {/* The fire: campfire clip + its one-line beat */}

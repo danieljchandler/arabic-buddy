@@ -22,7 +22,7 @@ import { getTopicCategories } from '@/data/listenTopics';
 import { LEARNING_REASONS, reasonLabel } from '@/data/learningReasons';
 // The stacked logo lockup, not hakiya-icon.png — that file is a 712 kB render
 // whose artwork floats inside a much larger canvas (see BrandMark's comment).
-import hakiyaLogo from '@/assets/hakiya-logo.png';
+import hakiyaLockup from '@/assets/hakiya-lockup.webp';
 import dialectGulfArt from '@/assets/illustrations/dialect-gulf.webp';
 import dialectEgyptianArt from '@/assets/illustrations/dialect-egyptian.webp';
 import dialectYemeniArt from '@/assets/illustrations/dialect-yemeni.webp';
@@ -184,7 +184,7 @@ const Onboarding = () => {
         {/* ─── WELCOME ─────────────────────────── */}
         {step === 'welcome' && (
           <div className="text-center space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-            <img src={hakiyaLogo} alt="Hakiya" className="h-28 w-28 mx-auto object-contain" />
+            <img src={hakiyaLockup} alt="Hakiya" className="h-40 w-40 mx-auto" />
             <div>
               <h1 className="text-3xl font-bold font-heading text-foreground mb-3" dir="rtl">
                 !أهلاً وسهلاً

@@ -106,3 +106,31 @@ different change, and a bigger one.
 `docs/branding/mark-frames/` holds all six at 512px with alpha. 3 and 4 are
 rendered from the shipped vector, so they match what the app draws; 1, 2, 5 and
 6 are the raster explorations and stay that way.
+
+
+## The lockup you supplied, framed
+
+`src/assets/hakiya-lockup.webp` — your own logo file (mark, Arabic and English
+already stacked) cropped to its artwork and set into a rounded-square plate with
+a thin crimson rule.
+
+Two things were done to the source and nothing else: the AI sparkle artefact in
+its lower right was dropped by cropping to the artwork's real bounding box, and
+the artwork's own peach ground (#F5DCC6) was kept as the plate's fill rather
+than keyed out. That second choice is why there is no halo — nothing was
+composited, so there is no edge to get wrong. It also means the plate sits a
+shade warmer than the app's sand, which reads as a deliberate plate rather than
+a mismatch.
+
+Wired where there is room to draw it at a size all three elements survive:
+
+| Surface | Size |
+|---|---|
+| `LandingHero` | 128px, 160 from `sm` |
+| `Onboarding` welcome | 160px |
+| `Auth` | 128px |
+
+`Learn`'s header slot is 32px, which no lockup can serve, so it takes the
+mark-only `SaduMark` instead — as does `BrandMark` and the profile emblem. That
+split is the same one recorded in `docs/play-button-directions.md`: a full
+lockup where there is room, a reduced form where there is not.

@@ -34,8 +34,13 @@ const PASSAGE = {
   ],
 };
 
+/**
+ * Cmd/Ctrl+K is the assistant's global opener. It used to share the job with a
+ * floating disc, which was removed for covering the bottom bar; the keystroke
+ * is what these specs reach for because it works on every route.
+ */
 const openPanel = async (page: Page) => {
-  await page.getByRole("button", { name: "Ask AI" }).click();
+  await page.keyboard.press("ControlOrMeta+k");
   await expect(page.getByRole("dialog")).toBeVisible();
 };
 
@@ -160,8 +165,8 @@ test.describe("Ask AI panel", () => {
     const line = page.getByText("المقهى", { exact: true }).first();
     await expect(line).toBeVisible();
 
-    // The per-line chip and the floating action button share the name "Ask AI";
-    // the chip comes first, the FAB is mounted last in the shell.
+    // The per-line chip is what seeds the panel with the sentence — opening it
+    // from the keyboard would carry the page context but no sentence.
     await page.getByRole("button", { name: "Ask AI" }).first().click();
     await expect(page.getByRole("dialog")).toBeVisible();
 

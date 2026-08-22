@@ -29,8 +29,8 @@ import { ChatTab } from "./ChatTab";
 import { VoiceTab } from "./VoiceTab";
 
 /**
- * The global Ask AI panel. Mounted once (in App.tsx); opened by the FAB, the
- * Ask AI chips, or Cmd/Ctrl+K. Chat and Voice share the same seed and page
+ * The global Ask AI panel. Mounted once (in App.tsx); opened by the Ask AI
+ * chips or Cmd/Ctrl+K. Chat and Voice share the same seed and page
  * context, so "ask about this sentence" works in either mode.
  *
  * Deliberately non-modal: the learner has to keep seeing (and using) the thing

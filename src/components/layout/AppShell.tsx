@@ -69,11 +69,11 @@ export function AppShell({ children, className, compact = false, wide = false }:
         "relative mx-auto w-full max-w-2xl animate-fade-up",
         wide && "lg:max-w-5xl",
         compact ? "px-4 pb-5 sm:px-5 sm:pb-6" : "px-4 pb-8 sm:px-6 md:pb-12",
-        // Clearance for the dock AND the Ask AI FAB, at every width. The md:
+        // Clearance for the dock AND the feedback FAB, at every width. The md:
         // variant above is a separate group as far as tailwind-merge is
         // concerned, so a bare value loses to md:pb-12 from 768px up — the
         // clearance is stated at both widths. On phones the FAB floats at
-        // bottom-20 and is 40px tall, so it reaches ~120px up from the edge:
+        // bottom-20 and is 48px tall, so it reaches ~128px up from the edge:
         // pb-24 (96px) left it sitting on whatever ended a page — the Start
         // a lesson button on My Words, the empty-state copy on Discover.
         // 128px lets every page scroll its last element clear of it. From md
@@ -89,8 +89,6 @@ export function AppShell({ children, className, compact = false, wide = false }:
       </div>
       <AppDock />
       <FeedbackWidget />
-      {/* The Ask AI FAB is mounted once at the app root (App.tsx) so it also
-          reaches the pages that don't wrap themselves in AppShell. */}
     </div>
   );
 }

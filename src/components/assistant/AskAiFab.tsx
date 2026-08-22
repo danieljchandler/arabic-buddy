@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from "react";
 import { useLocation } from "react-router-dom";
-import { SaduBubble } from "@/components/brand/SaduBubble";
+import art from "@/assets/sadu-ask.svg";
 import { useAiAssistant } from "@/contexts/AiAssistantContext";
 import { cn } from "@/lib/utils";
 
@@ -44,18 +44,23 @@ export function AskAiFab({ className }: { className?: string }) {
       data-feedback-ignore="true"
       onClick={() => openChat()}
       className={cn(
-        "fixed right-3 bottom-20 z-40 flex items-center gap-1.5 rounded-full",
-        "bg-primary text-primary-foreground shadow-elegant transition-transform hover:scale-105",
+        "fixed right-3 bottom-20 z-40 rounded-full",
+        "transition-transform hover:scale-105 active:scale-95",
         "md:bottom-6 md:right-6",
-        "h-10 pe-3 ps-2.5",
         className,
       )}
     >
-      {/* The mark is a speech bubble woven with sadu, not a sparkle: the logo
-          is already a bubble with a sadu ring, and asking is what the button
-          does. "simple" because the full band turns to mush at this size. */}
-      <SaduBubble tone="ivory" className="h-[18px] w-auto shrink-0" />
-      <span className="text-[13px] font-semibold leading-none tracking-tight">Ask AI</span>
+      {/* The play button's disc — the weave pressed into dark glass, crimson
+          hairline at the rim — with the question mark where the triangle goes.
+          The two controls are siblings on the same screen, and a family
+          resemblance says "this one asks" better than a labelled pill did. */}
+      <img
+        src={art}
+        alt=""
+        aria-hidden="true"
+        draggable={false}
+        className="h-12 w-12 drop-shadow-[0_2px_10px_rgba(0,0,0,0.45)]"
+      />
     </button>
   );
 }

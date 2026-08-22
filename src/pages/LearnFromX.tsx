@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { LoadingPanel } from "@/components/loading/LoadingPanel";
-import { PageCorner } from "@/components/shell/PageCorner";
+import { ProfileEmblem } from "@/components/shell/ProfileEmblem";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { supabase } from "@/integrations/supabase/client";
 import { LineByLineTranscript } from "@/components/transcript/LineByLineTranscript";
@@ -239,9 +239,10 @@ const LearnFromX = () => {
               <p className="text-xs text-muted-foreground">Paste an Arabic X post URL to analyze</p>
             </div>
           </div>
-          {/* Last in the row: the emblem right-aligns itself, and the heading
-              that used to sit beside the corner keeps the left edge. */}
-          <PageCorner />
+          {/* This page draws its own layout, so the dock — the emblem's home
+              everywhere else — never mounts here. The corner keeps the face,
+              because a page with no dock still needs a way to your account. */}
+          <ProfileEmblem className="ml-auto h-11 w-11" />
         </div>
 
         {/* URL input */}

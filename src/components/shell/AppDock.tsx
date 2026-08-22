@@ -1,5 +1,6 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { Home, LayoutGrid, Plus, MessageCircleQuestion, Layers } from "lucide-react";
+import { Home, LayoutGrid, Plus, Layers } from "lucide-react";
+import { ProfileEmblem } from "@/components/shell/ProfileEmblem";
 import { useSRSStats } from "@/hooks/useSRSStats";
 import { cn } from "@/lib/utils";
 
@@ -11,8 +12,11 @@ import { cn } from "@/lib/utils";
  * skills live on the chooser (one tap away via Skills, or a sideways swipe)
  * and the dock carries the things you reach for mid-session.
  *
- * Profile is absent on purpose: it lives in the emblem, top-left, where it
- * never moves. That frees the fifth slot for something you actually use.
+ * The fifth slot is you. It used to be Ask, which pointed at /how-do-i-say
+ * from forty pixels below the Ask AI button — the same verb twice, in the two
+ * spots a thumb rests. Ask now has one home (the floating sadu disc), and the
+ * dock ends the way every feed app this audience uses ends: your picture,
+ * bottom right, opening your page.
  *
  * Review holds one of those slots because spaced repetition is the other half
  * of this app: the video is what brings someone back, and the review queue is
@@ -53,7 +57,6 @@ const SLOTS: {
   { to: "/choose", label: "Skills", icon: LayoutGrid, tourId: "nav-choose", alsoOwns: /^\/skills(\/|$)/ },
   { to: "/tutor-upload", label: "Upload", icon: Plus, primary: true, tourId: "nav-upload" },
   { to: "/review", label: "Review", icon: Layers, tourId: "nav-review", badge: true },
-  { to: "/how-do-i-say", label: "Ask", icon: MessageCircleQuestion, tourId: "nav-ask" },
 ];
 
 /**
@@ -161,6 +164,15 @@ export function AppDock({ className }: { className?: string }) {
             </NavLink>
           </li>
         ))}
+        {/* The fifth slot: your picture, not another icon. ProfileEmblem is
+            its own Link with its own accessible name and the tour anchor, so
+            it is dropped in whole rather than forced through the NavLink
+            mould — a face with a text label under it reads as a contact, not
+            a tab. The ring lights when reviews are waiting, same as it did in
+            every corner it has lived in. */}
+        <li className="grid flex-1 place-items-center lg:flex-none lg:py-3">
+          <ProfileEmblem hasNews={due > 0} className="h-9 w-9" />
+        </li>
       </ul>
     </nav>
   );

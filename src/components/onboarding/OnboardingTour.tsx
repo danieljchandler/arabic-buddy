@@ -48,7 +48,7 @@ const STEPS: Step[] = [
   {
     selector: "[data-tour='emblem']",
     title: "Your account",
-    body: "The Hakiya mark in the corner opens your page: saved words, progress and settings. When something's waiting, it gets a ring.",
+    body: "Your picture, right here in the dock, opens your page: saved words, progress and settings. When something's waiting, it gets a ring.",
     placement: "bottom",
   },
 ];

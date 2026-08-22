@@ -1,20 +1,21 @@
 import { expect, test } from "./support/fixtures";
 
 /**
- * The corner control, which is two controls.
+ * The account control lives in the dock; the corner is two things or nothing.
  *
- * Dozens of pages reserve a slot in their top corner. It used to hold a home
- * button on every one of them — including the pages where the dock now offers
- * the identical destination forty pixels lower. So on those pages the slot
- * holds the profile emblem instead, and on the pages with no dock it stays the
- * home button, because those are the ones with no other way out.
+ * Dozens of pages reserve a slot in their top corner. It held a home button,
+ * then the profile emblem once the dock made a corner home redundant — and now
+ * nothing at all where the dock is showing, because the emblem moved into the
+ * dock's own fifth slot, where every feed app this audience uses keeps it. On
+ * the pages with no dock the corner stays the home button, because those are
+ * the ones with no other way out.
  *
- * Getting this backwards is quiet in both directions: a duplicate home button
- * looks fine and wastes the corner, and a profile link on a page with no dock
+ * Getting this backwards is quiet in both directions: a duplicate account
+ * control looks fine and wastes the corner, and no way out on a dock-less page
  * strands someone mid-lesson. Neither shows up as a broken test elsewhere.
  */
 
-test.describe("the corner control", () => {
+test.describe("the account control", () => {
   test.beforeEach(async ({ signInAs }) => {
     await signInAs("free");
   });
@@ -26,24 +27,35 @@ test.describe("the corner control", () => {
     await expect(page).toHaveURL(/\/me$/);
   });
 
-  test("sits on the right, never in the mark's corner", async ({ page }) => {
-    // The corner on the left belongs to the mark everywhere else in the app,
-    // and an avatar wearing it on eighty interior pages was the complaint that
-    // sent this back twice. One assertion per layout shape PageCorner is
-    // dropped into, because the shapes are what broke it: a block on its own
-    // line, a row that already has the page's controls at its far end, and a
-    // centred title bar with no slack for an auto margin to eat.
-    for (const route of ["/discover", "/listen", "/translate", "/share", "/transcribe"]) {
+  test("lives in the dock, and only in the dock", async ({ page }) => {
+    // One account control per screen, and it is the dock's fifth slot. A
+    // second emblem in a page corner is the same duplication the corner home
+    // button was — the identical destination twice, in the two most valuable
+    // spots on the screen.
+    for (const route of ["/discover", "/listen", "/translate", "/share"]) {
       await page.goto(route);
 
-      const emblem = page.getByRole("link", { name: /Your account/ }).first();
-      await expect(emblem).toBeVisible();
+      const emblems = page.getByRole("link", { name: /Your account/ });
+      await expect(emblems, `one account control on ${route}`).toHaveCount(1);
+      await expect(
+        page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: /Your account/ }),
+        `the account control on ${route} is the dock's`,
+      ).toBeVisible();
+    }
+  });
 
-      const box = (await emblem.boundingBox())!;
-      const width = page.viewportSize()!.width;
-      expect(box.x + box.width / 2, `emblem should be right of centre on ${route}`).toBeGreaterThan(
-        width / 2,
-      );
+  test("keeps a corner emblem on the pages that draw their own layout", async ({ page }) => {
+    // Transcribe and Learn from X skip AppShell, so the dock — the emblem's
+    // home everywhere else — never mounts on them. Their corner keeps the
+    // face: a page with no dock still needs a way to your account.
+    for (const route of ["/transcribe", "/learn-from-x"]) {
+      await page.goto(route);
+
+      await expect(page.getByRole("navigation", { name: "Primary" })).toHaveCount(0);
+      await expect(
+        page.getByRole("link", { name: /Your account/ }),
+        `the corner emblem on ${route}`,
+      ).toHaveCount(1);
     }
   });
 
@@ -98,12 +110,12 @@ test.describe("the corner control", () => {
 });
 
 /**
- * What the corner shows once you have chosen a picture.
+ * What the emblem shows once you have chosen a picture.
  *
  * Picking an avatar wrote `profiles.avatar_url` and changed nothing anyone
  * saw day to day: the emblem was a hard-coded logo, so the setting only
  * surfaced on the profile page and the leaderboard. Both halves of the fix are
- * pinned here, because each is silent on its own — a corner that never shows
+ * pinned here, because each is silent on its own — an emblem that never shows
  * your picture reads as a broken picker, and a brand that vanished when the
  * avatar took its slot reads as nothing at all.
  */
@@ -137,15 +149,15 @@ test.describe("the emblem's picture", () => {
     await page.goto("/choose");
 
     // The first pass put the two side by side in the same corner and the
-    // avatar ended up wearing the slot the brand had. They are opposite ends
-    // of the header now: mark on the left, where it always was, face on the
-    // right.
+    // avatar ended up wearing the slot the brand had. The mark keeps its
+    // corner; the face lives in the dock and nowhere near the header.
     const mark = page.getByRole("img", { name: "Hakiya" }).first();
-    const face = page.getByRole("link", { name: /Your account/ }).first();
     await expect(mark).toBeVisible();
 
-    const markBox = (await mark.boundingBox())!;
-    const faceBox = (await face.boundingBox())!;
-    expect(markBox.x).toBeLessThan(faceBox.x);
+    const face = page.getByRole("link", { name: /Your account/ });
+    await expect(face).toHaveCount(1);
+    await expect(
+      page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: /Your account/ }),
+    ).toBeVisible();
   });
 });

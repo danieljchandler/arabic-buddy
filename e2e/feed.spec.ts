@@ -59,29 +59,26 @@ test.describe("the feed", () => {
     await expect(page.getByText("Morning coffee with my grandfather")).toBeVisible();
   });
 
-  test("puts the tools on the clip rather than in a menu", async ({ page, db, backend }) => {
+  test("keeps the clip clean of buttons that were not buttons", async ({ page, db, backend }) => {
     seedFeed(db, backend, 1);
 
     await page.goto("/");
 
-    // This rail is the whole reason three hub screens could go away: "ask"
-    // stopped being a destination you navigate to and then have to feed with
-    // content, and became a control on the content itself. Save is a button —
-    // it opens the player in place, which is where a word gets saved — and Ask
-    // is the rail's one genuine link.
-    await expect(page.getByRole("link", { name: "Ask" }).first()).toBeVisible();
-    await expect(page.getByRole("button", { name: "Save" }).first()).toBeVisible();
-
-    // Transcript and Replay are gone. Both did nothing but open the player,
-    // which is a whole screen carrying its own transcript and its own
-    // scrubber — two labels promising a third and a fourth thing that turned
-    // out to be the same thing, on a rail that is only worth having while
-    // every item on it means something different.
+    // The action rail is gone, and each item earned its removal separately.
+    // Save was a button shape around "open the player" — the player is where
+    // saving actually happens — and Ask was a link wearing the same costume.
+    // Transcript and Replay went earlier for the same crime. Tapping the clip
+    // is the one gesture, and it does everything those labels promised.
+    await expect(page.getByRole("link", { name: "Ask", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Save" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Transcript" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Replay" })).toHaveCount(0);
+
+    // Asking kept exactly one home: the floating sadu disc.
+    await expect(page.getByRole("button", { name: "Ask AI" })).toBeVisible();
   });
 
-  test("puts your picture on the rail and the mark in the corner", async ({
+  test("puts your picture in the dock and the mark in the corner", async ({
     page,
     db,
     backend,
@@ -92,17 +89,14 @@ test.describe("the feed", () => {
 
     await page.goto("/");
 
-    // The two used to fight over the same corner, and the avatar won by
-    // arriving second. They are separated now: the mark keeps the corner it
-    // had, and your face moved to the rail on the right.
+    // The mark keeps the corner it always had; your face holds the dock's
+    // fifth slot, which is where every feed app this audience uses keeps it.
     const mark = page.getByRole("img", { name: "Hakiya" }).first();
-    const face = page.getByRole("link", { name: /Your account/ }).first();
+    const face = page
+      .getByRole("navigation", { name: "Primary" })
+      .getByRole("link", { name: /Your account/ });
     await expect(mark).toBeVisible();
     await expect(face.locator("img")).toHaveAttribute("src", "/avatars/sadu-rose.png");
-
-    const markBox = (await mark.boundingBox())!;
-    const faceBox = (await face.boundingBox())!;
-    expect(markBox.x).toBeLessThan(faceBox.x);
   });
 
   test("carries the dialect choice on the feed itself", async ({ page, db, backend }) => {

@@ -21,24 +21,42 @@ Interactive comparison, with each option shown at 64&nbsp;px and 44&nbsp;px:
 
 ## Decided: 01, cut from the cloth
 
-Shipped in `src/components/brand/SaduPlayButton.tsx`. Three things moved between
-the concept render and the vector:
+Shipped as `src/assets/sadu-play.svg`, rendered by
+`src/components/brand/SaduPlayButton.tsx`.
 
-- **A 20-unit repeat**, not the banner's 8. The feed renders at 64px, so a unit
-  is about a pixel; at 20 the lozenges land near 9px and the lattice reads as
-  cloth down to about 40px.
-- **The repeat is phase-shifted** so a cell centre lands on the disc centre. The
-  disc centre (32) is not a multiple of 20, and off-phase the field sits
-  visibly heavier on one side.
-- **A crimson moat around the cut**, which the render did not have and needs.
-  Over a bright frame the hole fills with something close to the weave's cream
-  and the triangle stops reading; a band of ground colour around it fixes that,
-  and is what a bound woven edge looks like anyway. It looks redundant on a
-  dark still, so the component says so in a comment and the test guards it.
+**The art is traced from the render above, not redrawn from it.** That is worth
+stating plainly, because the obvious approach was tried first and thrown away.
 
-The hairline rules from the render were dropped, as this doc predicted they
-would have to be. A cream rule at the rim stayed: it separates the disc from a
-pale frame, where crimson-on-sand alone left the edge soft.
+The first attempt rebuilt the motif by hand as an SVG `<pattern>` — a lattice of
+solid lozenges on a 20-unit repeat, sized and simplified so it would still read
+at 64px, with a crimson moat around the glyph to keep it legible on a bright
+frame. It was a tenth of the size, it held down to 40px, and it did not look
+like the thing that was picked. Two reasons, both structural rather than a
+matter of tuning:
+
+- **Sadu is rows, not a lattice.** The render is bands of *outlined* diamonds —
+  cream stroke, crimson field, small cream eye — sitting tangent in a row, with
+  flat lozenges in the triangular voids between them, and the rows separated by
+  fine horizontal rules. Solid diamonds on a diagonal grid read as argyle.
+- **The glyph was too small.** Measured off the render, the triangle runs from
+  x≈20.8 to an apex at x≈49.3 and stands ≈33 units tall. The redraw had it at
+  19×21, roughly 60% of the linear size, which turns a bold cut into a keyhole
+  and is why it then needed a moat to be visible at all.
+
+So the shipped art is `potrace` output over the render's own cream mask, mapped
+into the 64-unit viewBox: about 16 KB of path data, 6.9 KB gzipped, carrying the
+artwork's geometry including the parts that are irregular because a loom is.
+The glyph is traced too, so the cut is the render's cut rather than an
+idealised triangle.
+
+It ships as an **asset rather than inline SVG** because the feed renders one per
+card. Inline, 16 KB of path data would sit in the DOM once per card; as an asset
+it is fetched once, cached, and shared, and its ids are scoped to its own
+document.
+
+The rules survive at 64px — they are the finest thing in the file at about
+0.4 units — and the glyph is legible on night, sand and daylight frames without
+a moat, because it is large enough not to need one.
 
 ## The constraint that decides this
 

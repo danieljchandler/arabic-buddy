@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import hakiyaMark from "@/assets/hakiya-mark.png";
+import { SaduMark } from "@/components/brand/SaduMark";
 
 /**
  * The Hakiya mark, back in the top-left corner where it belongs.
@@ -9,17 +9,12 @@ import hakiyaMark from "@/assets/hakiya-mark.png";
  * your face moved to the right — the feed's action rail, the far end of a
  * page header.
  *
- * Two things were wrong with how it used to look, and both were in the file
- * rather than the CSS. `hakiya-icon.png` is a 712 kB render whose artwork
- * floats inside a much larger canvas, so `object-contain` in a 40px box drew
- * the mark at roughly half that — small, soft, and sitting high in its own
- * space. This uses the mark from `favicon.png` instead, trimmed to its own
- * ink: the same artwork the browser tab and the installed app icon already
- * show, 7 kB, filling the height it is given. Bundled rather than fetched from
- * the asset host, so it arrives with the page instead of one hop later.
- *
- * Sized by height with a free width, because the mark is wider than it is
- * tall and a square box would have shrunk it again to fit.
+ * The mark wears its Sadu frame here, in the `clear` variant. The plate is
+ * already a light ground, so the sand-filled frame would be a ground sitting
+ * on a ground; the open one takes the plate as its floor and contributes only
+ * the woven band. Square rather than height-with-free-width, and still 32px,
+ * because the plate's job of settling this lockup at 40px to match the emblem
+ * opposite it is worth more than the few pixels the frame costs the mark.
  *
  * It rides a quiet plate rather than sitting on the page. The mark has a
  * transparent ground and an open silhouette — a speech bubble with a weave
@@ -52,7 +47,7 @@ export function BrandMark({ className }: { className?: string }) {
         className,
       )}
     >
-      <img src={hakiyaMark} alt="" aria-hidden className="h-8 w-auto select-none" draggable={false} />
+      <SaduMark variant="clear" className="h-8 w-8 select-none" />
       <span
         aria-hidden
         className="font-heading text-[15px] font-bold leading-none tracking-tight text-foreground"

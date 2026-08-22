@@ -39,10 +39,11 @@ import hakiyaMark from "@/assets/hakiya-mark.png";
  * `docs/play-button-directions.md`: a hand-built repeat is a fraction of the
  * size and does not look like the thing anybody agreed to.
  *
- * Not used in `BrandMark`, deliberately. That lockup already rides a plate,
- * and the plate is there for the *wordmark* as much as the mark — so a framed
- * mark inside it would be a ground sitting on a ground. The frame earns its
- * place where the mark stands alone in a round slot.
+ * `BrandMark` uses the `clear` variant, and that is the whole reason `clear`
+ * exists. The lockup rides a plate that is there for the *wordmark* as much as
+ * the mark, so the plate cannot go — and the sand variant inside it would be a
+ * ground sitting on a ground. The open frame takes the plate as its floor and
+ * contributes only the band.
  */
 
 /**

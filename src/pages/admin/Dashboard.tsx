@@ -6,8 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Loader2, LogOut, BookOpen, Plus, Settings, Mic, PlayCircle, Upload, GraduationCap, Sparkles, BookMarked, TrendingUp, Image as ImageIcon, Laugh, MessageCircle, Languages, Activity, AlertTriangle, Ticket } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
-import hakiyaIconAsset from '@/assets/hakiya-mark.png';
-const lahjaIcon = hakiyaIconAsset;
+import { SaduMark } from '@/components/brand/SaduMark';
 import { useDialect } from '@/contexts/DialectContext';
 
 const Dashboard = () => {
@@ -88,7 +87,7 @@ const Dashboard = () => {
       <header className="border-b bg-card">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <img src={lahjaIcon} alt="Hakiya" className="h-10 w-10" />
+            <SaduMark title="Hakiya" variant="clear" className="h-10 w-10" />
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl font-bold font-heading">{roleLabel} Dashboard</h1>

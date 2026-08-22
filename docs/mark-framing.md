@@ -74,18 +74,32 @@ like a sticker.
 
 ### Where it is wired
 
-`ProfileEmblem`'s fallback, and only there for now. That slot is a round hole
-that previously took the bare mark with padding, a background and a ring —
-three CSS properties standing in for the plate the artwork did not have. All
-three are gone.
+Everywhere the mark stands on its own:
 
-**Not `BrandMark`**, deliberately, and the earlier note in this file suggesting
-otherwise was wrong. That lockup's plate is there for the *wordmark* as much as
-the mark, so it cannot be deleted by framing the mark; and a framed mark inside
-a plated lockup is a ground sitting on a ground. The frame earns its place
-where the mark stands alone in a round slot.
+| Surface | Variant | Size |
+|---|---|---|
+| `BrandMark` — the top-left lockup | `clear` | 32px |
+| `ProfileEmblem` fallback | `sand` | fills the 40px slot |
+| `Auth` | `clear` | 64px |
+| Admin dashboard / login / stories / story form | `clear` | 32–56px |
 
-The four admin pages that use `hakiya-mark.png` as a small icon are untouched.
+The rule is the ground behind it. `clear` on the app's own light chrome, where
+a sand disc would be a second and slightly wrong shade; `sand` on the emblem,
+because that slot rides the feed's action rail over video as well as sitting in
+light headers, and `sand` is the one that holds on both.
+
+`BrandMark` takes `clear` and keeps its plate. An earlier note here said the
+frame could delete that plate, and then that `BrandMark` should be left alone
+entirely — both were wrong. The plate serves the wordmark as much as the mark
+so it cannot go, and that is exactly the case `clear` is for: the plate becomes
+the frame's floor. The mark stays 32px there rather than growing to fill the
+frame, because the plate settling this lockup at 40px to match the emblem
+opposite it is worth more than the few pixels the band costs.
+
+The stacked lockup (`hakiya-logo.png` on the landing hero, onboarding and the
+learn header) is untouched. That file bakes the wordmark into the artwork, so
+framing it means rebuilding the lockup as a framed mark plus live text — a
+different change, and a bigger one.
 
 ## The reference art
 

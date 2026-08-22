@@ -8,8 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Eye, EyeOff } from 'lucide-react';
 import { z } from 'zod';
-import hakiyaIconAsset from '@/assets/hakiya-mark.png';
-const lahjaIcon = hakiyaIconAsset;
+import { SaduMark } from '@/components/brand/SaduMark';
 
 const authSchema = z.object({
   email: z.string().email('Please enter a valid email'),
@@ -92,7 +91,7 @@ const AdminLogin = () => {
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <img src={lahjaIcon} alt="Hakiya" className="h-14 w-14 mx-auto mb-4" />
+          <SaduMark title="Hakiya" variant="clear" className="h-14 w-14 mx-auto mb-4" />
           <CardTitle className="text-2xl font-bold">Admin Panel</CardTitle>
           <CardDescription>
             {isSignUp ? 'Create an account' : 'Sign in to manage content'}

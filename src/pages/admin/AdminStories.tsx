@@ -8,8 +8,7 @@ import { Loader2, Plus, ArrowLeft, BookOpen, Pencil, Trash2, ImagePlus } from 'l
 import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import hakiyaIconAsset from '@/assets/hakiya-mark.png';
-const lahjaIcon = hakiyaIconAsset;
+import { SaduMark } from '@/components/brand/SaduMark';
 
 const AdminStories = () => {
   const navigate = useNavigate();
@@ -76,7 +75,7 @@ const AdminStories = () => {
             <Button variant="ghost" size="icon" onClick={() => navigate('/admin')}>
               <ArrowLeft className="h-5 w-5" />
             </Button>
-            <img src={lahjaIcon} alt="Hakiya" className="h-8 w-8" />
+            <SaduMark title="Hakiya" variant="clear" className="h-8 w-8" />
             <h1 className="text-xl font-bold font-heading">Interactive Stories</h1>
           </div>
           <Button onClick={() => navigate('/admin/stories/new')}>

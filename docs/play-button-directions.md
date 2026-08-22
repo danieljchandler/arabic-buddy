@@ -19,6 +19,27 @@ on half the feed.
 Interactive comparison, with each option shown at 64&nbsp;px and 44&nbsp;px:
 <https://claude.ai/code/artifact/257995a6-4fb3-47f2-9152-f0e47984983e>
 
+## Decided: 01, cut from the cloth
+
+Shipped in `src/components/brand/SaduPlayButton.tsx`. Three things moved between
+the concept render and the vector:
+
+- **A 20-unit repeat**, not the banner's 8. The feed renders at 64px, so a unit
+  is about a pixel; at 20 the lozenges land near 9px and the lattice reads as
+  cloth down to about 40px.
+- **The repeat is phase-shifted** so a cell centre lands on the disc centre. The
+  disc centre (32) is not a multiple of 20, and off-phase the field sits
+  visibly heavier on one side.
+- **A crimson moat around the cut**, which the render did not have and needs.
+  Over a bright frame the hole fills with something close to the weave's cream
+  and the triangle stops reading; a band of ground colour around it fixes that,
+  and is what a bound woven edge looks like anyway. It looks redundant on a
+  dark still, so the component says so in a comment and the test guards it.
+
+The hairline rules from the render were dropped, as this doc predicted they
+would have to be. A cream rule at the rim stayed: it separates the disc from a
+pale frame, where crimson-on-sand alone left the edge soft.
+
 ## The constraint that decides this
 
 The feed renders the control at 64&nbsp;px (`h-16 w-16` in `src/pages/Feed.tsx`).

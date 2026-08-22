@@ -1,19 +1,22 @@
+import { useId } from "react";
+
 import { cn } from "@/lib/utils";
 
 /**
- * The play control, wearing a band of Sadu weave.
+ * The play control, cut out of a piece of Sadu cloth.
  *
- * The feed's play button was a black disc with a white triangle — the same
- * control every video app ships, and the one place on the front door where
- * nothing said whose app this is. The mark is a speech bubble ringed in sadu
- * and the backdrop carries a sadu border, so the button that starts a clip
- * wears the same cloth.
+ * This started as a woven band around an open centre. The ring is gone: the
+ * pattern belongs on the button, not drawn around a hole in the middle of one.
+ * So the disc *is* the cloth — the weave runs edge to edge in a plain repeat
+ * and the circle simply crops it, the way a round cut out of the banner would.
  *
- * Restraint is the whole point, so the ornament is a *ring*, not a disc: the
- * centre stays open and the frame behind it shows through, exactly as it did
- * before. The red is the band alone rather than a solid red blob over
- * somebody's video, which is what keeps this readable as a control instead of
- * a badge.
+ * The one thing the ring did get right survives, moved: the play glyph is a
+ * hole knocked clean through the cloth, so the frame behind still shows through
+ * the control. It shows through the triangle instead of through the centre,
+ * which reads as a control over someone's video rather than a badge covering
+ * it. That is why the disc is painted through a clip of "circle minus triangle"
+ * rather than painted solid with a cream triangle laid on top; the difference
+ * is invisible on a still and obvious the moment the clip is playing.
  *
  * The palette comes off `assets/sadu-banner.webp` rather than being picked by
  * eye, because this sits a few hundred pixels from that same banner on other
@@ -21,15 +24,10 @@ import { cn } from "@/lib/utils";
  * the rest of the feed's on-media chrome: these are the artwork's colours and
  * they do not follow the light/dark theme — the button always sits on video.
  *
- * The motif itself is `public/assets/sadu-tile.svg`'s — lozenge, contrasting
- * core, crossed threads between — bent around a ring, so the app has one sadu
- * vocabulary rather than a second one invented here.
- *
- * Eight motifs, not sixteen. The band is under 7px tall at the size the feed
- * uses it, and `SaduBubble` already records where this stops working: below
- * roughly 32px a woven band stops resolving and turns to noise. Eight repeats
- * keep a legible diamond–cross–diamond rhythm down to about 40px, which is
- * smaller than anything currently renders it.
+ * The motif is `public/assets/sadu-tile.svg`'s — a lattice of lozenges, each
+ * cell holding a filled lozenge with a contrasting core, small ones on the
+ * crossings between — so the app has one sadu vocabulary rather than a second
+ * one invented here.
  */
 
 /**
@@ -41,22 +39,52 @@ import { cn } from "@/lib/utils";
 const CRIMSON = "#8A1520";
 const CREAM = "#FAE7C7";
 
-/** One motif per eighth of the ring; each <g> is the same art, rotated. */
-const SEGMENTS = [0, 1, 2, 3, 4, 5, 6, 7];
-
 /**
- * The band, as two full circles in one path under `evenodd` — an annulus, so
- * the middle is genuinely transparent rather than filled and covered up.
+ * A twenty-unit repeat, which is a deliberate choice and not a round number.
+ * The feed renders this at 64px, so a unit is about a pixel: at 20 the lozenges
+ * land near 9px across and the lattice reads as cloth, while the 8-unit repeat
+ * this motif uses on the banner turns to noise at that size. `SaduBubble`
+ * records the same floor from the other side — a woven band stops resolving
+ * under roughly 32px — and 20 is what keeps a diamond-lattice-diamond rhythm
+ * legible down to about 40px, smaller than anything currently renders it.
  */
-const BAND =
-  "M0.6 32A31.4 31.4 0 1 0 63.4 32A31.4 31.4 0 1 0 0.6 32Z" +
-  "M7.4 32A24.6 24.6 0 1 0 56.6 32A24.6 24.6 0 1 0 7.4 32Z";
+const TILE = 20;
+/**
+ * Nudge the repeat so a cell centre lands exactly on the disc centre. Without
+ * this the tiling is off-phase against a circle whose centre (32) is not a
+ * multiple of 20, and the field sits visibly heavier on one side.
+ */
+const PHASE = (32 % TILE) - TILE / 2;
 
-/** The lozenge and its ground-coloured core — the tile's motif, bent to a ring. */
-const DIAMOND = "M32 0.6L38.54 4.77L32 7.4L25.46 4.77Z";
-const CORE = "M32 2.57L34.74 4.13L32 5.43L29.26 4.13Z";
-/** The crossed warp threads that sit between lozenges in the weave. */
-const CROSS = "M28.25 7.08L36.58 1.54M35.75 7.08L27.42 1.54";
+/** The lozenge in each cell, its core, and the small ones on the crossings. */
+const LOZENGE = 4.3;
+const CORE = 1.8;
+const CROSSING = 2.3;
+
+/** The disc, as a circle of the same radius the band used to reach. */
+const DISC = "M0.6 32A31.4 31.4 0 1 0 63.4 32A31.4 31.4 0 1 0 0.6 32Z";
+/**
+ * The glyph. Its centroid sits at x=32 rather than its bounding box, which is
+ * why the numbers look lopsided — a triangle centred by its box reads as
+ * shifted left.
+ */
+const GLYPH = "M25.6 21.6L44.8 32L25.6 42.4Z";
+
+const diamond = (cx: number, cy: number, r: number) =>
+  `M${cx} ${cy - r}L${cx + r} ${cy}L${cx} ${cy + r}L${cx - r} ${cy}Z`;
+
+/** The four half-lozenges that meet across a tile boundary to make one whole. */
+const CROSSINGS = [
+  [0, 0],
+  [TILE, 0],
+  [0, TILE],
+  [TILE, TILE],
+]
+  .map(([x, y]) => diamond(x, y, CROSSING))
+  .join("");
+
+/** The lattice itself: corner to corner through the tile's edge midpoints. */
+const LATTICE = `M0 ${TILE / 2}L${TILE / 2} 0L${TILE} ${TILE / 2}L${TILE / 2} ${TILE}Z`;
 
 export interface SaduPlayButtonProps {
   /** Sizing lives here — the art is a viewBox and fills whatever it is given. */
@@ -64,39 +92,75 @@ export interface SaduPlayButtonProps {
 }
 
 export function SaduPlayButton({ className }: SaduPlayButtonProps) {
+  // The feed renders one of these per card, so the ids cannot be constants —
+  // duplicate ids in a document make every button after the first depend on
+  // whether the first is still mounted.
+  const uid = useId().replace(/[^a-zA-Z0-9]/g, "");
+  const weave = `sadu-weave-${uid}`;
+  const cloth = `sadu-cloth-${uid}`;
+
   return (
     <svg
       viewBox="0 0 64 64"
-      className={cn("rounded-full backdrop-blur-[2px]", className)}
+      className={cn("rounded-full", className)}
       aria-hidden="true"
       focusable="false"
     >
-      {/* Enough scrim to hold the glyph against a bright frame, not enough to
-          hide the one behind it. */}
-      <circle cx="32" cy="32" r="25" fill="#120C0A" fillOpacity="0.45" />
+      <defs>
+        <pattern
+          id={weave}
+          width={TILE}
+          height={TILE}
+          patternUnits="userSpaceOnUse"
+          patternTransform={`translate(${PHASE} ${PHASE})`}
+        >
+          <rect width={TILE} height={TILE} fill={CRIMSON} />
+          <path d={CROSSINGS} fill={CREAM} />
+          <path d={LATTICE} fill="none" stroke={CREAM} strokeWidth="1.3" />
+          <path d={diamond(TILE / 2, TILE / 2, LOZENGE)} fill={CREAM} />
+          <path d={diamond(TILE / 2, TILE / 2, CORE)} fill={CRIMSON} />
+        </pattern>
 
-      <path d={BAND} fill={CRIMSON} fillRule="evenodd" />
-      {/* The rules the weave is worked between, as in the banner. */}
-      <circle cx="32" cy="32" r="30.95" fill="none" stroke={CREAM} strokeWidth="0.9" />
-      <circle cx="32" cy="32" r="25.05" fill="none" stroke={CREAM} strokeWidth="0.9" />
+        {/* Circle minus triangle, under evenodd — the cloth with the glyph
+            already missing from it, so nothing is ever painted there. */}
+        <clipPath id={cloth}>
+          <path d={`${DISC}${GLYPH}`} clipRule="evenodd" />
+        </clipPath>
+      </defs>
 
-      {SEGMENTS.map((i) => (
-        <g key={i} transform={`rotate(${i * 45} 32 32)`}>
-          <path d={DIAMOND} fill={CREAM} />
-          <path d={CORE} fill={CRIMSON} />
-          <path
-            d={CROSS}
-            transform="rotate(22.5 32 32)"
-            fill="none"
-            stroke={CREAM}
-            strokeWidth="0.85"
-            strokeLinecap="round"
-          />
-        </g>
-      ))}
+      <g clipPath={`url(#${cloth})`}>
+        <rect width="64" height="64" fill={`url(#${weave})`} />
 
-      {/* Cream rather than white: the triangle belongs to the weave above it. */}
-      <path d="M27.6 24.4L41.6 32L27.6 39.6Z" fill={CREAM} />
+        {/* A crimson moat around the cut. Without it the glyph is a hole in a
+            busy field, and over a bright frame the hole fills with something
+            close to the cream in the weave and stops reading as a triangle at
+            all. Half of this stroke falls inside the clip and is discarded;
+            what is left is a plain border of ground colour around the glyph,
+            which is also what a woven edge actually looks like when it is
+            bound. Do not "simplify" this away — it looks redundant on a dark
+            still and is the whole reason the button survives daylight. */}
+        <path
+          d={GLYPH}
+          fill="none"
+          stroke={CRIMSON}
+          strokeWidth="4.6"
+          strokeLinejoin="round"
+        />
+
+        {/* The rule the weave is worked between, as on the banner. It also
+            separates the disc from a pale frame, where crimson-on-sand alone
+            left the edge soft. */}
+        <circle cx="32" cy="32" r="30.8" fill="none" stroke={CREAM} strokeWidth="1.1" />
+      </g>
+
+      {/* The cut edge, drawn outside the clip so it survives at the boundary. */}
+      <path
+        d={GLYPH}
+        fill="none"
+        stroke={CREAM}
+        strokeWidth="1.2"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }

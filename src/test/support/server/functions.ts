@@ -73,28 +73,33 @@ export const streaming = (...pieces: string[]): FunctionResponse => ({
  *
  * A zero-length buffer would satisfy `res.blob()` and then fail in the media
  * element, which is the failure the old JSON fixture produced. This is a real
- * 44-byte WAV header describing 0 samples of 8kHz mono PCM — Chromium parses
- * it, reports a duration and fires `ended`, so playback state in the page
- * advances the way it does in production.
+ * WAV of 8kHz mono PCM — Chromium parses it, reports a duration and fires
+ * `ended`, so playback state in the page advances the way it does in
+ * production. The TTS fixtures stay at the 44-byte zero-sample header;
+ * storage downloads ask for actual duration so a page seeking into the file
+ * (TikTok's per-phrase playback) has somewhere to seek to.
  */
-function silentWav(): Uint8Array {
-  const bytes = new Uint8Array(44);
+export function silentWav(durationMs = 0): Uint8Array {
+  const sampleRate = 8000;
+  const samples = Math.round((sampleRate * durationMs) / 1000);
+  const dataBytes = samples * 2; // 16-bit mono
+  const bytes = new Uint8Array(44 + dataBytes);
   const view = new DataView(bytes.buffer);
   const ascii = (offset: number, text: string) => {
     for (let i = 0; i < text.length; i++) bytes[offset + i] = text.charCodeAt(i);
   };
   ascii(0, "RIFF");
-  view.setUint32(4, 36, true); // chunk size: header only, no samples
+  view.setUint32(4, 36 + dataBytes, true); // chunk size
   ascii(8, "WAVEfmt ");
   view.setUint32(16, 16, true); // PCM fmt chunk length
   view.setUint16(20, 1, true); // PCM
   view.setUint16(22, 1, true); // mono
-  view.setUint32(24, 8000, true); // sample rate
-  view.setUint32(28, 16000, true); // byte rate
+  view.setUint32(24, sampleRate, true); // sample rate
+  view.setUint32(28, sampleRate * 2, true); // byte rate
   view.setUint16(32, 2, true); // block align
   view.setUint16(34, 16, true); // bits per sample
   ascii(36, "data");
-  view.setUint32(40, 0, true); // no sample data
+  view.setUint32(40, dataBytes, true); // sample data length (silence = zeros)
   return bytes;
 }
 

@@ -21,8 +21,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { cn } from "@/lib/utils";
 import { Loader2, Trophy, RotateCcw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import hakiyaLogoAsset from "@/assets/hakiya-logo.png";
-const lahjaLogo = hakiyaLogoAsset;
+import { SaduMark } from "@/components/brand/SaduMark";
 import { recordContinue, clearContinue } from "@/lib/continueProgress";
 import { useDialect } from "@/contexts/DialectContext";
 import { usePageAiContext } from "@/contexts/AiAssistantContext";
@@ -411,7 +410,7 @@ const Learn = () => {
         <PageCorner />
         
         <Link to="/" className="flex items-center">
-          <img src={lahjaLogo} alt="Hakiya" className="h-8" />
+          <SaduMark title="Hakiya" variant="clear" className="h-8 w-8" />
         </Link>
         
         <div className="w-11" />

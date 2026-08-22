@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useProfileAvatar } from "@/hooks/useProfileAvatar";
-import hakiyaMark from "@/assets/hakiya-mark.png";
+import { SaduMark } from "@/components/brand/SaduMark";
 
 /**
  * Your face, as the way into your profile.
@@ -82,19 +82,23 @@ export function ProfileEmblemView({
           className="absolute inset-0 rounded-full ring-2 ring-primary ring-offset-2 ring-offset-transparent"
         />
       )}
-      <img
-        src={src ?? hakiyaMark}
-        alt=""
-        aria-hidden
-        onError={src ? () => setBrokenUrl(src) : undefined}
-        className={cn(
-          "h-full w-full rounded-full ring-1 ring-border",
-          // A photo or a woven medallion fills the disc; the mark is artwork
-          // with its own silhouette, so cropping it to a circle would cut it.
-          src ? "object-cover" : "bg-background object-contain p-0.5",
-        )}
-        draggable={false}
-      />
+      {src ? (
+        <img
+          src={src}
+          alt=""
+          aria-hidden
+          onError={() => setBrokenUrl(src)}
+          className="h-full w-full rounded-full object-cover ring-1 ring-border"
+          draggable={false}
+        />
+      ) : (
+        // The mark used to be dropped into this slot as bare artwork, which
+        // meant padding it, giving it a background and ringing it — three CSS
+        // properties standing in for the plate it did not have. The framed
+        // mark is already a disc with its own edge, so all of that goes, and
+        // the fallback stops looking like a picture that failed to fill.
+        <SaduMark className="h-full w-full" />
+      )}
     </Link>
   );
 }

@@ -44,23 +44,51 @@ So the six split in two:
 | 4 | Sadu band on sand | sand | yes |
 | 5 | App tile (squircle) | sand + ink rule | yes |
 
-## Recommendation
+## Built: 4 primary, 3 kept
 
-**4, sadu band on sand.** It keeps the file clear outside the frame, it holds on
-every ground the app uses, and it is the only one that is also *of* this app —
-the same woven band as `border-full-page.webp` and the traced play button, so
-the mark stops being the one piece of the identity that does not reference the
-cloth. **2** is the restrained version of the same idea and the safer favicon.
+Both ship as vector. `src/assets/sadu-frame-sand.svg` (option 4) and
+`src/assets/sadu-frame.svg` (option 3) are the band alone, traced from the
+render with `potrace` — 38 KB each, 15 KB gzipped. `src/components/brand/SaduMark.tsx`
+composites `hakiya-mark.png` into whichever frame is asked for:
 
-## What a framed mark would let us delete
+```tsx
+<SaduMark />                  // sand — the default
+<SaduMark variant="clear" />  // open middle, for light surfaces
+```
 
-`src/components/shell/BrandMark.tsx` draws its own plate in CSS
-(`bg-background/85`, a ring, a backdrop-blur) and its comment says why: the mark
-has a transparent ground and an open silhouette, so on the chooser it landed on
-the page's sadu border and pattern showed through pattern. A framed mark carries
-that plate in the artwork instead, at every size and on every surface.
+**The mark is not baked into either frame.** The frames carry only the band, so
+the logo keeps one source of truth on disk: clean the mark up later and both
+variants follow. `SaduMark.test.tsx` fails if a frame ever grows an `<image>`.
 
-Before any of this ships, the sadu band in 3 and 4 wants the treatment the play
-button got — traced to vector rather than shipped as a raster — for the same
-reason recorded in `docs/play-button-directions.md`: a woven band stops
-resolving as raster below about 32px, and the mark renders at 32.
+`sand` is the default because `clear` is the one that fails on a dark surface —
+the mark's outline is near-black and needs something light to be dark against.
+Defaulting to `clear` would put the broken case in every slot that forgets the
+prop. Reach for `clear` where the surface behind is already light and a sand
+disc would read as a second, slightly-wrong shade: the app's own sand pages, or
+over pale artwork.
+
+The band's inner edge is at r=23.393 of a 64 viewBox — a 73% opening — and the
+mark is set at 62% of the box. Nothing in the type system connects those two
+numbers, so a test does; crowding the band is what makes a framed mark look
+like a sticker.
+
+### Where it is wired
+
+`ProfileEmblem`'s fallback, and only there for now. That slot is a round hole
+that previously took the bare mark with padding, a background and a ring —
+three CSS properties standing in for the plate the artwork did not have. All
+three are gone.
+
+**Not `BrandMark`**, deliberately, and the earlier note in this file suggesting
+otherwise was wrong. That lockup's plate is there for the *wordmark* as much as
+the mark, so it cannot be deleted by framing the mark; and a framed mark inside
+a plated lockup is a ground sitting on a ground. The frame earns its place
+where the mark stands alone in a round slot.
+
+The four admin pages that use `hakiya-mark.png` as a small icon are untouched.
+
+## The reference art
+
+`docs/branding/mark-frames/` holds all six at 512px with alpha. 3 and 4 are
+rendered from the shipped vector, so they match what the app draws; 1, 2, 5 and
+6 are the raster explorations and stay that way.

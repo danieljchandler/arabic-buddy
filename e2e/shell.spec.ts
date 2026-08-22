@@ -122,8 +122,14 @@ test.describe("the emblem's picture", () => {
 
     // Anything but an empty grey disc. The mark is bundled, so the build
     // fingerprints its filename — the stem is the stable half of the URL.
+    //
+    // Two images, not one: the fallback is the mark inside its Sadu frame, and
+    // the frame is a separate file on purpose so the logo has a single source
+    // of truth. Both halves are pinned, because a frame with nothing in it and
+    // a mark with nothing around it are each a plausible way for this to break.
     const emblem = page.getByRole("link", { name: /Your account/ }).first();
-    await expect(emblem.locator("img")).toHaveAttribute("src", /hakiya-mark/);
+    await expect(emblem.locator('img[src*="hakiya-mark"]')).toBeVisible();
+    await expect(emblem.locator('img[src*="sadu-frame"]')).toBeVisible();
   });
 
   test("does not take the corner off the mark to do it", async ({ page, signInAs }) => {

@@ -10,9 +10,9 @@ import { PageCorner } from "@/components/shell/PageCorner";
 import { AppShell } from "@/components/layout/AppShell";
 import { Loader2, Mail, Lock, UserPlus, LogIn, Ticket } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-// The mark file, not hakiya-icon.png — that one is a 712 kB render whose
-// artwork floats inside a much larger canvas (see BrandMark's comment).
-import hakiyaMark from "@/assets/hakiya-mark.png";
+// The framed mark, in the `clear` variant: this page is the app's own light
+// ground, which is the floor the open frame is drawn to sit on.
+import { SaduMark } from "@/components/brand/SaduMark";
 import { LoadingPanel } from "@/components/loading/LoadingPanel";
 
 // Lightweight inline validators — dropping `zod` here saves ~12 kB gz on the Auth chunk.
@@ -179,7 +179,7 @@ const Auth = () => {
       <div className="max-w-sm mx-auto">
         {/* Logo and Title */}
         <div className="text-center mb-10">
-          <img src={hakiyaMark} alt="Hakiya" className="h-14 w-14 mx-auto mb-5 object-contain" />
+          <SaduMark title="Hakiya" variant="clear" className="h-16 w-16 mx-auto mb-5" />
           <h1 className="text-2xl font-bold text-foreground mb-2 font-heading">
             {isLogin ? "Welcome Back" : "Join Hakiya"}
           </h1>

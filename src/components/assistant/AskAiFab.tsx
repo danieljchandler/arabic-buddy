@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from "react";
 import { useLocation } from "react-router-dom";
-import { SaduBubble } from "@/components/brand/SaduBubble";
+import art from "@/assets/sadu-ask.svg";
 import { useAiAssistant } from "@/contexts/AiAssistantContext";
 import { cn } from "@/lib/utils";
 
@@ -44,18 +44,28 @@ export function AskAiFab({ className }: { className?: string }) {
       data-feedback-ignore="true"
       onClick={() => openChat()}
       className={cn(
-        "fixed right-3 bottom-20 z-40 flex items-center gap-1.5 rounded-full",
-        "bg-primary text-primary-foreground shadow-elegant transition-transform hover:scale-105",
+        "fixed right-3 bottom-20 z-40 flex flex-col items-center gap-1",
+        "transition-transform hover:scale-105 active:scale-95",
         "md:bottom-6 md:right-6",
-        "h-10 pe-3 ps-2.5",
         className,
       )}
     >
-      {/* The mark is a speech bubble woven with sadu, not a sparkle: the logo
-          is already a bubble with a sadu ring, and asking is what the button
-          does. "simple" because the full band turns to mush at this size. */}
-      <SaduBubble tone="ivory" className="h-[18px] w-auto shrink-0" />
-      <span className="text-[13px] font-semibold leading-none tracking-tight">Ask AI</span>
+      {/* The loud sadu cloth — the play button's rejected first face, kept in
+          docs/branding because it wanted an element that can afford to be
+          loud. This is that element. The Arabic question mark says what the
+          button takes; see sadu-ask.svg for why it is painted, not cut. */}
+      <img
+        src={art}
+        alt=""
+        aria-hidden="true"
+        draggable={false}
+        className="h-12 w-12 drop-shadow-[0_2px_10px_rgba(0,0,0,0.45)]"
+      />
+      {/* The label rides its own chip rather than trusting whatever is behind
+          the button — this floats over dark video and warm sand alike. */}
+      <span className="rounded-full bg-black/55 px-2 py-0.5 text-[10px] font-semibold leading-none text-white backdrop-blur">
+        Ask AI
+      </span>
     </button>
   );
 }

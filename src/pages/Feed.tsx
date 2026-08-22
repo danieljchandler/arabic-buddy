@@ -2,17 +2,14 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } fro
 import { createPortal } from "react-dom";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Bookmark, MessageCircleQuestion, Flame } from "lucide-react";
+import { Flame } from "lucide-react";
 import { AppDock } from "@/components/shell/AppDock";
-import { ProfileEmblemView } from "@/components/shell/ProfileEmblem";
 import { BrandMark } from "@/components/shell/BrandMark";
 import { SaduPlayButton } from "@/components/brand/SaduPlayButton";
 import { useDiscoverFeed } from "@/hooks/useDiscoverFeed";
 import type { DiscoverVideo } from "@/hooks/useDiscoverVideos";
 import { useSwipeSurfaces } from "@/hooks/useSwipeSurfaces";
 import { useAuth } from "@/hooks/useAuth";
-import { useUserVocabularyDueCount } from "@/hooks/useUserVocabulary";
-import { useProfileAvatar } from "@/hooks/useProfileAvatar";
 import { useDialect, type DialectModule } from "@/contexts/DialectContext";
 import { supabase } from "@/integrations/supabase/client";
 import { LoadingPanel } from "@/components/loading/LoadingPanel";
@@ -41,10 +38,11 @@ const prefetchPlayer = () => import("./DiscoverVideo");
  * Vertical scroll moves through clips. A leftward swipe opens the chooser —
  * see useSwipeSurfaces for why that is the forward direction.
  *
- * The action rail is where the old hub lists went. "Ask" was a destination you
- * navigated to and then had to feed with content; here it is a control on the
- * clip in front of you, which is what it always was. Your picture sits on top
- * of the rail, because the top-left corner is the mark's.
+ * There is no action rail. It once carried your picture, Save and Ask — and
+ * Save and Ask were labels wearing button shapes: Save just opened the player
+ * (where saving actually happens) and Ask navigated away. The clip already
+ * opens on a tap, the sadu Ask button floats over every screen, and your
+ * picture lives in the dock's fifth slot, so the rail had nothing left to say.
  *
  * Where Ingleezy's feed header carries For-you/Following, this one carries the
  * dialect: Hakiya has three of them, that choice is exactly what filters the
@@ -65,10 +63,6 @@ const Feed = () => {
   const { activeDialect, setDialect } = useDialect();
   const [seed] = useState(() => Math.floor(Math.random() * 100000));
   const { data: feed, isLoading } = useDiscoverFeed(seed);
-  const { data: dueStats } = useUserVocabularyDueCount();
-  // Read once here rather than inside each clip: every clip in the list is
-  // mounted, and each rail shows the same face.
-  const { data: profile } = useProfileAvatar();
   const swipe = useSwipeSurfaces({ onNext: () => navigate("/choose") });
 
   /**
@@ -244,13 +238,7 @@ const Feed = () => {
             <li key={video.id} className="relative h-[100dvh] snap-start snap-always">
               {/* The first clip fills the viewport on arrival, so its still is
                   the page's largest paint — not something to defer. */}
-              <Clip
-                video={video}
-                onOpen={openVideo}
-                eager={index === 0}
-                avatarUrl={profile?.avatarUrl ?? null}
-                hasNews={(dueStats?.dueCount ?? 0) > 0}
-              />
+              <Clip video={video} onOpen={openVideo} eager={index === 0} />
             </li>
           ))}
         </ul>
@@ -295,15 +283,10 @@ function Clip({
   video,
   onOpen,
   eager = false,
-  avatarUrl,
-  hasNews = false,
 }: {
   video: DiscoverVideo;
   onOpen: (video: DiscoverVideo) => void;
   eager?: boolean;
-  /** The viewer's picture, read once by the feed and handed down. */
-  avatarUrl: string | null;
-  hasNews?: boolean;
 }) {
   const mins = video.duration_seconds
     ? `${Math.floor(video.duration_seconds / 60)}:${String(video.duration_seconds % 60).padStart(2, "0")}`
@@ -343,26 +326,6 @@ function Clip({
         <SaduPlayButton className="h-16 w-16 drop-shadow-[0_2px_10px_rgba(0,0,0,0.45)] transition-transform active:scale-95" />
       </button>
 
-      {/* You, then the verbs. This rail is why the hub lists could go.
-          Transcript and Replay used to sit under these: both did nothing but
-          open the player, which is a whole screen with its own transcript and
-          its own scrubber, so they were two labels promising a third and a
-          fourth thing that turned out to be the same thing. Tapping the clip
-          already gets you there. Save opens it too, but it names something the
-          player is *for*; Ask is the one true destination on the rail.
-
-          Your picture takes the top slot, which is where the right-hand rail
-          puts an identity in every feed anyone has used. */}
-      <div className="absolute bottom-48 right-2 z-20 grid justify-items-center gap-4">
-        <ProfileEmblemView
-          avatarUrl={avatarUrl}
-          hasNews={hasNews}
-          className="ring-2 ring-white/60"
-        />
-        <RailButton icon={Bookmark} label="Save" onClick={open} />
-        <RailLink icon={MessageCircleQuestion} label="Ask" to="/how-do-i-say" />
-      </div>
-
       <div className="absolute inset-x-0 bottom-28 z-20 px-3.5">
         {mins && (
           <span className="mb-2 inline-block rounded bg-black/50 px-2 py-0.5 text-[10px] font-semibold tabular-nums">
@@ -384,44 +347,6 @@ function Clip({
         )}
       </div>
     </>
-  );
-}
-
-function RailButton({
-  icon: Icon,
-  label,
-  onClick,
-}: {
-  icon: typeof Bookmark;
-  label: string;
-  onClick: () => void;
-}) {
-  return (
-    <button type="button" onClick={onClick} aria-label={label} className="grid justify-items-center gap-1">
-      <span className="grid h-10 w-10 place-items-center rounded-full bg-black/45 backdrop-blur">
-        <Icon className="h-5 w-5" />
-      </span>
-      <span className="text-[10px] text-white/85">{label}</span>
-    </button>
-  );
-}
-
-function RailLink({
-  icon: Icon,
-  label,
-  to,
-}: {
-  icon: typeof Bookmark;
-  label: string;
-  to: string;
-}) {
-  return (
-    <Link to={to} aria-label={label} className="grid justify-items-center gap-1">
-      <span className="grid h-10 w-10 place-items-center rounded-full bg-black/45 backdrop-blur">
-        <Icon className="h-5 w-5" />
-      </span>
-      <span className="text-[10px] text-white/85">{label}</span>
-    </Link>
   );
 }
 

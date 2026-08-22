@@ -5,7 +5,6 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
-import { ProfileEmblem } from "@/components/shell/ProfileEmblem";
 import { BrandMark } from "@/components/shell/BrandMark";
 import { SKILL_BY_ID, type Activity } from "@/lib/surfaces";
 import { useSwipeSurfaces } from "@/hooks/useSwipeSurfaces";
@@ -61,12 +60,11 @@ const Skill = () => {
       <div {...swipe} className="flex flex-col gap-2.5">
         <header className="flex items-center justify-between gap-3">
           <BrandMark />
-          <div className="flex items-center gap-3">
-            <Link to="/choose" className="text-xs text-muted-foreground">
-              ← Skills
-            </Link>
-            <ProfileEmblem />
-          </div>
+          {/* The emblem used to close this row; it lives in the dock's fifth
+              slot now, so the header keeps just the way back. */}
+          <Link to="/choose" className="text-xs text-muted-foreground">
+            ← Skills
+          </Link>
         </header>
 
         {/* The skill wears its own tile colour, so arriving here reads as

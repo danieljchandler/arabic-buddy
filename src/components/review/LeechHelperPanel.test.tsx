@@ -62,18 +62,23 @@ interface Options {
   seed?: (backend: SupabaseBackend) => void;
 }
 
+/** The panel as the review screens mount it, for one deck's row. */
+const panel = (kind: LeechKind, mnemonic: string | null = null) => (
+  <LeechHelperPanel
+    kind={kind}
+    rowId={ROW_ID[kind]}
+    arabic="مطعم"
+    english="restaurant"
+    transliteration="mat'am"
+    dialect="Gulf"
+    mnemonic={mnemonic}
+    invalidateKeys={[["due-words"]]}
+  />
+);
+
 function render({ kind = "word", mnemonic = null, seed }: Options = {}) {
   const harness = renderWithProviders(
-    <LeechHelperPanel
-      kind={kind}
-      rowId={ROW_ID[kind]}
-      arabic="مطعم"
-      english="restaurant"
-      transliteration="mat'am"
-      dialect="Gulf"
-      mnemonic={mnemonic}
-      invalidateKeys={[["due-words"]]}
-    />,
+    panel(kind, mnemonic),
     {
       persona: "free",
       seed: (backend) => {
@@ -368,16 +373,44 @@ describe("saying the card is not stuck after all", () => {
     expect(updatesTo(backend, "user_phrases")[0]).not.toHaveProperty("production_lapses");
   });
 
-  it("keeps the panel on screen after clearing", async () => {
+  it("takes the panel off screen once the flag is cleared", async () => {
     render();
 
     await click(clearButton());
 
-    // Pinned: clearing the flag writes to the row but the panel keeps rendering
-    // as though the card were still a leech — it is the parent's refetch that
-    // eventually removes it. Until that lands, the learner sees the same
-    // "Stuck on this one?" prompt they just dismissed.
+    // The parent renders this panel off a cached row, so waiting for its
+    // refetch would leave the learner staring at the same "Stuck on this one?"
+    // prompt they just dismissed — for the rest of the session on a screen
+    // whose query does not refetch mid-review.
     await waitFor(() => expect(toasts.success).toHaveBeenCalled());
+    expect(screen.queryByText("Stuck on this one?")).not.toBeInTheDocument();
+  });
+
+  it("keeps the panel on screen when the write is rejected", async () => {
+    render({ seed: (b) => b.db.failNextWrite("user_vocabulary", 500) });
+
+    await click(clearButton());
+
+    // A rejected update comes back on PostgREST's `error` channel rather than
+    // as a throw, so a panel that hid on the attempt would tell the learner
+    // the card was cleared while the row is still flagged — and hide the only
+    // control that could try again.
+    await waitFor(() => expect(toasts.error).toHaveBeenCalledWith("Couldn't clear leech status"));
+    expect(toasts.success).not.toHaveBeenCalled();
+    expect(screen.getByText("Stuck on this one?")).toBeInTheDocument();
+  });
+
+  it("offers the panel again on the next stuck card", async () => {
+    const { rerender } = render();
+
+    await click(clearButton());
+    await waitFor(() => expect(screen.queryByText("Stuck on this one?")).not.toBeInTheDocument());
+
+    // The review screens swap the row under one mounted panel rather than
+    // remounting it, so a dismissal that outlived its card would silence the
+    // rescue for every leech after the first.
+    rerender(panel("phrase"));
+
     expect(screen.getByText("Stuck on this one?")).toBeInTheDocument();
   });
 });

@@ -134,3 +134,45 @@ Wired where there is room to draw it at a size all three elements survive:
 mark-only `SaduMark` instead — as does `BrandMark` and the profile emblem. That
 split is the same one recorded in `docs/play-button-directions.md`: a full
 lockup where there is room, a reduced form where there is not.
+
+
+## The surfaces that were still showing the old artwork
+
+Three, and they were the visible ones. Recorded here because the pattern
+repeated: each round wired the new artwork somewhere real and left the place
+the user actually looks unchanged.
+
+- **`public/favicon.png`** — the browser tab, the apple-touch icon, and *both*
+  PWA manifest icons all pointed at one 256px file of the bare mark. On an
+  installed phone that file is the app icon.
+- **`public/og-image.jpg`** — the share card, with the old lockup composited
+  into its top left.
+- **`BrandMark`** — the corner of every main screen, still assembling a plate,
+  a mark and a wordmark by hand.
+
+All three now use `hakiya-lockup.webp`.
+
+### The icon set
+
+`favicon.png` keeps the rounded plate with transparent corners, which is what a
+browser tab wants. Everything else is opaque, because iOS composites an
+apple-touch icon on black and Android crops a maskable one:
+
+| File | Size | Inset | Purpose |
+|---|---|---|---|
+| `favicon.png` | 256 | — | tab |
+| `apple-touch-icon.png` | 180 | 6% | iOS home screen |
+| `icon-192.png`, `icon-512.png` | 192 / 512 | 5% | manifest `any` |
+| `icon-maskable-512.png` | 512 | 19% | manifest `maskable` |
+
+The maskable inset is the real one: Android crops that icon to a circle, so
+without a safe zone it would eat the plate's corners and its crimson rule.
+
+### The corner
+
+`BrandMark` is now the lockup and nothing else. Its CSS plate, its ring, its
+backdrop-blur and the wordmark set beside it all existed because the artwork
+had neither a ground nor the English in it. It has both, so they went.
+
+48px rather than 40. The artwork is square and carries three things instead of
+one, and below roughly this size the English inside it stops resolving.
